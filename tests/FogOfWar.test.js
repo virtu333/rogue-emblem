@@ -1,6 +1,6 @@
 // FogOfWar.test.js — Fog of war vision range, constants, node generation
 import { describe, it, expect } from 'vitest';
-import { VISION_RANGES, FOG_CHANCE } from '../src/utils/constants.js';
+import { VISION_RANGES, FOG_CHANCE_BY_ACT } from '../src/utils/constants.js';
 import { Grid } from '../src/engine/Grid.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 
@@ -51,8 +51,11 @@ describe('Fog of War', () => {
       expect(VISION_RANGES.Flying).toBe(5);
     });
 
-    it('FOG_CHANCE is 0.3', () => {
-      expect(FOG_CHANCE).toBe(0.3);
+    it('FOG_CHANCE_BY_ACT scales fog frequency per act', () => {
+      expect(FOG_CHANCE_BY_ACT.act1).toBe(0.10);
+      expect(FOG_CHANCE_BY_ACT.act2).toBe(0.25);
+      expect(FOG_CHANCE_BY_ACT.act3).toBe(0.35);
+      expect(FOG_CHANCE_BY_ACT.finalBoss).toBe(0);
     });
   });
 
@@ -173,7 +176,7 @@ describe('Fog of War', () => {
           }
         }
       }
-      // With 30% chance, we should see some fog nodes
+      // With 10% chance in act1, we should see some fog nodes over 50 maps
       expect(fogCount).toBeGreaterThan(0);
       // But not all
       expect(fogCount).toBeLessThan(battleCount);

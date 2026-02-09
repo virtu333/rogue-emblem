@@ -2,7 +2,7 @@
 // No Phaser deps. Follows MapGenerator.js pattern.
 // Uses a fixed column-lane system (like Slay the Spire) to prevent edge crossings.
 
-import { NODE_TYPES, FOG_CHANCE } from '../utils/constants.js';
+import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
 
 // Number of fixed column lanes for the node map grid
 const NUM_COLUMNS = 5;
@@ -88,7 +88,7 @@ export function generateNodeMap(actId, actConfig) {
         battleParams: buildBattleParams(actId, type, r),
         completed: false,
       };
-      if (type === NODE_TYPES.BATTLE && Math.random() < FOG_CHANCE) {
+      if (type === NODE_TYPES.BATTLE && Math.random() < (FOG_CHANCE_BY_ACT[actId] || 0)) {
         node.fogEnabled = true;
       }
       nodes.push(node);

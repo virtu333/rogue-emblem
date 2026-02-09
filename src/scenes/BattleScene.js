@@ -57,6 +57,7 @@ import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
+import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
 
 export class BattleScene extends Phaser.Scene {
@@ -305,10 +306,23 @@ export class BattleScene extends Phaser.Scene {
         this.inspectionPanel.hide();
       } else if (this.pauseOverlay?.visible) {
         this.pauseOverlay.hide();
+      } else if (this.lootRosterVisible) {
+        this.hideLootRoster();
+      } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+        this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
       } else if (this.battleState === 'PLAYER_IDLE') {
         this.showPauseMenu();
       } else {
         this.handleCancel();
+      }
+    });
+    this.input.keyboard.on('keydown-R', () => {
+      if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+        if (this.lootRosterVisible) {
+          this.hideLootRoster();
+        } else {
+          this.showLootRoster();
+        }
       }
     });
     this.input.keyboard.on('keydown-D', () => {
@@ -2497,14 +2511,16 @@ export class BattleScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(priceLabel);
 
-        // Detail line (weapon might/range or consumable uses)
+        // Detail line (weapon might/range, consumable uses, or accessory effects)
         let detail = '';
         if (item.might !== undefined) detail = `Mt:${item.might} Hit:${item.hit}`;
+        else if (item.type === 'Accessory') detail = this.getAccessoryDetailText(item);
         else if (item.uses !== undefined) detail = `Uses: ${item.uses}`;
         if (detail) {
           const detailLabel = this.add.text(cx, cardY + 52, detail, {
-            fontFamily: 'monospace', fontSize: '9px', color: '#999999',
-          }).setOrigin(0.5).setDepth(702);
+            fontFamily: 'monospace', fontSize: '8px', color: '#999999',
+            wordWrap: { width: cardW - 10 }, align: 'center',
+          }).setOrigin(0.5, 0).setDepth(702);
           lootGroup.push(detailLabel);
         }
 
@@ -2562,12 +2578,43 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Instruction
-    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 30, 'Choose a reward', {
+    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a reward', {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(inst);
 
+    const hintText = this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#666666',
+    }).setOrigin(0.5).setDepth(701);
+    lootGroup.push(hintText);
+
     this.lootGroup = lootGroup;
+  }
+
+  /** Format accessory effects for loot card display. */
+  getAccessoryDetailText(item) {
+    const parts = [];
+    // Stat effects
+    if (item.effects) {
+      const stats = Object.entries(item.effects);
+      if (stats.length > 0) {
+        const grouped = stats.map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`);
+        parts.push(grouped.join('/'));
+      }
+    }
+    // Combat effects
+    if (item.combatEffects) {
+      const desc = {
+        'Wrath Band':     '+15 Crit <50% HP',
+        'Counter Seal':   'Block double attacks',
+        'Pursuit Ring':   'Double at +3 SPD',
+        'Nullify Ring':   'Negate effectiveness',
+        'Life Ring':      '+3 Atk/+2 Def >75% HP',
+        'Forest Charm':   '+10 Avo/+2 Def (forest)',
+      };
+      parts.push(desc[item.name] || 'Combat effect');
+    }
+    return parts.join('\n');
   }
 
   /** Simple text wrapping helper. */
@@ -2932,9 +2979,72 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** Show compact read-only roster viewer during loot screen. */
+  showLootRoster() {
+    if (this.lootRosterVisible) return;
+    this.lootRosterVisible = true;
+    this.lootRosterGroup = [];
+    const cam = this.cameras.main;
+    const roster = this.runManager.roster;
+
+    const panelW = 500;
+    const lineH = 18;
+    const headerH = 30;
+    const panelH = headerH + roster.length * lineH + 16;
+    const px = cam.centerX;
+    const py = cam.centerY;
+
+    const bg = this.add.rectangle(px, py, panelW, panelH, 0x111122, 0.95)
+      .setStrokeStyle(2, 0x8888cc).setDepth(750).setInteractive();
+    this.lootRosterGroup.push(bg);
+
+    const title = this.add.text(px, py - panelH / 2 + 14, 'ROSTER', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(751);
+    this.lootRosterGroup.push(title);
+
+    const startY = py - panelH / 2 + headerH + 8;
+    const leftX = px - panelW / 2 + 12;
+
+    for (let i = 0; i < roster.length; i++) {
+      const u = roster[i];
+      const y = startY + i * lineH;
+      const wpnName = u.weapon?.name || u.inventory?.[0]?.name || '-';
+      const accName = u.accessory?.name || '-';
+      const consumeNames = (u.consumables || []).map(c => c.name).join(', ') || '-';
+      const invCount = (u.inventory || []).length;
+      const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(u.level).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
+      const txt = this.add.text(leftX, y, line, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
+      }).setDepth(751);
+      this.lootRosterGroup.push(txt);
+    }
+
+    const hint = this.add.text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#888888',
+    }).setOrigin(0.5).setDepth(751);
+    this.lootRosterGroup.push(hint);
+  }
+
+  /** Hide loot roster viewer. */
+  hideLootRoster() {
+    if (!this.lootRosterVisible) return;
+    this.lootRosterVisible = false;
+    if (this.lootRosterGroup) {
+      for (const obj of this.lootRosterGroup) obj.destroy();
+      this.lootRosterGroup = null;
+    }
+  }
+
   /** Clean up loot screen and transition. */
   cleanupLootScreen(lootGroup) {
+    this.hideLootRoster();
+    if (this.lootSettingsOverlay) {
+      this.lootSettingsOverlay.hide();
+      this.lootSettingsOverlay = null;
+    }
     for (const obj of lootGroup) obj.destroy();
+    this.lootGroup = null;
     this.transitionAfterBattle();
   }
 

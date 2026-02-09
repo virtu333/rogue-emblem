@@ -302,4 +302,39 @@ describe('LootSystem', () => {
       expect(inv.length).toBeGreaterThanOrEqual(SHOP_ITEM_COUNT.min);
     });
   });
+
+  describe('boss loot (isBoss flag)', () => {
+    it('boss flag shifts distribution toward rare/accessory/forge', () => {
+      const counts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const bossCountsObj = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const trials = 200;
+      for (let i = 0; i < trials; i++) {
+        const normal = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, false);
+        for (const c of normal) counts[c.type] = (counts[c.type] || 0) + 1;
+        const boss = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true);
+        for (const c of boss) bossCountsObj[c.type] = (bossCountsObj[c.type] || 0) + 1;
+      }
+      // Boss should have more rare+accessory+forge than normal
+      const normalHighValue = counts.rare + counts.accessory + counts.forge;
+      const bossHighValue = bossCountsObj.rare + bossCountsObj.accessory + bossCountsObj.forge;
+      expect(bossHighValue).toBeGreaterThan(normalHighValue);
+    });
+
+    it('boss gold range is 1.5x normal', () => {
+      const [min, max] = gameData.lootTables.act2.goldRange;
+      const bossMin = Math.floor(min * 1.5);
+      const bossMax = Math.floor(max * 1.5);
+      for (let i = 0; i < 100; i++) {
+        const choices = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true);
+        const goldChoices = choices.filter(c => c.type === 'gold');
+        for (const c of goldChoices) {
+          expect(c.goldAmount).toBeGreaterThanOrEqual(bossMin);
+          expect(c.goldAmount).toBeLessThanOrEqual(bossMax);
+        }
+      }
+    });
+  });
 });
