@@ -5,6 +5,7 @@ import { MAX_SLOTS, getSlotSummary, deleteSlot, setActiveSlot, getMetaKey } from
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { loadRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
+import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -139,6 +140,10 @@ export class SlotPickerScene extends Phaser.Scene {
 
     // Create MetaProgressionManager for this slot
     const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
+    const cloud = this.registry.get('cloud');
+    if (cloud) {
+      meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
+    }
     this.registry.set('meta', meta);
 
     const audio = this.registry.get('audio');
@@ -194,6 +199,8 @@ export class SlotPickerScene extends Phaser.Scene {
     yesBtn.on('pointerout', () => yesBtn.setColor('#cc5555'));
     yesBtn.on('pointerdown', () => {
       deleteSlot(slot);
+      const cloud = this.registry.get('cloud');
+      if (cloud) deleteSlotCloud(cloud.userId, slot);
       this.confirmDialog.forEach(o => o.destroy());
       this.confirmDialog = null;
       this.drawSlots();

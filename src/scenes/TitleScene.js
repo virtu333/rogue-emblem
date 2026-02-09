@@ -5,6 +5,7 @@ import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { HowToPlayOverlay } from '../ui/HowToPlayOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { signOut } from '../cloud/supabaseClient.js';
+import { pushMeta } from '../cloud/CloudSync.js';
 import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAllSlotData } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 
@@ -671,6 +672,10 @@ export class TitleScene extends Phaser.Scene {
     }
 
     const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(nextSlot));
+    const cloud = this.registry.get('cloud');
+    if (cloud) {
+      meta.onSave = (payload) => pushMeta(cloud.userId, nextSlot, payload);
+    }
     meta._save();
     this.registry.set('meta', meta);
     setActiveSlot(nextSlot);

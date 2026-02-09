@@ -76,7 +76,8 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Auto-save on every node map entry
     const cloud = this.registry.get('cloud');
-    saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, d) : null);
+    const slot = this.registry.get('activeSlot');
+    saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
 
     this.pauseOverlay = null;
     this.settingsOverlay = null;
@@ -107,7 +108,8 @@ export class NodeMapScene extends Phaser.Scene {
       },
       onAbandon: () => {
         const cloud = this.registry.get('cloud');
-        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId) : null);
+        const slot = this.registry.get('activeSlot');
+        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
         this.runManager.failRun();
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
@@ -249,7 +251,8 @@ export class NodeMapScene extends Phaser.Scene {
           this.rosterOverlay = null;
           // Auto-save after roster changes
           const cloud = this.registry.get('cloud');
-          saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, d) : null);
+          const slot = this.registry.get('activeSlot');
+          saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
           this.drawMap(); // refresh roster bar
         },
       });

@@ -565,7 +565,8 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', () => {
       const cloud = this.registry.get('cloud');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId) : null);
+      const slot = this.registry.get('activeSlot');
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       this.scene.start('NodeMap', { gameData: this.gameData });

@@ -310,6 +310,7 @@ export class BattleScene extends Phaser.Scene {
         this.hideLootRoster();
       } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
         this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
+        this.lootSettingsOverlay.show();
       } else if (this.battleState === 'PLAYER_IDLE') {
         this.showPauseMenu();
       } else {
@@ -800,7 +801,8 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'PAUSED';
     const abandonCb = this.runManager ? () => {
       const cloud = this.registry.get('cloud');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId) : null);
+      const slot = this.registry.get('activeSlot');
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       this.runManager.failRun();
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
