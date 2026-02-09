@@ -12,6 +12,7 @@ import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import {
   ACT_CONFIG, ACT_SEQUENCE, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS,
   STARTING_GOLD, GOLD_BOSS_BONUS, BOSS_STAT_BONUS, XP_STAT_NAMES,
+  ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
 const opts = parseArgs({ trials: 200, seed: 42, csv: false, verbose: false, meta: 0 });
@@ -31,11 +32,18 @@ function getMetaEffects(level) {
   return { statBonuses: { HP: 6, STR: 2, DEF: 2, SPD: 2, SKL: 2, RES: 1 }, goldBonus: 300, battleGoldMultiplier: 0.4, extraVulnerary: 1, deployBonus: 1, rosterCapBonus: 2 };
 }
 
-function getEnemyCount(act) {
-  if (act === 'act1') return 2;
-  if (act === 'act2') return 5 + Math.floor(Math.random() * 3); // 5-7
-  if (act === 'act3') return 7 + Math.floor(Math.random() * 3); // 7-9
-  return 10 + Math.floor(Math.random() * 3); // 10-12
+function getEnemyCount(act, deployCount, row, isBoss) {
+  const actOffsets = ENEMY_COUNT_OFFSET[act];
+  let offset;
+  if (actOffsets) {
+    if (isBoss && actOffsets.boss) offset = actOffsets.boss;
+    else if (row !== undefined && actOffsets[row]) offset = actOffsets[row];
+    else offset = actOffsets.default || [1, 2];
+  } else {
+    offset = [2, 3];
+  }
+  const [minOff, maxOff] = offset;
+  return deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
 }
 
 function getEnemyLevel(act, levelRange) {
@@ -238,8 +246,9 @@ function simulateRun(metaLevel, verbose) {
         totalBattles++;
         const isBoss = node.type === NODE_TYPES.BOSS;
 
-        // Create enemies
-        const enemyCount = isBoss ? getEnemyCount(actId) + 1 : getEnemyCount(actId);
+        // Create enemies — deploy+offset formula
+        const deployCount = Math.min(roster.length, DEPLOY_LIMITS[actId]?.max || 4);
+        const enemyCount = getEnemyCount(actId, deployCount, node.row, isBoss);
         const enemies = [];
         for (let i = 0; i < enemyCount; i++) {
           const cls = pickEnemyClass(actId);

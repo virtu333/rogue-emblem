@@ -9,6 +9,7 @@ import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import {
   STARTING_GOLD, ACT_CONFIG, NODE_TYPES, GOLD_PER_KILL_BASE, GOLD_PER_LEVEL_BONUS,
   GOLD_BATTLE_BONUS, GOLD_BOSS_BONUS, GOLD_SKIP_LOOT_MULTIPLIER,
+  DEPLOY_LIMITS, ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
 const opts = parseArgs({ trials: 500, seed: 42, csv: false, meta: 0 });
@@ -33,25 +34,20 @@ function getMetaEffects(level) {
   return { goldBonus: 300, battleGoldMultiplier: 0.4, lootWeaponWeightBonus: 20 }; // max
 }
 
-// Map tiles → enemy count (from enemies.json)
-function getEnemyCount(tiles) {
-  const countMap = data.enemies.enemyCountByTiles;
-  // Find nearest tile count
-  const keys = Object.keys(countMap).map(Number).sort((a, b) => a - b);
-  let best = keys[0];
-  for (const k of keys) {
-    if (k <= tiles) best = k;
+// Deploy+offset enemy count formula
+function getEnemyCount(act, row, isBoss) {
+  const deployCount = DEPLOY_LIMITS[act]?.max || 4;
+  const actOffsets = ENEMY_COUNT_OFFSET[act];
+  let offset;
+  if (actOffsets) {
+    if (isBoss && actOffsets.boss) offset = actOffsets.boss;
+    else if (row !== undefined && actOffsets[row]) offset = actOffsets[row];
+    else offset = actOffsets.default || [1, 2];
+  } else {
+    offset = [2, 3];
   }
-  const [min, max] = countMap[String(best)];
-  return min + Math.floor(Math.random() * (max - min + 1));
-}
-
-// Map size by act
-function getMapTiles(act) {
-  if (act === 'act1') return Math.random() < 0.5 ? 80 : 96;
-  if (act === 'act2') return Math.random() < 0.5 ? 140 : 160;
-  if (act === 'act3') return Math.random() < 0.5 ? 192 : 216;
-  return 280; // finalBoss
+  const [minOff, maxOff] = offset;
+  return deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
 }
 
 // Estimate enemy level by act
@@ -89,9 +85,8 @@ function simulateRunEconomy(strategy, metaLevel) {
 
       if (node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) {
         battleCount++;
-        const tiles = getMapTiles(act);
-        const enemyCount = getEnemyCount(tiles);
         const isBoss = node.type === NODE_TYPES.BOSS;
+        const enemyCount = getEnemyCount(act, node.row, isBoss);
 
         // Calculate kill gold
         let killGold = 0;

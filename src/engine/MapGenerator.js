@@ -1,7 +1,7 @@
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
 
-import { TERRAIN, DEPLOY_LIMITS } from '../utils/constants.js';
+import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET } from '../utils/constants.js';
 
 /**
  * Generate a full battle configuration from params + game data.
@@ -10,7 +10,7 @@ import { TERRAIN, DEPLOY_LIMITS } from '../utils/constants.js';
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
-  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange } = params;
+  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits } = deps;
 
   // 1. Pick map size
@@ -42,7 +42,10 @@ export function generateBattle(params, deps) {
 
   // 6. Enemy composition
   const pool = enemies.pools[act];
-  const enemyCount = rollEnemyCount(sizeEntry.tiles, enemies.enemyCountByTiles);
+  const enemyCount = rollEnemyCount({
+    deployCount: spawnCount, act, row, isBoss,
+    tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles,
+  });
   const enemySpawns = generateEnemies(
     mapLayout, template, cols, rows, terrain,
     pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange
@@ -320,15 +323,24 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
   return spawns;
 }
 
-function rollEnemyCount(tiles, countTable) {
-  // Find closest tile count in table
-  const keys = Object.keys(countTable).map(Number).sort((a, b) => a - b);
-  let best = keys[0];
-  for (const k of keys) {
-    if (k <= tiles) best = k;
+function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap }) {
+  const actOffsets = ENEMY_COUNT_OFFSET[act];
+  let offset;
+  if (actOffsets) {
+    if (isBoss && actOffsets.boss) offset = actOffsets.boss;
+    else if (row !== undefined && actOffsets[row]) offset = actOffsets[row];
+    else offset = actOffsets.default || [1, 2];
+  } else {
+    offset = [2, 3]; // fallback for unmapped acts (postAct)
   }
-  const [min, max] = countTable[String(best)];
-  return min + Math.floor(Math.random() * (max - min + 1));
+  const [minOff, maxOff] = offset;
+  const count = deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
+
+  // Density safety cap from tile table (prevents overcrowding)
+  const keys = Object.keys(densityCap).map(Number).sort((a, b) => a - b);
+  let cap = Infinity;
+  for (const k of keys) { if (k <= tiles) cap = densityCap[String(k)][1]; }
+  return Math.min(count, cap);
 }
 
 // --- Reachability check ---

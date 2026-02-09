@@ -48,6 +48,15 @@ export const DEPLOY_LIMITS = {
   finalBoss: { min: 4, max: 6 },
 };
 
+// Enemy count = deployCount + roll(min, max)
+// Pattern matches ACT_LEVEL_SCALING in NodeMapGenerator.js
+export const ENEMY_COUNT_OFFSET = {
+  act1:      { 0: [0, 0], 1: [0, 0], 2: [0, 1], 3: [0, 1], default: [1, 2], boss: [1, 2] },
+  act2:      { 0: [1, 1], 1: [1, 2], default: [2, 3], boss: [3, 4] },
+  act3:      { 0: [2, 2], default: [3, 4], boss: [4, 5] },
+  finalBoss: { boss: [4, 6] },
+};
+
 // Colors for unit factions
 export const FACTION_COLORS = {
   player: 0x3366cc,  // Blue

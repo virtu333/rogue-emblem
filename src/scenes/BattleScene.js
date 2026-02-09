@@ -107,6 +107,7 @@ export class BattleScene extends Phaser.Scene {
     // Set deployCount for MapGenerator spawn generation
     const deployCount = deployedRoster ? deployedRoster.length : 2;
     this.battleParams.deployCount = deployCount;
+    this.battleParams.isBoss = !!this.isBoss;
 
     // Generate battle from templates
     this.battleConfig = generateBattle(this.battleParams, this.gameData);

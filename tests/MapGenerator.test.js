@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateBattle } from '../src/engine/MapGenerator.js';
-import { DEPLOY_LIMITS, ACT_SEQUENCE } from '../src/utils/constants.js';
+import { DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -260,6 +260,59 @@ describe('MapGenerator', () => {
         if (spawn.isBoss) continue;
         expect(spawn.level).toBeGreaterThanOrEqual(min);
         expect(spawn.level).toBeLessThanOrEqual(max);
+      }
+    });
+  });
+
+  describe('deploy-aware enemy count', () => {
+    it('enemies >= deployCount for all acts', () => {
+      for (const act of ['act1', 'act2', 'act3', 'finalBoss']) {
+        for (let i = 0; i < 10; i++) {
+          const deployCount = DEPLOY_LIMITS[act]?.max || 4;
+          const config = generateBattle({ act, objective: 'rout', deployCount }, data);
+          const nonBossEnemies = config.enemySpawns.filter(e => !e.isBoss).length;
+          expect(nonBossEnemies).toBeGreaterThanOrEqual(deployCount);
+        }
+      }
+    });
+
+    it('act1 rows 0-1 produce exactly deployCount enemies (offset [0,0])', () => {
+      for (let i = 0; i < 20; i++) {
+        const deployCount = 2;
+        const config = generateBattle({ act: 'act1', objective: 'rout', deployCount, row: 0 }, data);
+        expect(config.enemySpawns.length).toBe(deployCount);
+      }
+    });
+
+    it('act1 row 4+ produces more enemies (offset [1,2])', () => {
+      const counts = new Set();
+      for (let i = 0; i < 30; i++) {
+        const deployCount = 3;
+        const config = generateBattle({ act: 'act1', objective: 'rout', deployCount, row: 4 }, data);
+        counts.add(config.enemySpawns.length);
+        expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount + 1);
+        expect(config.enemySpawns.length).toBeLessThanOrEqual(deployCount + 2);
+      }
+    });
+
+    it('boss fights use boss offset (higher enemy count)', () => {
+      for (let i = 0; i < 10; i++) {
+        const deployCount = 4;
+        const config = generateBattle({ act: 'act2', objective: 'seize', deployCount, isBoss: true }, data);
+        // act2 boss offset is [3,4], so total enemies = 4 + 3..4 = 7..8
+        // (seize boss is included in enemySpawns, counted within rollEnemyCount total)
+        expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount + 3);
+      }
+    });
+
+    it('missing row falls back to default offset', () => {
+      for (let i = 0; i < 10; i++) {
+        const deployCount = 4;
+        // act2 row 5 has no specific entry, should use default [2,3]
+        const config = generateBattle({ act: 'act2', objective: 'rout', deployCount, row: 5 }, data);
+        const count = config.enemySpawns.length;
+        expect(count).toBeGreaterThanOrEqual(deployCount + 2);
+        expect(count).toBeLessThanOrEqual(deployCount + 3);
       }
     });
   });

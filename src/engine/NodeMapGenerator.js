@@ -200,7 +200,7 @@ function pickNodeType(row, totalRows) {
  */
 function buildBattleParams(actId, type, row) {
   if (type === NODE_TYPES.BOSS) {
-    return { act: actId, objective: 'seize' };
+    return { act: actId, objective: 'seize', row };
   }
   if (type === NODE_TYPES.REST || type === NODE_TYPES.SHOP) {
     return null;
@@ -214,6 +214,8 @@ function buildBattleParams(actId, type, row) {
     const objective = canSeize && Math.random() < 0.4 ? 'seize' : 'rout';
     params = { act: actId, objective };
   }
+
+  if (row !== undefined) params.row = row;
 
   const scaling = ACT_LEVEL_SCALING[actId];
   if (scaling && row !== undefined) {
