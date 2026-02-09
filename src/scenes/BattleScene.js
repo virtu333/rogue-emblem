@@ -48,6 +48,7 @@ import {
 } from '../engine/SkillSystem.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
+import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
 import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
@@ -280,12 +281,14 @@ export class BattleScene extends Phaser.Scene {
     // Instructions (bottom center)
     this.instructionText = this.add.text(
       this.cameras.main.width / 2, this.cameras.main.height - 16,
-      'Right-click: inspect  |  ESC: cancel/back  |  [D] Danger',
+      'Right-click: inspect  |  [V] Details  |  ESC: cancel  |  [D] Danger',
       { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
     ).setOrigin(0.5).setDepth(100);
 
-    // Unit inspection panel (replaces StatPanel)
+    // Unit inspection tooltip (right-click shows name + "View Unit [V]")
     this.inspectionPanel = new UnitInspectionPanel(this);
+    // Full unit detail overlay (V key or click tooltip)
+    this.unitDetailOverlay = new UnitDetailOverlay(this, this.gameData);
 
     // Danger zone overlay
     this.dangerZone = new DangerZoneOverlay(this, this.grid);
@@ -301,9 +304,18 @@ export class BattleScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer) => {
       if (pointer.rightButtonDown()) this.onRightClick(pointer);
     });
+    this.input.keyboard.on('keydown-V', () => {
+      if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
+        this.openUnitDetailOverlay();
+      }
+    });
     this.input.keyboard.on('keydown-ESC', () => {
-      if (this.inspectionPanel.visible) {
+      if (this.unitDetailOverlay?.visible) {
+        this.unitDetailOverlay.hide();
+      } else if (this.inspectionPanel.visible) {
         this.inspectionPanel.hide();
+        this.grid.clearHighlights();
+        this.grid.clearAttackHighlights();
       } else if (this.pauseOverlay?.visible) {
         this.pauseOverlay.hide();
       } else if (this.lootRosterVisible) {
@@ -721,6 +733,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onRightClick(pointer) {
+    // Close any open detail overlay first
+    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
+
     // Right-click = unit inspection toggle
     if (this.inspectionPanel.visible) {
       this.inspectionPanel.hide();
@@ -767,6 +782,12 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  openUnitDetailOverlay() {
+    const { _unit, _terrain, _gameData } = this.inspectionPanel;
+    if (!_unit) return;
+    this.unitDetailOverlay.show(_unit, _terrain, _gameData);
   }
 
   handleCancel() {
@@ -826,13 +847,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleIdleClick(gp) {
+    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     const unit = this.getUnitAt(gp.col, gp.row);
     if (unit && unit.faction === 'player' && !unit.hasActed) {
       this.inspectionPanel.hide();
+      this.grid.clearHighlights();
+      this.grid.clearAttackHighlights();
       this.selectUnit(unit);
     } else {
-      // Left-click on empty or non-selectable: hide inspection panel
+      // Left-click on empty or non-selectable: hide inspection tooltip + ranges
       this.inspectionPanel.hide();
+      this.grid.clearHighlights();
+      this.grid.clearAttackHighlights();
     }
   }
 
@@ -882,6 +908,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Unit selection & movement ---
 
   selectUnit(unit) {
+    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     this.inspectionPanel.hide();
     this.dangerZone.hide();
     this.selectedUnit = unit;
