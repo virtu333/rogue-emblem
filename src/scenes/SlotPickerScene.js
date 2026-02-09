@@ -77,14 +77,20 @@ export class SlotPickerScene extends Phaser.Scene {
       }).setOrigin(0.5);
       this.slotCards.push(emptyText);
     } else {
-      // Renown
-      const renownText = this.add.text(x, y - 50, `Renown: ${summary.renown}`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#88ccff',
+      // Valor
+      const valorText = this.add.text(x, y - 58, `Valor: ${summary.valor}`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#ffcc44',
       }).setOrigin(0.5);
-      this.slotCards.push(renownText);
+      this.slotCards.push(valorText);
+
+      // Supply
+      const supplyText = this.add.text(x, y - 42, `Supply: ${summary.supply}`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#44ccbb',
+      }).setOrigin(0.5);
+      this.slotCards.push(supplyText);
 
       // Runs completed
-      const runsText = this.add.text(x, y - 30, `Runs: ${summary.runsCompleted}`, {
+      const runsText = this.add.text(x, y - 26, `Runs: ${summary.runsCompleted}`, {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       }).setOrigin(0.5);
       this.slotCards.push(runsText);

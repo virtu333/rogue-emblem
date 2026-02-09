@@ -1,7 +1,11 @@
-// MetaProgressionManager.js — Pure class: persistent meta-progression (renown + upgrades)
+// MetaProgressionManager.js — Pure class: persistent meta-progression (dual currency + upgrades)
 // No Phaser deps. Follows SettingsManager pattern.
 
-import { RENOWN_PER_ACT, RENOWN_PER_BATTLE, RENOWN_VICTORY_BONUS, MAX_STARTING_SKILLS } from '../utils/constants.js';
+import {
+  VALOR_PER_ACT, VALOR_PER_BATTLE, VALOR_VICTORY_BONUS,
+  SUPPLY_PER_ACT, SUPPLY_PER_BATTLE, SUPPLY_VICTORY_BONUS,
+  CATEGORY_CURRENCY, MAX_STARTING_SKILLS
+} from '../utils/constants.js';
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 
@@ -14,7 +18,8 @@ export class MetaProgressionManager {
     this.onSave = null;
     this.upgradesData = upgradesData;
     this.storageKey = storageKey;
-    this.totalRenown = 0;
+    this.totalValor = 0;
+    this.totalSupply = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};  // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
@@ -23,7 +28,17 @@ export class MetaProgressionManager {
       const raw = localStorage.getItem(this.storageKey);
       if (raw) {
         const saved = JSON.parse(raw);
-        if (typeof saved.totalRenown === 'number') this.totalRenown = saved.totalRenown;
+
+        // Migration: old single-currency saves have totalRenown but no totalValor
+        if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
+          // Give full renown to BOTH currencies
+          this.totalValor = saved.totalRenown;
+          this.totalSupply = saved.totalRenown;
+        } else {
+          if (typeof saved.totalValor === 'number') this.totalValor = saved.totalValor;
+          if (typeof saved.totalSupply === 'number') this.totalSupply = saved.totalSupply;
+        }
+
         if (saved.purchasedUpgrades) this.purchasedUpgrades = saved.purchasedUpgrades;
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
@@ -31,12 +46,21 @@ export class MetaProgressionManager {
     } catch (_) { /* incognito / quota exceeded */ }
   }
 
-  getTotalRenown() {
-    return this.totalRenown;
+  getTotalValor() {
+    return this.totalValor;
   }
 
-  addRenown(amount) {
-    this.totalRenown += amount;
+  getTotalSupply() {
+    return this.totalSupply;
+  }
+
+  addValor(amount) {
+    this.totalValor += amount;
+    this._save();
+  }
+
+  addSupply(amount) {
+    this.totalSupply += amount;
     this._save();
   }
 
@@ -61,10 +85,19 @@ export class MetaProgressionManager {
     return upgrade.costs[level];
   }
 
+  /** Get the currency type ('valor' or 'supply') for an upgrade by its ID. */
+  getCurrencyForUpgrade(id) {
+    const upgrade = this.upgradesData.find(u => u.id === id);
+    if (!upgrade) return 'supply';
+    return CATEGORY_CURRENCY[upgrade.category] || 'supply';
+  }
+
   canAfford(id) {
     const cost = this.getNextCost(id);
     if (cost === null) return false;
-    return this.totalRenown >= cost;
+    const currency = this.getCurrencyForUpgrade(id);
+    const balance = currency === 'valor' ? this.totalValor : this.totalSupply;
+    return balance >= cost;
   }
 
   isMaxed(id) {
@@ -76,7 +109,12 @@ export class MetaProgressionManager {
   purchaseUpgrade(id) {
     if (!this.canAfford(id)) return false;
     const cost = this.getNextCost(id);
-    this.totalRenown -= cost;
+    const currency = this.getCurrencyForUpgrade(id);
+    if (currency === 'valor') {
+      this.totalValor -= cost;
+    } else {
+      this.totalSupply -= cost;
+    }
     this.purchasedUpgrades[id] = (this.purchasedUpgrades[id] || 0) + 1;
     this._save();
     return true;
@@ -196,7 +234,8 @@ export class MetaProgressionManager {
   }
 
   reset() {
-    this.totalRenown = 0;
+    this.totalValor = 0;
+    this.totalSupply = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};
@@ -205,7 +244,8 @@ export class MetaProgressionManager {
 
   _save() {
     const payload = {
-      totalRenown: this.totalRenown,
+      totalValor: this.totalValor,
+      totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
       skillAssignments: this.skillAssignments,
@@ -218,16 +258,19 @@ export class MetaProgressionManager {
 }
 
 /**
- * Calculate renown earned from a run.
+ * Calculate currencies earned from a run.
+ * Both currencies earn at the same rate (intentionally doubles effective spending power).
  * @param {number} actIndex - 0-based act reached
  * @param {number} completedBattles - total battles won
  * @param {boolean} isVictory - whether the run was won
- * @returns {number}
+ * @returns {{ valor: number, supply: number }}
  */
-export function calculateRenown(actIndex, completedBattles, isVictory) {
-  let renown = 0;
-  renown += actIndex * RENOWN_PER_ACT;
-  renown += completedBattles * RENOWN_PER_BATTLE;
-  if (isVictory) renown += RENOWN_VICTORY_BONUS;
-  return renown;
+export function calculateCurrencies(actIndex, completedBattles, isVictory) {
+  const valor = actIndex * VALOR_PER_ACT
+    + completedBattles * VALOR_PER_BATTLE
+    + (isVictory ? VALOR_VICTORY_BONUS : 0);
+  const supply = actIndex * SUPPLY_PER_ACT
+    + completedBattles * SUPPLY_PER_BATTLE
+    + (isVictory ? SUPPLY_VICTORY_BONUS : 0);
+  return { valor, supply };
 }

@@ -118,7 +118,8 @@ export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
 
 // Weapon forging
-export const FORGE_MAX_LEVEL = 3;
+export const FORGE_MAX_LEVEL = 10;
+export const FORGE_STAT_CAP = 3;
 export const FORGE_BONUSES = { might: 1, crit: 5, hit: 5, weight: -1 };
 export const FORGE_COSTS = {
   might:  [400, 700, 1100],
@@ -128,10 +129,23 @@ export const FORGE_COSTS = {
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, finalBoss: 0 };
 
-// Renown economy
-export const RENOWN_PER_ACT = 50;
-export const RENOWN_PER_BATTLE = 15;
-export const RENOWN_VICTORY_BONUS = 200;
+// Dual currency economy (Valor = lord-focused, Supply = army-focused)
+export const VALOR_PER_ACT = 50;
+export const VALOR_PER_BATTLE = 15;
+export const VALOR_VICTORY_BONUS = 200;
+export const SUPPLY_PER_ACT = 50;
+export const SUPPLY_PER_BATTLE = 15;
+export const SUPPLY_VICTORY_BONUS = 200;
+
+// Maps upgrade category → currency type
+export const CATEGORY_CURRENCY = {
+  lord_bonuses: 'valor',
+  starting_equipment: 'valor',
+  starting_skills: 'valor',
+  recruit_stats: 'supply',
+  economy: 'supply',
+  capacity: 'supply',
+};
 
 // Staff mechanics
 export const STAFF_BONUS_USE_THRESHOLDS = [8, 14, 20]; // MAG thresholds for +1 use each

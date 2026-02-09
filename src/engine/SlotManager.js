@@ -59,7 +59,8 @@ export function getSlotSummary(slot) {
     const meta = JSON.parse(metaRaw);
     const summary = {
       slot,
-      renown: meta.totalRenown || 0,
+      valor: meta.totalValor ?? meta.totalRenown ?? 0,
+      supply: meta.totalSupply ?? meta.totalRenown ?? 0,
       runsCompleted: meta.runsCompleted || 0,
       hasActiveRun: false,
       actReached: null,

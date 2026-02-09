@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MetaProgressionManager, calculateRenown } from '../src/engine/MetaProgressionManager.js';
+import { MetaProgressionManager, calculateCurrencies } from '../src/engine/MetaProgressionManager.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -25,36 +25,71 @@ describe('MetaProgressionManager', () => {
     clearStore();
   });
 
-  it('starts with 0 renown and no upgrades', () => {
+  it('starts with 0 valor, 0 supply, and no upgrades', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getTotalRenown()).toBe(0);
+    expect(meta.getTotalValor()).toBe(0);
+    expect(meta.getTotalSupply()).toBe(0);
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(0);
   });
 
-  it('loads saved state from localStorage', () => {
+  it('loads saved dual-currency state from localStorage', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalRenown: 500,
+      totalValor: 300,
+      totalSupply: 500,
       purchasedUpgrades: { recruit_hp_growth: 3 },
     });
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getTotalRenown()).toBe(500);
+    expect(meta.getTotalValor()).toBe(300);
+    expect(meta.getTotalSupply()).toBe(500);
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(3);
   });
 
-  it('addRenown increases total and persists', () => {
+  it('migrates old totalRenown to both currencies', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalRenown: 500,
+      purchasedUpgrades: { recruit_hp_growth: 2 },
+    });
     const meta = new MetaProgressionManager(upgradesData);
-    meta.addRenown(100);
-    expect(meta.getTotalRenown()).toBe(100);
+    expect(meta.getTotalValor()).toBe(500);
+    expect(meta.getTotalSupply()).toBe(500);
+    expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(2);
+  });
+
+  it('does not migrate if totalValor already present', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 100,
+      totalSupply: 200,
+      totalRenown: 999, // stale field should be ignored
+      purchasedUpgrades: {},
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getTotalValor()).toBe(100);
+    expect(meta.getTotalSupply()).toBe(200);
+  });
+
+  it('addValor increases valor and persists', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.addValor(100);
+    expect(meta.getTotalValor()).toBe(100);
+    expect(meta.getTotalSupply()).toBe(0);
     expect(localStorageMock.setItem).toHaveBeenCalled();
   });
 
-  it('getNextCost returns correct cost for each level of 5-tier growth upgrade', () => {
+  it('addSupply increases supply and persists', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(50);   // L0 → cost[0]
+    meta.addSupply(75);
+    expect(meta.getTotalSupply()).toBe(75);
+    expect(meta.getTotalValor()).toBe(0);
+    expect(localStorageMock.setItem).toHaveBeenCalled();
+  });
+
+  it('getNextCost returns correct cost for each level of 5-tier recruit growth upgrade', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(25);   // L0 → cost[0] (reduced from 50)
     meta.purchasedUpgrades.recruit_hp_growth = 1;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(75);   // L1 → cost[1]
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(50);   // L1 → cost[1]
     meta.purchasedUpgrades.recruit_hp_growth = 4;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(250);  // L4 → cost[4]
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(125);  // L4 → cost[4] (reduced from 250)
     meta.purchasedUpgrades.recruit_hp_growth = 5;
     expect(meta.getNextCost('recruit_hp_growth')).toBeNull();  // maxed
   });
@@ -73,21 +108,42 @@ describe('MetaProgressionManager', () => {
     expect(meta.getNextCost('nonexistent')).toBeNull();
   });
 
-  it('canAfford returns true when enough renown', () => {
+  // --- Currency routing ---
+
+  it('getCurrencyForUpgrade returns valor for lord categories', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 50;
-    expect(meta.canAfford('recruit_hp_growth')).toBe(true);
+    expect(meta.getCurrencyForUpgrade('lord_hp_growth')).toBe('valor');
+    expect(meta.getCurrencyForUpgrade('weapon_forge')).toBe('valor');
+    expect(meta.getCurrencyForUpgrade('unlock_sol')).toBe('valor');
   });
 
-  it('canAfford returns false when insufficient renown', () => {
+  it('getCurrencyForUpgrade returns supply for army categories', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 30;
-    expect(meta.canAfford('recruit_hp_growth')).toBe(false);
+    expect(meta.getCurrencyForUpgrade('recruit_hp_growth')).toBe('supply');
+    expect(meta.getCurrencyForUpgrade('starting_gold')).toBe('supply');
+    expect(meta.getCurrencyForUpgrade('deploy_limit')).toBe('supply');
+  });
+
+  it('canAfford checks correct currency for valor upgrades', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalValor = 50;
+    meta.totalSupply = 0;
+    expect(meta.canAfford('lord_hp_growth')).toBe(true);  // costs 50V
+    expect(meta.canAfford('recruit_hp_growth')).toBe(false); // costs 25S, but supply is 0
+  });
+
+  it('canAfford checks correct currency for supply upgrades', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalValor = 0;
+    meta.totalSupply = 25;
+    expect(meta.canAfford('recruit_hp_growth')).toBe(true);  // costs 25S
+    expect(meta.canAfford('lord_hp_growth')).toBe(false);    // costs 50V, but valor is 0
   });
 
   it('canAfford returns false for maxed upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 9999;
+    meta.totalValor = 9999;
+    meta.totalSupply = 9999;
     meta.purchasedUpgrades.deploy_limit = 1; // maxLevel = 1
     expect(meta.canAfford('deploy_limit')).toBe(false);
   });
@@ -111,31 +167,46 @@ describe('MetaProgressionManager', () => {
     expect(meta.isMaxed('nonexistent')).toBe(false);
   });
 
-  it('purchaseUpgrade deducts renown and increments level', () => {
+  it('purchaseUpgrade deducts from supply for recruit upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 300;
+    meta.totalSupply = 300;
+    meta.totalValor = 300;
     const result = meta.purchaseUpgrade('recruit_hp_growth');
     expect(result).toBe(true);
-    expect(meta.getTotalRenown()).toBe(250); // 300 - 50
+    expect(meta.getTotalSupply()).toBe(275); // 300 - 25
+    expect(meta.getTotalValor()).toBe(300);  // untouched
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(1);
   });
 
-  it('purchaseUpgrade fails with insufficient renown', () => {
+  it('purchaseUpgrade deducts from valor for lord upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 30;
+    meta.totalSupply = 300;
+    meta.totalValor = 300;
+    const result = meta.purchaseUpgrade('lord_hp_growth');
+    expect(result).toBe(true);
+    expect(meta.getTotalValor()).toBe(250);  // 300 - 50
+    expect(meta.getTotalSupply()).toBe(300); // untouched
+    expect(meta.getUpgradeLevel('lord_hp_growth')).toBe(1);
+  });
+
+  it('purchaseUpgrade fails with insufficient currency', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 10;
+    meta.totalValor = 10;
     const result = meta.purchaseUpgrade('recruit_hp_growth');
     expect(result).toBe(false);
-    expect(meta.getTotalRenown()).toBe(30);
+    expect(meta.getTotalSupply()).toBe(10);
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(0);
   });
 
   it('purchaseUpgrade fails when already maxed', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 9999;
+    meta.totalValor = 9999;
+    meta.totalSupply = 9999;
     meta.purchasedUpgrades.deploy_limit = 1;
     const result = meta.purchaseUpgrade('deploy_limit');
     expect(result).toBe(false);
-    expect(meta.getTotalRenown()).toBe(9999);
+    expect(meta.getTotalSupply()).toBe(9999);
   });
 
   it('getActiveEffects returns growth bonuses for recruit growth upgrades', () => {
@@ -257,7 +328,8 @@ describe('MetaProgressionManager', () => {
 
   it('loads runsCompleted from localStorage', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalRenown: 100,
+      totalValor: 100,
+      totalSupply: 100,
       purchasedUpgrades: {},
       runsCompleted: 5,
     });
@@ -267,7 +339,8 @@ describe('MetaProgressionManager', () => {
 
   it('defaults runsCompleted to 0 for old saves without it', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalRenown: 100,
+      totalValor: 100,
+      totalSupply: 100,
       purchasedUpgrades: {},
     });
     const meta = new MetaProgressionManager(upgradesData);
@@ -276,11 +349,13 @@ describe('MetaProgressionManager', () => {
 
   it('reset clears all data including runsCompleted and persists', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalRenown = 999;
+    meta.totalValor = 999;
+    meta.totalSupply = 888;
     meta.purchasedUpgrades.recruit_hp_growth = 3;
     meta.runsCompleted = 7;
     meta.reset();
-    expect(meta.getTotalRenown()).toBe(0);
+    expect(meta.getTotalValor()).toBe(0);
+    expect(meta.getTotalSupply()).toBe(0);
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(0);
     expect(meta.getRunsCompleted()).toBe(0);
     expect(localStorageMock.setItem).toHaveBeenCalled();
@@ -289,21 +364,33 @@ describe('MetaProgressionManager', () => {
   it('handles corrupted localStorage gracefully', () => {
     store['emblem_rogue_meta_save'] = 'not valid json{{{';
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getTotalRenown()).toBe(0);
+    expect(meta.getTotalValor()).toBe(0);
+    expect(meta.getTotalSupply()).toBe(0);
   });
 
   it('silently ignores old upgrade IDs in saved state', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalRenown: 500,
+      totalValor: 500,
+      totalSupply: 500,
       purchasedUpgrades: { recruit_hp: 2, lord_hp: 1 },
     });
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getTotalRenown()).toBe(500);
+    expect(meta.getTotalValor()).toBe(500);
     // Old IDs load into purchasedUpgrades but getActiveEffects ignores them
     // since they don't match any upgradesData entry
     const effects = meta.getActiveEffects();
     expect(effects.growthBonuses.HP).toBeUndefined();
     expect(effects.lordGrowthBonuses.HP).toBeUndefined();
+  });
+
+  it('saves payload with totalValor and totalSupply (not totalRenown)', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.addValor(100);
+    meta.addSupply(200);
+    const saved = JSON.parse(store['emblem_rogue_meta_save']);
+    expect(saved.totalValor).toBe(100);
+    expect(saved.totalSupply).toBe(200);
+    expect(saved.totalRenown).toBeUndefined();
   });
 
   it('has 41 total upgrades in data', () => {
@@ -439,7 +526,8 @@ describe('MetaProgressionManager', () => {
 
   it('skillAssignments loads from localStorage', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalRenown: 100,
+      totalValor: 100,
+      totalSupply: 100,
       purchasedUpgrades: { unlock_sol: 1 },
       skillAssignments: { Edric: ['sol'] },
     });
@@ -464,25 +552,35 @@ describe('MetaProgressionManager', () => {
   });
 });
 
-describe('calculateRenown', () => {
-  it('awards renown per act reached', () => {
-    expect(calculateRenown(2, 0, false)).toBe(100); // 2 * 50
+describe('calculateCurrencies', () => {
+  it('awards currencies per act reached', () => {
+    const { valor, supply } = calculateCurrencies(2, 0, false);
+    expect(valor).toBe(100);  // 2 * 50
+    expect(supply).toBe(100);
   });
 
-  it('awards renown per battle completed', () => {
-    expect(calculateRenown(0, 5, false)).toBe(75); // 5 * 15
+  it('awards currencies per battle completed', () => {
+    const { valor, supply } = calculateCurrencies(0, 5, false);
+    expect(valor).toBe(75);  // 5 * 15
+    expect(supply).toBe(75);
   });
 
-  it('awards victory bonus', () => {
-    expect(calculateRenown(0, 0, true)).toBe(200);
+  it('awards victory bonus to both currencies', () => {
+    const { valor, supply } = calculateCurrencies(0, 0, true);
+    expect(valor).toBe(200);
+    expect(supply).toBe(200);
   });
 
   it('combines all components', () => {
     // 3 acts * 50 + 10 battles * 15 + 200 victory = 150 + 150 + 200 = 500
-    expect(calculateRenown(3, 10, true)).toBe(500);
+    const { valor, supply } = calculateCurrencies(3, 10, true);
+    expect(valor).toBe(500);
+    expect(supply).toBe(500);
   });
 
   it('returns 0 for act 0, 0 battles, no victory', () => {
-    expect(calculateRenown(0, 0, false)).toBe(0);
+    const { valor, supply } = calculateCurrencies(0, 0, false);
+    expect(valor).toBe(0);
+    expect(supply).toBe(0);
   });
 });

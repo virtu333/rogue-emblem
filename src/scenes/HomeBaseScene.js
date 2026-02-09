@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
-import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS } from '../utils/constants.js';
+import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
 import { clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 
@@ -69,8 +69,15 @@ export class HomeBaseScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
     });
 
-    this.add.text(w - 20, 14, `Renown: ${this.meta.getTotalRenown()}`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#88ccff',
+    // Show both currencies — highlight the one used by the active tab
+    const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || 'supply';
+    const valorColor = activeCurrency === 'valor' ? '#ffcc44' : '#665522';
+    const supplyColor = activeCurrency === 'supply' ? '#44ccbb' : '#225544';
+    this.add.text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
+      fontFamily: 'monospace', fontSize: '12px', color: valorColor,
+    }).setOrigin(1, 0);
+    this.add.text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
+      fontFamily: 'monospace', fontSize: '12px', color: supplyColor,
     }).setOrigin(1, 0);
 
     this.drawTabs();
@@ -215,8 +222,10 @@ export class HomeBaseScene extends Phaser.Scene {
       });
     } else {
       const cost = this.meta.getNextCost(upgrade.id);
+      const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
+      const suffix = currency === 'valor' ? 'V' : 'S';
       const btnColor = affordable ? '#88ff88' : '#555555';
-      const btn = this.add.text(x, y, `${cost}R`, {
+      const btn = this.add.text(x, y, `${cost}${suffix}`, {
         fontFamily: 'monospace', fontSize: '11px', color: btnColor,
         backgroundColor: affordable ? '#334433' : '#222222',
         padding: { x: 6, y: 2 },
@@ -451,8 +460,10 @@ export class HomeBaseScene extends Phaser.Scene {
         });
       } else {
         const cost = this.meta.getNextCost(upgrade.id);
+        const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
+        const suffix = currency === 'valor' ? 'V' : 'S';
         const btnColor = affordable ? '#88ff88' : '#555555';
-        const btn = this.add.text(costX, y, `${cost}R`, {
+        const btn = this.add.text(costX, y, `${cost}${suffix}`, {
           fontFamily: 'monospace', fontSize: '11px', color: btnColor,
           backgroundColor: affordable ? '#334433' : '#222222',
           padding: { x: 6, y: 2 },

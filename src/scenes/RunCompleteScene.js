@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { clearSavedRun } from '../engine/RunManager.js';
-import { calculateRenown } from '../engine/MetaProgressionManager.js';
+import { calculateCurrencies } from '../engine/MetaProgressionManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 
@@ -45,13 +45,14 @@ export class RunCompleteScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // Calculate and award renown
+    // Calculate and award currencies
     const rm = this.runManager;
     const actReached = rm.actIndex + 1;
-    const renownEarned = calculateRenown(rm.actIndex, rm.completedBattles, isVictory);
+    const { valor, supply } = calculateCurrencies(rm.actIndex, rm.completedBattles, isVictory);
     const meta = this.registry.get('meta');
     if (meta) {
-      meta.addRenown(renownEarned);
+      meta.addValor(valor);
+      meta.addSupply(supply);
       meta.incrementRunsCompleted();
     }
 
@@ -59,16 +60,33 @@ export class RunCompleteScene extends Phaser.Scene {
     const statsLines = [
       `Battles Won: ${rm.completedBattles}`,
       `Act Reached: ${actReached} / 4`,
-      '',
-      `Renown Earned: +${renownEarned}`,
     ];
-    if (meta) statsLines.push(`Total Renown: ${meta.getTotalRenown()}`);
     const statsText = statsLines.join('\n');
 
-    this.add.text(cx, cy - 10, statsText, {
+    this.add.text(cx, cy - 20, statsText, {
       fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
       align: 'center', lineSpacing: 6,
     }).setOrigin(0.5);
+
+    // Currency earned display
+    let curY = cy + 14;
+    this.add.text(cx, curY, `Valor Earned: +${valor}`, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffcc44',
+      align: 'center',
+    }).setOrigin(0.5);
+    curY += 18;
+    this.add.text(cx, curY, `Supply Earned: +${supply}`, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#44ccbb',
+      align: 'center',
+    }).setOrigin(0.5);
+
+    if (meta) {
+      curY += 20;
+      this.add.text(cx, curY, `Total: ${meta.getTotalValor()} Valor  |  ${meta.getTotalSupply()} Supply`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#888888',
+        align: 'center',
+      }).setOrigin(0.5);
+    }
 
     // Home Base button (primary)
     const homeBtn = this.add.text(cx - 90, cy + 80, '[ Home Base ]', {
