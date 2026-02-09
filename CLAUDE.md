@@ -45,7 +45,7 @@ emblem-rogue/
 │   ├── accessories.json   # 18 accessories: 11 stat-based + 7 with combatEffects ✅
 │   ├── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight ✅
 │   ├── turnBonus.json     # Turn par calculation config: weights, brackets, per-act bonus gold ✅
-│   └── metaUpgrades.json  # 28 tiered upgrades in 4 categories (recruit_stats, lord_bonuses, economy, capacity) ✅
+│   └── metaUpgrades.json  # 41 tiered upgrades in 6 categories (recruit_stats, lord_bonuses, economy, capacity, starting_equipment, starting_skills) ✅
 ├── .env.example           # Template for Supabase env vars
 ├── src/
 │   ├── main.js            # Auth gate + Phaser bootstrap (exports cloudState)
@@ -83,7 +83,7 @@ emblem-rogue/
 │   │   ├── BootScene.js   # Asset loading, settings/audio init, migration, cloud sync ✅
 │   │   ├── TitleScene.js  # Animated pixel-art title screen: sky/castle/fireflies background, styled buttons, Press Start 2P font ✅
 │   │   ├── SlotPickerScene.js # Save slot selection: 3 slots with summaries, select/delete ✅
-│   │   ├── HomeBaseScene.js # Meta-progression tabbed UI (4 categories), Begin Run, ESC to title ✅
+│   │   ├── HomeBaseScene.js # Meta-progression tabbed UI (6 tabs: Recruits/Lords/Economy/Battalion/Equip/Skills), Begin Run, ESC to title ✅
 │   │   ├── NodeMapScene.js # Node map, shop, roster menu, auto-save, gear icon, ESC pause, music ✅
 │   │   ├── BattleScene.js # Tactical battle, deploy, loot, recruitment, ESC pause, SFX, right-click enemy range ✅
 │   │   └── RunCompleteScene.js # Victory/defeat end screen, clears run save, awards renown, Home Base / Title ✅
@@ -92,18 +92,17 @@ emblem-rogue/
 │       ├── musicConfig.js # Centralized MUSIC config, getMusicKey(purpose, act), ALL_MUSIC_KEYS (21 tracks) ✅
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
 │       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/renown economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
-│       ├── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-│       └── helpers.js     # Math helpers, RNG utilities
-├── tests/                 # Vitest test suite (328 tests, all pass)
+│       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
+├── tests/                 # Vitest test suite (359 tests, all pass)
 │   ├── testData.js        # Shared data loader for tests
 │   ├── MapGenerator.test.js # 37 tests: map gen, reachability, spawns, NPC spawn, deployCount, levelRange override ✅
-│   ├── Combat.test.js     # 19 tests: damage, triangle, doubling, forecast
-│   ├── UnitManager.test.js # 24 tests: creation, leveling, promotion, skills, recruit unit ✅
+│   ├── Combat.test.js     # 41 tests: damage, triangle, doubling, forecast, staff healing, weapon specials ✅
+│   ├── UnitManager.test.js # 28 tests: creation, leveling, promotion, skills, recruit unit, cloning ✅
 │   ├── NodeMapGenerator.test.js # 32 tests: node map structure, edges, reachability, RECRUIT nodes, per-node level scaling, column-lane system (non-crossing edges) ✅
-│   ├── RunManager.test.js # 32 tests: run state, roster, act progression, save/load ✅
-│   ├── LootSystem.test.js # 23 tests: gold calc, loot gen, shop inventory, sell prices ✅
+│   ├── RunManager.test.js # 46 tests: run state, roster, act progression, save/load, meta equipment/skills ✅
+│   ├── LootSystem.test.js # 35 tests: gold calc, loot gen, shop inventory, sell prices, forge loot, whetstones ✅
 │   ├── SettingsManager.test.js # 7 tests: defaults, load, save, clamp, error handling ✅
-│   ├── MetaProgressionManager.test.js # 35 tests: renown, upgrades, 5-tier growth, 3-tier flat, lord SPD/RES, split aggregation, calculateRenown ✅
+│   ├── MetaProgressionManager.test.js # 55 tests: renown, upgrades, 5-tier growth, 3-tier flat, lord SPD/RES, split aggregation, calculateRenown, skill assignments, starting equipment ✅
 │   ├── Accessories.test.js # 10 tests: equip, unequip, roundtrip, HP clamp, loot, shop, serialization ✅
 │   ├── FogOfWar.test.js # 12 tests: vision range, boundaries, fog constants, node generation ✅
 │   ├── ForgeSystem.test.js # 31 tests: forge eligibility, stat bonuses, naming, cost, limits ✅
@@ -202,7 +201,7 @@ Array of 18 accessories in two categories. Each has: `name`, `type` ("Accessory"
 **Combat accessories (7):** Have `combatEffects` field evaluated at combat time by Combat.js and SkillSystem.js. Wrath Band (+15 crit below 50% HP), Counter Seal (prevent enemy double attacks), Pursuit Ring (reduce double threshold by 2), Nullify Ring (negate weapon effectiveness), Life Ring (+3 atk/+2 def above 75% HP), Forest Charm (+10 avoid/+2 def on forest terrain). Conditions: `below50`, `above75`, `on_forest`.
 
 ### metaUpgrades.json
-Array of 28 upgrade definitions. Each has: `id`, `name`, `description`, `category` ("recruit_stats"/"lord_bonuses"/"economy"/"capacity"), `maxLevel`, `costs[]` (renown cost per tier), `effects[]` (cumulative effect per tier). Growth and flat stat upgrades are independent: recruit growth (6 upgrades × 5 tiers, +5%/tier via `{recruitGrowth, growthValue}`), recruit flat (6 × 3 tiers via `{stat, value}`), lord growth (5 × 5 tiers via `{lordGrowth, growthValue}` — includes SPD/RES), lord flat (5 × 3 tiers via `{lordStat, value}` — includes SPD/RES). Economy upgrades have `{goldBonus}` / `{battleGoldMultiplier}` / `{extraVulnerary}` / `{lootWeaponWeightBonus}`, capacity upgrades have `{deployBonus}` / `{rosterCapBonus}`. Effects are cumulative per tier (level 2 shows total bonus, not incremental).
+Array of 41 upgrade definitions. Each has: `id`, `name`, `description`, `category` ("recruit_stats"/"lord_bonuses"/"economy"/"capacity"/"starting_equipment"/"starting_skills"), `maxLevel`, `costs[]` (renown cost per tier), `effects[]` (cumulative effect per tier). Growth and flat stat upgrades are independent: recruit growth (6 upgrades × 5 tiers, +5%/tier via `{recruitGrowth, growthValue}`), recruit flat (6 × 3 tiers via `{stat, value}`), lord growth (5 × 5 tiers via `{lordGrowth, growthValue}` — includes SPD/RES), lord flat (5 × 3 tiers via `{lordStat, value}` — includes SPD/RES). Economy upgrades have `{goldBonus}` / `{battleGoldMultiplier}` / `{extraVulnerary}` / `{lootWeaponWeightBonus}`, capacity upgrades have `{deployBonus}` / `{rosterCapBonus}` / `{recruitRandomSkill}`. Equipment upgrades: `weapon_forge` (3 tiers, `{startingWeaponForge}`), `weapon_tier` (1 tier, `{deadlyArsenal}`), `starting_accessory` (3 tiers, `{startingAccessoryTier}`), `staff_upgrade` (2 tiers, `{startingStaffTier}`). Skills upgrades: 8 skill unlocks (`{skillUnlock, skillId}`). Effects are cumulative per tier (level 2 shows total bonus, not incremental).
 
 ## Core Formulas (from GDD Section 3.3)
 ```
@@ -227,7 +226,7 @@ Follow this order — each phase should be testable:
 5. **Map Generation** ✅ — procedural maps from templates, randomized terrain, Rout + Seize objectives, enemy pools by act, boss enemies, reachability checks
 6. **Node Map** ✅ — branching node map per act, battle/rest/boss nodes, unit persistence between battles, act progression (act1→act2→act3→finalBoss), RunManager run state, victory/defeat end screen
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
-8. **Meta-Progression** ✅ — Home Base scene (tabbed UI), Renown currency (earned per run), 28 tiered upgrades (split growth/flat, lord SPD/RES), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
+8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), Renown currency (earned per run), 41 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
 9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (18 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (51 total, throwables, effectiveness, specials) ✅ | Expanded skills (21 total, on-defend trigger) ✅ | Lord classes in classes.json (29 total) ✅ | **3 save slots + user flow rework** ✅
 10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auth gate in `index.html` before Phaser boots. Fire-and-forget cloud sync via `onSave` callbacks. Offline play supported.
 
@@ -259,7 +258,7 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (328 tests):** MapGenerator (37), Combat (21), UnitManager (26), NodeMapGenerator (32), RunManager (33), LootSystem (35), SettingsManager (7), MetaProgressionManager (39), Accessories (10), FogOfWar (12), ForgeSystem (31), TurnBonusCalculator (25)
+- **Coverage (359 tests):** MapGenerator (37), Combat (41), UnitManager (28), NodeMapGenerator (32), RunManager (46), LootSystem (35), SettingsManager (7), MetaProgressionManager (55), Accessories (10), FogOfWar (12), ForgeSystem (31), TurnBonusCalculator (25)
 - **Untested new features:** combat accessories (`combatEffects`), on-defend skills (Pavise/Aegis), weapon specials (Ragnell DEF bonus, Runesword drain, Bolting siege), Adept skill
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
