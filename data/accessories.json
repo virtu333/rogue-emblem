@@ -1,0 +1,19 @@
+[
+  { "name": "Power Ring",    "type": "Accessory", "effects": { "STR": 2 },           "price": 1500 },
+  { "name": "Magic Ring",    "type": "Accessory", "effects": { "MAG": 2 },           "price": 1500 },
+  { "name": "Speed Ring",    "type": "Accessory", "effects": { "SPD": 2 },           "price": 2000 },
+  { "name": "Shield Ring",   "type": "Accessory", "effects": { "DEF": 2 },           "price": 1500 },
+  { "name": "Barrier Ring",  "type": "Accessory", "effects": { "RES": 2 },           "price": 1500 },
+  { "name": "Skill Ring",    "type": "Accessory", "effects": { "SKL": 3 },           "price": 1500 },
+  { "name": "Goddess Icon",  "type": "Accessory", "effects": { "LCK": 5 },           "price": 1000 },
+  { "name": "Seraph Robe",   "type": "Accessory", "effects": { "HP": 5 },            "price": 2000 },
+  { "name": "Boots",         "type": "Accessory", "effects": { "MOV": 1 },           "price": 3000 },
+  { "name": "Delphi Shield", "type": "Accessory", "effects": { "DEF": 3, "RES": 3 }, "price": 2500 },
+  { "name": "Veteran's Crest", "type": "Accessory", "effects": { "STR": 1, "SPD": 1, "DEF": 1 }, "price": 2000 },
+  { "name": "Wrath Band", "type": "Accessory", "effects": {}, "combatEffects": { "critBonus": 15, "condition": "below50" }, "price": 2000 },
+  { "name": "Counter Seal", "type": "Accessory", "effects": {}, "combatEffects": { "preventEnemyDouble": true }, "price": 2500 },
+  { "name": "Pursuit Ring", "type": "Accessory", "effects": {}, "combatEffects": { "doubleThresholdReduction": 2 }, "price": 2500 },
+  { "name": "Nullify Ring", "type": "Accessory", "effects": {}, "combatEffects": { "negateEffectiveness": true }, "price": 2500 },
+  { "name": "Life Ring", "type": "Accessory", "effects": {}, "combatEffects": { "atkBonus": 3, "defBonus": 2, "condition": "above75" }, "price": 2000 },
+  { "name": "Forest Charm", "type": "Accessory", "effects": {}, "combatEffects": { "avoidBonus": 10, "defBonus": 2, "condition": "on_forest" }, "price": 1200 }
+]

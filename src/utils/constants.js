@@ -1,0 +1,163 @@
+// Core game constants — derived from GDD
+
+export const TILE_SIZE = 32;
+export const PORTRAIT_SIZE = 128;
+
+// Weapon triangle bonuses
+export const WEAPON_TRIANGLE = {
+  advantage: { hit: 10, damage: 1 },
+  disadvantage: { hit: -10, damage: -1 },
+  masteryAdvantage: { hit: 15, damage: 2 },
+  masteryDisadvantage: { hit: -5, damage: -1 },
+  // Matchups: winner → loser
+  matchups: {
+    Sword: 'Axe',
+    Axe: 'Lance',
+    Lance: 'Sword'
+  }
+};
+
+// Double attack threshold
+export const DOUBLE_ATTACK_SPD_THRESHOLD = 5;
+
+// Critical multiplier
+export const CRIT_MULTIPLIER = 3;
+
+// Level cap
+export const BASE_CLASS_LEVEL_CAP = 20;
+export const PROMOTED_CLASS_LEVEL_CAP = 20;
+export const PROMOTION_MIN_LEVEL = 10;
+
+// Skill cap per unit
+export const MAX_SKILLS = 5;
+
+// XP system
+export const XP_PER_LEVEL = 100;
+export const XP_BASE_COMBAT = 30;
+export const XP_KILL_BONUS = 20;
+export const XP_LEVEL_DIFF_SCALE = 5;
+export const XP_MIN = 1;
+export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
+
+// Deploy limits by act
+export const DEPLOY_LIMITS = {
+  act1:      { min: 3, max: 4 },
+  act2:      { min: 4, max: 5 },
+  act3:      { min: 5, max: 6 },
+  postAct:   { min: 4, max: 6 },
+  finalBoss: { min: 4, max: 6 },
+};
+
+// Colors for unit factions
+export const FACTION_COLORS = {
+  player: 0x3366cc,  // Blue
+  enemy: 0xcc3333,   // Red
+  npc: 0x33cc66      // Green
+};
+
+// Attack range highlight
+export const ATTACK_RANGE_COLOR = 0xcc3333;
+export const ATTACK_RANGE_ALPHA = 0.4;
+
+// Terrain heal per turn (forts, thrones)
+export const TERRAIN_HEAL_PERCENT = 0.10;
+
+// Terrain index enum (matches terrain.json order)
+export const TERRAIN = {
+  Plain: 0, Forest: 1, Mountain: 2, Fort: 3, Throne: 4,
+  Wall: 5, Water: 6, Bridge: 7, Sand: 8, Village: 9,
+};
+
+// Boss stat bonus (flat added to all stats)
+export const BOSS_STAT_BONUS = 2;
+
+// Act sequence and config for node map
+export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'finalBoss'];
+
+export const ACT_CONFIG = {
+  act1:      { name: 'Border Skirmishes', rows: 6 },  // +1 row (~16 nodes avg, was ~13)
+  act2:      { name: 'Occupied Territory', rows: 7 },  // +1 row (~19 nodes avg, was ~16)
+  act3:      { name: 'Enemy Stronghold',  rows: 7 },  // +2 rows (~19 nodes avg, was ~13)
+  finalBoss: { name: 'Final Battle',      rows: 1 },
+};
+
+export const NODE_TYPES = { BATTLE: 'battle', REST: 'rest', BOSS: 'boss', SHOP: 'shop', RECRUIT: 'recruit' };
+
+// Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
+export const NODE_GOLD_MULTIPLIER = {
+  battle: 1.0,
+  recruit: 1.2,   // Harder (must keep NPC alive) → more gold
+  boss: 1.5,      // Already has GOLD_BOSS_BONUS; this stacks on kill gold
+  rest: 0,        // No combat
+  shop: 0,        // No combat
+};
+export const ROSTER_CAP = 12;
+
+// Gold economy
+export const STARTING_GOLD = 200;
+export const GOLD_PER_KILL_BASE = 30;
+export const GOLD_PER_LEVEL_BONUS = 10;
+export const GOLD_BATTLE_BONUS = 100;
+export const GOLD_BOSS_BONUS = 300;
+export const GOLD_SKIP_LOOT_MULTIPLIER = 1.25;
+export const SHOP_SELL_RATIO = 0.5;
+export const LOOT_CHOICES = 3;
+export const SHOP_ITEM_COUNT = { min: 4, max: 6 };
+export const INVENTORY_MAX = 5;      // Combat weapons + staves only
+export const CONSUMABLE_MAX = 3;     // Separate consumables array
+export const SHOP_REROLL_COST = 150;
+export const SHOP_REROLL_ESCALATION = 50;
+
+// Weapon forging
+export const FORGE_MAX_LEVEL = 3;
+export const FORGE_BONUSES = { might: 1, crit: 5, hit: 5, weight: -1 };
+export const FORGE_COSTS = {
+  might:  [400, 700, 1100],
+  crit:   [300, 550, 900],
+  hit:    [250, 450, 750],
+  weight: [250, 450, 750],
+};
+export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, finalBoss: 0 };
+
+// Renown economy
+export const RENOWN_PER_ACT = 50;
+export const RENOWN_PER_BATTLE = 15;
+export const RENOWN_VICTORY_BONUS = 200;
+
+// Staff mechanics
+export const STAFF_BONUS_USE_THRESHOLDS = [8, 14, 20]; // MAG thresholds for +1 use each
+export const PHYSIC_RANGE_BONUSES = [{ mag: 10, bonus: 1 }, { mag: 18, bonus: 1 }];
+
+// Starting equipment meta upgrades
+export const MAX_STARTING_SKILLS = 2;
+export const DEADLY_ARSENAL_POOL = {
+  Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnell', 'Runesword'],
+  Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance'],
+  Axe:   ['Silver Axe', 'Brave Axe'],
+  Bow:   ['Silver Bow', 'Brave Bow'],
+  Tome:  ['Bolganone', 'Excalibur'],
+  Light: ['Aura', 'Luce'],
+};
+export const RECRUIT_SKILL_POOL = [
+  'sol', 'luna', 'astra', 'vantage', 'wrath', 'adept', 'miracle', 'guard'
+];
+export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
+export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
+
+// Fog of War
+export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
+export const FOG_CHANCE = 0.3;
+
+// Placeholder terrain colors (Phase 1 colored rectangles)
+export const TERRAIN_COLORS = {
+  Plain:    0x7ec850,
+  Forest:   0x2d6a1e,
+  Mountain: 0x8b7355,
+  Fort:     0xb8a07a,
+  Throne:   0xdaa520,
+  Wall:     0x4a4a4a,
+  Water:    0x2266aa,
+  Bridge:   0x8b6c42,
+  Sand:     0xd4b96a,
+  Village:  0xc47035,
+};

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Imagen Asset Comparison</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 8px; color: #7fdbca; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: 14px; }
+    .controls { text-align: center; margin-bottom: 20px; }
+    .controls button {
+      background: #7fdbca; color: #1a1a2e; border: none; padding: 10px 24px;
+      border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin: 0 8px;
+    }
+    .controls button:hover { background: #5fc4b0; }
+    .controls button:disabled { background: #444; color: #888; cursor: default; }
+    .category-header { color: #7fdbca; font-size: 20px; margin: 24px 0 12px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+    .asset-row {
+      background: #16213e; border-radius: 8px; padding: 16px; margin-bottom: 16px;
+    }
+    .asset-info { margin-bottom: 10px; }
+    .asset-name { font-size: 16px; font-weight: bold; color: #e2b714; }
+    .asset-prompt { font-size: 12px; color: #888; margin-top: 4px; line-height: 1.4; }
+    .variants { display: flex; gap: 12px; flex-wrap: wrap; }
+    .variant {
+      position: relative; cursor: pointer; border: 3px solid transparent;
+      border-radius: 6px; overflow: hidden; transition: border-color 0.15s;
+    }
+    .variant:hover { border-color: #555; }
+    .variant.selected { border-color: #4ade80; }
+    .variant img {
+      display: block; width: 160px; height: 160px; object-fit: contain;
+      background: #0a0a1a; image-rendering: pixelated;
+    }
+    .variant-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.7); color: #ccc; font-size: 11px;
+      text-align: center; padding: 2px;
+    }
+    .progress { text-align: center; color: #7fdbca; margin-bottom: 16px; font-size: 14px; }
+    .error { text-align: center; color: #f87171; padding: 40px; }
+  </style>
+</head>
+<body>
+  <h1>Imagen Asset Comparison</h1>
+  <p class="subtitle">Click a variant to select it. Save selections when done.</p>
+  <div class="progress" id="progress"></div>
+  <div class="controls">
+    <button id="saveBtn" onclick="saveSelections()" disabled>Save Selections</button>
+    <button onclick="selectAll(0)">Select All v0</button>
+  </div>
+  <div id="content"></div>
+
+  <script>
+    let indexData = null;
+    const selections = {};
+
+    async function init() {
+      try {
+        const resp = await fetch('index.json');
+        if (!resp.ok) throw new Error(`Failed to load index.json (${resp.status})`);
+        indexData = await resp.json();
+        render();
+      } catch (err) {
+        document.getElementById('content').innerHTML =
+          `<div class="error">Could not load index.json.<br>Run <code>node tools/imagen-generate.js</code> first, then serve this directory:<br><code>npx serve References/imagen-output</code></div>`;
+      }
+    }
+
+    function render() {
+      const content = document.getElementById('content');
+      // Group assets by category
+      const byCategory = {};
+      for (const asset of indexData.assets) {
+        if (asset.variants === 0) continue;
+        if (!byCategory[asset.category]) byCategory[asset.category] = [];
+        byCategory[asset.category].push(asset);
+      }
+
+      let html = '';
+      for (const [catName, assets] of Object.entries(byCategory)) {
+        html += `<div class="category-header">${catName} (${assets.length} assets)</div>`;
+        for (const asset of assets) {
+          if (!selections[catName]) selections[catName] = {};
+          html += `<div class="asset-row">
+            <div class="asset-info">
+              <span class="asset-name">${asset.name}</span>
+              <div class="asset-prompt">${asset.prompt}</div>
+            </div>
+            <div class="variants">`;
+          for (let i = 0; i < asset.variants; i++) {
+            const src = `raw/${catName}/${asset.name}_v${i}.png`;
+            html += `<div class="variant" id="v-${catName}-${asset.name}-${i}"
+                          onclick="select('${catName}','${asset.name}',${i},${asset.variants})">
+              <img src="${src}" alt="${asset.name} v${i}">
+              <div class="variant-label">v${i}</div>
+            </div>`;
+          }
+          html += `</div></div>`;
+        }
+      }
+      content.innerHTML = html;
+      updateProgress();
+    }
+
+    function select(cat, name, idx, total) {
+      selections[cat][name] = idx;
+      // Update border highlights
+      for (let i = 0; i < total; i++) {
+        const el = document.getElementById(`v-${cat}-${name}-${i}`);
+        if (el) el.classList.toggle('selected', i === idx);
+      }
+      updateProgress();
+    }
+
+    function selectAll(idx) {
+      if (!indexData) return;
+      for (const asset of indexData.assets) {
+        if (asset.variants === 0) continue;
+        const i = Math.min(idx, asset.variants - 1);
+        select(asset.category, asset.name, i, asset.variants);
+      }
+    }
+
+    function updateProgress() {
+      if (!indexData) return;
+      const totalAssets = indexData.assets.filter(a => a.variants > 0).length;
+      let selected = 0;
+      for (const cat of Object.values(selections)) {
+        selected += Object.keys(cat).length;
+      }
+      document.getElementById('progress').textContent =
+        `${selected} / ${totalAssets} assets selected`;
+      document.getElementById('saveBtn').disabled = selected === 0;
+    }
+
+    function saveSelections() {
+      const json = JSON.stringify(selections, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'selections.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    init();
+  </script>
+</body>
+</html>

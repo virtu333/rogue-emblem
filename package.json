@@ -1,0 +1,26 @@
+{
+  "name": "emblem-rogue",
+  "version": "0.1.0",
+  "description": "A Fire Emblem x Roguelike Tactical RPG",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "sim:progression": "node sim/progression.js",
+    "sim:matchups": "node sim/matchups.js",
+    "sim:economy": "node sim/economy.js",
+    "sim:fullrun": "node sim/fullrun.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "phaser": "^3.80.0"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5",
+    "vite": "^5.4.0",
+    "vitest": "^4.0.18"
+  }
+}

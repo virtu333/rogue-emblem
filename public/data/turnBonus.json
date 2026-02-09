@@ -1,0 +1,26 @@
+{
+  "enemyWeight": 0.6,
+  "areaPenaltyPerTile": 0.03,
+  "terrainMultiplier": 3.0,
+  "difficultTerrainTypes": ["Forest", "Mountain", "Water", "Sand"],
+  "objectiveBasePar": {
+    "rout": 5,
+    "seize": 7
+  },
+  "objectiveAdjustments": {
+    "rout": 1,
+    "seize": 2
+  },
+  "brackets": [
+    { "rating": "S", "threshold": 0, "bonusMultiplier": 1.0 },
+    { "rating": "A", "threshold": 3, "bonusMultiplier": 0.6 },
+    { "rating": "B", "threshold": 6, "bonusMultiplier": 0.25 },
+    { "rating": "C", "threshold": 999, "bonusMultiplier": 0.0 }
+  ],
+  "baseBonusGold": {
+    "act1": 80,
+    "act2": 150,
+    "act3": 250,
+    "finalBoss": 350
+  }
+}

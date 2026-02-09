@@ -1,0 +1,167 @@
+[
+  {
+    "id": "charisma",
+    "name": "Charisma",
+    "description": "Allies within 2 tiles gain +10 Hit, +5 Avoid",
+    "trigger": "passive-aura",
+    "range": 2,
+    "effects": { "hitBonus": 10, "avoidBonus": 5 },
+    "personal": true
+  },
+  {
+    "id": "foresight",
+    "name": "Foresight",
+    "description": "+1 range on Tome attacks",
+    "trigger": "passive",
+    "effects": { "tomeRangeBonus": 1 },
+    "personal": true
+  },
+  {
+    "id": "resolve",
+    "name": "Resolve",
+    "description": "+4 STR/DEF when below 50% HP",
+    "trigger": "on-combat-start",
+    "condition": "below50",
+    "effects": { "strBonus": 4, "defBonus": 4 },
+    "personal": true
+  },
+  {
+    "id": "renewal_aura",
+    "name": "Renewal Aura",
+    "description": "Adjacent allies heal 5 HP at start of turn",
+    "trigger": "on-turn-start",
+    "range": 1,
+    "effects": { "healAllies": 5 },
+    "personal": true
+  },
+  {
+    "id": "sol",
+    "name": "Sol",
+    "description": "SKL% chance to heal damage dealt on hit",
+    "trigger": "on-attack",
+    "activation": "SKL"
+  },
+  {
+    "id": "luna",
+    "name": "Luna",
+    "description": "SKL% chance to halve enemy DEF/RES on hit",
+    "trigger": "on-attack",
+    "activation": "SKL"
+  },
+  {
+    "id": "astra",
+    "name": "Astra",
+    "description": "SKL/2% chance to strike 5 times at half damage",
+    "trigger": "on-attack",
+    "activation": "SKL_HALF"
+  },
+  {
+    "id": "vantage",
+    "name": "Vantage",
+    "description": "Attack first when defending below 50% HP",
+    "trigger": "on-combat-start",
+    "condition": "below50"
+  },
+  {
+    "id": "wrath",
+    "name": "Wrath",
+    "description": "+30 Crit when below 50% HP",
+    "trigger": "on-combat-start",
+    "condition": "below50",
+    "effects": { "critBonus": 30 }
+  },
+  {
+    "id": "crit_plus_15",
+    "name": "Critical +15",
+    "description": "+15 critical hit rate",
+    "trigger": "passive",
+    "effects": { "critBonus": 15 },
+    "classInnate": "Swordmaster"
+  },
+  {
+    "id": "sure_shot",
+    "name": "Sure Shot",
+    "description": "Ignore enemy terrain avoid bonus",
+    "trigger": "passive",
+    "effects": { "ignoreTerrainAvoid": true },
+    "classInnate": "Sniper"
+  },
+  {
+    "id": "lethality",
+    "name": "Lethality",
+    "description": "LCK/4% chance to instantly defeat enemy on hit",
+    "trigger": "on-attack",
+    "activation": "LCK_QUARTER",
+    "classInnate": "Assassin"
+  },
+  {
+    "id": "pavise",
+    "name": "Pavise",
+    "description": "SKL% chance to halve physical damage taken",
+    "trigger": "on-defend",
+    "activation": "SKL",
+    "classInnate": "General"
+  },
+  {
+    "id": "aegis",
+    "name": "Aegis",
+    "description": "SKL% chance to halve magical damage taken",
+    "trigger": "on-defend",
+    "activation": "SKL",
+    "classInnate": "Paladin"
+  },
+  {
+    "id": "colossus",
+    "name": "Colossus",
+    "description": "+3 damage on all attacks",
+    "trigger": "passive",
+    "effects": { "atkBonus": 3 },
+    "classInnate": "Warrior"
+  },
+  {
+    "id": "discipline",
+    "name": "Discipline",
+    "description": "+10 Hit, +5 Avoid",
+    "trigger": "passive",
+    "effects": { "hitBonus": 10, "avoidBonus": 5 },
+    "classInnate": "Falcon Knight"
+  },
+  {
+    "id": "renewal",
+    "name": "Renewal",
+    "description": "Recover 10% max HP at start of turn",
+    "trigger": "on-turn-start",
+    "effects": { "healSelf": 10 },
+    "classInnate": "Bishop"
+  },
+  {
+    "id": "vigilance",
+    "name": "Vigilance",
+    "description": "+15 Avoid",
+    "trigger": "passive",
+    "effects": { "avoidBonus": 15 },
+    "classInnate": "Hero"
+  },
+  {
+    "id": "adept",
+    "name": "Adept",
+    "description": "SPD% chance for an extra follow-up strike at full damage",
+    "trigger": "on-attack",
+    "activation": "SPD"
+  },
+  {
+    "id": "miracle",
+    "name": "Miracle",
+    "description": "LCK% chance to survive a lethal hit with 1 HP (once per battle)",
+    "trigger": "on-defend",
+    "activation": "LCK"
+  },
+  {
+    "id": "guard",
+    "name": "Guard",
+    "description": "+3 DEF/RES when adjacent to an ally",
+    "trigger": "on-combat-start",
+    "condition": "adjacent_ally",
+    "effects": { "defBonus": 3, "resBonus": 3 }
+  }
+]

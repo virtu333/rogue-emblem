@@ -1,0 +1,166 @@
+[
+  {
+    "name": "Edric",
+    "class": "Lord",
+    "baseStats": {
+      "HP": 20,
+      "STR": 6,
+      "MAG": 2,
+      "SKL": 7,
+      "SPD": 7,
+      "DEF": 5,
+      "RES": 3,
+      "LCK": 6,
+      "MOV": 4
+    },
+    "moveType": "Infantry",
+    "weapon": "Swords (P)",
+    "personalSkill": "Charisma: Allies within 2 tiles +10 Hit, +5 Avoid",
+    "personalGrowths": {
+      "HP": 15,
+      "STR": 10,
+      "MAG": 5,
+      "SKL": 10,
+      "SPD": 10,
+      "DEF": 5,
+      "RES": 5,
+      "LCK": 10
+    },
+    "promotedClass": "Great Lord",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 2,
+      "RES": 1,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "promotionWeapons": "Lances (P)"
+  },
+  {
+    "name": "Kira",
+    "class": "Tactician",
+    "baseStats": {
+      "HP": 17,
+      "STR": 3,
+      "MAG": 7,
+      "SKL": 5,
+      "SPD": 6,
+      "DEF": 3,
+      "RES": 5,
+      "LCK": 5,
+      "MOV": 4
+    },
+    "moveType": "Infantry",
+    "weapon": "Tomes (P)",
+    "personalSkill": "Foresight: +1 range on Tome attacks",
+    "personalGrowths": {
+      "HP": 10,
+      "STR": 5,
+      "MAG": 15,
+      "SKL": 10,
+      "SPD": 10,
+      "DEF": 0,
+      "RES": 10,
+      "LCK": 5
+    },
+    "promotedClass": "Grandmaster",
+    "promotionBonuses": {
+      "HP": 2,
+      "STR": 1,
+      "MAG": 3,
+      "SKL": 2,
+      "SPD": 1,
+      "DEF": 1,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "promotionWeapons": "Swords (P)"
+  },
+  {
+    "name": "Voss",
+    "class": "Ranger",
+    "baseStats": {
+      "HP": 22,
+      "STR": 8,
+      "MAG": 1,
+      "SKL": 6,
+      "SPD": 5,
+      "DEF": 7,
+      "RES": 2,
+      "LCK": 3,
+      "MOV": 4
+    },
+    "moveType": "Infantry",
+    "weapon": "Swords (P)",
+    "personalSkill": "Resolve: +4 STR/DEF when below 50% HP",
+    "personalGrowths": {
+      "HP": 20,
+      "STR": 15,
+      "MAG": 0,
+      "SKL": 5,
+      "SPD": 5,
+      "DEF": 10,
+      "RES": 0,
+      "LCK": 0
+    },
+    "promotedClass": "Vanguard",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 3,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 0,
+      "DEF": 3,
+      "RES": 0,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "promotionWeapons": "Axes (P)"
+  },
+  {
+    "name": "Sera",
+    "class": "Light Sage",
+    "baseStats": {
+      "HP": 18,
+      "STR": 2,
+      "MAG": 6,
+      "SKL": 4,
+      "SPD": 5,
+      "DEF": 3,
+      "RES": 7,
+      "LCK": 6,
+      "MOV": 4
+    },
+    "moveType": "Infantry",
+    "weapon": "Light (P)",
+    "personalSkill": "Renewal Aura: Adjacent allies heal 5 HP/turn",
+    "personalGrowths": {
+      "HP": 10,
+      "STR": 0,
+      "MAG": 10,
+      "SKL": 5,
+      "SPD": 5,
+      "DEF": 5,
+      "RES": 15,
+      "LCK": 10
+    },
+    "promotedClass": "Light Priestess",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 0,
+      "MAG": 2,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 1,
+      "RES": 3,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "promotionWeapons": "Staves (P)"
+  }
+]

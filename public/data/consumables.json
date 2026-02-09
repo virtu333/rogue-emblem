@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Vulnerary",
+    "type": "Consumable",
+    "effect": "heal",
+    "value": 10,
+    "uses": 3,
+    "price": 300
+  },
+  {
+    "name": "Elixir",
+    "type": "Consumable",
+    "effect": "healFull",
+    "value": 0,
+    "uses": 1,
+    "price": 1500
+  },
+  {
+    "name": "Master Seal",
+    "type": "Consumable",
+    "effect": "promote",
+    "value": 0,
+    "uses": 1,
+    "price": 2500
+  }
+]

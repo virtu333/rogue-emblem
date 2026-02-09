@@ -1,0 +1,1008 @@
+**EMBLEM ROGUE**
+
+*A Fire Emblem x Roguelike Tactical RPG*
+
+Game Design Document
+
+Version 1.0 --- February 2026
+
+CONFIDENTIAL
+
+Table of Contents
+
+1\. Game Overview
+
+1.1 Concept
+
+Emblem Rogue is a tactical RPG that blends Fire Emblem's grid-based
+combat, class systems, and character progression with roguelike run
+structure, randomized encounters, and meta-progression. The game
+features SNES-inspired pixel art with modern flourishes, evoking the
+aesthetic of classics like Fire Emblem: The Blazing Blade and Octopath
+Traveler.
+
+1.2 Core Fantasy
+
+You are a Lord leading a growing warband through a campaign of tactical
+battles. Each run, you recruit allies, find equipment, and develop your
+force---but defeat means starting over with only your Lord and the
+lessons learned. Over many runs, you unlock new classes, improve your
+starting capabilities, and discover special characters who join your
+permanent roster of potential recruits.
+
+1.3 Platform & Technology
+
+The game is built as a browser-based application using HTML5 Canvas and
+JavaScript (Phaser.js framework). All game data (classes, skills, items,
+enemies, maps) is defined in JSON for easy iteration and modding.
+
+1.4 Art Style
+
+SNES-era pixel art with a 16x16 or 32x32 base tile size. Character
+sprites use a limited, cohesive palette. Battle scenes use side-view
+sprite animations. UI is clean and readable with pixel-font text and
+modern layout sensibilities.
+
+2\. Core Loop & Run Structure
+
+2.1 The Run
+
+A single run represents one campaign attempt. The player begins with
+their Lord (and, through meta-progression, potentially stronger starting
+conditions) and progresses through a series of branching nodes leading
+to a final boss encounter.
+
+2.2 Campaign Structure
+
+One campaign consists of 3 Acts, each culminating in a boss encounter,
+followed by a short Post-Act sequence of elite skirmishes leading to the
+Final Boss. A successful run contains roughly 20--25 total battles.
+
+  ----------- ----------- ----------- ----------- -------------------------------
+  **Phase**   **Nodes**   **Map       **Deploy    **Description**
+                          Size**      Limit**     
+
+  Act 1       6--8        8x6 to 10x8 3--4 units  Early battles, building your
+                                                  warband. Mostly rout
+                                                  objectives. Ends with Act 1
+                                                  Boss.
+
+  Act 2       6--8        10x8 to     4--5 units  Rising difficulty, more varied
+                          12x8                    objectives. Elite enemies
+                                                  appear. Ends with Act 2 Boss.
+
+  Act 3       6--8        10x8 to     5--6 units  Full tactical complexity. All
+                          12x10                   objectives in play. Ends with
+                                                  Act 3 Boss.
+
+  Post-Act    3--4        12x10+      6 units     Elite skirmishes with premium
+                                                  rewards leading to the Final
+                                                  Boss.
+  ----------- ----------- ----------- ----------- -------------------------------
+
+2.3 Node Map (Between Battles)
+
+Between battles, the player navigates a branching node map (similar to
+Slay the Spire). Each Act has its own node map with branching paths of
+varying risk and reward. Node types include:
+
+-   **Battle:** Standard combat encounter with randomized enemies and
+    map. Rewards: XP, gold, choice of 1 loot drop.
+
+-   **Elite Battle:** Tougher encounter against a miniboss drawn from a
+    random pool. Rewards: XP, gold, choice of 2 loot drops (higher
+    quality).
+
+-   **Boss Battle:** Fixed boss encounter at the end of each Act.
+    Non-random, learnable. Rewards: guaranteed powerful item, large XP,
+    meta-progression currency.
+
+-   **Recruit Event:** A combat map where a green NPC ally appears. Your
+    Lord must reach and speak to them to recruit. The NPC fights
+    independently with basic AI but is not suicidal. Recruiting adds
+    them to your roster for the run.
+
+-   **Shop:** Spend gold to buy weapons, accessories, skill scrolls, or
+    stat boosters. Limited random inventory.
+
+-   **Rest:** Heal all units to full HP. Optionally, a brief narrative
+    scene or dialogue.
+
+2.4 Run Failure
+
+When the Lord is defeated in battle, the run ends. The player retains
+meta-progression currency earned during the run and returns to the Home
+Base to spend it. All recruited units, equipment, and in-run progress
+are lost. Special characters return to the recruitment pool for future
+runs.
+
+3\. Combat System
+
+3.1 Grid & Turn Structure
+
+Combat takes place on a grid-based map with varied terrain. The game
+uses a Player Phase / Enemy Phase turn structure (classic Fire Emblem
+style). During Player Phase, all allied units can move and act in any
+order. During Enemy Phase, all enemy units act.
+
+3.2 Unit Actions
+
+Each unit can perform one move and one action per turn. Actions include:
+Attack (engage an adjacent or ranged enemy), Use Item (consumable from
+inventory), Wait (end turn in place), Talk (Lord only, to recruit green
+NPCs), Seize (Lord only, on objective tiles), and Trade (swap items with
+an adjacent ally).
+
+3.3 Damage Formula
+
+The damage formula follows classic Fire Emblem conventions:
+
+**Physical Damage:** ATK (STR + Weapon Might) − DEF
+
+**Magical Damage:** ATK (MAG + Weapon Might) − RES
+
+**Hit Rate:** Weapon Hit + (SKL × 2) + LCK − Enemy Avoid
+
+**Avoid:** (SPD × 2) + LCK + Terrain Bonus
+
+**Critical Rate:** SKL / 2 + Weapon Crit + Skill Bonuses − Enemy LCK
+
+**Critical Damage:** 3× normal damage
+
+**Double Attack:** If unit's SPD exceeds enemy's SPD by 5 or more, unit
+attacks twice.
+
+3.4 Weapon Triangle
+
+The weapon triangle provides a moderate advantage to favorable matchups.
+The effect is intentionally lighter than some FE titles to reduce RNG
+frustration.
+
+  ----------------- ----------- ----------- -----------------------------
+  **Matchup**       **Hit       **Damage    **Notes**
+                    Bonus**     Bonus**     
+
+  Swords → Axes     +10 Hit     +1 Damage   Sword users are accurate vs
+                                            Axes
+
+  Axes → Lances     +10 Hit     +1 Damage   Axe users overpower Lances
+
+  Lances → Swords   +10 Hit     +1 Damage   Lance users outrange Swords
+
+  Disadvantage      −10 Hit     −1 Damage   Reverse of above
+  ----------------- ----------- ----------- -----------------------------
+
+Magic and bows exist outside the weapon triangle. Mastery rank enhances
+weapon triangle bonuses to +15 Hit / +2 Damage (and reduces disadvantage
+to −5 Hit / −1 Damage).
+
+3.5 Terrain
+
+Terrain tiles affect movement cost, evasion, and defense. Terrain types
+are assigned during map generation and add tactical variety.
+
+  ------------- --------- ---------- ---------- ----------------------------
+  **Terrain**   **Move    **Avoid    **DEF      **Notes**
+                Cost**    Bonus**    Bonus**    
+
+  Plain         1         0          0          Standard tile
+
+  Forest        2         +20        +1         Infantry and fliers only
+
+  Mountain      3         +30        +2         Infantry only
+
+  Fort          1         +20        +2         Heals 10% HP per turn
+
+  Throne        1         +30        +3         Boss/seize tile. Heals 10%
+                                                HP.
+
+  Wall          ---       ---        ---        Impassable
+
+  Water         3 (fly:   +10        0          Fliers and certain classes
+                1)                              only
+  ------------- --------- ---------- ---------- ----------------------------
+
+3.6 Fog of War
+
+Some maps feature partial or full fog of war as a random modifier. In
+fog, the player can only see tiles within each unit's vision range
+(typically 3 tiles for most units, 5 for Thieves/Assassins). Torches and
+certain skills can extend vision. Fog maps reward careful play and
+scouting.
+
+3.7 Map Objectives
+
+While early maps are primarily rout (defeat all enemies), later Acts
+introduce varied objectives:
+
+-   **Rout:** Defeat all enemy units.
+
+-   **Seize:** Lord must reach and capture a specific tile (throne,
+    gate).
+
+-   **Defend:** Protect a tile or NPC for X turns against waves.
+
+-   **Escape:** Move all surviving units to an exit point.
+
+-   **Survive:** Endure X turns of enemy waves. Rewards scale with
+    enemies defeated.
+
+-   **Protect & Recruit:** A green NPC is on the map. Recruit them
+    before they fall. Enemies will target the NPC.
+
+Bonus objectives (e.g., complete in fewer turns, no unit losses) grant
+extra gold or XP.
+
+3.8 Enemy AI
+
+Enemy AI follows classic Fire Emblem patterns with minor enhancements:
+
+-   Enemies attack if they can deal damage and survive the counterattack
+    (or if they can secure a kill regardless).
+
+-   Enemies prioritize targets they can kill, then targets with weapon
+    triangle advantage against, then lowest-DEF/RES targets.
+
+-   Enemies do not suicidally attack into massively unfavorable
+    matchups.
+
+-   Boss enemies are stationary until a player unit enters their range
+    (classic FE throne boss behavior).
+
+-   Miniboss enemies may have unique AI patterns (e.g., always targets
+    the Lord, retreats when below 25% HP).
+
+-   Green NPC allies use basic defensive AI: they attack nearby enemies
+    but do not advance aggressively. They prioritize self-preservation
+    over kills.
+
+4\. Unit System
+
+4.1 Stats
+
+Every unit has the following stats. Base stats come from their class and
+character, and grow on level up based on growth rates.
+
+  --------------- ---------- ------------------------------------------------
+  **Stat**        **Abbr**   **Effect**
+
+  Hit Points      HP         Unit is defeated when HP reaches 0.
+
+  Strength        STR        Physical attack power. Added to weapon might for
+                             physical attacks.
+
+  Magic           MAG        Magical attack power. Added to weapon might for
+                             magical attacks.
+
+  Skill           SKL        Accuracy and critical hit chance.
+
+  Speed           SPD        Evasion and double attack threshold. If SPD
+                             exceeds enemy by 5+, attacks twice.
+
+  Defense         DEF        Reduces physical damage taken.
+
+  Resistance      RES        Reduces magical damage taken.
+
+  Luck            LCK        Minor contributions to hit, avoid, and crit
+                             avoidance.
+
+  Movement        MOV        Number of tiles a unit can traverse per turn.
+  --------------- ---------- ------------------------------------------------
+
+4.2 Experience & Leveling
+
+Units earn XP from combat actions: dealing damage (small XP), defeating
+an enemy (large XP), healing allies (moderate XP for staff users), and
+completing objectives. XP thresholds increase per level. On level up,
+each stat has a chance to increase by 1 based on the unit's growth
+rates. Growth rates are expressed as percentages (e.g., 60% STR growth
+means a 60% chance STR increases on level up). Level cap is 20 for base
+classes and 20 for promoted classes (40 total effective levels).
+
+4.3 Growth Rates
+
+Growth rates come from two sources that stack:
+
+-   **Class Growths:** Each class has a set of growth rates. These are
+    semi-randomized within a range when a unit is generated (e.g., a
+    Fighter's STR growth might range from 50--70%, rolled once at
+    recruitment).
+
+-   **Character Growths:** Lords and Special Characters have fixed
+    personal growth rates that add to their class growths. This makes
+    them more reliable and distinct. Generic recruited units do not have
+    personal growths.
+
+4.4 Promotion
+
+At level 10 or higher, base-class units can promote to an advanced class
+using a Promotion Item (found as loot or purchased). Promotion resets
+the unit's level to 1 (of the promoted class) while retaining all stats.
+Promoted classes gain: stat bonuses on promotion, access to additional
+weapon types, a new innate skill (meta-progression required), and higher
+stat caps.
+
+4.5 Weapon Ranks
+
+Weapon proficiency uses a simplified three-tier system:
+
+  ------------- ------------------------------- -------------------------
+  **Rank**      **Effect**                      **How Obtained**
+
+  Can't Use     Unit cannot equip this weapon   Default for weapon types
+                type.                           outside class
+                                                proficiency.
+
+  Proficient    Unit can equip standard weapons Granted by class. Base
+                of this type.                   classes start with 1
+                                                proficiency.
+
+  Mastery       Small stat boost (+2 Hit, +1    Granted by promotion (1
+                Dmg). Enhanced weapon triangle  additional mastery).
+                (+15/+2 advantage, −5/−1        Meta-progression can
+                disadvantage). Can equip the    unlock mastery for
+                strongest weapons.              additional types.
+  ------------- ------------------------------- -------------------------
+
+Classes start with 1 weapon type at Proficient. Promotion upgrades that
+weapon to Mastery and grants Proficient in a second type.
+Meta-progression can grant additional weapon proficiencies or upgrade
+existing ones to Mastery.
+
+5\. Classes
+
+5.1 Standard Classes
+
+Standard classes are available for recruited generic units. Each has a
+base form and a promoted form.
+
+  ------------- ------------- ------------ --------------- ---------------
+  **Base        **Promoted    **Weapons    **Weapons       **Role**
+  Class**       Class**       (Base)**     (Promoted)**    
+
+  Myrmidon      Swordmaster   Swords (P)   Swords (M)      Fast, high-crit
+                                                           melee
+
+  Knight        General       Lances (P)   Lances (M),     Slow, very high
+                                           Axes (P)        DEF tank
+
+  Fighter       Warrior       Axes (P)     Axes (M), Bows  High STR, low
+                                           (P)             SKL bruiser
+
+  Cavalier      Paladin       Lances (P)   Lances (M),     Mounted,
+                                           Swords (P)      balanced stats,
+                                                           high MOV
+
+  Archer        Sniper        Bows (P)     Bows (M)        Ranged
+                                                           physical, no
+                                                           melee counter
+
+  Mage          Sage          Tomes (P)    Tomes (M),      Ranged magic
+                                           Staves (P)      damage
+
+  Cleric        Bishop        Staves (P)   Staves (M),     Healing, gains
+                                           Light (P)       offense on
+                                                           promotion
+
+  Thief         Assassin      Swords (P)   Swords (M)      High SPD, can
+                                                           pick locks,
+                                                           extended vision
+                                                           in fog
+
+  Pegasus       Falcon Knight Lances (P)   Lances (M),     Flying, high
+  Knight                                   Swords (P)      RES, weak to
+                                                           bows
+
+  Mercenary     Hero          Swords (P)   Swords (M),     Balanced
+                                           Axes (P)        all-rounder
+
+  Dancer        --- (no       None         ---             Grants an
+                promotion)                                 adjacent ally a
+                                                           second turn.
+                                                           Cannot attack.
+  ------------- ------------- ------------ --------------- ---------------
+
+\(P\) = Proficient, (M) = Mastery. Dancers are a rare and powerful
+support unit found only through specific recruit events.
+
+5.2 Lord Classes
+
+Lord classes are exclusive to Lord characters. Each Lord starts as a
+base Lord variant and promotes into an advanced form. Lords have unique
+personal skills and fixed personal growth rates.
+
+  ------------- ------------- ------------ --------------- ------------------
+  **Lord Base** **Lord        **Weapons    **Weapons       **Archetype**
+                Promoted**    (Base)**     (Promoted)**    
+
+  Lord          Great Lord    Swords (P)   Swords (M),     Balanced leader
+                                           Lances (P)      (default starting
+                                                           Lord, Marth-style)
+
+  Lord          Blade Lord    Swords (P)   Swords (M)      Offensive duelist,
+                                                           high SPD/SKL
+
+  Lord          Knight Lord   Swords (P)   Swords (M),     Tanky mounted
+                                           Lances (P)      lord, high DEF
+
+  Tactician     Grandmaster   Tomes (P)    Tomes (M),      Hybrid mage, buffs
+                                           Swords (P)      allies
+
+  Ranger        Vanguard      Swords (P)   Swords (M),     Versatile
+                                           Axes (P)        frontliner,
+                                                           Ike-style
+
+  Light Sage    Light         Light (P)    Light (M),      Magic-focused
+                Priestess                  Staves (P)      support lord
+
+  Rogue         Ninja         Swords (P)   Swords (M),     Speedy,
+                                           Bows (P)        stealth-oriented
+
+  Noble         Samurai       Swords (P)   Swords (M)      Crit-focused,
+                                                           katana specialist
+  ------------- ------------- ------------ --------------- ------------------
+
+The default starting Lord is the basic Lord → Great Lord. Additional
+Lords are unlocked through meta-progression. Each Lord can be
+extensively customized via meta-progression: improved growths, different
+starting weapon ranks, customized starting skills, and eventually class
+changes that alter their promotion path.
+
+5.3 Special Character Classes
+
+Some Special Characters have unique class variants (e.g., Wyvern Rider →
+Wyvern Lord) that are not available to generic recruits. These are
+unlocked as the Special Character is unlocked via meta-progression.
+
+6\. Skill System
+
+6.1 Skill Types
+
+Skills are divided into two categories:
+
+-   **Innate Skills:** Permanently attached to a unit by class or
+    character. Cannot be removed or swapped. Unlocked via
+    meta-progression: 1 skill for the base class, 1 additional skill on
+    promotion.
+
+-   **Equipped Skills:** Found as loot drops (Skill Scrolls) during
+    runs. Placed in equip slots. Can be swapped between battles.
+    Starting equip slot count: 1. Meta-progression can increase this to
+    2--3.
+
+6.2 Skill Categories
+
+Skills fall into broad functional categories:
+
+-   **Combat Skills:** Trigger during attacks (e.g., Astra: 5
+    consecutive hits at half damage; Sol: heal for damage dealt; Luna:
+    ignore half of enemy DEF).
+
+-   **Passive Skills:** Always active (e.g., Wrath: +20 Crit when below
+    50% HP; Vantage: attack first when enemy initiates and HP is below
+    50%).
+
+-   **Command Skills:** Activated abilities with cooldowns or per-battle
+    limits (e.g., Rally: +4 STR/SPD to adjacent allies for 1 turn).
+
+-   **Personal Skills:** Unique to specific Lords and Special Characters
+    (e.g., a Tactician Lord's personal skill might grant +2 to all stats
+    for adjacent allies).
+
+6.3 Starting Skills (Meta-Progression)
+
+At the start of a run, units begin with no innate skills by default.
+Through meta-progression, the player unlocks innate skills for classes:
+one for the base class (available immediately) and one that activates on
+promotion. The player can customize which skills their Lord starts with
+from a pool of unlocked options. Starting equipped skills for the Lord
+are also a meta-progression unlock.
+
+7\. Equipment System
+
+7.1 Equipment Slots
+
+Each unit has two equipment slots: Weapon (required for combat;
+determines attack type and range) and Accessory (optional; provides
+passive stat bonuses and sometimes special abilities). Units can carry
+up to 4 items total in their inventory (weapons, accessories,
+consumables) and freely swap between battles.
+
+7.2 Weapons
+
+Weapons are categorized by type (Swords, Lances, Axes, Bows, Tomes,
+Light, Staves) and by tier:
+
+  ----------- ------------ ----------- ----------------- ------------------
+  **Tier**    **Rank       **Might     **Example**       **Availability**
+              Required**   Range**                       
+
+  Iron        Proficient   4--6        Iron Sword        Shops, common
+                                                         drops
+
+  Steel       Proficient   7--9        Steel Lance       Shops (Act 2+),
+                                                         uncommon drops
+
+  Silver      Proficient   10--12      Silver Axe        Rare drops, elite
+                                                         rewards
+
+  Legendary   Mastery      13--16+     Ragnell, Falchion Boss drops,
+                                                         special events.
+                                                         Unique effects.
+  ----------- ------------ ----------- ----------------- ------------------
+
+Weapons do not break or require repair. Each weapon has stats: Might
+(damage bonus), Hit (accuracy bonus), Crit (critical rate bonus), Weight
+(reduces effective SPD if higher than unit's STR), and Range (1 for
+melee, 2 for ranged, 1--2 for some magic).
+
+7.3 Accessories
+
+Accessories provide passive stat bonuses and sometimes unique effects.
+Examples: Shield Ring (+3 DEF), Speed Ring (+3 SPD), Critical Band (+15
+Crit), Renewal Ring (heal 10% HP per turn), Boots (+1 MOV). Accessories
+come in common, uncommon, and rare tiers with corresponding stat
+magnitudes.
+
+7.4 Consumables
+
+Consumables are single-use items found as loot or purchased: Vulnerary
+(heal 10 HP), Elixir (heal to full), Promotion Item (required for
+promotion), Stat Boosters (permanently increase one stat by 1--2), Skill
+Scroll (grants an equipped skill). Consumables are lost at end of run.
+
+8\. Roguelike Systems
+
+8.1 Randomization
+
+The following elements are randomized each run:
+
+-   Node map paths (branching structure within each Act)
+
+-   Battle maps (generated from templates with randomized terrain
+    placement)
+
+-   Enemy compositions (drawn from level-appropriate pools per Act)
+
+-   Recruited unit stats (class growths rolled within ranges at
+    recruitment)
+
+-   Shop inventories (random selection from tier-appropriate item pools)
+
+-   Loot drops (weapons, accessories, skill scrolls, consumables from
+    tiered pools)
+
+-   Level-up stat gains (each stat rolls against growth rate
+    independently)
+
+-   Elite/miniboss encounters (drawn from a pool, each with unique
+    mechanics)
+
+-   Fog of war and terrain modifiers (random chance per map)
+
+-   Recruit event availability and which characters appear
+
+8.2 Loot & Rewards
+
+After each battle, the player is presented with a choice of loot.
+Standard battles offer a choice of 1 from 3 random items. Elite battles
+offer a choice of 2 from 4 items of higher quality. Boss battles grant a
+guaranteed powerful reward plus meta-progression currency. Loot pools
+scale by Act: Act 1 primarily offers Iron-tier gear and common
+accessories; Act 2 introduces Steel-tier and uncommon accessories; Act 3
+features Silver-tier and rare accessories; Post-Act and Bosses can drop
+Legendary items.
+
+8.3 Recruitment
+
+Units are recruited during runs through two mechanisms:
+
+-   **Recruit Event Nodes:** On the node map, recruit events are combat
+    maps featuring a green NPC ally. The Lord must move adjacent to the
+    NPC and use the Talk action to recruit them. The NPC fights with
+    basic defensive AI and is not suicidal, but enemies may target them.
+    If the NPC falls before recruitment, they are lost for this run.
+
+-   **Mid-Battle Recruits:** Occasionally, a green NPC will appear on a
+    standard battle map. Same recruitment mechanic. This is rarer and
+    adds a secondary objective to the battle.
+
+Recruited units are generated with: a random class (from the player's
+unlocked class pool), a level appropriate to the current Act, randomized
+stats based on class growths, a basic weapon appropriate to their class,
+and no equipped skills (must be given Skill Scrolls).
+
+8.4 Gold Economy
+
+Gold is earned from battles (base amount + bonuses for performance),
+selling unwanted loot, and sometimes from events. Gold is spent at shops
+on weapons, accessories, consumables, skill scrolls, and promotion
+items. Gold does not persist between runs. The economy should be tuned
+so that players must make meaningful choices about what to buy rather
+than purchasing everything.
+
+9\. Meta-Progression
+
+9.1 Meta-Currency
+
+Runs award a meta-currency (working name: Renown) based on progress.
+Renown is earned from: defeating bosses (large amounts), completing
+Acts, total enemies defeated, and bonus objectives. Even failed runs
+earn Renown proportional to progress. Renown is spent at the Home Base
+between runs.
+
+9.2 Home Base
+
+The Home Base is the persistent hub between runs. It contains upgrade
+stations where Renown is spent:
+
+9.2.1 Lord Upgrades
+
+-   Improve Lord's base growth rates (e.g., +5% STR growth, capped)
+
+-   Improve Lord's starting base stats (+1 STR, +1 SPD, etc., capped)
+
+-   Unlock additional weapon proficiencies for the Lord
+
+-   Upgrade weapon proficiencies to Mastery
+
+-   Unlock and customize starting skills (innate and equipped)
+
+-   Unlock starting weapons (begin runs with better gear)
+
+-   Unlock alternative Lord classes / promotion paths
+
+9.2.2 Class & Recruit Upgrades
+
+-   Unlock new classes for the recruitment pool
+
+-   Improve generic recruit base stats and growth rate ranges
+
+-   Unlock innate skills for base classes
+
+-   Unlock innate skills for promoted classes
+
+-   Increase equipped skill slot count (1 → 2 → 3)
+
+-   Unlock new weapon proficiencies for classes
+
+9.2.3 Special Character Unlocks
+
+Special Characters are unique named units with fixed personal growth
+rates and sometimes unique class trees. They are unlocked via
+meta-progression and then appear in the recruitment pool during runs.
+Unlike generic recruits, Special Characters retain their identity across
+runs (same name, appearance, personal skill) but must still be recruited
+each run. They start each run fresh but benefit from any class-level
+meta-upgrades.
+
+9.2.4 General Upgrades
+
+-   Increase starting gold
+
+-   Better starting shop inventories
+
+-   Increase loot drop quality
+
+-   Unlock additional node map events
+
+-   NPC warriors (starting allies in early battles) get improved stats
+
+9.3 Progression Balance Philosophy
+
+Meta-progression should make early Acts feel smoother and open new
+strategic options, but should never trivialize the late game. The
+strongest upgrades (starting stats, growth rates) are capped to prevent
+overpowering. The most impactful unlocks are lateral (new classes, new
+Lords, new Special Characters) rather than strictly vertical. A fully
+upgraded Lord with a team of clerics should still lose to Act 3 content
+because maps demand multiple competent combat units through split-path
+objectives and multi-front battles.
+
+10\. Lord Profiles
+
+10.1 Default Lord: Edric (Lord → Great Lord)
+
+The starting Lord, available from the first run. A balanced
+sword-wielding leader in the mold of Marth and Eliwood.
+
+  ---------- -------- --------- --------- --------- --------- --------- --------- --------- ---------
+  **Stat**   **HP**   **STR**   **MAG**   **SKL**   **SPD**   **DEF**   **RES**   **LCK**   **MOV**
+
+  Base       20       6         2         7         7         5         3         6         5
+
+  Growth     70%      50%       20%       55%       55%       35%       30%       50%       ---
+  ---------- -------- --------- --------- --------- --------- --------- --------- --------- ---------
+
+**Personal Skill --- Charisma:** Allies within 2 tiles gain +10 Hit and
++5 Avoid.
+
+**Promotion:** Great Lord gains Lances (P), +2 STR, +1 DEF, +1 MOV.
+
+10.2 Unlockable Lords (Examples)
+
+Additional Lords are unlocked through meta-progression. Each offers a
+fundamentally different playstyle:
+
+-   **Kira (Tactician → Grandmaster):** Hybrid mage/support. Personal
+    Skill: Foresight (+1 range on all Tome attacks). Starts with Tomes
+    (P), promotes to Tomes (M) + Swords (P). Lower HP/DEF but high
+    MAG/SPD. Rewards a magic-heavy team composition.
+
+-   **Voss (Ranger → Vanguard):** Aggressive frontliner. Personal Skill:
+    Resolve (+4 STR/DEF when below 50% HP). Starts with Swords (P),
+    promotes to Swords (M) + Axes (P). Very high STR/DEF but lower
+    SPD/RES. Rewards an aggressive, high-risk playstyle.
+
+-   **Sera (Light Sage → Light Priestess):** Defensive/sustain lord.
+    Personal Skill: Renewal Aura (adjacent allies heal 5 HP per turn).
+    Starts with Light (P), promotes to Light (M) + Staves (P). Can both
+    deal magic damage and heal. Lower offensive stats but exceptional at
+    keeping teams alive.
+
+11\. Enemy & Boss Design
+
+11.1 Enemy Scaling
+
+Enemies scale by Act. Each Act has a pool of enemy unit types at
+appropriate levels with appropriate equipment:
+
+  ---------- --------------- --------------- ------------------------------
+  **Act**    **Enemy Level   **Equipment     **Class Variety**
+             Range**         Tier**          
+
+  Act 1      1--5            Iron            Fighters, Soldiers, Archers,
+                                             Brigands
+
+  Act 2      5--12           Iron/Steel      Above + Cavaliers, Mages,
+                                             Knights, Mercenaries
+
+  Act 3      12--18          Steel/Silver    Above + Swordmasters, Snipers,
+                                             Sages, Generals, Promoted
+                                             enemies
+
+  Post-Act   16--20          Silver          Fully promoted enemies with
+                                             skills
+  ---------- --------------- --------------- ------------------------------
+
+11.2 Elite Enemies (Minibosses)
+
+Elites are named enemies with higher stats, unique skills, and sometimes
+unique AI behaviors. They are drawn randomly from a pool. Examples: a
+General with Pavise (chance to halve damage) who turtles behind a wall
+of soldiers; an Assassin with Lethality (chance of instant kill) who
+targets your weakest unit; a Sage with Bolting (long-range magic) who
+must be reached through a gauntlet.
+
+11.3 Act Bosses
+
+Act Bosses are fixed (non-random) encounters designed to be learnable.
+Each has a unique map layout, reinforcement pattern, and boss mechanics.
+They are the primary difficulty gates and the source of the best
+rewards. Boss design should test different tactical skills: Act 1 Boss
+tests basic weapon triangle and positioning; Act 2 Boss tests
+multi-front management and objective prioritization; Act 3 Boss tests
+full team coordination with promoted enemies and boss mechanics.
+
+11.4 Final Boss
+
+The Final Boss is a multi-phase encounter on a large map. It should
+require the player's full 6-unit roster operating at peak effectiveness.
+The Final Boss has multiple phases, reinforcements, and unique mechanics
+that test mastery of all game systems.
+
+12\. Asset Requirements
+
+12.1 Art Assets
+
+12.1.1 Character Sprites (Map View)
+
+Top-down or 3/4 view sprites for the game map. Each class needs: idle
+animation (2 frames), walk animation (4 frames, 4 directions), and a
+selected/highlighted state. At minimum 15--20 class sprite sets are
+needed. Resolution: 32x32 pixels per frame recommended (or 16x16 for a
+more retro feel). Palette: define a consistent 32-color master palette.
+Each faction (player, enemy, NPC) uses color-swapped variants of the
+same sprites.
+
+12.1.2 Character Sprites (Battle View)
+
+Side-view sprites for combat animations. Each class needs: idle (2
+frames), attack (4--6 frames), hit/damage (2 frames), dodge (2--4
+frames), critical attack (6--8 frames), and defeat/death (4 frames).
+These are larger sprites: 64x64 or 96x96 recommended. This is the most
+art-intensive requirement. For MVP, consider using minimal battle
+animations (attack flash + damage number) and adding full animations
+later.
+
+12.1.3 Portraits
+
+Character portraits for dialogue, recruitment, and stat screens. Lords
+and Special Characters need unique portraits. Generic recruits can share
+class-based portraits with color variations. Resolution: 96x96 or
+128x128. This is a strong candidate for AI image generation --- generate
+portraits in a consistent pixel art style, then manually clean up for
+consistency.
+
+12.1.4 Map Tilesets
+
+Tile-based map graphics for 3--4 biome types (grassland/plains,
+castle/fortress, cave/dungeon, forest). Each biome needs: base terrain
+tiles, terrain features (trees, rocks, walls, water, bridges), objective
+tiles (throne, gate, chest), and decorative elements. Standard tilesets
+from itch.io or OpenGameArt are recommended as a starting point.
+
+12.1.5 UI Elements
+
+Menu backgrounds, stat screen layout, health bars, XP bar,
+weapon/skill/item icons, cursor sprites, tile highlights (movement
+range, attack range, selected), damage numbers, level-up screen, node
+map graphics, and shop interface. A clean pixel-art UI kit is essential.
+
+12.1.6 Effects
+
+Visual effects for: weapon attacks (slash, pierce, impact), magic (fire,
+lightning, wind, light, dark), healing (staff glow), critical hit flash,
+level-up sparkle, promotion transformation, and status effects. These
+can be simple sprite animations: 4--8 frames each.
+
+12.2 Sound Assets
+
+12.2.1 Sound Effects
+
+Essential sound effects: menu cursor move, menu select, menu cancel,
+attack hit (physical), attack hit (magical), critical hit, miss/dodge,
+healing, level up jingle, unit defeated, gold received, item obtained,
+skill activated, chapter clear fanfare, game over sting, node map
+selection, and shop purchase. Free resources: OpenGameArt.org,
+Freesound.org, or retro-style SFX generators like sfxr/jsfxr.
+
+12.2.2 Music
+
+Minimum music tracks needed: title screen theme, home base theme, node
+map theme, standard battle theme, boss battle theme, final boss theme,
+victory fanfare, game over theme, and recruitment/event theme. Chiptune
+or orchestral-chip hybrid (Octopath Traveler style) fits the aesthetic.
+AI music generation tools (Suno, Udio) or royalty-free retro game music
+packs are viable options.
+
+12.3 Asset Pipeline Recommendations
+
+For practical development:
+
+-   Use placeholder art during prototyping (colored rectangles, simple
+    shapes).
+
+-   Source tilesets from free asset packs on itch.io (many excellent
+    SNES-style RPG tilesets exist).
+
+-   Use AI image generation for portraits and concept art, with manual
+    cleanup in Aseprite or Piskel.
+
+-   For character sprites, consider hiring a pixel artist for the core
+    set (15--20 classes) or using free sprite packs as a foundation.
+
+-   Sound effects can be generated with jsfxr for retro-style SFX.
+
+-   Music should be sourced from royalty-free packs or commissioned
+    separately.
+
+The highest-priority art for MVP is: map tilesets (1 biome), character
+map sprites (5--6 classes), basic UI, and placeholder battle animations.
+
+13\. Data Architecture
+
+13.1 Data-Driven Design
+
+All game content is defined in JSON files that the engine reads at
+runtime. This enables rapid iteration, easy balancing, and eventual
+modding support. Core data files include:
+
+  ------------------- ---------------------- -------------------------------
+  **File**            **Contents**           **Example Fields**
+
+  classes.json        All class definitions  name, type, baseStats,
+                                             growthRanges,
+                                             weaponProficiencies,
+                                             movementType, promotesTo
+
+  skills.json         All skill definitions  name, type, description,
+                                             effect, trigger, cooldown,
+                                             category
+
+  weapons.json        All weapon definitions name, type, tier, might, hit,
+                                             crit, weight, range,
+                                             rankRequired, specialEffect
+
+  accessories.json    All accessory          name, tier, statBonuses,
+                      definitions            specialEffect
+
+  consumables.json    All consumable items   name, effect, charges
+
+  enemies.json        Enemy unit templates   class, levelRange, equipment,
+                      by Act                 skills, ai
+
+  bosses.json         Boss encounter         name, class, stats, skills,
+                      definitions            mapId, phases, dialogue
+
+  maps.json           Map templates and      width, height, biome,
+                      generation rules       terrainRules, spawnZones,
+                                             objectives
+
+  lords.json          Lord character         name, class, baseStats,
+                      definitions            growths, personalSkill,
+                                             promotionPath
+
+  specialChars.json   Special character      name, class, baseStats,
+                      definitions            growths, personalSkill,
+                                             unlockCost
+
+  metaUpgrades.json   All meta-progression   name, description, cost,
+                      upgrades               effect, maxLevel, prerequisites
+
+  lootTables.json     Loot pool definitions  tier, items, weights
+                      by tier                
+  ------------------- ---------------------- -------------------------------
+
+13.2 Save Data
+
+Two types of persistent data: Meta Save (Renown balance, all unlocked
+upgrades, unlocked Lords/Special Characters/classes, Lord customization)
+and Run Save (current Act/node position, full state of all units
+including stats/equipment/skills, inventory, gold, map seed). Meta Save
+persists forever via browser localStorage. Run Save is deleted on run
+completion or failure.
+
+14\. MVP Scope & Build Order
+
+14.1 MVP Definition
+
+The MVP is a playable vertical slice demonstrating the core loop:
+navigate a node map, fight grid-based battles with varied objectives,
+recruit units, find loot, level up and promote, fight a boss, and
+experience meta-progression. It should include 1 full Act (6--8
+battles + 1 boss) and a functional Home Base.
+
+14.2 Build Order
+
+Development should proceed in this order, with each phase producing a
+testable result:
+
+1.  **Grid Engine & Movement:** Render a tiled map, place units,
+    implement movement ranges and pathfinding. Placeholder art (colored
+    squares).
+
+2.  **Combat System:** Implement the damage formula, weapon triangle,
+    attack/counterattack, turn phases, and basic enemy AI. This is the
+    core --- it must feel right.
+
+3.  **Unit System:** Stats, leveling, growth rates, promotion, weapon
+    ranks. Load class data from JSON.
+
+4.  **Equipment & Skills:** Implement equipment effects, skill triggers,
+    inventory management.
+
+5.  **Map Generation:** Procedural map generation from templates with
+    randomized terrain. Multiple objective types.
+
+6.  **Node Map & Between-Battle Layer:** Branching path selection,
+    shops, rest, recruit events.
+
+7.  **Run Loop:** Full run from start to boss: loot drops, recruitment,
+    gold economy, run failure.
+
+8.  **Meta-Progression:** Home Base, Renown system, upgrade purchases,
+    persistence via localStorage.
+
+9.  **Polish & Art:** Replace placeholders with real sprites, add
+    animations, sound effects, music, UI polish.
+
+14.3 Post-MVP Features
+
+Features to add after the MVP is solid: Acts 2 and 3 with escalating
+content, additional Lord characters, Special Character roster, full
+battle animations, fog of war, additional biomes and tilesets, more
+skills and equipment variety, narrative/dialogue system, final boss
+multi-phase encounter, and additional meta-progression depth.
+
+*--- End of Document ---*

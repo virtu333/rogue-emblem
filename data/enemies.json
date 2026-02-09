@@ -1,0 +1,56 @@
+{
+  "pools": {
+    "act1": {
+      "levelRange": [1, 3],
+      "base": ["Myrmidon", "Fighter", "Archer", "Cavalier"],
+      "promoted": []
+    },
+    "act2": {
+      "levelRange": [3, 8],
+      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight"],
+      "promoted": []
+    },
+    "act3": {
+      "levelRange": [8, 15],
+      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight"],
+      "promoted": ["Swordmaster", "General", "Paladin", "Sniper"]
+    },
+    "postAct": {
+      "levelRange": [12, 18],
+      "base": ["Myrmidon", "Fighter", "Cavalier", "Mage"],
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Hero"]
+    },
+    "finalBoss": {
+      "levelRange": [15, 20],
+      "base": [],
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Hero"]
+    }
+  },
+  "bosses": {
+    "act1": [
+      { "className": "Knight", "level": 3, "name": "Iron Captain" },
+      { "className": "Fighter", "level": 3, "name": "Warchief" }
+    ],
+    "act2": [
+      { "className": "Paladin", "level": 12, "name": "Knight Commander" },
+      { "className": "Sage", "level": 12, "name": "Archmage" }
+    ],
+    "act3": [
+      { "className": "Swordmaster", "level": 16, "name": "Blade Lord" },
+      { "className": "General", "level": 16, "name": "Iron Wall" }
+    ],
+    "finalBoss": [
+      { "className": "Hero", "level": 20, "name": "Dark Champion" }
+    ]
+  },
+  "enemyCountByTiles": {
+    "80":  [2, 2],
+    "96":  [2, 2],
+    "140": [5, 7],
+    "160": [6, 8],
+    "192": [7, 9],
+    "216": [8, 10],
+    "252": [9, 11],
+    "280": [10, 12]
+  }
+}

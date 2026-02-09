@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rogue Emblem</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0c1e;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+      font-family: monospace;
+      overflow: hidden;
+    }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+    /* Auth overlay — full viewport, canvas-animated background */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0a0c1e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    #auth-wrapper {
+      position: relative;
+      /* sized by JS to maintain 4:3 like Phaser Scale.FIT */
+    }
+
+    #auth-bg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Form content positioned over canvas */
+    #auth-content {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      padding-top: 41%; /* align just below canvas-drawn title/divider */
+    }
+    #auth-content > * {
+      pointer-events: auto;
+    }
+
+    /* Title text — rendered on canvas, so hide the HTML version */
+    #auth-content h1 { display: none; }
+
+    /* Form */
+    #auth-content form {
+      display: flex;
+      flex-direction: column;
+      gap: 2%;
+      width: 52%; /* ~330/640 */
+    }
+    #auth-content input {
+      background: #12111f;
+      border: 2px solid #3a3660;
+      color: #cccccc;
+      padding: 2.2% 3%;
+      font-family: "Press Start 2P", monospace;
+      font-size: min(11px, 1.7vw);
+      outline: none;
+      transition: border-color 0.15s;
+      image-rendering: auto;
+    }
+    #auth-content input::placeholder {
+      color: #555566;
+    }
+    #auth-content input:focus {
+      border-color: #e8b849;
+    }
+    #auth-content button {
+      background: #12111f;
+      color: #cccccc;
+      border: 2px solid #3a3660;
+      padding: 2.5%;
+      font-family: "Press Start 2P", monospace;
+      font-size: min(12px, 1.9vw);
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 2px;
+    }
+    #auth-content button:hover {
+      border-color: #e8b849;
+      color: #f5d77a;
+      background: rgba(232, 184, 73, 0.06);
+    }
+    #auth-error {
+      font-family: "Press Start 2P", monospace;
+      color: #ff6666;
+      font-size: min(8px, 1.3vw);
+      min-height: 1em;
+      margin-top: 1.5%;
+      text-align: center;
+    }
+    #auth-toggle {
+      font-family: "Press Start 2P", monospace;
+      color: #8888aa;
+      font-size: min(12px, 1.9vw);
+      margin-top: 3%;
+      cursor: pointer;
+      transition: color 0.15s;
+      text-align: center;
+    }
+    #auth-toggle:hover {
+      color: #e8b849;
+    }
+    .offline-link {
+      font-family: "Press Start 2P", monospace;
+      color: #555566;
+      font-size: min(12px, 1.9vw);
+      margin-top: 2.5%;
+      cursor: pointer;
+      transition: color 0.15s;
+      text-align: center;
+    }
+    .offline-link:hover {
+      color: #8888aa;
+    }
+
+    #game-container { display: none; background: #0a0c1e; }
+  </style>
+</head>
+<body>
+  <div id="auth-overlay">
+    <div id="auth-wrapper">
+      <canvas id="auth-bg" width="640" height="480"></canvas>
+      <div id="auth-content">
+        <h1>ROGUE EMBLEM</h1>
+        <form id="auth-form">
+          <input type="text" id="auth-username" placeholder="Username" autocomplete="username" required minlength="3" maxlength="20">
+          <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password" required minlength="6">
+          <button type="submit" id="auth-submit">Log In</button>
+        </form>
+        <p id="auth-error"></p>
+        <p id="auth-toggle">Don't have an account? Register</p>
+        <p class="offline-link" id="auth-skip">Play offline (no cloud saves)</p>
+      </div>
+    </div>
+  </div>
+  <div id="game-container"></div>
+
+  <script>
+  // --- Auth screen animated background (mirrors TitleScene.js drawing) ---
+  (function() {
+    const W = 640, H = 480, PIXEL = 2;
+    const canvas = document.getElementById('auth-bg');
+    const ctx = canvas.getContext('2d');
+
+    // --- Sizing: match Phaser Scale.FIT + CENTER_BOTH ---
+    const wrapper = document.getElementById('auth-wrapper');
+    function resize() {
+      const aspect = W / H;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let w, h;
+      if (vw / vh > aspect) {
+        h = vh; w = vh * aspect;
+      } else {
+        w = vw; h = vw / aspect;
+      }
+      wrapper.style.width = w + 'px';
+      wrapper.style.height = h + 'px';
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // --- Drawing helpers (identical to TitleScene.js) ---
+    function pixelRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      const px = Math.round(x / PIXEL) * PIXEL;
+      const py = Math.round(y / PIXEL) * PIXEL;
+      const pw = Math.max(PIXEL, Math.round(w / PIXEL) * PIXEL);
+      const ph = Math.max(PIXEL, Math.round(h / PIXEL) * PIXEL);
+      ctx.fillRect(px, py, pw, ph);
+    }
+
+    function drawSky() {
+      const bands = [
+        { stop: 0,    color: [10, 12, 30] },
+        { stop: 0.2,  color: [18, 14, 50] },
+        { stop: 0.35, color: [35, 20, 65] },
+        { stop: 0.45, color: [60, 28, 80] },
+        { stop: 0.52, color: [90, 40, 70] },
+        { stop: 0.56, color: [120, 55, 50] },
+        { stop: 0.6,  color: [80, 35, 60] },
+      ];
+      const bandHeight = PIXEL * 3;
+      for (let y = 0; y < H * 0.65; y += bandHeight) {
+        const t = y / (H * 0.65);
+        let c0, c1, lt;
+        for (let i = 0; i < bands.length - 1; i++) {
+          if (t >= bands[i].stop && t <= bands[i + 1].stop) {
+            c0 = bands[i].color; c1 = bands[i + 1].color;
+            lt = (t - bands[i].stop) / (bands[i + 1].stop - bands[i].stop);
+            break;
+          }
+        }
+        if (!c0) { c0 = bands[bands.length - 1].color; c1 = c0; lt = 0; }
+        const r = Math.round(c0[0] + (c1[0] - c0[0]) * lt);
+        const g = Math.round(c0[1] + (c1[1] - c0[1]) * lt);
+        const b = Math.round(c0[2] + (c1[2] - c0[2]) * lt);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(0, y, W, bandHeight + 1);
+      }
+    }
+
+    function drawStars(time, stars) {
+      stars.forEach(s => {
+        const twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * s.twinkleSpeed * 0.06 + s.phase));
+        const alpha = s.brightness * twinkle;
+        ctx.fillStyle = `rgba(220, 210, 255, ${alpha})`;
+        const sz = Math.round(s.size / PIXEL) * PIXEL;
+        ctx.fillRect(
+          Math.round(s.x / PIXEL) * PIXEL,
+          Math.round(s.y / PIXEL) * PIXEL,
+          sz, sz
+        );
+      });
+    }
+
+    function drawHorizonGlow() {
+      const y = H * 0.5;
+      const grad = ctx.createRadialGradient(W * 0.5, y, 0, W * 0.5, y, W * 0.4);
+      grad.addColorStop(0, 'rgba(120, 50, 40, 0.15)');
+      grad.addColorStop(0.5, 'rgba(80, 30, 60, 0.08)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, y - W * 0.3, W, W * 0.6);
+    }
+
+    function drawClouds(clouds) {
+      clouds.forEach(c => {
+        c.x += c.speed;
+        if (c.x > W + c.w) c.x = -c.w * 2;
+        const bw = PIXEL * 4;
+        const numBlobs = Math.floor(c.w / bw);
+        for (let i = 0; i < numBlobs; i++) {
+          const bx = c.x + i * bw;
+          const heightMod = Math.sin((i / numBlobs) * Math.PI);
+          const bh = c.h * heightMod;
+          pixelRect(bx, c.y - bh / 2, bw, bh + PIXEL, `rgba(80, 50, 120, ${c.opacity})`);
+        }
+      });
+    }
+
+    function drawMountainLayer(baseY, height, color, seed, jaggedness) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += PIXEL) {
+        const n1 = Math.sin(x * 0.003 + seed) * height * 0.5;
+        const n2 = Math.sin(x * 0.008 + seed * 2.3) * height * 0.25;
+        const n3 = Math.sin(x * 0.02 + seed * 5.1) * height * jaggedness;
+        const y = baseY - Math.abs(n1 + n2 + n3);
+        ctx.lineTo(x, Math.round(y / PIXEL) * PIXEL);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawCastle(time) {
+      const cx = W * 0.5;
+      const baseY = H * 0.52;
+      const p = PIXEL;
+      const c = '#1c1838';
+      const cDark = '#14112a';
+
+      pixelRect(cx - p * 12, baseY - p * 28, p * 24, p * 28, c);
+      for (let i = 0; i < 6; i++) {
+        pixelRect(cx - p * 12 + i * p * 4, baseY - p * 32, p * 3, p * 4, c);
+      }
+      pixelRect(cx - p * 20, baseY - p * 36, p * 10, p * 36, c);
+      pixelRect(cx - p * 22, baseY - p * 40, p * 14, p * 4, c);
+      pixelRect(cx - p * 18, baseY - p * 44, p * 6, p * 4, c);
+      pixelRect(cx - p * 16, baseY - p * 47, p * 2, p * 3, c);
+      pixelRect(cx + p * 10, baseY - p * 36, p * 10, p * 36, c);
+      pixelRect(cx + p * 8, baseY - p * 40, p * 14, p * 4, c);
+      pixelRect(cx + p * 12, baseY - p * 44, p * 6, p * 4, c);
+      pixelRect(cx + p * 14, baseY - p * 47, p * 2, p * 3, c);
+      pixelRect(cx - p * 3, baseY - p * 38, p * 6, p * 10, c);
+      pixelRect(cx - p * 2, baseY - p * 44, p * 4, p * 6, c);
+      pixelRect(cx - p * 1, baseY - p * 50, p * 2, p * 6, c);
+      pixelRect(cx - p * 4, baseY - p * 10, p * 8, p * 10, cDark);
+      pixelRect(cx - p * 3, baseY - p * 9, p * 6, p * 9, '#0a0918');
+
+      const windows = [
+        [-16, -30], [-16, -22], [-16, -14],
+        [15, -30], [15, -22], [15, -14],
+        [-6, -20], [5, -20], [-6, -14], [5, -14], [0, -42],
+      ];
+      windows.forEach(function(w) {
+        const wx = w[0], wy = w[1];
+        const flicker = 0.7 + 0.3 * Math.sin(time * 0.003 + wx * 0.5 + wy);
+        pixelRect(cx + wx * p, baseY + wy * p, p * 2, p * 2,
+          'rgba(245, 215, 122, ' + (0.6 * flicker) + ')');
+        ctx.fillStyle = 'rgba(245, 200, 100, ' + (0.15 * flicker) + ')';
+        ctx.fillRect(cx + wx * p - p, baseY + wy * p - p, p * 4, p * 4);
+      });
+
+      pixelRect(cx - p * 45, baseY - p * 8, p * 25, p * 12, c);
+      pixelRect(cx + p * 20, baseY - p * 8, p * 25, p * 12, c);
+      for (let i = 0; i < 6; i++) {
+        pixelRect(cx - p * 45 + i * p * 4, baseY - p * 11, p * 3, p * 3, c);
+        pixelRect(cx + p * 20 + i * p * 4, baseY - p * 11, p * 3, p * 3, c);
+      }
+      pixelRect(cx - p * 48, baseY - p * 16, p * 6, p * 20, c);
+      pixelRect(cx - p * 49, baseY - p * 19, p * 8, p * 3, c);
+      pixelRect(cx + p * 42, baseY - p * 16, p * 6, p * 20, c);
+      pixelRect(cx + p * 41, baseY - p * 19, p * 8, p * 3, c);
+    }
+
+    function drawForeground() {
+      var baseY = H * 0.72;
+      ctx.fillStyle = '#111a14';
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += PIXEL) {
+        const y = baseY + Math.sin(x * 0.004) * H * 0.04 + Math.sin(x * 0.01) * H * 0.015;
+        ctx.lineTo(x, Math.round(y / PIXEL) * PIXEL);
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+
+      var fgY = H * 0.82;
+      ctx.fillStyle = '#0d150f';
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += PIXEL) {
+        const y = fgY + Math.sin(x * 0.006 + 1) * H * 0.03 + Math.sin(x * 0.015 + 3) * H * 0.01;
+        ctx.lineTo(x, Math.round(y / PIXEL) * PIXEL);
+      }
+      ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+
+      ctx.fillStyle = '#0a100c';
+      ctx.fillRect(0, H * 0.92, W, H * 0.1);
+
+      var grassColor = '#1a2e1a';
+      for (let x = 0; x < W; x += PIXEL * 6) {
+        const hash = Math.sin(x * 123.456) * 43758.5453;
+        if ((hash - Math.floor(hash)) > 0.5) {
+          const gy = H * 0.82 + Math.sin(x * 0.006 + 1) * H * 0.03 - PIXEL * 2;
+          pixelRect(x, gy, PIXEL, PIXEL * 3, grassColor);
+          pixelRect(x + PIXEL, gy - PIXEL, PIXEL, PIXEL * 2, grassColor);
+        }
+      }
+
+      var trees = [
+        { x: 0.08, h: 18 }, { x: 0.12, h: 22 }, { x: 0.15, h: 16 },
+        { x: 0.25, h: 14 }, { x: 0.28, h: 20 },
+        { x: 0.7, h: 24 }, { x: 0.73, h: 18 }, { x: 0.76, h: 22 },
+        { x: 0.85, h: 16 }, { x: 0.88, h: 20 }, { x: 0.92, h: 14 },
+      ];
+      trees.forEach(function(t) {
+        const tx = W * t.x;
+        const hillY = baseY + Math.sin(tx * 0.004) * H * 0.04 + Math.sin(tx * 0.01) * H * 0.015;
+        const treeColor = '#0e1610';
+        const p = PIXEL;
+        const h = t.h;
+        pixelRect(tx, hillY - h * p * 0.4, p * 2, h * p * 0.4, treeColor);
+        for (let i = 0; i < 4; i++) {
+          const w = (4 - i) * 2;
+          pixelRect(tx - w * p / 2 + p, hillY - h * p * 0.4 - i * p * 3, w * p, p * 3, treeColor);
+        }
+      });
+    }
+
+    function drawParticles(time, particles) {
+      particles.forEach(function(p) {
+        p.life += p.speed;
+        if (p.life > 1) {
+          p.life = 0;
+          p.x = Math.random() * W;
+          p.y = H * 0.6 + Math.random() * H * 0.3;
+        }
+        p.x += p.vx + Math.sin(time * 0.001 + p.x) * 0.2;
+        p.y += p.vy;
+        var alpha = Math.sin(p.life * Math.PI) * 0.6;
+        var glow = PIXEL * 3;
+        ctx.fillStyle = 'rgba(200, 220, 120, ' + (alpha * 0.15) + ')';
+        ctx.fillRect(p.x - glow, p.y - glow, glow * 2, glow * 2);
+        ctx.fillStyle = 'rgba(230, 240, 150, ' + alpha + ')';
+        var sz = Math.round(p.size / PIXEL) * PIXEL;
+        ctx.fillRect(
+          Math.round(p.x / PIXEL) * PIXEL,
+          Math.round(p.y / PIXEL) * PIXEL,
+          sz, sz
+        );
+      });
+    }
+
+    function drawVignette() {
+      const cx = W / 2;
+      const grad = ctx.createRadialGradient(cx, H / 2, H * 0.3, cx, H / 2, H * 0.75);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    function drawScanlines() {
+      ctx.fillStyle = 'rgba(0,0,0,0.03)';
+      for (let y = 2; y < H; y += 4) {
+        ctx.fillRect(0, y, W, 2);
+      }
+    }
+
+    function drawTitle(time) {
+      const cx = W / 2;
+      // Shadow
+      ctx.save();
+      ctx.font = '28px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#7a5520';
+      ctx.fillText('ROGUE EMBLEM', cx, 104);
+      // Main title with glow
+      ctx.shadowColor = 'rgba(232,184,73,0.5)';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = '#e8b849';
+      ctx.fillText('ROGUE EMBLEM', cx, 100);
+      ctx.shadowBlur = 0;
+
+      // Subtitle
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = '#8888aa';
+      ctx.fillText('TACTICAL ROGUELIKE', cx, 140);
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      // Alpha tag
+      ctx.font = '8px "Press Start 2P", monospace';
+      const tagText = 'ALPHA TESTING';
+      const tagW = ctx.measureText(tagText).width + 16;
+      ctx.fillStyle = 'rgba(34, 0, 0, 0.67)';
+      ctx.fillRect(cx - tagW / 2, 155, tagW, 16);
+      ctx.fillStyle = '#ff6666';
+      ctx.fillText(tagText, cx, 163);
+
+      // Divider
+      ctx.strokeStyle = '#a67c2e';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx - 100, 184);
+      ctx.lineTo(cx - 15, 184);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 15, 184);
+      ctx.lineTo(cx + 100, 184);
+      ctx.stroke();
+
+      // Sword icon
+      ctx.shadowColor = 'rgba(232,184,73,0.3)';
+      ctx.shadowBlur = 8;
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.fillStyle = '#a67c2e';
+      ctx.fillText('\u2694', cx, 187);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
+    function drawFooter() {
+      ctx.save();
+      ctx.font = '7px "Press Start 2P", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(136,136,170,0.3)';
+      ctx.fillText('v0.1.0', 12, H - 16);
+      ctx.restore();
+    }
+
+    // --- State ---
+    var stars = [];
+    for (let i = 0; i < 80; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 0.45,
+        size: Math.random() < 0.3 ? PIXEL * 1.5 : PIXEL,
+        brightness: Math.random(),
+        twinkleSpeed: 0.005 + Math.random() * 0.02,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
+    var clouds = [];
+    for (let i = 0; i < 5; i++) {
+      clouds.push({
+        x: Math.random() * W * 1.5 - W * 0.25,
+        y: H * 0.15 + Math.random() * H * 0.2,
+        w: 60 + Math.random() * 120,
+        h: 15 + Math.random() * 20,
+        speed: 0.08 + Math.random() * 0.15,
+        opacity: 0.06 + Math.random() * 0.1,
+      });
+    }
+    var particles = [];
+    for (let i = 0; i < 15; i++) {
+      particles.push({
+        x: Math.random() * W,
+        y: H * 0.6 + Math.random() * H * 0.35,
+        size: PIXEL * 0.8,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -0.1 - Math.random() * 0.3,
+        life: Math.random(),
+        speed: 0.003 + Math.random() * 0.005,
+      });
+    }
+
+    // --- Animation loop ---
+    var animId = 0;
+    function draw(time) {
+      ctx.clearRect(0, 0, W, H);
+      drawSky();
+      drawStars(time, stars);
+      drawHorizonGlow();
+      drawClouds(clouds);
+      drawMountainLayer(H * 0.55, H * 0.12, '#141028', 1.0, 0.15);
+      drawMountainLayer(H * 0.58, H * 0.1, '#110e22', 3.5, 0.12);
+      drawCastle(time);
+      drawMountainLayer(H * 0.62, H * 0.06, '#0f0e1e', 7.0, 0.1);
+      drawForeground();
+      drawParticles(time, particles);
+      drawVignette();
+      drawScanlines();
+      drawTitle(time);
+      drawFooter();
+      animId = requestAnimationFrame(draw);
+    }
+    animId = requestAnimationFrame(draw);
+
+    // --- Music ---
+    var musicVol = 0.5;
+    try {
+      var s = JSON.parse(localStorage.getItem('emblem_rogue_settings') || '{}');
+      if (typeof s.musicVolume === 'number') musicVol = s.musicVolume;
+    } catch (_) {}
+
+    var bgMusic = new Audio('assets/audio/music/music_login.ogg');
+    bgMusic.loop = true;
+    bgMusic.volume = musicVol;
+
+    function tryPlayMusic() {
+      bgMusic.play().catch(function() {});
+    }
+
+    // Start music on first user interaction (typing or clicking)
+    function onFirstInteraction() {
+      tryPlayMusic();
+      document.removeEventListener('click', onFirstInteraction);
+      document.removeEventListener('keydown', onFirstInteraction);
+    }
+    document.addEventListener('click', onFirstInteraction);
+    document.addEventListener('keydown', onFirstInteraction);
+    tryPlayMusic(); // also try immediately (succeeds if autoplay allowed)
+
+    // Expose cleanup for main.js to call
+    window.stopAuthScreen = function() {
+      cancelAnimationFrame(animId);
+      bgMusic.pause();
+      bgMusic.src = '';
+      window.removeEventListener('resize', resize);
+      document.removeEventListener('click', onFirstInteraction);
+      document.removeEventListener('keydown', onFirstInteraction);
+    };
+  })();
+  </script>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

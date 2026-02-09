@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emblem Rogue - Data Viewer</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #131828;
+    --surface2: #1a2035;
+    --border: #2a3050;
+    --gold: #d4a843;
+    --gold-dim: #a58030;
+    --text: #e0e0e0;
+    --text-dim: #8090a0;
+    --accent: #4a8fd4;
+    --green: #4caf50;
+    --red: #e05050;
+    --orange: #e09040;
+    --purple: #b060e0;
+    --cyan: #40c8c8;
+    --tier-iron: #a0a0a0;
+    --tier-steel: #60a0d0;
+    --tier-silver: #d0d0f0;
+    --tier-legend: #f0d060;
+    --tier-rare: #c060f0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .header { background: linear-gradient(135deg, #0d1225 0%, #1a2545 100%); border-bottom: 2px solid var(--gold); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 1.4em; color: var(--gold); letter-spacing: 1px; }
+  .header .subtitle { color: var(--text-dim); font-size: 0.85em; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tab { padding: 8px 16px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; color: var(--text-dim); font-size: 0.85em; transition: all 0.15s; background: transparent; }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { color: var(--gold); background: var(--surface2); border-color: var(--border); font-weight: 600; }
+  .tab .count { font-size: 0.75em; color: var(--text-dim); margin-left: 4px; }
+  .content { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .section-title { color: var(--gold); font-size: 1.1em; margin: 20px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .section-title:first-child { margin-top: 0; }
+  .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input, .filter-bar select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 4px; font-size: 0.85em; }
+  .filter-bar input { width: 220px; }
+  .filter-bar input::placeholder { color: var(--text-dim); }
+  .filter-bar label { color: var(--text-dim); font-size: 0.85em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-bottom: 20px; }
+  th { background: var(--surface2); color: var(--gold-dim); padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: var(--gold); }
+  th .sort-arrow { font-size: 0.7em; margin-left: 4px; opacity: 0.5; }
+  th.sorted .sort-arrow { opacity: 1; }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(74, 143, 212, 0.08); }
+  .tier-iron { color: var(--tier-iron); }
+  .tier-steel { color: var(--tier-steel); }
+  .tier-silver { color: var(--tier-silver); }
+  .tier-legend { color: var(--tier-legend); font-weight: 600; }
+  .tier-rare { color: var(--tier-rare); }
+  .type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.8em; font-weight: 500; }
+  .type-sword { background: #2a2040; color: #b0a0d0; }
+  .type-lance { background: #1a2a40; color: #80b0d0; }
+  .type-axe { background: #2a2020; color: #d0a080; }
+  .type-bow { background: #2a2a1a; color: #c0c080; }
+  .type-tome { background: #301a2a; color: #d080b0; }
+  .type-light { background: #2a2a20; color: #e0d090; }
+  .type-staff { background: #1a2a2a; color: #80c0b0; }
+  .type-scroll { background: #251a30; color: #c090e0; }
+  .stat-pos { color: var(--green); }
+  .stat-neg { color: var(--red); }
+  .stat-zero { color: var(--text-dim); }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card h3 { color: var(--gold); margin-bottom: 8px; font-size: 1em; }
+  .card .stat-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+  .card .stat { font-size: 0.82em; }
+  .card .stat-label { color: var(--text-dim); }
+  .card .skill-tag { display: inline-block; background: #1a2540; color: var(--accent); padding: 2px 8px; border-radius: 3px; font-size: 0.8em; margin: 2px 0; }
+  .card .promo-info { color: var(--cyan); font-size: 0.85em; margin-top: 8px; }
+  .audit-section { margin-bottom: 24px; }
+  .audit-ok { color: var(--green); }
+  .audit-warn { color: var(--orange); }
+  .audit-missing { color: var(--red); }
+  .audit-item { padding: 4px 0; font-size: 0.9em; display: flex; align-items: center; gap: 8px; }
+  .audit-item .icon { font-size: 1.1em; }
+  .group-header { background: var(--surface); color: var(--gold-dim); padding: 6px 10px; font-weight: 600; font-size: 0.85em; border-top: 2px solid var(--border); }
+  .loot-act { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .loot-act h3 { color: var(--gold); margin-bottom: 10px; }
+  .loot-category { margin: 6px 0; }
+  .loot-category strong { color: var(--accent); font-size: 0.9em; }
+  .loot-items { color: var(--text); font-size: 0.85em; }
+  .loot-items .missing { color: var(--red); text-decoration: line-through; }
+  .weight-bar { display: flex; height: 20px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 0.7em; }
+  .weight-bar div { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
+  .upgrade-group { margin-bottom: 20px; }
+  .upgrade-group h3 { color: var(--accent); font-size: 0.95em; margin-bottom: 8px; text-transform: capitalize; }
+  .cost-tier { display: inline-block; background: var(--surface); padding: 1px 6px; border-radius: 3px; font-size: 0.8em; margin: 1px; }
+  .trigger-tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.78em; font-weight: 500; }
+  .trigger-passive { background: #1a2a20; color: #70c070; }
+  .trigger-passive-aura { background: #1a2a2a; color: #60c0c0; }
+  .trigger-on-attack { background: #2a1a1a; color: #e07070; }
+  .trigger-on-combat-start { background: #2a2a1a; color: #d0c060; }
+  .trigger-on-turn-start { background: #1a1a2a; color: #7070e0; }
+  .trigger-on-defend { background: #2a1a2a; color: #c070c0; }
+  .move-type { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.78em; }
+  .move-infantry { background: #1a2520; color: #70b080; }
+  .move-armored { background: #2a2020; color: #c09070; }
+  .move-cavalry { background: #1a2030; color: #7090d0; }
+  .move-flying { background: #2a2530; color: #b080d0; }
+  .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; font-size: 0.85em; }
+  .summary-stat { background: var(--surface2); border: 1px solid var(--border); padding: 6px 14px; border-radius: 6px; }
+  .summary-stat .val { color: var(--gold); font-weight: 600; font-size: 1.2em; }
+  .summary-stat .lbl { color: var(--text-dim); font-size: 0.85em; }
+  .impassable { color: var(--red); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>EMBLEM ROGUE</h1>
+  <span class="subtitle">Itemization Data Viewer</span>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="weapons">Weapons <span class="count">(51)</span></div>
+  <div class="tab" data-tab="skills">Skills <span class="count">(21)</span></div>
+  <div class="tab" data-tab="accessories">Accessories <span class="count">(18)</span></div>
+  <div class="tab" data-tab="consumables">Consumables <span class="count">(3)</span></div>
+  <div class="tab" data-tab="classes">Classes <span class="count">(29)</span></div>
+  <div class="tab" data-tab="lords">Lords <span class="count">(4)</span></div>
+  <div class="tab" data-tab="recruits">Recruits <span class="count">(18)</span></div>
+  <div class="tab" data-tab="loot">Loot Tables</div>
+  <div class="tab" data-tab="meta">Meta Upgrades <span class="count">(28)</span></div>
+  <div class="tab" data-tab="terrain">Terrain <span class="count">(10)</span></div>
+  <div class="tab" data-tab="audit">Asset Audit</div>
+</div>
+
+<div class="content">
+
+<!-- WEAPONS -->
+<div class="panel active" id="panel-weapons">
+  <div class="filter-bar">
+    <input type="text" id="weapon-search" placeholder="Search weapons...">
+    <select id="weapon-type-filter">
+      <option value="">All Types</option>
+      <option value="Sword">Sword</option>
+      <option value="Lance">Lance</option>
+      <option value="Axe">Axe</option>
+      <option value="Bow">Bow</option>
+      <option value="Tome">Tome</option>
+      <option value="Light">Light</option>
+      <option value="Staff">Staff</option>
+      <option value="Scroll">Scroll</option>
+    </select>
+    <select id="weapon-tier-filter">
+      <option value="">All Tiers</option>
+      <option value="Iron">Iron</option>
+      <option value="Steel">Steel</option>
+      <option value="Silver">Silver</option>
+      <option value="Legend">Legend</option>
+      <option value="Rare">Rare</option>
+    </select>
+  </div>
+  <table id="weapon-table">
+    <thead>
+      <tr>
+        <th data-col="name">Name <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="type">Type <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="tier">Tier <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="might" data-num>Might <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="hit" data-num>Hit <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="crit" data-num>Crit <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="weight" data-num>Wt <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="range">Range <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="rank">Rank <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="special">Special <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="price" data-num>Price <span class="sort-arrow">&#9650;</span></th>
+      </tr>
+    </thead>
+    <tbody id="weapon-body"></tbody>
+  </table>
+</div>
+
+<!-- SKILLS -->
+<div class="panel" id="panel-skills">
+  <div class="filter-bar">
+    <input type="text" id="skill-search" placeholder="Search skills...">
+    <select id="skill-trigger-filter">
+      <option value="">All Triggers</option>
+      <option value="passive">Passive</option>
+      <option value="passive-aura">Passive Aura</option>
+      <option value="on-attack">On Attack</option>
+      <option value="on-combat-start">On Combat Start</option>
+      <option value="on-turn-start">On Turn Start</option>
+      <option value="on-defend">On Defend</option>
+    </select>
+  </div>
+  <table id="skill-table">
+    <thead>
+      <tr>
+        <th data-col="name">Name <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="trigger">Trigger <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="activation">Activation <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="description">Description <span class="sort-arrow">&#9650;</span></th>
+        <th data-col="source">Source <span class="sort-arrow">&#9650;</span></th>
+      </tr>
+    </thead>
+    <tbody id="skill-body"></tbody>
+  </table>
+</div>
+
+<!-- ACCESSORIES -->
+<div class="panel" id="panel-accessories">
+  <h2 class="section-title">Stat Accessories (11)</h2>
+  <table id="acc-stat-table">
+    <thead>
+      <tr><th>Name</th><th>Stat Effects</th><th>Price</th></tr>
+    </thead>
+    <tbody id="acc-stat-body"></tbody>
+  </table>
+  <h2 class="section-title">Combat Effect Accessories (7)</h2>
+  <table id="acc-combat-table">
+    <thead>
+      <tr><th>Name</th><th>Combat Effects</th><th>Condition</th><th>Price</th></tr>
+    </thead>
+    <tbody id="acc-combat-body"></tbody>
+  </table>
+</div>
+
+<!-- CONSUMABLES -->
+<div class="panel" id="panel-consumables">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Effect</th><th>Value</th><th>Uses</th><th>Price</th></tr>
+    </thead>
+    <tbody id="consumable-body"></tbody>
+  </table>
+</div>
+
+<!-- CLASSES -->
+<div class="panel" id="panel-classes">
+  <div class="filter-bar">
+    <input type="text" id="class-search" placeholder="Search classes...">
+    <select id="class-tier-filter">
+      <option value="">All Tiers</option>
+      <option value="base">Base</option>
+      <option value="promoted">Promoted</option>
+    </select>
+  </div>
+  <h2 class="section-title">Base Classes (15)</h2>
+  <div id="base-classes"></div>
+  <h2 class="section-title">Promoted Classes (14)</h2>
+  <div id="promoted-classes"></div>
+</div>
+
+<!-- LORDS -->
+<div class="panel" id="panel-lords">
+  <div class="card-grid" id="lord-cards"></div>
+</div>
+
+<!-- RECRUITS -->
+<div class="panel" id="panel-recruits">
+  <div id="recruit-tables"></div>
+</div>
+
+<!-- LOOT TABLES -->
+<div class="panel" id="panel-loot">
+  <div id="loot-content"></div>
+</div>
+
+<!-- META UPGRADES -->
+<div class="panel" id="panel-meta">
+  <div class="summary-bar">
+    <div class="summary-stat"><span class="val">28</span> <span class="lbl">Total Upgrades</span></div>
+    <div class="summary-stat"><span class="val">4</span> <span class="lbl">Categories</span></div>
+  </div>
+  <div id="meta-content"></div>
+</div>
+
+<!-- TERRAIN -->
+<div class="panel" id="panel-terrain">
+  <table id="terrain-table">
+    <thead>
+      <tr>
+        <th>Terrain</th>
+        <th>Infantry</th>
+        <th>Armored</th>
+        <th>Cavalry</th>
+        <th>Flying</th>
+        <th>Avoid</th>
+        <th>DEF</th>
+        <th>Special</th>
+      </tr>
+    </thead>
+    <tbody id="terrain-body"></tbody>
+  </table>
+</div>
+
+<!-- ASSET AUDIT -->
+<div class="panel" id="panel-audit">
+  <div id="audit-content"></div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+// EMBEDDED DATA
+// ============================================================
+
+const DATA = {};
+
+DATA.weapons = [
+  {"name":"Iron Sword","type":"Sword","tier":"Iron","rankRequired":"Prof","might":5,"hit":90,"crit":0,"weight":3,"range":"1","special":"","price":500},
+  {"name":"Steel Sword","type":"Sword","tier":"Steel","rankRequired":"Prof","might":8,"hit":80,"crit":0,"weight":5,"range":"1","special":"","price":1000},
+  {"name":"Silver Sword","type":"Sword","tier":"Silver","rankRequired":"Prof","might":11,"hit":85,"crit":0,"weight":4,"range":"1","special":"","price":2000},
+  {"name":"Killing Edge","type":"Sword","tier":"Silver","rankRequired":"Prof","might":8,"hit":80,"crit":30,"weight":5,"range":"1","special":"Critical specialist","price":2300},
+  {"name":"Brave Sword","type":"Sword","tier":"Legend","rankRequired":"Mast","might":9,"hit":80,"crit":0,"weight":6,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Armorslayer","type":"Sword","tier":"Steel","rankRequired":"Prof","might":7,"hit":80,"crit":0,"weight":6,"range":"1","special":"Effective vs Armored (3x)","price":1300},
+  {"name":"Venin Edge","type":"Sword","tier":"Silver","rankRequired":"Prof","might":5,"hit":85,"crit":0,"weight":3,"range":"1","special":"Poison: target loses 5 HP after combat","price":1800},
+  {"name":"Ragnell","type":"Sword","tier":"Legend","rankRequired":"Mast","might":12,"hit":80,"crit":5,"weight":6,"range":"1-2","special":"+5 DEF when equipped","price":0},
+  {"name":"Runesword","type":"Sword","tier":"Legend","rankRequired":"Mast","might":8,"hit":75,"crit":0,"weight":5,"range":"1","special":"Drains HP equal to damage dealt","price":0},
+  {"name":"Iron Lance","type":"Lance","tier":"Iron","rankRequired":"Prof","might":6,"hit":85,"crit":0,"weight":5,"range":"1","special":"","price":500},
+  {"name":"Steel Lance","type":"Lance","tier":"Steel","rankRequired":"Prof","might":9,"hit":75,"crit":0,"weight":8,"range":"1","special":"","price":1000},
+  {"name":"Silver Lance","type":"Lance","tier":"Silver","rankRequired":"Prof","might":12,"hit":80,"crit":0,"weight":7,"range":"1","special":"","price":2000},
+  {"name":"Javelin","type":"Lance","tier":"Iron","rankRequired":"Prof","might":4,"hit":70,"crit":0,"weight":6,"range":"1-2","special":"Throwable, lower stats","price":700},
+  {"name":"Short Spear","type":"Lance","tier":"Steel","rankRequired":"Prof","might":7,"hit":65,"crit":0,"weight":9,"range":"1-2","special":"Throwable, lower stats","price":1200},
+  {"name":"Spear","type":"Lance","tier":"Silver","rankRequired":"Prof","might":10,"hit":65,"crit":0,"weight":10,"range":"1-2","special":"Throwable, lower stats","price":2200},
+  {"name":"Horseslayer","type":"Lance","tier":"Steel","rankRequired":"Prof","might":7,"hit":75,"crit":0,"weight":8,"range":"1","special":"Effective vs Cavalry (3x)","price":1300},
+  {"name":"Killer Lance","type":"Lance","tier":"Silver","rankRequired":"Prof","might":9,"hit":75,"crit":30,"weight":7,"range":"1","special":"Critical specialist","price":2300},
+  {"name":"Brave Lance","type":"Lance","tier":"Legend","rankRequired":"Mast","might":10,"hit":75,"crit":0,"weight":9,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Iron Axe","type":"Axe","tier":"Iron","rankRequired":"Prof","might":7,"hit":80,"crit":0,"weight":6,"range":"1","special":"","price":500},
+  {"name":"Steel Axe","type":"Axe","tier":"Steel","rankRequired":"Prof","might":10,"hit":70,"crit":0,"weight":9,"range":"1","special":"","price":1000},
+  {"name":"Silver Axe","type":"Axe","tier":"Silver","rankRequired":"Prof","might":13,"hit":75,"crit":0,"weight":8,"range":"1","special":"","price":2000},
+  {"name":"Hand Axe","type":"Axe","tier":"Iron","rankRequired":"Prof","might":5,"hit":65,"crit":0,"weight":8,"range":"1-2","special":"Throwable, lower stats","price":700},
+  {"name":"Hammer","type":"Axe","tier":"Steel","rankRequired":"Prof","might":12,"hit":65,"crit":0,"weight":10,"range":"1","special":"Effective vs Armored (3x)","price":1300},
+  {"name":"Tomahawk","type":"Axe","tier":"Silver","rankRequired":"Prof","might":10,"hit":60,"crit":0,"weight":11,"range":"1-2","special":"Throwable, lower stats","price":2200},
+  {"name":"Brave Axe","type":"Axe","tier":"Legend","rankRequired":"Mast","might":11,"hit":70,"crit":0,"weight":11,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Iron Bow","type":"Bow","tier":"Iron","rankRequired":"Prof","might":5,"hit":90,"crit":0,"weight":3,"range":"2","special":"","price":500},
+  {"name":"Steel Bow","type":"Bow","tier":"Steel","rankRequired":"Prof","might":8,"hit":80,"crit":0,"weight":6,"range":"2","special":"","price":1000},
+  {"name":"Silver Bow","type":"Bow","tier":"Silver","rankRequired":"Prof","might":11,"hit":85,"crit":0,"weight":5,"range":"2","special":"","price":2000},
+  {"name":"Longbow","type":"Bow","tier":"Steel","rankRequired":"Prof","might":6,"hit":70,"crit":0,"weight":7,"range":"2-3","special":"Extended range","price":1200},
+  {"name":"Brave Bow","type":"Bow","tier":"Legend","rankRequired":"Mast","might":9,"hit":80,"crit":0,"weight":7,"range":"2","special":"Attacks twice consecutively","price":0},
+  {"name":"Fire","type":"Tome","tier":"Iron","rankRequired":"Prof","might":4,"hit":90,"crit":0,"weight":2,"range":"1-2","special":"","price":700},
+  {"name":"Elfire","type":"Tome","tier":"Steel","rankRequired":"Prof","might":7,"hit":85,"crit":0,"weight":4,"range":"1-2","special":"","price":1200},
+  {"name":"Bolganone","type":"Tome","tier":"Silver","rankRequired":"Prof","might":10,"hit":80,"crit":0,"weight":6,"range":"1-2","special":"","price":2200},
+  {"name":"Excalibur","type":"Tome","tier":"Legend","rankRequired":"Mast","might":12,"hit":85,"crit":10,"weight":5,"range":"1-2","special":"Effective vs Flying (3x)","price":0},
+  {"name":"Bolting","type":"Tome","tier":"Legend","rankRequired":"Mast","might":8,"hit":55,"crit":0,"weight":10,"range":"3-10","special":"Siege magic","price":0},
+  {"name":"Lightning","type":"Light","tier":"Iron","rankRequired":"Prof","might":4,"hit":95,"crit":5,"weight":1,"range":"1-2","special":"Lightest magic","price":700},
+  {"name":"Shine","type":"Light","tier":"Steel","rankRequired":"Prof","might":7,"hit":90,"crit":5,"weight":3,"range":"1-2","special":"","price":1200},
+  {"name":"Aura","type":"Light","tier":"Silver","rankRequired":"Prof","might":10,"hit":85,"crit":5,"weight":5,"range":"1-2","special":"","price":2200},
+  {"name":"Luce","type":"Light","tier":"Legend","rankRequired":"Mast","might":14,"hit":85,"crit":10,"weight":4,"range":"1-2","special":"Effective vs dark enemies","price":0},
+  {"name":"Heal","type":"Staff","tier":"Iron","rankRequired":"Prof","might":0,"hit":100,"crit":0,"weight":1,"range":"1","healBase":5,"uses":3,"special":"Heals MAG + 5 HP","price":300},
+  {"name":"Mend","type":"Staff","tier":"Steel","rankRequired":"Prof","might":0,"hit":100,"crit":0,"weight":2,"range":"1","healBase":10,"uses":2,"special":"Heals MAG + 10 HP","price":600},
+  {"name":"Physic","type":"Staff","tier":"Silver","rankRequired":"Prof","might":0,"hit":100,"crit":0,"weight":2,"range":"2","healBase":5,"uses":1,"rangeBonuses":[{"mag":10,"bonus":1},{"mag":18,"bonus":1}],"special":"Ranged heal, MAG + 5 HP","price":1000},
+  {"name":"Recover","type":"Staff","tier":"Silver","rankRequired":"Prof","might":0,"hit":100,"crit":0,"weight":3,"range":"1","healBase":15,"uses":1,"special":"Heals MAG + 15 HP","price":1200},
+  {"name":"Fortify","type":"Staff","tier":"Legend","rankRequired":"Mast","might":0,"hit":100,"crit":0,"weight":6,"range":"2","healBase":5,"uses":1,"healAll":true,"special":"Heals all allies in range, MAG + 5 HP","price":0},
+  {"name":"Sol Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Sol","skillId":"sol","price":2500},
+  {"name":"Luna Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Luna","skillId":"luna","price":2500},
+  {"name":"Astra Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Astra","skillId":"astra","price":2500},
+  {"name":"Vantage Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Vantage","skillId":"vantage","price":2500},
+  {"name":"Wrath Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Wrath","skillId":"wrath","price":2500},
+  {"name":"Adept Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Adept","skillId":"adept","price":2500},
+  {"name":"Miracle Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Miracle","skillId":"miracle","price":2500},
+  {"name":"Guard Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Guard","skillId":"guard","price":2500}
+];
+
+DATA.skills = [
+  {"id":"charisma","name":"Charisma","description":"Allies within 2 tiles gain +10 Hit, +5 Avoid","trigger":"passive-aura","range":2,"effects":{"hitBonus":10,"avoidBonus":5},"personal":true},
+  {"id":"foresight","name":"Foresight","description":"+1 range on Tome attacks","trigger":"passive","effects":{"tomeRangeBonus":1},"personal":true},
+  {"id":"resolve","name":"Resolve","description":"+4 STR/DEF when below 50% HP","trigger":"on-combat-start","condition":"below50","effects":{"strBonus":4,"defBonus":4},"personal":true},
+  {"id":"renewal_aura","name":"Renewal Aura","description":"Adjacent allies heal 5 HP at start of turn","trigger":"on-turn-start","range":1,"effects":{"healAllies":5},"personal":true},
+  {"id":"sol","name":"Sol","description":"SKL% chance to heal damage dealt on hit","trigger":"on-attack","activation":"SKL"},
+  {"id":"luna","name":"Luna","description":"SKL% chance to halve enemy DEF/RES on hit","trigger":"on-attack","activation":"SKL"},
+  {"id":"astra","name":"Astra","description":"SKL/2% chance to strike 5 times at half damage","trigger":"on-attack","activation":"SKL_HALF"},
+  {"id":"vantage","name":"Vantage","description":"Attack first when defending below 50% HP","trigger":"on-combat-start","condition":"below50"},
+  {"id":"wrath","name":"Wrath","description":"+30 Crit when below 50% HP","trigger":"on-combat-start","condition":"below50","effects":{"critBonus":30}},
+  {"id":"crit_plus_15","name":"Critical +15","description":"+15 critical hit rate","trigger":"passive","effects":{"critBonus":15},"classInnate":"Swordmaster"},
+  {"id":"sure_shot","name":"Sure Shot","description":"Ignore enemy terrain avoid bonus","trigger":"passive","effects":{"ignoreTerrainAvoid":true},"classInnate":"Sniper"},
+  {"id":"lethality","name":"Lethality","description":"LCK/4% chance to instantly defeat enemy on hit","trigger":"on-attack","activation":"LCK_QUARTER","classInnate":"Assassin"},
+  {"id":"pavise","name":"Pavise","description":"SKL% chance to halve physical damage taken","trigger":"on-defend","activation":"SKL","classInnate":"General"},
+  {"id":"aegis","name":"Aegis","description":"SKL% chance to halve magical damage taken","trigger":"on-defend","activation":"SKL","classInnate":"Paladin"},
+  {"id":"colossus","name":"Colossus","description":"+3 damage on all attacks","trigger":"passive","effects":{"atkBonus":3},"classInnate":"Warrior"},
+  {"id":"discipline","name":"Discipline","description":"+10 Hit, +5 Avoid","trigger":"passive","effects":{"hitBonus":10,"avoidBonus":5},"classInnate":"Falcon Knight"},
+  {"id":"renewal","name":"Renewal","description":"Recover 10% max HP at start of turn","trigger":"on-turn-start","effects":{"healSelf":10},"classInnate":"Bishop"},
+  {"id":"vigilance","name":"Vigilance","description":"+15 Avoid","trigger":"passive","effects":{"avoidBonus":15},"classInnate":"Hero"},
+  {"id":"adept","name":"Adept","description":"SPD% chance for an extra follow-up strike at full damage","trigger":"on-attack","activation":"SPD"},
+  {"id":"miracle","name":"Miracle","description":"LCK% chance to survive a lethal hit with 1 HP (once per battle)","trigger":"on-defend","activation":"LCK"},
+  {"id":"guard","name":"Guard","description":"+3 DEF/RES when adjacent to an ally","trigger":"on-combat-start","condition":"adjacent_ally","effects":{"defBonus":3,"resBonus":3}}
+];
+
+DATA.accessories = [
+  {"name":"Power Ring","effects":{"STR":2},"price":1500},
+  {"name":"Magic Ring","effects":{"MAG":2},"price":1500},
+  {"name":"Speed Ring","effects":{"SPD":2},"price":2000},
+  {"name":"Shield Ring","effects":{"DEF":2},"price":1500},
+  {"name":"Barrier Ring","effects":{"RES":2},"price":1500},
+  {"name":"Skill Ring","effects":{"SKL":3},"price":1500},
+  {"name":"Goddess Icon","effects":{"LCK":5},"price":1000},
+  {"name":"Seraph Robe","effects":{"HP":5},"price":2000},
+  {"name":"Boots","effects":{"MOV":1},"price":3000},
+  {"name":"Delphi Shield","effects":{"DEF":3,"RES":3},"price":2500},
+  {"name":"Veteran's Crest","effects":{"STR":1,"SPD":1,"DEF":1},"price":2000},
+  {"name":"Wrath Band","effects":{},"combatEffects":{"critBonus":15,"condition":"below50"},"price":2000},
+  {"name":"Counter Seal","effects":{},"combatEffects":{"preventEnemyDouble":true},"price":2500},
+  {"name":"Pursuit Ring","effects":{},"combatEffects":{"doubleThresholdReduction":2},"price":2500},
+  {"name":"Nullify Ring","effects":{},"combatEffects":{"negateEffectiveness":true},"price":2500},
+  {"name":"Life Ring","effects":{},"combatEffects":{"atkBonus":3,"defBonus":2,"condition":"above75"},"price":2000},
+  {"name":"Forest Charm","effects":{},"combatEffects":{"avoidBonus":10,"defBonus":2,"condition":"on_forest"},"price":1200}
+];
+
+DATA.consumables = [
+  {"name":"Vulnerary","effect":"heal","value":10,"uses":3,"price":300},
+  {"name":"Elixir","effect":"healFull","value":0,"uses":1,"price":1500},
+  {"name":"Master Seal","effect":"promote","value":0,"uses":1,"price":2500}
+];
+
+DATA.classes = [
+  {"name":"Myrmidon","tier":"base","baseStats":{"HP":18,"STR":5,"MAG":1,"SKL":8,"SPD":9,"DEF":3,"RES":2,"LCK":5,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Swords (P)","role":"Fast melee, high crit","growthRanges":{"HP":"60-75","STR":"35-50","MAG":"5-15","SKL":"50-65","SPD":"55-70","DEF":"15-25","RES":"15-25","LCK":"35-50"},"promotesTo":"Swordmaster","learnableSkills":[{"skillId":"vantage","level":8}]},
+  {"name":"Knight","tier":"base","baseStats":{"HP":22,"STR":7,"MAG":0,"SKL":4,"SPD":2,"DEF":10,"RES":1,"LCK":3,"MOV":3},"moveType":"Armored","weaponProficiencies":"Lances (P)","role":"Slow tank, very high DEF","growthRanges":{"HP":"75-90","STR":"45-60","MAG":"0-10","SKL":"25-40","SPD":"10-20","DEF":"50-65","RES":"10-20","LCK":"20-30"},"promotesTo":"General","learnableSkills":[{"skillId":"guard","level":8}]},
+  {"name":"Fighter","tier":"base","baseStats":{"HP":22,"STR":8,"MAG":0,"SKL":3,"SPD":5,"DEF":4,"RES":1,"LCK":2,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Axes (P)","role":"High STR bruiser","growthRanges":{"HP":"75-90","STR":"55-70","MAG":"0-10","SKL":"20-35","SPD":"30-45","DEF":"25-35","RES":"5-15","LCK":"15-25"},"promotesTo":"Warrior","learnableSkills":[{"skillId":"wrath","level":8}]},
+  {"name":"Cavalier","tier":"base","baseStats":{"HP":20,"STR":6,"MAG":0,"SKL":5,"SPD":6,"DEF":6,"RES":2,"LCK":4,"MOV":6},"moveType":"Cavalry","weaponProficiencies":"Lances (P)","role":"Balanced mounted","growthRanges":{"HP":"65-80","STR":"40-55","MAG":"5-15","SKL":"35-50","SPD":"35-50","DEF":"30-40","RES":"15-25","LCK":"30-40"},"promotesTo":"Paladin","learnableSkills":[{"skillId":"sol","level":10}]},
+  {"name":"Archer","tier":"base","baseStats":{"HP":18,"STR":5,"MAG":0,"SKL":7,"SPD":5,"DEF":3,"RES":2,"LCK":4,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Bows (P)","role":"Ranged physical (2 range)","growthRanges":{"HP":"60-75","STR":"35-50","MAG":"0-10","SKL":"50-65","SPD":"35-50","DEF":"20-30","RES":"15-25","LCK":"30-40"},"promotesTo":"Sniper","learnableSkills":[{"skillId":"adept","level":10}]},
+  {"name":"Mage","tier":"base","baseStats":{"HP":16,"STR":1,"MAG":7,"SKL":4,"SPD":5,"DEF":2,"RES":5,"LCK":3,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Tomes (P)","role":"Ranged magic damage","growthRanges":{"HP":"45-60","STR":"5-15","MAG":"50-65","SKL":"30-45","SPD":"35-50","DEF":"10-20","RES":"40-55","LCK":"20-30"},"promotesTo":"Sage"},
+  {"name":"Cleric","tier":"base","baseStats":{"HP":16,"STR":1,"MAG":4,"SKL":3,"SPD":4,"DEF":2,"RES":6,"LCK":5,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Staves (P)","role":"Healer, no offense","growthRanges":{"HP":"45-60","STR":"5-10","MAG":"35-50","SKL":"20-35","SPD":"25-40","DEF":"10-20","RES":"50-65","LCK":"40-55"},"promotesTo":"Bishop","learnableSkills":[{"skillId":"miracle","level":8}]},
+  {"name":"Thief","tier":"base","baseStats":{"HP":17,"STR":4,"MAG":0,"SKL":7,"SPD":9,"DEF":2,"RES":2,"LCK":7,"MOV":5},"moveType":"Infantry","weaponProficiencies":"Swords (P)","role":"Fast, picks locks, fog vision","growthRanges":{"HP":"50-65","STR":"25-40","MAG":"0-10","SKL":"45-60","SPD":"55-70","DEF":"10-20","RES":"15-25","LCK":"50-65"},"promotesTo":"Assassin","learnableSkills":[{"skillId":"luna","level":8}]},
+  {"name":"Pegasus Knight","tier":"base","baseStats":{"HP":17,"STR":5,"MAG":2,"SKL":6,"SPD":8,"DEF":4,"RES":6,"LCK":5,"MOV":5},"moveType":"Flying","weaponProficiencies":"Lances (P)","role":"Flying, high RES, bow-weak","growthRanges":{"HP":"50-65","STR":"30-45","MAG":"15-25","SKL":"40-55","SPD":"45-60","DEF":"20-30","RES":"40-55","LCK":"35-50"},"promotesTo":"Falcon Knight","learnableSkills":[{"skillId":"sol","level":10}]},
+  {"name":"Mercenary","tier":"base","baseStats":{"HP":20,"STR":6,"MAG":0,"SKL":7,"SPD":7,"DEF":5,"RES":2,"LCK":4,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Swords (P)","role":"Balanced all-rounder","growthRanges":{"HP":"65-80","STR":"40-55","MAG":"5-15","SKL":"45-60","SPD":"40-55","DEF":"25-35","RES":"15-25","LCK":"30-40"},"promotesTo":"Hero","learnableSkills":[{"skillId":"astra","level":10}]},
+  {"name":"Dancer","tier":"base","baseStats":{"HP":14,"STR":2,"MAG":1,"SKL":3,"SPD":7,"DEF":2,"RES":3,"LCK":8,"MOV":4},"moveType":"Infantry","weaponProficiencies":"None","role":"Grants ally second turn","growthRanges":{"HP":"35-45","STR":"10-20","MAG":"5-15","SKL":"15-25","SPD":"45-60","DEF":"5-15","RES":"20-30","LCK":"50-65"}},
+  {"name":"Lord","tier":"base","baseStats":{"HP":20,"STR":6,"MAG":2,"SKL":7,"SPD":7,"DEF":5,"RES":3,"LCK":6,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Swords (P)","role":"Balanced leader, Charisma aura","growthRanges":{"HP":"50-65","STR":"35-50","MAG":"10-20","SKL":"40-55","SPD":"40-55","DEF":"25-35","RES":"15-25","LCK":"35-50"},"promotesTo":"Great Lord"},
+  {"name":"Tactician","tier":"base","baseStats":{"HP":17,"STR":3,"MAG":7,"SKL":5,"SPD":6,"DEF":3,"RES":5,"LCK":5,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Tomes (P)","role":"Magical tactician, Foresight range bonus","growthRanges":{"HP":"40-55","STR":"15-25","MAG":"40-55","SKL":"30-45","SPD":"35-50","DEF":"15-25","RES":"30-45","LCK":"25-35"},"promotesTo":"Grandmaster"},
+  {"name":"Ranger","tier":"base","baseStats":{"HP":22,"STR":8,"MAG":1,"SKL":6,"SPD":5,"DEF":7,"RES":2,"LCK":3,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Swords (P)","role":"Tanky melee, Resolve at low HP","growthRanges":{"HP":"55-70","STR":"40-55","MAG":"0-10","SKL":"30-45","SPD":"25-40","DEF":"35-50","RES":"10-20","LCK":"15-25"},"promotesTo":"Vanguard"},
+  {"name":"Light Sage","tier":"base","baseStats":{"HP":18,"STR":2,"MAG":6,"SKL":4,"SPD":5,"DEF":3,"RES":7,"LCK":6,"MOV":4},"moveType":"Infantry","weaponProficiencies":"Light (P)","role":"Light magic, Renewal Aura healer","growthRanges":{"HP":"40-55","STR":"5-15","MAG":"35-50","SKL":"25-40","SPD":"25-40","DEF":"15-25","RES":"40-55","LCK":"35-50"},"promotesTo":"Light Priestess"},
+  {"name":"Swordmaster","tier":"promoted","promotesFrom":"Myrmidon","promotionBonuses":{"HP":3,"STR":2,"MAG":1,"SKL":2,"SPD":2,"DEF":1,"RES":1,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Swords (M)","roleChange":"+15 Crit innate"},
+  {"name":"General","tier":"promoted","promotesFrom":"Knight","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":1,"DEF":3,"RES":2,"LCK":0,"MOV":0},"moveType":"Armored","weaponProficiencies":"Lances (M), Axes (P)","roleChange":"Gains Axes, even tankier"},
+  {"name":"Warrior","tier":"promoted","promotesFrom":"Fighter","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Axes (M), Bows (P)","roleChange":"Gains Bows, raw power","learnableSkills":[{"skillId":"wrath","level":5}]},
+  {"name":"Paladin","tier":"promoted","promotesFrom":"Cavalier","promotionBonuses":{"HP":3,"STR":2,"MAG":1,"SKL":1,"SPD":1,"DEF":2,"RES":2,"LCK":0,"MOV":1},"moveType":"Cavalry","weaponProficiencies":"Lances (M), Swords (P)","roleChange":"Gains Swords, +MOV"},
+  {"name":"Sniper","tier":"promoted","promotesFrom":"Archer","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":3,"SPD":1,"DEF":1,"RES":1,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Bows (M)","roleChange":"Sure Shot: ignores terrain avoid"},
+  {"name":"Sage","tier":"promoted","promotesFrom":"Mage","promotionBonuses":{"HP":3,"STR":0,"MAG":3,"SKL":2,"SPD":1,"DEF":1,"RES":2,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Tomes (M), Staves (P)","roleChange":"Gains healing","learnableSkills":[{"skillId":"luna","level":5}]},
+  {"name":"Bishop","tier":"promoted","promotesFrom":"Cleric","promotionBonuses":{"HP":3,"STR":0,"MAG":3,"SKL":1,"SPD":1,"DEF":1,"RES":3,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Staves (M), Light (P)","roleChange":"Gains Light magic offense"},
+  {"name":"Assassin","tier":"promoted","promotesFrom":"Thief","promotionBonuses":{"HP":2,"STR":2,"MAG":0,"SKL":3,"SPD":2,"DEF":1,"RES":1,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Swords (M)","roleChange":"Lethality chance, enhanced stealth"},
+  {"name":"Falcon Knight","tier":"promoted","promotesFrom":"Pegasus Knight","promotionBonuses":{"HP":3,"STR":2,"MAG":1,"SKL":1,"SPD":2,"DEF":1,"RES":2,"LCK":0,"MOV":0},"moveType":"Flying","weaponProficiencies":"Lances (M), Swords (P)","roleChange":"Gains Swords"},
+  {"name":"Hero","tier":"promoted","promotesFrom":"Mercenary","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":2,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Swords (M), Axes (P)","roleChange":"Gains Axes, versatile","learnableSkills":[{"skillId":"sol","level":5}]},
+  {"name":"Great Lord","tier":"promoted","promotesFrom":"Lord","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":1,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":1},"moveType":"Infantry","weaponProficiencies":"Swords (M), Lances (P)","roleChange":"Gains Lances, +MOV"},
+  {"name":"Grandmaster","tier":"promoted","promotesFrom":"Tactician","promotionBonuses":{"HP":2,"STR":1,"MAG":3,"SKL":2,"SPD":1,"DEF":1,"RES":2,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Tomes (M), Swords (P)","roleChange":"Gains Swords, magic mastery"},
+  {"name":"Vanguard","tier":"promoted","promotesFrom":"Ranger","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":0,"DEF":3,"RES":0,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Swords (M), Axes (P)","roleChange":"Gains Axes, heavy armor"},
+  {"name":"Light Priestess","tier":"promoted","promotesFrom":"Light Sage","promotionBonuses":{"HP":3,"STR":0,"MAG":2,"SKL":1,"SPD":1,"DEF":1,"RES":3,"LCK":0,"MOV":0},"moveType":"Infantry","weaponProficiencies":"Light (M), Staves (P)","roleChange":"Gains Staves, healing"}
+];
+
+DATA.lords = [
+  {"name":"Edric","class":"Lord","baseStats":{"HP":20,"STR":6,"MAG":2,"SKL":7,"SPD":7,"DEF":5,"RES":3,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Charisma: Allies within 2 tiles +10 Hit, +5 Avoid","personalGrowths":{"HP":15,"STR":10,"MAG":5,"SKL":10,"SPD":10,"DEF":5,"RES":5,"LCK":10},"promotedClass":"Great Lord","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":1,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":1},"promotionWeapons":"Lances (P)"},
+  {"name":"Kira","class":"Tactician","baseStats":{"HP":17,"STR":3,"MAG":7,"SKL":5,"SPD":6,"DEF":3,"RES":5,"LCK":5,"MOV":4},"moveType":"Infantry","weapon":"Tomes (P)","personalSkill":"Foresight: +1 range on Tome attacks","personalGrowths":{"HP":10,"STR":5,"MAG":15,"SKL":10,"SPD":10,"DEF":0,"RES":10,"LCK":5},"promotedClass":"Grandmaster","promotionBonuses":{"HP":2,"STR":1,"MAG":3,"SKL":2,"SPD":1,"DEF":1,"RES":2,"LCK":0,"MOV":0},"promotionWeapons":"Swords (P)"},
+  {"name":"Voss","class":"Ranger","baseStats":{"HP":22,"STR":8,"MAG":1,"SKL":6,"SPD":5,"DEF":7,"RES":2,"LCK":3,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Resolve: +4 STR/DEF when below 50% HP","personalGrowths":{"HP":20,"STR":15,"MAG":0,"SKL":5,"SPD":5,"DEF":10,"RES":0,"LCK":0},"promotedClass":"Vanguard","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":0,"DEF":3,"RES":0,"LCK":0,"MOV":0},"promotionWeapons":"Axes (P)"},
+  {"name":"Sera","class":"Light Sage","baseStats":{"HP":18,"STR":2,"MAG":6,"SKL":4,"SPD":5,"DEF":3,"RES":7,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Light (P)","personalSkill":"Renewal Aura: Adjacent allies heal 5 HP/turn","personalGrowths":{"HP":10,"STR":0,"MAG":10,"SKL":5,"SPD":5,"DEF":5,"RES":15,"LCK":10},"promotedClass":"Light Priestess","promotionBonuses":{"HP":3,"STR":0,"MAG":2,"SKL":1,"SPD":1,"DEF":1,"RES":3,"LCK":0,"MOV":0},"promotionWeapons":"Staves (P)"}
+];
+
+DATA.recruits = {
+  "act1":{"levelRange":[1,3],"pool":[{"className":"Fighter","name":"Galvin"},{"className":"Archer","name":"Ren"},{"className":"Mage","name":"Lira"},{"className":"Cavalier","name":"Aldric"},{"className":"Cleric","name":"Miriel"},{"className":"Myrmidon","name":"Soren"}]},
+  "act2":{"levelRange":[5,8],"pool":[{"className":"Thief","name":"Nyx"},{"className":"Mercenary","name":"Gareth"},{"className":"Pegasus Knight","name":"Elysia"},{"className":"Mage","name":"Theron"},{"className":"Knight","name":"Osric"},{"className":"Cavalier","name":"Helena"}]},
+  "act3":{"levelRange":[10,14],"pool":[{"className":"Mercenary","name":"Dante"},{"className":"Pegasus Knight","name":"Celeste"},{"className":"Mage","name":"Vaelan"},{"className":"Thief","name":"Shade"},{"className":"Archer","name":"Faye"},{"className":"Cleric","name":"Io"}]}
+};
+
+DATA.lootTables = {
+  "act1":{"weapons":["Iron Sword","Iron Lance","Iron Axe","Iron Bow","Fire","Lightning","Heal","Hand Axe","Javelin"],"consumables":["Vulnerary"],"rare":[],"accessories":["Goddess Icon","Shield Ring","Forest Charm"],"forge":["Might Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":45,"consumable":25,"gold":10,"accessory":10,"forge":10},"goldRange":[80,150]},
+  "act2":{"weapons":["Steel Sword","Steel Lance","Steel Axe","Steel Bow","Elfire","Shine","Mend","Longbow","Short Spear","Horseslayer","Armorslayer"],"consumables":["Vulnerary","Elixir","Master Seal"],"rare":["Sol Scroll","Luna Scroll","Guard Scroll"],"accessories":["Power Ring","Speed Ring","Barrier Ring","Skill Ring","Life Ring","Veteran's Crest"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":30,"consumable":20,"gold":10,"rare":10,"accessory":15,"forge":15},"goldRange":[150,250]},
+  "act3":{"weapons":["Silver Sword","Silver Lance","Silver Axe","Silver Bow","Bolganone","Aura","Recover","Physic","Killing Edge","Hammer","Tomahawk","Spear","Killer Lance","Venin Edge"],"consumables":["Elixir","Master Seal"],"rare":["Astra Scroll","Vantage Scroll","Wrath Scroll","Adept Scroll","Miracle Scroll","Ragnell","Runesword","Bolting"],"accessories":["Seraph Robe","Magic Ring","Boots","Delphi Shield","Wrath Band","Counter Seal","Pursuit Ring","Nullify Ring"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":25,"consumable":15,"gold":15,"rare":15,"accessory":15,"forge":15},"goldRange":[200,400]},
+  "finalBoss":{"weapons":[],"consumables":[],"rare":[],"accessories":[],"forge":[],"weights":{"gold":100},"goldRange":[500,500]}
+};
+
+DATA.metaUpgrades = [
+  {"id":"recruit_hp_growth","name":"Hardy Recruits","description":"+5% HP growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"HP","growthValue":5},{"recruitGrowth":"HP","growthValue":10},{"recruitGrowth":"HP","growthValue":15},{"recruitGrowth":"HP","growthValue":20},{"recruitGrowth":"HP","growthValue":25}]},
+  {"id":"recruit_str_growth","name":"Strong Arms","description":"+5% STR growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"STR","growthValue":5},{"recruitGrowth":"STR","growthValue":10},{"recruitGrowth":"STR","growthValue":15},{"recruitGrowth":"STR","growthValue":20},{"recruitGrowth":"STR","growthValue":25}]},
+  {"id":"recruit_def_growth","name":"Tough Recruits","description":"+5% DEF growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"DEF","growthValue":5},{"recruitGrowth":"DEF","growthValue":10},{"recruitGrowth":"DEF","growthValue":15},{"recruitGrowth":"DEF","growthValue":20},{"recruitGrowth":"DEF","growthValue":25}]},
+  {"id":"recruit_spd_growth","name":"Quick Feet","description":"+5% SPD growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"SPD","growthValue":5},{"recruitGrowth":"SPD","growthValue":10},{"recruitGrowth":"SPD","growthValue":15},{"recruitGrowth":"SPD","growthValue":20},{"recruitGrowth":"SPD","growthValue":25}]},
+  {"id":"recruit_skl_growth","name":"Sharp Eye","description":"+5% SKL growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"SKL","growthValue":5},{"recruitGrowth":"SKL","growthValue":10},{"recruitGrowth":"SKL","growthValue":15},{"recruitGrowth":"SKL","growthValue":20},{"recruitGrowth":"SKL","growthValue":25}]},
+  {"id":"recruit_res_growth","name":"Warded Recruits","description":"+5% RES growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"RES","growthValue":5},{"recruitGrowth":"RES","growthValue":10},{"recruitGrowth":"RES","growthValue":15},{"recruitGrowth":"RES","growthValue":20},{"recruitGrowth":"RES","growthValue":25}]},
+  {"id":"recruit_hp_flat","name":"Recruit Vitality","description":"+HP for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,700],"effects":[{"stat":"HP","value":2},{"stat":"HP","value":5},{"stat":"HP","value":10}]},
+  {"id":"recruit_str_flat","name":"Recruit Brawn","description":"+STR for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"STR","value":1},{"stat":"STR","value":3},{"stat":"STR","value":5}]},
+  {"id":"recruit_def_flat","name":"Recruit Armor","description":"+DEF for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"DEF","value":1},{"stat":"DEF","value":3},{"stat":"DEF","value":5}]},
+  {"id":"recruit_spd_flat","name":"Recruit Agility","description":"+SPD for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"SPD","value":1},{"stat":"SPD","value":3},{"stat":"SPD","value":5}]},
+  {"id":"recruit_skl_flat","name":"Recruit Precision","description":"+SKL for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,350,550],"effects":[{"stat":"SKL","value":1},{"stat":"SKL","value":3},{"stat":"SKL","value":5}]},
+  {"id":"recruit_res_flat","name":"Recruit Ward","description":"+RES for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,350,550],"effects":[{"stat":"RES","value":1},{"stat":"RES","value":3},{"stat":"RES","value":5}]},
+  {"id":"lord_hp_growth","name":"Lord Vitality","description":"+5% HP growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,100,150,200,350],"effects":[{"lordGrowth":"HP","growthValue":5},{"lordGrowth":"HP","growthValue":10},{"lordGrowth":"HP","growthValue":15},{"lordGrowth":"HP","growthValue":20},{"lordGrowth":"HP","growthValue":25}]},
+  {"id":"lord_str_growth","name":"Lord Combat Training","description":"+5% STR growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"STR","growthValue":5},{"lordGrowth":"STR","growthValue":10},{"lordGrowth":"STR","growthValue":15},{"lordGrowth":"STR","growthValue":20},{"lordGrowth":"STR","growthValue":25}]},
+  {"id":"lord_def_growth","name":"Lord Resilience","description":"+5% DEF growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"DEF","growthValue":5},{"lordGrowth":"DEF","growthValue":10},{"lordGrowth":"DEF","growthValue":15},{"lordGrowth":"DEF","growthValue":20},{"lordGrowth":"DEF","growthValue":25}]},
+  {"id":"lord_spd_growth","name":"Lord Swiftness","description":"+5% SPD growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"SPD","growthValue":5},{"lordGrowth":"SPD","growthValue":10},{"lordGrowth":"SPD","growthValue":15},{"lordGrowth":"SPD","growthValue":20},{"lordGrowth":"SPD","growthValue":25}]},
+  {"id":"lord_res_growth","name":"Lord Wisdom","description":"+5% RES growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,100,150,200,350],"effects":[{"lordGrowth":"RES","growthValue":5},{"lordGrowth":"RES","growthValue":10},{"lordGrowth":"RES","growthValue":15},{"lordGrowth":"RES","growthValue":20},{"lordGrowth":"RES","growthValue":25}]},
+  {"id":"lord_hp_flat","name":"Lord Constitution","description":"+HP for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,500,800],"effects":[{"lordStat":"HP","value":2},{"lordStat":"HP","value":5},{"lordStat":"HP","value":10}]},
+  {"id":"lord_str_flat","name":"Lord Might","description":"+STR for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"STR","value":1},{"lordStat":"STR","value":3},{"lordStat":"STR","value":5}]},
+  {"id":"lord_def_flat","name":"Lord Fortitude","description":"+DEF for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"DEF","value":1},{"lordStat":"DEF","value":3},{"lordStat":"DEF","value":5}]},
+  {"id":"lord_spd_flat","name":"Lord Celerity","description":"+SPD for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"SPD","value":1},{"lordStat":"SPD","value":3},{"lordStat":"SPD","value":5}]},
+  {"id":"lord_res_flat","name":"Lord Warding","description":"+RES for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,400,650],"effects":[{"lordStat":"RES","value":1},{"lordStat":"RES","value":3},{"lordStat":"RES","value":5}]},
+  {"id":"starting_gold","name":"War Chest","description":"+100 starting gold per level","category":"economy","maxLevel":3,"costs":[100,200,350],"effects":[{"goldBonus":100},{"goldBonus":200},{"goldBonus":300}]},
+  {"id":"battle_gold","name":"Plunder","description":"+20% battle gold per level","category":"economy","maxLevel":2,"costs":[150,300],"effects":[{"battleGoldMultiplier":0.2},{"battleGoldMultiplier":0.4}]},
+  {"id":"starting_vulnerary","name":"Field Supplies","description":"Extra Vulnerary for lord at start","category":"economy","maxLevel":1,"costs":[150],"effects":[{"extraVulnerary":1}]},
+  {"id":"loot_quality","name":"Lucky Finds","description":"Better weapon drops from loot","category":"economy","maxLevel":2,"costs":[200,400],"effects":[{"lootWeaponWeightBonus":10},{"lootWeaponWeightBonus":20}]},
+  {"id":"deploy_limit","name":"Tactical Advantage","description":"+1 deploy slot in all acts","category":"capacity","maxLevel":1,"costs":[500],"effects":[{"deployBonus":1}]},
+  {"id":"roster_cap","name":"Expanded Ranks","description":"+2 max roster size","category":"capacity","maxLevel":1,"costs":[400],"effects":[{"rosterCapBonus":2}]}
+];
+
+DATA.terrain = [
+  {"name":"Plain","moveCost":{"Infantry":"1","Armored":"1","Cavalry":"1","Flying":"1"},"avoidBonus":"0","defBonus":"0","special":""},
+  {"name":"Forest","moveCost":{"Infantry":"2","Armored":"2","Cavalry":"3","Flying":"1"},"avoidBonus":"20","defBonus":"1","special":""},
+  {"name":"Mountain","moveCost":{"Infantry":"3","Armored":"--","Cavalry":"--","Flying":"1"},"avoidBonus":"30","defBonus":"2","special":"Infantry & Flying only"},
+  {"name":"Fort","moveCost":{"Infantry":"1","Armored":"1","Cavalry":"1","Flying":"1"},"avoidBonus":"20","defBonus":"2","special":"Heals 10% HP/turn"},
+  {"name":"Throne","moveCost":{"Infantry":"1","Armored":"1","Cavalry":"1","Flying":"1"},"avoidBonus":"30","defBonus":"3","special":"Heals 10% HP/turn. Boss/Seize tile"},
+  {"name":"Wall","moveCost":{"Infantry":"--","Armored":"--","Cavalry":"--","Flying":"--"},"avoidBonus":"--","defBonus":"--","special":"Impassable"},
+  {"name":"Water","moveCost":{"Infantry":"--","Armored":"--","Cavalry":"--","Flying":"1"},"avoidBonus":"10","defBonus":"0","special":"Flying only (standard)"},
+  {"name":"Bridge","moveCost":{"Infantry":"1","Armored":"1","Cavalry":"1","Flying":"1"},"avoidBonus":"0","defBonus":"0","special":"Crosses water"},
+  {"name":"Sand","moveCost":{"Infantry":"2","Armored":"3","Cavalry":"3","Flying":"1"},"avoidBonus":"5","defBonus":"0","special":"Slows armored/cavalry significantly"},
+  {"name":"Village","moveCost":{"Infantry":"1","Armored":"1","Cavalry":"1","Flying":"1"},"avoidBonus":"10","defBonus":"1","special":"Can be visited for items/events"}
+];
+
+// Asset inventory (from actual file listing)
+DATA.assets = {
+  portraits: [
+    "lord_edric","lord_kira","lord_voss","lord_sera",
+    "generic_fighter","generic_mage","generic_cleric","generic_archer","generic_cavalier",
+    "generic_knight","generic_myrmidon","generic_thief","generic_pegasus_knight",
+    "generic_mercenary","generic_dancer","generic_swordmaster","generic_general",
+    "generic_warrior","generic_paladin","generic_sniper","generic_sage","generic_bishop",
+    "generic_assassin","generic_falcon_knight","generic_hero"
+  ],
+  characterSprites: [
+    "edric","myrmidon","knight","fighter","archer","mage","thief","cleric","cleric_alt",
+    "swordmaster","general","warrior","sniper","sage","assassin","bishop","bishop_alt",
+    "cavalier","pegasus_knight","dancer","paladin","falcon_knight","tactician","grandmaster",
+    "light_sage","light_priestess","ranger","vanguard","lord","great_lord","hero","mercenary"
+  ],
+  enemySprites: [
+    "assassin","swordmaster","myrmidon","knight","fighter","archer","mercenary","hero",
+    "general","warrior","warrior_alt","sniper","mage","cleric","thief","bishop","sage",
+    "cavalier","paladin","pegasus_knight","falcon_knight","dragon","wyvern_priest",
+    "zombie","zombie_brute"
+  ],
+  uiIcons: ["icon_sword","icon_axe","icon_lance","icon_bow","icon_tome","icon_staff","icon_potion","icon_gold","icon_scroll","icon_light"],
+  tilesets: ["plain","forest","mountain","fort","throne","wall","water","bridge","sand","village"],
+  nodes: ["node_rest","node_shop","node_boss","node_boss_final","node_elite","node_battle","node_recruit"]
+};
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
+function tierClass(tier) {
+  return 'tier-' + tier.toLowerCase();
+}
+
+function typeBadge(type) {
+  return `<span class="type-badge type-${type.toLowerCase()}">${type}</span>`;
+}
+
+function triggerBadge(trigger) {
+  return `<span class="trigger-tag trigger-${trigger}">${trigger}</span>`;
+}
+
+function moveTypeBadge(mt) {
+  return `<span class="move-type move-${mt.toLowerCase()}">${mt}</span>`;
+}
+
+function formatPrice(p) {
+  return p === 0 ? '<span style="color:var(--text-dim)">--</span>' : p.toLocaleString() + 'g';
+}
+
+function statBar(stats) {
+  const keys = ['HP','STR','MAG','SKL','SPD','DEF','RES','LCK','MOV'];
+  return keys.map(k => {
+    const v = stats[k] ?? 0;
+    return `<span class="stat"><span class="stat-label">${k}</span> ${v}</span>`;
+  }).join(' | ');
+}
+
+function formatEffects(obj) {
+  if (!obj || Object.keys(obj).length === 0) return '--';
+  return Object.entries(obj).map(([k, v]) => {
+    if (typeof v === 'boolean') return k;
+    return `${k}: ${v > 0 ? '+' : ''}${v}`;
+  }).join(', ');
+}
+
+function formatStatEffects(obj) {
+  if (!obj || Object.keys(obj).length === 0) return '--';
+  return Object.entries(obj).map(([k, v]) => `<span class="stat-pos">+${v} ${k}</span>`).join(', ');
+}
+
+function formatCombatEffects(obj) {
+  if (!obj) return '--';
+  const parts = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === 'condition') continue;
+    if (typeof v === 'boolean') parts.push(k.replace(/([A-Z])/g, ' $1').trim());
+    else parts.push(`${k.replace(/([A-Z])/g, ' $1').trim()}: ${v > 0 ? '+' : ''}${v}`);
+  }
+  return parts.join(', ');
+}
+
+// ============================================================
+// SORTABLE TABLE
+// ============================================================
+function makeSortable(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const headers = table.querySelectorAll('th[data-col]');
+  let currentSort = { col: null, asc: true };
+
+  headers.forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      const isNum = th.hasAttribute('data-num');
+      const asc = currentSort.col === col ? !currentSort.asc : true;
+      currentSort = { col, asc };
+
+      headers.forEach(h => h.classList.remove('sorted'));
+      th.classList.add('sorted');
+      th.querySelector('.sort-arrow').textContent = asc ? '\u25B2' : '\u25BC';
+
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr:not(.group-header)'));
+      rows.sort((a, b) => {
+        let va = a.querySelector(`td[data-col="${col}"]`)?.textContent.trim() || '';
+        let vb = b.querySelector(`td[data-col="${col}"]`)?.textContent.trim() || '';
+        if (isNum) { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+        if (va < vb) return asc ? -1 : 1;
+        if (va > vb) return asc ? 1 : -1;
+        return 0;
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+}
+
+// ============================================================
+// WEAPONS TAB
+// ============================================================
+function renderWeapons(filter) {
+  const search = (filter?.search || '').toLowerCase();
+  const typeF = filter?.type || '';
+  const tierF = filter?.tier || '';
+
+  const tbody = document.getElementById('weapon-body');
+  const filtered = DATA.weapons.filter(w => {
+    if (search && !w.name.toLowerCase().includes(search) && !w.special.toLowerCase().includes(search)) return false;
+    if (typeF && w.type !== typeF) return false;
+    if (tierF && w.tier !== tierF) return false;
+    return true;
+  });
+
+  // Group by type
+  const typeOrder = ['Sword','Lance','Axe','Bow','Tome','Light','Staff','Scroll'];
+  const grouped = {};
+  typeOrder.forEach(t => grouped[t] = []);
+  filtered.forEach(w => { if (grouped[w.type]) grouped[w.type].push(w); });
+
+  let html = '';
+  typeOrder.forEach(type => {
+    const items = grouped[type];
+    if (items.length === 0) return;
+    if (!typeF) {
+      html += `<tr class="group-header"><td colspan="11">${type}s (${items.length})</td></tr>`;
+    }
+    items.forEach(w => {
+      html += `<tr>
+        <td data-col="name"><strong>${w.name}</strong></td>
+        <td data-col="type">${typeBadge(w.type)}</td>
+        <td data-col="tier"><span class="${tierClass(w.tier)}">${w.tier}</span></td>
+        <td data-col="might">${w.might || '--'}</td>
+        <td data-col="hit">${w.hit || '--'}</td>
+        <td data-col="crit">${w.crit || '--'}</td>
+        <td data-col="weight">${w.weight || '--'}</td>
+        <td data-col="range">${w.range}</td>
+        <td data-col="rank">${w.rankRequired}</td>
+        <td data-col="special">${w.special || '<span style="color:var(--text-dim)">--</span>'}</td>
+        <td data-col="price">${formatPrice(w.price)}</td>
+      </tr>`;
+    });
+  });
+
+  tbody.innerHTML = html;
+}
+
+document.getElementById('weapon-search').addEventListener('input', () => renderWeapons(getWeaponFilters()));
+document.getElementById('weapon-type-filter').addEventListener('change', () => renderWeapons(getWeaponFilters()));
+document.getElementById('weapon-tier-filter').addEventListener('change', () => renderWeapons(getWeaponFilters()));
+
+function getWeaponFilters() {
+  return {
+    search: document.getElementById('weapon-search').value,
+    type: document.getElementById('weapon-type-filter').value,
+    tier: document.getElementById('weapon-tier-filter').value
+  };
+}
+
+// ============================================================
+// SKILLS TAB
+// ============================================================
+function renderSkills() {
+  const search = (document.getElementById('skill-search')?.value || '').toLowerCase();
+  const triggerF = document.getElementById('skill-trigger-filter')?.value || '';
+
+  const filtered = DATA.skills.filter(s => {
+    if (search && !s.name.toLowerCase().includes(search) && !s.description.toLowerCase().includes(search)) return false;
+    if (triggerF && s.trigger !== triggerF) return false;
+    return true;
+  });
+
+  // Determine source
+  function getSource(s) {
+    if (s.personal) return '<span style="color:var(--gold)">Personal (Lord)</span>';
+    if (s.classInnate) return `<span style="color:var(--cyan)">Class Innate: ${s.classInnate}</span>`;
+    // Check if learnable via scroll
+    const scroll = DATA.weapons.find(w => w.skillId === s.id);
+    const learnable = DATA.classes.some(c => c.learnableSkills?.some(ls => ls.skillId === s.id));
+    const parts = [];
+    if (scroll) parts.push(`<span style="color:var(--purple)">Scroll</span>`);
+    if (learnable) parts.push(`<span style="color:var(--green)">Learnable</span>`);
+    return parts.length ? parts.join(', ') : '<span style="color:var(--text-dim)">--</span>';
+  }
+
+  const tbody = document.getElementById('skill-body');
+  tbody.innerHTML = filtered.map(s => `<tr>
+    <td data-col="name"><strong>${s.name}</strong></td>
+    <td data-col="trigger">${triggerBadge(s.trigger)}</td>
+    <td data-col="activation">${s.activation || s.condition || '<span style="color:var(--text-dim)">Always</span>'}</td>
+    <td data-col="description">${s.description}</td>
+    <td data-col="source">${getSource(s)}</td>
+  </tr>`).join('');
+}
+
+document.getElementById('skill-search').addEventListener('input', renderSkills);
+document.getElementById('skill-trigger-filter').addEventListener('change', renderSkills);
+
+// ============================================================
+// ACCESSORIES TAB
+// ============================================================
+function renderAccessories() {
+  const statAccs = DATA.accessories.filter(a => !a.combatEffects);
+  const combatAccs = DATA.accessories.filter(a => a.combatEffects);
+
+  document.getElementById('acc-stat-body').innerHTML = statAccs.map(a => `<tr>
+    <td><strong>${a.name}</strong></td>
+    <td>${formatStatEffects(a.effects)}</td>
+    <td>${formatPrice(a.price)}</td>
+  </tr>`).join('');
+
+  document.getElementById('acc-combat-body').innerHTML = combatAccs.map(a => `<tr>
+    <td><strong>${a.name}</strong></td>
+    <td>${formatCombatEffects(a.combatEffects)}</td>
+    <td>${a.combatEffects?.condition || '<span style="color:var(--text-dim)">Always</span>'}</td>
+    <td>${formatPrice(a.price)}</td>
+  </tr>`).join('');
+}
+
+// ============================================================
+// CONSUMABLES TAB
+// ============================================================
+function renderConsumables() {
+  document.getElementById('consumable-body').innerHTML = DATA.consumables.map(c => `<tr>
+    <td><strong>${c.name}</strong></td>
+    <td>${c.effect}</td>
+    <td>${c.value || '--'}</td>
+    <td>${c.uses}</td>
+    <td>${formatPrice(c.price)}</td>
+  </tr>`).join('');
+}
+
+// ============================================================
+// CLASSES TAB
+// ============================================================
+function renderClasses() {
+  const search = (document.getElementById('class-search')?.value || '').toLowerCase();
+  const tierF = document.getElementById('class-tier-filter')?.value || '';
+
+  const baseClasses = DATA.classes.filter(c => c.tier === 'base');
+  const promotedClasses = DATA.classes.filter(c => c.tier === 'promoted');
+
+  function matchFilter(c) {
+    if (search && !c.name.toLowerCase().includes(search) && !(c.role || c.roleChange || '').toLowerCase().includes(search)) return false;
+    if (tierF && c.tier !== tierF) return false;
+    return true;
+  }
+
+  function renderBaseTable(classes) {
+    const filtered = classes.filter(matchFilter);
+    if (filtered.length === 0) return '<p style="color:var(--text-dim)">No matches</p>';
+    return `<table><thead><tr>
+      <th>Name</th><th>Move</th><th>Weapons</th><th>Role</th>
+      <th>HP</th><th>STR</th><th>MAG</th><th>SKL</th><th>SPD</th><th>DEF</th><th>RES</th><th>LCK</th><th>MOV</th>
+      <th>Promotes To</th><th>Skills</th>
+    </tr></thead><tbody>${filtered.map(c => {
+      const s = c.baseStats;
+      const skills = (c.learnableSkills || []).map(ls => `${ls.skillId} (Lv${ls.level})`).join(', ') || '--';
+      return `<tr>
+        <td><strong>${c.name}</strong></td>
+        <td>${moveTypeBadge(c.moveType)}</td>
+        <td>${c.weaponProficiencies}</td>
+        <td>${c.role}</td>
+        <td>${s.HP}</td><td>${s.STR}</td><td>${s.MAG}</td><td>${s.SKL}</td><td>${s.SPD}</td><td>${s.DEF}</td><td>${s.RES}</td><td>${s.LCK}</td><td>${s.MOV}</td>
+        <td>${c.promotesTo || '--'}</td>
+        <td>${skills}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  }
+
+  function renderPromotedTable(classes) {
+    const filtered = classes.filter(matchFilter);
+    if (filtered.length === 0) return '<p style="color:var(--text-dim)">No matches</p>';
+    return `<table><thead><tr>
+      <th>Name</th><th>From</th><th>Move</th><th>Weapons</th>
+      <th>HP</th><th>STR</th><th>MAG</th><th>SKL</th><th>SPD</th><th>DEF</th><th>RES</th><th>LCK</th><th>MOV</th>
+      <th>Innate Skill</th><th>Role Change</th>
+    </tr></thead><tbody>${filtered.map(c => {
+      const b = c.promotionBonuses;
+      const innate = DATA.skills.find(s => s.classInnate === c.name);
+      return `<tr>
+        <td><strong>${c.name}</strong></td>
+        <td>${c.promotesFrom}</td>
+        <td>${moveTypeBadge(c.moveType)}</td>
+        <td>${c.weaponProficiencies}</td>
+        <td class="stat-pos">+${b.HP}</td><td class="stat-pos">+${b.STR}</td><td class="${b.MAG ? 'stat-pos' : 'stat-zero'}">${b.MAG ? '+' + b.MAG : '--'}</td>
+        <td class="stat-pos">+${b.SKL}</td><td class="${b.SPD ? 'stat-pos' : 'stat-zero'}">${b.SPD ? '+' + b.SPD : '--'}</td>
+        <td class="stat-pos">+${b.DEF}</td><td class="${b.RES ? 'stat-pos' : 'stat-zero'}">${b.RES ? '+' + b.RES : '--'}</td>
+        <td class="stat-zero">--</td><td class="${b.MOV ? 'stat-pos' : 'stat-zero'}">${b.MOV ? '+' + b.MOV : '--'}</td>
+        <td>${innate ? `<span class="skill-tag" style="display:inline-block">${innate.name}</span>` : '--'}</td>
+        <td>${c.roleChange}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+  }
+
+  document.getElementById('base-classes').innerHTML = renderBaseTable(baseClasses);
+  document.getElementById('promoted-classes').innerHTML = renderPromotedTable(promotedClasses);
+}
+
+document.getElementById('class-search').addEventListener('input', renderClasses);
+document.getElementById('class-tier-filter').addEventListener('change', renderClasses);
+
+// ============================================================
+// LORDS TAB
+// ============================================================
+function renderLords() {
+  document.getElementById('lord-cards').innerHTML = DATA.lords.map(l => {
+    const s = l.baseStats;
+    const g = l.personalGrowths;
+    const pb = l.promotionBonuses;
+    const statKeys = ['HP','STR','MAG','SKL','SPD','DEF','RES','LCK','MOV'];
+    return `<div class="card">
+      <h3>${l.name}</h3>
+      <div style="color:var(--accent);font-size:0.85em;margin-bottom:6px">${l.class} &rarr; ${l.promotedClass}</div>
+      <div style="font-size:0.82em;color:var(--text-dim);margin-bottom:8px">${l.personalSkill}</div>
+      <div style="font-size:0.82em;margin-bottom:4px"><strong>Base Stats:</strong></div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:2px;font-size:0.78em;text-align:center;margin-bottom:8px">
+        ${statKeys.map(k => `<div><div style="color:var(--text-dim)">${k}</div><div>${s[k]}</div></div>`).join('')}
+      </div>
+      <div style="font-size:0.82em;margin-bottom:4px"><strong>Personal Growths:</strong></div>
+      <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:2px;font-size:0.78em;text-align:center;margin-bottom:8px">
+        ${statKeys.map(k => `<div><div style="color:var(--text-dim)">${k}</div><div class="${g[k] > 0 ? 'stat-pos' : 'stat-zero'}">${g[k] ? '+' + g[k] + '%' : '--'}</div></div>`).join('')}
+      </div>
+      <div class="promo-info">
+        <strong>Promotion Bonuses:</strong>
+        ${statKeys.filter(k => pb[k]).map(k => `<span class="stat-pos">+${pb[k]} ${k}</span>`).join(', ')}
+        <br>Gains: ${l.promotionWeapons}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// RECRUITS TAB
+// ============================================================
+function renderRecruits() {
+  const acts = ['act1','act2','act3'];
+  const labels = { act1: 'Act 1', act2: 'Act 2', act3: 'Act 3' };
+
+  document.getElementById('recruit-tables').innerHTML = acts.map(act => {
+    const data = DATA.recruits[act];
+    return `<h2 class="section-title">${labels[act]} (Levels ${data.levelRange[0]}-${data.levelRange[1]})</h2>
+    <table><thead><tr><th>Name</th><th>Class</th></tr></thead>
+    <tbody>${data.pool.map(r => `<tr><td><strong>${r.name}</strong></td><td>${r.className}</td></tr>`).join('')}</tbody></table>`;
+  }).join('');
+}
+
+// ============================================================
+// LOOT TABLES TAB
+// ============================================================
+function renderLoot() {
+  const acts = ['act1','act2','act3','finalBoss'];
+  const labels = { act1: 'Act 1', act2: 'Act 2', act3: 'Act 3', finalBoss: 'Final Boss' };
+  const colors = { weapon: '#4a8fd4', consumable: '#4caf50', gold: '#d4a843', rare: '#c060f0', accessory: '#e09040' };
+
+  // Build lookup sets for cross-referencing
+  const weaponNames = new Set(DATA.weapons.map(w => w.name));
+  const accNames = new Set(DATA.accessories.map(a => a.name));
+  const consumNames = new Set(DATA.consumables.map(c => c.name));
+
+  function checkItem(name, validSet) {
+    return validSet.has(name) ? name : `<span class="missing" title="NOT FOUND in data">${name}</span>`;
+  }
+
+  document.getElementById('loot-content').innerHTML = acts.map(act => {
+    const d = DATA.lootTables[act];
+    const w = d.weights;
+    const totalW = Object.values(w).reduce((a, b) => a + b, 0);
+
+    let weightBarHtml = '<div class="weight-bar">';
+    for (const [cat, val] of Object.entries(w)) {
+      const pct = (val / totalW * 100).toFixed(0);
+      weightBarHtml += `<div style="width:${pct}%;background:${colors[cat] || '#666'}">${cat} ${pct}%</div>`;
+    }
+    weightBarHtml += '</div>';
+
+    return `<div class="loot-act">
+      <h3>${labels[act]}</h3>
+      <div style="font-size:0.85em;color:var(--text-dim)">Gold range: ${d.goldRange[0]}-${d.goldRange[1]}g</div>
+      ${weightBarHtml}
+      ${d.weapons.length ? `<div class="loot-category"><strong>Weapons (${d.weapons.length}):</strong> <span class="loot-items">${d.weapons.map(n => checkItem(n, weaponNames)).join(', ')}</span></div>` : ''}
+      ${d.consumables.length ? `<div class="loot-category"><strong>Consumables (${d.consumables.length}):</strong> <span class="loot-items">${d.consumables.map(n => checkItem(n, consumNames)).join(', ')}</span></div>` : ''}
+      ${d.rare.length ? `<div class="loot-category"><strong>Rare (${d.rare.length}):</strong> <span class="loot-items">${d.rare.map(n => checkItem(n, weaponNames)).join(', ')}</span></div>` : ''}
+      ${d.accessories.length ? `<div class="loot-category"><strong>Accessories (${d.accessories.length}):</strong> <span class="loot-items">${d.accessories.map(n => checkItem(n, accNames)).join(', ')}</span></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// META UPGRADES TAB
+// ============================================================
+function renderMeta() {
+  const categories = {};
+  const catLabels = { recruit_stats: 'Recruit Stats', lord_bonuses: 'Lord Bonuses', economy: 'Economy', capacity: 'Capacity' };
+
+  DATA.metaUpgrades.forEach(u => {
+    if (!categories[u.category]) categories[u.category] = [];
+    categories[u.category].push(u);
+  });
+
+  document.getElementById('meta-content').innerHTML = Object.entries(catLabels).map(([cat, label]) => {
+    const upgrades = categories[cat] || [];
+    return `<div class="upgrade-group">
+      <h3>${label} (${upgrades.length})</h3>
+      <table><thead><tr>
+        <th>Name</th><th>Description</th><th>Max Lv</th><th>Costs</th><th>Effects at Max</th>
+      </tr></thead><tbody>
+      ${upgrades.map(u => {
+        const maxEffect = u.effects[u.effects.length - 1];
+        let effectStr = Object.entries(maxEffect).map(([k, v]) => `${k}: ${v}`).join(', ');
+        return `<tr>
+          <td><strong>${u.name}</strong></td>
+          <td>${u.description}</td>
+          <td style="text-align:center">${u.maxLevel}</td>
+          <td>${u.costs.map((c, i) => `<span class="cost-tier">${i + 1}: ${c}</span>`).join(' ')}</td>
+          <td style="font-size:0.82em">${effectStr}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// TERRAIN TAB
+// ============================================================
+function renderTerrain() {
+  document.getElementById('terrain-body').innerHTML = DATA.terrain.map(t => {
+    const mc = t.moveCost;
+    function fmtCost(v) { return v === '--' ? '<span class="impassable">--</span>' : v; }
+    return `<tr>
+      <td><strong>${t.name}</strong></td>
+      <td>${fmtCost(mc.Infantry)}</td>
+      <td>${fmtCost(mc.Armored)}</td>
+      <td>${fmtCost(mc.Cavalry)}</td>
+      <td>${fmtCost(mc.Flying)}</td>
+      <td>${t.avoidBonus === '--' ? '--' : (t.avoidBonus > 0 ? '<span class="stat-pos">+' + t.avoidBonus + '</span>' : t.avoidBonus)}</td>
+      <td>${t.defBonus === '--' ? '--' : (t.defBonus > 0 ? '<span class="stat-pos">+' + t.defBonus + '</span>' : t.defBonus)}</td>
+      <td>${t.special || '<span style="color:var(--text-dim)">--</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// ASSET AUDIT TAB
+// ============================================================
+function renderAudit() {
+  const a = DATA.assets;
+  let html = '';
+
+  function ok(msg) { return `<div class="audit-item"><span class="icon audit-ok">&#10003;</span> <span class="audit-ok">${msg}</span></div>`; }
+  function warn(msg) { return `<div class="audit-item"><span class="icon audit-warn">&#9888;</span> <span class="audit-warn">${msg}</span></div>`; }
+  function missing(msg) { return `<div class="audit-item"><span class="icon audit-missing">&#10007;</span> <span class="audit-missing">${msg}</span></div>`; }
+
+  // --- Portraits ---
+  html += '<h2 class="section-title">Portraits</h2><div class="audit-section">';
+  // Lord portraits
+  const lordPortraits = ['lord_edric','lord_kira','lord_voss','lord_sera'];
+  lordPortraits.forEach(p => {
+    html += a.portraits.includes(p) ? ok(`${p}.png exists`) : missing(`${p}.png MISSING`);
+  });
+
+  // Class portraits - check all 29 classes
+  const allClassNames = DATA.classes.map(c => c.name);
+  const portraitClassNames = a.portraits.filter(p => p.startsWith('generic_')).map(p => p.replace('generic_', '').replace(/_/g, ' '));
+
+  // Normalize for comparison
+  function normalizeClassName(name) { return name.toLowerCase().replace(/\s+/g, '_'); }
+  const portraitSet = new Set(a.portraits.map(p => p.replace('generic_', '')));
+
+  allClassNames.forEach(cn => {
+    const normalized = normalizeClassName(cn);
+    if (portraitSet.has(normalized)) {
+      html += ok(`generic_${normalized}.png portrait exists`);
+    } else {
+      html += missing(`generic_${normalized}.png portrait MISSING (class: ${cn})`);
+    }
+  });
+  html += '</div>';
+
+  // --- Character Sprites ---
+  html += '<h2 class="section-title">Character Sprites</h2><div class="audit-section">';
+  const spriteSet = new Set(a.characterSprites);
+  allClassNames.forEach(cn => {
+    const normalized = normalizeClassName(cn);
+    if (spriteSet.has(normalized)) {
+      html += ok(`${normalized}.png sprite exists`);
+    } else {
+      html += missing(`${normalized}.png sprite MISSING (class: ${cn})`);
+    }
+  });
+  // Lord-specific
+  html += spriteSet.has('edric') ? ok('edric.png (lord sprite) exists') : missing('edric.png lord sprite MISSING');
+  html += '</div>';
+
+  // --- UI Icons ---
+  html += '<h2 class="section-title">UI Icons</h2><div class="audit-section">';
+  const weaponTypes = ['Sword','Lance','Axe','Bow','Tome','Light','Staff','Scroll'];
+  const iconMap = { Sword: 'icon_sword', Lance: 'icon_lance', Axe: 'icon_axe', Bow: 'icon_bow', Tome: 'icon_tome', Light: 'icon_light', Staff: 'icon_staff', Scroll: 'icon_scroll' };
+  const iconSet = new Set(a.uiIcons);
+  weaponTypes.forEach(t => {
+    const icon = iconMap[t];
+    html += iconSet.has(icon) ? ok(`${icon}.png (${t}) exists`) : missing(`${icon}.png (${t}) MISSING`);
+  });
+  html += iconSet.has('icon_potion') ? ok('icon_potion.png exists') : missing('icon_potion.png MISSING');
+  html += iconSet.has('icon_gold') ? ok('icon_gold.png exists') : missing('icon_gold.png MISSING');
+  html += !iconSet.has('icon_accessory') ? missing('icon_accessory.png MISSING - no accessory icon exists') : ok('icon_accessory.png exists');
+  html += '</div>';
+
+  // --- Terrain Tilesets ---
+  html += '<h2 class="section-title">Terrain Tilesets</h2><div class="audit-section">';
+  const tileSet = new Set(a.tilesets);
+  DATA.terrain.forEach(t => {
+    const normalized = t.name.toLowerCase();
+    html += tileSet.has(normalized) ? ok(`${normalized}.png tileset exists`) : missing(`${normalized}.png tileset MISSING (terrain: ${t.name})`);
+  });
+  html += '</div>';
+
+  // --- Node Icons ---
+  html += '<h2 class="section-title">Node Map Icons</h2><div class="audit-section">';
+  const nodeTypes = ['battle','boss','boss_final','elite','recruit','rest','shop'];
+  const nodeSet = new Set(a.nodes);
+  nodeTypes.forEach(n => {
+    const key = `node_${n}`;
+    html += nodeSet.has(key) ? ok(`${key}.png exists`) : missing(`${key}.png MISSING`);
+  });
+  html += '</div>';
+
+  // --- Effects (VFX) ---
+  html += '<h2 class="section-title">VFX / Effects</h2><div class="audit-section">';
+  html += missing('effects/ folder is EMPTY - no attack/magic/heal VFX sprites exist');
+  html += warn('Combat animations use placeholder visuals only');
+  html += '</div>';
+
+  // --- Recruit Portraits ---
+  html += '<h2 class="section-title">Recruit Characters</h2><div class="audit-section">';
+  html += warn('Named recruits (18) use generic class portraits - expected behavior, not a gap');
+  Object.entries(DATA.recruits).forEach(([act, data]) => {
+    data.pool.forEach(r => {
+      const normalized = normalizeClassName(r.className);
+      if (portraitSet.has(normalized)) {
+        html += ok(`${r.name} (${r.className}) uses generic_${normalized}.png`);
+      } else {
+        html += missing(`${r.name} (${r.className}) has no portrait - generic_${normalized}.png MISSING`);
+      }
+    });
+  });
+  html += '</div>';
+
+  // --- Summary ---
+  html += '<h2 class="section-title">Summary</h2><div class="audit-section">';
+  const totalOk = (html.match(/audit-ok/g) || []).length / 2; // each ok() produces 2 matches
+  const totalMissing = (html.match(/audit-missing/g) || []).length / 2;
+  const totalWarn = (html.match(/audit-warn/g) || []).length / 2;
+  html += `<div style="display:flex;gap:20px;font-size:1em;margin:10px 0;">
+    <span class="audit-ok"><strong>${totalOk}</strong> assets present</span>
+    <span class="audit-missing"><strong>${totalMissing}</strong> assets missing</span>
+    <span class="audit-warn"><strong>${totalWarn}</strong> warnings</span>
+  </div>`;
+  html += '</div>';
+
+  document.getElementById('audit-content').innerHTML = html;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderWeapons(getWeaponFilters());
+makeSortable('weapon-table');
+renderSkills();
+makeSortable('skill-table');
+renderAccessories();
+renderConsumables();
+renderClasses();
+renderLords();
+renderRecruits();
+renderLoot();
+renderMeta();
+renderTerrain();
+renderAudit();
+</script>
+</body>
+</html>

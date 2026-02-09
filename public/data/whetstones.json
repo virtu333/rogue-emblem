@@ -1,0 +1,7 @@
+[
+  { "name": "Silver Whetstone", "type": "Whetstone", "forgeStat": "choice", "price": 800 },
+  { "name": "Might Whetstone",  "type": "Whetstone", "forgeStat": "might",  "price": 500 },
+  { "name": "Crit Whetstone",   "type": "Whetstone", "forgeStat": "crit",   "price": 400 },
+  { "name": "Hit Whetstone",    "type": "Whetstone", "forgeStat": "hit",    "price": 350 },
+  { "name": "Weight Whetstone", "type": "Whetstone", "forgeStat": "weight", "price": 350 }
+]

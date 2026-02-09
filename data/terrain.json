@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Plain",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "0",
+    "defBonus": "0",
+    "special": ""
+  },
+  {
+    "name": "Forest",
+    "moveCost": {
+      "Infantry": "2",
+      "Armored": "2",
+      "Cavalry": "3",
+      "Flying": "1"
+    },
+    "avoidBonus": "20",
+    "defBonus": "1",
+    "special": ""
+  },
+  {
+    "name": "Mountain",
+    "moveCost": {
+      "Infantry": "3",
+      "Armored": "--",
+      "Cavalry": "--",
+      "Flying": "1"
+    },
+    "avoidBonus": "30",
+    "defBonus": "2",
+    "special": "Infantry & Flying only"
+  },
+  {
+    "name": "Fort",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "20",
+    "defBonus": "2",
+    "special": "Heals 10% HP/turn"
+  },
+  {
+    "name": "Throne",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "30",
+    "defBonus": "3",
+    "special": "Heals 10% HP/turn. Boss/Seize tile"
+  },
+  {
+    "name": "Wall",
+    "moveCost": {
+      "Infantry": "--",
+      "Armored": "--",
+      "Cavalry": "--",
+      "Flying": "--"
+    },
+    "avoidBonus": "--",
+    "defBonus": "--",
+    "special": "Impassable"
+  },
+  {
+    "name": "Water",
+    "moveCost": {
+      "Infantry": "--",
+      "Armored": "--",
+      "Cavalry": "--",
+      "Flying": "1"
+    },
+    "avoidBonus": "10",
+    "defBonus": "0",
+    "special": "Flying only (standard)"
+  },
+  {
+    "name": "Bridge",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "0",
+    "defBonus": "0",
+    "special": "Crosses water"
+  },
+  {
+    "name": "Sand",
+    "moveCost": {
+      "Infantry": "2",
+      "Armored": "3",
+      "Cavalry": "3",
+      "Flying": "1"
+    },
+    "avoidBonus": "5",
+    "defBonus": "0",
+    "special": "Slows armored/cavalry significantly"
+  },
+  {
+    "name": "Village",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "10",
+    "defBonus": "1",
+    "special": "Can be visited for items/events"
+  }
+]

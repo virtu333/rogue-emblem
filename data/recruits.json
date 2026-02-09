@@ -1,0 +1,35 @@
+{
+  "act1": {
+    "levelRange": [1, 3],
+    "pool": [
+      { "className": "Fighter", "name": "Galvin" },
+      { "className": "Archer", "name": "Ren" },
+      { "className": "Mage", "name": "Lira" },
+      { "className": "Cavalier", "name": "Aldric" },
+      { "className": "Cleric", "name": "Miriel" },
+      { "className": "Myrmidon", "name": "Soren" }
+    ]
+  },
+  "act2": {
+    "levelRange": [5, 8],
+    "pool": [
+      { "className": "Thief", "name": "Nyx" },
+      { "className": "Mercenary", "name": "Gareth" },
+      { "className": "Pegasus Knight", "name": "Elysia" },
+      { "className": "Mage", "name": "Theron" },
+      { "className": "Knight", "name": "Osric" },
+      { "className": "Cavalier", "name": "Helena" }
+    ]
+  },
+  "act3": {
+    "levelRange": [10, 14],
+    "pool": [
+      { "className": "Mercenary", "name": "Dante" },
+      { "className": "Pegasus Knight", "name": "Celeste" },
+      { "className": "Mage", "name": "Vaelan" },
+      { "className": "Thief", "name": "Shade" },
+      { "className": "Archer", "name": "Faye" },
+      { "className": "Cleric", "name": "Io" }
+    ]
+  }
+}

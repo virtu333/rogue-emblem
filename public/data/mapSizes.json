@@ -1,0 +1,58 @@
+[
+  {
+    "phase": "Act 1 (Small)",
+    "mapSize": "10x8",
+    "tiles": 80,
+    "deployLimit": "3-4",
+    "notes": "Quick skirmishes, learning phase"
+  },
+  {
+    "phase": "Act 1 (Standard)",
+    "mapSize": "12x8",
+    "tiles": 96,
+    "deployLimit": "3-4",
+    "notes": "Slightly larger early maps"
+  },
+  {
+    "phase": "Act 2 (Standard)",
+    "mapSize": "14x10",
+    "tiles": 140,
+    "deployLimit": "4-5",
+    "notes": "More room for flanking"
+  },
+  {
+    "phase": "Act 2 (Large)",
+    "mapSize": "16x10",
+    "tiles": 160,
+    "deployLimit": "4-5",
+    "notes": "Multi-objective maps"
+  },
+  {
+    "phase": "Act 3 (Standard)",
+    "mapSize": "16x12",
+    "tiles": 192,
+    "deployLimit": "5-6",
+    "notes": "Full tactical complexity"
+  },
+  {
+    "phase": "Act 3 (Large)",
+    "mapSize": "18x12",
+    "tiles": 216,
+    "deployLimit": "5-6",
+    "notes": "Boss approach maps"
+  },
+  {
+    "phase": "Post-Act",
+    "mapSize": "18x14",
+    "tiles": 252,
+    "deployLimit": "6",
+    "notes": "Endgame gauntlets"
+  },
+  {
+    "phase": "Final Boss",
+    "mapSize": "20x14",
+    "tiles": 280,
+    "deployLimit": "6",
+    "notes": "Multi-phase boss arena"
+  }
+]

@@ -1,0 +1,185 @@
+{
+  "rout": [
+    {
+      "id": "open_field",
+      "name": "Open Field",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 70, "Forest": 20, "Sand": 10 },
+          "priority": 0
+        },
+        {
+          "rect": [0, 0, 0.25, 1],
+          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.75, 0, 1, 1],
+          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": []
+    },
+    {
+      "id": "river_crossing",
+      "name": "River Crossing",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 80, "Forest": 15, "Sand": 5 },
+          "priority": 0
+        },
+        {
+          "rect": [0.4, 0, 0.6, 1],
+          "terrain": { "Water": 85, "Bridge": 15 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.7, 0, 1, 1],
+          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [],
+      "minBridges": 2
+    },
+    {
+      "id": "forest_ambush",
+      "name": "Forest Ambush",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Forest": 55, "Plain": 35, "Mountain": 10 },
+          "priority": 0
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 50, "Forest": 40, "Fort": 10 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.5, 0.2, 0.9, 0.8],
+          "terrain": { "Forest": 50, "Plain": 40, "Fort": 10 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": []
+    },
+    {
+      "id": "chokepoint",
+      "name": "Chokepoint",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 70, "Forest": 15, "Mountain": 15 },
+          "priority": 0
+        },
+        {
+          "rect": [0.35, 0, 0.65, 0.35],
+          "terrain": { "Wall": 80, "Mountain": 20 },
+          "priority": 2
+        },
+        {
+          "rect": [0.35, 0.65, 0.65, 1],
+          "terrain": { "Wall": 80, "Mountain": 20 },
+          "priority": 2
+        },
+        {
+          "rect": [0.45, 0.35, 0.55, 0.65],
+          "terrain": { "Plain": 70, "Fort": 30 },
+          "priority": 3
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.7, 0, 1, 1],
+          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": []
+    }
+  ],
+  "seize": [
+    {
+      "id": "castle_assault",
+      "name": "Castle Assault",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 75, "Forest": 15, "Sand": 10 },
+          "priority": 0
+        },
+        {
+          "rect": [0.6, 0.15, 1, 0.85],
+          "terrain": { "Wall": 40, "Plain": 40, "Fort": 20 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.65, 0.2, 0.95, 0.8],
+          "terrain": { "Plain": 60, "Fort": 30, "Wall": 10 },
+          "priority": 3,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [
+        { "type": "Throne", "position": "right" }
+      ]
+    },
+    {
+      "id": "hilltop_fortress",
+      "name": "Hilltop Fortress",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 50, "Forest": 25, "Mountain": 25 },
+          "priority": 0
+        },
+        {
+          "rect": [0.55, 0.2, 0.95, 0.8],
+          "terrain": { "Mountain": 30, "Fort": 30, "Plain": 30, "Wall": 10 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.6, 0.25, 0.9, 0.75],
+          "terrain": { "Fort": 40, "Plain": 40, "Mountain": 20 },
+          "priority": 3,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [
+        { "type": "Throne", "position": "topRight" }
+      ]
+    }
+  ]
+}
