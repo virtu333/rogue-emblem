@@ -49,7 +49,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);
     }
 
-    // Portraits (25) — keyed as portrait_{name}
+    // Portraits (32) — keyed as portrait_{name}
     const portraits = [
       'lord_edric', 'lord_kira', 'lord_sera', 'lord_voss',
       'generic_archer', 'generic_assassin', 'generic_bishop',
@@ -59,6 +59,8 @@ export class BootScene extends Phaser.Scene {
       'generic_mercenary', 'generic_myrmidon', 'generic_paladin',
       'generic_pegasus_knight', 'generic_sage', 'generic_sniper',
       'generic_swordmaster', 'generic_thief', 'generic_warrior',
+      'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
+      'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_dark_champion',
     ];
     for (const name of portraits) {
       this.load.image(`portrait_${name}`, `assets/portraits/${name}.png`);
@@ -70,10 +72,21 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);
     }
 
-    // UI icons (10) — keyed as icon_{type}
+    // UI icons (37) — keyed as icon_{type}
     const uiIcons = [
       'sword', 'axe', 'lance', 'bow', 'tome',
       'staff', 'potion', 'gold', 'scroll', 'light',
+      // Stat boosters
+      'energy_drop', 'spirit_dust', 'secret_book', 'speedwing',
+      'dracoshield', 'talisman', 'angelic_robe',
+      // Extra items
+      'whetstone', 'master_seal', 'elixir',
+      // Accessories
+      'power_ring', 'magic_ring', 'speed_ring', 'shield_ring',
+      'barrier_ring', 'skill_ring', 'goddess_icon', 'seraph_robe',
+      'boots', 'delphi_shield', 'veterans_crest',
+      'wrath_band', 'counter_seal', 'pursuit_ring', 'nullify_ring',
+      'life_ring', 'forest_charm',
     ];
     for (const name of uiIcons) {
       this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);

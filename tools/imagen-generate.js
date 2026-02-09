@@ -16,8 +16,13 @@ const SAMPLE_COUNT = 4;
 
 // --- Load API key from .env ---
 const envPath = join(ROOT, '.env');
-const envLine = readFileSync(envPath, 'utf8').trim();
-const API_KEY = envLine.split('=')[1];
+const envContent = readFileSync(envPath, 'utf8');
+const keyMatch = envContent.match(/^GOOGLE_API_KEY=(.+)$/m);
+if (!keyMatch) {
+  console.error('Missing GOOGLE_API_KEY in .env — add: GOOGLE_API_KEY=your_key_here');
+  process.exit(1);
+}
+const API_KEY = keyMatch[1].trim();
 
 // --- Parse CLI args ---
 const args = process.argv.slice(2);
