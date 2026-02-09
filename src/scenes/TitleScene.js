@@ -443,9 +443,10 @@ export class TitleScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(null, 0);
-      ['titleBg', 'titleVignette', 'titleScanlines'].forEach(key => {
-        if (this.textures.exists(key)) this.textures.remove(key);
-      });
+      // NOTE: Do NOT remove textures here — shutdown fires BEFORE Phaser
+      // destroys display objects. Removing textures while Images still
+      // reference them crashes the scene transition silently.
+      // Stale textures are cleaned up in create() on re-entry instead.
       this.bgCtx = null;
       this.bgTexture = null;
       this.howToPlayOverlay = null;
