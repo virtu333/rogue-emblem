@@ -43,6 +43,11 @@ export class HomeBaseScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
 
+    this.events.once('shutdown', () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(null, 0);
+    });
+
     this.meta = this.registry.get('meta');
     this.activeTab = 'recruit_stats';
 

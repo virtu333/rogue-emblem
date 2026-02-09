@@ -34,16 +34,7 @@ export class AudioManager {
     this.stopMusic(scene, 0); // instant stop previous
 
     // Defensive: stop any orphaned sounds from previous scenes
-    if (this.sound.sounds) {
-      for (let i = this.sound.sounds.length - 1; i >= 0; i--) {
-        const s = this.sound.sounds[i];
-        // Stop any looping sound OR any long-duration sound (likely music)
-        if (s && s.isPlaying && (s.loop || s.duration > 10000)) {
-          s.stop();
-          s.destroy();
-        }
-      }
-    }
+    this._cleanupOrphans();
 
     if (!this.sound.get(key) && !this.sound.game.cache.audio.has(key)) return;
 
@@ -63,7 +54,11 @@ export class AudioManager {
   /** Stop current music with optional fade-out. */
   stopMusic(scene, fadeMs = 500) {
     this._pendingMusic = null;
-    if (!this.currentMusic) return;
+    if (!this.currentMusic) {
+      // Even with no tracked music, clean up orphans (e.g. from crashed scenes)
+      this._cleanupOrphans();
+      return;
+    }
 
     const music = this.currentMusic;
     this.currentMusic = null;
@@ -79,6 +74,22 @@ export class AudioManager {
     } else {
       music.stop();
       music.destroy();
+    }
+
+    this._cleanupOrphans();
+  }
+
+  /** Stop any orphaned looping or long-duration sounds left over from previous scenes. */
+  _cleanupOrphans() {
+    if (!this.sound.sounds) return;
+    for (let i = this.sound.sounds.length - 1; i >= 0; i--) {
+      const s = this.sound.sounds[i];
+      if (!s) continue;
+      // Catch looping sounds even if paused/fading (not just isPlaying)
+      if ((s.isPlaying || s.loop) && (s.loop || s.duration > 10000)) {
+        s.stop();
+        s.destroy();
+      }
     }
   }
 

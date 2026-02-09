@@ -32,6 +32,11 @@ export class RunCompleteScene extends Phaser.Scene {
       audio.playMusic(key, this, 500);
     }
 
+    this.events.once('shutdown', () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(null, 0);
+    });
+
     // Title
     this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
       fontFamily: 'monospace',

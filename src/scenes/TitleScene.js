@@ -440,6 +440,8 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Cleanup on scene exit ---
     this.events.once('shutdown', () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(null, 0);
       ['titleBg', 'titleVignette', 'titleScanlines'].forEach(key => {
         if (this.textures.exists(key)) this.textures.remove(key);
       });
