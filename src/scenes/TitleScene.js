@@ -679,7 +679,7 @@ export class TitleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.stopMusic(this, 0);
 
-    this.scene.start('NodeMap', { gameData: this.gameData });
+    this.scene.start('HomeBase', { gameData: this.gameData });
   }
 
   showMessage(text) {

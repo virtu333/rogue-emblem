@@ -9,7 +9,7 @@ import {
   removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getStaffRemainingUses, getStaffMaxUses } from '../engine/Combat.js';
+import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
 
 const DEPTH_BG = 700;
 const DEPTH_PANEL = 701;
@@ -44,6 +44,7 @@ export class RosterOverlay {
     this.visible = false;
     this.selectedIndex = 0;
     this._skillTooltip = null;
+    this._weaponTooltip = null;
   }
 
   show() {
@@ -171,6 +172,7 @@ export class RosterOverlay {
 
   _destroyDetails() {
     this._hideSkillTooltip();
+    this._hideWeaponSpecialTooltip();
     for (const obj of this.detailObjects) obj.destroy();
     this.detailObjects = [];
   }
@@ -244,15 +246,30 @@ export class RosterOverlay {
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
-          label = `${marker}${item.name} (${rem}/${max})`;
+          const rng = parseRange(item.range);
+          const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
+          label = `${marker}${item.name} (${rem}/${max}) ${rngStr}`;
         } else if (item.might !== undefined) {
-          label = `${marker}${item.name}  Mt${item.might} Ht${item.hit}`;
+          const rng = parseRange(item.range);
+          const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
+          label = `${marker}${item.name}  Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`;
         } else {
           label = `${marker}${item.name}`;
         }
 
         const color = isForged(item) ? '#44ff88' : '#e0e0e0';
-        this._text(x, y, label, color, '10px');
+        const weaponText = this._text(x, y, label, color, '10px');
+
+        // Add tooltip for weapon specials
+        if (item.special) {
+          weaponText.setInteractive({ useHandCursor: true });
+          weaponText.on('pointerover', () => {
+            this._showWeaponSpecialTooltip(item, weaponText);
+          });
+          weaponText.on('pointerout', () => {
+            this._hideWeaponSpecialTooltip();
+          });
+        }
 
         // Equip weapon button (if not already equipped)
         const btnX = x + 250;
@@ -768,6 +785,50 @@ export class RosterOverlay {
     if (this._skillTooltip) {
       for (const obj of this._skillTooltip) obj.destroy();
       this._skillTooltip = null;
+    }
+  }
+
+  _showWeaponSpecialTooltip(weapon, textObject) {
+    if (this._weaponTooltip) this._weaponTooltip.destroy();
+
+    const tooltip = this.scene.add.container(0, 0).setDepth(DEPTH_TEXT + 1);
+    const padding = 8;
+    const maxWidth = 200;
+
+    const descText = this.scene.add.text(0, 0, weapon.special, {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#ffffff',
+      wordWrap: { width: maxWidth - padding * 2 }
+    });
+
+    const bg = this.scene.add.rectangle(
+      0, 0,
+      descText.width + padding * 2,
+      descText.height + padding * 2,
+      0x222222, 0.95
+    ).setOrigin(0);
+
+    tooltip.add([bg, descText]);
+    descText.setPosition(padding, padding);
+
+    // Position near weapon text, clamped to canvas
+    const bounds = textObject.getBounds();
+    let tx = bounds.right + 10;
+    let ty = bounds.top;
+    if (tx + bg.width > 640) tx = bounds.left - bg.width - 10;
+    if (ty + bg.height > 480) ty = 480 - bg.height;
+    if (tx < 0) tx = 5;
+    if (ty < 0) ty = 5;
+
+    tooltip.setPosition(tx, ty);
+    this._weaponTooltip = tooltip;
+  }
+
+  _hideWeaponSpecialTooltip() {
+    if (this._weaponTooltip) {
+      this._weaponTooltip.destroy();
+      this._weaponTooltip = null;
     }
   }
 
