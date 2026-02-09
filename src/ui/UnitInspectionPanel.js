@@ -4,7 +4,7 @@
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS } from '../utils/uiStyles.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getStaffRemainingUses, getStaffMaxUses, getEffectiveStaffRange } from '../engine/Combat.js';
+import { getStaffRemainingUses, getStaffMaxUses, getEffectiveStaffRange, parseRange } from '../engine/Combat.js';
 
 export class UnitInspectionPanel {
   constructor(scene) {
@@ -102,7 +102,7 @@ export class UnitInspectionPanel {
     }
 
     // Calculate panel dimensions
-    const panelWidth = 160;
+    const panelWidth = 210;
     const panelHeight = lines.length * lineHeight + 16;
 
     // Panel background
@@ -265,15 +265,18 @@ export class UnitInspectionPanel {
     if (unit.inventory && unit.inventory.length > 0) {
       for (const item of unit.inventory) {
         const marker = item === unit.weapon ? '\u25b6' : ' ';
+        const specialMarker = item.special ? '*' : '';
         const color = isForged(item) ? '#44ff88' : UI_COLORS.white;
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
           const rng = getEffectiveStaffRange(item, unit);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          addLine(`${marker}${item.name} (${rem}/${max}) ${rngStr}`, color);
+          addLine(`${marker}${item.name}${specialMarker} (${rem}/${max}) ${rngStr}`, color);
         } else if (item.might !== undefined) {
-          addLine(`${marker}${item.name} Mt${item.might} Ht${item.hit} Wt${item.weight}`, color);
+          const rng = parseRange(item.range);
+          const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
+          addLine(`${marker}${item.name}${specialMarker} Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`, color);
         } else {
           addLine(`${marker}${item.name}`, color);
         }
