@@ -2,10 +2,10 @@
 
 import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
-import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS } from '../utils/constants.js';
+import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import { addToInventory, removeFromInventory, addToConsumables } from '../engine/UnitManager.js';
-import { canForge, applyForge, isForged, getForgeCost } from '../engine/ForgeSystem.js';
+import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -752,18 +752,21 @@ export class NodeMapScene extends Phaser.Scene {
 
     for (let i = 0; i < stats.length; i++) {
       const stat = stats[i];
+      const statCount = getStatForgeCount(weapon, stat.key);
+      const atStatCap = statCount >= FORGE_STAT_CAP;
       const cost = getForgeCost(weapon, stat.key);
       const affordable = cost > 0 && this.runManager.gold >= cost;
       const by = btnStartY + i * btnH;
-      const color = affordable ? '#e0e0e0' : '#666666';
+      const color = atStatCap ? '#666666' : (affordable ? '#e0e0e0' : '#666666');
 
-      const btn = this.add.text(cx, by, `${stat.label}  (${cost}G)`, {
+      const costLabel = atStatCap ? 'MAX' : `${cost}G`;
+      const btn = this.add.text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
         fontFamily: 'monospace', fontSize: '12px', color,
-        backgroundColor: affordable ? '#444444' : '#333333',
+        backgroundColor: (affordable && !atStatCap) ? '#444444' : '#333333',
         padding: { x: 16, y: 4 },
       }).setOrigin(0.5).setDepth(451);
 
-      if (affordable) {
+      if (affordable && !atStatCap) {
         btn.setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor(color));

@@ -1,7 +1,7 @@
 // ForgeSystem.js — Pure functions for weapon forging.
 // No Phaser deps.
 
-import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS } from '../utils/constants.js';
+import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
 
 // Item types that cannot be forged
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
@@ -26,8 +26,35 @@ export function isForged(weapon) {
 }
 
 /**
+ * Get how many times a specific stat has been forged on this weapon.
+ * Derived from _forgeBonuses using the per-forge bonus amount.
+ * @param {object} weapon
+ * @param {'might'|'crit'|'hit'|'weight'} stat
+ * @returns {number}
+ */
+export function getStatForgeCount(weapon, stat) {
+  if (!weapon || !weapon._forgeBonuses) return 0;
+  const bonus = FORGE_BONUSES[stat];
+  if (!bonus) return 0;
+  return Math.abs(weapon._forgeBonuses[stat] / bonus);
+}
+
+/**
+ * Check whether a specific stat can still be forged on this weapon.
+ * Returns false if total forges at cap OR this stat at per-stat cap.
+ * @param {object} weapon
+ * @param {'might'|'crit'|'hit'|'weight'} stat
+ * @returns {boolean}
+ */
+export function canForgeStat(weapon, stat) {
+  if (!canForge(weapon)) return false;
+  return getStatForgeCount(weapon, stat) < FORGE_STAT_CAP;
+}
+
+/**
  * Get the gold cost for the next forge of a given stat on this weapon.
- * Returns -1 if the weapon is at max forge level.
+ * Cost is indexed by per-stat count (not total level).
+ * Returns -1 if the weapon is at max total level or stat is at per-stat cap.
  * @param {object} weapon
  * @param {'might'|'crit'|'hit'|'weight'} stat
  * @returns {number}
@@ -37,7 +64,9 @@ export function getForgeCost(weapon, stat) {
   if (level >= FORGE_MAX_LEVEL) return -1;
   const costs = FORGE_COSTS[stat];
   if (!costs) return -1;
-  return costs[level];
+  const statCount = getStatForgeCount(weapon, stat);
+  if (statCount >= FORGE_STAT_CAP) return -1;
+  return costs[statCount];
 }
 
 /**
@@ -47,7 +76,7 @@ export function getForgeCost(weapon, stat) {
  * @returns {{ success: boolean, cost?: number }}
  */
 export function applyForge(weapon, stat) {
-  if (!canForge(weapon)) return { success: false };
+  if (!canForgeStat(weapon, stat)) return { success: false };
   const cost = getForgeCost(weapon, stat);
   if (cost < 0) return { success: false };
 
@@ -82,12 +111,18 @@ export function applyForge(weapon, stat) {
 /**
  * Get display info for a forged weapon.
  * @param {object} weapon
- * @returns {{ baseName: string, level: number, bonuses: object }}
+ * @returns {{ baseName: string, level: number, bonuses: object, statCounts: object }}
  */
 export function getForgeDisplayInfo(weapon) {
   return {
     baseName: weapon._baseName || weapon.name,
     level: weapon._forgeLevel || 0,
     bonuses: weapon._forgeBonuses || { might: 0, crit: 0, hit: 0, weight: 0 },
+    statCounts: {
+      might: getStatForgeCount(weapon, 'might'),
+      crit: getStatForgeCount(weapon, 'crit'),
+      hit: getStatForgeCount(weapon, 'hit'),
+      weight: getStatForgeCount(weapon, 'weight'),
+    },
   };
 }

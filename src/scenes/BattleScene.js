@@ -49,12 +49,12 @@ import {
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
 import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
-import { canForge, applyForge, isForged } from '../engine/ForgeSystem.js';
+import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
@@ -2144,6 +2144,7 @@ export class BattleScene extends Phaser.Scene {
           enemy.col = dest.col;
           enemy.row = dest.row;
           this.updateUnitPosition(enemy);
+          if (this.grid.fogEnabled) this.updateEnemyVisibility();
           resolve();
           return;
         }
@@ -2267,6 +2268,7 @@ export class BattleScene extends Phaser.Scene {
   calculateDangerZone() {
     const threatened = new Set();
     for (const enemy of this.enemyUnits) {
+      if (this.grid.fogEnabled && !this.grid.isVisible(enemy.col, enemy.row)) continue;
       const positions = this.buildUnitPositionMap(enemy.faction);
       const moveRange = this.grid.getMovementRange(
         enemy.col, enemy.row, enemy.mov || enemy.stats.MOV,
@@ -2401,7 +2403,8 @@ export class BattleScene extends Phaser.Scene {
       lootWeaponBonus,
       this.gameData.accessories,
       this.gameData.whetstones,
-      this.runManager.roster
+      this.runManager.roster,
+      this.isBoss
     );
 
     // Skip bonus gold
@@ -2614,7 +2617,9 @@ export class BattleScene extends Phaser.Scene {
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
-      const forgeableCount = unit.inventory.filter(w => canForge(w)).length;
+      const forgeableCount = unit.inventory.filter(w =>
+        whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
+      ).length;
       const by = startY + i * (btnH + 6);
 
       if (forgeableCount === 0) {
@@ -2675,7 +2680,9 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(711);
     pickerGroup.push(title);
 
-    const forgeableWeapons = unit.inventory.filter(w => canForge(w));
+    const forgeableWeapons = unit.inventory.filter(w =>
+      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
+    );
     const btnH = 40;
     const startY = 110;
 
@@ -2694,7 +2701,7 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const detail = this.add.text(cam.centerX, by + 10, `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/3]`, {
+      const detail = this.add.text(cam.centerX, by + 10, `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`, {
         fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(detail);
@@ -2753,24 +2760,31 @@ export class BattleScene extends Phaser.Scene {
 
     for (let i = 0; i < stats.length; i++) {
       const stat = stats[i];
+      const statCount = getStatForgeCount(weapon, stat.key);
+      const atStatCap = statCount >= FORGE_STAT_CAP;
       const by = startY + i * (btnH + 10);
+      const color = atStatCap ? '#666666' : '#e0e0e0';
+      const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
 
-      const btn = this.add.rectangle(cam.centerX, by, 200, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844).setDepth(711).setInteractive({ useHandCursor: true });
+      const btn = this.add.rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
+        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844).setDepth(711);
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by, stat.label, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
+      const label = this.add.text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
+        fontFamily: 'monospace', fontSize: '13px', color,
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      btn.on('pointerdown', () => {
-        applyForge(weapon, stat.key);
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        for (const obj of pickerGroup) obj.destroy();
-        this.cleanupLootScreen(lootGroup);
-      });
+      if (!atStatCap) {
+        btn.setInteractive({ useHandCursor: true });
+        btn.on('pointerdown', () => {
+          applyForge(weapon, stat.key);
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          for (const obj of pickerGroup) obj.destroy();
+          this.cleanupLootScreen(lootGroup);
+        });
+      }
     }
 
     // Back button

@@ -169,7 +169,7 @@ export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
-export const FOG_CHANCE = 0.3;
+export const FOG_CHANCE_BY_ACT = { act1: 0.10, act2: 0.25, act3: 0.35, finalBoss: 0 };
 
 // Placeholder terrain colors (Phase 1 colored rectangles)
 export const TERRAIN_COLORS = {
