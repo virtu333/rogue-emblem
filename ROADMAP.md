@@ -544,7 +544,11 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 ## Next Actions
 
-1. **Start Wave P0** (Bugfixes) — highest ROI, 1-2 days
-2. **Wave P1** (UI Polish) — 2-3 days, can overlap with bugfixes
-3. **Wave 0** (Balance + Anti-Juggernaut) — 3-5 days
-4. **Playtest** after P0+P1+0, then proceed to Wave 2
+1. ~~**Start Wave P0** (Bugfixes)~~ ✅ Done
+2. **Wave P1** (UI Polish) — 2-3 days
+3. ~~**Wave 0** (Balance + Anti-Juggernaut)~~ ✅ Done
+4. **Playtest** after P1, then proceed to Wave 2
+
+## Deployment
+
+Auto-deploys via Netlify GitHub integration. Pushing to `main` triggers build + publish automatically. No manual `netlify deploy` needed.

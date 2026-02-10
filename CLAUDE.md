@@ -228,7 +228,7 @@ Follow this order — each phase should be testable:
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
 8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), Renown currency (earned per run), 41 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
 9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (18 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (51 total, throwables, effectiveness, specials) ✅ | Expanded skills (21 total, on-defend trigger) ✅ | Lord classes in classes.json (29 total) ✅ | **3 save slots + user flow rework** ✅
-10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auth gate in `index.html` before Phaser boots. Fire-and-forget cloud sync via `onSave` callbacks. Offline play supported.
+10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Fire-and-forget cloud sync via `onSave` callbacks. Offline play supported.
 
 ## Art Style Guidelines
 - SNES-era pixel art, 32x32 base tile / character sprite size
