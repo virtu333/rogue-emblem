@@ -311,12 +311,16 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
 
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
+    // Roll for Sunder weapon (enemy-only anti-juggernaut mechanic)
+    const sunderWeapon = pool.sunderChance && Math.random() < pool.sunderChance;
+
     spawns.push({
       className,
       level,
       col: pos.col,
       row: pos.row,
       isBoss: false,
+      sunderWeapon: sunderWeapon || undefined,
     });
   }
 

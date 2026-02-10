@@ -345,6 +345,17 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     }
   }
 
+  // Pin Vulnerary and Elixir in every shop
+  const guaranteedConsumables = ['Vulnerary', 'Elixir'];
+  for (const name of guaranteedConsumables) {
+    if (usedNames.has(name)) continue; // Already picked randomly
+    const item = findItem(name, allWeapons, consumables, allAccessories);
+    if (item && item.price > 0 && inventory.length < itemCount) {
+      usedNames.add(name);
+      inventory.push({ item, price: item.price, type: 'consumable' });
+    }
+  }
+
   // Fill remaining slots from combined filtered weapon + consumable + accessory pools
   const accessoryPool = table.accessories || [];
   const combinedPool = [...filteredWeapons, ...shopConsumables, ...accessoryPool];

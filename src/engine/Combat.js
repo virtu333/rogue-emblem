@@ -58,6 +58,11 @@ function sumWeaponBonus(bonuses, stat) {
   return bonuses.reduce((sum, b) => sum + (b.stat === stat ? b.value : 0), 0);
 }
 
+/** Check if weapon has Sunder effect (halves target DEF). */
+export function hasSunderEffect(weapon) {
+  return weapon?.special?.includes('Halves target DEF') ?? false;
+}
+
 /** Parse poison damage from weapon special (e.g. "Poison: target loses 5 HP after combat"). */
 function parsePoisonDamage(weapon) {
   if (!weapon?.special) return 0;
@@ -278,7 +283,10 @@ export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defend
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
     : { hit: 0, damage: 0 };
   const atk = calculateAttack(attacker, atkWeapon, triangle, defender);
-  const def = calculateDefense(defender, atkWeapon);
+  let def = calculateDefense(defender, atkWeapon);
+  if (hasSunderEffect(atkWeapon)) {
+    def = Math.floor(def / 2);
+  }
   const terrainDef = parseInt(defenderTerrain?.defBonus, 10) || 0;
   return Math.max(0, atk - def - terrainDef);
 }

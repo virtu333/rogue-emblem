@@ -23,7 +23,7 @@
     ]
   },
   "act3": {
-    "levelRange": [10, 14],
+    "levelRange": [5, 8],
     "pool": [
       { "className": "Hero", "name": "Dante" },
       { "className": "Falcon Knight", "name": "Celeste" },

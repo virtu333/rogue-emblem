@@ -16,8 +16,10 @@ import {
   learnSkill,
   getClassInnateSkills,
   applyStatBoost,
+  calculateCombatXP,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
+import { XP_BASE_COMBAT, XP_KILL_BONUS, XP_LEVEL_DIFF_SCALE, XP_LEVEL_DIFF_STEEP, XP_MIN } from '../src/utils/constants.js';
 
 const data = loadGameData();
 
@@ -100,17 +102,17 @@ describe('createEnemyUnit', () => {
 
   it('assigns skills to level 5+ enemies when skillsData provided', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Act3 has 20% skill chance — use finalBoss (30%) for more reliable test
+    // finalBoss has 80% skill chance for level 5+ enemies
     const enemy = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
-    // Level 5+ in finalBoss should get 30% chance for combat skill
-    // Test probabilistically: run 100 times, expect ~30 with skills (binomial)
+    // Level 5+ in finalBoss should get 80% chance for combat skill
+    // Test probabilistically: run 100 times, expect ~65-95 with skills (binomial)
     let withSkills = 0;
     for (let i = 0; i < 100; i++) {
       const e = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
       if (e.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(15); // 30% ± margin
-    expect(withSkills).toBeLessThan(45);
+    expect(withSkills).toBeGreaterThan(65); // 80% ± margin
+    expect(withSkills).toBeLessThan(95);
   });
 });
 
@@ -367,50 +369,116 @@ describe('applyStatBoost', () => {
 });
 
 describe('Enemy skill scaling by act', () => {
-  it('createEnemyUnit respects act1 skill chance (0%)', () => {
+  it('createEnemyUnit respects act1 skill chance (10%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Generate 100 level 5 enemies in act1, expect 0 combat skills (only innate)
+    // Generate 1000 level 5 enemies in act1, expect ~80-120 with combat skills
     let withSkills = 0;
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 1000; i++) {
       const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act1');
       if (enemy.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBe(0); // Act1 = 0% chance
+    expect(withSkills).toBeGreaterThan(60); // 10% ± margin
+    expect(withSkills).toBeLessThan(140);
   });
 
-  it('createEnemyUnit respects act2 skill chance (10%)', () => {
+  it('createEnemyUnit respects act2 skill chance (25%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Generate 1000 level 5 enemies in act2, expect ~90-110 with combat skills (binomial)
+    // Generate 1000 level 5 enemies in act2, expect ~200-300 with combat skills
     let withSkills = 0;
     for (let i = 0; i < 1000; i++) {
       const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act2');
       if (enemy.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(70); // 10% ± margin
-    expect(withSkills).toBeLessThan(130);
+    expect(withSkills).toBeGreaterThan(200); // 25% ± margin
+    expect(withSkills).toBeLessThan(300);
   });
 
-  it('createEnemyUnit respects act3 skill chance (20%)', () => {
+  it('createEnemyUnit respects act3 skill chance (50%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Generate 1000 level 5 enemies in act3, expect ~180-220 with combat skills
+    // Generate 1000 level 5 enemies in act3, expect ~450-550 with combat skills
     let withSkills = 0;
     for (let i = 0; i < 1000; i++) {
       const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act3');
       if (enemy.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(160);
-    expect(withSkills).toBeLessThan(240);
+    expect(withSkills).toBeGreaterThan(450);
+    expect(withSkills).toBeLessThan(550);
   });
 
-  it('createEnemyUnit respects finalBoss skill chance (30%)', () => {
+  it('createEnemyUnit respects finalBoss skill chance (80%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Generate 1000 level 5 enemies in finalBoss, expect ~270-330 with combat skills
+    // Generate 1000 level 5 enemies in finalBoss, expect ~750-850 with combat skills
     let withSkills = 0;
     for (let i = 0; i < 1000; i++) {
       const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'finalBoss');
       if (enemy.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(250);
-    expect(withSkills).toBeLessThan(350);
+    expect(withSkills).toBeGreaterThan(750);
+    expect(withSkills).toBeLessThan(850);
+  });
+});
+
+describe('calculateCombatXP tiered diminishing returns', () => {
+  const unit = (level) => ({ level, stats: {} });
+
+  it('returns base XP at equal level', () => {
+    expect(calculateCombatXP(unit(5), unit(5), false)).toBe(XP_BASE_COMBAT);
+  });
+
+  it('gives bonus for under-leveled attacker', () => {
+    expect(calculateCombatXP(unit(3), unit(6), false)).toBe(XP_BASE_COMBAT + 3 * XP_LEVEL_DIFF_SCALE);
+  });
+
+  it('normal scale for advantage 1-3 (no kill)', () => {
+    expect(calculateCombatXP(unit(5), unit(4), false)).toBe(XP_BASE_COMBAT - 1 * XP_LEVEL_DIFF_SCALE);
+    expect(calculateCombatXP(unit(6), unit(3), false)).toBe(XP_BASE_COMBAT - 3 * XP_LEVEL_DIFF_SCALE);
+  });
+
+  it('steep scale kicks in at advantage 4', () => {
+    const xp = calculateCombatXP(unit(7), unit(3), false);
+    // First 3 levels: -15, next 1 level steep: -8
+    expect(xp).toBe(XP_BASE_COMBAT - 3 * XP_LEVEL_DIFF_SCALE - 1 * XP_LEVEL_DIFF_STEEP);
+  });
+
+  it('advantage 5 uses steep scale for 2 extra levels', () => {
+    const xp = calculateCombatXP(unit(8), unit(3), false);
+    expect(xp).toBe(Math.max(XP_MIN, XP_BASE_COMBAT - 3 * XP_LEVEL_DIFF_SCALE - 2 * XP_LEVEL_DIFF_STEEP));
+  });
+
+  it('advantage 6 clamps to minimum', () => {
+    const xp = calculateCombatXP(unit(9), unit(3), false);
+    // 30 - 15 - 24 = -9 -> clamped to 1
+    expect(xp).toBe(XP_MIN);
+  });
+
+  it('advantage 7+ returns flat minimum', () => {
+    expect(calculateCombatXP(unit(10), unit(3), false)).toBe(XP_MIN);
+    expect(calculateCombatXP(unit(15), unit(3), false)).toBe(XP_MIN);
+    expect(calculateCombatXP(unit(20), unit(1), false)).toBe(XP_MIN);
+  });
+
+  it('kill bonus full in tier 1 (advantage 0-3)', () => {
+    const noKill = calculateCombatXP(unit(5), unit(5), false);
+    const kill = calculateCombatXP(unit(5), unit(5), true);
+    expect(kill - noKill).toBe(XP_KILL_BONUS);
+  });
+
+  it('kill bonus halved in tier 2 (advantage 4-6)', () => {
+    const noKill = calculateCombatXP(unit(7), unit(3), false);
+    const kill = calculateCombatXP(unit(7), unit(3), true);
+    expect(kill - noKill).toBe(Math.floor(XP_KILL_BONUS / 2));
+  });
+
+  it('no kill bonus in tier 3 (advantage 7+)', () => {
+    const noKill = calculateCombatXP(unit(10), unit(3), false);
+    const kill = calculateCombatXP(unit(10), unit(3), true);
+    expect(kill).toBe(noKill);
+  });
+
+  it('never returns less than XP_MIN for any advantage', () => {
+    for (let adv = 0; adv < 25; adv++) {
+      const xp = calculateCombatXP(unit(1 + adv), unit(1), false);
+      expect(xp).toBeGreaterThanOrEqual(XP_MIN);
+    }
   });
 });

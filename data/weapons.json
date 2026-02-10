@@ -618,7 +618,16 @@
     "healBase": 5,
     "uses": 1,
     "perBattleUses": true,
-    "rangeBonuses": [{"mag": 10, "bonus": 1}, {"mag": 18, "bonus": 1}],
+    "rangeBonuses": [
+      {
+        "mag": 10,
+        "bonus": 1
+      },
+      {
+        "mag": 18,
+        "bonus": 1
+      }
+    ],
     "special": "Ranged heal, MAG + 5 HP",
     "price": 1000
   },
@@ -994,5 +1003,57 @@
     "special": "Teaches Pull",
     "skillId": "pull",
     "price": 2500
+  },
+  {
+    "name": "Sunder Sword",
+    "type": "Sword",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 4,
+    "hit": 95,
+    "crit": 10,
+    "weight": 4,
+    "range": "1",
+    "special": "Halves target DEF",
+    "price": 0
+  },
+  {
+    "name": "Sunder Lance",
+    "type": "Lance",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 90,
+    "crit": 10,
+    "weight": 6,
+    "range": "1",
+    "special": "Halves target DEF",
+    "price": 0
+  },
+  {
+    "name": "Sunder Axe",
+    "type": "Axe",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 85,
+    "crit": 15,
+    "weight": 6,
+    "range": "1",
+    "special": "Halves target DEF",
+    "price": 0
+  },
+  {
+    "name": "Sunder Bow",
+    "type": "Bow",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 3,
+    "hit": 95,
+    "crit": 10,
+    "weight": 4,
+    "range": "2",
+    "special": "Halves target DEF",
+    "price": 0
   }
 ]

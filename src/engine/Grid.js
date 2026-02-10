@@ -262,12 +262,12 @@ export class Grid {
   }
 
   // Display red attack range overlay
-  showAttackRange(tiles) {
+  showAttackRange(tiles, color = ATTACK_RANGE_COLOR, alpha = ATTACK_RANGE_ALPHA) {
     this.clearAttackHighlights();
     for (const { col, row } of tiles) {
       const { x, y } = this.gridToPixel(col, row);
       const highlight = this.scene.add.rectangle(
-        x, y, TILE_SIZE - 1, TILE_SIZE - 1, ATTACK_RANGE_COLOR, ATTACK_RANGE_ALPHA
+        x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha
       );
       highlight.setDepth(5);
       this.attackHighlightTiles.push(highlight);

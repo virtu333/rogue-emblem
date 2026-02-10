@@ -371,7 +371,7 @@ describe('NodeMapGenerator', () => {
 
 describe('Church node generation', () => {
   it('pickNodeType generates CHURCH nodes in middle rows', () => {
-    // Generate 1000 maps, count CHURCH nodes, expect ~20% of middle-row nodes
+    // Generate 1000 maps, count CHURCH nodes, expect ~15% of middle-row nodes
     let totalMiddle = 0;
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
@@ -381,8 +381,8 @@ describe('Church node generation', () => {
       totalChurch += middleNodes.filter(n => n.type === NODE_TYPES.CHURCH).length;
     }
     const churchPercent = (totalChurch / totalMiddle) * 100;
-    expect(churchPercent).toBeGreaterThan(15); // 20% ± margin
-    expect(churchPercent).toBeLessThan(25);
+    expect(churchPercent).toBeGreaterThan(10); // 15% ± margin
+    expect(churchPercent).toBeLessThan(20);
   });
 
   it('buildBattleParams returns null for CHURCH nodes', () => {
@@ -394,5 +394,21 @@ describe('Church node generation', () => {
       }
       if (churchNodes.length > 0) return; // Found at least one, test passes
     }
+  });
+});
+
+describe('Shop node frequency (25%)', () => {
+  it('shop frequency is ~25% of middle rows', () => {
+    let totalMiddle = 0;
+    let totalShop = 0;
+    for (let i = 0; i < 1000; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1);
+      const middleNodes = map.nodes.filter(n => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      totalMiddle += middleNodes.length;
+      totalShop += middleNodes.filter(n => n.type === NODE_TYPES.SHOP).length;
+    }
+    const shopPercent = (totalShop / totalMiddle) * 100;
+    expect(shopPercent).toBeGreaterThan(20);
+    expect(shopPercent).toBeLessThan(30);
   });
 });

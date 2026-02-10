@@ -433,4 +433,40 @@ describe('LootSystem', () => {
       }
     });
   });
+
+  describe('guaranteed shop consumables', () => {
+    it('every shop includes Vulnerary', () => {
+      for (let i = 0; i < 50; i++) {
+        const shop = generateShopInventory('act1', gameData.lootTables, gameData.weapons, gameData.consumables, gameData.accessories);
+        const hasVulnerary = shop.some(s => s.item.name === 'Vulnerary');
+        expect(hasVulnerary).toBe(true);
+      }
+    });
+
+    it('every shop includes Elixir', () => {
+      for (let i = 0; i < 50; i++) {
+        const shop = generateShopInventory('act2', gameData.lootTables, gameData.weapons, gameData.consumables, gameData.accessories);
+        const hasElixir = shop.some(s => s.item.name === 'Elixir');
+        expect(hasElixir).toBe(true);
+      }
+    });
+
+    it('no duplicate Vulnerary or Elixir entries', () => {
+      for (let i = 0; i < 100; i++) {
+        const shop = generateShopInventory('act2', gameData.lootTables, gameData.weapons, gameData.consumables, gameData.accessories);
+        const vulnCount = shop.filter(s => s.item.name === 'Vulnerary').length;
+        const elixirCount = shop.filter(s => s.item.name === 'Elixir').length;
+        expect(vulnCount).toBeLessThanOrEqual(1);
+        expect(elixirCount).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('shop still includes a weapon alongside pinned consumables', () => {
+      for (let i = 0; i < 50; i++) {
+        const shop = generateShopInventory('act1', gameData.lootTables, gameData.weapons, gameData.consumables, gameData.accessories);
+        const hasWeapon = shop.some(s => s.type === 'weapon');
+        expect(hasWeapon).toBe(true);
+      }
+    });
+  });
 });

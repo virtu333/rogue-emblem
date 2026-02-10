@@ -181,7 +181,7 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 /**
  * Pick node type based on row position.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Middle rows: 60% battle, 20% shop, 20% church.
+ * Middle rows: 60% battle, 25% shop, 15% church.
  */
 function pickNodeType(row, totalRows) {
   if (row === 0) return NODE_TYPES.BATTLE;
@@ -189,8 +189,8 @@ function pickNodeType(row, totalRows) {
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
   if (roll < 0.60) return NODE_TYPES.BATTLE;
-  if (roll < 0.80) return NODE_TYPES.SHOP;
-  return NODE_TYPES.CHURCH; // 0.80-1.0
+  if (roll < 0.85) return NODE_TYPES.SHOP;
+  return NODE_TYPES.CHURCH; // 0.85-1.0
 }
 
 /**

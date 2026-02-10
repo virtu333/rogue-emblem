@@ -36,6 +36,7 @@ export const XP_PER_LEVEL = 100;
 export const XP_BASE_COMBAT = 30;
 export const XP_KILL_BONUS = 20;
 export const XP_LEVEL_DIFF_SCALE = 5;
+export const XP_LEVEL_DIFF_STEEP = 8; // Steep XP penalty per level for advantage 4-6
 export const XP_MIN = 1;
 export const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
@@ -157,6 +158,14 @@ export const PHYSIC_RANGE_BONUSES = [{ mag: 10, bonus: 1 }, { mag: 18, bonus: 1 
 
 // Starting equipment meta upgrades
 export const MAX_STARTING_SKILLS = 2;
+// Sunder weapons (enemy-only, halves target DEF)
+export const SUNDER_WEAPON_BY_TYPE = {
+  Sword: 'Sunder Sword',
+  Lance: 'Sunder Lance',
+  Axe: 'Sunder Axe',
+  Bow: 'Sunder Bow',
+};
+
 export const DEADLY_ARSENAL_POOL = {
   Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],
   Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance', 'Doomblade'],

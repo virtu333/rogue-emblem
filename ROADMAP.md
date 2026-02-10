@@ -2,19 +2,19 @@
 
 ## Current State
 
-Phases 1-9 complete. 509 tests passing. Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 51 weapons, 21 skills, 18 accessories, 29 classes, 21 music tracks. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 571 tests passing. Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 21 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
-## Priority Order (Updated)
+## Priority Order (Updated — Post-Playtest)
 
 Organized by impact and logical sequencing:
 
 ### Now (Current Sprint)
-1. **Balance & Progression Fixes** — Quick wins that improve existing gameplay immediately
-2. **Battle Actions** — Trade, Swap, Dance (fills obvious gameplay gaps)
-3. **Turn Bonus UI Integration** — Engine is ready, just needs BattleScene wiring
+1. **Playtest Bugfixes** — 4 confirmed bugs from playtesting (Canto+Wait, stale tooltip, enemy range, node freeze)
+2. **UI Polish** — Weapon proficiency display, V-overlay tabs, shop forge hover, guaranteed consumables
+3. **Anti-Juggernaut & Balance** — XP scaling rework, Sunder weapons, existing Wave 0 items
 
 ### Next (1-3 Months)
-4. **Map Generation Enhancements** — Smarter enemy placement, template-specific tactics
+4. **Map Generation Enhancements** — Smarter placement + fog/recruit visibility + boss AI + guard enemies
 5. **Elite/Miniboss Nodes + Post-Act** — Endgame content and difficulty curve
 6. **Node Economy Rebalance** — Dynamic recruits, Church upgrades, shop frequency
 7. **Expanded Skills** — Command skills, on-kill triggers (tactical depth)
@@ -24,35 +24,112 @@ Organized by impact and logical sequencing:
 9. **Additional Map Objectives** — Defend, Survive, Escape (battle variety)
 10. **Special Terrain Hazards** — Ice, lava, environmental effects
 11. **Meta-Progression Expansion** — Full GDD §9.2 vision
-11. **QoL** — Undo movement, battle log, battle speed (ongoing)
-12. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
-13. **Special Characters** + Lord selection
-14. **Story scaffold + dialogue**
-15. **Fog of war extras** — Torch items + vision skills
-16. **Difficulty modes + run modifiers**
-17. **Full battle animations**
-18. **Additional biomes**
-19. **Campaign system**
+12. **QoL** — Undo movement, battle log, battle speed (ongoing)
+13. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
+14. **Special Characters** + Lord selection
+15. **Story scaffold + dialogue**
+16. **Fog of war extras** — Torch items + vision skills
+17. **Difficulty modes + run modifiers**
+18. **Full battle animations**
+19. **Additional biomes**
+20. **Campaign system**
 
 ---
 
 ## Implementation Waves
 
 ### Completed Waves (Summary)
-- **Wave 2A-C** (Accessories, Weapons, Forging) — Complete. 18 accessories, 51 weapons, forge system with shop tab + loot whetstones
+- **Wave 2A-C** (Accessories, Weapons, Forging) — Complete. 18 accessories, 52 weapons, forge system with shop tab + loot whetstones
 - **Wave 2D** (Stat Boosters) — Complete. 7 stat boosters in consumables.json, loot-only (not in shops)
 - **Wave 4A** (On-Defend Skills, New Skills) — Complete. 21 skills, 6 trigger types, 9 class innate skills, 8 scrolls
 - **Wave 6A** (Home Base UI) — Complete. 6-tab UI, 41 upgrades, starting equipment/skills meta tabs
 - **Wave 7A-B** (Inspection Panel, Danger Zone) — Complete
+- **Wave 1** (Battle Actions) — Complete. Trade, Swap, Dance + Canto + Shove/Pull implemented
+- **Wave 1.5** (Turn Bonus) — Complete. Par calculation, S/A/B/C rating, bonus gold on loot screen
+- **Boss Recruit Event** — Complete. 3 recruit candidates after act boss, lord chance, 29 tests
+- **Tutorial Hints** — Complete. 12 contextual hints, HintManager + HintDisplay
+- **Loot Rebalance + Stat Boosters** — Complete. Act 1/2 pool restructuring, 7 stat boosters
+- **Meta Rework Phase A** — Complete. Repricing, prerequisites, milestones
 
 ---
 
-## NOW: Quick Wins & Core Features
+## NOW: Bugfixes, UI Polish & Balance
 
-### Wave 0: Balance & Progression Fixes (Quick Wins)
-**Priority:** Critical — These are small changes with immediate impact on game feel
-**Effort:** 1-2 days total
+### Wave P0: Playtest Bugfixes
+**Priority:** Critical — Bugs found during playtesting
+**Effort:** 1-2 days
+**Source:** Playtesting session (Feb 2026)
 
+- [ ] **BUG: Canto activates after Wait**
+  - **Symptom:** Walk → Wait → unit gets Canto movement → must Wait again
+  - **Root cause:** `finishUnitAction()` always checks for Canto remaining movement, even when Wait was explicitly selected. Wait should unconditionally end the turn
+  - **Fix:** Pass `skipCanto` flag from Wait handler: `finishUnitAction(unit, { skipCanto: true })`. In `finishUnitAction`, skip the Canto check when flag is set
+  - Files: `src/scenes/BattleScene.js` (line ~1763 Wait handler, line ~1175 Canto check)
+
+- [ ] **BUG: Stale weapon tooltip after trade**
+  - **Symptom:** Trade spear away, floating tooltip still shows spear as equipped
+  - **Root cause:** Inspection panel not hidden/refreshed when trade UI opens. `showBattleTradeUI()` doesn't close the inspection panel, so it retains stale weapon data
+  - **Fix:** Call `this.inspectionPanel.hide()` at the start of `showBattleTradeUI()`
+  - Files: `src/scenes/BattleScene.js` (line ~1358 trade UI open)
+
+- [ ] **BUG: Right-click enemy range not visible**
+  - **Symptom:** Right-clicking enemy doesn't show attack range overlay. Code exists in `onRightClick()` but user reports not seeing it
+  - **Investigation needed:** Toggle logic may hide range immediately, or range display may be behind other overlays. Check depth ordering and toggle state
+  - Files: `src/scenes/BattleScene.js` (line ~840 `onRightClick`)
+
+- [ ] **BUG: Recruit node freeze in Act 3**
+  - **Symptom:** Game freezes when clicking recruit node (music stops, map visible but unresponsive). Specific to one save state (user "virtu", abandoned)
+  - **Root cause:** Unknown — guard clauses exist for missing class data, but something else may throw during BattleScene init
+  - **Fix:** Add try/catch around entire BattleScene `create()` method. On error, log to console and transition back to NodeMapScene with error message instead of freezing
+  - Files: `src/scenes/BattleScene.js` (create method)
+
+**Success Criteria:**
+- [ ] Wait always ends unit turn, no Canto follow-up
+- [ ] Tooltip refreshes correctly after every trade
+- [ ] Right-click enemy shows red movement + attack range overlay
+- [ ] Node transition errors recover gracefully instead of freezing
+
+---
+
+### Wave P1: UI Polish
+**Priority:** High — Quality of life issues that confuse players
+**Effort:** 2-3 days
+
+- [ ] **Weapon proficiency display**
+  - Show weapon proficiencies in unit detail overlay (V-key view) Stats tab
+  - Format: `Prof: Sword, Lance` or icon-based with proficiency level (Prof/Mast)
+  - Files: `src/ui/UnitDetailOverlay.js`
+
+- [ ] **V-key detail overlay — Stats/Gear tabs**
+  - Full overlay is getting crowded. Split into tabbed Stats/Gear view (same pattern as UnitInspectionPanel's existing tabs, but with more screen real estate)
+  - Stats tab: stats, growths, weapon proficiencies, terrain bonuses
+  - Gear tab: inventory (with equipped marker), consumables, accessory, skills
+  - Arrow key or clickable tab navigation
+  - Files: `src/ui/UnitDetailOverlay.js`
+
+- [ ] **Shop forge: show weapon stats on hover**
+  - When hovering over a weapon in the Forge tab, show Mt/Ht/Cr/Wt/Rng tooltip
+  - Show current forge levels per stat `(N/3)` in the tooltip
+  - Files: `src/scenes/NodeMapScene.js` (forge tab rendering)
+
+- [ ] **Guaranteed Vulnerary/Elixir in shops**
+  - Pin 1 Vulnerary + 1 Elixir in every shop inventory (always available, not random)
+  - Remaining shop slots (2-4) still randomized from pool
+  - Files: `src/engine/LootSystem.js` (`generateShopInventory`)
+
+**Success Criteria:**
+- [ ] Players can see weapon proficiencies without guessing
+- [ ] Detail overlay is readable and organized, not overflowing
+- [ ] Forge decisions are informed by current weapon stats
+- [ ] Healing items always purchasable
+
+---
+
+### Wave 0: Balance & Anti-Juggernaut
+**Priority:** High — Balance issues and anti-snowball mechanics
+**Effort:** 3-5 days
+
+#### Existing Balance Items
 - [ ] **Act 3 Promoted Recruits**
   - Change `recruits.json` Act 3 pool to promoted classes only
   - Adjust level range from [12-15] to [5-8] (post-promotion levels)
@@ -77,49 +154,42 @@ Organized by impact and logical sequencing:
   - Reasoning: Shops are high-value player decision points, churches are weak (just heal spam)
   - Files: `src/engine/NodeMapGenerator.js` (NODE_TYPE weights)
 
+#### Anti-Juggernaut: XP Scaling Rework
+- [ ] **Steeper XP diminishing returns**
+  - Current: linear −5 XP per level advantage (level 10 vs level 1 = 1 XP combat / 21 XP kill)
+  - Proposed: exponential decay after +3 level advantage
+    - +0 to +3 levels: current formula (−5 per level)
+    - +4 to +6 levels: −8 per level (steeper)
+    - +7+ levels: flat 1 XP (hard floor, even for kills)
+  - Kill bonus also scales down: full bonus at +0-3, half at +4-6, zero at +7+
+  - Reasoning: A level 12 unit killing level 3 enemies should gain essentially nothing
+  - Files: `src/engine/UnitManager.js` (`calculateXP`)
+
+#### Anti-Juggernaut: Sunder Weapons (Enemy-Only)
+- [ ] **Sunder weapon class** — low might, halved DEF calculation, high accuracy
+  - 4 weapons: Sunder Sword, Sunder Lance, Sunder Axe, Sunder Bow
+  - Stats: Mt 3-5, Hit 90-95, Crit 10-15, Wt 4-6
+  - Special: `"Halves target DEF"` — Combat.js calculates physical damage as if defender DEF is halved (round down)
+  - Enemy-only: not in loot/shop pools, no `price` field
+  - Files: `data/weapons.json`, `src/engine/Combat.js` (add DEF-halving special check)
+
+- [ ] **Sunder enemy spawn rates**
+  - `enemies.json`: Add `sunderChance` per act pool
+    - Act 1: 0% (never)
+    - Act 2: 8% of enemies get a Sunder weapon matching their proficiency
+    - Act 3: 20% of enemies
+    - Final Boss: 25% of enemies
+  - MapGenerator: Roll sunder chance per enemy after class selection, replace equipped weapon if passes
+  - Reasoning: Punishes overleveled frontliners who tank everything. Forces player to use positioning/range instead of sending one unit forward
+  - Files: `data/enemies.json`, `src/engine/MapGenerator.js`
+
 **Success Criteria:**
 - [ ] Act 3 recruits arrive promoted and useful
 - [ ] Early acts feel less punishing (fewer skilled enemies)
 - [ ] Heavy weapons viable on high-STR units
 - [ ] More shop encounters per run
-
----
-
-### Wave 1: Battle Actions (Trade, Swap, Dance)
-**Priority:** High — Core FE mechanics players expect
-**Effort:** 1-2 weeks
-
-- [ ] `findTradeTargets(unit)` — adjacent player units with inventory
-- [ ] "Trade" in action menu, two-column UI, transfer items, ends turn
-- [ ] Handle edge cases: full inventory (5 items), last weapon can't be traded away
-- [ ] `findSwapTargets(unit)` — adjacent player units
-- [ ] "Swap" in action menu, exchange grid positions, acting unit's turn ends
-- [ ] `findDanceTargets(unit)` — adjacent acted player units
-- [ ] "Dance" in action menu (Dancer class only), reset target's hasMoved/hasActed
-- [ ] Dancer cannot Dance themselves or another Dancer
-- [ ] All three actions appear under correct conditions, none when conditions aren't met
-- [ ] Existing tests still pass
-
-**Success Criteria:**
-- [ ] Can redistribute weapons mid-battle via Trade
-- [ ] Can rescue trapped units via Swap
-- [ ] Dancer enables alpha strike combos (attack → dance → attack again)
-
----
-
-### Wave 1.5: Turn Bonus UI Integration
-**Priority:** High — Engine is done, just needs UI wiring
-**Effort:** 2-3 days
-
-- [ ] BattleScene: Call `TurnBonusCalculator.calculatePar()` at battle start
-- [ ] Display par and current turn count in top-left corner (next to gold)
-- [ ] Color-code turn counter: green (S pace), yellow (A), orange (B), red (C+)
-- [ ] RunCompleteScene: Show rating badge (S/A/B/C) and bonus gold earned
-- [ ] Add turn rating to cloud save schema (for future leaderboards)
-
-**Success Criteria:**
-- [ ] Players see turn par and understand speed expectations
-- [ ] Bonus gold incentivizes efficient play without feeling mandatory
+- [ ] Overleveled units can't efficiently farm low-level enemies
+- [ ] Sunder enemies create real threat to tanky frontliners without being unfair
 
 ---
 
@@ -127,9 +197,9 @@ Organized by impact and logical sequencing:
 
 ### Wave 2: Map Generation Enhancements
 **Priority:** High — Biggest bang-for-buck improvement to tactical feel
-**Effort:** 1-2 weeks (5 small features)
+**Effort:** 2-3 weeks (8 features, up from 5)
 
-These are all from your `mapgenerationideas.txt` file — low effort, high impact.
+These include original map gen ideas plus critical fixes from playtesting.
 
 #### 2A: Terrain-Aware Enemy Placement (Day 1-2)
 - [ ] `scoreSpawnTile(tile, unit)` helper in MapGenerator
@@ -152,25 +222,53 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
 
 **Impact:** Templates feel distinct. "Ambush" maps actually feel like ambushes.
 
-#### 2C: Anchor Point System (Day 3-5)
-- [ ] Add `anchors` array to mapTemplate.json entries (1-2 per template)
+#### 2C: Boss Throne AI + Guard Enemies (Day 3-5)
+- [ ] **Boss stays on throne (seize maps)**
+  - AIController: If `unit.isBoss && objective === 'seize'`, boss movement clamped to within 1 tile of throne position
+  - Boss still attacks units that enter range, just won't chase across the map
+  - Non-seize maps: boss behaves normally (chases)
+  - Files: `src/engine/AIController.js`
+
+- [ ] **Guard enemy behavior** — enemies near boss that don't move until provoked
+  - New `unit.aiMode = 'guard'` flag (default: `'chase'`)
+  - Guard behavior: don't move until any player unit enters aggro range (3 tiles)
+  - Once triggered, guard permanently switches to chase mode for rest of battle
+  - MapGenerator: 15-25% of enemies spawning in boss half of map get `aiMode: 'guard'`
+  - Visual indicator: guard enemies have slightly different tint or a shield icon
+  - Files: `src/engine/AIController.js`, `src/engine/MapGenerator.js`
+
+- [ ] **Anchor point system** (from original roadmap)
+  - Add `anchors` array to mapTemplate.json entries (1-2 per template)
   - Chokepoint: `{ position: "center_gap", unit: "highest_level", required: true }`
   - Castle Assault: `{ position: "throne", unit: "boss_or_strongest" }`, `{ position: "gate_adjacent", unit: "knight" }`
   - River Crossing: `{ position: "bridge_ends", unit: "lance_user", count: 2 }`
-- [ ] MapGenerator: Place anchor enemies first (resolve position → tile), then fill remaining
-- [ ] Define position helpers: `center_gap`, `throne`, `gate_adjacent`, `bridge_ends`
+  - MapGenerator: Place anchor enemies first (resolve position → tile), then fill remaining
 
-**Impact:** Every template has a guaranteed tactical puzzle. Boss on throne, knights at gates, etc.
+**Impact:** Boss fights feel like real sieges. Guard enemies create defensive formations instead of everyone rushing player.
 
-#### 2D: Threat Radius for NPC Placement (Day 5-6)
-- [ ] MapGenerator.generateNPCSpawn(): Add rejection check
+#### 2D: Fog of War + Recruit Visibility (Day 5-7)
+- [ ] **Recruit NPC visible through fog**
+  - Option A (preferred): Show a pulsing "?" marker at NPC tile position, visible through fog. Reveals identity when player gets within vision range
+  - Option B: NPC has its own small vision radius (2 tiles) that's always revealed, like a beacon
+  - Reasoning: Player literally cannot find NPC to recruit in fog. Defeats purpose of recruit node
+  - Files: `src/scenes/BattleScene.js` (fog update logic), `src/engine/Grid.js`
+
+- [ ] **River map NPC spawn bias**
+  - `generateNPCSpawn()`: Bias NPC placement toward player side of river (left 40% of map)
+  - Current: searches middle third [33%-67%], which overlaps river zone [40%-60%]
+  - New: search [20%-45%] first (player side), fall back to middle third if no valid tiles
+  - Reasoning: NPCs spawning across river are nearly impossible to reach in time
+  - Files: `src/engine/MapGenerator.js` (`generateNPCSpawn`)
+
+- [ ] **Threat radius for NPC placement** (from original roadmap)
+  - MapGenerator.generateNPCSpawn(): Add rejection check
   - Count enemies within `Math.max(...npc.weapon.range) + npc.MOV` tiles
   - If >2 enemies can reach NPC on turn 1, reject position and retry
-- [ ] Max 10 retries before giving up (fallback: place anyway with warning log)
+  - Max 10 retries before giving up (fallback: place anyway with warning log)
 
-**Impact:** Recruit doesn't die instantly before you can reach them.
+**Impact:** Recruit nodes are actually playable in fog and river maps.
 
-#### 2E: Template-Driven Fog (Day 6-7)
+#### 2E: Template-Driven Fog (Day 7-8)
 - [ ] Add `fogChance` field to each mapTemplate.json entry
   - Open Field: 10%, Forest Ambush: 60%, Castle Assault: 0%, River Crossing: 30%
 - [ ] MapGenerator: Use template's `fogChance` instead of global `FOG_CHANCE`
@@ -181,8 +279,8 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
 **Success Criteria:**
 - [ ] Enemy placement looks smart (defenders in chokepoints, archers on hills)
 - [ ] Templates feel distinct (forest = infantry ambush, open field = cavalry charge)
-- [ ] Every map has a "signature moment" (boss on throne, knights at gate)
-- [ ] NPCs survive turn 1 reliably
+- [ ] Boss stays on throne during seize maps, guards create defensive formation
+- [ ] NPCs findable in fog, reachable on river maps
 - [ ] Fog probability matches map theme
 
 ---
@@ -270,7 +368,7 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
   - Displays 3-4 blessing cards (tier 1-4) with boon + cost
   - Always includes one tier-1 free option (modest boon, no cost)
   - 20% chance of one tier-4 appearing (legendary boon, brutal cost)
-- [ ] Add `data/blessings.json` — boons and costs organized by tier (see downloaded file)
+- [ ] Add `data/blessings.json` — boons and costs organized by tier
   - **Tier 1 (Free):** +1 random stat, +100 gold, extra Vulnerary, +10% random growth
   - **Tier 2 (Minor Cost):** +2 to 2 stats, random accessory, free recruit, Steel weapon, Act 1 +5 Hit buff
   - **Tier 3 (Major Cost):** Silver weapon, skill scroll, Master Seal, rare accessory, +1 deploy, level-scaled recruit
@@ -278,46 +376,27 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
   - **Costs (matched to tier):** Growth penalties, stat debuffs, gold loss, fewer shop items, skip first shop, extra enemies, remove all shops, disable personal skill
 - [ ] RunManager: Add `runBlessing` field to run state (stores chosen blessing for display/effects)
 - [ ] RunManager: Apply blessing effects in `startRun()` after creating roster
-  - Stat bonuses applied to lords/roster
-  - Equipment/consumables/recruits added to starting roster
-  - Modifiers (shop penalties, extra enemies) stored for later application
 - [ ] Tests: Blessing selection, effect application, cost enforcement, tier distribution
 
 #### 6B: Blessing Effects Integration (Days 5-7)
 - [ ] **Equipment Boons:** Steel/Silver/Legendary weapon, random accessory, combat accessory
-  - Add to lord inventory matching proficiency type (reuse existing weapon/accessory pools)
 - [ ] **Stat Boons:** Random lord stat +1/+2, random growth +10%, all growths +15%
-  - Apply directly to lord `baseStats` and `personalGrowths` in RunManager
 - [ ] **Economy Boons/Costs:** Starting gold ±100-200, battle gold multiplier ±10-20%
-  - Modify `rm.gold` and `metaEffects.battleGoldMultiplier`
 - [ ] **Roster Boons:** Free recruit (level 1 or scaled), extra deploy slot
-  - Call `createRecruitUnit()` at run start, increment `metaEffects.deployBonus`
 - [ ] **Act Buffs/Debuffs:** +5 Hit all units Act 1, -1 DEF all units Act 1
-  - Store in `runBlessing.actModifiers[]`, apply in BattleScene at battle start, clear at act transition
 - [ ] **Node Modifiers:** Skip first shop, remove all shops, fewer shop items (-2)
-  - NodeMapGenerator: Check `runBlessing` and modify node generation accordingly
 - [ ] **Battle Modifiers:** First 3 battles get +2 enemies
-  - MapGenerator: Check `runBlessing.extraEnemies`, apply count if `battleIndex < threshold`
 - [ ] **Skill Modifiers:** Disable personal skill until Act 3
-  - BattleScene/SkillSystem: Filter out personal skill if `runBlessing.disablePersonalSkill && currentAct < 3`
 
 #### 6C: Blessing UI & Display (Days 7-8)
 - [ ] ShrineScene blessing card design (similar to loot cards but taller)
-  - Top section: Boon name + description in green
-  - Middle section: Cost name + description in red (or "No cost" in gray)
-  - Bottom: Tier badge (I/II/III/IV), hover preview of full effects
 - [ ] Blessing selection: Click card → confirm dialog → apply → transition to NodeMapScene
-- [ ] RunCompleteScene: Display chosen blessing in victory summary (name + tier badge)
+- [ ] RunCompleteScene: Display chosen blessing in victory summary
 - [ ] NodeMapScene: Small blessing icon in top-right corner (hover shows full text)
 
 #### 6D: Balance & Testing (Days 8-10)
 - [ ] Create `tests/BlessingSystem.test.js`
-  - Blessing selection, tier distribution, effect application, cost enforcement
-  - Edge cases: all tier-4 costs survivable (not instant-lose), free option always present
-- [ ] Balance tuning:
-  - Tier-1 free boons modest enough to not feel mandatory
-  - Tier-3 costs painful but workable ("lose DEF growth on Voss = fine, on Edric = risky")
-  - Tier-4 costs brutal but enable broken combos ("no shops but start with Ragnell = fun challenge run")
+- [ ] Balance: tier-1 free boons modest, tier-3 costs painful but workable, tier-4 costs enable broken combos
 - [ ] Ensure costs trade resource axes (growth for gear, gold for stats, shops for skills)
 
 **Design Principles:**
@@ -359,17 +438,11 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
 
 #### 8A: New Terrain Types
 - [ ] Add to terrain.json: Ice (slippery), Lava (damage per turn), Quicksand (immobilize)
-- [ ] Terrain effects in Combat.js:
-  - Ice: Units slide 1 extra tile in movement direction (after moving)
-  - Lava: 5 HP damage at end of turn if standing on it
-  - Quicksand: -3 MOV penalty, cannot be flown over
+- [ ] Terrain effects in Combat.js
 - [ ] Add terrain to mapTemplates.json (volcanic, tundra biomes)
 
 #### 8B: Boss Arena Features
 - [ ] Add `arenaFeatures` field to boss configs in enemies.json
-  - Lava ring around throne (forces approach through damage)
-  - Ice patches on flanks (limits mobility)
-  - Healing tiles near boss (boss regenerates if not pressured)
 - [ ] MapGenerator: Place arena features based on boss config
 
 **Success Criteria:**
@@ -421,6 +494,7 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
 | Sim scripts location | `tools/balance/` | `sim/` | Better separation of concerns |
 | Weight formula | Not specified | Reworked to `weight - STR/5` | Late-game viability of heavy weapons |
 | Church services | Heal only | Heal + Revive (1K) + Promotion (3K) | Makes church nodes worth visiting |
+| Sunder weapons | Not in GDD | Enemy-only, halves target DEF | Anti-juggernaut mechanic from playtesting |
 
 ---
 
@@ -442,36 +516,35 @@ These are all from your `mapgenerationideas.txt` file — low effort, high impac
 
 ## Roadmap Decisions & Tradeoffs
 
-### Why "Balance Fixes" Before "Battle Actions"?
-- **Reasoning:** Balance issues frustrate existing players immediately. Battle actions are new features that can wait.
-- **Tradeoff:** Delays Trade/Swap/Dance by 1-2 days, but improves experience for current build.
+### Why Bugfixes Before Everything?
+- **Reasoning:** Bugs degrade trust in the game. Canto+Wait is confusing, stale tooltips are misleading, freezes are game-ending. Small fixes, huge impact on perceived quality.
+- **Tradeoff:** Delays new features by 1-2 days. Worth it.
+
+### Why Anti-Juggernaut Before Map Generation?
+- **Reasoning:** Juggernauting is a dominant strategy that makes most tactical decisions irrelevant. If one unit can solo everything, map improvements don't matter. XP scaling + Sunder weapons together create a soft ceiling on single-unit dominance.
+- **Tradeoff:** Sunder weapons require new weapon data + Combat.js special handling. ~2 days of work for a mechanic that fundamentally changes late-game strategy.
+
+### Why UI Polish as Its Own Wave?
+- **Reasoning:** Multiple small UI issues (proficiency display, overlay tabs, forge hover) don't fit cleanly into balance or map gen waves. Grouping them lets us batch the UI work.
+- **Tradeoff:** Could be done incrementally alongside other waves, but batching avoids context-switching.
+
+### Why Boss AI + Guard Enemies in Wave 2?
+- **Reasoning:** Boss leaving throne on seize maps makes the objective trivial. Guard enemies create the defensive formation that makes approaching the boss tactically interesting. Both are AI changes that pair naturally with map gen improvements.
+- **Tradeoff:** Adds 2 days to Wave 2, but the boss AI fix is nearly mandatory for seize maps to feel right.
 
 ### Why "Map Generation" Before "Elite Nodes"?
 - **Reasoning:** Map gen improvements affect 100% of battles. Elite nodes are 10% of battles.
 - **Tradeoff:** Elite nodes would be higher-stakes content, but low-quality maps hurt baseline experience.
 
-### Why "Church Upgrades" Before "Additional Objectives"?
-- **Reasoning:** Church upgrade is 1 day of work, objectives are 2 weeks. Quick wins first.
-- **Tradeoff:** Objectives add more variety, but church fixes an existing underutilized node type.
-
 ### Why "Blessing System" After "Skills Expansion"?
-- **Reasoning:** Blessings make every run feel different from the start (like Slay the Spire's Neow bonus). Huge replayability boost for medium-high effort. Positioned after tactical depth (skills, map gen) is established so blessings modify interesting systems.
-- **Tradeoff:** Could come earlier for immediate variety, but more valuable when there's a deeper game to modify. A blessing that grants a skill is boring if there are only 5 skills total — better after Wave 5 expands the skill pool.
-
-### Why "Special Terrain" So Late?
-- **Reasoning:** Hazard terrain is content-heavy (new art, biome templates, balance tuning) with medium impact.
-- **Tradeoff:** Would add "wow factor" to boss fights, but core tactical loop needs depth first (skills, objectives).
+- **Reasoning:** Blessings make every run feel different from the start. Huge replayability boost for medium-high effort. Positioned after tactical depth (skills, map gen) is established so blessings modify interesting systems.
+- **Tradeoff:** Could come earlier for immediate variety, but more valuable when there's a deeper game to modify.
 
 ---
 
 ## Next Actions
 
-1. **Review & Approve** this roadmap structure
-2. **Start Wave 0** (Balance Fixes) — highest ROI, 1-2 days
-3. **Prototype Wave 2A** (Terrain-Aware Placement) — validate map gen improvements early
-4. **Playtest** after each wave — iterate based on feedback
-
-**Questions for Review:**
-- Does the NOW/NEXT/LATER sequencing make sense?
-- Any items that should move up or down in priority?
-- Should we timebox Wave 2 (Map Gen) to prevent scope creep?
+1. **Start Wave P0** (Bugfixes) — highest ROI, 1-2 days
+2. **Wave P1** (UI Polish) — 2-3 days, can overlap with bugfixes
+3. **Wave 0** (Balance + Anti-Juggernaut) — 3-5 days
+4. **Playtest** after P0+P1+0, then proceed to Wave 2

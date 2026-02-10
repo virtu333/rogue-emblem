@@ -358,3 +358,35 @@ function bfs(mapLayout, cols, rows, terrainData, start) {
   }
   return visited;
 }
+
+describe('enemy sunder weapon assignment', () => {
+  it('act1 enemies never get sunderWeapon (sunderChance=0)', () => {
+    for (let i = 0; i < 50; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
+      const withSunder = config.enemySpawns.filter(e => e.sunderWeapon);
+      expect(withSunder.length).toBe(0);
+    }
+  });
+
+  it('act3 enemies can get sunderWeapon flag', () => {
+    let foundSunder = false;
+    for (let i = 0; i < 100; i++) {
+      const config = generateBattle({ act: 'act3', objective: 'rout' }, data);
+      if (config.enemySpawns.some(e => e.sunderWeapon)) {
+        foundSunder = true;
+        break;
+      }
+    }
+    expect(foundSunder).toBe(true);
+  });
+
+  it('boss spawns do not get sunderWeapon', () => {
+    for (let i = 0; i < 50; i++) {
+      const config = generateBattle({ act: 'act3', objective: 'seize' }, data);
+      const bosses = config.enemySpawns.filter(e => e.isBoss);
+      for (const boss of bosses) {
+        expect(boss.sunderWeapon).toBeFalsy();
+      }
+    }
+  });
+});

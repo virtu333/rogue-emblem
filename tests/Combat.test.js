@@ -23,6 +23,7 @@ import {
   spendStaffUse,
   getEffectiveStaffRange,
   calculateEffectiveWeight,
+  hasSunderEffect,
 } from '../src/engine/Combat.js';
 import { loadGameData } from './testData.js';
 
@@ -563,5 +564,59 @@ describe('Weight mechanic', () => {
     // Diff = 0 → no double
     const forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null, skillCtx);
     expect(forecast.attacker.doubles).toBe(false);
+  });
+});
+
+describe('Sunder effect', () => {
+  it('hasSunderEffect returns true for Sunder weapons', () => {
+    const sunder = data.weapons.find(w => w.name === 'Sunder Sword');
+    expect(sunder).toBeDefined();
+    expect(hasSunderEffect(sunder)).toBe(true);
+  });
+
+  it('hasSunderEffect returns false for normal weapons', () => {
+    const iron = data.weapons.find(w => w.name === 'Iron Sword');
+    expect(hasSunderEffect(iron)).toBe(false);
+  });
+
+  it('hasSunderEffect handles null/undefined weapon', () => {
+    expect(hasSunderEffect(null)).toBe(false);
+    expect(hasSunderEffect(undefined)).toBe(false);
+    expect(hasSunderEffect({})).toBe(false);
+  });
+
+  it('calculateDamage halves DEF when attacker has Sunder weapon', () => {
+    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
+    const defender = { stats: { DEF: 12, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+
+    const sunderDmg = calculateDamage(attacker, sunderSword, defender, null, null);
+    const normalDmg = calculateDamage(attacker, ironSword, defender, null, null);
+
+    // Sunder: (10+4) - floor(12/2) = 14-6 = 8
+    // Normal: (10+5) - 12 = 3
+    expect(sunderDmg).toBe(8);
+    expect(normalDmg).toBe(3);
+  });
+
+  it('Sunder halves DEF with floor rounding on odd DEF', () => {
+    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
+    const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
+    const defender = { stats: { DEF: 11, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+
+    const dmg = calculateDamage(attacker, sunderSword, defender, null, null);
+    // (10+4) - floor(11/2) = 14-5 = 9
+    expect(dmg).toBe(9);
+  });
+
+  it('Sunder does not apply to magic damage (RES not halved)', () => {
+    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
+    const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
+    const defender = { stats: { DEF: 20, RES: 20, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+
+    const dmg = calculateDamage(attacker, sunderSword, defender, null, null);
+    // (10+4) - floor(20/2) = 14-10 = 4
+    expect(dmg).toBe(4);
   });
 });

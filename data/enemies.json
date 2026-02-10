@@ -3,27 +3,32 @@
     "act1": {
       "levelRange": [1, 3],
       "base": ["Myrmidon", "Fighter", "Archer", "Cavalier"],
-      "promoted": []
+      "promoted": [],
+      "sunderChance": 0
     },
     "act2": {
       "levelRange": [3, 8],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight"],
-      "promoted": []
+      "promoted": [],
+      "sunderChance": 0.08
     },
     "act3": {
       "levelRange": [8, 15],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight"],
-      "promoted": ["Swordmaster", "General", "Paladin", "Sniper"]
+      "promoted": ["Swordmaster", "General", "Paladin", "Sniper"],
+      "sunderChance": 0.20
     },
     "postAct": {
       "levelRange": [12, 18],
       "base": ["Myrmidon", "Fighter", "Cavalier", "Mage"],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Hero"]
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Hero"],
+      "sunderChance": 0.20
     },
     "finalBoss": {
       "levelRange": [15, 20],
       "base": [],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Hero"]
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Hero"],
+      "sunderChance": 0.25
     }
   },
   "bosses": {
@@ -54,3 +59,4 @@
     "280": [10, 14]
   }
 }
+

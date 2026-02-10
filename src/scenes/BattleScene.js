@@ -52,7 +52,7 @@ import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
@@ -105,356 +105,390 @@ export class BattleScene extends Phaser.Scene {
   }
 
   beginBattle(deployedRoster) {
-    // Track non-deployed units for merging back on victory
-    if (this.roster && deployedRoster) {
-      const deployedNames = new Set(deployedRoster.map(u => u.name));
-      this.nonDeployedUnits = this.roster.filter(u => !deployedNames.has(u.name));
-    } else {
-      this.nonDeployedUnits = [];
-    }
-
-    // Set deployCount for MapGenerator spawn generation
-    const deployCount = deployedRoster ? deployedRoster.length : 2;
-    this.battleParams.deployCount = deployCount;
-    this.battleParams.isBoss = !!this.isBoss;
-
-    // Generate battle from templates
-    this.battleConfig = generateBattle(this.battleParams, this.gameData);
-    const bc = this.battleConfig;
-
-    // Build the grid from generated map (with optional fog of war)
-    const fogEnabled = this.battleParams.fogEnabled || false;
-    this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled);
-
-    // Ensure music is stopped when scene shuts down
-    this.events.once('shutdown', () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(null, 0);
-    });
-
-    // Unit arrays
-    this.playerUnits = [];
-    this.enemyUnits = [];
-    this.npcUnits = [];
-
-    // Gold tracking for loot system
-    this.goldEarned = 0;
-
-    // Create player units — from deployed roster (run mode) or fresh lords (standalone)
-    if (deployedRoster) {
-      for (let i = 0; i < deployedRoster.length && i < bc.playerSpawns.length; i++) {
-        const unit = deployedRoster[i];
-        unit.col = bc.playerSpawns[i].col;
-        unit.row = bc.playerSpawns[i].row;
-        unit.hasMoved = false;
-        unit.hasActed = false;
-        unit._miracleUsed = false;
-        unit._gambitUsedThisTurn = false;
-        // Reset per-battle weapon uses (e.g. Bolting)
-        for (const w of (unit.inventory || [])) {
-          if (w.perBattleUses) w._usesSpent = 0;
-        }
-        this.playerUnits.push(unit);
-        this.addUnitGraphic(unit);
-      }
-    } else {
-      // Standalone fallback — create lords directly
-      const edric = this.gameData.lords.find(l => l.name === 'Edric');
-      const edricClass = this.gameData.classes.find(c => c.name === edric.class);
-      const playerUnit1 = createLordUnit(edric, edricClass, this.gameData.weapons);
-      playerUnit1.col = bc.playerSpawns[0].col;
-      playerUnit1.row = bc.playerSpawns[0].row;
-      const steelSword = this.gameData.weapons.find(w => w.name === 'Steel Sword');
-      if (steelSword) addToInventory(playerUnit1, steelSword);
-      const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
-      if (vulnerary) addToConsumables(playerUnit1, vulnerary);
-      this.playerUnits.push(playerUnit1);
-      this.addUnitGraphic(playerUnit1);
-
-      const sera = this.gameData.lords.find(l => l.name === 'Sera');
-      const seraClass = this.gameData.classes.find(c => c.name === sera.class);
-      const playerUnit2 = createLordUnit(sera, seraClass, this.gameData.weapons);
-      playerUnit2.col = bc.playerSpawns[1].col;
-      playerUnit2.row = bc.playerSpawns[1].row;
-      playerUnit2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
-      const healStaff = this.gameData.weapons.find(w => w.name === 'Heal');
-      if (healStaff) addToInventory(playerUnit2, healStaff);
-      const vulnerary2 = this.gameData.consumables.find(c => c.name === 'Vulnerary');
-      if (vulnerary2) addToConsumables(playerUnit2, vulnerary2);
-      this.playerUnits.push(playerUnit2);
-      this.addUnitGraphic(playerUnit2);
-    }
-
-    // Create enemies from generated spawns
-    for (const spawn of bc.enemySpawns) {
-      const classData = this.gameData.classes.find(c => c.name === spawn.className);
-      if (!classData) continue;
-      const diffMod = this.battleParams.difficultyMod || 1.0;
-
-      let enemy;
-      if (classData.tier === 'promoted') {
-        // Promoted class: create from base class, then promote
-        const baseClassName = classData.promotesFrom;
-        const baseClassData = this.gameData.classes.find(c => c.name === baseClassName);
-        if (!baseClassData) continue;
-        enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
-        promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
+    try {
+      // Track non-deployed units for merging back on victory
+      if (this.roster && deployedRoster) {
+        const deployedNames = new Set(deployedRoster.map(u => u.name));
+        this.nonDeployedUnits = this.roster.filter(u => !deployedNames.has(u.name));
       } else {
-        enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
+        this.nonDeployedUnits = [];
       }
 
-      enemy.col = spawn.col;
-      enemy.row = spawn.row;
-      if (spawn.isBoss) {
-        enemy.isBoss = true;
-        enemy.name = spawn.name || enemy.name;
-        // Boss stat bonus
-        for (const stat of Object.keys(enemy.stats)) {
-          enemy.stats[stat] += BOSS_STAT_BONUS;
-        }
-        enemy.currentHP = enemy.stats.HP;
-      }
-      this.enemyUnits.push(enemy);
-      this.addUnitGraphic(enemy);
-    }
+      // Set deployCount for MapGenerator spawn generation
+      const deployCount = deployedRoster ? deployedRoster.length : 2;
+      this.battleParams.deployCount = deployCount;
+      this.battleParams.isBoss = !!this.isBoss;
 
-    // Spawn NPC for recruit battles
-    if (bc.npcSpawn) {
-      const npcSpawn = bc.npcSpawn;
-      // Scale recruit to lord's level (lord level or lord level - 1)
-      const lord = this.playerUnits.find(u => u.isLord);
-      if (lord) {
-        npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0));
-      }
-      const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
-      if (npcClassData) {
-        const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
-        const recruitGrowthBonuses = this.runManager?.metaEffects?.growthBonuses || null;
-        const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
-          ? RECRUIT_SKILL_POOL : null;
+      // Generate battle from templates
+      this.battleConfig = generateBattle(this.battleParams, this.gameData);
+      const bc = this.battleConfig;
 
-        let npc;
-        if (npcClassData.tier === 'promoted') {
-          // Promoted recruit: create from base class, then promote
-          const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
-          if (!baseClassData) return;
-          const baseDef = { ...npcSpawn, className: baseClassData.name };
-          npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-          for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
-            if (!npc.skills.includes(sid)) npc.skills.push(sid);
+      // Build the grid from generated map (with optional fog of war)
+      const fogEnabled = this.battleParams.fogEnabled || false;
+      this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled);
+
+      // Ensure music is stopped when scene shuts down
+      this.events.once('shutdown', () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.stopMusic(null, 0);
+      });
+
+      // Unit arrays
+      this.playerUnits = [];
+      this.enemyUnits = [];
+      this.npcUnits = [];
+
+      // Gold tracking for loot system
+      this.goldEarned = 0;
+
+      // Create player units — from deployed roster (run mode) or fresh lords (standalone)
+      if (deployedRoster) {
+        for (let i = 0; i < deployedRoster.length && i < bc.playerSpawns.length; i++) {
+          const unit = deployedRoster[i];
+          unit.col = bc.playerSpawns[i].col;
+          unit.row = bc.playerSpawns[i].row;
+          unit.hasMoved = false;
+          unit.hasActed = false;
+          unit._miracleUsed = false;
+          unit._gambitUsedThisTurn = false;
+          // Reset per-battle weapon uses (e.g. Bolting)
+          for (const w of (unit.inventory || [])) {
+            if (w.perBattleUses) w._usesSpent = 0;
           }
-          promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+          this.playerUnits.push(unit);
+          this.addUnitGraphic(unit);
+        }
+      } else {
+        // Standalone fallback — create lords directly
+        const edric = this.gameData.lords.find(l => l.name === 'Edric');
+        const edricClass = this.gameData.classes.find(c => c.name === edric.class);
+        const playerUnit1 = createLordUnit(edric, edricClass, this.gameData.weapons);
+        playerUnit1.col = bc.playerSpawns[0].col;
+        playerUnit1.row = bc.playerSpawns[0].row;
+        const steelSword = this.gameData.weapons.find(w => w.name === 'Steel Sword');
+        if (steelSword) addToInventory(playerUnit1, steelSword);
+        const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+        if (vulnerary) addToConsumables(playerUnit1, vulnerary);
+        this.playerUnits.push(playerUnit1);
+        this.addUnitGraphic(playerUnit1);
+
+        const sera = this.gameData.lords.find(l => l.name === 'Sera');
+        const seraClass = this.gameData.classes.find(c => c.name === sera.class);
+        const playerUnit2 = createLordUnit(sera, seraClass, this.gameData.weapons);
+        playerUnit2.col = bc.playerSpawns[1].col;
+        playerUnit2.row = bc.playerSpawns[1].row;
+        playerUnit2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+        const healStaff = this.gameData.weapons.find(w => w.name === 'Heal');
+        if (healStaff) addToInventory(playerUnit2, healStaff);
+        const vulnerary2 = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+        if (vulnerary2) addToConsumables(playerUnit2, vulnerary2);
+        this.playerUnits.push(playerUnit2);
+        this.addUnitGraphic(playerUnit2);
+      }
+
+      // Create enemies from generated spawns
+      for (const spawn of bc.enemySpawns) {
+        const classData = this.gameData.classes.find(c => c.name === spawn.className);
+        if (!classData) continue;
+        const diffMod = this.battleParams.difficultyMod || 1.0;
+
+        let enemy;
+        if (classData.tier === 'promoted') {
+          // Promoted class: create from base class, then promote
+          const baseClassName = classData.promotesFrom;
+          const baseClassData = this.gameData.classes.find(c => c.name === baseClassName);
+          if (!baseClassData) continue;
+          enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
+          promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
         } else {
-          npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-          // Assign base-class innate skills (e.g. Dancer gets 'dance')
-          for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
-            if (!npc.skills.includes(sid)) npc.skills.push(sid);
+          enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
+        }
+
+        enemy.col = spawn.col;
+        enemy.row = spawn.row;
+        if (spawn.isBoss) {
+          enemy.isBoss = true;
+          enemy.name = spawn.name || enemy.name;
+          // Boss stat bonus
+          for (const stat of Object.keys(enemy.stats)) {
+            enemy.stats[stat] += BOSS_STAT_BONUS;
+          }
+          enemy.currentHP = enemy.stats.HP;
+        }
+        // Apply Sunder weapon from spawn (enemy-only anti-juggernaut mechanic)
+        if (spawn.sunderWeapon) {
+          const primaryType = enemy.proficiencies?.[0]?.type;
+          const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
+          if (sunderName) {
+            const sunderData = this.gameData.weapons.find(w => w.name === sunderName);
+            if (sunderData) {
+              const sunderClone = structuredClone(sunderData);
+              enemy.weapon = sunderClone;
+              enemy.inventory = [sunderClone];
+            }
           }
         }
-
-        npc.col = npcSpawn.col;
-        npc.row = npcSpawn.row;
-        this.npcUnits.push(npc);
-        this.addUnitGraphic(npc);
+        this.enemyUnits.push(enemy);
+        this.addUnitGraphic(enemy);
       }
-    }
 
-    // Throne marker for Seize objective
-    if (bc.objective === 'seize' && bc.thronePos) {
-      const tp = this.grid.gridToPixel(bc.thronePos.col, bc.thronePos.row);
-      this.add.text(tp.x, tp.y - 10, 'SEIZE', {
-        fontFamily: 'monospace', fontSize: '8px', color: '#ffdd44',
-        fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(5);
-    }
+      // Spawn NPC for recruit battles
+      if (bc.npcSpawn) {
+        const npcSpawn = bc.npcSpawn;
+        // Scale recruit to lord's level (lord level or lord level - 1)
+        const lord = this.playerUnits.find(u => u.isLord);
+        if (lord) {
+          npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0));
+        }
+        const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+        if (npcClassData) {
+          const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
+          const recruitGrowthBonuses = this.runManager?.metaEffects?.growthBonuses || null;
+          const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
+            ? RECRUIT_SKILL_POOL : null;
 
-    // Calculate turn par (for turn bonus system)
-    this.turnPar = null;
-    this.turnBonusConfig = this.gameData.turnBonus;
-    if (this.turnBonusConfig && this.battleConfig) {
-      const mapParams = {
-        cols: this.battleConfig.cols,
-        rows: this.battleConfig.rows,
-        enemyCount: this.enemyUnits.length,
-        objective: this.battleConfig.objective,
-        mapLayout: this.battleConfig.mapLayout,
-        terrainData: this.gameData.terrain,
-      };
-      this.turnPar = calculatePar(mapParams, this.turnBonusConfig);
-    }
+          let npc;
+          if (npcClassData.tier === 'promoted') {
+            // Promoted recruit: create from base class, then promote
+            const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
+            if (!baseClassData) return;
+            const baseDef = { ...npcSpawn, className: baseClassData.name };
+            npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+            for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+              if (!npc.skills.includes(sid)) npc.skills.push(sid);
+            }
+            promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+          } else {
+            npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+            // Assign base-class innate skills (e.g. Dancer gets 'dance')
+            for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
+              if (!npc.skills.includes(sid)) npc.skills.push(sid);
+            }
+          }
 
-    // Battle state machine
-    this.battleState = 'PLAYER_IDLE';
-    this.selectedUnit = null;
-    this.movementRange = null;
-    this.preMoveLoc = null;
-    this.attackTargets = [];
-    this.healTargets = [];
-    this.forecastTarget = null;
-    this.forecastPanel = null;
-    this.actionMenu = null;
-    this.inEquipMenu = false;
-
-    // Turn manager
-    this.turnManager = new TurnManager({
-      onPhaseChange: (phase, turn) => this.onPhaseChange(phase, turn),
-      onVictory: () => this.onVictory(),
-      onDefeat: () => this.onDefeat(),
-    });
-    this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
-
-    // AI controller
-    this.aiController = new AIController(this.grid, this.gameData);
-
-    // Cursor highlight
-    this.cursorHighlight = this.add.rectangle(
-      0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0xffffff, 0.15
-    ).setVisible(false).setDepth(50);
-
-    // Terrain/unit info (top-left)
-    this.infoText = this.add.text(8, 8, '', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-    }).setDepth(100);
-
-    // Objective display (top-right) — dynamic
-    this.objectiveText = this.add.text(this.cameras.main.width - 8, 8, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
-      backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-    }).setOrigin(1, 0).setDepth(100);
-    this.updateObjectiveText();
-
-    // Turn counter (top-left corner, below info text)
-    this.turnCounterText = this.add.text(8, 28, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-    }).setOrigin(0, 0).setDepth(100);
-
-    // Instructions (bottom center)
-    this.instructionText = this.add.text(
-      this.cameras.main.width / 2, this.cameras.main.height - 16,
-      'Right-click: inspect  |  [V] Details  |  ESC: cancel  |  [D] Danger',
-      { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
-    ).setOrigin(0.5).setDepth(100);
-
-    // Unit inspection tooltip (right-click shows name + "View Unit [V]")
-    this.inspectionPanel = new UnitInspectionPanel(this);
-    // Full unit detail overlay (V key or click tooltip)
-    this.unitDetailOverlay = new UnitDetailOverlay(this, this.gameData);
-
-    // Danger zone overlay
-    this.dangerZone = new DangerZoneOverlay(this, this.grid);
-    this.dangerZoneCache = null;
-    this.dangerZoneStale = true;
-
-    // Disable browser context menu
-    this.input.mouse.disableContextMenu();
-
-    // Input handlers
-    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-    this.input.on('pointerdown', (pointer) => this.onClick(pointer));
-    this.input.on('pointerdown', (pointer) => {
-      if (pointer.rightButtonDown()) this.onRightClick(pointer);
-    });
-    this.input.keyboard.on('keydown-V', () => {
-      if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
-        this.openUnitDetailOverlay();
-      }
-    });
-    this.input.keyboard.on('keydown-ESC', () => {
-      if (DEBUG_MODE && this.debugOverlay?.visible) {
-        this.debugOverlay.hide();
-        return;
-      }
-      if (this.unitDetailOverlay?.visible) {
-        this.unitDetailOverlay.hide();
-      } else if (this.inspectionPanel.visible) {
-        this.inspectionPanel.hide();
-        this.grid.clearHighlights();
-        this.grid.clearAttackHighlights();
-      } else if (this.pauseOverlay?.visible) {
-        this.pauseOverlay.hide();
-      } else if (this.lootRosterVisible) {
-        this.hideLootRoster();
-      } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
-        this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
-        this.lootSettingsOverlay.show();
-      } else if (this.battleState === 'PLAYER_IDLE') {
-        this.showPauseMenu();
-      } else {
-        this.handleCancel();
-      }
-    });
-    this.input.keyboard.on('keydown-R', () => {
-      if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
-        if (this.lootRosterVisible) {
-          this.hideLootRoster();
-        } else {
-          this.showLootRoster();
+          npc.col = npcSpawn.col;
+          npc.row = npcSpawn.row;
+          this.npcUnits.push(npc);
+          this.addUnitGraphic(npc);
         }
       }
-    });
-    this.input.keyboard.on('keydown-D', () => {
-      if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
-        if (this.dangerZoneStale || !this.dangerZoneCache) {
-          this.dangerZoneCache = this.calculateDangerZone();
-          this.dangerZoneStale = false;
-        }
-        this.dangerZone.toggle(this.dangerZoneCache);
+
+      // Throne marker for Seize objective
+      if (bc.objective === 'seize' && bc.thronePos) {
+        const tp = this.grid.gridToPixel(bc.thronePos.col, bc.thronePos.row);
+        this.add.text(tp.x, tp.y - 10, 'SEIZE', {
+          fontFamily: 'monospace', fontSize: '8px', color: '#ffdd44',
+          fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(5);
       }
-    });
-    this.input.keyboard.on('keydown-W', () => {
-      if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
-        this.grid.clearHighlights();
-        this.cantoRange = null;
-        const unit = this.selectedUnit;
-        this.dimUnit(unit);
-        this.selectedUnit = null;
-        this.battleState = 'PLAYER_IDLE';
-        this.turnManager.unitActed(unit);
+
+      // Calculate turn par (for turn bonus system)
+      this.turnPar = null;
+      this.turnBonusConfig = this.gameData.turnBonus;
+      if (this.turnBonusConfig && this.battleConfig) {
+        const mapParams = {
+          cols: this.battleConfig.cols,
+          rows: this.battleConfig.rows,
+          enemyCount: this.enemyUnits.length,
+          objective: this.battleConfig.objective,
+          mapLayout: this.battleConfig.mapLayout,
+          terrainData: this.gameData.terrain,
+        };
+        this.turnPar = calculatePar(mapParams, this.turnBonusConfig);
       }
-    });
 
-    // Start battle music — per-act tracks
-    const audio = this.registry.get('audio');
-    if (audio) {
-      const act = this.battleParams?.act || 'act1';
-      const key = this.isBoss
-        ? getMusicKey('boss', act)
-        : getMusicKey('battle', act);
-      audio.playMusic(key, this, 800);
-    }
+      // Battle state machine
+      this.battleState = 'PLAYER_IDLE';
+      this.selectedUnit = null;
+      this.movementRange = null;
+      this.preMoveLoc = null;
+      this.attackTargets = [];
+      this.healTargets = [];
+      this.forecastTarget = null;
+      this.forecastPanel = null;
+      this.actionMenu = null;
+      this.inEquipMenu = false;
 
-    // Initial fog of war update
-    if (this.grid.fogEnabled) {
-      this.grid.updateFogOfWar(this.playerUnits);
-      this.updateEnemyVisibility();
-    }
+      // Turn manager
+      this.turnManager = new TurnManager({
+        onPhaseChange: (phase, turn) => this.onPhaseChange(phase, turn),
+        onVictory: () => this.onVictory(),
+        onDefeat: () => this.onDefeat(),
+      });
+      this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
-    // FOG OF WAR indicator
-    if (this.grid.fogEnabled) {
-      this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#ffaa44',
+      // AI controller
+      this.aiController = new AIController(this.grid, this.gameData);
+
+      // Cursor highlight
+      this.cursorHighlight = this.add.rectangle(
+        0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0xffffff, 0.15
+      ).setVisible(false).setDepth(50);
+
+      // Terrain/unit info (top-left)
+      this.infoText = this.add.text(8, 8, '', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
       }).setDepth(100);
 
-      const hints = this.registry.get('hints');
-      if (hints?.shouldShow('battle_fog')) {
-        showMinorHint(this, 'Fog of War \u2014 enemies beyond vision range are hidden.');
-      }
-    }
+      // Objective display (top-right) — dynamic
+      this.objectiveText = this.add.text(this.cameras.main.width - 8, 8, '', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
+        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
+      }).setOrigin(1, 0).setDepth(100);
+      this.updateObjectiveText();
 
-    // Debug overlay (dev-only)
-    if (DEBUG_MODE) {
-      this.debugOverlay = new DebugOverlay(this);
-      this.input.keyboard.addKey(192).on('down', () => {
-        if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
-        this.debugOverlay.toggle();
+      // Turn counter (top-left corner, below info text)
+      this.turnCounterText = this.add.text(8, 28, '', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
+      }).setOrigin(0, 0).setDepth(100);
+
+      // Instructions (bottom center)
+      this.instructionText = this.add.text(
+        this.cameras.main.width / 2, this.cameras.main.height - 16,
+        'Right-click: inspect  |  [V] Details  |  ESC: cancel  |  [D] Danger',
+        { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
+      ).setOrigin(0.5).setDepth(100);
+
+      // Unit inspection tooltip (right-click shows name + "View Unit [V]")
+      this.inspectionPanel = new UnitInspectionPanel(this);
+      // Full unit detail overlay (V key or click tooltip)
+      this.unitDetailOverlay = new UnitDetailOverlay(this, this.gameData);
+
+      // Danger zone overlay
+      this.dangerZone = new DangerZoneOverlay(this, this.grid);
+      this.dangerZoneCache = null;
+      this.dangerZoneStale = true;
+
+      // Disable browser context menu
+      this.input.mouse.disableContextMenu();
+
+      // Input handlers
+      this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
+      this.input.on('pointerdown', (pointer) => this.onClick(pointer));
+      this.input.on('pointerdown', (pointer) => {
+        if (pointer.rightButtonDown()) this.onRightClick(pointer);
+      });
+      this.input.keyboard.on('keydown-V', () => {
+        if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
+          this.openUnitDetailOverlay();
+        }
+      });
+      this.input.keyboard.on('keydown-ESC', () => {
+        if (DEBUG_MODE && this.debugOverlay?.visible) {
+          this.debugOverlay.hide();
+          return;
+        }
+        if (this.unitDetailOverlay?.visible) {
+          this.unitDetailOverlay.hide();
+        } else if (this.inspectionPanel.visible) {
+          this.inspectionPanel.hide();
+          this.grid.clearHighlights();
+          this.grid.clearAttackHighlights();
+        } else if (this.pauseOverlay?.visible) {
+          this.pauseOverlay.hide();
+        } else if (this.lootRosterVisible) {
+          this.hideLootRoster();
+        } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+          this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
+          this.lootSettingsOverlay.show();
+        } else if (this.battleState === 'PLAYER_IDLE') {
+          this.showPauseMenu();
+        } else {
+          this.handleCancel();
+        }
+      });
+      this.input.keyboard.on('keydown-R', () => {
+        if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+          if (this.lootRosterVisible) {
+            this.hideLootRoster();
+          } else {
+            this.showLootRoster();
+          }
+        }
+      });
+      this.input.keyboard.on('keydown-D', () => {
+        if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
+          if (this.dangerZoneStale || !this.dangerZoneCache) {
+            this.dangerZoneCache = this.calculateDangerZone();
+            this.dangerZoneStale = false;
+          }
+          this.dangerZone.toggle(this.dangerZoneCache);
+        }
+      });
+      this.input.keyboard.on('keydown-W', () => {
+        if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+          this.grid.clearHighlights();
+          this.cantoRange = null;
+          const unit = this.selectedUnit;
+          this.dimUnit(unit);
+          this.selectedUnit = null;
+          this.battleState = 'PLAYER_IDLE';
+          this.turnManager.unitActed(unit);
+        }
+      });
+
+      // Start battle music — per-act tracks
+      const audio = this.registry.get('audio');
+      if (audio) {
+        const act = this.battleParams?.act || 'act1';
+        const key = this.isBoss
+          ? getMusicKey('boss', act)
+          : getMusicKey('battle', act);
+        audio.playMusic(key, this, 800);
+      }
+
+      // Initial fog of war update
+      if (this.grid.fogEnabled) {
+        this.grid.updateFogOfWar(this.playerUnits);
+        this.updateEnemyVisibility();
+      }
+
+      // FOG OF WAR indicator
+      if (this.grid.fogEnabled) {
+        this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
+          fontFamily: 'monospace', fontSize: '10px', color: '#ffaa44',
+          backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
+        }).setDepth(100);
+
+        const hints = this.registry.get('hints');
+        if (hints?.shouldShow('battle_fog')) {
+          showMinorHint(this, 'Fog of War \u2014 enemies beyond vision range are hidden.');
+        }
+      }
+
+      // Debug overlay (dev-only)
+      if (DEBUG_MODE) {
+        this.debugOverlay = new DebugOverlay(this);
+        this.input.keyboard.addKey(192).on('down', () => {
+          if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
+          this.debugOverlay.toggle();
+        });
+      }
+
+      // Start the battle
+      this.turnManager.startBattle();
+    } catch (err) {
+      console.error('BattleScene.beginBattle failed:', err);
+      const cam = this.cameras.main;
+      const toast = this.add.text(
+        cam.centerX, cam.centerY,
+        'Battle failed to load. Returning to map...',
+        { fontFamily: 'monospace', fontSize: '14px', color: '#ff4444', backgroundColor: '#000000', padding: { x: 10, y: 6 } }
+      ).setOrigin(0.5).setDepth(999);
+      this.time.delayedCall(2000, () => {
+        toast.destroy();
+        if (this.runManager) {
+          this.scene.start('NodeMap', {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          });
+        } else {
+          this.scene.start('Title');
+        }
       });
     }
-
-    // Start the battle
-    this.turnManager.startBattle();
   }
 
   // --- Deploy selection screen ---
@@ -1164,7 +1198,7 @@ export class BattleScene extends Phaser.Scene {
     if (validWeapon) equipWeapon(unit, validWeapon);
   }
 
-  finishUnitAction(unit) {
+  finishUnitAction(unit, { skipCanto = false } = {}) {
     this.hideActionMenu();
     this.grid.clearAttackHighlights();
     this.attackTargets = [];
@@ -1172,15 +1206,17 @@ export class BattleScene extends Phaser.Scene {
     this.inEquipMenu = false;
 
     // Check for Canto: use remaining movement after acting
-    const hasCanto = unit.skills?.includes('canto');
-    const movSpent = unit._movementSpent || 0;
-    const remaining = unit.stats.MOV - movSpent;
-    if (hasCanto && remaining > 0 && unit.faction === 'player') {
-      unit.hasActed = true;
-      this.selectedUnit = unit;
-      this.preMoveLoc = null;
-      this.startCantoMove(unit, remaining);
-      return;
+    if (!skipCanto) {
+      const hasCanto = unit.skills?.includes('canto');
+      const movSpent = unit._movementSpent || 0;
+      const remaining = unit.stats.MOV - movSpent;
+      if (hasCanto && remaining > 0 && unit.faction === 'player') {
+        unit.hasActed = true;
+        this.selectedUnit = unit;
+        this.preMoveLoc = null;
+        this.startCantoMove(unit, remaining);
+        return;
+      }
     }
 
     unit.hasActed = true;
@@ -1356,6 +1392,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showBattleTradeUI(unitA, unitB) {
+    if (this.inspectionPanel) this.inspectionPanel.hide();
     const cam = this.cameras.main;
     this.battleState = 'TRADING';
 
@@ -1760,7 +1797,7 @@ export class BattleScene extends Phaser.Scene {
         } else if (label === 'Dance') {
           this.startDanceTargetSelection(unit);
         } else if (label === 'Wait') {
-          this.finishUnitAction(unit);
+          this.finishUnitAction(unit, { skipCanto: true });
         }
       });
 

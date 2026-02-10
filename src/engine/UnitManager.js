@@ -6,6 +6,7 @@ import {
   XP_BASE_COMBAT,
   XP_KILL_BONUS,
   XP_LEVEL_DIFF_SCALE,
+  XP_LEVEL_DIFF_STEEP,
   XP_MIN,
   XP_STAT_NAMES,
   BASE_CLASS_LEVEL_CAP,
@@ -303,10 +304,10 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.
 
     // Act-scaled combat skill chance
     const SKILL_CHANCE_BY_ACT = {
-      act1: 0.0,
-      act2: 0.10,
-      act3: 0.20,
-      finalBoss: 0.30,
+      act1: 0.10,
+      act2: 0.25,
+      act3: 0.50,
+      finalBoss: 0.80,
     };
     const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
 
@@ -473,10 +474,31 @@ export function gainExperience(unit, xpAmount) {
 
 /**
  * Calculate XP earned from combat.
- * Formula: max(1, 30 + (defenderLevel - attackerLevel) * 5 + killBonus)
+ * Tiered diminishing returns when attacker is over-leveled:
+ * - Advantage 0-3: normal scale (-5 per level)
+ * - Advantage 4-6: steep scale (-8 per level for excess beyond 3)
+ * - Advantage 7+: flat minimum XP, no kill bonus
  */
 export function calculateCombatXP(attacker, defender, defenderDied) {
-  const levelDiff = (defender.level || 1) - (attacker.level || 1);
+  const atkLevel = attacker.level || 1;
+  const defLevel = defender.level || 1;
+  const advantage = atkLevel - defLevel; // positive when attacker is higher
+
+  // Tier 3: extreme over-leveling — flat minimum, no kill bonus
+  if (advantage >= 7) {
+    return XP_MIN;
+  }
+
+  // Tier 2: moderate over-leveling — steeper penalty, half kill bonus
+  if (advantage > 3) {
+    const basePenalty = 3 * XP_LEVEL_DIFF_SCALE; // penalty for first 3 levels of advantage
+    const steepPenalty = (advantage - 3) * XP_LEVEL_DIFF_STEEP; // steep penalty for 4-6
+    const killBonus = defenderDied ? Math.floor(XP_KILL_BONUS / 2) : 0;
+    return Math.max(XP_MIN, XP_BASE_COMBAT - basePenalty - steepPenalty + killBonus);
+  }
+
+  // Tier 1: normal (under-leveled, equal, or slight advantage 0-3)
+  const levelDiff = defLevel - atkLevel; // positive when defender is higher (bonus), negative when attacker is higher (penalty)
   const killBonus = defenderDied ? XP_KILL_BONUS : 0;
   return Math.max(XP_MIN, XP_BASE_COMBAT + levelDiff * XP_LEVEL_DIFF_SCALE + killBonus);
 }
