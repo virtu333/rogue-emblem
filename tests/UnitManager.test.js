@@ -106,17 +106,17 @@ describe('createEnemyUnit', () => {
 
   it('assigns skills to level 5+ enemies when skillsData provided', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // finalBoss has 80% skill chance for level 5+ enemies
+    // finalBoss has 65% skill chance for level 5+ enemies
     const enemy = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
-    // Level 5+ in finalBoss should get 80% chance for combat skill
-    // Test probabilistically: run 100 times, expect ~65-95 with skills (binomial)
+    // Level 5+ in finalBoss should get 65% chance for combat skill
+    // Test probabilistically: run 100 times, expect ~50-80 with skills (binomial)
     let withSkills = 0;
     for (let i = 0; i < 100; i++) {
       const e = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
       if (e.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(65); // 80% ± margin
-    expect(withSkills).toBeLessThan(95);
+    expect(withSkills).toBeGreaterThan(50); // 65% ± margin
+    expect(withSkills).toBeLessThan(80);
   });
 });
 
@@ -508,16 +508,16 @@ describe('Enemy skill scaling by act', () => {
     expect(withSkills).toBeLessThan(550);
   });
 
-  it('createEnemyUnit respects finalBoss skill chance (80%)', () => {
+  it('createEnemyUnit respects finalBoss skill chance (65%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    // Generate 1000 level 5 enemies in finalBoss, expect ~750-850 with combat skills
+    // Generate 1000 level 5 enemies in finalBoss, expect ~600-720 with combat skills
     let withSkills = 0;
     for (let i = 0; i < 1000; i++) {
       const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'finalBoss');
       if (enemy.skills.length > 0) withSkills++;
     }
-    expect(withSkills).toBeGreaterThan(750);
-    expect(withSkills).toBeLessThan(850);
+    expect(withSkills).toBeGreaterThan(600);
+    expect(withSkills).toBeLessThan(720);
   });
 });
 

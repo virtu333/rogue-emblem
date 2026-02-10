@@ -25,10 +25,10 @@
       "sunderChance": 0.20
     },
     "finalBoss": {
-      "levelRange": [15, 20],
+      "levelRange": [13, 18],
       "base": [],
       "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Hero"],
-      "sunderChance": 0.25
+      "sunderChance": 0.15
     }
   },
   "bosses": {
@@ -41,8 +41,8 @@
       { "className": "Sage", "level": 12, "name": "Archmage" }
     ],
     "act3": [
-      { "className": "Swordmaster", "level": 16, "name": "Blade Lord" },
-      { "className": "General", "level": 16, "name": "Iron Wall" }
+      { "className": "Swordmaster", "level": 17, "name": "Blade Lord" },
+      { "className": "General", "level": 17, "name": "Iron Wall" }
     ],
     "finalBoss": [
       { "className": "Hero", "level": 20, "name": "Dark Champion" }

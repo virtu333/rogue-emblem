@@ -14,6 +14,7 @@ const CENTER_COL = Math.floor(NUM_COLUMNS / 2); // 2
 // Acts without an entry use the pool default levelRange from enemies.json
 const ACT_LEVEL_SCALING = {
   act1: { 0: [1, 1], 1: [1, 2], default: [2, 3] },
+  act3: { 0: [8, 11], 1: [9, 12], 2: [10, 13], default: [11, 15] },
 };
 
 /**

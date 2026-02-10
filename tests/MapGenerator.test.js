@@ -402,6 +402,30 @@ describe('MapGenerator', () => {
     });
   });
 
+  describe('final boss tuning', () => {
+    it('finalBoss support enemy count within [3,5] offset', () => {
+      for (let i = 0; i < 20; i++) {
+        const deployCount = DEPLOY_LIMITS.finalBoss.max;
+        const config = generateBattle({ act: 'finalBoss', objective: 'rout', deployCount, isBoss: true }, data);
+        const nonBoss = config.enemySpawns.filter(e => !e.isBoss).length;
+        expect(nonBoss).toBeGreaterThanOrEqual(deployCount + 3);
+        expect(nonBoss).toBeLessThanOrEqual(deployCount + 5);
+      }
+    });
+
+    it('finalBoss support enemy levels within [13, 18]', () => {
+      for (let i = 0; i < 10; i++) {
+        const deployCount = DEPLOY_LIMITS.finalBoss.max;
+        const config = generateBattle({ act: 'finalBoss', objective: 'rout', deployCount, isBoss: true }, data);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          expect(spawn.level).toBeGreaterThanOrEqual(13);
+          expect(spawn.level).toBeLessThanOrEqual(18);
+        }
+      }
+    });
+  });
+
   describe('DEPLOY_LIMITS validation', () => {
     it('all acts in ACT_SEQUENCE have a DEPLOY_LIMITS entry', () => {
       for (const act of ACT_SEQUENCE) {

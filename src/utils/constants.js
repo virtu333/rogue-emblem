@@ -55,7 +55,7 @@ export const ENEMY_COUNT_OFFSET = {
   act1:      { 0: [0, 0], 1: [0, 0], 2: [0, 1], 3: [0, 1], default: [1, 2], boss: [1, 2] },
   act2:      { 0: [1, 1], 1: [1, 2], default: [2, 3], boss: [3, 4] },
   act3:      { 0: [2, 2], default: [3, 4], boss: [4, 5] },
-  finalBoss: { boss: [4, 6] },
+  finalBoss: { boss: [3, 5] },
 };
 
 // Colors for unit factions

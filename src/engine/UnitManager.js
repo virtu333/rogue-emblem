@@ -308,7 +308,7 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.
       act1: 0.10,
       act2: 0.25,
       act3: 0.50,
-      finalBoss: 0.80,
+      finalBoss: 0.65,
     };
     const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
 

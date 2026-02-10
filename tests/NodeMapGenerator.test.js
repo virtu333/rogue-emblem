@@ -251,7 +251,7 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act2+ battle nodes have no levelRange in battleParams', () => {
+    it('act2 battle nodes have no levelRange in battleParams', () => {
       for (let i = 0; i < 10; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const battleNodes = map.nodes.filter(n =>
@@ -259,6 +259,54 @@ describe('NodeMapGenerator', () => {
         );
         for (const node of battleNodes) {
           expect(node.battleParams.levelRange).toBeUndefined();
+        }
+      }
+    });
+
+    it('act3 row 0 nodes have levelRange [8, 11]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const row0 = map.nodes.filter(n =>
+          n.row === 0 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of row0) {
+          expect(node.battleParams.levelRange).toEqual([8, 11]);
+        }
+      }
+    });
+
+    it('act3 row 1 nodes have levelRange [9, 12]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const row1 = map.nodes.filter(n =>
+          n.row === 1 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of row1) {
+          expect(node.battleParams.levelRange).toEqual([9, 12]);
+        }
+      }
+    });
+
+    it('act3 row 2 nodes have levelRange [10, 13]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const row2 = map.nodes.filter(n =>
+          n.row === 2 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of row2) {
+          expect(node.battleParams.levelRange).toEqual([10, 13]);
+        }
+      }
+    });
+
+    it('act3 row 3+ nodes have levelRange [11, 15]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const laterRows = map.nodes.filter(n =>
+          n.row >= 3 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of laterRows) {
+          expect(node.battleParams.levelRange).toEqual([11, 15]);
         }
       }
     });
