@@ -176,7 +176,7 @@ export class NodeMapScene extends Phaser.Scene {
       .setStrokeStyle(1, 0x3d4a77, 1);
     objects.push(header);
 
-    const title = this.add.text(cx, panelTop + 13, 'Shrine Blessing', {
+    const title = this.add.text(cx, headerY, 'Shrine Blessing', {
       fontFamily: 'monospace', fontSize: '17px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(1202);
     objects.push(title);
@@ -194,37 +194,41 @@ export class NodeMapScene extends Phaser.Scene {
     const skipY = panelBottom - 28;
     const cardsTop = dividerY + 16;
     const cardsBottom = skipY - 26;
-    const cardGap = 8;
+    const cardGap = 10;
     const slotCount = Math.max(options.length, 1);
-    const cardH = Math.max(72, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount));
-    let y = cardsTop;
+    const cardH = Math.min(86, Math.max(68, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount)));
+    const totalCardsH = (cardH * slotCount) + (cardGap * (slotCount - 1));
+    let y = cardsTop + Math.floor((cardsBottom - cardsTop - totalCardsH) / 2);
     for (const blessing of options) {
       const tierStyle = tierColors[blessing.tier] || tierColors[1];
-      const card = this.add.rectangle(cx, y + cardH / 2, cardW, cardH, tierStyle.bg, 1)
+      const cardCY = y + cardH / 2;
+      const card = this.add.rectangle(cx, cardCY, cardW, cardH, tierStyle.bg, 1)
         .setDepth(1202)
         .setStrokeStyle(1, tierStyle.border, 1);
       objects.push(card);
 
       const left = cx - (cardW / 2) + 12;
-      const tierBadge = this.add.text(left, y + 5, `T${blessing.tier}`, {
+      const right = cx + (cardW / 2) - 12;
+      const row1Y = y + 10;
+      const tierBadge = this.add.text(left, row1Y, `T${blessing.tier}`, {
         fontFamily: 'monospace', fontSize: '10px', color: '#0b101f',
         backgroundColor: tierStyle.label, padding: { x: 5, y: 2 }, fontStyle: 'bold',
-      }).setDepth(1203);
+      }).setOrigin(0, 0).setDepth(1203);
       objects.push(tierBadge);
 
-      const label = this.add.text(left + 42, y + 3, blessing.name, {
+      const nameX = left + 38;
+      const label = this.add.text(nameX, row1Y + 1, blessing.name, {
         fontFamily: 'monospace', fontSize: '12px', color: '#edf1ff', fontStyle: 'bold',
-      }).setDepth(1203);
+      }).setOrigin(0, 0).setDepth(1203);
       objects.push(label);
 
-      const buttonX = cx + (cardW / 2) - 82;
-      const descWrapWidth = Math.max(150, buttonX - (left + 42) - 16);
-      const desc = this.add.text(left + 42, y + 22, blessing.description || '-', {
+      const descWrapWidth = Math.max(150, cardW - 38 - 24);
+      const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
         fontFamily: 'monospace', fontSize: '10px', color: '#aeb8dc',
         wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
-      }).setDepth(1203);
+      }).setOrigin(0, 0).setDepth(1203);
       let guard = 0;
-      while (desc.height > Math.max(18, cardH - 28) && desc.text.length > 8 && guard < 40) {
+      while (desc.height > Math.max(18, cardH - 34) && desc.text.length > 8 && guard < 40) {
         const next = `${desc.text.slice(0, -4).trimEnd()}...`;
         if (next === desc.text) break;
         desc.setText(next);
@@ -232,10 +236,10 @@ export class NodeMapScene extends Phaser.Scene {
       }
       objects.push(desc);
 
-      const pickBtn = this.add.text(buttonX, y + Math.floor((cardH - 22) / 2), '[Select]', {
+      const pickBtn = this.add.text(right, cardCY, '[Select]', {
         fontFamily: 'monospace', fontSize: '11px', color: '#cbffd5',
         backgroundColor: '#21442a', padding: { x: 8, y: 4 },
-      }).setDepth(1203).setInteractive({ useHandCursor: true });
+      }).setOrigin(1, 0.5).setDepth(1203).setInteractive({ useHandCursor: true });
       pickBtn.on('pointerover', () => {
         pickBtn.setColor('#ffdd44');
         pickBtn.setBackgroundColor('#2f5d39');
