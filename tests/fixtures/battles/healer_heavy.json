@@ -1,0 +1,18 @@
+{
+  "id": "healer_heavy",
+  "description": "2 healers in roster, tests staff mechanics",
+  "battleParams": {
+    "act": "act1",
+    "objective": "rout",
+    "row": 2,
+    "isBoss": false,
+    "isRecruitBattle": false,
+    "difficultyMod": 1.0
+  },
+  "roster": [
+    { "type": "lord", "name": "Edric", "level": 3, "extraWeapons": ["Steel Sword"] },
+    { "type": "lord", "name": "Sera", "level": 3, "staff": true },
+    { "type": "recruit", "className": "Cleric", "name": "Saul", "level": 3, "staff": true },
+    { "type": "recruit", "className": "Mage", "name": "Priscilla", "level": 3, "staff": true }
+  ]
+}

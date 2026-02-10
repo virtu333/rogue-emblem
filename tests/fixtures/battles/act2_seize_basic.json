@@ -1,0 +1,18 @@
+{
+  "id": "act2_seize_basic",
+  "description": "4-unit roster, Act 2 seize objective, boss battle",
+  "battleParams": {
+    "act": "act2",
+    "objective": "seize",
+    "row": 3,
+    "isBoss": true,
+    "isRecruitBattle": false,
+    "difficultyMod": 1.0
+  },
+  "roster": [
+    { "type": "lord", "name": "Edric", "level": 5, "extraWeapons": ["Steel Sword"] },
+    { "type": "lord", "name": "Sera", "level": 5, "staff": true },
+    { "type": "recruit", "className": "Cavalier", "name": "Marcus", "level": 4 },
+    { "type": "recruit", "className": "Knight", "name": "Oswin", "level": 4 }
+  ]
+}
