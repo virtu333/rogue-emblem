@@ -6,7 +6,7 @@ import {
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
 } from '../utils/constants.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
-import { createLordUnit, addToInventory, addToConsumables, equipAccessory } from './UnitManager.js';
+import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
@@ -14,16 +14,20 @@ import { getRunKey, getActiveSlot } from './SlotManager.js';
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 
-/** After JSON round-trip, re-link unit.weapon to matching inventory reference. */
+/** After JSON round-trip, re-link unit.weapon to matching inventory reference.
+ *  Enforces proficiency: drops non-proficient equipped weapons to first valid or null. */
 function relinkWeapon(unit) {
   if (!unit.weapon || !unit.inventory?.length) {
     if (!unit.inventory?.length) unit.weapon = null;
     return;
   }
-  if (unit.inventory.includes(unit.weapon)) return; // already linked
+  // If weapon is already in inventory AND proficient, keep it
+  if (unit.inventory.includes(unit.weapon) && canEquip(unit, unit.weapon)) return;
+  // Try JSON match that is also proficient
   const weaponStr = JSON.stringify(unit.weapon);
-  const match = unit.inventory.find(w => JSON.stringify(w) === weaponStr);
-  unit.weapon = match || unit.inventory[0] || null;
+  const match = unit.inventory.find(w => JSON.stringify(w) === weaponStr && canEquip(unit, w));
+  // Fallback: first proficient weapon in inventory
+  unit.weapon = match || unit.inventory.find(w => canEquip(unit, w)) || null;
 }
 
 /**
@@ -364,9 +368,7 @@ export class RunManager {
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
     rm.roster = saved.roster;
-    rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits = saved.fallenUnits || [];
-    rm.fallenUnits.forEach(u => relinkWeapon(u));
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
@@ -375,8 +377,12 @@ export class RunManager {
     rm.scrolls = saved.scrolls || [];
     rm.randomLegendary = saved.randomLegendary || null;
 
-    // Migrate old save format if needed
+    // Migrate old save format BEFORE relinking weapons
+    // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)
     RunManager.migrateInventorySplit(rm);
+
+    rm.roster.forEach(u => relinkWeapon(u));
+    rm.fallenUnits.forEach(u => relinkWeapon(u));
 
     return rm;
   }

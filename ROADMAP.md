@@ -503,6 +503,12 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 ---
 
+## Residual Risk / Test Gaps
+
+- **Heal action hidden for non-proficient staff (no scene-level test):** `hasStaff()`/`getStaffWeapon()` now enforce `canEquip`, so the Heal button won't appear for units without Staff proficiency. This is validated by unit tests on the helpers, but no integration test explicitly asserts "Heal action hidden in BattleScene action menu." Validated by behavior inference + manual playtesting for now.
+
+---
+
 ## Long-Term Vision (6-12+ Months)
 
 - **Full Battle Animations** — Side-view combat animations (64x64 or 96x96) for each class. Combat resolution already decoupled from animation

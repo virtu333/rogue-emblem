@@ -590,9 +590,10 @@ function getWeaponByTier(proficiencies, allWeapons, targetTier) {
 
 // --- Inventory helpers ---
 
-/** Equip a weapon from inventory. Mutates unit. */
+/** Equip a weapon from inventory. Mutates unit. Rejects non-proficient weapons. */
 export function equipWeapon(unit, weapon) {
   if (!unit.inventory.includes(weapon)) return;
+  if (!canEquip(unit, weapon)) return;
   unit.weapon = weapon;
 }
 
@@ -628,11 +629,7 @@ export function removeFromInventory(unit, weapon) {
   if (idx === -1) return;
   unit.inventory.splice(idx, 1);
   if (unit.weapon === weapon) {
-    // Only auto-equip actual combat weapons (not Staff, Scroll, Consumable, Accessory)
-    unit.weapon = unit.inventory.find(
-      w => w.type !== 'Staff' && w.type !== 'Scroll'
-        && w.type !== 'Consumable' && w.type !== 'Accessory'
-    ) || null;
+    unit.weapon = getCombatWeapons(unit)[0] || null;
   }
 }
 
@@ -648,19 +645,21 @@ export function hasProficiency(unit, weapon) {
   return unit.proficiencies.some(p => p.type === weapon.type);
 }
 
-/** Does the unit have any Staff in inventory? */
+/** Does the unit have any proficiency-valid Staff in inventory? */
 export function hasStaff(unit) {
-  return unit.inventory.some(w => w.type === 'Staff');
+  return unit.inventory.some(w => w.type === 'Staff' && canEquip(unit, w));
 }
 
-/** Get the first Staff weapon in inventory. */
+/** Get the first proficiency-valid Staff weapon in inventory. */
 export function getStaffWeapon(unit) {
-  return unit.inventory.find(w => w.type === 'Staff') || null;
+  return unit.inventory.find(w => w.type === 'Staff' && canEquip(unit, w)) || null;
 }
 
-/** Get all combat-usable weapons in inventory (excludes Staff, Scroll, Consumable). */
+/** Get all combat-usable weapons in inventory (excludes Staff, Scroll, Consumable, non-proficient). */
 export function getCombatWeapons(unit) {
-  return unit.inventory.filter(w => w.type !== 'Staff' && w.type !== 'Scroll' && w.type !== 'Consumable');
+  return unit.inventory.filter(w =>
+    w.type !== 'Staff' && w.type !== 'Scroll' && w.type !== 'Consumable' && canEquip(unit, w)
+  );
 }
 
 // --- Accessory helpers ---

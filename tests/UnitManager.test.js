@@ -12,12 +12,15 @@ import {
   promoteUnit,
   canEquip,
   getCombatWeapons,
+  equipWeapon,
   addToInventory,
   removeFromInventory,
   learnSkill,
   getClassInnateSkills,
   applyStatBoost,
   calculateCombatXP,
+  hasStaff,
+  getStaffWeapon,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 import { XP_BASE_COMBAT, XP_KILL_BONUS, XP_LEVEL_DIFF_SCALE, XP_LEVEL_DIFF_STEEP, XP_MIN } from '../src/utils/constants.js';
@@ -215,6 +218,91 @@ describe('getCombatWeapons', () => {
     expect(combat.every(w => w.type !== 'Staff')).toBe(true);
     expect(combat.every(w => w.type !== 'Scroll')).toBe(true);
   });
+
+  it('excludes non-proficient weapons', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    // Myrmidon has Sword proficiency — give them a Lance they can't use
+    const lance = structuredClone(data.weapons.find(w => w.name === 'Iron Lance'));
+    unit.inventory.push(lance);
+    const combat = getCombatWeapons(unit);
+    expect(combat.every(w => w.type !== 'Lance')).toBe(true);
+    expect(combat.length).toBeGreaterThan(0); // still has swords
+  });
+
+  it('includes only proficient weapons', () => {
+    const cavalier = data.classes.find(c => c.name === 'Cavalier');
+    const unit = createEnemyUnit(cavalier, 1, data.weapons);
+    // Cavalier has Sword + Lance — give them an Axe they can't use
+    const axe = structuredClone(data.weapons.find(w => w.name === 'Iron Axe'));
+    unit.inventory.push(axe);
+    const combat = getCombatWeapons(unit);
+    expect(combat.every(w => w.type === 'Sword' || w.type === 'Lance')).toBe(true);
+  });
+});
+
+describe('equipWeapon', () => {
+  it('allows equipping a proficient weapon', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const steelSword = structuredClone(data.weapons.find(w => w.name === 'Steel Sword'));
+    unit.inventory.push(steelSword);
+    equipWeapon(unit, steelSword);
+    expect(unit.weapon).toBe(steelSword);
+  });
+
+  it('rejects equipping a non-proficient weapon', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const originalWeapon = unit.weapon;
+    // Myrmidon cannot use Lances
+    const lance = structuredClone(data.weapons.find(w => w.name === 'Iron Lance'));
+    unit.inventory.push(lance);
+    equipWeapon(unit, lance);
+    expect(unit.weapon).toBe(originalWeapon); // unchanged
+  });
+
+  it('rejects equipping a weapon not in inventory', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const originalWeapon = unit.weapon;
+    const steelSword = structuredClone(data.weapons.find(w => w.name === 'Steel Sword'));
+    // NOT added to inventory
+    equipWeapon(unit, steelSword);
+    expect(unit.weapon).toBe(originalWeapon); // unchanged
+  });
+});
+
+describe('hasStaff / getStaffWeapon proficiency', () => {
+  it('hasStaff returns false when unit lacks Staff proficiency', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const heal = structuredClone(data.weapons.find(w => w.name === 'Heal'));
+    unit.inventory.push(heal);
+    expect(hasStaff(unit)).toBe(false);
+  });
+
+  it('hasStaff returns true when unit has Staff proficiency', () => {
+    const cleric = data.classes.find(c => c.name === 'Cleric');
+    const unit = createEnemyUnit(cleric, 1, data.weapons);
+    expect(hasStaff(unit)).toBe(true);
+  });
+
+  it('getStaffWeapon returns null when unit lacks Staff proficiency', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const heal = structuredClone(data.weapons.find(w => w.name === 'Heal'));
+    unit.inventory.push(heal);
+    expect(getStaffWeapon(unit)).toBeNull();
+  });
+
+  it('getStaffWeapon returns staff when unit has Staff proficiency', () => {
+    const cleric = data.classes.find(c => c.name === 'Cleric');
+    const unit = createEnemyUnit(cleric, 1, data.weapons);
+    const staff = getStaffWeapon(unit);
+    expect(staff).not.toBeNull();
+    expect(staff.type).toBe('Staff');
+  });
 });
 
 describe('removeFromInventory', () => {
@@ -242,6 +330,20 @@ describe('removeFromInventory', () => {
     unit.weapon = sword;
     removeFromInventory(unit, sword);
     expect(unit.weapon).toBeNull();
+  });
+
+  it('auto-equip skips non-proficient weapons', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const sword = unit.weapon; // Iron Sword (proficient)
+    // Add a non-proficient lance and a proficient steel sword
+    const lance = structuredClone(data.weapons.find(w => w.name === 'Iron Lance'));
+    const steelSword = structuredClone(data.weapons.find(w => w.name === 'Steel Sword'));
+    unit.inventory = [sword, lance, steelSword];
+    unit.weapon = sword;
+    removeFromInventory(unit, sword);
+    // Should skip lance (non-proficient) and equip Steel Sword
+    expect(unit.weapon).toBe(steelSword);
   });
 });
 

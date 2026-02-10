@@ -4,7 +4,7 @@
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
-  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency,
+  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
   canPromote, promoteUnit, equipAccessory, unequipAccessory,
   removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
@@ -273,7 +273,7 @@ export class RosterOverlay {
 
         // Equip weapon button (if not already equipped)
         const btnX = x + 250;
-        if (!isEquipped) {
+        if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
             equipWeapon(unit, item);
             this.refresh();

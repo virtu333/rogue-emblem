@@ -601,4 +601,65 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       expect(restoredFallen.inventory).toContain(restoredFallen.weapon);
     }
   });
+
+  it('fromJSON migrates inventory before relinking (no stale consumable weapon)', () => {
+    // Simulate old save format: consumable in inventory[0], weapon references it
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    const unit = json.roster[0];
+    // Inject a Consumable at inventory[0] to simulate pre-migration save
+    const vuln = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 };
+    unit.inventory.unshift(vuln);
+    // Clear weapon name to force relink fallback to inventory[0]
+    unit.weapon = { name: 'NonExistentWeapon' };
+    // Remove consumables array to trigger migration
+    delete unit.consumables;
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredUnit = restored.roster[0];
+    // After migration, Consumable should be in consumables, not inventory
+    expect(restoredUnit.inventory.every(w => w.type !== 'Consumable')).toBe(true);
+    // Weapon should NOT be the consumable (migration ran first)
+    if (restoredUnit.weapon) {
+      expect(restoredUnit.weapon.type).not.toBe('Consumable');
+    }
+  });
+
+  it('relinkWeapon fallback skips non-proficient inventory[0]', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0]; // Edric (Sword proficiency)
+    // Add a non-proficient lance at inventory[0]
+    const lance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron', rankRequired: 'Prof',
+      might: 7, hit: 80, crit: 0, weight: 8, range: '1', price: 500 };
+    unit.inventory.unshift(lance);
+    // Set weapon to something that won't match any inventory item
+    unit.weapon = { name: 'GhostBlade' };
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredUnit = restored.roster[0];
+    // Should NOT equip the non-proficient lance at [0]
+    if (restoredUnit.weapon) {
+      expect(restoredUnit.weapon.name).not.toBe('Iron Lance');
+    }
+  });
+
+  it('relinkWeapon replaces in-inventory but non-proficient equipped weapon', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0]; // Edric (Sword proficiency)
+    // Put a lance in inventory and set it as equipped weapon
+    const lance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron', rankRequired: 'Prof',
+      might: 7, hit: 80, crit: 0, weight: 8, range: '1', price: 500 };
+    unit.inventory.push(lance);
+    unit.weapon = lance; // in-inventory but non-proficient
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredUnit = restored.roster[0];
+    // Should NOT keep the non-proficient lance, should pick a proficient weapon instead
+    if (restoredUnit.weapon) {
+      expect(restoredUnit.weapon.type).not.toBe('Lance');
+    }
+  });
 });

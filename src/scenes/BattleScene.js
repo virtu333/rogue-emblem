@@ -38,6 +38,7 @@ import {
   removeFromInventory,
   isLastCombatWeapon,
   hasProficiency,
+  canEquip,
   equipAccessory,
   unequipAccessory,
   applyStatBoost,
@@ -1743,7 +1744,10 @@ export class BattleScene extends Phaser.Scene {
       const max = getStaffMaxUses(staff, unit);
       items.push(`Heal (${rem}/${max})`);
     }
-    if (unit.inventory && unit.inventory.length >= 2) items.push('Equip');
+    const equippableItems = unit.inventory.filter(item =>
+      item.type !== 'Consumable' && canEquip(unit, item)
+    );
+    if (equippableItems.length >= 2) items.push('Equip');
     if (canPromote(unit)) items.push('Promote');
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
@@ -2119,7 +2123,7 @@ export class BattleScene extends Phaser.Scene {
     this.actionMenu = [];
 
     // Scrolls no longer in inventory (moved to team pool), so no need to filter them
-    const equippable = unit.inventory.filter(item => item.type !== 'Consumable');
+    const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
     const menuWidth = 110;
     const itemHeight = 22;
     const menuHeight = equippable.length * itemHeight + 8;
