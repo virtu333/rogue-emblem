@@ -20,23 +20,24 @@ Organized by impact and logical sequencing:
 
 ### Next (1-3 Months)
 7. **Elite/Miniboss Nodes + Post-Act** — Endgame content and difficulty curve
-8. **Dynamic Recruit Nodes** — Roster-aware recruit frequency
-9. **Expanded Skills** — Command skills, on-kill triggers (tactical depth)
-10. **Blessing System** — Neow-style run modifiers, high replayability boost
+8. **Difficulty Foundation** — Normal/Hard selector, `difficulty.json` modifier layer, currency multiplier (Valor + Supply), extended leveling. Hard = same acts, harder parameters. Lunatic greyed "Coming Soon." (See `difficulty_spec.md` §1-3)
+9. **Dynamic Recruit Nodes** — Roster-aware recruit frequency
+10. **Expanded Skills** — Command skills, on-kill triggers (tactical depth)
+11. **Blessing System** — Neow-style run modifiers, 1 per run, same pool across difficulties
 
 ### Later (3-6+ Months)
-11. **Additional Map Objectives** — Defend, Survive, Escape (battle variety)
-12. **Special Terrain Hazards** — Ice, lava, environmental effects
-13. **Meta-Progression Expansion** — Full GDD §9.2 vision
-14. **QoL** — Undo movement, battle log, battle speed (ongoing)
-15. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
-16. **Special Characters** + Lord selection
-17. **Story Intro + Narrative** — Run-start story scene, character backstories, world lore
-18. **Fog of war extras** — Torch items + vision skills
-19. **Difficulty modes + run modifiers**
+12. **Additional Map Objectives** — Defend, Survive, Escape (battle variety) + reinforcement system
+13. **Status Staves + Countermeasures** — Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `difficulty_spec.md` §10)
+14. **Terrain Hazards + Act 4 Content** — Lava, Cracked Floor, Rift Portal terrain + Zombies/Dragons/Manaketes + Act 4 structure + Temporal Guardian boss (See `difficulty_spec.md` §4-5)
+15. **Secret Act + Narrative** — Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `difficulty_spec.md` §5-6)
+16. **Meta-Progression Expansion** — Full GDD §9.2 vision + Act 4/Lunatic-specific sinks
+17. **QoL** — Undo movement, battle log, battle speed (ongoing)
+18. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
+19. **Special Characters** + Lord selection
 20. **Full battle animations**
-21. **Additional biomes**
+21. **Additional biomes** (volcanic, void, cave, castle per act — See `difficulty_spec.md` §8)
 22. **Campaign system**
+23. **Endless mode + Lunatic+** — Post-Lunatic content (See `difficulty_spec.md` §12.3)
 
 ---
 
@@ -365,7 +366,7 @@ These include original map gen ideas plus critical fixes from playtesting.
 - **Full Battle Animations** — Side-view combat animations (64x64 or 96x96) for each class. Combat resolution already decoupled from animation
 - **Additional Biomes** — Castle/fortress, cave/dungeon, forest, volcanic, tundra biomes beyond grassland. Map generator takes biome parameter
 - **Narrative & Dialogue** — Brief dialogue at rest/recruitment/boss events. Simple text box with speaker portrait, no VN engine
-- **Difficulty Modes** — Normal/Hard/Lunatic modifier layers on enemy stats, economy, loot. Ascension-style run modifiers for bonus Renown
+- **Difficulty Modes** — Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
 - **Story Scaffold** — Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`
 - **Campaign System** — Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
 - **Additional Lords** — Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
@@ -384,6 +385,12 @@ These include original map gen ideas plus critical fixes from playtesting.
 ### Why Blessing System After Skills?
 - Blessings modify game systems — more valuable when there are deeper systems to modify. Positioned after tactical depth (skills, map gen) is established.
 
+### Why Difficulty Foundation Before Blessings/Skills?
+- The numeric modifier layer (enemy stats, gold, prices, XP, fog, enemy count) touches only existing systems — zero new features required. Shipping it after Elite Nodes means every subsequent wave is difficulty-aware from the start. Hard is fully playable with just the modifier layer (same acts, tighter economy, tougher enemies). Act 4/Secret Act content ships later when terrain hazards and new enemy types are ready.
+
+### Why Status Staves in Later?
+- Status effects are a significant new combat system (3 conditions, hit formula, AI targeting, countermeasure items). They add the most value alongside Act 4's harder enemies where status management becomes a core tactical concern. Countermeasure items (Herbs, Pure Water, Remedy) should be available in shops before status staves appear on enemies.
+
 ---
 
 ## Next Actions
@@ -392,7 +399,8 @@ These include original map gen ideas plus critical fixes from playtesting.
 2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ ✅ Done
 3. **Wave 2** (Map Generation Enhancements) — **Current**
 4. **Playtest** after Wave 2
-5. **Wave 3** (Elite/Miniboss Nodes) → **Wave 4** (Dynamic Recruits) → **Wave 5** (Skills) → **Wave 6** (Blessings)
+5. **Wave 3** (Elite/Miniboss Nodes) → **Difficulty Foundation** → **Wave 4** (Dynamic Recruits) → **Wave 5** (Skills) → **Wave 6** (Blessings)
+6. **Later:** Wave 7 (Objectives) → Status Staves → Terrain/Act 4 → Secret Act/Narrative → Meta Expansion
 
 ## Deployment
 
