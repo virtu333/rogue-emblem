@@ -165,6 +165,8 @@ export const SUNDER_WEAPON_BY_TYPE = {
   Axe: 'Sunder Axe',
   Bow: 'Sunder Bow',
 };
+// Proficiency prefixes that have sunder variants (used to gate sunder rolls)
+export const SUNDER_ELIGIBLE_PROFS = new Set(['Swords', 'Lances', 'Axes', 'Bows']);
 
 export const DEADLY_ARSENAL_POOL = {
   Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],

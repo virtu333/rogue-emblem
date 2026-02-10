@@ -251,7 +251,7 @@ export class BattleScene extends Phaser.Scene {
           if (npcClassData.tier === 'promoted') {
             // Promoted recruit: create from base class, then promote
             const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
-            if (!baseClassData) return;
+            if (!baseClassData) throw new Error(`Base class not found for promoted recruit: ${npcClassData.promotesFrom}`);
             const baseDef = { ...npcSpawn, className: baseClassData.name };
             npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
             for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {

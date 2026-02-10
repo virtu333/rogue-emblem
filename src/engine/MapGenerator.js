@@ -1,7 +1,7 @@
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
 
-import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET } from '../utils/constants.js';
+import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } from '../utils/constants.js';
 
 /**
  * Generate a full battle configuration from params + game data.
@@ -11,7 +11,7 @@ import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET } from '../utils/constants.j
  */
 export function generateBattle(params, deps) {
   const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss } = params;
-  const { terrain, mapSizes, mapTemplates, enemies, recruits } = deps;
+  const { terrain, mapSizes, mapTemplates, enemies, recruits, classes } = deps;
 
   // 1. Pick map size
   const sizeEntry = pickMapSize(act, mapSizes);
@@ -48,7 +48,7 @@ export function generateBattle(params, deps) {
   });
   const enemySpawns = generateEnemies(
     mapLayout, template, cols, rows, terrain,
-    pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange
+    pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes
   );
 
   // 7. NPC spawn for recruit battles
@@ -239,7 +239,7 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
 
 // --- Enemy generation ---
 
-function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, count, objective, act, bossData, thronePos, levelRangeOverride) {
+function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, count, objective, act, bossData, thronePos, levelRangeOverride, classes) {
   const spawns = [];
   const usedPositions = new Set();
 
@@ -312,7 +312,11 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
     // Roll for Sunder weapon (enemy-only anti-juggernaut mechanic)
-    const sunderWeapon = pool.sunderChance && Math.random() < pool.sunderChance;
+    // Only roll for classes whose primary proficiency has a sunder variant
+    const cd = classes?.find(c => c.name === className);
+    const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
+    const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
+    const sunderWeapon = canHaveSunder && pool.sunderChance && Math.random() < pool.sunderChance;
 
     spawns.push({
       className,
