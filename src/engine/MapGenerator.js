@@ -433,6 +433,84 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
   }
 }
 
+// --- Composition-template affinity: class weight resolution ---
+
+/**
+ * Resolve the composite weight for a class based on template enemyWeights.
+ * A class can match multiple categories — all matching weights are multiplied.
+ * Returns 1.0 if no enemyWeights or no categories match.
+ */
+function resolveClassWeight(className, enemyWeights, classData) {
+  if (!enemyWeights) return 1.0;
+
+  const cd = classData?.find(c => c.name === className);
+  if (!cd) return 1.0;
+
+  const moveType = cd.moveType || 'Infantry';
+  const profs = cd.weaponProficiencies || '';
+  const profList = profs.split(',').map(p => p.trim().split(' ')[0]).filter(Boolean);
+  const isMelee = profList.some(p => p === 'Swords' || p === 'Lances' || p === 'Axes');
+
+  let composite = 1.0;
+  const matched = [];
+
+  // "infantry" — moveType Infantry AND melee weapons
+  if (enemyWeights.infantry !== undefined && moveType === 'Infantry' && isMelee) {
+    composite *= enemyWeights.infantry;
+    matched.push('infantry');
+  }
+  // "cavalry" — moveType Cavalry
+  if (enemyWeights.cavalry !== undefined && moveType === 'Cavalry') {
+    composite *= enemyWeights.cavalry;
+    matched.push('cavalry');
+  }
+  // "archer" — has Bows proficiency
+  if (enemyWeights.archer !== undefined && profList.includes('Bows')) {
+    composite *= enemyWeights.archer;
+    matched.push('archer');
+  }
+  // "mage" — has Tomes or Light proficiency
+  if (enemyWeights.mage !== undefined && (profList.includes('Tomes') || profList.includes('Light'))) {
+    composite *= enemyWeights.mage;
+    matched.push('mage');
+  }
+  // "knight" / "armored" — moveType Armored
+  if (enemyWeights.knight !== undefined && moveType === 'Armored') {
+    composite *= enemyWeights.knight;
+    matched.push('knight');
+  }
+  if (enemyWeights.armored !== undefined && moveType === 'Armored') {
+    composite *= enemyWeights.armored;
+    matched.push('armored');
+  }
+  // "lance" — has Lances proficiency
+  if (enemyWeights.lance !== undefined && profList.includes('Lances')) {
+    composite *= enemyWeights.lance;
+    matched.push('lance');
+  }
+
+  if (DEBUG_MAP_GEN && matched.length > 0) {
+    console.log(`[MapGen] Weight: ${className} -> [${matched.join(', ')}] -> x${composite.toFixed(2)}`);
+  }
+
+  return composite;
+}
+
+/**
+ * Pick a class from the pool using template-weighted selection.
+ * Falls back to uniform random if no enemyWeights defined.
+ */
+function weightedClassPick(classList, enemyWeights, classData) {
+  if (!enemyWeights || classList.length === 0) {
+    return classList[Math.floor(Math.random() * classList.length)];
+  }
+  const entries = classList.map(name => ({
+    item: name,
+    weight: resolveClassWeight(name, enemyWeights, classData),
+  }));
+  return weightedPick(entries);
+}
+
 // --- Enemy generation ---
 
 function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, count, objective, act, bossData, thronePos, levelRangeOverride, classes) {
@@ -524,17 +602,25 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
   const allClasses = [...pool.base, ...pool.promoted];
   const usePromoted = pool.promoted.length > 0;
 
-  if (DEBUG_MAP_GEN) console.log(`[MapGen] Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles`);
+  // Template composition weights for class selection
+  const enemyWeights = template.enemyWeights || null;
+
+  if (DEBUG_MAP_GEN) {
+    console.log(`[MapGen] Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles, template=${template.id}`);
+    if (enemyWeights) {
+      console.log(`[MapGen] Template enemyWeights: ${JSON.stringify(enemyWeights)}`);
+    }
+  }
 
   for (let i = 0; i < remaining && candidateTiles.length > 0; i++) {
-    // Pick class first so we can score tiles for this unit's moveType
+    // Pick class using template-weighted selection
     let className;
     if (usePromoted && Math.random() < 0.3) {
-      className = pool.promoted[Math.floor(Math.random() * pool.promoted.length)];
+      className = weightedClassPick(pool.promoted, enemyWeights, classes);
     } else if (pool.base.length > 0) {
-      className = pool.base[Math.floor(Math.random() * pool.base.length)];
+      className = weightedClassPick(pool.base, enemyWeights, classes);
     } else {
-      className = allClasses[Math.floor(Math.random() * allClasses.length)];
+      className = weightedClassPick(allClasses, enemyWeights, classes);
     }
 
     const unit = { className };
@@ -823,4 +909,4 @@ function shuffleArray(arr) {
 }
 
 // Exported for testing
-export { scoreSpawnTile };
+export { scoreSpawnTile, resolveClassWeight };

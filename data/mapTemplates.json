@@ -22,7 +22,10 @@
           "role": "enemySpawn"
         }
       ],
-      "features": []
+      "features": [],
+      "enemyWeights": {
+        "cavalry": 1.3
+      }
     },
     {
       "id": "river_crossing",
@@ -52,7 +55,12 @@
         }
       ],
       "features": [],
-      "minBridges": 2
+      "minBridges": 2,
+      "enemyWeights": {
+        "archer": 1.5,
+        "mage": 1.2,
+        "cavalry": 0.7
+      }
     },
     {
       "id": "forest_ambush",
@@ -76,7 +84,12 @@
           "role": "enemySpawn"
         }
       ],
-      "features": []
+      "features": [],
+      "enemyWeights": {
+        "infantry": 1.5,
+        "cavalry": 0.5,
+        "archer": 1.3
+      }
     },
     {
       "id": "chokepoint",
@@ -115,7 +128,11 @@
           "role": "enemySpawn"
         }
       ],
-      "features": []
+      "features": [],
+      "enemyWeights": {
+        "knight": 1.5,
+        "lance": 1.3
+      }
     }
   ],
   "seize": [
@@ -148,7 +165,12 @@
       ],
       "features": [
         { "type": "Throne", "position": "right" }
-      ]
+      ],
+      "enemyWeights": {
+        "knight": 1.5,
+        "archer": 1.3,
+        "mage": 1.2
+      }
     },
     {
       "id": "hilltop_fortress",
@@ -179,7 +201,11 @@
       ],
       "features": [
         { "type": "Throne", "position": "topRight" }
-      ]
+      ],
+      "enemyWeights": {
+        "archer": 1.3,
+        "armored": 1.5
+      }
     }
   ]
 }

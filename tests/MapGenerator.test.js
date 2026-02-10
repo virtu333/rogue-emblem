@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateBattle, scoreSpawnTile } from '../src/engine/MapGenerator.js';
+import { generateBattle, scoreSpawnTile, resolveClassWeight } from '../src/engine/MapGenerator.js';
 import { TERRAIN, DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
@@ -676,5 +676,234 @@ describe('pre-assigned templateId', () => {
     }
     // Should see multiple different templates
     expect(ids.size).toBeGreaterThan(1);
+  });
+});
+
+describe('composition-template affinity', () => {
+  describe('resolveClassWeight unit tests', () => {
+    it('returns 1.0 when no enemyWeights provided', () => {
+      expect(resolveClassWeight('Myrmidon', null, data.classes)).toBe(1.0);
+      expect(resolveClassWeight('Myrmidon', undefined, data.classes)).toBe(1.0);
+    });
+
+    it('infantry weight applies to melee Infantry classes', () => {
+      const weights = { infantry: 1.5 };
+      // Myrmidon: Infantry + Swords = infantry
+      expect(resolveClassWeight('Myrmidon', weights, data.classes)).toBe(1.5);
+      // Fighter: Infantry + Axes = infantry
+      expect(resolveClassWeight('Fighter', weights, data.classes)).toBe(1.5);
+    });
+
+    it('infantry weight does NOT apply to ranged Infantry classes', () => {
+      const weights = { infantry: 1.5 };
+      // Archer: Infantry but Bows (not melee) — should not match infantry
+      expect(resolveClassWeight('Archer', weights, data.classes)).toBe(1.0);
+      // Mage: Infantry but Tomes (not melee) — should not match infantry
+      expect(resolveClassWeight('Mage', weights, data.classes)).toBe(1.0);
+    });
+
+    it('cavalry weight applies to Cavalry moveType', () => {
+      const weights = { cavalry: 0.5 };
+      expect(resolveClassWeight('Cavalier', weights, data.classes)).toBe(0.5);
+      expect(resolveClassWeight('Paladin', weights, data.classes)).toBe(0.5);
+    });
+
+    it('archer weight applies to Bows proficiency', () => {
+      const weights = { archer: 1.3 };
+      expect(resolveClassWeight('Archer', weights, data.classes)).toBe(1.3);
+      expect(resolveClassWeight('Sniper', weights, data.classes)).toBe(1.3);
+      // Warrior has Axes (M), Bows (P) — should match archer
+      expect(resolveClassWeight('Warrior', weights, data.classes)).toBe(1.3);
+    });
+
+    it('mage weight applies to Tomes or Light proficiency', () => {
+      const weights = { mage: 1.2 };
+      expect(resolveClassWeight('Mage', weights, data.classes)).toBe(1.2);
+      expect(resolveClassWeight('Sage', weights, data.classes)).toBe(1.2);
+      // Light Sage has Light (P) — should match mage
+      expect(resolveClassWeight('Light Sage', weights, data.classes)).toBe(1.2);
+    });
+
+    it('knight weight applies to Armored moveType', () => {
+      const weights = { knight: 1.5 };
+      expect(resolveClassWeight('Knight', weights, data.classes)).toBe(1.5);
+      expect(resolveClassWeight('General', weights, data.classes)).toBe(1.5);
+    });
+
+    it('armored weight applies to Armored moveType', () => {
+      const weights = { armored: 1.5 };
+      expect(resolveClassWeight('Knight', weights, data.classes)).toBe(1.5);
+      expect(resolveClassWeight('General', weights, data.classes)).toBe(1.5);
+    });
+
+    it('lance weight applies to Lances proficiency', () => {
+      const weights = { lance: 1.3 };
+      // Knight: Lances (P)
+      expect(resolveClassWeight('Knight', weights, data.classes)).toBe(1.3);
+      // Cavalier: Lances (P)
+      expect(resolveClassWeight('Cavalier', weights, data.classes)).toBe(1.3);
+      // Myrmidon: Swords — no lance
+      expect(resolveClassWeight('Myrmidon', weights, data.classes)).toBe(1.0);
+    });
+
+    it('multiple matching categories multiply together', () => {
+      // Knight: Armored + Lances
+      const weights = { knight: 1.5, lance: 1.3 };
+      expect(resolveClassWeight('Knight', weights, data.classes)).toBeCloseTo(1.5 * 1.3);
+    });
+
+    it('unknown categories in weights gracefully default to 1.0', () => {
+      const weights = { flying: 2.0, dragon: 3.0 };
+      // These are not recognized categories, so all classes should get 1.0
+      expect(resolveClassWeight('Myrmidon', weights, data.classes)).toBe(1.0);
+      expect(resolveClassWeight('Cavalier', weights, data.classes)).toBe(1.0);
+    });
+
+    it('returns 1.0 for unknown class names', () => {
+      const weights = { infantry: 1.5 };
+      expect(resolveClassWeight('UnknownClass', weights, data.classes)).toBe(1.0);
+    });
+  });
+
+  describe('statistical: Forest Ambush produces more infantry/archer than cavalry', () => {
+    it('over 200 seeds, infantry+archer outnumber cavalry significantly', () => {
+      // Forest Ambush: infantry x1.5, cavalry x0.5, archer x1.3
+      // Act2 pool has all class types for meaningful comparison
+      const classCounts = {};
+      const seeds = 200;
+
+      // Force forest_ambush template by filtering
+      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
+      const modifiedTemplates = { rout: [forestTemplate], seize: data.mapTemplates.seize };
+      const modData = { ...data, mapTemplates: modifiedTemplates };
+
+      for (let i = 0; i < seeds; i++) {
+        const config = generateBattle({ act: 'act2', objective: 'rout' }, modData);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          classCounts[spawn.className] = (classCounts[spawn.className] || 0) + 1;
+        }
+      }
+
+      // Infantry melee classes: Myrmidon, Fighter, Thief (Swords=melee)
+      const infantryCount = (classCounts['Myrmidon'] || 0) + (classCounts['Fighter'] || 0) + (classCounts['Thief'] || 0);
+      const archerCount = classCounts['Archer'] || 0;
+      const cavalryCount = classCounts['Cavalier'] || 0;
+
+      // Infantry+Archer should substantially outnumber Cavalry
+      expect(infantryCount + archerCount).toBeGreaterThan(cavalryCount * 2);
+    });
+  });
+
+  describe('statistical: Open Field produces more cavalry than forest maps', () => {
+    it('over 200 seeds, open field cavalry rate exceeds forest ambush cavalry rate', () => {
+      // Open Field: cavalry x1.3 — Forest Ambush: cavalry x0.5
+      const fieldTemplate = data.mapTemplates.rout.find(t => t.id === 'open_field');
+      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
+      const seeds = 200;
+
+      let fieldCavalry = 0, fieldTotal = 0;
+      let forestCavalry = 0, forestTotal = 0;
+
+      const fieldData = { ...data, mapTemplates: { rout: [fieldTemplate], seize: data.mapTemplates.seize } };
+      const forestData = { ...data, mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize } };
+
+      for (let i = 0; i < seeds; i++) {
+        const fieldConfig = generateBattle({ act: 'act2', objective: 'rout' }, fieldData);
+        for (const s of fieldConfig.enemySpawns) {
+          if (s.isBoss) continue;
+          fieldTotal++;
+          const cd = data.classes.find(c => c.name === s.className);
+          if (cd?.moveType === 'Cavalry') fieldCavalry++;
+        }
+
+        const forestConfig = generateBattle({ act: 'act2', objective: 'rout' }, forestData);
+        for (const s of forestConfig.enemySpawns) {
+          if (s.isBoss) continue;
+          forestTotal++;
+          const cd = data.classes.find(c => c.name === s.className);
+          if (cd?.moveType === 'Cavalry') forestCavalry++;
+        }
+      }
+
+      const fieldRate = fieldCavalry / fieldTotal;
+      const forestRate = forestCavalry / forestTotal;
+      expect(fieldRate).toBeGreaterThan(forestRate);
+    });
+  });
+
+  describe('backward compatibility', () => {
+    it('template with no enemyWeights works exactly as before (uniform)', () => {
+      // Create a template without enemyWeights
+      const noWeightsTemplate = {
+        ...data.mapTemplates.rout[0],
+        id: 'no_weights_test',
+        enemyWeights: undefined,
+      };
+      const modData = { ...data, mapTemplates: { rout: [noWeightsTemplate], seize: data.mapTemplates.seize } };
+
+      // Should still produce valid battles
+      for (let i = 0; i < 20; i++) {
+        const config = generateBattle({ act: 'act1', objective: 'rout' }, modData);
+        expect(config.enemySpawns.length).toBeGreaterThan(0);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          expect(data.enemies.pools.act1.base).toContain(spawn.className);
+        }
+      }
+    });
+  });
+
+  describe('seeded deterministic replay with template influence', () => {
+    function mulberry32(seed) {
+      return function () {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    it('forest_ambush: same seed produces identical class composition', () => {
+      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
+      const modData = { ...data, mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize } };
+      const origRandom = Math.random;
+
+      Math.random = mulberry32(777);
+      const config1 = generateBattle({ act: 'act2', objective: 'rout' }, modData);
+
+      Math.random = mulberry32(777);
+      const config2 = generateBattle({ act: 'act2', objective: 'rout' }, modData);
+
+      Math.random = origRandom;
+
+      expect(config1.enemySpawns.length).toBe(config2.enemySpawns.length);
+      for (let i = 0; i < config1.enemySpawns.length; i++) {
+        expect(config1.enemySpawns[i].className).toBe(config2.enemySpawns[i].className);
+        expect(config1.enemySpawns[i].col).toBe(config2.enemySpawns[i].col);
+        expect(config1.enemySpawns[i].row).toBe(config2.enemySpawns[i].row);
+      }
+    });
+
+    it('chokepoint: same seed produces identical class composition', () => {
+      const chokepointTemplate = data.mapTemplates.rout.find(t => t.id === 'chokepoint');
+      const modData = { ...data, mapTemplates: { rout: [chokepointTemplate], seize: data.mapTemplates.seize } };
+      const origRandom = Math.random;
+
+      Math.random = mulberry32(1234);
+      const config1 = generateBattle({ act: 'act2', objective: 'rout' }, modData);
+
+      Math.random = mulberry32(1234);
+      const config2 = generateBattle({ act: 'act2', objective: 'rout' }, modData);
+
+      Math.random = origRandom;
+
+      expect(config1.enemySpawns.length).toBe(config2.enemySpawns.length);
+      for (let i = 0; i < config1.enemySpawns.length; i++) {
+        expect(config1.enemySpawns[i].className).toBe(config2.enemySpawns[i].className);
+        expect(config1.enemySpawns[i].col).toBe(config2.enemySpawns[i].col);
+        expect(config1.enemySpawns[i].row).toBe(config2.enemySpawns[i].row);
+      }
+    });
   });
 });
