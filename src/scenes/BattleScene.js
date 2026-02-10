@@ -432,8 +432,14 @@ export class BattleScene extends Phaser.Scene {
         }
       });
 
-      this.input.keyboard.on('keydown-LEFT', () => this._cycleForecastWeapon(-1));
-      this.input.keyboard.on('keydown-RIGHT', () => this._cycleForecastWeapon(1));
+      this.input.keyboard.on('keydown-LEFT', () => {
+        if (this.unitDetailOverlay?.visible) return;
+        this._cycleForecastWeapon(-1);
+      });
+      this.input.keyboard.on('keydown-RIGHT', () => {
+        if (this.unitDetailOverlay?.visible) return;
+        this._cycleForecastWeapon(1);
+      });
 
       // Start battle music — per-act tracks
       const audio = this.registry.get('audio');
@@ -835,6 +841,7 @@ export class BattleScene extends Phaser.Scene {
 
   onClick(pointer) {
     if (pointer.rightButtonDown()) return; // handled separately
+    if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
     if (this.battleState === 'ENEMY_PHASE' ||
         this.battleState === 'BATTLE_END' ||
         this.battleState === 'UNIT_MOVING' ||

@@ -27,7 +27,8 @@ export class UnitDetailOverlay {
     this._unit = null;
     this._terrain = null;
     this._panel = null;
-    this._keyHandler = null;
+    this._keyHandlerLeft = null;
+    this._keyHandlerRight = null;
   }
 
   show(unit, terrain, gameData) {
@@ -117,14 +118,14 @@ export class UnitDetailOverlay {
     const footerY = top + OVERLAY_H - 18;
     this._text(lx, footerY, '[ESC] Close    [LEFT/RIGHT] Switch Tab', UI_COLORS.gray, '9px');
 
-    // --- Keyboard listener ---
-    this._keyHandler = (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-        this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
-        this._refreshTabs();
-      }
+    // --- Keyboard listeners (Phaser-specific events) ---
+    this._keyHandlerLeft = () => {
+      this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
+      this._refreshTabs();
     };
-    this.scene.input.keyboard.on('keydown', this._keyHandler);
+    this._keyHandlerRight = this._keyHandlerLeft;
+    this.scene.input.keyboard.on('keydown-LEFT', this._keyHandlerLeft);
+    this.scene.input.keyboard.on('keydown-RIGHT', this._keyHandlerRight);
 
     // Draw initial tab content
     this._drawTabContent();
@@ -132,9 +133,11 @@ export class UnitDetailOverlay {
 
   hide() {
     this._hideSkillTooltip();
-    if (this._keyHandler) {
-      this.scene.input.keyboard.off('keydown', this._keyHandler);
-      this._keyHandler = null;
+    if (this._keyHandlerLeft) {
+      this.scene.input.keyboard.off('keydown-LEFT', this._keyHandlerLeft);
+      this.scene.input.keyboard.off('keydown-RIGHT', this._keyHandlerRight);
+      this._keyHandlerLeft = null;
+      this._keyHandlerRight = null;
     }
     if (this._clickHandler) {
       this.scene.input.off('pointerdown', this._clickHandler);
