@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Documentation Sync (Feb 2026)
+- **Roadmap status alignment**: Updated `ROADMAP.md` to reflect current baseline (`720` tests on `main`), mark Wave 2 map enhancements complete, and track Wave 6 blessings as active PR-branch work.
+- **Guide accuracy pass**: Updated `CLAUDE.md` to remove stale `NEXT_STEPS.md` reference and replace outdated fixed test counts with current baseline-oriented wording.
+- **Wave 6 branch status note**: Added explicit callout that blessings contract/plumbing work is staged in `agent/wave6-blessings` prior to merge.
+
 ### New Features
 - **Complete Weapon Stats Display**: All weapon stats (Mt/Ht/Cr/Wt/Rng) now visible in RosterOverlay and UnitInspectionPanel. Hover tooltip for weapon specials (Ragnell, Runesword, etc.). Asterisk indicator (*) for weapons with special abilities in compact panels.
 

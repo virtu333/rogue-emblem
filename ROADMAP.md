@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 626 tests passing. Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 720 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings Phase 2 plumbing is staged on `agent/wave6-blessings`. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -16,7 +16,7 @@ Organized by impact and logical sequencing:
 5. ~~**Playtest Fixes (Feb 2026)**~~ — Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
 
 ### Now (Current Sprint)
-6. **Map Generation Enhancements** — Smarter placement + fog/recruit visibility + boss AI + guard enemies
+6. **Wave 6 Blessings (Phase 2 Plumbing + PR Review)** — Contract-frozen schema, run-state migration, deterministic selection hook, telemetry, and test gates
 
 ### Next (1-3 Months)
 7. **Elite/Miniboss Nodes + Post-Act** — Endgame content and difficulty curve
@@ -46,6 +46,7 @@ Organized by impact and logical sequencing:
 ### Completed Waves (Summary)
 - **Wave 2A-C** (Accessories, Weapons, Forging) — Complete. 18 accessories, 52 weapons, forge system with shop tab + loot whetstones
 - **Wave 2D** (Stat Boosters) — Complete. 7 stat boosters in consumables.json, loot-only (not in shops)
+- **Wave 2 (Map Generation Enhancements 2A-2E)** — Complete. Terrain-aware enemy placement, template affinity, boss throne AI/guards, recruit visibility safety, and template-driven fog
 - **Wave 4A** (On-Defend Skills, New Skills) — Complete. 21 skills, 6 trigger types, 9 class innate skills, 8 scrolls
 - **Wave 6A** (Home Base UI) — Complete. 6-tab UI, 41 upgrades, starting equipment/skills meta tabs
 - **Wave 7A-B** (Inspection Panel, Danger Zone) — Complete
@@ -63,13 +64,13 @@ Organized by impact and logical sequencing:
 
 ---
 
-## NOW: Map Quality & AI
+## NOW: Wave 6 Blessings
 
-### Wave 2: Map Generation Enhancements
+### Wave 2: Map Generation Enhancements (Completed Feb 2026)
 **Priority:** High — Biggest bang-for-buck improvement to tactical feel
 **Effort:** 2-3 weeks (8 features, up from 5)
 
-These include original map gen ideas plus critical fixes from playtesting.
+These include original map gen ideas plus critical fixes from playtesting. This section remains as the implementation breakdown reference now that the Wave 2 slice is merged.
 
 #### 2A: Terrain-Aware Enemy Placement (Day 1-2)
 - [ ] `scoreSpawnTile(tile, unit)` helper in MapGenerator
@@ -397,10 +398,11 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 1. ~~**Waves P0/P1/Wave 0** (Bugfixes, UI Polish, Balance)~~ ✅ Done
 2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ ✅ Done
-3. **Wave 2** (Map Generation Enhancements) — **Current**
-4. **Playtest** after Wave 2
-5. **Wave 3** (Elite/Miniboss Nodes) → **Difficulty Foundation** → **Wave 4** (Dynamic Recruits) → **Wave 5** (Skills) → **Wave 6** (Blessings)
-6. **Later:** Wave 7 (Objectives) → Status Staves → Terrain/Act 4 → Secret Act/Narrative → Meta Expansion
+3. ~~**Wave 2** (Map Generation Enhancements)~~ ✅ Done
+4. **Wave 6** (Blessings) — **Current in PR branch `agent/wave6-blessings`**
+5. **Wave 3** (Elite/Miniboss Nodes) → **Difficulty Foundation** → **Wave 4** (Dynamic Recruits) → **Wave 5** (Skills)
+6. **Playtest** after Wave 6 merge
+7. **Later:** Wave 7 (Objectives) → Status Staves → Terrain/Act 4 → Secret Act/Narrative → Meta Expansion
 
 ## Deployment
 

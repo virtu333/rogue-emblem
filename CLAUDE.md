@@ -6,7 +6,7 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 **Full GDD:** `docs/emblem_rogue_gdd.docx`
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)
 **Roadmap:** `ROADMAP.md` (long-term vision + architecture notes)
-**Next Steps:** `NEXT_STEPS.md` (actionable implementation waves)
+**Next Steps:** `ROADMAP.md` (actionable implementation waves)
 
 ## Tech Stack
 - **Engine:** Phaser.js 3 (HTML5 Canvas)
@@ -93,20 +93,20 @@ emblem-rogue/
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
 │       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/renown economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-├── tests/                 # Vitest test suite (359 tests, all pass)
+├── tests/                 # Vitest test suite (720 tests on main baseline, Feb 2026)
 │   ├── testData.js        # Shared data loader for tests
-│   ├── MapGenerator.test.js # 37 tests: map gen, reachability, spawns, NPC spawn, deployCount, levelRange override ✅
-│   ├── Combat.test.js     # 41 tests: damage, triangle, doubling, forecast, staff healing, weapon specials ✅
-│   ├── UnitManager.test.js # 28 tests: creation, leveling, promotion, skills, recruit unit, cloning ✅
-│   ├── NodeMapGenerator.test.js # 32 tests: node map structure, edges, reachability, RECRUIT nodes, per-node level scaling, column-lane system (non-crossing edges) ✅
-│   ├── RunManager.test.js # 46 tests: run state, roster, act progression, save/load, meta equipment/skills ✅
-│   ├── LootSystem.test.js # 35 tests: gold calc, loot gen, shop inventory, sell prices, forge loot, whetstones ✅
+│   ├── MapGenerator.test.js # map generation, reachability, spawns, template routing ✅
+│   ├── Combat.test.js     # combat math, forecast, weapon specials, staff behavior ✅
+│   ├── UnitManager.test.js # unit creation, leveling, promotion, skill assignment ✅
+│   ├── NodeMapGenerator.test.js # node graph generation, edges, reachability, scaling ✅
+│   ├── RunManager.test.js # run state, progression, save/load, migration, determinism ✅
+│   ├── LootSystem.test.js # gold/reward calc, loot generation, shop inventory ✅
 │   ├── SettingsManager.test.js # 7 tests: defaults, load, save, clamp, error handling ✅
-│   ├── MetaProgressionManager.test.js # 55 tests: renown, upgrades, 5-tier growth, 3-tier flat, lord SPD/RES, split aggregation, calculateRenown, skill assignments, starting equipment ✅
-│   ├── Accessories.test.js # 10 tests: equip, unequip, roundtrip, HP clamp, loot, shop, serialization ✅
-│   ├── FogOfWar.test.js # 12 tests: vision range, boundaries, fog constants, node generation ✅
-│   ├── ForgeSystem.test.js # 31 tests: forge eligibility, stat bonuses, naming, cost, limits ✅
-│   └── TurnBonusCalculator.test.js # 25 tests: par calculation, rating brackets, bonus gold, edge cases ✅
+│   ├── MetaProgressionManager.test.js # renown, upgrades, effect aggregation, economy knobs ✅
+│   ├── Accessories.test.js # equip/unequip, serialization, shop and loot interactions ✅
+│   ├── FogOfWar.test.js # vision rules, boundaries, fog constants ✅
+│   ├── ForgeSystem.test.js # forge eligibility, stat bonuses, naming, costs ✅
+│   └── TurnBonusCalculator.test.js # par calculation, ratings, bonus-gold behavior ✅
 ├── References/            # Source sprite sheets + extracted assets (not deployed)
 │   ├── *.png              # 4 Gemini-generated sprite sheets (player, enemy, terrain, UI)
 │   ├── Music Fx Packs/    # Source WAV music + SFX (converted to OGG in assets/audio/)
@@ -258,7 +258,7 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (359 tests):** MapGenerator (37), Combat (41), UnitManager (28), NodeMapGenerator (32), RunManager (46), LootSystem (35), SettingsManager (7), MetaProgressionManager (55), Accessories (10), FogOfWar (12), ForgeSystem (31), TurnBonusCalculator (25)
+- **Coverage (720 tests on main baseline, Feb 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, blessings data sync, and deterministic run hooks
 - **Untested new features:** combat accessories (`combatEffects`), on-defend skills (Pavise/Aegis), weapon specials (Ragnell DEF bonus, Runesword drain, Bolting siege), Adept skill
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
