@@ -1,0 +1,13 @@
+{
+  "id": "act1_rout_basic",
+  "description": "Default 2-lord roster, Act 1 rout battle",
+  "battleParams": {
+    "act": "act1",
+    "objective": "rout",
+    "row": 2,
+    "isBoss": false,
+    "isRecruitBattle": false,
+    "difficultyMod": 1.0
+  },
+  "roster": null
+}
