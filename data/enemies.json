@@ -33,7 +33,7 @@
   },
   "bosses": {
     "act1": [
-      { "className": "Knight", "level": 3, "name": "Iron Captain" },
+      { "className": "Cavalier", "level": 3, "name": "Iron Captain" },
       { "className": "Fighter", "level": 3, "name": "Warchief" }
     ],
     "act2": [
@@ -59,4 +59,3 @@
     "280": [10, 14]
   }
 }
-

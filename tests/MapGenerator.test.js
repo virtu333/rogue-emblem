@@ -155,6 +155,11 @@ describe('MapGenerator', () => {
         expect(bosses[0].name).toBeTruthy();
       }
     });
+
+    it('act1 boss pool excludes Knight', () => {
+      const act1Bosses = data.enemies.bosses.act1 || [];
+      expect(act1Bosses.some(b => b.className === 'Knight')).toBe(false);
+    });
   });
 
   describe('all acts generate without errors', () => {

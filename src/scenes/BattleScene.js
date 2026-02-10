@@ -1081,6 +1081,7 @@ export class BattleScene extends Phaser.Scene {
         this.pauseOverlay = null;
       },
       onSaveAndExit: saveExitCb,
+      onSaveAndExitWarning: 'Battle Progress Will Be Lost',
       onAbandon: abandonCb,
     });
     this.pauseOverlay.show();

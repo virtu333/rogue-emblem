@@ -7,12 +7,13 @@ import { HelpOverlay } from './HelpOverlay.js';
 export class PauseOverlay {
   /**
    * @param {Phaser.Scene} scene
-   * @param {{ onResume: Function, onSaveAndExit?: Function, onAbandon?: Function }} callbacks
+   * @param {{ onResume: Function, onSaveAndExit?: Function, onAbandon?: Function, onSaveAndExitWarning?: string }} callbacks
    */
-  constructor(scene, { onResume, onSaveAndExit, onAbandon }) {
+  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning }) {
     this.scene = scene;
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
+    this.onSaveAndExitWarning = onSaveAndExitWarning || null;
     this.onAbandon = onAbandon;
     this.objects = [];
     this.visible = false;
@@ -76,6 +77,13 @@ export class PauseOverlay {
     // Save & Return to Title
     if (this.onSaveAndExit) {
       this._addButton(cx, btnY, 'Save & Return to Title', () => {
+        if (this.onSaveAndExitWarning) {
+          this._showConfirm(this.onSaveAndExitWarning, () => {
+            this.hide();
+            this.onSaveAndExit();
+          }, '#88ccff');
+          return;
+        }
         this.hide();
         this.onSaveAndExit();
       }, '#88ccff');
@@ -84,7 +92,12 @@ export class PauseOverlay {
 
     // Abandon Run (only if callback provided)
     if (this.onAbandon) {
-      this._addButton(cx, btnY, 'Abandon Run', () => this._showConfirm(), '#cc5555');
+      this._addButton(cx, btnY, 'Abandon Run', () => {
+        this._showConfirm('Abandon this run?\nProgress will be lost.', () => {
+          this.hide();
+          if (this.onAbandon) this.onAbandon();
+        }, '#cc5555');
+      }, '#cc5555');
     }
   }
 
@@ -99,7 +112,7 @@ export class PauseOverlay {
     this.objects.push(btn);
   }
 
-  _showConfirm() {
+  _showConfirm(message, onConfirm, confirmColor = '#cc5555') {
     this._hideConfirm();
     const cx = this.scene.cameras.main.centerX;
     const cy = this.scene.cameras.main.centerY;
@@ -108,21 +121,18 @@ export class PauseOverlay {
       .setDepth(850).setStrokeStyle(2, 0xcc5555);
     this.confirmObjects.push(bg);
 
-    const msg = this.scene.add.text(cx, cy - 30, 'Abandon this run?\nProgress will be lost.', {
+    const msg = this.scene.add.text(cx, cy - 30, message, {
       fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0', align: 'center',
     }).setOrigin(0.5).setDepth(851);
     this.confirmObjects.push(msg);
 
     const yesBtn = this.scene.add.text(cx - 50, cy + 25, 'Yes', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#cc5555',
+      fontFamily: 'monospace', fontSize: '14px', color: confirmColor,
       backgroundColor: '#333333', padding: { x: 12, y: 4 },
     }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
-    yesBtn.on('pointerover', () => yesBtn.setColor('#ff8888'));
-    yesBtn.on('pointerout', () => yesBtn.setColor('#cc5555'));
-    yesBtn.on('pointerdown', () => {
-      this.hide();
-      if (this.onAbandon) this.onAbandon();
-    });
+    yesBtn.on('pointerover', () => yesBtn.setColor('#ffdd44'));
+    yesBtn.on('pointerout', () => yesBtn.setColor(confirmColor));
+    yesBtn.on('pointerdown', () => onConfirm());
     this.confirmObjects.push(yesBtn);
 
     const cancelBtn = this.scene.add.text(cx + 50, cy + 25, 'Cancel', {
