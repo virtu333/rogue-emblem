@@ -318,7 +318,7 @@ describe('LootSystem', () => {
       expect(pool).toContain('Steel Lance');
       expect(pool).toContain('Steel Axe');
       expect(pool).toContain('Steel Bow');
-      expect(pool).toContain('Wo Dao');
+      expect(pool).not.toContain('Wo Dao');
       expect(pool).toContain('Lancereaver');
       expect(pool).toContain('Wind Sword');
     });

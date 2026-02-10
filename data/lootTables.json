@@ -1,6 +1,6 @@
 {
   "act1": {
-    "weapons": ["Hand Axe", "Javelin", "Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Horseslayer", "Armorslayer", "Wo Dao", "Lancereaver", "Swordreaver", "Axereaver", "Wind Sword"],
+    "weapons": ["Hand Axe", "Javelin", "Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Horseslayer", "Armorslayer", "Lancereaver", "Swordreaver", "Axereaver", "Wind Sword"],
     "consumables": ["Vulnerary", "Vulnerary", "Vulnerary", "Vulnerary", "Master Seal"],
     "rare": [],
     "accessories": ["Goddess Icon", "Shield Ring", "Forest Charm"],
