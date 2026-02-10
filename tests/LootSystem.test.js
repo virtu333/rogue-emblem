@@ -434,6 +434,67 @@ describe('LootSystem', () => {
     });
   });
 
+  describe('elite loot (isElite flag)', () => {
+    it('elite applies lighter weight shifts than boss', () => {
+      const normalCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const eliteCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const bossCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const trials = 300;
+      for (let i = 0; i < trials; i++) {
+        const normal = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, false, null, false);
+        for (const c of normal) normalCounts[c.type] = (normalCounts[c.type] || 0) + 1;
+        const elite = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, false, null, true);
+        for (const c of elite) eliteCounts[c.type] = (eliteCounts[c.type] || 0) + 1;
+        const boss = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true, null, false);
+        for (const c of boss) bossCounts[c.type] = (bossCounts[c.type] || 0) + 1;
+      }
+      // Elite should shift toward high-value more than normal, but less than boss
+      const normalHV = normalCounts.rare + normalCounts.accessory + normalCounts.forge;
+      const eliteHV = eliteCounts.rare + eliteCounts.accessory + eliteCounts.forge;
+      const bossHV = bossCounts.rare + bossCounts.accessory + bossCounts.forge;
+      expect(eliteHV).toBeGreaterThan(normalHV);
+      expect(bossHV).toBeGreaterThan(eliteHV);
+    });
+
+    it('isBoss takes precedence when both isBoss and isElite are true', () => {
+      const bossOnlyCounts = { rare: 0, accessory: 0, forge: 0 };
+      const bothCounts = { rare: 0, accessory: 0, forge: 0 };
+      const trials = 300;
+      for (let i = 0; i < trials; i++) {
+        const bossOnly = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true, null, false);
+        for (const c of bossOnly) if (bossOnlyCounts[c.type] !== undefined) bossOnlyCounts[c.type]++;
+        const both = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true, null, true);
+        for (const c of both) if (bothCounts[c.type] !== undefined) bothCounts[c.type]++;
+      }
+      // When both flags are true, isBoss block fires first; isElite block is else-if so skipped
+      // Distributions should be statistically similar (both get boss shifts)
+      const bossHV = bossOnlyCounts.rare + bossOnlyCounts.accessory + bossOnlyCounts.forge;
+      const bothHV = bothCounts.rare + bothCounts.accessory + bothCounts.forge;
+      // Allow ±20% variance due to randomness
+      expect(Math.abs(bossHV - bothHV)).toBeLessThan(bossHV * 0.2 + 10);
+    });
+
+    it('elite gold range is 1.25x normal', () => {
+      const [min, max] = gameData.lootTables.act2.goldRange;
+      const eliteMin = Math.floor(min * 1.25);
+      const eliteMax = Math.floor(max * 1.25);
+      for (let i = 0; i < 100; i++) {
+        const choices = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
+          LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, false, null, true);
+        const goldChoices = choices.filter(c => c.type === 'gold');
+        for (const c of goldChoices) {
+          expect(c.goldAmount).toBeGreaterThanOrEqual(eliteMin);
+          expect(c.goldAmount).toBeLessThanOrEqual(eliteMax);
+        }
+      }
+    });
+  });
+
   describe('guaranteed shop consumables', () => {
     it('every shop includes Vulnerary', () => {
       for (let i = 0; i < 50; i++) {

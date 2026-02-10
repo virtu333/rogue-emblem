@@ -85,7 +85,7 @@ export function generateNodeMap(actId, actConfig) {
         col: c,
         type,
         edges: [],
-        battleParams: buildBattleParams(actId, type, r),
+        battleParams: buildBattleParams(actId, type, r, rows),
         completed: false,
       };
       if (type === NODE_TYPES.BATTLE && Math.random() < (FOG_CHANCE_BY_ACT[actId] || 0)) {
@@ -114,7 +114,7 @@ export function generateNodeMap(actId, actConfig) {
     const candidates = battleFirst.length > 0 ? battleFirst : remaining;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.type = NODE_TYPES.RECRUIT;
-    pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row);
+    pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row, rows);
   }
   // 50% chance for a 3rd recruit
   if (Math.random() < 0.5) {
@@ -124,7 +124,7 @@ export function generateNodeMap(actId, actConfig) {
     if (remaining.length > 0) {
       const pick = remaining[Math.floor(Math.random() * remaining.length)];
       pick.type = NODE_TYPES.RECRUIT;
-      pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row);
+      pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row, rows);
     }
   }
 
@@ -194,12 +194,33 @@ function pickNodeType(row, totalRows) {
 }
 
 /**
+ * Determine whether a seize objective is allowed at a given row for an act.
+ * Seize restricted to second half of each act (excluding boss row).
+ * Act 3 is more aggressive — allows seize from row 2 onward.
+ * Act 2 allows seize from row 3 (slightly earlier than strict half).
+ * @param {string} actId
+ * @param {number} row
+ * @param {number} totalRows
+ * @returns {boolean}
+ */
+function canSeizeAtRow(actId, row, totalRows) {
+  const bossRow = totalRows - 1;
+  if (row >= bossRow) return false; // boss row handled by BOSS type
+
+  if (actId === 'act3') return row >= 2;
+  if (actId === 'act2') return row >= 3;
+  // Default (act1 and others): second half
+  return row >= Math.ceil(totalRows / 2);
+}
+
+/**
  * Build battleParams for a node based on type.
  * @param {string} actId
  * @param {string} type - NODE_TYPES value
  * @param {number} [row] - row index for per-node level scaling
+ * @param {number} [totalRows] - total rows in this act (for seize eligibility)
  */
-function buildBattleParams(actId, type, row) {
+function buildBattleParams(actId, type, row, totalRows) {
   if (type === NODE_TYPES.BOSS) {
     return { act: actId, objective: 'seize', row };
   }
@@ -211,9 +232,12 @@ function buildBattleParams(actId, type, row) {
   if (type === NODE_TYPES.RECRUIT) {
     params = { act: actId, objective: 'rout', isRecruitBattle: true };
   } else {
-    const canSeize = row !== undefined && row >= 2;
+    const canSeize = row !== undefined && totalRows && canSeizeAtRow(actId, row, totalRows);
     const objective = canSeize && Math.random() < 0.4 ? 'seize' : 'rout';
     params = { act: actId, objective };
+    if (objective === 'seize') {
+      params.isElite = true;
+    }
   }
 
   if (row !== undefined) params.row = row;

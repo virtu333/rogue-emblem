@@ -261,25 +261,87 @@ describe('NodeMapGenerator', () => {
     });
   });
 
-  describe('seize objective restricted to later nodes', () => {
-    it('row 0 and row 1 battle nodes never have seize objective', () => {
+  describe('per-act seize/elite restrictions', () => {
+    it('act1: seize only on rows 3-4 (second half, excluding boss row 5)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
-        const earlyBattle = map.nodes.filter(n =>
-          n.row <= 1 && n.type === NODE_TYPES.BATTLE
+        const seizeBattle = map.nodes.filter(n =>
+          n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'seize'
         );
-        for (const node of earlyBattle) {
-          expect(node.battleParams.objective).toBe('rout');
+        for (const node of seizeBattle) {
+          expect(node.row).toBeGreaterThanOrEqual(3);
+          expect(node.row).toBeLessThan(ACT_CONFIG.act1.rows - 1);
         }
       }
     });
 
-    it('seize objectives can appear on row 2+ battle nodes', () => {
+    it('act2: seize only on rows 3-5 (excluding boss row 6)', () => {
+      for (let i = 0; i < 50; i++) {
+        const map = generateNodeMap('act2', ACT_CONFIG.act2);
+        const seizeBattle = map.nodes.filter(n =>
+          n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'seize'
+        );
+        for (const node of seizeBattle) {
+          expect(node.row).toBeGreaterThanOrEqual(3);
+          expect(node.row).toBeLessThan(ACT_CONFIG.act2.rows - 1);
+        }
+      }
+    });
+
+    it('act3: seize can appear from row 2 onward (earlier exception)', () => {
+      let foundEarlySeize = false;
+      for (let i = 0; i < 200; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const seizeBattle = map.nodes.filter(n =>
+          n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'seize'
+        );
+        for (const node of seizeBattle) {
+          expect(node.row).toBeGreaterThanOrEqual(2);
+          expect(node.row).toBeLessThan(ACT_CONFIG.act3.rows - 1);
+          if (node.row < 3) foundEarlySeize = true;
+        }
+      }
+      expect(foundEarlySeize).toBe(true);
+    });
+
+    it('seize battle nodes have isElite: true', () => {
+      for (let i = 0; i < 50; i++) {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1);
+        const seizeBattle = map.nodes.filter(n =>
+          n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'seize'
+        );
+        for (const node of seizeBattle) {
+          expect(node.battleParams.isElite).toBe(true);
+        }
+      }
+    });
+
+    it('rout battle nodes do NOT have isElite', () => {
+      for (let i = 0; i < 30; i++) {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1);
+        const routBattle = map.nodes.filter(n =>
+          n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'rout'
+        );
+        for (const node of routBattle) {
+          expect(node.battleParams.isElite).toBeUndefined();
+        }
+      }
+    });
+
+    it('boss nodes do NOT have isElite', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1);
+        const boss = map.nodes.find(n => n.type === NODE_TYPES.BOSS);
+        expect(boss.battleParams.isElite).toBeUndefined();
+      }
+    });
+
+    it('seize can appear on eligible rows (40% when allowed)', () => {
       let foundSeize = false;
       for (let i = 0; i < 100; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const laterBattle = map.nodes.filter(n =>
-          n.row >= 2 && n.type === NODE_TYPES.BATTLE
+          n.row >= 3 && n.type === NODE_TYPES.BATTLE
         );
         if (laterBattle.some(n => n.battleParams.objective === 'seize')) {
           foundSeize = true;

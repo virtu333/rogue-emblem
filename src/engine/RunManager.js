@@ -4,6 +4,7 @@
 import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
+  ELITE_GOLD_MULTIPLIER,
 } from '../utils/constants.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip } from './UnitManager.js';
@@ -242,9 +243,11 @@ export class RunManager {
     this.completedBattles++;
     const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
     this.markNodeComplete(nodeId);
-    const battleGold = calculateBattleGold(goldEarned, node?.type);
-    const multiplied = Math.floor(battleGold * (1 + (this.metaEffects?.battleGoldMultiplier || 0)));
-    this.addGold(multiplied);
+    const baseGold = calculateBattleGold(goldEarned, node?.type);
+    const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
+    const metaMult = 1 + (this.metaEffects?.battleGoldMultiplier || 0);
+    const finalGold = Math.floor(baseGold * eliteMult * metaMult);
+    this.addGold(finalGold);
   }
 
   /**

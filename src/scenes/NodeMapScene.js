@@ -29,6 +29,7 @@ const COLOR_BOSS = 0xcc3333;
 const COLOR_SHOP = 0xddaa33;
 const COLOR_RECRUIT = 0x44ccaa;
 const COLOR_CHURCH = 0xcccccc; // Light gray
+const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = 0x555555;
 const COLOR_AVAILABLE = 0xffdd44;
 const COLOR_EDGE = 0x666666;
@@ -217,12 +218,18 @@ export class NodeMapScene extends Phaser.Scene {
         color = COLOR_COMPLETED;
       } else if (isAvailable) {
         color = COLOR_AVAILABLE;
+      } else if (node.type === NODE_TYPES.BATTLE && node.battleParams?.isElite) {
+        color = COLOR_ELITE;
       } else {
         color = NODE_COLORS[node.type] || COLOR_BATTLE;
       }
 
       // Node icon — use sprite if loaded, fall back to colored rectangle + unicode
       let spriteKey = node.type === NODE_TYPES.CHURCH ? 'node_rest' : `node_${node.type}`;
+      // Elite seize battles use dark fortress sprite
+      if (node.type === NODE_TYPES.BATTLE && node.battleParams?.isElite) {
+        spriteKey = 'node_elite';
+      }
       if (node.type === NODE_TYPES.BOSS) {
         const actId = this.runManager.nodeMap.actId;
         if (actId === 'finalBoss') spriteKey = 'node_boss_final';
@@ -253,6 +260,11 @@ export class NodeMapScene extends Phaser.Scene {
         });
 
         nodeObj.on('pointerdown', () => this.onNodeClick(node));
+        nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
+        nodeObj.on('pointerout', () => this.hideNodeTooltip());
+      } else if (!isCompleted) {
+        // Non-available, non-completed: hover tooltip for route planning (not clickable)
+        nodeObj.setInteractive();
         nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
         nodeObj.on('pointerout', () => this.hideNodeTooltip());
       }
@@ -342,6 +354,8 @@ export class NodeMapScene extends Phaser.Scene {
       label = 'Shop — Buy & sell items';
     } else if (node.type === NODE_TYPES.RECRUIT) {
       label = 'Recruit — Battle with potential ally';
+    } else if (node.battleParams?.isElite) {
+      label = 'Elite Battle (Seize) — Harder fight, better loot';
     } else {
       const obj = node.battleParams?.objective || 'rout';
       label = `Battle (${obj})`;
@@ -386,6 +400,7 @@ export class NodeMapScene extends Phaser.Scene {
       roster,
       nodeId: node.id,
       isBoss: node.type === NODE_TYPES.BOSS,
+      isElite: battleParams?.isElite || false,
     });
   }
 

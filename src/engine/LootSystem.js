@@ -215,7 +215,7 @@ export function generateRandomLegendary(allWeapons) {
  * @param {boolean} [isBoss=false] - shift weights toward rare/accessory/forge for boss battles
  * @returns {Array}
  */
-export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null) {
+export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null, isElite = false) {
   const table = lootTables[actId] || lootTables.act3;
   const choices = [];
   const usedNames = new Set();
@@ -237,6 +237,15 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
     if (weights.forge !== undefined) weights.forge += 5;
     if (weights.weapon !== undefined) weights.weapon = Math.max(0, weights.weapon - 10);
     if (weights.consumable !== undefined) weights.consumable = Math.max(0, weights.consumable - 10);
+  } else if (isElite) {
+    // Elite loot: half-boss shifts (lighter but still meaningful)
+    if (weights.rare !== undefined || (table.rare && table.rare.length > 0)) {
+      weights.rare = (weights.rare || 0) + 5;
+    }
+    if (weights.accessory !== undefined) weights.accessory += 3;
+    if (weights.forge !== undefined) weights.forge += 3;
+    if (weights.weapon !== undefined) weights.weapon = Math.max(0, weights.weapon - 5);
+    if (weights.consumable !== undefined) weights.consumable = Math.max(0, weights.consumable - 5);
   }
 
   // Roster weapon type filter
@@ -250,6 +259,7 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
       if (choices.some(c => c.type === 'gold')) continue;
       let [min, max] = table.goldRange;
       if (isBoss) { min = Math.floor(min * 1.5); max = Math.floor(max * 1.5); }
+      else if (isElite) { min = Math.floor(min * 1.25); max = Math.floor(max * 1.25); }
       const goldAmount = min + Math.floor(Math.random() * (max - min + 1));
       choices.push({ type: 'gold', goldAmount });
       continue;

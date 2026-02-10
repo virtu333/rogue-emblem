@@ -56,7 +56,7 @@ import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
@@ -85,6 +85,7 @@ export class BattleScene extends Phaser.Scene {
     this.roster = data.roster || null;
     this.nodeId = data.nodeId || null;
     this.isBoss = data.isBoss || false;
+    this.isElite = data.isElite || false;
   }
 
   create() {
@@ -3702,12 +3703,16 @@ export class BattleScene extends Phaser.Scene {
     this.lootGroup = recruitGroup;
   }
 
-  /** Show post-battle loot selection: pick 1 of 3 items or skip for bonus gold. */
+  /** Show post-battle loot selection. Normal: pick 1 of 3. Elite: pick 2 of 4. */
   showLootScreen() {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.loot, this, 300);
     const lootGroup = [];
     const cam = this.cameras.main;
+
+    // Elite pick-2 state
+    this._elitePicksRemaining = this.isElite ? ELITE_MAX_PICKS : 1;
+    this._lootCards = [];
 
     // Dark overlay
     const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
@@ -3715,7 +3720,8 @@ export class BattleScene extends Phaser.Scene {
     lootGroup.push(overlay);
 
     // Title
-    const title = this.add.text(cam.centerX, 30, 'BATTLE REWARDS', {
+    const titleText = this.isElite ? 'ELITE BATTLE REWARDS' : 'BATTLE REWARDS';
+    const title = this.add.text(cam.centerX, 30, titleText, {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(title);
@@ -3745,32 +3751,39 @@ export class BattleScene extends Phaser.Scene {
     // Tutorial hint for loot screen
     const hints = this.registry.get('hints');
     if (hints?.shouldShow('battle_loot')) {
-      showMinorHint(this, 'Choose one reward. Weapons equip to a unit. Press [R] for roster.');
+      const hintMsg = this.isElite
+        ? 'Elite battle! Choose 2 rewards. Press [R] for roster.'
+        : 'Choose one reward. Weapons equip to a unit. Press [R] for roster.';
+      showMinorHint(this, hintMsg);
     }
 
     // Generate loot choices
     const lootWeaponBonus = this.runManager?.metaEffects?.lootWeaponWeightBonus || 0;
+    const lootCount = this.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
     const choices = generateLootChoices(
       this.runManager.currentAct,
       this.gameData.lootTables,
       this.gameData.weapons,
       this.gameData.consumables,
-      LOOT_CHOICES,
+      lootCount,
       lootWeaponBonus,
       this.gameData.accessories,
       this.gameData.whetstones,
       this.runManager.roster,
-      this.isBoss
+      this.isBoss,
+      null,
+      this.isElite
     );
 
     // Skip bonus gold
     const skipGold = calculateSkipLootBonus(totalGold);
 
-    // Render cards: 3 loot choices + 1 skip
-    const cardW = 120;
+    // Render cards: loot choices + 1 skip (dynamic sizing for 4 or 5 cards)
+    const totalCards = choices.length + 1;
+    const cardW = totalCards <= 4 ? 120 : 100;
     const cardH = 160;
-    const gap = 16;
-    const totalW = 4 * cardW + 3 * gap;
+    const gap = totalCards <= 4 ? 16 : 12;
+    const totalW = totalCards * cardW + (totalCards - 1) * gap;
     const startX = cam.centerX - totalW / 2 + cardW / 2;
     const cardY = cam.centerY + 10;
 
@@ -3780,6 +3793,7 @@ export class BattleScene extends Phaser.Scene {
     for (let i = 0; i < choices.length; i++) {
       const choice = choices[i];
       const cx = startX + i * (cardW + gap);
+      const cardIdx = i; // capture for closure
 
       // Card background
       const cardColor = choice.type === 'forge' ? 0x443322 : 0x333355;
@@ -3787,6 +3801,9 @@ export class BattleScene extends Phaser.Scene {
       const card = this.add.rectangle(cx, cardY, cardW, cardH, cardColor, 1)
         .setStrokeStyle(2, strokeColor).setDepth(701).setInteractive({ useHandCursor: true });
       lootGroup.push(card);
+
+      // Track card ref for elite pick-2 graying
+      this._lootCards.push({ bg: card });
 
       // Type icon
       const icon = this.add.text(cx, cardY - 55, typeIcons[choice.type] || '?', {
@@ -3811,7 +3828,7 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
           this.runManager.addGold(choice.goldAmount);
-          this.cleanupLootScreen(lootGroup);
+          this.finalizeLootPick(lootGroup, cardIdx);
         });
       } else if (choice.type === 'forge') {
         // Forge whetstone card
@@ -3836,7 +3853,7 @@ export class BattleScene extends Phaser.Scene {
         card.on('pointerdown', () => {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
-          this.showForgeLootPicker(item, lootGroup);
+          this.showForgeLootPicker(item, lootGroup, cardIdx);
         });
       } else {
         // Item choice (weapon, consumable, rare, accessory)
@@ -3876,28 +3893,28 @@ export class BattleScene extends Phaser.Scene {
             // Path 1: Scrolls go directly to team pool (like accessories)
             if (!this.runManager.scrolls) this.runManager.scrolls = [];
             this.runManager.scrolls.push({ ...item });
-            this.cleanupLootScreen(lootGroup);
+            this.finalizeLootPick(lootGroup, cardIdx);
           } else if (choice.type === 'accessory') {
             // Path 2: Accessories go to team pool (existing code)
             if (!this.runManager.accessories) this.runManager.accessories = [];
             this.runManager.accessories.push({ ...item });
-            this.cleanupLootScreen(lootGroup);
+            this.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
             // Path 3a: Stat boosters → immediate apply via unit picker
-            this.showStatBoostUnitPicker(item, lootGroup);
+            this.showStatBoostUnitPicker(item, lootGroup, cardIdx);
           } else if (item.type === 'Consumable') {
             // Path 3b: Regular consumables show dedicated picker with consumable limits
-            this.showConsumableUnitPicker(item, lootGroup);
+            this.showConsumableUnitPicker(item, lootGroup, cardIdx);
           } else {
-            // Path 3b: Weapons/staves show standard picker with inventory limits
-            this.showLootUnitPicker(item, lootGroup);
+            // Path 3c: Weapons/staves show standard picker with inventory limits
+            this.showLootUnitPicker(item, lootGroup, cardIdx);
           }
         });
       }
     }
 
-    // Skip card
-    const skipX = startX + 3 * (cardW + gap);
+    // Skip card (always ends loot screen immediately)
+    const skipX = startX + choices.length * (cardW + gap);
     const skipCard = this.add.rectangle(skipX, cardY, cardW, cardH, 0x554433, 1)
       .setStrokeStyle(2, 0xccaa44).setDepth(701).setInteractive({ useHandCursor: true });
     lootGroup.push(skipCard);
@@ -3925,10 +3942,12 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Instruction
-    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a reward', {
+    const instText = this.isElite ? 'Choose 2 rewards' : 'Choose a reward';
+    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, instText, {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(inst);
+    this._lootInstruction = inst;
 
     const hintText = this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
       fontFamily: 'monospace', fontSize: '9px', color: '#666666',
@@ -3983,7 +4002,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Show forge loot picker: unit → weapon → (stat for Silver). */
-  showForgeLootPicker(whetstone, lootGroup) {
+  showForgeLootPicker(whetstone, lootGroup, cardIdx) {
     for (const obj of lootGroup) obj.setVisible(false);
 
     const pickerGroup = [];
@@ -4036,7 +4055,7 @@ export class BattleScene extends Phaser.Scene {
 
       btn.on('pointerdown', () => {
         for (const obj of pickerGroup) obj.destroy();
-        this.showForgeWeaponPicker(whetstone, unit, lootGroup);
+        this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx);
       });
     }
 
@@ -4061,7 +4080,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Step 2: pick which weapon to forge. */
-  showForgeWeaponPicker(whetstone, unit, lootGroup) {
+  showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx) {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
@@ -4104,13 +4123,13 @@ export class BattleScene extends Phaser.Scene {
         for (const obj of pickerGroup) obj.destroy();
         if (whetstone.forgeStat === 'choice') {
           // Silver Whetstone: pick stat
-          this.showForgeStatPickerLoot(whetstone, wpn, lootGroup);
+          this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
         } else {
           // Specific whetstone: apply immediately
           applyForge(wpn, whetstone.forgeStat);
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
-          this.cleanupLootScreen(lootGroup);
+          this.finalizeLootPick(lootGroup, cardIdx);
         }
       });
     }
@@ -4124,12 +4143,12 @@ export class BattleScene extends Phaser.Scene {
 
     backBtn.on('pointerdown', () => {
       for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup);
+      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
   }
 
   /** Step 3 (Silver Whetstone only): pick which stat to forge. */
-  showForgeStatPickerLoot(whetstone, weapon, lootGroup) {
+  showForgeStatPickerLoot(whetstone, weapon, lootGroup, cardIdx) {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
@@ -4176,7 +4195,7 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
           for (const obj of pickerGroup) obj.destroy();
-          this.cleanupLootScreen(lootGroup);
+          this.finalizeLootPick(lootGroup, cardIdx);
         });
       }
     }
@@ -4190,12 +4209,12 @@ export class BattleScene extends Phaser.Scene {
 
     backBtn.on('pointerdown', () => {
       for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup);
+      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
   }
 
   /** Show unit picker to give a loot item to a roster unit. */
-  showLootUnitPicker(item, lootGroup) {
+  showLootUnitPicker(item, lootGroup, cardIdx) {
     // Hide loot cards temporarily
     for (const obj of lootGroup) obj.setVisible(false);
 
@@ -4246,7 +4265,7 @@ export class BattleScene extends Phaser.Scene {
         btn.on('pointerdown', () => {
           addToInventory(unit, { ...item });
           for (const obj of pickerGroup) obj.destroy();
-          this.cleanupLootScreen(lootGroup);
+          this.finalizeLootPick(lootGroup, cardIdx);
         });
       }
     }
@@ -4265,7 +4284,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Show unit picker for consumables with separate limit checking. */
-  showStatBoostUnitPicker(item, lootGroup) {
+  showStatBoostUnitPicker(item, lootGroup, cardIdx) {
     // Hide loot cards temporarily
     for (const obj of lootGroup) obj.setVisible(false);
 
@@ -4310,7 +4329,7 @@ export class BattleScene extends Phaser.Scene {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         for (const obj of pickerGroup) obj.destroy();
-        this.cleanupLootScreen(lootGroup);
+        this.finalizeLootPick(lootGroup, cardIdx);
       });
     }
 
@@ -4327,7 +4346,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  showConsumableUnitPicker(item, lootGroup) {
+  showConsumableUnitPicker(item, lootGroup, cardIdx) {
     // Hide loot cards temporarily
     for (const obj of lootGroup) obj.setVisible(false);
 
@@ -4375,7 +4394,7 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
           for (const obj of pickerGroup) obj.destroy();
-          this.cleanupLootScreen(lootGroup);
+          this.finalizeLootPick(lootGroup, cardIdx);
         });
       }
     }
@@ -4447,6 +4466,39 @@ export class BattleScene extends Phaser.Scene {
     if (this.lootRosterGroup) {
       for (const obj of this.lootRosterGroup) obj.destroy();
       this.lootRosterGroup = null;
+    }
+  }
+
+  /**
+   * Unified exit path for all loot picks. Handles elite pick-2 counter.
+   * Non-elite: immediate cleanup. Elite: gray out card, decrement, cleanup at 0.
+   */
+  finalizeLootPick(lootGroup, cardIndex) {
+    if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
+      // Non-elite or last pick — clean up immediately
+      this._lootCards = null;
+      this._lootInstruction = null;
+      this.cleanupLootScreen(lootGroup);
+      return;
+    }
+
+    this._elitePicksRemaining--;
+
+    // Gray out the chosen card
+    const cardRef = this._lootCards?.[cardIndex];
+    if (cardRef?.bg) {
+      cardRef.bg.setFillStyle(0x222222);
+      cardRef.bg.setStrokeStyle(2, 0x444444);
+      cardRef.bg.removeAllListeners('pointerdown');
+      cardRef.bg.disableInteractive();
+    }
+
+    // Re-show loot cards (sub-pickers hide them)
+    for (const obj of lootGroup) obj.setVisible(true);
+
+    // Update instruction text
+    if (this._lootInstruction) {
+      this._lootInstruction.setText('Choose 1 more reward');
     }
   }
 
