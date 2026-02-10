@@ -3968,7 +3968,7 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
 
-          if (choice.type === 'scroll') {
+          if (item.type === 'Scroll') {
             // Path 1: Scrolls go directly to team pool (like accessories)
             if (!this.runManager.scrolls) this.runManager.scrolls = [];
             this.runManager.scrolls.push({ ...item });
@@ -4103,8 +4103,10 @@ export class BattleScene extends Phaser.Scene {
     pickerGroup.push(subtitle);
 
     const btnW = 240;
-    const btnH = 36;
-    const startY = 110;
+    const topY = 110;
+    const bottomY = cam.height - 70;
+    const rowGap = Math.max(26, Math.min(42, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const btnH = Math.max(22, rowGap - 8);
     let validCount = 0;
 
     for (let i = 0; i < roster.length; i++) {
@@ -4112,7 +4114,7 @@ export class BattleScene extends Phaser.Scene {
       const forgeableCount = unit.inventory.filter(w =>
         whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
       ).length;
-      const by = startY + i * (btnH + 6);
+      const by = topY + i * rowGap;
 
       if (forgeableCount === 0) {
         const label = this.add.text(cam.centerX, by, `${unit.name}  (no forgeable weapons)`, {
@@ -4139,14 +4141,14 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (validCount === 0) {
-      const noWeapons = this.add.text(cam.centerX, startY + roster.length * (btnH + 6) + 10, 'No forgeable weapons in roster!', {
+      const noWeapons = this.add.text(cam.centerX, cam.centerY + 10, 'No forgeable weapons in roster!', {
         fontFamily: 'monospace', fontSize: '12px', color: '#ff8888',
       }).setOrigin(0.5).setDepth(711);
       pickerGroup.push(noWeapons);
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + roster.length * (btnH + 6) + 40, '< Back', {
+    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
@@ -4175,25 +4177,27 @@ export class BattleScene extends Phaser.Scene {
     const forgeableWeapons = unit.inventory.filter(w =>
       whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
     );
-    const btnH = 40;
-    const startY = 110;
+    const topY = 110;
+    const bottomY = cam.height - 70;
+    const rowGap = Math.max(30, Math.min(48, Math.floor((bottomY - topY) / Math.max(forgeableWeapons.length, 1))));
+    const btnH = Math.max(24, rowGap - 8);
 
     for (let i = 0; i < forgeableWeapons.length; i++) {
       const wpn = forgeableWeapons[i];
       const level = wpn._forgeLevel || 0;
-      const by = startY + i * (btnH + 8);
+      const by = topY + i * rowGap;
       const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
 
       const btn = this.add.rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
         .setStrokeStyle(1, 0xff8844).setDepth(711).setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - 6, wpn.name, {
+      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
         fontFamily: 'monospace', fontSize: '12px', color: wpnColor,
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const detail = this.add.text(cam.centerX, by + 10, `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`, {
+      const detail = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`, {
         fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(detail);
@@ -4214,7 +4218,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + forgeableWeapons.length * (btnH + 8) + 20, '< Back', {
+    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
@@ -4311,15 +4315,17 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const btnH = 50;
-    const startY = 150;
+    const topY = 130;
+    const bottomY = cam.height - 70;
+    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const invCount = unit.inventory ? unit.inventory.length : 0;
       const full = invCount >= INVENTORY_MAX;
       const noProf = !hasProficiency(unit, item);
-      const by = startY + i * (btnH + 12);
+      const by = topY + i * rowGap;
 
       const btnColor = full ? 0x444444 : (noProf ? 0x554433 : 0x335566);
       const borderColor = full ? 0x666666 : (noProf ? 0xcc8844 : 0x66aacc);
@@ -4329,13 +4335,13 @@ export class BattleScene extends Phaser.Scene {
       pickerGroup.push(btn);
 
       const nameColor = full ? '#666666' : (noProf ? '#cc8844' : '#ffffff');
-      const label = this.add.text(cam.centerX, by - 8, unit.name + (noProf ? '  (no prof)' : ''), {
+      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + (noProf ? '  (no prof)' : ''), {
         fontFamily: 'monospace', fontSize: '13px', color: nameColor,
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
       const statusText = full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`;
-      const invLabel = this.add.text(cam.centerX, by + 10, statusText, {
+      const invLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
         fontFamily: 'monospace', fontSize: '9px', color: full ? '#aa4444' : '#aaaaaa',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(invLabel);
@@ -4350,7 +4356,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + roster.length * (btnH + 12) + 20, '< Back', {
+    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
@@ -4381,24 +4387,26 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const btnH = 50;
-    const startY = 150;
+    const topY = 130;
+    const bottomY = cam.height - 70;
+    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const currentVal = unit.stats[item.stat] || 0;
-      const by = startY + i * (btnH + 12);
+      const by = topY + i * rowGap;
 
       const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
         .setStrokeStyle(2, 0x66aacc).setDepth(711).setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - 8, unit.name, {
+      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
         fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const statLabel = this.add.text(cam.centerX, by + 10, `${item.stat}: ${currentVal} â†’ ${currentVal + item.value}`, {
+      const statLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `${item.stat}: ${currentVal} â†’ ${currentVal + item.value}`, {
         fontFamily: 'monospace', fontSize: '9px', color: '#88ff88',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(statLabel);
@@ -4413,7 +4421,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + roster.length * (btnH + 12) + 20, '< Back', {
+    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
@@ -4443,26 +4451,28 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const btnH = 50;
-    const startY = 150;
+    const topY = 130;
+    const bottomY = cam.height - 70;
+    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const consumableCount = unit.consumables ? unit.consumables.length : 0;
       const full = consumableCount >= CONSUMABLE_MAX;
-      const by = startY + i * (btnH + 12);
+      const by = topY + i * rowGap;
 
       const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
         .setStrokeStyle(2, full ? 0x666666 : 0x66aacc).setDepth(711);
       if (!full) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - 8, unit.name, {
+      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
         fontFamily: 'monospace', fontSize: '13px', color: full ? '#666666' : '#ffffff',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const invLabel = this.add.text(cam.centerX, by + 10, full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`, {
+      const invLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`, {
         fontFamily: 'monospace', fontSize: '9px', color: full ? '#aa4444' : '#aaaaaa',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(invLabel);
@@ -4479,7 +4489,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + roster.length * (btnH + 12) + 20, '< Back', {
+    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
@@ -4624,4 +4634,5 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 }
+
 
