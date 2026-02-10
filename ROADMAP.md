@@ -1,8 +1,8 @@
-# Rogue Emblem — Roadmap
+# Rogue Emblem - Roadmap
 
 ## Current State
 
-Phases 1-9 complete. 720 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings Phase 2 plumbing is staged on `agent/wave6-blessings`. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 720 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core contract/plumbing is now present on `main` (data + loader + run-state + deterministic selection/tests), with balancing/UI breadth still being finalized across parallel agent branches. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -16,7 +16,7 @@ Organized by impact and logical sequencing:
 5. ~~**Playtest Fixes (Feb 2026)**~~ - Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
 
 ### Now (Current Sprint)
-6. **Wave 6 Blessings (Phase 2 Plumbing + PR Review)** - Contract-frozen schema, run-state migration, deterministic selection hook, telemetry, and test gates
+6. **Wave 6 Blessings (Stabilization + Integration)** - Merge/verify parallel agent slices, keep contract invariants locked, and close remaining UI/balance/test hardening
 
 ### Next (1-3 Months)
 7. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
@@ -40,51 +40,62 @@ Organized by impact and logical sequencing:
 
 ---
 
+## Parallel Workstreams (Feb 10, 2026)
+
+Work is intentionally split across parallel agents. Roadmap source of truth remains this file plus merged code on `main`.
+
+1. **Blessings stabilization stream** - Validate contract behavior end-to-end (selection, persistence, telemetry, deterministic application order), then land follow-up balancing and UX polish.
+2. **Harness/regression stream** - Keep deterministic harness and replay compatibility stable while blessings and map/difficulty-adjacent changes merge.
+3. **Wave 8 prep stream** - Keep difficulty foundation spec/docs implementation-ready; do not couple Part A rollout to unfinished content waves.
+4. **Integration cadence** - Small PRs, frequent rebase on `main`, no cross-stream contract breaks (harness/Wave 2 surfaces treated as external).
+
+---
+
 ## Implementation Waves
 
 ### Completed Waves (Summary)
-- **Wave 2A-C** (Accessories, Weapons, Forging) — Complete. 18 accessories, 52 weapons, forge system with shop tab + loot whetstones
-- **Wave 2D** (Stat Boosters) — Complete. 7 stat boosters in consumables.json, loot-only (not in shops)
-- **Wave 2 (Map Generation Enhancements 2A-2E)** — Complete. Terrain-aware enemy placement, template affinity, boss throne AI/guards, recruit visibility safety, and template-driven fog
-- **Wave 4A** (On-Defend Skills, New Skills) — Complete. 21 skills, 6 trigger types, 9 class innate skills, 8 scrolls
-- **Wave 6A** (Home Base UI) — Complete. 6-tab UI, 41 upgrades, starting equipment/skills meta tabs
-- **Wave 7A-B** (Inspection Panel, Danger Zone) — Complete
-- **Wave 1** (Battle Actions) — Complete. Trade, Swap, Dance + Canto + Shove/Pull implemented
-- **Wave 1.5** (Turn Bonus) — Complete. Par calculation, S/A/B/C rating, bonus gold on loot screen
-- **Boss Recruit Event** — Complete. 3 recruit candidates after act boss, lord chance, 29 tests
-- **Tutorial Hints** — Complete. 12 contextual hints, HintManager + HintDisplay
-- **Loot Rebalance + Stat Boosters** — Complete. Act 1/2 pool restructuring, 7 stat boosters
-- **Meta Rework Phase A** — Complete. Repricing, prerequisites, milestones
-- **Wave P0** (Playtest Bugfixes) — Complete. Canto+Wait, stale tooltip, enemy range, recruit node freeze
-- **Wave 0** (Balance + Anti-Juggernaut) — Complete. Sunder weapons, XP scaling, enemy skills, shop frequency, promoted recruits, guaranteed shop consumables
-- **Wave P1** (UI Polish) — Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
-- **Church Upgrades** — Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
-- **Playtest Fixes (Feb 2026)** — Complete. FE GBA-style combat forecast with weapon cycling, weapon reference integrity after JSON round-trips (relinkWeapon), proficiency enforcement across all equip/heal/relink paths, music overlap singleton boot guard, quadratic volume curve, HP persistence hint, recruit spawn bias toward players
+- **Wave 2A-C** (Accessories, Weapons, Forging) - Complete. 18 accessories, 52 weapons, forge system with shop tab + loot whetstones
+- **Wave 2D** (Stat Boosters) - Complete. 7 stat boosters in consumables.json, loot-only (not in shops)
+- **Wave 2 (Map Generation Enhancements 2A-2E)** - Complete. Terrain-aware enemy placement, template affinity, boss throne AI/guards, recruit visibility safety, and template-driven fog
+- **Wave 4A** (On-Defend Skills, New Skills) - Complete. 21 skills, 6 trigger types, 9 class innate skills, 8 scrolls
+- **Wave 6A** (Home Base UI) - Complete. 6-tab UI, 41 upgrades, starting equipment/skills meta tabs
+- **Wave 7A-B** (Inspection Panel, Danger Zone) - Complete
+- **Wave 1** (Battle Actions) - Complete. Trade, Swap, Dance + Canto + Shove/Pull implemented
+- **Wave 1.5** (Turn Bonus) - Complete. Par calculation, S/A/B/C rating, bonus gold on loot screen
+- **Boss Recruit Event** - Complete. 3 recruit candidates after act boss, lord chance, 29 tests
+- **Tutorial Hints** - Complete. 12 contextual hints, HintManager + HintDisplay
+- **Loot Rebalance + Stat Boosters** - Complete. Act 1/2 pool restructuring, 7 stat boosters
+- **Meta Rework Phase A** - Complete. Repricing, prerequisites, milestones
+- **Wave P0** (Playtest Bugfixes) - Complete. Canto+Wait, stale tooltip, enemy range, recruit node freeze
+- **Wave 0** (Balance + Anti-Juggernaut) - Complete. Sunder weapons, XP scaling, enemy skills, shop frequency, promoted recruits, guaranteed shop consumables
+- **Wave P1** (UI Polish) - Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
+- **Church Upgrades** - Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
+- **Playtest Fixes (Feb 2026)** - Complete. FE GBA-style combat forecast with weapon cycling, weapon reference integrity after JSON round-trips (relinkWeapon), proficiency enforcement across all equip/heal/relink paths, music overlap singleton boot guard, quadratic volume curve, HP persistence hint, recruit spawn bias toward players
 
 ---
 
 ## NOW: Wave 6 Blessings
 
-Wave 6 is implemented in branch `agent/wave6-blessings` and pending final PR merge.
+Wave 6 core pieces are already present on `main` and are being stabilized through parallel branch work.
 
 1. Contract docs are frozen in `docs/blessings_contract.md`.
-2. Phase 2 plumbing is staged in loader, run manager, blessing engine, and focused tests.
+2. Loader/run-state/blessing selection plumbing exists and must remain contract-compliant.
 3. Scope boundaries with harness and Wave 2 are documented in `docs/wave6_full_auto_kickoff.md`.
 4. Merge gate remains blessing-targeted tests plus full-suite validation after rebase on `main`.
-5. Future blessing breadth (additional effects and balancing passes) is tracked as follow-up work after merge.
+5. Remaining work is integration hardening (UI surfacing, balance iteration, telemetry/replay confidence).
 
 ---
 
 ## LATER: Objectives & Content Expansion
 ### Wave 7: Additional Map Objectives
-**Priority:** Medium — Adds battle variety
+**Priority:** Medium - Adds battle variety
 **Effort:** 2 weeks
 
-- [ ] `objective: 'defend'` — protect tile for N turns, reinforcements every 2-3 turns, turn counter UI
-- [ ] `objective: 'survive'` — endure N turns, heavier reinforcement waves, kill-scaled rewards
-- [ ] `objective: 'escape'` — move all units to exit tiles, Lord escapes last
+- [ ] `objective: 'defend'` - protect tile for N turns, reinforcements every 2-3 turns, turn counter UI
+- [ ] `objective: 'survive'` - endure N turns, heavier reinforcement waves, kill-scaled rewards
+- [ ] `objective: 'escape'` - move all units to exit tiles, Lord escapes last
 - [ ] 1-2 map templates per new objective type in mapTemplates.json
-- [ ] Bonus objectives: under-par turns or no losses → extra gold/XP
+- [ ] Bonus objectives: under-par turns or no losses -> extra gold/XP
 
 **Success Criteria:**
 - [ ] ~30% of battles use non-Rout/Seize objectives
@@ -123,33 +134,33 @@ Wave 6 is implemented in branch `agent/wave6-blessings` and pending final PR mer
 ---
 
 ### Wave 10: Meta-Progression Expansion
-**Priority:** Medium — Full GDD §9.2 vision
+**Priority:** Medium - Full GDD section9.2 vision
 **Effort:** 2-3 weeks
 
 - [ ] Home Base scrolling support if upgrades overflow tab area
 - [ ] Current effects summary at top of each tab
-- [ ] Lord Weapon Proficiency — unlock second weapon type (300-500 Supply)
-- [ ] Lord Weapon Mastery — upgrade primary to Mastery pre-promotion (400 Valor)
+- [ ] Lord Weapon Proficiency - unlock second weapon type (300-500 Supply)
+- [ ] Lord Weapon Mastery - upgrade primary to Mastery pre-promotion (400 Valor)
 - [ ] Base Class Innate Skill unlocks (10 upgrades, 150-250 Supply each)
 - [ ] Promoted Class Innate Skill unlocks (10 upgrades, 200-350 Supply each)
-- [ ] Equipped Skill Slots — increase max from 2→3→4 (400→600 Valor)
-- [ ] Better Shop Inventory — higher tier items 1 act earlier (2 tiers, 200→400 Supply)
-- [ ] Extra Node Events — +1 RECRUIT guaranteed per act (350 Supply)
-- [ ] NPC Warriors — recruit battle NPCs gain +2 all stats (200 Supply)
+- [ ] Equipped Skill Slots - increase max from 2->3->4 (400->600 Valor)
+- [ ] Better Shop Inventory - higher tier items 1 act earlier (2 tiers, 200->400 Supply)
+- [ ] Extra Node Events - +1 RECRUIT guaranteed per act (350 Supply)
+- [ ] NPC Warriors - recruit battle NPCs gain +2 all stats (200 Supply)
 - [ ] Special Characters: `data/specialChars.json` (3-5 named units with fixed growths, personal skills, unlock via meta)
 - [ ] Tests for new upgrade types, special character creation, equip slot meta
 
 ---
 
 ### Wave 11: QoL & Polish (Ongoing)
-**Priority:** Low-Medium — Nice-to-haves
+**Priority:** Low-Medium - Nice-to-haves
 **Effort:** 1-2 days each
 
-- [ ] Undo Movement — store pre-move position, cancel returns unit if no action taken
-- [ ] Battle Log — scrollable log of combat results, level-ups, skill activations, defeats
-- [ ] Battle Speed Controls — fast mode toggle (2x animations), persist via SettingsManager
-- [ ] Auto-End Turn — button to skip remaining units (all units have acted or can't act)
-- [ ] Keybind customization — rebind ESC, D, R, etc. via SettingsOverlay
+- [ ] Undo Movement - store pre-move position, cancel returns unit if no action taken
+- [ ] Battle Log - scrollable log of combat results, level-ups, skill activations, defeats
+- [ ] Battle Speed Controls - fast mode toggle (2x animations), persist via SettingsManager
+- [ ] Auto-End Turn - button to skip remaining units (all units have acted or can't act)
+- [ ] Keybind customization - rebind ESC, D, R, etc. via SettingsOverlay
 
 ---
 
@@ -177,17 +188,17 @@ Wave 6 is implemented in branch `agent/wave6-blessings` and pending final PR mer
 
 ## Long-Term Vision (6-12+ Months)
 
-- **Full Battle Animations** — Side-view combat animations (64x64 or 96x96) for each class. Combat resolution already decoupled from animation
-- **Additional Biomes** — Castle/fortress, cave/dungeon, forest, volcanic, tundra biomes beyond grassland. Map generator takes biome parameter
-- **Narrative & Dialogue** — Brief dialogue at rest/recruitment/boss events. Simple text box with speaker portrait, no VN engine
-- **Difficulty Modes** — Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
-- **Story Scaffold** — Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`
-- **Campaign System** — Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
-- **Additional Lords** — Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
-- **Special Characters** — Named units with fixed growths and personal skills, unlocked via meta-progression
-- **Monetization** — If commercial: cosmetic palette swaps, campaign DLC. Never sell gameplay advantages
-- **Mobile Web Support** — Responsive scaling (ENVELOP mode or 960×640), touch controls (floating buttons, long-press), orientation lock
-- **iOS Port** — Capacitor wrapper after mobile web support stable (6-week effort, see `docs/ios-port-spec.md`)
+- **Full Battle Animations** - Side-view combat animations (64x64 or 96x96) for each class. Combat resolution already decoupled from animation
+- **Additional Biomes** - Castle/fortress, cave/dungeon, forest, volcanic, tundra biomes beyond grassland. Map generator takes biome parameter
+- **Narrative & Dialogue** - Brief dialogue at rest/recruitment/boss events. Simple text box with speaker portrait, no VN engine
+- **Difficulty Modes** - Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
+- **Story Scaffold** - Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`
+- **Campaign System** - Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
+- **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
+- **Special Characters** - Named units with fixed growths and personal skills, unlocked via meta-progression
+- **Monetization** - If commercial: cosmetic palette swaps, campaign DLC. Never sell gameplay advantages
+- **Mobile Web Support** - Responsive scaling (ENVELOP mode or 960x640), touch controls (floating buttons, long-press), orientation lock
+- **iOS Port** - Capacitor wrapper after mobile web support stable (6-week effort, see `docs/ios-port-spec.md`)
 
 ---
 
@@ -209,10 +220,10 @@ Wave 6 is implemented in branch `agent/wave6-blessings` and pending final PR mer
 
 ## Next Actions
 
-1. ~~**Waves P0/P1/Wave 0** (Bugfixes, UI Polish, Balance)~~ ✅ Done
-2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ ✅ Done
-3. ~~**Wave 2** (Map Generation Enhancements)~~ ✅ Done
-4. **Wave 6** (Blessings) — **Current in PR branch `agent/wave6-blessings`**
+1. ~~**Waves P0/P1/Wave 0** (Bugfixes, UI Polish, Balance)~~ [done] Done
+2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ [done] Done
+3. ~~**Wave 2** (Map Generation Enhancements)~~ [done] Done
+4. **Wave 6** (Blessings) - **Core merged on `main`; stabilization and follow-up slices in parallel branches**
 5. **Wave 3** (Elite/Miniboss Nodes) -> **Wave 8** (Difficulty Foundation) -> **Wave 4** (Dynamic Recruits) -> **Wave 5** (Skills)
 6. **Playtest** after Wave 6 merge
 7. **Later:** Wave 7 (Objectives) -> Wave 9 (Terrain Hazards) -> Status Staves/Act 4 content -> Secret Act/Narrative -> Meta Expansion
@@ -220,5 +231,3 @@ Wave 6 is implemented in branch `agent/wave6-blessings` and pending final PR mer
 ## Deployment
 
 Auto-deploys via Netlify GitHub integration. Pushing to `main` triggers build + publish automatically. No manual `netlify deploy` needed.
-
-
