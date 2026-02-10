@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateBattle } from '../src/engine/MapGenerator.js';
-import { DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
+import { generateBattle, scoreSpawnTile } from '../src/engine/MapGenerator.js';
+import { TERRAIN, DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -407,5 +407,274 @@ describe('enemy sunder weapon assignment', () => {
         expect(boss.sunderWeapon).toBeFalsy();
       }
     }
+  });
+});
+
+describe('terrain-aware enemy placement', () => {
+  // Helper: build a small map layout from terrain names
+  function makeMap(grid) {
+    return grid.map(row =>
+      row.map(name => data.terrain.findIndex(t => t.name === name))
+    );
+  }
+
+  describe('scoreSpawnTile direct tests', () => {
+    it('returns 0 for impassable terrain (Cavalry on Mountain)', () => {
+      const map = makeMap([['Mountain']]);
+      const score = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Cavalier' },
+        data.terrain, map, 1, data.classes
+      );
+      expect(score).toBe(0);
+    });
+
+    it('returns 0 for Wall tiles (all moveTypes)', () => {
+      const map = makeMap([['Wall']]);
+      for (const cls of ['Myrmidon', 'Knight', 'Cavalier', 'Pegasus Knight']) {
+        const score = scoreSpawnTile(
+          { col: 0, row: 0 },
+          { className: cls },
+          data.terrain, map, 1, data.classes
+        );
+        expect(score).toBe(0);
+      }
+    });
+
+    it('Infantry on Forest scores higher than Infantry on Plain', () => {
+      const map = makeMap([['Forest', 'Plain']]);
+      const forestScore = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Myrmidon' },
+        data.terrain, map, 2, data.classes
+      );
+      const plainScore = scoreSpawnTile(
+        { col: 1, row: 0 },
+        { className: 'Myrmidon' },
+        data.terrain, map, 2, data.classes
+      );
+      expect(forestScore).toBeGreaterThan(plainScore);
+    });
+
+    it('Cavalry on Plain scores higher than Cavalry on Forest', () => {
+      const map = makeMap([['Plain', 'Forest']]);
+      const plainScore = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Cavalier' },
+        data.terrain, map, 2, data.classes
+      );
+      const forestScore = scoreSpawnTile(
+        { col: 1, row: 0 },
+        { className: 'Cavalier' },
+        data.terrain, map, 2, data.classes
+      );
+      expect(plainScore).toBeGreaterThan(forestScore);
+    });
+
+    it('Fort tile gives +3 bonus to all unit types', () => {
+      const map = makeMap([['Fort', 'Plain']]);
+      const fortScore = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Myrmidon' },
+        data.terrain, map, 2, data.classes
+      );
+      const plainScore = scoreSpawnTile(
+        { col: 1, row: 0 },
+        { className: 'Myrmidon' },
+        data.terrain, map, 2, data.classes
+      );
+      expect(fortScore).toBe(plainScore + 3);
+    });
+
+    it('adjacent Wall adds +1 per wall neighbor', () => {
+      const map = makeMap([['Wall', 'Plain', 'Wall']]);
+      const score = scoreSpawnTile(
+        { col: 1, row: 0 },
+        { className: 'Myrmidon' },
+        data.terrain, map, 3, data.classes
+      );
+      // base 1 + 2 adjacent walls = 3
+      expect(score).toBe(3);
+    });
+
+    it('passable tiles always have minimum score of 1', () => {
+      // Cavalry on Forest: base 1 - 2 = -1, but floored to 1
+      const map = makeMap([['Forest']]);
+      const score = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Cavalier' },
+        data.terrain, map, 1, data.classes
+      );
+      expect(score).toBeGreaterThanOrEqual(1);
+    });
+
+    it('Armored on Forest gets +2 bonus same as Infantry', () => {
+      const map = makeMap([['Forest']]);
+      const score = scoreSpawnTile(
+        { col: 0, row: 0 },
+        { className: 'Knight' },
+        data.terrain, map, 1, data.classes
+      );
+      // base 1 + 2 (forest affinity) = 3
+      expect(score).toBe(3);
+    });
+  });
+
+  describe('placement passability enforcement', () => {
+    it('enemy spawns respect unit moveType passability', () => {
+      for (let i = 0; i < 50; i++) {
+        const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          const terrainIdx = config.mapLayout[spawn.row][spawn.col];
+          const t = data.terrain[terrainIdx];
+          const cd = data.classes.find(c => c.name === spawn.className);
+          const moveType = cd?.moveType || 'Infantry';
+          const cost = t.moveCost[moveType];
+          expect(cost, `${spawn.className} (${moveType}) on ${t.name} at (${spawn.col},${spawn.row})`).not.toBe('--');
+        }
+      }
+    });
+
+    it('Cavalry never placed on Mountain', () => {
+      let cavalryFound = false;
+      for (let i = 0; i < 100; i++) {
+        const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          const cd = data.classes.find(c => c.name === spawn.className);
+          if (cd?.moveType !== 'Cavalry') continue;
+          cavalryFound = true;
+          const terrainIdx = config.mapLayout[spawn.row][spawn.col];
+          const tName = data.terrain[terrainIdx]?.name;
+          expect(tName, `Cavalry ${spawn.className} on Mountain at (${spawn.col},${spawn.row})`).not.toBe('Mountain');
+        }
+      }
+      // Sanity: ensure we actually checked some cavalry units
+      expect(cavalryFound).toBe(true);
+    });
+  });
+
+  describe('statistical terrain affinity', () => {
+    it('over 100 seeds, infantry units prefer forest/mountain (>5% on mixed maps)', () => {
+      let infantryOnForestMtn = 0;
+      let totalInfantry = 0;
+
+      for (let i = 0; i < 100; i++) {
+        const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
+        for (const spawn of config.enemySpawns) {
+          if (spawn.isBoss) continue;
+          const cd = data.classes.find(c => c.name === spawn.className);
+          if (cd?.moveType !== 'Infantry') continue;
+          totalInfantry++;
+          const terrainIdx = config.mapLayout[spawn.row][spawn.col];
+          const tName = data.terrain[terrainIdx]?.name;
+          if (tName === 'Forest' || tName === 'Mountain') {
+            infantryOnForestMtn++;
+          }
+        }
+      }
+
+      // With weighted placement, infantry should show some preference for forest/mountain
+      if (totalInfantry > 0) {
+        const ratio = infantryOnForestMtn / totalInfantry;
+        expect(ratio).toBeGreaterThan(0.05);
+      }
+    });
+  });
+
+  describe('seeded deterministic replay', () => {
+    function mulberry32(seed) {
+      return function () {
+        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    it('rout scenario: same seed produces identical enemy placement', () => {
+      const origRandom = Math.random;
+
+      Math.random = mulberry32(42);
+      const config1 = generateBattle({ act: 'act1', objective: 'rout' }, data);
+
+      Math.random = mulberry32(42);
+      const config2 = generateBattle({ act: 'act1', objective: 'rout' }, data);
+
+      Math.random = origRandom;
+
+      expect(config1.enemySpawns.length).toBe(config2.enemySpawns.length);
+      for (let i = 0; i < config1.enemySpawns.length; i++) {
+        expect(config1.enemySpawns[i].col).toBe(config2.enemySpawns[i].col);
+        expect(config1.enemySpawns[i].row).toBe(config2.enemySpawns[i].row);
+        expect(config1.enemySpawns[i].className).toBe(config2.enemySpawns[i].className);
+        expect(config1.enemySpawns[i].level).toBe(config2.enemySpawns[i].level);
+      }
+    });
+
+    it('seize scenario: same seed produces identical boss + enemy placement', () => {
+      const origRandom = Math.random;
+
+      Math.random = mulberry32(99);
+      const config1 = generateBattle({ act: 'act1', objective: 'seize' }, data);
+
+      Math.random = mulberry32(99);
+      const config2 = generateBattle({ act: 'act1', objective: 'seize' }, data);
+
+      Math.random = origRandom;
+
+      expect(config1.thronePos).toEqual(config2.thronePos);
+      expect(config1.enemySpawns.length).toBe(config2.enemySpawns.length);
+      for (let i = 0; i < config1.enemySpawns.length; i++) {
+        expect(config1.enemySpawns[i]).toEqual(config2.enemySpawns[i]);
+      }
+    });
+  });
+
+  describe('boss placement unaffected', () => {
+    it('seize boss is still on throne tile', () => {
+      for (let i = 0; i < 10; i++) {
+        const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
+        const boss = config.enemySpawns.find(e => e.isBoss);
+        expect(boss).toBeDefined();
+        expect(boss.col).toBe(config.thronePos.col);
+        expect(boss.row).toBe(config.thronePos.row);
+      }
+    });
+  });
+});
+
+describe('pre-assigned templateId', () => {
+  it('generateBattle uses pre-assigned templateId when provided', () => {
+    for (let i = 0; i < 20; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'rout', templateId: 'forest_ambush' }, data);
+      expect(config.templateId).toBe('forest_ambush');
+    }
+  });
+
+  it('generateBattle uses pre-assigned seize templateId', () => {
+    for (let i = 0; i < 20; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'seize', templateId: 'castle_assault' }, data);
+      expect(config.templateId).toBe('castle_assault');
+    }
+  });
+
+  it('generateBattle falls back to random template for invalid templateId', () => {
+    const config = generateBattle({ act: 'act1', objective: 'rout', templateId: 'nonexistent_template' }, data);
+    expect(config.templateId).toBeTruthy();
+    // Should fall back to a valid rout template
+    const routIds = data.mapTemplates.rout.map(t => t.id);
+    expect(routIds).toContain(config.templateId);
+  });
+
+  it('generateBattle picks random template when no templateId provided', () => {
+    const ids = new Set();
+    for (let i = 0; i < 50; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
+      ids.add(config.templateId);
+    }
+    // Should see multiple different templates
+    expect(ids.size).toBeGreaterThan(1);
   });
 });

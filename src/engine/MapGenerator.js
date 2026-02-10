@@ -237,6 +237,202 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
   return spawns;
 }
 
+// --- Terrain-aware spawn scoring ---
+
+// Set to true to log spawn scoring details to console
+const DEBUG_MAP_GEN = false;
+
+/**
+ * Score a candidate tile for enemy spawn placement based on terrain affinity.
+ * Returns 0 for impassable tiles (never spawn), >= 1 for valid tiles.
+ */
+function scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classData) {
+  const terrainIdx = mapLayout[tile.row][tile.col];
+  const t = terrainData[terrainIdx];
+  if (!t) return 0;
+
+  const cd = classData?.find(c => c.name === unit.className);
+  const moveType = cd?.moveType || 'Infantry';
+
+  // Passability check
+  const cost = t.moveCost[moveType];
+  if (cost === '--' || isNaN(parseInt(cost))) return 0;
+
+  let score = 1; // base score
+
+  const name = t.name;
+
+  // Fort/Throne: all units like defensive tiles
+  if (name === 'Fort' || name === 'Throne') {
+    score += 3;
+  }
+
+  // Forest/Mountain affinity
+  if (name === 'Forest' || name === 'Mountain') {
+    if (moveType === 'Infantry' || moveType === 'Armored') {
+      score += 2;
+    } else if (moveType === 'Cavalry') {
+      score -= 2;
+    }
+  }
+
+  // Plain bonus for Cavalry
+  if (name === 'Plain' && moveType === 'Cavalry') {
+    score += 1;
+  }
+
+  // Adjacent wall bonus (defensive positioning near chokepoints)
+  const mapRows = mapLayout.length;
+  const adj = [
+    { col: tile.col - 1, row: tile.row },
+    { col: tile.col + 1, row: tile.row },
+    { col: tile.col, row: tile.row - 1 },
+    { col: tile.col, row: tile.row + 1 },
+  ];
+  for (const n of adj) {
+    if (n.col >= 0 && n.col < cols && n.row >= 0 && n.row < mapRows) {
+      if (mapLayout[n.row][n.col] === TERRAIN.Wall) {
+        score += 1;
+      }
+    }
+  }
+
+  // Floor at 1 for passable tiles
+  return Math.max(1, score);
+}
+
+/**
+ * Weighted random selection from an array of { item, weight } entries.
+ * Consumes one Math.random() call.
+ */
+function weightedPick(entries) {
+  const total = entries.reduce((sum, e) => sum + e.weight, 0);
+  let roll = Math.random() * total;
+  for (const e of entries) {
+    roll -= e.weight;
+    if (roll <= 0) return e.item;
+  }
+  return entries[entries.length - 1].item;
+}
+
+// --- Anchor point resolution ---
+
+/**
+ * Resolve anchor position names to tile coordinates.
+ * Returns array of { col, row } for each anchor, or empty array if unresolvable.
+ */
+function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thronePos) {
+  const tiles = [];
+  const count = anchor.count || 1;
+
+  switch (anchor.position) {
+    case 'throne':
+      if (thronePos) tiles.push({ col: thronePos.col, row: thronePos.row });
+      break;
+
+    case 'center_gap': {
+      // Find passable tiles in the center gap of the map (middle Y band, middle X)
+      const midRow = Math.floor(rows / 2);
+      const midCol = Math.floor(cols / 2);
+      // Search outward from center for passable tiles
+      for (let dr = 0; dr <= 2 && tiles.length < count; dr++) {
+        for (let dc = 0; dc <= 2 && tiles.length < count; dc++) {
+          for (const [sr, sc] of [[midRow + dr, midCol + dc], [midRow - dr, midCol - dc], [midRow + dr, midCol - dc], [midRow - dr, midCol + dc]]) {
+            if (sr >= 0 && sr < rows && sc >= 0 && sc < cols && tiles.length < count) {
+              if (isPassable(terrainData, mapLayout[sr][sc], 'Infantry')) {
+                if (!tiles.some(t => t.col === sc && t.row === sr)) {
+                  tiles.push({ col: sc, row: sr });
+                }
+              }
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    case 'bridge_ends': {
+      // Find tiles adjacent to bridges (on the enemy side)
+      for (let r = 0; r < rows && tiles.length < count; r++) {
+        for (let c = 0; c < cols && tiles.length < count; c++) {
+          if (mapLayout[r][c] === TERRAIN.Bridge) {
+            // Check right-side neighbor (enemy side)
+            const nc = c + 1;
+            if (nc < cols && isPassable(terrainData, mapLayout[r][nc], 'Infantry') && mapLayout[r][nc] !== TERRAIN.Water) {
+              if (!tiles.some(t => t.col === nc && t.row === r)) {
+                tiles.push({ col: nc, row: r });
+              }
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    case 'gate_adjacent': {
+      // Find passable tiles adjacent to wall formations (gate = gap in walls)
+      const midRow = Math.floor(rows / 2);
+      // Search near the castle area (right side) for passable tiles adjacent to walls
+      for (let r = Math.max(0, midRow - 3); r <= Math.min(rows - 1, midRow + 3) && tiles.length < count; r++) {
+        for (let c = Math.floor(cols * 0.5); c < cols && tiles.length < count; c++) {
+          if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
+          // Check if adjacent to a wall
+          const adj = [
+            { col: c - 1, row: r }, { col: c + 1, row: r },
+            { col: c, row: r - 1 }, { col: c, row: r + 1 },
+          ];
+          const nearWall = adj.some(n =>
+            n.col >= 0 && n.col < cols && n.row >= 0 && n.row < rows &&
+            mapLayout[n.row][n.col] === TERRAIN.Wall
+          );
+          if (nearWall) {
+            tiles.push({ col: c, row: r });
+          }
+        }
+      }
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return tiles.slice(0, count);
+}
+
+/**
+ * Select a class name for an anchor enemy based on anchor.unit spec.
+ */
+function resolveAnchorUnitClass(anchor, pool, spawns) {
+  switch (anchor.unit) {
+    case 'highest_level':
+      // Will be placed with max level from pool
+      return null; // use pool default, level handled separately
+    case 'boss_or_strongest':
+      return null; // boss already placed by seize logic; skip
+    case 'lance_user': {
+      // Find a lance-using class from pool
+      const lanceClasses = [...pool.base, ...pool.promoted].filter(c =>
+        c === 'Cavalier' || c === 'Knight' || c === 'Soldier' ||
+        c === 'Paladin' || c === 'General' || c === 'Pegasus Knight' || c === 'Falcon Knight'
+      );
+      return lanceClasses.length > 0
+        ? lanceClasses[Math.floor(Math.random() * lanceClasses.length)]
+        : pool.base[Math.floor(Math.random() * pool.base.length)];
+    }
+    case 'knight': {
+      const knightClasses = [...pool.base, ...pool.promoted].filter(c =>
+        c === 'Knight' || c === 'General'
+      );
+      return knightClasses.length > 0
+        ? knightClasses[Math.floor(Math.random() * knightClasses.length)]
+        : pool.base[Math.floor(Math.random() * pool.base.length)];
+    }
+    default:
+      return pool.base[Math.floor(Math.random() * pool.base.length)];
+  }
+}
+
 // --- Enemy generation ---
 
 function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, count, objective, act, bossData, thronePos, levelRangeOverride, classes) {
@@ -261,6 +457,40 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     }
   }
 
+  // Place anchored enemies (if template has anchors)
+  const [minLvlAnchor, maxLvlAnchor] = levelRangeOverride || pool.levelRange;
+  if (template.anchors && template.anchors.length > 0) {
+    for (const anchor of template.anchors) {
+      // Skip throne anchors — boss already placed by seize logic
+      if (anchor.unit === 'boss_or_strongest') continue;
+
+      const anchorTiles = resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thronePos);
+      const className = resolveAnchorUnitClass(anchor, pool, spawns);
+      if (!className || anchorTiles.length === 0) continue;
+
+      for (const tile of anchorTiles) {
+        const key = `${tile.col},${tile.row}`;
+        if (usedPositions.has(key)) continue;
+        if (spawns.length >= count) break;
+
+        usedPositions.add(key);
+        const level = anchor.unit === 'highest_level'
+          ? maxLvlAnchor
+          : minLvlAnchor + Math.floor(Math.random() * (maxLvlAnchor - minLvlAnchor + 1));
+
+        spawns.push({
+          className,
+          level,
+          col: tile.col,
+          row: tile.row,
+          isBoss: false,
+        });
+
+        if (DEBUG_MAP_GEN) console.log(`[MapGen] Anchor placed: ${className} at (${tile.col},${tile.row}) for ${anchor.position}`);
+      }
+    }
+  }
+
   // Get enemy spawn zone positions
   const enemyZone = template.zones.find(z => z.role === 'enemySpawn');
   let zoneStartCol, zoneEndCol, zoneStartRow, zoneEndRow;
@@ -277,29 +507,27 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     zoneEndRow = rows;
   }
 
-  // Collect passable tiles in enemy zone
-  const positions = [];
+  // Collect candidate tiles in enemy zone (not yet filtered by moveType)
+  const candidateTiles = [];
   for (let r = zoneStartRow; r < zoneEndRow; r++) {
     for (let c = zoneStartCol; c < zoneEndCol; c++) {
       const key = `${c},${r}`;
-      if (!usedPositions.has(key) && isPassable(terrainData, mapLayout[r][c], 'Infantry')) {
-        positions.push({ col: c, row: r });
+      if (!usedPositions.has(key)) {
+        candidateTiles.push({ col: c, row: r });
       }
     }
   }
-  shuffleArray(positions);
 
-  // Fill remaining enemy slots
+  // Fill remaining enemy slots using terrain-aware weighted selection
   const remaining = count - spawns.length;
   const [minLvl, maxLvl] = levelRangeOverride || pool.levelRange;
   const allClasses = [...pool.base, ...pool.promoted];
-  // ~70% base, 30% promoted if promoted classes available
   const usePromoted = pool.promoted.length > 0;
 
-  for (let i = 0; i < remaining && positions.length > 0; i++) {
-    const pos = positions.pop();
-    usedPositions.add(`${pos.col},${pos.row}`);
+  if (DEBUG_MAP_GEN) console.log(`[MapGen] Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles`);
 
+  for (let i = 0; i < remaining && candidateTiles.length > 0; i++) {
+    // Pick class first so we can score tiles for this unit's moveType
     let className;
     if (usePromoted && Math.random() < 0.3) {
       className = pool.promoted[Math.floor(Math.random() * pool.promoted.length)];
@@ -309,14 +537,38 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
       className = allClasses[Math.floor(Math.random() * allClasses.length)];
     }
 
+    const unit = { className };
+
+    // Score all remaining candidate tiles for this unit
+    const scored = [];
+    for (const tile of candidateTiles) {
+      const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
+      if (s > 0) scored.push({ item: tile, weight: s });
+    }
+
+    if (scored.length === 0) break; // no passable tiles left for this unit
+
+    // Weighted pick
+    const pos = weightedPick(scored);
+
+    // Remove chosen tile from candidates
+    const idx = candidateTiles.findIndex(t => t.col === pos.col && t.row === pos.row);
+    if (idx !== -1) candidateTiles.splice(idx, 1);
+    usedPositions.add(`${pos.col},${pos.row}`);
+
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
-    // Roll for Sunder weapon (enemy-only anti-juggernaut mechanic)
-    // Only roll for classes whose primary proficiency has a sunder variant
+    // Roll for Sunder weapon
     const cd = classes?.find(c => c.name === className);
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
     const sunderWeapon = canHaveSunder && pool.sunderChance && Math.random() < pool.sunderChance;
+
+    if (DEBUG_MAP_GEN) {
+      const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
+      const chosenScore = scored.find(s => s.item === pos)?.weight;
+      console.log(`[MapGen]  ${className} -> (${pos.col},${pos.row}) ${tName} score=${chosenScore} candidates=${scored.length}`);
+    }
 
     spawns.push({
       className,
@@ -326,6 +578,18 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
       isBoss: false,
       sunderWeapon: sunderWeapon || undefined,
     });
+  }
+
+  // Assign guard AI mode to 15-25% of non-boss enemies in boss half of map
+  const bossHalfCol = Math.floor(cols / 2);
+  const bossHalfEnemies = spawns.filter(s => !s.isBoss && s.col >= bossHalfCol);
+  const guardRate = 0.15 + Math.random() * 0.10; // 15-25%
+  const guardCount = Math.max(0, Math.round(bossHalfEnemies.length * guardRate));
+  const shuffledGuards = [...bossHalfEnemies];
+  shuffleArray(shuffledGuards);
+  for (let i = 0; i < guardCount; i++) {
+    shuffledGuards[i].aiMode = 'guard';
+    if (DEBUG_MAP_GEN) console.log(`[MapGen] Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
   }
 
   return spawns;
@@ -557,3 +821,6 @@ function shuffleArray(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }
+
+// Exported for testing
+export { scoreSpawnTile };
