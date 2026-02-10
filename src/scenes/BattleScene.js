@@ -1250,10 +1250,15 @@ export class BattleScene extends Phaser.Scene {
   handleForecastClick(gp) {
     // Any click confirms combat (ESC / right-click to cancel)
     if (this.forecastTarget) {
-      const target = this.forecastTarget;
-      this.hideForecast();
-      this.executeCombat(this.selectedUnit, target);
+      this.confirmForecastCombat();
     }
+  }
+
+  confirmForecastCombat() {
+    if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST') return;
+    const target = this.forecastTarget;
+    this.hideForecast();
+    this.executeCombat(this.selectedUnit, target);
   }
 
   // --- Unit selection & movement ---
@@ -2947,18 +2952,49 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(depth + 1);
     this.forecastObjects.push(vs);
 
-    // Confirm hint bar
+    // Confirm hint bar + explicit confirm button
     const hintY = panelY + panelH - 18;
     const hintBg = this.add.rectangle(panelX + panelW / 2, hintY + 9,
       panelW - 4, 16, 0x0a0a15, 0.8
     ).setDepth(depth);
     this.forecastObjects.push(hintBg);
+
+    const confirmBtnW = 132;
+    const confirmBtnH = 14;
+    const confirmBtnX = panelX + panelW - 8 - (confirmBtnW / 2);
+    const confirmBtnY = hintY + 9;
+    const confirmBtnBg = this.add.rectangle(
+      confirmBtnX,
+      confirmBtnY,
+      confirmBtnW,
+      confirmBtnH,
+      0x1d5f2a,
+      0.95
+    ).setDepth(depth + 1).setStrokeStyle(1, 0x4dff77).setInteractive({ useHandCursor: true });
+    const confirmBtnText = this.add.text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#d8ffe1', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(depth + 2);
+    confirmBtnBg.on('pointerover', () => {
+      confirmBtnBg.setFillStyle(0x2c7b3a, 1);
+      confirmBtnText.setColor('#ffffff');
+    });
+    confirmBtnBg.on('pointerout', () => {
+      confirmBtnBg.setFillStyle(0x1d5f2a, 0.95);
+      confirmBtnText.setColor('#d8ffe1');
+    });
+    confirmBtnBg.on('pointerdown', () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      this.confirmForecastCombat();
+    });
+    this.forecastObjects.push(confirmBtnBg, confirmBtnText);
+
     const hintText = validWeapons.length >= 2
-      ? 'Click confirm | \u25C4 \u25BA weapon | ESC cancel'
-      : 'Click to confirm | ESC cancel';
-    const hint = this.add.text(panelX + panelW / 2, hintY + 9, hintText, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#888888',
-    }).setOrigin(0.5).setDepth(depth + 1);
+      ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
+      : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
+    const hint = this.add.text(panelX + 10, hintY + 9, hintText, {
+      fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8',
+    }).setOrigin(0, 0.5).setDepth(depth + 1);
     this.forecastObjects.push(hint);
   }
 
