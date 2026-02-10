@@ -4,7 +4,7 @@
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
-  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon,
+  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency,
   canPromote, promoteUnit, equipAccessory, unequipAccessory,
   removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
@@ -625,21 +625,23 @@ export class RosterOverlay {
       } else {
         for (const item of [...unit.inventory]) {
           const marker = item === unit.weapon ? '\u25b6 ' : '  ';
-          const color = isForged(item) ? '#44ff88' : '#e0e0e0';
+          const noProf = !hasProficiency(otherUnit, item);
+          const baseColor = isForged(item) ? '#44ff88' : (noProf ? '#cc8844' : '#e0e0e0');
           let label = `${marker}${item.name}`;
           if (item.type === 'Staff') {
             const rem = getStaffRemainingUses(item, unit);
             const max = getStaffMaxUses(item, unit);
             label += ` (${rem}/${max})`;
           }
+          if (noProf) label += ' (no prof)';
 
           const locked = isLastCombatWeapon(unit, item);
           if (!locked && otherUnit.inventory.length < INVENTORY_MAX) {
             const btn = this.scene.add.text(xPos, sy, label + '  \u25b6', {
-              fontFamily: 'monospace', fontSize: '10px', color,
+              fontFamily: 'monospace', fontSize: '10px', color: baseColor,
             }).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
             btn.on('pointerover', () => btn.setColor('#ffdd44'));
-            btn.on('pointerout', () => btn.setColor(color));
+            btn.on('pointerout', () => btn.setColor(baseColor));
             btn.on('pointerdown', () => {
               removeFromInventory(unit, item);
               addToInventory(otherUnit, item);
