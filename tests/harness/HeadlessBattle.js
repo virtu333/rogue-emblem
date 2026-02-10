@@ -102,7 +102,7 @@ export class HeadlessBattle {
     this.battleConfig = bc;
 
     this.grid = new HeadlessGrid(
-      bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, false
+      bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, Boolean(this.battleParams.fogEnabled)
     );
 
     this.playerUnits = [];
@@ -225,6 +225,7 @@ export class HeadlessBattle {
 
     // Start battle
     this.turnManager.startBattle();
+    this._refreshFogVisibility();
     // Note: _onPhaseChange('player', 1) will set state to PLAYER_IDLE
     // Turn-start effects are applied in _onPhaseChange, not here (avoiding double-apply)
   }
@@ -265,6 +266,7 @@ export class HeadlessBattle {
     this.selectedUnit.col = col;
     this.selectedUnit.row = row;
     this.selectedUnit.hasMoved = true;
+    this._refreshFogVisibility();
     this.battleState = HEADLESS_STATES.UNIT_ACTION_MENU;
   }
 
@@ -477,6 +479,7 @@ export class HeadlessBattle {
       if (turn > 1) {
         this._processTurnStartEffects();
       }
+      this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
       this.battleState = HEADLESS_STATES.ENEMY_PHASE;
@@ -503,6 +506,11 @@ export class HeadlessBattle {
         );
       }
     }
+  }
+
+  _refreshFogVisibility() {
+    if (!this.grid?.fogEnabled) return;
+    this.grid.updateFogOfWar(this.playerUnits);
   }
 
   _buildUnitPositionMap(moverFaction) {
@@ -705,6 +713,7 @@ export class HeadlessBattle {
     if (idx !== -1) this.npcUnits.splice(idx, 1);
     this.playerUnits.push(npc);
     npc.hasActed = true; // Can't act again this turn
+    this._refreshFogVisibility();
 
     this._finishUnitAction(lord);
   }

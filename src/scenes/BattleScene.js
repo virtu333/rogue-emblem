@@ -410,6 +410,35 @@ export class BattleScene extends Phaser.Scene {
         }
       });
       this.input.keyboard.on('keydown-R', () => {
+        // Roster detail overlay during player-input states (guard against stacked modals)
+        const rosterStates = ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', 'SHOWING_FORECAST', 'SELECTING_TARGET', 'SELECTING_HEAL_TARGET'];
+        if (rosterStates.includes(this.battleState) && this.playerUnits
+            && !this.pauseOverlay?.visible && !this.lootSettingsOverlay) {
+          if (this.unitDetailOverlay?.visible) {
+            this.unitDetailOverlay.hide();
+            return;
+          }
+          const living = this.playerUnits.filter(u => u.currentHP > 0);
+          if (living.length === 0) return;
+          // Pick default index: inspected player unit → selected unit → first lord → 0
+          let defaultIdx = 0;
+          const inspected = this.inspectionPanel?._unit;
+          if (inspected && inspected.faction === 'player' && living.includes(inspected)) {
+            defaultIdx = living.indexOf(inspected);
+          } else if (this.selectedUnit && living.includes(this.selectedUnit)) {
+            defaultIdx = living.indexOf(this.selectedUnit);
+          } else {
+            const lordIdx = living.findIndex(u => u.isLord);
+            if (lordIdx >= 0) defaultIdx = lordIdx;
+          }
+          const unit = living[defaultIdx];
+          const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
+          const terrain = terrainIdx != null ? this.gameData.terrain[terrainIdx] : null;
+          this.unitDetailOverlay.show(unit, terrain, this.gameData, { rosterUnits: living, rosterIndex: defaultIdx });
+          if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+          return;
+        }
+        // Loot roster toggle during BATTLE_END
         if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
           if (this.lootRosterVisible) {
             this.hideLootRoster();

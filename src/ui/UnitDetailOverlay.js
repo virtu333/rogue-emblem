@@ -1,5 +1,6 @@
-// UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or tooltip click)
+// UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or R key)
 // Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
+// Optional roster cycling via UP/DOWN arrows when opened with roster context
 
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
@@ -19,8 +20,9 @@ export class UnitDetailOverlay {
   constructor(scene, gameData) {
     this.scene = scene;
     this.gameData = gameData;
-    this.objects = [];      // shared objects (blocker, panel, header, HP bar, tabs, footer)
-    this._tabObjects = [];  // tab-specific objects (cleared on tab switch)
+    this.objects = [];        // frame objects (blocker, panel) — persist across unit cycling
+    this._unitObjects = [];   // per-unit objects (header, portrait, HP, tabs, nav, footer)
+    this._tabObjects = [];    // tab-specific objects (cleared on tab switch)
     this.visible = false;
     this._skillTooltip = null;
     this._activeTab = 'stats';
@@ -29,15 +31,22 @@ export class UnitDetailOverlay {
     this._panel = null;
     this._keyHandlerLeft = null;
     this._keyHandlerRight = null;
+    this._keyHandlerUp = null;
+    this._keyHandlerDown = null;
+    this._rosterUnits = null;
+    this._rosterIndex = 0;
   }
 
-  show(unit, terrain, gameData) {
+  show(unit, terrain, gameData, rosterOptions) {
     this.hide();
     this.visible = true;
     if (gameData) this.gameData = gameData;
-    this._unit = unit;
-    this._terrain = terrain;
     this._activeTab = 'stats';
+
+    // Store roster context (clamp index to valid range)
+    this._rosterUnits = rosterOptions?.rosterUnits || null;
+    const len = this._rosterUnits?.length || 0;
+    this._rosterIndex = len > 0 ? Math.max(0, Math.min((rosterOptions?.rosterIndex ?? 0), len - 1)) : 0;
 
     const left = CX - OVERLAY_W / 2;
     const top = CY - OVERLAY_H / 2;
@@ -66,44 +75,103 @@ export class UnitDetailOverlay {
     };
     this.scene.input.on('pointerdown', this._clickHandler);
 
+    // --- Keyboard listeners ---
+    this._keyHandlerLeft = () => {
+      this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
+      this._refreshTabs();
+    };
+    this._keyHandlerRight = this._keyHandlerLeft;
+    this.scene.input.keyboard.on('keydown-LEFT', this._keyHandlerLeft);
+    this.scene.input.keyboard.on('keydown-RIGHT', this._keyHandlerRight);
+
+    // UP/DOWN roster cycling (only when roster has 2+ units)
+    if (this._rosterUnits && this._rosterUnits.length > 1) {
+      this._keyHandlerUp = () => this._cycleUnit(-1);
+      this._keyHandlerDown = () => this._cycleUnit(1);
+      this.scene.input.keyboard.on('keydown-UP', this._keyHandlerUp);
+      this.scene.input.keyboard.on('keydown-DOWN', this._keyHandlerDown);
+    }
+
+    // Render unit-specific content
+    this._renderUnitContent(unit, terrain);
+  }
+
+  _renderUnitContent(unit, terrain) {
+    // Destroy previous unit content (and tab content within it)
+    this._hideSkillTooltip();
+    for (const obj of this._tabObjects) obj.destroy();
+    this._tabObjects = [];
+    for (const obj of this._unitObjects) obj.destroy();
+    this._unitObjects = [];
+
+    this._unit = unit;
+    this._terrain = terrain;
+
+    const left = CX - OVERLAY_W / 2;
+    const top = CY - OVERLAY_H / 2;
     let y = top + 10;
     const lx = left + 12;
 
-    // --- Shared Header ---
+    // --- Header ---
     const factionLabel = unit.faction === 'player' ? '' : unit.faction === 'npc' ? ' [NPC]' : ' [Enemy]';
-    this._text(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
+    this._unitText(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
 
     // Portrait (top-right)
     const portraitKey = this._getPortraitKey(unit);
     if (portraitKey && this.scene.textures.exists(portraitKey)) {
       const portrait = this.scene.add.image(left + OVERLAY_W - 36, y + 24, portraitKey)
         .setDisplaySize(48, 48).setDepth(DEPTH_TEXT);
-      this.objects.push(portrait);
+      this._unitObjects.push(portrait);
+    }
+
+    // Navigation UI (arrows + counter) to the left of portrait
+    if (this._rosterUnits && this._rosterUnits.length > 1) {
+      const navX = left + OVERLAY_W - 72;
+      const upArrow = this.scene.add.text(navX, y + 6, '\u25b2', {
+        fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+      }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+      upArrow.on('pointerdown', () => this._cycleUnit(-1));
+      upArrow.on('pointerover', () => upArrow.setColor('#ffffff'));
+      upArrow.on('pointerout', () => upArrow.setColor('#ffdd44'));
+      this._unitObjects.push(upArrow);
+
+      const counter = this.scene.add.text(navX, y + 24, `${this._rosterIndex + 1}/${this._rosterUnits.length}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#888888',
+      }).setOrigin(0.5).setDepth(DEPTH_TEXT);
+      this._unitObjects.push(counter);
+
+      const downArrow = this.scene.add.text(navX, y + 42, '\u25bc', {
+        fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+      }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+      downArrow.on('pointerdown', () => this._cycleUnit(1));
+      downArrow.on('pointerover', () => downArrow.setColor('#ffffff'));
+      downArrow.on('pointerout', () => downArrow.setColor('#ffdd44'));
+      this._unitObjects.push(downArrow);
     }
 
     y += 16;
     const tierStr = unit.tier === 'promoted' ? 'Promoted' : 'Base';
-    this._text(lx, y, `Lv ${unit.level || 1}  ${unit.className || ''}  (${tierStr})`, UI_COLORS.white, '10px');
+    this._unitText(lx, y, `Lv ${unit.level || 1}  ${unit.className || ''}  (${tierStr})`, UI_COLORS.white, '10px');
 
     if (unit.faction === 'player' && unit.xp !== undefined) {
       y += 14;
-      this._text(lx, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, '#88ccff', '10px');
+      this._unitText(lx, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, '#88ccff', '10px');
     }
 
     y += 14;
     if (unit.moveType) {
-      this._text(lx, y, `Move: ${unit.moveType}`, UI_COLORS.gray, '10px');
+      this._unitText(lx, y, `Move: ${unit.moveType}`, UI_COLORS.gray, '10px');
       y += 14;
     }
 
-    // --- Shared HP Bar ---
+    // --- HP Bar ---
     const hpRatio = unit.currentHP / unit.stats.HP;
     const barW = 180;
     const barH = 8;
     const barBg = this.scene.add.rectangle(lx, y + 1, barW, barH, 0x333333).setOrigin(0, 0).setDepth(DEPTH_TEXT);
     const barFill = this.scene.add.rectangle(lx, y + 1, barW * hpRatio, barH, getHPBarColor(hpRatio)).setOrigin(0, 0).setDepth(DEPTH_TEXT);
-    this.objects.push(barBg, barFill);
-    this._text(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    this._unitObjects.push(barBg, barFill);
+    this._unitText(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
     y += 18;
 
     // --- Tab Buttons ---
@@ -116,19 +184,32 @@ export class UnitDetailOverlay {
 
     // --- Footer ---
     const footerY = top + OVERLAY_H - 18;
-    this._text(lx, footerY, '[ESC] Close    [LEFT/RIGHT] Switch Tab', UI_COLORS.gray, '9px');
+    const footerStr = (this._rosterUnits && this._rosterUnits.length > 1)
+      ? '[ESC] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
+      : '[ESC] Close    [LEFT/RIGHT] Switch Tab';
+    this._unitText(lx, footerY, footerStr, UI_COLORS.gray, '9px');
 
-    // --- Keyboard listeners (Phaser-specific events) ---
-    this._keyHandlerLeft = () => {
-      this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
-      this._refreshTabs();
-    };
-    this._keyHandlerRight = this._keyHandlerLeft;
-    this.scene.input.keyboard.on('keydown-LEFT', this._keyHandlerLeft);
-    this.scene.input.keyboard.on('keydown-RIGHT', this._keyHandlerRight);
-
-    // Draw initial tab content
+    // --- Draw initial tab content ---
     this._drawTabContent();
+  }
+
+  _cycleUnit(direction) {
+    if (!this._rosterUnits || this._rosterUnits.length <= 1) return;
+    const len = this._rosterUnits.length;
+    this._rosterIndex = (this._rosterIndex + direction + len) % len;
+    const newUnit = this._rosterUnits[this._rosterIndex];
+
+    // Look up terrain at new unit's grid position
+    let terrain = null;
+    const grid = this.scene.grid;
+    if (grid?.mapLayout && newUnit.row != null && newUnit.col != null) {
+      const terrainIndex = grid.mapLayout[newUnit.row]?.[newUnit.col];
+      if (terrainIndex != null && this.gameData?.terrain) {
+        terrain = this.gameData.terrain[terrainIndex];
+      }
+    }
+
+    this._renderUnitContent(newUnit, terrain);
   }
 
   hide() {
@@ -139,18 +220,28 @@ export class UnitDetailOverlay {
       this._keyHandlerLeft = null;
       this._keyHandlerRight = null;
     }
+    if (this._keyHandlerUp) {
+      this.scene.input.keyboard.off('keydown-UP', this._keyHandlerUp);
+      this.scene.input.keyboard.off('keydown-DOWN', this._keyHandlerDown);
+      this._keyHandlerUp = null;
+      this._keyHandlerDown = null;
+    }
     if (this._clickHandler) {
       this.scene.input.off('pointerdown', this._clickHandler);
       this._clickHandler = null;
     }
     for (const obj of this._tabObjects) obj.destroy();
     this._tabObjects = [];
+    for (const obj of this._unitObjects) obj.destroy();
+    this._unitObjects = [];
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     this.visible = false;
     this._unit = null;
     this._terrain = null;
     this._panel = null;
+    this._rosterUnits = null;
+    this._rosterIndex = 0;
   }
 
   // --- Tab System ---
@@ -167,7 +258,7 @@ export class UnitDetailOverlay {
       fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
     }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
     this._tabBtnStats.on('pointerdown', () => { this._activeTab = 'stats'; this._refreshTabs(); });
-    this.objects.push(this._tabBtnStats, this._tabLabelStats);
+    this._unitObjects.push(this._tabBtnStats, this._tabLabelStats);
 
     // Gear tab button
     const gx = x + tabW + gap;
@@ -177,10 +268,10 @@ export class UnitDetailOverlay {
       fontFamily: 'monospace', fontSize: '10px', color: '#888888',
     }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
     this._tabBtnGear.on('pointerdown', () => { this._activeTab = 'gear'; this._refreshTabs(); });
-    this.objects.push(this._tabBtnGear, this._tabLabelGear);
+    this._unitObjects.push(this._tabBtnGear, this._tabLabelGear);
 
     // Arrow hint
-    this._text(gx + tabW + gap + 4, y + 3, '\u25c4 \u25ba', UI_COLORS.gray, '10px');
+    this._unitText(gx + tabW + gap + 4, y + 3, '\u25c4 \u25ba', UI_COLORS.gray, '10px');
   }
 
   _refreshTabs() {
@@ -365,11 +456,11 @@ export class UnitDetailOverlay {
 
   // --- Helpers ---
 
-  _text(x, y, str, color, fontSize) {
+  _unitText(x, y, str, color, fontSize) {
     const t = this.scene.add.text(x, y, str, {
       fontFamily: 'monospace', fontSize: fontSize || '10px', color: color || UI_COLORS.white,
     }).setDepth(DEPTH_TEXT);
-    this.objects.push(t);
+    this._unitObjects.push(t);
     return t;
   }
 
@@ -379,10 +470,6 @@ export class UnitDetailOverlay {
     }).setDepth(DEPTH_TEXT);
     this._tabObjects.push(t);
     return t;
-  }
-
-  _sep(x, y) {
-    this._text(x, y, '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', UI_COLORS.gray, '9px');
   }
 
   _tabSep(x, y) {

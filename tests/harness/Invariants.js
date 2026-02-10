@@ -46,12 +46,25 @@ export function checkInvariants(driver, context = {}) {
     errors.push(`state_legality: invalid state "${b.battleState}"`);
   }
 
-  // 6. Turn monotonicity
+  // 6. Turn/phase monotonicity
   const currentTurn = b.turnManager?.turnNumber || 0;
+  const currentPhase = b.turnManager?.currentPhase || 'player';
   if (context.lastTurn !== undefined && currentTurn < context.lastTurn) {
     errors.push(`turn_monotonic: turn went from ${context.lastTurn} to ${currentTurn}`);
   }
+  if (context.lastTurn !== undefined && currentTurn > context.lastTurn + 1) {
+    errors.push(`turn_monotonic: turn jumped from ${context.lastTurn} to ${currentTurn}`);
+  }
+  if (context.lastTurn !== undefined && currentTurn === context.lastTurn) {
+    if (context.lastPhase === 'enemy' && currentPhase === 'player') {
+      errors.push(`phase_monotonic: phase changed enemy->player without turn increment (turn=${currentTurn})`);
+    }
+  }
+  if (!['player', 'enemy'].includes(currentPhase)) {
+    errors.push(`phase_legality: invalid phase "${currentPhase}"`);
+  }
   context.lastTurn = currentTurn;
+  context.lastPhase = currentPhase;
 
   // 7. Edric alive (unless battle ended)
   if (b.battleState !== HEADLESS_STATES.BATTLE_END) {
@@ -66,7 +79,36 @@ export function checkInvariants(driver, context = {}) {
     errors.push(`canto_disabled: CANTO_DISABLED flag is false (should be true in MVP)`);
   }
 
-  // 9. Phase watchdogs
+  // 9. Objective consistency
+  if (!['rout', 'seize'].includes(b.battleConfig?.objective)) {
+    errors.push(`objective_consistency: unsupported objective "${b.battleConfig?.objective}"`);
+  }
+  if (b.result === 'victory') {
+    if (b.battleConfig?.objective === 'rout' && b.enemyUnits.length > 0) {
+      errors.push(`objective_consistency: rout victory but ${b.enemyUnits.length} enemies remain`);
+    }
+    if (b.battleConfig?.objective === 'seize') {
+      const bossAlive = b.enemyUnits.some(u => u.isBoss);
+      if (bossAlive) {
+        errors.push('objective_consistency: seize victory while boss is still alive');
+      }
+      const throne = b.battleConfig?.thronePos;
+      const lordOnThrone = throne
+        ? b.playerUnits.some(u => u.isLord && u.col === throne.col && u.row === throne.row)
+        : false;
+      if (!lordOnThrone) {
+        errors.push('objective_consistency: seize victory without lord on throne');
+      }
+    }
+  }
+  if (b.result === 'defeat') {
+    const edricAlive = b.playerUnits.some(u => u.name === 'Edric');
+    if (edricAlive && b.playerUnits.length > 0) {
+      errors.push('objective_consistency: defeat result while Edric and player units are still alive');
+    }
+  }
+
+  // 10. Phase watchdogs
   if (context.enemyPhaseActions !== undefined) {
     const maxExpected = b.enemyUnits.length * 3;
     if (context.enemyPhaseActions > maxExpected) {
@@ -74,7 +116,7 @@ export function checkInvariants(driver, context = {}) {
     }
   }
 
-  // 10. Repeated selection detection
+  // 11. Repeated selection detection
   if (context.selectionCounts) {
     for (const [name, count] of Object.entries(context.selectionCounts)) {
       if (count >= 5 && !context.anyUnitActed) {
@@ -83,7 +125,7 @@ export function checkInvariants(driver, context = {}) {
     }
   }
 
-  // 11. Global stuck detection
+  // 12. Global stuck detection
   if (context.sameHashCount !== undefined && context.sameHashCount >= 30) {
     errors.push(`global_stuck: same state hash for ${context.sameHashCount} consecutive steps`);
   }
@@ -97,6 +139,7 @@ export function checkInvariants(driver, context = {}) {
 export function createInvariantContext() {
   return {
     lastTurn: undefined,
+    lastPhase: 'player',
     lastHash: null,
     sameHashCount: 0,
     selectionCounts: {},
