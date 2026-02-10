@@ -57,6 +57,7 @@ import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
 import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
+import { calculatePar, getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
@@ -247,6 +248,21 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(5);
     }
 
+    // Calculate turn par (for turn bonus system)
+    this.turnPar = null;
+    this.turnBonusConfig = this.gameData.turnBonus;
+    if (this.turnBonusConfig && this.battleConfig) {
+      const mapParams = {
+        cols: this.battleConfig.cols,
+        rows: this.battleConfig.rows,
+        enemyCount: this.enemyUnits.length,
+        objective: this.battleConfig.objective,
+        mapLayout: this.battleConfig.mapLayout,
+        terrainData: this.gameData.terrain,
+      };
+      this.turnPar = calculatePar(mapParams, this.turnBonusConfig);
+    }
+
     // Battle state machine
     this.battleState = 'PLAYER_IDLE';
     this.selectedUnit = null;
@@ -287,6 +303,12 @@ export class BattleScene extends Phaser.Scene {
       backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
     }).setOrigin(1, 0).setDepth(100);
     this.updateObjectiveText();
+
+    // Turn counter (top-left corner, below info text)
+    this.turnCounterText = this.add.text(8, 28, '', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+      backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
+    }).setOrigin(0, 0).setDepth(100);
 
     // Instructions (bottom center)
     this.instructionText = this.add.text(
@@ -2418,6 +2440,17 @@ export class BattleScene extends Phaser.Scene {
       }
       this.battleState = 'PLAYER_IDLE';
 
+      // Update turn counter at start of each player phase
+      if (this.turnCounterText && this.turnPar !== null) {
+        const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
+        const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
+        this.turnCounterText.setText(`Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})`);
+        this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
+      } else if (this.turnCounterText) {
+        this.turnCounterText.setText(`Turn: ${turn}`);
+        this.turnCounterText.setColor('#e0e0e0');
+      }
+
       // Update fog of war at start of player phase
       if (this.grid.fogEnabled) {
         this.grid.updateFogOfWar(this.playerUnits);
@@ -2973,14 +3006,29 @@ export class BattleScene extends Phaser.Scene {
     lootGroup.push(overlay);
 
     // Title
-    const totalGold = this.goldEarned + GOLD_BATTLE_BONUS;
     const title = this.add.text(cam.centerX, 30, 'BATTLE REWARDS', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(title);
 
-    // Gold summary
-    const goldText = this.add.text(cam.centerX, 58, `Gold earned: ${totalGold}G  |  Total: ${this.runManager.gold}G`, {
+    // Calculate turn bonus gold
+    let turnBonusGold = 0;
+    let turnRating = null;
+    if (this.turnPar != null && this.turnBonusConfig) {
+      const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
+      turnRating = result.rating;
+      turnBonusGold = calculateBonusGold(result.rating, this.runManager.currentAct, this.turnBonusConfig);
+    }
+    const totalGold = this.goldEarned + GOLD_BATTLE_BONUS + turnBonusGold;
+
+    // Gold summary with breakdown
+    const goldLines = [`Battle: ${this.goldEarned}G`, `Completion: ${GOLD_BATTLE_BONUS}G`];
+    if (turnBonusGold > 0) {
+      goldLines.push(`Turn ${turnRating}: +${turnBonusGold}G`);
+    }
+    goldLines.push(`Total: ${totalGold}G  |  Vault: ${this.runManager.gold}G`);
+
+    const goldText = this.add.text(cam.centerX, 58, goldLines.join('  |  '), {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaffaa',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(goldText);
