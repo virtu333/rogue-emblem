@@ -20,7 +20,7 @@
   "act3": {
     "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
     "consumables": ["Elixir", "Master Seal", "Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe"],
-    "rare": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll", "Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Starfall", "Stormbreaker", "Ruin"],
+    "rare": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll", "Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin"],
     "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 25, "consumable": 15, "gold": 15, "rare": 15, "accessory": 15, "forge": 15 },

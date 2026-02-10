@@ -247,10 +247,15 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
 // --- Core stat calculations ---
 
 /** Attack power = relevant stat + weapon might (×effectiveness) + triangle damage bonus */
-export function calculateAttack(unit, weapon, triangleBonus = { damage: 0 }, defender = null) {
+export function calculateAttack(unit, weapon, triangleBonus = { damage: 0 }, defender = null, isInitiating = true) {
   const stat = usesMagic(weapon) ? unit.stats.MAG : unit.stats.STR;
   const effMult = defender ? getEffectivenessMultiplier(weapon, defender) : 1;
-  return stat + (weapon.might * effMult) + triangleBonus.damage;
+  // Gae Bolg: +5 STR when counterattacking (defending)
+  let bonus = 0;
+  if (!isInitiating && weapon?.special?.includes('+5 STR when counterattacking')) {
+    bonus = 5;
+  }
+  return stat + bonus + (weapon.might * effMult) + triangleBonus.damage;
 }
 
 /** Defense against an incoming weapon (DEF for physical, RES for magical/magic sword). */
@@ -278,11 +283,11 @@ export function calculateCritRate(attacker, weapon, defender) {
 }
 
 /** Raw damage (before crit), minimum 0. Includes terrain DEF bonus + weapon effectiveness. */
-export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defenderTerrain) {
+export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defenderTerrain, isInitiating = true) {
   const triangle = defWeapon
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
     : { hit: 0, damage: 0 };
-  const atk = calculateAttack(attacker, atkWeapon, triangle, defender);
+  const atk = calculateAttack(attacker, atkWeapon, triangle, defender, isInitiating);
   let def = calculateDefense(defender, atkWeapon);
   if (hasSunderEffect(atkWeapon)) {
     def = Math.floor(def / 2);
@@ -385,7 +390,7 @@ export function getCombatForecast(
   if (defCanCounter) {
     const defTriangle = getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
     const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
-    defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain)
+    defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - fAtkWpnDef;
     defDmg = Math.max(0, defDmg);
     defHit = calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
@@ -583,7 +588,7 @@ export function resolveCombat(
   if (defCanCounter) {
     const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
     defDmg = Math.max(0,
-      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain)
+      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - atkWeaponDefBonus);
     defDmg = Math.max(0, defDmg);
     defHit = Math.max(0, Math.min(100,

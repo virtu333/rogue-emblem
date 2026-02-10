@@ -234,6 +234,19 @@
     "price": 0
   },
   {
+    "name": "Gae Bolg",
+    "type": "Lance",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 14,
+    "hit": 85,
+    "crit": 5,
+    "weight": 9,
+    "range": "1",
+    "special": "+5 STR when counterattacking",
+    "price": 0
+  },
+  {
     "name": "Iron Axe",
     "type": "Axe",
     "tier": "Iron",

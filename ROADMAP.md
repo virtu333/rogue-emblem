@@ -27,12 +27,13 @@ Organized by impact and logical sequencing:
 12. **QoL** — Undo movement, battle log, battle speed (ongoing)
 13. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
 14. **Special Characters** + Lord selection
-15. **Story scaffold + dialogue**
-16. **Fog of war extras** — Torch items + vision skills
-17. **Difficulty modes + run modifiers**
-18. **Full battle animations**
-19. **Additional biomes**
-20. **Campaign system**
+15. **Story Intro + Narrative** — Run-start story scene, character backstories, world lore
+16. **Story scaffold + dialogue**
+17. **Fog of war extras** — Torch items + vision skills
+18. **Difficulty modes + run modifiers**
+19. **Full battle animations**
+20. **Additional biomes**
+21. **Campaign system**
 
 ---
 

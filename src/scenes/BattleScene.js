@@ -691,6 +691,11 @@ export class BattleScene extends Phaser.Scene {
     }
     unit.graphic.setDepth(10);
 
+    // Faction indicator circle (blue=player, red=enemy, green=npc)
+    const indicatorY = pos.y + TILE_SIZE / 2 - 8;
+    unit.factionIndicator = this.add.circle(pos.x, indicatorY, 5, color, 0.6)
+      .setDepth(9);
+
     // HP bar
     const barWidth = TILE_SIZE - 6;
     const barHeight = 3;
@@ -712,6 +717,7 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     unit.graphic.setPosition(pos.x, pos.y);
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
+    if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + TILE_SIZE / 2 - 8);
     this.updateHPBar(unit);
   }
 
@@ -731,6 +737,7 @@ export class BattleScene extends Phaser.Scene {
   removeUnitGraphic(unit) {
     if (unit.graphic) unit.graphic.destroy();
     if (unit.label) unit.label.destroy();
+    if (unit.factionIndicator) { unit.factionIndicator.destroy(); unit.factionIndicator = null; }
     if (unit.hpBar) {
       unit.hpBar.bg.destroy();
       unit.hpBar.fill.destroy();
@@ -742,6 +749,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.setTint(0x888888);
     }
     if (unit.label) unit.label.setAlpha(0.5);
+    if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.3);
   }
 
   undimUnit(unit) {
@@ -749,6 +757,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.clearTint();
     }
     if (unit.label) unit.label.setAlpha(1);
+    if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.6);
   }
 
   // --- Position tracking ---
@@ -874,6 +883,18 @@ export class BattleScene extends Phaser.Scene {
   onRightClick(pointer) {
     // Close any open detail overlay first
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
+
+    // Right-click cancels active selection states (like ESC)
+    const cancelStates = [
+      'UNIT_SELECTED', 'UNIT_ACTION_MENU', 'SELECTING_TARGET', 'SHOWING_FORECAST',
+      'SELECTING_HEAL_TARGET', 'SELECTING_SHOVE_TARGET', 'SELECTING_PULL_TARGET',
+      'SELECTING_TRADE_TARGET', 'SELECTING_SWAP_TARGET', 'SELECTING_DANCE_TARGET',
+      'TRADING', 'CANTO_MOVING',
+    ];
+    if (cancelStates.includes(this.battleState)) {
+      this.handleCancel();
+      return;
+    }
 
     // Right-click = unit inspection toggle
     if (this.inspectionPanel.visible) {
@@ -1047,6 +1068,11 @@ export class BattleScene extends Phaser.Scene {
     const key = `${gp.col},${gp.row}`;
     if (this.movementRange && this.movementRange.has(key)) {
       this.moveUnit(this.selectedUnit, gp.col, gp.row);
+    } else {
+      // Click unreachable tile → deselect (FE standard behavior)
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_cancel');
+      this.deselectUnit();
     }
   }
 
@@ -1755,7 +1781,6 @@ export class BattleScene extends Phaser.Scene {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         if (label === 'Attack') {
-          this.hideActionMenu();
           // Auto-equip first combat weapon if staff is currently equipped
           if (unit.weapon && isStaff(unit.weapon)) {
             const combatWpn = getCombatWeapons(unit)[0];
@@ -1764,10 +1789,17 @@ export class BattleScene extends Phaser.Scene {
               this.showAutoSwitchTooltip(unit, combatWpn);
             }
           }
-          this.attackTargets = attackTargets;
-          const attackTiles = attackTargets.map(e => ({ col: e.col, row: e.row }));
-          this.grid.showAttackRange(attackTiles);
-          this.battleState = 'SELECTING_TARGET';
+          // Show weapon picker if unit has 2+ combat weapons
+          const combatWeapons = getCombatWeapons(unit);
+          if (combatWeapons.length >= 2) {
+            this.showWeaponPicker(unit, attackTargets);
+          } else {
+            this.hideActionMenu();
+            this.attackTargets = attackTargets;
+            const attackTiles = attackTargets.map(e => ({ col: e.col, row: e.row }));
+            this.grid.showAttackRange(attackTiles);
+            this.battleState = 'SELECTING_TARGET';
+          }
         } else if (label === 'Heal') {
           this.hideActionMenu();
           this.startHealTargetSelection(unit, healTargets);
@@ -1983,6 +2015,64 @@ export class BattleScene extends Phaser.Scene {
       });
 
       this.time.delayedCall(500, resolve);
+    });
+  }
+
+  // --- Weapon picker (pre-attack) ---
+
+  showWeaponPicker(unit, attackTargets) {
+    this.hideActionMenu();
+    this.inEquipMenu = true;
+    this.battleState = 'UNIT_ACTION_MENU';
+
+    const combatWeapons = getCombatWeapons(unit);
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuX = (unit.col < this.grid.cols - 3)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 210;
+    const menuY = pos.y - 10;
+
+    this.actionMenu = [];
+
+    const menuWidth = 210;
+    const itemHeight = 36;
+    const menuHeight = combatWeapons.length * itemHeight + 12;
+
+    const bg = this.add.rectangle(
+      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuWidth, menuHeight, 0x000000, 0.85
+    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    this.actionMenu.push(bg);
+
+    combatWeapons.forEach((wpn, i) => {
+      const itemY = menuY + 6 + i * itemHeight + itemHeight / 2;
+      const itemX = menuX + 8;
+      const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
+      const rng = wpn.range.includes('-') ? `Rng${wpn.range}` : `Rng ${wpn.range}`;
+      const label = `${marker}${wpn.name}\n   ${wpn.might}Mt ${wpn.hit}Hit ${wpn.crit}Crt ${rng}`;
+      const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
+
+      const text = this.add.text(itemX, itemY, label, {
+        fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
+      }).setOrigin(0, 0.5).setDepth(401).setInteractive({ useHandCursor: true });
+
+      text.on('pointerover', () => text.setColor('#ffdd44'));
+      text.on('pointerout', () => text.setColor(defaultColor));
+      text.on('pointerdown', () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        equipWeapon(unit, wpn);
+        this.inEquipMenu = false;
+        this.hideActionMenu();
+        // Now enter target selection with chosen weapon
+        // Recalculate attack targets since weapon range may differ
+        this.attackTargets = this.findAttackTargets(unit);
+        const attackTiles = this.attackTargets.map(e => ({ col: e.col, row: e.row }));
+        this.grid.showAttackRange(attackTiles);
+        this.battleState = 'SELECTING_TARGET';
+      });
+
+      this.actionMenu.push(text);
     });
   }
 
@@ -3079,6 +3169,7 @@ export class BattleScene extends Phaser.Scene {
       const vis = this.grid.isVisible(enemy.col, enemy.row);
       if (enemy.graphic) enemy.graphic.setVisible(vis);
       if (enemy.label) enemy.label.setVisible(vis);
+      if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);
       if (enemy.hpBar) {
         enemy.hpBar.bg.setVisible(vis);
         enemy.hpBar.fill.setVisible(vis);
@@ -3088,6 +3179,7 @@ export class BattleScene extends Phaser.Scene {
       const vis = this.grid.isVisible(npc.col, npc.row);
       if (npc.graphic) npc.graphic.setVisible(vis);
       if (npc.label) npc.label.setVisible(vis);
+      if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);
       if (npc.hpBar) {
         npc.hpBar.bg.setVisible(vis);
         npc.hpBar.fill.setVisible(vis);
