@@ -3594,25 +3594,34 @@ export class BattleScene extends Phaser.Scene {
   transitionAfterBattle() {
     if (this.isTransitioningOut) return;
     this.isTransitioningOut = true;
-    if (this.runManager.isActComplete()) {
-      if (this.runManager.isRunComplete()) {
-        this.runManager.status = 'victory';
-        this.scene.start('RunComplete', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-          result: 'victory',
-        });
+    try {
+      if (this.runManager.isActComplete()) {
+        if (this.runManager.isRunComplete()) {
+          this.runManager.status = 'victory';
+          this.scene.start('RunComplete', {
+            gameData: this.gameData,
+            runManager: this.runManager,
+            result: 'victory',
+          });
+        } else {
+          this.runManager.advanceAct();
+          this.scene.start('NodeMap', {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          });
+        }
       } else {
-        this.runManager.advanceAct();
         this.scene.start('NodeMap', {
           gameData: this.gameData,
           runManager: this.runManager,
         });
       }
-    } else {
-      this.scene.start('NodeMap', {
-        gameData: this.gameData,
-        runManager: this.runManager,
+    } catch (err) {
+      this.isTransitioningOut = false;
+      this.reportLootError('transitionAfterBattle', err, {
+        isElite: this.isElite,
+        battleState: this.battleState,
+        nodeId: this.nodeId,
       });
     }
   }
@@ -3821,6 +3830,8 @@ export class BattleScene extends Phaser.Scene {
     // Elite pick-2 state
     this._elitePicksRemaining = this.isElite ? ELITE_MAX_PICKS : 1;
     this._lootCards = [];
+    this._lootResolving = false;
+    this._lootCleanedUp = false;
 
     // Dark overlay
     const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
@@ -4164,8 +4175,17 @@ export class BattleScene extends Phaser.Scene {
       pickerGroup.push(label);
 
       btn.on('pointerdown', () => {
-        for (const obj of pickerGroup) obj.destroy();
-        this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx);
+        try {
+          for (const obj of pickerGroup) obj.destroy();
+          this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx);
+        } catch (err) {
+          this.reportLootError('showForgeLootPicker:unitSelect', err, {
+            unit: unit?.name,
+            whetstone: whetstone?.name,
+          });
+          for (const obj of pickerGroup) obj.destroy();
+          for (const obj of lootGroup) obj.setVisible(true);
+        }
       });
     }
 
@@ -4232,16 +4252,38 @@ export class BattleScene extends Phaser.Scene {
       pickerGroup.push(detail);
 
       btn.on('pointerdown', () => {
-        for (const obj of pickerGroup) obj.destroy();
-        if (whetstone.forgeStat === 'choice') {
-          // Silver Whetstone: pick stat
-          this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
-        } else {
-          // Specific whetstone: apply immediately
-          applyForge(wpn, whetstone.forgeStat);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.finalizeLootPick(lootGroup, cardIdx);
+        try {
+          for (const obj of pickerGroup) obj.destroy();
+          if (whetstone.forgeStat === 'choice') {
+            // Silver Whetstone: pick stat
+            this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
+          } else {
+            // Specific whetstone: apply immediately
+            const result = applyForge(wpn, whetstone.forgeStat);
+            if (!result.success) {
+              this.reportLootError('showForgeWeaponPicker:applyForgeFailed', new Error('applyForge returned success=false'), {
+                unit: unit?.name,
+                weapon: wpn?.name,
+                forgeStat: whetstone?.forgeStat,
+                cardIdx,
+              });
+              this.showLootStatus('Forge failed. Choose another weapon.', '#ff8888');
+              this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
+              return;
+            }
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_gold');
+            this.finalizeLootPick(lootGroup, cardIdx);
+          }
+        } catch (err) {
+          this.reportLootError('showForgeWeaponPicker:pointerdown', err, {
+            unit: unit?.name,
+            weapon: wpn?.name,
+            forgeStat: whetstone?.forgeStat,
+            cardIdx,
+          });
+          this.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
+          for (const obj of lootGroup) obj.setVisible(true);
         }
       });
     }
@@ -4592,8 +4634,10 @@ export class BattleScene extends Phaser.Scene {
    * Non-elite: immediate cleanup. Elite: gray out card, decrement, cleanup at 0.
    */
   finalizeLootPick(lootGroup, cardIndex) {
+    if (this._lootResolving) return;
     if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
       // Non-elite or last pick â€” clean up immediately
+      this._lootResolving = true;
       this._lootCards = null;
       this._lootInstruction = null;
       this.cleanupLootScreen(lootGroup);
@@ -4622,14 +4666,45 @@ export class BattleScene extends Phaser.Scene {
 
   /** Clean up loot screen and transition. */
   cleanupLootScreen(lootGroup) {
+    if (this._lootCleanedUp) return;
+    this._lootCleanedUp = true;
     this.hideLootRoster();
     if (this.lootSettingsOverlay) {
       this.lootSettingsOverlay.hide();
       this.lootSettingsOverlay = null;
     }
-    for (const obj of lootGroup) obj.destroy();
-    this.lootGroup = null;
-    this.transitionAfterBattle();
+    const resolvedLootGroup = lootGroup || this.lootGroup || [];
+    try {
+      for (const obj of resolvedLootGroup) obj.destroy();
+      this.lootGroup = null;
+      this.transitionAfterBattle();
+    } catch (err) {
+      this._lootResolving = false;
+      this._lootCleanedUp = false;
+      this.reportLootError('cleanupLootScreen', err, {
+        isElite: this.isElite,
+        picksRemaining: this._elitePicksRemaining,
+      });
+    }
+  }
+
+  showLootStatus(message, color = '#ff8888') {
+    const cam = this.cameras.main;
+    const status = this.add.text(cam.centerX, cam.height - 44, message, {
+      fontFamily: 'monospace',
+      fontSize: '10px',
+      color,
+      backgroundColor: '#000000cc',
+      padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(799);
+    this.time.delayedCall(1500, () => {
+      if (status && status.active) status.destroy();
+    });
+  }
+
+  reportLootError(context, err, extra = {}) {
+    console.error('[BattleScene][LootFlow]', context, extra, err);
+    this.showLootStatus('Loot error. Check console log.', '#ff8888');
   }
 
   onDefeat() {
