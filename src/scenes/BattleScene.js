@@ -3628,6 +3628,27 @@ export class BattleScene extends Phaser.Scene {
         battleState: this.battleState,
         nodeId: this.nodeId,
       });
+      this.forceTransitionAfterBattle();
+    }
+  }
+
+  forceTransitionAfterBattle() {
+    try {
+      if (this.runManager?.isRunComplete?.()) {
+        this.scene.start('RunComplete', {
+          gameData: this.gameData,
+          runManager: this.runManager,
+          result: 'victory',
+        });
+        return;
+      }
+      this.scene.start('NodeMap', {
+        gameData: this.gameData,
+        runManager: this.runManager,
+      });
+    } catch (err) {
+      console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
+      this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
     }
   }
 
@@ -4645,8 +4666,7 @@ export class BattleScene extends Phaser.Scene {
       this._lootResolving = true;
       this._lootCards = null;
       this._lootInstruction = null;
-      // Defer cleanup/scene transition out of the current pointerdown stack.
-      this.time.delayedCall(0, () => this.cleanupLootScreen(lootGroup));
+      this.scheduleLootCleanup(lootGroup);
       return;
     }
 
@@ -4690,6 +4710,10 @@ export class BattleScene extends Phaser.Scene {
       }
       this.lootGroup = null;
       this.transitionAfterBattle();
+      setTimeout(() => {
+        const stillInBattle = this.scene?.isActive?.('Battle');
+        if (stillInBattle) this.forceTransitionAfterBattle();
+      }, 100);
     } catch (err) {
       this._lootResolving = false;
       this._lootCleanedUp = false;
@@ -4698,6 +4722,17 @@ export class BattleScene extends Phaser.Scene {
         picksRemaining: this._elitePicksRemaining,
       });
     }
+  }
+
+  scheduleLootCleanup(lootGroup) {
+    if (this._lootCleanupScheduled) return;
+    this._lootCleanupScheduled = true;
+    const runCleanup = () => {
+      this._lootCleanupScheduled = false;
+      if (!this._lootCleanedUp) this.cleanupLootScreen(lootGroup);
+    };
+    Promise.resolve().then(runCleanup);
+    setTimeout(runCleanup, 0);
   }
 
   showLootStatus(message, color = '#ff8888') {
