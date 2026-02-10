@@ -635,6 +635,11 @@ export class TitleScene extends Phaser.Scene {
       fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.3)',
     }).setDepth(30);
 
+    // Desktop notice
+    this.add.text(W / 2, H - 16, 'Best played on desktop | Not optimized for mobile', {
+      fontFamily: FONT, fontSize: '6px', color: 'rgba(100,100,120,0.4)',
+    }).setOrigin(0.5, 0).setDepth(30);
+
     if (cloud) {
       this.add.text(W - 12, H - 16, cloud.displayName, {
         fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.5)',
