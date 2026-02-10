@@ -357,7 +357,7 @@ export class BattleScene extends Phaser.Scene {
       // Instructions (bottom center)
       this.instructionText = this.add.text(
         this.cameras.main.width / 2, this.cameras.main.height - 16,
-        'Right-click: inspect  |  [V] Details  |  ESC: cancel  |  [D] Danger',
+        'Right-click: inspect  |  [V] Details  |  [R] Roster  |  ESC: cancel  |  [D] Danger',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
 
