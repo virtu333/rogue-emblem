@@ -86,6 +86,7 @@ export class BattleScene extends Phaser.Scene {
     this.nodeId = data.nodeId || null;
     this.isBoss = data.isBoss || false;
     this.isElite = data.isElite || false;
+    this.isTransitioningOut = false;
   }
 
   create() {
@@ -3527,6 +3528,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onVictory() {
+    if (this.battleState === 'BATTLE_END') return;
     this.battleState = 'BATTLE_END';
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, this, 0);
@@ -3560,6 +3562,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Transition to the next scene after loot selection. */
   transitionAfterBattle() {
+    if (this.isTransitioningOut) return;
+    this.isTransitioningOut = true;
     if (this.runManager.isActComplete()) {
       if (this.runManager.isRunComplete()) {
         this.runManager.status = 'victory';
@@ -4589,6 +4593,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onDefeat() {
+    if (this.battleState === 'BATTLE_END') return;
     this.battleState = 'BATTLE_END';
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, this, 0);

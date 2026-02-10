@@ -58,6 +58,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData || data;
+    this.isTransitioning = false;
     if (data.runManager) {
       this.runManager = data.runManager;
     } else {
@@ -374,6 +375,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onNodeClick(node) {
+    if (this.isTransitioning) return;
+    if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible) return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
     } else if (node.type === NODE_TYPES.SHOP) {
@@ -384,6 +387,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   handleBattle(node) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.stopMusic(this, 0);
 

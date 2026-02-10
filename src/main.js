@@ -13,21 +13,26 @@ import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
-let gameBooted = false;
+const GAME_BOOT_FLAG = '__emblemRogueGameBooted';
+const GAME_INSTANCE_KEY = '__emblemRogueGame';
+const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
 
 // Create Web Audio context early so Phaser always reuses it (starts suspended).
 // Call unlockAudio() during a user gesture to resume it before Phaser boots.
-const sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+const sharedAudioContext = window[SHARED_AUDIO_CTX_KEY]
+  || (AudioContextCtor ? new AudioContextCtor() : null);
+if (sharedAudioContext) window[SHARED_AUDIO_CTX_KEY] = sharedAudioContext;
 
 function unlockAudio() {
-  if (sharedAudioContext.state === 'suspended') {
+  if (sharedAudioContext?.state === 'suspended') {
     sharedAudioContext.resume();
   }
 }
 
 function bootGame(user) {
-  if (gameBooted) return;
-  gameBooted = true;
+  if (window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]) return;
+  window[GAME_BOOT_FLAG] = true;
 
   if (user) {
     cloudState = {
@@ -54,17 +59,21 @@ function bootGame(user) {
     backgroundColor: '#0a0c1e',
     parent: 'game-container',
     scene: [BootScene, TitleScene, SlotPickerScene, HomeBaseScene, NodeMapScene, BattleScene, RunCompleteScene],
-    audio: {
-      disableWebAudio: false,
-      context: sharedAudioContext,
-    },
+    audio: sharedAudioContext
+      ? {
+        disableWebAudio: false,
+        context: sharedAudioContext,
+      }
+      : {
+        disableWebAudio: true,
+      },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
   };
 
-  new Phaser.Game(config);
+  window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
 }
 
 // --- Auth UI ---

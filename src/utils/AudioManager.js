@@ -7,6 +7,7 @@ export class AudioManager {
     this.currentMusicKey = null;
     this.musicVolume = 0.5;
     this.sfxVolume = 0.7;
+    this.debugMusic = false;
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -16,7 +17,8 @@ export class AudioManager {
 
   /** Play looping background music with optional fade-in. */
   playMusic(key, scene, fadeMs = 500) {
-    if (this.currentMusicKey === key) return; // already playing
+    if (!key) return;
+    if (this.currentMusicKey === key && this.currentMusic?.isPlaying) return;
 
     // Defer if audio context is locked (browser autoplay policy)
     if (this.sound.locked) {
@@ -36,7 +38,8 @@ export class AudioManager {
       return;
     }
 
-    this.stopMusic(scene, 0); // instant stop previous
+    // Defensive stop: clear any orphan looping music before starting new track.
+    this.stopAllMusic(scene, 0);
 
     if (!this.sound.get(key) && !this.sound.game.cache.audio.has(key)) return;
 
@@ -56,7 +59,10 @@ export class AudioManager {
   /** Stop current music with optional fade-out. */
   stopMusic(scene, fadeMs = 500) {
     this._pendingMusic = null;
-    if (!this.currentMusic) return;
+    if (!this.currentMusic) {
+      this.stopAllMusic(scene, fadeMs);
+      return;
+    }
 
     const music = this.currentMusic;
     this.currentMusic = null;
@@ -75,6 +81,44 @@ export class AudioManager {
     }
   }
 
+  /** Stop all currently playing looping music sounds (including orphaned tracks). */
+  stopAllMusic(scene, fadeMs = 0) {
+    const looping = this._getLoopingMusicSounds();
+    if (this.debugMusic && looping.length > 1) {
+      console.warn('[AudioManager] overlapping looping tracks detected:', looping.map(s => s.key));
+    }
+    for (const sound of looping) {
+      this._stopSound(sound, scene, fadeMs);
+    }
+    this.currentMusic = null;
+    this.currentMusicKey = null;
+  }
+
+  /** Return active looping music keys for diagnostics. */
+  getActiveMusicKeys() {
+    return this._getLoopingMusicSounds().map(s => s.key);
+  }
+
+  _getLoopingMusicSounds() {
+    const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
+    return sounds.filter(s => s && s.key && (s.loop || s.config?.loop) && (s.isPlaying || s.isPaused));
+  }
+
+  _stopSound(sound, scene, fadeMs) {
+    if (!sound) return;
+    if (fadeMs > 0 && scene?.tweens) {
+      scene.tweens.add({
+        targets: sound,
+        volume: 0,
+        duration: fadeMs,
+        onComplete: () => { sound.stop(); sound.destroy(); },
+      });
+      return;
+    }
+    sound.stop();
+    sound.destroy();
+  }
+
   /** Play a one-shot sound effect. */
   playSFX(key, volume) {
     const vol = (volume ?? 1.0) * this._curve(this.sfxVolume);
@@ -84,7 +128,10 @@ export class AudioManager {
 
   setMusicVolume(level) {
     this.musicVolume = Math.max(0, Math.min(1, level));
-    if (this.currentMusic) this.currentMusic.setVolume(this._curve(this.musicVolume));
+    const nextVolume = this._curve(this.musicVolume);
+    for (const sound of this._getLoopingMusicSounds()) {
+      if (typeof sound.setVolume === 'function') sound.setVolume(nextVolume);
+    }
   }
 
   setSFXVolume(level) {
