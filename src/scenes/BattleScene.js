@@ -351,6 +351,7 @@ export class BattleScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
       }).setOrigin(0, 0).setDepth(100);
+      this.updateTopLeftHudLayout();
 
       // Instructions (bottom center)
       this.instructionText = this.add.text(
@@ -817,6 +818,7 @@ export class BattleScene extends Phaser.Scene {
     if (!gp) {
       this.cursorHighlight.setVisible(false);
       this.infoText.setText('');
+      this.updateTopLeftHudLayout();
       return;
     }
 
@@ -845,6 +847,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.infoText.setText(info);
+    this.updateTopLeftHudLayout();
 
     // Path preview when unit selected and hovering a reachable tile
     if (this.battleState === 'UNIT_SELECTED' && this.selectedUnit && this.movementRange) {
@@ -860,6 +863,14 @@ export class BattleScene extends Phaser.Scene {
         this.grid.clearPath();
       }
     }
+  }
+
+  updateTopLeftHudLayout() {
+    if (!this.infoText || !this.turnCounterText) return;
+    const hasInfo = Boolean(this.infoText.text);
+    const baseY = 28;
+    const stackedY = this.infoText.y + this.infoText.height + 4;
+    this.turnCounterText.setY(hasInfo ? Math.max(baseY, stackedY) : baseY);
   }
 
   onClick(pointer) {
