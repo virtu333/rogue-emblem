@@ -257,6 +257,32 @@ describe('RunManager', () => {
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.gameData).toBe(gameData);
     });
+
+    it('initializes blessings state to safe defaults', () => {
+      rm.startRun();
+      expect(Array.isArray(rm.activeBlessings)).toBe(true);
+      expect(Array.isArray(rm.blessingHistory)).toBe(true);
+    });
+
+    it('migrates old saves without blessings fields to defaults', () => {
+      rm.startRun();
+      const json = rm.toJSON();
+      delete json.activeBlessings;
+      delete json.blessingHistory;
+      delete json.blessingSelectionTelemetry;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.activeBlessings).toEqual([]);
+      expect(restored.blessingHistory).toEqual([]);
+      expect(restored.blessingSelectionTelemetry).toBeNull();
+    });
+
+    it('round-trips activeBlessings through save/load', () => {
+      rm.startRun();
+      rm.activeBlessings = ['blessed_vigor'];
+      const json = rm.toJSON();
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.activeBlessings).toEqual(['blessed_vigor']);
+    });
   });
 
   describe('saveRun / loadRun / hasSavedRun / clearSavedRun', () => {
@@ -661,5 +687,32 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     if (restoredUnit.weapon) {
       expect(restoredUnit.weapon.type).not.toBe('Lance');
     }
+  });
+});
+
+describe('blessing run-start effect application', () => {
+  it('startRun deterministic blessing selection with same seed', () => {
+    const gameData = loadGameData();
+    const a = new RunManager(gameData);
+    const b = new RunManager(gameData);
+    a.startRun({ blessingSeed: 1234, autoSelectBlessing: true, blessingOptionCount: 3 });
+    b.startRun({ blessingSeed: 1234, autoSelectBlessing: true, blessingOptionCount: 3 });
+    expect(a.activeBlessings).toEqual(b.activeBlessings);
+    expect(a.blessingSelectionTelemetry?.seed).toBe(1234);
+    expect(Array.isArray(a.blessingSelectionTelemetry?.candidatePoolIds)).toBe(true);
+    expect(Array.isArray(a.blessingSelectionTelemetry?.chosenIds)).toBe(true);
+  });
+
+  it('applies run_start_max_hp_bonus exactly once', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseHp = rm.roster[0].stats.HP;
+    rm.activeBlessings = ['blessed_vigor'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+    rm.applyRunStartBlessingEffects();
+    expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
   });
 });

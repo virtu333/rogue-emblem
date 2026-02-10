@@ -11,6 +11,7 @@ import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEq
 import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
+import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
@@ -61,6 +62,10 @@ export class RunManager {
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = [];  // team accessory pool (unequipped accessories)
     this.scrolls = [];      // team scroll pool (skill teaching items)
+    this.activeBlessings = [];
+    this.blessingHistory = [];
+    this.blessingSelectionTelemetry = null;
+    this._runStartBlessingsApplied = false;
   }
 
   get currentAct() {
@@ -72,11 +77,97 @@ export class RunManager {
   }
 
   /** Initialize a new run: create starting roster + first act node map. */
-  startRun() {
+  startRun(options = {}) {
     this.roster = this.createInitialRoster();
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
+    this._runStartBlessingsApplied = false;
+    this.initializeBlessingsAtRunStart(options);
+    this.applyRunStartBlessingEffects();
+  }
+
+  initializeBlessingsAtRunStart(options = {}) {
+    const {
+      blessingSeed = null,
+      blessingOptionCount = 3,
+      autoSelectBlessing = false,
+      debugBlessingSelection = false,
+    } = options;
+    const catalog = this.gameData?.blessings;
+    if (!catalog || !Array.isArray(catalog.blessings)) {
+      this.activeBlessings = [];
+      this.blessingSelectionTelemetry = {
+        seed: blessingSeed,
+        candidatePoolIds: [],
+        chosenIds: [],
+        rejectionReasons: [{ blessingId: null, reason: 'missing_catalog' }],
+      };
+      return;
+    }
+
+    const rng = blessingSeed === null || blessingSeed === undefined
+      ? Math.random
+      : createSeededRng(Number(blessingSeed));
+    const { selected, telemetry } = selectBlessingOptionsWithTelemetry(
+      catalog,
+      rng,
+      { count: blessingOptionCount, forceTier1: true, allowTier4: true }
+    );
+
+    const chosenIds = autoSelectBlessing ? selected.slice(0, 1).map(b => b.id) : [];
+    this.activeBlessings = chosenIds;
+    this.blessingSelectionTelemetry = {
+      seed: blessingSeed,
+      candidatePoolIds: telemetry.candidatePoolIds,
+      chosenIds,
+      rejectionReasons: telemetry.rejectionReasons,
+      options: telemetry.options,
+    };
+
+    if (debugBlessingSelection && this.blessingSelectionTelemetry) {
+      console.debug('BlessingSelection', this.blessingSelectionTelemetry);
+    }
+  }
+
+  applyRunStartBlessingEffects() {
+    if (this._runStartBlessingsApplied) return;
+    if (!this.activeBlessings?.length) {
+      this._runStartBlessingsApplied = true;
+      return;
+    }
+    const catalog = this.gameData?.blessings;
+    if (!catalog?.blessings?.length) {
+      this._runStartBlessingsApplied = true;
+      return;
+    }
+
+    const blessingIndex = buildBlessingIndex(catalog);
+    for (const blessingId of this.activeBlessings) {
+      const blessing = blessingIndex.get(blessingId);
+      if (!blessing) continue;
+      const effects = [...(blessing.boons || []), ...(blessing.costs || [])];
+      for (const effect of effects) {
+        this._applySingleRunStartBlessingEffect(effect);
+      }
+      this.blessingHistory.push({ eventType: 'run_start_applied', blessingId });
+    }
+    this._runStartBlessingsApplied = true;
+  }
+
+  _applySingleRunStartBlessingEffect(effect) {
+    if (!effect || !effect.type || !effect.params) return;
+    // Phase 2 vertical slice: canonical single effect only.
+    if (effect.type !== 'run_start_max_hp_bonus') return;
+    const value = Number(effect.params.value || 0);
+    if (!Number.isFinite(value) || value === 0) return;
+
+    const scope = effect.params.scope || 'all';
+    for (const unit of this.roster) {
+      if (scope === 'lords' && !unit.isLord) continue;
+      unit.stats.HP = (unit.stats.HP || 0) + value;
+      unit.currentHP = (unit.currentHP || 0) + value;
+    }
   }
 
   /** Create Edric + Sera as the starting two lords. */
@@ -329,6 +420,9 @@ export class RunManager {
       accessories: this.accessories,
       scrolls: this.scrolls,
       randomLegendary: this.randomLegendary || null,
+      activeBlessings: this.activeBlessings || [],
+      blessingHistory: this.blessingHistory || [],
+      blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
     };
   }
 
@@ -379,6 +473,10 @@ export class RunManager {
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
     rm.randomLegendary = saved.randomLegendary || null;
+    rm.activeBlessings = saved.activeBlessings || [];
+    rm.blessingHistory = saved.blessingHistory || [];
+    rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
+    rm._runStartBlessingsApplied = true;
 
     // Migrate old save format BEFORE relinking weapons
     // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)

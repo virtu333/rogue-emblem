@@ -1,3 +1,5 @@
+import { validateBlessingsConfig } from './BlessingEngine.js';
+
 // DataLoader — fetches and parses game data JSON files
 
 export class DataLoader {
@@ -17,10 +19,11 @@ export class DataLoader {
     this.accessories = null;
     this.whetstones = null;
     this.turnBonus = null;
+    this.blessings = null;
   }
 
   async loadAll() {
-    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus] = await Promise.all([
+    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
       this.loadJSON('data/classes.json'),
@@ -36,6 +39,7 @@ export class DataLoader {
       this.loadJSON('data/accessories.json'),
       this.loadJSON('data/whetstones.json'),
       this.loadJSON('data/turnBonus.json'),
+      this.loadOptionalJSON('data/blessings.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -52,11 +56,25 @@ export class DataLoader {
     this.accessories = accessories;
     this.whetstones = whetstones;
     this.turnBonus = turnBonus;
-    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus };
+    this.blessings = blessings;
+    if (this.blessings) {
+      const validation = validateBlessingsConfig(this.blessings);
+      if (!validation.valid) {
+        throw new Error(`Invalid blessings data: ${validation.errors.join('; ')}`);
+      }
+    }
+    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings };
   }
 
   async loadJSON(path) {
     const response = await fetch(path);
+    if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
+    return response.json();
+  }
+
+  async loadOptionalJSON(path) {
+    const response = await fetch(path);
+    if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
     return response.json();
   }

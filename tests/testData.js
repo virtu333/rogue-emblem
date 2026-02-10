@@ -27,5 +27,6 @@ export function loadGameData() {
     accessories: loadJSON('accessories.json'),
     whetstones: loadJSON('whetstones.json'),
     turnBonus: loadJSON('turnBonus.json'),
+    blessings: loadJSON('blessings.json'),
   };
 }
