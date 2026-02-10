@@ -239,6 +239,35 @@
     "learnableSkills": [{ "skillId": "luna", "level": 8 }]
   },
   {
+    "name": "Dancer",
+    "tier": "base",
+    "baseStats": {
+      "HP": 16,
+      "STR": 3,
+      "MAG": 4,
+      "SKL": 6,
+      "SPD": 10,
+      "DEF": 2,
+      "RES": 5,
+      "LCK": 8,
+      "MOV": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (P)",
+    "role": "Support, refreshes allies",
+    "growthRanges": {
+      "HP": "40-55",
+      "STR": "20-35",
+      "MAG": "25-40",
+      "SKL": "40-55",
+      "SPD": "60-75",
+      "DEF": "10-20",
+      "RES": "30-45",
+      "LCK": "50-65"
+    },
+    "promotesTo": "Bard"
+  },
+  {
     "name": "Pegasus Knight",
     "tier": "base",
     "baseStats": {
@@ -479,6 +508,25 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
     "roleChange": "Lethality chance, enhanced stealth"
+  },
+  {
+    "name": "Bard",
+    "tier": "promoted",
+    "promotesFrom": "Dancer",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 2,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 2,
+      "RES": 3,
+      "LCK": 1,
+      "MOV": 0
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M), Staves (P)",
+    "roleChange": "Gains staff proficiency"
   },
   {
     "name": "Falcon Knight",

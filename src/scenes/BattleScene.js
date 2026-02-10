@@ -802,6 +802,15 @@ export class BattleScene extends Phaser.Scene {
       case 'SELECTING_PULL_TARGET':
         this.handlePullTargetClick(gp);
         break;
+      case 'SELECTING_TRADE_TARGET':
+        this.handleTradeTargetClick(gp);
+        break;
+      case 'SELECTING_SWAP_TARGET':
+        this.handleSwapTargetClick(gp);
+        break;
+      case 'SELECTING_DANCE_TARGET':
+        this.handleDanceTargetClick(gp);
+        break;
       case 'CANTO_MOVING':
         this.handleCantoClick(gp);
         break;
@@ -887,6 +896,18 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'SELECTING_PULL_TARGET') {
       this.grid.clearAttackHighlights();
       this.pullTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_TRADE_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.tradeTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_SWAP_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.swapTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_DANCE_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.danceTargets = [];
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'CANTO_MOVING') {
       // Skip Canto — end unit's turn
@@ -1194,6 +1215,65 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
+  findTradeTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const ac = unit.col + dc;
+      const ar = unit.row + dr;
+      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      if (!ally) continue;
+
+      // Both units must have items OR space for items
+      const unitHasItems = (unit.inventory?.length || 0) + (unit.consumables?.length || 0) > 0;
+      const allyHasItems = (ally.inventory?.length || 0) + (ally.consumables?.length || 0) > 0;
+      const unitHasSpace = (unit.inventory?.length || 0) < INVENTORY_MAX || (unit.consumables?.length || 0) < CONSUMABLE_MAX;
+      const allyHasSpace = (ally.inventory?.length || 0) < INVENTORY_MAX || (ally.consumables?.length || 0) < CONSUMABLE_MAX;
+
+      if ((unitHasItems && allyHasSpace) || (allyHasItems && unitHasSpace)) {
+        targets.push({ ally });
+      }
+    }
+    return targets;
+  }
+
+  findSwapTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const ac = unit.col + dc;
+      const ar = unit.row + dr;
+      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      if (!ally) continue;
+
+      // Check if both positions are walkable by both units
+      const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
+      const allyCanWalkToUnit = this.grid.getMoveCost(unit.col, unit.row, ally.moveType) !== Infinity;
+
+      if (unitCanWalkToAlly && allyCanWalkToUnit) {
+        targets.push({ ally });
+      }
+    }
+    return targets;
+  }
+
+  findDanceTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const ac = unit.col + dc;
+      const ar = unit.row + dr;
+      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      if (!ally) continue;
+
+      // Must have acted AND not be another dancer
+      if (ally.hasActed && !ally.skills?.includes('dance')) {
+        targets.push({ ally });
+      }
+    }
+    return targets;
+  }
+
   executeShove(unit, target) {
     this.hideActionMenu();
     const pos = this.grid.gridToPixel(target.destCol, target.destRow);
@@ -1239,6 +1319,178 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  startTradeTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_TRADE_TARGET';
+    this.tradeTargets = this.findTradeTargets(unit);
+    const tiles = this.tradeTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+  }
+
+  executeTrade(unit, target) {
+    this.hideActionMenu();
+    this.showBattleTradeUI(unit, target.ally);
+  }
+
+  showBattleTradeUI(unitA, unitB) {
+    const cam = this.cameras.main;
+    this.battleState = 'TRADING';
+
+    // Dark overlay
+    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.7)
+      .setDepth(400).setInteractive();
+    this.tradeUIObjects = [overlay];
+
+    // Title
+    const title = this.add.text(cam.centerX, 30, 'TRADE ITEMS', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(401);
+    this.tradeUIObjects.push(title);
+
+    // Unit names
+    const leftName = this.add.text(160, 60, unitA.name, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
+    }).setOrigin(0.5).setDepth(401);
+    const rightName = this.add.text(480, 60, unitB.name, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
+    }).setOrigin(0.5).setDepth(401);
+    this.tradeUIObjects.push(leftName, rightName);
+
+    // Two-column item lists (weapons + consumables)
+    let yOffset = 90;
+    const drawItems = (unit, x, otherUnit) => {
+      // Weapons
+      (unit.inventory || []).forEach((item, i) => {
+        const btn = this.add.text(x, yOffset + i * 20, item.name, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+          backgroundColor: '#222222', padding: { x: 6, y: 2 },
+        }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+
+        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+        btn.on('pointerdown', () => {
+          if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
+            removeFromInventory(unit, item);
+            addToInventory(otherUnit, item);
+            this.cleanupTradeUI();
+            this.showBattleTradeUI(unitA, unitB);
+          }
+        });
+        this.tradeUIObjects.push(btn);
+      });
+
+      // Consumables (below weapons)
+      const consumableOffset = (unit.inventory?.length || 0) * 20;
+      (unit.consumables || []).forEach((item, i) => {
+        const btn = this.add.text(x, yOffset + consumableOffset + i * 20, item.name, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#88ccff',
+          backgroundColor: '#222222', padding: { x: 6, y: 2 },
+        }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+
+        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerout', () => btn.setColor('#88ccff'));
+        btn.on('pointerdown', () => {
+          if ((otherUnit.consumables?.length || 0) < CONSUMABLE_MAX) {
+            const idx = unit.consumables.indexOf(item);
+            if (idx !== -1) unit.consumables.splice(idx, 1);
+            if (!otherUnit.consumables) otherUnit.consumables = [];
+            otherUnit.consumables.push(item);
+            this.cleanupTradeUI();
+            this.showBattleTradeUI(unitA, unitB);
+          }
+        });
+        this.tradeUIObjects.push(btn);
+      });
+    };
+
+    drawItems(unitA, 160, unitB);
+    drawItems(unitB, 480, unitA);
+
+    // Done button
+    const doneBtn = this.add.text(cam.centerX, cam.height - 40, '[ Done ]', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 16, y: 6 },
+    }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+    doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
+    doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
+    doneBtn.on('pointerdown', () => {
+      this.cleanupTradeUI();
+      this.finishUnitAction(unitA);
+    });
+    this.tradeUIObjects.push(doneBtn);
+  }
+
+  cleanupTradeUI() {
+    if (this.tradeUIObjects) {
+      this.tradeUIObjects.forEach(obj => obj.destroy());
+      this.tradeUIObjects = null;
+    }
+    this.battleState = 'PLAYER_IDLE';
+  }
+
+  startSwapTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_SWAP_TARGET';
+    this.swapTargets = this.findSwapTargets(unit);
+    const tiles = this.swapTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+  }
+
+  executeSwap(unit, target) {
+    this.hideActionMenu();
+    const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
+    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
+    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
+    const allyTargets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+
+    // Store positions for swap
+    const unitOldCol = unit.col, unitOldRow = unit.row;
+    const allyOldCol = target.ally.col, allyOldRow = target.ally.row;
+
+    // Animate both units simultaneously
+    this.tweens.add({ targets: unitTargets, x: unitPos.x, y: unitPos.y, duration: 120, ease: 'Quad.easeInOut' });
+    this.tweens.add({
+      targets: allyTargets, x: allyPos.x, y: allyPos.y, duration: 120, ease: 'Quad.easeInOut',
+      onComplete: () => {
+        unit.col = allyOldCol; unit.row = allyOldRow;
+        target.ally.col = unitOldCol; target.ally.row = unitOldRow;
+        this.updateUnitPosition(unit);
+        this.updateUnitPosition(target.ally);
+        this.finishUnitAction(unit);
+      },
+    });
+  }
+
+  startDanceTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_DANCE_TARGET';
+    this.danceTargets = this.findDanceTargets(unit);
+    const tiles = this.danceTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    this.grid.showAttackRange(tiles, 0x44ff88, 0.4);
+  }
+
+  executeDance(unit, target) {
+    this.hideActionMenu();
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_heal');
+
+    // Visual feedback: brief sparkle/glow on target
+    const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
+    const sparkle = this.add.circle(pos.x, pos.y, 20, 0x44ff88, 0.6).setDepth(200);
+    this.tweens.add({
+      targets: sparkle, alpha: 0, scale: 1.5, duration: 400, ease: 'Quad.easeOut',
+      onComplete: () => sparkle.destroy(),
+    });
+
+    // Reset target's action state
+    target.ally.hasMoved = false;
+    target.ally.hasActed = false;
+    this.undimUnit(target.ally);
+
+    // Dancer ends turn
+    this.finishUnitAction(unit);
+  }
+
   startShoveTargetSelection(unit) {
     this.hideActionMenu();
     this.battleState = 'SELECTING_SHOVE_TARGET';
@@ -1278,6 +1530,36 @@ export class BattleScene extends Phaser.Scene {
     if (target) {
       this.grid.clearAttackHighlights();
       this.executePull(this.selectedUnit, target);
+    }
+  }
+
+  handleTradeTargetClick(gp) {
+    const target = this.tradeTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    if (target) {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      this.grid.clearAttackHighlights();
+      this.executeTrade(this.selectedUnit, target);
+    }
+  }
+
+  handleSwapTargetClick(gp) {
+    const target = this.swapTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    if (target) {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      this.grid.clearAttackHighlights();
+      this.executeSwap(this.selectedUnit, target);
+    }
+  }
+
+  handleDanceTargetClick(gp) {
+    const target = this.danceTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    if (target) {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      this.grid.clearAttackHighlights();
+      this.executeDance(this.selectedUnit, target);
     }
   }
 
@@ -1366,6 +1648,12 @@ export class BattleScene extends Phaser.Scene {
     // Shove/Pull: show if unit has skill and valid targets exist
     if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0) items.push('Shove');
     if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
+    // Trade: show if unit has items/space and adjacent ally exists
+    if (unit.skills?.includes('trade') && this.findTradeTargets(unit).length > 0) items.push('Trade');
+    // Swap: show if unit has skill and valid targets exist
+    if (unit.skills?.includes('swap') && this.findSwapTargets(unit).length > 0) items.push('Swap');
+    // Dance: show if unit has skill and valid targets exist
+    if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0) items.push('Dance');
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
@@ -1443,6 +1731,12 @@ export class BattleScene extends Phaser.Scene {
           this.startShoveTargetSelection(unit);
         } else if (label === 'Pull') {
           this.startPullTargetSelection(unit);
+        } else if (label === 'Trade') {
+          this.startTradeTargetSelection(unit);
+        } else if (label === 'Swap') {
+          this.startSwapTargetSelection(unit);
+        } else if (label === 'Dance') {
+          this.startDanceTargetSelection(unit);
         } else if (label === 'Wait') {
           this.finishUnitAction(unit);
         }
