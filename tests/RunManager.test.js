@@ -817,6 +817,40 @@ describe('blessing run-start effect application', () => {
     expect(rm.getDeployBonus()).toBe(2);
   });
 
+  it('arsenal_pact grants one silver-tier weapon and applies act1 DEF penalty', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseDefs = rm.roster.map(u => u.stats.DEF);
+    const silverBefore = rm.roster.reduce((sum, u) => sum + u.inventory.filter(w => w.tier === 'Silver').length, 0);
+
+    rm.activeBlessings = ['arsenal_pact'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    const silverAfter = rm.roster.reduce((sum, u) => sum + u.inventory.filter(w => w.tier === 'Silver').length, 0);
+    expect(silverAfter).toBe(silverBefore + 1);
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.stats.DEF).toBe(baseDefs[idx] - 1);
+    });
+  });
+
+  it('arsenal_pact act1 DEF penalty is reverted after advancing to act2', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseDefs = rm.roster.map(u => u.stats.DEF);
+
+    rm.activeBlessings = ['arsenal_pact'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    rm.advanceAct();
+
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.stats.DEF).toBe(baseDefs[idx]);
+    });
+  });
+
   it('fromJSON migrates legacy blessing telemetry chosenIds to offeredIds', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
