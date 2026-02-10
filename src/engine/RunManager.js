@@ -75,7 +75,7 @@ export class RunManager {
   startRun() {
     this.roster = this.createInitialRoster();
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig);
+    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
   }
 
@@ -299,7 +299,7 @@ export class RunManager {
   advanceAct() {
     this.actIndex++;
     if (this.actIndex >= ACT_SEQUENCE.length) return; // shouldn't happen, use isRunComplete
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig);
+    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
   }
 

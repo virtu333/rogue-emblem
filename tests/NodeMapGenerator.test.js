@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
-import { ACT_CONFIG, NODE_TYPES } from '../src/utils/constants.js';
+import { ACT_CONFIG, NODE_TYPES, FOG_CHANCE_BY_ACT } from '../src/utils/constants.js';
+import { loadGameData } from './testData.js';
+
+const gameData = loadGameData();
 
 describe('NodeMapGenerator', () => {
   describe('generateNodeMap — act1', () => {
@@ -472,5 +475,140 @@ describe('Shop node frequency (25%)', () => {
     const shopPercent = (totalShop / totalMiddle) * 100;
     expect(shopPercent).toBeGreaterThan(20);
     expect(shopPercent).toBeLessThan(30);
+  });
+});
+
+describe('Template-driven fog', () => {
+  const mapTemplates = gameData.mapTemplates;
+
+  it('battle nodes get a templateId when mapTemplates provided', () => {
+    const map = generateNodeMap('act1', ACT_CONFIG.act1, mapTemplates);
+    const battleNodes = map.nodes.filter(n => n.type === NODE_TYPES.BATTLE);
+    expect(battleNodes.length).toBeGreaterThan(0);
+    for (const n of battleNodes) {
+      expect(n.templateId).toBeDefined();
+      expect(n.battleParams.templateId).toBe(n.templateId);
+    }
+  });
+
+  it('boss nodes get a templateId when mapTemplates provided', () => {
+    const map = generateNodeMap('act1', ACT_CONFIG.act1, mapTemplates);
+    const bossNodes = map.nodes.filter(n => n.type === NODE_TYPES.BOSS);
+    expect(bossNodes.length).toBe(1);
+    expect(bossNodes[0].templateId).toBeDefined();
+    expect(bossNodes[0].battleParams.templateId).toBe(bossNodes[0].templateId);
+  });
+
+  it('works without mapTemplates (backward compatible)', () => {
+    const map = generateNodeMap('act1', ACT_CONFIG.act1);
+    const battleNodes = map.nodes.filter(n => n.type === NODE_TYPES.BATTLE);
+    expect(battleNodes.length).toBeGreaterThan(0);
+    for (const n of battleNodes) {
+      expect(n.templateId).toBeUndefined();
+    }
+  });
+
+  it('forest_ambush nodes have fog ~55-65% of the time', () => {
+    // Force all templates to forest_ambush (fogChance=0.60)
+    const forestOnly = { rout: [mapTemplates.rout.find(t => t.id === 'forest_ambush')], seize: [mapTemplates.rout.find(t => t.id === 'forest_ambush')] };
+    let fogCount = 0;
+    let battleCount = 0;
+    for (let i = 0; i < 200; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, forestOnly);
+      for (const n of map.nodes) {
+        if (n.type === NODE_TYPES.BATTLE) {
+          battleCount++;
+          if (n.fogEnabled) fogCount++;
+        }
+      }
+    }
+    const fogPct = fogCount / battleCount;
+    expect(fogPct).toBeGreaterThan(0.50);
+    expect(fogPct).toBeLessThan(0.70);
+  });
+
+  it('castle_assault nodes have fog ~0% of the time', () => {
+    // Force all templates to castle_assault (fogChance=0.00)
+    const castleOnly = { rout: [mapTemplates.seize.find(t => t.id === 'castle_assault')], seize: [mapTemplates.seize.find(t => t.id === 'castle_assault')] };
+    let fogCount = 0;
+    let battleCount = 0;
+    for (let i = 0; i < 200; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, castleOnly);
+      for (const n of map.nodes) {
+        if (n.type === NODE_TYPES.BATTLE) {
+          battleCount++;
+          if (n.fogEnabled) fogCount++;
+        }
+      }
+    }
+    expect(fogCount).toBe(0);
+  });
+
+  it('template without fogChance falls back to act-level chance', () => {
+    // Template with no fogChance field
+    const noFogField = { rout: [{ id: 'test_no_fog', zones: [], features: [] }], seize: [] };
+    let fogCount = 0;
+    let battleCount = 0;
+    for (let i = 0; i < 200; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, noFogField);
+      for (const n of map.nodes) {
+        if (n.type === NODE_TYPES.BATTLE) {
+          battleCount++;
+          if (n.fogEnabled) fogCount++;
+        }
+      }
+    }
+    const fogPct = fogCount / battleCount;
+    const actChance = FOG_CHANCE_BY_ACT.act1; // 0.10
+    // Should be near 10% (act-level fallback)
+    expect(fogPct).toBeGreaterThan(actChance - 0.06);
+    expect(fogPct).toBeLessThan(actChance + 0.06);
+  });
+
+  it('missing act-level fog chance defaults to 0', () => {
+    const noFogField = { rout: [{ id: 'test_no_fog', zones: [], features: [] }], seize: [] };
+    // Use an act without FOG_CHANCE_BY_ACT entry — finalBoss has 0
+    let fogCount = 0;
+    let totalBattles = 0;
+    for (let i = 0; i < 50; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, noFogField);
+      for (const n of map.nodes) {
+        if (n.type === NODE_TYPES.BATTLE) {
+          totalBattles++;
+          if (n.fogEnabled) fogCount++;
+        }
+      }
+    }
+    // act2 has FOG_CHANCE_BY_ACT = 0.25, so fog should appear
+    const fogPct = fogCount / totalBattles;
+    expect(fogPct).toBeGreaterThan(0.15);
+    expect(fogPct).toBeLessThan(0.35);
+  });
+
+  it('rout nodes get rout templates, seize nodes get seize templates', () => {
+    for (let i = 0; i < 50; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, mapTemplates);
+      for (const n of map.nodes) {
+        if (!n.templateId || !n.battleParams) continue;
+        // RECRUIT nodes inherit templateId from original BATTLE type but have objective rewritten to rout
+        if (n.type === NODE_TYPES.RECRUIT) continue;
+        const obj = n.battleParams.objective;
+        const pool = mapTemplates[obj];
+        if (pool) {
+          const ids = pool.map(t => t.id);
+          expect(ids).toContain(n.templateId);
+        }
+      }
+    }
+  });
+
+  it('boss nodes never have fogEnabled', () => {
+    for (let i = 0; i < 100; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, mapTemplates);
+      const bossNodes = map.nodes.filter(n => n.type === NODE_TYPES.BOSS);
+      for (const n of bossNodes) {
+        expect(n.fogEnabled).toBeUndefined();
+      }
+    }
   });
 });

@@ -3,6 +3,7 @@
     {
       "id": "open_field",
       "name": "Open Field",
+      "fogChance": 0.10,
       "zones": [
         {
           "rect": [0, 0, 1, 1],
@@ -31,6 +32,7 @@
     {
       "id": "river_crossing",
       "name": "River Crossing",
+      "fogChance": 0.30,
       "zones": [
         {
           "rect": [0, 0, 1, 1],
@@ -69,6 +71,7 @@
     {
       "id": "forest_ambush",
       "name": "Forest Ambush",
+      "fogChance": 0.60,
       "zones": [
         {
           "rect": [0, 0, 1, 1],
@@ -99,6 +102,7 @@
     {
       "id": "chokepoint",
       "name": "Chokepoint",
+      "fogChance": 0.20,
       "zones": [
         {
           "rect": [0, 0, 1, 1],
@@ -147,6 +151,7 @@
     {
       "id": "castle_assault",
       "name": "Castle Assault",
+      "fogChance": 0.00,
       "zones": [
         {
           "rect": [0, 0, 1, 1],
@@ -187,6 +192,7 @@
     {
       "id": "hilltop_fortress",
       "name": "Hilltop Fortress",
+      "fogChance": 0.10,
       "zones": [
         {
           "rect": [0, 0, 1, 1],

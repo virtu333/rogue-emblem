@@ -4,6 +4,8 @@
 
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
 
+const DEBUG_MAP_GEN = false;
+
 // Number of fixed column lanes for the node map grid
 const NUM_COLUMNS = 5;
 const CENTER_COL = Math.floor(NUM_COLUMNS / 2); // 2
@@ -20,9 +22,10 @@ const ACT_LEVEL_SCALING = {
  * Edges only connect to same or adjacent columns (±1), preventing visual crossings.
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
+ * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize)
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
-export function generateNodeMap(actId, actConfig) {
+export function generateNodeMap(actId, actConfig, mapTemplates) {
   const { rows } = actConfig;
 
   // Special case: finalBoss is a single boss node
@@ -36,6 +39,12 @@ export function generateNodeMap(actId, actConfig) {
       battleParams: { act: actId, objective: 'seize' },
       completed: false,
     };
+    // Assign template for single-node boss
+    const template = pickTemplateForNode('seize', mapTemplates);
+    if (template) {
+      node.templateId = template.id;
+      node.battleParams.templateId = template.id;
+    }
     return {
       actId,
       nodes: [node],
@@ -88,9 +97,31 @@ export function generateNodeMap(actId, actConfig) {
         battleParams: buildBattleParams(actId, type, r, rows),
         completed: false,
       };
-      if (type === NODE_TYPES.BATTLE && Math.random() < (FOG_CHANCE_BY_ACT[actId] || 0)) {
-        node.fogEnabled = true;
+
+      // Assign template for combat nodes (BATTLE and BOSS)
+      if (type === NODE_TYPES.BATTLE || type === NODE_TYPES.BOSS) {
+        const objective = node.battleParams?.objective || 'rout';
+        const template = pickTemplateForNode(objective, mapTemplates);
+        if (template) {
+          node.templateId = template.id;
+          node.battleParams.templateId = template.id;
+        }
+
+        // Fog roll only for BATTLE nodes (boss nodes never get fog)
+        if (type === NODE_TYPES.BATTLE) {
+          const fogChance = (template && template.fogChance !== undefined)
+            ? template.fogChance
+            : (FOG_CHANCE_BY_ACT[actId] || 0);
+          const fogRoll = Math.random();
+          if (fogRoll < fogChance) {
+            node.fogEnabled = true;
+          }
+          if (DEBUG_MAP_GEN) {
+            console.log(`[MAP_GEN] Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${fogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
+          }
+        }
       }
+
       nodes.push(node);
       rowList.push(node);
     }
@@ -248,6 +279,21 @@ function buildBattleParams(actId, type, row, totalRows) {
   }
 
   return params;
+}
+
+/**
+ * Pick a random template matching the given objective from mapTemplates.
+ * @param {string} objective - 'rout' or 'seize'
+ * @param {Object} [mapTemplates] - { rout: [...], seize: [...] }
+ * @returns {Object|null} template or null if mapTemplates not provided
+ */
+function pickTemplateForNode(objective, mapTemplates) {
+  if (!mapTemplates) return null;
+  const pool = mapTemplates[objective];
+  if (!pool || pool.length === 0) {
+    return mapTemplates.rout?.[0] || null;
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 /**

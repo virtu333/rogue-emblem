@@ -10,15 +10,17 @@ import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } fro
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
-  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss } = params;
+  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss, templateId: preAssignedTemplateId } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes } = deps;
 
   // 1. Pick map size
   const sizeEntry = pickMapSize(act, mapSizes);
   const [cols, rows] = sizeEntry.mapSize.split('x').map(Number);
 
-  // 2. Pick template
-  const template = pickTemplate(objective, mapTemplates);
+  // 2. Pick template (use pre-assigned templateId if available)
+  const template = preAssignedTemplateId
+    ? findTemplateById(preAssignedTemplateId, mapTemplates) || pickTemplate(objective, mapTemplates)
+    : pickTemplate(objective, mapTemplates);
 
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
@@ -106,6 +108,15 @@ function pickTemplate(objective, mapTemplates) {
     return mapTemplates.rout[0];
   }
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function findTemplateById(templateId, mapTemplates) {
+  for (const pool of Object.values(mapTemplates)) {
+    if (!Array.isArray(pool)) continue;
+    const found = pool.find(t => t.id === templateId);
+    if (found) return found;
+  }
+  return null;
 }
 
 // --- Terrain generation ---
