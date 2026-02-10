@@ -22,5 +22,68 @@
     "value": 0,
     "uses": 1,
     "price": 2500
+  },
+  {
+    "name": "Energy Drop",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "STR",
+    "value": 2,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Spirit Dust",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "MAG",
+    "value": 2,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Secret Book",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "SKL",
+    "value": 2,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Speedwing",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "SPD",
+    "value": 2,
+    "uses": 1,
+    "price": 2500
+  },
+  {
+    "name": "Dracoshield",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "DEF",
+    "value": 2,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Talisman",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "RES",
+    "value": 2,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Angelic Robe",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "HP",
+    "value": 5,
+    "uses": 1,
+    "price": 2500
   }
 ]

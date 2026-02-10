@@ -303,6 +303,102 @@ describe('LootSystem', () => {
     });
   });
 
+  describe('loot pool rebalance', () => {
+    it('act1 weapon pool has no Iron weapons', () => {
+      const pool = gameData.lootTables.act1.weapons;
+      expect(pool).not.toContain('Iron Sword');
+      expect(pool).not.toContain('Iron Lance');
+      expect(pool).not.toContain('Iron Axe');
+      expect(pool).not.toContain('Iron Bow');
+    });
+
+    it('act1 weapon pool has Steel weapons and specials', () => {
+      const pool = gameData.lootTables.act1.weapons;
+      expect(pool).toContain('Steel Sword');
+      expect(pool).toContain('Steel Lance');
+      expect(pool).toContain('Steel Axe');
+      expect(pool).toContain('Steel Bow');
+      expect(pool).toContain('Wo Dao');
+      expect(pool).toContain('Lancereaver');
+      expect(pool).toContain('Wind Sword');
+    });
+
+    it('act1 consumable pool has 4 Vulnerary + 1 Master Seal', () => {
+      const pool = gameData.lootTables.act1.consumables;
+      const vulnCount = pool.filter(n => n === 'Vulnerary').length;
+      const sealCount = pool.filter(n => n === 'Master Seal').length;
+      expect(vulnCount).toBe(4);
+      expect(sealCount).toBe(1);
+      expect(pool.length).toBe(5);
+    });
+
+    it('act1 weights are rebalanced (more gold, less weapon)', () => {
+      const w = gameData.lootTables.act1.weights;
+      expect(w.weapon).toBe(20);
+      expect(w.gold).toBe(35);
+      expect(w.consumable).toBe(15);
+      expect(w.accessory).toBe(15);
+      expect(w.forge).toBe(15);
+    });
+
+    it('act2 weapon pool has killers and advanced weapons', () => {
+      const pool = gameData.lootTables.act2.weapons;
+      expect(pool).toContain('Killing Edge');
+      expect(pool).toContain('Killer Lance');
+      expect(pool).toContain('Hammer');
+      expect(pool).toContain('Spear');
+      expect(pool).toContain('Physic');
+      expect(pool).toContain('Bolganone');
+      expect(pool).toContain('Aura');
+    });
+
+    it('act2 consumable pool includes stat boosters', () => {
+      const pool = gameData.lootTables.act2.consumables;
+      expect(pool).toContain('Energy Drop');
+      expect(pool).toContain('Spirit Dust');
+      expect(pool).toContain('Speedwing');
+      expect(pool).toContain('Angelic Robe');
+    });
+
+    it('act3 consumable pool includes stat boosters', () => {
+      const pool = gameData.lootTables.act3.consumables;
+      expect(pool).toContain('Energy Drop');
+      expect(pool).toContain('Dracoshield');
+      expect(pool).toContain('Talisman');
+      expect(pool).toContain('Secret Book');
+    });
+
+    it('act2 weights are rebalanced', () => {
+      const w = gameData.lootTables.act2.weights;
+      expect(w.weapon).toBe(20);
+      expect(w.gold).toBe(20);
+      expect(w.consumable).toBe(15);
+      expect(w.forge).toBe(20);
+    });
+  });
+
+  describe('stat booster shop exclusion', () => {
+    it('shop never sells stat boosters in act2', () => {
+      const statBoosterNames = ['Energy Drop', 'Spirit Dust', 'Secret Book', 'Speedwing', 'Dracoshield', 'Talisman', 'Angelic Robe'];
+      for (let i = 0; i < 50; i++) {
+        const inv = generateShopInventory('act2', gameData.lootTables, gameData.weapons, gameData.consumables);
+        for (const entry of inv) {
+          expect(statBoosterNames).not.toContain(entry.item.name);
+        }
+      }
+    });
+
+    it('shop never sells stat boosters in act3', () => {
+      const statBoosterNames = ['Energy Drop', 'Spirit Dust', 'Secret Book', 'Speedwing', 'Dracoshield', 'Talisman', 'Angelic Robe'];
+      for (let i = 0; i < 50; i++) {
+        const inv = generateShopInventory('act3', gameData.lootTables, gameData.weapons, gameData.consumables);
+        for (const entry of inv) {
+          expect(statBoosterNames).not.toContain(entry.item.name);
+        }
+      }
+    });
+  });
+
   describe('boss loot (isBoss flag)', () => {
     it('boss flag shifts distribution toward rare/accessory/forge', () => {
       const counts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };

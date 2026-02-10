@@ -37,6 +37,7 @@ import {
   removeFromInventory,
   equipAccessory,
   unequipAccessory,
+  applyStatBoost,
 } from '../engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -2821,14 +2822,16 @@ export class BattleScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(priceLabel);
 
-        // Detail line (weapon might/range, consumable uses, or accessory effects)
+        // Detail line (weapon might/range, consumable uses, stat boost, or accessory effects)
         let detail = '';
+        let detailColor = '#999999';
         if (item.might !== undefined) detail = `Mt:${item.might} Hit:${item.hit}`;
         else if (item.type === 'Accessory') detail = this.getAccessoryDetailText(item);
+        else if (item.effect === 'statBoost') { detail = `+${item.value} ${item.stat}`; detailColor = '#88ff88'; }
         else if (item.uses !== undefined) detail = `Uses: ${item.uses}`;
         if (detail) {
           const detailLabel = this.add.text(cx, cardY + 52, detail, {
-            fontFamily: 'monospace', fontSize: '8px', color: '#999999',
+            fontFamily: 'monospace', fontSize: '8px', color: detailColor,
             wordWrap: { width: cardW - 10 }, align: 'center',
           }).setOrigin(0.5, 0).setDepth(702);
           lootGroup.push(detailLabel);
@@ -2848,8 +2851,11 @@ export class BattleScene extends Phaser.Scene {
             if (!this.runManager.accessories) this.runManager.accessories = [];
             this.runManager.accessories.push({ ...item });
             this.cleanupLootScreen(lootGroup);
+          } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
+            // Path 3a: Stat boosters → immediate apply via unit picker
+            this.showStatBoostUnitPicker(item, lootGroup);
           } else if (item.type === 'Consumable') {
-            // Path 3a: Consumables show dedicated picker with consumable limits
+            // Path 3b: Regular consumables show dedicated picker with consumable limits
             this.showConsumableUnitPicker(item, lootGroup);
           } else {
             // Path 3b: Weapons/staves show standard picker with inventory limits
@@ -3223,6 +3229,68 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Show unit picker for consumables with separate limit checking. */
+  showStatBoostUnitPicker(item, lootGroup) {
+    // Hide loot cards temporarily
+    for (const obj of lootGroup) obj.setVisible(false);
+
+    const pickerGroup = [];
+    const cam = this.cameras.main;
+
+    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710).setInteractive();
+    pickerGroup.push(bg);
+
+    const title = this.add.text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
+      fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
+    }).setOrigin(0.5).setDepth(711);
+    pickerGroup.push(title);
+
+    const roster = this.runManager.roster;
+    const btnW = 200;
+    const btnH = 50;
+    const startY = 150;
+
+    for (let i = 0; i < roster.length; i++) {
+      const unit = roster[i];
+      const currentVal = unit.stats[item.stat] || 0;
+      const by = startY + i * (btnH + 12);
+
+      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
+        .setStrokeStyle(2, 0x66aacc).setDepth(711).setInteractive({ useHandCursor: true });
+      pickerGroup.push(btn);
+
+      const label = this.add.text(cam.centerX, by - 8, unit.name, {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      }).setOrigin(0.5).setDepth(712);
+      pickerGroup.push(label);
+
+      const statLabel = this.add.text(cam.centerX, by + 10, `${item.stat}: ${currentVal} → ${currentVal + item.value}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#88ff88',
+      }).setOrigin(0.5).setDepth(712);
+      pickerGroup.push(statLabel);
+
+      btn.on('pointerdown', () => {
+        applyStatBoost(unit, item);
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_gold');
+        for (const obj of pickerGroup) obj.destroy();
+        this.cleanupLootScreen(lootGroup);
+      });
+    }
+
+    // Back button
+    const backBtn = this.add.text(cam.centerX, startY + roster.length * (btnH + 12) + 20, '< Back', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
+      backgroundColor: '#333333', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    pickerGroup.push(backBtn);
+
+    backBtn.on('pointerdown', () => {
+      for (const obj of pickerGroup) obj.destroy();
+      for (const obj of lootGroup) obj.setVisible(true);
+    });
+  }
+
   showConsumableUnitPicker(item, lootGroup) {
     // Hide loot cards temporarily
     for (const obj of lootGroup) obj.setVisible(false);

@@ -645,6 +645,16 @@ export function equipAccessory(unit, accessory) {
   return old;
 }
 
+// --- Stat booster helpers ---
+
+/** Apply a stat booster consumable to a unit (permanent +value to stat). */
+export function applyStatBoost(unit, item) {
+  unit.stats[item.stat] += item.value;
+  if (item.stat === 'HP') {
+    unit.currentHP += item.value;
+  }
+}
+
 /** Unequip current accessory. Returns the removed accessory (or null). */
 export function unequipAccessory(unit) {
   const old = unit.accessory;

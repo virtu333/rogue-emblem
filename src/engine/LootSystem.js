@@ -329,9 +329,15 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     }
   }
 
+  // Filter stat boosters out of shop consumables (loot-only items)
+  const shopConsumables = table.consumables.filter(name => {
+    const c = consumables.find(x => x.name === name);
+    return !c || c.effect !== 'statBoost';
+  });
+
   // Guarantee at least 1 consumable
-  if (table.consumables.length > 0) {
-    const name = table.consumables[Math.floor(Math.random() * table.consumables.length)];
+  if (shopConsumables.length > 0) {
+    const name = shopConsumables[Math.floor(Math.random() * shopConsumables.length)];
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item) {
       usedNames.add(name);
@@ -341,7 +347,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
 
   // Fill remaining slots from combined filtered weapon + consumable + accessory pools
   const accessoryPool = table.accessories || [];
-  const combinedPool = [...filteredWeapons, ...table.consumables, ...accessoryPool];
+  const combinedPool = [...filteredWeapons, ...shopConsumables, ...accessoryPool];
   const maxAttempts = itemCount * 5;
   let attempts = 0;
 

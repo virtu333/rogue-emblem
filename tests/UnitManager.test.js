@@ -15,6 +15,7 @@ import {
   removeFromInventory,
   learnSkill,
   getClassInnateSkills,
+  applyStatBoost,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 
@@ -301,5 +302,58 @@ describe('createRecruitUnit', () => {
       fighterClass, data.weapons, null, null, null
     );
     expect(unit.skills.length).toBe(0);
+  });
+});
+
+describe('applyStatBoost', () => {
+  it('increases STR by item value', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const oldSTR = unit.stats.STR;
+    applyStatBoost(unit, { stat: 'STR', value: 2 });
+    expect(unit.stats.STR).toBe(oldSTR + 2);
+  });
+
+  it('increases HP and currentHP for HP booster', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const oldHP = unit.stats.HP;
+    const oldCurrent = unit.currentHP;
+    applyStatBoost(unit, { stat: 'HP', value: 5 });
+    expect(unit.stats.HP).toBe(oldHP + 5);
+    expect(unit.currentHP).toBe(oldCurrent + 5);
+  });
+
+  it('works for all 7 stat types', () => {
+    const boosters = [
+      { stat: 'STR', value: 2 },
+      { stat: 'MAG', value: 2 },
+      { stat: 'SKL', value: 2 },
+      { stat: 'SPD', value: 2 },
+      { stat: 'DEF', value: 2 },
+      { stat: 'RES', value: 2 },
+      { stat: 'HP', value: 5 },
+    ];
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const before = { ...unit.stats };
+    for (const b of boosters) {
+      applyStatBoost(unit, b);
+    }
+    expect(unit.stats.STR).toBe(before.STR + 2);
+    expect(unit.stats.MAG).toBe(before.MAG + 2);
+    expect(unit.stats.SKL).toBe(before.SKL + 2);
+    expect(unit.stats.SPD).toBe(before.SPD + 2);
+    expect(unit.stats.DEF).toBe(before.DEF + 2);
+    expect(unit.stats.RES).toBe(before.RES + 2);
+    expect(unit.stats.HP).toBe(before.HP + 5);
+  });
+
+  it('does not change currentHP for non-HP stats', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const oldCurrent = unit.currentHP;
+    applyStatBoost(unit, { stat: 'STR', value: 2 });
+    expect(unit.currentHP).toBe(oldCurrent);
   });
 });
