@@ -79,7 +79,10 @@ function parsePersonalSkillId(personalSkillStr) {
 export function getClassInnateSkills(className, skillsData) {
   if (!skillsData) return [];
   return skillsData
-    .filter(s => s.classInnate === className)
+    .filter(s => {
+      if (Array.isArray(s.classInnate)) return s.classInnate.includes(className);
+      return s.classInnate === className;
+    })
     .map(s => s.id);
 }
 
@@ -93,17 +96,27 @@ export function learnSkill(unit, skillId) {
   return { learned: true, skillId };
 }
 
-/** Check if unit qualifies for any class-based skill at current level. Returns array of learned skill IDs. */
+/** Check if unit qualifies for any class-based or personal L20 skill at current level. Returns array of learned skill IDs. */
 export function checkLevelUpSkills(unit, classesData) {
-  const cls = classesData.find(c => c.name === unit.className);
-  if (!cls?.learnableSkills) return [];
   const learned = [];
-  for (const entry of cls.learnableSkills) {
-    if (unit.level >= entry.level) {
-      const result = learnSkill(unit, entry.skillId);
-      if (result.learned) learned.push(entry.skillId);
+
+  // Class-based learnable skills
+  const cls = classesData.find(c => c.name === unit.className);
+  if (cls?.learnableSkills) {
+    for (const entry of cls.learnableSkills) {
+      if (unit.level >= entry.level) {
+        const result = learnSkill(unit, entry.skillId);
+        if (result.learned) learned.push(entry.skillId);
+      }
     }
   }
+
+  // Lord L20 personal skill
+  if (unit._personalSkillL20 && unit.level >= unit._personalSkillL20.level) {
+    const result = learnSkill(unit, unit._personalSkillL20.skillId);
+    if (result.learned) learned.push(unit._personalSkillL20.skillId);
+  }
+
   return learned;
 }
 
@@ -128,6 +141,9 @@ export function createLordUnit(lordData, classData, allWeapons) {
   // Parse personal skill from lord data
   const personalSkillId = parsePersonalSkillId(lordData.personalSkill);
   const skills = personalSkillId ? [personalSkillId] : [];
+
+  // Store L20 personal skill data for later learning
+  const personalSkillL20 = lordData.personalSkillL20 || null;
 
   // Clone weapon to avoid shared state
   const weaponClone = weapon ? structuredClone(weapon) : null;
@@ -159,6 +175,7 @@ export function createLordUnit(lordData, classData, allWeapons) {
     graphic: null,
     label: null,
     hpBar: null,
+    _personalSkillL20: personalSkillL20,
   };
 }
 

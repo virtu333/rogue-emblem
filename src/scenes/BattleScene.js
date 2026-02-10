@@ -142,6 +142,11 @@ export class BattleScene extends Phaser.Scene {
         unit.hasMoved = false;
         unit.hasActed = false;
         unit._miracleUsed = false;
+        unit._gambitUsedThisTurn = false;
+        // Reset per-battle weapon uses (e.g. Bolting)
+        for (const w of (unit.inventory || [])) {
+          if (w.perBattleUses) w._usesSpent = 0;
+        }
         this.playerUnits.push(unit);
         this.addUnitGraphic(unit);
       }
@@ -345,6 +350,17 @@ export class BattleScene extends Phaser.Scene {
           this.dangerZoneStale = false;
         }
         this.dangerZone.toggle(this.dangerZoneCache);
+      }
+    });
+    this.input.keyboard.on('keydown-W', () => {
+      if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+        this.grid.clearHighlights();
+        this.cantoRange = null;
+        const unit = this.selectedUnit;
+        this.dimUnit(unit);
+        this.selectedUnit = null;
+        this.battleState = 'PLAYER_IDLE';
+        this.turnManager.unitActed(unit);
       }
     });
 
@@ -729,6 +745,15 @@ export class BattleScene extends Phaser.Scene {
       case 'SELECTING_HEAL_TARGET':
         this.handleHealTargetClick(gp);
         break;
+      case 'SELECTING_SHOVE_TARGET':
+        this.handleShoveTargetClick(gp);
+        break;
+      case 'SELECTING_PULL_TARGET':
+        this.handlePullTargetClick(gp);
+        break;
+      case 'CANTO_MOVING':
+        this.handleCantoClick(gp);
+        break;
     }
   }
 
@@ -804,6 +829,23 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.healTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_SHOVE_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.shoveTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_PULL_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.pullTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'CANTO_MOVING') {
+      // Skip Canto — end unit's turn
+      this.grid.clearHighlights();
+      this.cantoRange = null;
+      const cantoUnit = this.selectedUnit;
+      this.dimUnit(cantoUnit);
+      this.selectedUnit = null;
+      this.battleState = 'PLAYER_IDLE';
+      this.turnManager.unitActed(cantoUnit);
     } else if (this.battleState === 'UNIT_ACTION_MENU') {
       if (this.inEquipMenu) {
         this.inEquipMenu = false;
@@ -944,6 +986,11 @@ export class BattleScene extends Phaser.Scene {
     );
     if (!path || path.length < 2) return;
 
+    // Track movement cost for Canto
+    const moveRange = this.grid.getMovementRange(unit.col, unit.row, unit.stats.MOV, unit.moveType, this.unitPositions, unit.faction);
+    const destKey = `${toCol},${toRow}`;
+    unit._movementSpent = moveRange.get(destKey)?.cost || 0;
+
     this.battleState = 'UNIT_MOVING';
     this.preMoveLoc = { col: unit.col, row: unit.row };
     this.grid.clearHighlights();
@@ -1024,16 +1071,216 @@ export class BattleScene extends Phaser.Scene {
 
   finishUnitAction(unit) {
     this.hideActionMenu();
-    unit.hasActed = true;
-    this.dimUnit(unit);
     this.grid.clearAttackHighlights();
     this.attackTargets = [];
     this.healTargets = [];
     this.inEquipMenu = false;
+
+    // Check for Canto: use remaining movement after acting
+    const hasCanto = unit.skills?.includes('canto');
+    const movSpent = unit._movementSpent || 0;
+    const remaining = unit.stats.MOV - movSpent;
+    if (hasCanto && remaining > 0 && unit.faction === 'player') {
+      unit.hasActed = true;
+      this.selectedUnit = unit;
+      this.preMoveLoc = null;
+      this.startCantoMove(unit, remaining);
+      return;
+    }
+
+    unit.hasActed = true;
+    this.dimUnit(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this.battleState = 'PLAYER_IDLE';
     this.turnManager.unitActed(unit);
+  }
+
+  // --- Shove / Pull / Canto ---
+
+  findShoveTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const ac = unit.col + dc;
+      const ar = unit.row + dr;
+      // Must be an ally at that position
+      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      if (!ally) continue;
+      const destC = ac + dc;
+      const destR = ar + dr;
+      if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
+      const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
+      if (moveCost === Infinity) continue;
+      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(u => u.col === destC && u.row === destR);
+      if (occupied) continue;
+      targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
+    }
+    return targets;
+  }
+
+  findPullTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const ac = unit.col + dc;
+      const ar = unit.row + dr;
+      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      if (!ally) continue;
+      // Unit retreats opposite direction
+      const retreatC = unit.col - dc;
+      const retreatR = unit.row - dr;
+      if (retreatC < 0 || retreatC >= this.grid.cols || retreatR < 0 || retreatR >= this.grid.rows) continue;
+      const retreatCost = this.grid.getMoveCost(retreatC, retreatR, unit.moveType);
+      if (retreatCost === Infinity) continue;
+      // Ally moves to unit's old position — passable for ally?
+      const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
+      if (allyDestCost === Infinity) continue;
+      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(u => u.col === retreatC && u.row === retreatR);
+      if (occupied) continue;
+      targets.push({ ally, retreatCol: retreatC, retreatRow: retreatR, dc, dr });
+    }
+    return targets;
+  }
+
+  executeShove(unit, target) {
+    this.hideActionMenu();
+    const pos = this.grid.gridToPixel(target.destCol, target.destRow);
+    const targets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+    this.tweens.add({
+      targets,
+      x: pos.x, y: pos.y,
+      duration: 80,
+      ease: 'Linear',
+      onComplete: () => {
+        target.ally.col = target.destCol;
+        target.ally.row = target.destRow;
+        this.updateUnitPosition(target.ally);
+        this.finishUnitAction(unit);
+      },
+    });
+  }
+
+  executePull(unit, target) {
+    this.hideActionMenu();
+    // Move both simultaneously: unit retreats, ally moves to unit's old spot
+    const unitPos = this.grid.gridToPixel(target.retreatCol, target.retreatRow);
+    const allyPos = this.grid.gridToPixel(unit.col, unit.row);
+    const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
+    const allyTargets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+    const allyDestCol = unit.col;
+    const allyDestRow = unit.row;
+    this.tweens.add({ targets: unitTargets, x: unitPos.x, y: unitPos.y, duration: 80, ease: 'Linear' });
+    this.tweens.add({
+      targets: allyTargets,
+      x: allyPos.x, y: allyPos.y,
+      duration: 80,
+      ease: 'Linear',
+      onComplete: () => {
+        unit.col = target.retreatCol;
+        unit.row = target.retreatRow;
+        target.ally.col = allyDestCol;
+        target.ally.row = allyDestRow;
+        this.updateUnitPosition(unit);
+        this.updateUnitPosition(target.ally);
+        this.finishUnitAction(unit);
+      },
+    });
+  }
+
+  startShoveTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_SHOVE_TARGET';
+    this.shoveTargets = this.findShoveTargets(unit);
+    const tiles = this.shoveTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+  }
+
+  startPullTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_PULL_TARGET';
+    this.pullTargets = this.findPullTargets(unit);
+    const tiles = this.pullTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
+  }
+
+  startCantoMove(unit, remainingMov) {
+    this.battleState = 'CANTO_MOVING';
+    const positions = this.buildUnitPositionMap(unit.faction);
+    const moveRange = this.grid.getMovementRange(
+      unit.col, unit.row, remainingMov, unit.moveType, positions, unit.faction
+    );
+    this.grid.showMovementRange(moveRange, unit.col, unit.row, 0x44aaff, 0.3);
+    this.cantoRange = moveRange;
+  }
+
+  handleShoveTargetClick(gp) {
+    const target = this.shoveTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    if (target) {
+      this.grid.clearAttackHighlights();
+      this.executeShove(this.selectedUnit, target);
+    }
+  }
+
+  handlePullTargetClick(gp) {
+    const target = this.pullTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    if (target) {
+      this.grid.clearAttackHighlights();
+      this.executePull(this.selectedUnit, target);
+    }
+  }
+
+  handleCantoClick(gp) {
+    const unit = this.selectedUnit;
+    // Click own tile or W key = skip Canto
+    if (gp.col === unit.col && gp.row === unit.row) {
+      this.grid.clearHighlights();
+      this.cantoRange = null;
+      this.dimUnit(unit);
+      this.selectedUnit = null;
+      this.battleState = 'PLAYER_IDLE';
+      this.turnManager.unitActed(unit);
+      return;
+    }
+    const key = `${gp.col},${gp.row}`;
+    if (!this.cantoRange?.has(key)) return;
+    // Animate Canto movement
+    this.grid.clearHighlights();
+    const positions = this.buildUnitPositionMap(unit.faction);
+    const path = this.grid.findPath(
+      unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction
+    );
+    if (!path || path.length < 2) return;
+    this.battleState = 'UNIT_MOVING';
+    const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
+    const destCol = gp.col;
+    const destRow = gp.row;
+    const animateStep = (stepIndex) => {
+      if (stepIndex >= path.length) {
+        unit.col = destCol;
+        unit.row = destRow;
+        this.updateUnitPosition(unit);
+        if (this.grid.fogEnabled) {
+          this.grid.updateFogOfWar(this.playerUnits);
+          this.updateEnemyVisibility();
+        }
+        this.cantoRange = null;
+        this.dimUnit(unit);
+        this.selectedUnit = null;
+        this.battleState = 'PLAYER_IDLE';
+        this.turnManager.unitActed(unit);
+        return;
+      }
+      const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
+      this.tweens.add({
+        targets,
+        x: pos.x, y: pos.y,
+        duration: 80,
+        ease: 'Linear',
+        onComplete: () => animateStep(stepIndex + 1),
+      });
+    };
+    animateStep(1);
   }
 
   // --- Action Menu ---
@@ -1065,6 +1312,9 @@ export class BattleScene extends Phaser.Scene {
     if (consumables.length > 0) items.push('Item');
     // Accessory: show if unit has accessory or team has accessories in pool
     if (unit.accessory || (this.runManager?.accessories?.length > 0)) items.push('Accessory');
+    // Shove/Pull: show if unit has skill and valid targets exist
+    if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0) items.push('Shove');
+    if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
@@ -1138,6 +1388,10 @@ export class BattleScene extends Phaser.Scene {
         } else if (label === 'Seize') {
           this.hideActionMenu();
           this.onVictory();
+        } else if (label === 'Shove') {
+          this.startShoveTargetSelection(unit);
+        } else if (label === 'Pull') {
+          this.startPullTargetSelection(unit);
         } else if (label === 'Wait') {
           this.finishUnitAction(unit);
         }
@@ -1733,8 +1987,8 @@ export class BattleScene extends Phaser.Scene {
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
 
     return {
-      atkMods: getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain),
-      defMods: getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain),
+      atkMods: getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true),
+      defMods: getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false),
       rollStrikeSkills,
       rollDefenseSkills,
       checkAstra,
@@ -1878,6 +2132,34 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.attackTargets = [];
       return;
+    }
+
+    // Commander's Gambit: attacker + nearby allies act again
+    if (!attacker._gambitUsedThisTurn) {
+      const gambitTriggered = result.events.some(e =>
+        e.skillActivations?.some(s => s.id === 'commanders_gambit')
+      );
+      if (gambitTriggered) {
+        attacker._gambitUsedThisTurn = true;
+        const unitsToRefresh = [attacker];
+        for (const ally of this.playerUnits) {
+          if (ally === attacker || ally.currentHP <= 0) continue;
+          if (gridDistance(attacker.col, attacker.row, ally.col, ally.row) <= 1) {
+            unitsToRefresh.push(ally);
+          }
+        }
+        for (const u of unitsToRefresh) {
+          u.hasActed = false;
+          u.hasMoved = false;
+          u._movementSpent = 0;
+          if (u.graphic?.clearTint) u.graphic.clearTint();
+        }
+        this.selectedUnit = null;
+        this.battleState = 'PLAYER_IDLE';
+        this.grid.clearAttackHighlights();
+        this.attackTargets = [];
+        return;
+      }
     }
 
     // Finish action (attacker survived)
@@ -2097,6 +2379,7 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
+        u._gambitUsedThisTurn = false;
         this.undimUnit(u);
       }
       this.battleState = 'PLAYER_IDLE';

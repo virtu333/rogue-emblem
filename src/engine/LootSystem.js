@@ -116,6 +116,90 @@ function filterByRosterTypes(names, rosterTypes, allWeapons) {
   });
 }
 
+// --- Random Legendary Weapon ---
+
+const LEGENDARY_NAMES = [
+  'Zenith', 'Tempest', 'Eclipse', 'Solstice', 'Exodus',
+  'Apex', 'Nemesis', 'Harbinger', 'Radiance', 'Terminus',
+];
+
+const SILVER_BASES = {
+  Sword:  'Silver Sword',
+  Lance:  'Silver Lance',
+  Axe:    'Silver Axe',
+  Bow:    'Silver Bow',
+  Tome:   'Bolganone',
+  Light:  'Aura',
+};
+
+const LEGENDARY_SKILL_POOL = ['sol', 'luna', 'vantage', 'wrath', 'adept'];
+
+/**
+ * Generate a random legendary weapon for a run.
+ * Picks a random name, type, clones the silver base, and applies a random bonus.
+ * @param {Array} allWeapons - weapons.json array
+ * @returns {object} a unique legendary weapon object
+ */
+export function generateRandomLegendary(allWeapons) {
+  const name = LEGENDARY_NAMES[Math.floor(Math.random() * LEGENDARY_NAMES.length)];
+  const types = Object.keys(SILVER_BASES);
+  const type = types[Math.floor(Math.random() * types.length)];
+  const baseName = SILVER_BASES[type];
+  const base = allWeapons.find(w => w.name === baseName);
+  if (!base) return null;
+
+  const weapon = structuredClone(base);
+  weapon.name = name;
+  weapon.type = type;
+  weapon.tier = 'Legend';
+  weapon.rankRequired = 'Prof';
+  weapon.price = 0;
+  weapon.might += 1;
+  weapon.hit += 5;
+  weapon.weight = Math.max(0, weapon.weight - 1);
+  weapon._isRandomLegendary = true;
+
+  // Roll random bonus category (equal chance: stat boost, ability, skill grant)
+  const bonusType = Math.floor(Math.random() * 3);
+
+  if (bonusType === 0) {
+    // Stat boost: +2 to +5 of a random stat when equipped
+    const physStats = ['STR', 'SKL', 'SPD', 'DEF'];
+    const magStats = ['MAG', 'SKL', 'SPD', 'RES'];
+    const statPool = (type === 'Tome' || type === 'Light') ? magStats : physStats;
+    const stat = statPool[Math.floor(Math.random() * statPool.length)];
+    const value = 2 + Math.floor(Math.random() * 4); // 2-5
+    weapon.special = `+${value} ${stat} when equipped`;
+  } else if (bonusType === 1) {
+    // Ability: Brave, Drain, or 1-2 range (melee only)
+    const isMelee = weapon.range === '1';
+    const abilities = isMelee
+      ? ['brave', 'drain', 'throwable']
+      : ['brave', 'drain'];
+    const ability = abilities[Math.floor(Math.random() * abilities.length)];
+    if (ability === 'brave') {
+      weapon.special = 'Attacks twice consecutively';
+      weapon.might = Math.max(1, weapon.might - 3);
+      weapon.weight += 3;
+    } else if (ability === 'drain') {
+      weapon.special = 'Drains HP equal to damage dealt';
+    } else {
+      weapon.special = 'Throwable, lower stats';
+      weapon.range = '1-2';
+      weapon.might = Math.max(1, weapon.might - 2);
+      weapon.hit -= 5;
+    }
+  } else {
+    // Skill grant: embed a skill from pool
+    const skillId = LEGENDARY_SKILL_POOL[Math.floor(Math.random() * LEGENDARY_SKILL_POOL.length)];
+    const skillNames = { sol: 'Sol', luna: 'Luna', vantage: 'Vantage', wrath: 'Wrath', adept: 'Adept' };
+    weapon.special = `Grants ${skillNames[skillId]} to wielder`;
+    weapon._grantedSkill = skillId;
+  }
+
+  return weapon;
+}
+
 /**
  * Generate N loot choices from act's loot table.
  * Each choice: { type: 'weapon'|'consumable'|'rare'|'gold'|'accessory'|'forge', item?, goldAmount? }
@@ -131,7 +215,7 @@ function filterByRosterTypes(names, rosterTypes, allWeapons) {
  * @param {boolean} [isBoss=false] - shift weights toward rare/accessory/forge for boss battles
  * @returns {Array}
  */
-export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false) {
+export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null) {
   const table = lootTables[actId] || lootTables.act3;
   const choices = [];
   const usedNames = new Set();
@@ -175,6 +259,11 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
     let pool = table[POOL_MAP[category]];
     if (!pool || pool.length === 0) continue;
 
+    // Inject random legendary into rare pool for act3+
+    if (category === 'rare' && randomLegendary && (actId === 'act3' || actId === 'finalBoss')) {
+      pool = [...pool, randomLegendary.name];
+    }
+
     // Filter weapon-type pools by roster proficiencies
     if (rosterTypes && (category === 'weapon' || category === 'rare')) {
       pool = filterByRosterTypes(pool, rosterTypes, allWeapons);
@@ -184,7 +273,13 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
     const name = pool[Math.floor(Math.random() * pool.length)];
     if (usedNames.has(name)) continue;
 
-    const item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
+    // Random legendary is not in allWeapons — use the object directly
+    let item;
+    if (randomLegendary && name === randomLegendary.name) {
+      item = structuredClone(randomLegendary);
+    } else {
+      item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
+    }
     if (!item) continue;
 
     usedNames.add(name);

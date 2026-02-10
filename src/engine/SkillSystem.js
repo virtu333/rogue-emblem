@@ -32,7 +32,7 @@ function getActivationChance(unit, activation) {
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
  */
-export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skillsData, terrain) {
+export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skillsData, terrain, isInitiating = false) {
   const mods = {
     hitBonus: 0,
     avoidBonus: 0,
@@ -40,15 +40,22 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     atkBonus: 0,
     defBonus: 0,
     resBonus: 0,
+    spdBonus: 0,
     ignoreTerrainAvoid: false,
     vantage: false,
+    desperation: false,
+    quickRiposte: false,
     activated: [],  // [{id, name}] for UI display
   };
 
-  if (!skillsData || !unit.skills) return mods;
+  if (!skillsData) return mods;
 
-  // Unit's own skills
-  for (const skillId of unit.skills) {
+  // Combine unit skills + weapon granted skill (deduped)
+  const unitSkills = [...(unit.skills || [])];
+  const grantedSkill = unit.weapon?._grantedSkill;
+  if (grantedSkill && !unitSkills.includes(grantedSkill)) unitSkills.push(grantedSkill);
+  // Unit's own skills + weapon granted skill
+  for (const skillId of unitSkills) {
     const skill = getSkill(skillId, skillsData);
     if (!skill) continue;
 
@@ -70,6 +77,10 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       if (skill.condition === 'adjacent_ally') {
         condMet = allAllies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
       }
+      if (skill.condition === 'initiating') condMet = isInitiating;
+      if (skill.condition === 'above50_defending') {
+        condMet = !isInitiating && unit.currentHP > Math.floor(unit.stats.HP / 2);
+      }
       if (condMet) {
         if (skill.id === 'resolve' && skill.effects) {
           mods.atkBonus += skill.effects.strBonus || 0;
@@ -84,14 +95,24 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
           mods.vantage = true;
           mods.activated.push({ id: skill.id, name: skill.name });
         }
-        // Generic on-combat-start stat bonuses (Guard, etc.)
-        if (skill.id !== 'resolve' && skill.id !== 'wrath' && skill.id !== 'vantage' && skill.effects) {
+        if (skill.id === 'desperation') {
+          mods.desperation = true;
+          mods.activated.push({ id: skill.id, name: skill.name });
+        }
+        if (skill.id === 'quick_riposte') {
+          mods.quickRiposte = true;
+          mods.activated.push({ id: skill.id, name: skill.name });
+        }
+        // Generic on-combat-start stat bonuses (Guard, Death Blow, Darting Blow, etc.)
+        const specialIds = new Set(['resolve', 'wrath', 'vantage', 'desperation', 'quick_riposte']);
+        if (!specialIds.has(skill.id) && skill.effects) {
           if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
           if (skill.effects.resBonus) mods.resBonus += skill.effects.resBonus;
           if (skill.effects.atkBonus) mods.atkBonus += skill.effects.atkBonus;
           if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
           if (skill.effects.hitBonus) mods.hitBonus += skill.effects.hitBonus;
           if (skill.effects.avoidBonus) mods.avoidBonus += skill.effects.avoidBonus;
+          if (skill.effects.spdBonus) mods.spdBonus += skill.effects.spdBonus;
           mods.activated.push({ id: skill.id, name: skill.name });
         }
       }
@@ -109,6 +130,10 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       if (dist <= (skill.range || 0) && skill.effects) {
         mods.hitBonus += skill.effects.hitBonus || 0;
         mods.avoidBonus += skill.effects.avoidBonus || 0;
+        mods.atkBonus += skill.effects.atkBonus || 0;
+        mods.defBonus += skill.effects.defBonus || 0;
+        mods.resBonus += skill.effects.resBonus || 0;
+        mods.critBonus += skill.effects.critBonus || 0;
       }
     }
   }
@@ -150,9 +175,15 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData) {
     activated: [],
   };
 
-  if (!skillsData || !attacker.skills) return result;
+  if (!skillsData) return result;
 
-  for (const skillId of attacker.skills) {
+  // Combine unit skills + weapon granted skill (deduped)
+  const skillIds = [...(attacker.skills || [])];
+  const grantedSkill = attacker.weapon?._grantedSkill;
+  if (grantedSkill && !skillIds.includes(grantedSkill)) skillIds.push(grantedSkill);
+  if (skillIds.length === 0) return result;
+
+  for (const skillId of skillIds) {
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-attack') continue;
 
@@ -183,6 +214,26 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData) {
         result.extraStrike = true;
         result.activated.push({ id: 'adept', name: 'Adept' });
         break;
+
+      case 'aether':
+        // Sol then Luna: first hit heals, then an extra hit at 1.5x damage
+        result.heal = normalDamage;
+        result.extraStrike = true;
+        result.aetherLuna = true; // flag for the bonus strike to use Luna damage
+        result.activated.push({ id: 'aether', name: 'Aether' });
+        break;
+
+      case 'flare':
+        // Negate RES: add target's RES to damage, then drain
+        result.modifiedDamage = normalDamage + (target.stats?.RES || 0);
+        result.heal = result.modifiedDamage;
+        result.activated.push({ id: 'flare', name: 'Flare' });
+        break;
+
+      case 'commanders_gambit':
+        result.commandersGambit = true;
+        result.activated.push({ id: 'commanders_gambit', name: "Commander's Gambit" });
+        break;
     }
   }
 
@@ -200,18 +251,29 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
   const result = {
     modifiedDamage: damage,
     miracleTriggered: false,
+    cancelFollowUp: false,
     activated: [],
   };
 
-  if (!skillsData || !defender.skills) return result;
+  if (!skillsData) return result;
 
-  for (const skillId of defender.skills) {
+  const defSkills = [...(defender.skills || [])];
+  const grantedSkill = defender.weapon?._grantedSkill;
+  if (grantedSkill && !defSkills.includes(grantedSkill)) defSkills.push(grantedSkill);
+  if (defSkills.length === 0) return result;
+
+  for (const skillId of defSkills) {
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-defend') continue;
 
     const chance = getActivationChance(defender, skill.activation);
     const roll = Math.random() * 100;
     if (roll >= chance) continue;
+
+    if (skill.id === 'cancel') {
+      result.cancelFollowUp = true;
+      result.activated.push({ id: 'cancel', name: 'Cancel' });
+    }
 
     if (skill.id === 'pavise' && isPhysicalAttack) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
@@ -243,9 +305,10 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
  * Returns: { triggered, strikeCount, damageMult, name }
  */
 export function checkAstra(attacker, skillsData) {
-  if (!skillsData || !attacker.skills) return { triggered: false };
+  if (!skillsData) return { triggered: false };
 
-  if (!attacker.skills.includes('astra')) return { triggered: false };
+  const hasAstra = attacker.skills?.includes('astra') || attacker.weapon?._grantedSkill === 'astra';
+  if (!hasAstra) return { triggered: false };
 
   const skill = getSkill('astra', skillsData);
   if (!skill) return { triggered: false };

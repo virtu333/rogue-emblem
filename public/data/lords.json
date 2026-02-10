@@ -38,7 +38,8 @@
       "LCK": 0,
       "MOV": 1
     },
-    "promotionWeapons": "Lances (P)"
+    "promotionWeapons": "Lances (P)",
+    "personalSkillL20": { "skillId": "commanders_gambit", "level": 20 }
   },
   {
     "name": "Kira",
@@ -79,7 +80,8 @@
       "LCK": 0,
       "MOV": 0
     },
-    "promotionWeapons": "Swords (P)"
+    "promotionWeapons": "Swords (P)",
+    "personalSkillL20": { "skillId": "tactical_advantage", "level": 20 }
   },
   {
     "name": "Voss",
@@ -120,7 +122,8 @@
       "LCK": 0,
       "MOV": 0
     },
-    "promotionWeapons": "Axes (P)"
+    "promotionWeapons": "Axes (P)",
+    "personalSkillL20": { "skillId": "aether", "level": 20 }
   },
   {
     "name": "Sera",
@@ -161,6 +164,7 @@
       "LCK": 0,
       "MOV": 0
     },
-    "promotionWeapons": "Staves (P)"
+    "promotionWeapons": "Staves (P)",
+    "personalSkillL20": { "skillId": "flare", "level": 20 }
   }
 ]

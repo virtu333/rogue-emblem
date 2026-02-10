@@ -8,7 +8,7 @@ import {
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { createLordUnit, addToInventory, addToConsumables, equipAccessory } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
-import { calculateBattleGold } from './LootSystem.js';
+import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 
 // Phaser-specific fields that must be stripped for serialization
@@ -56,6 +56,7 @@ export class RunManager {
   /** Initialize a new run: create starting roster + first act node map. */
   startRun() {
     this.roster = this.createInitialRoster();
+    this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig);
     this.currentNodeId = null;
   }
@@ -275,6 +276,7 @@ export class RunManager {
       metaEffects: this.metaEffects,
       accessories: this.accessories,
       scrolls: this.scrolls,
+      randomLegendary: this.randomLegendary || null,
     };
   }
 
@@ -323,6 +325,7 @@ export class RunManager {
     rm.gold = saved.gold;
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
+    rm.randomLegendary = saved.randomLegendary || null;
 
     // Migrate old save format if needed
     RunManager.migrateInventorySplit(rm);

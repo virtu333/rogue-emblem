@@ -163,5 +163,94 @@
     "trigger": "on-combat-start",
     "condition": "adjacent_ally",
     "effects": { "defBonus": 3, "resBonus": 3 }
+  },
+  {
+    "id": "cancel",
+    "name": "Cancel",
+    "description": "SPD% chance to negate enemy's follow-up attack",
+    "trigger": "on-defend",
+    "activation": "SPD"
+  },
+  {
+    "id": "desperation",
+    "name": "Desperation",
+    "description": "Below 50% HP: follow-up attacks land before enemy can counter",
+    "trigger": "on-combat-start",
+    "condition": "below50"
+  },
+  {
+    "id": "quick_riposte",
+    "name": "Quick Riposte",
+    "description": "Above 50% HP: always double when defending",
+    "trigger": "on-combat-start",
+    "condition": "above50_defending"
+  },
+  {
+    "id": "death_blow",
+    "name": "Death Blow",
+    "description": "+6 STR when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": { "atkBonus": 6 }
+  },
+  {
+    "id": "darting_blow",
+    "name": "Darting Blow",
+    "description": "+6 SPD when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": { "spdBonus": 6 }
+  },
+  {
+    "id": "shove",
+    "name": "Shove",
+    "description": "Push an adjacent ally 1 tile away",
+    "trigger": "action"
+  },
+  {
+    "id": "pull",
+    "name": "Pull",
+    "description": "Pull an adjacent ally 1 tile toward you while stepping back",
+    "trigger": "action"
+  },
+  {
+    "id": "canto",
+    "name": "Canto",
+    "description": "Use remaining movement after acting",
+    "trigger": "passive",
+    "classInnate": ["Paladin", "Falcon Knight"]
+  },
+  {
+    "id": "commanders_gambit",
+    "name": "Commander's Gambit",
+    "description": "SKL/2%: Edric + allies within 1 tile act again this turn",
+    "trigger": "on-attack",
+    "activation": "SKL_HALF",
+    "personal": true
+  },
+  {
+    "id": "tactical_advantage",
+    "name": "Tactical Advantage",
+    "description": "Adjacent allies gain +3 to all stats",
+    "trigger": "passive-aura",
+    "range": 1,
+    "effects": { "atkBonus": 3, "defBonus": 3, "resBonus": 3, "hitBonus": 6, "avoidBonus": 6, "critBonus": 1 },
+    "personal": true
+  },
+  {
+    "id": "aether",
+    "name": "Aether",
+    "description": "SKL%: strike twice — first Sol, then Luna",
+    "trigger": "on-attack",
+    "activation": "SKL",
+    "personal": true
+  },
+  {
+    "id": "flare",
+    "name": "Flare",
+    "description": "SKL%: negate RES and drain HP equal to damage",
+    "trigger": "on-attack",
+    "activation": "SKL",
+    "personal": true
   }
 ]

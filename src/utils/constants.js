@@ -154,15 +154,16 @@ export const PHYSIC_RANGE_BONUSES = [{ mag: 10, bonus: 1 }, { mag: 18, bonus: 1 
 // Starting equipment meta upgrades
 export const MAX_STARTING_SKILLS = 2;
 export const DEADLY_ARSENAL_POOL = {
-  Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnell', 'Runesword'],
-  Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance'],
-  Axe:   ['Silver Axe', 'Brave Axe'],
-  Bow:   ['Silver Bow', 'Brave Bow'],
+  Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],
+  Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance', 'Doomblade'],
+  Axe:   ['Silver Axe', 'Killer Axe', 'Brave Axe', 'Stormbreaker', 'Ruin'],
+  Bow:   ['Silver Bow', 'Killer Bow', 'Brave Bow', 'Starfall'],
   Tome:  ['Bolganone', 'Excalibur'],
   Light: ['Aura', 'Luce'],
 };
 export const RECRUIT_SKILL_POOL = [
-  'sol', 'luna', 'astra', 'vantage', 'wrath', 'adept', 'miracle', 'guard'
+  'sol', 'luna', 'astra', 'vantage', 'wrath', 'adept', 'miracle', 'guard',
+  'cancel', 'desperation', 'quick_riposte', 'death_blow', 'darting_blow'
 ];
 export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
 export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];

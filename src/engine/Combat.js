@@ -35,12 +35,27 @@ export function getEffectivenessMultiplier(weapon, defender) {
   return defender.moveType === match[1] ? parseInt(match[2], 10) : 1;
 }
 
-/** Parse weapon stat bonuses from special string (e.g. "+5 DEF when equipped"). */
+/** Parse weapon stat bonuses from special string (e.g. "+5 DEF when equipped", "+5 DEF, +5 RES when equipped"). */
 export function getWeaponStatBonuses(weapon) {
-  if (!weapon?.special) return null;
-  const match = weapon.special.match(/\+(\d+)\s+(STR|MAG|SKL|SPD|DEF|RES|LCK)\s+when equipped/i);
-  if (!match) return null;
-  return { stat: match[2].toUpperCase(), value: parseInt(match[1], 10) };
+  if (!weapon?.special) return [];
+  if (!weapon.special.includes('when equipped')) return [];
+  const bonuses = [];
+  const regex = /\+(\d+)\s+(STR|MAG|SKL|SPD|DEF|RES|LCK)/gi;
+  let match;
+  while ((match = regex.exec(weapon.special)) !== null) {
+    bonuses.push({ stat: match[2].toUpperCase(), value: parseInt(match[1], 10) });
+  }
+  return bonuses;
+}
+
+/** True if weapon uses MAG stat for damage (tomes, light magic, or magic swords). */
+export function usesMagic(weapon) {
+  return isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false);
+}
+
+/** Sum a specific stat bonus from weapon bonus array. */
+function sumWeaponBonus(bonuses, stat) {
+  return bonuses.reduce((sum, b) => sum + (b.stat === stat ? b.value : 0), 0);
 }
 
 /** Parse poison damage from weapon special (e.g. "Poison: target loses 5 HP after combat"). */
@@ -99,6 +114,25 @@ export function spendStaffUse(staff) {
   staff._usesSpent = (staff._usesSpent || 0) + 1;
 }
 
+// --- Per-battle weapon uses (e.g. Bolting) ---
+
+/** Total max uses for a per-battle-use weapon given the user's MAG. */
+export function getPerBattleMaxUses(weapon, unit) {
+  const base = weapon.uses ?? 0;
+  return base + calculateBonusUses(unit.stats.MAG);
+}
+
+/** Remaining uses for a per-battle-use weapon. */
+export function getPerBattleRemainingUses(weapon, unit) {
+  const spent = weapon._usesSpent || 0;
+  return Math.max(0, getPerBattleMaxUses(weapon, unit) - spent);
+}
+
+/** Spend one use of a per-battle weapon (mutates weapon). */
+export function spendPerBattleUse(weapon) {
+  weapon._usesSpent = (weapon._usesSpent || 0) + 1;
+}
+
 // --- Staff range ---
 
 /** Get effective range for a staff, accounting for MAG-based range bonuses (Physic). */
@@ -152,37 +186,60 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
   }
 
   const mastery = weaponRank === 'Mast';
+  const atkReaver = attackerWeapon.special?.includes('Reverses weapon triangle') ?? false;
+
+  let result = { hit: 0, damage: 0 };
 
   // Attacker has advantage
   if (matchups[atkType] === defType) {
-    return mastery
+    result = mastery
       ? { ...WEAPON_TRIANGLE.masteryAdvantage }
       : { ...WEAPON_TRIANGLE.advantage };
   }
 
   // Attacker has disadvantage
   if (matchups[defType] === atkType) {
-    return mastery
+    result = mastery
       ? { ...WEAPON_TRIANGLE.masteryDisadvantage }
       : { ...WEAPON_TRIANGLE.disadvantage };
   }
 
-  return { hit: 0, damage: 0 }; // same weapon type
+  // Reaver: swap advantage ↔ disadvantage
+  if (atkReaver && (result.hit !== 0 || result.damage !== 0)) {
+    if (result.hit < 0) {
+      // Was disadvantage → become advantage
+      result = mastery
+        ? { ...WEAPON_TRIANGLE.masteryAdvantage }
+        : { ...WEAPON_TRIANGLE.advantage };
+    } else if (result.hit > 0) {
+      // Was advantage → become disadvantage
+      result = mastery
+        ? { ...WEAPON_TRIANGLE.masteryDisadvantage }
+        : { ...WEAPON_TRIANGLE.disadvantage };
+    }
+  }
+
+  // Triangle ignore: clamp negative results to 0
+  if (attackerWeapon.special?.includes('Ignores weapon triangle disadvantage')) {
+    result.hit = Math.max(0, result.hit);
+    result.damage = Math.max(0, result.damage);
+  }
+
+  return result;
 }
 
 // --- Core stat calculations ---
 
 /** Attack power = relevant stat + weapon might (×effectiveness) + triangle damage bonus */
 export function calculateAttack(unit, weapon, triangleBonus = { damage: 0 }, defender = null) {
-  const stat = isMagical(weapon) ? unit.stats.MAG : unit.stats.STR;
+  const stat = usesMagic(weapon) ? unit.stats.MAG : unit.stats.STR;
   const effMult = defender ? getEffectivenessMultiplier(weapon, defender) : 1;
   return stat + (weapon.might * effMult) + triangleBonus.damage;
 }
 
-/** Defense against an incoming weapon (DEF for physical, RES for magical). "targets RES" overrides physical to use RES. */
+/** Defense against an incoming weapon (DEF for physical, RES for magical/magic sword). */
 export function calculateDefense(unit, incomingWeapon) {
-  if (incomingWeapon?.special?.includes('targets RES')) return unit.stats.RES;
-  return isMagical(incomingWeapon) ? unit.stats.RES : unit.stats.DEF;
+  return usesMagic(incomingWeapon) ? unit.stats.RES : unit.stats.DEF;
 }
 
 /** Avoid = SPD×2 + LCK + terrain avoid bonus */
@@ -262,12 +319,12 @@ export function getCombatForecast(
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
     : { hit: 0, damage: 0 };
 
-  // Weapon stat bonuses (e.g. Ragnell +5 DEF)
-  const fAtkWpnBonus = getWeaponStatBonuses(atkWeapon);
-  const fDefWpnBonus = defWeapon ? getWeaponStatBonuses(defWeapon) : null;
-  let fDefWpnDef = 0, fAtkWpnDef = 0;
-  if (fDefWpnBonus?.stat === 'DEF') fDefWpnDef = fDefWpnBonus.value;
-  if (fAtkWpnBonus?.stat === 'DEF') fAtkWpnDef = fAtkWpnBonus.value;
+  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES)
+  // Pick the relevant defensive bonus based on incoming weapon type
+  const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
+  const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
+  const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
+  const fAtkWpnDef = defWeapon ? sumWeaponBonus(fAtkWpnBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF') : 0;
 
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
@@ -281,14 +338,16 @@ export function getCombatForecast(
     + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
 
-  // Doubling with accessory modifiers
+  // Doubling with accessory + skill modifiers
   const fAtkPursuit = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const fDefPursuit = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const fAtkPrevent = attacker.accessory?.combatEffects?.preventEnemyDouble || false;
   const fDefPrevent = defender.accessory?.combatEffects?.preventEnemyDouble || false;
+  const atkSpdBonus = atkMods?.spdBonus || 0;
+  const defSpdBonus = defMods?.spdBonus || 0;
 
   const atkDoubles = !fDefPrevent && (
-    attacker.stats.SPD >= defender.stats.SPD + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
+    (attacker.stats.SPD + atkSpdBonus) >= (defender.stats.SPD + defSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
   );
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
   const atkCount = (atkBrave ? 2 : 1) * (atkDoubles ? 2 : 1);
@@ -308,9 +367,10 @@ export function getCombatForecast(
     defCrit = calculateCritRate(defender, defWeapon, attacker)
       + (defMods?.critBonus || 0);
     defCrit = Math.max(0, Math.min(100, defCrit));
-    defDoubles = !fAtkPrevent && (
-      defender.stats.SPD >= attacker.stats.SPD + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
-    );
+    // Quick Riposte: always double when defending above 50% HP
+    defDoubles = (defMods?.quickRiposte) || (!fAtkPrevent && (
+      (defender.stats.SPD + defSpdBonus) >= (attacker.stats.SPD + atkSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
+    ));
     defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
     defCount = (defBrave ? 2 : 1) * (defDoubles ? 2 : 1);
   }
@@ -353,6 +413,8 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   let finalDmg = isCrit ? damage * CRIT_MULTIPLIER : damage;
   let heal = 0;
   let extraStrike = false;
+  let aetherLuna = false;
+  let commandersGambit = false;
   const skillActivations = [];
 
   // Per-strike skill effects (only on hit)
@@ -360,6 +422,8 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
     const skillResult = strikeSkills.rollStrikeSkills(
       strikeSkills.striker, finalDmg, strikeSkills.target, strikeSkills.skillsData
     );
+    if (skillResult.commandersGambit) commandersGambit = true;
+    if (skillResult.aetherLuna) aetherLuna = true;
     if (skillResult.lethal) {
       finalDmg = targetHP; // instant kill
       skillActivations.push(...skillResult.activated);
@@ -403,7 +467,7 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   return {
     type: 'strike', attacker: strikerName, target: targetName,
     miss: false, damage: finalDmg, isCrit, targetHPAfter: hpAfter,
-    heal, skillActivations, extraStrike,
+    heal, skillActivations, extraStrike, aetherLuna, commandersGambit,
   };
 }
 
@@ -437,19 +501,12 @@ export function resolveCombat(
   const atkMods = skillCtx?.atkMods;
   const defMods = skillCtx?.defMods;
 
-  // Weapon stat bonuses (e.g. Ragnell +5 DEF) — applied as combat-time mods only
-  const atkWeaponBonus = getWeaponStatBonuses(atkWeapon);
-  const defWeaponBonus = defWeapon ? getWeaponStatBonuses(defWeapon) : null;
-  let atkWeaponDefBonus = 0, atkWeaponResBonus = 0;
-  let defWeaponDefBonus = 0, defWeaponResBonus = 0;
-  if (atkWeaponBonus) {
-    if (atkWeaponBonus.stat === 'DEF') atkWeaponDefBonus = atkWeaponBonus.value;
-    if (atkWeaponBonus.stat === 'RES') atkWeaponResBonus = atkWeaponBonus.value;
-  }
-  if (defWeaponBonus) {
-    if (defWeaponBonus.stat === 'DEF') defWeaponDefBonus = defWeaponBonus.value;
-    if (defWeaponBonus.stat === 'RES') defWeaponResBonus = defWeaponBonus.value;
-  }
+  // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES) — combat-time mods only
+  // Pick the relevant defensive bonus based on incoming weapon type
+  const atkWeaponBonuses = getWeaponStatBonuses(atkWeapon);
+  const defWeaponBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
+  const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
+  const atkWeaponDefBonus = defWeapon ? sumWeaponBonus(atkWeaponBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF') : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
   const atkTriangle = defWeapon
@@ -472,18 +529,21 @@ export function resolveCombat(
 
   const defCanCounter = canCounter(defender, defWeapon, distance);
 
-  // Doubling: apply accessory modifiers (Pursuit Ring reduces threshold, Counter Seal prevents)
+  // Doubling: apply accessory + skill modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const defPursuitReduction = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const atkPreventDouble = attacker.accessory?.combatEffects?.preventEnemyDouble || false;
   const defPreventDouble = defender.accessory?.combatEffects?.preventEnemyDouble || false;
+  const rAtkSpdBonus = atkMods?.spdBonus || 0;
+  const rDefSpdBonus = defMods?.spdBonus || 0;
 
   const atkDoubles = !defPreventDouble && (
-    attacker.stats.SPD >= defender.stats.SPD + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
+    (attacker.stats.SPD + rAtkSpdBonus) >= (defender.stats.SPD + rDefSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
   );
-  const defDoubles = defCanCounter && !atkPreventDouble && (
-    defender.stats.SPD >= attacker.stats.SPD + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
-  );
+  // Quick Riposte: always double when defending above 50% HP
+  const defDoubles = defCanCounter && ((defMods?.quickRiposte) || (!atkPreventDouble && (
+    (defender.stats.SPD + rDefSpdBonus) >= (attacker.stats.SPD + rAtkSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
+  )));
 
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
   const defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
@@ -518,6 +578,10 @@ export function resolveCombat(
     skillsData: skillCtx.skillsData,
   } : null;
 
+  // Track Cancel follow-up negation
+  let cancelledAtkFollowUp = false;
+  let cancelledDefFollowUp = false;
+
   // Execute N strikes from one combatant against the other
   function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
@@ -539,10 +603,22 @@ export function resolveCombat(
       }
       events.push(evt);
 
-      // Adept: extra strike at full damage (one bonus strike per hit)
+      // Check Cancel on defend (negates opponent's follow-up)
+      if (!evt.miss && evt.skillActivations) {
+        for (const sa of evt.skillActivations) {
+          if (sa.id === 'cancel') {
+            if (isAttackingDefender) cancelledAtkFollowUp = true; // defender cancelled attacker's follow-up
+            else cancelledDefFollowUp = true; // attacker cancelled defender's follow-up
+          }
+        }
+      }
+
+      // Adept/Aether: extra strike at full damage (one bonus strike per hit)
       if (evt.extraStrike && atkHP > 0 && defHP > 0) {
+        // Aether Luna: bonus strike at 1.5x damage
+        const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
-        const bonusEvt = rollStrike(aName, tName, hit, dmg, crit, bonusTargetHP, null, weaponSpecial);
+        const bonusEvt = rollStrike(aName, tName, hit, bonusDmg, crit, bonusTargetHP, null, weaponSpecial);
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
@@ -577,24 +653,34 @@ export function resolveCombat(
     strike(aName, tName, hit, phaseDmg, crit, isAtkDef, count, strikeSkills, weapon?.special || '');
   }
 
-  // Determine phase order — Vantage lets the defender strike first
+  // Determine phase order — Vantage, Desperation modify order
   const defenderVantage = defCanCounter && (defMods?.vantage || false);
+  const attackerDesperation = atkMods?.desperation || false;
 
   if (defenderVantage) {
     // Vantage: defender strikes first
     events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
     strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
-    if (atkDoubles) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+  } else if (attackerDesperation && atkDoubles) {
+    // Desperation: all attacker hits before defender responds
+    events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
+    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (!cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (defCanCounter) {
+      strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    }
+    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
   } else {
     // Normal order
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
     if (defCanCounter) {
       strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     }
-    if (atkDoubles) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
   }
 
   // Post-combat: Poison damage (both sides can apply independently)

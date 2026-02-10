@@ -1,6 +1,6 @@
 {
   "act1": {
-    "weapons": ["Iron Sword", "Iron Lance", "Iron Axe", "Iron Bow", "Fire", "Lightning", "Heal", "Hand Axe", "Javelin"],
+    "weapons": ["Iron Sword", "Iron Lance", "Iron Axe", "Iron Bow", "Fire", "Lightning", "Heal", "Hand Axe", "Javelin", "Short Axe"],
     "consumables": ["Vulnerary"],
     "rare": [],
     "accessories": ["Goddess Icon", "Shield Ring", "Forest Charm"],
@@ -9,18 +9,18 @@
     "goldRange": [80, 150]
   },
   "act2": {
-    "weapons": ["Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Longbow", "Short Spear", "Horseslayer", "Armorslayer"],
+    "weapons": ["Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Longbow", "Short Spear", "Horseslayer", "Armorslayer", "Wo Dao", "Wind Sword", "Short Axe", "Lancereaver", "Swordreaver", "Axereaver"],
     "consumables": ["Vulnerary", "Elixir", "Master Seal"],
-    "rare": ["Sol Scroll", "Luna Scroll", "Guard Scroll"],
+    "rare": ["Sol Scroll", "Luna Scroll", "Guard Scroll", "Cancel Scroll", "Desperation Scroll"],
     "accessories": ["Power Ring", "Speed Ring", "Barrier Ring", "Skill Ring", "Life Ring", "Veteran's Crest"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 30, "consumable": 20, "gold": 10, "rare": 10, "accessory": 15, "forge": 15 },
     "goldRange": [150, 250]
   },
   "act3": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Edge"],
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
     "consumables": ["Elixir", "Master Seal"],
-    "rare": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Ragnell", "Runesword", "Bolting"],
+    "rare": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll", "Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Starfall", "Stormbreaker", "Ruin"],
     "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 25, "consumable": 15, "gold": 15, "rare": 15, "accessory": 15, "forge": 15 },

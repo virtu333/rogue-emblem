@@ -323,7 +323,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnell', 'Runesword'];
+      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'];
       const hasPoolWeapon = edric.inventory.some(w => pool.includes(w.name));
       expect(hasPoolWeapon).toBe(true);
       expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(false);
@@ -344,7 +344,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnell', 'Runesword'];
+      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'];
       const poolWeapon = edric.inventory.find(w => pool.includes(w._baseName));
       expect(poolWeapon).toBeTruthy();
       expect(poolWeapon._forgeLevel).toBe(3);
