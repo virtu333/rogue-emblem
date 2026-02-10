@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
-import { addToInventory, removeFromInventory, addToConsumables, canPromote, promoteUnit } from '../engine/UnitManager.js';
+import { addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, addToConsumables, canPromote, promoteUnit } from '../engine/UnitManager.js';
 import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
@@ -789,7 +789,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (audio) audio.playSFX('sfx_gold');
       this.refreshShop();
       this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-    });
+    }, entry.item);
   }
 
   drawShopSellList() {
@@ -812,23 +812,27 @@ export class NodeMapScene extends Phaser.Scene {
         const sellPrice = getSellPrice(wpn);
         if (sellPrice <= 0) { row++; continue; }
 
+        const locked = isLastCombatWeapon(unit, wpn);
         const equipped = wpn === unit.weapon ? '\u25b6' : ' ';
-        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
+        const wpnColor = locked ? '#666666' : (isForged(wpn) ? '#44ff88' : '#e0e0e0');
         const text = this.add.text(70, startY + row * lineH,
-          `${equipped}${wpn.name}  +${sellPrice}G`, {
+          `${equipped}${wpn.name}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
-        }).setDepth(302).setInteractive({ useHandCursor: true });
+        }).setDepth(302);
 
-        text.on('pointerover', () => text.setColor('#ffdd44'));
-        text.on('pointerout', () => text.setColor(wpnColor));
-        text.on('pointerdown', () => {
-          rm.addGold(sellPrice);
-          removeFromInventory(unit, wpn);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`Sold ${wpn.name} for ${sellPrice}G`, '#ffdd44');
-        });
+        if (!locked) {
+          text.setInteractive({ useHandCursor: true });
+          text.on('pointerover', () => text.setColor('#ffdd44'));
+          text.on('pointerout', () => text.setColor(wpnColor));
+          text.on('pointerdown', () => {
+            rm.addGold(sellPrice);
+            removeFromInventory(unit, wpn);
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_gold');
+            this.refreshShop();
+            this.showShopBanner(`Sold ${wpn.name} for ${sellPrice}G`, '#ffdd44');
+          });
+        }
 
         this.shopContentGroup.push(text);
         this.shopOverlay.push(text);
@@ -1032,7 +1036,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
-  showUnitPicker(callback) {
+  showUnitPicker(callback, itemForProfCheck) {
     if (this.unitPicker) this.unitPicker.forEach(o => o.destroy());
     this.unitPicker = [];
 
@@ -1050,13 +1054,16 @@ export class NodeMapScene extends Phaser.Scene {
 
     rm.roster.forEach((unit, i) => {
       const y = cy - 5 + i * 30 - ((rm.roster.length - 2) * 15);
-      const btn = this.add.text(cx, y + 15, `${unit.name} (${unit.inventory.length}/${INVENTORY_MAX})`, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
+      const noProf = itemForProfCheck && !hasProficiency(unit, itemForProfCheck);
+      const label = `${unit.name} (${unit.inventory.length}/${INVENTORY_MAX})${noProf ? ' no prof' : ''}`;
+      const color = noProf ? '#cc8844' : '#e0e0e0';
+      const btn = this.add.text(cx, y + 15, label, {
+        fontFamily: 'monospace', fontSize: '13px', color,
         backgroundColor: '#444444', padding: { x: 12, y: 4 },
       }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', () => {
         this.unitPicker.forEach(o => o.destroy());
         this.unitPicker = null;

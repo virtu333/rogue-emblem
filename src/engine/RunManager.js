@@ -12,7 +12,7 @@ import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 
 // Phaser-specific fields that must be stripped for serialization
-const PHASER_FIELDS = ['graphic', 'label', 'hpBar'];
+const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 
 /**
  * Strip Phaser display objects from a unit, reset per-battle flags.

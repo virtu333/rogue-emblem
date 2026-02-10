@@ -36,6 +36,8 @@ import {
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
+  isLastCombatWeapon,
+  hasProficiency,
   equipAccessory,
   unequipAccessory,
   applyStatBoost,
@@ -1448,21 +1450,28 @@ export class BattleScene extends Phaser.Scene {
     const drawItems = (unit, x, otherUnit) => {
       // Weapons
       (unit.inventory || []).forEach((item, i) => {
-        const btn = this.add.text(x, yOffset + i * 20, item.name, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+        const locked = isLastCombatWeapon(unit, item);
+        const noProf = !hasProficiency(otherUnit, item);
+        const suffix = locked ? '' : (noProf ? ' (no prof)' : '');
+        const color = locked ? '#666666' : (noProf ? '#cc8844' : '#e0e0e0');
+        const btn = this.add.text(x, yOffset + i * 20, item.name + suffix, {
+          fontFamily: 'monospace', fontSize: '11px', color,
           backgroundColor: '#222222', padding: { x: 6, y: 2 },
-        }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(401);
 
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor('#e0e0e0'));
-        btn.on('pointerdown', () => {
-          if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
-            removeFromInventory(unit, item);
-            addToInventory(otherUnit, item);
-            this.cleanupTradeUI();
-            this.showBattleTradeUI(unitA, unitB);
-          }
-        });
+        if (!locked) {
+          btn.setInteractive({ useHandCursor: true });
+          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerout', () => btn.setColor(color));
+          btn.on('pointerdown', () => {
+            if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
+              removeFromInventory(unit, item);
+              addToInventory(otherUnit, item);
+              this.cleanupTradeUI();
+              this.showBattleTradeUI(unitA, unitB);
+            }
+          });
+        }
         this.tradeUIObjects.push(btn);
       });
 
@@ -3969,19 +3978,24 @@ export class BattleScene extends Phaser.Scene {
       const unit = roster[i];
       const invCount = unit.inventory ? unit.inventory.length : 0;
       const full = invCount >= INVENTORY_MAX;
+      const noProf = !hasProficiency(unit, item);
       const by = startY + i * (btnH + 12);
 
-      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
-        .setStrokeStyle(2, full ? 0x666666 : 0x66aacc).setDepth(711);
+      const btnColor = full ? 0x444444 : (noProf ? 0x554433 : 0x335566);
+      const borderColor = full ? 0x666666 : (noProf ? 0xcc8844 : 0x66aacc);
+      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
+        .setStrokeStyle(2, borderColor).setDepth(711);
       if (!full) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - 8, unit.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: full ? '#666666' : '#ffffff',
+      const nameColor = full ? '#666666' : (noProf ? '#cc8844' : '#ffffff');
+      const label = this.add.text(cam.centerX, by - 8, unit.name + (noProf ? '  (no prof)' : ''), {
+        fontFamily: 'monospace', fontSize: '13px', color: nameColor,
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const invLabel = this.add.text(cam.centerX, by + 10, full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`, {
+      const statusText = full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`;
+      const invLabel = this.add.text(cam.centerX, by + 10, statusText, {
         fontFamily: 'monospace', fontSize: '9px', color: full ? '#aa4444' : '#aaaaaa',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(invLabel);
