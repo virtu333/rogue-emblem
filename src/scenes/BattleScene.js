@@ -3311,7 +3311,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.turnPar != null && this.turnBonusConfig) {
       const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       turnRating = result.rating;
-      turnBonusGold = calculateBonusGold(result.rating, this.runManager.currentAct, this.turnBonusConfig);
+      turnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
     }
     const totalGold = this.goldEarned + GOLD_BATTLE_BONUS + turnBonusGold;
 
