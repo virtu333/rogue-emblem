@@ -89,7 +89,7 @@ emblem-rogue/
 │   │   └── RunCompleteScene.js # Victory/defeat end screen, clears run save, awards renown, Home Base / Title ✅
 │   └── utils/             # Helpers
 │       ├── AudioManager.js # Music/SFX playback wrapper (stored on Phaser registry) ✅
-│       ├── musicConfig.js # Centralized MUSIC config, getMusicKey(purpose, act), ALL_MUSIC_KEYS (21 tracks) ✅
+│       ├── musicConfig.js # Centralized MUSIC config, getMusicKey(purpose, act), ALL_MUSIC_KEYS (38 tracks) ✅
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
 │       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/renown economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
@@ -125,7 +125,7 @@ emblem-rogue/
 │   ├── portraits/         # Character portraits (128x128)
 │   └── audio/
 │       ├── sfx/           # 18 sound effects (OGG 96kbps mono) ✅
-│       └── music/         # 21 background music tracks (OGG 128kbps stereo) ✅
+│       └── music/         # 38 background music tracks (OGG 128kbps stereo) ✅
 │           └── _archived/ # 5 replaced tracks (music_exploration, battle_1/2, boss_1/2)
 ├── sim/                   # Balance simulation scripts (no Phaser deps)
 │   ├── lib/

@@ -5,16 +5,16 @@ export const MUSIC = {
   homeBase: 'music_home_base',
 
   nodeMap: {
-    act1: 'music_explore_act1',
+    act1: ['music_explore_act1', 'music_explore_act1_2'],
     act2: 'music_explore_act2',
-    act3: 'music_explore_act3',
+    act3: ['music_explore_act3', 'music_explore_act3_2', 'music_explore_act3_3'],
     finalBoss: 'music_explore_act3',
   },
 
   battle: {
-    act1: ['music_battle_act1_1', 'music_battle_act1_2'],
-    act2: ['music_battle_act2_1', 'music_battle_act2_2'],
-    act3: ['music_battle_act3_1', 'music_battle_act3_2'],
+    act1: ['music_battle_act1_1', 'music_battle_act1_2', 'music_battle_act1_3', 'music_battle_act1_4'],
+    act2: ['music_battle_act2_1', 'music_battle_act2_2', 'music_battle_act2_3'],
+    act3: ['music_battle_act3_1', 'music_battle_act3_2', 'music_battle_act3_3', 'music_battle_act3_4', 'music_battle_act3_5', 'music_battle_act3_6'],
     finalBoss: ['music_battle_act3_1', 'music_battle_act3_2'],
   },
 
@@ -22,11 +22,11 @@ export const MUSIC = {
     act1: 'music_boss_act1',
     act2: 'music_boss_act2',
     act3: 'music_boss_act3',
-    finalBoss: 'music_boss_final',
+    finalBoss: ['music_boss_final', 'music_boss_final_2', 'music_boss_final_3', 'music_boss_final_4', 'music_boss_final_5'],
   },
 
-  shop: 'music_shop',
-  rest: 'music_rest',
+  shop: ['music_shop', 'music_shop_2'],
+  rest: ['music_rest', 'music_rest_2', 'music_rest_3'],
   victory: 'music_victory',
   defeat: 'music_defeat',
   runWin: 'music_run_win',
