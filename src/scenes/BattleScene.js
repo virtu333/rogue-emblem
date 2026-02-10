@@ -93,7 +93,7 @@ export class BattleScene extends Phaser.Scene {
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
     const baseLimits = DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
-    const deployBonus = this.runManager?.metaEffects?.deployBonus || 0;
+    const deployBonus = this.runManager?.getDeployBonus?.() || 0;
     const limits = { min: baseLimits.min + deployBonus, max: baseLimits.max + deployBonus };
 
     if (!this.roster) {
@@ -4640,7 +4640,8 @@ export class BattleScene extends Phaser.Scene {
       this._lootResolving = true;
       this._lootCards = null;
       this._lootInstruction = null;
-      this.cleanupLootScreen(lootGroup);
+      // Defer cleanup/scene transition out of the current pointerdown stack.
+      this.time.delayedCall(0, () => this.cleanupLootScreen(lootGroup));
       return;
     }
 
@@ -4675,7 +4676,13 @@ export class BattleScene extends Phaser.Scene {
     }
     const resolvedLootGroup = lootGroup || this.lootGroup || [];
     try {
-      for (const obj of resolvedLootGroup) obj.destroy();
+      for (const obj of resolvedLootGroup) {
+        try {
+          if (obj && typeof obj.destroy === 'function') obj.destroy();
+        } catch (objErr) {
+          console.warn('[BattleScene][LootFlow] failed to destroy loot object', objErr);
+        }
+      }
       this.lootGroup = null;
       this.transitionAfterBattle();
     } catch (err) {
