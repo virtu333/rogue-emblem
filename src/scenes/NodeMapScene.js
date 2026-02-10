@@ -780,15 +780,27 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   handleShop(node) {
+    if (this.runManager.consumeSkipFirstShop()) {
+      showMinorHint(this, 'Blessing effect: first shop skipped.');
+      this.runManager.markNodeComplete(node.id);
+      this.checkActComplete();
+      return;
+    }
+
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
 
     const rm = this.runManager;
-    const shopItems = generateShopInventory(
+    let shopItems = generateShopInventory(
       rm.currentAct, this.gameData.lootTables,
       this.gameData.weapons, this.gameData.consumables,
       this.gameData.accessories, rm.roster
     );
+    const shopItemDelta = rm.getShopItemCountDelta();
+    if (shopItemDelta < 0 && shopItems.length > 0) {
+      const trimmedCount = Math.max(1, shopItems.length + shopItemDelta);
+      shopItems = shopItems.slice(0, trimmedCount);
+    }
     this.showShopOverlay(node, shopItems);
   }
 

@@ -69,6 +69,8 @@ export class RunManager {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
       actStatDeltaAllUnits: [],
+      skipFirstShop: false,
+      shopItemCountDelta: 0,
     };
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
@@ -101,6 +103,8 @@ export class RunManager {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
       actStatDeltaAllUnits: [],
+      skipFirstShop: false,
+      shopItemCountDelta: 0,
     };
     this.battleConfigsByNodeId = {};
     this.blessingHistory = [];
@@ -392,6 +396,25 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'skip_first_shop') {
+      const enabled = effect.params.enabled !== false;
+      this.blessingRuntimeModifiers.skipFirstShop = Boolean(enabled);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        enabled: this.blessingRuntimeModifiers.skipFirstShop,
+      });
+      return;
+    }
+
+    if (effect.type === 'shop_item_count_delta') {
+      const delta = Math.trunc(value);
+      this.blessingRuntimeModifiers.shopItemCountDelta += delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.shopItemCountDelta,
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
   }
 
@@ -405,6 +428,19 @@ export class RunManager {
     const metaDelta = this.metaEffects?.deployBonus || 0;
     const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
     return metaDelta + blessingDelta;
+  }
+
+  getShopItemCountDelta() {
+    return Math.trunc(this.blessingRuntimeModifiers?.shopItemCountDelta || 0);
+  }
+
+  consumeSkipFirstShop() {
+    if (!this.blessingRuntimeModifiers?.skipFirstShop) return false;
+    this.blessingRuntimeModifiers.skipFirstShop = false;
+    this._recordBlessingEvent('node_shop', null, { type: 'skip_first_shop', params: { enabled: true } }, {
+      consumed: true,
+    });
+    return true;
   }
 
   /** Create Edric + Sera as the starting two lords. */
@@ -697,7 +733,13 @@ export class RunManager {
       activeBlessings: this.activeBlessings || [],
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
-      blessingRuntimeModifiers: this.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0, actStatDeltaAllUnits: [] },
+      blessingRuntimeModifiers: this.blessingRuntimeModifiers || {
+        battleGoldMultiplierDelta: 0,
+        deployCapDelta: 0,
+        actStatDeltaAllUnits: [],
+        skipFirstShop: false,
+        shopItemCountDelta: 0,
+      },
       runSeed: this.runSeed,
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
     };
@@ -759,10 +801,18 @@ export class RunManager {
         : [];
       rm.blessingSelectionTelemetry.chosenIds = [];
     }
-    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0, actStatDeltaAllUnits: [] };
+    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || {
+      battleGoldMultiplierDelta: 0,
+      deployCapDelta: 0,
+      actStatDeltaAllUnits: [],
+      skipFirstShop: false,
+      shopItemCountDelta: 0,
+    };
     if (!Array.isArray(rm.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
       rm.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
     }
+    rm.blessingRuntimeModifiers.skipFirstShop = Boolean(rm.blessingRuntimeModifiers.skipFirstShop);
+    rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(rm.blessingRuntimeModifiers.shopItemCountDelta || 0);
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm._runStartBlessingsApplied = true;

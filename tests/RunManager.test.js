@@ -863,6 +863,31 @@ describe('blessing run-start effect application', () => {
     });
   });
 
+  it('skip_first_shop blessing sets and consumes one-time shop skip', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = ['merchant_bane'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.consumeSkipFirstShop()).toBe(true);
+    expect(rm.consumeSkipFirstShop()).toBe(false);
+  });
+
+  it('shop_item_count_delta blessing tracks shop inventory delta', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = ['worldly_stride'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getShopItemCountDelta()).toBe(-2);
+  });
+
   it('arsenal_pact grants one silver-tier weapon and applies act1 DEF penalty', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
