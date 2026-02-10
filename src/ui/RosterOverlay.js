@@ -4,7 +4,7 @@
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
-  equipWeapon, addToInventory, removeFromInventory,
+  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon,
   canPromote, promoteUnit, equipAccessory, unequipAccessory,
   removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
@@ -633,7 +633,8 @@ export class RosterOverlay {
             label += ` (${rem}/${max})`;
           }
 
-          if (otherUnit.inventory.length < INVENTORY_MAX) {
+          const locked = isLastCombatWeapon(unit, item);
+          if (!locked && otherUnit.inventory.length < INVENTORY_MAX) {
             const btn = this.scene.add.text(xPos, sy, label + '  \u25b6', {
               fontFamily: 'monospace', fontSize: '10px', color,
             }).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });

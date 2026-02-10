@@ -635,6 +635,12 @@ export function removeFromInventory(unit, weapon) {
   }
 }
 
+/** True if removing this weapon would leave the unit with no combat weapons. */
+export function isLastCombatWeapon(unit, weapon) {
+  const combatWeapons = getCombatWeapons(unit);
+  return combatWeapons.length === 1 && combatWeapons[0] === weapon;
+}
+
 /** Does the unit have any Staff in inventory? */
 export function hasStaff(unit) {
   return unit.inventory.some(w => w.type === 'Staff');

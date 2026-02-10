@@ -35,6 +35,7 @@ import {
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
+  isLastCombatWeapon,
   equipAccessory,
   unequipAccessory,
   applyStatBoost,
@@ -1447,21 +1448,26 @@ export class BattleScene extends Phaser.Scene {
     const drawItems = (unit, x, otherUnit) => {
       // Weapons
       (unit.inventory || []).forEach((item, i) => {
+        const locked = isLastCombatWeapon(unit, item);
+        const color = locked ? '#666666' : '#e0e0e0';
         const btn = this.add.text(x, yOffset + i * 20, item.name, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+          fontFamily: 'monospace', fontSize: '11px', color,
           backgroundColor: '#222222', padding: { x: 6, y: 2 },
-        }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(401);
 
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor('#e0e0e0'));
-        btn.on('pointerdown', () => {
-          if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
-            removeFromInventory(unit, item);
-            addToInventory(otherUnit, item);
-            this.cleanupTradeUI();
-            this.showBattleTradeUI(unitA, unitB);
-          }
-        });
+        if (!locked) {
+          btn.setInteractive({ useHandCursor: true });
+          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerout', () => btn.setColor(color));
+          btn.on('pointerdown', () => {
+            if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
+              removeFromInventory(unit, item);
+              addToInventory(otherUnit, item);
+              this.cleanupTradeUI();
+              this.showBattleTradeUI(unitA, unitB);
+            }
+          });
+        }
         this.tradeUIObjects.push(btn);
       });
 
