@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Emblem Rogue - Data Viewer</title>
+<title>Rogue Emblem - Data Viewer</title>
 <style>
   :root {
     --bg: #0a0e1a;
@@ -103,6 +103,7 @@
   .trigger-on-combat-start { background: #2a2a1a; color: #d0c060; }
   .trigger-on-turn-start { background: #1a1a2a; color: #7070e0; }
   .trigger-on-defend { background: #2a1a2a; color: #c070c0; }
+  .trigger-action { background: #2a201a; color: #d0a060; }
   .move-type { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.78em; }
   .move-infantry { background: #1a2520; color: #70b080; }
   .move-armored { background: #2a2020; color: #c09070; }
@@ -118,20 +119,20 @@
 <body>
 
 <div class="header">
-  <h1>EMBLEM ROGUE</h1>
+  <h1>ROGUE EMBLEM</h1>
   <span class="subtitle">Itemization Data Viewer</span>
 </div>
 
 <div class="tabs" id="tabs">
-  <div class="tab active" data-tab="weapons">Weapons <span class="count">(51)</span></div>
-  <div class="tab" data-tab="skills">Skills <span class="count">(21)</span></div>
+  <div class="tab active" data-tab="weapons">Weapons <span class="count">(74)</span></div>
+  <div class="tab" data-tab="skills">Skills <span class="count">(33)</span></div>
   <div class="tab" data-tab="accessories">Accessories <span class="count">(18)</span></div>
   <div class="tab" data-tab="consumables">Consumables <span class="count">(3)</span></div>
   <div class="tab" data-tab="classes">Classes <span class="count">(29)</span></div>
   <div class="tab" data-tab="lords">Lords <span class="count">(4)</span></div>
   <div class="tab" data-tab="recruits">Recruits <span class="count">(18)</span></div>
   <div class="tab" data-tab="loot">Loot Tables</div>
-  <div class="tab" data-tab="meta">Meta Upgrades <span class="count">(28)</span></div>
+  <div class="tab" data-tab="meta">Meta Upgrades <span class="count">(41)</span></div>
   <div class="tab" data-tab="terrain">Terrain <span class="count">(10)</span></div>
   <div class="tab" data-tab="audit">Asset Audit</div>
 </div>
@@ -194,6 +195,7 @@
       <option value="on-combat-start">On Combat Start</option>
       <option value="on-turn-start">On Turn Start</option>
       <option value="on-defend">On Defend</option>
+      <option value="action">Action</option>
     </select>
   </div>
   <table id="skill-table">
@@ -272,8 +274,8 @@
 <!-- META UPGRADES -->
 <div class="panel" id="panel-meta">
   <div class="summary-bar">
-    <div class="summary-stat"><span class="val">28</span> <span class="lbl">Total Upgrades</span></div>
-    <div class="summary-stat"><span class="val">4</span> <span class="lbl">Categories</span></div>
+    <div class="summary-stat"><span class="val">41</span> <span class="lbl">Total Upgrades</span></div>
+    <div class="summary-stat"><span class="val">6</span> <span class="lbl">Categories</span></div>
   </div>
   <div id="meta-content"></div>
 </div>
@@ -312,41 +314,56 @@
 const DATA = {};
 
 DATA.weapons = [
-  {"name":"Iron Sword","type":"Sword","tier":"Iron","rankRequired":"Prof","might":5,"hit":90,"crit":0,"weight":3,"range":"1","special":"","price":500},
-  {"name":"Steel Sword","type":"Sword","tier":"Steel","rankRequired":"Prof","might":8,"hit":80,"crit":0,"weight":5,"range":"1","special":"","price":1000},
-  {"name":"Silver Sword","type":"Sword","tier":"Silver","rankRequired":"Prof","might":11,"hit":85,"crit":0,"weight":4,"range":"1","special":"","price":2000},
-  {"name":"Killing Edge","type":"Sword","tier":"Silver","rankRequired":"Prof","might":8,"hit":80,"crit":30,"weight":5,"range":"1","special":"Critical specialist","price":2300},
-  {"name":"Brave Sword","type":"Sword","tier":"Legend","rankRequired":"Mast","might":9,"hit":80,"crit":0,"weight":6,"range":"1","special":"Attacks twice consecutively","price":0},
-  {"name":"Armorslayer","type":"Sword","tier":"Steel","rankRequired":"Prof","might":7,"hit":80,"crit":0,"weight":6,"range":"1","special":"Effective vs Armored (3x)","price":1300},
-  {"name":"Venin Edge","type":"Sword","tier":"Silver","rankRequired":"Prof","might":5,"hit":85,"crit":0,"weight":3,"range":"1","special":"Poison: target loses 5 HP after combat","price":1800},
-  {"name":"Ragnell","type":"Sword","tier":"Legend","rankRequired":"Mast","might":12,"hit":80,"crit":5,"weight":6,"range":"1-2","special":"+5 DEF when equipped","price":0},
-  {"name":"Runesword","type":"Sword","tier":"Legend","rankRequired":"Mast","might":8,"hit":75,"crit":0,"weight":5,"range":"1","special":"Drains HP equal to damage dealt","price":0},
+  {"name":"Iron Sword","type":"Sword","tier":"Iron","rankRequired":"Prof","might":5,"hit":95,"crit":0,"weight":3,"range":"1","special":"","price":500},
+  {"name":"Steel Sword","type":"Sword","tier":"Steel","rankRequired":"Prof","might":8,"hit":85,"crit":0,"weight":5,"range":"1","special":"","price":1000},
+  {"name":"Silver Sword","type":"Sword","tier":"Silver","rankRequired":"Prof","might":11,"hit":90,"crit":0,"weight":4,"range":"1","special":"","price":2000},
+  {"name":"Killing Edge","type":"Sword","tier":"Silver","rankRequired":"Prof","might":8,"hit":85,"crit":30,"weight":5,"range":"1","special":"Critical specialist","price":2300},
+  {"name":"Wo Dao","type":"Sword","tier":"Steel","rankRequired":"Prof","might":7,"hit":95,"crit":35,"weight":4,"range":"1","special":"Critical specialist","price":1300},
+  {"name":"Wind Sword","type":"Sword","tier":"Steel","rankRequired":"Prof","might":3,"hit":85,"crit":0,"weight":7,"range":"1-2","special":"Throwable, lower stats","price":1200},
+  {"name":"Tempest Blade","type":"Sword","tier":"Silver","rankRequired":"Prof","might":6,"hit":80,"crit":0,"weight":8,"range":"1-2","special":"Throwable, lower stats","price":2200},
+  {"name":"Lancereaver","type":"Sword","tier":"Steel","rankRequired":"Prof","might":8,"hit":85,"crit":0,"weight":6,"range":"1","special":"Reverses weapon triangle","price":1300},
+  {"name":"Brave Sword","type":"Sword","tier":"Legend","rankRequired":"Mast","might":9,"hit":85,"crit":0,"weight":8,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Levin Sword","type":"Sword","tier":"Silver","rankRequired":"Prof","might":8,"hit":90,"crit":5,"weight":5,"range":"1-2","special":"Magic sword: uses MAG, targets RES","price":2200},
+  {"name":"Gemini","type":"Sword","tier":"Legend","rankRequired":"Mast","might":11,"hit":95,"crit":5,"weight":6,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Armorslayer","type":"Sword","tier":"Steel","rankRequired":"Prof","might":7,"hit":85,"crit":0,"weight":6,"range":"1","special":"Effective vs Armored (3x)","price":1300},
+  {"name":"Venin Blade","type":"Sword","tier":"Silver","rankRequired":"Prof","might":8,"hit":90,"crit":0,"weight":3,"range":"1","special":"Poison: target loses 5 HP after combat","price":1800},
+  {"name":"Ragnarok","type":"Sword","tier":"Legend","rankRequired":"Mast","might":14,"hit":85,"crit":5,"weight":6,"range":"1-2","special":"+5 DEF when equipped","price":0},
+  {"name":"Soulreaver","type":"Sword","tier":"Legend","rankRequired":"Mast","might":8,"hit":80,"crit":0,"weight":5,"range":"1","special":"Drains HP equal to damage dealt","price":0},
   {"name":"Iron Lance","type":"Lance","tier":"Iron","rankRequired":"Prof","might":6,"hit":85,"crit":0,"weight":5,"range":"1","special":"","price":500},
   {"name":"Steel Lance","type":"Lance","tier":"Steel","rankRequired":"Prof","might":9,"hit":75,"crit":0,"weight":8,"range":"1","special":"","price":1000},
   {"name":"Silver Lance","type":"Lance","tier":"Silver","rankRequired":"Prof","might":12,"hit":80,"crit":0,"weight":7,"range":"1","special":"","price":2000},
   {"name":"Javelin","type":"Lance","tier":"Iron","rankRequired":"Prof","might":4,"hit":70,"crit":0,"weight":6,"range":"1-2","special":"Throwable, lower stats","price":700},
+  {"name":"Swordreaver","type":"Lance","tier":"Steel","rankRequired":"Prof","might":9,"hit":70,"crit":0,"weight":9,"range":"1","special":"Reverses weapon triangle","price":1300},
   {"name":"Short Spear","type":"Lance","tier":"Steel","rankRequired":"Prof","might":7,"hit":65,"crit":0,"weight":9,"range":"1-2","special":"Throwable, lower stats","price":1200},
-  {"name":"Spear","type":"Lance","tier":"Silver","rankRequired":"Prof","might":10,"hit":65,"crit":0,"weight":10,"range":"1-2","special":"Throwable, lower stats","price":2200},
   {"name":"Horseslayer","type":"Lance","tier":"Steel","rankRequired":"Prof","might":7,"hit":75,"crit":0,"weight":8,"range":"1","special":"Effective vs Cavalry (3x)","price":1300},
   {"name":"Killer Lance","type":"Lance","tier":"Silver","rankRequired":"Prof","might":9,"hit":75,"crit":30,"weight":7,"range":"1","special":"Critical specialist","price":2300},
-  {"name":"Brave Lance","type":"Lance","tier":"Legend","rankRequired":"Mast","might":10,"hit":75,"crit":0,"weight":9,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Spear","type":"Lance","tier":"Silver","rankRequired":"Prof","might":10,"hit":65,"crit":0,"weight":10,"range":"1-2","special":"Throwable, lower stats","price":2200},
+  {"name":"Brave Lance","type":"Lance","tier":"Legend","rankRequired":"Mast","might":10,"hit":75,"crit":0,"weight":11,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Doomblade","type":"Lance","tier":"Legend","rankRequired":"Mast","might":12,"hit":85,"crit":5,"weight":8,"range":"1-2","special":"","price":0},
   {"name":"Iron Axe","type":"Axe","tier":"Iron","rankRequired":"Prof","might":7,"hit":80,"crit":0,"weight":6,"range":"1","special":"","price":500},
   {"name":"Steel Axe","type":"Axe","tier":"Steel","rankRequired":"Prof","might":10,"hit":70,"crit":0,"weight":9,"range":"1","special":"","price":1000},
   {"name":"Silver Axe","type":"Axe","tier":"Silver","rankRequired":"Prof","might":13,"hit":75,"crit":0,"weight":8,"range":"1","special":"","price":2000},
+  {"name":"Short Axe","type":"Axe","tier":"Steel","rankRequired":"Prof","might":8,"hit":65,"crit":0,"weight":10,"range":"1-2","special":"Throwable, lower stats","price":1000},
+  {"name":"Killer Axe","type":"Axe","tier":"Silver","rankRequired":"Prof","might":10,"hit":75,"crit":30,"weight":8,"range":"1","special":"Critical specialist","price":2300},
   {"name":"Hand Axe","type":"Axe","tier":"Iron","rankRequired":"Prof","might":5,"hit":65,"crit":0,"weight":8,"range":"1-2","special":"Throwable, lower stats","price":700},
   {"name":"Hammer","type":"Axe","tier":"Steel","rankRequired":"Prof","might":12,"hit":65,"crit":0,"weight":10,"range":"1","special":"Effective vs Armored (3x)","price":1300},
+  {"name":"Axereaver","type":"Axe","tier":"Steel","rankRequired":"Prof","might":10,"hit":65,"crit":0,"weight":10,"range":"1","special":"Reverses weapon triangle","price":1300},
   {"name":"Tomahawk","type":"Axe","tier":"Silver","rankRequired":"Prof","might":10,"hit":60,"crit":0,"weight":11,"range":"1-2","special":"Throwable, lower stats","price":2200},
-  {"name":"Brave Axe","type":"Axe","tier":"Legend","rankRequired":"Mast","might":11,"hit":70,"crit":0,"weight":11,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Brave Axe","type":"Axe","tier":"Legend","rankRequired":"Mast","might":11,"hit":70,"crit":0,"weight":13,"range":"1","special":"Attacks twice consecutively","price":0},
+  {"name":"Stormbreaker","type":"Axe","tier":"Legend","rankRequired":"Mast","might":20,"hit":80,"crit":15,"weight":20,"range":"1","special":"+5 DEF, +5 RES when equipped","price":0},
+  {"name":"Ruin","type":"Axe","tier":"Legend","rankRequired":"Mast","might":14,"hit":85,"crit":10,"weight":10,"range":"1","special":"Ignores weapon triangle disadvantage","price":0},
   {"name":"Iron Bow","type":"Bow","tier":"Iron","rankRequired":"Prof","might":5,"hit":90,"crit":0,"weight":3,"range":"2","special":"","price":500},
   {"name":"Steel Bow","type":"Bow","tier":"Steel","rankRequired":"Prof","might":8,"hit":80,"crit":0,"weight":6,"range":"2","special":"","price":1000},
   {"name":"Silver Bow","type":"Bow","tier":"Silver","rankRequired":"Prof","might":11,"hit":85,"crit":0,"weight":5,"range":"2","special":"","price":2000},
+  {"name":"Killer Bow","type":"Bow","tier":"Silver","rankRequired":"Prof","might":8,"hit":90,"crit":30,"weight":5,"range":"2","special":"Critical specialist","price":2300},
   {"name":"Longbow","type":"Bow","tier":"Steel","rankRequired":"Prof","might":6,"hit":70,"crit":0,"weight":7,"range":"2-3","special":"Extended range","price":1200},
-  {"name":"Brave Bow","type":"Bow","tier":"Legend","rankRequired":"Mast","might":9,"hit":80,"crit":0,"weight":7,"range":"2","special":"Attacks twice consecutively","price":0},
+  {"name":"Brave Bow","type":"Bow","tier":"Legend","rankRequired":"Mast","might":9,"hit":80,"crit":0,"weight":9,"range":"2","special":"Attacks twice consecutively","price":0},
+  {"name":"Starfall","type":"Bow","tier":"Legend","rankRequired":"Mast","might":12,"hit":90,"crit":10,"weight":7,"range":"2-3","special":"Extended range","price":0},
   {"name":"Fire","type":"Tome","tier":"Iron","rankRequired":"Prof","might":4,"hit":90,"crit":0,"weight":2,"range":"1-2","special":"","price":700},
   {"name":"Elfire","type":"Tome","tier":"Steel","rankRequired":"Prof","might":7,"hit":85,"crit":0,"weight":4,"range":"1-2","special":"","price":1200},
   {"name":"Bolganone","type":"Tome","tier":"Silver","rankRequired":"Prof","might":10,"hit":80,"crit":0,"weight":6,"range":"1-2","special":"","price":2200},
   {"name":"Excalibur","type":"Tome","tier":"Legend","rankRequired":"Mast","might":12,"hit":85,"crit":10,"weight":5,"range":"1-2","special":"Effective vs Flying (3x)","price":0},
-  {"name":"Bolting","type":"Tome","tier":"Legend","rankRequired":"Mast","might":8,"hit":55,"crit":0,"weight":10,"range":"3-10","special":"Siege magic","price":0},
+  {"name":"Bolting","type":"Tome","tier":"Legend","rankRequired":"Mast","might":8,"hit":55,"crit":0,"weight":10,"range":"3-10","uses":1,"perBattleUses":true,"special":"Siege magic (per-battle uses)","price":0},
   {"name":"Lightning","type":"Light","tier":"Iron","rankRequired":"Prof","might":4,"hit":95,"crit":5,"weight":1,"range":"1-2","special":"Lightest magic","price":700},
   {"name":"Shine","type":"Light","tier":"Steel","rankRequired":"Prof","might":7,"hit":90,"crit":5,"weight":3,"range":"1-2","special":"","price":1200},
   {"name":"Aura","type":"Light","tier":"Silver","rankRequired":"Prof","might":10,"hit":85,"crit":5,"weight":5,"range":"1-2","special":"","price":2200},
@@ -363,7 +380,14 @@ DATA.weapons = [
   {"name":"Wrath Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Wrath","skillId":"wrath","price":2500},
   {"name":"Adept Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Adept","skillId":"adept","price":2500},
   {"name":"Miracle Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Miracle","skillId":"miracle","price":2500},
-  {"name":"Guard Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Guard","skillId":"guard","price":2500}
+  {"name":"Guard Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Guard","skillId":"guard","price":2500},
+  {"name":"Cancel Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Cancel","skillId":"cancel","price":2500},
+  {"name":"Desperation Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Desperation","skillId":"desperation","price":2500},
+  {"name":"Quick Riposte Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Quick Riposte","skillId":"quick_riposte","price":2500},
+  {"name":"Death Blow Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Death Blow","skillId":"death_blow","price":2500},
+  {"name":"Darting Blow Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Darting Blow","skillId":"darting_blow","price":2500},
+  {"name":"Shove Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Shove","skillId":"shove","price":2500},
+  {"name":"Pull Scroll","type":"Scroll","tier":"Rare","rankRequired":"Prof","might":0,"hit":0,"crit":0,"weight":0,"range":"0","special":"Teaches Pull","skillId":"pull","price":2500}
 ];
 
 DATA.skills = [
@@ -387,7 +411,19 @@ DATA.skills = [
   {"id":"vigilance","name":"Vigilance","description":"+15 Avoid","trigger":"passive","effects":{"avoidBonus":15},"classInnate":"Hero"},
   {"id":"adept","name":"Adept","description":"SPD% chance for an extra follow-up strike at full damage","trigger":"on-attack","activation":"SPD"},
   {"id":"miracle","name":"Miracle","description":"LCK% chance to survive a lethal hit with 1 HP (once per battle)","trigger":"on-defend","activation":"LCK"},
-  {"id":"guard","name":"Guard","description":"+3 DEF/RES when adjacent to an ally","trigger":"on-combat-start","condition":"adjacent_ally","effects":{"defBonus":3,"resBonus":3}}
+  {"id":"guard","name":"Guard","description":"+3 DEF/RES when adjacent to an ally","trigger":"on-combat-start","condition":"adjacent_ally","effects":{"defBonus":3,"resBonus":3}},
+  {"id":"cancel","name":"Cancel","description":"SPD% chance to negate enemy's follow-up attack","trigger":"on-defend","activation":"SPD"},
+  {"id":"desperation","name":"Desperation","description":"Below 50% HP: follow-up attacks land before enemy can counter","trigger":"on-combat-start","condition":"below50"},
+  {"id":"quick_riposte","name":"Quick Riposte","description":"Above 50% HP: always double when defending","trigger":"on-combat-start","condition":"above50_defending"},
+  {"id":"death_blow","name":"Death Blow","description":"+6 STR when initiating combat","trigger":"on-combat-start","condition":"initiating","effects":{"atkBonus":6}},
+  {"id":"darting_blow","name":"Darting Blow","description":"+6 SPD when initiating combat","trigger":"on-combat-start","condition":"initiating","effects":{"spdBonus":6}},
+  {"id":"shove","name":"Shove","description":"Push an adjacent ally 1 tile away","trigger":"action"},
+  {"id":"pull","name":"Pull","description":"Pull an adjacent ally 1 tile toward you while stepping back","trigger":"action"},
+  {"id":"canto","name":"Canto","description":"Use remaining movement after acting","trigger":"passive","classInnate":["Paladin","Falcon Knight"]},
+  {"id":"commanders_gambit","name":"Commander's Gambit","description":"SKL/2%: Edric + allies within 1 tile act again this turn","trigger":"on-attack","activation":"SKL_HALF","personal":true},
+  {"id":"tactical_advantage","name":"Tactical Advantage","description":"Adjacent allies gain +3 to all stats","trigger":"passive-aura","range":1,"effects":{"atkBonus":3,"defBonus":3,"resBonus":3,"hitBonus":6,"avoidBonus":6,"critBonus":1},"personal":true},
+  {"id":"aether","name":"Aether","description":"SKL%: strike twice -- first Sol, then Luna","trigger":"on-attack","activation":"SKL","personal":true},
+  {"id":"flare","name":"Flare","description":"SKL%: negate RES and drain HP equal to damage","trigger":"on-attack","activation":"SKL","personal":true}
 ];
 
 DATA.accessories = [
@@ -449,10 +485,10 @@ DATA.classes = [
 ];
 
 DATA.lords = [
-  {"name":"Edric","class":"Lord","baseStats":{"HP":20,"STR":6,"MAG":2,"SKL":7,"SPD":7,"DEF":5,"RES":3,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Charisma: Allies within 2 tiles +10 Hit, +5 Avoid","personalGrowths":{"HP":15,"STR":10,"MAG":5,"SKL":10,"SPD":10,"DEF":5,"RES":5,"LCK":10},"promotedClass":"Great Lord","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":1,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":1},"promotionWeapons":"Lances (P)"},
-  {"name":"Kira","class":"Tactician","baseStats":{"HP":17,"STR":3,"MAG":7,"SKL":5,"SPD":6,"DEF":3,"RES":5,"LCK":5,"MOV":4},"moveType":"Infantry","weapon":"Tomes (P)","personalSkill":"Foresight: +1 range on Tome attacks","personalGrowths":{"HP":10,"STR":5,"MAG":15,"SKL":10,"SPD":10,"DEF":0,"RES":10,"LCK":5},"promotedClass":"Grandmaster","promotionBonuses":{"HP":2,"STR":1,"MAG":3,"SKL":2,"SPD":1,"DEF":1,"RES":2,"LCK":0,"MOV":0},"promotionWeapons":"Swords (P)"},
-  {"name":"Voss","class":"Ranger","baseStats":{"HP":22,"STR":8,"MAG":1,"SKL":6,"SPD":5,"DEF":7,"RES":2,"LCK":3,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Resolve: +4 STR/DEF when below 50% HP","personalGrowths":{"HP":20,"STR":15,"MAG":0,"SKL":5,"SPD":5,"DEF":10,"RES":0,"LCK":0},"promotedClass":"Vanguard","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":0,"DEF":3,"RES":0,"LCK":0,"MOV":0},"promotionWeapons":"Axes (P)"},
-  {"name":"Sera","class":"Light Sage","baseStats":{"HP":18,"STR":2,"MAG":6,"SKL":4,"SPD":5,"DEF":3,"RES":7,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Light (P)","personalSkill":"Renewal Aura: Adjacent allies heal 5 HP/turn","personalGrowths":{"HP":10,"STR":0,"MAG":10,"SKL":5,"SPD":5,"DEF":5,"RES":15,"LCK":10},"promotedClass":"Light Priestess","promotionBonuses":{"HP":3,"STR":0,"MAG":2,"SKL":1,"SPD":1,"DEF":1,"RES":3,"LCK":0,"MOV":0},"promotionWeapons":"Staves (P)"}
+  {"name":"Edric","class":"Lord","baseStats":{"HP":20,"STR":6,"MAG":2,"SKL":7,"SPD":7,"DEF":5,"RES":3,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Charisma: Allies within 2 tiles +10 Hit, +5 Avoid","personalGrowths":{"HP":15,"STR":10,"MAG":5,"SKL":10,"SPD":10,"DEF":5,"RES":5,"LCK":10},"promotedClass":"Great Lord","promotionBonuses":{"HP":3,"STR":2,"MAG":0,"SKL":1,"SPD":1,"DEF":2,"RES":1,"LCK":0,"MOV":1},"promotionWeapons":"Lances (P)","personalSkillL20":{"skillId":"commanders_gambit","level":20}},
+  {"name":"Kira","class":"Tactician","baseStats":{"HP":17,"STR":3,"MAG":7,"SKL":5,"SPD":6,"DEF":3,"RES":5,"LCK":5,"MOV":4},"moveType":"Infantry","weapon":"Tomes (P)","personalSkill":"Foresight: +1 range on Tome attacks","personalGrowths":{"HP":10,"STR":5,"MAG":15,"SKL":10,"SPD":10,"DEF":0,"RES":10,"LCK":5},"promotedClass":"Grandmaster","promotionBonuses":{"HP":2,"STR":1,"MAG":3,"SKL":2,"SPD":1,"DEF":1,"RES":2,"LCK":0,"MOV":0},"promotionWeapons":"Swords (P)","personalSkillL20":{"skillId":"tactical_advantage","level":20}},
+  {"name":"Voss","class":"Ranger","baseStats":{"HP":22,"STR":8,"MAG":1,"SKL":6,"SPD":5,"DEF":7,"RES":2,"LCK":3,"MOV":4},"moveType":"Infantry","weapon":"Swords (P)","personalSkill":"Resolve: +4 STR/DEF when below 50% HP","personalGrowths":{"HP":20,"STR":15,"MAG":0,"SKL":5,"SPD":5,"DEF":10,"RES":0,"LCK":0},"promotedClass":"Vanguard","promotionBonuses":{"HP":4,"STR":3,"MAG":0,"SKL":1,"SPD":0,"DEF":3,"RES":0,"LCK":0,"MOV":0},"promotionWeapons":"Axes (P)","personalSkillL20":{"skillId":"aether","level":20}},
+  {"name":"Sera","class":"Light Sage","baseStats":{"HP":18,"STR":2,"MAG":6,"SKL":4,"SPD":5,"DEF":3,"RES":7,"LCK":6,"MOV":4},"moveType":"Infantry","weapon":"Light (P)","personalSkill":"Renewal Aura: Adjacent allies heal 5 HP/turn","personalGrowths":{"HP":10,"STR":0,"MAG":10,"SKL":5,"SPD":5,"DEF":5,"RES":15,"LCK":10},"promotedClass":"Light Priestess","promotionBonuses":{"HP":3,"STR":0,"MAG":2,"SKL":1,"SPD":1,"DEF":1,"RES":3,"LCK":0,"MOV":0},"promotionWeapons":"Staves (P)","personalSkillL20":{"skillId":"flare","level":20}}
 ];
 
 DATA.recruits = {
@@ -462,41 +498,54 @@ DATA.recruits = {
 };
 
 DATA.lootTables = {
-  "act1":{"weapons":["Iron Sword","Iron Lance","Iron Axe","Iron Bow","Fire","Lightning","Heal","Hand Axe","Javelin"],"consumables":["Vulnerary"],"rare":[],"accessories":["Goddess Icon","Shield Ring","Forest Charm"],"forge":["Might Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":45,"consumable":25,"gold":10,"accessory":10,"forge":10},"goldRange":[80,150]},
-  "act2":{"weapons":["Steel Sword","Steel Lance","Steel Axe","Steel Bow","Elfire","Shine","Mend","Longbow","Short Spear","Horseslayer","Armorslayer"],"consumables":["Vulnerary","Elixir","Master Seal"],"rare":["Sol Scroll","Luna Scroll","Guard Scroll"],"accessories":["Power Ring","Speed Ring","Barrier Ring","Skill Ring","Life Ring","Veteran's Crest"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":30,"consumable":20,"gold":10,"rare":10,"accessory":15,"forge":15},"goldRange":[150,250]},
-  "act3":{"weapons":["Silver Sword","Silver Lance","Silver Axe","Silver Bow","Bolganone","Aura","Recover","Physic","Killing Edge","Hammer","Tomahawk","Spear","Killer Lance","Venin Edge"],"consumables":["Elixir","Master Seal"],"rare":["Astra Scroll","Vantage Scroll","Wrath Scroll","Adept Scroll","Miracle Scroll","Ragnell","Runesword","Bolting"],"accessories":["Seraph Robe","Magic Ring","Boots","Delphi Shield","Wrath Band","Counter Seal","Pursuit Ring","Nullify Ring"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":25,"consumable":15,"gold":15,"rare":15,"accessory":15,"forge":15},"goldRange":[200,400]},
+  "act1":{"weapons":["Iron Sword","Iron Lance","Iron Axe","Iron Bow","Fire","Lightning","Heal","Hand Axe","Javelin","Short Axe"],"consumables":["Vulnerary"],"rare":[],"accessories":["Goddess Icon","Shield Ring","Forest Charm"],"forge":["Might Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":45,"consumable":25,"gold":10,"accessory":10,"forge":10},"goldRange":[80,150]},
+  "act2":{"weapons":["Steel Sword","Steel Lance","Steel Axe","Steel Bow","Elfire","Shine","Mend","Longbow","Short Spear","Horseslayer","Armorslayer","Wo Dao","Wind Sword","Short Axe","Lancereaver","Swordreaver","Axereaver"],"consumables":["Vulnerary","Elixir","Master Seal"],"rare":["Sol Scroll","Luna Scroll","Guard Scroll","Cancel Scroll","Desperation Scroll"],"accessories":["Power Ring","Speed Ring","Barrier Ring","Skill Ring","Life Ring","Veteran's Crest"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":30,"consumable":20,"gold":10,"rare":10,"accessory":15,"forge":15},"goldRange":[150,250]},
+  "act3":{"weapons":["Silver Sword","Silver Lance","Silver Axe","Silver Bow","Bolganone","Aura","Recover","Physic","Killing Edge","Hammer","Tomahawk","Spear","Killer Lance","Venin Blade","Killer Axe","Killer Bow","Tempest Blade","Levin Sword"],"consumables":["Elixir","Master Seal"],"rare":["Astra Scroll","Vantage Scroll","Wrath Scroll","Adept Scroll","Miracle Scroll","Quick Riposte Scroll","Death Blow Scroll","Darting Blow Scroll","Shove Scroll","Pull Scroll","Ragnarok","Soulreaver","Bolting","Gemini","Doomblade","Starfall","Stormbreaker","Ruin"],"accessories":["Seraph Robe","Magic Ring","Boots","Delphi Shield","Wrath Band","Counter Seal","Pursuit Ring","Nullify Ring"],"forge":["Silver Whetstone","Might Whetstone","Crit Whetstone","Hit Whetstone","Weight Whetstone"],"weights":{"weapon":25,"consumable":15,"gold":15,"rare":15,"accessory":15,"forge":15},"goldRange":[200,400]},
   "finalBoss":{"weapons":[],"consumables":[],"rare":[],"accessories":[],"forge":[],"weights":{"gold":100},"goldRange":[500,500]}
 };
 
 DATA.metaUpgrades = [
-  {"id":"recruit_hp_growth","name":"Hardy Recruits","description":"+5% HP growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"HP","growthValue":5},{"recruitGrowth":"HP","growthValue":10},{"recruitGrowth":"HP","growthValue":15},{"recruitGrowth":"HP","growthValue":20},{"recruitGrowth":"HP","growthValue":25}]},
-  {"id":"recruit_str_growth","name":"Strong Arms","description":"+5% STR growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"STR","growthValue":5},{"recruitGrowth":"STR","growthValue":10},{"recruitGrowth":"STR","growthValue":15},{"recruitGrowth":"STR","growthValue":20},{"recruitGrowth":"STR","growthValue":25}]},
-  {"id":"recruit_def_growth","name":"Tough Recruits","description":"+5% DEF growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"DEF","growthValue":5},{"recruitGrowth":"DEF","growthValue":10},{"recruitGrowth":"DEF","growthValue":15},{"recruitGrowth":"DEF","growthValue":20},{"recruitGrowth":"DEF","growthValue":25}]},
-  {"id":"recruit_spd_growth","name":"Quick Feet","description":"+5% SPD growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,125,175,275],"effects":[{"recruitGrowth":"SPD","growthValue":5},{"recruitGrowth":"SPD","growthValue":10},{"recruitGrowth":"SPD","growthValue":15},{"recruitGrowth":"SPD","growthValue":20},{"recruitGrowth":"SPD","growthValue":25}]},
-  {"id":"recruit_skl_growth","name":"Sharp Eye","description":"+5% SKL growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"SKL","growthValue":5},{"recruitGrowth":"SKL","growthValue":10},{"recruitGrowth":"SKL","growthValue":15},{"recruitGrowth":"SKL","growthValue":20},{"recruitGrowth":"SKL","growthValue":25}]},
-  {"id":"recruit_res_growth","name":"Warded Recruits","description":"+5% RES growth per tier","category":"recruit_stats","maxLevel":5,"costs":[50,75,100,150,250],"effects":[{"recruitGrowth":"RES","growthValue":5},{"recruitGrowth":"RES","growthValue":10},{"recruitGrowth":"RES","growthValue":15},{"recruitGrowth":"RES","growthValue":20},{"recruitGrowth":"RES","growthValue":25}]},
-  {"id":"recruit_hp_flat","name":"Recruit Vitality","description":"+HP for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,700],"effects":[{"stat":"HP","value":2},{"stat":"HP","value":5},{"stat":"HP","value":10}]},
-  {"id":"recruit_str_flat","name":"Recruit Brawn","description":"+STR for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"STR","value":1},{"stat":"STR","value":3},{"stat":"STR","value":5}]},
-  {"id":"recruit_def_flat","name":"Recruit Armor","description":"+DEF for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"DEF","value":1},{"stat":"DEF","value":3},{"stat":"DEF","value":5}]},
-  {"id":"recruit_spd_flat","name":"Recruit Agility","description":"+SPD for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,600],"effects":[{"stat":"SPD","value":1},{"stat":"SPD","value":3},{"stat":"SPD","value":5}]},
-  {"id":"recruit_skl_flat","name":"Recruit Precision","description":"+SKL for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,350,550],"effects":[{"stat":"SKL","value":1},{"stat":"SKL","value":3},{"stat":"SKL","value":5}]},
-  {"id":"recruit_res_flat","name":"Recruit Ward","description":"+RES for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,350,550],"effects":[{"stat":"RES","value":1},{"stat":"RES","value":3},{"stat":"RES","value":5}]},
-  {"id":"lord_hp_growth","name":"Lord Vitality","description":"+5% HP growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,100,150,200,350],"effects":[{"lordGrowth":"HP","growthValue":5},{"lordGrowth":"HP","growthValue":10},{"lordGrowth":"HP","growthValue":15},{"lordGrowth":"HP","growthValue":20},{"lordGrowth":"HP","growthValue":25}]},
-  {"id":"lord_str_growth","name":"Lord Combat Training","description":"+5% STR growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"STR","growthValue":5},{"lordGrowth":"STR","growthValue":10},{"lordGrowth":"STR","growthValue":15},{"lordGrowth":"STR","growthValue":20},{"lordGrowth":"STR","growthValue":25}]},
-  {"id":"lord_def_growth","name":"Lord Resilience","description":"+5% DEF growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"DEF","growthValue":5},{"lordGrowth":"DEF","growthValue":10},{"lordGrowth":"DEF","growthValue":15},{"lordGrowth":"DEF","growthValue":20},{"lordGrowth":"DEF","growthValue":25}]},
-  {"id":"lord_spd_growth","name":"Lord Swiftness","description":"+5% SPD growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,125,175,250,400],"effects":[{"lordGrowth":"SPD","growthValue":5},{"lordGrowth":"SPD","growthValue":10},{"lordGrowth":"SPD","growthValue":15},{"lordGrowth":"SPD","growthValue":20},{"lordGrowth":"SPD","growthValue":25}]},
-  {"id":"lord_res_growth","name":"Lord Wisdom","description":"+5% RES growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[75,100,150,200,350],"effects":[{"lordGrowth":"RES","growthValue":5},{"lordGrowth":"RES","growthValue":10},{"lordGrowth":"RES","growthValue":15},{"lordGrowth":"RES","growthValue":20},{"lordGrowth":"RES","growthValue":25}]},
-  {"id":"lord_hp_flat","name":"Lord Constitution","description":"+HP for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,500,800],"effects":[{"lordStat":"HP","value":2},{"lordStat":"HP","value":5},{"lordStat":"HP","value":10}]},
-  {"id":"lord_str_flat","name":"Lord Might","description":"+STR for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"STR","value":1},{"lordStat":"STR","value":3},{"lordStat":"STR","value":5}]},
-  {"id":"lord_def_flat","name":"Lord Fortitude","description":"+DEF for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"DEF","value":1},{"lordStat":"DEF","value":3},{"lordStat":"DEF","value":5}]},
-  {"id":"lord_spd_flat","name":"Lord Celerity","description":"+SPD for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,450,700],"effects":[{"lordStat":"SPD","value":1},{"lordStat":"SPD","value":3},{"lordStat":"SPD","value":5}]},
-  {"id":"lord_res_flat","name":"Lord Warding","description":"+RES for lords","category":"lord_bonuses","maxLevel":3,"costs":[250,400,650],"effects":[{"lordStat":"RES","value":1},{"lordStat":"RES","value":3},{"lordStat":"RES","value":5}]},
-  {"id":"starting_gold","name":"War Chest","description":"+100 starting gold per level","category":"economy","maxLevel":3,"costs":[100,200,350],"effects":[{"goldBonus":100},{"goldBonus":200},{"goldBonus":300}]},
-  {"id":"battle_gold","name":"Plunder","description":"+20% battle gold per level","category":"economy","maxLevel":2,"costs":[150,300],"effects":[{"battleGoldMultiplier":0.2},{"battleGoldMultiplier":0.4}]},
-  {"id":"starting_vulnerary","name":"Field Supplies","description":"Extra Vulnerary for lord at start","category":"economy","maxLevel":1,"costs":[150],"effects":[{"extraVulnerary":1}]},
-  {"id":"loot_quality","name":"Lucky Finds","description":"Better weapon drops from loot","category":"economy","maxLevel":2,"costs":[200,400],"effects":[{"lootWeaponWeightBonus":10},{"lootWeaponWeightBonus":20}]},
-  {"id":"deploy_limit","name":"Tactical Advantage","description":"+1 deploy slot in all acts","category":"capacity","maxLevel":1,"costs":[500],"effects":[{"deployBonus":1}]},
-  {"id":"roster_cap","name":"Expanded Ranks","description":"+2 max roster size","category":"capacity","maxLevel":1,"costs":[400],"effects":[{"rosterCapBonus":2}]}
+  {"id":"recruit_hp_growth","name":"Hardy Recruits","description":"+5% HP growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,100,150,225,350],"effects":[{"recruitGrowth":"HP","growthValue":5},{"recruitGrowth":"HP","growthValue":10},{"recruitGrowth":"HP","growthValue":15},{"recruitGrowth":"HP","growthValue":20},{"recruitGrowth":"HP","growthValue":25}]},
+  {"id":"recruit_str_growth","name":"Strong Arms","description":"+5% STR growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,125,175,275,425],"effects":[{"recruitGrowth":"STR","growthValue":5},{"recruitGrowth":"STR","growthValue":10},{"recruitGrowth":"STR","growthValue":15},{"recruitGrowth":"STR","growthValue":20},{"recruitGrowth":"STR","growthValue":25}]},
+  {"id":"recruit_def_growth","name":"Tough Recruits","description":"+5% DEF growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,125,175,275,425],"effects":[{"recruitGrowth":"DEF","growthValue":5},{"recruitGrowth":"DEF","growthValue":10},{"recruitGrowth":"DEF","growthValue":15},{"recruitGrowth":"DEF","growthValue":20},{"recruitGrowth":"DEF","growthValue":25}]},
+  {"id":"recruit_spd_growth","name":"Quick Feet","description":"+5% SPD growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,125,200,300,450],"effects":[{"recruitGrowth":"SPD","growthValue":5},{"recruitGrowth":"SPD","growthValue":10},{"recruitGrowth":"SPD","growthValue":15},{"recruitGrowth":"SPD","growthValue":20},{"recruitGrowth":"SPD","growthValue":25}]},
+  {"id":"recruit_skl_growth","name":"Sharp Eye","description":"+5% SKL growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,100,150,225,350],"effects":[{"recruitGrowth":"SKL","growthValue":5},{"recruitGrowth":"SKL","growthValue":10},{"recruitGrowth":"SKL","growthValue":15},{"recruitGrowth":"SKL","growthValue":20},{"recruitGrowth":"SKL","growthValue":25}]},
+  {"id":"recruit_res_growth","name":"Warded Recruits","description":"+5% RES growth per tier","category":"recruit_stats","maxLevel":5,"costs":[75,100,125,200,300],"effects":[{"recruitGrowth":"RES","growthValue":5},{"recruitGrowth":"RES","growthValue":10},{"recruitGrowth":"RES","growthValue":15},{"recruitGrowth":"RES","growthValue":20},{"recruitGrowth":"RES","growthValue":25}]},
+  {"id":"recruit_hp_flat","name":"Recruit Vitality","description":"+HP for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,500,1000],"requires":{"upgrades":[{"id":"recruit_hp_growth","level":3}]},"effects":[{"stat":"HP","value":2},{"stat":"HP","value":5},{"stat":"HP","value":10}]},
+  {"id":"recruit_str_flat","name":"Recruit Brawn","description":"+STR for recruits","category":"recruit_stats","maxLevel":3,"costs":[250,600,1200],"requires":{"upgrades":[{"id":"recruit_str_growth","level":3}]},"effects":[{"stat":"STR","value":1},{"stat":"STR","value":3},{"stat":"STR","value":5}]},
+  {"id":"recruit_def_flat","name":"Recruit Armor","description":"+DEF for recruits","category":"recruit_stats","maxLevel":3,"costs":[250,600,1200],"requires":{"upgrades":[{"id":"recruit_def_growth","level":3}]},"effects":[{"stat":"DEF","value":1},{"stat":"DEF","value":3},{"stat":"DEF","value":5}]},
+  {"id":"recruit_spd_flat","name":"Recruit Agility","description":"+SPD for recruits","category":"recruit_stats","maxLevel":3,"costs":[250,650,1400],"requires":{"upgrades":[{"id":"recruit_spd_growth","level":3}]},"effects":[{"stat":"SPD","value":1},{"stat":"SPD","value":3},{"stat":"SPD","value":5}]},
+  {"id":"recruit_skl_flat","name":"Recruit Precision","description":"+SKL for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,450,900],"requires":{"upgrades":[{"id":"recruit_skl_growth","level":3}]},"effects":[{"stat":"SKL","value":1},{"stat":"SKL","value":3},{"stat":"SKL","value":5}]},
+  {"id":"recruit_res_flat","name":"Recruit Ward","description":"+RES for recruits","category":"recruit_stats","maxLevel":3,"costs":[200,400,800],"requires":{"upgrades":[{"id":"recruit_res_growth","level":3}]},"effects":[{"stat":"RES","value":1},{"stat":"RES","value":3},{"stat":"RES","value":5}]},
+  {"id":"lord_hp_growth","name":"Lord Vitality","description":"+5% HP growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[100,150,200,300,450],"effects":[{"lordGrowth":"HP","growthValue":5},{"lordGrowth":"HP","growthValue":10},{"lordGrowth":"HP","growthValue":15},{"lordGrowth":"HP","growthValue":20},{"lordGrowth":"HP","growthValue":25}]},
+  {"id":"lord_str_growth","name":"Lord Combat Training","description":"+5% STR growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[100,175,250,375,550],"effects":[{"lordGrowth":"STR","growthValue":5},{"lordGrowth":"STR","growthValue":10},{"lordGrowth":"STR","growthValue":15},{"lordGrowth":"STR","growthValue":20},{"lordGrowth":"STR","growthValue":25}]},
+  {"id":"lord_def_growth","name":"Lord Resilience","description":"+5% DEF growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[100,175,250,375,550],"effects":[{"lordGrowth":"DEF","growthValue":5},{"lordGrowth":"DEF","growthValue":10},{"lordGrowth":"DEF","growthValue":15},{"lordGrowth":"DEF","growthValue":20},{"lordGrowth":"DEF","growthValue":25}]},
+  {"id":"lord_spd_growth","name":"Lord Swiftness","description":"+5% SPD growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[100,175,275,400,600],"effects":[{"lordGrowth":"SPD","growthValue":5},{"lordGrowth":"SPD","growthValue":10},{"lordGrowth":"SPD","growthValue":15},{"lordGrowth":"SPD","growthValue":20},{"lordGrowth":"SPD","growthValue":25}]},
+  {"id":"lord_res_growth","name":"Lord Wisdom","description":"+5% RES growth per tier","category":"lord_bonuses","maxLevel":5,"costs":[100,150,200,300,450],"effects":[{"lordGrowth":"RES","growthValue":5},{"lordGrowth":"RES","growthValue":10},{"lordGrowth":"RES","growthValue":15},{"lordGrowth":"RES","growthValue":20},{"lordGrowth":"RES","growthValue":25}]},
+  {"id":"lord_hp_flat","name":"Lord Constitution","description":"+HP for lords","category":"lord_bonuses","maxLevel":3,"costs":[300,650,1300],"requires":{"upgrades":[{"id":"lord_hp_growth","level":3}],"milestones":["beatAct1"]},"effects":[{"lordStat":"HP","value":2},{"lordStat":"HP","value":5},{"lordStat":"HP","value":10}]},
+  {"id":"lord_str_flat","name":"Lord Might","description":"+STR for lords","category":"lord_bonuses","maxLevel":3,"costs":[300,700,1500],"requires":{"upgrades":[{"id":"lord_str_growth","level":3}],"milestones":["beatAct1"]},"effects":[{"lordStat":"STR","value":1},{"lordStat":"STR","value":3},{"lordStat":"STR","value":5}]},
+  {"id":"lord_def_flat","name":"Lord Fortitude","description":"+DEF for lords","category":"lord_bonuses","maxLevel":3,"costs":[300,700,1500],"requires":{"upgrades":[{"id":"lord_def_growth","level":3}],"milestones":["beatAct1"]},"effects":[{"lordStat":"DEF","value":1},{"lordStat":"DEF","value":3},{"lordStat":"DEF","value":5}]},
+  {"id":"lord_spd_flat","name":"Lord Celerity","description":"+SPD for lords","category":"lord_bonuses","maxLevel":3,"costs":[300,750,1600],"requires":{"upgrades":[{"id":"lord_spd_growth","level":3}],"milestones":["beatAct1"]},"effects":[{"lordStat":"SPD","value":1},{"lordStat":"SPD","value":3},{"lordStat":"SPD","value":5}]},
+  {"id":"lord_res_flat","name":"Lord Warding","description":"+RES for lords","category":"lord_bonuses","maxLevel":3,"costs":[300,600,1100],"requires":{"upgrades":[{"id":"lord_res_growth","level":3}]},"effects":[{"lordStat":"RES","value":1},{"lordStat":"RES","value":3},{"lordStat":"RES","value":5}]},
+  {"id":"starting_gold","name":"War Chest","description":"+100 starting gold per level","category":"economy","maxLevel":3,"costs":[150,300,500],"effects":[{"goldBonus":100},{"goldBonus":200},{"goldBonus":300}]},
+  {"id":"battle_gold","name":"Plunder","description":"+20% battle gold per level","category":"economy","maxLevel":2,"costs":[200,450],"effects":[{"battleGoldMultiplier":0.2},{"battleGoldMultiplier":0.4}]},
+  {"id":"starting_vulnerary","name":"Field Supplies","description":"Extra Vulnerary for lord at start","category":"economy","maxLevel":1,"costs":[200],"effects":[{"extraVulnerary":1}]},
+  {"id":"loot_quality","name":"Lucky Finds","description":"Better weapon drops from loot","category":"economy","maxLevel":2,"costs":[300,600],"requires":{"milestones":["beatAct1"]},"effects":[{"lootWeaponWeightBonus":10},{"lootWeaponWeightBonus":20}]},
+  {"id":"deploy_limit","name":"Tactical Advantage","description":"+1 deploy slot in all acts","category":"capacity","maxLevel":1,"costs":[1000],"requires":{"milestones":["beatAct2"]},"effects":[{"deployBonus":1}]},
+  {"id":"roster_cap","name":"Expanded Ranks","description":"+2 max roster size","category":"capacity","maxLevel":1,"costs":[600],"requires":{"milestones":["beatAct1"]},"effects":[{"rosterCapBonus":2}]},
+  {"id":"recruit_skill","name":"Skilled Recruits","description":"Recruits spawn with a random combat skill","category":"capacity","maxLevel":1,"costs":[500],"effects":[{"recruitRandomSkill":true}]},
+  {"id":"weapon_forge","name":"Honed Blades","description":"Lords' starting weapons gain forge levels","category":"starting_equipment","maxLevel":3,"costs":[200,400,700],"effects":[{"startingWeaponForge":1},{"startingWeaponForge":2},{"startingWeaponForge":3}]},
+  {"id":"weapon_tier","name":"Deadly Arsenal","description":"Lords start with a random Silver, Killer, Brave, or Legendary weapon","category":"starting_equipment","maxLevel":1,"costs":[1500],"effects":[{"deadlyArsenal":1}]},
+  {"id":"starting_accessory","name":"Battle Trinket","description":"Edric starts with an accessory","category":"starting_equipment","maxLevel":3,"costs":[200,450,750],"effects":[{"startingAccessoryTier":1},{"startingAccessoryTier":2},{"startingAccessoryTier":3}]},
+  {"id":"staff_upgrade","name":"Healer's Art","description":"Sera starts with a better staff","category":"starting_equipment","maxLevel":2,"costs":[200,500],"effects":[{"startingStaffTier":1},{"startingStaffTier":2}]},
+  {"id":"unlock_sol","name":"Sol","description":"SKL% chance to heal damage dealt","category":"starting_skills","maxLevel":1,"costs":[300],"effects":[{"unlockSkill":"sol"}]},
+  {"id":"unlock_luna","name":"Luna","description":"SKL% chance to halve DEF/RES","category":"starting_skills","maxLevel":1,"costs":[300],"effects":[{"unlockSkill":"luna"}]},
+  {"id":"unlock_astra","name":"Astra","description":"SKL/2% chance for 5 consecutive hits","category":"starting_skills","maxLevel":1,"costs":[350],"effects":[{"unlockSkill":"astra"}]},
+  {"id":"unlock_vantage","name":"Vantage","description":"Attack first when below 50% HP","category":"starting_skills","maxLevel":1,"costs":[250],"effects":[{"unlockSkill":"vantage"}]},
+  {"id":"unlock_wrath","name":"Wrath","description":"+30 Crit when below 50% HP","category":"starting_skills","maxLevel":1,"costs":[250],"effects":[{"unlockSkill":"wrath"}]},
+  {"id":"unlock_adept","name":"Adept","description":"SPD% chance for follow-up attack","category":"starting_skills","maxLevel":1,"costs":[350],"effects":[{"unlockSkill":"adept"}]},
+  {"id":"unlock_miracle","name":"Miracle","description":"LCK% chance to survive lethal hit at 1 HP","category":"starting_skills","maxLevel":1,"costs":[200],"effects":[{"unlockSkill":"miracle"}]},
+  {"id":"unlock_guard","name":"Guard","description":"LCK/4% chance to negate damage","category":"starting_skills","maxLevel":1,"costs":[200],"effects":[{"unlockSkill":"guard"}]}
 ];
 
 DATA.terrain = [
@@ -718,7 +767,7 @@ function renderSkills() {
   // Determine source
   function getSource(s) {
     if (s.personal) return '<span style="color:var(--gold)">Personal (Lord)</span>';
-    if (s.classInnate) return `<span style="color:var(--cyan)">Class Innate: ${s.classInnate}</span>`;
+    if (s.classInnate) return `<span style="color:var(--cyan)">Class Innate: ${Array.isArray(s.classInnate) ? s.classInnate.join(', ') : s.classInnate}</span>`;
     // Check if learnable via scroll
     const scroll = DATA.weapons.find(w => w.skillId === s.id);
     const learnable = DATA.classes.some(c => c.learnableSkills?.some(ls => ls.skillId === s.id));
@@ -822,7 +871,7 @@ function renderClasses() {
       <th>Innate Skill</th><th>Role Change</th>
     </tr></thead><tbody>${filtered.map(c => {
       const b = c.promotionBonuses;
-      const innate = DATA.skills.find(s => s.classInnate === c.name);
+      const innate = DATA.skills.find(s => Array.isArray(s.classInnate) ? s.classInnate.includes(c.name) : s.classInnate === c.name);
       return `<tr>
         <td><strong>${c.name}</strong></td>
         <td>${c.promotesFrom}</td>
@@ -871,6 +920,7 @@ function renderLords() {
         ${statKeys.filter(k => pb[k]).map(k => `<span class="stat-pos">+${pb[k]} ${k}</span>`).join(', ')}
         <br>Gains: ${l.promotionWeapons}
       </div>
+      ${l.personalSkillL20 ? (() => { const sk = DATA.skills.find(s => s.id === l.personalSkillL20.skillId); return sk ? `<div style="margin-top:8px;font-size:0.82em"><strong style="color:var(--gold)">L${l.personalSkillL20.level} Skill:</strong> <span class="skill-tag">${sk.name}</span> <span style="color:var(--text-dim)">${sk.description}</span></div>` : ''; })() : ''}
     </div>`;
   }).join('');
 }
@@ -936,19 +986,40 @@ function renderLoot() {
 // ============================================================
 function renderMeta() {
   const categories = {};
-  const catLabels = { recruit_stats: 'Recruit Stats', lord_bonuses: 'Lord Bonuses', economy: 'Economy', capacity: 'Capacity' };
+  const catLabels = { recruit_stats: 'Recruit Stats', lord_bonuses: 'Lord Bonuses', economy: 'Economy', capacity: 'Battalion', starting_equipment: 'Starting Equipment', starting_skills: 'Starting Skills' };
+  const upgradeMap = {};
+  DATA.metaUpgrades.forEach(u => { upgradeMap[u.id] = u; });
 
   DATA.metaUpgrades.forEach(u => {
     if (!categories[u.category]) categories[u.category] = [];
     categories[u.category].push(u);
   });
 
+  function formatRequires(req) {
+    if (!req) return '';
+    const parts = [];
+    if (req.upgrades) {
+      req.upgrades.forEach(r => {
+        const dep = upgradeMap[r.id];
+        parts.push(`${dep ? dep.name : r.id} Lv${r.level}`);
+      });
+    }
+    if (req.milestones) {
+      req.milestones.forEach(m => {
+        const labels = { beatAct1: 'Beat Act 1', beatAct2: 'Beat Act 2', beatAct3: 'Beat Act 3' };
+        parts.push(labels[m] || m);
+      });
+    }
+    return parts.length ? `<span style="color:#ff9944;font-size:0.8em">${parts.join(' + ')}</span>` : '';
+  }
+
   document.getElementById('meta-content').innerHTML = Object.entries(catLabels).map(([cat, label]) => {
     const upgrades = categories[cat] || [];
+    const totalCost = upgrades.reduce((sum, u) => sum + u.costs.reduce((s, c) => s + c, 0), 0);
     return `<div class="upgrade-group">
-      <h3>${label} (${upgrades.length})</h3>
+      <h3>${label} (${upgrades.length}) <span style="color:var(--text-dim);font-size:0.8em;font-weight:normal">Total: ${totalCost}</span></h3>
       <table><thead><tr>
-        <th>Name</th><th>Description</th><th>Max Lv</th><th>Costs</th><th>Effects at Max</th>
+        <th>Name</th><th>Description</th><th>Max Lv</th><th>Costs</th><th>Requires</th><th>Effects at Max</th>
       </tr></thead><tbody>
       ${upgrades.map(u => {
         const maxEffect = u.effects[u.effects.length - 1];
@@ -958,6 +1029,7 @@ function renderMeta() {
           <td>${u.description}</td>
           <td style="text-align:center">${u.maxLevel}</td>
           <td>${u.costs.map((c, i) => `<span class="cost-tier">${i + 1}: ${c}</span>`).join(' ')}</td>
+          <td>${formatRequires(u.requires)}</td>
           <td style="font-size:0.82em">${effectStr}</td>
         </tr>`;
       }).join('')}
