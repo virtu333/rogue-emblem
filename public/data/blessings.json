@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "blessings": [
+    {
+      "id": "steady_hands",
+      "name": "Steady Hands",
+      "tier": 1,
+      "description": "+5 Hit for all units in Act 1.",
+      "weight": 1.0,
+      "boons": [
+        {
+          "type": "act_hit_bonus",
+          "params": { "act": "act1", "value": 5 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "coin_of_fate",
+      "name": "Coin of Fate",
+      "tier": 1,
+      "description": "Start with +100 gold.",
+      "weight": 1.0,
+      "boons": [
+        {
+          "type": "gold_delta",
+          "params": { "value": 100 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "blessed_vigor",
+      "name": "Blessed Vigor",
+      "tier": 1,
+      "description": "At run start, lords gain +2 max HP.",
+      "weight": 1.0,
+      "boons": [
+        {
+          "type": "run_start_max_hp_bonus",
+          "params": { "value": 2, "scope": "lords" }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "iron_oath",
+      "name": "Iron Oath",
+      "tier": 2,
+      "description": "+2 DEF to lords, but -10% battle gold.",
+      "weight": 0.9,
+      "boons": [
+        {
+          "type": "lord_stat_bonus",
+          "params": { "stat": "DEF", "value": 2 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": -0.1 }
+        }
+      ]
+    },
+    {
+      "id": "scout_blessing",
+      "name": "Scout Blessing",
+      "tier": 2,
+      "description": "Deploy +1 unit, but start with -100 gold.",
+      "weight": 0.9,
+      "boons": [
+        {
+          "type": "deploy_cap_delta",
+          "params": { "value": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "gold_delta",
+          "params": { "value": -100 }
+        }
+      ]
+    },
+    {
+      "id": "arsenal_pact",
+      "name": "Arsenal Pact",
+      "tier": 3,
+      "description": "Start with a silver weapon, but -1 DEF all units in Act 1.",
+      "weight": 0.65,
+      "boons": [
+        {
+          "type": "starting_weapon_tier",
+          "params": { "tier": "Silver", "count": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "act_stat_delta_all_units",
+          "params": { "act": "act1", "stat": "DEF", "value": -1 }
+        }
+      ]
+    },
+    {
+      "id": "merchant_bane",
+      "name": "Merchant Bane",
+      "tier": 3,
+      "description": "+15% battle gold, but first shop is skipped.",
+      "weight": 0.65,
+      "boons": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": 0.15 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "skip_first_shop",
+          "params": { "enabled": true }
+        }
+      ]
+    },
+    {
+      "id": "worldly_stride",
+      "name": "Worldly Stride",
+      "tier": 4,
+      "description": "+1 MOV all units, but all shop inventories have -2 items.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "all_units_stat_delta",
+          "params": { "stat": "MOV", "value": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "shop_item_count_delta",
+          "params": { "value": -2 }
+        }
+      ]
+    },
+    {
+      "id": "forbidden_tome",
+      "name": "Forbidden Tome",
+      "tier": 4,
+      "description": "All growths +15%, but personal skills disabled until Act 3.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "all_growths_delta",
+          "params": { "value": 15 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "disable_personal_skills_until_act",
+          "params": { "act": "act3" }
+        }
+      ]
+    }
+  ]
+}
