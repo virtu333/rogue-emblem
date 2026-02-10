@@ -50,7 +50,7 @@
 ## 7. Save Schema Additions
 1. Run save payload adds `activeBlessings` as an array of blessing IDs.
 2. Run save payload may add `blessingHistory` as an array of event records.
-3. Event record schema is `timestamp`, `eventType`, `blessingId`, and optional `details`.
+3. Event record schema is `timestamp`, `stage`, `eventType`, `blessingId`, `effectType`, and optional `details`.
 4. Save additions are additive and must not mutate unrelated fields.
 5. Missing blessing fields in old saves must default safely to empty values.
 6. Unknown blessing IDs in loaded saves must be preserved as inert entries and logged.
@@ -68,6 +68,13 @@
 3. Harness action schema must remain unchanged.
 4. Replay readers must ignore missing blessing metadata.
 5. Replay readers must tolerate unknown blessing IDs.
+
+## 9.1 Selection Telemetry Contract
+1. Selection telemetry is additive and optional.
+2. If present, it should include `seed`, `candidatePoolIds`, `offeredIds`, and `chosenIds`.
+3. `offeredIds` contains generated run-start options.
+4. `chosenIds` contains player-selected blessing IDs and may be empty when skipped.
+5. Legacy telemetry that stored offered IDs under `chosenIds` must be migrated safely.
 
 ## 10. Determinism Rules
 1. Blessing selection and blessing-triggered random effects must use seeded RNG path.

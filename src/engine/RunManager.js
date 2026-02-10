@@ -65,7 +65,12 @@ export class RunManager {
     this.activeBlessings = [];
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
+    this.blessingRuntimeModifiers = {
+      battleGoldMultiplierDelta: 0,
+      deployCapDelta: 0,
+    };
     this._runStartBlessingsApplied = false;
+    this.runSeed = null;
   }
 
   get currentAct() {
@@ -78,13 +83,28 @@ export class RunManager {
 
   /** Initialize a new run: create starting roster + first act node map. */
   startRun(options = {}) {
+    const {
+      runSeed = null,
+      applyBlessingsAtStart = true,
+    } = options;
     this.roster = this.createInitialRoster();
+    if (!Number.isFinite(this.runSeed)) {
+      const initialSeed = runSeed ?? Date.now();
+      this.runSeed = Number(initialSeed);
+    }
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
+    this.blessingRuntimeModifiers = {
+      battleGoldMultiplierDelta: 0,
+      deployCapDelta: 0,
+    };
+    this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this.initializeBlessingsAtRunStart(options);
-    this.applyRunStartBlessingEffects();
+    if (applyBlessingsAtStart && this.activeBlessings.length > 0) {
+      this.applyRunStartBlessingEffects();
+    }
   }
 
   initializeBlessingsAtRunStart(options = {}) {
@@ -98,17 +118,17 @@ export class RunManager {
     if (!catalog || !Array.isArray(catalog.blessings)) {
       this.activeBlessings = [];
       this.blessingSelectionTelemetry = {
-        seed: blessingSeed,
+        seed: blessingSeed ?? this.runSeed,
         candidatePoolIds: [],
+        offeredIds: [],
         chosenIds: [],
         rejectionReasons: [{ blessingId: null, reason: 'missing_catalog' }],
       };
       return;
     }
 
-    const rng = blessingSeed === null || blessingSeed === undefined
-      ? Math.random
-      : createSeededRng(Number(blessingSeed));
+    const resolvedSeed = Number(blessingSeed ?? this.runSeed);
+    const rng = createSeededRng(resolvedSeed);
     const { selected, telemetry } = selectBlessingOptionsWithTelemetry(
       catalog,
       rng,
@@ -118,8 +138,9 @@ export class RunManager {
     const chosenIds = autoSelectBlessing ? selected.slice(0, 1).map(b => b.id) : [];
     this.activeBlessings = chosenIds;
     this.blessingSelectionTelemetry = {
-      seed: blessingSeed,
+      seed: resolvedSeed,
       candidatePoolIds: telemetry.candidatePoolIds,
+      offeredIds: telemetry.chosenIds,
       chosenIds,
       rejectionReasons: telemetry.rejectionReasons,
       options: telemetry.options,
@@ -128,6 +149,31 @@ export class RunManager {
     if (debugBlessingSelection && this.blessingSelectionTelemetry) {
       console.debug('BlessingSelection', this.blessingSelectionTelemetry);
     }
+  }
+
+  getBlessingOptions() {
+    const offeredIds = this.blessingSelectionTelemetry?.offeredIds || [];
+    const catalog = this.gameData?.blessings;
+    if (!catalog || !Array.isArray(catalog.blessings)) return [];
+    const index = buildBlessingIndex(catalog);
+    return offeredIds.map((id) => index.get(id)).filter(Boolean);
+  }
+
+  chooseBlessing(blessingId = null) {
+    const offeredIds = this.blessingSelectionTelemetry?.offeredIds || [];
+    if (blessingId !== null && !offeredIds.includes(blessingId)) return false;
+    const chosenIds = blessingId ? [blessingId] : [];
+    this.activeBlessings = chosenIds;
+    if (this.blessingSelectionTelemetry) {
+      this.blessingSelectionTelemetry.chosenIds = chosenIds;
+    }
+    if (chosenIds.length === 0) {
+      this._runStartBlessingsApplied = true;
+      return true;
+    }
+    this._runStartBlessingsApplied = false;
+    this.applyRunStartBlessingEffects();
+    return true;
   }
 
   applyRunStartBlessingEffects() {
@@ -145,29 +191,83 @@ export class RunManager {
     const blessingIndex = buildBlessingIndex(catalog);
     for (const blessingId of this.activeBlessings) {
       const blessing = blessingIndex.get(blessingId);
-      if (!blessing) continue;
+      if (!blessing) {
+        this._recordBlessingEvent('run_start', blessingId, null, { reason: 'unknown_blessing_id' });
+        continue;
+      }
       const effects = [...(blessing.boons || []), ...(blessing.costs || [])];
       for (const effect of effects) {
-        this._applySingleRunStartBlessingEffect(effect);
+        this._applySingleRunStartBlessingEffect(blessingId, effect);
       }
-      this.blessingHistory.push({ eventType: 'run_start_applied', blessingId });
     }
     this._runStartBlessingsApplied = true;
   }
 
-  _applySingleRunStartBlessingEffect(effect) {
-    if (!effect || !effect.type || !effect.params) return;
-    // Phase 2 vertical slice: canonical single effect only.
-    if (effect.type !== 'run_start_max_hp_bonus') return;
-    const value = Number(effect.params.value || 0);
-    if (!Number.isFinite(value) || value === 0) return;
+  _recordBlessingEvent(stage, blessingId, effect, details = {}) {
+    this.blessingHistory.push({
+      timestamp: Date.now(),
+      stage,
+      eventType: 'effect_applied',
+      blessingId,
+      effectType: effect?.type || null,
+      details,
+    });
+  }
 
-    const scope = effect.params.scope || 'all';
-    for (const unit of this.roster) {
-      if (scope === 'lords' && !unit.isLord) continue;
-      unit.stats.HP = (unit.stats.HP || 0) + value;
-      unit.currentHP = (unit.currentHP || 0) + value;
+  _applySingleRunStartBlessingEffect(blessingId, effect) {
+    if (!effect || !effect.type || !effect.params) return;
+    const value = Number(effect.params.value || 0);
+    if (!Number.isFinite(value)) return;
+
+    if (effect.type === 'run_start_max_hp_bonus') {
+      if (value === 0) return;
+      const scope = effect.params.scope || 'all';
+      for (const unit of this.roster) {
+        if (scope === 'lords' && !unit.isLord) continue;
+        unit.stats.HP = (unit.stats.HP || 0) + value;
+        unit.currentHP = (unit.currentHP || 0) + value;
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, { appliedValue: value, scope });
+      return;
     }
+
+    if (effect.type === 'gold_delta') {
+      if (value !== 0) this.addGold(value);
+      this._recordBlessingEvent('run_start', blessingId, effect, { appliedValue: value });
+      return;
+    }
+
+    if (effect.type === 'battle_gold_multiplier_delta') {
+      this.blessingRuntimeModifiers.battleGoldMultiplierDelta += value;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: value,
+        total: this.blessingRuntimeModifiers.battleGoldMultiplierDelta,
+      });
+      return;
+    }
+
+    if (effect.type === 'deploy_cap_delta') {
+      this.blessingRuntimeModifiers.deployCapDelta += Math.trunc(value);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: Math.trunc(value),
+        total: this.blessingRuntimeModifiers.deployCapDelta,
+      });
+      return;
+    }
+
+    this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
+  }
+
+  getBattleGoldMultiplier() {
+    const metaDelta = this.metaEffects?.battleGoldMultiplier || 0;
+    const blessingDelta = this.blessingRuntimeModifiers?.battleGoldMultiplierDelta || 0;
+    return Math.max(0, 1 + metaDelta + blessingDelta);
+  }
+
+  getDeployBonus() {
+    const metaDelta = this.metaEffects?.deployBonus || 0;
+    const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
+    return metaDelta + blessingDelta;
   }
 
   /** Create Edric + Sera as the starting two lords. */
@@ -336,8 +436,8 @@ export class RunManager {
     this.markNodeComplete(nodeId);
     const baseGold = calculateBattleGold(goldEarned, node?.type);
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
-    const metaMult = 1 + (this.metaEffects?.battleGoldMultiplier || 0);
-    const finalGold = Math.floor(baseGold * eliteMult * metaMult);
+    const goldMult = this.getBattleGoldMultiplier();
+    const finalGold = Math.floor(baseGold * eliteMult * goldMult);
     this.addGold(finalGold);
   }
 
@@ -423,6 +523,8 @@ export class RunManager {
       activeBlessings: this.activeBlessings || [],
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
+      blessingRuntimeModifiers: this.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0 },
+      runSeed: this.runSeed,
     };
   }
 
@@ -476,6 +578,14 @@ export class RunManager {
     rm.activeBlessings = saved.activeBlessings || [];
     rm.blessingHistory = saved.blessingHistory || [];
     rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
+    if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
+      rm.blessingSelectionTelemetry.offeredIds = Array.isArray(rm.blessingSelectionTelemetry.chosenIds)
+        ? [...rm.blessingSelectionTelemetry.chosenIds]
+        : [];
+      rm.blessingSelectionTelemetry.chosenIds = [];
+    }
+    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0 };
+    rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm._runStartBlessingsApplied = true;
 
     // Migrate old save format BEFORE relinking weapons

@@ -80,9 +80,7 @@ export class NodeMapScene extends Phaser.Scene {
     });
 
     // Auto-save on every node map entry
-    const cloud = this.registry.get('cloud');
-    const slot = this.registry.get('activeSlot');
-    saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
+    this.persistRunSave();
 
     this.pauseOverlay = null;
     this.settingsOverlay = null;
@@ -121,6 +119,178 @@ export class NodeMapScene extends Phaser.Scene {
     if (hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1) {
       showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
+
+    if (this.shouldPromptBlessingChoice()) {
+      this.showBlessingSelectionOverlay();
+    }
+  }
+
+  persistRunSave() {
+    const cloud = this.registry.get('cloud');
+    const slot = this.registry.get('activeSlot');
+    saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
+  }
+
+  shouldPromptBlessingChoice() {
+    const telemetry = this.runManager?.blessingSelectionTelemetry;
+    if (!telemetry) return false;
+    const offeredIds = telemetry.offeredIds || [];
+    const chosenIds = telemetry.chosenIds || [];
+    return offeredIds.length > 0 && chosenIds.length === 0;
+  }
+
+  showBlessingSelectionOverlay() {
+    if (this.blessingOverlayObjects) return;
+    const objects = [];
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    const tierColors = {
+      1: { label: '#88ffbb', border: 0x2c7a4a, bg: 0x14281f },
+      2: { label: '#9ed5ff', border: 0x2f5c88, bg: 0x132234 },
+      3: { label: '#ffd68a', border: 0x8c6430, bg: 0x302312 },
+      4: { label: '#ff9ea7', border: 0x8e2f45, bg: 0x341521 },
+    };
+
+    const blocker = this.add.rectangle(cx, h / 2, w, h, 0x000000, 0.84)
+      .setDepth(1200)
+      .setInteractive();
+    objects.push(blocker);
+
+    const panelW = Math.min(660, w - 24);
+    const panelH = Math.min(460, h - 20);
+    const panel = this.add.rectangle(cx, cy, panelW, panelH, 0x0e1322, 0.96)
+      .setDepth(1201)
+      .setStrokeStyle(2, 0xffdd44, 0.9);
+    objects.push(panel);
+
+    const panelTop = cy - panelH / 2;
+    const panelBottom = cy + panelH / 2;
+    const headerY = panelTop + 24;
+    const subtitleY = panelTop + 48;
+    const dividerY = panelTop + 68;
+
+    const header = this.add.rectangle(cx, headerY, panelW - 24, 30, 0x1a2138, 1)
+      .setDepth(1202)
+      .setStrokeStyle(1, 0x3d4a77, 1);
+    objects.push(header);
+
+    const title = this.add.text(cx, panelTop + 13, 'Shrine Blessing', {
+      fontFamily: 'monospace', fontSize: '17px', color: '#ffdd44', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(1202);
+    objects.push(title);
+
+    const subtitle = this.add.text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#b7bfd9',
+    }).setOrigin(0.5).setDepth(1202);
+    objects.push(subtitle);
+
+    const divider = this.add.rectangle(cx, dividerY, panelW - 28, 1, 0x364166, 1).setDepth(1202);
+    objects.push(divider);
+
+    const options = this.runManager.getBlessingOptions().slice(0, 4);
+    const cardW = panelW - 28;
+    const skipY = panelBottom - 28;
+    const cardsTop = dividerY + 16;
+    const cardsBottom = skipY - 26;
+    const cardGap = 8;
+    const slotCount = Math.max(options.length, 1);
+    const cardH = Math.max(72, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount));
+    let y = cardsTop;
+    for (const blessing of options) {
+      const tierStyle = tierColors[blessing.tier] || tierColors[1];
+      const card = this.add.rectangle(cx, y + cardH / 2, cardW, cardH, tierStyle.bg, 1)
+        .setDepth(1202)
+        .setStrokeStyle(1, tierStyle.border, 1);
+      objects.push(card);
+
+      const left = cx - (cardW / 2) + 12;
+      const tierBadge = this.add.text(left, y + 5, `T${blessing.tier}`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#0b101f',
+        backgroundColor: tierStyle.label, padding: { x: 5, y: 2 }, fontStyle: 'bold',
+      }).setDepth(1203);
+      objects.push(tierBadge);
+
+      const label = this.add.text(left + 42, y + 3, blessing.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#edf1ff', fontStyle: 'bold',
+      }).setDepth(1203);
+      objects.push(label);
+
+      const buttonX = cx + (cardW / 2) - 82;
+      const descWrapWidth = Math.max(150, buttonX - (left + 42) - 16);
+      const desc = this.add.text(left + 42, y + 22, blessing.description || '-', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#aeb8dc',
+        wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
+      }).setDepth(1203);
+      let guard = 0;
+      while (desc.height > Math.max(18, cardH - 28) && desc.text.length > 8 && guard < 40) {
+        const next = `${desc.text.slice(0, -4).trimEnd()}...`;
+        if (next === desc.text) break;
+        desc.setText(next);
+        guard++;
+      }
+      objects.push(desc);
+
+      const pickBtn = this.add.text(buttonX, y + Math.floor((cardH - 22) / 2), '[Select]', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#cbffd5',
+        backgroundColor: '#21442a', padding: { x: 8, y: 4 },
+      }).setDepth(1203).setInteractive({ useHandCursor: true });
+      pickBtn.on('pointerover', () => {
+        pickBtn.setColor('#ffdd44');
+        pickBtn.setBackgroundColor('#2f5d39');
+        card.setStrokeStyle(2, 0xffdd44, 1);
+      });
+      pickBtn.on('pointerout', () => {
+        pickBtn.setColor('#cbffd5');
+        pickBtn.setBackgroundColor('#21442a');
+        card.setStrokeStyle(1, tierStyle.border, 1);
+      });
+      pickBtn.on('pointerdown', () => {
+        if (!this.runManager.chooseBlessing(blessing.id)) return;
+        this.destroyBlessingSelectionOverlay();
+        this.persistRunSave();
+        this.drawMap();
+      });
+      objects.push(pickBtn);
+
+      this.tweens.add({
+        targets: [card, tierBadge, label, desc, pickBtn],
+        alpha: { from: 0, to: 1 },
+        y: '+=0',
+        duration: 120,
+      });
+
+      y += cardH + cardGap;
+    }
+
+    const skipBtn = this.add.text(cx, skipY, '[Skip Blessing]', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#d7dbe8',
+      backgroundColor: '#2a2f3f', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(1203).setInteractive({ useHandCursor: true });
+    skipBtn.on('pointerover', () => {
+      skipBtn.setColor('#ffdd44');
+      skipBtn.setBackgroundColor('#3a4053');
+    });
+    skipBtn.on('pointerout', () => {
+      skipBtn.setColor('#d7dbe8');
+      skipBtn.setBackgroundColor('#2a2f3f');
+    });
+    skipBtn.on('pointerdown', () => {
+      this.runManager.chooseBlessing(null);
+      this.destroyBlessingSelectionOverlay();
+      this.persistRunSave();
+      this.drawMap();
+    });
+    objects.push(skipBtn);
+
+    this.blessingOverlayObjects = objects;
+  }
+
+  destroyBlessingSelectionOverlay() {
+    if (!this.blessingOverlayObjects) return;
+    this.blessingOverlayObjects.forEach((obj) => obj.destroy());
+    this.blessingOverlayObjects = null;
   }
 
   showPauseMenu() {
@@ -146,6 +316,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawMap() {
+    this.blessingOverlayObjects = null;
     // Clear everything
     this.children.removeAll(true);
 

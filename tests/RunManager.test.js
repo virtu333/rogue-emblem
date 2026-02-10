@@ -695,12 +695,15 @@ describe('blessing run-start effect application', () => {
     const gameData = loadGameData();
     const a = new RunManager(gameData);
     const b = new RunManager(gameData);
-    a.startRun({ blessingSeed: 1234, autoSelectBlessing: true, blessingOptionCount: 3 });
-    b.startRun({ blessingSeed: 1234, autoSelectBlessing: true, blessingOptionCount: 3 });
+    a.startRun({ blessingSeed: 1234, autoSelectBlessing: false, blessingOptionCount: 3 });
+    b.startRun({ blessingSeed: 1234, autoSelectBlessing: false, blessingOptionCount: 3 });
     expect(a.activeBlessings).toEqual(b.activeBlessings);
     expect(a.blessingSelectionTelemetry?.seed).toBe(1234);
     expect(Array.isArray(a.blessingSelectionTelemetry?.candidatePoolIds)).toBe(true);
+    expect(Array.isArray(a.blessingSelectionTelemetry?.offeredIds)).toBe(true);
+    expect(a.blessingSelectionTelemetry?.offeredIds).toEqual(b.blessingSelectionTelemetry?.offeredIds);
     expect(Array.isArray(a.blessingSelectionTelemetry?.chosenIds)).toBe(true);
+    expect(a.blessingSelectionTelemetry?.chosenIds).toEqual([]);
   });
 
   it('applies run_start_max_hp_bonus exactly once', () => {
@@ -714,5 +717,89 @@ describe('blessing run-start effect application', () => {
     expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
     rm.applyRunStartBlessingEffects();
     expect(rm.roster[0].stats.HP).toBe(baseHp + 2);
+  });
+
+  it('chooseBlessing applies offered blessing and persists chosenIds telemetry', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ blessingSeed: 1, autoSelectBlessing: false, blessingOptionCount: 3 });
+    const offered = rm.blessingSelectionTelemetry.offeredIds;
+    expect(offered.length).toBeGreaterThan(0);
+    const selected = offered[0];
+    expect(rm.chooseBlessing(selected)).toBe(true);
+    expect(rm.activeBlessings).toEqual([selected]);
+    expect(rm.blessingSelectionTelemetry.chosenIds).toEqual([selected]);
+  });
+
+  it('gold_delta blessing changes starting run gold', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseGold = rm.gold;
+    rm.activeBlessings = ['coin_of_fate'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.gold).toBe(baseGold + 100);
+  });
+
+  it('battle_gold_multiplier_delta blessing changes battle rewards', () => {
+    const gameData = loadGameData();
+    const control = new RunManager(gameData);
+    control.startRun();
+    const boosted = new RunManager(gameData);
+    boosted.startRun();
+
+    const controlNode = control.nodeMap.nodes.find(n => n.id === control.nodeMap.startNodeId);
+    const boostedNode = boosted.nodeMap.nodes.find(n => n.id === boosted.nodeMap.startNodeId);
+    const controlStartGold = control.gold;
+    const boostedStartGold = boosted.gold;
+
+    boosted.activeBlessings = ['merchant_bane'];
+    boosted._runStartBlessingsApplied = false;
+    boosted.applyRunStartBlessingEffects();
+
+    control.completeBattle(control.getRoster(), controlNode.id, 100);
+    boosted.completeBattle(boosted.getRoster(), boostedNode.id, 100);
+    const controlGain = control.gold - controlStartGold;
+    const boostedGain = boosted.gold - boostedStartGold;
+    expect(boostedGain).toBeGreaterThan(controlGain);
+  });
+
+  it('deploy_cap_delta blessing contributes to deploy bonus accessor', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData, { deployBonus: 1 });
+    rm.startRun();
+    rm.activeBlessings = ['scout_blessing'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.getDeployBonus()).toBe(2);
+  });
+
+  it('fromJSON migrates legacy blessing telemetry chosenIds to offeredIds', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ blessingSeed: 99, autoSelectBlessing: false });
+    const json = rm.toJSON();
+    json.blessingSelectionTelemetry = {
+      seed: 99,
+      candidatePoolIds: ['a', 'b'],
+      chosenIds: ['steady_hands', 'coin_of_fate'],
+      rejectionReasons: [],
+      options: { count: 3, forceTier1: true, allowTier4: true },
+    };
+    const restored = RunManager.fromJSON(json, gameData);
+    expect(restored.blessingSelectionTelemetry.offeredIds).toEqual(['steady_hands', 'coin_of_fate']);
+    expect(restored.blessingSelectionTelemetry.chosenIds).toEqual([]);
+  });
+
+  it('unknown blessing IDs remain inert and do not crash application', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.activeBlessings = ['unknown_future_blessing'];
+    rm._runStartBlessingsApplied = false;
+    expect(() => rm.applyRunStartBlessingEffects()).not.toThrow();
+    expect(rm.activeBlessings).toEqual(['unknown_future_blessing']);
+    expect(rm.blessingHistory.some(e => e.details?.reason === 'unknown_blessing_id')).toBe(true);
   });
 });
