@@ -100,9 +100,17 @@ describe('createEnemyUnit', () => {
 
   it('assigns skills to level 5+ enemies when skillsData provided', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
-    const enemy = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills);
-    // Level 5+ should get at least 1 random combat skill
-    expect(enemy.skills.length).toBeGreaterThanOrEqual(1);
+    // Act3 has 20% skill chance — use finalBoss (30%) for more reliable test
+    const enemy = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
+    // Level 5+ in finalBoss should get 30% chance for combat skill
+    // Test probabilistically: run 100 times, expect ~30 with skills (binomial)
+    let withSkills = 0;
+    for (let i = 0; i < 100; i++) {
+      const e = createEnemyUnit(fighter, 6, data.weapons, 1.0, data.skills, 'finalBoss');
+      if (e.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBeGreaterThan(15); // 30% ± margin
+    expect(withSkills).toBeLessThan(45);
   });
 });
 
@@ -355,5 +363,54 @@ describe('applyStatBoost', () => {
     const oldCurrent = unit.currentHP;
     applyStatBoost(unit, { stat: 'STR', value: 2 });
     expect(unit.currentHP).toBe(oldCurrent);
+  });
+});
+
+describe('Enemy skill scaling by act', () => {
+  it('createEnemyUnit respects act1 skill chance (0%)', () => {
+    const fighter = data.classes.find(c => c.name === 'Fighter');
+    // Generate 100 level 5 enemies in act1, expect 0 combat skills (only innate)
+    let withSkills = 0;
+    for (let i = 0; i < 100; i++) {
+      const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act1');
+      if (enemy.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBe(0); // Act1 = 0% chance
+  });
+
+  it('createEnemyUnit respects act2 skill chance (10%)', () => {
+    const fighter = data.classes.find(c => c.name === 'Fighter');
+    // Generate 1000 level 5 enemies in act2, expect ~90-110 with combat skills (binomial)
+    let withSkills = 0;
+    for (let i = 0; i < 1000; i++) {
+      const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act2');
+      if (enemy.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBeGreaterThan(70); // 10% ± margin
+    expect(withSkills).toBeLessThan(130);
+  });
+
+  it('createEnemyUnit respects act3 skill chance (20%)', () => {
+    const fighter = data.classes.find(c => c.name === 'Fighter');
+    // Generate 1000 level 5 enemies in act3, expect ~180-220 with combat skills
+    let withSkills = 0;
+    for (let i = 0; i < 1000; i++) {
+      const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act3');
+      if (enemy.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBeGreaterThan(160);
+    expect(withSkills).toBeLessThan(240);
+  });
+
+  it('createEnemyUnit respects finalBoss skill chance (30%)', () => {
+    const fighter = data.classes.find(c => c.name === 'Fighter');
+    // Generate 1000 level 5 enemies in finalBoss, expect ~270-330 with combat skills
+    let withSkills = 0;
+    for (let i = 0; i < 1000; i++) {
+      const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'finalBoss');
+      if (enemy.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBeGreaterThan(250);
+    expect(withSkills).toBeLessThan(350);
   });
 });

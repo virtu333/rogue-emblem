@@ -22,6 +22,7 @@ import {
   getStaffRemainingUses,
   spendStaffUse,
   getEffectiveStaffRange,
+  calculateEffectiveWeight,
 } from '../src/engine/Combat.js';
 import { loadGameData } from './testData.js';
 
@@ -454,5 +455,113 @@ describe('Staff data integrity', () => {
     const physic = data.weapons.find(w => w.name === 'Physic');
     expect(physic.rangeBonuses).toBeDefined();
     expect(physic.rangeBonuses.length).toBe(2);
+  });
+});
+describe('Weight mechanic', () => {
+  it('calculateEffectiveWeight returns 0 for no weapon', () => {
+    const unit = makeUnit({ stats: { ...makeUnit().stats, STR: 10 } });
+    expect(calculateEffectiveWeight(null, unit)).toBe(0);
+  });
+
+  it('calculateEffectiveWeight applies STR reduction correctly', () => {
+    const unit = makeUnit({ stats: { ...makeUnit().stats, STR: 10 } }); // STR 10 → 2 reduction
+    const weapon = { weight: 7 };
+    expect(calculateEffectiveWeight(weapon, unit)).toBe(5); // 7 - 2 = 5
+  });
+
+  it('calculateEffectiveWeight floors at 0', () => {
+    const unit = makeUnit({ stats: { ...makeUnit().stats, STR: 25 } }); // STR 25 → 5 reduction
+    const weapon = { weight: 3 };
+    expect(calculateEffectiveWeight(weapon, unit)).toBe(0); // max(0, 3 - 5) = 0
+  });
+
+  it('canDouble accounts for weight penalty', () => {
+    const light = { weight: 3 };
+    const heavy = { weight: 9 };
+    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5 } }); // 1 reduction (5/5)
+    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 10, STR: 5 } }); // 1 reduction
+    
+    // Without weight: SPD 15 vs 10 → doubles (diff = 5)
+    // With light weapons (3 - 1 = 2 effective each): SPD 13 vs 8 → doubles (diff = 5)
+    expect(canDouble(fastUnit, slowUnit, light, light)).toBe(true);
+    
+    // With heavy on fast unit (9 - 1 = 8): SPD 7 vs 8 → no double (diff = -1)
+    expect(canDouble(fastUnit, slowUnit, heavy, light)).toBe(false);
+  });
+
+  it('canDouble with high STR negates weight', () => {
+    const heavy = { weight: 9 };
+    const fastHeavy = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 20 } }); // 4 reduction (20/5)
+    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 10, STR: 5 } }); // 1 reduction
+    
+    // Heavy weapon effective weight: 9 - 4 = 5
+    // fastHeavy effective SPD: 15 - 5 = 10
+    // slowUnit effective SPD: 10 - 0 = 10 (no weapon)
+    // Diff = 0, threshold = 5 → no double
+    expect(canDouble(fastHeavy, slowUnit, heavy, null)).toBe(false);
+    
+    // But if slowUnit also has heavy weapon: 10 - (9 - 1) = 2
+    // fastHeavy: 10, slowUnit: 2 → diff = 8 → doubles
+    expect(canDouble(fastHeavy, slowUnit, heavy, heavy)).toBe(true);
+  });
+
+  it('getCombatForecast shows weight impact on doubling', () => {
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe');
+    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction
+    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction
+    
+    // Iron Sword weight 3: effective 2 each
+    // SPD: 18 vs 13 → diff = 5 → doubles
+    let forecast = getCombatForecast(fastUnit, ironSword, slowUnit, ironSword, 1, null, null);
+    expect(forecast.attacker.doubles).toBe(true);
+    
+    // Brave Axe weight 11: effective 10 each
+    // SPD: 10 vs 5 → diff = 5 → doubles
+    forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
+    expect(forecast.attacker.doubles).toBe(true);
+    
+    // Mixed: fastUnit with Brave (10 eff), slowUnit with Iron (2 eff)
+    // SPD: 10 vs 13 → diff = -3 → no double
+    forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, ironSword, 1, null, null);
+    expect(forecast.attacker.doubles).toBe(false);
+  });
+
+  it('resolveCombat applies weight penalties to both combatants', () => {
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe');
+    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 15, HP: 40 }, currentHP: 40 });
+    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 15, HP: 40 }, currentHP: 40 });
+
+    // Both with Iron Sword (weight 3, 3 reduction = 0 eff): no weight penalty
+    // SPD 20 vs 15 → diff = 5 → doubles
+    let result = resolveCombat(fastUnit, ironSword, slowUnit, ironSword, 1, null, null);
+    const fastUnitStrikes = result.events.filter(e => e.attacker === fastUnit.name).length;
+    expect(fastUnitStrikes).toBeGreaterThan(1); // Should double
+
+    // Both with Brave Axe (weight 11, 3 reduction = 8 eff)
+    // SPD 12 vs 7 → diff = 5 → doubles
+    result = resolveCombat(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
+    const fastUnitStrikesAxe = result.events.filter(e => e.attacker === fastUnit.name).length;
+    expect(fastUnitStrikesAxe).toBeGreaterThan(1); // Should double
+  });
+
+  it('weight penalty stacks with skill SPD bonuses', () => {
+    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe'); // weight 11
+    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction → eff weight 10
+    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 }, currentHP: 30 });
+    
+    // Death Blow: -5 SPD when initiating
+    const skillCtx = {
+      atkMods: { spdBonus: -5 }, // Death Blow active
+      defMods: {},
+    };
+    
+    // Weight: SPD 20 - 10 = 10
+    // Death Blow: 10 - 5 = 5
+    // vs SPD 15 - 10 = 5
+    // Diff = 0 → no double
+    const forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null, skillCtx);
+    expect(forecast.attacker.doubles).toBe(false);
   });
 });

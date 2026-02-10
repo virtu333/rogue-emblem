@@ -24,12 +24,12 @@
   "act3": {
     "levelRange": [10, 14],
     "pool": [
-      { "className": "Mercenary", "name": "Dante" },
-      { "className": "Pegasus Knight", "name": "Celeste" },
-      { "className": "Mage", "name": "Vaelan" },
-      { "className": "Thief", "name": "Shade" },
-      { "className": "Archer", "name": "Faye" },
-      { "className": "Cleric", "name": "Io" }
+      { "className": "Hero", "name": "Dante" },
+      { "className": "Falcon Knight", "name": "Celeste" },
+      { "className": "Sage", "name": "Vaelan" },
+      { "className": "Assassin", "name": "Shade" },
+      { "className": "Sniper", "name": "Faye" },
+      { "className": "Bishop", "name": "Io" }
     ]
   }
 }

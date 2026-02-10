@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
-import { addToInventory, removeFromInventory, addToConsumables } from '../engine/UnitManager.js';
+import { addToInventory, removeFromInventory, addToConsumables, canPromote, promoteUnit } from '../engine/UnitManager.js';
 import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
@@ -22,10 +22,10 @@ const NODE_SIZE = 24;
 
 // Colors
 const COLOR_BATTLE = 0xcc6633;
-const COLOR_REST = 0x33aa66;
 const COLOR_BOSS = 0xcc3333;
 const COLOR_SHOP = 0xddaa33;
 const COLOR_RECRUIT = 0x44ccaa;
+const COLOR_CHURCH = 0xcccccc; // Light gray
 const COLOR_COMPLETED = 0x555555;
 const COLOR_AVAILABLE = 0xffdd44;
 const COLOR_EDGE = 0x666666;
@@ -33,18 +33,18 @@ const COLOR_EDGE_ACTIVE = 0xffdd44;
 
 const NODE_ICONS = {
   [NODE_TYPES.BATTLE]:  '\u2694',  // ⚔
-  [NODE_TYPES.REST]:    '\u2665',  // ♥
   [NODE_TYPES.BOSS]:    '\u2620',  // ☠
   [NODE_TYPES.SHOP]:    '$',
   [NODE_TYPES.RECRUIT]: '!',
+  [NODE_TYPES.CHURCH]:  '\u271D',  // ✝
 };
 
 const NODE_COLORS = {
   [NODE_TYPES.BATTLE]:  COLOR_BATTLE,
-  [NODE_TYPES.REST]:    COLOR_REST,
   [NODE_TYPES.BOSS]:    COLOR_BOSS,
   [NODE_TYPES.SHOP]:    COLOR_SHOP,
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
+  [NODE_TYPES.CHURCH]:  COLOR_CHURCH,
 };
 
 export class NodeMapScene extends Phaser.Scene {
@@ -312,8 +312,8 @@ export class NodeMapScene extends Phaser.Scene {
     let label;
     if (node.type === NODE_TYPES.BOSS) {
       label = 'Boss Battle (Seize)';
-    } else if (node.type === NODE_TYPES.REST) {
-      label = 'Rest — Heal all units';
+    } else if (node.type === NODE_TYPES.CHURCH) {
+      label = 'Church — Heal, revive fallen, promote';
     } else if (node.type === NODE_TYPES.SHOP) {
       label = 'Shop — Buy & sell items';
     } else if (node.type === NODE_TYPES.RECRUIT) {
@@ -336,8 +336,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onNodeClick(node) {
-    if (node.type === NODE_TYPES.REST) {
-      this.handleRest(node);
+    if (node.type === NODE_TYPES.CHURCH) {
+      this.handleChurch(node);
     } else if (node.type === NODE_TYPES.SHOP) {
       this.handleShop(node);
     } else {
@@ -365,35 +365,190 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 
-  handleRest(node) {
-    const rm = this.runManager;
-    rm.rest(node.id);
-
+  handleChurch(node) {
     const audio = this.registry.get('audio');
-    if (audio) {
-      audio.playMusic(MUSIC.rest, this, 300);
-      audio.playSFX('sfx_heal');
+    if (audio) audio.playMusic(MUSIC.rest, this, 300); // Peaceful music
+
+    this.showChurchOverlay(node);
+  }
+
+  showChurchOverlay(node) {
+    this.churchOverlay = [];
+
+    // Dark overlay background
+    const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
+    this.churchOverlay.push(bg);
+
+    // Title
+    const title = this.add.text(320, 40, 'Church', {
+      fontFamily: 'monospace', fontSize: '22px', color: '#cccccc',
+    }).setOrigin(0.5).setDepth(301);
+    this.churchOverlay.push(title);
+
+    // Gold display
+    this.churchGoldText = this.add.text(320, 70, `Gold: ${this.runManager.gold}G`, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(301);
+    this.churchOverlay.push(this.churchGoldText);
+
+    const rm = this.runManager;
+    let yOffset = 110;
+
+    // Service 1: Heal All (Free)
+    const healBtn = this.add.text(320, yOffset, '[ Heal All Units ] (Free)', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#44ff44',
+      backgroundColor: '#222222', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+    healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
+    healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
+    healBtn.on('pointerdown', () => {
+      for (const unit of rm.roster) {
+        unit.currentHP = unit.stats.HP;
+      }
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_heal');
+      this.showChurchMessage('All units healed!', '#44ff44');
+    });
+    this.churchOverlay.push(healBtn);
+    yOffset += 50;
+
+    // Service 2: Revive Fallen Unit (1000g)
+    if (rm.fallenUnits.length > 0) {
+      const reviveLabel = this.add.text(320, yOffset, 'Revive Fallen Unit (1000G):', {
+        fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
+      }).setOrigin(0.5).setDepth(301);
+      this.churchOverlay.push(reviveLabel);
+      yOffset += 25;
+
+      for (const fallen of rm.fallenUnits) {
+        const unitBtn = this.add.text(320, yOffset, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
+          fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
+          backgroundColor: '#222222', padding: { x: 10, y: 4 },
+        }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+        unitBtn.on('pointerover', () => {
+          if (rm.gold >= 1000) unitBtn.setColor('#ffdd44');
+          unitBtn.setBackgroundColor('#333333');
+        });
+        unitBtn.on('pointerout', () => {
+          unitBtn.setColor('#e0e0e0');
+          unitBtn.setBackgroundColor('#222222');
+        });
+        unitBtn.on('pointerdown', () => {
+          if (rm.reviveFallenUnit(fallen.name, 1000)) {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_heal');
+            this.showChurchMessage(`${fallen.name} revived!`, '#44ff44');
+            this.churchGoldText.setText(`Gold: ${rm.gold}G`);
+            this.refreshChurchOverlay(node);
+          } else {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_error');
+            this.showChurchMessage('Not enough gold or roster full!', '#ff4444');
+          }
+        });
+        this.churchOverlay.push(unitBtn);
+        yOffset += 30;
+      }
+      yOffset += 10;
     }
 
-    // Show heal overlay
-    const banner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY,
-      'All units healed!',
-      {
-        fontFamily: 'monospace', fontSize: '20px', color: '#44ff44',
-        backgroundColor: '#000000dd', padding: { x: 20, y: 10 },
-      }
-    ).setOrigin(0.5).setAlpha(0).setDepth(200);
+    // Service 3: Promote Unit (3000g)
+    const promoteLabel = this.add.text(320, yOffset, 'Promote Unit (3000G):', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
+    }).setOrigin(0.5).setDepth(301);
+    this.churchOverlay.push(promoteLabel);
+    yOffset += 25;
 
-    this.tweens.add({
-      targets: banner, alpha: 1, duration: 300,
-      yoyo: true, hold: 1000,
-      onComplete: () => {
-        banner.destroy();
-        if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 500);
-        this.checkActComplete();
-      },
+    const eligibleUnits = rm.roster.filter(u => canPromote(u, this.gameData.classes));
+    if (eligibleUnits.length === 0) {
+      const noneText = this.add.text(320, yOffset, '(No units eligible for promotion)', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      }).setOrigin(0.5).setDepth(301);
+      this.churchOverlay.push(noneText);
+    } else {
+      for (const unit of eligibleUnits) {
+        const unitBtn = this.add.text(320, yOffset, `${unit.name} (Lv${unit.level} ${unit.className})`, {
+          fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
+          backgroundColor: '#222222', padding: { x: 10, y: 4 },
+        }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+        unitBtn.on('pointerover', () => {
+          if (rm.gold >= 3000) unitBtn.setColor('#ffdd44');
+          unitBtn.setBackgroundColor('#333333');
+        });
+        unitBtn.on('pointerout', () => {
+          unitBtn.setColor('#e0e0e0');
+          unitBtn.setBackgroundColor('#222222');
+        });
+        unitBtn.on('pointerdown', () => {
+          if (rm.spendGold(3000)) {
+            const promotedUnit = promoteUnit(unit, this.gameData.classes, this.gameData.weapons, this.gameData.skills);
+            const idx = rm.roster.findIndex(u => u.name === unit.name);
+            if (idx !== -1) rm.roster[idx] = promotedUnit;
+
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_levelup');
+            this.showChurchMessage(`${unit.name} promoted to ${promotedUnit.className}!`, '#ffdd44');
+            this.churchGoldText.setText(`Gold: ${rm.gold}G`);
+            this.refreshChurchOverlay(node);
+          } else {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_error');
+            this.showChurchMessage('Not enough gold!', '#ff4444');
+          }
+        });
+        this.churchOverlay.push(unitBtn);
+        yOffset += 30;
+      }
+    }
+
+    // Leave button
+    const leaveBtn = this.add.text(320, 440, '[ Leave Church ]', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 16, y: 8 },
+    }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
+    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
+    leaveBtn.on('pointerdown', () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.closeChurchOverlay();
+      this.runManager.markNodeComplete(node.id);
+      this.checkActComplete();
     });
+    this.churchOverlay.push(leaveBtn);
+  }
+
+  showChurchMessage(text, color) {
+    if (this.churchMessage) this.churchMessage.destroy();
+    this.churchMessage = this.add.text(320, 95, text, {
+      fontFamily: 'monospace', fontSize: '12px', color,
+      backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(302);
+    this.churchOverlay.push(this.churchMessage);
+
+    this.time.delayedCall(2000, () => {
+      if (this.churchMessage) {
+        this.churchMessage.destroy();
+        this.churchMessage = null;
+      }
+    });
+  }
+
+  refreshChurchOverlay(node) {
+    this.closeChurchOverlay();
+    this.showChurchOverlay(node);
+  }
+
+  closeChurchOverlay() {
+    if (this.churchOverlay) {
+      this.churchOverlay.forEach(o => o.destroy());
+      this.churchOverlay = null;
+    }
+    if (this.churchMessage) {
+      this.churchMessage.destroy();
+      this.churchMessage = null;
+    }
+    this.churchGoldText = null;
   }
 
   handleShop(node) {

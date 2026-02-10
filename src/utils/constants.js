@@ -90,14 +90,14 @@ export const ACT_CONFIG = {
   finalBoss: { name: 'Final Battle',      rows: 1 },
 };
 
-export const NODE_TYPES = { BATTLE: 'battle', REST: 'rest', BOSS: 'boss', SHOP: 'shop', RECRUIT: 'recruit' };
+export const NODE_TYPES = { BATTLE: 'battle', BOSS: 'boss', SHOP: 'shop', RECRUIT: 'recruit', CHURCH: 'church' };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
 export const NODE_GOLD_MULTIPLIER = {
   battle: 1.0,
   recruit: 1.2,   // Harder (must keep NPC alive) → more gold
   boss: 1.5,      // Already has GOLD_BOSS_BONUS; this stacks on kill gold
-  rest: 0,        // No combat
+  church: 0,      // No combat
   shop: 0,        // No combat
 };
 export const ROSTER_CAP = 12;

@@ -137,19 +137,19 @@ describe('NodeMapGenerator', () => {
       expect(boss.battleParams.objective).toBe('seize');
     });
 
-    it('rest and shop nodes have null battleParams', () => {
+    it('church and shop nodes have null battleParams', () => {
       // Generate maps until we find non-battle nodes
-      let foundRest = false;
+      let foundChurch = false;
       let foundShop = false;
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap(actId, actConfig);
-        const nonBattle = map.nodes.filter(n => n.type === NODE_TYPES.REST || n.type === NODE_TYPES.SHOP);
+        const nonBattle = map.nodes.filter(n => n.type === NODE_TYPES.CHURCH || n.type === NODE_TYPES.SHOP);
         for (const node of nonBattle) {
           expect(node.battleParams).toBeNull();
         }
-        if (nonBattle.some(n => n.type === NODE_TYPES.REST)) foundRest = true;
+        if (nonBattle.some(n => n.type === NODE_TYPES.CHURCH)) foundChurch = true;
         if (nonBattle.some(n => n.type === NODE_TYPES.SHOP)) foundShop = true;
-        if (foundRest && foundShop) return;
+        if (foundChurch && foundShop) return;
       }
     });
   });
@@ -240,7 +240,7 @@ describe('NodeMapGenerator', () => {
       for (let i = 0; i < 20; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const middleBattle = map.nodes.filter(n =>
-          n.row >= 2 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.REST && n.type !== NODE_TYPES.SHOP
+          n.row >= 2 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
         );
         for (const node of middleBattle) {
           expect(node.battleParams.levelRange).toEqual([2, 3]);
@@ -365,6 +365,34 @@ describe('NodeMapGenerator', () => {
         expect(map.actId).toBe(actId);
         expect(map.nodes.length).toBeGreaterThan(0);
       });
+    }
+  });
+});
+
+describe('Church node generation', () => {
+  it('pickNodeType generates CHURCH nodes in middle rows', () => {
+    // Generate 1000 maps, count CHURCH nodes, expect ~20% of middle-row nodes
+    let totalMiddle = 0;
+    let totalChurch = 0;
+    for (let i = 0; i < 1000; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1);
+      const middleNodes = map.nodes.filter(n => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      totalMiddle += middleNodes.length;
+      totalChurch += middleNodes.filter(n => n.type === NODE_TYPES.CHURCH).length;
+    }
+    const churchPercent = (totalChurch / totalMiddle) * 100;
+    expect(churchPercent).toBeGreaterThan(15); // 20% ± margin
+    expect(churchPercent).toBeLessThan(25);
+  });
+
+  it('buildBattleParams returns null for CHURCH nodes', () => {
+    for (let i = 0; i < 50; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2);
+      const churchNodes = map.nodes.filter(n => n.type === NODE_TYPES.CHURCH);
+      for (const node of churchNodes) {
+        expect(node.battleParams).toBeNull();
+      }
+      if (churchNodes.length > 0) return; // Found at least one, test passes
     }
   });
 });

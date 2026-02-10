@@ -436,3 +436,98 @@ describe('RunManager', () => {
     });
   });
 });
+
+describe('Fallen unit tracking and revival', () => {
+  let gameData;
+
+  beforeEach(() => {
+    gameData = loadGameData();
+  });
+
+  it('fallenUnits tracks units lost in battle', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    // Add a third unit to the roster
+    const recruit = { name: 'TestRecruit', stats: { HP: 25 }, currentHP: 25, level: 1, className: 'Myrmidon' };
+    rm.roster.push(recruit);
+
+    // Simulate battle: 2 units survive, 1 falls
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.fallenUnits.length).toBe(1);
+    expect(rm.fallenUnits[0].name).toBe('TestRecruit');
+  });
+
+  it('reviveFallenUnit restores unit to roster at 1 HP', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    
+    // Kill a unit
+    const fallen = rm.roster[0];
+    const fallenName = fallen.name;
+    rm.roster = rm.roster.slice(1); // Remove first unit
+    rm.fallenUnits.push(fallen);
+    rm.gold = 2000;
+    
+    const success = rm.reviveFallenUnit(fallenName, 1000);
+    expect(success).toBe(true);
+    expect(rm.roster.length).toBe(2); // Back to 2 (was 1, revived 1)
+    expect(rm.roster.find(u => u.name === fallenName).currentHP).toBe(1);
+  });
+
+  it('reviveFallenUnit deducts gold and removes from fallenUnits', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    
+    const fallen = rm.roster[0];
+    const fallenName = fallen.name;
+    rm.roster = rm.roster.slice(1);
+    rm.fallenUnits.push(fallen);
+    rm.gold = 2000;
+    
+    rm.reviveFallenUnit(fallenName, 1000);
+    expect(rm.gold).toBe(1000); // 2000 - 1000
+    expect(rm.fallenUnits.length).toBe(0);
+  });
+
+  it('reviveFallenUnit fails if insufficient gold or roster full', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    
+    const fallen = rm.roster[0];
+    const fallenName = fallen.name;
+    rm.roster = rm.roster.slice(1);
+    rm.fallenUnits.push(fallen);
+    
+    // Test insufficient gold
+    rm.gold = 500;
+    let success = rm.reviveFallenUnit(fallenName, 1000);
+    expect(success).toBe(false);
+    expect(rm.fallenUnits.length).toBe(1); // Still fallen
+    
+    // Test roster full (max = 12 by default)
+    rm.gold = 2000;
+    rm.roster = Array(12).fill(null).map((_, i) => ({ name: `Unit${i}`, stats: { HP: 30 }, currentHP: 30 }));
+    success = rm.reviveFallenUnit(fallenName, 1000);
+    expect(success).toBe(false);
+  });
+
+  it('fallenUnits serializes and deserializes correctly', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    
+    // Add fallen unit
+    const fallen = rm.roster[0];
+    rm.roster = rm.roster.slice(1);
+    rm.fallenUnits.push(fallen);
+    
+    // Save and restore
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    
+    expect(restored.fallenUnits.length).toBe(1);
+    expect(restored.fallenUnits[0].name).toBe(fallen.name);
+  });
+});

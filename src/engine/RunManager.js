@@ -2,7 +2,7 @@
 // No Phaser deps.
 
 import {
-  ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS,
+  ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
 } from '../utils/constants.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
@@ -37,6 +37,7 @@ export class RunManager {
     this.status = 'active';       // 'active' | 'victory' | 'defeat'
     this.actIndex = 0;
     this.roster = [];
+    this.fallenUnits = [];  // Serialized units that died in battle
     this.nodeMap = null;
     this.currentNodeId = null;    // last completed node (null = start of act)
     this.completedBattles = 0;
@@ -210,6 +211,15 @@ export class RunManager {
    * @param {number} goldEarned - accumulated kill gold from battle
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0) {
+    // Track newly fallen units before overwriting roster
+    const survivingNames = new Set(survivingUnits.map(u => u.name));
+    const newlyFallen = this.roster.filter(u => !survivingNames.has(u.name));
+    for (const fallen of newlyFallen) {
+      if (!this.fallenUnits.find(f => f.name === fallen.name)) {
+        this.fallenUnits.push(serializeUnit(fallen));
+      }
+    }
+
     this.roster = survivingUnits.map(u => serializeUnit(u));
     this.completedBattles++;
     const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
@@ -228,6 +238,26 @@ export class RunManager {
       unit.currentHP = unit.stats.HP;
     }
     this.markNodeComplete(nodeId);
+  }
+
+  /**
+   * Revive a fallen unit, restore to roster at 1 HP.
+   * @param {string} unitName - name of fallen unit to revive
+   * @param {number} cost - gold cost (1000g)
+   * @returns {boolean} true if revived, false if roster full or insufficient gold
+   */
+  reviveFallenUnit(unitName, cost) {
+    const rosterCap = ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
+    if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
+    if (!this.spendGold(cost)) return false;
+
+    const idx = this.fallenUnits.findIndex(u => u.name === unitName);
+    if (idx === -1) return false;
+
+    const unit = this.fallenUnits.splice(idx, 1)[0];
+    unit.currentHP = 1; // Revive at 1 HP (risky if re-deployed)
+    this.roster.push(unit);
+    return true;
   }
 
   /** Mark a node as completed and update currentNodeId. */
@@ -269,6 +299,7 @@ export class RunManager {
       status: this.status,
       actIndex: this.actIndex,
       roster: this.roster,
+      fallenUnits: this.fallenUnits,
       nodeMap: this.nodeMap,
       currentNodeId: this.currentNodeId,
       completedBattles: this.completedBattles,
@@ -319,6 +350,7 @@ export class RunManager {
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
     rm.roster = saved.roster;
+    rm.fallenUnits = saved.fallenUnits || [];
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;

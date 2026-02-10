@@ -179,17 +179,17 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 
 /**
  * Pick node type based on row position.
- * Row 0 = battle (opening fight), last row = boss, row 1 = battle (no rest yet).
- * Middle rows: 55% battle, 20% rest, 25% shop.
+ * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
+ * Middle rows: 60% battle, 20% shop, 20% church.
  */
 function pickNodeType(row, totalRows) {
   if (row === 0) return NODE_TYPES.BATTLE;
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
-  if (row === 1) return NODE_TYPES.BATTLE; // no rest or shop in row 1
+  if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
-  if (roll < 0.55) return NODE_TYPES.BATTLE;
-  if (roll < 0.75) return NODE_TYPES.REST;
-  return NODE_TYPES.SHOP;
+  if (roll < 0.60) return NODE_TYPES.BATTLE;
+  if (roll < 0.80) return NODE_TYPES.SHOP;
+  return NODE_TYPES.CHURCH; // 0.80-1.0
 }
 
 /**
@@ -202,8 +202,8 @@ function buildBattleParams(actId, type, row) {
   if (type === NODE_TYPES.BOSS) {
     return { act: actId, objective: 'seize', row };
   }
-  if (type === NODE_TYPES.REST || type === NODE_TYPES.SHOP) {
-    return null;
+  if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH) {
+    return null; // Non-combat nodes
   }
 
   let params;

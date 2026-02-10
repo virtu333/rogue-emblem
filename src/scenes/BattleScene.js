@@ -191,10 +191,10 @@ export class BattleScene extends Phaser.Scene {
         const baseClassName = classData.promotesFrom;
         const baseClassData = this.gameData.classes.find(c => c.name === baseClassName);
         if (!baseClassData) continue;
-        enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills);
+        enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
         promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
       } else {
-        enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills);
+        enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
       }
 
       enemy.col = spawn.col;

@@ -234,9 +234,10 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * Create an enemy unit. Pre-leveled with difficulty scaling.
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
  * skillsData: if provided, promoted enemies get class innate skills,
- * level 5+ enemies get 1 random combat skill.
+ * level 5+ enemies get 1 random combat skill (chance scaled by act).
+ * act: 'act1'/'act2'/'act3'/'finalBoss' — determines skill assignment probability.
  */
-export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.0, skillsData = null) {
+export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.0, skillsData = null, act = 'act1') {
   const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
   const growths = rollGrowthRates(classData.growthRanges);
 
@@ -299,8 +300,18 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.
         if (!unit.skills.includes(sid)) unit.skills.push(sid);
       }
     }
-    // Level 5+ enemies get 1 random combat skill (not Astra — too powerful)
-    if (level >= 5) {
+
+    // Act-scaled combat skill chance
+    const SKILL_CHANCE_BY_ACT = {
+      act1: 0.0,
+      act2: 0.10,
+      act3: 0.20,
+      finalBoss: 0.30,
+    };
+    const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
+
+    // Level 5+ enemies roll for 1 random combat skill based on act
+    if (level >= 5 && Math.random() < chance) {
       const pool = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
       const pick = pool[Math.floor(Math.random() * pool.length)];
       if (!unit.skills.includes(pick)) unit.skills.push(pick);
