@@ -371,6 +371,13 @@ export class BattleScene extends Phaser.Scene {
         'Right-click: inspect  |  [V] Details  |  [R] Roster  |  ESC: cancel  |  [D] Danger',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
+      this.endTurnButton = this.add.text(this.cameras.main.width - 8, this.cameras.main.height - 16, '[E] End Turn', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+        backgroundColor: '#333333', padding: { x: 8, y: 3 },
+      }).setOrigin(1, 0.5).setDepth(101).setInteractive({ useHandCursor: true });
+      this.endTurnButton.on('pointerover', () => this.endTurnButton.setColor('#ffdd44'));
+      this.endTurnButton.on('pointerout', () => this.endTurnButton.setColor('#e0e0e0'));
+      this.endTurnButton.on('pointerdown', () => this.forceEndTurn());
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
       this.inspectionPanel = new UnitInspectionPanel(this);
@@ -396,6 +403,9 @@ export class BattleScene extends Phaser.Scene {
           this.openUnitDetailOverlay();
         }
       });
+      this.input.keyboard.on('keydown-E', () => {
+        this.forceEndTurn();
+      });
       this.input.keyboard.on('keydown-ESC', () => {
         if (DEBUG_MODE && this.debugOverlay?.visible) {
           this.debugOverlay.hide();
@@ -419,6 +429,7 @@ export class BattleScene extends Phaser.Scene {
         } else {
           this.handleCancel();
         }
+        this.refreshEndTurnControl();
       });
       this.input.keyboard.on('keydown-R', () => {
         // Roster detail overlay during player-input states (guard against stacked modals)
@@ -447,6 +458,7 @@ export class BattleScene extends Phaser.Scene {
           const terrain = terrainIdx != null ? this.gameData.terrain[terrainIdx] : null;
           this.unitDetailOverlay.show(unit, terrain, this.gameData, { rosterUnits: living, rosterIndex: defaultIdx });
           if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+          this.refreshEndTurnControl();
           return;
         }
         // Loot roster toggle during BATTLE_END
@@ -457,6 +469,7 @@ export class BattleScene extends Phaser.Scene {
             this.showLootRoster();
           }
         }
+        this.refreshEndTurnControl();
       });
       this.input.keyboard.on('keydown-D', () => {
         if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
@@ -546,6 +559,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Start the battle
       this.turnManager.startBattle();
+      this.refreshEndTurnControl();
     } catch (err) {
       console.error('BattleScene.beginBattle failed:', err);
       const cam = this.cameras.main;
@@ -1046,6 +1060,7 @@ export class BattleScene extends Phaser.Scene {
     ];
     if (cancelStates.includes(this.battleState)) {
       this.handleCancel();
+      this.refreshEndTurnControl();
       return;
     }
 
@@ -1054,6 +1069,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectionPanel.hide();
       this.grid.clearHighlights();
       this.grid.clearAttackHighlights();
+      this.refreshEndTurnControl();
       return;
     }
     // Find unit at cursor position
@@ -1095,6 +1111,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    this.refreshEndTurnControl();
   }
 
   openUnitDetailOverlay() {
@@ -1106,6 +1123,7 @@ export class BattleScene extends Phaser.Scene {
       ? { rosterUnits: living, rosterIndex }
       : undefined;
     this.unitDetailOverlay.show(_unit, _terrain, _gameData, rosterOptions);
+    this.refreshEndTurnControl();
   }
 
   handleCancel() {
@@ -1165,6 +1183,82 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'UNIT_SELECTED') {
       this.deselectUnit();
     }
+    this.refreshEndTurnControl();
+  }
+
+  canForceEndTurn() {
+    const playerInputStates = [
+      'PLAYER_IDLE',
+      'UNIT_SELECTED',
+      'UNIT_ACTION_MENU',
+      'SHOWING_FORECAST',
+      'SELECTING_TARGET',
+      'SELECTING_HEAL_TARGET',
+      'SELECTING_SHOVE_TARGET',
+      'SELECTING_PULL_TARGET',
+      'SELECTING_TRADE_TARGET',
+      'SELECTING_SWAP_TARGET',
+      'SELECTING_DANCE_TARGET',
+      'TRADING',
+      'CANTO_MOVING',
+    ];
+    return playerInputStates.includes(this.battleState)
+      && this.turnManager?.currentPhase === 'player'
+      && !this.pauseOverlay?.visible
+      && !this.unitDetailOverlay?.visible
+      && !this.lootSettingsOverlay
+      && this.battleState !== 'BATTLE_END';
+  }
+
+  refreshEndTurnControl() {
+    if (!this.endTurnButton) return;
+    const enabled = this.canForceEndTurn();
+    this.endTurnButton.setVisible(enabled);
+    if (enabled) {
+      this.endTurnButton.setColor('#e0e0e0');
+      this.endTurnButton.setInteractive({ useHandCursor: true });
+    } else {
+      this.endTurnButton.disableInteractive();
+    }
+  }
+
+  forceEndTurn() {
+    if (!this.canForceEndTurn()) return;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_confirm');
+
+    // Collapse active selection/menu states before ending phase.
+    this.hideForecast();
+    this.hideActionMenu();
+    this.cleanupTradeUI();
+    this.inEquipMenu = false;
+    this.attackTargets = [];
+    this.healTargets = [];
+    this.shoveTargets = [];
+    this.pullTargets = [];
+    this.tradeTargets = [];
+    this.swapTargets = [];
+    this.danceTargets = [];
+    this.preMoveLoc = null;
+    this.movementRange = null;
+    this.unitPositions = null;
+    this.cantoRange = null;
+    this.grid.clearHighlights();
+    this.grid.clearAttackHighlights();
+    this.grid.clearPath();
+    if (this.selectedUnit?.graphic?.clearTint) this.selectedUnit.graphic.clearTint();
+    this.selectedUnit = null;
+    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+
+    for (const unit of this.playerUnits) {
+      if (!unit.hasActed) {
+        unit.hasActed = true;
+        this.dimUnit(unit);
+      }
+    }
+    this.battleState = 'PLAYER_IDLE';
+    this.turnManager.endPlayerPhase();
+    this.refreshEndTurnControl();
   }
 
   showPauseMenu() {
@@ -1189,12 +1283,14 @@ export class BattleScene extends Phaser.Scene {
       onResume: () => {
         this.battleState = this.prePauseState || 'PLAYER_IDLE';
         this.pauseOverlay = null;
+        this.refreshEndTurnControl();
       },
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: 'Battle Progress Will Be Lost',
       onAbandon: abandonCb,
     });
     this.pauseOverlay.show();
+    this.refreshEndTurnControl();
   }
 
   handleIdleClick(gp) {
@@ -3383,6 +3479,7 @@ export class BattleScene extends Phaser.Scene {
         this.startEnemyPhase();
       });
     }
+    this.refreshEndTurnControl();
   }
 
   /** Apply turn-start skill effects (e.g. Renewal Aura healing) */
