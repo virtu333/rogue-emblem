@@ -1,5 +1,5 @@
 // UnitDetailOverlay.js — Center-screen full unit detail overlay (opened via V key or tooltip click)
-// Read-only display: portrait, stats, gear, skills, terrain
+// Tabbed display: Stats tab (stats, proficiencies, growths, terrain) | Gear tab (inventory, consumables, accessory, skills)
 
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
@@ -19,39 +19,60 @@ export class UnitDetailOverlay {
   constructor(scene, gameData) {
     this.scene = scene;
     this.gameData = gameData;
-    this.objects = [];
+    this.objects = [];      // shared objects (blocker, panel, header, HP bar, tabs, footer)
+    this._tabObjects = [];  // tab-specific objects (cleared on tab switch)
     this.visible = false;
     this._skillTooltip = null;
+    this._activeTab = 'stats';
+    this._unit = null;
+    this._terrain = null;
+    this._panel = null;
+    this._keyHandler = null;
   }
 
   show(unit, terrain, gameData) {
     this.hide();
     this.visible = true;
     if (gameData) this.gameData = gameData;
+    this._unit = unit;
+    this._terrain = terrain;
+    this._activeTab = 'stats';
 
     const left = CX - OVERLAY_W / 2;
     const top = CY - OVERLAY_H / 2;
 
-    // Full-screen click blocker
+    // Dim background (visual only, not interactive)
     const blocker = this.scene.add.rectangle(CX, CY, 640, 480, 0x000000, 0.7)
-      .setDepth(DEPTH_BG).setInteractive();
-    blocker.on('pointerdown', () => this.hide());
+      .setDepth(DEPTH_BG);
     this.objects.push(blocker);
 
     // Panel background
-    const panel = this.scene.add.rectangle(CX, CY, OVERLAY_W, OVERLAY_H, 0x1a1a2e, 1)
+    this._panel = this.scene.add.rectangle(CX, CY, OVERLAY_W, OVERLAY_H, 0x1a1a2e, 1)
       .setDepth(DEPTH_PANEL).setStrokeStyle(2, 0x444444);
-    this.objects.push(panel);
+    this.objects.push(this._panel);
+
+    // Scene-level click: close if outside panel bounds
+    this._clickHandler = (pointer) => {
+      if (!this.visible) return;
+      const px = pointer.x, py = pointer.y;
+      const panelLeft = this._panel.x - this._panel.width / 2;
+      const panelRight = this._panel.x + this._panel.width / 2;
+      const panelTop = this._panel.y - this._panel.height / 2;
+      const panelBottom = this._panel.y + this._panel.height / 2;
+      if (px < panelLeft || px > panelRight || py < panelTop || py > panelBottom) {
+        this.hide();
+      }
+    };
+    this.scene.input.on('pointerdown', this._clickHandler);
 
     let y = top + 10;
-    const lx = left + 12; // left column x
-    const rx = left + OVERLAY_W / 2 + 8; // right column x
+    const lx = left + 12;
 
-    // --- Header ---
+    // --- Shared Header ---
     const factionLabel = unit.faction === 'player' ? '' : unit.faction === 'npc' ? ' [NPC]' : ' [Enemy]';
     this._text(lx, y, `${unit.name}${factionLabel}`, UI_COLORS.gold, '12px');
 
-    // Portrait (top-right of panel)
+    // Portrait (top-right)
     const portraitKey = this._getPortraitKey(unit);
     if (portraitKey && this.scene.textures.exists(portraitKey)) {
       const portrait = this.scene.add.image(left + OVERLAY_W - 36, y + 24, portraitKey)
@@ -74,7 +95,7 @@ export class UnitDetailOverlay {
       y += 14;
     }
 
-    // --- HP Bar ---
+    // --- Shared HP Bar ---
     const hpRatio = unit.currentHP / unit.stats.HP;
     const barW = 180;
     const barH = 8;
@@ -82,10 +103,129 @@ export class UnitDetailOverlay {
     const barFill = this.scene.add.rectangle(lx, y + 1, barW * hpRatio, barH, getHPBarColor(hpRatio)).setOrigin(0, 0).setDepth(DEPTH_TEXT);
     this.objects.push(barBg, barFill);
     this._text(lx + barW + 6, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
-    y += 16;
+    y += 18;
 
-    // --- Stats (2 columns) ---
-    this._sep(lx, y); y += 12;
+    // --- Tab Buttons ---
+    this._drawTabButtons(lx, y);
+    y += 24;
+
+    // Store content start y for tab drawing
+    this._contentStartY = y;
+    this._left = left;
+
+    // --- Footer ---
+    const footerY = top + OVERLAY_H - 18;
+    this._text(lx, footerY, '[ESC] Close    [LEFT/RIGHT] Switch Tab', UI_COLORS.gray, '9px');
+
+    // --- Keyboard listener ---
+    this._keyHandler = (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
+        this._refreshTabs();
+      }
+    };
+    this.scene.input.keyboard.on('keydown', this._keyHandler);
+
+    // Draw initial tab content
+    this._drawTabContent();
+  }
+
+  hide() {
+    this._hideSkillTooltip();
+    if (this._keyHandler) {
+      this.scene.input.keyboard.off('keydown', this._keyHandler);
+      this._keyHandler = null;
+    }
+    if (this._clickHandler) {
+      this.scene.input.off('pointerdown', this._clickHandler);
+      this._clickHandler = null;
+    }
+    for (const obj of this._tabObjects) obj.destroy();
+    this._tabObjects = [];
+    for (const obj of this.objects) obj.destroy();
+    this.objects = [];
+    this.visible = false;
+    this._unit = null;
+    this._terrain = null;
+    this._panel = null;
+  }
+
+  // --- Tab System ---
+
+  _drawTabButtons(x, y) {
+    const tabW = 80;
+    const tabH = 18;
+    const gap = 8;
+
+    // Stats tab button
+    this._tabBtnStats = this.scene.add.rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, 0x443300)
+      .setDepth(DEPTH_TEXT).setStrokeStyle(1, 0xffdd44).setInteractive({ useHandCursor: true });
+    this._tabLabelStats = this.scene.add.text(x + tabW / 2, y + tabH / 2, 'Stats', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
+    this._tabBtnStats.on('pointerdown', () => { this._activeTab = 'stats'; this._refreshTabs(); });
+    this.objects.push(this._tabBtnStats, this._tabLabelStats);
+
+    // Gear tab button
+    const gx = x + tabW + gap;
+    this._tabBtnGear = this.scene.add.rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, 0x222233)
+      .setDepth(DEPTH_TEXT).setStrokeStyle(1, 0x666666).setInteractive({ useHandCursor: true });
+    this._tabLabelGear = this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
+    this._tabBtnGear.on('pointerdown', () => { this._activeTab = 'gear'; this._refreshTabs(); });
+    this.objects.push(this._tabBtnGear, this._tabLabelGear);
+
+    // Arrow hint
+    this._text(gx + tabW + gap + 4, y + 3, '\u25c4 \u25ba', UI_COLORS.gray, '10px');
+  }
+
+  _refreshTabs() {
+    // Update tab button styles
+    if (this._activeTab === 'stats') {
+      this._tabBtnStats.setFillStyle(0x443300).setStrokeStyle(1, 0xffdd44);
+      this._tabLabelStats.setColor('#ffffff');
+      this._tabBtnGear.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
+      this._tabLabelGear.setColor('#888888');
+    } else {
+      this._tabBtnStats.setFillStyle(0x222233).setStrokeStyle(1, 0x666666);
+      this._tabLabelStats.setColor('#888888');
+      this._tabBtnGear.setFillStyle(0x443300).setStrokeStyle(1, 0xffdd44);
+      this._tabLabelGear.setColor('#ffffff');
+    }
+    this._drawTabContent();
+  }
+
+  _drawTabContent() {
+    this._hideSkillTooltip();
+    for (const obj of this._tabObjects) obj.destroy();
+    this._tabObjects = [];
+
+    const left = this._left;
+    const lx = left + 12;
+    const rx = left + OVERLAY_W / 2 + 8;
+    const top = CY - OVERLAY_H / 2;
+    let y = this._contentStartY;
+
+    if (this._activeTab === 'stats') {
+      y = this._drawStatsTab(lx, rx, y);
+    } else {
+      y = this._drawGearTab(lx, y);
+    }
+
+    // Resize panel if needed
+    const contentH = Math.max(OVERLAY_H, y - top + 20);
+    if (this._panel) {
+      this._panel.setSize(OVERLAY_W, contentH);
+      this._panel.setPosition(CX, top + contentH / 2);
+    }
+  }
+
+  _drawStatsTab(lx, rx, y) {
+    const unit = this._unit;
+
+    // Stats (2 columns)
+    this._tabSep(lx, y); y += 12;
     const leftStats = ['STR', 'MAG', 'SKL', 'SPD'];
     const rightStats = ['DEF', 'RES', 'LCK', 'MOV'];
     for (let i = 0; i < leftStats.length; i++) {
@@ -93,32 +233,48 @@ export class UnitDetailOverlay {
       const rs = rightStats[i];
       const lv = ls === 'MOV' ? (unit.mov ?? unit.stats.MOV) : unit.stats[ls];
       const rv = rs === 'MOV' ? (unit.mov ?? unit.stats.MOV) : unit.stats[rs];
-      this._text(lx, y, `${ls.padEnd(4)}${String(lv).padStart(3)}`, STAT_COLORS[ls], '10px');
-      this._text(rx, y, `${rs.padEnd(4)}${String(rv).padStart(3)}`, STAT_COLORS[rs], '10px');
+      this._tabText(lx, y, `${ls.padEnd(4)}${String(lv).padStart(3)}`, STAT_COLORS[ls], '10px');
+      this._tabText(rx, y, `${rs.padEnd(4)}${String(rv).padStart(3)}`, STAT_COLORS[rs], '10px');
       y += 13;
     }
 
-    // --- Proficiencies ---
+    // Proficiencies
     if (unit.proficiencies && unit.proficiencies.length > 0) {
       const profStr = unit.proficiencies.map(p => `${p.type}(${p.rank[0]})`).join('  ');
-      this._text(lx, y, `Prof: ${profStr}`, '#aaaacc', '10px');
+      this._tabText(lx, y, `Prof: ${profStr}`, '#aaaacc', '10px');
       y += 13;
     }
 
-    // --- Growths (player/NPC only) ---
+    // Growths (player/NPC only)
     if (unit.faction !== 'enemy' && unit.growths) {
-      this._sep(lx, y); y += 12;
+      this._tabSep(lx, y); y += 12;
       const gStrs = XP_STAT_NAMES.map(s => `${s}:${unit.growths[s] || 0}`);
-      this._text(lx, y, 'Growths: ' + gStrs.slice(0, 4).join(' '), UI_COLORS.gray, '9px');
+      this._tabText(lx, y, 'Growths: ' + gStrs.slice(0, 4).join(' '), UI_COLORS.gray, '9px');
       y += 12;
-      this._text(lx, y, '         ' + gStrs.slice(4).join(' '), UI_COLORS.gray, '9px');
+      this._tabText(lx, y, '         ' + gStrs.slice(4).join(' '), UI_COLORS.gray, '9px');
       y += 14;
     } else {
       y += 2;
     }
 
-    // --- Inventory ---
-    this._sep(lx, y); y += 12;
+    // Terrain
+    if (this._terrain) {
+      this._tabSep(lx, y); y += 12;
+      let tStr = `Terrain: ${this._terrain.name}`;
+      if (parseInt(this._terrain.avoidBonus)) tStr += `  Avo+${this._terrain.avoidBonus}`;
+      if (parseInt(this._terrain.defBonus)) tStr += `  Def+${this._terrain.defBonus}`;
+      this._tabText(lx, y, tStr, '#aabb88', '9px');
+      y += 14;
+    }
+
+    return y;
+  }
+
+  _drawGearTab(lx, y) {
+    const unit = this._unit;
+
+    // Inventory
+    this._tabSep(lx, y); y += 12;
     if (unit.inventory && unit.inventory.length > 0) {
       for (const item of unit.inventory) {
         const marker = item === unit.weapon ? '\u25b6' : ' ';
@@ -138,29 +294,29 @@ export class UnitDetailOverlay {
           line = `${marker}${item.name}`;
         }
         if (item.special) line += ' *';
-        this._text(lx, y, line, color, '9px');
+        this._tabText(lx, y, line, color, '9px');
         y += 12;
       }
     } else {
-      this._text(lx, y, '(no weapons)', UI_COLORS.gray, '9px');
+      this._tabText(lx, y, '(no weapons)', UI_COLORS.gray, '9px');
       y += 12;
     }
 
     // Consumables
     if (unit.consumables && unit.consumables.length > 0) {
       for (const item of unit.consumables) {
-        this._text(lx, y, ` ${item.name} (${item.uses})`, '#88ff88', '9px');
+        this._tabText(lx, y, ` ${item.name} (${item.uses})`, '#88ff88', '9px');
         y += 12;
       }
     }
 
-    // --- Accessory ---
+    // Accessory
     if (unit.accessory) {
-      this._sep(lx, y); y += 12;
+      this._tabSep(lx, y); y += 12;
       const fx = Object.entries(unit.accessory.effects || {}).filter(([, v]) => v).map(([k, v]) => `${k}+${v}`).join(' ');
-      this._text(lx, y, `Acc: ${unit.accessory.name}`, '#cc88ff', '9px');
+      this._tabText(lx, y, `Acc: ${unit.accessory.name}`, '#cc88ff', '9px');
       if (fx) {
-        this._text(lx + 180, y, fx, '#aa66dd', '9px');
+        this._tabText(lx + 180, y, fx, '#aa66dd', '9px');
       }
       y += 12;
       const ce = unit.accessory.combatEffects;
@@ -177,21 +333,21 @@ export class UnitDetailOverlay {
         if (ce.negateEffectiveness) parts.push('Negate effectiveness');
         if (ce.condition) parts.push(`(${ce.condition.replace('_', ' ')})`);
         if (parts.length) {
-          this._text(lx + 8, y, parts.join('  '), '#aa66dd', '9px');
+          this._tabText(lx + 8, y, parts.join('  '), '#aa66dd', '9px');
           y += 12;
         }
       }
     }
 
-    // --- Skills ---
+    // Skills
     if (unit.skills && unit.skills.length > 0) {
-      this._sep(lx, y); y += 12;
-      this._text(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, '#88ffff', '9px');
+      this._tabSep(lx, y); y += 12;
+      this._tabText(lx, y, `Skills (${unit.skills.length}/${MAX_SKILLS}):`, '#88ffff', '9px');
       y += 13;
       for (const sid of unit.skills) {
         const skillData = this.gameData?.skills?.find(s => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
-        const skillText = this._text(lx + 8, y, name, '#88ffff', '9px');
+        const skillText = this._tabText(lx + 8, y, name, '#88ffff', '9px');
         if (skillData?.description) {
           skillText.setInteractive({ useHandCursor: true });
           skillText.on('pointerover', () => this._showSkillTooltip(skillText, skillData.description));
@@ -201,34 +357,7 @@ export class UnitDetailOverlay {
       }
     }
 
-    // --- Terrain ---
-    if (terrain) {
-      this._sep(lx, y); y += 12;
-      let tStr = `Terrain: ${terrain.name}`;
-      if (parseInt(terrain.avoidBonus)) tStr += `  Avo+${terrain.avoidBonus}`;
-      if (parseInt(terrain.defBonus)) tStr += `  Def+${terrain.defBonus}`;
-      this._text(lx, y, tStr, '#aabb88', '9px');
-      y += 14;
-    }
-
-    // --- Footer ---
-    const footerY = top + OVERLAY_H - 18;
-    this._text(lx, footerY, '[ESC] Close', UI_COLORS.gray, '9px');
-
-    // Resize panel to fit content if needed
-    const contentH = Math.max(OVERLAY_H, y - top + 20);
-    if (contentH > OVERLAY_H) {
-      panel.setSize(OVERLAY_W, contentH);
-      panel.setPosition(CX, top + contentH / 2);
-      blocker.setPosition(CX, CY); // blocker stays fullscreen
-    }
-  }
-
-  hide() {
-    this._hideSkillTooltip();
-    for (const obj of this.objects) obj.destroy();
-    this.objects = [];
-    this.visible = false;
+    return y;
   }
 
   // --- Helpers ---
@@ -241,8 +370,20 @@ export class UnitDetailOverlay {
     return t;
   }
 
+  _tabText(x, y, str, color, fontSize) {
+    const t = this.scene.add.text(x, y, str, {
+      fontFamily: 'monospace', fontSize: fontSize || '10px', color: color || UI_COLORS.white,
+    }).setDepth(DEPTH_TEXT);
+    this._tabObjects.push(t);
+    return t;
+  }
+
   _sep(x, y) {
-    this._text(x, y, '────────────────────────────────────────────', UI_COLORS.gray, '9px');
+    this._text(x, y, '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', UI_COLORS.gray, '9px');
+  }
+
+  _tabSep(x, y) {
+    this._tabText(x, y, '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', UI_COLORS.gray, '9px');
   }
 
   _getPortraitKey(unit) {
@@ -269,7 +410,6 @@ export class UnitDetailOverlay {
       wordWrap: { width: 192 },
     }).setDepth(DEPTH_TOOLTIP + 1);
     tipBg.setSize(200, tipText.height + 8);
-    // Clamp to canvas
     if (tipBg.y + tipBg.height > 480) tipBg.y = 480 - tipBg.height;
     tipText.y = tipBg.y + 3;
     this._skillTooltip = [tipBg, tipText];

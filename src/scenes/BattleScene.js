@@ -308,7 +308,7 @@ export class BattleScene extends Phaser.Scene {
       this.attackTargets = [];
       this.healTargets = [];
       this.forecastTarget = null;
-      this.forecastPanel = null;
+      this.forecastObjects = null;
       this.actionMenu = null;
       this.inEquipMenu = false;
 
@@ -431,6 +431,9 @@ export class BattleScene extends Phaser.Scene {
           this.turnManager.unitActed(unit);
         }
       });
+
+      this.input.keyboard.on('keydown-LEFT', () => this._cycleForecastWeapon(-1));
+      this.input.keyboard.on('keydown-RIGHT', () => this._cycleForecastWeapon(1));
 
       // Start battle music — per-act tracks
       const audio = this.registry.get('audio');
@@ -1092,16 +1095,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleForecastClick(gp) {
-    // Click the same target again to confirm
-    if (this.forecastTarget &&
-        gp.col === this.forecastTarget.col && gp.row === this.forecastTarget.row) {
+    // Any click confirms combat (ESC / right-click to cancel)
+    if (this.forecastTarget) {
       const target = this.forecastTarget;
       this.hideForecast();
       this.executeCombat(this.selectedUnit, target);
-    } else {
-      // Clicked elsewhere — back to target selection
-      this.hideForecast();
-      this.battleState = 'SELECTING_TARGET';
     }
   }
 
@@ -2512,6 +2510,219 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Combat ---
 
+  _cycleForecastWeapon(direction) {
+    if (this.battleState !== 'SHOWING_FORECAST' || !this.selectedUnit) return;
+    const validWeapons = this._forecastValidWeapons;
+    if (!validWeapons || validWeapons.length < 2) return;
+
+    const currentIdx = validWeapons.indexOf(this.selectedUnit.weapon);
+    if (currentIdx < 0) return;
+    const nextIdx = (currentIdx + direction + validWeapons.length) % validWeapons.length;
+    equipWeapon(this.selectedUnit, validWeapons[nextIdx]);
+
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_cursor');
+
+    // Rebuild forecast with new weapon
+    const target = this.forecastTarget;
+    this.hideForecast();
+    this.showForecast(this.selectedUnit, target);
+  }
+
+  _getPortraitKey(unit) {
+    const lordData = this.gameData.lords.find(l => l.name === unit.name);
+    if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
+    const classKey = `portrait_generic_${unit.className.toLowerCase().replace(/ /g, '_')}`;
+    if (this.textures.exists(classKey)) return classKey;
+    const classData = this.gameData.classes.find(c => c.name === unit.className);
+    if (classData?.promotesFrom) {
+      const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
+      if (this.textures.exists(baseKey)) return baseKey;
+    }
+    return null;
+  }
+
+  _drawForecastSide(x, panelY, unit, info, opponent, isAttacker, depth) {
+    const sideW = 186;
+    const textDepth = depth + 1;
+    let y = panelY + 6;
+
+    // Portrait (40x40) — attacker on left edge, defender on right edge
+    const portraitKey = this._getPortraitKey(unit);
+    if (portraitKey && this.textures.exists(portraitKey)) {
+      const px = isAttacker ? x + 2 : x + sideW - 42;
+      const portrait = this.add.image(px + 20, y + 20, portraitKey)
+        .setDisplaySize(40, 40).setDepth(textDepth);
+      this.forecastObjects.push(portrait);
+    }
+
+    // Name — positioned next to portrait
+    const nameX = isAttacker ? x + 48 : x + 2;
+    const name = this.add.text(nameX, y + 6, unit.name, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(name);
+
+    // EFFECTIVE! banner — below name, beside portrait
+    if (unit.weapon && getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
+        (isAttacker || info.canCounter)) {
+      const eff = this.add.text(nameX, y + 22, 'EFFECTIVE!', {
+        fontFamily: 'monospace', fontSize: '9px', color: '#ff4444', fontStyle: 'bold',
+      }).setDepth(textDepth);
+      this.forecastObjects.push(eff);
+    }
+
+    // HP row — below portrait area
+    y += 44;
+    const hpLabel = this.add.text(x + 2, y, 'HP', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(hpLabel);
+
+    const hpVal = this.add.text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(hpVal);
+
+    // HP bar
+    const barX = x + 80;
+    const barW = sideW - 86;
+    const barH = 6;
+    const barY = y + 4;
+    const hpGfx = this.add.graphics().setDepth(textDepth);
+    hpGfx.fillStyle(0x333333);
+    hpGfx.fillRect(barX, barY, barW, barH);
+    const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
+    hpGfx.fillStyle(getHPBarColor(ratio));
+    hpGfx.fillRect(barX, barY, Math.round(barW * ratio), barH);
+    this.forecastObjects.push(hpGfx);
+
+    y += 16;
+
+    // Cannot counter case (defender only)
+    if (!isAttacker && !info.canCounter) {
+      const noCounter = this.add.text(x + sideW / 2, y + 4, '-- No Counter --', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#cc6666',
+      }).setOrigin(0.5, 0).setDepth(textDepth);
+      this.forecastObjects.push(noCounter);
+
+      y += 20;
+      const wpnName = unit.weapon?.name || 'Unarmed';
+      const wpn = this.add.text(x + 2, y, wpnName, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#88bbff',
+      }).setDepth(textDepth);
+      this.forecastObjects.push(wpn);
+      return;
+    }
+
+    // Stat row 1: Dmg + Hit
+    const dmgLabel = this.add.text(x + 2, y, 'Dmg', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(dmgLabel);
+    const dmgVal = this.add.text(x + 32, y, `${info.damage}`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(dmgVal);
+
+    const hitLabel = this.add.text(x + 80, y, 'Hit', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(hitLabel);
+    const hitVal = this.add.text(x + 108, y, `${info.hit}%`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(hitVal);
+
+    y += 14;
+
+    // Stat row 2: Crt + doubling
+    const crtLabel = this.add.text(x + 2, y, 'Crt', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(crtLabel);
+    const crtVal = this.add.text(x + 32, y, `${info.crit}%`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(crtVal);
+
+    if (info.attackCount > 1) {
+      const countText = this.add.text(x + 80, y, `x${info.attackCount}`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
+      }).setDepth(textDepth);
+      this.forecastObjects.push(countText);
+    }
+
+    y += 14;
+
+    // Weapon name (with ◄ ► arrows + next weapon preview if attacker has 2+ valid weapons)
+    const wpnName = unit.weapon?.name || 'Unarmed';
+    const wpnColor = unit.weapon && isForged(unit.weapon) ? '#44ff88' : '#88bbff';
+    const validWpns = this._forecastValidWeapons;
+    const canCycle = isAttacker && validWpns?.length >= 2;
+
+    if (canCycle) {
+      // Left arrow
+      const leftArrow = this.add.text(x + 1, y - 2, '\u25C4', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      }).setDepth(textDepth).setInteractive({ useHandCursor: true });
+      leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
+      leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
+      leftArrow.on('pointerdown', () => this._cycleForecastWeapon(-1));
+      this.forecastObjects.push(leftArrow);
+
+      // Current weapon name (centered between arrows)
+      const wpn = this.add.text(x + 16, y, wpnName, {
+        fontFamily: 'monospace', fontSize: '9px', color: wpnColor,
+      }).setDepth(textDepth);
+      this.forecastObjects.push(wpn);
+
+      // Right arrow
+      const rightArrow = this.add.text(x + sideW - 14, y - 2, '\u25BA', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      }).setDepth(textDepth).setInteractive({ useHandCursor: true });
+      rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
+      rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
+      rightArrow.on('pointerdown', () => this._cycleForecastWeapon(1));
+      this.forecastObjects.push(rightArrow);
+
+      // Next weapon preview (right arrow direction)
+      const curIdx = validWpns.indexOf(unit.weapon);
+      const nextIdx = (curIdx + 1) % validWpns.length;
+      const nextWpn = validWpns[nextIdx];
+      if (nextWpn) {
+        const preview = this.add.text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
+          fontFamily: 'monospace', fontSize: '8px', color: '#666688',
+        }).setDepth(textDepth);
+        this.forecastObjects.push(preview);
+      }
+    } else {
+      const wpn = this.add.text(x + 2, y, wpnName, {
+        fontFamily: 'monospace', fontSize: '9px', color: wpnColor,
+      }).setDepth(textDepth);
+      this.forecastObjects.push(wpn);
+    }
+
+    y += 12;
+
+    // Skills + Miracle (combined on one line if both present)
+    const parts = [];
+    if (info.skills?.length) {
+      parts.push(info.skills.map(s => s.name).join(', '));
+    }
+    if (unit.skills?.includes('miracle')) {
+      const used = unit._miracleUsed;
+      parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
+    }
+    if (parts.length) {
+      const skillText = this.add.text(x + 2, y, parts.join('  '), {
+        fontFamily: 'monospace', fontSize: '9px', color: '#aaddff',
+        wordWrap: { width: sideW - 6 },
+      }).setDepth(textDepth);
+      this.forecastObjects.push(skillText);
+    }
+  }
+
   showForecast(attacker, defender) {
     this.forecastTarget = defender;
     this.battleState = 'SHOWING_FORECAST';
@@ -2532,56 +2743,65 @@ export class BattleScene extends Phaser.Scene {
       skillCtx
     );
 
-    // Build forecast text
-    const atkInfo = forecast.attacker;
-    const defInfo = forecast.defender;
-    let text = '';
-    text += `  ${attacker.name} (${attacker.weapon.name})\n`;
-    if (getEffectivenessMultiplier(attacker.weapon, defender) > 1) {
-      text += `  ** EFFECTIVE! **\n`;
-    }
-    text += `  HP ${attacker.currentHP}  DMG ${atkInfo.damage}  HIT ${atkInfo.hit}%  CRT ${atkInfo.crit}%`;
-    if (atkInfo.doubles) text += '  x2';
-    if (atkInfo.skills?.length) text += `\n  [${atkInfo.skills.map(s => s.name).join(', ')}]`;
-    if (attacker.skills?.includes('miracle')) {
-      text += `\n  Miracle: ${attacker._miracleUsed ? 'Used' : 'Ready'}`;
-    }
-    text += '\n\n';
-    text += `  ${defender.name} (${defender.weapon?.name || 'none'})\n`;
-    if (defender.weapon && getEffectivenessMultiplier(defender.weapon, attacker) > 1) {
-      text += `  ** EFFECTIVE! **\n`;
-    }
-    text += `  HP ${defender.currentHP}`;
-    if (defInfo.canCounter) {
-      text += `  DMG ${defInfo.damage}  HIT ${defInfo.hit}%  CRT ${defInfo.crit}%`;
-      if (defInfo.doubles) text += '  x2';
-      if (defInfo.skills?.length) text += `\n  [${defInfo.skills.map(s => s.name).join(', ')}]`;
-    } else {
-      text += '  (cannot counter)';
-    }
-    if (defender.skills?.includes('miracle')) {
-      text += `\n  Miracle: ${defender._miracleUsed ? 'Used' : 'Ready'}`;
-    }
-    text += '\n\n  Click enemy to confirm | ESC to cancel';
+    // Compute valid weapons for cycling (weapons that can reach this target)
+    const validWeapons = getCombatWeapons(attacker).filter(w => {
+      const { min, max } = parseRange(w.range);
+      const bonus = getWeaponRangeBonus(attacker, w, this.gameData.skills);
+      return dist >= min && dist <= max + bonus;
+    });
+    this._forecastValidWeapons = validWeapons;
 
-    // Draw panel
-    const panelX = this.cameras.main.width - 10;
-    const panelY = 10;
-    this.forecastPanel = this.add.text(panelX, panelY, text, {
-      fontFamily: 'monospace',
-      fontSize: '11px',
-      color: '#e0e0e0',
-      backgroundColor: '#000000dd',
-      padding: { x: 8, y: 6 },
-    }).setOrigin(1, 0).setDepth(200);
+    // Build graphical forecast panel (FE GBA-style split layout)
+    this.forecastObjects = [];
+    const depth = 200;
+    const panelW = 380, panelH = 152;
+    const panelX = (this.cameras.main.width - panelW) / 2;
+    const panelY = this.cameras.main.height - panelH - 10;
+    const halfW = (panelW - 8) / 2; // 186 per side
+
+    // Panel background
+    const bg = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2,
+      panelW, panelH, 0x111122, 0.95
+    ).setDepth(depth).setStrokeStyle(2, 0x4466aa);
+    this.forecastObjects.push(bg);
+
+    // Draw attacker (left) and defender (right)
+    this._drawForecastSide(panelX + 4, panelY, attacker, forecast.attacker, defender, true, depth);
+    this._drawForecastSide(panelX + halfW + 8, panelY, defender, forecast.defender, attacker, false, depth);
+
+    // Center divider + VS
+    const divGfx = this.add.graphics().setDepth(depth + 1);
+    divGfx.lineStyle(1, 0x444466);
+    divGfx.lineBetween(panelX + panelW / 2, panelY + 8, panelX + panelW / 2, panelY + panelH - 22);
+    this.forecastObjects.push(divGfx);
+
+    const vs = this.add.text(panelX + panelW / 2, panelY + 28, 'VS', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#666688',
+    }).setOrigin(0.5).setDepth(depth + 1);
+    this.forecastObjects.push(vs);
+
+    // Confirm hint bar
+    const hintY = panelY + panelH - 18;
+    const hintBg = this.add.rectangle(panelX + panelW / 2, hintY + 9,
+      panelW - 4, 16, 0x0a0a15, 0.8
+    ).setDepth(depth);
+    this.forecastObjects.push(hintBg);
+    const hintText = validWeapons.length >= 2
+      ? 'Click confirm | \u25C4 \u25BA weapon | ESC cancel'
+      : 'Click to confirm | ESC cancel';
+    const hint = this.add.text(panelX + panelW / 2, hintY + 9, hintText, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#888888',
+    }).setOrigin(0.5).setDepth(depth + 1);
+    this.forecastObjects.push(hint);
   }
 
   hideForecast() {
-    if (this.forecastPanel) {
-      this.forecastPanel.destroy();
-      this.forecastPanel = null;
+    if (this.forecastObjects) {
+      for (const obj of this.forecastObjects) obj.destroy();
+      this.forecastObjects = null;
     }
     this.forecastTarget = null;
+    this._forecastValidWeapons = null;
   }
 
   async executeCombat(attacker, defender) {

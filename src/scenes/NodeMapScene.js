@@ -684,6 +684,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   drawActiveTabContent() {
     // Clear previous tab content
+    this._hideForgeTooltip();
     if (this.shopContentGroup) this.shopContentGroup.forEach(o => o.destroy());
     this.shopContentGroup = [];
 
@@ -842,6 +843,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawShopForgeList() {
+    this._hideForgeTooltip();
     const startY = 105;
     const lineH = 20;
     const rm = this.runManager;
@@ -878,6 +880,13 @@ export class NodeMapScene extends Phaser.Scene {
         }).setDepth(302);
         this.shopContentGroup.push(wpnText);
         this.shopOverlay.push(wpnText);
+
+        // Hover tooltip for weapon stats
+        wpnText.setInteractive({ useHandCursor: false });
+        wpnText.on('pointerover', () => {
+          this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
+        });
+        wpnText.on('pointerout', () => this._hideForgeTooltip());
 
         if (level >= FORGE_MAX_LEVEL) {
           const maxLabel = this.add.text(350, startY + row * lineH, 'MAX', {
@@ -998,6 +1007,64 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  _showForgeTooltip(wpn, anchorX, anchorY) {
+    this._hideForgeTooltip();
+    this.forgeTooltip = [];
+
+    const line1 = `Mt: ${wpn.might}   Hit: ${wpn.hit}   Crt: ${wpn.crit}`;
+    const line2 = `Wt: ${wpn.weight}   Rng: ${wpn.range}`;
+    const mtCount = getStatForgeCount(wpn, 'might');
+    const crCount = getStatForgeCount(wpn, 'crit');
+    const htCount = getStatForgeCount(wpn, 'hit');
+    const wtCount = getStatForgeCount(wpn, 'weight');
+    const line3 = `Forge: Mt(${mtCount}/${FORGE_STAT_CAP}) Cr(${crCount}/${FORGE_STAT_CAP}) Ht(${htCount}/${FORGE_STAT_CAP}) Wt(${wtCount}/${FORGE_STAT_CAP})`;
+
+    const lines = [line1, line2, line3];
+    if (wpn.special) lines.push(`Special: ${wpn.special}`);
+
+    const lineH = 14;
+    const padX = 8;
+    const padY = 6;
+    const boxW = 220;
+    const boxH = lines.length * lineH + padY * 2;
+
+    // Clamp to canvas (640x480)
+    let tx = anchorX;
+    let ty = anchorY;
+    if (tx + boxW > 635) tx = anchorX - boxW - 20;
+    if (ty + boxH > 475) ty = 475 - boxH;
+    if (tx < 5) tx = 5;
+    if (ty < 5) ty = 5;
+
+    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(310).setStrokeStyle(1, 0x4466aa);
+    this.forgeTooltip.push(bg);
+
+    const statsText = this.add.text(tx + padX, ty + padY, line1 + '\n' + line2, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0', lineSpacing: 4,
+    }).setDepth(311);
+    this.forgeTooltip.push(statsText);
+
+    const forgeText = this.add.text(tx + padX, ty + padY + lineH * 2, line3, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#ff8844',
+    }).setDepth(311);
+    this.forgeTooltip.push(forgeText);
+
+    if (wpn.special) {
+      const specialText = this.add.text(tx + padX, ty + padY + lineH * 3, `Special: ${wpn.special}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#88ccff',
+      }).setDepth(311);
+      this.forgeTooltip.push(specialText);
+    }
+  }
+
+  _hideForgeTooltip() {
+    if (this.forgeTooltip) {
+      this.forgeTooltip.forEach(o => o.destroy());
+      this.forgeTooltip = null;
+    }
+  }
+
   refreshShop() {
     this.shopGoldText.setText(`Gold: ${this.runManager.gold}G`);
     this.drawActiveTabContent();
@@ -1089,6 +1156,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   closeShopOverlay() {
     this.closeForgeStatPicker();
+    this._hideForgeTooltip();
     if (this.shopOverlay) {
       this.shopOverlay.forEach(o => o.destroy());
       this.shopOverlay = null;

@@ -51,6 +51,10 @@ Organized by impact and logical sequencing:
 - **Tutorial Hints** — Complete. 12 contextual hints, HintManager + HintDisplay
 - **Loot Rebalance + Stat Boosters** — Complete. Act 1/2 pool restructuring, 7 stat boosters
 - **Meta Rework Phase A** — Complete. Repricing, prerequisites, milestones
+- **Wave P0** (Playtest Bugfixes) — Complete. Canto+Wait, stale tooltip, enemy range, recruit node freeze
+- **Wave 0** (Balance + Anti-Juggernaut) — Complete. Sunder weapons, XP scaling, enemy skills, shop frequency, promoted recruits, guaranteed shop consumables
+- **Wave P1** (UI Polish) — Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
+- **Church Upgrades** — Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
 
 ---
 
@@ -545,10 +549,11 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 ## Next Actions
 
-1. ~~**Start Wave P0** (Bugfixes)~~ ✅ Done
-2. **Wave P1** (UI Polish) — 2-3 days
+1. ~~**Wave P0** (Bugfixes)~~ ✅ Done
+2. ~~**Wave P1** (UI Polish)~~ ✅ Done
 3. ~~**Wave 0** (Balance + Anti-Juggernaut)~~ ✅ Done
-4. **Playtest** after P1, then proceed to Wave 2
+4. **Wave 2** (Map Generation Enhancements) — Next up
+5. **Playtest** after Wave 2, then proceed to Wave 3+
 
 ## Deployment
 
