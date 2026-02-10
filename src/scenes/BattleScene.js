@@ -3128,6 +3128,10 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.dangerZoneStale = true;
+    // Detect boss death on seize maps — show prominent notification
+    if (unit.isBoss && unit.faction === 'enemy' && this.battleConfig.objective === 'seize') {
+      this._showBossDefeatedBanner();
+    }
     this.updateObjectiveText();
   }
 
@@ -3366,6 +3370,33 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  _showBossDefeatedBanner() {
+    const banner = this.add.text(
+      this.cameras.main.centerX, this.cameras.main.centerY - 30,
+      'Boss defeated!\nSeize the throne with a Lord!',
+      {
+        fontFamily: 'monospace', fontSize: '18px', color: '#66ff66',
+        backgroundColor: '#000000dd', padding: { x: 16, y: 8 },
+        align: 'center',
+      }
+    ).setOrigin(0.5).setAlpha(0).setDepth(500);
+
+    this.tweens.add({
+      targets: banner, alpha: 1, duration: 400,
+      yoyo: true, hold: 1800,
+      onComplete: () => banner.destroy(),
+    });
+
+    // Pulse the objective text to draw attention
+    if (this.objectiveText) {
+      this.tweens.add({
+        targets: this.objectiveText,
+        scaleX: 1.15, scaleY: 1.15, duration: 300,
+        yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
   // --- Win/lose ---
 
   checkBattleEnd() {
@@ -3387,11 +3418,16 @@ export class BattleScene extends Phaser.Scene {
   updateObjectiveText() {
     if (!this.objectiveText) return;
     let label;
+    let color = '#ffdd44'; // default gold
     if (this.battleConfig.objective === 'seize') {
       const bossAlive = this.enemyUnits.some(u => u.isBoss);
-      label = bossAlive
-        ? 'Seize: Defeat boss, capture throne'
-        : 'Seize: Capture throne with Lord';
+      if (bossAlive) {
+        label = 'Seize: Defeat boss, then capture throne';
+        color = '#ff6666'; // red — boss still alive
+      } else {
+        label = 'Seize: Capture throne with a Lord!';
+        color = '#66ff66'; // green — ready to seize
+      }
     } else {
       label = `Rout: ${this.enemyUnits.length} enemies remaining`;
     }
@@ -3399,6 +3435,7 @@ export class BattleScene extends Phaser.Scene {
       label += '\nRecruit: Talk to green unit';
     }
     this.objectiveText.setText(label);
+    this.objectiveText.setColor(color);
   }
 
   calculateDangerZone() {
