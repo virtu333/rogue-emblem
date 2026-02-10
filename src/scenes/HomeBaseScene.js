@@ -61,6 +61,10 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawUI() {
+    if (this._prereqTooltip) {
+      this._prereqTooltip.destroy();
+      this._prereqTooltip = null;
+    }
     this.children.removeAll(true);
 
     const w = this.cameras.main.width;
@@ -220,29 +224,57 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(x, y, 'MAX', {
         fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
       });
-    } else {
-      const cost = this.meta.getNextCost(upgrade.id);
-      const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
-      const suffix = currency === 'valor' ? 'V' : 'S';
-      const btnColor = affordable ? '#88ff88' : '#555555';
-      const btn = this.add.text(x, y, `${cost}${suffix}`, {
-        fontFamily: 'monospace', fontSize: '11px', color: btnColor,
-        backgroundColor: affordable ? '#334433' : '#222222',
-        padding: { x: 6, y: 2 },
-      });
+      return;
+    }
 
-      if (affordable) {
-        btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor(btnColor));
-        btn.on('pointerdown', () => {
-          if (this.meta.purchaseUpgrade(upgrade.id)) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_confirm');
-            this.drawUI();
-          }
-        });
-      }
+    const prereqsMet = this.meta.meetsPrerequisites(upgrade.id);
+
+    if (!prereqsMet) {
+      const lockText = this.add.text(x, y, 'LOCKED', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#aa4444',
+        backgroundColor: '#221111', padding: { x: 6, y: 2 },
+      }).setInteractive();
+
+      // Tooltip on hover showing missing prerequisites
+      lockText.on('pointerover', () => {
+        const info = this.meta.getPrerequisiteInfo(upgrade.id);
+        const tipText = 'Requires:\n' + info.missing.map(m => '  ' + m).join('\n');
+        this._prereqTooltip = this.add.text(x - 120, y + 18, tipText, {
+          fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
+          backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
+          wordWrap: { width: 200 },
+        }).setDepth(950);
+      });
+      lockText.on('pointerout', () => {
+        if (this._prereqTooltip) {
+          this._prereqTooltip.destroy();
+          this._prereqTooltip = null;
+        }
+      });
+      return;
+    }
+
+    const cost = this.meta.getNextCost(upgrade.id);
+    const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
+    const suffix = currency === 'valor' ? 'V' : 'S';
+    const btnColor = affordable ? '#88ff88' : '#555555';
+    const btn = this.add.text(x, y, `${cost}${suffix}`, {
+      fontFamily: 'monospace', fontSize: '11px', color: btnColor,
+      backgroundColor: affordable ? '#334433' : '#222222',
+      padding: { x: 6, y: 2 },
+    });
+
+    if (affordable) {
+      btn.setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor(btnColor));
+      btn.on('pointerdown', () => {
+        if (this.meta.purchaseUpgrade(upgrade.id)) {
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          this.drawUI();
+        }
+      });
     }
   }
 

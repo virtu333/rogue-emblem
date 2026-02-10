@@ -23,6 +23,7 @@ export class MetaProgressionManager {
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};  // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
+    this.milestones = new Set();  // e.g. "beatAct1", "beatAct2", "beatAct3"
 
     try {
       const raw = localStorage.getItem(this.storageKey);
@@ -42,6 +43,8 @@ export class MetaProgressionManager {
         if (saved.purchasedUpgrades) this.purchasedUpgrades = saved.purchasedUpgrades;
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
+        // Migration: old saves without milestones default to empty
+        if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
       }
     } catch (_) { /* incognito / quota exceeded */ }
   }
@@ -106,7 +109,86 @@ export class MetaProgressionManager {
     return this.getUpgradeLevel(id) >= upgrade.maxLevel;
   }
 
+  // --- Milestone methods ---
+
+  hasMilestone(milestone) {
+    return this.milestones.has(milestone);
+  }
+
+  recordMilestone(milestone) {
+    if (this.milestones.has(milestone)) return;
+    this.milestones.add(milestone);
+    this._save();
+  }
+
+  getMilestones() {
+    return [...this.milestones];
+  }
+
+  // --- Prerequisite methods ---
+
+  /**
+   * Check if all prerequisites for an upgrade are met.
+   * @param {string} id - upgrade ID
+   * @returns {boolean}
+   */
+  meetsPrerequisites(id) {
+    const upgrade = this.upgradesData.find(u => u.id === id);
+    if (!upgrade || !upgrade.requires) return true;
+    const reqs = upgrade.requires;
+
+    if (reqs.upgrades) {
+      for (const req of reqs.upgrades) {
+        if (this.getUpgradeLevel(req.id) < req.level) return false;
+      }
+    }
+    if (reqs.milestones) {
+      for (const m of reqs.milestones) {
+        if (!this.milestones.has(m)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Get structured info about prerequisites for UI display.
+   * @param {string} id - upgrade ID
+   * @returns {{ met: boolean, missing: string[] }} - missing is human-readable list
+   */
+  getPrerequisiteInfo(id) {
+    const upgrade = this.upgradesData.find(u => u.id === id);
+    if (!upgrade || !upgrade.requires) return { met: true, missing: [] };
+
+    const missing = [];
+    const reqs = upgrade.requires;
+
+    if (reqs.upgrades) {
+      for (const req of reqs.upgrades) {
+        if (this.getUpgradeLevel(req.id) < req.level) {
+          const reqUpgrade = this.upgradesData.find(u => u.id === req.id);
+          const name = reqUpgrade ? reqUpgrade.name : req.id;
+          missing.push(`${name} Lv${req.level}`);
+        }
+      }
+    }
+    if (reqs.milestones) {
+      const MILESTONE_LABELS = {
+        beatAct1: 'Beat Act 1',
+        beatAct2: 'Beat Act 2',
+        beatAct3: 'Beat Act 3',
+      };
+      for (const m of reqs.milestones) {
+        if (!this.milestones.has(m)) {
+          missing.push(MILESTONE_LABELS[m] || m);
+        }
+      }
+    }
+
+    return { met: missing.length === 0, missing };
+  }
+
   purchaseUpgrade(id) {
+    if (!this.meetsPrerequisites(id)) return false;
     if (!this.canAfford(id)) return false;
     const cost = this.getNextCost(id);
     const currency = this.getCurrencyForUpgrade(id);
@@ -239,6 +321,7 @@ export class MetaProgressionManager {
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};
+    this.milestones = new Set();
     this._save();
   }
 
@@ -249,6 +332,7 @@ export class MetaProgressionManager {
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
       skillAssignments: this.skillAssignments,
+      milestones: [...this.milestones],
     };
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(payload));

@@ -85,11 +85,11 @@ describe('MetaProgressionManager', () => {
 
   it('getNextCost returns correct cost for each level of 5-tier recruit growth upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(25);   // L0 → cost[0] (reduced from 50)
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(75);   // L0 → cost[0]
     meta.purchasedUpgrades.recruit_hp_growth = 1;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(50);   // L1 → cost[1]
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(100);  // L1 → cost[1]
     meta.purchasedUpgrades.recruit_hp_growth = 4;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(125);  // L4 → cost[4] (reduced from 250)
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(350);  // L4 → cost[4]
     meta.purchasedUpgrades.recruit_hp_growth = 5;
     expect(meta.getNextCost('recruit_hp_growth')).toBeNull();  // maxed
   });
@@ -98,7 +98,7 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     expect(meta.getNextCost('recruit_hp_flat')).toBe(200);
     meta.purchasedUpgrades.recruit_hp_flat = 2;
-    expect(meta.getNextCost('recruit_hp_flat')).toBe(700);
+    expect(meta.getNextCost('recruit_hp_flat')).toBe(1000);
     meta.purchasedUpgrades.recruit_hp_flat = 3;
     expect(meta.getNextCost('recruit_hp_flat')).toBeNull();
   });
@@ -126,18 +126,18 @@ describe('MetaProgressionManager', () => {
 
   it('canAfford checks correct currency for valor upgrades', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.totalValor = 50;
+    meta.totalValor = 100;
     meta.totalSupply = 0;
-    expect(meta.canAfford('lord_hp_growth')).toBe(true);  // costs 50V
-    expect(meta.canAfford('recruit_hp_growth')).toBe(false); // costs 25S, but supply is 0
+    expect(meta.canAfford('lord_hp_growth')).toBe(true);  // costs 100V
+    expect(meta.canAfford('recruit_hp_growth')).toBe(false); // costs 75S, but supply is 0
   });
 
   it('canAfford checks correct currency for supply upgrades', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalValor = 0;
-    meta.totalSupply = 25;
-    expect(meta.canAfford('recruit_hp_growth')).toBe(true);  // costs 25S
-    expect(meta.canAfford('lord_hp_growth')).toBe(false);    // costs 50V, but valor is 0
+    meta.totalSupply = 75;
+    expect(meta.canAfford('recruit_hp_growth')).toBe(true);  // costs 75S
+    expect(meta.canAfford('lord_hp_growth')).toBe(false);    // costs 100V, but valor is 0
   });
 
   it('canAfford returns false for maxed upgrade', () => {
@@ -173,7 +173,7 @@ describe('MetaProgressionManager', () => {
     meta.totalValor = 300;
     const result = meta.purchaseUpgrade('recruit_hp_growth');
     expect(result).toBe(true);
-    expect(meta.getTotalSupply()).toBe(275); // 300 - 25
+    expect(meta.getTotalSupply()).toBe(225); // 300 - 75
     expect(meta.getTotalValor()).toBe(300);  // untouched
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(1);
   });
@@ -184,7 +184,7 @@ describe('MetaProgressionManager', () => {
     meta.totalValor = 300;
     const result = meta.purchaseUpgrade('lord_hp_growth');
     expect(result).toBe(true);
-    expect(meta.getTotalValor()).toBe(250);  // 300 - 50
+    expect(meta.getTotalValor()).toBe(200);  // 300 - 100
     expect(meta.getTotalSupply()).toBe(300); // untouched
     expect(meta.getUpgradeLevel('lord_hp_growth')).toBe(1);
   });
@@ -549,6 +549,182 @@ describe('MetaProgressionManager', () => {
     meta.assignSkill('Edric', 'sol');
     meta.reset();
     expect(meta.getSkillAssignments()).toEqual({});
+  });
+
+  // --- Milestone methods ---
+
+  it('starts with no milestones', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.hasMilestone('beatAct1')).toBe(false);
+    expect(meta.getMilestones()).toEqual([]);
+  });
+
+  it('recordMilestone adds and persists a milestone', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct1');
+    expect(meta.hasMilestone('beatAct1')).toBe(true);
+    expect(meta.getMilestones()).toEqual(['beatAct1']);
+    const saved = JSON.parse(store['emblem_rogue_meta_save']);
+    expect(saved.milestones).toEqual(['beatAct1']);
+  });
+
+  it('recordMilestone is idempotent', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct1');
+    meta.recordMilestone('beatAct1');
+    expect(meta.getMilestones()).toEqual(['beatAct1']);
+  });
+
+  it('loads milestones from localStorage', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 100, totalSupply: 100,
+      purchasedUpgrades: {}, milestones: ['beatAct1', 'beatAct2'],
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.hasMilestone('beatAct1')).toBe(true);
+    expect(meta.hasMilestone('beatAct2')).toBe(true);
+    expect(meta.hasMilestone('beatAct3')).toBe(false);
+  });
+
+  it('defaults milestones to empty for old saves without milestones field', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 100, totalSupply: 100,
+      purchasedUpgrades: {},
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getMilestones()).toEqual([]);
+    expect(meta.hasMilestone('beatAct1')).toBe(false);
+  });
+
+  it('reset clears milestones', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct1');
+    meta.reset();
+    expect(meta.hasMilestone('beatAct1')).toBe(false);
+    expect(meta.getMilestones()).toEqual([]);
+  });
+
+  // --- Prerequisite methods ---
+
+  it('meetsPrerequisites returns true for upgrades with no requires field', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.meetsPrerequisites('recruit_hp_growth')).toBe(true);
+    expect(meta.meetsPrerequisites('starting_gold')).toBe(true);
+  });
+
+  it('meetsPrerequisites checks upgrade level requirement', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // recruit_hp_flat requires recruit_hp_growth level 3
+    expect(meta.meetsPrerequisites('recruit_hp_flat')).toBe(false);
+    meta.purchasedUpgrades.recruit_hp_growth = 2;
+    expect(meta.meetsPrerequisites('recruit_hp_flat')).toBe(false);
+    meta.purchasedUpgrades.recruit_hp_growth = 3;
+    expect(meta.meetsPrerequisites('recruit_hp_flat')).toBe(true);
+  });
+
+  it('meetsPrerequisites checks milestone requirement', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // loot_quality requires beatAct1
+    expect(meta.meetsPrerequisites('loot_quality')).toBe(false);
+    meta.recordMilestone('beatAct1');
+    expect(meta.meetsPrerequisites('loot_quality')).toBe(true);
+  });
+
+  it('meetsPrerequisites checks combined upgrade + milestone requirements', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // lord_str_flat requires lord_str_growth level 3 + beatAct1
+    expect(meta.meetsPrerequisites('lord_str_flat')).toBe(false);
+    meta.purchasedUpgrades.lord_str_growth = 3;
+    expect(meta.meetsPrerequisites('lord_str_flat')).toBe(false); // still missing beatAct1
+    meta.recordMilestone('beatAct1');
+    expect(meta.meetsPrerequisites('lord_str_flat')).toBe(true);
+  });
+
+  it('meetsPrerequisites returns true for unknown upgrade ID', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.meetsPrerequisites('nonexistent')).toBe(true);
+  });
+
+  it('purchaseUpgrade blocked by unmet prerequisites', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 9999;
+    // recruit_hp_flat requires recruit_hp_growth level 3
+    const result = meta.purchaseUpgrade('recruit_hp_flat');
+    expect(result).toBe(false);
+    expect(meta.getUpgradeLevel('recruit_hp_flat')).toBe(0);
+    expect(meta.getTotalSupply()).toBe(9999); // no deduction
+  });
+
+  it('purchaseUpgrade succeeds when prerequisites are met', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 9999;
+    meta.purchasedUpgrades.recruit_hp_growth = 3;
+    const result = meta.purchaseUpgrade('recruit_hp_flat');
+    expect(result).toBe(true);
+    expect(meta.getUpgradeLevel('recruit_hp_flat')).toBe(1);
+  });
+
+  it('purchaseUpgrade blocked by unmet milestone', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 9999;
+    // deploy_limit requires beatAct2
+    const result = meta.purchaseUpgrade('deploy_limit');
+    expect(result).toBe(false);
+    expect(meta.getUpgradeLevel('deploy_limit')).toBe(0);
+  });
+
+  it('purchaseUpgrade succeeds when milestone is met', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 9999;
+    meta.recordMilestone('beatAct2');
+    const result = meta.purchaseUpgrade('deploy_limit');
+    expect(result).toBe(true);
+    expect(meta.getUpgradeLevel('deploy_limit')).toBe(1);
+  });
+
+  it('getPrerequisiteInfo returns met:true for upgrades with no prereqs', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const info = meta.getPrerequisiteInfo('recruit_hp_growth');
+    expect(info.met).toBe(true);
+    expect(info.missing).toEqual([]);
+  });
+
+  it('getPrerequisiteInfo returns missing upgrade names', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const info = meta.getPrerequisiteInfo('recruit_hp_flat');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('Hardy Recruits Lv3');
+  });
+
+  it('getPrerequisiteInfo returns missing milestone labels', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const info = meta.getPrerequisiteInfo('loot_quality');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('Beat Act 1');
+  });
+
+  it('getPrerequisiteInfo returns combined missing info', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const info = meta.getPrerequisiteInfo('lord_str_flat');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('Lord Combat Training Lv3');
+    expect(info.missing).toContain('Beat Act 1');
+  });
+
+  it('lord_res_flat has no milestone requirement (only upgrade prereq)', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // lord_res_flat requires lord_res_growth level 3 but no milestone
+    meta.purchasedUpgrades.lord_res_growth = 3;
+    expect(meta.meetsPrerequisites('lord_res_flat')).toBe(true);
+  });
+
+  it('deploy_limit requires beatAct2 milestone', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.meetsPrerequisites('deploy_limit')).toBe(false);
+    meta.recordMilestone('beatAct1');
+    expect(meta.meetsPrerequisites('deploy_limit')).toBe(false); // needs beatAct2
+    meta.recordMilestone('beatAct2');
+    expect(meta.meetsPrerequisites('deploy_limit')).toBe(true);
   });
 });
 
