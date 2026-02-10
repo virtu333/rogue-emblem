@@ -3388,7 +3388,7 @@ export class BattleScene extends Phaser.Scene {
     const color = phase === 'player' ? '#3366cc' : '#cc3333';
     const banner = this.add.text(
       this.cameras.main.centerX, this.cameras.main.centerY,
-      `Turn ${turn} â€” ${label}`,
+      `Turn ${turn} - ${label}`,
       {
         fontFamily: 'monospace', fontSize: '20px', color,
         backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
@@ -4618,3 +4618,4 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 }
+
