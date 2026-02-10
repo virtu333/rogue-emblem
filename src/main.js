@@ -13,6 +13,7 @@ import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
+let gameBooted = false;
 
 // Create Web Audio context early so Phaser always reuses it (starts suspended).
 // Call unlockAudio() during a user gesture to resume it before Phaser boots.
@@ -25,6 +26,9 @@ function unlockAudio() {
 }
 
 function bootGame(user) {
+  if (gameBooted) return;
+  gameBooted = true;
+
   if (user) {
     cloudState = {
       userId: user.id,
@@ -34,6 +38,10 @@ function bootGame(user) {
 
   // Stop auth screen animation + music before Phaser takes over
   if (window.stopAuthScreen) window.stopAuthScreen();
+
+  // Remove auth listeners to prevent stale handlers from re-triggering
+  authSkip.removeEventListener('click', handleSkip);
+  authForm.removeEventListener('submit', handleSubmit);
 
   document.getElementById('auth-overlay').style.display = 'none';
   document.getElementById('game-container').style.display = 'block';
@@ -100,12 +108,12 @@ authToggle.addEventListener('click', () => {
   authError.textContent = '';
 });
 
-authSkip.addEventListener('click', () => {
+function handleSkip() {
   unlockAudio();
   bootGame(null);
-});
+}
 
-authForm.addEventListener('submit', async (e) => {
+async function handleSubmit(e) {
   e.preventDefault();
   unlockAudio();
   authError.textContent = '';
@@ -133,4 +141,7 @@ authForm.addEventListener('submit', async (e) => {
     authSubmit.disabled = false;
     authSubmit.textContent = isRegisterMode ? 'Register' : 'Log In';
   }
-});
+}
+
+authSkip.addEventListener('click', handleSkip);
+authForm.addEventListener('submit', handleSubmit);

@@ -9,7 +9,7 @@ import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForg
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
-import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
+import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
@@ -386,7 +386,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   handleChurch(node) {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.rest, this, 300); // Peaceful music
+    if (audio) audio.playMusic(pickTrack(MUSIC.rest), this, 300); // Peaceful music
 
     this.showChurchOverlay(node);
   }
@@ -578,7 +578,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   handleShop(node) {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.shop, this, 300);
+    if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
 
     const rm = this.runManager;
     const shopItems = generateShopInventory(

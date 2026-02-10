@@ -564,6 +564,7 @@
     bgMusic.volume = musicVol;
 
     function tryPlayMusic() {
+      if (!bgMusic) return;
       bgMusic.play().catch(function() {});
     }
 
@@ -580,11 +581,16 @@
     // Expose cleanup for main.js to call
     window.stopAuthScreen = function() {
       cancelAnimationFrame(animId);
-      bgMusic.pause();
-      bgMusic.src = '';
-      window.removeEventListener('resize', resize);
+      // Remove interaction listeners FIRST to prevent late events from restarting music
       document.removeEventListener('click', onFirstInteraction);
       document.removeEventListener('keydown', onFirstInteraction);
+      window.removeEventListener('resize', resize);
+      // Stop and discard audio — null ref prevents any pending .play() Promise from mattering
+      if (bgMusic) {
+        bgMusic.pause();
+        bgMusic.src = '';
+        bgMusic = null;
+      }
     };
   })();
   </script>
