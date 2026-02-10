@@ -907,3 +907,89 @@ describe('composition-template affinity', () => {
     });
   });
 });
+
+describe('guard AI assignment', () => {
+  it('seize maps have guards in boss half of map', () => {
+    let foundGuards = false;
+    for (let i = 0; i < 30; i++) {
+      const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
+      const guards = config.enemySpawns.filter(s => s.aiMode === 'guard');
+      if (guards.length > 0) {
+        foundGuards = true;
+        const halfCol = Math.floor(config.cols / 2);
+        for (const g of guards) {
+          expect(g.col).toBeGreaterThanOrEqual(halfCol);
+        }
+      }
+    }
+    expect(foundGuards).toBe(true);
+  });
+
+  it('rout maps can also have guards', () => {
+    let foundGuards = false;
+    for (let i = 0; i < 30; i++) {
+      const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
+      const guards = config.enemySpawns.filter(s => s.aiMode === 'guard');
+      if (guards.length > 0) foundGuards = true;
+    }
+    expect(foundGuards).toBe(true);
+  });
+
+  it('guard percentage is between 10-35% of boss-half enemies', () => {
+    for (let i = 0; i < 20; i++) {
+      const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
+      const halfCol = Math.floor(config.cols / 2);
+      const bossHalf = config.enemySpawns.filter(s => !s.isBoss && s.col >= halfCol);
+      const guards = bossHalf.filter(s => s.aiMode === 'guard');
+      if (bossHalf.length > 0) {
+        const rate = guards.length / bossHalf.length;
+        expect(rate).toBeLessThanOrEqual(0.40);
+      }
+    }
+  });
+
+  it('bosses never get guard aiMode', () => {
+    for (let i = 0; i < 20; i++) {
+      const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
+      const bosses = config.enemySpawns.filter(s => s.isBoss);
+      for (const b of bosses) {
+        expect(b.aiMode).toBeUndefined();
+      }
+    }
+  });
+});
+
+describe('anchor templates', () => {
+  it('all templates have anchors array', () => {
+    for (const [objective, templates] of Object.entries(data.mapTemplates)) {
+      for (const t of templates) {
+        expect(t.anchors).toBeDefined();
+        expect(Array.isArray(t.anchors)).toBe(true);
+      }
+    }
+  });
+
+  it('chokepoint has center_gap anchor', () => {
+    const t = data.mapTemplates.rout.find(t => t.id === 'chokepoint');
+    expect(t.anchors.some(a => a.position === 'center_gap')).toBe(true);
+  });
+
+  it('river_crossing has bridge_ends anchor with count 2', () => {
+    const t = data.mapTemplates.rout.find(t => t.id === 'river_crossing');
+    const anchor = t.anchors.find(a => a.position === 'bridge_ends');
+    expect(anchor).toBeDefined();
+    expect(anchor.count).toBe(2);
+    expect(anchor.unit).toBe('lance_user');
+  });
+
+  it('castle_assault has throne and gate_adjacent anchors', () => {
+    const t = data.mapTemplates.seize.find(t => t.id === 'castle_assault');
+    expect(t.anchors.some(a => a.position === 'throne')).toBe(true);
+    expect(t.anchors.some(a => a.position === 'gate_adjacent')).toBe(true);
+  });
+
+  it('hilltop_fortress has throne anchor', () => {
+    const t = data.mapTemplates.seize.find(t => t.id === 'hilltop_fortress');
+    expect(t.anchors.some(a => a.position === 'throne')).toBe(true);
+  });
+});

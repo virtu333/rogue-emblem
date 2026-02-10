@@ -1,5 +1,7 @@
-// AIController — Basic aggressive enemy AI
+// AIController â€” Enemy AI with boss throne clamping and guard behavior
 // Processes enemies sequentially: move toward nearest player, attack if in range.
+// Boss enemies on seize maps stay within 1 tile of throne.
+// Guard enemies wait until a player enters 3-tile range, then permanently switch to chase.
 
 import {
   gridDistance,
@@ -7,10 +9,14 @@ import {
   getCombatForecast,
 } from './Combat.js';
 
+const DEBUG_AI = false;
+
 export class AIController {
-  constructor(grid, gameData) {
+  constructor(grid, gameData, options = {}) {
     this.grid = grid;
     this.gameData = gameData;
+    this.objective = options.objective || 'rout';
+    this.thronePos = options.thronePos || null;
   }
 
   /**
@@ -59,8 +65,33 @@ export class AIController {
    * Decide where to move and who to attack.
    * Strategy: find tile in movement range that puts a player in weapon range.
    * If none, move toward nearest player.
+   *
+   * Special behaviors:
+   * - Guard enemies: stay put until a player/NPC is within 3 manhattan tiles,
+   *   then permanently switch to chase mode.
+   * - Boss on seize maps: only consider tiles within 1 manhattan tile of throne.
+   *   If no attack available, stay put (don't chase away from throne).
    */
   _decideAction(enemy, allEnemies, playerUnits, npcUnits) {
+    // --- Guard AI check ---
+    if (enemy.aiMode === 'guard') {
+      const attackableUnits = [...playerUnits, ...(npcUnits || [])];
+      const nearestDist = Math.min(
+        ...attackableUnits.map(u => gridDistance(enemy.col, enemy.row, u.col, u.row)),
+        Infinity
+      );
+
+      if (nearestDist <= 3) {
+        // Trigger: permanently switch to chase
+        enemy.aiMode = 'chase';
+        if (DEBUG_AI) console.log(`[AI] Guard triggered at (${enemy.col},${enemy.row}), dist=${nearestDist}`);
+      } else {
+        // Stay put â€” no movement, no attack
+        if (DEBUG_AI) console.log(`[AI] Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
+        return { path: null, target: null };
+      }
+    }
+
     // Build unit position map (exclude this enemy from blocking)
     const unitPositions = new Map();
     for (const u of [...allEnemies, ...playerUnits, ...(npcUnits || [])]) {
@@ -74,12 +105,26 @@ export class AIController {
     );
 
     // Add current position to candidates
-    const candidates = [{ col: enemy.col, row: enemy.row }];
+    let candidates = [{ col: enemy.col, row: enemy.row }];
     for (const [key] of moveRange) {
       const [col, row] = key.split(',').map(Number);
       // Exclude tiles occupied by other units
       if (unitPositions.has(key)) continue;
       candidates.push({ col, row });
+    }
+
+    // --- Boss throne clamping ---
+    const isBossOnSeize = enemy.isBoss && this.objective === 'seize' && this.thronePos;
+    if (isBossOnSeize) {
+      // Only consider tiles within 1 manhattan tile of throne
+      candidates = candidates.filter(t =>
+        gridDistance(t.col, t.row, this.thronePos.col, this.thronePos.row) <= 1
+      );
+      // Always include current position as fallback
+      if (!candidates.some(t => t.col === enemy.col && t.row === enemy.row)) {
+        candidates.push({ col: enemy.col, row: enemy.row });
+      }
+      if (DEBUG_AI) console.log(`[AI] Boss clamped to ${candidates.length} tiles near throne`);
     }
 
     // Find best attack opportunity
@@ -110,7 +155,13 @@ export class AIController {
       return { path, target: bestAttack.target };
     }
 
-    // No attack possible — move toward nearest player
+    // Boss on seize: don't chase if no attack available â€” stay on throne
+    if (isBossOnSeize) {
+      if (DEBUG_AI) console.log(`[AI] Boss staying on throne â€” no targets in range`);
+      return { path: null, target: null };
+    }
+
+    // No attack possible â€” move toward nearest player
     const nearest = this._findNearestPlayer(enemy, playerUnits);
     if (!nearest) return { path: null, target: null };
 

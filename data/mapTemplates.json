@@ -23,6 +23,7 @@
         }
       ],
       "features": [],
+      "anchors": [],
       "enemyWeights": {
         "cavalry": 1.3
       }
@@ -55,6 +56,9 @@
         }
       ],
       "features": [],
+      "anchors": [
+        { "position": "bridge_ends", "unit": "lance_user", "count": 2 }
+      ],
       "minBridges": 2,
       "enemyWeights": {
         "archer": 1.5,
@@ -85,6 +89,7 @@
         }
       ],
       "features": [],
+      "anchors": [],
       "enemyWeights": {
         "infantry": 1.5,
         "cavalry": 0.5,
@@ -129,6 +134,9 @@
         }
       ],
       "features": [],
+      "anchors": [
+        { "position": "center_gap", "unit": "highest_level" }
+      ],
       "enemyWeights": {
         "knight": 1.5,
         "lance": 1.3
@@ -166,6 +174,10 @@
       "features": [
         { "type": "Throne", "position": "right" }
       ],
+      "anchors": [
+        { "position": "throne", "unit": "boss_or_strongest" },
+        { "position": "gate_adjacent", "unit": "knight" }
+      ],
       "enemyWeights": {
         "knight": 1.5,
         "archer": 1.3,
@@ -201,6 +213,9 @@
       ],
       "features": [
         { "type": "Throne", "position": "topRight" }
+      ],
+      "anchors": [
+        { "position": "throne", "unit": "boss_or_strongest" }
       ],
       "enemyWeights": {
         "archer": 1.3,
