@@ -2,38 +2,41 @@
 
 ## Current State
 
-Phases 1-9 complete. 571 tests passing. Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 21 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 626 tests passing. Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
-## Priority Order (Updated — Post-Playtest)
+## Priority Order (Feb 2026)
 
 Organized by impact and logical sequencing:
 
+### Done
+1. ~~**Playtest Bugfixes (P0)**~~ — Canto+Wait, stale tooltip, enemy range, node freeze
+2. ~~**UI Polish (P1)**~~ — V-overlay tabs, combat forecast, weapon proficiency, forge hover
+3. ~~**Anti-Juggernaut & Balance (Wave 0)**~~ — XP scaling, Sunder weapons, enemy skills, shop frequency
+4. ~~**Church Upgrades**~~ — Heal/Revive/Promote 3-service menu
+5. ~~**Playtest Fixes (Feb 2026)**~~ — Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
+
 ### Now (Current Sprint)
-1. **Playtest Bugfixes** — 4 confirmed bugs from playtesting (Canto+Wait, stale tooltip, enemy range, node freeze)
-2. **UI Polish** — Weapon proficiency display, V-overlay tabs, shop forge hover, guaranteed consumables
-3. **Anti-Juggernaut & Balance** — XP scaling rework, Sunder weapons, existing Wave 0 items
+6. **Map Generation Enhancements** — Smarter placement + fog/recruit visibility + boss AI + guard enemies
 
 ### Next (1-3 Months)
-4. **Map Generation Enhancements** — Smarter placement + fog/recruit visibility + boss AI + guard enemies
-5. **Elite/Miniboss Nodes + Post-Act** — Endgame content and difficulty curve
-6. **Node Economy Rebalance** — Dynamic recruits, Church upgrades, shop frequency
-7. **Expanded Skills** — Command skills, on-kill triggers (tactical depth)
-8. **Blessing System** — Neow-style run modifiers, high replayability boost
+7. **Elite/Miniboss Nodes + Post-Act** — Endgame content and difficulty curve
+8. **Dynamic Recruit Nodes** — Roster-aware recruit frequency
+9. **Expanded Skills** — Command skills, on-kill triggers (tactical depth)
+10. **Blessing System** — Neow-style run modifiers, high replayability boost
 
 ### Later (3-6+ Months)
-9. **Additional Map Objectives** — Defend, Survive, Escape (battle variety)
-10. **Special Terrain Hazards** — Ice, lava, environmental effects
-11. **Meta-Progression Expansion** — Full GDD §9.2 vision
-12. **QoL** — Undo movement, battle log, battle speed (ongoing)
-13. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
-14. **Special Characters** + Lord selection
-15. **Story Intro + Narrative** — Run-start story scene, character backstories, world lore
-16. **Story scaffold + dialogue**
-17. **Fog of war extras** — Torch items + vision skills
-18. **Difficulty modes + run modifiers**
-19. **Full battle animations**
-20. **Additional biomes**
-21. **Campaign system**
+11. **Additional Map Objectives** — Defend, Survive, Escape (battle variety)
+12. **Special Terrain Hazards** — Ice, lava, environmental effects
+13. **Meta-Progression Expansion** — Full GDD §9.2 vision
+14. **QoL** — Undo movement, battle log, battle speed (ongoing)
+15. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
+16. **Special Characters** + Lord selection
+17. **Story Intro + Narrative** — Run-start story scene, character backstories, world lore
+18. **Fog of war extras** — Torch items + vision skills
+19. **Difficulty modes + run modifiers**
+20. **Full battle animations**
+21. **Additional biomes**
+22. **Campaign system**
 
 ---
 
@@ -55,150 +58,11 @@ Organized by impact and logical sequencing:
 - **Wave 0** (Balance + Anti-Juggernaut) — Complete. Sunder weapons, XP scaling, enemy skills, shop frequency, promoted recruits, guaranteed shop consumables
 - **Wave P1** (UI Polish) — Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
 - **Church Upgrades** — Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
+- **Playtest Fixes (Feb 2026)** — Complete. FE GBA-style combat forecast with weapon cycling, weapon reference integrity after JSON round-trips (relinkWeapon), proficiency enforcement across all equip/heal/relink paths, music overlap singleton boot guard, quadratic volume curve, HP persistence hint, recruit spawn bias toward players
 
 ---
 
-## NOW: Bugfixes, UI Polish & Balance
-
-### Wave P0: Playtest Bugfixes
-**Priority:** Critical — Bugs found during playtesting
-**Effort:** 1-2 days
-**Source:** Playtesting session (Feb 2026)
-
-- [ ] **BUG: Canto activates after Wait**
-  - **Symptom:** Walk → Wait → unit gets Canto movement → must Wait again
-  - **Root cause:** `finishUnitAction()` always checks for Canto remaining movement, even when Wait was explicitly selected. Wait should unconditionally end the turn
-  - **Fix:** Pass `skipCanto` flag from Wait handler: `finishUnitAction(unit, { skipCanto: true })`. In `finishUnitAction`, skip the Canto check when flag is set
-  - Files: `src/scenes/BattleScene.js` (line ~1763 Wait handler, line ~1175 Canto check)
-
-- [ ] **BUG: Stale weapon tooltip after trade**
-  - **Symptom:** Trade spear away, floating tooltip still shows spear as equipped
-  - **Root cause:** Inspection panel not hidden/refreshed when trade UI opens. `showBattleTradeUI()` doesn't close the inspection panel, so it retains stale weapon data
-  - **Fix:** Call `this.inspectionPanel.hide()` at the start of `showBattleTradeUI()`
-  - Files: `src/scenes/BattleScene.js` (line ~1358 trade UI open)
-
-- [ ] **BUG: Right-click enemy range not visible**
-  - **Symptom:** Right-clicking enemy doesn't show attack range overlay. Code exists in `onRightClick()` but user reports not seeing it
-  - **Investigation needed:** Toggle logic may hide range immediately, or range display may be behind other overlays. Check depth ordering and toggle state
-  - Files: `src/scenes/BattleScene.js` (line ~840 `onRightClick`)
-
-- [ ] **BUG: Recruit node freeze in Act 3**
-  - **Symptom:** Game freezes when clicking recruit node (music stops, map visible but unresponsive). Specific to one save state (user "virtu", abandoned)
-  - **Root cause:** Unknown — guard clauses exist for missing class data, but something else may throw during BattleScene init
-  - **Fix:** Add try/catch around entire BattleScene `create()` method. On error, log to console and transition back to NodeMapScene with error message instead of freezing
-  - Files: `src/scenes/BattleScene.js` (create method)
-
-**Success Criteria:**
-- [ ] Wait always ends unit turn, no Canto follow-up
-- [ ] Tooltip refreshes correctly after every trade
-- [ ] Right-click enemy shows red movement + attack range overlay
-- [ ] Node transition errors recover gracefully instead of freezing
-
----
-
-### Wave P1: UI Polish
-**Priority:** High — Quality of life issues that confuse players
-**Effort:** 2-3 days
-
-- [ ] **Weapon proficiency display**
-  - Show weapon proficiencies in unit detail overlay (V-key view) Stats tab
-  - Format: `Prof: Sword, Lance` or icon-based with proficiency level (Prof/Mast)
-  - Files: `src/ui/UnitDetailOverlay.js`
-
-- [ ] **V-key detail overlay — Stats/Gear tabs**
-  - Full overlay is getting crowded. Split into tabbed Stats/Gear view (same pattern as UnitInspectionPanel's existing tabs, but with more screen real estate)
-  - Stats tab: stats, growths, weapon proficiencies, terrain bonuses
-  - Gear tab: inventory (with equipped marker), consumables, accessory, skills
-  - Arrow key or clickable tab navigation
-  - Files: `src/ui/UnitDetailOverlay.js`
-
-- [ ] **Shop forge: show weapon stats on hover**
-  - When hovering over a weapon in the Forge tab, show Mt/Ht/Cr/Wt/Rng tooltip
-  - Show current forge levels per stat `(N/3)` in the tooltip
-  - Files: `src/scenes/NodeMapScene.js` (forge tab rendering)
-
-- [ ] **Guaranteed Vulnerary/Elixir in shops**
-  - Pin 1 Vulnerary + 1 Elixir in every shop inventory (always available, not random)
-  - Remaining shop slots (2-4) still randomized from pool
-  - Files: `src/engine/LootSystem.js` (`generateShopInventory`)
-
-**Success Criteria:**
-- [ ] Players can see weapon proficiencies without guessing
-- [ ] Detail overlay is readable and organized, not overflowing
-- [ ] Forge decisions are informed by current weapon stats
-- [ ] Healing items always purchasable
-
----
-
-### Wave 0: Balance & Anti-Juggernaut
-**Priority:** High — Balance issues and anti-snowball mechanics
-**Effort:** 3-5 days
-
-#### Existing Balance Items
-- [ ] **Act 3 Promoted Recruits**
-  - Change `recruits.json` Act 3 pool to promoted classes only
-  - Adjust level range from [12-15] to [5-8] (post-promotion levels)
-  - Reasoning: Act 3 recruits arrive too late to promote naturally, should match player party power
-  - Files: `data/recruits.json`
-
-- [ ] **Enemy Skill Scaling by Act**
-  - Enemies.json: Add `skillChance` per act (act1: 10%, act2: 25%, act3: 50%, finalBoss: 80%)
-  - MapGenerator: Roll skill chance per enemy, assign random skill from pool if passes
-  - Boss enemies: always get 1-2 skills regardless of act
-  - Reasoning: Vantage/Wrath showing up in Act 1 is frustrating, should scale with difficulty
-  - Files: `data/enemies.json`, `src/engine/MapGenerator.js`
-
-- [ ] **Weight Mechanic Rework**
-  - Change formula: `effectiveWeight = Math.max(0, weapon.weight - Math.floor(unit.stats.STR / 5))`
-  - Every 5 STR negates 1 weight point
-  - Reasoning: Late-game units with 25+ STR should handle most weapons fine
-  - Files: `src/engine/Combat.js` (update `canDouble()` formula)
-
-- [ ] **Shop/Church Frequency Rebalance**
-  - NodeMapGenerator: Increase shop chance 15% → 25%, decrease church chance 10% → 5%
-  - Reasoning: Shops are high-value player decision points, churches are weak (just heal spam)
-  - Files: `src/engine/NodeMapGenerator.js` (NODE_TYPE weights)
-
-#### Anti-Juggernaut: XP Scaling Rework
-- [ ] **Steeper XP diminishing returns**
-  - Current: linear −5 XP per level advantage (level 10 vs level 1 = 1 XP combat / 21 XP kill)
-  - Proposed: exponential decay after +3 level advantage
-    - +0 to +3 levels: current formula (−5 per level)
-    - +4 to +6 levels: −8 per level (steeper)
-    - +7+ levels: flat 1 XP (hard floor, even for kills)
-  - Kill bonus also scales down: full bonus at +0-3, half at +4-6, zero at +7+
-  - Reasoning: A level 12 unit killing level 3 enemies should gain essentially nothing
-  - Files: `src/engine/UnitManager.js` (`calculateXP`)
-
-#### Anti-Juggernaut: Sunder Weapons (Enemy-Only)
-- [ ] **Sunder weapon class** — low might, halved DEF calculation, high accuracy
-  - 4 weapons: Sunder Sword, Sunder Lance, Sunder Axe, Sunder Bow
-  - Stats: Mt 3-5, Hit 90-95, Crit 10-15, Wt 4-6
-  - Special: `"Halves target DEF"` — Combat.js calculates physical damage as if defender DEF is halved (round down)
-  - Enemy-only: not in loot/shop pools, no `price` field
-  - Files: `data/weapons.json`, `src/engine/Combat.js` (add DEF-halving special check)
-
-- [ ] **Sunder enemy spawn rates**
-  - `enemies.json`: Add `sunderChance` per act pool
-    - Act 1: 0% (never)
-    - Act 2: 8% of enemies get a Sunder weapon matching their proficiency
-    - Act 3: 20% of enemies
-    - Final Boss: 25% of enemies
-  - MapGenerator: Roll sunder chance per enemy after class selection, replace equipped weapon if passes
-  - Reasoning: Punishes overleveled frontliners who tank everything. Forces player to use positioning/range instead of sending one unit forward
-  - Files: `data/enemies.json`, `src/engine/MapGenerator.js`
-
-**Success Criteria:**
-- [ ] Act 3 recruits arrive promoted and useful
-- [ ] Early acts feel less punishing (fewer skilled enemies)
-- [ ] Heavy weapons viable on high-STR units
-- [ ] More shop encounters per run
-- [ ] Overleveled units can't efficiently farm low-level enemies
-- [ ] Sunder enemies create real threat to tanky frontliners without being unfair
-
----
-
-## NEXT: Map Quality & Endgame
+## NOW: Map Quality & AI
 
 ### Wave 2: Map Generation Enhancements
 **Priority:** High — Biggest bang-for-buck improvement to tactical feel
@@ -311,11 +175,12 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 ---
 
-### Wave 4: Node Economy Rebalance
+### Wave 4: Dynamic Recruit Nodes
 **Priority:** Medium-High — Improves run pacing and player agency
-**Effort:** 3-4 days
+**Effort:** 1-2 days
 
-#### 4A: Dynamic Recruit Nodes
+*Note: Church Service Upgrades (4B) already complete — Heal/Revive/Promote 3-service menu shipped.*
+
 - [ ] RunManager: Track `rosterSize` and `rosterCap`
 - [ ] NodeMapGenerator: Increase recruit node chance if `rosterSize < rosterCap - 2`
   - Normal: 15% chance per eligible node
@@ -324,23 +189,9 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 **Impact:** Players who lose units aren't punished with no recovery options.
 
-#### 4B: Church Service Upgrades
-- [ ] Add `NODE_TYPES.CHURCH` service menu (new UI in NodeMapScene)
-- [ ] **Heal All Units** — Free (existing behavior)
-- [ ] **Revive Fallen Unit** — 1000 gold, pick from `rm.fallenUnits[]` array
-  - Revive at 50% HP, reset XP to nearest level threshold
-  - Can only revive non-lords
-  - Add `fallenUnits` array to RunManager state (push on unit death)
-- [ ] **Promote Unit** — 3000 gold, pick promotable unit (level 10+)
-  - Same as Master Seal but costs gold instead of item
-  - Alternative if no Master Seals in loot/shop
-
-**Impact:** Church becomes meaningful choice. Revive adds comeback mechanic without removing permadeath tension.
-
 **Success Criteria:**
-- [ ] Runs with early deaths still recoverable via revive
-- [ ] Promotion accessible even without Master Seal loot RNG
-- [ ] Church node worth visiting instead of skipping
+- [ ] Depleted rosters get more recruit opportunities
+- [ ] Recruit frequency doesn't flood the map
 
 ---
 
@@ -527,39 +378,21 @@ These include original map gen ideas plus critical fixes from playtesting.
 
 ## Roadmap Decisions & Tradeoffs
 
-### Why Bugfixes Before Everything?
-- **Reasoning:** Bugs degrade trust in the game. Canto+Wait is confusing, stale tooltips are misleading, freezes are game-ending. Small fixes, huge impact on perceived quality.
-- **Tradeoff:** Delays new features by 1-2 days. Worth it.
+### Why Map Generation Next?
+- Map gen improvements affect 100% of battles. Boss throne AI is nearly mandatory for seize maps. Guard enemies + terrain-aware placement make every fight feel smarter.
 
-### Why Anti-Juggernaut Before Map Generation?
-- **Reasoning:** Juggernauting is a dominant strategy that makes most tactical decisions irrelevant. If one unit can solo everything, map improvements don't matter. XP scaling + Sunder weapons together create a soft ceiling on single-unit dominance.
-- **Tradeoff:** Sunder weapons require new weapon data + Combat.js special handling. ~2 days of work for a mechanic that fundamentally changes late-game strategy.
-
-### Why UI Polish as Its Own Wave?
-- **Reasoning:** Multiple small UI issues (proficiency display, overlay tabs, forge hover) don't fit cleanly into balance or map gen waves. Grouping them lets us batch the UI work.
-- **Tradeoff:** Could be done incrementally alongside other waves, but batching avoids context-switching.
-
-### Why Boss AI + Guard Enemies in Wave 2?
-- **Reasoning:** Boss leaving throne on seize maps makes the objective trivial. Guard enemies create the defensive formation that makes approaching the boss tactically interesting. Both are AI changes that pair naturally with map gen improvements.
-- **Tradeoff:** Adds 2 days to Wave 2, but the boss AI fix is nearly mandatory for seize maps to feel right.
-
-### Why "Map Generation" Before "Elite Nodes"?
-- **Reasoning:** Map gen improvements affect 100% of battles. Elite nodes are 10% of battles.
-- **Tradeoff:** Elite nodes would be higher-stakes content, but low-quality maps hurt baseline experience.
-
-### Why "Blessing System" After "Skills Expansion"?
-- **Reasoning:** Blessings make every run feel different from the start. Huge replayability boost for medium-high effort. Positioned after tactical depth (skills, map gen) is established so blessings modify interesting systems.
-- **Tradeoff:** Could come earlier for immediate variety, but more valuable when there's a deeper game to modify.
+### Why Blessing System After Skills?
+- Blessings modify game systems — more valuable when there are deeper systems to modify. Positioned after tactical depth (skills, map gen) is established.
 
 ---
 
 ## Next Actions
 
-1. ~~**Wave P0** (Bugfixes)~~ ✅ Done
-2. ~~**Wave P1** (UI Polish)~~ ✅ Done
-3. ~~**Wave 0** (Balance + Anti-Juggernaut)~~ ✅ Done
-4. **Wave 2** (Map Generation Enhancements) — Next up
-5. **Playtest** after Wave 2, then proceed to Wave 3+
+1. ~~**Waves P0/P1/Wave 0** (Bugfixes, UI Polish, Balance)~~ ✅ Done
+2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ ✅ Done
+3. **Wave 2** (Map Generation Enhancements) — **Current**
+4. **Playtest** after Wave 2
+5. **Wave 3** (Elite/Miniboss Nodes) → **Wave 4** (Dynamic Recruits) → **Wave 5** (Skills) → **Wave 6** (Blessings)
 
 ## Deployment
 
