@@ -86,12 +86,12 @@ emblem-rogue/
 │   │   ├── HomeBaseScene.js # Meta-progression tabbed UI (6 tabs: Recruits/Lords/Economy/Battalion/Equip/Skills), Begin Run, ESC to title ✅
 │   │   ├── NodeMapScene.js # Node map, shop, roster menu, auto-save, gear icon, ESC pause, music ✅
 │   │   ├── BattleScene.js # Tactical battle, deploy, loot, recruitment, ESC pause, SFX, right-click enemy range ✅
-│   │   └── RunCompleteScene.js # Victory/defeat end screen, clears run save, awards renown, Home Base / Title ✅
+│   │   └── RunCompleteScene.js # Victory/defeat end screen, clears run save, awards meta currency, Home Base / Title ✅
 │   └── utils/             # Helpers
 │       ├── AudioManager.js # Music/SFX playback wrapper (stored on Phaser registry) ✅
 │       ├── musicConfig.js # Centralized MUSIC config, getMusicKey(purpose, act), ALL_MUSIC_KEYS (38 tracks) ✅
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
-│       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/renown economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
+│       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/meta economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
 ├── tests/                 # Vitest test suite (720 tests on main baseline, Feb 2026)
 │   ├── testData.js        # Shared data loader for tests
@@ -102,7 +102,7 @@ emblem-rogue/
 │   ├── RunManager.test.js # run state, progression, save/load, migration, determinism ✅
 │   ├── LootSystem.test.js # gold/reward calc, loot generation, shop inventory ✅
 │   ├── SettingsManager.test.js # 7 tests: defaults, load, save, clamp, error handling ✅
-│   ├── MetaProgressionManager.test.js # renown, upgrades, effect aggregation, economy knobs ✅
+│   ├── MetaProgressionManager.test.js # meta currency, upgrades, effect aggregation, economy knobs ✅
 │   ├── Accessories.test.js # equip/unequip, serialization, shop and loot interactions ✅
 │   ├── FogOfWar.test.js # vision rules, boundaries, fog constants ✅
 │   ├── ForgeSystem.test.js # forge eligibility, stat bonuses, naming, costs ✅
@@ -226,7 +226,7 @@ Follow this order — each phase should be testable:
 5. **Map Generation** ✅ — procedural maps from templates, randomized terrain, Rout + Seize objectives, enemy pools by act, boss enemies, reachability checks
 6. **Node Map** ✅ — branching node map per act, battle/rest/boss nodes, unit persistence between battles, act progression (act1→act2→act3→finalBoss), RunManager run state, victory/defeat end screen
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
-8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), Renown currency (earned per run), 41 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
+8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 41 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
 9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (18 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (51 total, throwables, effectiveness, specials) ✅ | Expanded skills (21 total, on-defend trigger) ✅ | Lord classes in classes.json (29 total) ✅ | **3 save slots + user flow rework** ✅
 10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Fire-and-forget cloud sync via `onSave` callbacks. Offline play supported.
 
@@ -277,3 +277,5 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 - **Testable phases:** Each build phase should produce something playable/verifiable.
 - **Classic FE feel:** Player Phase / Enemy Phase turns, weapon triangle matters, positioning matters, growth rates create unique units.
 - **Roguelike tension:** Permadeath (run ends on Edric's defeat only — other lords can fall), meaningful loot choices, randomized recruits, gold scarcity, deploy selection.
+
+
