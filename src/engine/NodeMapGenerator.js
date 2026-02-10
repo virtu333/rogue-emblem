@@ -102,21 +102,22 @@ export function generateNodeMap(actId, actConfig) {
     connectRows(rowNodes[r], rowNodes[r + 1]);
   }
 
-  // Post-process: guarantee 1-2 RECRUIT nodes per act (middle rows only)
+  // Post-process: guarantee 2-3 RECRUIT nodes per act (middle rows only)
   const convertibleTypes = [NODE_TYPES.BATTLE, NODE_TYPES.SHOP];
-  const middleNodes = nodes.filter(n =>
-    n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type)
-  );
-  const recruitCount = nodes.filter(n => n.type === NODE_TYPES.RECRUIT).length;
-  if (recruitCount === 0 && middleNodes.length > 0) {
-    const battleFirst = middleNodes.filter(n => n.type === NODE_TYPES.BATTLE);
-    const candidates = battleFirst.length > 0 ? battleFirst : middleNodes;
+  const targetRecruits = 2; // guaranteed minimum
+  for (let i = 0; i < targetRecruits; i++) {
+    const remaining = nodes.filter(n =>
+      n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type)
+    );
+    if (remaining.length === 0) break;
+    const battleFirst = remaining.filter(n => n.type === NODE_TYPES.BATTLE);
+    const candidates = battleFirst.length > 0 ? battleFirst : remaining;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.type = NODE_TYPES.RECRUIT;
     pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row);
   }
-  const currentRecruits = nodes.filter(n => n.type === NODE_TYPES.RECRUIT).length;
-  if (currentRecruits === 1 && Math.random() < 0.5) {
+  // 50% chance for a 3rd recruit
+  if (Math.random() < 0.5) {
     const remaining = nodes.filter(n =>
       n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type)
     );

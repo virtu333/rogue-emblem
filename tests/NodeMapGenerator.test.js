@@ -180,19 +180,19 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('guarantees at least 1 RECRUIT node per act (non-finalBoss)', () => {
+    it('guarantees at least 2 RECRUIT nodes per act (non-finalBoss)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const recruitCount = map.nodes.filter(n => n.type === NODE_TYPES.RECRUIT).length;
-        expect(recruitCount).toBeGreaterThanOrEqual(1);
+        expect(recruitCount).toBeGreaterThanOrEqual(2);
       }
     });
 
-    it('never more than 2 RECRUIT nodes per act', () => {
+    it('never more than 3 RECRUIT nodes per act', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const recruitCount = map.nodes.filter(n => n.type === NODE_TYPES.RECRUIT).length;
-        expect(recruitCount).toBeLessThanOrEqual(2);
+        expect(recruitCount).toBeLessThanOrEqual(3);
       }
     });
 
