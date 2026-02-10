@@ -101,19 +101,30 @@ export class AudioManager {
 
   _getLoopingMusicSounds() {
     const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
-    const safeRead = (obj, prop) => {
-      try {
-        return obj?.[prop];
-      } catch (_) {
-        return undefined;
-      }
-    };
     return sounds.filter((s) => {
-      if (!s || !safeRead(s, 'key')) return false;
-      const isLooping = Boolean(safeRead(s, 'loop') || safeRead(safeRead(s, 'config'), 'loop'));
-      const isActive = Boolean(safeRead(s, 'isPlaying') || safeRead(s, 'isPaused'));
-      return isLooping && isActive;
+      if (!s) return false;
+      const key = this._safeRead(s, 'key');
+      if (!key) return false;
+      const isLooping = Boolean(this._safeRead(s, 'loop') || this._safeRead(this._safeRead(s, 'config'), 'loop'));
+      const isActive = Boolean(this._safeRead(s, 'isPlaying') || this._safeRead(s, 'isPaused'));
+      // Conservative fallback: stale sound wrappers can throw for loop/config reads.
+      // Treat active music-key sounds as music even if loop flag is unreadable.
+      const looksLikeMusic = this._isMusicKey(key);
+      const matchesCurrent = s === this.currentMusic || key === this.currentMusicKey;
+      return isActive && (isLooping || looksLikeMusic || matchesCurrent);
     });
+  }
+
+  _safeRead(obj, prop) {
+    try {
+      return obj?.[prop];
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  _isMusicKey(key) {
+    return typeof key === 'string' && key.startsWith('music_');
   }
 
   _stopSound(sound, scene, fadeMs) {

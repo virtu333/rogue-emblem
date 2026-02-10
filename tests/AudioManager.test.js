@@ -68,4 +68,26 @@ describe('AudioManager', () => {
     expect(orphan.destroy).toHaveBeenCalledTimes(1);
     expect(oneShot.stop).not.toHaveBeenCalled();
   });
+
+  it('stops active music sounds even when loop getter throws', () => {
+    const staleMusic = {
+      key: 'music_explore_act1',
+      isPlaying: true,
+      stop: vi.fn(function stop() { this.isPlaying = false; }),
+      destroy: vi.fn(),
+    };
+    Object.defineProperty(staleMusic, 'loop', {
+      get() {
+        throw new Error('stale loop getter');
+      },
+    });
+    const sound = makeSoundManager({ sounds: [staleMusic] });
+    const audio = new AudioManager(sound);
+
+    audio.playMusic('music_battle_act1_1', null, 0);
+
+    expect(staleMusic.stop).toHaveBeenCalledTimes(1);
+    expect(staleMusic.destroy).toHaveBeenCalledTimes(1);
+    expect(audio.currentMusicKey).toBe('music_battle_act1_1');
+  });
 });
