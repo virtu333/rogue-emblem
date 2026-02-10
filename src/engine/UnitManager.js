@@ -111,8 +111,11 @@ export function checkLevelUpSkills(unit, classesData) {
     }
   }
 
-  // Lord L20 personal skill
-  if (unit._personalSkillL20 && unit.level >= unit._personalSkillL20.level) {
+  // Lord personal skill: base class level 20 OR promoted class level 10
+  if (unit._personalSkillL20 && (
+    (unit.tier === 'base' && unit.level >= 20) ||
+    (unit.tier === 'promoted' && unit.level >= 10)
+  )) {
     const result = learnSkill(unit, unit._personalSkillL20.skillId);
     if (result.learned) learned.push(unit._personalSkillL20.skillId);
   }

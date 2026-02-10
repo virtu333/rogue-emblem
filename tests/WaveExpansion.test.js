@@ -468,7 +468,7 @@ describe('L20 skill learning', () => {
     expect(unit._personalSkillL20).toEqual({ skillId: 'commanders_gambit', level: 20 });
   });
 
-  it('checkLevelUpSkills learns L20 skill at level 20', () => {
+  it('checkLevelUpSkills learns personal skill at base class level 20', () => {
     const edric = data.lords.find(l => l.name === 'Edric');
     const cls = data.classes.find(c => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
@@ -478,11 +478,32 @@ describe('L20 skill learning', () => {
     expect(unit.skills).toContain('commanders_gambit');
   });
 
-  it('does not learn L20 skill below level 20', () => {
+  it('checkLevelUpSkills learns personal skill at promoted class level 10', () => {
+    const edric = data.lords.find(l => l.name === 'Edric');
+    const cls = data.classes.find(c => c.name === edric.class);
+    const unit = createLordUnit(edric, cls, data.weapons);
+    unit.tier = 'promoted';
+    unit.level = 10;
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).toContain('commanders_gambit');
+    expect(unit.skills).toContain('commanders_gambit');
+  });
+
+  it('does not learn personal skill below base level 20', () => {
     const edric = data.lords.find(l => l.name === 'Edric');
     const cls = data.classes.find(c => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.level = 19;
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).not.toContain('commanders_gambit');
+  });
+
+  it('does not learn personal skill below promoted level 10', () => {
+    const edric = data.lords.find(l => l.name === 'Edric');
+    const cls = data.classes.find(c => c.name === edric.class);
+    const unit = createLordUnit(edric, cls, data.weapons);
+    unit.tier = 'promoted';
+    unit.level = 9;
     const learned = checkLevelUpSkills(unit, data.classes);
     expect(learned).not.toContain('commanders_gambit');
   });
