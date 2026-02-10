@@ -101,7 +101,19 @@ export class AudioManager {
 
   _getLoopingMusicSounds() {
     const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
-    return sounds.filter(s => s && s.key && (s.loop || s.config?.loop) && (s.isPlaying || s.isPaused));
+    const safeRead = (obj, prop) => {
+      try {
+        return obj?.[prop];
+      } catch (_) {
+        return undefined;
+      }
+    };
+    return sounds.filter((s) => {
+      if (!s || !safeRead(s, 'key')) return false;
+      const isLooping = Boolean(safeRead(s, 'loop') || safeRead(safeRead(s, 'config'), 'loop'));
+      const isActive = Boolean(safeRead(s, 'isPlaying') || safeRead(s, 'isPaused'));
+      return isLooping && isActive;
+    });
   }
 
   _stopSound(sound, scene, fadeMs) {
@@ -115,8 +127,8 @@ export class AudioManager {
       });
       return;
     }
-    sound.stop();
-    sound.destroy();
+    try { sound.stop(); } catch (_) {}
+    try { sound.destroy(); } catch (_) {}
   }
 
   /** Play a one-shot sound effect. */
