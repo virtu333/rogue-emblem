@@ -5,6 +5,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
 import { clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
+import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats',      label: 'Recruits' },
@@ -58,6 +59,19 @@ export class HomeBaseScene extends Phaser.Scene {
     });
 
     this.drawUI();
+
+    // Tutorial hints for home base
+    const hints = this.registry.get('hints');
+    if (hints) {
+      (async () => {
+        if (hints.shouldShow('homebase_intro')) {
+          await showImportantHint(this, 'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.');
+        }
+        if (hints.shouldShow('homebase_begin')) {
+          showMinorHint(this, 'Click Begin Run when ready.');
+        }
+      })();
+    }
   }
 
   drawUI() {

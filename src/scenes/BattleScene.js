@@ -61,6 +61,9 @@ import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
+import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
+import { DebugOverlay } from '../ui/DebugOverlay.js';
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -316,6 +319,10 @@ export class BattleScene extends Phaser.Scene {
       }
     });
     this.input.keyboard.on('keydown-ESC', () => {
+      if (DEBUG_MODE && this.debugOverlay?.visible) {
+        this.debugOverlay.hide();
+        return;
+      }
       if (this.unitDetailOverlay?.visible) {
         this.unitDetailOverlay.hide();
       } else if (this.inspectionPanel.visible) {
@@ -387,6 +394,20 @@ export class BattleScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '10px', color: '#ffaa44',
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
       }).setDepth(100);
+
+      const hints = this.registry.get('hints');
+      if (hints?.shouldShow('battle_fog')) {
+        showMinorHint(this, 'Fog of War \u2014 enemies beyond vision range are hidden.');
+      }
+    }
+
+    // Debug overlay (dev-only)
+    if (DEBUG_MODE) {
+      this.debugOverlay = new DebugOverlay(this);
+      this.input.keyboard.addKey(192).on('down', () => {
+        if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
+        this.debugOverlay.toggle();
+      });
     }
 
     // Start the battle
@@ -530,6 +551,12 @@ export class BattleScene extends Phaser.Scene {
     });
 
     updateCounter();
+
+    // Tutorial hint for deploy screen
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('battle_deploy')) {
+      showImportantHint(this, 'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.');
+    }
   }
 
   // --- Unit rendering ---
@@ -2097,6 +2124,13 @@ export class BattleScene extends Phaser.Scene {
     // Apply final HP (Sol heals etc. may differ from per-strike tracking)
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
+
+    // Debug: invincibility — restore player units to full HP
+    if (DEBUG_MODE && debugState.invincible) {
+      if (attacker.faction === 'player') { attacker.currentHP = attacker.stats.HP; result.attackerDied = false; }
+      if (defender.faction === 'player') { defender.currentHP = defender.stats.HP; result.defenderDied = false; }
+    }
+
     this.updateHPBar(attacker);
     this.updateHPBar(defender);
 
@@ -2391,6 +2425,28 @@ export class BattleScene extends Phaser.Scene {
 
       // Process turn-start skill effects (after banner settles)
       this.time.delayedCall(1200, () => this.processTurnStartSkills(this.playerUnits));
+
+      // Tutorial hints (after phase banner fades)
+      const hints = this.registry.get('hints');
+      if (hints && turn === 1) {
+        this.time.delayedCall(1500, async () => {
+          if (hints.shouldShow('battle_first_turn')) {
+            await showImportantHint(this, 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.');
+          }
+          if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
+            await showImportantHint(this, 'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!');
+          }
+          if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
+            await showImportantHint(this, 'Defeat the boss, then move a Lord\nto the throne and select Seize!');
+          }
+        });
+      } else if (hints && turn === 2) {
+        this.time.delayedCall(1500, () => {
+          if (hints.shouldShow('battle_danger_zone')) {
+            showMinorHint(this, 'Press [D] to show enemy threat range.');
+          }
+        });
+      }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
       // Terrain healing for enemies, then start AI
@@ -2432,6 +2488,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async startEnemyPhase() {
+    // Debug: skip enemy phase entirely
+    if (DEBUG_MODE && this._debugSkipEnemyPhase) {
+      this._debugSkipEnemyPhase = false;
+      if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+      return;
+    }
+
     await this.aiController.processEnemyPhase(
       this.enemyUnits,
       this.playerUnits,
@@ -2511,6 +2574,12 @@ export class BattleScene extends Phaser.Scene {
     // Apply final HP
     enemy.currentHP = result.attackerHP;
     target.currentHP = result.defenderHP;
+
+    // Debug: invincibility — restore player units to full HP
+    if (DEBUG_MODE && debugState.invincible) {
+      if (target.faction === 'player') { target.currentHP = target.stats.HP; result.defenderDied = false; }
+    }
+
     this.updateHPBar(enemy);
     this.updateHPBar(target);
 
@@ -2716,6 +2785,12 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaffaa',
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(goldText);
+
+    // Tutorial hint for loot screen
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('battle_loot')) {
+      showMinorHint(this, 'Choose one reward. Weapons equip to a unit. Press [R] for roster.');
+    }
 
     // Generate loot choices
     const lootWeaponBonus = this.runManager?.metaEffects?.lootWeaponWeightBonus || 0;

@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { MAX_SLOTS, getSlotSummary, deleteSlot, setActiveSlot, getMetaKey } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
+import { HintManager } from '../engine/HintManager.js';
 import { loadRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
@@ -145,6 +146,7 @@ export class SlotPickerScene extends Phaser.Scene {
       meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
     }
     this.registry.set('meta', meta);
+    this.registry.set('hints', new HintManager(slot));
 
     const audio = this.registry.get('audio');
     if (audio) audio.stopMusic(this, 0);

@@ -1,6 +1,8 @@
 // SlotManager.js — Pure utility module for save slot management
 // No Phaser deps.
 
+import { HintManager } from './HintManager.js';
+
 export const MAX_SLOTS = 3;
 const META_KEY_PREFIX = 'emblem_rogue_slot_';
 const META_KEY_SUFFIX = '_meta';
@@ -79,12 +81,13 @@ export function getSlotSummary(slot) {
   }
 }
 
-/** Delete both meta and run data for a slot. */
+/** Delete both meta and run data for a slot (and hint state). */
 export function deleteSlot(slot) {
   try {
     localStorage.removeItem(getMetaKey(slot));
     localStorage.removeItem(getRunKey(slot));
   } catch (_) { /* ignore */ }
+  HintManager.deleteForSlot(slot);
 }
 
 /** Get the currently active slot number (1-3), or null. */

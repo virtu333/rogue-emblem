@@ -11,6 +11,9 @@ import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
 import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
+import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { DEBUG_MODE } from '../utils/debugMode.js';
+import { DebugOverlay } from '../ui/DebugOverlay.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -85,6 +88,7 @@ export class NodeMapScene extends Phaser.Scene {
 
     // ESC key handler
     this.input.keyboard.on('keydown-ESC', () => {
+      if (DEBUG_MODE && this.debugOverlay?.visible) { this.debugOverlay.hide(); return; }
       if (this.rosterOverlay?.visible) { this.rosterOverlay.hide(); return; }
       if (this.shopOverlay) return; // shop has its own dismiss
       if (this.pauseOverlay?.visible) {
@@ -94,7 +98,22 @@ export class NodeMapScene extends Phaser.Scene {
       this.showPauseMenu();
     });
 
+    // Debug overlay (dev-only)
+    if (DEBUG_MODE) {
+      this.debugOverlay = new DebugOverlay(this);
+      this.input.keyboard.addKey(192).on('down', () => {
+        if (this.shopOverlay || this.rosterOverlay?.visible) return;
+        this.debugOverlay.toggle();
+      });
+    }
+
     this.drawMap();
+
+    // Tutorial hint for node map
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('nodemap_intro')) {
+      showImportantHint(this, 'Choose your path. Battles give loot and gold.\nShops sell gear. Churches heal and promote.');
+    }
   }
 
   showPauseMenu() {
@@ -375,6 +394,12 @@ export class NodeMapScene extends Phaser.Scene {
   showChurchOverlay(node) {
     this.churchOverlay = [];
 
+    // Tutorial hint for church
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('nodemap_church')) {
+      showMinorHint(this, 'Heal, revive fallen allies, or promote units.');
+    }
+
     // Dark overlay background
     const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
     this.churchOverlay.push(bg);
@@ -569,6 +594,12 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopContentGroup = [];
     this.activeShopTab = 'buy';
     this.shopForgesUsed = 0;
+
+    // Tutorial hint for shop
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('nodemap_shop')) {
+      showMinorHint(this, 'Buy, Sell, and Forge tabs available.');
+    }
 
     // Dark overlay background
     const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
