@@ -1024,7 +1024,12 @@ export class BattleScene extends Phaser.Scene {
   openUnitDetailOverlay() {
     const { _unit, _terrain, _gameData } = this.inspectionPanel;
     if (!_unit) return;
-    this.unitDetailOverlay.show(_unit, _terrain, _gameData);
+    const living = (this.playerUnits || []).filter(u => u.currentHP > 0);
+    const rosterIndex = living.includes(_unit) ? living.indexOf(_unit) : 0;
+    const rosterOptions = living.length > 0
+      ? { rosterUnits: living, rosterIndex }
+      : undefined;
+    this.unitDetailOverlay.show(_unit, _terrain, _gameData, rosterOptions);
   }
 
   handleCancel() {
