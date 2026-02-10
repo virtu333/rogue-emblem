@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseWeaponProficiencies,
   rollGrowthRates,
+  createUnit,
   createLordUnit,
   createEnemyUnit,
   createRecruitUnit,
@@ -480,5 +481,20 @@ describe('calculateCombatXP tiered diminishing returns', () => {
       const xp = calculateCombatXP(unit(1 + adv), unit(1), false);
       expect(xp).toBeGreaterThanOrEqual(XP_MIN);
     }
+  });
+});
+
+describe('createUnit weapon cloning', () => {
+  it('weapon is cloned from data array (not same reference)', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createUnit(myrmidon, 1, data.weapons);
+    const dataWeapon = data.weapons.find(w => w.name === unit.weapon.name);
+    expect(unit.weapon).not.toBe(dataWeapon);
+  });
+
+  it('weapon === inventory[0] (same reference within unit)', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createUnit(myrmidon, 1, data.weapons);
+    expect(unit.weapon).toBe(unit.inventory[0]);
   });
 });

@@ -517,17 +517,88 @@ describe('Fallen unit tracking and revival', () => {
   it('fallenUnits serializes and deserializes correctly', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    
+
     // Add fallen unit
     const fallen = rm.roster[0];
     rm.roster = rm.roster.slice(1);
     rm.fallenUnits.push(fallen);
-    
+
     // Save and restore
     const json = rm.toJSON();
     const restored = RunManager.fromJSON(json, gameData);
-    
+
     expect(restored.fallenUnits.length).toBe(1);
     expect(restored.fallenUnits[0].name).toBe(fallen.name);
+  });
+});
+
+describe('weapon reference integrity (relinkWeapon)', () => {
+  let gameData;
+
+  beforeEach(() => {
+    gameData = loadGameData();
+  });
+
+  it('getRoster() preserves weapon === inventory[idx] after clone', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const cloned = rm.getRoster();
+    for (const unit of cloned) {
+      if (unit.weapon) {
+        expect(unit.inventory).toContain(unit.weapon);
+      }
+    }
+  });
+
+  it('fromJSON() round-trip preserves weapon === inventory[idx]', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    for (const unit of restored.roster) {
+      if (unit.weapon) {
+        expect(unit.inventory).toContain(unit.weapon);
+      }
+    }
+  });
+
+  it('relink handles empty inventory → weapon null', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.roster[0].inventory = [];
+    rm.roster[0].weapon = { name: 'Ghost Sword' };
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    expect(restored.roster[0].weapon).toBeNull();
+  });
+
+  it('relink handles forged weapon metadata correctly', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    // Simulate a forged weapon in inventory
+    const unit = rm.roster[0];
+    const forgedWeapon = { ...unit.inventory[0], _forgeLevel: 2, _forgeBonuses: { might: 2 } };
+    unit.inventory[0] = forgedWeapon;
+    unit.weapon = { ...forgedWeapon }; // separate object with same data
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredUnit = restored.roster[0];
+    expect(restoredUnit.weapon).not.toBeNull();
+    expect(restoredUnit.inventory).toContain(restoredUnit.weapon);
+    expect(restoredUnit.weapon._forgeLevel).toBe(2);
+  });
+
+  it('relink with fallenUnits preserves weapon references', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const fallen = rm.roster[0];
+    rm.fallenUnits.push(fallen);
+    rm.roster = rm.roster.slice(1);
+    const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredFallen = restored.fallenUnits[0];
+    if (restoredFallen.weapon) {
+      expect(restoredFallen.inventory).toContain(restoredFallen.weapon);
+    }
   });
 });

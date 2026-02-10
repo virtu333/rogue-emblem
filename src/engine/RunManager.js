@@ -14,6 +14,18 @@ import { getRunKey, getActiveSlot } from './SlotManager.js';
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 
+/** After JSON round-trip, re-link unit.weapon to matching inventory reference. */
+function relinkWeapon(unit) {
+  if (!unit.weapon || !unit.inventory?.length) {
+    if (!unit.inventory?.length) unit.weapon = null;
+    return;
+  }
+  if (unit.inventory.includes(unit.weapon)) return; // already linked
+  const weaponStr = JSON.stringify(unit.weapon);
+  const match = unit.inventory.find(w => JSON.stringify(w) === weaponStr);
+  unit.weapon = match || unit.inventory[0] || null;
+}
+
 /**
  * Strip Phaser display objects from a unit, reset per-battle flags.
  */
@@ -191,7 +203,9 @@ export class RunManager {
 
   /** Get a deep copy of the roster for deployment. */
   getRoster() {
-    return JSON.parse(JSON.stringify(this.roster));
+    const cloned = JSON.parse(JSON.stringify(this.roster));
+    cloned.forEach(u => relinkWeapon(u));
+    return cloned;
   }
 
   addGold(amount) {
@@ -350,7 +364,9 @@ export class RunManager {
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
     rm.roster = saved.roster;
+    rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits = saved.fallenUnits || [];
+    rm.fallenUnits.forEach(u => relinkWeapon(u));
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;

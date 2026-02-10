@@ -191,6 +191,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
   const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
   const growths = rollGrowthRates(classData.growthRanges);
   const weapon = getDefaultWeapon(proficiencies, allWeapons);
+  const weaponClone = weapon ? structuredClone(weapon) : null;
 
   const unit = {
     name: options.name || classData.name,
@@ -210,8 +211,8 @@ export function createUnit(classData, level, allWeapons, options = {}) {
     stats: { ...classData.baseStats },
     currentHP: classData.baseStats.HP,
     faction: options.faction || 'player',
-    weapon,
-    inventory: weapon ? [weapon] : [],
+    weapon: weaponClone,
+    inventory: weaponClone ? [weaponClone] : [],
     consumables: [],
     accessory: null,
     weaponRank: proficiencies[0]?.rank || 'Prof',
