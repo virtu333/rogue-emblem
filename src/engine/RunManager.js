@@ -68,9 +68,11 @@ export class RunManager {
     this.blessingRuntimeModifiers = {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
+      actStatDeltaAllUnits: [],
     };
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
+    this.battleConfigsByNodeId = {};
   }
 
   get currentAct() {
@@ -98,7 +100,9 @@ export class RunManager {
     this.blessingRuntimeModifiers = {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
+      actStatDeltaAllUnits: [],
     };
+    this.battleConfigsByNodeId = {};
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this.initializeBlessingsAtRunStart(options);
@@ -255,6 +259,91 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'starting_weapon_tier') {
+      const requestedTier = String(effect.params.tier || '').trim();
+      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
+      if (!requestedTier || count <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_starting_weapon_tier_params',
+        });
+        return;
+      }
+
+      let granted = 0;
+      const grantedWeapons = [];
+      const allWeapons = Array.isArray(this.gameData?.weapons) ? this.gameData.weapons : [];
+      for (const unit of this.roster) {
+        if (granted >= count) break;
+        const profTypes = new Set((unit.proficiencies || []).map(p => p.type));
+        const candidate = allWeapons.find(w =>
+          w?.tier === requestedTier &&
+          profTypes.has(w.type) &&
+          w.type !== 'Staff' &&
+          w.type !== 'Consumable' &&
+          w.type !== 'Scroll' &&
+          canEquip(unit, w)
+        );
+        if (!candidate) continue;
+        if (!addToInventory(unit, candidate)) continue;
+        const addedWeapon = unit.inventory[unit.inventory.length - 1];
+        if (addedWeapon && canEquip(unit, addedWeapon)) {
+          unit.weapon = addedWeapon;
+        }
+        granted++;
+        grantedWeapons.push({ unit: unit.name, weapon: addedWeapon?.name || candidate.name });
+      }
+
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        requestedTier,
+        requestedCount: count,
+        grantedCount: granted,
+        grantedWeapons,
+      });
+      return;
+    }
+
+    if (effect.type === 'act_stat_delta_all_units') {
+      const targetAct = String(effect.params.act || '').trim();
+      const stat = String(effect.params.stat || '').trim();
+      if (!targetAct || !stat || value === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_act_stat_delta_all_units_params',
+        });
+        return;
+      }
+
+      if (!Array.isArray(this.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
+        this.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
+      }
+      const tracker = {
+        blessingId,
+        act: targetAct,
+        stat,
+        value,
+        applied: false,
+        reverted: false,
+      };
+      if (targetAct === this.currentAct) {
+        for (const unit of this.roster) {
+          unit.stats[stat] = (unit.stats[stat] || 0) + value;
+          if (stat === 'HP') {
+            unit.currentHP = Math.min(unit.currentHP || 0, unit.stats.HP || 0);
+          }
+        }
+        tracker.applied = true;
+      }
+      this.blessingRuntimeModifiers.actStatDeltaAllUnits.push(tracker);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        act: targetAct,
+        stat,
+        appliedValue: value,
+        appliedNow: tracker.applied,
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
   }
 
@@ -394,7 +483,22 @@ export class RunManager {
 
   /** Get battleParams for a battle node. */
   getBattleParams(node) {
-    return node.battleParams;
+    return node?.battleParams ? structuredClone(node.battleParams) : null;
+  }
+
+  getLockedBattleConfig(nodeId) {
+    const cfg = this.battleConfigsByNodeId?.[nodeId];
+    return cfg ? structuredClone(cfg) : null;
+  }
+
+  lockBattleConfig(nodeId, battleConfig) {
+    if (!nodeId || !battleConfig) return;
+    if (!this.battleConfigsByNodeId) this.battleConfigsByNodeId = {};
+    if (!this.battleConfigsByNodeId[nodeId]) {
+      this.battleConfigsByNodeId[nodeId] = structuredClone(battleConfig);
+    }
+    const node = this.nodeMap?.nodes?.find(n => n.id === nodeId);
+    if (node) node.encounterLocked = true;
   }
 
   /** Get a deep copy of the roster for deployment. */
@@ -488,10 +592,32 @@ export class RunManager {
 
   /** Advance to the next act. Generates a new node map. */
   advanceAct() {
+    this._revertActScopedBlessingEffects(this.currentAct);
     this.actIndex++;
     if (this.actIndex >= ACT_SEQUENCE.length) return; // shouldn't happen, use isRunComplete
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
+  }
+
+  _revertActScopedBlessingEffects(expiredAct) {
+    const trackers = this.blessingRuntimeModifiers?.actStatDeltaAllUnits;
+    if (!Array.isArray(trackers) || !expiredAct) return;
+    for (const tracker of trackers) {
+      if (!tracker || tracker.reverted || !tracker.applied || tracker.act !== expiredAct) continue;
+      for (const unit of this.roster) {
+        unit.stats[tracker.stat] = (unit.stats[tracker.stat] || 0) - tracker.value;
+        if (tracker.stat === 'HP') {
+          unit.currentHP = Math.min(unit.currentHP || 0, unit.stats.HP || 0);
+        }
+      }
+      tracker.reverted = true;
+      this._recordBlessingEvent(
+        'act_transition',
+        tracker.blessingId,
+        { type: 'act_stat_delta_all_units', params: { act: tracker.act, stat: tracker.stat, value: tracker.value } },
+        { revertedInAct: expiredAct, stat: tracker.stat, revertedValue: -tracker.value }
+      );
+    }
   }
 
   /** True if the final boss has been defeated. */
@@ -523,8 +649,9 @@ export class RunManager {
       activeBlessings: this.activeBlessings || [],
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
-      blessingRuntimeModifiers: this.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0 },
+      blessingRuntimeModifiers: this.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0, actStatDeltaAllUnits: [] },
       runSeed: this.runSeed,
+      battleConfigsByNodeId: this.battleConfigsByNodeId || {},
     };
   }
 
@@ -584,9 +711,18 @@ export class RunManager {
         : [];
       rm.blessingSelectionTelemetry.chosenIds = [];
     }
-    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0 };
+    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || { battleGoldMultiplierDelta: 0, deployCapDelta: 0, actStatDeltaAllUnits: [] };
+    if (!Array.isArray(rm.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
+      rm.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
+    }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
+    rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm._runStartBlessingsApplied = true;
+    if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
+      for (const node of rm.nodeMap.nodes) {
+        if (rm.battleConfigsByNodeId[node.id]) node.encounterLocked = true;
+      }
+    }
 
     // Migrate old save format BEFORE relinking weapons
     // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)

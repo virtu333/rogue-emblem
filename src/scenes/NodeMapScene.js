@@ -532,6 +532,9 @@ export class NodeMapScene extends Phaser.Scene {
       const obj = node.battleParams?.objective || 'rout';
       label = `Battle (${obj})`;
     }
+    if ((node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) && node.encounterLocked) {
+      label += '\nEncounter Locked';
+    }
     this.nodeTooltip = this.add.text(pos.x, pos.y - NODE_SIZE - 8, label, {
       fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
       backgroundColor: '#000000cc', padding: { x: 4, y: 2 },

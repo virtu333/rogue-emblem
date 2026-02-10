@@ -1,15 +1,16 @@
-// AIController â€” Enemy AI with boss throne clamping and guard behavior
+// AIController - Enemy AI with boss throne clamping and guard behavior
 // Processes enemies sequentially: move toward nearest player, attack if in range.
 // Boss enemies on seize maps stay within 1 tile of throne.
-// Guard enemies wait until a player enters 3-tile range, then permanently switch to chase.
+// Guard enemies wait until a player enters trigger range, then permanently switch to chase.
 
 import {
   gridDistance,
   isInRange,
-  getCombatForecast,
 } from './Combat.js';
 
 const DEBUG_AI = false;
+const TERRAIN_FORT = 3;
+const TERRAIN_THRONE = 4;
 
 export class AIController {
   constructor(grid, gameData, options = {}) {
@@ -17,6 +18,11 @@ export class AIController {
     this.gameData = gameData;
     this.objective = options.objective || 'rout';
     this.thronePos = options.thronePos || null;
+    this.aggressiveMode = false;
+  }
+
+  setAggressiveMode(enabled) {
+    this.aggressiveMode = Boolean(enabled);
   }
 
   /**
@@ -67,7 +73,7 @@ export class AIController {
    * If none, move toward nearest player.
    *
    * Special behaviors:
-   * - Guard enemies: stay put until a player/NPC is within 3 manhattan tiles,
+   * - Guard enemies: stay put until a player/NPC is within trigger range,
    *   then permanently switch to chase mode.
    * - Boss on seize maps: only consider tiles within 1 manhattan tile of throne.
    *   If no attack available, stay put (don't chase away from throne).
@@ -80,13 +86,14 @@ export class AIController {
         ...attackableUnits.map(u => gridDistance(enemy.col, enemy.row, u.col, u.row)),
         Infinity
       );
+      const triggerDist = this.aggressiveMode ? 6 : 3;
 
-      if (nearestDist <= 3) {
+      if (nearestDist <= triggerDist) {
         // Trigger: permanently switch to chase
         enemy.aiMode = 'chase';
         if (DEBUG_AI) console.log(`[AI] Guard triggered at (${enemy.col},${enemy.row}), dist=${nearestDist}`);
-      } else {
-        // Stay put â€” no movement, no attack
+      } else if (!this.aggressiveMode) {
+        // Stay put - no movement, no attack
         if (DEBUG_AI) console.log(`[AI] Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
         return { path: null, target: null };
       }
@@ -140,8 +147,13 @@ export class AIController {
         const dist = gridDistance(tile.col, tile.row, target.col, target.row);
         if (!isInRange(enemy.weapon, dist)) continue;
 
-        // Score: prefer low-HP targets, penalize strong defenders
-        const score = (target.stats.HP - target.currentHP) + (100 - target.currentHP);
+        // Score: prefer low-HP targets, then anti-turtle priorities in aggressive mode.
+        let score = (target.stats.HP - target.currentHP) + (100 - target.currentHP);
+        if (this.aggressiveMode) {
+          const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
+          if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) score += 35;
+          if (target.weapon?.type === 'Staff') score += 25;
+        }
         if (score > bestScore) {
           bestScore = score;
           bestAttack = { tile, target };
@@ -155,14 +167,14 @@ export class AIController {
       return { path, target: bestAttack.target };
     }
 
-    // Boss on seize: don't chase if no attack available â€” stay on throne
+    // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {
-      if (DEBUG_AI) console.log(`[AI] Boss staying on throne â€” no targets in range`);
+      if (DEBUG_AI) console.log('[AI] Boss staying on throne - no targets in range');
       return { path: null, target: null };
     }
 
-    // No attack possible â€” move toward nearest player
-    const nearest = this._findNearestPlayer(enemy, playerUnits);
+    // No attack possible - move toward nearest player
+    const nearest = this._findPriorityTarget(enemy, playerUnits);
     if (!nearest) return { path: null, target: null };
 
     // Find candidate tile closest to nearest player
@@ -184,7 +196,23 @@ export class AIController {
     return { path: null, target: null };
   }
 
-  _findNearestPlayer(enemy, playerUnits) {
+  _findPriorityTarget(enemy, playerUnits) {
+    if (this.aggressiveMode) {
+      const rank = (unit) => {
+        const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
+        if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) return 0;
+        if (unit.weapon?.type === 'Staff') return 1;
+        return 2;
+      };
+
+      const sorted = [...playerUnits].sort((a, b) => {
+        const r = rank(a) - rank(b);
+        if (r !== 0) return r;
+        return gridDistance(enemy.col, enemy.row, a.col, a.row) - gridDistance(enemy.col, enemy.row, b.col, b.row);
+      });
+      return sorted[0] || null;
+    }
+
     let nearest = null;
     let minDist = Infinity;
     for (const p of playerUnits) {

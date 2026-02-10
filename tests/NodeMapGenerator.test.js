@@ -155,6 +155,15 @@ describe('NodeMapGenerator', () => {
         if (foundChurch && foundShop) return;
       }
     });
+
+    it('combat nodes include a battleSeed for encounter locking', () => {
+      const map = generateNodeMap(actId, actConfig);
+      const combat = map.nodes.filter(n => n.type !== NODE_TYPES.SHOP && n.type !== NODE_TYPES.CHURCH);
+      expect(combat.length).toBeGreaterThan(0);
+      for (const node of combat) {
+        expect(Number.isInteger(node.battleParams?.battleSeed)).toBe(true);
+      }
+    });
   });
 
   describe('generateNodeMap — finalBoss', () => {

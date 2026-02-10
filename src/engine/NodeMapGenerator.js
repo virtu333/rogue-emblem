@@ -37,7 +37,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates) {
       col: 0,
       type: NODE_TYPES.BOSS,
       edges: [],
-      battleParams: { act: actId, objective: 'seize' },
+      battleParams: { act: actId, objective: 'seize', battleSeed: rollBattleSeed() },
       completed: false,
     };
     // Assign template for single-node boss
@@ -254,7 +254,7 @@ function canSeizeAtRow(actId, row, totalRows) {
  */
 function buildBattleParams(actId, type, row, totalRows) {
   if (type === NODE_TYPES.BOSS) {
-    return { act: actId, objective: 'seize', row };
+    return { act: actId, objective: 'seize', row, battleSeed: rollBattleSeed() };
   }
   if (type === NODE_TYPES.SHOP || type === NODE_TYPES.CHURCH) {
     return null; // Non-combat nodes
@@ -278,8 +278,13 @@ function buildBattleParams(actId, type, row, totalRows) {
   if (scaling && row !== undefined) {
     params.levelRange = scaling[row] || scaling.default;
   }
+  params.battleSeed = rollBattleSeed();
 
   return params;
+}
+
+function rollBattleSeed() {
+  return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0);
 }
 
 /**

@@ -706,6 +706,48 @@ describe('blessing run-start effect application', () => {
     expect(a.blessingSelectionTelemetry?.chosenIds).toEqual([]);
   });
 
+  describe('encounter locking', () => {
+    it('locks and returns a deep copy of battle config by node', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      expect(node).toBeTruthy();
+      const config = { cols: 10, rows: 8, objective: 'rout', enemySpawns: [{ col: 5, row: 5 }] };
+      rm.lockBattleConfig(node.id, config);
+
+      const locked = rm.getLockedBattleConfig(node.id);
+      expect(locked).toEqual(config);
+      expect(node.encounterLocked).toBe(true);
+
+      locked.enemySpawns[0].col = 99;
+      const lockedAgain = rm.getLockedBattleConfig(node.id);
+      expect(lockedAgain.enemySpawns[0].col).toBe(5);
+    });
+
+    it('persists battleConfigsByNodeId through toJSON/fromJSON', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      rm.lockBattleConfig(node.id, { cols: 9, rows: 7, objective: 'seize' });
+      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(restored.battleConfigsByNodeId[node.id]).toBeTruthy();
+      const restoredNode = restored.nodeMap.nodes.find(n => n.id === node.id);
+      expect(restoredNode.encounterLocked).toBe(true);
+    });
+
+    it('getBattleParams returns a copy', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const params = rm.getBattleParams(node);
+      params.fogEnabled = true;
+      expect(node.battleParams.fogEnabled).toBeUndefined();
+    });
+  });
+
   it('applies run_start_max_hp_bonus exactly once', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);

@@ -71,6 +71,8 @@ export const ATTACK_RANGE_ALPHA = 0.4;
 
 // Terrain heal per turn (forts, thrones)
 export const TERRAIN_HEAL_PERCENT = 0.10;
+export const FORT_HEAL_DECAY_MULTIPLIERS = [1, 0.67, 0.34, 0.17, 0];
+export const ANTI_TURTLE_NO_PROGRESS_TURNS = 3;
 
 // Terrain index enum (matches terrain.json order)
 export const TERRAIN = {

@@ -237,6 +237,43 @@ describe('AIController', () => {
     });
   });
 
+  describe('Aggressive anti-turtle mode', () => {
+    it('aggressive mode makes guard units chase even when players are far', () => {
+      const moveTiles = [
+        { col: 4, row: 5 }, { col: 3, row: 5 }, { col: 6, row: 5 },
+      ];
+      const grid = createMockGrid(moveTiles);
+      grid.mapLayout = Array.from({ length: 12 }, () => Array(12).fill(0));
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      ai.setAggressiveMode(true);
+
+      const guard = makeEnemy({ col: 5, row: 5, aiMode: 'guard' });
+      const player = makePlayer({ col: 0, row: 0 }); // far away
+      const decision = ai._decideAction(guard, [guard], [player], []);
+
+      expect(guard.aiMode).toBe('guard');
+      expect(decision.path).not.toBeNull();
+    });
+
+    it('aggressive mode prioritizes fort occupants as attack targets', () => {
+      const moveTiles = [{ col: 5, row: 5 }];
+      const grid = createMockGrid(moveTiles);
+      grid.mapLayout = Array.from({ length: 12 }, () => Array(12).fill(0));
+      grid.mapLayout[5][4] = 3; // Fort
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      ai.setAggressiveMode(true);
+
+      const enemy = makeEnemy({ col: 5, row: 5 });
+      const fortTarget = makePlayer({ col: 4, row: 5, currentHP: 18 });
+      const plainTarget = makePlayer({ col: 6, row: 5, currentHP: 4 });
+      const decision = ai._decideAction(enemy, [enemy], [fortTarget, plainTarget], []);
+
+      expect(decision.target).not.toBeNull();
+      expect(decision.target.col).toBe(4);
+      expect(decision.target.row).toBe(5);
+    });
+  });
+
   describe('Default chase behavior preserved', () => {
     it('normal enemy (no aiMode) chases normally', () => {
       const moveTiles = [

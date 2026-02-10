@@ -56,7 +56,7 @@ import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
@@ -71,6 +71,7 @@ import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
+import { createSeededRng } from '../engine/BlessingEngine.js';
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -125,8 +126,17 @@ export class BattleScene extends Phaser.Scene {
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
-      // Generate battle from templates
-      this.battleConfig = generateBattle(this.battleParams, this.gameData);
+      // Generate or reuse locked encounter for this node.
+      const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
+      if (lockedConfig) {
+        this.battleConfig = lockedConfig;
+      } else {
+        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
+          ? this.battleParams.battleSeed
+          : this.deriveBattleSeed();
+        this.battleConfig = this.withBattleSeed(battleSeed, () => generateBattle(this.battleParams, this.gameData));
+        this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
+      }
       const bc = this.battleConfig;
 
       // Build the grid from generated map (with optional fog of war)
@@ -146,6 +156,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Gold tracking for loot system
       this.goldEarned = 0;
+      this.initializeAntiTurtleState();
 
       // Create player units â€” from deployed roster (run mode) or fresh lords (standalone)
       if (deployedRoster) {
@@ -555,6 +566,71 @@ export class BattleScene extends Phaser.Scene {
         }
       });
     }
+  }
+
+  deriveBattleSeed() {
+    const runSeed = Number(this.runManager?.runSeed || 0) >>> 0;
+    const nodePart = String(this.nodeId || this.battleParams?.act || 'battle');
+    let h = 2166136261 >>> 0;
+    const input = `${runSeed}:${nodePart}`;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  withBattleSeed(seed, fn) {
+    const prevRandom = Math.random;
+    const seeded = createSeededRng(seed >>> 0);
+    Math.random = seeded;
+    try {
+      return fn();
+    } finally {
+      Math.random = prevRandom;
+    }
+  }
+
+  initializeAntiTurtleState() {
+    this.antiTurtleState = {
+      noProgressTurns: 0,
+      aggressiveMode: false,
+      bestEnemyCount: this.enemyUnits.length,
+      bestLordThroneDistance: this.getBestLordThroneDistance(),
+    };
+  }
+
+  getBestLordThroneDistance() {
+    if (this.battleConfig?.objective !== 'seize' || !this.battleConfig?.thronePos) return Infinity;
+    const lords = (this.playerUnits || []).filter(u => u.isLord && u.currentHP > 0);
+    if (!lords.length) return Infinity;
+    const throne = this.battleConfig.thronePos;
+    return Math.min(...lords.map(u => gridDistance(u.col, u.row, throne.col, throne.row)));
+  }
+
+  updateAntiTurtlePressure() {
+    if (!this.antiTurtleState) return;
+    const enemyCount = this.enemyUnits.length;
+    const lordThroneDist = this.getBestLordThroneDistance();
+    const enemyProgress = enemyCount < this.antiTurtleState.bestEnemyCount;
+    const seizeProgress = lordThroneDist < this.antiTurtleState.bestLordThroneDistance;
+    const progressed = enemyProgress || seizeProgress;
+
+    if (progressed) {
+      this.antiTurtleState.noProgressTurns = 0;
+      this.antiTurtleState.bestEnemyCount = Math.min(this.antiTurtleState.bestEnemyCount, enemyCount);
+      this.antiTurtleState.bestLordThroneDistance = Math.min(this.antiTurtleState.bestLordThroneDistance, lordThroneDist);
+    } else {
+      this.antiTurtleState.noProgressTurns++;
+    }
+
+    const shouldAggro = this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS;
+    this.antiTurtleState.aggressiveMode = shouldAggro;
+    this.aiController?.setAggressiveMode?.(shouldAggro);
+  }
+
+  resetFortHealStreak(unit) {
+    if (unit) unit._fortHealStreak = 0;
   }
 
   // --- Deploy selection screen ---
@@ -2898,6 +2974,7 @@ export class BattleScene extends Phaser.Scene {
   async executeCombat(attacker, defender) {
     this.battleState = 'COMBAT_RESOLVING';
     this.grid.clearAttackHighlights();
+    this.resetFortHealStreak(attacker);
 
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -3263,6 +3340,7 @@ export class BattleScene extends Phaser.Scene {
       }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
+      this.updateAntiTurtlePressure();
       // Terrain healing for enemies, then start AI
       this.time.delayedCall(1400, async () => {
         await this.processTerrainHealing(this.enemyUnits);
@@ -3291,10 +3369,20 @@ export class BattleScene extends Phaser.Scene {
   /** Heal units standing on Fort or Throne at turn start */
   async processTerrainHealing(units) {
     for (const unit of units) {
-      if (unit.currentHP >= unit.stats.HP) continue;
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      if (terrainIdx !== TERRAIN.Fort && terrainIdx !== TERRAIN.Throne) continue;
-      const healAmount = Math.max(1, Math.floor(unit.stats.HP * TERRAIN_HEAL_PERCENT));
+      const onFort = terrainIdx === TERRAIN.Fort || terrainIdx === TERRAIN.Throne;
+      if (!onFort) {
+        unit._fortHealStreak = 0;
+        continue;
+      }
+      if (unit.currentHP >= unit.stats.HP) continue;
+      const streak = Math.max(0, unit._fortHealStreak || 0);
+      const decayIdx = Math.min(streak, FORT_HEAL_DECAY_MULTIPLIERS.length - 1);
+      const decayMult = FORT_HEAL_DECAY_MULTIPLIERS[decayIdx];
+      const baseHeal = Math.max(1, Math.floor(unit.stats.HP * TERRAIN_HEAL_PERCENT));
+      const healAmount = Math.floor(baseHeal * decayMult);
+      unit._fortHealStreak = streak + 1;
+      if (healAmount <= 0) continue;
       unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + healAmount);
       this.updateHPBar(unit);
       await this.animateHeal(unit, healAmount);
@@ -3364,6 +3452,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeEnemyCombat(enemy, target) {
+    this.resetFortHealStreak(enemy);
     const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
     const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
     const defTerrain = this.grid.getTerrainAt(target.col, target.row);
