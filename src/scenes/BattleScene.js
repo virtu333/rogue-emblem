@@ -462,6 +462,24 @@ export class BattleScene extends Phaser.Scene {
         this.updateEnemyVisibility();
       }
 
+      // D1: Recruit NPC fog hint marker — pulsing "?" visible through fog
+      this.recruitFogMarker = null;
+      if (this.grid.fogEnabled && this.battleParams.isRecruitBattle && this.npcUnits.length > 0) {
+        const npc = this.npcUnits[0];
+        const npcPixel = this.grid.gridToPixel(npc.col, npc.row);
+        this.recruitFogMarker = this.add.text(npcPixel.x, npcPixel.y, '?', {
+          fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
+          fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(4); // depth 4 = above fog (3) but below highlights (5)
+        this.tweens.add({
+          targets: this.recruitFogMarker,
+          alpha: { from: 0.4, to: 1.0 },
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
         this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
@@ -3488,6 +3506,11 @@ export class BattleScene extends Phaser.Scene {
       if (npc.hpBar) {
         npc.hpBar.bg.setVisible(vis);
         npc.hpBar.fill.setVisible(vis);
+      }
+      // D1: Destroy recruit fog marker once NPC tile is in player vision
+      if (vis && this.recruitFogMarker) {
+        this.recruitFogMarker.destroy();
+        this.recruitFogMarker = null;
       }
     }
   }

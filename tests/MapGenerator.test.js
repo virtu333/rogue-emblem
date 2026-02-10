@@ -229,6 +229,67 @@ describe('MapGenerator', () => {
       }
     });
   });
+
+  describe('D2: River map NPC spawn bias', () => {
+    it('NPC col < 40% of map width in >75% of cases on river_crossing', () => {
+      let playerSideCount = 0;
+      const trials = 100;
+      for (let i = 0; i < trials; i++) {
+        const config = generateBattle({
+          act: 'act2', objective: 'rout', isRecruitBattle: true,
+          templateId: 'river_crossing',
+        }, data);
+        if (!config.npcSpawn) continue;
+        const threshold = Math.ceil(config.cols * 0.40);
+        if (config.npcSpawn.col < threshold) playerSideCount++;
+      }
+      expect(playerSideCount).toBeGreaterThan(trials * 0.75);
+    });
+
+    it('non-river templates still use standard 20-55% range', () => {
+      for (let i = 0; i < 20; i++) {
+        const config = generateBattle({
+          act: 'act1', objective: 'rout', isRecruitBattle: true,
+        }, data);
+        if (!config.npcSpawn) continue;
+        expect(config.npcSpawn.col).toBeLessThan(Math.ceil(config.cols * 0.60));
+      }
+    });
+  });
+
+  describe('D3: Threat radius NPC rejection', () => {
+    it('NPC has <=2 enemies in turn-1 reach in >85% of cases', () => {
+      let safeCount = 0;
+      const trials = 100;
+      for (let i = 0; i < trials; i++) {
+        const config = generateBattle({
+          act: 'act2', objective: 'rout', isRecruitBattle: true,
+        }, data);
+        if (!config.npcSpawn) continue;
+        const npc = config.npcSpawn;
+        // Estimate enemy reach: class MOV + max weapon range (capped at 2)
+        let threats = 0;
+        for (const e of config.enemySpawns) {
+          const cd = data.classes.find(c => c.name === e.className);
+          const mov = cd?.baseStats?.MOV || 4;
+          const dist = Math.abs(e.col - npc.col) + Math.abs(e.row - npc.row);
+          // Simplified: MOV + 2 (generous cap for max weapon range)
+          if (dist <= mov + 2) threats++;
+        }
+        if (threats <= 2) safeCount++;
+      }
+      expect(safeCount).toBeGreaterThan(trials * 0.85);
+    });
+  });
+
+  // D1: Fog/Recruit "?" marker — requires BattleScene (Phaser runtime)
+  // Expected behavior (manual/visual testing):
+  // - When fog enabled + recruit battle, a pulsing "?" text appears at NPC tile
+  // - "?" is visible through fog (depth 4, above fog overlays at depth 3)
+  // - Alpha tweens 0.4 -> 1.0 with yoyo, 1500ms duration, infinite repeat
+  // - When player unit vision range covers NPC tile, "?" is destroyed and NPC sprite shown
+  // - Non-recruit or non-fog battles do not create the marker
+
   describe('dynamic deployCount', () => {
     it('deployCount param produces correct number of player spawns', () => {
       const config = generateBattle({ act: 'act1', objective: 'rout', deployCount: 6 }, data);

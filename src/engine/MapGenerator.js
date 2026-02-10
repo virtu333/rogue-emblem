@@ -3,6 +3,8 @@
 
 import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } from '../utils/constants.js';
 
+const DEBUG_MAP_GEN = false;
+
 /**
  * Generate a full battle configuration from params + game data.
  * @param {Object} params - { act, objective, sizeKey? (optional override), difficultyMod? }
@@ -11,7 +13,7 @@ import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } fro
  */
 export function generateBattle(params, deps) {
   const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss, templateId: preAssignedTemplateId } = params;
-  const { terrain, mapSizes, mapTemplates, enemies, recruits, classes } = deps;
+  const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
   // 1. Pick map size
   const sizeEntry = pickMapSize(act, mapSizes);
@@ -56,7 +58,7 @@ export function generateBattle(params, deps) {
   // 7. NPC spawn for recruit battles
   let npcSpawn = null;
   if (isRecruitBattle && recruits && recruits[act]) {
-    npcSpawn = generateNPCSpawn(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns, recruits[act]);
+    npcSpawn = generateNPCSpawn(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns, recruits[act], template, classes, deps.weapons);
   }
 
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC
@@ -249,9 +251,6 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
 }
 
 // --- Terrain-aware spawn scoring ---
-
-// Set to true to log spawn scoring details to console
-const DEBUG_MAP_GEN = false;
 
 /**
  * Score a candidate tile for enemy spawn placement based on terrain affinity.
@@ -822,9 +821,9 @@ function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
 
 // --- NPC spawn for recruit battles ---
 
-function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool) {
-  const { pool, levelRange } = recruitPool;
-  const recruit = pool[Math.floor(Math.random() * pool.length)];
+function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool, template, classesData, weaponsData) {
+  const { pool: recruitCandidates, levelRange } = recruitPool;
+  const recruit = recruitCandidates[Math.floor(Math.random() * recruitCandidates.length)];
   const [minLvl, maxLvl] = levelRange;
   const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
@@ -833,36 +832,82 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   for (const s of playerSpawns) occupied.add(`${s.col},${s.row}`);
   for (const s of enemySpawns) occupied.add(`${s.col},${s.row}`);
 
-  // Player-biased zone (20%-55% of columns — closer to player side)
-  const midStartCol = Math.floor(cols * 0.20);
-  const midEndCol = Math.ceil(cols * 0.55);
+  // D2: River map NPC spawn bias — tighter range for river templates
+  const isRiverTemplate = template && (template.id === 'river_crossing' ||
+    (template.zones && template.zones.some(z => z.terrain && z.terrain.Water >= 50)));
+  const tightStartCol = Math.floor(cols * 0.20);
+  const tightEndCol = Math.ceil(cols * 0.40);
+  const wideStartCol = Math.floor(cols * 0.20);
+  const wideEndCol = Math.ceil(cols * 0.55);
 
-  // Find passable tiles with split distance: close to players, far from enemies
-  const candidates = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = midStartCol; c < midEndCol; c++) {
-      const key = `${c},${r}`;
-      if (occupied.has(key)) continue;
-      if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
-      const minPlayerDist = Math.min(...playerSpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
-      const minEnemyDist = Math.min(...enemySpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
-      if (minPlayerDist >= 2 && minEnemyDist >= 4) {
-        candidates.push({ col: c, row: r, playerDist: minPlayerDist });
-      }
-    }
+  if (DEBUG_MAP_GEN) {
+    console.log(`[NPC Spawn] Template: ${template?.id}, isRiver: ${isRiverTemplate}`);
+    if (isRiverTemplate) console.log(`[NPC Spawn] River bias: trying tight zone [${tightStartCol}-${tightEndCol}] first`);
   }
 
-  let pos;
-  if (candidates.length > 0) {
-    // Prefer candidates closer to player spawns: pick from closest half
-    candidates.sort((a, b) => a.playerDist - b.playerDist);
-    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 2)));
-    pos = pool[Math.floor(Math.random() * pool.length)];
+  // Pre-compute enemy turn-1 reach for D3 threat radius check
+  const enemyReach = computeEnemyReach(enemySpawns, classesData, weaponsData);
+
+  // Find candidates in a column range with distance and threat checks
+  function findCandidates(startCol, endCol) {
+    const cands = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = startCol; c < endCol; c++) {
+        const key = `${c},${r}`;
+        if (occupied.has(key)) continue;
+        if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
+        const minPlayerDist = Math.min(...playerSpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
+        const minEnemyDist = Math.min(...enemySpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
+        if (minPlayerDist >= 2 && minEnemyDist >= 4) {
+          cands.push({ col: c, row: r, playerDist: minPlayerDist });
+        }
+      }
+    }
+    return cands;
+  }
+
+  // D2: Try tight zone first for river maps, then fall back to wide zone
+  let candidates;
+  if (isRiverTemplate) {
+    candidates = findCandidates(tightStartCol, tightEndCol);
+    if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] River tight zone: ${candidates.length} candidates`);
+    if (candidates.length === 0) {
+      candidates = findCandidates(wideStartCol, wideEndCol);
+      if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] River fallback to wide zone: ${candidates.length} candidates`);
+    }
   } else {
-    // Fallback: any passable tile in biased zone (relax distance constraints)
+    candidates = findCandidates(wideStartCol, wideEndCol);
+  }
+
+  // D3: Threat radius rejection — pick candidate, reject if >2 enemies in turn-1 reach
+  let pos = null;
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => a.playerDist - b.playerDist);
+    const pickPool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 2)));
+    shuffleArray(pickPool);
+
+    const maxRetries = Math.min(10, pickPool.length);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const candidate = pickPool[attempt];
+      const threatsInRange = countThreats(candidate.col, candidate.row, enemyReach);
+      if (DEBUG_MAP_GEN) {
+        console.log(`[NPC Spawn] Attempt ${attempt + 1}: (${candidate.col},${candidate.row}) threats=${threatsInRange} ${threatsInRange > 2 ? 'REJECTED' : 'ACCEPTED'}`);
+      }
+      if (threatsInRange <= 2) {
+        pos = candidate;
+        break;
+      }
+    }
+    // If all retries failed, place anyway with warning
+    if (!pos) {
+      pos = pickPool[0];
+      if (DEBUG_MAP_GEN) console.warn(`[NPC Spawn] All ${maxRetries} retries exceeded threat limit, placing at (${pos.col},${pos.row}) anyway`);
+    }
+  } else {
+    // Fallback: any passable tile in wide zone (relax distance constraints)
     const fallback = [];
     for (let r = 0; r < rows; r++) {
-      for (let c = midStartCol; c < midEndCol; c++) {
+      for (let c = wideStartCol; c < wideEndCol; c++) {
         const key = `${c},${r}`;
         if (occupied.has(key)) continue;
         if (isPassable(terrainData, mapLayout[r][c], 'Infantry')) fallback.push({ col: c, row: r });
@@ -877,6 +922,7 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
       mapLayout[centerRow][centerCol] = TERRAIN.Plain;
       pos = { col: centerCol, row: centerRow };
     }
+    if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] Fallback placement at (${pos.col},${pos.row})`);
   }
 
   return {
@@ -886,6 +932,48 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
     col: pos.col,
     row: pos.row,
   };
+}
+
+// Estimate max weapon range from a class's primary weapon proficiency
+function estimateMaxWeaponRange(className, classesData, weaponsData) {
+  if (!classesData || !weaponsData) return 1;
+  const cd = classesData.find(c => c.name === className);
+  if (!cd?.weaponProficiencies) return 1;
+  const primaryProf = cd.weaponProficiencies.split(',')[0]?.trim()?.split(' ')[0];
+  // Map proficiency to weapon type
+  const profToType = { Swords: 'Sword', Lances: 'Lance', Axes: 'Axe', Bows: 'Bow', Tomes: 'Tome', Light: 'Light', Staves: 'Staff' };
+  const weaponType = profToType[primaryProf];
+  if (!weaponType) return 1;
+  // Find max range among that weapon type
+  let maxRange = 1;
+  for (const w of weaponsData) {
+    if (w.type !== weaponType) continue;
+    const parts = w.range.split('-').map(Number);
+    const hi = parts[parts.length - 1];
+    if (hi > maxRange) maxRange = hi;
+  }
+  // Cap at 2 for practical turn-1 reach estimation (long-range tomes like Bolting are rare)
+  return Math.min(maxRange, 2);
+}
+
+// Pre-compute enemy turn-1 reach: MOV + max weapon range
+function computeEnemyReach(enemySpawns, classesData, weaponsData) {
+  return enemySpawns.map(e => {
+    const cd = classesData?.find(c => c.name === e.className);
+    const mov = cd?.baseStats?.MOV || 4;
+    const maxRange = estimateMaxWeaponRange(e.className, classesData, weaponsData);
+    return { col: e.col, row: e.row, reach: mov + maxRange };
+  });
+}
+
+// Count how many enemies can reach a position on turn 1
+function countThreats(col, row, enemyReach) {
+  let count = 0;
+  for (const e of enemyReach) {
+    const dist = Math.abs(e.col - col) + Math.abs(e.row - row);
+    if (dist <= e.reach) count++;
+  }
+  return count;
 }
 
 // --- Helpers ---
