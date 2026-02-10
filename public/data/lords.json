@@ -64,18 +64,18 @@
       "MAG": 15,
       "SKL": 10,
       "SPD": 10,
-      "DEF": 0,
+      "DEF": 5,
       "RES": 10,
       "LCK": 5
     },
     "promotedClass": "Grandmaster",
     "promotionBonuses": {
       "HP": 2,
-      "STR": 1,
+      "STR": 2,
       "MAG": 3,
       "SKL": 2,
       "SPD": 1,
-      "DEF": 1,
+      "DEF": 2,
       "RES": 2,
       "LCK": 0,
       "MOV": 0
@@ -91,9 +91,9 @@
       "STR": 8,
       "MAG": 1,
       "SKL": 6,
-      "SPD": 5,
+      "SPD": 6,
       "DEF": 7,
-      "RES": 2,
+      "RES": 3,
       "LCK": 3,
       "MOV": 4
     },
@@ -107,8 +107,8 @@
       "SKL": 5,
       "SPD": 5,
       "DEF": 10,
-      "RES": 0,
-      "LCK": 0
+      "RES": 5,
+      "LCK": 5
     },
     "promotedClass": "Vanguard",
     "promotionBonuses": {
@@ -116,9 +116,9 @@
       "STR": 3,
       "MAG": 0,
       "SKL": 1,
-      "SPD": 0,
+      "SPD": 2,
       "DEF": 3,
-      "RES": 0,
+      "RES": 2,
       "LCK": 0,
       "MOV": 0
     },
@@ -144,10 +144,10 @@
     "personalSkill": "Renewal Aura: Adjacent allies heal 5 HP/turn",
     "personalGrowths": {
       "HP": 10,
-      "STR": 0,
+      "STR": 5,
       "MAG": 10,
       "SKL": 5,
-      "SPD": 5,
+      "SPD": 6,
       "DEF": 5,
       "RES": 15,
       "LCK": 10
@@ -155,11 +155,11 @@
     "promotedClass": "Light Priestess",
     "promotionBonuses": {
       "HP": 3,
-      "STR": 0,
+      "STR": 2,
       "MAG": 2,
       "SKL": 1,
       "SPD": 1,
-      "DEF": 1,
+      "DEF": 3,
       "RES": 3,
       "LCK": 0,
       "MOV": 0

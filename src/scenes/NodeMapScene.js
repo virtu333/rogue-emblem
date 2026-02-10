@@ -467,7 +467,7 @@ export class NodeMapScene extends Phaser.Scene {
             this.refreshChurchOverlay(node);
           } else {
             const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_error');
+            if (audio) audio.playSFX('sfx_cancel');
             this.showChurchMessage('Not enough gold or roster full!', '#ff4444');
           }
         });
@@ -517,7 +517,7 @@ export class NodeMapScene extends Phaser.Scene {
             this.refreshChurchOverlay(node);
           } else {
             const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_error');
+            if (audio) audio.playSFX('sfx_cancel');
             this.showChurchMessage('Not enough gold!', '#ff4444');
           }
         });

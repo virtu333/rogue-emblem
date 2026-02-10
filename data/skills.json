@@ -214,18 +214,6 @@
     "trigger": "action"
   },
   {
-    "id": "trade",
-    "name": "Trade",
-    "description": "Exchange items with an adjacent ally",
-    "trigger": "action"
-  },
-  {
-    "id": "swap",
-    "name": "Swap",
-    "description": "Exchange positions with an adjacent ally",
-    "trigger": "action"
-  },
-  {
     "id": "dance",
     "name": "Dance",
     "description": "Grant another ally another action this turn",

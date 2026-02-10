@@ -38,6 +38,7 @@ import {
   equipAccessory,
   unequipAccessory,
   applyStatBoost,
+  getClassInnateSkills,
 } from '../engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -231,7 +232,26 @@ export class BattleScene extends Phaser.Scene {
         const recruitGrowthBonuses = this.runManager?.metaEffects?.growthBonuses || null;
         const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
           ? RECRUIT_SKILL_POOL : null;
-        const npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+
+        let npc;
+        if (npcClassData.tier === 'promoted') {
+          // Promoted recruit: create from base class, then promote
+          const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
+          if (!baseClassData) return;
+          const baseDef = { ...npcSpawn, className: baseClassData.name };
+          npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+          for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+            if (!npc.skills.includes(sid)) npc.skills.push(sid);
+          }
+          promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+        } else {
+          npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+          // Assign base-class innate skills (e.g. Dancer gets 'dance')
+          for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
+            if (!npc.skills.includes(sid)) npc.skills.push(sid);
+          }
+        }
+
         npc.col = npcSpawn.col;
         npc.row = npcSpawn.row;
         this.npcUnits.push(npc);
@@ -909,6 +929,9 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.danceTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'TRADING') {
+      this.cleanupTradeUI();
+      this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'CANTO_MOVING') {
       // Skip Canto — end unit's turn
       this.grid.clearHighlights();
@@ -1425,7 +1448,6 @@ export class BattleScene extends Phaser.Scene {
       this.tradeUIObjects.forEach(obj => obj.destroy());
       this.tradeUIObjects = null;
     }
-    this.battleState = 'PLAYER_IDLE';
   }
 
   startSwapTargetSelection(unit) {
@@ -1648,10 +1670,10 @@ export class BattleScene extends Phaser.Scene {
     // Shove/Pull: show if unit has skill and valid targets exist
     if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0) items.push('Shove');
     if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
-    // Trade: show if unit has items/space and adjacent ally exists
-    if (unit.skills?.includes('trade') && this.findTradeTargets(unit).length > 0) items.push('Trade');
-    // Swap: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('swap') && this.findSwapTargets(unit).length > 0) items.push('Swap');
+    // Trade: show if adjacent ally with items/space exists
+    if (this.findTradeTargets(unit).length > 0) items.push('Trade');
+    // Swap: show if adjacent ally on walkable terrain exists
+    if (this.findSwapTargets(unit).length > 0) items.push('Swap');
     // Dance: show if unit has skill and valid targets exist
     if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0) items.push('Dance');
     // Talk: Lord adjacent to NPC, roster not full

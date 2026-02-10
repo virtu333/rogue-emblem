@@ -18,7 +18,8 @@
       { "className": "Pegasus Knight", "name": "Elysia" },
       { "className": "Mage", "name": "Theron" },
       { "className": "Knight", "name": "Osric" },
-      { "className": "Cavalier", "name": "Helena" }
+      { "className": "Cavalier", "name": "Helena" },
+      { "className": "Dancer", "name": "Sylvie" }
     ]
   },
   "act3": {
@@ -29,7 +30,8 @@
       { "className": "Sage", "name": "Vaelan" },
       { "className": "Assassin", "name": "Shade" },
       { "className": "Sniper", "name": "Faye" },
-      { "className": "Bishop", "name": "Io" }
+      { "className": "Bishop", "name": "Io" },
+      { "className": "Bard", "name": "Cadence" }
     ]
   }
 }

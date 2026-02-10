@@ -328,34 +328,6 @@
     "learnableSkills": [{ "skillId": "astra", "level": 10 }]
   },
   {
-    "name": "Dancer",
-    "tier": "base",
-    "baseStats": {
-      "HP": 14,
-      "STR": 2,
-      "MAG": 1,
-      "SKL": 3,
-      "SPD": 7,
-      "DEF": 2,
-      "RES": 3,
-      "LCK": 8,
-      "MOV": 4
-    },
-    "moveType": "Infantry",
-    "weaponProficiencies": "None",
-    "role": "Grants ally second turn",
-    "growthRanges": {
-      "HP": "35-45",
-      "STR": "10-20",
-      "MAG": "5-15",
-      "SKL": "15-25",
-      "SPD": "45-60",
-      "DEF": "5-15",
-      "RES": "20-30",
-      "LCK": "50-65"
-    }
-  },
-  {
     "name": "Swordmaster",
     "tier": "promoted",
     "promotesFrom": "Myrmidon",

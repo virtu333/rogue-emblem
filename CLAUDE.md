@@ -11,7 +11,7 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 ## Tech Stack
 - **Engine:** Phaser.js 3 (HTML5 Canvas)
 - **Language:** JavaScript (ES modules)
-- **Data:** JSON files in `data/` — all game content is data-driven
+- **Data:** JSON files in `data/` (source of truth) synced to `public/data/` (runtime). Edit `data/*.json` then run `npm run sync-data` (or let `npm run build` auto-sync)
 - **Build:** Vite for dev server and bundling
 - **Hosting:** Netlify (static CDN) — https://emblem-rogue.netlify.app
 - **Auth:** Supabase Auth (username/password, email confirmation disabled)

@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node tools/syncData.js && vite build",
     "preview": "vite preview",
+    "sync-data": "node tools/syncData.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "sim:progression": "node sim/progression.js",
