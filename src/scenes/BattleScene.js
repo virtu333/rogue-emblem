@@ -1719,6 +1719,12 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Action Menu ---
 
+  _clampMenuY(preferredY, menuHeight) {
+    const pad = 4;
+    const maxY = 480 - menuHeight - pad;
+    return Math.max(pad, Math.min(preferredY, maxY));
+  }
+
   showActionMenu(unit) {
     this.hideActionMenu();
     this.inEquipMenu = false;
@@ -1785,15 +1791,16 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = Math.max(70, longestLabel * 8 + 16);
     const itemHeight = 22;
     const menuHeight = items.length * itemHeight + 8;
+    const clampedY = this._clampMenuY(menuY, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     items.forEach((label, i) => {
-      const itemY = menuY + 4 + i * itemHeight + itemHeight / 2;
+      const itemY = clampedY + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuX + menuWidth / 2;
 
       const text = this.add.text(itemX, itemY, label, {
@@ -2068,15 +2075,16 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = 210;
     const itemHeight = 36;
     const menuHeight = combatWeapons.length * itemHeight + 12;
+    const clampedY = this._clampMenuY(menuY, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     combatWeapons.forEach((wpn, i) => {
-      const itemY = menuY + 6 + i * itemHeight + itemHeight / 2;
+      const itemY = clampedY + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuX + 8;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const rng = wpn.range.includes('-') ? `Rng${wpn.range}` : `Rng ${wpn.range}`;
@@ -2127,15 +2135,16 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = 110;
     const itemHeight = 22;
     const menuHeight = equippable.length * itemHeight + 8;
+    const clampedY = this._clampMenuY(menuY, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     equippable.forEach((wpn, i) => {
-      const itemY = menuY + 4 + i * itemHeight + itemHeight / 2;
+      const itemY = clampedY + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuX + menuWidth / 2;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const label = marker + wpn.name;
@@ -2193,15 +2202,16 @@ export class BattleScene extends Phaser.Scene {
     const itemHeight = 22;
     const menuWidth = 120;
     const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
+    const clampedY = this._clampMenuY(menuY, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     consumables.forEach((item, i) => {
-      const iy = menuY + 4 + i * itemHeight + itemHeight / 2;
+      const iy = clampedY + 4 + i * itemHeight + itemHeight / 2;
       const ix = menuX + menuWidth / 2;
 
       // Check usability
@@ -2229,7 +2239,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Back button
-    const backY = menuY + 4 + consumables.length * itemHeight + itemHeight / 2;
+    const backY = clampedY + 4 + consumables.length * itemHeight + itemHeight / 2;
     const backText = this.add.text(menuX + menuWidth / 2, backY, 'Back', {
       fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
     }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
@@ -2340,15 +2350,16 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = 140;
     const itemHeight = 22;
     const menuHeight = items.length * itemHeight + 8;
+    const clampedY = this._clampMenuY(menuY, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, menuY + menuHeight / 2,
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     items.forEach((entry, i) => {
-      const iy = menuY + 4 + i * itemHeight + itemHeight / 2;
+      const iy = clampedY + 4 + i * itemHeight + itemHeight / 2;
       const ix = menuX + menuWidth / 2;
       const defaultColor = entry.action === 'unequip' ? '#cc88ff' : entry.action === 'back' ? '#aaaaaa' : '#e0e0e0';
 
