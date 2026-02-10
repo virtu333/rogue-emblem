@@ -14,6 +14,7 @@ import {
   isStaff,
   getEffectivenessMultiplier,
   getStaffRemainingUses,
+  getStaffMaxUses,
   getEffectiveStaffRange,
   spendStaffUse,
 } from '../engine/Combat.js';
@@ -1722,7 +1723,12 @@ export class BattleScene extends Phaser.Scene {
     // Build dynamic item list
     const items = [];
     if (attackTargets.length > 0) items.push('Attack');
-    if (healTargets.length > 0) items.push('Heal');
+    if (healTargets.length > 0) {
+      const staff = getStaffWeapon(unit);
+      const rem = getStaffRemainingUses(staff, unit);
+      const max = getStaffMaxUses(staff, unit);
+      items.push(`Heal (${rem}/${max})`);
+    }
     if (unit.inventory && unit.inventory.length >= 2) items.push('Equip');
     if (canPromote(unit)) items.push('Promote');
     // Item: show if unit has consumables
@@ -1757,7 +1763,8 @@ export class BattleScene extends Phaser.Scene {
     }
     items.push('Wait');
 
-    const menuWidth = 70;
+    const longestLabel = Math.max(...items.map(l => l.length));
+    const menuWidth = Math.max(70, longestLabel * 8 + 16);
     const itemHeight = 22;
     const menuHeight = items.length * itemHeight + 8;
 
@@ -1800,7 +1807,7 @@ export class BattleScene extends Phaser.Scene {
             this.grid.showAttackRange(attackTiles);
             this.battleState = 'SELECTING_TARGET';
           }
-        } else if (label === 'Heal') {
+        } else if (label.startsWith('Heal')) {
           this.hideActionMenu();
           this.startHealTargetSelection(unit, healTargets);
         } else if (label === 'Equip') {
@@ -1926,6 +1933,12 @@ export class BattleScene extends Phaser.Scene {
     // Auto-equip staff
     const staff = getStaffWeapon(unit);
     if (staff) equipWeapon(unit, staff);
+
+    // First-heal tutorial hint (one-time per save slot)
+    const hints = this.registry.get('hints');
+    if (hints?.shouldShow('battle_heal_uses')) {
+      showMinorHint(this, 'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.');
+    }
 
     // Fortify: auto-heal all targets, no selection needed
     if (staff.healAll) {
