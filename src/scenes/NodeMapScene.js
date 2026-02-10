@@ -217,7 +217,7 @@ export class NodeMapScene extends Phaser.Scene {
       }
 
       // Node icon — use sprite if loaded, fall back to colored rectangle + unicode
-      let spriteKey = `node_${node.type}`;
+      let spriteKey = node.type === NODE_TYPES.CHURCH ? 'node_rest' : `node_${node.type}`;
       if (node.type === NODE_TYPES.BOSS) {
         const actId = this.runManager.nodeMap.actId;
         if (actId === 'finalBoss') spriteKey = 'node_boss_final';
