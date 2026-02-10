@@ -114,6 +114,11 @@ export class NodeMapScene extends Phaser.Scene {
     if (hints?.shouldShow('nodemap_intro')) {
       showImportantHint(this, 'Choose your path. Battles give loot and gold.\nShops sell gear. Churches heal and promote.');
     }
+
+    // HP persistence hint — show once after first battle return
+    if (hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1) {
+      showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
+    }
   }
 
   showPauseMenu() {

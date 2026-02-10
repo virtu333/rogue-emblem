@@ -209,6 +209,25 @@ describe('MapGenerator', () => {
       const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
       expect(config.npcSpawn).toBeNull();
     });
+
+    it('NPC spawn is biased toward player side of map', () => {
+      for (let i = 0; i < 20; i++) {
+        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const npc = config.npcSpawn;
+        expect(npc.col).toBeLessThan(Math.ceil(config.cols * 0.60));
+      }
+    });
+
+    it('NPC spawn maintains distance from enemy spawns', () => {
+      for (let i = 0; i < 20; i++) {
+        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const npc = config.npcSpawn;
+        for (const es of config.enemySpawns) {
+          const dist = Math.abs(npc.col - es.col) + Math.abs(npc.row - es.row);
+          expect(dist).toBeGreaterThanOrEqual(2);
+        }
+      }
+    });
   });
   describe('dynamic deployCount', () => {
     it('deployCount param produces correct number of player spawns', () => {

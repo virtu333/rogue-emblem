@@ -9,6 +9,11 @@ export class AudioManager {
     this.sfxVolume = 0.7;
   }
 
+  /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
+  _curve(linear) {
+    return linear * linear;
+  }
+
   /** Play looping background music with optional fade-in. */
   playMusic(key, scene, fadeMs = 500) {
     if (this.currentMusicKey === key) return; // already playing
@@ -35,14 +40,14 @@ export class AudioManager {
 
     if (!this.sound.get(key) && !this.sound.game.cache.audio.has(key)) return;
 
-    this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this.musicVolume });
+    this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
     this.currentMusicKey = key;
     this.currentMusic.play();
 
     if (fadeMs > 0 && scene?.tweens) {
       scene.tweens.add({
         targets: this.currentMusic,
-        volume: this.musicVolume,
+        volume: this._curve(this.musicVolume),
         duration: fadeMs,
       });
     }
@@ -72,14 +77,14 @@ export class AudioManager {
 
   /** Play a one-shot sound effect. */
   playSFX(key, volume) {
-    const vol = (volume ?? 1.0) * this.sfxVolume;
+    const vol = (volume ?? 1.0) * this._curve(this.sfxVolume);
     if (!this.sound.game.cache.audio.has(key)) return;
     this.sound.play(key, { volume: vol });
   }
 
   setMusicVolume(level) {
     this.musicVolume = Math.max(0, Math.min(1, level));
-    if (this.currentMusic) this.currentMusic.setVolume(this.musicVolume);
+    if (this.currentMusic) this.currentMusic.setVolume(this._curve(this.musicVolume));
   }
 
   setSFXVolume(level) {

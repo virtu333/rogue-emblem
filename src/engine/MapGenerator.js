@@ -472,28 +472,33 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   for (const s of playerSpawns) occupied.add(`${s.col},${s.row}`);
   for (const s of enemySpawns) occupied.add(`${s.col},${s.row}`);
 
-  // Middle third of map
-  const midStartCol = Math.floor(cols * 0.33);
-  const midEndCol = Math.ceil(cols * 0.67);
+  // Player-biased zone (20%-55% of columns — closer to player side)
+  const midStartCol = Math.floor(cols * 0.20);
+  const midEndCol = Math.ceil(cols * 0.55);
 
-  // Find passable tiles in middle third, Manhattan distance >= 3 from all spawns
-  const allSpawns = [...playerSpawns, ...enemySpawns];
+  // Find passable tiles with split distance: close to players, far from enemies
   const candidates = [];
   for (let r = 0; r < rows; r++) {
     for (let c = midStartCol; c < midEndCol; c++) {
       const key = `${c},${r}`;
       if (occupied.has(key)) continue;
       if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
-      const minDist = Math.min(...allSpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
-      if (minDist >= 3) candidates.push({ col: c, row: r });
+      const minPlayerDist = Math.min(...playerSpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
+      const minEnemyDist = Math.min(...enemySpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
+      if (minPlayerDist >= 2 && minEnemyDist >= 4) {
+        candidates.push({ col: c, row: r, playerDist: minPlayerDist });
+      }
     }
   }
 
   let pos;
   if (candidates.length > 0) {
-    pos = candidates[Math.floor(Math.random() * candidates.length)];
+    // Prefer candidates closer to player spawns: pick from closest half
+    candidates.sort((a, b) => a.playerDist - b.playerDist);
+    const pool = candidates.slice(0, Math.max(1, Math.ceil(candidates.length / 2)));
+    pos = pool[Math.floor(Math.random() * pool.length)];
   } else {
-    // Fallback: any passable tile in middle third
+    // Fallback: any passable tile in biased zone (relax distance constraints)
     const fallback = [];
     for (let r = 0; r < rows; r++) {
       for (let c = midStartCol; c < midEndCol; c++) {
