@@ -260,7 +260,7 @@ export class BattleScene extends Phaser.Scene {
         const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
         if (npcClassData) {
           const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
-          const recruitGrowthBonuses = this.runManager?.metaEffects?.growthBonuses || null;
+          const recruitGrowthBonuses = this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
           const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
             ? RECRUIT_SKILL_POOL : null;
 
@@ -3880,7 +3880,7 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.actIndex,
       this.runManager.roster,
       this.gameData,
-      this.runManager.metaEffects
+      this.runManager.getEffectiveMetaEffects()
     );
     // Fallback to loot if no candidates generated
     if (!candidates || candidates.length === 0) {

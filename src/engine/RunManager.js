@@ -4,7 +4,7 @@
 import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
-  ELITE_GOLD_MULTIPLIER,
+  ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES,
 } from '../utils/constants.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip } from './UnitManager.js';
@@ -30,6 +30,13 @@ function relinkWeapon(unit) {
   const match = unit.inventory.find(w => JSON.stringify(w) === weaponStr && canEquip(unit, w));
   // Fallback: first proficient weapon in inventory
   unit.weapon = match || unit.inventory.find(w => canEquip(unit, w)) || null;
+}
+
+function parsePersonalSkillId(personalSkillStr) {
+  if (!personalSkillStr) return null;
+  const colonIdx = personalSkillStr.indexOf(':');
+  const name = colonIdx > 0 ? personalSkillStr.slice(0, colonIdx).trim() : personalSkillStr.trim();
+  return name.toLowerCase().replace(/\s+/g, '_');
 }
 
 /**
@@ -71,6 +78,9 @@ export class RunManager {
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
+      allGrowthsDelta: 0,
+      disablePersonalSkillsUntilAct: null,
+      blockedPersonalSkillsByUnit: {},
     };
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
@@ -105,6 +115,9 @@ export class RunManager {
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
+      allGrowthsDelta: 0,
+      disablePersonalSkillsUntilAct: null,
+      blockedPersonalSkillsByUnit: {},
     };
     this.battleConfigsByNodeId = {};
     this.blessingHistory = [];
@@ -237,6 +250,91 @@ export class RunManager {
         unit.mov = (unit.mov || unit.stats.MOV || 0) + value;
       }
     }
+  }
+
+  _getPersonalSkillIdSet() {
+    const lords = Array.isArray(this.gameData?.lords) ? this.gameData.lords : [];
+    const ids = new Set();
+    for (const lord of lords) {
+      const id = parsePersonalSkillId(lord?.personalSkill || '');
+      if (id) ids.add(id);
+    }
+    return ids;
+  }
+
+  _applyGrowthDeltaToUnits(units, value) {
+    if (!Array.isArray(units) || !Number.isFinite(value) || value === 0) return;
+    for (const unit of units) {
+      if (!unit.growths) unit.growths = {};
+      for (const stat of XP_STAT_NAMES) {
+        unit.growths[stat] = (unit.growths[stat] || 0) + value;
+      }
+    }
+  }
+
+  _suppressPersonalSkillsForCurrentRosterIfNeeded() {
+    const targetAct = this.blessingRuntimeModifiers?.disablePersonalSkillsUntilAct;
+    if (!targetAct) return { applied: false, removedByUnit: {} };
+    const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+    if (targetIndex === -1 || this.actIndex >= targetIndex) {
+      return { applied: false, removedByUnit: {} };
+    }
+    const personalSkillIds = this._getPersonalSkillIdSet();
+    if (personalSkillIds.size === 0) return { applied: false, removedByUnit: {} };
+    if (!this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
+      this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
+    }
+    const blockedByUnit = this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit;
+    const removedByUnit = {};
+    for (const unit of this.roster) {
+      if (!Array.isArray(unit?.skills) || unit.skills.length === 0) continue;
+      const blocked = new Set(Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : []);
+      const nextSkills = [];
+      const removed = [];
+      for (const skillId of unit.skills) {
+        if (personalSkillIds.has(skillId)) {
+          blocked.add(skillId);
+          removed.push(skillId);
+        } else {
+          nextSkills.push(skillId);
+        }
+      }
+      if (removed.length > 0) {
+        unit.skills = nextSkills;
+        blockedByUnit[unit.name] = [...blocked];
+        removedByUnit[unit.name] = removed;
+      }
+    }
+    return { applied: Object.keys(removedByUnit).length > 0, removedByUnit };
+  }
+
+  _restoreDisabledPersonalSkillsIfReady(stage = 'act_transition') {
+    const targetAct = this.blessingRuntimeModifiers?.disablePersonalSkillsUntilAct;
+    if (!targetAct) return;
+    const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+    if (targetIndex === -1 || this.actIndex < targetIndex) return;
+    const blockedByUnit = this.blessingRuntimeModifiers?.blockedPersonalSkillsByUnit || {};
+    const restoredByUnit = {};
+    for (const unit of this.roster) {
+      const blocked = Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : [];
+      if (blocked.length === 0) continue;
+      const restored = [];
+      for (const skillId of blocked) {
+        if (Array.isArray(unit.skills) && !unit.skills.includes(skillId)) {
+          unit.skills.push(skillId);
+          restored.push(skillId);
+        }
+      }
+      if (restored.length > 0) restoredByUnit[unit.name] = restored;
+    }
+    this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = null;
+    this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
+    this._recordBlessingEvent(
+      stage,
+      null,
+      { type: 'disable_personal_skills_until_act', params: { act: targetAct } },
+      { restoredInAct: this.currentAct, restoredByUnit }
+    );
   }
 
   _applySingleRunStartBlessingEffect(blessingId, effect) {
@@ -415,6 +513,48 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'all_growths_delta') {
+      const delta = Math.trunc(value);
+      if (delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_all_growths_delta',
+        });
+        return;
+      }
+      this.blessingRuntimeModifiers.allGrowthsDelta += delta;
+      this._applyGrowthDeltaToUnits(this.roster, delta);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.allGrowthsDelta,
+        appliedUnits: this.roster.map(u => u.name),
+      });
+      return;
+    }
+
+    if (effect.type === 'disable_personal_skills_until_act') {
+      const targetAct = String(effect.params.act || '').trim();
+      const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+      if (!targetAct || targetIndex === -1) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_disable_personal_skills_until_act_params',
+        });
+        return;
+      }
+      const existingAct = this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct;
+      if (!existingAct || ACT_SEQUENCE.indexOf(existingAct) < targetIndex) {
+        this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = targetAct;
+      }
+      const suppression = this._suppressPersonalSkillsForCurrentRosterIfNeeded();
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        targetAct: this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct,
+        appliedNow: suppression.applied,
+        removedByUnit: suppression.removedByUnit,
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
   }
 
@@ -432,6 +572,42 @@ export class RunManager {
 
   getShopItemCountDelta() {
     return Math.trunc(this.blessingRuntimeModifiers?.shopItemCountDelta || 0);
+  }
+
+  _buildBlessingAllGrowthBonus() {
+    const delta = Math.trunc(this.blessingRuntimeModifiers?.allGrowthsDelta || 0);
+    if (delta === 0) return null;
+    const bonus = {};
+    for (const stat of XP_STAT_NAMES) bonus[stat] = delta;
+    return bonus;
+  }
+
+  _mergeGrowthBonuses(baseBonuses, blessingBonuses) {
+    const merged = {};
+    for (const stat of XP_STAT_NAMES) {
+      const total = (baseBonuses?.[stat] || 0) + (blessingBonuses?.[stat] || 0);
+      if (total !== 0) merged[stat] = total;
+    }
+    return Object.keys(merged).length > 0 ? merged : null;
+  }
+
+  getEffectiveRecruitGrowthBonuses() {
+    const blessingBonuses = this._buildBlessingAllGrowthBonus();
+    return this._mergeGrowthBonuses(this.metaEffects?.growthBonuses || null, blessingBonuses);
+  }
+
+  getEffectiveLordGrowthBonuses() {
+    const blessingBonuses = this._buildBlessingAllGrowthBonus();
+    return this._mergeGrowthBonuses(this.metaEffects?.lordGrowthBonuses || null, blessingBonuses);
+  }
+
+  getEffectiveMetaEffects() {
+    const base = this.metaEffects ? { ...this.metaEffects } : {};
+    const recruitGrowthBonuses = this.getEffectiveRecruitGrowthBonuses();
+    const lordGrowthBonuses = this.getEffectiveLordGrowthBonuses();
+    base.growthBonuses = recruitGrowthBonuses || {};
+    base.lordGrowthBonuses = lordGrowthBonuses || {};
+    return base;
   }
 
   consumeSkipFirstShop() {
@@ -619,6 +795,7 @@ export class RunManager {
     }
 
     this.roster = survivingUnits.map(u => serializeUnit(u));
+    this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.completedBattles++;
     const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
     this.markNodeComplete(nodeId);
@@ -679,6 +856,7 @@ export class RunManager {
     this._revertActScopedBlessingEffects(this.currentAct);
     this.actIndex++;
     if (this.actIndex >= ACT_SEQUENCE.length) return; // shouldn't happen, use isRunComplete
+    this._restoreDisabledPersonalSkillsIfReady('act_transition');
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
     this.currentNodeId = null;
   }
@@ -739,6 +917,9 @@ export class RunManager {
         actStatDeltaAllUnits: [],
         skipFirstShop: false,
         shopItemCountDelta: 0,
+        allGrowthsDelta: 0,
+        disablePersonalSkillsUntilAct: null,
+        blockedPersonalSkillsByUnit: {},
       },
       runSeed: this.runSeed,
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
@@ -807,12 +988,22 @@ export class RunManager {
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
+      allGrowthsDelta: 0,
+      disablePersonalSkillsUntilAct: null,
+      blockedPersonalSkillsByUnit: {},
     };
     if (!Array.isArray(rm.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
       rm.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
     }
     rm.blessingRuntimeModifiers.skipFirstShop = Boolean(rm.blessingRuntimeModifiers.skipFirstShop);
     rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(rm.blessingRuntimeModifiers.shopItemCountDelta || 0);
+    rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(rm.blessingRuntimeModifiers.allGrowthsDelta || 0);
+    rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = ACT_SEQUENCE.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
+      ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
+      : null;
+    if (!rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
+      rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
+    }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm._runStartBlessingsApplied = true;
@@ -828,6 +1019,8 @@ export class RunManager {
 
     rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits.forEach(u => relinkWeapon(u));
+    rm._restoreDisabledPersonalSkillsIfReady('load');
+    rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
 
     return rm;
   }

@@ -888,6 +888,55 @@ describe('blessing run-start effect application', () => {
     expect(rm.getShopItemCountDelta()).toBe(-2);
   });
 
+  it('all_growths_delta blessing applies to roster growths and recruit growth accessor', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseGrowths = rm.roster.map(u => ({ ...u.growths }));
+
+    rm.activeBlessings = ['forbidden_tome'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    rm.roster.forEach((unit, idx) => {
+      for (const stat of ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']) {
+        expect(unit.growths[stat]).toBe((baseGrowths[idx][stat] || 0) + 15);
+      }
+    });
+    const recruitGrowthBonuses = rm.getEffectiveRecruitGrowthBonuses();
+    expect(recruitGrowthBonuses.HP).toBe(15);
+    expect(recruitGrowthBonuses.STR).toBe(15);
+    expect(recruitGrowthBonuses.SPD).toBe(15);
+  });
+
+  it('disable_personal_skills_until_act removes and restores lord personal skills at target act', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const beforeSkills = rm.roster.map(u => ({
+      name: u.name,
+      skills: [...(u.skills || [])],
+    }));
+
+    rm.activeBlessings = ['forbidden_tome'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.skills.length).toBeLessThanOrEqual(beforeSkills[idx].skills.length);
+    });
+
+    rm.advanceAct(); // act2
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.skills.length).toBeLessThanOrEqual(beforeSkills[idx].skills.length);
+    });
+
+    rm.advanceAct(); // act3
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.skills).toEqual(beforeSkills[idx].skills);
+    });
+  });
+
   it('arsenal_pact grants one silver-tier weapon and applies act1 DEF penalty', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
