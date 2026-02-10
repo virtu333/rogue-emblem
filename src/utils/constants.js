@@ -80,6 +80,10 @@ export const TERRAIN = {
 // Boss stat bonus (flat added to all stats)
 export const BOSS_STAT_BONUS = 2;
 
+// Boss recruit event
+export const BOSS_RECRUIT_LORD_CHANCE = 0.12;  // 12% chance one slot is a lord
+export const BOSS_RECRUIT_COUNT = 3;
+
 // Act sequence and config for node map
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'finalBoss'];
 

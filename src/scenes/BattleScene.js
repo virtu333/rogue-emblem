@@ -62,6 +62,7 @@ import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 
@@ -2726,7 +2727,11 @@ export class BattleScene extends Phaser.Scene {
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
       this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned);
       this.time.delayedCall(1500, () => {
-        this.showLootScreen();
+        if (this.isBoss && !this.runManager.isRunComplete()) {
+          this.showBossRecruitScreen();
+        } else {
+          this.showLootScreen();
+        }
       });
     } else {
       // Standalone mode — restart battle after delay
@@ -2759,6 +2764,200 @@ export class BattleScene extends Phaser.Scene {
         runManager: this.runManager,
       });
     }
+  }
+
+  /** Show boss recruit selection: pick 1 of 3 recruits or skip, then proceed to loot. */
+  showBossRecruitScreen() {
+    const candidates = generateBossRecruitCandidates(
+      this.runManager.actIndex,
+      this.runManager.roster,
+      this.gameData,
+      this.runManager.metaEffects
+    );
+    // Fallback to loot if no candidates generated
+    if (!candidates || candidates.length === 0) {
+      this.showLootScreen();
+      return;
+    }
+
+    const audio = this.registry.get('audio');
+    const recruitGroup = [];
+    const cam = this.cameras.main;
+
+    // Dark overlay
+    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
+      .setDepth(700).setInteractive();
+    recruitGroup.push(overlay);
+
+    // Title
+    const title = this.add.text(cam.centerX, 28, 'BOSS RECRUIT', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(701);
+    recruitGroup.push(title);
+
+    const subtitle = this.add.text(cam.centerX, 54, 'Choose a warrior to join your cause', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(701);
+    recruitGroup.push(subtitle);
+
+    // Card layout: candidates + skip
+    const cardCount = candidates.length + 1;
+    const cardW = 130;
+    const cardH = 200;
+    const gap = 14;
+    const totalW = cardCount * cardW + (cardCount - 1) * gap;
+    const startX = cam.centerX - totalW / 2 + cardW / 2;
+    const cardY = cam.centerY + 20;
+
+    // Helper to clean up and proceed to loot
+    const cleanupAndLoot = () => {
+      this.hideLootRoster();
+      for (const obj of recruitGroup) obj.destroy();
+      this.lootGroup = null;
+      this.showLootScreen();
+    };
+
+    // Render candidate cards
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i];
+      const cx = startX + i * (cardW + gap);
+      const u = c.unit;
+
+      const cardColor = c.isLord ? 0x443322 : 0x2a2a44;
+      const strokeColor = c.isLord ? 0xffdd44 : 0x66aacc;
+      const card = this.add.rectangle(cx, cardY, cardW, cardH, cardColor, 1)
+        .setStrokeStyle(2, strokeColor).setDepth(701).setInteractive({ useHandCursor: true });
+      recruitGroup.push(card);
+
+      let yOff = cardY - cardH / 2 + 12;
+
+      // Lord tag
+      if (c.isLord) {
+        const tag = this.add.text(cx, yOff, '[LORD]', {
+          fontFamily: 'monospace', fontSize: '9px', color: '#ffdd44', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(702);
+        recruitGroup.push(tag);
+        yOff += 14;
+      }
+
+      // Name
+      const name = this.add.text(cx, yOff, c.displayName, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(name);
+      yOff += 16;
+
+      // Class
+      const cls = this.add.text(cx, yOff, u.className, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(cls);
+      yOff += 14;
+
+      // Level
+      const lvl = this.add.text(cx, yOff, `Lv ${u.level}`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#66ddff',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(lvl);
+      yOff += 16;
+
+      // Separator
+      const sep = this.add.text(cx, yOff, '─────────', {
+        fontFamily: 'monospace', fontSize: '8px', color: '#555555',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(sep);
+      yOff += 12;
+
+      // Key stats
+      const statColor = { HP: '#88ff88', STR: '#ff8888', MAG: '#aa88ff', SPD: '#ffff88', DEF: '#88bbff', RES: '#cc88ff' };
+      const useMag = (u.stats.MAG || 0) > (u.stats.STR || 0);
+      const displayStats = ['HP', useMag ? 'MAG' : 'STR', 'SPD', 'DEF'];
+      for (const stat of displayStats) {
+        const val = u.stats[stat] || 0;
+        const line = this.add.text(cx, yOff, `${stat}: ${val}`, {
+          fontFamily: 'monospace', fontSize: '9px', color: statColor[stat] || '#cccccc',
+        }).setOrigin(0.5).setDepth(702);
+        recruitGroup.push(line);
+        yOff += 12;
+      }
+      yOff += 4;
+
+      // Weapon proficiencies
+      if (u.proficiencies && u.proficiencies.length > 0) {
+        const profStr = u.proficiencies.map(p => {
+          const short = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tome', Light: 'Lgt', Staff: 'Stf' };
+          return `${short[p.type] || p.type}(${p.rank[0]})`;
+        }).join(' ');
+        const prof = this.add.text(cx, yOff, profStr, {
+          fontFamily: 'monospace', fontSize: '7px', color: '#888888',
+        }).setOrigin(0.5).setDepth(702);
+        recruitGroup.push(prof);
+        yOff += 12;
+      }
+
+      // Personal skill for lords
+      if (c.isLord && u.skills && u.skills.length > 0) {
+        const skillName = u.skills[0];
+        const sk = this.add.text(cx, yOff, skillName, {
+          fontFamily: 'monospace', fontSize: '7px', color: '#ffdd44',
+          wordWrap: { width: cardW - 10 }, align: 'center',
+        }).setOrigin(0.5).setDepth(702);
+        recruitGroup.push(sk);
+      }
+
+      // Click handler
+      card.on('pointerdown', () => {
+        if (audio) audio.playSFX('sfx_confirm');
+        this.runManager.roster.push(c.unit);
+        cleanupAndLoot();
+      });
+
+      // Hover effect
+      card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
+      card.on('pointerout', () => card.setStrokeStyle(2, strokeColor));
+    }
+
+    // Skip card
+    const skipX = startX + candidates.length * (cardW + gap);
+    const skipCard = this.add.rectangle(skipX, cardY, cardW, cardH, 0x333333, 1)
+      .setStrokeStyle(2, 0x666666).setDepth(701).setInteractive({ useHandCursor: true });
+    recruitGroup.push(skipCard);
+
+    const skipIcon = this.add.text(skipX, cardY - 30, '>', {
+      fontFamily: 'monospace', fontSize: '28px', color: '#888888', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(702);
+    recruitGroup.push(skipIcon);
+
+    const skipLabel = this.add.text(skipX, cardY + 10, 'SKIP', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(702);
+    recruitGroup.push(skipLabel);
+
+    const skipDesc = this.add.text(skipX, cardY + 35, 'Continue\nto Loot', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#777777', align: 'center',
+    }).setOrigin(0.5).setDepth(702);
+    recruitGroup.push(skipDesc);
+
+    skipCard.on('pointerdown', () => {
+      if (audio) audio.playSFX('sfx_confirm');
+      cleanupAndLoot();
+    });
+    skipCard.on('pointerover', () => skipCard.setStrokeStyle(3, 0xffffff));
+    skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, 0x666666));
+
+    // Footer hints
+    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#888888',
+    }).setOrigin(0.5).setDepth(701);
+    recruitGroup.push(inst);
+
+    const hintText = this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
+      fontFamily: 'monospace', fontSize: '9px', color: '#666666',
+    }).setOrigin(0.5).setDepth(701);
+    recruitGroup.push(hintText);
+
+    // Store for R key / cleanup
+    this.lootGroup = recruitGroup;
   }
 
   /** Show post-battle loot selection: pick 1 of 3 items or skip for bonus gold. */
