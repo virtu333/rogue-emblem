@@ -1438,7 +1438,7 @@ export class BattleScene extends Phaser.Scene {
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
     doneBtn.on('pointerdown', () => {
       this.cleanupTradeUI();
-      this.finishUnitAction(unitA);
+      this.showActionMenu(unitA);
     });
     this.tradeUIObjects.push(doneBtn);
   }

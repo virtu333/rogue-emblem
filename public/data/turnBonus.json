@@ -1,15 +1,15 @@
 {
   "enemyWeight": 0.6,
-  "areaPenaltyPerTile": 0.03,
-  "terrainMultiplier": 3.0,
+  "areaPenaltyPerTile": 0.01,
+  "terrainMultiplier": 1.0,
   "difficultTerrainTypes": ["Forest", "Mountain", "Water", "Sand"],
   "objectiveBasePar": {
-    "rout": 5,
-    "seize": 7
+    "rout": 2,
+    "seize": 4
   },
   "objectiveAdjustments": {
-    "rout": 1,
-    "seize": 2
+    "rout": 0,
+    "seize": 1
   },
   "brackets": [
     { "rating": "S", "threshold": 0, "bonusMultiplier": 1.0 },

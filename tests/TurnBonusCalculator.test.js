@@ -48,8 +48,8 @@ describe('TurnBonusCalculator', () => {
         mapLayout: layout,
       }), config);
 
-      // basePar=5 + 6*0.6=3.6 + 48*0.03=1.44 + (7/48)*3.0=0.4375 + adj=1 = 11.4775 → ceil = 12
-      expect(par).toBe(12);
+      // basePar=2 + 6*0.6=3.6 + 48*0.01=0.48 + (7/48)*1.0=0.146 + adj=0 = 6.226 → ceil = 7
+      expect(par).toBe(7);
     });
 
     it('calculates par for a large seize map with difficult terrain', () => {
@@ -84,8 +84,8 @@ describe('TurnBonusCalculator', () => {
         mapLayout: layout,
       }), config);
 
-      // basePar=7 + 14*0.6=8.4 + 120*0.03=3.6 + (diffCount/120)*3.0 + adj=2
-      const expected = Math.ceil(7 + 8.4 + 3.6 + (diffCount / 120) * 3.0 + 2);
+      // basePar=4 + 14*0.6=8.4 + 120*0.01=1.2 + (diffCount/120)*1.0 + adj=1
+      const expected = Math.ceil(4 + 8.4 + 1.2 + (diffCount / 120) * 1.0 + 1);
       expect(par).toBe(expected);
     });
 
@@ -98,8 +98,8 @@ describe('TurnBonusCalculator', () => {
       const par = calculatePar(makeMapParams({
         cols: 8, rows: 6, enemyCount: 0, objective: 'rout',
       }), config);
-      // basePar=5 + 0 + 48*0.03=1.44 + 0 + adj=1 = 7.44 → ceil = 8
-      expect(par).toBe(8);
+      // basePar=2 + 0 + 48*0.01=0.48 + 0 + adj=0 = 2.48 → ceil = 3
+      expect(par).toBe(3);
     });
 
     it('handles all difficult terrain', () => {
@@ -107,16 +107,16 @@ describe('TurnBonusCalculator', () => {
         cols: 4, rows: 4, enemyCount: 2, objective: 'rout',
         fillIndex: TERRAIN_INDEX.Forest,
       }), config);
-      // basePar=5 + 2*0.6=1.2 + 16*0.03=0.48 + 1.0*3.0=3.0 + adj=1 = 10.68 → ceil = 11
-      expect(par).toBe(11);
+      // basePar=2 + 2*0.6=1.2 + 16*0.01=0.16 + 1.0*1.0=1.0 + adj=0 = 4.36 → ceil = 5
+      expect(par).toBe(5);
     });
 
     it('handles minimal map (1x1)', () => {
       const par = calculatePar(makeMapParams({
         cols: 1, rows: 1, enemyCount: 1, objective: 'rout',
       }), config);
-      // basePar=5 + 1*0.6=0.6 + 1*0.03=0.03 + 0 + adj=1 = 6.63 → ceil = 7
-      expect(par).toBe(7);
+      // basePar=2 + 1*0.6=0.6 + 1*0.01=0.01 + 0 + adj=0 = 2.61 → ceil = 3
+      expect(par).toBe(3);
     });
 
     it('handles seize objective differently from rout', () => {
@@ -126,7 +126,7 @@ describe('TurnBonusCalculator', () => {
       const paramsRout = makeMapParams({ cols: 8, rows: 6, enemyCount: 4, objective: 'rout' });
       const parRout = calculatePar(paramsRout, config);
 
-      // Seize has higher basePar (7 vs 5) and higher adjustment (2 vs 1)
+      // Seize has higher basePar (4 vs 2) and higher adjustment (1 vs 0)
       expect(parSeize).toBeGreaterThan(parRout);
     });
 
@@ -135,8 +135,8 @@ describe('TurnBonusCalculator', () => {
         cols: 8, rows: 6, enemyCount: 4, objective: 'rout',
         mapLayout: null, terrainData: null,
       }, config);
-      // basePar=5 + 4*0.6=2.4 + 48*0.03=1.44 + 0 + adj=1 = 9.84 → ceil = 10
-      expect(par).toBe(10);
+      // basePar=2 + 4*0.6=2.4 + 48*0.01=0.48 + 0 + adj=0 = 4.88 → ceil = 5
+      expect(par).toBe(5);
     });
   });
 
