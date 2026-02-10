@@ -218,6 +218,23 @@ export class RunManager {
     });
   }
 
+  _applyStatDeltaToUnits(units, stat, value) {
+    if (!Array.isArray(units) || !stat || !Number.isFinite(value) || value === 0) return;
+    for (const unit of units) {
+      unit.stats[stat] = (unit.stats[stat] || 0) + value;
+      if (stat === 'HP') {
+        if (value > 0) {
+          unit.currentHP = (unit.currentHP || 0) + value;
+        } else {
+          unit.currentHP = Math.min(unit.currentHP || 0, unit.stats.HP || 0);
+        }
+      }
+      if (stat === 'MOV') {
+        unit.mov = (unit.mov || unit.stats.MOV || 0) + value;
+      }
+    }
+  }
+
   _applySingleRunStartBlessingEffect(blessingId, effect) {
     if (!effect || !effect.type || !effect.params) return;
     const value = Number(effect.params.value || 0);
@@ -226,11 +243,10 @@ export class RunManager {
     if (effect.type === 'run_start_max_hp_bonus') {
       if (value === 0) return;
       const scope = effect.params.scope || 'all';
-      for (const unit of this.roster) {
-        if (scope === 'lords' && !unit.isLord) continue;
-        unit.stats.HP = (unit.stats.HP || 0) + value;
-        unit.currentHP = (unit.currentHP || 0) + value;
-      }
+      const targetUnits = scope === 'lords'
+        ? this.roster.filter(unit => unit.isLord)
+        : this.roster;
+      this._applyStatDeltaToUnits(targetUnits, 'HP', value);
       this._recordBlessingEvent('run_start', blessingId, effect, { appliedValue: value, scope });
       return;
     }
@@ -326,12 +342,7 @@ export class RunManager {
         reverted: false,
       };
       if (targetAct === this.currentAct) {
-        for (const unit of this.roster) {
-          unit.stats[stat] = (unit.stats[stat] || 0) + value;
-          if (stat === 'HP') {
-            unit.currentHP = Math.min(unit.currentHP || 0, unit.stats.HP || 0);
-          }
-        }
+        this._applyStatDeltaToUnits(this.roster, stat, value);
         tracker.applied = true;
       }
       this.blessingRuntimeModifiers.actStatDeltaAllUnits.push(tracker);
@@ -340,6 +351,43 @@ export class RunManager {
         stat,
         appliedValue: value,
         appliedNow: tracker.applied,
+      });
+      return;
+    }
+
+    if (effect.type === 'lord_stat_bonus') {
+      const stat = String(effect.params.stat || '').trim();
+      if (!stat || value === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_lord_stat_bonus_params',
+        });
+        return;
+      }
+      const lords = this.roster.filter(unit => unit.isLord);
+      this._applyStatDeltaToUnits(lords, stat, value);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        stat,
+        appliedValue: value,
+        appliedUnits: lords.map(u => u.name),
+      });
+      return;
+    }
+
+    if (effect.type === 'all_units_stat_delta') {
+      const stat = String(effect.params.stat || '').trim();
+      if (!stat || value === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_all_units_stat_delta_params',
+        });
+        return;
+      }
+      this._applyStatDeltaToUnits(this.roster, stat, value);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        stat,
+        appliedValue: value,
+        appliedUnits: this.roster.map(u => u.name),
       });
       return;
     }

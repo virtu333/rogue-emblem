@@ -817,6 +817,52 @@ describe('blessing run-start effect application', () => {
     expect(rm.getDeployBonus()).toBe(2);
   });
 
+  it('lord_stat_bonus applies only to lords for iron_oath', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.roster.push({
+      name: 'Mercenary',
+      isLord: false,
+      stats: { DEF: 5, HP: 20, MOV: 5 },
+      currentHP: 20,
+      mov: 5,
+      inventory: [],
+      consumables: [],
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    });
+    const baseDefs = rm.roster.map(u => u.stats.DEF);
+
+    rm.activeBlessings = ['iron_oath'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    rm.roster.forEach((unit, idx) => {
+      if (unit.isLord) {
+        expect(unit.stats.DEF).toBe(baseDefs[idx] + 2);
+      } else {
+        expect(unit.stats.DEF).toBe(baseDefs[idx]);
+      }
+    });
+  });
+
+  it('all_units_stat_delta applies MOV bonus and syncs unit.mov', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseMov = rm.roster.map(u => u.stats.MOV);
+    const baseRuntimeMov = rm.roster.map(u => u.mov);
+
+    rm.activeBlessings = ['worldly_stride'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    rm.roster.forEach((unit, idx) => {
+      expect(unit.stats.MOV).toBe(baseMov[idx] + 1);
+      expect(unit.mov).toBe((baseRuntimeMov[idx] ?? baseMov[idx]) + 1);
+    });
+  });
+
   it('arsenal_pact grants one silver-tier weapon and applies act1 DEF penalty', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
