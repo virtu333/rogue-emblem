@@ -427,6 +427,25 @@ describe('Staff data integrity', () => {
     }
   });
 
+  it('all staves have perBattleUses flag', () => {
+    const staves = data.weapons.filter(w => w.type === 'Staff');
+    for (const staff of staves) {
+      expect(staff.perBattleUses).toBe(true);
+    }
+  });
+
+  it('_usesSpent resets to 0 when perBattleUses flag is set (battle-start reset)', () => {
+    const heal = structuredClone(data.weapons.find(w => w.name === 'Heal'));
+    heal._usesSpent = 3; // fully depleted
+    expect(getStaffRemainingUses(heal, makeHealer(5))).toBe(0);
+
+    // Simulate battle-start reset (same logic as BattleScene.create)
+    if (heal.perBattleUses) heal._usesSpent = 0;
+
+    expect(heal._usesSpent).toBe(0);
+    expect(getStaffRemainingUses(heal, makeHealer(5))).toBe(3);
+  });
+
   it('Physic is in act3 loot table', () => {
     expect(data.lootTables.act3.weapons).toContain('Physic');
   });

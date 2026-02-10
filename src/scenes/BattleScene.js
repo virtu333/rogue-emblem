@@ -1527,7 +1527,6 @@ export class BattleScene extends Phaser.Scene {
     // Spend a use and check depletion
     spendStaffUse(staff);
     if (getStaffRemainingUses(staff, healer) <= 0) {
-      removeFromInventory(healer, staff);
       const combatWpn = getCombatWeapons(healer)[0];
       if (combatWpn) equipWeapon(healer, combatWpn);
     }
@@ -1551,7 +1550,6 @@ export class BattleScene extends Phaser.Scene {
     // Single use spent for all targets
     spendStaffUse(staff);
     if (getStaffRemainingUses(staff, healer) <= 0) {
-      removeFromInventory(healer, staff);
       const combatWpn = getCombatWeapons(healer)[0];
       if (combatWpn) equipWeapon(healer, combatWpn);
     }

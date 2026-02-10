@@ -585,6 +585,7 @@
     "range": "1",
     "healBase": 5,
     "uses": 3,
+    "perBattleUses": true,
     "special": "Heals MAG + 5 HP",
     "price": 300
   },
@@ -600,6 +601,7 @@
     "range": "1",
     "healBase": 10,
     "uses": 2,
+    "perBattleUses": true,
     "special": "Heals MAG + 10 HP",
     "price": 600
   },
@@ -615,6 +617,7 @@
     "range": "2",
     "healBase": 5,
     "uses": 1,
+    "perBattleUses": true,
     "rangeBonuses": [{"mag": 10, "bonus": 1}, {"mag": 18, "bonus": 1}],
     "special": "Ranged heal, MAG + 5 HP",
     "price": 1000
@@ -631,6 +634,7 @@
     "range": "1",
     "healBase": 15,
     "uses": 1,
+    "perBattleUses": true,
     "special": "Heals MAG + 15 HP",
     "price": 1200
   },
@@ -646,6 +650,7 @@
     "range": "2",
     "healBase": 5,
     "uses": 1,
+    "perBattleUses": true,
     "healAll": true,
     "special": "Heals all allies in range, MAG + 5 HP",
     "price": 0
