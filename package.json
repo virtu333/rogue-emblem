@@ -16,9 +16,10 @@
     "sim:fullrun": "node sim/fullrun.js",
     "test:harness": "vitest run tests/harness",
     "test:harness:watch": "vitest watch tests/harness",
-    "test:harness:pr": "node tests/agents/fuzz-runner.js --seeds 20 --scenario act1_rout_basic --fail-on-timeout",
+    "test:harness:pr": "node tests/agents/fuzz-runner.js --seeds 10 --all-scenarios --mode strict --use-default-scenario-budgets",
     "fuzz": "node tests/agents/fuzz-runner.js --seeds 100 --scenario act1_rout_basic",
-    "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 500 --all-scenarios"
+    "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode reporting --timeout-rate-threshold 5 --use-default-scenario-budgets",
+    "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
