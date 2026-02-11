@@ -370,7 +370,7 @@ export class BattleScene extends Phaser.Scene {
       const hh = this.cameras.main.height;
       const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0' };
       const makeButton = (x, label, handler) => {
-        const btn = this.add.text(x, hh - 26, label, btnStyle)
+        const btn = this.add.text(x, hh - 34, label, btnStyle)
           .setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -381,7 +381,7 @@ export class BattleScene extends Phaser.Scene {
       this.rosterButton = makeButton(hw, '[R] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.instructionText2 = this.add.text(
-        hw, hh - 10,
+        hw, hh - 18,
         '[V] Details: right-click unit  |  ESC: cancel/pause',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
