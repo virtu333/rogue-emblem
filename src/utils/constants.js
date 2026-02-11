@@ -111,12 +111,13 @@ export const ROSTER_CAP = 12;
 
 // Gold economy
 export const STARTING_GOLD = 200;
-export const GOLD_PER_KILL_BASE = 30;
-export const GOLD_PER_LEVEL_BONUS = 10;
+export const GOLD_PER_KILL_BASE = 25;
+export const GOLD_PER_LEVEL_BONUS = 7;
 export const GOLD_BATTLE_BONUS = 100;
 export const GOLD_BOSS_BONUS = 300;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.25;
 export const SHOP_SELL_RATIO = 0.5;
+export const CHURCH_PROMOTE_COST = 2000;
 export const LOOT_CHOICES = 3;
 export const ELITE_LOOT_CHOICES = 4;   // Elite battles offer 4 loot choices
 export const ELITE_MAX_PICKS = 2;      // Pick 2 from elite loot
@@ -128,14 +129,14 @@ export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
 
 // Weapon forging
-export const FORGE_MAX_LEVEL = 10;
-export const FORGE_STAT_CAP = 3;
+export const FORGE_MAX_LEVEL = 15;
+export const FORGE_STAT_CAP = 5;
 export const FORGE_BONUSES = { might: 1, crit: 5, hit: 5, weight: -1 };
 export const FORGE_COSTS = {
-  might:  [400, 700, 1100],
-  crit:   [300, 550, 900],
-  hit:    [250, 450, 750],
-  weight: [250, 450, 750],
+  might:  [400, 700, 1100, 1600, 2200],
+  crit:   [300, 550, 900, 1200, 1700],
+  hit:    [250, 450, 750, 1000, 1400],
+  weight: [250, 450, 750, 1000, 1400],
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, finalBoss: 0 };
 

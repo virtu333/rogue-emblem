@@ -268,36 +268,37 @@ describe('ForgeSystem', () => {
       expect(wpn._forgeLevel).toBe(4);
     });
 
-    it('can spread forges across all 4 stats to reach total cap of 10', () => {
+    it('can spread forges across all 4 stats to reach total cap', () => {
       const wpn = makeWeapon({ might: 5, crit: 0, hit: 90, weight: 5 });
       const stats = ['might', 'crit', 'hit', 'weight'];
-      // 4 stats × 2 each = 8
+      // Forge 3 of each stat = 12 total
       for (const stat of stats) {
-        applyForge(wpn, stat);
-        applyForge(wpn, stat);
+        for (let i = 0; i < 3; i++) applyForge(wpn, stat);
       }
-      expect(wpn._forgeLevel).toBe(8);
-      // 2 more to reach 10
+      expect(wpn._forgeLevel).toBe(12);
+      expect(canForge(wpn)).toBe(true);
+      // 3 more to reach FORGE_MAX_LEVEL (15)
       applyForge(wpn, 'might');
       applyForge(wpn, 'crit');
-      expect(wpn._forgeLevel).toBe(10);
+      applyForge(wpn, 'hit');
+      expect(wpn._forgeLevel).toBe(FORGE_MAX_LEVEL);
       // Now at total cap
       expect(canForge(wpn)).toBe(false);
-      expect(applyForge(wpn, 'hit').success).toBe(false);
+      expect(applyForge(wpn, 'weight').success).toBe(false);
     });
 
-    it('cannot exceed 10 total even when per-stat caps would allow 12', () => {
+    it('cannot exceed FORGE_MAX_LEVEL total even when per-stat caps would allow more', () => {
       const wpn = makeWeapon();
       const stats = ['might', 'crit', 'hit', 'weight'];
       let forgeCount = 0;
-      // Try to forge 3 of each stat = 12 total, but cap is 10
+      // Try to forge FORGE_STAT_CAP of each stat (4 × FORGE_STAT_CAP), but total cap is FORGE_MAX_LEVEL
       for (const stat of stats) {
         for (let i = 0; i < FORGE_STAT_CAP; i++) {
           const result = applyForge(wpn, stat);
           if (result.success) forgeCount++;
         }
       }
-      expect(forgeCount).toBe(FORGE_MAX_LEVEL); // 10
+      expect(forgeCount).toBe(FORGE_MAX_LEVEL);
       expect(wpn._forgeLevel).toBe(FORGE_MAX_LEVEL);
     });
 

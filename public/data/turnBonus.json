@@ -18,9 +18,9 @@
     { "rating": "C", "threshold": 999, "bonusMultiplier": 0.0 }
   ],
   "baseBonusGold": {
-    "act1": 80,
-    "act2": 150,
-    "act3": 250,
-    "finalBoss": 350
+    "act1": 100,
+    "act2": 200,
+    "act3": 300,
+    "finalBoss": 400
   }
 }

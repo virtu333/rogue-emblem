@@ -4377,13 +4377,16 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(title);
 
-    // Calculate turn bonus gold
+    // Calculate and award turn bonus gold
     let turnBonusGold = 0;
     let turnRating = null;
     if (this.turnPar != null && this.turnBonusConfig) {
       const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       turnRating = result.rating;
       turnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
+      if (turnBonusGold > 0) {
+        this.runManager.addGold(turnBonusGold);
+      }
     }
     const totalGold = this.goldEarned + GOLD_BATTLE_BONUS + turnBonusGold;
 

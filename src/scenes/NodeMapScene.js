@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
-import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP } from '../utils/constants.js';
+import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import { addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, addToConsumables, canPromote, promoteUnit } from '../engine/UnitManager.js';
 import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
@@ -788,8 +788,8 @@ export class NodeMapScene extends Phaser.Scene {
       yOffset += 10;
     }
 
-    // Service 3: Promote Unit (3000g)
-    const promoteLabel = this.add.text(320, yOffset, 'Promote Unit (3000G):', {
+    // Service 3: Promote Unit
+    const promoteLabel = this.add.text(320, yOffset, `Promote Unit (${CHURCH_PROMOTE_COST}G):`, {
       fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
     }).setOrigin(0.5).setDepth(301);
     this.churchOverlay.push(promoteLabel);
@@ -808,7 +808,7 @@ export class NodeMapScene extends Phaser.Scene {
           backgroundColor: '#222222', padding: { x: 10, y: 4 },
         }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
-          if (rm.gold >= 3000) unitBtn.setColor('#ffdd44');
+          if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
         });
         unitBtn.on('pointerout', () => {
@@ -816,7 +816,7 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setBackgroundColor('#222222');
         });
         unitBtn.on('pointerdown', () => {
-          if (rm.spendGold(3000)) {
+          if (rm.spendGold(CHURCH_PROMOTE_COST)) {
             const promotedUnit = promoteUnit(unit, this.gameData.classes, this.gameData.weapons, this.gameData.skills);
             const idx = rm.roster.findIndex(u => u.name === unit.name);
             if (idx !== -1) rm.roster[idx] = promotedUnit;
