@@ -16,6 +16,7 @@ export class SlotPickerScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData || data;
+    this.isTransitioning = false;
   }
 
   create() {
@@ -44,7 +45,7 @@ export class SlotPickerScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', async () => {
-      await startSceneLazy(this, 'Title', { gameData: this.gameData });
+      await this.runTransition(() => startSceneLazy(this, 'Title', { gameData: this.gameData }));
     });
   }
 
@@ -87,7 +88,7 @@ export class SlotPickerScene extends Phaser.Scene {
       return true;
     }
     if (allowExit) {
-      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+      void this.runTransition(() => startSceneLazy(this, 'Title', { gameData: this.gameData }));
       return true;
     }
     return false;
@@ -187,8 +188,11 @@ export class SlotPickerScene extends Phaser.Scene {
       this.slotCards.push(deleteBtn);
     }
   }
+  async selectSlot(slot, summary) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
 
-  selectSlot(slot, summary) {
     // Set active slot on registry + localStorage
     setActiveSlot(slot);
     this.registry.set('activeSlot', slot);
@@ -202,22 +206,74 @@ export class SlotPickerScene extends Phaser.Scene {
     this.registry.set('meta', meta);
     this.registry.set('hints', new HintManager(slot));
 
-    const audio = this.registry.get('audio');
-    if (audio) audio.stopMusic(this, 0);
+    try {
+      await this.ensureAudioUnlocked();
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(this, 0);
 
-    if (summary.hasActiveRun) {
-      // Resume active run directly
-      const rm = loadRun(this.gameData, slot);
-      if (rm) {
-        void startSceneLazy(this, 'NodeMap', { gameData: this.gameData, runManager: rm });
+      let transitioned = false;
+      if (summary.hasActiveRun) {
+        // Resume active run directly
+        const rm = loadRun(this.gameData, slot);
+        if (rm) {
+          transitioned = await startSceneLazy(this, 'NodeMap', { gameData: this.gameData, runManager: rm });
+        } else {
+          // Run data corrupt - go to HomeBase
+          transitioned = await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+        }
       } else {
-        // Run data corrupt — go to HomeBase
-        void startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+        // No active run - go to HomeBase
+        transitioned = await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
       }
-    } else {
-      // No active run — go to HomeBase
-      void startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+      if (transitioned === false) {
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+      }
+    } catch (err) {
+      console.error('[SlotPickerScene] selectSlot transition failed:', err);
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
     }
+  }
+
+  async runTransition(action) {
+    if (this.isTransitioning) return false;
+    this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
+    try {
+      await this.ensureAudioUnlocked();
+      const transitioned = await action();
+      if (transitioned === false) {
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+      }
+      return transitioned;
+    } catch (err) {
+      console.error('[SlotPickerScene] transition failed:', err);
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
+      return false;
+    }
+  }
+
+  async ensureAudioUnlocked(timeoutMs = 200) {
+    const sound = this.sound;
+    if (!sound?.locked) return;
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      if (typeof sound.once === 'function') {
+        sound.once('unlocked', finish);
+      }
+      try {
+        if (typeof sound.unlock === 'function') sound.unlock();
+      } catch (_) {}
+      this.time.delayedCall(timeoutMs, finish);
+    });
   }
 
   confirmDelete(slot) {
@@ -279,3 +335,4 @@ export class SlotPickerScene extends Phaser.Scene {
     this.confirmDialog.push(noBtn);
   }
 }
+

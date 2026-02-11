@@ -76,6 +76,7 @@ export class NodeMapScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    this.isSceneReady = false;
     const selectedDifficulty = data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
       this.runManager = data.runManager;
@@ -92,7 +93,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   create() {
     const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this);
+    if (audio) {
+      // Fire and forget; scene readiness gate below prevents early-click races.
+      void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this);
+    }
 
     // Ensure music is stopped when scene shuts down
     this.events.once('shutdown', () => {
@@ -132,6 +136,8 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     this.drawMap();
+    this.input.enabled = false;
+    void this.finalizeSceneReady();
 
     // Tutorial hint for node map
     const hints = this.registry.get('hints');
@@ -144,6 +150,16 @@ export class NodeMapScene extends Phaser.Scene {
       showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
 
+  }
+
+  async finalizeSceneReady() {
+    try {
+      // Give audio a short unlock window before we accept battle-node interactions.
+      await this.ensureAudioUnlocked();
+    } catch (_) {}
+    if (this.sys?.isActive?.() === false) return;
+    this.isSceneReady = true;
+    if (this.input) this.input.enabled = true;
   }
 
   onPointerUp(pointer) {
@@ -629,6 +645,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   onNodeClick(node) {
     if (this.isTransitioning) return;
+    if (!this.isSceneReady) return;
     if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible) return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
@@ -642,6 +659,7 @@ export class NodeMapScene extends Phaser.Scene {
   async handleBattle(node) {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
     await this.ensureAudioUnlocked();
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
@@ -662,11 +680,13 @@ export class NodeMapScene extends Phaser.Scene {
       });
       if (transitioned === false) {
         this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
         if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       }
     } catch (err) {
       console.error('[NodeMapScene] Failed to start battle scene:', err);
       this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
       if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       this.showChurchMessage('Failed to enter battle. Please try again.', '#ff6666');
     }
