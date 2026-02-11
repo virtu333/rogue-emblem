@@ -24,6 +24,44 @@ initStartupTelemetry({
   reducedPreload: startupFlags.reducedPreload,
 });
 
+function installDevDiagnostics() {
+  const host = globalThis?.location?.hostname;
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  if (!isLocalHost) return;
+
+  window.__emblemDumpStartupTelemetry = (filter = null) => {
+    const telemetry = getStartupTelemetry();
+    if (!telemetry) {
+      console.info('[StartupDiag] telemetry unavailable');
+      return null;
+    }
+    const markers = Array.isArray(telemetry.markers) ? telemetry.markers : [];
+    const filtered = typeof filter === 'string' && filter.length > 0
+      ? markers.filter((m) => String(m?.name || '').includes(filter))
+      : markers;
+    const rows = filtered.map((m, idx) => ({
+      idx,
+      name: m?.name || null,
+      at: Number.isFinite(m?.at) ? Math.round(m.at) : null,
+      data: m?.data || {},
+    }));
+    console.info('[StartupDiag] markers:', rows);
+    return rows;
+  };
+
+  window.__emblemDumpAudioDiag = () => {
+    const all = window.__emblemDumpStartupTelemetry('audio_diag') || [];
+    const asyncErrors = window.__emblemDumpStartupTelemetry('async_error') || [];
+    const summary = {
+      audioDiagCount: all.length,
+      asyncErrorCount: asyncErrors.length,
+    };
+    console.info('[StartupDiag] audio summary:', summary);
+    return { summary, audioDiag: all, asyncErrors };
+  };
+}
+installDevDiagnostics();
+
 function enableSafeBootAndReload() {
   try {
     const raw = localStorage.getItem(STARTUP_FLAG_STORAGE_KEY);
