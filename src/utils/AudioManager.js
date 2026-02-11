@@ -75,11 +75,7 @@ export class AudioManager {
       this.currentMusic.play();
 
       if (fadeMs > 0 && scene?.tweens) {
-        scene.tweens.add({
-          targets: this.currentMusic,
-          volume: this._curve(this.musicVolume),
-          duration: fadeMs,
-        });
+        this._tweenSoundVolume(scene, this.currentMusic, 0, this._curve(this.musicVolume), fadeMs);
       }
     } catch (err) {
       // Never surface async audio errors to scene callers (fire-and-forget usage).
@@ -338,17 +334,69 @@ export class AudioManager {
     if (!sound) return;
     if (sound.__audioStopped) return;
     sound.__audioStopped = true;
+    this._killSoundTweens(scene, sound);
     if (fadeMs > 0 && scene?.tweens) {
-      scene.tweens.add({
-        targets: sound,
-        volume: 0,
-        duration: fadeMs,
-        onComplete: () => { sound.stop(); sound.destroy(); },
-      });
+      const startVolume = this._readSoundVolume(sound);
+      this._tweenSoundVolume(
+        scene,
+        sound,
+        startVolume,
+        0,
+        fadeMs,
+        () => {
+          try { sound.stop(); } catch (_) {}
+          try { sound.destroy(); } catch (_) {}
+        },
+      );
       return;
     }
     try { sound.stop(); } catch (_) {}
     try { sound.destroy(); } catch (_) {}
+  }
+
+  _readSoundVolume(sound) {
+    try {
+      if (typeof sound.volume === 'number' && Number.isFinite(sound.volume)) return sound.volume;
+      if (typeof sound.config?.volume === 'number' && Number.isFinite(sound.config.volume)) return sound.config.volume;
+    } catch (_) {}
+    return 1;
+  }
+
+  _killSoundTweens(scene, sound) {
+    try {
+      if (scene?.tweens && typeof scene.tweens.killTweensOf === 'function') {
+        scene.tweens.killTweensOf(sound);
+      }
+      const fadeProxy = sound?.__audioFadeProxy;
+      if (fadeProxy && scene?.tweens && typeof scene.tweens.killTweensOf === 'function') {
+        scene.tweens.killTweensOf(fadeProxy);
+      }
+    } catch (_) {}
+  }
+
+  _tweenSoundVolume(scene, sound, from, to, duration, onComplete = null) {
+    if (!scene?.tweens || !sound || typeof sound.setVolume !== 'function') return;
+    this._killSoundTweens(scene, sound);
+    const proxy = { value: from };
+    sound.__audioFadeProxy = proxy;
+    try { sound.setVolume(from); } catch (_) {}
+    scene.tweens.add({
+      targets: proxy,
+      value: to,
+      duration,
+      onUpdate: () => {
+        try {
+          if (sound.__audioStopped && to > 0) return;
+          sound.setVolume(proxy.value);
+        } catch (_) {}
+      },
+      onComplete: () => {
+        if (sound.__audioFadeProxy === proxy) {
+          sound.__audioFadeProxy = null;
+        }
+        if (onComplete) onComplete();
+      },
+    });
   }
 
   /** Play a one-shot sound effect. */
