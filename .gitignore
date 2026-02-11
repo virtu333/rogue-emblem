@@ -10,3 +10,8 @@ References/
 # Local Netlify folder
 .netlify
 test-results/
+
+# Large runtime/source asset bundles are managed outside git.
+# Keep local copies for development, but do not track in commits.
+assets/
+public/assets/
