@@ -162,6 +162,7 @@ describe('AIController', () => {
       const decision = ai._decideAction(guard, [guard], [player], []);
       expect(decision.path).toBeNull();
       expect(decision.target).toBeNull();
+      expect(decision.reason).toBe('guard_hold');
       expect(guard.aiMode).toBe('guard'); // still guarding
     });
 
@@ -344,6 +345,7 @@ describe('AIController', () => {
 
       const decision = ai._decideAction(enemy, [enemy], [player], []);
       expect(decision.path).not.toBeNull();
+      expect(decision.reason).toBe('chase_path_aware');
       const dest = decision.path[decision.path.length - 1];
       expect(dest.col).toBe(4);
       expect(dest.row).toBe(5);
@@ -363,6 +365,7 @@ describe('AIController', () => {
       const decision = ai._decideAction(enemy, [enemy], [player], []);
       // Should move toward player
       if (decision.path && decision.path.length >= 2) {
+        expect(decision.reason).toBe('chase_path_aware');
         const dest = decision.path[decision.path.length - 1];
         expect(dest.col).toBeLessThan(5);
       }

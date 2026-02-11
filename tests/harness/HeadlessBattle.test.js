@@ -326,6 +326,18 @@ describe('GameDriver', () => {
     }
   });
 
+  it('captures AI decision reasons for enemy phase observability', async () => {
+    const driver = new GameDriver(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    driver.init();
+    await driver.step({ type: 'end_turn', payload: {} });
+    const stats = driver.battle.getLastEnemyPhaseAiStats();
+
+    expect(stats).toBeTruthy();
+    expect(stats.turn).toBeGreaterThanOrEqual(1);
+    expect(stats.enemyCountAtStart).toBeGreaterThan(0);
+    expect(Object.keys(stats.byReason).length).toBeGreaterThan(0);
+  });
+
   it('last unit Wait auto-triggers enemy phase via driver', async () => {
     const driver = new GameDriver(gameData, { act: 'act1', objective: 'rout', row: 2 });
     driver.init();

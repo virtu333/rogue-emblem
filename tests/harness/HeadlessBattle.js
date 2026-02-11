@@ -86,6 +86,9 @@ export class HeadlessBattle {
     this.preMoveLoc = null;
     this.attackTargets = [];
     this.healTargets = [];
+    this.aiPhaseStatsHistory = [];
+    this.lastEnemyPhaseAiStats = null;
+    this.currentEnemyPhaseAiStats = null;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -110,6 +113,9 @@ export class HeadlessBattle {
     this.npcUnits = [];
     this.goldEarned = 0;
     this.result = null;
+    this.aiPhaseStatsHistory = [];
+    this.lastEnemyPhaseAiStats = null;
+    this.currentEnemyPhaseAiStats = null;
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -776,32 +782,75 @@ export class HeadlessBattle {
   }
 
   async _processEnemyPhase() {
-    await this.aiController.processEnemyPhase(
-      this.enemyUnits,
-      this.playerUnits,
-      this.npcUnits,
-      {
-        onMoveUnit: (enemy, path) => {
-          if (path && path.length >= 2) {
-            const dest = path[path.length - 1];
-            enemy.col = dest.col;
-            enemy.row = dest.row;
-          }
-          return Promise.resolve();
-        },
-        onAttack: (enemy, target) => {
-          this._executeEnemyCombat(enemy, target);
-          return Promise.resolve();
-        },
-        onUnitDone: (enemy) => {
-          enemy.hasActed = true;
-        },
-      }
-    );
+    this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
+    try {
+      await this.aiController.processEnemyPhase(
+        this.enemyUnits,
+        this.playerUnits,
+        this.npcUnits,
+        {
+          onMoveUnit: (enemy, path) => {
+            if (path && path.length >= 2) {
+              const dest = path[path.length - 1];
+              enemy.col = dest.col;
+              enemy.row = dest.row;
+            }
+            return Promise.resolve();
+          },
+          onAttack: (enemy, target) => {
+            this._executeEnemyCombat(enemy, target);
+            return Promise.resolve();
+          },
+          onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
+          onUnitDone: (enemy) => {
+            enemy.hasActed = true;
+          },
+        }
+      );
+    } finally {
+      this._finalizeEnemyPhaseAiStats();
+    }
 
     if (this.battleState !== HEADLESS_STATES.BATTLE_END) {
       this.turnManager.endEnemyPhase();
     }
+  }
+
+  _createEnemyPhaseAiStats() {
+    return {
+      turn: this.turnManager?.turnNumber || 0,
+      enemyCountAtStart: this.enemyUnits.length,
+      byReason: {},
+      noPathUnits: [],
+    };
+  }
+
+  _recordEnemyAiDecision(enemy, decision) {
+    if (!this.currentEnemyPhaseAiStats) return;
+    const reason = decision?.reason || 'unknown';
+    const bucket = this.currentEnemyPhaseAiStats.byReason;
+    bucket[reason] = (bucket[reason] || 0) + 1;
+    if (reason === 'no_reachable_move') {
+      this.currentEnemyPhaseAiStats.noPathUnits.push({
+        name: enemy.name || null,
+        className: enemy.className || null,
+        col: enemy.col,
+        row: enemy.row,
+        detail: decision?.detail || null,
+      });
+    }
+  }
+
+  _finalizeEnemyPhaseAiStats() {
+    if (!this.currentEnemyPhaseAiStats) return;
+    this.lastEnemyPhaseAiStats = this.currentEnemyPhaseAiStats;
+    this.aiPhaseStatsHistory.push(this.currentEnemyPhaseAiStats);
+    if (this.aiPhaseStatsHistory.length > 20) this.aiPhaseStatsHistory.shift();
+    this.currentEnemyPhaseAiStats = null;
+  }
+
+  getLastEnemyPhaseAiStats() {
+    return this.lastEnemyPhaseAiStats;
   }
 
   _executeEnemyCombat(attacker, defender) {

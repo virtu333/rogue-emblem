@@ -159,6 +159,9 @@ export class BattleScene extends Phaser.Scene {
       // Gold tracking for loot system
       this.goldEarned = 0;
       this.initializeAntiTurtleState();
+      this.aiPhaseStatsHistory = [];
+      this.lastEnemyPhaseAiStats = null;
+      this.currentEnemyPhaseAiStats = null;
 
       // Create player units â€” from deployed roster (run mode) or fresh lords (standalone)
       if (deployedRoster) {
@@ -605,6 +608,47 @@ export class BattleScene extends Phaser.Scene {
     const shouldAggro = this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS;
     this.antiTurtleState.aggressiveMode = shouldAggro;
     this.aiController?.setAggressiveMode?.(shouldAggro);
+  }
+
+  createEnemyPhaseAiStats() {
+    return {
+      turn: this.turnManager?.turnNumber || 0,
+      enemyCountAtStart: this.enemyUnits.length,
+      byReason: {},
+      noPathUnits: [],
+    };
+  }
+
+  recordEnemyAiDecision(enemy, decision) {
+    if (!this.currentEnemyPhaseAiStats) return;
+    const reason = decision?.reason || 'unknown';
+    const bucket = this.currentEnemyPhaseAiStats.byReason;
+    bucket[reason] = (bucket[reason] || 0) + 1;
+
+    if (reason === 'no_reachable_move') {
+      this.currentEnemyPhaseAiStats.noPathUnits.push({
+        name: enemy.name || null,
+        className: enemy.className || null,
+        col: enemy.col,
+        row: enemy.row,
+        detail: decision?.detail || null,
+      });
+    }
+  }
+
+  finalizeEnemyPhaseAiStats() {
+    if (!this.currentEnemyPhaseAiStats) return;
+    this.lastEnemyPhaseAiStats = this.currentEnemyPhaseAiStats;
+    this.aiPhaseStatsHistory.push(this.currentEnemyPhaseAiStats);
+    if (this.aiPhaseStatsHistory.length > 20) this.aiPhaseStatsHistory.shift();
+
+    const noPathCount = this.currentEnemyPhaseAiStats.byReason.no_reachable_move || 0;
+    if (noPathCount > 0) {
+      console.warn('[AI] Enemy phase summary (no-path detected)', this.currentEnemyPhaseAiStats);
+    } else if (DEBUG_MODE) {
+      console.debug('[AI] Enemy phase summary', this.currentEnemyPhaseAiStats);
+    }
+    this.currentEnemyPhaseAiStats = null;
   }
 
   resetFortHealStreak(unit) {
@@ -3809,19 +3853,25 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    await this.aiController.processEnemyPhase(
-      this.enemyUnits,
-      this.playerUnits,
-      this.npcUnits,
-      {
-        onMoveUnit: (enemy, path) => this.animateEnemyMove(enemy, path),
-        onAttack: (enemy, target) => this.executeEnemyCombat(enemy, target),
-        onUnitDone: (enemy) => {
-          enemy.hasActed = true;
-          this.dimUnit(enemy);
-        },
-      }
-    );
+    this.currentEnemyPhaseAiStats = this.createEnemyPhaseAiStats();
+    try {
+      await this.aiController.processEnemyPhase(
+        this.enemyUnits,
+        this.playerUnits,
+        this.npcUnits,
+        {
+          onMoveUnit: (enemy, path) => this.animateEnemyMove(enemy, path),
+          onAttack: (enemy, target) => this.executeEnemyCombat(enemy, target),
+          onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
+          onUnitDone: (enemy) => {
+            enemy.hasActed = true;
+            this.dimUnit(enemy);
+          },
+        }
+      );
+    } finally {
+      this.finalizeEnemyPhaseAiStats();
+    }
 
     // End enemy phase (skip if battle already ended during combat)
     if (this.battleState !== 'BATTLE_END') {
@@ -5294,5 +5344,3 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 }
-
-

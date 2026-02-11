@@ -29,7 +29,7 @@ export class AIController {
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
-   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy) }
+   * @param {Object} callbacks - { onMoveUnit(enemy, path), onAttack(enemy, target), onUnitDone(enemy), onDecision(enemy, decision) }
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
@@ -50,6 +50,8 @@ export class AIController {
 
   async _processOneEnemy(enemy, allEnemies, playerUnits, npcUnits, callbacks) {
     const decision = this._decideAction(enemy, allEnemies, playerUnits, npcUnits);
+    enemy._lastAiDecision = decision;
+    callbacks.onDecision?.(enemy, decision);
 
     // Move if we have a path
     if (decision.path && decision.path.length >= 2) {
@@ -95,7 +97,12 @@ export class AIController {
       } else if (!this.aggressiveMode) {
         // Stay put - no movement, no attack
         if (DEBUG_AI) console.log(`[AI] Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
-        return { path: null, target: null };
+        return {
+          path: null,
+          target: null,
+          reason: 'guard_hold',
+          detail: { nearestDistance: Number.isFinite(nearestDist) ? nearestDist : null, triggerDistance: triggerDist },
+        };
       }
     }
 
@@ -164,23 +171,55 @@ export class AIController {
     if (bestAttack) {
       // Move to attack tile and attack
       const path = this._buildPath(enemy, bestAttack.tile, unitPositions);
-      return { path, target: bestAttack.target };
+      return {
+        path,
+        target: bestAttack.target,
+        reason: 'attack_in_range',
+        detail: {
+          targetName: bestAttack.target.name || null,
+          targetPos: { col: bestAttack.target.col, row: bestAttack.target.row },
+          fromPos: { col: enemy.col, row: enemy.row },
+          attackTile: { col: bestAttack.tile.col, row: bestAttack.tile.row },
+        },
+      };
     }
 
     // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {
       if (DEBUG_AI) console.log('[AI] Boss staying on throne - no targets in range');
-      return { path: null, target: null };
+      return {
+        path: null,
+        target: null,
+        reason: 'boss_hold_throne',
+        detail: { thronePos: this.thronePos || null },
+      };
     }
 
     // No attack possible - move toward nearest player using path-aware pursuit.
     const nearest = this._findPriorityTarget(enemy, playerUnits);
-    if (!nearest) return { path: null, target: null };
+    if (!nearest) {
+      return {
+        path: null,
+        target: null,
+        reason: 'no_viable_target',
+        detail: { playerCount: playerUnits.length },
+      };
+    }
 
     const pathAwareTile = this._findPathAwareChaseTile(enemy, nearest, candidates, unitPositions);
     if (pathAwareTile) {
       const path = this._buildPath(enemy, pathAwareTile, unitPositions);
-      return { path, target: null };
+      if (path && path.length >= 2) {
+        return {
+          path,
+          target: null,
+          reason: 'chase_path_aware',
+          detail: {
+            nearestTarget: nearest.name || null,
+            destination: { col: pathAwareTile.col, row: pathAwareTile.row },
+          },
+        };
+      }
     }
 
     // Find candidate tile closest to nearest player
@@ -196,10 +235,29 @@ export class AIController {
 
     if (closestTile && (closestTile.col !== enemy.col || closestTile.row !== enemy.row)) {
       const path = this._buildPath(enemy, closestTile, unitPositions);
-      return { path, target: null };
+      if (path && path.length >= 2) {
+        return {
+          path,
+          target: null,
+          reason: 'chase_greedy_fallback',
+          detail: {
+            nearestTarget: nearest.name || null,
+            destination: { col: closestTile.col, row: closestTile.row },
+            distanceToNearest: closestDist,
+          },
+        };
+      }
     }
 
-    return { path: null, target: null };
+    return {
+      path: null,
+      target: null,
+      reason: 'no_reachable_move',
+      detail: {
+        nearestTarget: nearest.name || null,
+        nearestDistance: gridDistance(enemy.col, enemy.row, nearest.col, nearest.row),
+      },
+    };
   }
 
   _findPathAwareChaseTile(enemy, target, candidates, unitPositions) {
