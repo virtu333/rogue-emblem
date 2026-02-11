@@ -30,7 +30,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(null, 0);
+      if (audio) audio.releaseMusic(this, 0);
     });
 
     // Create RunManager — not committed until we transition to NodeMap

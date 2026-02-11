@@ -1165,7 +1165,7 @@ describe('blessing run-start effect application', () => {
     });
   });
 
-  it('skip_first_shop blessing sets and consumes one-time shop skip', () => {
+  it('merchant_bane applies persistent -1 shop inventory delta', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -1174,8 +1174,8 @@ describe('blessing run-start effect application', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    expect(rm.consumeSkipFirstShop()).toBe(true);
     expect(rm.consumeSkipFirstShop()).toBe(false);
+    expect(rm.getShopItemCountDelta()).toBe(-1);
   });
 
   it('shop_item_count_delta blessing tracks shop inventory delta', () => {

@@ -4,7 +4,7 @@
 import {
   GOLD_PER_KILL_BASE, GOLD_PER_LEVEL_BONUS, GOLD_BATTLE_BONUS, GOLD_BOSS_BONUS,
   GOLD_SKIP_LOOT_MULTIPLIER, SHOP_SELL_RATIO, LOOT_CHOICES, SHOP_ITEM_COUNT,
-  NODE_GOLD_MULTIPLIER,
+  NODE_GOLD_MULTIPLIER, LOOT_GOLD_TEAM_XP,
 } from '../utils/constants.js';
 
 /**
@@ -261,7 +261,8 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
       if (isBoss) { min = Math.floor(min * 1.5); max = Math.floor(max * 1.5); }
       else if (isElite) { min = Math.floor(min * 1.25); max = Math.floor(max * 1.25); }
       const goldAmount = min + Math.floor(Math.random() * (max - min + 1));
-      choices.push({ type: 'gold', goldAmount });
+      const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
+      choices.push({ type: 'gold', goldAmount, xpAmount });
       continue;
     }
 
@@ -300,7 +301,8 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
   while (choices.length < count) {
     const [min, max] = table.goldRange;
     const goldAmount = min + Math.floor(Math.random() * (max - min + 1));
-    choices.push({ type: 'gold', goldAmount });
+    const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
+    choices.push({ type: 'gold', goldAmount, xpAmount });
   }
 
   return choices;

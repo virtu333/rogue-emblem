@@ -97,7 +97,7 @@ export class NodeMapScene extends Phaser.Scene {
     // Ensure music is stopped when scene shuts down
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(null, 0);
+      if (audio) audio.releaseMusic(this, 0);
     });
 
     // Auto-save on every node map entry
@@ -643,7 +643,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
     const audio = this.registry.get('audio');
-    if (audio) audio.stopMusic(this, 0);
+    if (audio) audio.stopAllMusic(this, 0);
 
     const rm = this.runManager;
     const battleParams = rm.getBattleParams(node);

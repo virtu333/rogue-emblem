@@ -454,7 +454,7 @@ export class TitleScene extends Phaser.Scene {
     // --- Cleanup on scene exit ---
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(null, 0);
+      if (audio) audio.releaseMusic(this, 0);
       // NOTE: Do NOT remove textures here — shutdown fires BEFORE Phaser
       // destroys display objects. Removing textures while Images still
       // reference them crashes the scene transition silently.
@@ -712,7 +712,7 @@ export class TitleScene extends Phaser.Scene {
 
       // Hard-stop title music before scene change; avoids race with unlock/load.
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(null, 0);
+      if (audio) audio.releaseMusic(this, 0);
       const transitioned = await action();
       if (transitioned === false) {
         this.isTransitioning = false;

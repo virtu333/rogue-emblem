@@ -6,7 +6,7 @@
     "accessories": ["Goddess Icon", "Shield Ring", "Forest Charm"],
     "forge": ["Might Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 20, "consumable": 15, "gold": 35, "accessory": 15, "forge": 15 },
-    "goldRange": [80, 150]
+    "goldRange": [300, 500]
   },
   "act2": {
     "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Hammer", "Spear", "Killer Lance", "Physic", "Bolganone", "Aura"],
@@ -15,7 +15,7 @@
     "accessories": ["Power Ring", "Speed Ring", "Barrier Ring", "Skill Ring", "Life Ring", "Veteran's Crest"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 20, "consumable": 15, "gold": 20, "rare": 10, "accessory": 15, "forge": 20 },
-    "goldRange": [150, 250]
+    "goldRange": [600, 900]
   },
   "act3": {
     "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
@@ -24,7 +24,7 @@
     "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": { "weapon": 25, "consumable": 15, "gold": 15, "rare": 15, "accessory": 15, "forge": 15 },
-    "goldRange": [200, 400]
+    "goldRange": [900, 1400]
   },
   "finalBoss": {
     "weapons": [],
@@ -33,6 +33,6 @@
     "accessories": [],
     "forge": [],
     "weights": { "gold": 100 },
-    "goldRange": [500, 500]
+    "goldRange": [1200, 1800]
   }
 }

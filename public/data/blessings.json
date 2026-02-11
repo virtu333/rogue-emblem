@@ -142,7 +142,7 @@
       "id": "merchant_bane",
       "name": "Merchant Bane",
       "tier": 3,
-      "description": "+15% battle gold, but first shop is skipped.",
+      "description": "+15% battle gold, but all shop inventories have -1 item.",
       "weight": 0.65,
       "boons": [
         {
@@ -152,8 +152,8 @@
       ],
       "costs": [
         {
-          "type": "skip_first_shop",
-          "params": { "enabled": true }
+          "type": "shop_item_count_delta",
+          "params": { "value": -1 }
         }
       ]
     },

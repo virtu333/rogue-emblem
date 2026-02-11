@@ -163,7 +163,7 @@ export class BattleScene extends Phaser.Scene {
       // Ensure music is stopped when scene shuts down
       this.events.once('shutdown', () => {
         const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(null, 0);
+        if (audio) audio.releaseMusic(this, 0);
         this._restoreBattleRng();
       });
 
@@ -4899,12 +4899,19 @@ export class BattleScene extends Phaser.Scene {
 
       if (choice.type === 'gold') {
         // Gold choice
-        const goldLabel = this.add.text(cx, cardY + 5, `${choice.goldAmount}G`, {
+        const goldLabel = this.add.text(cx, cardY - 2, `${choice.goldAmount}G`, {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(goldLabel);
 
-        const typeLabel = this.add.text(cx, cardY + 35, 'Gold', {
+        if (choice.xpAmount) {
+          const xpLabel = this.add.text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
+            fontFamily: 'monospace', fontSize: '10px', color: '#88ff88',
+          }).setOrigin(0.5).setDepth(702);
+          lootGroup.push(xpLabel);
+        }
+
+        const typeLabel = this.add.text(cx, cardY + 42, 'Gold', {
           fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(typeLabel);
@@ -4913,6 +4920,13 @@ export class BattleScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
           this.runManager.addGold(choice.goldAmount);
+          // Distribute team XP to entire roster
+          if (choice.xpAmount && this.runManager.roster) {
+            for (const unit of this.runManager.roster) {
+              gainExperience(unit, choice.xpAmount);
+              checkLevelUpSkills(unit, this.gameData.classes);
+            }
+          }
           this.finalizeLootPick(lootGroup, cardIdx);
         });
       } else if (choice.type === 'forge') {

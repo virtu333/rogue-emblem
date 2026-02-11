@@ -115,7 +115,7 @@ export const GOLD_PER_KILL_BASE = 25;
 export const GOLD_PER_LEVEL_BONUS = 7;
 export const GOLD_BATTLE_BONUS = 100;
 export const GOLD_BOSS_BONUS = 300;
-export const GOLD_SKIP_LOOT_MULTIPLIER = 1.25;
+export const GOLD_SKIP_LOOT_MULTIPLIER = 1.50;
 export const SHOP_SELL_RATIO = 0.5;
 export const CHURCH_PROMOTE_COST = 2000;
 export const LOOT_CHOICES = 3;
@@ -127,6 +127,7 @@ export const INVENTORY_MAX = 5;      // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3;     // Separate consumables array
 export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
+export const LOOT_GOLD_TEAM_XP = { act1: 15, act2: 20, act3: 30, finalBoss: 40 };
 
 // Weapon forging
 export const FORGE_MAX_LEVEL = 15;

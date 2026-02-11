@@ -33,6 +33,18 @@ export async function ensureSceneLoaded(scene, key) {
 }
 
 export async function startSceneLazy(scene, key, data = undefined) {
-  await ensureSceneLoaded(scene, key);
-  scene.scene.start(key, data);
+  if (!scene || !key) return false;
+  if (scene.__startSceneLazyInFlight) return false;
+  scene.__startSceneLazyInFlight = true;
+  try {
+    await ensureSceneLoaded(scene, key);
+    const isActive = typeof scene.sys?.isActive === 'function'
+      ? scene.sys.isActive()
+      : true;
+    if (!isActive) return false;
+    scene.scene.start(key, data);
+    return true;
+  } finally {
+    scene.__startSceneLazyInFlight = false;
+  }
 }

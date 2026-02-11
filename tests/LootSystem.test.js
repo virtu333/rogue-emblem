@@ -65,9 +65,9 @@ describe('LootSystem', () => {
   });
 
   describe('calculateSkipLootBonus', () => {
-    it('returns 25% of battle gold', () => {
+    it('returns 50% of battle gold', () => {
       const bonus = calculateSkipLootBonus(200);
-      expect(bonus).toBe(50);
+      expect(bonus).toBe(100);
     });
   });
 

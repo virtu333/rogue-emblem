@@ -224,4 +224,38 @@ describe('AudioManager', () => {
     expect(sound.add).toHaveBeenCalledWith('music_battle_act2_1', expect.objectContaining({ loop: true }));
     expect(audio.currentMusicKey).toBe('music_battle_act2_1');
   });
+
+  it('does not stop current music when another owner requests stop', () => {
+    const current = makeLoopingSound('music_battle_act1_1');
+    const sound = makeSoundManager({ sounds: [current] });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act1_1';
+    audio.currentMusicOwner = 'NodeMap';
+
+    const stopped = audio.stopMusic({ scene: { key: 'Title' } }, 0);
+
+    expect(stopped).toBe(false);
+    expect(current.stop).not.toHaveBeenCalled();
+    expect(audio.currentMusicKey).toBe('music_battle_act1_1');
+  });
+
+  it('releaseMusic only stops when owner matches current owner', () => {
+    const current = makeLoopingSound('music_battle_act1_1');
+    const sound = makeSoundManager({ sounds: [current] });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act1_1';
+    audio.currentMusicOwner = 'NodeMap';
+
+    const wrongOwnerStop = audio.releaseMusic({ scene: { key: 'Title' } }, 0);
+    expect(wrongOwnerStop).toBe(false);
+    expect(current.stop).not.toHaveBeenCalled();
+
+    const rightOwnerStop = audio.releaseMusic({ scene: { key: 'NodeMap' } }, 0);
+    expect(rightOwnerStop).toBe(true);
+    expect(current.stop).toHaveBeenCalledTimes(1);
+    expect(current.destroy).toHaveBeenCalledTimes(1);
+    expect(audio.currentMusicKey).toBe(null);
+  });
 });
