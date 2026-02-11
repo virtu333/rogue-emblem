@@ -635,29 +635,40 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.SHOP) {
       this.handleShop(node);
     } else {
-      this.handleBattle(node);
+      void this.handleBattle(node);
     }
   }
 
-  handleBattle(node) {
+  async handleBattle(node) {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
     const audio = this.registry.get('audio');
-    if (audio) audio.stopAllMusic(this, 0);
+    if (audio) audio.releaseMusic(this, 0);
 
     const rm = this.runManager;
     const battleParams = rm.getBattleParams(node);
     const roster = rm.getRoster();
 
-    void startSceneLazy(this, 'Battle', {
-      gameData: this.gameData,
-      runManager: rm,
-      battleParams,
-      roster,
-      nodeId: node.id,
-      isBoss: node.type === NODE_TYPES.BOSS,
-      isElite: battleParams?.isElite || false,
-    });
+    try {
+      const transitioned = await startSceneLazy(this, 'Battle', {
+        gameData: this.gameData,
+        runManager: rm,
+        battleParams,
+        roster,
+        nodeId: node.id,
+        isBoss: node.type === NODE_TYPES.BOSS,
+        isElite: battleParams?.isElite || false,
+      });
+      if (transitioned === false) {
+        this.isTransitioning = false;
+        if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      }
+    } catch (err) {
+      console.error('[NodeMapScene] Failed to start battle scene:', err);
+      this.isTransitioning = false;
+      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.showChurchMessage('Failed to enter battle. Please try again.', '#ff6666');
+    }
   }
 
   handleChurch(node) {
