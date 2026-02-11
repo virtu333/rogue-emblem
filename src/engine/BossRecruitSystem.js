@@ -4,7 +4,7 @@
  */
 
 import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT } from '../utils/constants.js';
-import { createRecruitUnit, createLordUnit, promoteUnit, levelUp } from './UnitManager.js';
+import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
@@ -161,6 +161,10 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
 
     const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: targetLevel };
     const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses);
+    // Assign base-class innate skills before promotion (e.g. Dancer gets 'dance')
+    for (const sid of getClassInnateSkills(baseClassData.name, skills)) {
+      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+    }
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
     return unit;
   } else {
@@ -169,6 +173,11 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     if (!classData) return null;
 
     const recruitDef = { className: classData.name, name: recruitEntry.name, level: targetLevel };
-    return createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
+    const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
+    // Assign base-class innate skills (e.g. Dancer gets 'dance')
+    for (const sid of getClassInnateSkills(classData.name, skills)) {
+      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+    }
+    return unit;
   }
 }
