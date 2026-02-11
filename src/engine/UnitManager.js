@@ -101,13 +101,27 @@ export function learnSkill(unit, skillId) {
 export function checkLevelUpSkills(unit, classesData) {
   const learned = [];
 
-  // Class-based learnable skills
   const cls = classesData.find(c => c.name === unit.className);
+  const tryLearn = (skillId) => {
+    const result = learnSkill(unit, skillId);
+    if (result.learned) learned.push(skillId);
+  };
+
+  // Class-based learnable skills for current class.
   if (cls?.learnableSkills) {
     for (const entry of cls.learnableSkills) {
       if (unit.level >= entry.level) {
-        const result = learnSkill(unit, entry.skillId);
-        if (result.learned) learned.push(entry.skillId);
+        tryLearn(entry.skillId);
+      }
+    }
+  }
+
+  // Promoted units can still learn missed base-class class skills at promoted level 10+.
+  if (unit.tier === 'promoted' && unit.level >= 10 && cls?.promotesFrom) {
+    const baseClass = classesData.find(c => c.name === cls.promotesFrom);
+    if (baseClass?.learnableSkills) {
+      for (const entry of baseClass.learnableSkills) {
+        tryLearn(entry.skillId);
       }
     }
   }

@@ -5,7 +5,10 @@
     "description": "Allies within 2 tiles gain +10 Hit, +5 Avoid",
     "trigger": "passive-aura",
     "range": 2,
-    "effects": { "hitBonus": 10, "avoidBonus": 5 },
+    "effects": {
+      "hitBonus": 10,
+      "avoidBonus": 5
+    },
     "personal": true
   },
   {
@@ -13,7 +16,9 @@
     "name": "Foresight",
     "description": "+1 range on Tome attacks",
     "trigger": "passive",
-    "effects": { "tomeRangeBonus": 1 },
+    "effects": {
+      "tomeRangeBonus": 1
+    },
     "personal": true
   },
   {
@@ -22,7 +27,10 @@
     "description": "+4 STR/DEF when below 50% HP",
     "trigger": "on-combat-start",
     "condition": "below50",
-    "effects": { "strBonus": 4, "defBonus": 4 },
+    "effects": {
+      "strBonus": 4,
+      "defBonus": 4
+    },
     "personal": true
   },
   {
@@ -31,7 +39,9 @@
     "description": "Adjacent allies heal 5 HP at start of turn",
     "trigger": "on-turn-start",
     "range": 1,
-    "effects": { "healAllies": 5 },
+    "effects": {
+      "healAllies": 5
+    },
     "personal": true
   },
   {
@@ -68,14 +78,18 @@
     "description": "+30 Crit when below 50% HP",
     "trigger": "on-combat-start",
     "condition": "below50",
-    "effects": { "critBonus": 30 }
+    "effects": {
+      "critBonus": 30
+    }
   },
   {
     "id": "crit_plus_15",
     "name": "Critical +15",
     "description": "+15 critical hit rate",
     "trigger": "passive",
-    "effects": { "critBonus": 15 },
+    "effects": {
+      "critBonus": 15
+    },
     "classInnate": "Swordmaster"
   },
   {
@@ -83,7 +97,9 @@
     "name": "Sure Shot",
     "description": "Ignore enemy terrain avoid bonus",
     "trigger": "passive",
-    "effects": { "ignoreTerrainAvoid": true },
+    "effects": {
+      "ignoreTerrainAvoid": true
+    },
     "classInnate": "Sniper"
   },
   {
@@ -115,7 +131,9 @@
     "name": "Colossus",
     "description": "+3 damage on all attacks",
     "trigger": "passive",
-    "effects": { "atkBonus": 3 },
+    "effects": {
+      "atkBonus": 3
+    },
     "classInnate": "Warrior"
   },
   {
@@ -123,7 +141,10 @@
     "name": "Discipline",
     "description": "+10 Hit, +5 Avoid",
     "trigger": "passive",
-    "effects": { "hitBonus": 10, "avoidBonus": 5 },
+    "effects": {
+      "hitBonus": 10,
+      "avoidBonus": 5
+    },
     "classInnate": "Falcon Knight"
   },
   {
@@ -131,7 +152,9 @@
     "name": "Renewal",
     "description": "Recover 10% max HP at start of turn",
     "trigger": "on-turn-start",
-    "effects": { "healSelf": 10 },
+    "effects": {
+      "healSelf": 10
+    },
     "classInnate": "Bishop"
   },
   {
@@ -139,8 +162,18 @@
     "name": "Vigilance",
     "description": "+15 Avoid",
     "trigger": "passive",
-    "effects": { "avoidBonus": 15 },
+    "effects": {
+      "avoidBonus": 15
+    },
     "classInnate": "Hero"
+  },
+  {
+    "id": "spell_harmony",
+    "name": "Spell Harmony",
+    "description": "If unit initiates combat, grants Atk equal to adjacent allied player units",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "classInnate": "Sage"
   },
   {
     "id": "adept",
@@ -162,7 +195,10 @@
     "description": "+3 DEF/RES when adjacent to an ally",
     "trigger": "on-combat-start",
     "condition": "adjacent_ally",
-    "effects": { "defBonus": 3, "resBonus": 3 }
+    "effects": {
+      "defBonus": 3,
+      "resBonus": 3
+    }
   },
   {
     "id": "cancel",
@@ -191,7 +227,9 @@
     "description": "+6 STR when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
-    "effects": { "atkBonus": 6 }
+    "effects": {
+      "atkBonus": 6
+    }
   },
   {
     "id": "darting_blow",
@@ -199,7 +237,9 @@
     "description": "+6 SPD when initiating combat",
     "trigger": "on-combat-start",
     "condition": "initiating",
-    "effects": { "spdBonus": 6 }
+    "effects": {
+      "spdBonus": 6
+    }
   },
   {
     "id": "shove",
@@ -225,7 +265,10 @@
     "name": "Canto",
     "description": "Use remaining movement after acting",
     "trigger": "passive",
-    "classInnate": ["Paladin", "Falcon Knight"]
+    "classInnate": [
+      "Paladin",
+      "Falcon Knight"
+    ]
   },
   {
     "id": "commanders_gambit",
@@ -241,7 +284,14 @@
     "description": "Adjacent allies gain +3 to all stats",
     "trigger": "passive-aura",
     "range": 1,
-    "effects": { "atkBonus": 3, "defBonus": 3, "resBonus": 3, "hitBonus": 6, "avoidBonus": 6, "critBonus": 1 },
+    "effects": {
+      "atkBonus": 3,
+      "defBonus": 3,
+      "resBonus": 3,
+      "hitBonus": 6,
+      "avoidBonus": 6,
+      "critBonus": 1
+    },
     "personal": true
   },
   {

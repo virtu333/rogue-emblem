@@ -84,6 +84,13 @@ node tests/agents/fuzz-runner.js --seeds 50 --all-scenarios --mode reporting --t
 - `fog_recruit_visibility`: fog-enabled recruit battle for visibility/talk flow.
 - `healer_heavy`: staff-heavy roster for heal behavior.
 
+## Recent Stability Hardening
+
+- `HeadlessBattle.selectUnit(unitName)` now handles duplicate unit names safely by preferring an unacted matching unit before falling back to the first match.
+- This avoids false failures such as `Unit already acted: <name>` in long seeded runs where duplicate names can exist.
+- Regression coverage is in `tests/harness/HeadlessBattle.test.js`:
+  - `selectUnit prefers an unacted unit when duplicate names exist`
+
 ## Invariants Enforced
 
 Checked after each action step:

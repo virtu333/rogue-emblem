@@ -793,6 +793,55 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     expect(fallen.skills).toContain('dance');
   });
 
+  it('fromJSON migrates class-learned skills at new thresholds', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    json.roster.push({
+      name: 'BaseMage',
+      className: 'Mage',
+      tier: 'base',
+      level: 15,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
+      growths: { HP: 50, STR: 0, MAG: 60, SKL: 35, SPD: 40, DEF: 15, RES: 45, LCK: 25 },
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      skills: [],
+      col: 0, row: 0, mov: 4, moveType: 'Infantry',
+      stats: { HP: 20, STR: 1, MAG: 12, SKL: 8, SPD: 9, DEF: 3, RES: 10, LCK: 5, MOV: 4 },
+      currentHP: 20, faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Prof', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    });
+    json.roster.push({
+      name: 'PromoPaladin',
+      className: 'Paladin',
+      tier: 'promoted',
+      level: 10,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
+      growths: { HP: 60, STR: 45, MAG: 10, SKL: 40, SPD: 40, DEF: 35, RES: 20, LCK: 30 },
+      proficiencies: [{ type: 'Lance', rank: 'Mast' }, { type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      col: 0, row: 0, mov: 7, moveType: 'Cavalry',
+      stats: { HP: 30, STR: 14, MAG: 4, SKL: 11, SPD: 11, DEF: 12, RES: 6, LCK: 8, MOV: 7 },
+      currentHP: 30, faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Mast', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    });
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const baseMage = restored.roster.find(u => u.name === 'BaseMage');
+    const promoPaladin = restored.roster.find(u => u.name === 'PromoPaladin');
+
+    expect(baseMage.skills).toContain('luna');
+    expect(promoPaladin.skills).toContain('sol');
+  });
+
   it('relinkWeapon fallback skips non-proficient inventory[0]', () => {
     const rm = new RunManager(gameData);
     rm.startRun();

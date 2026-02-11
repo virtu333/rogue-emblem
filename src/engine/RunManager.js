@@ -1080,6 +1080,49 @@ export class RunManager {
     runManager.fallenUnits.forEach(applyInnates);
   }
 
+  /**
+   * Ensure units loaded from older saves get class-learned skills under current thresholds:
+   * - base classes: class learnables at their configured level
+   * - promoted classes: own learnables at configured level + base-class learnables at promoted level 10+
+   */
+  static migrateClassLearnableSkills(runManager) {
+    const classes = runManager.gameData?.classes || [];
+    if (!classes.length) return;
+    const classByName = new Map(classes.map(c => [c.name, c]));
+
+    const applyLearnables = (unit) => {
+      if (!unit) return;
+      if (!Array.isArray(unit.skills)) unit.skills = [];
+      if (!Number.isFinite(unit.level)) return;
+
+      const currentClass = classByName.get(unit.className);
+      if (!currentClass) return;
+
+      const tryLearn = (skillId) => {
+        if (!skillId) return;
+        if (unit.skills.includes(skillId)) return;
+        if (unit.skills.length >= MAX_SKILLS) return;
+        unit.skills.push(skillId);
+      };
+
+      for (const entry of currentClass.learnableSkills || []) {
+        if (unit.level >= entry.level) {
+          tryLearn(entry.skillId);
+        }
+      }
+
+      if (unit.tier === 'promoted' && unit.level >= 10 && currentClass.promotesFrom) {
+        const baseClass = classByName.get(currentClass.promotesFrom);
+        for (const entry of baseClass?.learnableSkills || []) {
+          tryLearn(entry.skillId);
+        }
+      }
+    };
+
+    runManager.roster.forEach(applyLearnables);
+    runManager.fallenUnits.forEach(applyLearnables);
+  }
+
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
@@ -1166,6 +1209,7 @@ export class RunManager {
     // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)
     RunManager.migrateInventorySplit(rm);
     RunManager.migrateClassInnateSkills(rm);
+    RunManager.migrateClassLearnableSkills(rm);
 
     rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits.forEach(u => relinkWeapon(u));

@@ -60,6 +60,19 @@ cmd /c npm run sim:fullrun:harness:slices:list
 - Invincibility mode converts battle action-budget exhaustion into forced node wins so full-run progression can continue for long-batch balancing telemetry.
 - Threshold breaches fail the process with a dedicated `Threshold Breaches` section.
 
+## Coverage And Non-Goals
+
+Covered by full-run simulation:
+- Run lifecycle and act progression through `RunManager`.
+- Node traversal logic (`battle`, `recruit`, `shop`, `church`, `boss`).
+- Battle execution through `tests/harness/GameDriver` + headless tactical state machine.
+- Deterministic seeded execution for regression and balance telemetry.
+
+Not covered by full-run simulation:
+- Scene/UI input behavior (dragging, camera panning, click hitboxes, transitions).
+- Visual correctness and animation sequencing.
+- Device-specific interaction quirks (mobile pointer behavior, browser rendering differences).
+
 ## Strict slice suite
 
 `sim:fullrun:harness:pr` now runs deterministic strict slices:
@@ -78,6 +91,32 @@ Slice definitions live in `tests/sim/fullrun-slices.js`.
 - Reporting mode can still fail if `timeout_rate_pct` breaches `--timeout-rate-threshold`.
 - Any configured threshold breach fails the run process (exit code `1`).
 - `All runs passed.` means no harness failure condition was hit; it does not imply high win rate.
+
+## Baseline Example (Invincible Balance Sweep)
+
+Example high-volume reporting sweep used during harness hardening:
+
+```bash
+node tests/sim/fullrun-runner.js --seeds 200 --difficulty normal --invincibility --mode reporting --timeout-rate-threshold 8
+```
+
+Observed summary from that run:
+- `runs=200 victories=200 defeats=0 stuck=0 timeouts=0`
+- `win_rate_pct=100.00 timeout_rate_pct=0.00`
+- `avg_nodes=21.00 avg_battles=18.41`
+- `avg_turns=75.25 avg_gold=6575 avg_recruits=1.03 avg_units_lost=0.00`
+
+Use this as a reference point, not a fixed guarantee. Re-baseline when game data or AI policy changes materially.
+
+## Recommended Usage Pattern
+
+1. PR gate: `npm run sim:fullrun:harness:pr`
+2. Nightly/CI reporting sweep with thresholds:
+   - start with `npm run sim:fullrun:harness`
+   - add explicit metric gates (for example `--min-win-rate`, `--max-avg-turns`) as baselines stabilize
+3. Balance sweeps:
+   - use `npm run sim:fullrun:harness:invincible` for economy/progression telemetry
+   - run normal (non-invincible) sweeps separately to track actual defeat pressure
 
 ## Commit checkpoint
 

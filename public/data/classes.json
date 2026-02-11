@@ -27,7 +27,12 @@
       "LCK": "35-50"
     },
     "promotesTo": "Swordmaster",
-    "learnableSkills": [{ "skillId": "vantage", "level": 8 }]
+    "learnableSkills": [
+      {
+        "skillId": "vantage",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Knight",
@@ -57,7 +62,12 @@
       "LCK": "20-30"
     },
     "promotesTo": "General",
-    "learnableSkills": [{ "skillId": "guard", "level": 8 }]
+    "learnableSkills": [
+      {
+        "skillId": "guard",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Fighter",
@@ -87,7 +97,12 @@
       "LCK": "15-25"
     },
     "promotesTo": "Warrior",
-    "learnableSkills": [{ "skillId": "wrath", "level": 8 }]
+    "learnableSkills": [
+      {
+        "skillId": "wrath",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Cavalier",
@@ -117,7 +132,12 @@
       "LCK": "30-40"
     },
     "promotesTo": "Paladin",
-    "learnableSkills": [{ "skillId": "sol", "level": 10 }]
+    "learnableSkills": [
+      {
+        "skillId": "sol",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Archer",
@@ -147,7 +167,12 @@
       "LCK": "30-40"
     },
     "promotesTo": "Sniper",
-    "learnableSkills": [{ "skillId": "adept", "level": 10 }]
+    "learnableSkills": [
+      {
+        "skillId": "adept",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Mage",
@@ -176,7 +201,13 @@
       "RES": "40-55",
       "LCK": "20-30"
     },
-    "promotesTo": "Sage"
+    "promotesTo": "Sage",
+    "learnableSkills": [
+      {
+        "skillId": "luna",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Cleric",
@@ -206,7 +237,12 @@
       "LCK": "40-55"
     },
     "promotesTo": "Bishop",
-    "learnableSkills": [{ "skillId": "miracle", "level": 8 }]
+    "learnableSkills": [
+      {
+        "skillId": "miracle",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Thief",
@@ -236,7 +272,12 @@
       "LCK": "50-65"
     },
     "promotesTo": "Assassin",
-    "learnableSkills": [{ "skillId": "luna", "level": 8 }]
+    "learnableSkills": [
+      {
+        "skillId": "luna",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Dancer",
@@ -295,7 +336,12 @@
       "LCK": "35-50"
     },
     "promotesTo": "Falcon Knight",
-    "learnableSkills": [{ "skillId": "sol", "level": 10 }]
+    "learnableSkills": [
+      {
+        "skillId": "sol",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Mercenary",
@@ -325,7 +371,12 @@
       "LCK": "30-40"
     },
     "promotesTo": "Hero",
-    "learnableSkills": [{ "skillId": "astra", "level": 10 }]
+    "learnableSkills": [
+      {
+        "skillId": "astra",
+        "level": 15
+      }
+    ]
   },
   {
     "name": "Swordmaster",
@@ -383,7 +434,12 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
     "roleChange": "Gains Bows, raw power",
-    "learnableSkills": [{ "skillId": "wrath", "level": 5 }]
+    "learnableSkills": [
+      {
+        "skillId": "wrath",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Paladin",
@@ -440,8 +496,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P)",
-    "roleChange": "Gains healing",
-    "learnableSkills": [{ "skillId": "luna", "level": 5 }]
+    "roleChange": "Gains healing"
   },
   {
     "name": "Bishop",
@@ -537,7 +592,12 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
     "roleChange": "Gains Axes, versatile",
-    "learnableSkills": [{ "skillId": "sol", "level": 5 }]
+    "learnableSkills": [
+      {
+        "skillId": "sol",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Lord",

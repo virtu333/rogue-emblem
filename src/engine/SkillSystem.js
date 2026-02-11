@@ -103,8 +103,19 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
           mods.quickRiposte = true;
           mods.activated.push({ id: skill.id, name: skill.name });
         }
+        if (skill.id === 'spell_harmony') {
+          const adjacentPlayerAllies = allAllies.filter(a =>
+            a !== unit
+            && a.faction === 'player'
+            && gridDistance(unit.col, unit.row, a.col, a.row) === 1
+          ).length;
+          if (adjacentPlayerAllies > 0) {
+            mods.atkBonus += adjacentPlayerAllies;
+            mods.activated.push({ id: skill.id, name: skill.name });
+          }
+        }
         // Generic on-combat-start stat bonuses (Guard, Death Blow, Darting Blow, etc.)
-        const specialIds = new Set(['resolve', 'wrath', 'vantage', 'desperation', 'quick_riposte']);
+        const specialIds = new Set(['resolve', 'wrath', 'vantage', 'desperation', 'quick_riposte', 'spell_harmony']);
         if (!specialIds.has(skill.id) && skill.effects) {
           if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
           if (skill.effects.resBonus) mods.resBonus += skill.effects.resBonus;

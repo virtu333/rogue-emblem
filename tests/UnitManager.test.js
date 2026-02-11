@@ -16,6 +16,7 @@ import {
   addToInventory,
   removeFromInventory,
   learnSkill,
+  checkLevelUpSkills,
   getClassInnateSkills,
   applyStatBoost,
   calculateCombatXP,
@@ -222,6 +223,44 @@ describe('learnSkill', () => {
     const result = learnSkill(unit, 'charisma');
     expect(result.learned).toBe(false);
     expect(result.reason).toBe('at_cap');
+  });
+});
+
+describe('checkLevelUpSkills class thresholds', () => {
+  it('base class does not learn class skill before level 15', () => {
+    const unit = {
+      className: 'Myrmidon',
+      tier: 'base',
+      level: 14,
+      skills: [],
+    };
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).toEqual([]);
+    expect(unit.skills).not.toContain('vantage');
+  });
+
+  it('base class learns class skill at level 15', () => {
+    const unit = {
+      className: 'Myrmidon',
+      tier: 'base',
+      level: 15,
+      skills: [],
+    };
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).toContain('vantage');
+    expect(unit.skills).toContain('vantage');
+  });
+
+  it('promoted class learns missed base-class skill at promoted level 10', () => {
+    const unit = {
+      className: 'Paladin',
+      tier: 'promoted',
+      level: 10,
+      skills: [],
+    };
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).toContain('sol');
+    expect(unit.skills).toContain('sol');
   });
 });
 

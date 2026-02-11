@@ -203,6 +203,17 @@ describe('isInitiating combat mods', () => {
     const mods = getSkillCombatMods(unit, enemy, [unit], [enemy], data.skills, null, true);
     expect(mods.spdBonus).toBe(6);
   });
+
+  it('Spell Harmony gives +ATK per adjacent allied player unit when initiating', () => {
+    const unit = makeUnit({ skills: ['spell_harmony'], col: 0, row: 0, faction: 'player' });
+    const allyA = makeUnit({ name: 'AllyA', col: 1, row: 0, faction: 'player' });
+    const allyB = makeUnit({ name: 'AllyB', col: 0, row: 1, faction: 'player' });
+    const allyFar = makeUnit({ name: 'AllyFar', col: 3, row: 3, faction: 'player' });
+    const allyNpc = makeUnit({ name: 'NpcAlly', col: -1, row: 0, faction: 'npc' });
+    const enemy = makeUnit({ faction: 'enemy', col: 2, row: 0 });
+    const mods = getSkillCombatMods(unit, enemy, [unit, allyA, allyB, allyFar, allyNpc], [enemy], data.skills, null, true);
+    expect(mods.atkBonus).toBe(2);
+  });
 });
 
 describe('Desperation combat mod', () => {
@@ -621,7 +632,7 @@ describe('Skills data integrity', () => {
   const expectedSkills = [
     'cancel', 'desperation', 'quick_riposte', 'death_blow', 'darting_blow',
     'shove', 'pull', 'canto',
-    'commanders_gambit', 'tactical_advantage', 'aether', 'flare',
+    'commanders_gambit', 'tactical_advantage', 'aether', 'flare', 'spell_harmony',
   ];
   for (const id of expectedSkills) {
     it(`skill ${id} exists in skills.json`, () => {
