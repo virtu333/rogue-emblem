@@ -8,6 +8,7 @@ import { pushSettings } from '../cloud/CloudSync.js';
 import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 
@@ -37,33 +38,6 @@ async function loadGameDataWithRetry({ retries, timeoutMs, delayMs }) {
     }
   }
   throw lastError || new Error('Failed to load game data');
-}
-
-async function ensureCoreScenesLoaded(scene) {
-  markStartup('boot_scene_module_load_start');
-  const modules = await Promise.all([
-    import('./TitleScene.js'),
-    import('./SlotPickerScene.js'),
-    import('./HomeBaseScene.js'),
-    import('./NodeMapScene.js'),
-    import('./BattleScene.js'),
-    import('./RunCompleteScene.js'),
-  ]);
-  const sceneDefs = [
-    { key: 'Title', cls: modules[0].TitleScene },
-    { key: 'SlotPicker', cls: modules[1].SlotPickerScene },
-    { key: 'HomeBase', cls: modules[2].HomeBaseScene },
-    { key: 'NodeMap', cls: modules[3].NodeMapScene },
-    { key: 'Battle', cls: modules[4].BattleScene },
-    { key: 'RunComplete', cls: modules[5].RunCompleteScene },
-  ];
-  for (const def of sceneDefs) {
-    if (!def.cls) continue;
-    if (!scene.scene.get(def.key)) {
-      scene.scene.add(def.key, def.cls, false);
-    }
-  }
-  markStartup('boot_scene_module_load_complete', { count: sceneDefs.length });
 }
 
 export class BootScene extends Phaser.Scene {
@@ -397,8 +371,7 @@ export class BootScene extends Phaser.Scene {
       this.registry.set('cloud', cloudState);
     }
 
-    await ensureCoreScenesLoaded(this);
     markStartup('boot_scene_complete');
-    this.scene.start('Title', { gameData: data });
+    await startSceneLazy(this, 'Title', { gameData: data });
   }
 }

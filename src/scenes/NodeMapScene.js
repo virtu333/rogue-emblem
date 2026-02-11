@@ -15,6 +15,7 @@ import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -401,7 +402,7 @@ export class NodeMapScene extends Phaser.Scene {
         // Run is already auto-saved on NodeMap entry. Just navigate.
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        this.scene.start('Title', { gameData: this.gameData });
+        void startSceneLazy(this, 'Title', { gameData: this.gameData });
       },
       onAbandon: () => {
         const cloud = this.registry.get('cloud');
@@ -410,7 +411,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.runManager.failRun();
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        this.scene.start('Title', { gameData: this.gameData });
+        void startSceneLazy(this, 'Title', { gameData: this.gameData });
       },
     });
     this.pauseOverlay.show();
@@ -682,7 +683,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (node.fogEnabled) battleParams.fogEnabled = true;
     const roster = rm.getRoster();
 
-    this.scene.start('Battle', {
+    void startSceneLazy(this, 'Battle', {
       gameData: this.gameData,
       runManager: rm,
       battleParams,
@@ -1531,7 +1532,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
-        this.scene.start('RunComplete', {
+        void startSceneLazy(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: rm,
           result: 'victory',

@@ -10,6 +10,7 @@ import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAll
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 // --- Constants ---
 const W = 640, H = 480, PIXEL = 2;
@@ -583,10 +584,10 @@ export class TitleScene extends Phaser.Scene {
 
     // CONTINUE button (if slots exist)
     if (hasSlots) {
-      createMenuButton(this, cx, menuY, 'CONTINUE', () => {
+      createMenuButton(this, cx, menuY, 'CONTINUE', async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        this.scene.start('SlotPicker', { gameData: this.gameData });
+        await startSceneLazy(this, 'SlotPicker', { gameData: this.gameData });
       }, btnDelay + delayIdx * 150);
       menuY += btnGap;
       delayIdx++;
@@ -679,7 +680,7 @@ export class TitleScene extends Phaser.Scene {
     this._drawBackground(time);
   }
 
-  handleNewGame() {
+  async handleNewGame() {
     const nextSlot = getNextAvailableSlot();
     if (!nextSlot) {
       this.showMessage('All 3 save slots are full.\nDelete a slot from Continue to free space.');
@@ -699,7 +700,7 @@ export class TitleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.stopMusic(this, 0);
 
-    this.scene.start('HomeBase', { gameData: this.gameData });
+    await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
   }
 
   showMessage(text) {

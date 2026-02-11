@@ -6,6 +6,7 @@ import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CA
 import { clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats',      label: 'Recruits' },
@@ -656,13 +657,13 @@ export class HomeBaseScene extends Phaser.Scene {
 
     beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
-    beginBtn.on('pointerdown', () => {
+    beginBtn.on('pointerdown', async () => {
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
       clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('NodeMap', { gameData: this.gameData, difficultyId: this.selectedDifficulty });
+      await startSceneLazy(this, 'NodeMap', { gameData: this.gameData, difficultyId: this.selectedDifficulty });
     });
 
     const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
@@ -672,10 +673,10 @@ export class HomeBaseScene extends Phaser.Scene {
 
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
-    backBtn.on('pointerdown', () => {
+    backBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      await startSceneLazy(this, 'Title', { gameData: this.gameData });
     });
   }
 
@@ -683,9 +684,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (this.selectedDifficulty !== 'normal' && this.selectedDifficulty !== 'hard') {
       this.selectedDifficulty = 'normal';
     }
-    this.hardUnlocked = Boolean(
-      this.meta?.hasMilestone?.('beatGame') || this.meta?.hasMilestone?.('beatAct3')
-    );
+    this.hardUnlocked = Boolean(this.meta?.hasMilestone?.('beatGame'));
     if (this.selectedDifficulty === 'hard' && !this.hardUnlocked) {
       this.selectedDifficulty = 'normal';
       this.registry.set('selectedDifficulty', this.selectedDifficulty);
@@ -738,7 +737,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (allowExit) {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      void startSceneLazy(this, 'Title', { gameData: this.gameData });
       return true;
     }
     return false;

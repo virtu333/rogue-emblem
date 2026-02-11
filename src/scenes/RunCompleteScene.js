@@ -6,6 +6,7 @@ import { calculateCurrencies } from '../engine/MetaProgressionManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -121,10 +122,10 @@ export class RunCompleteScene extends Phaser.Scene {
 
     homeBtn.on('pointerover', () => homeBtn.setColor('#ffdd44'));
     homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
-    homeBtn.on('pointerdown', () => {
+    homeBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('HomeBase', { gameData: this.gameData });
+      await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
     });
 
     // Back to Title button (secondary)
@@ -135,10 +136,10 @@ export class RunCompleteScene extends Phaser.Scene {
 
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', () => {
+    titleBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      await startSceneLazy(this, 'Title', { gameData: this.gameData });
     });
   }
 }

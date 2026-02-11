@@ -7,6 +7,7 @@ import { HintManager } from '../engine/HintManager.js';
 import { loadRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -42,8 +43,8 @@ export class SlotPickerScene extends Phaser.Scene {
 
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
-    backBtn.on('pointerdown', () => {
-      this.scene.start('Title', { gameData: this.gameData });
+    backBtn.on('pointerdown', async () => {
+      await startSceneLazy(this, 'Title', { gameData: this.gameData });
     });
   }
 
@@ -86,7 +87,7 @@ export class SlotPickerScene extends Phaser.Scene {
       return true;
     }
     if (allowExit) {
-      this.scene.start('Title', { gameData: this.gameData });
+      void startSceneLazy(this, 'Title', { gameData: this.gameData });
       return true;
     }
     return false;
@@ -208,14 +209,14 @@ export class SlotPickerScene extends Phaser.Scene {
       // Resume active run directly
       const rm = loadRun(this.gameData, slot);
       if (rm) {
-        this.scene.start('NodeMap', { gameData: this.gameData, runManager: rm });
+        void startSceneLazy(this, 'NodeMap', { gameData: this.gameData, runManager: rm });
       } else {
         // Run data corrupt — go to HomeBase
-        this.scene.start('HomeBase', { gameData: this.gameData });
+        void startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
       }
     } else {
       // No active run — go to HomeBase
-      this.scene.start('HomeBase', { gameData: this.gameData });
+      void startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
     }
   }
 

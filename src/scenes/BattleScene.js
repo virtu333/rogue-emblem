@@ -73,6 +73,7 @@ import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
+import { startSceneLazy } from '../utils/sceneLoader.js';
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
@@ -534,12 +535,12 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(2000, () => {
         toast.destroy();
         if (this.runManager) {
-          this.scene.start('NodeMap', {
+          void startSceneLazy(this, 'NodeMap', {
             gameData: this.gameData,
             runManager: this.runManager,
           });
         } else {
-          this.scene.start('Title');
+          void startSceneLazy(this, 'Title');
         }
       });
     }
@@ -1360,13 +1361,13 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.failRun();
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      void startSceneLazy(this, 'Title', { gameData: this.gameData });
     } : null;
     const saveExitCb = this.runManager ? () => {
       // Return to title â€” last NodeMap auto-save preserved. Battle progress lost.
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      void startSceneLazy(this, 'Title', { gameData: this.gameData });
     } : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => {
@@ -4082,20 +4083,20 @@ export class BattleScene extends Phaser.Scene {
       if (this.runManager.isActComplete()) {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
-          this.scene.start('RunComplete', {
+          void startSceneLazy(this, 'RunComplete', {
             gameData: this.gameData,
             runManager: this.runManager,
             result: 'victory',
           });
         } else {
           this.runManager.advanceAct();
-          this.scene.start('NodeMap', {
+          void startSceneLazy(this, 'NodeMap', {
             gameData: this.gameData,
             runManager: this.runManager,
           });
         }
       } else {
-        this.scene.start('NodeMap', {
+        void startSceneLazy(this, 'NodeMap', {
           gameData: this.gameData,
           runManager: this.runManager,
         });
@@ -4114,14 +4115,14 @@ export class BattleScene extends Phaser.Scene {
   forceTransitionAfterBattle() {
     try {
       if (this.runManager?.isRunComplete?.()) {
-        this.scene.start('RunComplete', {
+        void startSceneLazy(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: this.runManager,
           result: 'victory',
         });
         return;
       }
-      this.scene.start('NodeMap', {
+      void startSceneLazy(this, 'NodeMap', {
         gameData: this.gameData,
         runManager: this.runManager,
       });
@@ -5250,7 +5251,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.runManager) {
       this.runManager.failRun();
       this.time.delayedCall(2000, () => {
-        this.scene.start('RunComplete', {
+        void startSceneLazy(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: this.runManager,
           result: 'defeat',

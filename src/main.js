@@ -94,6 +94,17 @@ function showBootRecoveryOverlay(message) {
   document.body.appendChild(overlay);
 }
 
+function hideBootRecoveryOverlay() {
+  const overlay = document.getElementById('boot-recovery-overlay');
+  if (overlay) overlay.remove();
+}
+
+function hasReachedInteractiveTitle() {
+  const telemetry = getStartupTelemetry();
+  const markers = telemetry?.markers || [];
+  return markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
+}
+
 function installStartupErrorHooks() {
   window.addEventListener('error', (event) => {
     markStartup('window_error', {
@@ -111,13 +122,26 @@ function installStartupErrorHooks() {
 }
 
 function installBootWatchdog() {
+  const monitor = window.setInterval(() => {
+    if (!hasReachedInteractiveTitle()) return;
+    hideBootRecoveryOverlay();
+    window.clearInterval(monitor);
+  }, 1000);
+
   window.setTimeout(() => {
-    const telemetry = getStartupTelemetry();
-    const markers = telemetry?.markers || [];
-    const reachedTitle = markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
-    if (reachedTitle) return;
+    if (hasReachedInteractiveTitle()) {
+      window.clearInterval(monitor);
+      return;
+    }
     markStartup('boot_watchdog_timeout', { timeoutMs: BOOT_WATCHDOG_TIMEOUT_MS });
     showBootRecoveryOverlay('The game did not reach the title screen in time. Try reload or safe mode.');
+    const recover = window.setInterval(() => {
+      if (!hasReachedInteractiveTitle()) return;
+      markStartup('boot_watchdog_recovered_after_timeout');
+      hideBootRecoveryOverlay();
+      window.clearInterval(recover);
+      window.clearInterval(monitor);
+    }, 1000);
   }, BOOT_WATCHDOG_TIMEOUT_MS);
 }
 installStartupErrorHooks();
