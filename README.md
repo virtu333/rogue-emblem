@@ -26,7 +26,13 @@ These folders are intentionally not tracked in git to keep repository size manag
 npm run sync-data
 ```
 
-4. Start dev server:
+4. Sync media assets to runtime public assets:
+
+```bash
+npm run sync-assets
+```
+
+5. Start dev server:
 
 ```bash
 npm run dev
@@ -47,10 +53,10 @@ npm test
 ```
 
 Harness/sim entry points are available in `package.json` scripts.
+See `docs/testing_matrix.md` for recommended lanes and commands.
 
 ## Asset policy
 
 - Large binary assets are excluded from git (`assets/`, `public/assets/`).
 - Commit gameplay/data/code changes as normal.
 - Share/backup asset packs separately (artifact zip, release asset, or external storage).
-
