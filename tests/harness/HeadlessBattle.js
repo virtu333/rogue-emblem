@@ -307,7 +307,8 @@ export class HeadlessBattle {
       item.type !== 'Consumable' && canEquip(unit, item)
     );
     if (equippable.length >= 2) actions.push({ label: 'Equip', supported: false });
-    if (canPromote(unit)) actions.push({ label: 'Promote', supported: false });
+    const hasPromotionSeal = (unit.consumables || []).some(item => item?.effect === 'promote' && (item.uses ?? 0) > 0);
+    if (canPromote(unit) && hasPromotionSeal) actions.push({ label: 'Promote', supported: false });
     if ((unit.consumables || []).length > 0) actions.push({ label: 'Item', supported: false });
 
     // Wait (always available)

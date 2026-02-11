@@ -2135,7 +2135,9 @@ export class BattleScene extends Phaser.Scene {
       item.type !== 'Consumable' && canEquip(unit, item)
     );
     if (equippableItems.length >= 2) items.push('Equip');
-    if (canPromote(unit) && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) items.push('Promote');
+    if (canPromote(unit)
+      && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
+      && this.getPromotionConsumable(unit)) items.push('Promote');
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
@@ -2220,7 +2222,7 @@ export class BattleScene extends Phaser.Scene {
           this.showEquipMenu(unit);
         } else if (label === 'Promote') {
           this.hideActionMenu();
-          this.executePromotion(unit);
+          this.executePromotion(unit, this.getPromotionConsumable(unit));
         } else if (label === 'Item') {
           this.showItemMenu(unit);
         } else if (label === 'Accessory') {
@@ -2255,6 +2257,11 @@ export class BattleScene extends Phaser.Scene {
       this.actionMenu.forEach(obj => obj.destroy());
       this.actionMenu = null;
     }
+  }
+
+  getPromotionConsumable(unit) {
+    if (!unit?.consumables?.length) return null;
+    return unit.consumables.find(item => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null;
   }
 
   undoMove(unit) {
@@ -2683,7 +2690,9 @@ export class BattleScene extends Phaser.Scene {
       // Check usability
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
       const isPromote = item.effect === 'promote';
-      const canUsePromote = canPromote(unit) && Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords));
+      const canUsePromote = canPromote(unit)
+        && Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
+        && this.getPromotionConsumable(unit) === item;
       const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canUsePromote);
 
       let label = item.name;
@@ -2735,12 +2744,8 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(unit);
       await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
     } else if (item.effect === 'promote') {
-      const didPromote = await this.executePromotion(unit);
+      const didPromote = await this.executePromotion(unit, item);
       if (!didPromote) return;
-      // executePromotion calls finishUnitAction, and we handle uses below
-      // But executePromotion already finishes the action, so decrement uses and return
-      item.uses--;
-      if (item.uses <= 0) removeFromConsumables(unit, item);
       return;
     }
 
@@ -2870,7 +2875,15 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Promotion ---
 
-  async executePromotion(unit) {
+  async executePromotion(unit, promotionItem = null) {
+    const seal = promotionItem || this.getPromotionConsumable(unit);
+    if (!seal) {
+      await this.showBriefBanner('Master Seal required to promote.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return false;
+    }
+
     // Find promotion data
     const lordData = this.gameData.lords.find(l => l.name === unit.name);
     const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
@@ -2941,6 +2954,10 @@ export class BattleScene extends Phaser.Scene {
     delete gains.gains.MOV; // MOV isn't shown in level-up popup
     const popup = new LevelUpPopup(this, unit, gains, true);
     await popup.show();
+
+    // Consume Master Seal on successful promotion
+    seal.uses = (seal.uses ?? 1) - 1;
+    if (seal.uses <= 0) removeFromConsumables(unit, seal);
 
     this.finishUnitAction(unit);
     return true;

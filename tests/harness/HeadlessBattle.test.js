@@ -165,6 +165,26 @@ describe('HeadlessBattle', () => {
     }
   });
 
+  it('Promote action requires Master Seal in consumables', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+    battle.selectUnit('Edric');
+    const edric = battle.selectedUnit;
+    edric.level = 10;
+    edric.tier = 'base';
+
+    battle.moveTo(edric.col, edric.row);
+    let actions = battle.getAvailableActions();
+    expect(actions.some(a => a.label === 'Promote')).toBe(false);
+
+    const seal = gameData.consumables.find(c => c.name === 'Master Seal');
+    expect(seal).toBeTruthy();
+    edric.consumables.push(structuredClone(seal));
+
+    actions = battle.getAvailableActions();
+    expect(actions.some(a => a.label === 'Promote')).toBe(true);
+  });
+
   it('undoMove on fog maps reverts revealed tiles to pre-move visibility', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, fogEnabled: true });
     battle.init();
