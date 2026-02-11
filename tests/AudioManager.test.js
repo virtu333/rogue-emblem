@@ -190,6 +190,20 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_home_base');
   });
 
+  it('cancels in-flight music load when stopMusic is called before load completes', async () => {
+    const sound = makeSoundManager({ autoCompleteLoader: false });
+    const audio = new AudioManager(sound);
+
+    const pending = audio.playMusic('music_title', sound.scene, 0);
+    audio.stopMusic(null, 0);
+
+    sound.scene.load._completeKey('music_title');
+    await pending;
+
+    expect(sound.add).not.toHaveBeenCalled();
+    expect(audio.currentMusicKey).toBe(null);
+  });
+
   it('restarts same-key music when overlap is detected to clear orphan loops', async () => {
     const current = makeLoopingSound('music_battle_act2_1');
     const orphan = makeLoopingSound('music_battle_act2_2');

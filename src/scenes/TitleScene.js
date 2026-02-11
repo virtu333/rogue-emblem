@@ -402,10 +402,11 @@ function createMenuButton(scene, x, y, label, onClick, delay) {
   });
 
   hitZone.on('pointerdown', () => {
+    // Fire action immediately; don't gate scene transitions on tween completion.
+    onClick();
     scene.tweens.add({
       targets: container, scaleX: 0.98, scaleY: 0.98, duration: 60,
       yoyo: true,
-      onComplete: () => onClick(),
     });
   });
 
@@ -706,6 +707,9 @@ export class TitleScene extends Phaser.Scene {
     if (this.input) this.input.enabled = false;
 
     try {
+      // First click can be both "unlock audio" + "transition". Give unlock a moment.
+      await this.ensureAudioUnlocked();
+
       // Hard-stop title music before scene change; avoids race with unlock/load.
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(null, 0);
@@ -726,6 +730,26 @@ export class TitleScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) audio.playMusic(MUSIC.title, this);
     }
+  }
+
+  async ensureAudioUnlocked(timeoutMs = 200) {
+    const sound = this.sound;
+    if (!sound?.locked) return;
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      if (typeof sound.once === 'function') {
+        sound.once('unlocked', finish);
+      }
+      try {
+        if (typeof sound.unlock === 'function') sound.unlock();
+      } catch (_) {}
+      this.time.delayedCall(timeoutMs, finish);
+    });
   }
 
   showMessage(text) {

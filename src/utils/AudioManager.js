@@ -122,6 +122,8 @@ export class AudioManager {
   /** Stop current music with optional fade-out. */
   stopMusic(scene, fadeMs = 500) {
     this._pendingMusic = null;
+    // Invalidate any in-flight playMusic() request still awaiting async load.
+    this._musicRequestSeq += 1;
     if (!this.currentMusic) {
       this.stopAllMusic(scene, fadeMs);
       return;

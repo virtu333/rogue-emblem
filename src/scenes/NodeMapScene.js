@@ -38,8 +38,8 @@ const COLOR_EDGE = 0x666666;
 const COLOR_EDGE_ACTIVE = 0xffdd44;
 // Aura effects for special node types
 const AURA_ELITE_COLOR = 0xcc2222;
-const AURA_ELITE_RADIUS = 22;
-const AURA_ELITE_ALPHA = [0.15, 0.45]; // [min, max] breathing range
+const AURA_ELITE_RADIUS = 26;
+const AURA_ELITE_ALPHA = [0.26, 0.62]; // [min, max] breathing range
 const AURA_ELITE_DURATION = 900; // faster = menacing
 const AURA_CHURCH_COLOR = 0xfff2d0; // warm, slightly whiter gold
 const AURA_CHURCH_RADIUS = 28;
@@ -641,7 +641,7 @@ export class NodeMapScene extends Phaser.Scene {
           // Static dim aura for locked nodes to reduce background motion noise.
           const lockedAlpha = isChurchNode
             ? Math.max(auraAlphaRange[0] * AURA_LOCKED_ALPHA_SCALE, 0.18)
-            : auraAlphaRange[0] * AURA_LOCKED_ALPHA_SCALE;
+            : Math.max(auraAlphaRange[0] * AURA_LOCKED_ALPHA_SCALE, 0.24);
           aura.setAlpha(lockedAlpha);
         }
       }
@@ -662,7 +662,7 @@ export class NodeMapScene extends Phaser.Scene {
           .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
           .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(0x555555);
-        if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.5);
+        if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
       } else {
         nodeObj = this.add.rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
           .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888)
