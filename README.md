@@ -18,8 +18,6 @@ npm install
 - `assets/`
 - `public/assets/`
 
-These folders are intentionally not tracked in git to keep repository size manageable.
-
 3. Sync JSON data files to runtime public data:
 
 ```bash
@@ -57,6 +55,5 @@ See `docs/testing_matrix.md` for recommended lanes and commands.
 
 ## Asset policy
 
-- Large binary assets are excluded from git (`assets/`, `public/assets/`).
-- Commit gameplay/data/code changes as normal.
-- Share/backup asset packs separately (artifact zip, release asset, or external storage).
+- Runtime assets are currently tracked in this repository.
+- Keep `assets/` and `public/assets/` in sync when updating media files.
