@@ -293,9 +293,19 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.deploy_limit = 1;
     meta.purchasedUpgrades.roster_cap = 1;
+    meta.purchasedUpgrades.vision_charges_2 = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
     expect(effects.rosterCapBonus).toBe(2);
+    expect(effects.visionChargesBonus).toBe(1);
+  });
+
+  it('vision_charges_3 overrides vision bonus to 2 when purchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.vision_charges_2 = 1;
+    meta.purchasedUpgrades.vision_charges_3 = 1;
+    const effects = meta.getActiveEffects();
+    expect(effects.visionChargesBonus).toBe(2);
   });
 
   it('getActiveEffects returns defaults when no upgrades purchased', () => {
@@ -309,6 +319,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.battleGoldMultiplier).toBe(0);
     expect(effects.deployBonus).toBe(0);
     expect(effects.rosterCapBonus).toBe(0);
+    expect(effects.visionChargesBonus).toBe(0);
   });
 
   it('starts with 0 runsCompleted', () => {
@@ -394,8 +405,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 41 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(41);
+  it('has 43 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(43);
   });
 
   it('has correct category distribution', () => {
@@ -406,7 +417,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
-    expect(byCategory.capacity).toBe(3);
+    expect(byCategory.capacity).toBe(5);
     expect(byCategory.starting_equipment).toBe(4);
     expect(byCategory.starting_skills).toBe(8);
   });

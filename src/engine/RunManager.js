@@ -86,6 +86,9 @@ export class RunManager {
     };
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
+    this.rngSeed = null;
+    this.visionChargesRemaining = 1;
+    this.visionCount = 0;
     this.battleConfigsByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
@@ -113,6 +116,10 @@ export class RunManager {
       const initialSeed = runSeed ?? Date.now();
       this.runSeed = Number(initialSeed);
     }
+    this.rngSeed = this.runSeed >>> 0;
+    const visionBonus = Math.max(0, Math.trunc(this.metaEffects?.visionChargesBonus || 0));
+    this.visionChargesRemaining = Math.min(3, 1 + visionBonus);
+    this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
@@ -1005,6 +1012,9 @@ export class RunManager {
         blockedPersonalSkillsByUnit: {},
       },
       runSeed: this.runSeed,
+      rngSeed: this.rngSeed,
+      visionChargesRemaining: this.visionChargesRemaining,
+      visionCount: this.visionCount,
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
@@ -1117,6 +1127,17 @@ export class RunManager {
       rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
     }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
+    rm.rngSeed = Number.isFinite(saved.rngSeed)
+      ? Number(saved.rngSeed) >>> 0
+      : (Number.isFinite(rm.runSeed) ? (Number(rm.runSeed) >>> 0) : null);
+    const legacyVisionBonus = Math.max(0, Math.trunc(rm.metaEffects?.visionChargesBonus || 0));
+    const defaultVisionCharges = Math.min(3, 1 + legacyVisionBonus);
+    rm.visionChargesRemaining = Number.isFinite(saved.visionChargesRemaining)
+      ? Math.max(0, Math.trunc(saved.visionChargesRemaining))
+      : defaultVisionCharges;
+    rm.visionCount = Number.isFinite(saved.visionCount)
+      ? Math.max(0, Math.trunc(saved.visionCount))
+      : 0;
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {

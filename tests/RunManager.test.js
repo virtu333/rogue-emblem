@@ -73,6 +73,15 @@ describe('RunManager', () => {
       expect(rm.difficultyId).toBe('hard');
       expect(rm.getDifficultyModifier('enemyStatBonus', 0)).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
     });
+
+    it('initializes vision charges and rng seed from meta effects', () => {
+      const metaEffects = { visionChargesBonus: 2 };
+      const rmWithMeta = new RunManager(gameData, metaEffects);
+      rmWithMeta.startRun({ runSeed: 1337 });
+      expect(rmWithMeta.rngSeed).toBe(1337);
+      expect(rmWithMeta.visionChargesRemaining).toBe(3);
+      expect(rmWithMeta.visionCount).toBe(0);
+    });
   });
 
   describe('serializeUnit', () => {
@@ -296,6 +305,18 @@ describe('RunManager', () => {
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.difficultyId).toBe('hard');
       expect(restored.actSequence).toEqual(gameData.difficulty.modes.hard.actsIncluded);
+    });
+
+    it('round-trips vision and rng state through save/load', () => {
+      rm.startRun({ runSeed: 999 });
+      rm.rngSeed = 424242;
+      rm.visionChargesRemaining = 2;
+      rm.visionCount = 1;
+      const json = rm.toJSON();
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.rngSeed).toBe(424242);
+      expect(restored.visionChargesRemaining).toBe(2);
+      expect(restored.visionCount).toBe(1);
     });
 
     it('migrates old saves without difficulty fields to normal defaults', () => {

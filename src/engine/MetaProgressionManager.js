@@ -252,7 +252,7 @@ export class MetaProgressionManager {
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponWeightBonus,
-   *            deployBonus, rosterCapBonus, recruitRandomSkill, startingWeaponForge, deadlyArsenal,
+   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, startingWeaponForge, deadlyArsenal,
    *            startingAccessoryTier, startingStaffTier, startingSkills }
    */
   getActiveEffects() {
@@ -267,6 +267,7 @@ export class MetaProgressionManager {
       lootWeaponWeightBonus: 0,
       deployBonus: 0,
       rosterCapBonus: 0,
+      visionChargesBonus: 0,
       recruitRandomSkill: false,
       startingWeaponForge: 0,
       deadlyArsenal: 0,
@@ -307,6 +308,7 @@ export class MetaProgressionManager {
       if (effect.lootWeaponWeightBonus !== undefined) effects.lootWeaponWeightBonus = effect.lootWeaponWeightBonus;
       if (effect.deployBonus !== undefined) effects.deployBonus = effect.deployBonus;
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
+      if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;
       if (effect.recruitRandomSkill) effects.recruitRandomSkill = true;
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined) effects.startingWeaponForge = effect.startingWeaponForge;
