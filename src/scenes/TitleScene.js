@@ -9,6 +9,7 @@ import { pushMeta } from '../cloud/CloudSync.js';
 import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAllSlotData } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
+import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 
 // --- Constants ---
 const W = 640, H = 480, PIXEL = 2;
@@ -438,6 +439,7 @@ export class TitleScene extends Phaser.Scene {
     requestAnimationFrame(() => {
       markStartup('first_interactive_frame');
       logStartupSummary({ reason: 'title_first_interactive' });
+      startDeferredAssetWarmup(this);
     });
 
     const cx = W / 2;

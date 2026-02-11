@@ -9,6 +9,8 @@ import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
 
+const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -37,6 +39,33 @@ async function loadGameDataWithRetry({ retries, timeoutMs, delayMs }) {
   throw lastError || new Error('Failed to load game data');
 }
 
+async function ensureCoreScenesLoaded(scene) {
+  markStartup('boot_scene_module_load_start');
+  const modules = await Promise.all([
+    import('./TitleScene.js'),
+    import('./SlotPickerScene.js'),
+    import('./HomeBaseScene.js'),
+    import('./NodeMapScene.js'),
+    import('./BattleScene.js'),
+    import('./RunCompleteScene.js'),
+  ]);
+  const sceneDefs = [
+    { key: 'Title', cls: modules[0].TitleScene },
+    { key: 'SlotPicker', cls: modules[1].SlotPickerScene },
+    { key: 'HomeBase', cls: modules[2].HomeBaseScene },
+    { key: 'NodeMap', cls: modules[3].NodeMapScene },
+    { key: 'Battle', cls: modules[4].BattleScene },
+    { key: 'RunComplete', cls: modules[5].RunCompleteScene },
+  ];
+  for (const def of sceneDefs) {
+    if (!def.cls) continue;
+    if (!scene.scene.get(def.key)) {
+      scene.scene.add(def.key, def.cls, false);
+    }
+  }
+  markStartup('boot_scene_module_load_complete', { count: sceneDefs.length });
+}
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
@@ -45,6 +74,10 @@ export class BootScene extends Phaser.Scene {
   preload() {
     this._startupFlags = getStartupFlags();
     this._deferredAssetGroups = [];
+    this._deferredAssets = [];
+    this._preloadComplete = false;
+    this._lastPreloadProgressAt = performance.now();
+    this._stallUi = [];
 
     const failedFiles = [];
     const statusText = this.add.text(320, 210, 'Loading assets...', {
@@ -60,9 +93,11 @@ export class BootScene extends Phaser.Scene {
     });
 
     this.load.on('progress', (value) => {
+      this._lastPreloadProgressAt = performance.now();
       progressText.setText(`${Math.round(value * 100)}%`);
     });
     this.load.on('fileprogress', (file) => {
+      this._lastPreloadProgressAt = performance.now();
       if (file?.key) statusText.setText(`Loading ${file.key}...`);
     });
     this.load.on('loaderror', (file) => {
@@ -70,6 +105,9 @@ export class BootScene extends Phaser.Scene {
       recordStartupAssetFailure(file, 'Boot');
     });
     this.load.once('complete', () => {
+      this._preloadComplete = true;
+      this._clearPreloadStallWatch();
+      this._destroyStallUi();
       this._failedAssetKeys = failedFiles;
       statusText.destroy();
       progressText.destroy();
@@ -78,6 +116,7 @@ export class BootScene extends Phaser.Scene {
         deferredAssetGroups: this._deferredAssetGroups,
       });
     });
+    this._installPreloadStallWatch();
 
     // Character sprites (32) - keyed by filename
     const characterSprites = [
@@ -129,6 +168,14 @@ export class BootScene extends Phaser.Scene {
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');
+      for (const name of portraits) {
+        this._deferredAssets.push({
+          type: 'image',
+          key: `portrait_${name}`,
+          src: `assets/portraits/${name}.png`,
+          group: 'portraits',
+        });
+      }
     } else {
       for (const name of portraits) {
         this.load.image(`portrait_${name}`, `assets/portraits/${name}.png`);
@@ -162,23 +209,153 @@ export class BootScene extends Phaser.Scene {
     }
 
     // SFX (18 effects)
-    const sfxKeys = [
+    const essentialSfx = [
+      'sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold',
+    ];
+    const combatSfx = [
       'sfx_sword', 'sfx_lance', 'sfx_axe', 'sfx_bow',
       'sfx_fire', 'sfx_thunder', 'sfx_ice', 'sfx_light', 'sfx_dark',
-      'sfx_heal', 'sfx_hit', 'sfx_crit', 'sfx_death',
-      'sfx_cursor', 'sfx_confirm', 'sfx_cancel',
-      'sfx_levelup', 'sfx_gold',
+      'sfx_heal', 'sfx_hit', 'sfx_crit', 'sfx_death', 'sfx_levelup',
     ];
-    for (const key of sfxKeys) {
+    for (const key of essentialSfx) {
       this.load.audio(key, [
         `assets/audio/sfx/${key}.ogg`,
         `assets/audio/sfx/${key}.mp3`,
       ]);
     }
+    if (this._startupFlags.reducedPreload) {
+      this._deferredAssetGroups.push('combat_sfx');
+      for (const key of combatSfx) {
+        this._deferredAssets.push({
+          type: 'audio',
+          key,
+          src: [
+            `assets/audio/sfx/${key}.ogg`,
+            `assets/audio/sfx/${key}.mp3`,
+          ],
+          group: 'combat_sfx',
+        });
+      }
+    } else {
+      for (const key of combatSfx) {
+        this.load.audio(key, [
+          `assets/audio/sfx/${key}.ogg`,
+          `assets/audio/sfx/${key}.mp3`,
+        ]);
+      }
+    }
+  }
+
+  _installPreloadStallWatch() {
+    this._clearPreloadStallWatch();
+    const stallAfterMs = this._startupFlags.mobileSafeBoot ? 9000 : 13000;
+    this._preloadStallTimer = window.setInterval(() => {
+      if (this._preloadComplete) return;
+      const elapsed = performance.now() - this._lastPreloadProgressAt;
+      if (elapsed < stallAfterMs) return;
+      this._clearPreloadStallWatch();
+      markStartup('boot_preload_stalled', { stalledMs: Math.round(elapsed) });
+      this._showPreloadRecoveryUi();
+    }, 1000);
+  }
+
+  _clearPreloadStallWatch() {
+    if (this._preloadStallTimer) {
+      window.clearInterval(this._preloadStallTimer);
+      this._preloadStallTimer = null;
+    }
+  }
+
+  _setSafeModeFlags() {
+    try {
+      const raw = localStorage.getItem(STARTUP_FLAG_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const next = {
+        ...(parsed && typeof parsed === 'object' ? parsed : {}),
+        mobileSafeBoot: true,
+        reducedPreload: true,
+      };
+      localStorage.setItem(STARTUP_FLAG_STORAGE_KEY, JSON.stringify(next));
+      delete globalThis.__emblemRogueStartupFlags;
+      markStartup('boot_safe_mode_enabled', next);
+    } catch (_) {
+      markStartup('boot_safe_mode_enable_failed');
+    }
+  }
+
+  _showPreloadRecoveryUi() {
+    if (this._stallUi.length > 0) return;
+    const title = this.add.text(320, 306, 'Loading is taking longer than expected.', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffcc88', align: 'center',
+    }).setOrigin(0.5).setDepth(1200);
+    const retryBtn = this.add.text(320, 330, '[ Reload ]', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(1201).setInteractive({ useHandCursor: true });
+    retryBtn.on('pointerdown', () => {
+      markStartup('boot_preload_recovery_reload');
+      window.location.reload();
+    });
+    const safeBtn = this.add.text(320, 356, '[ Reload Safe Mode ]', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffd580',
+      backgroundColor: '#443322', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5).setDepth(1201).setInteractive({ useHandCursor: true });
+    safeBtn.on('pointerdown', () => {
+      this._setSafeModeFlags();
+      markStartup('boot_preload_recovery_safe_reload');
+      window.location.reload();
+    });
+    this._stallUi.push(title, retryBtn, safeBtn);
+  }
+
+  _destroyStallUi() {
+    if (!this._stallUi || this._stallUi.length === 0) return;
+    this._stallUi.forEach((obj) => obj.destroy());
+    this._stallUi = [];
+  }
+
+  _showDataLoadRecovery(err) {
+    this.children.removeAll(true);
+    const msg = err?.message || 'unknown';
+    this.add.text(320, 206, 'Failed to load game data.', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ff4444', align: 'center',
+    }).setOrigin(0.5);
+    this.add.text(320, 232, 'You can retry now or reload in safe mode.', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#cccccc', align: 'center',
+    }).setOrigin(0.5);
+    this.add.text(320, 258, msg, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#999999', align: 'center',
+      wordWrap: { width: 560, useAdvancedWrap: true },
+    }).setOrigin(0.5);
+
+    const retryBtn = this.add.text(320, 302, '[ Retry ]', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    retryBtn.on('pointerdown', () => {
+      markStartup('boot_data_retry_manual');
+      this.scene.restart();
+    });
+
+    const safeBtn = this.add.text(320, 336, '[ Reload Safe Mode ]', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#ffd580',
+      backgroundColor: '#443322', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    safeBtn.on('pointerdown', () => {
+      this._setSafeModeFlags();
+      markStartup('boot_data_retry_safe_reload');
+      window.location.reload();
+    });
   }
 
   async create() {
     markStartup('boot_create_start');
+    this._clearPreloadStallWatch();
+    this._destroyStallUi();
+    this.events.once('shutdown', () => {
+      this._clearPreloadStallWatch();
+      this._destroyStallUi();
+    });
 
     if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
       const sample = this._failedAssetKeys.slice(0, 3).join(', ');
@@ -194,13 +371,7 @@ export class BootScene extends Phaser.Scene {
       data = await loadGameDataWithRetry({ retries, timeoutMs, delayMs: 250 });
       markStartup('boot_data_load_complete');
     } catch (err) {
-      this.children.removeAll(true);
-      this.add.text(320, 220, 'Failed to load game data.\nPlease refresh the page.', {
-        fontFamily: 'monospace', fontSize: '16px', color: '#ff4444', align: 'center',
-      }).setOrigin(0.5);
-      this.add.text(320, 280, err.message, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#999999', align: 'center',
-      }).setOrigin(0.5);
+      this._showDataLoadRecovery(err);
       markStartup('boot_data_load_failed', { message: err?.message || 'unknown' });
       console.error('BootScene data load failed:', err);
       return;
@@ -212,6 +383,7 @@ export class BootScene extends Phaser.Scene {
     const settings = new SettingsManager();
     this.registry.set('settings', settings);
     this.registry.set('startupFlags', this._startupFlags);
+    this.registry.set('deferredAssets', this._deferredAssets);
 
     const audio = new AudioManager(this.sound);
     audio.setMusicVolume(settings.getMusicVolume());
@@ -225,6 +397,7 @@ export class BootScene extends Phaser.Scene {
       this.registry.set('cloud', cloudState);
     }
 
+    await ensureCoreScenesLoaded(this);
     markStartup('boot_scene_complete');
     this.scene.start('Title', { gameData: data });
   }

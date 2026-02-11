@@ -2,30 +2,125 @@
 
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
-import { TitleScene } from './scenes/TitleScene.js';
-import { SlotPickerScene } from './scenes/SlotPickerScene.js';
-import { HomeBaseScene } from './scenes/HomeBaseScene.js';
-import { BattleScene } from './scenes/BattleScene.js';
-import { NodeMapScene } from './scenes/NodeMapScene.js';
-import { RunCompleteScene } from './scenes/RunCompleteScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
-import { initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
+import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
 const GAME_BOOT_FLAG = '__emblemRogueGameBooted';
 const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
+const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
+const BOOT_WATCHDOG_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 30000 : 22000;
 
 initStartupTelemetry({
   isMobile: startupFlags.isMobile,
   mobileSafeBoot: startupFlags.mobileSafeBoot,
   reducedPreload: startupFlags.reducedPreload,
 });
+
+function enableSafeBootAndReload() {
+  try {
+    const raw = localStorage.getItem(STARTUP_FLAG_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const next = {
+      ...(parsed && typeof parsed === 'object' ? parsed : {}),
+      mobileSafeBoot: true,
+      reducedPreload: true,
+    };
+    localStorage.setItem(STARTUP_FLAG_STORAGE_KEY, JSON.stringify(next));
+    delete globalThis.__emblemRogueStartupFlags;
+    markStartup('startup_safe_mode_enabled', next);
+  } catch (_) {
+    markStartup('startup_safe_mode_enable_failed');
+  }
+  window.location.reload();
+}
+
+function showBootRecoveryOverlay(message) {
+  if (document.getElementById('boot-recovery-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'boot-recovery-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.background = 'rgba(0, 0, 0, 0.78)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.zIndex = '99999';
+
+  const panel = document.createElement('div');
+  panel.style.background = '#111627';
+  panel.style.border = '1px solid #3a4a6b';
+  panel.style.padding = '16px';
+  panel.style.maxWidth = '420px';
+  panel.style.fontFamily = 'monospace';
+  panel.style.color = '#e0e0e0';
+  panel.style.textAlign = 'center';
+  panel.innerHTML = `
+    <div style="font-size:16px; color:#ffcc88; margin-bottom:8px;">Startup Taking Too Long</div>
+    <div style="font-size:12px; color:#bbbbbb; margin-bottom:12px;">${message}</div>
+  `;
+
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Reload';
+  retryBtn.style.margin = '0 8px';
+  retryBtn.style.padding = '8px 12px';
+  retryBtn.style.fontFamily = 'monospace';
+  retryBtn.style.cursor = 'pointer';
+  retryBtn.onclick = () => {
+    markStartup('boot_watchdog_reload');
+    window.location.reload();
+  };
+
+  const safeBtn = document.createElement('button');
+  safeBtn.textContent = 'Reload Safe Mode';
+  safeBtn.style.margin = '0 8px';
+  safeBtn.style.padding = '8px 12px';
+  safeBtn.style.fontFamily = 'monospace';
+  safeBtn.style.cursor = 'pointer';
+  safeBtn.onclick = () => {
+    markStartup('boot_watchdog_safe_reload');
+    enableSafeBootAndReload();
+  };
+
+  panel.appendChild(retryBtn);
+  panel.appendChild(safeBtn);
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+}
+
+function installStartupErrorHooks() {
+  window.addEventListener('error', (event) => {
+    markStartup('window_error', {
+      message: event?.message || 'unknown',
+      file: event?.filename || null,
+      line: event?.lineno || null,
+    });
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event?.reason;
+    markStartup('window_unhandled_rejection', {
+      message: reason?.message || String(reason || 'unknown'),
+    });
+  });
+}
+
+function installBootWatchdog() {
+  window.setTimeout(() => {
+    const telemetry = getStartupTelemetry();
+    const markers = telemetry?.markers || [];
+    const reachedTitle = markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
+    if (reachedTitle) return;
+    markStartup('boot_watchdog_timeout', { timeoutMs: BOOT_WATCHDOG_TIMEOUT_MS });
+    showBootRecoveryOverlay('The game did not reach the title screen in time. Try reload or safe mode.');
+  }, BOOT_WATCHDOG_TIMEOUT_MS);
+}
+installStartupErrorHooks();
 
 // Create Web Audio context early so Phaser always reuses it (starts suspended).
 // Call unlockAudio() during a user gesture to resume it before Phaser boots.
@@ -50,6 +145,7 @@ function bootGame(user) {
   if (window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]) return;
   window[GAME_BOOT_FLAG] = true;
   markStartup('phaser_boot_start', { hasUser: !!user });
+  installBootWatchdog();
 
   if (user) {
     cloudState = {
@@ -75,7 +171,7 @@ function bootGame(user) {
     pixelArt: true,
     backgroundColor: '#0a0c1e',
     parent: 'game-container',
-    scene: [BootScene, TitleScene, SlotPickerScene, HomeBaseScene, NodeMapScene, BattleScene, RunCompleteScene],
+    scene: [BootScene],
     audio: sharedAudioContext
       ? {
         disableWebAudio: false,

@@ -19,10 +19,18 @@ export class SlotPickerScene extends Phaser.Scene {
 
   create() {
     const cx = this.cameras.main.centerX;
+    this._touchTapDown = null;
+    this._tapMoveThreshold = 12;
 
     this.add.text(cx, 40, 'SELECT SAVE SLOT', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5);
+
+    this.input.keyboard.on('keydown-ESC', () => this.requestCancel());
+    this.input.on('pointerdown', (pointer) => {
+      this._touchTapDown = { x: pointer.x, y: pointer.y };
+    });
+    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
 
     this.drawSlots();
 
@@ -37,6 +45,51 @@ export class SlotPickerScene extends Phaser.Scene {
     backBtn.on('pointerdown', () => {
       this.scene.start('Title', { gameData: this.gameData });
     });
+  }
+
+  onPointerUp(pointer) {
+    if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+      const dx = pointer.x - this._touchTapDown.x;
+      const dy = pointer.y - this._touchTapDown.y;
+      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+        this._touchTapDown = null;
+        return;
+      }
+    }
+    this._touchTapDown = null;
+    if (!this.confirmDialog) return;
+    if (this._isPointerOverInteractive(pointer)) return;
+    this.requestCancel({ allowExit: false });
+  }
+
+  _isPointerOverInteractive(pointer) {
+    if (!this.input || !pointer) return false;
+    let hit = [];
+    if (typeof this.input.hitTestPointer === 'function') {
+      hit = this.input.hitTestPointer(pointer) || [];
+    } else if (this.input.manager?.hitTest) {
+      hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
+    }
+    return Array.isArray(hit) && hit.some(obj =>
+      obj
+      && obj.visible !== false
+      && obj.active !== false
+      && obj.input?.enabled
+    );
+  }
+
+  requestCancel({ allowExit = true } = {}) {
+    if (this.confirmDialog) {
+      this.confirmDialog.forEach(o => o.destroy());
+      this.confirmDialog = null;
+      return true;
+    }
+    if (allowExit) {
+      this.scene.start('Title', { gameData: this.gameData });
+      return true;
+    }
+    return false;
   }
 
   drawSlots() {
@@ -174,7 +227,8 @@ export class SlotPickerScene extends Phaser.Scene {
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
 
-    const overlay = this.add.rectangle(cx, cy, 640, 480, 0x000000, 0.7).setDepth(500);
+    const overlay = this.add.rectangle(cx, cy, 640, 480, 0x000000, 0.7).setDepth(500).setInteractive();
+    overlay.on('pointerdown', () => this.requestCancel({ allowExit: false }));
     this.confirmDialog.push(overlay);
 
     const box = this.add.rectangle(cx, cy, 300, 140, 0x222233, 1)
