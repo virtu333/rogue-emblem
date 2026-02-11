@@ -1,4 +1,4 @@
-// Emblem Rogue — Entry Point
+// Emblem Rogue - Entry Point
 
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
@@ -10,12 +10,22 @@ import { NodeMapScene } from './scenes/NodeMapScene.js';
 import { RunCompleteScene } from './scenes/RunCompleteScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
+import { getStartupFlags } from './utils/runtimeFlags.js';
+import { initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
 const GAME_BOOT_FLAG = '__emblemRogueGameBooted';
 const GAME_INSTANCE_KEY = '__emblemRogueGame';
 const SHARED_AUDIO_CTX_KEY = '__emblemRogueSharedAudioContext';
+const startupFlags = getStartupFlags();
+const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
+
+initStartupTelemetry({
+  isMobile: startupFlags.isMobile,
+  mobileSafeBoot: startupFlags.mobileSafeBoot,
+  reducedPreload: startupFlags.reducedPreload,
+});
 
 // Create Web Audio context early so Phaser always reuses it (starts suspended).
 // Call unlockAudio() during a user gesture to resume it before Phaser boots.
@@ -30,16 +40,16 @@ function unlockAudio() {
   }
 }
 
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
+async function startCloudPull(userId, mode) {
+  markStartup('cloud_sync_gate_start', { mode, timeoutMs: CLOUD_SYNC_TIMEOUT_MS });
+  await fetchAllToLocalStorage(userId, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS });
+  markStartup('cloud_sync_gate_done', { mode });
 }
 
 function bootGame(user) {
   if (window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]) return;
   window[GAME_BOOT_FLAG] = true;
+  markStartup('phaser_boot_start', { hasUser: !!user });
 
   if (user) {
     cloudState = {
@@ -81,6 +91,7 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  markStartup('phaser_boot_complete');
 }
 
 // --- Auth UI ---
@@ -97,22 +108,26 @@ const authSkip = document.getElementById('auth-skip');
 let isRegisterMode = false;
 
 if (!supabase) {
-  // No Supabase configured — boot directly in offline mode
+  // No Supabase configured - boot directly in offline mode
   authOverlay.style.display = 'none';
+  markStartup('supabase_unavailable_boot_offline');
   bootGame(null);
 } else {
   // Check existing session
   getSession().then(async (session) => {
     if (session) {
       try {
-        await withTimeout(fetchAllToLocalStorage(session.user.id), 1500);
-      } catch (_) { /* offline fallback — localStorage has stale data */ }
+        await startCloudPull(session.user.id, 'session');
+      } catch (_) {
+        markStartup('cloud_sync_gate_fallback', { mode: 'session' });
+      }
       bootGame(session.user);
-      fetchAllToLocalStorage(session.user.id).catch(() => {});
+      fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(() => {});
     }
     // else: show auth overlay (already visible)
   }).catch(() => {
-    // Supabase unreachable — show auth overlay
+    // Supabase unreachable - show auth overlay
+    markStartup('session_check_failed');
   });
 }
 
@@ -150,10 +165,12 @@ async function handleSubmit(e) {
 
     const user = result.user;
     try {
-      await withTimeout(fetchAllToLocalStorage(user.id), 1500);
-    } catch (_) { /* offline — proceed with whatever localStorage has */ }
+      await startCloudPull(user.id, 'login');
+    } catch (_) {
+      markStartup('cloud_sync_gate_fallback', { mode: 'login' });
+    }
     bootGame(user);
-    fetchAllToLocalStorage(user.id).catch(() => {});
+    fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(() => {});
   } catch (err) {
     authError.textContent = err.message || 'Authentication failed';
     authSubmit.disabled = false;

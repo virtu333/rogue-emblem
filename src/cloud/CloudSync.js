@@ -4,6 +4,7 @@
 
 import { supabase } from './supabaseClient.js';
 import { getMetaKey, getRunKey, MAX_SLOTS } from '../engine/SlotManager.js';
+import { markStartup } from '../utils/startupTelemetry.js';
 
 const TABLES = {
   run: 'run_saves',
@@ -89,13 +90,16 @@ function applySettings(settingsData) {
  * Fetch all tables for a user and write to slot-specific localStorage keys.
  * Called once on login, before Phaser boots.
  */
-export async function fetchAllToLocalStorage(userId) {
+export async function fetchAllToLocalStorage(userId, options = {}) {
   if (!supabase) return;
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : FETCH_TIMEOUT_MS;
+
+  markStartup('cloud_sync_start', { timeoutMs });
 
   const [runRes, metaRes, settingsRes] = await Promise.allSettled([
-    withTimeout(fetchTable(userId, TABLES.run), FETCH_TIMEOUT_MS),
-    withTimeout(fetchTable(userId, TABLES.meta), FETCH_TIMEOUT_MS),
-    withTimeout(fetchTable(userId, TABLES.settings), FETCH_TIMEOUT_MS),
+    withTimeout(fetchTable(userId, TABLES.run), timeoutMs),
+    withTimeout(fetchTable(userId, TABLES.meta), timeoutMs),
+    withTimeout(fetchTable(userId, TABLES.settings), timeoutMs),
   ]);
 
   if (runRes.status === 'fulfilled') {
@@ -115,6 +119,13 @@ export async function fetchAllToLocalStorage(userId) {
   } else {
     console.warn('CloudSync fetch user_settings:', settingsRes.reason);
   }
+
+  const rejected = [runRes, metaRes, settingsRes].filter(r => r.status === 'rejected');
+  const timeoutFailures = rejected.filter((r) => r.reason?.message === 'timeout').length;
+  markStartup('cloud_sync_complete', {
+    rejectedCount: rejected.length,
+    timeoutFailures,
+  });
 }
 
 /**

@@ -8,6 +8,7 @@ import { signOut } from '../cloud/supabaseClient.js';
 import { pushMeta } from '../cloud/CloudSync.js';
 import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAllSlotData } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
+import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 
 // --- Constants ---
 const W = 640, H = 480, PIXEL = 2;
@@ -433,6 +434,12 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    markStartup('title_scene_create');
+    requestAnimationFrame(() => {
+      markStartup('first_interactive_frame');
+      logStartupSummary({ reason: 'title_first_interactive' });
+    });
+
     const cx = W / 2;
 
     // --- Music ---
