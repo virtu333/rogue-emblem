@@ -4228,7 +4228,7 @@ export class BattleScene extends Phaser.Scene {
       yOff += 16;
 
       // Separator
-      const sep = this.add.text(cx, yOff, 'â”€â”€â”€â”€â”€â”€â”€â”€â”€', {
+      const sep = this.add.text(cx, yOff, '-----------------', {
         fontFamily: 'monospace', fontSize: '8px', color: '#555555',
       }).setOrigin(0.5).setDepth(702);
       recruitGroup.push(sep);
