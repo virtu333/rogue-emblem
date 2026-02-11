@@ -365,19 +365,25 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0, 0).setDepth(100);
       this.updateTopLeftHudLayout();
 
-      // Instructions (bottom center)
+      // Bottom command bar — Row 1: keyboard hotkeys, Row 2: mouse/meta actions
+      const hw = this.cameras.main.width / 2;
+      const hh = this.cameras.main.height;
       this.instructionText = this.add.text(
-        this.cameras.main.width / 2, this.cameras.main.height - 16,
-        'Right-click: inspect  |  [V] Details  |  [R] Roster  |  ESC: cancel  |  [D] Danger',
+        hw - 30, hh - 26,
+        '[V] Details  |  [R] Roster  |  [D] Danger  |',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
-      this.endTurnButton = this.add.text(this.cameras.main.width - 8, this.cameras.main.height - 16, '[E] End Turn', {
+      this.endTurnButton = this.add.text(hw + 178, hh - 26, '[E] End Turn', {
         fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-        backgroundColor: '#333333', padding: { x: 8, y: 3 },
-      }).setOrigin(1, 0.5).setDepth(101).setInteractive({ useHandCursor: true });
+      }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
       this.endTurnButton.on('pointerover', () => this.endTurnButton.setColor('#ffdd44'));
       this.endTurnButton.on('pointerout', () => this.endTurnButton.setColor('#e0e0e0'));
       this.endTurnButton.on('pointerdown', () => this.forceEndTurn());
+      this.instructionText2 = this.add.text(
+        hw, hh - 10,
+        'Right-click: inspect  |  ESC: cancel/pause',
+        { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
+      ).setOrigin(0.5).setDepth(100);
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
       this.inspectionPanel = new UnitInspectionPanel(this);
