@@ -9,7 +9,6 @@ import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
-import { ALL_MUSIC_KEYS } from '../utils/musicConfig.js';
 
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 
@@ -220,14 +219,6 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // Music tracks: preload at boot to avoid scene-lifecycle races when transitioning
-    // while a scene-scoped loader is still fetching/decoding music.
-    for (const key of ALL_MUSIC_KEYS) {
-      this.load.audio(key, [
-        `assets/audio/music/${key}.ogg`,
-        `assets/audio/music/${key}.mp3`,
-      ]);
-    }
   }
 
   _installPreloadStallWatch() {

@@ -66,6 +66,10 @@ function makeSoundManager({ sounds = [], loadedKeys = [], autoCompleteLoader = t
   const loaded = new Set(loadedKeys);
   const loader = createLoader(loaded, { autoComplete: autoCompleteLoader });
   const scene = { load: loader, tweens: { add: vi.fn() } };
+  const audioCache = {
+    has: vi.fn((key) => loaded.has(key)),
+    add: vi.fn((key) => { loaded.add(key); }),
+  };
 
   return {
     locked: false,
@@ -84,9 +88,7 @@ function makeSoundManager({ sounds = [], loadedKeys = [], autoCompleteLoader = t
     once: vi.fn(),
     game: {
       cache: {
-        audio: {
-          has: vi.fn((key) => loaded.has(key)),
-        },
+        audio: audioCache,
       },
     },
   };
@@ -257,5 +259,33 @@ describe('AudioManager', () => {
     expect(current.stop).toHaveBeenCalledTimes(1);
     expect(current.destroy).toHaveBeenCalledTimes(1);
     expect(audio.currentMusicKey).toBe(null);
+  });
+
+  it('can load missing music without a scene loader via fetch + decode', async () => {
+    const sound = makeSoundManager();
+    sound.scene = null;
+    sound.context = {
+      decodeAudioData: vi.fn((bytes, onSuccess) => onSuccess({ decoded: bytes.byteLength })),
+    };
+
+    const fakeBytes = new ArrayBuffer(32);
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => fakeBytes,
+    }));
+    globalThis.fetch = fetchMock;
+
+    try {
+      const audio = new AudioManager(sound);
+      await audio.playMusic('music_title', null, 0);
+      expect(fetchMock).toHaveBeenCalled();
+      expect(sound.context.decodeAudioData).toHaveBeenCalled();
+      expect(sound.game.cache.audio.add).toHaveBeenCalledWith('music_title', expect.any(Object));
+      expect(sound.add).toHaveBeenCalledWith('music_title', expect.objectContaining({ loop: true }));
+      expect(audio.currentMusicKey).toBe('music_title');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

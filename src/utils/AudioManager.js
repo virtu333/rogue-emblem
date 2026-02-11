@@ -96,10 +96,95 @@ export class AudioManager {
     if (this.sound.game.cache.audio.has(key)) return Promise.resolve();
     if (this.loadingMusic.has(key)) return this.loadingMusic.get(key);
 
+    const promise = (async () => {
+      if (this._canUseWebAudioFetchDecode()) {
+        try {
+          await this._fetchAndDecodeMusic(key, timeoutMs);
+          return;
+        } catch (err) {
+          // Fall back to scene loader only when available.
+          if (!scene?.load) throw err;
+        }
+      }
+      await this._loadMusicWithSceneLoader(key, scene, timeoutMs);
+    })().finally(() => {
+      this.loadingMusic.delete(key);
+    });
+
+    this.loadingMusic.set(key, promise);
+    return promise;
+  }
+
+  _canUseWebAudioFetchDecode() {
+    return Boolean(
+      this.sound?.context
+      && this.sound?.game?.cache?.audio
+      && typeof this.sound.game.cache.audio.add === 'function'
+      && typeof fetch === 'function',
+    );
+  }
+
+  async _fetchAndDecodeMusic(key, timeoutMs) {
+    const cache = this.sound?.game?.cache?.audio;
+    if (!cache || typeof cache.add !== 'function') {
+      throw new Error('no-audio-cache');
+    }
+    const context = this.sound?.context;
+    if (!context) throw new Error('no-audio-context');
+
+    const sources = this._getMusicSources(key);
+    let lastErr = null;
+    for (const src of sources) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutHandle = setTimeout(() => {
+        try { controller?.abort(); } catch (_) {}
+      }, timeoutMs);
+      try {
+        const response = await fetch(src, { signal: controller?.signal });
+        if (!response?.ok) throw new Error(`http-${response?.status || 'error'}`);
+        const bytes = await response.arrayBuffer();
+        const decoded = await this._decodeAudioData(context, bytes);
+        cache.add(key, decoded);
+        return;
+      } catch (err) {
+        lastErr = err;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    }
+    throw lastErr || new Error(`music-load-failed:${key}`);
+  }
+
+  _decodeAudioData(context, bytes) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const done = (value) => {
+        if (settled) return;
+        settled = true;
+        resolve(value);
+      };
+      const fail = (err) => {
+        if (settled) return;
+        settled = true;
+        reject(err || new Error('decode-failed'));
+      };
+      try {
+        const data = bytes?.slice ? bytes.slice(0) : bytes;
+        const maybePromise = context.decodeAudioData(data, done, fail);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then(done).catch(fail);
+        }
+      } catch (err) {
+        fail(err);
+      }
+    });
+  }
+
+  _loadMusicWithSceneLoader(key, scene, timeoutMs) {
     const loader = scene?.load;
     if (!loader) return Promise.reject(new Error('no-loader'));
 
-    const promise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const completeEvent = `filecomplete-audio-${key}`;
       const timeoutHandle = setTimeout(() => {
         cleanup();
@@ -107,9 +192,9 @@ export class AudioManager {
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timeoutHandle);
-        loader.off(completeEvent, onFileComplete);
-        loader.off('loaderror', onLoadError);
-        if (scene?.events) scene.events.off('shutdown', onSceneShutdown);
+        try { loader.off(completeEvent, onFileComplete); } catch (_) {}
+        try { loader.off('loaderror', onLoadError); } catch (_) {}
+        try { if (scene?.events) scene.events.off('shutdown', onSceneShutdown); } catch (_) {}
       };
       const onFileComplete = () => {
         cleanup();
@@ -134,12 +219,7 @@ export class AudioManager {
         ? loader.isLoading()
         : Boolean(loader.isLoading);
       if (!currentlyLoading) loader.start();
-    }).finally(() => {
-      this.loadingMusic.delete(key);
     });
-
-    this.loadingMusic.set(key, promise);
-    return promise;
   }
 
   /** Stop current music with optional fade-out. */

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { startSceneLazy } from '../src/utils/sceneLoader.js';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { __resetSceneLoaderForTests, startSceneLazy } from '../src/utils/sceneLoader.js';
 
 function makeScene({ active = true } = {}) {
   return {
@@ -14,6 +14,10 @@ function makeScene({ active = true } = {}) {
 }
 
 describe('sceneLoader.startSceneLazy', () => {
+  beforeEach(() => {
+    __resetSceneLoaderForTests();
+  });
+
   it('starts scene when source scene is active', async () => {
     const scene = makeScene({ active: true });
     const result = await startSceneLazy(scene, 'Title', { foo: 1 });

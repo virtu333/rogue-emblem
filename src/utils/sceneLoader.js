@@ -12,7 +12,8 @@ const SCENE_LOADERS = {
 };
 let globalStartSceneInFlight = false;
 let globalSceneStartCooldownUntil = 0;
-const GLOBAL_SCENE_START_COOLDOWN_MS = 180;
+const GLOBAL_SCENE_START_COOLDOWN_MS = 350;
+const GLOBAL_SCENE_START_LOCK_MS = 700;
 
 function hasScene(scene, key) {
   try {
@@ -43,6 +44,29 @@ export async function startSceneLazy(scene, key, data = undefined) {
   if (globalStartSceneInFlight) return false;
   scene.__startSceneLazyInFlight = true;
   globalStartSceneInFlight = true;
+
+  let started = false;
+  const releaseTransitionLock = () => {
+    globalStartSceneInFlight = false;
+    scene.__startSceneLazyInFlight = false;
+  };
+  const scheduleRelease = () => {
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      releaseTransitionLock();
+    };
+    const timer = setTimeout(release, GLOBAL_SCENE_START_LOCK_MS);
+    if (typeof timer?.unref === 'function') timer.unref();
+    try {
+      if (typeof scene.events?.once === 'function') {
+        scene.events.once('shutdown', release);
+        scene.events.once('destroy', release);
+      }
+    } catch (_) {}
+  };
+
   try {
     await ensureSceneLoaded(scene, key);
     const isActive = typeof scene.sys?.isActive === 'function'
@@ -50,10 +74,18 @@ export async function startSceneLazy(scene, key, data = undefined) {
       : true;
     if (!isActive) return false;
     scene.scene.start(key, data);
+    started = true;
     globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
+    scheduleRelease();
     return true;
   } finally {
-    globalStartSceneInFlight = false;
-    scene.__startSceneLazyInFlight = false;
+    if (!started) {
+      releaseTransitionLock();
+    }
   }
+}
+
+export function __resetSceneLoaderForTests() {
+  globalStartSceneInFlight = false;
+  globalSceneStartCooldownUntil = 0;
 }
