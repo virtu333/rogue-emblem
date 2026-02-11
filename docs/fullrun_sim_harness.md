@@ -42,3 +42,24 @@ cmd /c npm run sim:fullrun:harness:pr
 - In reporting mode, defeats are treated as outcomes (not harness failures).
 - Harness failures are `stuck` states and strict-mode timeouts.
 - Invincibility mode converts battle action-budget exhaustion into forced node wins so full-run progression can continue for long-batch balancing telemetry.
+
+## Exit code semantics
+
+- `victory` and `defeat` are valid simulation outcomes.
+- `stuck` always fails the run process (exit code `1`).
+- `timeout` fails only in `strict` mode.
+- Reporting mode can still fail if `timeout_rate_pct` breaches `--timeout-rate-threshold`.
+- `All runs passed.` means no harness failure condition was hit; it does not imply high win rate.
+
+## Commit checkpoint
+
+```bash
+# 1) Unit/sim smoke
+cmd /c npm run test:sim
+
+# 2) Strict harness gate (no stuck/timeout failures)
+cmd /c npm run sim:fullrun:harness:pr
+
+# 3) Optional long-run balancing sweep
+cmd /c npm run sim:fullrun:harness:invincible
+```
