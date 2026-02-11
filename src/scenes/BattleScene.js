@@ -961,7 +961,7 @@ export class BattleScene extends Phaser.Scene {
     this.turnCounterText.setY(hasInfo ? Math.max(baseY, stackedY) : baseY);
   }
 
-  onClick(pointer) {
+  onClick(pointer, clickPos = null) {
     if (pointer.rightButtonDown()) return; // handled separately
     if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
     if (this.battleState === 'ENEMY_PHASE' ||
@@ -972,7 +972,9 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'DEPLOY_SELECTION' ||
         this.battleState === 'PAUSED') return;
 
-    const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
+    const px = clickPos?.x ?? pointer.x;
+    const py = clickPos?.y ?? pointer.y;
+    const gp = this.grid.pixelToGrid(px, py);
     if (!gp) {
       if (!this._isPointerOverInteractive(pointer)) {
         this.requestCancel({ allowPause: false });
@@ -2324,6 +2326,7 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerUp(pointer) {
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    let clickPos = null;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
@@ -2331,9 +2334,11 @@ export class BattleScene extends Phaser.Scene {
         this._touchTapDown = null;
         return;
       }
+      // Use touch-down tile to avoid slight finger-lift drift selecting adjacent tiles.
+      clickPos = { x: this._touchTapDown.x, y: this._touchTapDown.y };
     }
     this._touchTapDown = null;
-    this.onClick(pointer);
+    this.onClick(pointer, clickPos);
   }
 
   getActiveHealStaff(unit, usableStaves = null) {
