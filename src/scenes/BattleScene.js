@@ -397,9 +397,11 @@ export class BattleScene extends Phaser.Scene {
       // Bottom command bar — Row 1: clickable action buttons, Row 2: info text
       const hw = this.cameras.main.width / 2;
       const hh = this.cameras.main.height;
+      const commandRowY = hh - 58;
+      const helpRowY = hh - 40;
       const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0' };
       const makeButton = (x, label, handler) => {
-        const btn = this.add.text(x, hh - 34, label, btnStyle)
+        const btn = this.add.text(x, commandRowY, label, btnStyle)
           .setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -411,8 +413,8 @@ export class BattleScene extends Phaser.Scene {
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () => this.requestCancel({ allowPause: false }));
       this.instructionText2 = this.add.text(
-        hw, hh - 18,
-        '[R] Vision  [V] Details  |  ESC/[X]/off-map tap: cancel',
+        hw, helpRowY,
+        '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
 
@@ -1359,7 +1361,7 @@ export class BattleScene extends Phaser.Scene {
   updateVisionHud() {
     if (!this.visionHudText) return;
     const charges = this.getVisionChargesRemaining();
-    this.visionHudText.setText(`Eye: ${charges}`);
+    this.visionHudText.setText(`Eye: ${charges} (rewind current turn)`);
     this.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
     this.updateTopLeftHudLayout();
   }

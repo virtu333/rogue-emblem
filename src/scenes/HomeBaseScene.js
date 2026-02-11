@@ -31,6 +31,8 @@ const ROW_H = 28;        // stat rows (label + desc on same line area)
 const ROW_H_NAMED = 34;  // economy/capacity rows (name + desc needs more room)
 const TAB_CONTENT_TOP_Y = 72;
 const TAB_CONTENT_BOTTOM_Y = 392;
+const TAB_CONTENT_LEFT_X = 30;
+const TAB_CONTENT_RIGHT_X = 610;
 const TAB_SCROLL_STEP = 24;
 
 export class HomeBaseScene extends Phaser.Scene {
@@ -94,7 +96,19 @@ export class HomeBaseScene extends Phaser.Scene {
     this.children.removeAll(true);
 
     const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
 
+    this.add.rectangle(w / 2, h / 2, w, h, 0x000622, 1).setOrigin(0.5);
+    this.drawTabContent(this.activeTab);
+    this.drawContentViewportChrome();
+    this.drawScrollIndicators();
+    this.drawHeader();
+    this.drawTabs();
+    this.drawBottomButtons();
+  }
+
+  drawHeader() {
+    const w = this.cameras.main.width;
     this.add.text(20, 12, 'HOME BASE', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
     });
@@ -109,10 +123,68 @@ export class HomeBaseScene extends Phaser.Scene {
     this.add.text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
       fontFamily: 'monospace', fontSize: '12px', color: supplyColor,
     }).setOrigin(1, 0);
+  }
 
-    this.drawTabs();
-    this.drawTabContent(this.activeTab);
-    this.drawBottomButtons();
+  drawContentViewportChrome() {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const contentH = TAB_CONTENT_BOTTOM_Y - TAB_CONTENT_TOP_Y;
+    const contentW = TAB_CONTENT_RIGHT_X - TAB_CONTENT_LEFT_X;
+    const contentCx = (TAB_CONTENT_LEFT_X + TAB_CONTENT_RIGHT_X) / 2;
+    const contentCy = TAB_CONTENT_TOP_Y + contentH / 2;
+
+    // Frame around scrollable tab content.
+    this.add.rectangle(contentCx, contentCy, contentW, contentH, 0x000000, 0)
+      .setStrokeStyle(1, 0x1b2744, 0.9);
+
+    // Occlusion strips hide scrolled content outside the viewport.
+    this.add.rectangle(w / 2, TAB_CONTENT_TOP_Y / 2, w, TAB_CONTENT_TOP_Y, 0x000622, 1);
+    this.add.rectangle(w / 2, TAB_CONTENT_BOTTOM_Y + (h - TAB_CONTENT_BOTTOM_Y) / 2, w, h - TAB_CONTENT_BOTTOM_Y, 0x000622, 1);
+  }
+
+  drawScrollIndicators() {
+    if ((this.tabScrollMax || 0) <= 0) return;
+    const key = this.activeTab;
+    const offset = this.tabScrollOffsets?.[key] || 0;
+    const max = this.tabScrollMax || 0;
+    const canUp = offset > 0;
+    const canDown = offset < max;
+    const x = TAB_CONTENT_RIGHT_X - 12;
+
+    const makeArrow = (y, label, enabled, onClick) => {
+      const btn = this.add.text(x, y, label, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: enabled ? '#a8cfff' : '#44506e',
+        backgroundColor: '#0f1730',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setDepth(910);
+      if (!enabled) return;
+      btn.setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor('#a8cfff'));
+      btn.on('pointerdown', onClick);
+    };
+
+    makeArrow(TAB_CONTENT_TOP_Y + 14, '[^]', canUp, () => this._scrollTab(-TAB_SCROLL_STEP));
+    makeArrow(TAB_CONTENT_BOTTOM_Y - 14, '[v]', canDown, () => this._scrollTab(TAB_SCROLL_STEP));
+
+    this.add.text(TAB_CONTENT_RIGHT_X - 12, TAB_CONTENT_TOP_Y + 34, 'Scroll', {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#556287',
+    }).setOrigin(0.5, 0).setDepth(910);
+  }
+
+  _scrollTab(delta) {
+    const key = this.activeTab;
+    const current = this.tabScrollOffsets?.[key] || 0;
+    const next = Phaser.Math.Clamp(current + delta, 0, this.tabScrollMax || 0);
+    if (next === current) return;
+    this.tabScrollOffsets[key] = next;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_cursor');
+    this.drawUI();
   }
 
   drawTabs() {

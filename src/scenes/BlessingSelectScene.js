@@ -108,6 +108,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     const panelW = Math.min(600, w - 40);
     const panelH = Math.min(440, h - 40);
     const panelTop = (h - panelH) / 2;
+    const panelBottom = panelTop + panelH;
     this.add.rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96)
       .setStrokeStyle(2, 0xffdd44, 0.9);
 
@@ -119,7 +120,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '17px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const subtitleY = panelTop + 48;
+    const subtitleY = panelTop + 52;
     this.add.text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
       fontFamily: 'monospace', fontSize: '11px', color: '#b7bfd9',
     }).setOrigin(0.5);
@@ -129,9 +130,9 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Blessing cards
     const cardW = panelW - 28;
-    const skipY = panelTop + panelH - 28;
+    const skipY = panelBottom - 62;
     const cardsTop = dividerY + 16;
-    const cardsBottom = skipY - 26;
+    const cardsBottom = skipY - 18;
     const cardGap = 10;
     const slotCount = Math.max(this.options.length, 1);
     const cardH = Math.min(86, Math.max(68, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount)));
@@ -228,7 +229,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     });
 
     // Bottom buttons
-    const bottomY = panelTop + panelH + 12;
+    const bottomY = panelBottom - 18;
     const confirmBtn = this.add.text(cx - 80, bottomY, '[ Confirm ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
@@ -245,9 +246,5 @@ export class BlessingSelectScene extends Phaser.Scene {
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', () => this._back());
 
-    // Keyboard hint
-    this.add.text(cx, bottomY + 30, 'Up/Down to browse, Enter to confirm, ESC to go back', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#666666',
-    }).setOrigin(0.5);
   }
 }

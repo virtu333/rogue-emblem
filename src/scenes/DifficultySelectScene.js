@@ -124,13 +124,13 @@ export class DifficultySelectScene extends Phaser.Scene {
       const card = this.add.rectangle(mx, cardTopY + cardH / 2, cardW, cardH, bgColor)
         .setStrokeStyle(isSelected ? 2 : 1, borderColor);
 
-      if (!mode.locked) {
-        card.setInteractive({ useHandCursor: true });
-        card.on('pointerdown', () => {
-          this.selectedIndex = i;
-          this._draw();
-        });
-      }
+      card.setInteractive({ useHandCursor: true });
+      card.on('pointerdown', () => {
+        this.selectedIndex = i;
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX(mode.locked ? 'sfx_cancel' : 'sfx_cursor');
+        this._draw();
+      });
 
       // Mode name
       const nameColor = mode.locked ? '#666666' : mode.color;

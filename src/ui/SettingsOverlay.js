@@ -106,12 +106,12 @@ export class SettingsOverlay {
   _addToggleRow(cx, y, label, initialValue, onChange) {
     let value = !!initialValue;
 
-    const labelText = this.scene.add.text(cx - 120, y, label, {
+    const labelText = this.scene.add.text(cx - 102, y, label, {
       fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
     }).setOrigin(0, 0.5).setDepth(902);
     this.objects.push(labelText);
 
-    const valueText = this.scene.add.text(cx + 12, y, value ? 'ON' : 'OFF', {
+    const valueText = this.scene.add.text(cx + 72, y, value ? 'ON' : 'OFF', {
       fontFamily: 'monospace', fontSize: '14px', color: value ? '#88ff88' : '#ff8888',
     }).setOrigin(0.5, 0.5).setDepth(902);
     this.objects.push(valueText);
@@ -123,7 +123,7 @@ export class SettingsOverlay {
       onChange(value);
     };
 
-    const leftBtn = this.scene.add.text(cx - 20, y, '\u25C0', {
+    const leftBtn = this.scene.add.text(cx + 30, y, '\u25C0', {
       fontFamily: 'monospace', fontSize: '16px', color: '#aaaaaa',
     }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
     leftBtn.on('pointerover', () => leftBtn.setColor('#ffdd44'));
@@ -131,7 +131,7 @@ export class SettingsOverlay {
     leftBtn.on('pointerdown', () => update(-1));
     this.objects.push(leftBtn);
 
-    const rightBtn = this.scene.add.text(cx + 44, y, '\u25B6', {
+    const rightBtn = this.scene.add.text(cx + 114, y, '\u25B6', {
       fontFamily: 'monospace', fontSize: '16px', color: '#aaaaaa',
     }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
     rightBtn.on('pointerover', () => rightBtn.setColor('#ffdd44'));
