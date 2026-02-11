@@ -17,17 +17,20 @@ Organized by impact and logical sequencing:
 6. ~~**Playtest Fixes (Feb 2026, follow-up batch)**~~ - Recruit card mojibake separator fix, fort guard AI assignment restricted to seize maps, touch-down battle tap targeting, fog-of-war undo visibility fix, Master Seal-required battle promotion, battle music overlap self-heal, meta currency cloud-sync hardening
 
 ### Now (Current Sprint)
-7. **AI reliability pass (P0)** - Reproduce and resolve long-distance enemy idle/non-engagement behavior (reported on fort/river-crossing contexts). **Phase 1 landed:** path-aware chase now follows real approach routes (including detours) instead of Manhattan-only greedy movement.
-8. **Cloud-save correctness + observability (P0)** - Add conflict/timeout visibility and complete versioned optimistic-concurrency flow
-9. **Combat UX clarity (P1)** - Reduce confusion around action/combat menu appearance timing and target selection intent
-10. **Regression harness expansion (P1)** - Add targeted tests for long-distance AI activation and combat target edge cases
-11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, difficulty UX/unlock messaging, and blessings telemetry confidence across full runs
+7. **Wave 1: Stabilization Gate (P0)** - Treat audio overlap, scene-transition spam races, and save/cloud correctness as a mandatory release gate before major feature merges.
+8. **Wave 2: Low-Risk / High-Impact Content (P0-P1)** - Ship enemy affixes + recruit naming/dialogue scaffolding with deterministic tests and no startup/audio regressions.
+9. **AI reliability pass (P0)** - Continue long-distance enemy engagement hardening and targeted regression coverage (fort/river-crossing edge cases).
+10. **Regression harness expansion (P1)** - Keep battle + full-run harness parity as a merge gate for scene/run-state/difficulty changes.
+11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, and full transition QA after each merge batch.
 
 ### Next (1-3 Months)
-7. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
-8. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
-9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
-10. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
+12. **Wave 3A: Wyvern + Reclass Foundation** - Wyvern Rider/Lord integration, loot table structure alignment, and Second Seal core rules.
+13. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
+14. **Wave 4: Weapon Arts (phased)** - Foundation -> acquisition/meta -> enemy/legendary arts -> polish/balance.
+15. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
+16. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
+17. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
+18. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
 
 ### Later (3-6+ Months)
 12. **Additional Map Objectives** - Defend, Survive, Escape (battle variety) + reinforcement system
@@ -90,9 +93,31 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 Difficulty foundation and blessings integration are now merged on `main`; active work is stabilization confidence plus next content ramp.
 
 1. Preserve blessing + difficulty contract invariants (`docs/blessings_contract.md`, `docs/specs/difficulty_spec.md` Part A).
-2. Continue full-suite and harness validation on each merge that touches startup, run-state, or mode modifiers.
-3. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
+2. Enforce Wave 1 stabilization gate on all gameplay merges touching scenes/audio/startup/run-state/cloud sync.
+3. Run full-suite + harness validation on each merge touching startup, run-state, mode modifiers, or scene transitions.
 4. Keep mobile-safe input/scene-loading parity as a non-regression gate for new UI features.
+5. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
+
+### Wave 1 Gate (Required Before Major Feature Merges)
+- [ ] Audio overlap and orphaned-track recovery verified on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
+- [ ] Scene transition spam-click race coverage present (automated + manual smoke).
+- [ ] Save/cloud conflict path verified (timeout/retry/version mismatch observability).
+- [ ] `npm run test:unit` passes.
+- [ ] Harness/sim smoke passes (`tests/harness` + `tests/sim` targeted batch).
+- [ ] Two consecutive QA passes with no repro on known crash paths.
+
+### Wave 2 Scope (Low-Risk / High-Impact)
+- [ ] Enemy affixes runtime wiring from `affixes.json` (difficulty-gated, exclusion rules, scaling).
+- [ ] Affix UI indicator + inspection visibility.
+- [ ] Recruit naming pools + dialogue scaffold integration.
+- [ ] Deterministic tests for spawn, exclusions, and serialization.
+- [ ] Post-merge QA confirms no startup/audio/scene transition regressions.
+
+### Wave 3-4 Planned Sequence
+- **Wave 3A (Wyvern + Reclass Foundation):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, Second Seal core rules.
+- **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration.
+- **Wave 4 (Weapon Arts):** foundation (combat + data contract), acquisition/meta, enemy/legendary arts, then balance pass.
+- **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
 ---
 
@@ -249,9 +274,11 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 3. ~~**Wave 2** (Map Generation Enhancements)~~ [done] Done
 4. ~~**Wave 6** (Blessings)~~ [done] Core + telemetry integration merged on `main`
 5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
-6. **Wave 3** (Elite/Miniboss Nodes) -> **Wave 4** (Dynamic Recruits) -> **Wave 5** (Skills)
-7. **Playtest** focused on difficulty/balance/startup reliability after recent merges
-8. **Later:** Wave 7 (Objectives) -> Wave 9 (Terrain Hazards) -> Status Staves/Act 4 content -> Secret Act/Narrative -> Meta Expansion
+6. **Wave 1 Stabilization Gate** (audio/scene/save/cloud + transition spam QA + merge gates)
+7. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
+8. **Wave 3A** (Wyvern + reclass foundation) -> **Wave 3B** (Convoy MVP)
+9. **Wave 4** (Weapon Arts phased rollout)
+10. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
 
 ## Deployment
 
