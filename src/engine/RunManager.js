@@ -977,10 +977,8 @@ export class RunManager {
         }
       };
       if (unit.className) addInnatesFor(unit.className);
-      if (unit.tier === 'promoted') {
-        const promotedClass = classByName.get(unit.className);
-        if (promotedClass?.promotesFrom) addInnatesFor(promotedClass.promotesFrom);
-      }
+      const promotedClass = classByName.get(unit.className);
+      if (promotedClass?.promotesFrom) addInnatesFor(promotedClass.promotesFrom);
     };
     runManager.roster.forEach(applyInnates);
     runManager.fallenUnits.forEach(applyInnates);
