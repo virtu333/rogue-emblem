@@ -251,6 +251,20 @@ describe('MapGenerator', () => {
       expect(config.npcSpawn).toBeNull();
     });
 
+    it('avoids duplicate recruit names in a run while class names remain available', () => {
+      const usedRecruitNames = {};
+      const seen = new Set();
+      for (let i = 0; i < 6; i++) {
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
+          data
+        );
+        expect(config.npcSpawn).toBeTruthy();
+        expect(seen.has(config.npcSpawn.name)).toBe(false);
+        seen.add(config.npcSpawn.name);
+      }
+    });
+
     it('NPC spawn is biased toward player side of map', () => {
       for (let i = 0; i < 20; i++) {
         const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);

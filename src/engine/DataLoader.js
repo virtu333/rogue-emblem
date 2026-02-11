@@ -23,10 +23,11 @@ export class DataLoader {
     this.blessings = null;
     this.difficulty = null;
     this.affixes = null;
+    this.dialogue = null;
   }
 
   async loadAll() {
-    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes] = await Promise.all([
+    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
       this.loadJSON('data/classes.json'),
@@ -45,6 +46,7 @@ export class DataLoader {
       this.loadOptionalJSON('data/blessings.json'),
       this.loadJSON('data/difficulty.json'),
       this.loadOptionalJSON('data/affixes.json'),
+      this.loadOptionalJSON('data/dialogue.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -64,6 +66,7 @@ export class DataLoader {
     this.blessings = blessings;
     this.difficulty = difficulty;
     this.affixes = affixes;
+    this.dialogue = dialogue;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -74,7 +77,7 @@ export class DataLoader {
     if (!diffValidation.valid) {
       throw new Error(`Invalid difficulty data: ${diffValidation.errors.join('; ')}`);
     }
-    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes };
+    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue };
   }
 
   async loadJSON(path) {

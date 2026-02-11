@@ -89,6 +89,7 @@ export class RunManager {
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
+    this.usedRecruitNames = {}; // Track used names per class: { Fighter: ['Galvin', 'Bjorn'] }
     this.battleConfigsByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
@@ -136,6 +137,7 @@ export class RunManager {
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
     };
+    this.usedRecruitNames = {};
     this.battleConfigsByNodeId = {};
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
@@ -812,6 +814,7 @@ export class RunManager {
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.difficultyId = this.difficultyId || 'normal';
+    battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
   }
 
@@ -1019,6 +1022,7 @@ export class RunManager {
       rngSeed: this.rngSeed,
       visionChargesRemaining: this.visionChargesRemaining,
       visionCount: this.visionCount,
+      usedRecruitNames: this.usedRecruitNames || {},
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
@@ -1228,6 +1232,7 @@ export class RunManager {
     rm.visionCount = Number.isFinite(saved.visionCount)
       ? Math.max(0, Math.trunc(saved.visionCount))
       : 0;
+    rm.usedRecruitNames = saved.usedRecruitNames || {};
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {

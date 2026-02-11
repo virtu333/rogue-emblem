@@ -53,9 +53,11 @@ import {
   getTurnStartEffects,
   getWeaponRangeBonus,
 } from '../engine/SkillSystem.js';
+import { getTurnStartAffixes, getOnDeathAffixes } from '../engine/AffixSystem.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
+import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
 import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
@@ -453,6 +455,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectionPanel = new UnitInspectionPanel(this);
       // Full unit detail overlay (V key or click tooltip)
       this.unitDetailOverlay = new UnitDetailOverlay(this, this.gameData);
+      this.dialogueOverlay = new DialogueOverlay(this);
 
       // Danger zone overlay
       this.dangerZone = new DangerZoneOverlay(this, this.grid);
@@ -1292,6 +1295,35 @@ export class BattleScene extends Phaser.Scene {
       ).setOrigin(0.5).setDepth(13),
     };
     this.updateHPBar(unit);
+
+    // Affix pips
+    unit.affixPips = [];
+    this.updateAffixPips(unit);
+  }
+
+  updateAffixPips(unit) {
+    if (unit.affixPips) {
+      unit.affixPips.forEach(p => p.destroy());
+    }
+    unit.affixPips = [];
+    if (!unit.affixes || unit.affixes.length === 0) return;
+
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const pipY = pos.y - TILE_SIZE / 2 + 4;
+    const pipSize = 4;
+    const gap = 2;
+    const totalW = (pipSize * unit.affixes.length) + (gap * (unit.affixes.length - 1));
+    let startX = pos.x - totalW / 2 + pipSize / 2;
+
+    for (const affixId of unit.affixes) {
+      const affix = this.gameData.affixes?.affixes?.find(a => a.id === affixId);
+      const tier = affix?.tier || 1;
+      const color = tier === 2 ? 0xff4444 : 0xffdd44;
+      const pip = this.add.rectangle(startX, pipY, pipSize, pipSize, color)
+        .setStrokeStyle(1, 0x000000).setDepth(14);
+      unit.affixPips.push(pip);
+      startX += pipSize + gap;
+    }
   }
 
   updateUnitPosition(unit) {
@@ -1300,6 +1332,7 @@ export class BattleScene extends Phaser.Scene {
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
     if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + TILE_SIZE / 2 - 8);
     this.updateHPBar(unit);
+    this.updateAffixPips(unit);
   }
 
   updateHPBar(unit) {
@@ -1323,6 +1356,10 @@ export class BattleScene extends Phaser.Scene {
       unit.hpBar.bg.destroy();
       unit.hpBar.fill.destroy();
     }
+    if (unit.affixPips) {
+      unit.affixPips.forEach(p => p.destroy());
+      unit.affixPips = [];
+    }
   }
 
   dimUnit(unit) {
@@ -1331,6 +1368,9 @@ export class BattleScene extends Phaser.Scene {
     }
     if (unit.label) unit.label.setAlpha(0.5);
     if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.3);
+    if (unit.affixPips) {
+      unit.affixPips.forEach(p => p.setAlpha(0.5));
+    }
   }
 
   undimUnit(unit) {
@@ -1339,6 +1379,9 @@ export class BattleScene extends Phaser.Scene {
     }
     if (unit.label) unit.label.setAlpha(1);
     if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.6);
+    if (unit.affixPips) {
+      unit.affixPips.forEach(p => p.setAlpha(1));
+    }
   }
 
   // --- Position tracking ---
@@ -2865,8 +2908,11 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    // Show recruitment banner
-    await this.showBriefBanner(`${npc.name} joins your army!`, '#44ccaa');
+    // Show recruitment dialogue
+    const recruitLines = this.gameData.dialogue?.recruitLines?.[npc.className] || ["Joined the army!"];
+    const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
+    const portraitKey = this._getPortraitKey(npc);
+    await this.dialogueOverlay.show(npc.name, line, portraitKey);
 
     // Remove from NPC array
     const npcIdx = this.npcUnits.indexOf(npc);
@@ -3566,8 +3612,9 @@ export class BattleScene extends Phaser.Scene {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
 
-    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true);
-    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false);
+    const affixes = this.gameData.affixes;
+    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true, affixes);
+    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
 
@@ -4274,6 +4321,11 @@ export class BattleScene extends Phaser.Scene {
       }
       this.battleState = 'PLAYER_IDLE';
 
+      // Reset first-hit flag for Shielded affix
+      for (const enemy of this.enemyUnits) {
+        enemy._hitByPlayerThisPhase = false;
+      }
+
       // Update turn counter at start of each player phase
       if (this.turnCounterText && this.turnPar !== null) {
         const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
@@ -4293,8 +4345,8 @@ export class BattleScene extends Phaser.Scene {
       this.captureVisionSnapshot();
       this.updateVisionHud();
 
-      // Process turn-start skill effects (after banner settles)
-      this.time.delayedCall(1200, () => this.processTurnStartSkills(this.playerUnits));
+      // Process turn-start effects (skills + affixes) (after banner settles)
+      this.time.delayedCall(1200, () => this.processTurnStartEffects(this.playerUnits));
 
       // Tutorial hints (after phase banner fades)
       const hints = this.registry.get('hints');
@@ -4325,7 +4377,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateAntiTurtlePressure();
       // Terrain healing for enemies, then start AI
       this.time.delayedCall(1400, async () => {
-        await this.processTerrainHealing(this.enemyUnits);
+        await this.processTurnStartEffects(this.enemyUnits);
         this.startEnemyPhase();
       });
     }

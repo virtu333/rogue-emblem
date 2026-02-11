@@ -3,6 +3,7 @@
 // All functions take skillsData (from skills.json) for metadata lookup.
 
 import { gridDistance } from './Combat.js';
+import { getAffixCombatMods } from './AffixSystem.js';
 
 // --- Helpers ---
 
@@ -32,7 +33,7 @@ function getActivationChance(unit, activation) {
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
  */
-export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skillsData, terrain, isInitiating = false) {
+export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skillsData, terrain, isInitiating = false, affixData = null) {
   const mods = {
     hitBonus: 0,
     avoidBonus: 0,
@@ -46,9 +47,26 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     desperation: false,
     quickRiposte: false,
     activated: [],  // [{id, name}] for UI display
+    // Affix specific fields
+    immuneToDisplacement: false,
   };
 
   if (!skillsData) return mods;
+
+  // --- Affix Modifiers ---
+  if (affixData) {
+    const affixMods = getAffixCombatMods(unit, opponent, allAllies, affixData, terrain);
+    mods.atkBonus += affixMods.atkBonus;
+    mods.defBonus += affixMods.defBonus + affixMods.terrainDefBonus;
+    mods.resBonus += affixMods.resBonus;
+    mods.hitBonus += affixMods.hitBonus;
+    mods.avoidBonus += affixMods.avoidBonus;
+    mods.spdBonus += (affixMods.movBonus || 0); // Note: haste adds MOV but we can map it to light stat if needed? Actually haste is just MOV.
+    mods.immuneToDisplacement = affixMods.immuneToDisplacement;
+    if (affixMods.activated.length > 0) {
+      mods.activated.push(...affixMods.activated);
+    }
+  }
 
   // Combine unit skills + weapon granted skill (deduped)
   const unitSkills = [...(unit.skills || [])];

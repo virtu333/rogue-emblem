@@ -7,6 +7,7 @@ import {
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
 } from '../utils/constants.js';
+import { rollDefenseAffixes, getAttackAffixes } from './AffixSystem.js';
 
 // --- Weapon classification ---
 
@@ -449,6 +450,8 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   let extraStrike = false;
   let aetherLuna = false;
   let commandersGambit = false;
+  let reflectDamage = 0;
+  let warpRange = 0;
   const skillActivations = [];
 
   // Per-strike skill effects (only on hit)
@@ -492,6 +495,25 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
     }
   }
 
+  // On-defend affixes (Shielded, Teleporter, Thorns)
+  if (strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
+    const defResult = strikeSkills.rollDefenseAffixes(
+      strikeSkills.target, finalDmg, strikeSkills.isMelee, strikeSkills.isFirstHit, strikeSkills.affixData
+    );
+    if (defResult.modifiedDamage !== finalDmg) {
+      finalDmg = defResult.modifiedDamage;
+      skillActivations.push(...defResult.activated);
+    }
+    if (defResult.reflectDamage > 0) {
+      reflectDamage = defResult.reflectDamage;
+      skillActivations.push(...defResult.activated.filter(a => a.id === 'thorns' && !skillActivations.some(s => s.id === 'thorns')));
+    }
+    if (defResult.warpRange > 0) {
+      warpRange = defResult.warpRange;
+      skillActivations.push(...defResult.activated.filter(a => a.id === 'teleporter' && !skillActivations.some(s => s.id === 'teleporter')));
+    }
+  }
+
   // Drain HP (Runesword: heal equal to damage dealt)
   if (weaponSpecial?.includes('Drains HP') && finalDmg > 0) {
     heal = Math.min(finalDmg, targetHP); // Can't drain more than target has
@@ -502,6 +524,7 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
     type: 'strike', attacker: strikerName, target: targetName,
     miss: false, damage: finalDmg, isCrit, targetHPAfter: hpAfter,
     heal, skillActivations, extraStrike, aetherLuna, commandersGambit,
+    reflectDamage, warpRange,
   };
 }
 
@@ -601,18 +624,27 @@ export function resolveCombat(
   }
 
   // Build per-strike skill context for attacker and defender
+  const isMelee = distance === 1;
   const atkStrikeSkills = skillCtx?.rollStrikeSkills ? {
     striker: attacker, target: defender,
     rollStrikeSkills: skillCtx.rollStrikeSkills,
     rollDefenseSkills: skillCtx.rollDefenseSkills || null,
+    rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
+    affixData: skillCtx.affixData || null,
     strikerWeaponPhysical: isPhysical(atkWeapon),
+    isFirstHit: !defender._hitByPlayerThisPhase,
+    isMelee,
     skillsData: skillCtx.skillsData,
   } : null;
   const defStrikeSkills = (skillCtx?.rollStrikeSkills && defCanCounter) ? {
     striker: defender, target: attacker,
     rollStrikeSkills: skillCtx.rollStrikeSkills,
     rollDefenseSkills: skillCtx.rollDefenseSkills || null,
+    rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
+    affixData: skillCtx.affixData || null,
     strikerWeaponPhysical: defWeapon ? isPhysical(defWeapon) : true,
+    isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
+    isMelee,
     skillsData: skillCtx.skillsData,
   } : null;
 

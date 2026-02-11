@@ -1,36 +1,38 @@
 {
+  "namePool": {
+    "Fighter":        ["Galvin", "Bram", "Tormund", "Halvar", "Roderick", "Bjorn"],
+    "Archer":         ["Ren", "Ashara", "Wren", "Lysander", "Talia", "Quinn"],
+    "Mage":           ["Lira", "Theron", "Elara", "Corvus", "Isolde", "Maren"],
+    "Cavalier":       ["Aldric", "Helena", "Marcus", "Rowena", "Cyrus", "Leona"],
+    "Cleric":         ["Miriel", "Iona", "Caelen", "Vesper", "Althea", "Brynn"],
+    "Myrmidon":       ["Soren", "Kael", "Hana", "Zephyr", "Riven", "Yara"],
+    "Thief":          ["Nyx", "Shade", "Wicker", "Dusk", "Sparrow", "Rook"],
+    "Mercenary":      ["Gareth", "Dante", "Kestrel", "Brandt", "Sigrid", "Valen"],
+    "Pegasus Knight": ["Elysia", "Celeste", "Aerin", "Lunara", "Soleil", "Iris"],
+    "Knight":         ["Osric", "Gunther", "Ingrid", "Baldric", "Thane", "Helga"],
+    "Dancer":         ["Sylvie", "Aria", "Melodia", "Cadence", "Lyric", "Rhapsody"],
+    "Wyvern Rider":   ["Draven", "Ragna", "Scales", "Obsidian", "Cinder", "Talon"],
+    "Hero":           ["Dante", "Roland", "Sigurd", "Ajax", "Hector", "Leonidas"],
+    "Falcon Knight":  ["Celeste", "Seraphina", "Valkyrie", "Tempest", "Azure", "Gale"],
+    "Sage":           ["Vaelan", "Merric", "Arcanis", "Sage", "Grimoire", "Tomes"],
+    "Assassin":       ["Shade", "Phantom", "Whisper", "Null", "Echo", "Wraith"],
+    "Sniper":         ["Faye", "Hawkeye", "Bullseye", "Keen", "Vera", "Artemis"],
+    "Bishop":         ["Io", "Lumina", "Aurel", "Clement", "Solace", "Grace"]
+  },
   "act1": {
     "levelRange": [1, 3],
-    "pool": [
-      { "className": "Fighter", "name": "Galvin" },
-      { "className": "Archer", "name": "Ren" },
-      { "className": "Mage", "name": "Lira" },
-      { "className": "Cavalier", "name": "Aldric" },
-      { "className": "Cleric", "name": "Miriel" },
-      { "className": "Myrmidon", "name": "Soren" }
-    ]
+    "classPool": ["Fighter", "Archer", "Mage", "Cavalier", "Cleric", "Myrmidon"]
   },
   "act2": {
     "levelRange": [5, 8],
-    "pool": [
-      { "className": "Thief", "name": "Nyx" },
-      { "className": "Mercenary", "name": "Gareth" },
-      { "className": "Pegasus Knight", "name": "Elysia" },
-      { "className": "Mage", "name": "Theron" },
-      { "className": "Knight", "name": "Osric" },
-      { "className": "Cavalier", "name": "Helena" },
-      { "className": "Dancer", "name": "Sylvie" }
-    ]
+    "classPool": ["Thief", "Mercenary", "Pegasus Knight", "Mage", "Knight", "Cavalier", "Dancer"]
   },
   "act3": {
     "levelRange": [5, 8],
-    "pool": [
-      { "className": "Hero", "name": "Dante" },
-      { "className": "Falcon Knight", "name": "Celeste" },
-      { "className": "Sage", "name": "Vaelan" },
-      { "className": "Assassin", "name": "Shade" },
-      { "className": "Sniper", "name": "Faye" },
-      { "className": "Bishop", "name": "Io" }
-    ]
+    "classPool": ["Hero", "Falcon Knight", "Sage", "Assassin", "Sniper", "Bishop"]
+  },
+  "act4": {
+    "levelRange": [12, 16],
+    "classPool": ["Hero", "Sage", "Sniper", "Paladin", "Warrior", "Bishop"]
   }
 }

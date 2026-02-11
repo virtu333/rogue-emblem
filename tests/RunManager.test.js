@@ -1011,6 +1011,15 @@ describe('blessing run-start effect application', () => {
       expect(restoredNode.encounterLocked).toBe(true);
     });
 
+    it('persists usedRecruitNames through toJSON/fromJSON', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      rm.usedRecruitNames = { Fighter: ['Galvin'], Mage: ['Lira'] };
+      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(restored.usedRecruitNames).toEqual({ Fighter: ['Galvin'], Mage: ['Lira'] });
+    });
+
     it('getBattleParams returns a copy', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
@@ -1030,6 +1039,16 @@ describe('blessing run-start effect application', () => {
       expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
       expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
       expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
+    });
+
+    it('getBattleParams forwards usedRecruitNames tracker', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      rm.usedRecruitNames = { Fighter: ['Galvin'] };
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const params = rm.getBattleParams(node);
+      expect(params.usedRecruitNames).toEqual({ Fighter: ['Galvin'] });
     });
 
     it('getBattleParams enforces first-map no-fog and fighter-only rules', () => {

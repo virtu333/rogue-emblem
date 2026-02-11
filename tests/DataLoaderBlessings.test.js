@@ -109,5 +109,19 @@ describe('DataLoader blessings integration', () => {
     loader.loadOptionalJSON = async () => null;
     await expect(loader.loadAll()).rejects.toThrow('Invalid difficulty data');
   });
+
+  it('loads optional dialogue payload when present', async () => {
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => makeMinimalPayload(path);
+    loader.loadOptionalJSON = async (path) => {
+      if (path === 'data/dialogue.json') {
+        return { recruitLines: { Fighter: ['Hello there.'] } };
+      }
+      return null;
+    };
+    const data = await loader.loadAll();
+    expect(data.dialogue).toBeTruthy();
+    expect(data.dialogue.recruitLines.Fighter.length).toBe(1);
+  });
 });
 

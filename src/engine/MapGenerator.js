@@ -25,6 +25,7 @@ export function generateBattle(params, deps) {
     isBoss,
     templateId: preAssignedTemplateId,
     firstBattleFightersOnly = false,
+    usedRecruitNames = {},
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
@@ -81,8 +82,12 @@ export function generateBattle(params, deps) {
 
   // 7. NPC spawn for recruit battles
   let npcSpawn = null;
-  if (isRecruitBattle && recruits && recruits[act]) {
-    npcSpawn = generateNPCSpawn(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns, recruits[act], template, classes, deps.weapons);
+  if (isRecruitBattle && recruits && (recruits[act] || recruits.namePool)) {
+    // If recruits.namePool exists, we're using the new structure.
+    const pool = recruits[act] ? { ...recruits[act], namePool: recruits.namePool } : null;
+    if (pool) {
+      npcSpawn = generateNPCSpawn(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns, pool, template, classes, deps.weapons, usedRecruitNames);
+    }
   }
 
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC
@@ -867,9 +872,36 @@ function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
 
 // --- NPC spawn for recruit battles ---
 
-function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool, template, classesData, weaponsData) {
-  const { pool: recruitCandidates, levelRange } = recruitPool;
-  const recruit = recruitCandidates[Math.floor(Math.random() * recruitCandidates.length)];
+function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool, template, classesData, weaponsData, usedRecruitNames = {}) {
+  const { classPool, namePool, levelRange } = recruitPool;
+  // If we have classPool (new structure), pick from it. Else fall back to pool (old structure).
+  const className = classPool
+    ? classPool[Math.floor(Math.random() * classPool.length)]
+    : recruitPool.pool[Math.floor(Math.random() * recruitPool.pool.length)].className;
+
+  // Pick name from pool, avoiding duplicates in current run
+  let name = className; // Fallback
+  if (namePool && namePool[className]) {
+    const classNames = namePool[className];
+    const used = usedRecruitNames[className] || [];
+    const available = classNames.filter(n => !used.includes(n));
+
+    if (available.length > 0) {
+      name = available[Math.floor(Math.random() * available.length)];
+    } else {
+      // Pool exhausted: reset for this class and pick any
+      usedRecruitNames[className] = [];
+      name = classNames[Math.floor(Math.random() * classNames.length)];
+    }
+    // Track as used
+    if (!usedRecruitNames[className]) usedRecruitNames[className] = [];
+    usedRecruitNames[className].push(name);
+  } else if (recruitPool.pool) {
+    // Old structure fallback
+    const entry = recruitPool.pool.find(p => p.className === className) || recruitPool.pool[0];
+    name = entry.name;
+  }
+
   const [minLvl, maxLvl] = levelRange;
   const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
@@ -972,8 +1004,8 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   }
 
   return {
-    className: recruit.className,
-    name: recruit.name,
+    className,
+    name,
     level,
     col: pos.col,
     row: pos.row,

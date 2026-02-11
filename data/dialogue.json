@@ -1,0 +1,22 @@
+{
+  "recruitLines": {
+    "Fighter":        ["Need an axe? I'm with you.", "Point me at something to hit."],
+    "Archer":         ["I don't miss. Point me at a target.", "My arrows are yours."],
+    "Mage":           ["My spells aren't gentle, but they're effective.", "I've studied enough. Time to fight."],
+    "Cavalier":       ["My lance is yours, Commander.", "I rode from the front lines. Where do you need me?"],
+    "Cleric":         ["I can mend what's broken. Stay close.", "The wounded need me. Lead on."],
+    "Myrmidon":       ["I fight alone. But I'll fight beside you.", "One blade is enough. Mine."],
+    "Thief":          ["I go where I please. Right now, I please to go with you.", "Locks, traps, pockets — I handle them all."],
+    "Mercenary":      ["Coin's good. Cause is better. You've got both.", "I've fought for worse reasons."],
+    "Pegasus Knight": ["The skies are mine. Let's see what's ahead.", "From above, I've seen what the corruption does."],
+    "Knight":         ["I am the shield. You are the sword.", "Nothing gets past me. Nothing."],
+    "Dancer":         ["A dance can turn the tide. Watch and see.", "Morale wins wars. I'm here for that."],
+    "Wyvern Rider":   ["My wyvern and I answer to no lord. But for this fight — we'll make an exception.", "The skies belong to us."],
+    "Hero":           ["I've fought in darker wars than this. What matters is seeing it through.", "Another war. Let's end this one."],
+    "Falcon Knight":  ["From above, I've seen what the corruption does. No more.", "Lance and sky. That's all I need."],
+    "Sage":           ["The old magic is failing. Perhaps your seer can show us a better path.", "Knowledge is a weapon. I'm well-armed."],
+    "Assassin":       ["I don't do speeches. Just tell me who dies.", "Silence is my specialty."],
+    "Sniper":         ["One shot. One kill. That's the only math that matters.", "I see the target. That's enough."],
+    "Bishop":         ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."]
+  }
+}
