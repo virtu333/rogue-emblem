@@ -242,8 +242,11 @@ export class HeadlessBattle {
     if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) {
       throw new Error(`Cannot select unit in state: ${this.battleState}`);
     }
-    const unit = this.playerUnits.find(u => u.name === unitName);
-    if (!unit) throw new Error(`Unit not found: ${unitName}`);
+    const matching = this.playerUnits.filter(u => u.name === unitName);
+    if (matching.length === 0) throw new Error(`Unit not found: ${unitName}`);
+
+    // Duplicate unit names can exist in simulations; prefer any unacted match.
+    const unit = matching.find(u => !u.hasActed) || matching[0];
     if (unit.hasActed) throw new Error(`Unit already acted: ${unitName}`);
 
     this.selectedUnit = unit;

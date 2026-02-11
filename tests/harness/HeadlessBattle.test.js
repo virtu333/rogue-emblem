@@ -260,6 +260,25 @@ describe('HeadlessBattle', () => {
       positions.add(key);
     }
   });
+
+  it('selectUnit prefers an unacted unit when duplicate names exist', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+
+    const first = battle.playerUnits[0];
+    const second = structuredClone(first);
+    first.hasActed = true;
+    second.hasActed = false;
+    second.col = Math.max(0, first.col - 1);
+    second.row = first.row;
+    battle.playerUnits.unshift(second);
+
+    battle.selectUnit(first.name);
+
+    expect(battle.selectedUnit).toBe(second);
+    expect(battle.selectedUnit.hasActed).toBe(false);
+    expect(battle.battleState).toBe(HEADLESS_STATES.UNIT_SELECTED);
+  });
 });
 
 describe('GameDriver', () => {
