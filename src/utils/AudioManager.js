@@ -16,6 +16,7 @@ export class AudioManager {
     this.musicLoadTimeoutMs = this._toPositiveInt(options.musicLoadTimeoutMs, 7000);
     this.mobileMusicLoadTimeoutMs = this._toPositiveInt(options.mobileMusicLoadTimeoutMs, 12000);
     this.isMobile = Boolean(options.isMobile);
+    this._trackedMusicSounds = new Set();
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -79,6 +80,7 @@ export class AudioManager {
       this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
+      this._trackMusicSound(this.currentMusic);
       this.currentMusic.play();
 
       if (fadeMs > 0 && scene?.tweens) {
@@ -287,8 +289,10 @@ export class AudioManager {
   }
 
   _getLoopingMusicSounds() {
-    const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
-    return sounds.filter((s) => {
+    const managerSounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
+    const trackedSounds = Array.from(this._trackedMusicSounds || []);
+    const uniqueSounds = new Set([...managerSounds, ...trackedSounds]);
+    return Array.from(uniqueSounds).filter((s) => {
       if (!s) return false;
       const key = this._safeRead(s, 'key');
       if (!key) return false;
@@ -301,6 +305,13 @@ export class AudioManager {
       const matchesCurrent = s === this.currentMusic || key === this.currentMusicKey;
       return isActive && (isLooping || matchesCurrent);
     });
+  }
+
+  _trackMusicSound(sound) {
+    if (!sound || !this._trackedMusicSounds) return;
+    const key = this._safeRead(sound, 'key');
+    if (!this._isMusicKey(key)) return;
+    this._trackedMusicSounds.add(sound);
   }
 
   _safeRead(obj, prop) {
@@ -403,6 +414,7 @@ export class AudioManager {
     if (!sound) return;
     if (sound.__audioStopped) return;
     sound.__audioStopped = true;
+    if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
     this._killSoundTweens(scene, sound);
     if (fadeMs > 0 && scene?.tweens) {
       const startVolume = this._readSoundVolume(sound);

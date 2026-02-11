@@ -114,6 +114,26 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_battle_act1_1');
   });
 
+  it('stops tracked music instances even when missing from sound manager list', async () => {
+    const sound = makeSoundManager({
+      sounds: [],
+      loadedKeys: ['music_battle_act1_1', 'music_explore_act1'],
+    });
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_explore_act1', null, 0);
+    const oldTrack = audio.currentMusic;
+
+    // Simulate Phaser losing the old sound from its internal list.
+    sound.sounds = sound.sounds.filter((s) => s !== oldTrack);
+
+    await audio.playMusic('music_battle_act1_1', null, 0);
+
+    expect(oldTrack.stop).toHaveBeenCalledTimes(1);
+    expect(oldTrack.destroy).toHaveBeenCalledTimes(1);
+    expect(audio.currentMusicKey).toBe('music_battle_act1_1');
+  });
+
   it('stopMusic also clears looping tracks when currentMusic handle is missing', () => {
     const orphan = makeLoopingSound('music_explore_act3');
     const oneShot = { key: 'sfx_heal', loop: false, isPlaying: true, stop: vi.fn(), destroy: vi.fn() };
