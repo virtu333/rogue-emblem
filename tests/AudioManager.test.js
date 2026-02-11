@@ -240,10 +240,10 @@ describe('AudioManager', () => {
 
     await audio.playMusic('music_battle_act2_1', null, 0);
 
-    expect(current.stop).toHaveBeenCalledTimes(1);
-    expect(current.destroy).toHaveBeenCalledTimes(1);
-    expect(orphan.stop).toHaveBeenCalledTimes(1);
-    expect(orphan.destroy).toHaveBeenCalledTimes(1);
+    expect(current.stop.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(current.destroy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(orphan.stop.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(orphan.destroy.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(sound.add).toHaveBeenCalledWith('music_battle_act2_1', expect.objectContaining({ loop: true }));
     expect(audio.currentMusicKey).toBe('music_battle_act2_1');
   });
@@ -280,6 +280,52 @@ describe('AudioManager', () => {
     expect(current.stop).toHaveBeenCalledTimes(1);
     expect(current.destroy).toHaveBeenCalledTimes(1);
     expect(audio.currentMusicKey).toBe(null);
+  });
+
+  it('re-stopping an already flagged sound still force-destroys it', () => {
+    const target = makeLoopingSound('music_title');
+    target.__audioStopped = true;
+    const sound = makeSoundManager({ sounds: [target] });
+    const audio = new AudioManager(sound);
+    audio._trackedMusicSounds.add(target);
+
+    const scene = { tweens: { add: vi.fn(), killTweensOf: vi.fn() } };
+    audio._stopSound(target, scene, 300);
+
+    expect(scene.tweens.killTweensOf).toHaveBeenCalled();
+    expect(scene.tweens.add).not.toHaveBeenCalled();
+    expect(target.stop).toHaveBeenCalledTimes(1);
+    expect(target.destroy).toHaveBeenCalledTimes(1);
+    expect(audio._trackedMusicSounds.has(target)).toBe(false);
+  });
+
+  it('keeps tracked sound during fade-out and removes it on completion', () => {
+    const target = makeLoopingSound('music_title');
+    const sound = makeSoundManager({ sounds: [target] });
+    const audio = new AudioManager(sound);
+    audio._trackedMusicSounds.add(target);
+
+    let tweenConfig = null;
+    const scene = {
+      tweens: {
+        add: vi.fn((config) => {
+          tweenConfig = config;
+          return config;
+        }),
+        killTweensOf: vi.fn(),
+      },
+    };
+
+    audio._stopSound(target, scene, 300);
+
+    expect(audio._trackedMusicSounds.has(target)).toBe(true);
+    expect(target.stop).not.toHaveBeenCalled();
+    expect(typeof tweenConfig?.onComplete).toBe('function');
+
+    tweenConfig.onComplete();
+    expect(target.stop).toHaveBeenCalledTimes(1);
+    expect(target.destroy).toHaveBeenCalledTimes(1);
+    expect(audio._trackedMusicSounds.has(target)).toBe(false);
   });
 
   it('can load missing music without a scene loader via fetch + decode', async () => {
@@ -349,5 +395,16 @@ describe('AudioManager', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it('setMusicVolume continues when one sound throws', () => {
+    const bad = makeLoopingSound('music_title');
+    bad.setVolume = vi.fn(() => { throw new Error('destroyed'); });
+    const good = makeLoopingSound('music_home_base');
+    const sound = makeSoundManager({ sounds: [bad, good] });
+    const audio = new AudioManager(sound);
+
+    expect(() => audio.setMusicVolume(0.8)).not.toThrow();
+    expect(good.setVolume).toHaveBeenCalledTimes(1);
   });
 });

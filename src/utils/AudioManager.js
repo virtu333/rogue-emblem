@@ -412,11 +412,10 @@ export class AudioManager {
 
   _stopSound(sound, scene, fadeMs) {
     if (!sound) return;
-    if (sound.__audioStopped) return;
+    const alreadyStopped = Boolean(sound.__audioStopped);
     sound.__audioStopped = true;
-    if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
     this._killSoundTweens(scene, sound);
-    if (fadeMs > 0 && scene?.tweens) {
+    if (!alreadyStopped && fadeMs > 0 && scene?.tweens) {
       const startVolume = this._readSoundVolume(sound);
       this._tweenSoundVolume(
         scene,
@@ -425,12 +424,14 @@ export class AudioManager {
         0,
         fadeMs,
         () => {
+          if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
           try { sound.stop(); } catch (_) {}
           try { sound.destroy(); } catch (_) {}
         },
       );
       return;
     }
+    if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
     try { sound.stop(); } catch (_) {}
     try { sound.destroy(); } catch (_) {}
   }
@@ -491,7 +492,9 @@ export class AudioManager {
     this.musicVolume = Math.max(0, Math.min(1, level));
     const nextVolume = this._curve(this.musicVolume);
     for (const sound of this._getLoopingMusicSounds()) {
-      if (typeof sound.setVolume === 'function') sound.setVolume(nextVolume);
+      try {
+        if (typeof sound.setVolume === 'function') sound.setVolume(nextVolume);
+      } catch (_) {}
     }
   }
 
