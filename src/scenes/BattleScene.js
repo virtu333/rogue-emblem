@@ -294,13 +294,18 @@ export class BattleScene extends Phaser.Scene {
           if (npcClassData.tier === 'promoted') {
             // Promoted recruit: create from base class, then promote
             const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
-            if (!baseClassData) throw new Error(`Base class not found for promoted recruit: ${npcClassData.promotesFrom}`);
-            const baseDef = { ...npcSpawn, className: baseClassData.name };
-            npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-            for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
-              if (!npc.skills.includes(sid)) npc.skills.push(sid);
+            if (baseClassData) {
+              const baseDef = { ...npcSpawn, className: baseClassData.name };
+              npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+              for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+                if (!npc.skills.includes(sid)) npc.skills.push(sid);
+              }
+              promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+            } else {
+              // Safety fallback: create from promoted class directly rather than aborting battle load.
+              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+              console.warn('Promoted recruit missing base class mapping:', npcClassData.name, npcClassData.promotesFrom);
             }
-            promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
           } else {
             npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
             // Assign base-class innate skills (e.g. Dancer gets 'dance')
@@ -558,10 +563,11 @@ export class BattleScene extends Phaser.Scene {
       this.refreshEndTurnControl();
     } catch (err) {
       console.error('BattleScene.beginBattle failed:', err);
+      const reason = String(err?.message || 'unknown_error').slice(0, 140);
       const cam = this.cameras.main;
       const toast = this.add.text(
         cam.centerX, cam.centerY,
-        'Battle failed to load. Returning to map...',
+        `Battle failed to load (${reason}). Returning to map...`,
         { fontFamily: 'monospace', fontSize: '14px', color: '#ff4444', backgroundColor: '#000000', padding: { x: 10, y: 6 } }
       ).setOrigin(0.5).setDepth(999);
       this.time.delayedCall(2000, () => {
@@ -650,7 +656,42 @@ export class BattleScene extends Phaser.Scene {
 
   captureVisionSnapshot() {
     const stripVisuals = (unit) => {
-      return structuredClone(serializeUnit(unit));
+      const serialized = serializeUnit(unit);
+      try {
+        return structuredClone(serialized);
+      } catch (err) {
+        // Fallback for rare DataCloneError cases (e.g. non-serializable runtime fields).
+        try {
+          return JSON.parse(JSON.stringify(serialized));
+        } catch {
+          const minimal = {
+            name: serialized.name,
+            className: serialized.className,
+            faction: serialized.faction,
+            level: serialized.level,
+            xp: serialized.xp,
+            stats: serialized.stats,
+            growths: serialized.growths,
+            currentHP: serialized.currentHP,
+            col: serialized.col,
+            row: serialized.row,
+            hasMoved: Boolean(serialized.hasMoved),
+            hasActed: Boolean(serialized.hasActed),
+            weapon: serialized.weapon || null,
+            inventory: Array.isArray(serialized.inventory) ? serialized.inventory : [],
+            consumables: Array.isArray(serialized.consumables) ? serialized.consumables : [],
+            skills: Array.isArray(serialized.skills) ? serialized.skills : [],
+            proficiencies: Array.isArray(serialized.proficiencies) ? serialized.proficiencies : [],
+            accessory: serialized.accessory || null,
+            isLord: Boolean(serialized.isLord),
+            isBoss: Boolean(serialized.isBoss),
+            _miracleUsed: Boolean(serialized._miracleUsed),
+            _gambitUsedThisTurn: Boolean(serialized._gambitUsedThisTurn),
+          };
+          console.warn('Vision snapshot used minimal fallback clone for unit:', serialized?.name, err);
+          return minimal;
+        }
+      }
     };
     const fog = this.grid?.fogEnabled ? {
       visible: [...(this.grid.visibleSet || new Set())],
