@@ -652,6 +652,101 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     }
   });
 
+  it('fromJSON migrates missing class innate skills (e.g. Dancer dance)', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    // Inject a Dancer unit without the 'dance' skill (simulates pre-fix boss recruit save)
+    const dancerUnit = {
+      name: 'Sylvie', className: 'Dancer', tier: 'base', level: 5, xp: 0,
+      isLord: false, personalGrowths: null,
+      growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],  // BUG: missing 'dance'
+      stats: { HP: 20, STR: 5, MAG: 6, SKL: 8, SPD: 10, DEF: 3, RES: 5, LCK: 7, MOV: 6 },
+      currentHP: 20, mov: 6, moveType: 'foot', faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Prof', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    };
+    rm.roster.push(dancerUnit);
+    const json = rm.toJSON();
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredDancer = restored.roster.find(u => u.name === 'Sylvie');
+    expect(restoredDancer.skills).toContain('dance');
+  });
+
+  it('fromJSON class innate migration is idempotent (does not duplicate skills)', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    // Dancer that ALREADY has 'dance' — migration should not duplicate it
+    const dancerUnit = {
+      name: 'Sylvie', className: 'Dancer', tier: 'base', level: 5, xp: 0,
+      isLord: false, personalGrowths: null,
+      growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: ['dance'],  // already correct
+      stats: { HP: 20, STR: 5, MAG: 6, SKL: 8, SPD: 10, DEF: 3, RES: 5, LCK: 7, MOV: 6 },
+      currentHP: 20, mov: 6, moveType: 'foot', faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Prof', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    };
+    rm.roster.push(dancerUnit);
+    const json = rm.toJSON();
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredDancer = restored.roster.find(u => u.name === 'Sylvie');
+    expect(restoredDancer.skills.filter(s => s === 'dance')).toHaveLength(1);
+  });
+
+  it('fromJSON migrates innate skills for promoted units including base class skills', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    // Swordmaster (promoted from Myrmidon) without its 'crit_plus_15' innate skill
+    const swordmaster = {
+      name: 'TestUnit', className: 'Swordmaster', tier: 'promoted', level: 1, xp: 0,
+      isLord: false, personalGrowths: null,
+      growths: { HP: 50, STR: 45, MAG: 10, SKL: 55, SPD: 60, DEF: 25, RES: 20, LCK: 40 },
+      proficiencies: [{ type: 'Sword', rank: 'Mast' }],
+      skills: [],  // missing 'crit_plus_15'
+      stats: { HP: 28, STR: 12, MAG: 3, SKL: 16, SPD: 18, DEF: 8, RES: 5, LCK: 9, MOV: 6 },
+      currentHP: 28, mov: 6, moveType: 'foot', faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Mast', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    };
+    rm.roster.push(swordmaster);
+    const json = rm.toJSON();
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const restoredUnit = restored.roster.find(u => u.name === 'TestUnit');
+    expect(restoredUnit.skills).toContain('crit_plus_15');
+  });
+
+  it('fromJSON migrates innate skills for fallen units too', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const dancerUnit = {
+      name: 'FallenDancer', className: 'Dancer', tier: 'base', level: 3, xp: 0,
+      isLord: false, personalGrowths: null,
+      growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      stats: { HP: 18, STR: 4, MAG: 5, SKL: 7, SPD: 9, DEF: 2, RES: 4, LCK: 6, MOV: 6 },
+      currentHP: 0, mov: 6, moveType: 'foot', faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Prof', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    };
+    rm.fallenUnits.push(dancerUnit);
+    const json = rm.toJSON();
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const fallen = restored.fallenUnits.find(u => u.name === 'FallenDancer');
+    expect(fallen.skills).toContain('dance');
+  });
+
   it('relinkWeapon fallback skips non-proficient inventory[0]', () => {
     const rm = new RunManager(gameData);
     rm.startRun();

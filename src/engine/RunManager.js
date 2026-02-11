@@ -7,7 +7,7 @@ import {
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES,
 } from '../utils/constants.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
-import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip } from './UnitManager.js';
+import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip, getClassInnateSkills } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
@@ -959,6 +959,32 @@ export class RunManager {
     }
   }
 
+  /**
+   * Migrate saves missing class-innate skills (e.g. Dancer recruited via boss
+   * recruit before the fix). Checks both current class and base class (for
+   * promoted units) so a Bard still gets the Dancer's 'dance' skill.
+   */
+  static migrateClassInnateSkills(runManager) {
+    const { classes, skills } = runManager.gameData || {};
+    if (!classes || !skills) return;
+    const units = [...runManager.roster, ...runManager.fallenUnits];
+    for (const unit of units) {
+      if (!unit.className) continue;
+      const classData = classes.find(c => c.name === unit.className);
+      if (!classData) continue;
+      // Current class innate skills
+      for (const sid of getClassInnateSkills(classData.name, skills)) {
+        if (!unit.skills.includes(sid)) unit.skills.push(sid);
+      }
+      // Base class innate skills (for promoted units)
+      if (classData.promotesFrom) {
+        for (const sid of getClassInnateSkills(classData.promotesFrom, skills)) {
+          if (!unit.skills.includes(sid)) unit.skills.push(sid);
+        }
+      }
+    }
+  }
+
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
@@ -1016,6 +1042,7 @@ export class RunManager {
     // Migrate old save format BEFORE relinking weapons
     // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)
     RunManager.migrateInventorySplit(rm);
+    RunManager.migrateClassInnateSkills(rm);
 
     rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits.forEach(u => relinkWeapon(u));
