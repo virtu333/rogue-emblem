@@ -60,6 +60,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.selectedDifficulty = this.registry.get('selectedDifficulty') || 'normal';
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
+    this._touchScrollDrag = null;
     this.refreshDifficultyAvailability();
 
     this.input.keyboard.on('keydown-ESC', () => {
@@ -67,7 +68,9 @@ export class HomeBaseScene extends Phaser.Scene {
     });
     this.input.on('pointerdown', (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
+      this.onPointerDown(pointer);
     });
+    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
     this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
 
@@ -717,6 +720,34 @@ export class HomeBaseScene extends Phaser.Scene {
     this.drawUI();
   }
 
+  onPointerDown(pointer) {
+    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (this._skillPickerObjects) return;
+    if ((this.tabScrollMax || 0) <= 0) return;
+    if (pointer.y < TAB_CONTENT_TOP_Y || pointer.y > TAB_CONTENT_BOTTOM_Y) return;
+    const key = this.activeTab;
+    this._touchScrollDrag = {
+      key,
+      startY: pointer.y,
+      startOffset: this.tabScrollOffsets?.[key] || 0,
+    };
+  }
+
+  onPointerMove(pointer) {
+    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (!this._touchScrollDrag) return;
+    const drag = this._touchScrollDrag;
+    if (drag.key !== this.activeTab) return;
+    const max = this.tabScrollMax || 0;
+    if (max <= 0) return;
+    const deltaY = pointer.y - drag.startY;
+    const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
+    const current = this.tabScrollOffsets?.[drag.key] || 0;
+    if (next === current) return;
+    this.tabScrollOffsets[drag.key] = next;
+    this.drawUI();
+  }
+
   _getTabViewportHeight() {
     return TAB_CONTENT_BOTTOM_Y - TAB_CONTENT_TOP_Y;
   }
@@ -762,6 +793,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    this._touchScrollDrag = null;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;

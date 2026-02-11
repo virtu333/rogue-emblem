@@ -96,6 +96,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.rosterOverlay = null;
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
+    this._touchScrollDrag = null;
 
     // ESC key handler
     this.input.keyboard.on('keydown-ESC', () => {
@@ -103,7 +104,9 @@ export class NodeMapScene extends Phaser.Scene {
     });
     this.input.on('pointerdown', (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
+      this.onPointerDown(pointer);
     });
+    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
     this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
 
@@ -135,6 +138,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    this._touchScrollDrag = null;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
@@ -147,6 +151,64 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchTapDown = null;
     if (this._isPointerOverInteractive(pointer)) return;
     this.requestCancel({ allowPause: false });
+  }
+
+  onPointerDown(pointer) {
+    if (!pointer || pointer.pointerType !== 'touch') return;
+
+    if (this.unitPickerState) {
+      const state = this.unitPickerState;
+      if (pointer.y >= state.viewportTop && pointer.y <= state.viewportBottom && (state.maxOffset || 0) > 0) {
+        this._touchScrollDrag = {
+          type: 'unit-picker',
+          startY: pointer.y,
+          startOffset: state.offset || 0,
+        };
+      }
+      return;
+    }
+
+    if (!this.shopOverlay || !this.activeShopTab) return;
+    if (this.forgePicker || this.unitPicker) return;
+    if ((this.shopScrollMax || 0) <= 0) return;
+    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
+    this._touchScrollDrag = {
+      type: 'shop',
+      tab: this.activeShopTab,
+      startY: pointer.y,
+      startOffset: this.shopScrollOffsets?.[this.activeShopTab] || 0,
+    };
+  }
+
+  onPointerMove(pointer) {
+    if (!pointer || pointer.pointerType !== 'touch') return;
+    const drag = this._touchScrollDrag;
+    if (!drag) return;
+
+    if (drag.type === 'unit-picker') {
+      if (!this.unitPickerState) return;
+      const max = this.unitPickerState.maxOffset || 0;
+      if (max <= 0) return;
+      const deltaY = pointer.y - drag.startY;
+      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
+      if (next === this.unitPickerState.offset) return;
+      this.unitPickerState.offset = next;
+      this.renderUnitPicker();
+      return;
+    }
+
+    if (drag.type === 'shop') {
+      if (!this.shopOverlay || this.forgePicker || this.unitPicker) return;
+      if (!this.activeShopTab || drag.tab !== this.activeShopTab) return;
+      const max = this.shopScrollMax || 0;
+      if (max <= 0) return;
+      const deltaY = pointer.y - drag.startY;
+      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
+      const current = this.shopScrollOffsets?.[drag.tab] || 0;
+      if (next === current) return;
+      this.shopScrollOffsets[drag.tab] = next;
+      this.drawActiveTabContent();
+    }
   }
 
   onWheel(pointer, deltaX, deltaY) {
