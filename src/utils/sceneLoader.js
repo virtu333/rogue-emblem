@@ -10,6 +10,9 @@ const SCENE_LOADERS = {
   Battle: () => import('../scenes/BattleScene.js').then(m => m.BattleScene),
   RunComplete: () => import('../scenes/RunCompleteScene.js').then(m => m.RunCompleteScene),
 };
+let globalStartSceneInFlight = false;
+let globalSceneStartCooldownUntil = 0;
+const GLOBAL_SCENE_START_COOLDOWN_MS = 180;
 
 function hasScene(scene, key) {
   try {
@@ -34,8 +37,12 @@ export async function ensureSceneLoaded(scene, key) {
 
 export async function startSceneLazy(scene, key, data = undefined) {
   if (!scene || !key) return false;
+  const now = Date.now();
+  if (now < globalSceneStartCooldownUntil) return false;
   if (scene.__startSceneLazyInFlight) return false;
+  if (globalStartSceneInFlight) return false;
   scene.__startSceneLazyInFlight = true;
+  globalStartSceneInFlight = true;
   try {
     await ensureSceneLoaded(scene, key);
     const isActive = typeof scene.sys?.isActive === 'function'
@@ -43,8 +50,10 @@ export async function startSceneLazy(scene, key, data = undefined) {
       : true;
     if (!isActive) return false;
     scene.scene.start(key, data);
+    globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
     return true;
   } finally {
+    globalStartSceneInFlight = false;
     scene.__startSceneLazyInFlight = false;
   }
 }
