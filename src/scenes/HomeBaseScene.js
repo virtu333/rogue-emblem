@@ -344,7 +344,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenal !== undefined) return 'Random';
-    if (effect.recruitRandomSkill) return 'Random skill';
+    if (effect.recruitRandomSkill) return '+1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] || '?';
     if (effect.startingStaffTier !== undefined) return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
     if (effect.unlockSkill !== undefined) return 'Unlocked';
@@ -396,7 +396,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
-    if (effect.recruitRandomSkill) return 'Recruit starts with combat skill';
+    if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for Edric';
     if (effect.startingStaffTier !== undefined) return "Sera's starting staff";
     return upgrade.description;
