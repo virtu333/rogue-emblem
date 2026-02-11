@@ -107,18 +107,21 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     applyRunSlots(runRes.value);
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
+    reportAsyncError('cloud_fetch_table', runRes.reason, { table: TABLES.run });
   }
 
   if (metaRes.status === 'fulfilled') {
     applyMetaSlots(metaRes.value);
   } else {
     console.warn('CloudSync fetch meta_progression:', metaRes.reason);
+    reportAsyncError('cloud_fetch_table', metaRes.reason, { table: TABLES.meta });
   }
 
   if (settingsRes.status === 'fulfilled') {
     applySettings(settingsRes.value);
   } else {
     console.warn('CloudSync fetch user_settings:', settingsRes.reason);
+    reportAsyncError('cloud_fetch_table', settingsRes.reason, { table: TABLES.settings });
   }
 
   const rejected = [runRes, metaRes, settingsRes].filter(r => r.status === 'rejected');
@@ -148,15 +151,22 @@ async function updateSlotInTable(userId, table, slot, slotData) {
       // If all slots empty, delete the row
       const hasData = Object.values(slotMap).some(v => v != null);
       if (!hasData) {
-        await supabase.from(table).delete().eq('user_id', userId);
+        const { error } = await supabase.from(table).delete().eq('user_id', userId);
+        if (error) throw error;
       } else {
-        await supabase.from(table).upsert({
+        const { error } = await supabase.from(table).upsert({
           user_id: userId, data: slotMap, updated_at: new Date().toISOString(),
         });
+        if (error) throw error;
       }
     })
     .catch((e) => {
       console.warn(`CloudSync updateSlot ${table}:`, e);
+      reportAsyncError('cloud_update_slot', e, {
+        table,
+        slot,
+        operation: slotData === null ? 'delete' : 'upsert',
+      });
     })
     .finally(() => {
       if (updateQueues.get(queueKey) === next) updateQueues.delete(queueKey);
@@ -210,6 +220,14 @@ export function deleteSlotCloud(userId, slot) {
 }
 
 const updateQueues = new Map();
+
+export async function __flushCloudSyncQueuesForTests() {
+  await Promise.allSettled([...updateQueues.values()]);
+}
+
+export function __resetCloudSyncQueuesForTests() {
+  updateQueues.clear();
+}
 
 function readLocalJSON(key) {
   try {
