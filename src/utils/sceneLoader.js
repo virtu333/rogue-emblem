@@ -14,6 +14,45 @@ let globalStartSceneInFlight = false;
 let globalSceneStartCooldownUntil = 0;
 const GLOBAL_SCENE_START_COOLDOWN_MS = 350;
 const GLOBAL_SCENE_START_LOCK_MS = 700;
+const AUDIO_DIAG_FLAG_KEY = 'emblem_rogue_audio_diag';
+
+function isAudioDiagEnabled() {
+  try {
+    const host = globalThis?.location?.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+    const raw = globalThis?.localStorage?.getItem(AUDIO_DIAG_FLAG_KEY);
+    const forced = raw === '1' || raw === 'true';
+    return isLocalHost || forced;
+  } catch (_) {
+    return false;
+  }
+}
+
+function getAudioSnapshot(scene) {
+  try {
+    const audio = scene?.registry?.get?.('audioManager');
+    if (!audio || typeof audio.getActiveMusicKeys !== 'function') {
+      return { available: false, activeMusicKeys: [] };
+    }
+    return {
+      available: true,
+      activeMusicKeys: audio.getActiveMusicKeys(),
+      currentMusicKey: audio.currentMusicKey || null,
+      currentMusicOwner: audio.currentMusicOwner || null,
+    };
+  } catch (_) {
+    return { available: false, activeMusicKeys: [] };
+  }
+}
+
+function markAudioDiag(scene, phase, extra = {}) {
+  if (!isAudioDiagEnabled()) return;
+  const sourceScene = scene?.sys?.settings?.key || null;
+  const snapshot = getAudioSnapshot(scene);
+  const payload = { phase, sourceScene, ...snapshot, ...extra };
+  markStartup('audio_diag', payload);
+  console.info('[AudioDiag]', payload);
+}
 
 function hasScene(scene, key) {
   try {
@@ -39,11 +78,21 @@ export async function ensureSceneLoaded(scene, key) {
 export async function startSceneLazy(scene, key, data = undefined) {
   if (!scene || !key) return false;
   const now = Date.now();
-  if (now < globalSceneStartCooldownUntil) return false;
-  if (scene.__startSceneLazyInFlight) return false;
-  if (globalStartSceneInFlight) return false;
+  if (now < globalSceneStartCooldownUntil) {
+    markAudioDiag(scene, 'transition_blocked_cooldown', { targetScene: key });
+    return false;
+  }
+  if (scene.__startSceneLazyInFlight) {
+    markAudioDiag(scene, 'transition_blocked_scene_inflight', { targetScene: key });
+    return false;
+  }
+  if (globalStartSceneInFlight) {
+    markAudioDiag(scene, 'transition_blocked_global_inflight', { targetScene: key });
+    return false;
+  }
   scene.__startSceneLazyInFlight = true;
   globalStartSceneInFlight = true;
+  markAudioDiag(scene, 'transition_start', { targetScene: key });
 
   let started = false;
   const releaseTransitionLock = () => {
@@ -55,6 +104,7 @@ export async function startSceneLazy(scene, key, data = undefined) {
     const release = () => {
       if (released) return;
       released = true;
+      markAudioDiag(scene, 'transition_lock_release', { targetScene: key });
       releaseTransitionLock();
     };
     const timer = setTimeout(release, GLOBAL_SCENE_START_LOCK_MS);
@@ -72,14 +122,19 @@ export async function startSceneLazy(scene, key, data = undefined) {
     const isActive = typeof scene.sys?.isActive === 'function'
       ? scene.sys.isActive()
       : true;
-    if (!isActive) return false;
+    if (!isActive) {
+      markAudioDiag(scene, 'transition_blocked_inactive_source', { targetScene: key });
+      return false;
+    }
     scene.scene.start(key, data);
     started = true;
     globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
+    markAudioDiag(scene, 'transition_started', { targetScene: key });
     scheduleRelease();
     return true;
   } finally {
     if (!started) {
+      markAudioDiag(scene, 'transition_aborted', { targetScene: key });
       releaseTransitionLock();
     }
   }
