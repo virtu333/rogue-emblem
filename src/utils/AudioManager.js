@@ -20,7 +20,13 @@ export class AudioManager {
   /** Play looping background music with optional fade-in. */
   async playMusic(key, scene, fadeMs = 500) {
     if (!key) return;
-    if (this.currentMusicKey === key && this.currentMusic?.isPlaying) return;
+    if (this.currentMusicKey === key && this.currentMusic?.isPlaying) {
+      // If duplicate/stray looping tracks exist, recover by forcing a clean restart.
+      const active = this._getLoopingMusicSounds();
+      const hasOverlap = active.some((sound) => sound !== this.currentMusic);
+      if (!hasOverlap) return;
+      this.stopAllMusic(scene, 0);
+    }
 
     const requestSeq = ++this._musicRequestSeq;
 

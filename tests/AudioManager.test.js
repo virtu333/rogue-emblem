@@ -189,4 +189,25 @@ describe('AudioManager', () => {
 
     expect(audio.currentMusicKey).toBe('music_home_base');
   });
+
+  it('restarts same-key music when overlap is detected to clear orphan loops', async () => {
+    const current = makeLoopingSound('music_battle_act2_1');
+    const orphan = makeLoopingSound('music_battle_act2_2');
+    const sound = makeSoundManager({
+      sounds: [current, orphan],
+      loadedKeys: ['music_battle_act2_1'],
+    });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act2_1';
+
+    await audio.playMusic('music_battle_act2_1', null, 0);
+
+    expect(current.stop).toHaveBeenCalledTimes(1);
+    expect(current.destroy).toHaveBeenCalledTimes(1);
+    expect(orphan.stop).toHaveBeenCalledTimes(1);
+    expect(orphan.destroy).toHaveBeenCalledTimes(1);
+    expect(sound.add).toHaveBeenCalledWith('music_battle_act2_1', expect.objectContaining({ loop: true }));
+    expect(audio.currentMusicKey).toBe('music_battle_act2_1');
+  });
 });
