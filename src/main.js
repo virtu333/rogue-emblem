@@ -27,7 +27,12 @@ initStartupTelemetry({
 function installDevDiagnostics() {
   const host = globalThis?.location?.hostname;
   const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-  if (!isLocalHost) return;
+  let forced = false;
+  try {
+    const raw = globalThis?.localStorage?.getItem('emblem_rogue_audio_diag');
+    forced = raw === '1' || raw === 'true';
+  } catch (_) {}
+  if (!isLocalHost && !forced) return;
 
   window.__emblemDumpStartupTelemetry = (filter = null) => {
     const telemetry = getStartupTelemetry();
