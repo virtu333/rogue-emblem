@@ -307,5 +307,34 @@ describe('BossRecruitSystem', () => {
         expect(validClassNames).toContain(c.className);
       }
     });
+
+    it('base-tier Dancer recruit has dance class-innate skill', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const localData = structuredClone(gameData);
+      localData.recruits.act2.pool = [{ className: 'Dancer', name: 'Sylvie' }];
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Dancer');
+      expect(candidates[0].unit.skills).toContain('dance');
+    });
+
+    it('promoted recruit from Dancer keeps base dance innate', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const localData = structuredClone(gameData);
+      const bard = localData.classes.find(c => c.name === 'Bard');
+      if (!bard) return;
+      localData.classes.push({ ...bard, name: 'Stage Bard' });
+      localData.recruits.act3.pool = [{ className: 'Stage Bard', name: 'Cadence' }];
+      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Stage Bard');
+      expect(candidates[0].unit.skills).toContain('dance');
+    });
+
+    it('Bard is not generated as a boss recruit candidate', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
+      expect(candidates.some(c => c.className === 'Bard')).toBe(false);
+    });
   });
 });

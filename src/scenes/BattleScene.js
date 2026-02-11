@@ -33,6 +33,7 @@ import {
   getCombatWeapons,
   canPromote,
   promoteUnit,
+  resolvePromotionTargetClass,
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
@@ -1993,6 +1994,7 @@ export class BattleScene extends Phaser.Scene {
 
     const attackTargets = this.findAttackTargets(unit);
     const healTargets = this.findHealTargets(unit);
+    const activeHealStaff = this.getActiveHealStaff(unit);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuX = (unit.col < this.grid.cols - 3)
@@ -2006,7 +2008,7 @@ export class BattleScene extends Phaser.Scene {
     const items = [];
     if (attackTargets.length > 0) items.push('Attack');
     if (healTargets.length > 0) {
-      const staff = getStaffWeapon(unit);
+      const staff = activeHealStaff;
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
       items.push(`Heal (${rem}/${max})`);
@@ -2015,7 +2017,7 @@ export class BattleScene extends Phaser.Scene {
       item.type !== 'Consumable' && canEquip(unit, item)
     );
     if (equippableItems.length >= 2) items.push('Equip');
-    if (canPromote(unit)) items.push('Promote');
+    if (canPromote(unit) && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) items.push('Promote');
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
@@ -2095,7 +2097,12 @@ export class BattleScene extends Phaser.Scene {
           }
         } else if (label.startsWith('Heal')) {
           this.hideActionMenu();
-          this.startHealTargetSelection(unit, healTargets);
+          const usableStaves = this.getUsableStaves(unit);
+          if (usableStaves.length >= 2) {
+            this.showStaffPicker(unit, usableStaves);
+          } else {
+            this.startHealTargetSelection(unit, healTargets, usableStaves[0] || null);
+          }
         } else if (label === 'Equip') {
           this.showEquipMenu(unit);
         } else if (label === 'Promote') {
@@ -2198,10 +2205,23 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Heal flow ---
 
-  findHealTargets(unit) {
+  getUsableStaves(unit) {
+    return unit.inventory.filter(w =>
+      w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0
+    );
+  }
+
+  getActiveHealStaff(unit, usableStaves = null) {
+    const usable = usableStaves || this.getUsableStaves(unit);
+    if (usable.length === 0) return null;
+    if (unit.weapon && usable.includes(unit.weapon)) return unit.weapon;
+    return usable[0];
+  }
+
+  findHealTargets(unit, staffOverride = null) {
     if (!hasStaff(unit)) return [];
-    const staff = getStaffWeapon(unit);
-    if (getStaffRemainingUses(staff, unit) <= 0) return [];
+    const staff = staffOverride || this.getActiveHealStaff(unit);
+    if (!staff) return [];
     const range = getEffectiveStaffRange(staff, unit);
     const targets = [];
     for (const ally of this.playerUnits) {
@@ -2215,10 +2235,14 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  startHealTargetSelection(unit, targets) {
+  startHealTargetSelection(unit, targets, chosenStaff = null) {
     // Auto-equip staff
-    const staff = getStaffWeapon(unit);
+    const staff = chosenStaff || this.getActiveHealStaff(unit);
     if (staff) equipWeapon(unit, staff);
+    if (!staff) {
+      this.showActionMenu(unit);
+      return;
+    }
 
     // First-heal tutorial hint (one-time per save slot)
     const hints = this.registry.get('hints');
@@ -2236,6 +2260,64 @@ export class BattleScene extends Phaser.Scene {
     const healTiles = targets.map(a => ({ col: a.col, row: a.row }));
     this.grid.showHealRange(healTiles);
     this.battleState = 'SELECTING_HEAL_TARGET';
+  }
+
+  showStaffPicker(unit, usableStaves) {
+    this.hideActionMenu();
+    this.inEquipMenu = true;
+    this.battleState = 'UNIT_ACTION_MENU';
+
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuX = (unit.col < this.grid.cols - 3)
+      ? pos.x + TILE_SIZE
+      : pos.x - TILE_SIZE - 210;
+    const menuY = pos.y - 10;
+
+    this.actionMenu = [];
+    const menuWidth = 210;
+    const itemHeight = 36;
+    const menuHeight = usableStaves.length * itemHeight + 12;
+    const clampedY = this._clampMenuY(menuY, menuHeight);
+
+    const bg = this.add.rectangle(
+      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuWidth, menuHeight, 0x000000, 0.85
+    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    this.actionMenu.push(bg);
+
+    usableStaves.forEach((staff, i) => {
+      const itemY = clampedY + 6 + i * itemHeight + itemHeight / 2;
+      const itemX = menuX + 8;
+      const marker = staff === unit.weapon ? '\u25b6 ' : '  ';
+      const rem = getStaffRemainingUses(staff, unit);
+      const max = getStaffMaxUses(staff, unit);
+      const rng = getEffectiveStaffRange(staff, unit);
+      const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
+      const defaultColor = staff === unit.weapon ? '#ffdd44' : '#e0e0e0';
+
+      const text = this.add.text(itemX, itemY, label, {
+        fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
+      }).setOrigin(0, 0.5).setDepth(401).setInteractive({ useHandCursor: true });
+
+      text.on('pointerover', () => text.setColor('#ffdd44'));
+      text.on('pointerout', () => text.setColor(defaultColor));
+      text.on('pointerdown', async () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        equipWeapon(unit, staff);
+        const healTargets = this.findHealTargets(unit, staff);
+        if (healTargets.length === 0) {
+          await this.showBriefBanner('No heal targets in range for that staff.', '#ff8888');
+          this.showStaffPicker(unit, usableStaves);
+          return;
+        }
+        this.inEquipMenu = false;
+        this.hideActionMenu();
+        this.startHealTargetSelection(unit, healTargets, staff);
+      });
+
+      this.actionMenu.push(text);
+    });
   }
 
   handleHealTargetClick(gp) {
@@ -2478,7 +2560,8 @@ export class BattleScene extends Phaser.Scene {
       // Check usability
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
       const isPromote = item.effect === 'promote';
-      const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canPromote(unit));
+      const canUsePromote = canPromote(unit) && Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords));
+      const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canUsePromote);
 
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
@@ -2530,7 +2613,8 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(unit);
       await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
     } else if (item.effect === 'promote') {
-      await this.executePromotion(unit);
+      const didPromote = await this.executePromotion(unit);
+      if (!didPromote) return;
       // executePromotion calls finishUnitAction, and we handle uses below
       // But executePromotion already finishes the action, so decrement uses and return
       item.uses--;
@@ -2669,32 +2753,31 @@ export class BattleScene extends Phaser.Scene {
   // --- Promotion ---
 
   async executePromotion(unit) {
-    this.battleState = 'COMBAT_RESOLVING'; // block input during promotion
-
     // Find promotion data
     const lordData = this.gameData.lords.find(l => l.name === unit.name);
-    let promotedClassName, promotionBonuses, promotionWeapons;
+    const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
+    if (!promotedClassData) {
+      await this.showBriefBanner('Promotion to that class is currently unavailable.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return false;
+    }
+    this.battleState = 'COMBAT_RESOLVING'; // block input during promotion
+
+    let promotionBonuses, promotionWeapons;
 
     if (lordData) {
-      promotedClassName = lordData.promotedClass;
       promotionBonuses = lordData.promotionBonuses;
       promotionWeapons = lordData.promotionWeapons;
     } else {
-      const baseClass = this.gameData.classes.find(c => c.name === unit.className);
-      promotedClassName = baseClass?.promotesTo;
-      const promotedClass = this.gameData.classes.find(c => c.name === promotedClassName);
-      promotionBonuses = promotedClass?.promotionBonuses;
+      promotionBonuses = promotedClassData.promotionBonuses;
     }
 
-    if (!promotedClassName || !promotionBonuses) {
-      this.finishUnitAction(unit);
-      return;
-    }
-
-    const promotedClassData = this.gameData.classes.find(c => c.name === promotedClassName);
-    if (!promotedClassData) {
-      this.finishUnitAction(unit);
-      return;
+    if (!promotionBonuses) {
+      await this.showBriefBanner('Promotion data missing for this unit.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return false;
     }
 
     // Track pre-promotion weapon types to detect new proficiencies
@@ -2733,7 +2816,7 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(unit);
 
     // Show promotion banner
-    await this.showPromotionBanner(unit, promotedClassName);
+    await this.showPromotionBanner(unit, promotedClassData.name);
 
     // Show stat gains as a level-up style popup
     const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
@@ -2742,6 +2825,7 @@ export class BattleScene extends Phaser.Scene {
     await popup.show();
 
     this.finishUnitAction(unit);
+    return true;
   }
 
   showPromotionBanner(unit, newClassName) {

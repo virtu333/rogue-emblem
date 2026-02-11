@@ -688,6 +688,71 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       expect(restoredUnit.weapon.type).not.toBe('Lance');
     }
   });
+
+  describe('class-innate migration', () => {
+    function makeLegacyUnit(className, tier = 'base', skills = []) {
+      return {
+        name: `Legacy_${className}`,
+        className,
+        tier,
+        level: 10,
+        xp: 0,
+        isLord: false,
+        personalGrowths: null,
+        growths: { HP: 0, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0 },
+        proficiencies: [],
+        skills: [...skills],
+        col: 0,
+        row: 0,
+        mov: 5,
+        moveType: 'Infantry',
+        stats: { HP: 20, STR: 5, MAG: 5, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 5, MOV: 5 },
+        currentHP: 20,
+        faction: 'player',
+        weapon: null,
+        inventory: [],
+        consumables: [],
+        accessory: null,
+        weaponRank: 'Prof',
+        hasMoved: false,
+        hasActed: false,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
+    }
+
+    it('fromJSON adds missing class innates', () => {
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const json = rm.toJSON();
+      json.roster.push(makeLegacyUnit('Dancer', 'base', []));
+      const restored = RunManager.fromJSON(json, gameData);
+      const dancer = restored.roster.find(u => u.className === 'Dancer');
+      expect(dancer.skills).toContain('dance');
+    });
+
+    it('migration is idempotent', () => {
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const json = rm.toJSON();
+      json.roster.push(makeLegacyUnit('Dancer', 'base', ['dance']));
+      const restored1 = RunManager.fromJSON(json, gameData);
+      const restored2 = RunManager.fromJSON(restored1.toJSON(), gameData);
+      const dancer = restored2.roster.find(u => u.className === 'Dancer');
+      expect(dancer.skills.filter(s => s === 'dance')).toHaveLength(1);
+    });
+
+    it('migration applies to fallenUnits and promoted base innates', () => {
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const json = rm.toJSON();
+      json.fallenUnits = [makeLegacyUnit('Bard', 'promoted', [])];
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.fallenUnits).toHaveLength(1);
+      expect(restored.fallenUnits[0].skills).toContain('dance');
+    });
+  });
 });
 
 describe('blessing run-start effect application', () => {

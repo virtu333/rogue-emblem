@@ -193,6 +193,21 @@ describe('Effectiveness', () => {
     const knight = makeUnit({ moveType: 'Armored' });
     expect(getEffectivenessMultiplier(hammer, knight)).toBe(3);
   });
+
+  it('bows are globally effective vs Flying (3x)', () => {
+    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const flier = makeUnit({ moveType: 'Flying' });
+    expect(getEffectivenessMultiplier(bow, flier)).toBe(3);
+  });
+
+  it('negate-effectiveness accessory overrides bow effectiveness', () => {
+    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const flier = makeUnit({
+      moveType: 'Flying',
+      accessory: { combatEffects: { negateEffectiveness: true } },
+    });
+    expect(getEffectivenessMultiplier(bow, flier)).toBe(1);
+  });
 });
 
 describe('Combat forecast', () => {

@@ -14,6 +14,7 @@ import {
   isStaff,
   getStaffRemainingUses,
   getEffectiveStaffRange,
+  getStaffMaxUses,
   spendStaffUse,
 } from '../../src/engine/Combat.js';
 import {
@@ -24,7 +25,6 @@ import {
   gainExperience,
   equipWeapon,
   hasStaff,
-  getStaffWeapon,
   getCombatWeapons,
   canPromote,
   promoteUnit,
@@ -336,8 +336,8 @@ export class HeadlessBattle {
       case 'Heal': {
         this.healTargets = this._findHealTargets(this.selectedUnit);
         if (this.healTargets.length === 0) throw new Error('No heal targets');
-        // Auto-equip staff
-        const staff = getStaffWeapon(this.selectedUnit);
+        // Auto-equip active usable staff
+        const staff = this._getActiveHealStaff(this.selectedUnit);
         if (staff && this.selectedUnit.weapon !== staff) {
           equipWeapon(this.selectedUnit, staff);
         }
@@ -542,8 +542,8 @@ export class HeadlessBattle {
 
   _findHealTargets(unit) {
     if (!hasStaff(unit)) return [];
-    const staff = getStaffWeapon(unit);
-    if (getStaffRemainingUses(staff, unit) <= 0) return [];
+    const staff = this._getActiveHealStaff(unit);
+    if (!staff) return [];
     const range = getEffectiveStaffRange(staff, unit);
     const targets = [];
     for (const ally of this.playerUnits) {
@@ -683,7 +683,8 @@ export class HeadlessBattle {
   }
 
   _executeHeal(healer, target) {
-    const staff = getStaffWeapon(healer);
+    const staff = this._getActiveHealStaff(healer);
+    if (!staff) return;
     const result = resolveHeal(staff, healer, target);
     target.currentHP = result.targetHPAfter;
     spendStaffUse(staff);
@@ -704,6 +705,21 @@ export class HeadlessBattle {
     }
 
     this._finishUnitAction(healer);
+  }
+
+  _getUsableStaves(unit) {
+    return unit.inventory.filter(w =>
+      w.type === 'Staff'
+      && getStaffMaxUses(w, unit) > 0
+      && getStaffRemainingUses(w, unit) > 0
+    );
+  }
+
+  _getActiveHealStaff(unit) {
+    const usable = this._getUsableStaves(unit);
+    if (usable.length === 0) return null;
+    if (unit.weapon && usable.includes(unit.weapon)) return unit.weapon;
+    return usable[0];
   }
 
   _executeTalk(lord, npc) {

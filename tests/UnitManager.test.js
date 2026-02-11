@@ -21,6 +21,7 @@ import {
   calculateCombatXP,
   hasStaff,
   getStaffWeapon,
+  resolvePromotionTargetClass,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 import { XP_BASE_COMBAT, XP_KILL_BONUS, XP_LEVEL_DIFF_SCALE, XP_LEVEL_DIFF_STEEP, XP_MIN } from '../src/utils/constants.js';
@@ -176,6 +177,22 @@ describe('canPromote', () => {
     const unit = createEnemyUnit(knight, 10, data.weapons);
     promoteUnit(unit, general, general.promotionBonuses);
     expect(canPromote(unit)).toBe(false);
+  });
+});
+
+describe('resolvePromotionTargetClass', () => {
+  it('returns a valid class for normal promotion targets', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 10, data.weapons);
+    const target = resolvePromotionTargetClass(unit, data.classes, data.lords);
+    expect(target?.name).toBe('Swordmaster');
+  });
+
+  it('returns null for blocked promotion target (Dancer -> Bard)', () => {
+    const dancer = data.classes.find(c => c.name === 'Dancer');
+    const unit = createEnemyUnit(dancer, 10, data.weapons);
+    const target = resolvePromotionTargetClass(unit, data.classes, data.lords);
+    expect(target).toBeNull();
   });
 });
 

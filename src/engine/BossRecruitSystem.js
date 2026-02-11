@@ -4,7 +4,7 @@
  */
 
 import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT } from '../utils/constants.js';
-import { createRecruitUnit, createLordUnit, promoteUnit, levelUp } from './UnitManager.js';
+import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
@@ -87,8 +87,10 @@ export function generateBossRecruitCandidates(actIndex, roster, gameData, metaEf
   const poolKey = actIndex === 0 ? 'act2' : 'act3';
   const recruitPool = recruits[poolKey]?.pool || [];
 
-  // Filter pool to classes not already in roster
-  let availablePool = recruitPool.filter(r => !rosterClassNames.has(r.className));
+  // Filter pool to classes not already in roster and not temporarily blocked
+  let availablePool = recruitPool.filter(r =>
+    !rosterClassNames.has(r.className) && !isPromotionClassBlocked(r.className)
+  );
 
   // For promoted recruits, verify class exists and has promotesFrom
   if (usePromoted) {
@@ -151,6 +153,11 @@ export function generateBossRecruitCandidates(actIndex, roster, gameData, metaEf
 function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, weapons, skills, metaEffects) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
+  const addClassInnates = (unit, className) => {
+    for (const sid of getClassInnateSkills(className, skills)) {
+      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+    }
+  };
 
   if (promoted) {
     // Act3 pool has promoted class names — find base, create, promote
@@ -161,6 +168,7 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
 
     const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: targetLevel };
     const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses);
+    addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
     return unit;
   } else {
@@ -169,6 +177,8 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     if (!classData) return null;
 
     const recruitDef = { className: classData.name, name: recruitEntry.name, level: targetLevel };
-    return createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
+    const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
+    addClassInnates(unit, classData.name);
+    return unit;
   }
 }

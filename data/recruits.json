@@ -30,8 +30,7 @@
       { "className": "Sage", "name": "Vaelan" },
       { "className": "Assassin", "name": "Shade" },
       { "className": "Sniper", "name": "Faye" },
-      { "className": "Bishop", "name": "Io" },
-      { "className": "Bard", "name": "Cadence" }
+      { "className": "Bishop", "name": "Io" }
     ]
   }
 }

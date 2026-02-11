@@ -511,6 +511,27 @@ export function canPromote(unit) {
   return unit.tier === 'base' && unit.level >= PROMOTION_MIN_LEVEL;
 }
 
+const BLOCKED_PROMOTION_CLASSES = new Set(['Bard']);
+
+/** Returns true when a promotion target class is temporarily disabled. */
+export function isPromotionClassBlocked(className) {
+  return BLOCKED_PROMOTION_CLASSES.has(className);
+}
+
+/**
+ * Resolve a unit's promotion target class.
+ * Returns class data for valid targets, or null when unavailable/blocked.
+ */
+export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
+  if (!canPromote(unit)) return null;
+  const lordData = lordsData.find(l => l.name === unit.name);
+  const targetClassName = lordData
+    ? lordData.promotedClass
+    : classesData.find(c => c.name === unit.className)?.promotesTo;
+  if (!targetClassName || isPromotionClassBlocked(targetClassName)) return null;
+  return classesData.find(c => c.name === targetClassName) || null;
+}
+
 /**
  * Promote a unit. Apply stat bonuses, reset level, update class/proficiencies.
  * Optionally adds class-innate skills from skillsData.

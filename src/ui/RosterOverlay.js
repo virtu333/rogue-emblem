@@ -5,7 +5,7 @@ import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX 
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
   equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
-  canPromote, promoteUnit, equipAccessory, unequipAccessory,
+  canPromote, promoteUnit, equipAccessory, unequipAccessory, resolvePromotionTargetClass,
   removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
@@ -306,7 +306,7 @@ export class RosterOverlay {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
           }
         } else if (item.effect === 'promote') {
-          if (canPromote(unit)) {
+          if (canPromote(unit) && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
         }
@@ -457,22 +457,20 @@ export class RosterOverlay {
   _usePromote(unit, item) {
     // Find promotion data
     const lordData = this.gameData.lords.find(l => l.name === unit.name);
-    let promotedClassName, promotionBonuses;
+    const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
+    if (!promotedClassData) {
+      this._showBanner('Promotion to that class is currently unavailable.', '#ff8888');
+      return;
+    }
+    let promotionBonuses;
 
     if (lordData) {
-      promotedClassName = lordData.promotedClass;
       promotionBonuses = lordData.promotionBonuses;
     } else {
-      const baseClass = this.gameData.classes.find(c => c.name === unit.className);
-      promotedClassName = baseClass?.promotesTo;
-      const promotedClass = this.gameData.classes.find(c => c.name === promotedClassName);
-      promotionBonuses = promotedClass?.promotionBonuses;
+      promotionBonuses = promotedClassData.promotionBonuses;
     }
 
-    if (!promotedClassName || !promotionBonuses) return;
-
-    const promotedClassData = this.gameData.classes.find(c => c.name === promotedClassName);
-    if (!promotedClassData) return;
+    if (!promotionBonuses) return;
 
     // Track old types for new weapon grant
     const oldTypes = new Set(unit.proficiencies.map(p => p.type));
@@ -507,7 +505,7 @@ export class RosterOverlay {
 
     const audio = this.scene.registry.get('audio');
     if (audio) audio.playSFX('sfx_level_up');
-    this._showBanner(`${unit.name} promoted to ${promotedClassName}!`, '#ffdd44');
+    this._showBanner(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
     this.refresh();
   }
 
