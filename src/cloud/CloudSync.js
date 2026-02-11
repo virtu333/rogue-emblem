@@ -5,6 +5,7 @@
 import { supabase } from './supabaseClient.js';
 import { getMetaKey, getRunKey, MAX_SLOTS } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
+import { reportAsyncError } from '../utils/errorReporter.js';
 
 const TABLES = {
   run: 'run_saves',
@@ -175,9 +176,22 @@ export function pushMeta(userId, slot, metaData) {
 
 export function pushSettings(userId, settingsData) {
   if (!supabase) return;
-  supabase.from(TABLES.settings)
-    .upsert({ user_id: userId, data: settingsData, updated_at: new Date().toISOString() })
-    .then(({ error }) => { if (error) console.warn('CloudSync pushSettings:', error.message); });
+  const queueKey = `${userId}:${TABLES.settings}`;
+  const prev = updateQueues.get(queueKey) || Promise.resolve();
+  const next = prev
+    .catch(() => {})
+    .then(async () => {
+      const { error } = await supabase.from(TABLES.settings)
+        .upsert({ user_id: userId, data: settingsData, updated_at: new Date().toISOString() });
+      if (error) throw error;
+    })
+    .catch((err) => {
+      reportAsyncError('cloud_push_settings', err, { table: TABLES.settings });
+    })
+    .finally(() => {
+      if (updateQueues.get(queueKey) === next) updateQueues.delete(queueKey);
+    });
+  updateQueues.set(queueKey, next);
 }
 
 export function deleteRunSave(userId, slot) {

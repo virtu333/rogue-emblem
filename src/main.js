@@ -6,6 +6,7 @@ import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js'
 import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
 import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
+import { reportAsyncError } from './utils/errorReporter.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -242,7 +243,9 @@ if (!supabase) {
         markStartup('cloud_sync_gate_fallback', { mode: 'session' });
       }
       bootGame(session.user);
-      fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(() => {});
+      fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
+        reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
+      });
     }
     // else: show auth overlay (already visible)
   }).catch(() => {
@@ -290,7 +293,9 @@ async function handleSubmit(e) {
       markStartup('cloud_sync_gate_fallback', { mode: 'login' });
     }
     bootGame(user);
-    fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(() => {});
+    fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
+      reportAsyncError('cloud_sync_background_login', err, { mode: 'login' });
+    });
   } catch (err) {
     authError.textContent = err.message || 'Authentication failed';
     authSubmit.disabled = false;
