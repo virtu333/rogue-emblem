@@ -365,23 +365,24 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0, 0).setDepth(100);
       this.updateTopLeftHudLayout();
 
-      // Bottom command bar — Row 1: keyboard hotkeys, Row 2: mouse/meta actions
+      // Bottom command bar — Row 1: clickable action buttons, Row 2: info text
       const hw = this.cameras.main.width / 2;
       const hh = this.cameras.main.height;
-      this.instructionText = this.add.text(
-        hw - 30, hh - 26,
-        '[V] Details  |  [R] Roster  |  [D] Danger  |',
-        { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
-      ).setOrigin(0.5).setDepth(100);
-      this.endTurnButton = this.add.text(hw + 178, hh - 26, '[E] End Turn', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-      }).setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
-      this.endTurnButton.on('pointerover', () => this.endTurnButton.setColor('#ffdd44'));
-      this.endTurnButton.on('pointerout', () => this.endTurnButton.setColor('#e0e0e0'));
-      this.endTurnButton.on('pointerdown', () => this.forceEndTurn());
+      const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0' };
+      const makeButton = (x, label, handler) => {
+        const btn = this.add.text(x, hh - 26, label, btnStyle)
+          .setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
+        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+        btn.on('pointerdown', () => handler());
+        return btn;
+      };
+      this.dangerButton = makeButton(hw - 140, '[D] Danger', () => this._onDangerClick());
+      this.rosterButton = makeButton(hw, '[R] Roster', () => this._onRosterClick());
+      this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.instructionText2 = this.add.text(
         hw, hh - 10,
-        'Right-click: inspect  |  ESC: cancel/pause',
+        '[V] Details: right-click unit  |  ESC: cancel/pause',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
 
@@ -438,36 +439,9 @@ export class BattleScene extends Phaser.Scene {
         this.refreshEndTurnControl();
       });
       this.input.keyboard.on('keydown-R', () => {
-        // Roster detail overlay during player-input states (guard against stacked modals)
-        const rosterStates = ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU', 'SHOWING_FORECAST', 'SELECTING_TARGET', 'SELECTING_HEAL_TARGET'];
-        if (rosterStates.includes(this.battleState) && this.playerUnits
-            && !this.pauseOverlay?.visible && !this.lootSettingsOverlay) {
-          if (this.unitDetailOverlay?.visible) {
-            this.unitDetailOverlay.hide();
-            return;
-          }
-          const living = this.playerUnits.filter(u => u.currentHP > 0);
-          if (living.length === 0) return;
-          // Pick default index: inspected player unit → selected unit → first lord → 0
-          let defaultIdx = 0;
-          const inspected = this.inspectionPanel?._unit;
-          if (inspected && inspected.faction === 'player' && living.includes(inspected)) {
-            defaultIdx = living.indexOf(inspected);
-          } else if (this.selectedUnit && living.includes(this.selectedUnit)) {
-            defaultIdx = living.indexOf(this.selectedUnit);
-          } else {
-            const lordIdx = living.findIndex(u => u.isLord);
-            if (lordIdx >= 0) defaultIdx = lordIdx;
-          }
-          const unit = living[defaultIdx];
-          const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
-          const terrain = terrainIdx != null ? this.gameData.terrain[terrainIdx] : null;
-          this.unitDetailOverlay.show(unit, terrain, this.gameData, { rosterUnits: living, rosterIndex: defaultIdx });
-          if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
-          this.refreshEndTurnControl();
-          return;
-        }
-        // Loot roster toggle during BATTLE_END
+        // Player-input roster overlay
+        this._onRosterClick();
+        // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
         if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
           if (this.lootRosterVisible) {
             this.hideLootRoster();
@@ -478,13 +452,7 @@ export class BattleScene extends Phaser.Scene {
         this.refreshEndTurnControl();
       });
       this.input.keyboard.on('keydown-D', () => {
-        if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
-          if (this.dangerZoneStale || !this.dangerZoneCache) {
-            this.dangerZoneCache = this.calculateDangerZone();
-            this.dangerZoneStale = false;
-          }
-          this.dangerZone.toggle(this.dangerZoneCache);
-        }
+        this._onDangerClick();
       });
       this.input.keyboard.on('keydown-W', () => {
         if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
@@ -1226,6 +1194,47 @@ export class BattleScene extends Phaser.Scene {
     } else {
       this.endTurnButton.disableInteractive();
     }
+  }
+
+  _onDangerClick() {
+    if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
+      if (this.dangerZoneStale || !this.dangerZoneCache) {
+        this.dangerZoneCache = this.calculateDangerZone();
+        this.dangerZoneStale = false;
+      }
+      this.dangerZone.toggle(this.dangerZoneCache);
+    }
+  }
+
+  _onRosterClick() {
+    const rosterStates = ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU',
+      'SHOWING_FORECAST', 'SELECTING_TARGET', 'SELECTING_HEAL_TARGET'];
+    if (!rosterStates.includes(this.battleState) || !this.playerUnits
+        || this.pauseOverlay?.visible || this.lootSettingsOverlay) return;
+    if (this.unitDetailOverlay?.visible) {
+      this.unitDetailOverlay.hide();
+      this.refreshEndTurnControl();
+      return;
+    }
+    const living = this.playerUnits.filter(u => u.currentHP > 0);
+    if (living.length === 0) return;
+    let defaultIdx = 0;
+    const inspected = this.inspectionPanel?._unit;
+    if (inspected && inspected.faction === 'player' && living.includes(inspected)) {
+      defaultIdx = living.indexOf(inspected);
+    } else if (this.selectedUnit && living.includes(this.selectedUnit)) {
+      defaultIdx = living.indexOf(this.selectedUnit);
+    } else {
+      const lordIdx = living.findIndex(u => u.isLord);
+      if (lordIdx >= 0) defaultIdx = lordIdx;
+    }
+    const unit = living[defaultIdx];
+    const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
+    const terrain = terrainIdx != null ? this.gameData.terrain[terrainIdx] : null;
+    this.unitDetailOverlay.show(unit, terrain, this.gameData,
+      { rosterUnits: living, rosterIndex: defaultIdx });
+    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+    this.refreshEndTurnControl();
   }
 
   forceEndTurn() {
@@ -3054,17 +3063,55 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(depth + 1);
     this.forecastObjects.push(vs);
 
-    // Confirm hint bar + explicit confirm button
-    const hintY = panelY + panelH - 18;
-    const hintBg = this.add.rectangle(panelX + panelW / 2, hintY + 9,
-      panelW - 4, 16, 0x0a0a15, 0.8
-    ).setDepth(depth);
-    this.forecastObjects.push(hintBg);
+    // Confirm footer: avoid text/button overlap and fall back to 2-row layout on narrow widths
+    const hintStyle = { fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8' };
+    const hintPrimary = validWeapons.length >= 2
+      ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
+      : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
+    const hintCompact = validWeapons.length >= 2
+      ? 'Click enemy or button | \u25C4 \u25BA weapon | ESC cancel'
+      : 'Click enemy or button | ESC cancel';
+    const hintUltraCompact = validWeapons.length >= 2
+      ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC'
+      : '[CONFIRM] | ESC';
+
+    const measureHint = (text) => {
+      const t = this.add.text(-9999, -9999, text, hintStyle).setVisible(false);
+      const w = t.width;
+      t.destroy();
+      return w;
+    };
 
     const confirmBtnW = 132;
     const confirmBtnH = 14;
-    const confirmBtnX = panelX + panelW - 8 - (confirmBtnW / 2);
-    const confirmBtnY = hintY + 9;
+    const footerLeftPad = 10;
+    const footerRightPad = 8;
+    const btnGap = 8;
+    const hintMaxSingleRow = panelW - footerLeftPad - footerRightPad - confirmBtnW - btnGap - 4;
+
+    let hintText = hintPrimary;
+    if (measureHint(hintText) > hintMaxSingleRow) hintText = hintCompact;
+    if (measureHint(hintText) > hintMaxSingleRow) hintText = hintUltraCompact;
+
+    // Stack hint/button when viewport is narrow or compact hint still does not fit.
+    const useTwoRows = this.cameras.main.width < 460 || measureHint(hintText) > hintMaxSingleRow;
+    const footerH = useTwoRows ? 32 : 16;
+    const footerTop = panelY + panelH - (useTwoRows ? 34 : 18);
+    const hintY = useTwoRows ? footerTop + 8 : footerTop + 9;
+    const confirmBtnY = useTwoRows ? footerTop + 24 : footerTop + 9;
+    const confirmBtnX = useTwoRows
+      ? panelX + panelW / 2
+      : panelX + panelW - footerRightPad - (confirmBtnW / 2);
+    const hintX = panelX + footerLeftPad;
+    const hintWrapW = useTwoRows
+      ? panelW - footerLeftPad - footerRightPad - 2
+      : hintMaxSingleRow;
+
+    const hintBg = this.add.rectangle(panelX + panelW / 2, footerTop + (footerH / 2),
+      panelW - 4, footerH, 0x0a0a15, 0.8
+    ).setDepth(depth);
+    this.forecastObjects.push(hintBg);
+
     const confirmBtnBg = this.add.rectangle(
       confirmBtnX,
       confirmBtnY,
@@ -3091,11 +3138,9 @@ export class BattleScene extends Phaser.Scene {
     });
     this.forecastObjects.push(confirmBtnBg, confirmBtnText);
 
-    const hintText = validWeapons.length >= 2
-      ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
-      : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
-    const hint = this.add.text(panelX + 10, hintY + 9, hintText, {
-      fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8',
+    const hint = this.add.text(hintX, hintY, hintText, {
+      ...hintStyle,
+      wordWrap: { width: hintWrapW, useAdvancedWrap: false },
     }).setOrigin(0, 0.5).setDepth(depth + 1);
     this.forecastObjects.push(hint);
   }
