@@ -36,6 +36,18 @@ const COLOR_COMPLETED = 0x555555;
 const COLOR_AVAILABLE = 0xffdd44;
 const COLOR_EDGE = 0x666666;
 const COLOR_EDGE_ACTIVE = 0xffdd44;
+// Aura effects for special node types
+const AURA_ELITE_COLOR = 0xcc2222;
+const AURA_ELITE_RADIUS = 22;
+const AURA_ELITE_ALPHA = [0.15, 0.45]; // [min, max] breathing range
+const AURA_ELITE_DURATION = 900; // faster = menacing
+const AURA_CHURCH_COLOR = 0xfff2d0; // warm, slightly whiter gold
+const AURA_CHURCH_RADIUS = 28;
+const AURA_CHURCH_ALPHA = [0.20, 0.55];
+const AURA_CHURCH_DURATION = 1200; // slower = calming
+const AURA_LOCKED_ALPHA_SCALE = 0.85; // visible but dim for locked nodes
+const AURA_DEPTH = -1; // below nodes and edges
+const NODE_DEPTH = 1; // keep nodes above aura layer
 const SHOP_LIST_TOP_Y = 105;
 const SHOP_LIST_BOTTOM_Y = 390;
 const SHOP_SCROLL_STEP = 24;
@@ -590,22 +602,54 @@ export class NodeMapScene extends Phaser.Scene {
 
       const isAvailable = availableIds.has(node.id);
       const isCompleted = node.completed;
+      const isLocked = !isAvailable && !isCompleted;
+      const isEliteNode = node.type === NODE_TYPES.BATTLE && node.battleParams?.isElite;
+      const isChurchNode = node.type === NODE_TYPES.CHURCH;
 
       let color;
       if (isCompleted) {
         color = COLOR_COMPLETED;
       } else if (isAvailable) {
         color = COLOR_AVAILABLE;
-      } else if (node.type === NODE_TYPES.BATTLE && node.battleParams?.isElite) {
+      } else if (isEliteNode) {
         color = COLOR_ELITE;
       } else {
         color = NODE_COLORS[node.type] || COLOR_BATTLE;
       }
 
+      // Special node aura (elite/church). Completed nodes intentionally hide aura.
+      if (!isCompleted && (isEliteNode || isChurchNode)) {
+        const auraColor = isEliteNode ? AURA_ELITE_COLOR : AURA_CHURCH_COLOR;
+        const auraRadius = isEliteNode ? AURA_ELITE_RADIUS : AURA_CHURCH_RADIUS;
+        const auraAlphaRange = isEliteNode ? AURA_ELITE_ALPHA : AURA_CHURCH_ALPHA;
+        const auraDuration = isEliteNode ? AURA_ELITE_DURATION : AURA_CHURCH_DURATION;
+        const aura = this.add.circle(pos.x, pos.y, auraRadius, auraColor, auraAlphaRange[0])
+          .setDepth(AURA_DEPTH);
+        aura.setBlendMode(Phaser.BlendModes.ADD);
+
+        if (isAvailable) {
+          aura.setAlpha(auraAlphaRange[0]);
+          this.tweens.add({
+            targets: aura,
+            alpha: auraAlphaRange[1],
+            duration: auraDuration,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut',
+          });
+        } else if (isLocked) {
+          // Static dim aura for locked nodes to reduce background motion noise.
+          const lockedAlpha = isChurchNode
+            ? Math.max(auraAlphaRange[0] * AURA_LOCKED_ALPHA_SCALE, 0.18)
+            : auraAlphaRange[0] * AURA_LOCKED_ALPHA_SCALE;
+          aura.setAlpha(lockedAlpha);
+        }
+      }
+
       // Node icon — use sprite if loaded, fall back to colored rectangle + unicode
       let spriteKey = node.type === NODE_TYPES.CHURCH ? 'node_rest' : `node_${node.type}`;
       // Elite seize battles use dark fortress sprite
-      if (node.type === NODE_TYPES.BATTLE && node.battleParams?.isElite) {
+      if (isEliteNode) {
         spriteKey = 'node_elite';
       }
       if (node.type === NODE_TYPES.BOSS) {
@@ -615,16 +659,18 @@ export class NodeMapScene extends Phaser.Scene {
       let nodeObj;
       if (this.textures.exists(spriteKey)) {
         nodeObj = this.add.image(pos.x, pos.y, spriteKey)
-          .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8);
+          .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
+          .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(0x555555);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(0.5);
       } else {
         nodeObj = this.add.rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
-          .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888);
+          .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888)
+          .setDepth(NODE_DEPTH);
         const icon = NODE_ICONS[node.type] || '?';
         this.add.text(pos.x, pos.y, icon, {
           fontFamily: 'monospace', fontSize: '14px', color: isCompleted ? '#888888' : '#ffffff',
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(NODE_DEPTH + 1);
       }
 
       // Make available nodes interactive
@@ -745,6 +791,11 @@ export class NodeMapScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
       backgroundColor: '#000000cc', padding: { x: 4, y: 2 },
     }).setOrigin(0.5, 1).setDepth(100);
+    const halfW = this.nodeTooltip.width * 0.5;
+    const margin = 6;
+    const minX = halfW + margin;
+    const maxX = this.cameras.main.width - halfW - margin;
+    this.nodeTooltip.x = Phaser.Math.Clamp(this.nodeTooltip.x, minX, maxX);
   }
 
   hideNodeTooltip() {
@@ -1781,3 +1832,4 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 }
+

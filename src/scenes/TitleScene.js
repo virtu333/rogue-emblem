@@ -433,6 +433,7 @@ export class TitleScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData || data;
+    this.isTransitioning = false;
   }
 
   create() {
@@ -577,18 +578,16 @@ export class TitleScene extends Phaser.Scene {
     const btnGap = 50;
     const hasSlots = getSlotCount() > 0;
 
-    createMenuButton(this, cx, menuY, 'NEW GAME', () => this.handleNewGame(), btnDelay);
+    createMenuButton(this, cx, menuY, 'NEW GAME', () => this.runMenuTransition(() => this.handleNewGame()), btnDelay);
     menuY += btnGap;
 
     let delayIdx = 1;
 
     // CONTINUE button (if slots exist)
     if (hasSlots) {
-      createMenuButton(this, cx, menuY, 'CONTINUE', async () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(this, 0);
-        await startSceneLazy(this, 'SlotPicker', { gameData: this.gameData });
-      }, btnDelay + delayIdx * 150);
+      createMenuButton(this, cx, menuY, 'CONTINUE', () => this.runMenuTransition(
+        () => startSceneLazy(this, 'SlotPicker', { gameData: this.gameData }),
+      ), btnDelay + delayIdx * 150);
       menuY += btnGap;
       delayIdx++;
     }
@@ -684,7 +683,7 @@ export class TitleScene extends Phaser.Scene {
     const nextSlot = getNextAvailableSlot();
     if (!nextSlot) {
       this.showMessage('All 3 save slots are full.\nDelete a slot from Continue to free space.');
-      return;
+      return false;
     }
 
     const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(nextSlot));
@@ -697,10 +696,36 @@ export class TitleScene extends Phaser.Scene {
     setActiveSlot(nextSlot);
     this.registry.set('activeSlot', nextSlot);
 
-    const audio = this.registry.get('audio');
-    if (audio) audio.stopMusic(this, 0);
-
     await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+    return true;
+  }
+
+  async runMenuTransition(action) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
+
+    try {
+      // Hard-stop title music before scene change; avoids race with unlock/load.
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(null, 0);
+      const transitioned = await action();
+      if (transitioned === false) {
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+        const audio = this.registry.get('audio');
+        if (audio) audio.playMusic(MUSIC.title, this);
+      }
+    } catch (err) {
+      console.error('[TitleScene] transition failed', err);
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
+      this.showMessage('Transition failed. Please click again.');
+
+      // Restore title music when transition fails and we remain in this scene.
+      const audio = this.registry.get('audio');
+      if (audio) audio.playMusic(MUSIC.title, this);
+    }
   }
 
   showMessage(text) {
