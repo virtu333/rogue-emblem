@@ -126,6 +126,25 @@ describe('RunManager', () => {
       expect(serialized.inventory[0].name).toBe('Iron Sword');
       expect(serialized.skills[0]).toBe('charisma');
     });
+
+    it('is safe to structuredClone after stripping Phaser fields', () => {
+      const unit = {
+        name: 'Test',
+        stats: { HP: 20 },
+        currentHP: 20,
+        inventory: [{ name: 'Iron Sword' }],
+        skills: [],
+        graphic: { destroy: () => {} },
+        label: { destroy: () => {} },
+        hpBar: { bg: {}, fill: {} },
+        factionIndicator: { destroy: () => {} },
+        hasMoved: false,
+        hasActed: false,
+      };
+
+      const serialized = serializeUnit(unit);
+      expect(() => structuredClone(serialized)).not.toThrow();
+    });
   });
 
   describe('getAvailableNodes', () => {

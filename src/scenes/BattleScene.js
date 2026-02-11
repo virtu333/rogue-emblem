@@ -648,12 +648,7 @@ export class BattleScene extends Phaser.Scene {
 
   captureVisionSnapshot() {
     const stripVisuals = (unit) => {
-      const cloned = structuredClone(unit);
-      cloned.graphic = null;
-      cloned.label = null;
-      cloned.hpBar = null;
-      cloned.factionIndicator = null;
-      return cloned;
+      return structuredClone(serializeUnit(unit));
     };
     const fog = this.grid?.fogEnabled ? {
       visible: [...(this.grid.visibleSet || new Set())],
