@@ -660,15 +660,14 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
-    await this.ensureAudioUnlocked();
-    const audio = this.registry.get('audio');
-    if (audio) audio.releaseMusic(this, 0);
-
-    const rm = this.runManager;
-    const battleParams = rm.getBattleParams(node);
-    const roster = rm.getRoster();
-
     try {
+      await this.ensureAudioUnlocked();
+      const audio = this.registry.get('audio');
+      if (audio) audio.releaseMusic(this, 0);
+
+      const rm = this.runManager;
+      const battleParams = rm.getBattleParams(node);
+      const roster = rm.getRoster();
       const transitioned = await startSceneLazy(this, 'Battle', {
         gameData: this.gameData,
         runManager: rm,
@@ -681,14 +680,15 @@ export class NodeMapScene extends Phaser.Scene {
       if (transitioned === false) {
         this.isTransitioning = false;
         if (this.input) this.input.enabled = true;
-        if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+        if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       }
     } catch (err) {
       console.error('[NodeMapScene] Failed to start battle scene:', err);
+      const audio = this.registry.get('audio');
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
-      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.showChurchMessage('Failed to enter battle. Please try again.', '#ff6666');
+      if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.showTransientMessage('Failed to enter battle. Please try again.', '#ff6666');
     }
   }
 
@@ -892,6 +892,20 @@ export class NodeMapScene extends Phaser.Scene {
       if (this.churchMessage) {
         this.churchMessage.destroy();
         this.churchMessage = null;
+      }
+    });
+  }
+
+  showTransientMessage(text, color = '#ff6666') {
+    if (this.transientMessage) this.transientMessage.destroy();
+    this.transientMessage = this.add.text(this.cameras.main.centerX, 96, text, {
+      fontFamily: 'monospace', fontSize: '12px', color,
+      backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(400);
+    this.time.delayedCall(2200, () => {
+      if (this.transientMessage) {
+        this.transientMessage.destroy();
+        this.transientMessage = null;
       }
     });
   }
