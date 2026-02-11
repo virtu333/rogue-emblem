@@ -36,6 +36,10 @@ const COLOR_COMPLETED = 0x555555;
 const COLOR_AVAILABLE = 0xffdd44;
 const COLOR_EDGE = 0x666666;
 const COLOR_EDGE_ACTIVE = 0xffdd44;
+const SHOP_LIST_TOP_Y = 105;
+const SHOP_LIST_BOTTOM_Y = 390;
+const SHOP_SCROLL_STEP = 24;
+const UNIT_PICKER_SCROLL_STEP = 30;
 
 const NODE_ICONS = {
   [NODE_TYPES.BATTLE]:  '\u2694',  // ⚔
@@ -101,6 +105,7 @@ export class NodeMapScene extends Phaser.Scene {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
     });
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
+    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
 
     // Debug overlay (dev-only)
     if (DEBUG_MODE) {
@@ -144,6 +149,35 @@ export class NodeMapScene extends Phaser.Scene {
     this.requestCancel({ allowPause: false });
   }
 
+  onWheel(pointer, deltaX, deltaY) {
+    if (this.unitPickerState) {
+      const step = Math.sign(deltaY || 0) * UNIT_PICKER_SCROLL_STEP;
+      if (!step) return;
+      const current = this.unitPickerState.offset || 0;
+      const max = this.unitPickerState.maxOffset || 0;
+      const next = Phaser.Math.Clamp(current + step, 0, max);
+      if (next === current) return;
+      this.unitPickerState.offset = next;
+      this.renderUnitPicker();
+      return;
+    }
+
+    if (!this.shopOverlay || !this.activeShopTab) return;
+    if (this.forgePicker || this.unitPicker) return;
+    if (!pointer) return;
+    if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
+    if ((this.shopScrollMax || 0) <= 0) return;
+
+    const step = Math.sign(deltaY || 0) * SHOP_SCROLL_STEP;
+    if (!step) return;
+    const key = this.activeShopTab;
+    const current = this.shopScrollOffsets?.[key] || 0;
+    const next = Phaser.Math.Clamp(current + step, 0, this.shopScrollMax || 0);
+    if (next === current) return;
+    this.shopScrollOffsets[key] = next;
+    this.drawActiveTabContent();
+  }
+
   _isPointerOverInteractive(pointer) {
     if (!this.input || !pointer) return false;
     let hit = [];
@@ -163,7 +197,7 @@ export class NodeMapScene extends Phaser.Scene {
   canRequestCancel({ allowPause = true } = {}) {
     if (DEBUG_MODE && this.debugOverlay?.visible) return true;
     if (this.forgePicker) return true;
-    if (this.unitPicker) return true;
+    if (this.unitPicker || this.unitPickerState) return true;
     if (this.settingsOverlay?.visible) return true;
     if (this.rosterOverlay?.visible) return true;
     if (this.pauseOverlay?.visible) return true;
@@ -183,9 +217,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.closeForgeStatPicker();
       return true;
     }
-    if (this.unitPicker) {
-      this.unitPicker.forEach(o => o.destroy());
-      this.unitPicker = null;
+    if (this.unitPicker || this.unitPickerState) {
+      this.closeUnitPicker();
       return true;
     }
     if (this.settingsOverlay?.visible) {
@@ -936,6 +969,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopContentGroup = [];
     this.activeShopTab = 'buy';
     this.shopForgesUsed = 0;
+    this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
+    this.shopScrollMax = 0;
 
     // Tutorial hint for shop
     const hints = this.registry.get('hints');
@@ -1046,14 +1081,21 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (this.activeShopTab === 'forge') {
       this.drawShopForgeList();
     }
+
+    this.drawShopScrollHint();
   }
 
   drawShopBuyList() {
     const startY = 105;
     const lineH = 24;
+    this.shopScrollMax = Math.max(0, (this.shopBuyItems.length * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
+    this.shopScrollOffsets.buy = Phaser.Math.Clamp(this.shopScrollOffsets.buy || 0, 0, this.shopScrollMax);
+    const offset = this.shopScrollOffsets.buy;
 
     this.shopBuyItems.forEach((entry, i) => {
-      const y = startY + i * lineH;
+      const y = startY + i * lineH - offset;
+      if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
       const affordable = this.runManager.gold >= entry.price;
       const color = affordable ? '#e0e0e0' : '#666666';
       const text = this.add.text(60, y, `${entry.item.name}  ${entry.price}G`, {
@@ -1148,25 +1190,39 @@ export class NodeMapScene extends Phaser.Scene {
     const lineH = 22;
     const rm = this.runManager;
     let row = 0;
+    let rowTotal = 0;
+    for (const unit of rm.roster) {
+      rowTotal += 1;
+      rowTotal += unit.inventory.length;
+    }
+    this.shopScrollMax = Math.max(0, (rowTotal * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
+    this.shopScrollOffsets.sell = Phaser.Math.Clamp(this.shopScrollOffsets.sell || 0, 0, this.shopScrollMax);
+    const offset = this.shopScrollOffsets.sell;
 
     for (let u = 0; u < rm.roster.length; u++) {
       const unit = rm.roster[u];
-      const nameText = this.add.text(60, startY + row * lineH, `${unit.name}:`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-      }).setDepth(302);
-      this.shopContentGroup.push(nameText);
-      this.shopOverlay.push(nameText);
+      const nameY = startY + row * lineH - offset;
+      if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
+        const nameText = this.add.text(60, nameY, `${unit.name}:`, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+        }).setDepth(302);
+        this.shopContentGroup.push(nameText);
+        this.shopOverlay.push(nameText);
+      }
       row++;
 
       for (let w = 0; w < unit.inventory.length; w++) {
         const wpn = unit.inventory[w];
         const sellPrice = getSellPrice(wpn);
+        const y = startY + row * lineH - offset;
         if (sellPrice <= 0) { row++; continue; }
+        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) { row++; continue; }
 
         const locked = isLastCombatWeapon(unit, wpn);
         const equipped = wpn === unit.weapon ? '\u25b6' : ' ';
         const wpnColor = locked ? '#666666' : (isForged(wpn) ? '#44ff88' : '#e0e0e0');
-        const text = this.add.text(70, startY + row * lineH,
+        const text = this.add.text(70, y,
           `${equipped}${wpn.name}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
         }).setDepth(302);
@@ -1199,13 +1255,26 @@ export class NodeMapScene extends Phaser.Scene {
     const rm = this.runManager;
     const forgeLimit = SHOP_FORGE_LIMITS[rm.currentAct] || 2;
     let row = 0;
+    let rowTotal = 1.5;
+    for (const unit of rm.roster) {
+      const forgeableWeapons = unit.inventory.filter(w => canForge(w));
+      if (forgeableWeapons.length === 0) continue;
+      rowTotal += 1 + forgeableWeapons.length;
+    }
+    this.shopScrollMax = Math.max(0, (rowTotal * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
+    this.shopScrollOffsets.forge = Phaser.Math.Clamp(this.shopScrollOffsets.forge || 0, 0, this.shopScrollMax);
+    const offset = this.shopScrollOffsets.forge;
 
     // Header: forges remaining
-    const header = this.add.text(60, startY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ff8844',
-    }).setDepth(302);
-    this.shopContentGroup.push(header);
-    this.shopOverlay.push(header);
+    const headerY = startY - offset;
+    if (headerY >= SHOP_LIST_TOP_Y - lineH && headerY <= SHOP_LIST_BOTTOM_Y) {
+      const header = this.add.text(60, headerY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#ff8844',
+      }).setDepth(302);
+      this.shopContentGroup.push(header);
+      this.shopOverlay.push(header);
+    }
     row += 1.5;
 
     const limitReached = this.shopForgesUsed >= forgeLimit;
@@ -1214,18 +1283,26 @@ export class NodeMapScene extends Phaser.Scene {
       const forgeableWeapons = unit.inventory.filter(w => canForge(w));
       if (forgeableWeapons.length === 0) continue;
 
-      const nameText = this.add.text(60, startY + row * lineH, `${unit.name}:`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-      }).setDepth(302);
-      this.shopContentGroup.push(nameText);
-      this.shopOverlay.push(nameText);
+      const nameY = startY + row * lineH - offset;
+      if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
+        const nameText = this.add.text(60, nameY, `${unit.name}:`, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+        }).setDepth(302);
+        this.shopContentGroup.push(nameText);
+        this.shopOverlay.push(nameText);
+      }
       row++;
 
       for (const wpn of forgeableWeapons) {
+        const y = startY + row * lineH - offset;
         const level = wpn._forgeLevel || 0;
         const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
         const label = `  ${wpn.name}  [${level}/${FORGE_MAX_LEVEL}]`;
-        const wpnText = this.add.text(70, startY + row * lineH, label, {
+        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
+          row++;
+          continue;
+        }
+        const wpnText = this.add.text(70, y, label, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
         }).setDepth(302);
         this.shopContentGroup.push(wpnText);
@@ -1239,19 +1316,19 @@ export class NodeMapScene extends Phaser.Scene {
         wpnText.on('pointerout', () => this._hideForgeTooltip());
 
         if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = this.add.text(350, startY + row * lineH, 'MAX', {
+          const maxLabel = this.add.text(350, y, 'MAX', {
             fontFamily: 'monospace', fontSize: '11px', color: '#888888',
           }).setDepth(302);
           this.shopContentGroup.push(maxLabel);
           this.shopOverlay.push(maxLabel);
         } else if (limitReached) {
-          const limitLabel = this.add.text(350, startY + row * lineH, '(limit)', {
+          const limitLabel = this.add.text(350, y, '(limit)', {
             fontFamily: 'monospace', fontSize: '11px', color: '#666666',
           }).setDepth(302);
           this.shopContentGroup.push(limitLabel);
           this.shopOverlay.push(limitLabel);
         } else {
-          const forgeBtn = this.add.text(350, startY + row * lineH, '[ Forge ]', {
+          const forgeBtn = this.add.text(350, y, '[ Forge ]', {
             fontFamily: 'monospace', fontSize: '11px', color: '#ff8844',
             backgroundColor: '#333333', padding: { x: 4, y: 1 },
           }).setDepth(302).setInteractive({ useHandCursor: true });
@@ -1267,12 +1344,30 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     if (row <= 1.5) {
-      const emptyText = this.add.text(60, startY + row * lineH, 'No forgeable weapons in roster.', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-      }).setDepth(302);
-      this.shopContentGroup.push(emptyText);
-      this.shopOverlay.push(emptyText);
+      const emptyY = startY + row * lineH - offset;
+      if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
+        const emptyText = this.add.text(60, emptyY, 'No forgeable weapons in roster.', {
+          fontFamily: 'monospace', fontSize: '11px', color: '#888888',
+        }).setDepth(302);
+        this.shopContentGroup.push(emptyText);
+        this.shopOverlay.push(emptyText);
+      }
     }
+  }
+
+  drawShopScrollHint() {
+    if (!this.shopOverlay || !this.shopContentGroup) return;
+    if ((this.shopScrollMax || 0) <= 0) return;
+    const offset = this.shopScrollOffsets?.[this.activeShopTab] || 0;
+    const percent = this.shopScrollMax > 0
+      ? Math.round((offset / this.shopScrollMax) * 100)
+      : 0;
+    const hint = this.add.text(445, 410, `Scroll: ${percent}%`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+      backgroundColor: '#222222', padding: { x: 4, y: 2 },
+    }).setDepth(302);
+    this.shopContentGroup.push(hint);
+    this.shopOverlay.push(hint);
   }
 
   showForgeStatPicker(weapon) {
@@ -1455,27 +1550,59 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showUnitPicker(callback, itemForProfCheck) {
+    this.closeUnitPicker();
+
+    const rm = this.runManager;
+    const viewportHeight = 280;
+    const contentHeight = rm.roster.length * 30;
+    const maxOffset = Math.max(0, contentHeight - viewportHeight);
+
+    this.unitPickerState = {
+      callback,
+      itemForProfCheck,
+      offset: 0,
+      maxOffset,
+      viewportTop: 120,
+      viewportBottom: 120 + viewportHeight,
+    };
+    this.renderUnitPicker();
+  }
+
+  renderUnitPicker() {
+    if (!this.unitPickerState) return;
     if (this.unitPicker) this.unitPicker.forEach(o => o.destroy());
     this.unitPicker = [];
 
     const rm = this.runManager;
+    const state = this.unitPickerState;
     const cx = 320;
-    const cy = 240;
-    const pickerBg = this.add.rectangle(cx, cy, 250, 40 + rm.roster.length * 30, 0x222222, 0.95)
-      .setDepth(400).setStrokeStyle(1, 0x888888);
+    const panelY = 260;
+    const panelW = 280;
+    const panelH = 360;
+    const listTop = state.viewportTop;
+    const listBottom = state.viewportBottom;
+    const offset = state.offset || 0;
+
+    const pickerBg = this.add.rectangle(cx, panelY, panelW, panelH, 0x222222, 0.95)
+      .setDepth(400).setStrokeStyle(1, 0x888888).setInteractive();
     this.unitPicker.push(pickerBg);
 
-    const pickerTitle = this.add.text(cx, cy - 20 - (rm.roster.length - 1) * 15, 'Give to:', {
+    const pickerTitle = this.add.text(cx, 102, 'Give to:', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(401);
     this.unitPicker.push(pickerTitle);
 
+    const clipTop = this.add.rectangle(cx, listTop, panelW - 20, 1, 0x555555, 0.6).setDepth(401);
+    const clipBottom = this.add.rectangle(cx, listBottom, panelW - 20, 1, 0x555555, 0.6).setDepth(401);
+    this.unitPicker.push(clipTop, clipBottom);
+
     rm.roster.forEach((unit, i) => {
-      const y = cy - 5 + i * 30 - ((rm.roster.length - 2) * 15);
-      const noProf = itemForProfCheck && !hasProficiency(unit, itemForProfCheck);
+      const y = listTop + i * 30 - offset + 15;
+      if (y < listTop - 15 || y > listBottom + 15) return;
+      const noProf = state.itemForProfCheck && !hasProficiency(unit, state.itemForProfCheck);
       const label = `${unit.name} (${unit.inventory.length}/${INVENTORY_MAX})${noProf ? ' no prof' : ''}`;
       const color = noProf ? '#cc8844' : '#e0e0e0';
-      const btn = this.add.text(cx, y + 15, label, {
+      const btn = this.add.text(cx, y, label, {
         fontFamily: 'monospace', fontSize: '13px', color,
         backgroundColor: '#444444', padding: { x: 12, y: 4 },
       }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
@@ -1483,13 +1610,38 @@ export class NodeMapScene extends Phaser.Scene {
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', () => {
-        this.unitPicker.forEach(o => o.destroy());
-        this.unitPicker = null;
-        callback(i);
+        const cb = state.callback;
+        this.closeUnitPicker();
+        cb(i);
       });
 
       this.unitPicker.push(btn);
     });
+
+    if (state.maxOffset > 0) {
+      const pct = Math.round((offset / state.maxOffset) * 100);
+      const hint = this.add.text(cx + panelW / 2 - 10, 102, `${pct}%`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+      }).setOrigin(1, 0.5).setDepth(401);
+      this.unitPicker.push(hint);
+    }
+
+    const cancelBtn = this.add.text(cx, 430, '[ Cancel ]', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#bbbbbb',
+      backgroundColor: '#333333', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#bbbbbb'));
+    cancelBtn.on('pointerdown', () => this.closeUnitPicker());
+    this.unitPicker.push(cancelBtn);
+  }
+
+  closeUnitPicker() {
+    if (this.unitPicker) {
+      this.unitPicker.forEach(o => o.destroy());
+      this.unitPicker = null;
+    }
+    this.unitPickerState = null;
   }
 
   showShopBanner(msg, color) {
@@ -1521,8 +1673,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.shopTabObjects = null;
     }
     if (this.unitPicker) {
-      this.unitPicker.forEach(o => o.destroy());
-      this.unitPicker = null;
+      this.closeUnitPicker();
     }
     this._shopNode = null;
   }

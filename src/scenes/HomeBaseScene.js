@@ -31,6 +31,9 @@ const BAR_EMPTY = 0x333344;
 // Row heights
 const ROW_H = 28;        // stat rows (label + desc on same line area)
 const ROW_H_NAMED = 34;  // economy/capacity rows (name + desc needs more room)
+const TAB_CONTENT_TOP_Y = 72;
+const TAB_CONTENT_BOTTOM_Y = 392;
+const TAB_SCROLL_STEP = 24;
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -52,6 +55,8 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.meta = this.registry.get('meta');
     this.activeTab = 'recruit_stats';
+    this.tabScrollOffsets = {};
+    this.tabScrollMax = 0;
     this.selectedDifficulty = this.registry.get('selectedDifficulty') || 'normal';
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
@@ -64,6 +69,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
     });
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
+    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
 
     this.drawUI();
 
@@ -108,6 +114,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.drawTabs();
     this.drawTabContent(this.activeTab);
+    this.drawTabScrollHint();
     this.drawBottomButtons();
   }
 
@@ -137,6 +144,7 @@ export class HomeBaseScene extends Phaser.Scene {
       tab.on('pointerdown', () => {
         if (this.activeTab !== cat.key) {
           this.activeTab = cat.key;
+          if (this.tabScrollOffsets[this.activeTab] === undefined) this.tabScrollOffsets[this.activeTab] = 0;
           this.drawUI();
         }
       });
@@ -154,7 +162,8 @@ export class HomeBaseScene extends Phaser.Scene {
     const upgrades = this.meta.upgradesData.filter(u => u.category === category);
     const hasSubgroups = category === 'recruit_stats' || category === 'lord_bonuses';
 
-    let y = 72;
+    const offset = this._getTabScrollOffset(category);
+    let y = TAB_CONTENT_TOP_Y - offset;
 
     if (hasSubgroups) {
       const growthUpgrades = upgrades.filter(u => u.id.endsWith(GROWTH_SUFFIX));
@@ -398,7 +407,8 @@ export class HomeBaseScene extends Phaser.Scene {
     const unlocked = this.meta.getUnlockedSkills();
     const skillsData = this.gameData.skills || [];
 
-    let y = 72;
+    const offset = this._getTabScrollOffset('starting_skills');
+    let y = TAB_CONTENT_TOP_Y - offset;
 
     // --- Lord viewer section ---
     this.add.text(40, y, 'Lord Skills', {
@@ -689,6 +699,66 @@ export class HomeBaseScene extends Phaser.Scene {
       this.selectedDifficulty = 'normal';
       this.registry.set('selectedDifficulty', this.selectedDifficulty);
     }
+  }
+
+  onWheel(pointer, deltaX, deltaY) {
+    if (!pointer) return;
+    if (this._skillPickerObjects) return;
+    if (pointer.y < TAB_CONTENT_TOP_Y || pointer.y > TAB_CONTENT_BOTTOM_Y) return;
+    if ((this.tabScrollMax || 0) <= 0) return;
+
+    const step = Math.sign(deltaY || 0) * TAB_SCROLL_STEP;
+    if (!step) return;
+    const key = this.activeTab;
+    const current = this.tabScrollOffsets?.[key] || 0;
+    const next = Phaser.Math.Clamp(current + step, 0, this.tabScrollMax || 0);
+    if (next === current) return;
+    this.tabScrollOffsets[key] = next;
+    this.drawUI();
+  }
+
+  _getTabViewportHeight() {
+    return TAB_CONTENT_BOTTOM_Y - TAB_CONTENT_TOP_Y;
+  }
+
+  _estimateTabContentHeight(category) {
+    if (category === 'starting_skills') {
+      const skillUpgrades = this.meta.upgradesData.filter(u => u.category === 'starting_skills');
+      return 18 + 80 + 18 + (skillUpgrades.length * 22);
+    }
+
+    const upgrades = this.meta.upgradesData.filter(u => u.category === category);
+    const hasSubgroups = category === 'recruit_stats' || category === 'lord_bonuses';
+    if (hasSubgroups) {
+      const growthUpgrades = upgrades.filter(u => u.id.endsWith(GROWTH_SUFFIX));
+      const flatUpgrades = upgrades.filter(u => u.id.endsWith(FLAT_SUFFIX));
+      return 18 + (growthUpgrades.length * ROW_H) + 6 + 18 + (flatUpgrades.length * ROW_H);
+    }
+    return upgrades.length * ROW_H_NAMED;
+  }
+
+  _getTabScrollOffset(category) {
+    if (!this.tabScrollOffsets) this.tabScrollOffsets = {};
+    const viewport = this._getTabViewportHeight();
+    const content = this._estimateTabContentHeight(category);
+    const max = Math.max(0, content - viewport);
+    const current = this.tabScrollOffsets[category] || 0;
+    const clamped = Phaser.Math.Clamp(current, 0, max);
+    this.tabScrollOffsets[category] = clamped;
+    if (category === this.activeTab) this.tabScrollMax = max;
+    return clamped;
+  }
+
+  drawTabScrollHint() {
+    if ((this.tabScrollMax || 0) <= 0) return;
+    const offset = this.tabScrollOffsets?.[this.activeTab] || 0;
+    const percent = this.tabScrollMax > 0
+      ? Math.round((offset / this.tabScrollMax) * 100)
+      : 0;
+    this.add.text(540, 76, `Scroll: ${percent}%`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+      backgroundColor: '#222222', padding: { x: 4, y: 2 },
+    }).setOrigin(1, 0);
   }
 
   onPointerUp(pointer) {
