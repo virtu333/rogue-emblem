@@ -1,5 +1,11 @@
 # Wave 8 Difficulty Kickoff (Part A)
 
+## Status (Updated Feb 11, 2026)
+1. Part A is shipped on `main`.
+2. Landed scope includes `difficulty.json`, loader validation, run-state persistence, Home Base selector (Normal/Hard), Lunatic disabled label, and deterministic tests.
+3. Post-ship hardening landed: Hard unlock now requires true run victory (`beatGame`), plus startup reliability/watchdog hardening tied to the same merge window.
+4. This file remains as kickoff/contract context for follow-up tuning work.
+
 ## 1. Mission
 1. Implement Wave 8 as a data-driven difficulty modifier layer for Normal and Hard while keeping Lunatic disabled in UI.
 2. Preserve determinism, save compatibility, and branch isolation from harness and Wave 2 contracts.

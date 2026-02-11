@@ -33,7 +33,7 @@ emblem-rogue/
 ├── data/                  # Game data JSON (loaded at runtime)
 │   ├── classes.json       # 29 entries: 15 base + 14 promoted (includes lord classes) ✅
 │   ├── lords.json         # 4 lord characters with stats/growths/promotions
-│   ├── weapons.json       # 51 weapons across all types and tiers ✅
+│   ├── weapons.json       # 52 weapons across all types and tiers ✅
 │   ├── terrain.json       # 10 terrain types with move costs and bonuses
 │   ├── mapSizes.json      # 8 map size templates by act/phase
 │   ├── skills.json        # 21 skills: personal, combat, class innate, on-defend ✅
@@ -93,7 +93,7 @@ emblem-rogue/
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
 │       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/meta economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-├── tests/                 # Vitest test suite (720 tests on main baseline, Feb 2026)
+├── tests/                 # Vitest test suite (846 tests passing on main, Feb 11 2026)
 │   ├── testData.js        # Shared data loader for tests
 │   ├── MapGenerator.test.js # map generation, reachability, spawns, template routing ✅
 │   ├── Combat.test.js     # combat math, forecast, weapon specials, staff behavior ✅
@@ -252,14 +252,14 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 - **Separate game logic from rendering.** Combat math, level-ups, and economy must be importable as pure functions (enables balance simulations and headless testing).
 - **Don't assume a single campaign.** The Act/node map system should accept a campaign config, not hardcode a fixed structure. Current `ACT_CONFIG` in constants.js is a step toward this — replace with campaign-level config when multi-campaign support lands.
 - **Grid renderer needs a visibility layer.** Don't bake "all tiles visible" — fog of war is coming.
-- **Difficulty is a modifier layer.** Enemy stat generation and rewards should accept a difficulty multiplier from the start.
+- **Difficulty is now data-driven and live.** Keep new systems wired through the modifier layer (`difficulty.json` + `DifficultyEngine`) instead of hardcoding per-mode logic.
 - **Decouple combat resolution from animation.** Calculate results first, then play visuals. Enables quick mode toggle and future full battle animations.
 
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (720 tests on main baseline, Feb 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, blessings data sync, and deterministic run hooks
-- **Untested new features:** combat accessories (`combatEffects`), on-defend skills (Pavise/Aegis), weapon specials (Ragnell DEF bonus, Runesword drain, Bolting siege), Adept skill
+- **Coverage (846 tests passing on main, Feb 11 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, blessings + difficulty data sync/engine coverage, startup telemetry/runtime flag utilities, and deterministic run hooks
+- **Residual testing gap:** Scene-level integration assertions for some menu/UX states (for example difficulty unlock messaging and certain mobile touch parity paths) still rely on behavior tests + manual verification.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
 ## Balance Simulations

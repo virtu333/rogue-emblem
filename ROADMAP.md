@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 800 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core contract/plumbing is now present on `main` (data + loader + run-state + deterministic selection/tests), with balancing/UI breadth still being finalized across parallel agent branches. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 846 tests passing on `main` (Feb 11, 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -16,11 +16,11 @@ Organized by impact and logical sequencing:
 5. ~~**Playtest Fixes (Feb 2026)**~~ - Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
 
 ### Now (Current Sprint)
-6. **Wave 6 Blessings (Stabilization + Integration)** - Merge/verify parallel agent slices, keep contract invariants locked, and close remaining UI/balance/test hardening
+6. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, difficulty UX/unlock messaging, and blessings telemetry confidence across full runs
 
 ### Next (1-3 Months)
 7. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
-8. **Difficulty Foundation** - Normal/Hard selector, `difficulty.json` modifier layer, currency multiplier (Valor + Supply), extended leveling. Hard = same acts, harder parameters. Lunatic greyed "Coming Soon." (See `difficulty_spec.md` section 1-3)
+8. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
 9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
 10. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
 
@@ -40,13 +40,13 @@ Organized by impact and logical sequencing:
 
 ---
 
-## Parallel Workstreams (Feb 10, 2026)
+## Parallel Workstreams (Feb 11, 2026)
 
 Work is intentionally split across parallel agents. Roadmap source of truth remains this file plus merged code on `main`.
 
 1. **Blessings stabilization stream** - Validate contract behavior end-to-end (selection, persistence, telemetry, deterministic application order), then land follow-up balancing and UX polish.
 2. **Harness/regression stream** - Keep deterministic harness and replay compatibility stable while blessings and map/difficulty-adjacent changes merge.
-3. **Wave 8 prep stream** - Keep difficulty foundation spec/docs implementation-ready; do not couple Part A rollout to unfinished content waves.
+3. **Difficulty follow-up stream** - Tune Part A values/UX based on playtest data while keeping Lunatic and future content decoupled.
 4. **Integration cadence** - Small PRs, frequent rebase on `main`, no cross-stream contract breaks (harness/Wave 2 surfaces treated as external).
 
 ---
@@ -71,18 +71,20 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 - **Wave P1** (UI Polish) - Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
 - **Church Upgrades** - Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
 - **Playtest Fixes (Feb 2026)** - Complete. FE GBA-style combat forecast with weapon cycling, weapon reference integrity after JSON round-trips (relinkWeapon), proficiency enforcement across all equip/heal/relink paths, music overlap singleton boot guard, quadratic volume curve, HP persistence hint, recruit spawn bias toward players
+- **Wave 6 Blessings Stabilization** - Complete on `main`. Blessings telemetry + act hit bonus integration landed with analytics coverage
+- **Wave 8 Part A (Difficulty Foundation)** - Complete on `main`. Normal/Hard selector, `difficulty.json` contract, deterministic modifier plumbing, run-state persistence, and victory-only Hard unlock gating
+- **Startup/Mobile Reliability Hardening** - Complete on `main`. startup telemetry/runtime flags, asset warmup + scene loader split, and watchdog recovery flow
 
 ---
 
-## NOW: Wave 6 Blessings
+## NOW: Stabilization + Content Ramp
 
-Wave 6 core pieces are already present on `main` and are being stabilized through parallel branch work.
+Difficulty foundation and blessings integration are now merged on `main`; active work is stabilization confidence plus next content ramp.
 
-1. Contract docs are frozen in `docs/blessings_contract.md`.
-2. Loader/run-state/blessing selection plumbing exists and must remain contract-compliant.
-3. Scope boundaries with harness and Wave 2 are documented in `docs/wave6_full_auto_kickoff.md`.
-4. Merge gate remains blessing-targeted tests plus full-suite validation after rebase on `main`.
-5. Remaining work is integration hardening (UI surfacing, balance iteration, telemetry/replay confidence).
+1. Preserve blessing + difficulty contract invariants (`docs/blessings_contract.md`, `difficulty_spec.md` Part A).
+2. Continue full-suite and harness validation on each merge that touches startup, run-state, or mode modifiers.
+3. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
+4. Keep mobile-safe input/scene-loading parity as a non-regression gate for new UI features.
 
 ---
 
@@ -104,13 +106,12 @@ Wave 6 core pieces are already present on `main` and are being stabilized throug
 
 ---
 
-### Wave 8: Difficulty Foundation (Part A)
-**Priority:** High - Establishes the canonical difficulty modifier layer for all future content
-**Effort:** 1-2 weeks (implementation + test hardening)
+### Wave 8: Difficulty Foundation (Part A) - Shipped
+**Status:** Complete on `main` (Feb 11, 2026)
 
-1. Source of truth: `difficulty_spec.md` Part A and `docs/wave8_difficulty_kickoff.md`.
-2. Scope: Normal/Hard selectable, Lunatic visible but disabled, `difficulty.json` data contract, run-state persistence, deterministic modifier wiring, and test gates.
-3. Delivery: PR-A infrastructure, PR-B gameplay/UI wiring, PR-C regression/docs and rollout notes.
+1. Source of truth remains `difficulty_spec.md` Part A and `docs/wave8_difficulty_kickoff.md`.
+2. Delivered scope: Normal/Hard selectable, Lunatic visible but disabled, `difficulty.json` data contract, run-state persistence, deterministic modifier wiring, and test gates.
+3. Latest hardening: Hard unlock now requires true run victory; startup/watchdog flow updated for reliability.
 
 ---
 
@@ -238,10 +239,11 @@ Wave 6 core pieces are already present on `main` and are being stabilized throug
 1. ~~**Waves P0/P1/Wave 0** (Bugfixes, UI Polish, Balance)~~ [done] Done
 2. ~~**Church Upgrades + Playtest Fixes (Feb 2026)**~~ [done] Done
 3. ~~**Wave 2** (Map Generation Enhancements)~~ [done] Done
-4. **Wave 6** (Blessings) - **Core merged on `main`; stabilization and follow-up slices in parallel branches**
-5. **Wave 3** (Elite/Miniboss Nodes) -> **Wave 8** (Difficulty Foundation) -> **Wave 4** (Dynamic Recruits) -> **Wave 5** (Skills)
-6. **Playtest** after Wave 6 merge
-7. **Later:** Wave 7 (Objectives) -> Wave 9 (Terrain Hazards) -> Status Staves/Act 4 content -> Secret Act/Narrative -> Meta Expansion
+4. ~~**Wave 6** (Blessings)~~ [done] Core + telemetry integration merged on `main`
+5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
+6. **Wave 3** (Elite/Miniboss Nodes) -> **Wave 4** (Dynamic Recruits) -> **Wave 5** (Skills)
+7. **Playtest** focused on difficulty/balance/startup reliability after recent merges
+8. **Later:** Wave 7 (Objectives) -> Wave 9 (Terrain Hazards) -> Status Staves/Act 4 content -> Secret Act/Narrative -> Meta Expansion
 
 ## Deployment
 

@@ -3,6 +3,11 @@
 Date: 2026-02-11
 Branch: agent-b/mobile-ui-perf
 
+## Merge Status
+
+- Scope from this branch is now merged on `main` via Feb 10-11 startup/mobile reliability commits.
+- Keep this doc as implementation notes and candidate follow-ups; treat branch name as historical context.
+
 ## Top 10 issues (ranked by impact)
 
 1. Grid click handling used `pointerdown` with no touch drag threshold, causing tap/drag misfires on phones.

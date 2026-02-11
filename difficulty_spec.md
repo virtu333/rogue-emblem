@@ -5,6 +5,14 @@
 **Structure:** Part A covers foundation systems (Hard mode, modifiers, leveling) shippable independently. Part B covers expansion content (Lunatic, Act 4, Secret Act, new enemies) requiring terrain hazards and map objectives as prerequisites.
 **Later (out of scope for this spec):** Endless mode, Lunatic+, detailed new enemy/weapon designs, full meta-progression sink expansion
 
+## Implementation Snapshot On `main` (Feb 11, 2026)
+
+- Part A foundation is shipped: data contract (`data/difficulty.json`), loader validation, run-state persistence, deterministic modifier wiring, Normal/Hard selector, Lunatic disabled label.
+- Hard unlock is gated by true run victory (`beatGame` milestone), not merely reaching the final boss.
+- Current shipped `actsIncluded` for all visible modes is `["act1","act2","act3","finalBoss"]`.
+- Current shipped Hard values are conservative for rollout (`enemyStatBonus: 1`, `enemyCountBonus: 1`, `enemySkillChance: 0.2`, `enemyPoisonChance: 0.08`, `enemyStatusStaffChance: 0.0`, `goldMultiplier: 0.9`, `shopPriceMultiplier: 1.15`, `xpMultiplier: 0.9`, `fogChanceBonus: 0.15`, `currencyMultiplier: 1.25`).
+- Status staves, Act 4/Secret Act, and full Lunatic content remain future scope in Part B.
+
 ---
 
 # ═══ PART A — Foundation (Hard Mode + Core Systems) ═══

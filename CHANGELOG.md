@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-### Documentation Sync (Feb 2026)
-- **Roadmap status alignment**: Updated `ROADMAP.md` to reflect current baseline (`720` tests on `main`), mark Wave 2 map enhancements complete, and track Wave 6 blessings as active PR-branch work.
-- **Guide accuracy pass**: Updated `CLAUDE.md` to remove stale `NEXT_STEPS.md` reference and replace outdated fixed test counts with current baseline-oriented wording.
-- **Wave 6 branch status note**: Added explicit callout that blessings contract/plumbing work is staged in `agent/wave6-blessings` prior to merge.
+### Documentation + Release Sync (Feb 11, 2026)
+- **Difficulty foundation shipped on `main`**: Added/landed `difficulty.json`, deterministic modifier wiring, run-state persistence, Home Base difficulty UX, and Lunatic preview lock state.
+- **Hard unlock rule tightened**: Hard mode now unlocks only after a true victory run (not partial progress), with guardrails in run-complete and menu flows.
+- **Startup hardening + mobile-safe loading**: Added startup telemetry/runtime flags, asset warmup + scene loader split, and watchdog recovery to reduce boot stalls and improve mobile reliability.
+- **Wave 6 blessings follow-through**: Blessings telemetry + act hit-bonus integration merged, with associated analytics/tests.
+- **Save migration coverage**: Added migration path to backfill missing class innate skills on existing saves.
+- **Test baseline updated**: `npm test` now passes at **846 tests** on `main`.
 
 ### New Features
 - **Complete Weapon Stats Display**: All weapon stats (Mt/Ht/Cr/Wt/Rng) now visible in RosterOverlay and UnitInspectionPanel. Hover tooltip for weapon specials (Ragnell, Runesword, etc.). Asterisk indicator (*) for weapons with special abilities in compact panels.
@@ -26,7 +29,7 @@
 - **Accessories**: 18 items (11 stat-based + 7 combat effect), equip/unequip/trade
 - **Fog of War**: Vision ranges by class, fog generation per node
 - **Expanded Skills**: 21 skills (6 trigger types), on-defend (Pavise/Aegis/Miracle), scroll consumables
-- **Expanded Weapons**: 51 weapons, throwables, effectiveness, poison, drain, siege, equipped stat bonuses
+- **Expanded Weapons**: 52 weapons, throwables, effectiveness, poison, drain, siege, equipped stat bonuses
 - **Balance Simulations**: 4 sim scripts (progression, matchups, economy, full run)
 
 ### UI & Polish

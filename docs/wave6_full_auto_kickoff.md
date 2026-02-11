@@ -1,5 +1,10 @@
 # Wave 6 Full-Auto Kickoff
 
+## Status Note (Feb 11, 2026)
+1. Wave 6 core plus telemetry integration is merged on `main`.
+2. This kickoff doc is retained as historical planning/contract context for replayability and audit trail.
+3. Baseline-failure notes in this document refer to pre-merge in-flight state and should not be treated as current `main` status.
+
 ## 1. Scope
 1. This document defines implementation readiness for a new Codex instance operating full-auto across harness and Wave 2/Wave 6 workflows.
 2. Scope is limited to automation setup, coordination, contracts, sequencing, and acceptance gates.
