@@ -69,6 +69,7 @@ function makeSoundManager({ sounds = [], loadedKeys = [], autoCompleteLoader = t
   const audioCache = {
     has: vi.fn((key) => loaded.has(key)),
     add: vi.fn((key) => { loaded.add(key); }),
+    remove: vi.fn((key) => { loaded.delete(key); }),
   };
 
   return {
@@ -284,6 +285,47 @@ describe('AudioManager', () => {
       expect(sound.game.cache.audio.add).toHaveBeenCalledWith('music_title', expect.any(Object));
       expect(sound.add).toHaveBeenCalledWith('music_title', expect.objectContaining({ loop: true }));
       expect(audio.currentMusicKey).toBe('music_title');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('uses mobile timeout defaults when loading music', async () => {
+    const sound = makeSoundManager();
+    const audio = new AudioManager(sound, { isMobile: true, mobileMusicLoadTimeoutMs: 13579 });
+    const fetchSpy = vi.spyOn(audio, '_fetchAndDecodeMusic').mockResolvedValue(undefined);
+    const webAudioSpy = vi.spyOn(audio, '_canUseWebAudioFetchDecode').mockReturnValue(true);
+
+    await audio._ensureMusicLoaded('music_title', sound.scene);
+
+    expect(webAudioSpy).toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledWith('music_title', 13579);
+  });
+
+  it('evicts least-recent cached music buffers when over budget', async () => {
+    const sound = makeSoundManager();
+    sound.scene = null;
+    sound.context = {
+      decodeAudioData: vi.fn((bytes, onSuccess) => onSuccess({ decoded: bytes.byteLength })),
+    };
+
+    const fakeBytes = new ArrayBuffer(16);
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => fakeBytes,
+    }));
+
+    try {
+      const audio = new AudioManager(sound, { maxCachedMusicTracks: 2 });
+      await audio.playMusic('music_title', null, 0);
+      await audio.playMusic('music_home_base', null, 0);
+      await audio.playMusic('music_shop', null, 0);
+
+      expect(sound.game.cache.audio.remove).toHaveBeenCalledWith('music_title');
+      expect(sound.game.cache.audio.has('music_title')).toBe(false);
+      expect(sound.game.cache.audio.has('music_home_base')).toBe(true);
+      expect(sound.game.cache.audio.has('music_shop')).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;
     }

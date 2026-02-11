@@ -360,7 +360,12 @@ export class BootScene extends Phaser.Scene {
     this.registry.set('startupFlags', this._startupFlags);
     this.registry.set('deferredAssets', this._deferredAssets);
 
-    const audio = new AudioManager(this.sound);
+    const audio = new AudioManager(this.sound, {
+      isMobile: this._startupFlags?.isMobile,
+      musicLoadTimeoutMs: this._startupFlags?.isMobile ? 9000 : 7000,
+      mobileMusicLoadTimeoutMs: this._startupFlags?.mobileSafeBoot ? 14000 : 11000,
+      maxCachedMusicTracks: this._startupFlags?.isMobile ? 3 : 5,
+    });
     audio.setMusicVolume(settings.getMusicVolume());
     audio.setSFXVolume(settings.getSFXVolume());
     this.registry.set('audio', audio);

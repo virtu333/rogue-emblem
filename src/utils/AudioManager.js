@@ -1,7 +1,7 @@
 // AudioManager - lightweight wrapper around Phaser's sound manager.
 
 export class AudioManager {
-  constructor(soundManager) {
+  constructor(soundManager, options = {}) {
     this.sound = soundManager;
     this.currentMusic = null;
     this.currentMusicKey = null;
@@ -11,6 +11,11 @@ export class AudioManager {
     this.debugMusic = false;
     this.loadingMusic = new Map();
     this._musicRequestSeq = 0;
+    this._musicCacheLru = [];
+    this.maxCachedMusicTracks = this._toPositiveInt(options.maxCachedMusicTracks, 4);
+    this.musicLoadTimeoutMs = this._toPositiveInt(options.musicLoadTimeoutMs, 7000);
+    this.mobileMusicLoadTimeoutMs = this._toPositiveInt(options.mobileMusicLoadTimeoutMs, 12000);
+    this.isMobile = Boolean(options.isMobile);
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -68,6 +73,8 @@ export class AudioManager {
       this.stopAllMusic(scene, 0);
 
       if (!this.sound.game.cache.audio.has(key)) return;
+      this._touchMusicCacheKey(key);
+      this._enforceMusicCacheBudget({ preserveKeys: [key] });
 
       this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
       this.currentMusicKey = key;
@@ -88,21 +95,25 @@ export class AudioManager {
     return [`assets/audio/music/${key}.ogg`, `assets/audio/music/${key}.mp3`];
   }
 
-  _ensureMusicLoaded(key, scene, timeoutMs = 5000) {
+  _ensureMusicLoaded(key, scene, timeoutMs = null) {
+    const effectiveTimeoutMs = this._toPositiveInt(
+      timeoutMs,
+      this.isMobile ? this.mobileMusicLoadTimeoutMs : this.musicLoadTimeoutMs,
+    );
     if (this.sound.game.cache.audio.has(key)) return Promise.resolve();
     if (this.loadingMusic.has(key)) return this.loadingMusic.get(key);
 
     const promise = (async () => {
       if (this._canUseWebAudioFetchDecode()) {
         try {
-          await this._fetchAndDecodeMusic(key, timeoutMs);
+          await this._fetchAndDecodeMusic(key, effectiveTimeoutMs);
           return;
         } catch (err) {
           // Fall back to scene loader only when available.
           if (!scene?.load) throw err;
         }
       }
-      await this._loadMusicWithSceneLoader(key, scene, timeoutMs);
+      await this._loadMusicWithSceneLoader(key, scene, effectiveTimeoutMs);
     })().finally(() => {
       this.loadingMusic.delete(key);
     });
@@ -141,6 +152,7 @@ export class AudioManager {
         const bytes = await response.arrayBuffer();
         const decoded = await this._decodeAudioData(context, bytes);
         cache.add(key, decoded);
+        this._markMusicCached(key);
         return;
       } catch (err) {
         lastErr = err;
@@ -193,6 +205,7 @@ export class AudioManager {
         try { if (scene?.events) scene.events.off('shutdown', onSceneShutdown); } catch (_) {}
       };
       const onFileComplete = () => {
+        this._markMusicCached(key);
         cleanup();
         resolve();
       };
@@ -300,6 +313,62 @@ export class AudioManager {
 
   _isMusicKey(key) {
     return typeof key === 'string' && key.startsWith('music_');
+  }
+
+  _toPositiveInt(value, fallback) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed > 0) return Math.round(parsed);
+    return fallback;
+  }
+
+  _markMusicCached(key) {
+    if (!this._isMusicKey(key)) return;
+    this._touchMusicCacheKey(key);
+    this._enforceMusicCacheBudget({ preserveKeys: [key] });
+  }
+
+  _touchMusicCacheKey(key) {
+    if (!this._isMusicKey(key)) return;
+    this._musicCacheLru = this._musicCacheLru.filter((k) => k !== key);
+    this._musicCacheLru.push(key);
+  }
+
+  _enforceMusicCacheBudget({ preserveKeys = [] } = {}) {
+    const max = this.maxCachedMusicTracks;
+    if (!Number.isFinite(max) || max <= 0) return;
+    if (this._musicCacheLru.length <= max) return;
+    const preserve = new Set(
+      [...preserveKeys, this.currentMusicKey, ...this.loadingMusic.keys()].filter(Boolean),
+    );
+    while (this._musicCacheLru.length > max) {
+      const victim = this._musicCacheLru.find((key) => !preserve.has(key));
+      if (!victim) break;
+      if (!this._evictCachedMusic(victim)) break;
+    }
+  }
+
+  _evictCachedMusic(key) {
+    const cache = this.sound?.game?.cache?.audio;
+    if (!cache || typeof cache.remove !== 'function') return false;
+    if (!this._isMusicKey(key)) return false;
+    if (key === this.currentMusicKey) return false;
+    if (this._hasLiveSoundForKey(key)) return false;
+    try {
+      cache.remove(key);
+    } catch (_) {
+      return false;
+    }
+    this._musicCacheLru = this._musicCacheLru.filter((k) => k !== key);
+    return true;
+  }
+
+  _hasLiveSoundForKey(key) {
+    const sounds = Array.isArray(this.sound?.sounds) ? this.sound.sounds : [];
+    return sounds.some((sound) => {
+      if (!sound) return false;
+      if (this._safeRead(sound, 'key') !== key) return false;
+      return Boolean(this._safeRead(sound, 'isPlaying') || this._safeRead(sound, 'isPaused'));
+    });
   }
 
   _resolveOwnerToken(ownerOrScene) {
