@@ -1074,14 +1074,12 @@ describe('guard AI assignment', () => {
     expect(foundGuards).toBe(true);
   });
 
-  it('rout maps can also have guards', () => {
-    let foundGuards = false;
+  it('rout maps do not assign guards', () => {
     for (let i = 0; i < 30; i++) {
       const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
       const guards = config.enemySpawns.filter(s => s.aiMode === 'guard');
-      if (guards.length > 0) foundGuards = true;
+      expect(guards.length).toBe(0);
     }
-    expect(foundGuards).toBe(true);
   });
 
   it('guard percentage is between 10-35% of boss-half enemies', () => {

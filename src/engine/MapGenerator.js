@@ -692,16 +692,18 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     });
   }
 
-  // Assign guard AI mode to 15-25% of non-boss enemies in boss half of map
-  const bossHalfCol = Math.floor(cols / 2);
-  const bossHalfEnemies = spawns.filter(s => !s.isBoss && s.col >= bossHalfCol);
-  const guardRate = 0.15 + Math.random() * 0.10; // 15-25%
-  const guardCount = Math.max(0, Math.round(bossHalfEnemies.length * guardRate));
-  const shuffledGuards = [...bossHalfEnemies];
-  shuffleArray(shuffledGuards);
-  for (let i = 0; i < guardCount; i++) {
-    shuffledGuards[i].aiMode = 'guard';
-    if (DEBUG_MAP_GEN) console.log(`[MapGen] Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
+  // Assign guard AI mode only on seize maps to avoid passive enemies on rout maps.
+  if (objective === 'seize') {
+    const bossHalfCol = Math.floor(cols / 2);
+    const bossHalfEnemies = spawns.filter(s => !s.isBoss && s.col >= bossHalfCol);
+    const guardRate = 0.15 + Math.random() * 0.10; // 15-25%
+    const guardCount = Math.max(0, Math.round(bossHalfEnemies.length * guardRate));
+    const shuffledGuards = [...bossHalfEnemies];
+    shuffleArray(shuffledGuards);
+    for (let i = 0; i < guardCount; i++) {
+      shuffledGuards[i].aiMode = 'guard';
+      if (DEBUG_MAP_GEN) console.log(`[MapGen] Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
+    }
   }
 
   return spawns;
