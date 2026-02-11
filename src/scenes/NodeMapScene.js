@@ -14,6 +14,7 @@ import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
+import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -252,6 +253,10 @@ export class NodeMapScene extends Phaser.Scene {
       });
       pickBtn.on('pointerdown', () => {
         if (!this.runManager.chooseBlessing(blessing.id)) return;
+        recordBlessingSelection({
+          offeredIds: this.runManager?.blessingSelectionTelemetry?.offeredIds || [],
+          chosenId: blessing.id,
+        });
         this.destroyBlessingSelectionOverlay();
         this.persistRunSave();
         this.drawMap();
@@ -281,7 +286,11 @@ export class NodeMapScene extends Phaser.Scene {
       skipBtn.setBackgroundColor('#2a2f3f');
     });
     skipBtn.on('pointerdown', () => {
-      this.runManager.chooseBlessing(null);
+      if (!this.runManager.chooseBlessing(null)) return;
+      recordBlessingSelection({
+        offeredIds: this.runManager?.blessingSelectionTelemetry?.offeredIds || [],
+        chosenId: null,
+      });
       this.destroyBlessingSelectionOverlay();
       this.persistRunSave();
       this.drawMap();

@@ -75,6 +75,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
+      actHitBonusByAct: {},
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
@@ -112,6 +113,7 @@ export class RunManager {
     this.blessingRuntimeModifiers = {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
+      actHitBonusByAct: {},
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
@@ -185,6 +187,18 @@ export class RunManager {
     if (blessingId !== null && !offeredIds.includes(blessingId)) return false;
     const chosenIds = blessingId ? [blessingId] : [];
     this.activeBlessings = chosenIds;
+    this.blessingHistory.push({
+      timestamp: Date.now(),
+      stage: 'run_start',
+      eventType: 'selection',
+      blessingId: blessingId ?? null,
+      effectType: null,
+      details: {
+        offeredIds: [...offeredIds],
+        chosenIds: [...chosenIds],
+        skipped: chosenIds.length === 0,
+      },
+    });
     if (this.blessingSelectionTelemetry) {
       this.blessingSelectionTelemetry.chosenIds = chosenIds;
     }
@@ -457,6 +471,29 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'act_hit_bonus') {
+      const targetAct = String(effect.params.act || '').trim();
+      const delta = Math.trunc(value);
+      if (!targetAct || delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_act_hit_bonus_params',
+        });
+        return;
+      }
+      if (!this.blessingRuntimeModifiers.actHitBonusByAct || typeof this.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
+        this.blessingRuntimeModifiers.actHitBonusByAct = {};
+      }
+      this.blessingRuntimeModifiers.actHitBonusByAct[targetAct] =
+        Math.trunc(this.blessingRuntimeModifiers.actHitBonusByAct[targetAct] || 0) + delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        act: targetAct,
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.actHitBonusByAct[targetAct],
+      });
+      return;
+    }
+
     if (effect.type === 'lord_stat_bonus') {
       const stat = String(effect.params.stat || '').trim();
       if (!stat || value === 0) {
@@ -568,6 +605,13 @@ export class RunManager {
     const metaDelta = this.metaEffects?.deployBonus || 0;
     const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
     return metaDelta + blessingDelta;
+  }
+
+  getActHitBonusForUnit(unit, actId = this.currentAct) {
+    if (!unit || unit.faction !== 'player') return 0;
+    const bonuses = this.blessingRuntimeModifiers?.actHitBonusByAct;
+    if (!bonuses || typeof bonuses !== 'object') return 0;
+    return Math.trunc(bonuses[actId] || 0);
   }
 
   getShopItemCountDelta() {
@@ -914,6 +958,7 @@ export class RunManager {
       blessingRuntimeModifiers: this.blessingRuntimeModifiers || {
         battleGoldMultiplierDelta: 0,
         deployCapDelta: 0,
+        actHitBonusByAct: {},
         actStatDeltaAllUnits: [],
         skipFirstShop: false,
         shopItemCountDelta: 0,
@@ -1010,6 +1055,7 @@ export class RunManager {
     rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || {
       battleGoldMultiplierDelta: 0,
       deployCapDelta: 0,
+      actHitBonusByAct: {},
       actStatDeltaAllUnits: [],
       skipFirstShop: false,
       shopItemCountDelta: 0,
@@ -1017,6 +1063,9 @@ export class RunManager {
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
     };
+    if (!rm.blessingRuntimeModifiers.actHitBonusByAct || typeof rm.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
+      rm.blessingRuntimeModifiers.actHitBonusByAct = {};
+    }
     if (!Array.isArray(rm.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
       rm.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
     }

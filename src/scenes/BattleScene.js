@@ -2910,9 +2910,14 @@ export class BattleScene extends Phaser.Scene {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
 
+    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true);
+    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false);
+    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
+    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
+
     return {
-      atkMods: getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true),
-      defMods: getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false),
+      atkMods,
+      defMods,
       rollStrikeSkills,
       rollDefenseSkills,
       checkAstra,

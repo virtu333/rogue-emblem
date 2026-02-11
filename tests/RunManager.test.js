@@ -931,6 +931,23 @@ describe('blessing run-start effect application', () => {
     expect(rm.chooseBlessing(selected)).toBe(true);
     expect(rm.activeBlessings).toEqual([selected]);
     expect(rm.blessingSelectionTelemetry.chosenIds).toEqual([selected]);
+    expect(rm.blessingHistory.some(e => e.eventType === 'selection' && e.blessingId === selected)).toBe(true);
+  });
+
+  it('act_hit_bonus blessing applies to player units in target act only', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = ['steady_hands'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(5);
+    expect(rm.getActHitBonusForUnit({ faction: 'enemy' })).toBe(0);
+
+    rm.advanceAct(); // act2
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(0);
   });
 
   it('gold_delta blessing changes starting run gold', () => {
@@ -1146,6 +1163,16 @@ describe('blessing run-start effect application', () => {
     const restored = RunManager.fromJSON(json, gameData);
     expect(restored.blessingSelectionTelemetry.offeredIds).toEqual(['steady_hands', 'coin_of_fate']);
     expect(restored.blessingSelectionTelemetry.chosenIds).toEqual([]);
+  });
+
+  it('fromJSON initializes missing actHitBonusByAct runtime modifier', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    delete json.blessingRuntimeModifiers.actHitBonusByAct;
+    const restored = RunManager.fromJSON(json, gameData);
+    expect(restored.blessingRuntimeModifiers.actHitBonusByAct).toEqual({});
   });
 
   it('unknown blessing IDs remain inert and do not crash application', () => {

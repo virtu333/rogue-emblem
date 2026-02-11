@@ -82,6 +82,25 @@
       ]
     },
     {
+      "id": "scholar_vow",
+      "name": "Scholar's Vow",
+      "tier": 2,
+      "description": "All growths +10%, but start with -50 gold.",
+      "weight": 0.85,
+      "boons": [
+        {
+          "type": "all_growths_delta",
+          "params": { "value": 10 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "gold_delta",
+          "params": { "value": -50 }
+        }
+      ]
+    },
+    {
       "id": "arsenal_pact",
       "name": "Arsenal Pact",
       "tier": 3,
@@ -97,6 +116,25 @@
         {
           "type": "act_stat_delta_all_units",
           "params": { "act": "act1", "stat": "DEF", "value": -1 }
+        }
+      ]
+    },
+    {
+      "id": "pilgrim_coin",
+      "name": "Pilgrim Coin",
+      "tier": 3,
+      "description": "Shops offer +1 item, but your units suffer -5 Hit in Act 1.",
+      "weight": 0.6,
+      "boons": [
+        {
+          "type": "shop_item_count_delta",
+          "params": { "value": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "act_hit_bonus",
+          "params": { "act": "act1", "value": -5 }
         }
       ]
     },

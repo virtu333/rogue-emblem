@@ -5,6 +5,7 @@ import { clearSavedRun } from '../engine/RunManager.js';
 import { calculateCurrencies } from '../engine/MetaProgressionManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
+import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -49,6 +50,12 @@ export class RunCompleteScene extends Phaser.Scene {
     // Calculate and award currencies
     const rm = this.runManager;
     const actReached = rm.actIndex + 1;
+    recordBlessingRunOutcome({
+      activeBlessings: rm.activeBlessings || [],
+      result: this.result,
+      actIndex: rm.actIndex,
+      completedBattles: rm.completedBattles,
+    });
     const { valor, supply } = calculateCurrencies(rm.actIndex, rm.completedBattles, isVictory);
     const meta = this.registry.get('meta');
     if (meta) {
