@@ -2269,6 +2269,10 @@ export class BattleScene extends Phaser.Scene {
     unit.row = row;
     unit.hasMoved = false;
     this.updateUnitPosition(unit);
+    if (this.grid.fogEnabled && unit.faction === 'player') {
+      this.grid.updateFogOfWar(this.playerUnits);
+      this.updateEnemyVisibility();
+    }
 
     // Re-select the unit so they can choose again
     this.preMoveLoc = null;

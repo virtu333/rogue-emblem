@@ -398,6 +398,7 @@ export class HeadlessBattle {
       this.selectedUnit.row = this.preMoveLoc.row;
       this.selectedUnit.hasMoved = false;
       this.selectedUnit._movementSpent = 0;
+      this._refreshFogVisibility();
     }
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }

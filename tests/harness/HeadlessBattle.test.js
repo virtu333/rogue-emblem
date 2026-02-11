@@ -10,6 +10,24 @@ import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { gridDistance } from '../../src/engine/Combat.js';
 import { hasStaff } from '../../src/engine/UnitManager.js';
 
+function captureVisibleTiles(grid) {
+  const visible = new Set();
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (grid.isVisible(c, r)) visible.add(`${c},${r}`);
+    }
+  }
+  return visible;
+}
+
+function setsEqual(a, b) {
+  if (a.size !== b.size) return false;
+  for (const k of a) {
+    if (!b.has(k)) return false;
+  }
+  return true;
+}
+
 describe('HeadlessBattle', () => {
   let gameData;
 
@@ -145,6 +163,42 @@ describe('HeadlessBattle', () => {
       expect(battle.selectedUnit.row).toBe(origRow);
       expect(battle.battleState).toBe(HEADLESS_STATES.UNIT_SELECTED);
     }
+  });
+
+  it('undoMove on fog maps reverts revealed tiles to pre-move visibility', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, fogEnabled: true });
+    battle.init();
+    battle.selectUnit('Edric');
+
+    const unit = battle.selectedUnit;
+    const origCol = unit.col;
+    const origRow = unit.row;
+    const before = captureVisibleTiles(battle.grid);
+
+    let moveTarget = null;
+    for (const key of battle.movementRange.keys()) {
+      if (key === `${origCol},${origRow}`) continue;
+      const [col, row] = key.split(',').map(Number);
+      unit.col = col;
+      unit.row = row;
+      battle.grid.updateFogOfWar(battle.playerUnits);
+      const probe = captureVisibleTiles(battle.grid);
+      if (!setsEqual(before, probe)) {
+        moveTarget = { col, row };
+        break;
+      }
+    }
+
+    unit.col = origCol;
+    unit.row = origRow;
+    battle.grid.updateFogOfWar(battle.playerUnits);
+    expect(moveTarget).toBeTruthy();
+
+    battle.moveTo(moveTarget.col, moveTarget.row);
+    battle.undoMove();
+
+    const afterUndo = captureVisibleTiles(battle.grid);
+    expect(setsEqual(afterUndo, before)).toBe(true);
   });
 
   it('cancel from UNIT_SELECTED returns to PLAYER_IDLE', () => {
