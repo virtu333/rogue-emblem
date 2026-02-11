@@ -407,4 +407,19 @@ describe('AudioManager', () => {
     expect(() => audio.setMusicVolume(0.8)).not.toThrow();
     expect(good.setVolume).toHaveBeenCalledTimes(1);
   });
+
+  it('filters destroyed tracked sounds out of active looping music', () => {
+    const live = makeLoopingSound('music_home_base');
+    const destroyed = makeLoopingSound('music_title');
+    destroyed.destroyed = true;
+    const sound = makeSoundManager({ sounds: [live] });
+    const audio = new AudioManager(sound);
+    audio._trackedMusicSounds.add(destroyed);
+
+    const keys = audio.getActiveMusicKeys();
+
+    expect(keys).toContain('music_home_base');
+    expect(keys).not.toContain('music_title');
+    expect(audio._trackedMusicSounds.has(destroyed)).toBe(false);
+  });
 });

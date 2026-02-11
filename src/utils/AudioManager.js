@@ -294,6 +294,16 @@ export class AudioManager {
     const uniqueSounds = new Set([...managerSounds, ...trackedSounds]);
     return Array.from(uniqueSounds).filter((s) => {
       if (!s) return false;
+      const isDestroyed = Boolean(
+        this._safeRead(s, 'pendingDestroy')
+        || this._safeRead(s, 'pendingRemove')
+        || this._safeRead(s, '_destroyed')
+        || this._safeRead(s, 'destroyed'),
+      );
+      if (isDestroyed) {
+        if (this._trackedMusicSounds) this._trackedMusicSounds.delete(s);
+        return false;
+      }
       const key = this._safeRead(s, 'key');
       if (!key) return false;
       // Include any music-key sounds even if Phaser does not currently
