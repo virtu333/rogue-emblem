@@ -4,6 +4,8 @@ const SCENE_LOADERS = {
   Title: () => import('../scenes/TitleScene.js').then(m => m.TitleScene),
   SlotPicker: () => import('../scenes/SlotPickerScene.js').then(m => m.SlotPickerScene),
   HomeBase: () => import('../scenes/HomeBaseScene.js').then(m => m.HomeBaseScene),
+  DifficultySelect: () => import('../scenes/DifficultySelectScene.js').then(m => m.DifficultySelectScene),
+  BlessingSelect: () => import('../scenes/BlessingSelectScene.js').then(m => m.BlessingSelectScene),
   NodeMap: () => import('../scenes/NodeMapScene.js').then(m => m.NodeMapScene),
   Battle: () => import('../scenes/BattleScene.js').then(m => m.BattleScene),
   RunComplete: () => import('../scenes/RunCompleteScene.js').then(m => m.RunCompleteScene),

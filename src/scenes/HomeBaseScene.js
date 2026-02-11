@@ -3,8 +3,6 @@
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
-import { clearSavedRun } from '../engine/RunManager.js';
-import { deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
 
@@ -57,11 +55,9 @@ export class HomeBaseScene extends Phaser.Scene {
     this.activeTab = 'recruit_stats';
     this.tabScrollOffsets = {};
     this.tabScrollMax = 0;
-    this.selectedDifficulty = this.registry.get('selectedDifficulty') || 'normal';
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
-    this.refreshDifficultyAvailability();
 
     this.input.keyboard.on('keydown-ESC', () => {
       this.requestCancel({ allowExit: true });
@@ -91,7 +87,6 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawUI() {
-    this.refreshDifficultyAvailability();
     if (this._prereqTooltip) {
       this._prereqTooltip.destroy();
       this._prereqTooltip = null;
@@ -117,7 +112,6 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.drawTabs();
     this.drawTabContent(this.activeTab);
-    this.drawTabScrollHint();
     this.drawBottomButtons();
   }
 
@@ -621,47 +615,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   drawBottomButtons() {
     const cx = this.cameras.main.centerX;
-    const btnY = 450;
-    const difficultyY = 410;
-
-    const modes = this.gameData?.difficulty?.modes || {};
-    const normalColor = modes.normal?.color || '#44cc44';
-    const hardColorData = modes.hard?.color || '#ff8800';
-    const lunaticLabel = modes.lunatic?.label || 'Lunatic';
-
-    this.add.text(cx - 150, difficultyY, 'Difficulty:', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-    }).setOrigin(0, 0.5);
-
-    const normalBtnColor = this.selectedDifficulty === 'normal' ? normalColor : '#e0e0e0';
-    const normalBtn = this.add.text(cx - 62, difficultyY, '[Normal]', {
-      fontFamily: 'monospace', fontSize: '12px', color: normalBtnColor,
-      backgroundColor: '#222222', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    normalBtn.on('pointerdown', () => {
-      this.selectedDifficulty = 'normal';
-      this.registry.set('selectedDifficulty', this.selectedDifficulty);
-      this.drawUI();
-    });
-
-    const hardColor = this.hardUnlocked ? (this.selectedDifficulty === 'hard' ? hardColorData : '#e0e0e0') : '#666666';
-    const hardBtn = this.add.text(cx + 20, difficultyY, '[Hard]', {
-      fontFamily: 'monospace', fontSize: '12px', color: hardColor,
-      backgroundColor: '#222222', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5);
-    if (this.hardUnlocked) {
-      hardBtn.setInteractive({ useHandCursor: true });
-      hardBtn.on('pointerdown', () => {
-        this.selectedDifficulty = 'hard';
-        this.registry.set('selectedDifficulty', this.selectedDifficulty);
-        this.drawUI();
-      });
-    }
-
-    this.add.text(cx + 112, difficultyY, `[${lunaticLabel}: Soon]`, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#666666',
-      backgroundColor: '#222222', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5);
+    const btnY = 440;
 
     const beginBtn = this.add.text(cx - 100, btnY, '[ Begin Run ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
@@ -671,12 +625,9 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', async () => {
-      const cloud = this.registry.get('cloud');
-      const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      await startSceneLazy(this, 'NodeMap', { gameData: this.gameData, difficultyId: this.selectedDifficulty });
+      if (audio) audio.playSFX('sfx_confirm');
+      await startSceneLazy(this, 'DifficultySelect', { gameData: this.gameData });
     });
 
     const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
@@ -691,17 +642,6 @@ export class HomeBaseScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
       await startSceneLazy(this, 'Title', { gameData: this.gameData });
     });
-  }
-
-  refreshDifficultyAvailability() {
-    if (this.selectedDifficulty !== 'normal' && this.selectedDifficulty !== 'hard') {
-      this.selectedDifficulty = 'normal';
-    }
-    this.hardUnlocked = Boolean(this.meta?.hasMilestone?.('beatGame'));
-    if (this.selectedDifficulty === 'hard' && !this.hardUnlocked) {
-      this.selectedDifficulty = 'normal';
-      this.registry.set('selectedDifficulty', this.selectedDifficulty);
-    }
   }
 
   onWheel(pointer, deltaX, deltaY) {
@@ -778,18 +718,6 @@ export class HomeBaseScene extends Phaser.Scene {
     this.tabScrollOffsets[category] = clamped;
     if (category === this.activeTab) this.tabScrollMax = max;
     return clamped;
-  }
-
-  drawTabScrollHint() {
-    if ((this.tabScrollMax || 0) <= 0) return;
-    const offset = this.tabScrollOffsets?.[this.activeTab] || 0;
-    const percent = this.tabScrollMax > 0
-      ? Math.round((offset / this.tabScrollMax) * 100)
-      : 0;
-    this.add.text(540, 76, `Scroll: ${percent}%`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      backgroundColor: '#222222', padding: { x: 4, y: 2 },
-    }).setOrigin(1, 0);
   }
 
   onPointerUp(pointer) {

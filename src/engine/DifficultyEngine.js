@@ -44,6 +44,49 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   extendedLevelingEnabled: false,
 });
 
+/**
+ * Compare a difficulty mode against DIFFICULTY_DEFAULTS and return human-readable
+ * modifier summary lines. Normal mode (matching defaults) returns an empty array.
+ */
+export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
+  if (!mode || typeof mode !== 'object') return [];
+  const lines = [];
+  if (mode.enemyStatBonus > (defaults.enemyStatBonus || 0)) {
+    lines.push(`Enemy stats +${mode.enemyStatBonus}`);
+  }
+  if (mode.enemyCountBonus > (defaults.enemyCountBonus || 0)) {
+    lines.push(`+${mode.enemyCountBonus} extra enemies per map`);
+  }
+  if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
+    lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);
+  }
+  if (mode.goldMultiplier !== (defaults.goldMultiplier ?? 1) && mode.goldMultiplier < 1) {
+    lines.push(`${Math.round(mode.goldMultiplier * 100)}% gold earned`);
+  }
+  if (mode.shopPriceMultiplier > (defaults.shopPriceMultiplier ?? 1)) {
+    lines.push(`Shop prices +${Math.round((mode.shopPriceMultiplier - 1) * 100)}%`);
+  }
+  if (mode.xpMultiplier !== (defaults.xpMultiplier ?? 1) && mode.xpMultiplier < 1) {
+    lines.push(`${Math.round(mode.xpMultiplier * 100)}% XP earned`);
+  }
+  if (mode.fogChanceBonus > (defaults.fogChanceBonus || 0)) {
+    lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
+  }
+  if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
+    lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);
+  }
+  if (mode.extendedLevelingEnabled && !defaults.extendedLevelingEnabled) {
+    lines.push('Extended enemy leveling');
+  }
+  if (mode.enemyPoisonChance > (defaults.enemyPoisonChance || 0)) {
+    lines.push(`+${Math.round(mode.enemyPoisonChance * 100)}% enemy poison chance`);
+  }
+  if (mode.enemyEquipTierShift > (defaults.enemyEquipTierShift || 0)) {
+    lines.push(`Enemy weapon tier +${mode.enemyEquipTierShift}`);
+  }
+  return lines;
+}
+
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }

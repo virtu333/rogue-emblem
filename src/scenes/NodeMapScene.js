@@ -14,7 +14,6 @@ import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
-import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
 
 // Layout constants
@@ -82,6 +81,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.runManager = data.runManager;
       this.registry.set('selectedDifficulty', this.runManager.difficultyId || selectedDifficulty);
     } else {
+      console.warn('NodeMapScene: no runManager provided, creating fallback (should not happen in normal flow)');
       const meta = this.registry.get('meta');
       const metaEffects = meta ? meta.getActiveEffects() : null;
       this.runManager = new RunManager(this.gameData, metaEffects);
@@ -144,9 +144,6 @@ export class NodeMapScene extends Phaser.Scene {
       showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
 
-    if (this.shouldPromptBlessingChoice()) {
-      this.showBlessingSelectionOverlay();
-    }
   }
 
   onPointerUp(pointer) {
@@ -328,180 +325,6 @@ export class NodeMapScene extends Phaser.Scene {
     saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
   }
 
-  shouldPromptBlessingChoice() {
-    const telemetry = this.runManager?.blessingSelectionTelemetry;
-    if (!telemetry) return false;
-    const offeredIds = telemetry.offeredIds || [];
-    const chosenIds = telemetry.chosenIds || [];
-    return offeredIds.length > 0 && chosenIds.length === 0;
-  }
-
-  showBlessingSelectionOverlay() {
-    if (this.blessingOverlayObjects) return;
-    const objects = [];
-    const w = this.cameras.main.width;
-    const h = this.cameras.main.height;
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
-    const tierColors = {
-      1: { label: '#88ffbb', border: 0x2c7a4a, bg: 0x14281f },
-      2: { label: '#9ed5ff', border: 0x2f5c88, bg: 0x132234 },
-      3: { label: '#ffd68a', border: 0x8c6430, bg: 0x302312 },
-      4: { label: '#ff9ea7', border: 0x8e2f45, bg: 0x341521 },
-    };
-
-    const blocker = this.add.rectangle(cx, h / 2, w, h, 0x000000, 0.84)
-      .setDepth(1200)
-      .setInteractive();
-    objects.push(blocker);
-
-    const panelW = Math.min(660, w - 24);
-    const panelH = Math.min(460, h - 20);
-    const panel = this.add.rectangle(cx, cy, panelW, panelH, 0x0e1322, 0.96)
-      .setDepth(1201)
-      .setStrokeStyle(2, 0xffdd44, 0.9);
-    objects.push(panel);
-
-    const panelTop = cy - panelH / 2;
-    const panelBottom = cy + panelH / 2;
-    const headerY = panelTop + 24;
-    const subtitleY = panelTop + 48;
-    const dividerY = panelTop + 68;
-
-    const header = this.add.rectangle(cx, headerY, panelW - 24, 30, 0x1a2138, 1)
-      .setDepth(1202)
-      .setStrokeStyle(1, 0x3d4a77, 1);
-    objects.push(header);
-
-    const title = this.add.text(cx, headerY, 'Shrine Blessing', {
-      fontFamily: 'monospace', fontSize: '17px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(1202);
-    objects.push(title);
-
-    const subtitle = this.add.text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#b7bfd9',
-    }).setOrigin(0.5).setDepth(1202);
-    objects.push(subtitle);
-
-    const divider = this.add.rectangle(cx, dividerY, panelW - 28, 1, 0x364166, 1).setDepth(1202);
-    objects.push(divider);
-
-    const options = this.runManager.getBlessingOptions().slice(0, 4);
-    const cardW = panelW - 28;
-    const skipY = panelBottom - 28;
-    const cardsTop = dividerY + 16;
-    const cardsBottom = skipY - 26;
-    const cardGap = 10;
-    const slotCount = Math.max(options.length, 1);
-    const cardH = Math.min(86, Math.max(68, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount)));
-    const totalCardsH = (cardH * slotCount) + (cardGap * (slotCount - 1));
-    let y = cardsTop + Math.floor((cardsBottom - cardsTop - totalCardsH) / 2);
-    for (const blessing of options) {
-      const tierStyle = tierColors[blessing.tier] || tierColors[1];
-      const cardCY = y + cardH / 2;
-      const card = this.add.rectangle(cx, cardCY, cardW, cardH, tierStyle.bg, 1)
-        .setDepth(1202)
-        .setStrokeStyle(1, tierStyle.border, 1);
-      objects.push(card);
-
-      const left = cx - (cardW / 2) + 12;
-      const right = cx + (cardW / 2) - 12;
-      const row1Y = y + 10;
-      const tierBadge = this.add.text(left, row1Y, `T${blessing.tier}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#0b101f',
-        backgroundColor: tierStyle.label, padding: { x: 5, y: 2 }, fontStyle: 'bold',
-      }).setOrigin(0, 0).setDepth(1203);
-      objects.push(tierBadge);
-
-      const nameX = left + 38;
-      const label = this.add.text(nameX, row1Y + 1, blessing.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#edf1ff', fontStyle: 'bold',
-      }).setOrigin(0, 0).setDepth(1203);
-      objects.push(label);
-
-      const descWrapWidth = Math.max(150, cardW - 38 - 24);
-      const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#aeb8dc',
-        wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
-      }).setOrigin(0, 0).setDepth(1203);
-      let guard = 0;
-      while (desc.height > Math.max(18, cardH - 34) && desc.text.length > 8 && guard < 40) {
-        const next = `${desc.text.slice(0, -4).trimEnd()}...`;
-        if (next === desc.text) break;
-        desc.setText(next);
-        guard++;
-      }
-      objects.push(desc);
-
-      const pickBtn = this.add.text(right, cardCY, '[Select]', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#cbffd5',
-        backgroundColor: '#21442a', padding: { x: 8, y: 4 },
-      }).setOrigin(1, 0.5).setDepth(1203).setInteractive({ useHandCursor: true });
-      pickBtn.on('pointerover', () => {
-        pickBtn.setColor('#ffdd44');
-        pickBtn.setBackgroundColor('#2f5d39');
-        card.setStrokeStyle(2, 0xffdd44, 1);
-      });
-      pickBtn.on('pointerout', () => {
-        pickBtn.setColor('#cbffd5');
-        pickBtn.setBackgroundColor('#21442a');
-        card.setStrokeStyle(1, tierStyle.border, 1);
-      });
-      pickBtn.on('pointerdown', () => {
-        if (!this.runManager.chooseBlessing(blessing.id)) return;
-        recordBlessingSelection({
-          offeredIds: this.runManager?.blessingSelectionTelemetry?.offeredIds || [],
-          chosenId: blessing.id,
-        });
-        this.destroyBlessingSelectionOverlay();
-        this.persistRunSave();
-        this.drawMap();
-      });
-      objects.push(pickBtn);
-
-      this.tweens.add({
-        targets: [card, tierBadge, label, desc, pickBtn],
-        alpha: { from: 0, to: 1 },
-        y: '+=0',
-        duration: 120,
-      });
-
-      y += cardH + cardGap;
-    }
-
-    const skipBtn = this.add.text(cx, skipY, '[Skip Blessing]', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#d7dbe8',
-      backgroundColor: '#2a2f3f', padding: { x: 10, y: 4 },
-    }).setOrigin(0.5).setDepth(1203).setInteractive({ useHandCursor: true });
-    skipBtn.on('pointerover', () => {
-      skipBtn.setColor('#ffdd44');
-      skipBtn.setBackgroundColor('#3a4053');
-    });
-    skipBtn.on('pointerout', () => {
-      skipBtn.setColor('#d7dbe8');
-      skipBtn.setBackgroundColor('#2a2f3f');
-    });
-    skipBtn.on('pointerdown', () => {
-      if (!this.runManager.chooseBlessing(null)) return;
-      recordBlessingSelection({
-        offeredIds: this.runManager?.blessingSelectionTelemetry?.offeredIds || [],
-        chosenId: null,
-      });
-      this.destroyBlessingSelectionOverlay();
-      this.persistRunSave();
-      this.drawMap();
-    });
-    objects.push(skipBtn);
-
-    this.blessingOverlayObjects = objects;
-  }
-
-  destroyBlessingSelectionOverlay() {
-    if (!this.blessingOverlayObjects) return;
-    this.blessingOverlayObjects.forEach((obj) => obj.destroy());
-    this.blessingOverlayObjects = null;
-  }
-
   showPauseMenu() {
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => { this.pauseOverlay = null; },
@@ -525,7 +348,6 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawMap() {
-    this.blessingOverlayObjects = null;
     // Clear everything
     this.children.removeAll(true);
 
