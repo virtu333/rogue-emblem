@@ -20,7 +20,9 @@
     "test:sim": "vitest run tests/sim",
     "sim:fullrun:harness": "node tests/sim/fullrun-runner.js --seeds 20 --difficulty normal --mode reporting --timeout-rate-threshold 8",
     "sim:fullrun:harness:invincible": "node tests/sim/fullrun-runner.js --seeds 20 --difficulty normal --invincibility --mode reporting --timeout-rate-threshold 8",
-    "sim:fullrun:harness:pr": "node tests/sim/fullrun-runner.js --seeds 10 --difficulty normal --mode strict",
+    "sim:fullrun:harness:pr": "node tests/sim/fullrun-slice-runner.js --suite pr",
+    "sim:fullrun:harness:pr:single": "node tests/sim/fullrun-runner.js --seeds 10 --difficulty normal --mode strict",
+    "sim:fullrun:harness:slices:list": "node tests/sim/fullrun-slice-runner.js --list",
     "fuzz": "node tests/agents/fuzz-runner.js --seeds 100 --scenario act1_rout_basic",
     "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode reporting --timeout-rate-threshold 5 --use-default-scenario-budgets",
     "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets"

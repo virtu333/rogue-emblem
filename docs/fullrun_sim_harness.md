@@ -21,6 +21,12 @@ cmd /c npm run sim:fullrun:harness:invincible
 
 # Strict smoke gate
 cmd /c npm run sim:fullrun:harness:pr
+
+# Strict single-run fallback
+cmd /c npm run sim:fullrun:harness:pr:single
+
+# List deterministic slices
+cmd /c npm run sim:fullrun:harness:slices:list
 ```
 
 ## CLI options
@@ -28,6 +34,8 @@ cmd /c npm run sim:fullrun:harness:pr
 `node tests/sim/fullrun-runner.js [options]`
 
 - `--seed <n>` single seed
+- `--seed-start <n>` range start (inclusive)
+- `--seed-end <n>` range end (inclusive)
 - `--seeds <n>` seed range `1..n`
 - `--difficulty normal|hard`
 - `--invincibility` prevent player unit death in battle
@@ -36,12 +44,31 @@ cmd /c npm run sim:fullrun:harness:pr
 - `--max-battle-actions <n>`
 - `--mode strict|reporting`
 - `--timeout-rate-threshold <pct>` (reporting mode)
+- `--max-timeout-rate <pct>` explicit timeout cap (all modes)
+- `--min-win-rate <pct>`
+- `--max-defeat-rate <pct>`
+- `--min-avg-nodes <n>`
+- `--max-avg-nodes <n>`
+- `--min-avg-recruits <n>`
+- `--max-avg-units-lost <n>`
+- `--max-avg-turns <n>`
 
 ## Notes
 
 - In reporting mode, defeats are treated as outcomes (not harness failures).
 - Harness failures are `stuck` states and strict-mode timeouts.
 - Invincibility mode converts battle action-budget exhaustion into forced node wins so full-run progression can continue for long-batch balancing telemetry.
+- Threshold breaches fail the process with a dedicated `Threshold Breaches` section.
+
+## Strict slice suite
+
+`sim:fullrun:harness:pr` now runs deterministic strict slices:
+
+- `act1_pressure_normal` (normal opening stability/pacing)
+- `act1_pressure_hard` (hard opening stress)
+- `progression_invincible` (long-run progression/economy telemetry under invincibility)
+
+Slice definitions live in `tests/sim/fullrun-slices.js`.
 
 ## Exit code semantics
 
@@ -49,6 +76,7 @@ cmd /c npm run sim:fullrun:harness:pr
 - `stuck` always fails the run process (exit code `1`).
 - `timeout` fails only in `strict` mode.
 - Reporting mode can still fail if `timeout_rate_pct` breaches `--timeout-rate-threshold`.
+- Any configured threshold breach fails the run process (exit code `1`).
 - `All runs passed.` means no harness failure condition was hit; it does not imply high win rate.
 
 ## Commit checkpoint
