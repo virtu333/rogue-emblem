@@ -77,6 +77,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
     this.isSceneReady = false;
+    this.battleLaunchInFlight = false;
     const selectedDifficulty = data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
       this.runManager = data.runManager;
@@ -645,6 +646,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   onNodeClick(node) {
     if (this.isTransitioning) return;
+    if (this.battleLaunchInFlight) return;
     if (!this.isSceneReady) return;
     if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible) return;
     if (node.type === NODE_TYPES.CHURCH) {
@@ -652,14 +654,17 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.SHOP) {
       this.handleShop(node);
     } else {
+      // Immediately lock node interactions before any async work begins.
+      this.battleLaunchInFlight = true;
+      this.isTransitioning = true;
+      this.isSceneReady = false;
+      if (this.input) this.input.enabled = false;
       void this.handleBattle(node);
     }
   }
 
   async handleBattle(node) {
-    if (this.isTransitioning) return;
-    this.isTransitioning = true;
-    if (this.input) this.input.enabled = false;
+    if (!this.battleLaunchInFlight) return;
     try {
       await this.ensureAudioUnlocked();
       const audio = this.registry.get('audio');
@@ -678,14 +683,18 @@ export class NodeMapScene extends Phaser.Scene {
         isElite: battleParams?.isElite || false,
       });
       if (transitioned === false) {
+        this.battleLaunchInFlight = false;
         this.isTransitioning = false;
+        this.isSceneReady = true;
         if (this.input) this.input.enabled = true;
         if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       }
     } catch (err) {
       console.error('[NodeMapScene] Failed to start battle scene:', err);
       const audio = this.registry.get('audio');
+      this.battleLaunchInFlight = false;
       this.isTransitioning = false;
+      this.isSceneReady = true;
       if (this.input) this.input.enabled = true;
       if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       this.showTransientMessage('Failed to enter battle. Please try again.', '#ff6666');
