@@ -20,65 +20,70 @@ export class AudioManager {
 
   /** Play looping background music with optional fade-in. */
   async playMusic(key, ownerOrScene, fadeMs = 500) {
-    if (!key) return;
-    const owner = this._resolveOwnerToken(ownerOrScene);
-    const scene = this._resolveSceneContext(ownerOrScene);
+    try {
+      if (!key) return;
+      const owner = this._resolveOwnerToken(ownerOrScene);
+      const scene = this._resolveSceneContext(ownerOrScene);
 
-    if (this.currentMusicKey === key && this.currentMusic?.isPlaying) {
-      // If duplicate/stray looping tracks exist, recover by forcing a clean restart.
-      const active = this._getLoopingMusicSounds();
-      const hasOverlap = active.some((sound) => sound !== this.currentMusic);
-      const sameOwner = !owner || !this.currentMusicOwner || this.currentMusicOwner === owner;
-      if (sameOwner && !hasOverlap) return;
-      this.stopAllMusic(scene, 0);
-    }
-
-    const requestSeq = ++this._musicRequestSeq;
-
-    // Defer if audio context is locked (browser autoplay policy)
-    if (this.sound.locked) {
-      this._pendingMusic = { key, ownerOrScene, fadeMs };
-      if (!this._unlockListenerAdded) {
-        this._unlockListenerAdded = true;
-        this.sound.once('unlocked', () => {
-          this._unlockListenerAdded = false;
-          if (this._pendingMusic) {
-            const p = this._pendingMusic;
-            this._pendingMusic = null;
-            this.playMusic(p.key, p.ownerOrScene, p.fadeMs);
-          }
-        });
+      if (this.currentMusicKey === key && this.currentMusic?.isPlaying) {
+        // If duplicate/stray looping tracks exist, recover by forcing a clean restart.
+        const active = this._getLoopingMusicSounds();
+        const hasOverlap = active.some((sound) => sound !== this.currentMusic);
+        const sameOwner = !owner || !this.currentMusicOwner || this.currentMusicOwner === owner;
+        if (sameOwner && !hasOverlap) return;
+        this.stopAllMusic(scene, 0);
       }
-      return;
-    }
 
-    if (!this.sound.game.cache.audio.has(key)) {
-      try {
-        await this._ensureMusicLoaded(key, scene);
-      } catch (_) {
+      const requestSeq = ++this._musicRequestSeq;
+
+      // Defer if audio context is locked (browser autoplay policy)
+      if (this.sound.locked) {
+        this._pendingMusic = { key, ownerOrScene, fadeMs };
+        if (!this._unlockListenerAdded) {
+          this._unlockListenerAdded = true;
+          this.sound.once('unlocked', () => {
+            this._unlockListenerAdded = false;
+            if (this._pendingMusic) {
+              const p = this._pendingMusic;
+              this._pendingMusic = null;
+              void this.playMusic(p.key, p.ownerOrScene, p.fadeMs);
+            }
+          });
+        }
         return;
       }
-    }
 
-    // A newer request started while this one was loading.
-    if (requestSeq !== this._musicRequestSeq) return;
+      if (!this.sound.game.cache.audio.has(key)) {
+        try {
+          await this._ensureMusicLoaded(key, scene);
+        } catch (_) {
+          return;
+        }
+      }
 
-    // Defensive stop: clear any orphan looping music before starting new track.
-    this.stopAllMusic(scene, 0);
+      // A newer request started while this one was loading.
+      if (requestSeq !== this._musicRequestSeq) return;
 
-    if (!this.sound.game.cache.audio.has(key)) return;
+      // Defensive stop: clear any orphan looping music before starting new track.
+      this.stopAllMusic(scene, 0);
 
-    this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
-    this.currentMusicKey = key;
-    this.currentMusicOwner = owner;
-    this.currentMusic.play();
+      if (!this.sound.game.cache.audio.has(key)) return;
 
-    if (fadeMs > 0 && scene?.tweens) {
-      scene.tweens.add({
-        targets: this.currentMusic,
-        volume: this._curve(this.musicVolume),
-        duration: fadeMs,
-      });
+      this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
+      this.currentMusicKey = key;
+      this.currentMusicOwner = owner;
+      this.currentMusic.play();
+
+      if (fadeMs > 0 && scene?.tweens) {
+        scene.tweens.add({
+          targets: this.currentMusic,
+          volume: this._curve(this.musicVolume),
+          duration: fadeMs,
+        });
+      }
+    } catch (err) {
+      // Never surface async audio errors to scene callers (fire-and-forget usage).
+      if (this.debugMusic) console.warn('[AudioManager] playMusic failed:', key, err);
     }
   }
 
@@ -102,6 +107,7 @@ export class AudioManager {
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timeoutHandle);
+        loader.off(completeEvent, onFileComplete);
         loader.off('loaderror', onLoadError);
         if (scene?.events) scene.events.off('shutdown', onSceneShutdown);
       };

@@ -642,6 +642,7 @@ export class NodeMapScene extends Phaser.Scene {
   async handleBattle(node) {
     if (this.isTransitioning) return;
     this.isTransitioning = true;
+    await this.ensureAudioUnlocked();
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
 
@@ -669,6 +670,26 @@ export class NodeMapScene extends Phaser.Scene {
       if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       this.showChurchMessage('Failed to enter battle. Please try again.', '#ff6666');
     }
+  }
+
+  async ensureAudioUnlocked(timeoutMs = 200) {
+    const sound = this.sound;
+    if (!sound?.locked) return;
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      if (typeof sound.once === 'function') {
+        sound.once('unlocked', finish);
+      }
+      try {
+        if (typeof sound.unlock === 'function') sound.unlock();
+      } catch (_) {}
+      this.time.delayedCall(timeoutMs, finish);
+    });
   }
 
   handleChurch(node) {
