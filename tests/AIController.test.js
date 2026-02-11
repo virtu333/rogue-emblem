@@ -388,6 +388,54 @@ describe('AIController', () => {
         expect(dest.col).toBeLessThan(5);
       }
     });
+
+    it('uses recovery fallback after repeated no-reachable-move streaks', () => {
+      let unlocked = false;
+      const grid = createMockGrid([
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+      ]);
+      grid.getAttackRange = () => [{ col: 9, row: 9 }]; // Force path-aware miss
+      grid.findPath = (fromCol, fromRow, toCol, toRow) => {
+        if (!unlocked) return null;
+        if (fromCol === 5 && fromRow === 5 && toCol === 4 && toRow === 2) {
+          return [
+            { col: 5, row: 5 },
+            { col: 4, row: 5 },
+            { col: 4, row: 4 },
+            { col: 4, row: 3 },
+            { col: 4, row: 2 },
+          ];
+        }
+        if (fromCol === 5 && fromRow === 5 && toCol === 4 && toRow === 5) {
+          return [
+            { col: 5, row: 5 },
+            { col: 4, row: 5 },
+          ];
+        }
+        return null;
+      };
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 5, row: 5, weapon: { range: '1', type: 'Sword' } });
+      const player = makePlayer({ col: 5, row: 1 });
+
+      const decision1 = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision1.reason).toBe('no_reachable_move');
+      expect(decision1.detail.noMoveStreak).toBe(1);
+
+      const decision2 = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision2.reason).toBe('no_reachable_move');
+      expect(decision2.detail.noMoveStreak).toBe(2);
+
+      unlocked = true;
+      const decision3 = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision3.reason).toBe('chase_recovery_fallback');
+      expect(decision3.path).not.toBeNull();
+      const dest = decision3.path[decision3.path.length - 1];
+      expect(dest.col).toBe(4);
+      expect(dest.row).toBe(5);
+      expect(enemy._aiNoMoveStreak).toBe(0);
+    });
   });
 
   describe('Constructor options', () => {

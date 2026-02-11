@@ -11,6 +11,7 @@ import {
 const DEBUG_AI = false;
 const TERRAIN_FORT = 3;
 const TERRAIN_THRONE = 4;
+const NO_MOVE_STREAK_RECOVERY_THRESHOLD = 2;
 
 export class AIController {
   constructor(grid, gameData, options = {}) {
@@ -97,12 +98,12 @@ export class AIController {
       } else if (!this.aggressiveMode) {
         // Stay put - no movement, no attack
         if (DEBUG_AI) console.log(`[AI] Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
-        return {
+        return this._finalizeDecision(enemy, {
           path: null,
           target: null,
           reason: 'guard_hold',
           detail: { nearestDistance: Number.isFinite(nearestDist) ? nearestDist : null, triggerDistance: triggerDist },
-        };
+        });
       }
     }
 
@@ -171,7 +172,7 @@ export class AIController {
     if (bestAttack) {
       // Move to attack tile and attack
       const path = this._buildPath(enemy, bestAttack.tile, unitPositions);
-      return {
+      return this._finalizeDecision(enemy, {
         path,
         target: bestAttack.target,
         reason: 'attack_in_range',
@@ -181,36 +182,36 @@ export class AIController {
           fromPos: { col: enemy.col, row: enemy.row },
           attackTile: { col: bestAttack.tile.col, row: bestAttack.tile.row },
         },
-      };
+      });
     }
 
     // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {
       if (DEBUG_AI) console.log('[AI] Boss staying on throne - no targets in range');
-      return {
+      return this._finalizeDecision(enemy, {
         path: null,
         target: null,
         reason: 'boss_hold_throne',
         detail: { thronePos: this.thronePos || null },
-      };
+      });
     }
 
     // No attack possible - move toward nearest player using path-aware pursuit.
     const nearest = this._findPriorityTarget(enemy, playerUnits);
     if (!nearest) {
-      return {
+      return this._finalizeDecision(enemy, {
         path: null,
         target: null,
         reason: 'no_viable_target',
         detail: { playerCount: playerUnits.length },
-      };
+      });
     }
 
     const pathAwareTile = this._findPathAwareChaseTile(enemy, nearest, candidates, unitPositions);
     if (pathAwareTile) {
       const path = this._buildPath(enemy, pathAwareTile, unitPositions);
       if (path && path.length >= 2) {
-        return {
+        return this._finalizeDecision(enemy, {
           path,
           target: null,
           reason: 'chase_path_aware',
@@ -218,7 +219,7 @@ export class AIController {
             nearestTarget: nearest.name || null,
             destination: { col: pathAwareTile.col, row: pathAwareTile.row },
           },
-        };
+        });
       }
     }
 
@@ -236,7 +237,7 @@ export class AIController {
     if (closestTile && (closestTile.col !== enemy.col || closestTile.row !== enemy.row)) {
       const path = this._buildPath(enemy, closestTile, unitPositions);
       if (path && path.length >= 2) {
-        return {
+        return this._finalizeDecision(enemy, {
           path,
           target: null,
           reason: 'chase_greedy_fallback',
@@ -245,11 +246,36 @@ export class AIController {
             destination: { col: closestTile.col, row: closestTile.row },
             distanceToNearest: closestDist,
           },
-        };
+        });
       }
     }
 
-    return {
+    const nextNoMoveStreak = (enemy._aiNoMoveStreak || 0) + 1;
+    if (nextNoMoveStreak >= NO_MOVE_STREAK_RECOVERY_THRESHOLD) {
+      const recoveryTile = this._findRecoveryFallbackTile(
+        enemy,
+        [...playerUnits, ...(npcUnits || [])],
+        candidates,
+        unitPositions
+      );
+      if (recoveryTile) {
+        const path = this._buildPath(enemy, recoveryTile.tile, unitPositions);
+        if (path && path.length >= 2) {
+          return this._finalizeDecision(enemy, {
+            path,
+            target: null,
+            reason: 'chase_recovery_fallback',
+            detail: {
+              recoveredFromNoMoveStreak: nextNoMoveStreak,
+              destination: { col: recoveryTile.tile.col, row: recoveryTile.tile.row },
+              targetName: recoveryTile.target?.name || null,
+            },
+          });
+        }
+      }
+    }
+
+    return this._finalizeDecision(enemy, {
       path: null,
       target: null,
       reason: 'no_reachable_move',
@@ -257,7 +283,7 @@ export class AIController {
         nearestTarget: nearest.name || null,
         nearestDistance: gridDistance(enemy.col, enemy.row, nearest.col, nearest.row),
       },
-    };
+    });
   }
 
   _findPathAwareChaseTile(enemy, target, candidates, unitPositions) {
@@ -297,6 +323,76 @@ export class AIController {
       passable.push(tile);
     }
     return passable;
+  }
+
+  _findRecoveryFallbackTile(enemy, targets, candidates, unitPositions) {
+    if (!targets || targets.length === 0) return null;
+    const sortedTargets = [...targets].sort((a, b) =>
+      gridDistance(enemy.col, enemy.row, a.col, a.row) - gridDistance(enemy.col, enemy.row, b.col, b.row)
+    );
+    const candidateSet = new Set(candidates.map(t => `${t.col},${t.row}`));
+
+    let best = null;
+    for (const target of sortedTargets) {
+      const recoveryTiles = this._getRecoveryTilesForTarget(enemy, target);
+      const path = this._findShortestPathToTiles(enemy, recoveryTiles, unitPositions);
+      if (!path || path.length < 2) continue;
+
+      let chosenTile = null;
+      for (let i = path.length - 1; i >= 1; i--) {
+        const node = path[i];
+        if (candidateSet.has(`${node.col},${node.row}`)) {
+          chosenTile = node;
+          break;
+        }
+      }
+      if (!chosenTile) continue;
+
+      if (!best || path.length < best.pathLength) {
+        best = { tile: chosenTile, target, pathLength: path.length };
+      }
+    }
+    return best;
+  }
+
+  _getRecoveryTilesForTarget(enemy, target) {
+    const tiles = [];
+    const maxRadius = 2;
+    for (let dr = -maxRadius; dr <= maxRadius; dr++) {
+      for (let dc = -maxRadius; dc <= maxRadius; dc++) {
+        if (Math.abs(dr) + Math.abs(dc) > maxRadius) continue;
+        const col = target.col + dc;
+        const row = target.row + dr;
+        if (this.grid.cols !== undefined && (col < 0 || col >= this.grid.cols)) continue;
+        if (this.grid.rows !== undefined && (row < 0 || row >= this.grid.rows)) continue;
+        if (this.grid.getMoveCost(col, row, enemy.moveType) === Infinity) continue;
+        tiles.push({ col, row });
+      }
+    }
+    return tiles;
+  }
+
+  _findShortestPathToTiles(enemy, tiles, unitPositions) {
+    let bestPath = null;
+    for (const tile of tiles) {
+      const path = this.grid.findPath(
+        enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
+        unitPositions, enemy.faction
+      );
+      if (!path || path.length < 2) continue;
+      if (!bestPath || path.length < bestPath.length) bestPath = path;
+    }
+    return bestPath;
+  }
+
+  _finalizeDecision(enemy, decision) {
+    if (decision?.reason === 'no_reachable_move') {
+      enemy._aiNoMoveStreak = (enemy._aiNoMoveStreak || 0) + 1;
+      decision.detail = { ...(decision.detail || {}), noMoveStreak: enemy._aiNoMoveStreak };
+    } else {
+      enemy._aiNoMoveStreak = 0;
+    }
+    return decision;
   }
 
   _findPriorityTarget(enemy, playerUnits) {
