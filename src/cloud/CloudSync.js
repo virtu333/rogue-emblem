@@ -50,7 +50,7 @@ async function fetchTable(userId, table) {
     .select('data')
     .eq('user_id', userId)
     .maybeSingle();
-  if (error) { console.warn(`CloudSync fetch ${table}:`, error.message); return null; }
+  if (error) throw error;
   return data ? data.data : null;
 }
 
@@ -70,11 +70,11 @@ function applyMetaSlots(metaData) {
   const metaSlots = migrateCloudData(metaData);
   for (let i = 1; i <= MAX_SLOTS; i++) {
     const key = getMetaKey(i);
-    if (metaSlots[String(i)]) {
-      localStorage.setItem(key, JSON.stringify(metaSlots[String(i)]));
-    } else {
-      localStorage.removeItem(key);
-    }
+    const cloudSlot = metaSlots[String(i)];
+    if (!cloudSlot) continue;
+    const localSlot = readLocalJSON(key);
+    const shouldKeepLocal = shouldPreferLocalMeta(localSlot, cloudSlot);
+    if (!shouldKeepLocal) localStorage.setItem(key, JSON.stringify(cloudSlot));
   }
 }
 
@@ -132,24 +132,35 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
  * Read-modify-write helper: fetch current cloud slot map, update one slot, upsert back.
  */
 async function updateSlotInTable(userId, table, slot, slotData) {
-  try {
-    const current = await fetchTable(userId, table);
-    const slotMap = migrateCloudData(current);
-    if (slotData === null) {
-      delete slotMap[String(slot)];
-    } else {
-      slotMap[String(slot)] = slotData;
-    }
-    // If all slots empty, delete the row
-    const hasData = Object.values(slotMap).some(v => v != null);
-    if (!hasData) {
-      await supabase.from(table).delete().eq('user_id', userId);
-    } else {
-      await supabase.from(table).upsert({
-        user_id: userId, data: slotMap, updated_at: new Date().toISOString(),
-      });
-    }
-  } catch (e) { console.warn(`CloudSync updateSlot ${table}:`, e); }
+  const queueKey = `${userId}:${table}`;
+  const prev = updateQueues.get(queueKey) || Promise.resolve();
+  const next = prev
+    .catch(() => {})
+    .then(async () => {
+      const current = await fetchTable(userId, table);
+      const slotMap = migrateCloudData(current);
+      if (slotData === null) {
+        delete slotMap[String(slot)];
+      } else {
+        slotMap[String(slot)] = slotData;
+      }
+      // If all slots empty, delete the row
+      const hasData = Object.values(slotMap).some(v => v != null);
+      if (!hasData) {
+        await supabase.from(table).delete().eq('user_id', userId);
+      } else {
+        await supabase.from(table).upsert({
+          user_id: userId, data: slotMap, updated_at: new Date().toISOString(),
+        });
+      }
+    })
+    .catch((e) => {
+      console.warn(`CloudSync updateSlot ${table}:`, e);
+    })
+    .finally(() => {
+      if (updateQueues.get(queueKey) === next) updateQueues.delete(queueKey);
+    });
+  updateQueues.set(queueKey, next);
 }
 
 export function pushRunSave(userId, slot, runData) {
@@ -182,4 +193,30 @@ export function deleteSlotCloud(userId, slot) {
   if (!supabase) return;
   updateSlotInTable(userId, TABLES.run, slot, null);
   updateSlotInTable(userId, TABLES.meta, slot, null);
+}
+
+const updateQueues = new Map();
+
+function readLocalJSON(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function getSavedAt(slotData) {
+  const ts = slotData?.savedAt;
+  return Number.isFinite(ts) ? ts : null;
+}
+
+// Prefer local meta when it has a newer timestamp than cloud.
+// If timestamps are missing on either side, prefer cloud for deterministic sync.
+export function shouldPreferLocalMeta(localSlot, cloudSlot) {
+  if (!localSlot || !cloudSlot) return false;
+  const localTs = getSavedAt(localSlot);
+  const cloudTs = getSavedAt(cloudSlot);
+  if (!Number.isFinite(localTs) || !Number.isFinite(cloudTs)) return false;
+  return localTs > cloudTs;
 }

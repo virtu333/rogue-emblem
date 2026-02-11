@@ -20,6 +20,7 @@ export class MetaProgressionManager {
     this.storageKey = storageKey;
     this.totalValor = 0;
     this.totalSupply = 0;
+    this.savedAt = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};  // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
@@ -43,6 +44,7 @@ export class MetaProgressionManager {
         if (saved.purchasedUpgrades) this.purchasedUpgrades = saved.purchasedUpgrades;
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
+        if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
         // Migration: old saves without milestones default to empty
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
       }
@@ -327,6 +329,7 @@ export class MetaProgressionManager {
   }
 
   _save() {
+    this.savedAt = Date.now();
     const payload = {
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
@@ -334,6 +337,7 @@ export class MetaProgressionManager {
       runsCompleted: this.runsCompleted,
       skillAssignments: this.skillAssignments,
       milestones: [...this.milestones],
+      savedAt: this.savedAt,
     };
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(payload));

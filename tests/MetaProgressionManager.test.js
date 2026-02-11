@@ -391,6 +391,7 @@ describe('MetaProgressionManager', () => {
     expect(saved.totalValor).toBe(100);
     expect(saved.totalSupply).toBe(200);
     expect(saved.totalRenown).toBeUndefined();
+    expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
   it('has 41 total upgrades in data', () => {
