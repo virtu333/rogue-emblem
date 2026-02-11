@@ -12,6 +12,14 @@ const TABLES = {
 };
 
 const SETTINGS_LS_KEY = 'emblem_rogue_settings';
+const FETCH_TIMEOUT_MS = 2000;
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
 
 /**
  * Detect old flat cloud format (no "1"/"2"/"3" keys) and wrap as slot 1.
@@ -45,6 +53,38 @@ async function fetchTable(userId, table) {
   return data ? data.data : null;
 }
 
+function applyRunSlots(runData) {
+  const runSlots = migrateCloudData(runData);
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    const key = getRunKey(i);
+    if (runSlots[String(i)]) {
+      localStorage.setItem(key, JSON.stringify(runSlots[String(i)]));
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+function applyMetaSlots(metaData) {
+  const metaSlots = migrateCloudData(metaData);
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    const key = getMetaKey(i);
+    if (metaSlots[String(i)]) {
+      localStorage.setItem(key, JSON.stringify(metaSlots[String(i)]));
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+function applySettings(settingsData) {
+  if (settingsData) {
+    localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settingsData));
+  } else {
+    localStorage.removeItem(SETTINGS_LS_KEY);
+  }
+}
+
 /**
  * Fetch all tables for a user and write to slot-specific localStorage keys.
  * Called once on login, before Phaser boots.
@@ -52,43 +92,29 @@ async function fetchTable(userId, table) {
 export async function fetchAllToLocalStorage(userId) {
   if (!supabase) return;
 
-  // Fetch run saves (slot-keyed)
-  try {
-    const runData = await fetchTable(userId, TABLES.run);
-    const runSlots = migrateCloudData(runData);
-    for (let i = 1; i <= MAX_SLOTS; i++) {
-      const key = getRunKey(i);
-      if (runSlots[String(i)]) {
-        localStorage.setItem(key, JSON.stringify(runSlots[String(i)]));
-      } else {
-        localStorage.removeItem(key);
-      }
-    }
-  } catch (e) { console.warn('CloudSync fetch run_saves:', e); }
+  const [runRes, metaRes, settingsRes] = await Promise.allSettled([
+    withTimeout(fetchTable(userId, TABLES.run), FETCH_TIMEOUT_MS),
+    withTimeout(fetchTable(userId, TABLES.meta), FETCH_TIMEOUT_MS),
+    withTimeout(fetchTable(userId, TABLES.settings), FETCH_TIMEOUT_MS),
+  ]);
 
-  // Fetch meta progression (slot-keyed)
-  try {
-    const metaData = await fetchTable(userId, TABLES.meta);
-    const metaSlots = migrateCloudData(metaData);
-    for (let i = 1; i <= MAX_SLOTS; i++) {
-      const key = getMetaKey(i);
-      if (metaSlots[String(i)]) {
-        localStorage.setItem(key, JSON.stringify(metaSlots[String(i)]));
-      } else {
-        localStorage.removeItem(key);
-      }
-    }
-  } catch (e) { console.warn('CloudSync fetch meta_progression:', e); }
+  if (runRes.status === 'fulfilled') {
+    applyRunSlots(runRes.value);
+  } else {
+    console.warn('CloudSync fetch run_saves:', runRes.reason);
+  }
 
-  // Fetch settings (global, not per-slot)
-  try {
-    const settingsData = await fetchTable(userId, TABLES.settings);
-    if (settingsData) {
-      localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settingsData));
-    } else {
-      localStorage.removeItem(SETTINGS_LS_KEY);
-    }
-  } catch (e) { console.warn('CloudSync fetch user_settings:', e); }
+  if (metaRes.status === 'fulfilled') {
+    applyMetaSlots(metaRes.value);
+  } else {
+    console.warn('CloudSync fetch meta_progression:', metaRes.reason);
+  }
+
+  if (settingsRes.status === 'fulfilled') {
+    applySettings(settingsRes.value);
+  } else {
+    console.warn('CloudSync fetch user_settings:', settingsRes.reason);
+  }
 }
 
 /**

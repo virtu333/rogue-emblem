@@ -559,7 +559,11 @@
       if (typeof s.musicVolume === 'number') musicVol = s.musicVolume;
     } catch (_) {}
 
-    var bgMusic = new Audio('assets/audio/music/music_login.ogg');
+    var bgMusic = new Audio();
+    bgMusic.preload = 'none';
+    bgMusic.src = bgMusic.canPlayType('audio/ogg')
+      ? 'assets/audio/music/music_login.ogg'
+      : 'assets/audio/music/music_login.mp3';
     bgMusic.loop = true;
     bgMusic.volume = musicVol;
 

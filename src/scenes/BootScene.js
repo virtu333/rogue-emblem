@@ -3,7 +3,6 @@
 import { DataLoader } from '../engine/DataLoader.js';
 import { AudioManager } from '../utils/AudioManager.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
-import { ALL_MUSIC_KEYS } from '../utils/musicConfig.js';
 import { cloudState } from '../main.js';
 import { pushSettings } from '../cloud/CloudSync.js';
 import { migrateOldSaves } from '../engine/SlotManager.js';
@@ -14,6 +13,28 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    const failedFiles = [];
+    const statusText = this.add.text(320, 210, 'Loading assets...', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc', align: 'center',
+    }).setOrigin(0.5);
+    const progressText = this.add.text(320, 240, '0%', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa', align: 'center',
+    }).setOrigin(0.5);
+
+    this.load.on('progress', (value) => {
+      progressText.setText(`${Math.round(value * 100)}%`);
+    });
+    this.load.on('fileprogress', (file) => {
+      if (file?.key) statusText.setText(`Loading ${file.key}...`);
+    });
+    this.load.on('loaderror', (file) => {
+      if (file?.key) failedFiles.push(file.key);
+    });
+    this.load.once('complete', () => {
+      this._failedAssetKeys = failedFiles;
+      statusText.destroy();
+      progressText.destroy();
+    });
     // Character sprites (32) — keyed by filename
     const characterSprites = [
       'edric', 'archer', 'assassin', 'bishop', 'bishop_alt',
@@ -92,11 +113,6 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);
     }
 
-    // Music (21 tracks — per-act battle, boss, exploration + title, home base, stingers)
-    for (const key of ALL_MUSIC_KEYS) {
-      this.load.audio(key, `assets/audio/music/${key}.ogg`);
-    }
-
     // SFX (18 effects)
     const sfxKeys = [
       'sfx_sword', 'sfx_lance', 'sfx_axe', 'sfx_bow',
@@ -111,6 +127,13 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
+    if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
+      const sample = this._failedAssetKeys.slice(0, 3).join(', ');
+      this.add.text(320, 26, `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#ffb347', align: 'center',
+      }).setOrigin(0.5);
+    }
+
     let data;
     try {
       const loader = new DataLoader();

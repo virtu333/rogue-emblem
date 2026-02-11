@@ -30,6 +30,13 @@ function unlockAudio() {
   }
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
 function bootGame(user) {
   if (window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]) return;
   window[GAME_BOOT_FLAG] = true;
@@ -98,9 +105,10 @@ if (!supabase) {
   getSession().then(async (session) => {
     if (session) {
       try {
-        await fetchAllToLocalStorage(session.user.id);
+        await withTimeout(fetchAllToLocalStorage(session.user.id), 1500);
       } catch (_) { /* offline fallback — localStorage has stale data */ }
       bootGame(session.user);
+      fetchAllToLocalStorage(session.user.id).catch(() => {});
     }
     // else: show auth overlay (already visible)
   }).catch(() => {
@@ -142,9 +150,10 @@ async function handleSubmit(e) {
 
     const user = result.user;
     try {
-      await fetchAllToLocalStorage(user.id);
+      await withTimeout(fetchAllToLocalStorage(user.id), 1500);
     } catch (_) { /* offline — proceed with whatever localStorage has */ }
     bootGame(user);
+    fetchAllToLocalStorage(user.id).catch(() => {});
   } catch (err) {
     authError.textContent = err.message || 'Authentication failed';
     authSubmit.disabled = false;

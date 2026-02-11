@@ -1,4 +1,4 @@
-// AudioManager — Lightweight wrapper around Phaser's sound manager
+// AudioManager - lightweight wrapper around Phaser's sound manager.
 
 export class AudioManager {
   constructor(soundManager) {
@@ -8,6 +8,8 @@ export class AudioManager {
     this.musicVolume = 0.5;
     this.sfxVolume = 0.7;
     this.debugMusic = false;
+    this.loadingMusic = new Map();
+    this._musicRequestSeq = 0;
   }
 
   /** Convert linear slider value (0-1) to perceptual volume via quadratic curve. */
@@ -16,13 +18,15 @@ export class AudioManager {
   }
 
   /** Play looping background music with optional fade-in. */
-  playMusic(key, scene, fadeMs = 500) {
+  async playMusic(key, scene, fadeMs = 500) {
     if (!key) return;
     if (this.currentMusicKey === key && this.currentMusic?.isPlaying) return;
 
+    const requestSeq = ++this._musicRequestSeq;
+
     // Defer if audio context is locked (browser autoplay policy)
     if (this.sound.locked) {
-      this._pendingMusic = { key };
+      this._pendingMusic = { key, scene, fadeMs };
       if (!this._unlockListenerAdded) {
         this._unlockListenerAdded = true;
         this.sound.once('unlocked', () => {
@@ -30,18 +34,28 @@ export class AudioManager {
           if (this._pendingMusic) {
             const p = this._pendingMusic;
             this._pendingMusic = null;
-            // Play at full volume immediately — no fade (scene ref may be stale)
-            this.playMusic(p.key, null, 0);
+            this.playMusic(p.key, p.scene, p.fadeMs);
           }
         });
       }
       return;
     }
 
+    if (!this.sound.game.cache.audio.has(key)) {
+      try {
+        await this._ensureMusicLoaded(key, scene);
+      } catch (_) {
+        return;
+      }
+    }
+
+    // A newer request started while this one was loading.
+    if (requestSeq !== this._musicRequestSeq) return;
+
     // Defensive stop: clear any orphan looping music before starting new track.
     this.stopAllMusic(scene, 0);
 
-    if (!this.sound.get(key) && !this.sound.game.cache.audio.has(key)) return;
+    if (!this.sound.game.cache.audio.has(key)) return;
 
     this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
     this.currentMusicKey = key;
@@ -54,6 +68,49 @@ export class AudioManager {
         duration: fadeMs,
       });
     }
+  }
+
+  _getMusicSources(key) {
+    // Keep .ogg first to preserve existing behavior where available.
+    return [`assets/audio/music/${key}.ogg`, `assets/audio/music/${key}.mp3`];
+  }
+
+  _ensureMusicLoaded(key, scene) {
+    if (this.sound.game.cache.audio.has(key)) return Promise.resolve();
+    if (this.loadingMusic.has(key)) return this.loadingMusic.get(key);
+
+    const loader = scene?.load;
+    if (!loader) return Promise.reject(new Error('no-loader'));
+
+    const promise = new Promise((resolve, reject) => {
+      const completeEvent = `filecomplete-audio-${key}`;
+      const cleanup = () => {
+        loader.off('loaderror', onLoadError);
+      };
+      const onFileComplete = () => {
+        cleanup();
+        resolve();
+      };
+      const onLoadError = (file) => {
+        if (file?.key !== key) return;
+        cleanup();
+        reject(new Error(`music-load-failed:${key}`));
+      };
+
+      loader.once(completeEvent, onFileComplete);
+      loader.on('loaderror', onLoadError);
+      loader.audio(key, this._getMusicSources(key));
+
+      const currentlyLoading = typeof loader.isLoading === 'function'
+        ? loader.isLoading()
+        : Boolean(loader.isLoading);
+      if (!currentlyLoading) loader.start();
+    }).finally(() => {
+      this.loadingMusic.delete(key);
+    });
+
+    this.loadingMusic.set(key, promise);
+    return promise;
   }
 
   /** Stop current music with optional fade-out. */
@@ -107,8 +164,6 @@ export class AudioManager {
       if (!key) return false;
       const isLooping = Boolean(this._safeRead(s, 'loop') || this._safeRead(this._safeRead(s, 'config'), 'loop'));
       const isActive = Boolean(this._safeRead(s, 'isPlaying') || this._safeRead(s, 'isPaused'));
-      // Conservative fallback: stale sound wrappers can throw for loop/config reads.
-      // Treat active music-key sounds as music even if loop flag is unreadable.
       const looksLikeMusic = this._isMusicKey(key);
       const matchesCurrent = s === this.currentMusic || key === this.currentMusicKey;
       return isActive && (isLooping || looksLikeMusic || matchesCurrent);
