@@ -67,6 +67,12 @@ describe('RunManager', () => {
       rm.startRun();
       expect(rm.status).toBe('active');
     });
+
+    it('stores selected difficulty and modifiers', () => {
+      rm.startRun({ difficultyId: 'hard' });
+      expect(rm.difficultyId).toBe('hard');
+      expect(rm.getDifficultyModifier('enemyStatBonus', 0)).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
+    });
   });
 
   describe('serializeUnit', () => {
@@ -282,6 +288,25 @@ describe('RunManager', () => {
       const json = rm.toJSON();
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.activeBlessings).toEqual(['blessed_vigor']);
+    });
+
+    it('round-trips difficulty selection through save/load', () => {
+      rm.startRun({ difficultyId: 'hard' });
+      const json = rm.toJSON();
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.difficultyId).toBe('hard');
+      expect(restored.actSequence).toEqual(gameData.difficulty.modes.hard.actsIncluded);
+    });
+
+    it('migrates old saves without difficulty fields to normal defaults', () => {
+      rm.startRun({ difficultyId: 'hard' });
+      const json = rm.toJSON();
+      delete json.difficultyId;
+      delete json.difficultyModifiers;
+      delete json.actSequence;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.difficultyId).toBe('normal');
+      expect(restored.actSequence).toEqual(gameData.difficulty.modes.normal.actsIncluded);
     });
   });
 
@@ -905,6 +930,17 @@ describe('blessing run-start effect application', () => {
       const params = rm.getBattleParams(node);
       params.fogEnabled = true;
       expect(node.battleParams.fogEnabled).toBeUndefined();
+    });
+
+    it('getBattleParams injects difficulty combat modifiers', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun({ difficultyId: 'hard' });
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const params = rm.getBattleParams(node);
+      expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
+      expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
+      expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
     });
   });
 

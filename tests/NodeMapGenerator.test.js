@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { ACT_CONFIG, NODE_TYPES, FOG_CHANCE_BY_ACT } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
@@ -666,6 +666,21 @@ describe('Template-driven fog', () => {
       for (const n of bossNodes) {
         expect(n.fogEnabled).toBeUndefined();
       }
+    }
+  });
+
+  it('applies fog chance bonus from options', () => {
+    const noFogField = { rout: [{ id: 'test_no_fog', zones: [], features: [] }], seize: [] };
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      const base = generateNodeMap('act1', ACT_CONFIG.act1, noFogField);
+      const boosted = generateNodeMap('act1', ACT_CONFIG.act1, noFogField, { fogChanceBonus: 0.15 });
+      const baseFogged = base.nodes.filter(n => n.type === NODE_TYPES.BATTLE && n.fogEnabled).length;
+      const boostedFogged = boosted.nodes.filter(n => n.type === NODE_TYPES.BATTLE && n.fogEnabled).length;
+      expect(baseFogged).toBe(0);
+      expect(boostedFogged).toBeGreaterThan(0);
+    } finally {
+      randomSpy.mockRestore();
     }
   });
 });

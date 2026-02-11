@@ -1,4 +1,5 @@
 import { validateBlessingsConfig } from './BlessingEngine.js';
+import { validateDifficultyConfig } from './DifficultyEngine.js';
 
 // DataLoader — fetches and parses game data JSON files
 
@@ -20,10 +21,11 @@ export class DataLoader {
     this.whetstones = null;
     this.turnBonus = null;
     this.blessings = null;
+    this.difficulty = null;
   }
 
   async loadAll() {
-    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings] = await Promise.all([
+    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
       this.loadJSON('data/classes.json'),
@@ -40,6 +42,7 @@ export class DataLoader {
       this.loadJSON('data/whetstones.json'),
       this.loadJSON('data/turnBonus.json'),
       this.loadOptionalJSON('data/blessings.json'),
+      this.loadJSON('data/difficulty.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -57,13 +60,18 @@ export class DataLoader {
     this.whetstones = whetstones;
     this.turnBonus = turnBonus;
     this.blessings = blessings;
+    this.difficulty = difficulty;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
         throw new Error(`Invalid blessings data: ${validation.errors.join('; ')}`);
       }
     }
-    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings };
+    const diffValidation = validateDifficultyConfig(this.difficulty);
+    if (!diffValidation.valid) {
+      throw new Error(`Invalid difficulty data: ${diffValidation.errors.join('; ')}`);
+    }
+    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty };
   }
 
   async loadJSON(path) {

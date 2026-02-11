@@ -56,7 +56,8 @@ export class RunCompleteScene extends Phaser.Scene {
       actIndex: rm.actIndex,
       completedBattles: rm.completedBattles,
     });
-    const { valor, supply } = calculateCurrencies(rm.actIndex, rm.completedBattles, isVictory);
+    const currencyMultiplier = rm.getDifficultyModifier?.('currencyMultiplier', 1) || 1;
+    const { valor, supply } = calculateCurrencies(rm.actIndex, rm.completedBattles, isVictory, currencyMultiplier);
     const meta = this.registry.get('meta');
     if (meta) {
       meta.addValor(valor);
@@ -74,6 +75,7 @@ export class RunCompleteScene extends Phaser.Scene {
     const statsLines = [
       `Battles Won: ${rm.completedBattles}`,
       `Act Reached: ${actReached} / 4`,
+      `Difficulty: ${(rm.difficultyId || 'normal').toUpperCase()}  (x${currencyMultiplier.toFixed(2)} currency)`,
     ];
     const statsText = statsLines.join('\n');
 

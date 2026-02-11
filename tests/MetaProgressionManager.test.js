@@ -759,4 +759,11 @@ describe('calculateCurrencies', () => {
     expect(valor).toBe(0);
     expect(supply).toBe(0);
   });
+
+  it('applies difficulty currency multiplier', () => {
+    const { valor, supply } = calculateCurrencies(2, 4, false, 1.25);
+    // Base = (2*50) + (4*15) = 160, scaled = 200
+    expect(valor).toBe(200);
+    expect(supply).toBe(200);
+  });
 });

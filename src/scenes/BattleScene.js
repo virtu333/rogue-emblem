@@ -208,7 +208,10 @@ export class BattleScene extends Phaser.Scene {
       for (const spawn of bc.enemySpawns) {
         const classData = this.gameData.classes.find(c => c.name === spawn.className);
         if (!classData) continue;
-        const diffMod = this.battleParams.difficultyMod || 1.0;
+        const difficultyConfig = {
+          multiplier: this.battleParams.difficultyMod || 1.0,
+          enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+        };
 
         let enemy;
         if (classData.tier === 'promoted') {
@@ -216,10 +219,10 @@ export class BattleScene extends Phaser.Scene {
           const baseClassName = classData.promotesFrom;
           const baseClassData = this.gameData.classes.find(c => c.name === baseClassName);
           if (!baseClassData) continue;
-          enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
+          enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
           promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
         } else {
-          enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
+          enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
         }
 
         enemy.col = spawn.col;
@@ -384,9 +387,10 @@ export class BattleScene extends Phaser.Scene {
       this.dangerButton = makeButton(hw - 140, '[D] Danger', () => this._onDangerClick());
       this.rosterButton = makeButton(hw, '[R] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
+      this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () => this.requestCancel({ allowPause: false }));
       this.instructionText2 = this.add.text(
         hw, hh - 18,
-        '[V] Details: right-click unit  |  ESC: cancel/pause',
+        '[V] Details: right-click unit  |  ESC/[X]/off-map tap: cancel',
         { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
       ).setOrigin(0.5).setDepth(100);
 
@@ -419,29 +423,7 @@ export class BattleScene extends Phaser.Scene {
         this.forceEndTurn();
       });
       this.input.keyboard.on('keydown-ESC', () => {
-        if (DEBUG_MODE && this.debugOverlay?.visible) {
-          this.debugOverlay.hide();
-          return;
-        }
-        if (this.unitDetailOverlay?.visible) {
-          this.unitDetailOverlay.hide();
-        } else if (this.inspectionPanel.visible) {
-          this.inspectionPanel.hide();
-          this.grid.clearHighlights();
-          this.grid.clearAttackHighlights();
-        } else if (this.pauseOverlay?.visible) {
-          this.pauseOverlay.hide();
-        } else if (this.lootRosterVisible) {
-          this.hideLootRoster();
-        } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
-          this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
-          this.lootSettingsOverlay.show();
-        } else if (this.battleState === 'PLAYER_IDLE') {
-          this.showPauseMenu();
-        } else {
-          this.handleCancel();
-        }
-        this.refreshEndTurnControl();
+        this.requestCancel();
       });
       this.input.keyboard.on('keydown-R', () => {
         // Player-input roster overlay
@@ -990,7 +972,12 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'PAUSED') return;
 
     const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
-    if (!gp) return;
+    if (!gp) {
+      if (!this._isPointerOverInteractive(pointer)) {
+        this.requestCancel({ allowPause: false });
+      }
+      return;
+    }
 
     switch (this.battleState) {
       case 'PLAYER_IDLE':
@@ -1033,19 +1020,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onRightClick(pointer) {
-    // Close any open detail overlay first
-    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-
     // Right-click cancels active selection states (like ESC)
-    const cancelStates = [
-      'UNIT_SELECTED', 'UNIT_ACTION_MENU', 'SELECTING_TARGET', 'SHOWING_FORECAST',
-      'SELECTING_HEAL_TARGET', 'SELECTING_SHOVE_TARGET', 'SELECTING_PULL_TARGET',
-      'SELECTING_TRADE_TARGET', 'SELECTING_SWAP_TARGET', 'SELECTING_DANCE_TARGET',
-      'TRADING', 'CANTO_MOVING',
-    ];
-    if (cancelStates.includes(this.battleState)) {
-      this.handleCancel();
-      this.refreshEndTurnControl();
+    if (this.requestCancel({ allowPause: false })) {
       return;
     }
 
@@ -1097,6 +1073,81 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.refreshEndTurnControl();
+  }
+
+  _isPointerOverInteractive(pointer) {
+    if (!this.input || !pointer) return false;
+    let hit = [];
+    if (typeof this.input.hitTestPointer === 'function') {
+      hit = this.input.hitTestPointer(pointer) || [];
+    } else if (this.input.manager?.hitTest) {
+      hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
+    }
+    return Array.isArray(hit) && hit.some(obj =>
+      obj
+      && obj.visible !== false
+      && obj.active !== false
+      && obj.input?.enabled
+    );
+  }
+
+  isCancelableBattleState() {
+    const cancelStates = [
+      'UNIT_SELECTED',
+      'UNIT_ACTION_MENU',
+      'SELECTING_TARGET',
+      'SHOWING_FORECAST',
+      'SELECTING_HEAL_TARGET',
+      'SELECTING_SHOVE_TARGET',
+      'SELECTING_PULL_TARGET',
+      'SELECTING_TRADE_TARGET',
+      'SELECTING_SWAP_TARGET',
+      'SELECTING_DANCE_TARGET',
+      'TRADING',
+      'CANTO_MOVING',
+    ];
+    return cancelStates.includes(this.battleState);
+  }
+
+  canRequestCancel({ allowPause = true } = {}) {
+    if (DEBUG_MODE && this.debugOverlay?.visible) return true;
+    if (this.unitDetailOverlay?.visible) return true;
+    if (this.inspectionPanel?.visible) return true;
+    if (this.pauseOverlay?.visible) return true;
+    if (this.lootRosterVisible) return true;
+    if (this.battleState === 'BATTLE_END' && this.lootGroup) return true;
+    if (this.isCancelableBattleState()) return true;
+    if (allowPause && this.battleState === 'PLAYER_IDLE') return true;
+    return false;
+  }
+
+  requestCancel({ allowPause = true } = {}) {
+    if (!this.canRequestCancel({ allowPause })) return false;
+    if (DEBUG_MODE && this.debugOverlay?.visible) {
+      this.debugOverlay.hide();
+      this.refreshEndTurnControl();
+      return true;
+    }
+    if (this.unitDetailOverlay?.visible) {
+      this.unitDetailOverlay.hide();
+    } else if (this.inspectionPanel?.visible) {
+      this.inspectionPanel.hide();
+      this.grid.clearHighlights();
+      this.grid.clearAttackHighlights();
+    } else if (this.pauseOverlay?.visible) {
+      this.pauseOverlay.hide();
+    } else if (this.lootRosterVisible) {
+      this.hideLootRoster();
+    } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+      this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
+      this.lootSettingsOverlay.show();
+    } else if (this.isCancelableBattleState()) {
+      this.handleCancel();
+    } else if (allowPause && this.battleState === 'PLAYER_IDLE') {
+      this.showPauseMenu();
+    }
+    this.refreshEndTurnControl();
+    return true;
   }
 
   openUnitDetailOverlay() {
@@ -1196,14 +1247,26 @@ export class BattleScene extends Phaser.Scene {
   }
 
   refreshEndTurnControl() {
-    if (!this.endTurnButton) return;
-    const enabled = this.canForceEndTurn();
-    this.endTurnButton.setVisible(enabled);
-    if (enabled) {
-      this.endTurnButton.setColor('#e0e0e0');
-      this.endTurnButton.setInteractive({ useHandCursor: true });
-    } else {
-      this.endTurnButton.disableInteractive();
+    if (this.endTurnButton) {
+      const enabled = this.canForceEndTurn();
+      this.endTurnButton.setVisible(enabled);
+      if (enabled) {
+        this.endTurnButton.setColor('#e0e0e0');
+        this.endTurnButton.setInteractive({ useHandCursor: true });
+      } else {
+        this.endTurnButton.disableInteractive();
+      }
+    }
+
+    if (this.cancelButton) {
+      const canCancel = this.canRequestCancel({ allowPause: false });
+      this.cancelButton.setVisible(canCancel);
+      if (canCancel) {
+        this.cancelButton.setColor('#e0e0e0');
+        this.cancelButton.setInteractive({ useHandCursor: true });
+      } else {
+        this.cancelButton.disableInteractive();
+      }
     }
   }
 
@@ -3539,7 +3602,9 @@ export class BattleScene extends Phaser.Scene {
 
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
   async awardXP(playerUnit, opponent, opponentDied) {
-    const xp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    const baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier) ? this.battleParams.xpMultiplier : 1;
+    const xp = Math.max(1, Math.floor(baseXp * xpMultiplier));
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);

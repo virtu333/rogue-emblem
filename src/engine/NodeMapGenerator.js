@@ -24,9 +24,11 @@ const ACT_LEVEL_SCALING = {
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
  * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize)
+ * @param {{ fogChanceBonus?: number }} [options]
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
-export function generateNodeMap(actId, actConfig, mapTemplates) {
+export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
+  const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const { rows } = actConfig;
 
   // Special case: finalBoss is a single boss node
@@ -113,12 +115,13 @@ export function generateNodeMap(actId, actConfig, mapTemplates) {
           const fogChance = (template && template.fogChance !== undefined)
             ? template.fogChance
             : (FOG_CHANCE_BY_ACT[actId] || 0);
+          const adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
           const fogRoll = Math.random();
-          if (fogRoll < fogChance) {
+          if (fogRoll < adjustedFogChance) {
             node.fogEnabled = true;
           }
           if (DEBUG_MAP_GEN) {
-            console.log(`[MAP_GEN] Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${fogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
+            console.log(`[MAP_GEN] Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${adjustedFogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
           }
         }
       }

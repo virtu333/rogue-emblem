@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "modes": {
+    "normal": {
+      "enemyStatBonus": 0,
+      "enemyCountBonus": 0,
+      "enemyEquipTierShift": 0,
+      "enemySkillChance": 0,
+      "enemyPoisonChance": 0,
+      "enemyStatusStaffChance": 0,
+      "goldMultiplier": 1,
+      "shopPriceMultiplier": 1,
+      "lootQualityShift": 0,
+      "deployLimitBonus": 0,
+      "xpMultiplier": 1,
+      "fogChanceBonus": 0,
+      "reinforcementTurnOffset": 0,
+      "currencyMultiplier": 1,
+      "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+      "extendedLevelingEnabled": false
+    },
+    "hard": {
+      "enemyStatBonus": 1,
+      "enemyCountBonus": 1,
+      "enemyEquipTierShift": 0,
+      "enemySkillChance": 0.2,
+      "enemyPoisonChance": 0.08,
+      "enemyStatusStaffChance": 0,
+      "goldMultiplier": 0.9,
+      "shopPriceMultiplier": 1.15,
+      "lootQualityShift": 0,
+      "deployLimitBonus": 0,
+      "xpMultiplier": 0.9,
+      "fogChanceBonus": 0.15,
+      "reinforcementTurnOffset": 0,
+      "currencyMultiplier": 1.25,
+      "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+      "extendedLevelingEnabled": false
+    },
+    "lunatic": {
+      "enemyStatBonus": 2,
+      "enemyCountBonus": 2,
+      "enemyEquipTierShift": 1,
+      "enemySkillChance": 0.4,
+      "enemyPoisonChance": 0.2,
+      "enemyStatusStaffChance": 0.15,
+      "goldMultiplier": 0.8,
+      "shopPriceMultiplier": 1.25,
+      "lootQualityShift": 0,
+      "deployLimitBonus": 0,
+      "xpMultiplier": 0.8,
+      "fogChanceBonus": 0.25,
+      "reinforcementTurnOffset": 0,
+      "currencyMultiplier": 1.5,
+      "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+      "extendedLevelingEnabled": true
+    }
+  }
+}

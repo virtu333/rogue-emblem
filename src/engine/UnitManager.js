@@ -239,7 +239,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * level 5+ enemies get 1 random combat skill (chance scaled by act).
  * act: 'act1'/'act2'/'act3'/'finalBoss' — determines skill assignment probability.
  */
-export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.0, skillsData = null, act = 'act1') {
+export function createEnemyUnit(classData, level, allWeapons, difficultyConfig = 1.0, skillsData = null, act = 'act1') {
   const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
   const growths = rollGrowthRates(classData.growthRanges);
 
@@ -285,10 +285,24 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyMod = 1.
     if (gains) applyLevelUpGains(unit, gains);
   }
 
-  // Apply difficulty modifier to stats (after leveling)
-  if (difficultyMod !== 1.0) {
+  // Legacy multiplier path and Wave 8 flat bonus path both supported.
+  const isConfigObject = difficultyConfig && typeof difficultyConfig === 'object';
+  const difficultyMod = isConfigObject ? Number(difficultyConfig.multiplier ?? 1.0) : Number(difficultyConfig ?? 1.0);
+  const enemyStatBonus = isConfigObject ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0)) : 0;
+
+  // Apply multiplier first for backward compatibility with harness fixtures.
+  if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
     for (const stat of XP_STAT_NAMES) {
       unit.stats[stat] = Math.round(unit.stats[stat] * difficultyMod);
+    }
+    unit.currentHP = unit.stats.HP;
+  }
+
+  // Apply flat difficulty stat bonus (HP gets double value).
+  if (enemyStatBonus !== 0) {
+    for (const stat of XP_STAT_NAMES) {
+      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
+      unit.stats[stat] = (unit.stats[stat] || 0) + delta;
     }
     unit.currentHP = unit.stats.HP;
   }

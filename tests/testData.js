@@ -28,5 +28,6 @@ export function loadGameData() {
     whetstones: loadJSON('whetstones.json'),
     turnBonus: loadJSON('turnBonus.json'),
     blessings: loadJSON('blessings.json'),
+    difficulty: loadJSON('difficulty.json'),
   };
 }

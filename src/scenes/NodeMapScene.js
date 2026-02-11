@@ -60,13 +60,16 @@ export class NodeMapScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
+    const selectedDifficulty = data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
       this.runManager = data.runManager;
+      this.registry.set('selectedDifficulty', this.runManager.difficultyId || selectedDifficulty);
     } else {
       const meta = this.registry.get('meta');
       const metaEffects = meta ? meta.getActiveEffects() : null;
       this.runManager = new RunManager(this.gameData, metaEffects);
-      this.runManager.startRun();
+      this.runManager.startRun({ difficultyId: selectedDifficulty });
+      this.registry.set('selectedDifficulty', this.runManager.difficultyId);
     }
   }
 
@@ -86,18 +89,17 @@ export class NodeMapScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.settingsOverlay = null;
     this.rosterOverlay = null;
+    this._touchTapDown = null;
+    this._tapMoveThreshold = 12;
 
     // ESC key handler
     this.input.keyboard.on('keydown-ESC', () => {
-      if (DEBUG_MODE && this.debugOverlay?.visible) { this.debugOverlay.hide(); return; }
-      if (this.rosterOverlay?.visible) { this.rosterOverlay.hide(); return; }
-      if (this.shopOverlay) return; // shop has its own dismiss
-      if (this.pauseOverlay?.visible) {
-        this.pauseOverlay.hide();
-        return;
-      }
-      this.showPauseMenu();
+      this.requestCancel();
     });
+    this.input.on('pointerdown', (pointer) => {
+      this._touchTapDown = { x: pointer.x, y: pointer.y };
+    });
+    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
 
     // Debug overlay (dev-only)
     if (DEBUG_MODE) {
@@ -124,6 +126,92 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.shouldPromptBlessingChoice()) {
       this.showBlessingSelectionOverlay();
     }
+  }
+
+  onPointerUp(pointer) {
+    if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+      const dx = pointer.x - this._touchTapDown.x;
+      const dy = pointer.y - this._touchTapDown.y;
+      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+        this._touchTapDown = null;
+        return;
+      }
+    }
+    this._touchTapDown = null;
+    if (this._isPointerOverInteractive(pointer)) return;
+    this.requestCancel({ allowPause: false });
+  }
+
+  _isPointerOverInteractive(pointer) {
+    if (!this.input || !pointer) return false;
+    let hit = [];
+    if (typeof this.input.hitTestPointer === 'function') {
+      hit = this.input.hitTestPointer(pointer) || [];
+    } else if (this.input.manager?.hitTest) {
+      hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
+    }
+    return Array.isArray(hit) && hit.some(obj =>
+      obj
+      && obj.visible !== false
+      && obj.active !== false
+      && obj.input?.enabled
+    );
+  }
+
+  canRequestCancel({ allowPause = true } = {}) {
+    if (DEBUG_MODE && this.debugOverlay?.visible) return true;
+    if (this.forgePicker) return true;
+    if (this.unitPicker) return true;
+    if (this.settingsOverlay?.visible) return true;
+    if (this.rosterOverlay?.visible) return true;
+    if (this.pauseOverlay?.visible) return true;
+    if (this.shopOverlay) return true;
+    if (this.churchOverlay) return true;
+    if (allowPause) return true;
+    return false;
+  }
+
+  requestCancel({ allowPause = true } = {}) {
+    if (!this.canRequestCancel({ allowPause })) return false;
+    if (DEBUG_MODE && this.debugOverlay?.visible) {
+      this.debugOverlay.hide();
+      return true;
+    }
+    if (this.forgePicker) {
+      this.closeForgeStatPicker();
+      return true;
+    }
+    if (this.unitPicker) {
+      this.unitPicker.forEach(o => o.destroy());
+      this.unitPicker = null;
+      return true;
+    }
+    if (this.settingsOverlay?.visible) {
+      this.settingsOverlay.hide();
+      return true;
+    }
+    if (this.rosterOverlay?.visible) {
+      this.rosterOverlay.hide();
+      return true;
+    }
+    if (this.pauseOverlay?.visible) {
+      this.pauseOverlay.hide();
+      return true;
+    }
+    if (this.shopOverlay) {
+      this.leaveShopNode();
+      return true;
+    }
+    if (this.churchOverlay) {
+      this.leaveChurchNode();
+      return true;
+    }
+    if (allowPause) {
+      this.showPauseMenu();
+      return true;
+    }
+    return false;
   }
 
   persistRunSave() {
@@ -605,6 +693,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   showChurchOverlay(node) {
     this.churchOverlay = [];
+    this._churchNode = node;
 
     // Tutorial hint for church
     const hints = this.registry.get('hints');
@@ -746,13 +835,21 @@ export class NodeMapScene extends Phaser.Scene {
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.closeChurchOverlay();
-      this.runManager.markNodeComplete(node.id);
-      this.checkActComplete();
+      this.leaveChurchNode();
     });
     this.churchOverlay.push(leaveBtn);
+  }
+
+  leaveChurchNode() {
+    if (!this.churchOverlay) return;
+    const node = this._churchNode;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+    this.closeChurchOverlay();
+    if (node) {
+      this.runManager.markNodeComplete(node.id);
+      this.checkActComplete();
+    }
   }
 
   showChurchMessage(text, color) {
@@ -786,6 +883,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.churchMessage = null;
     }
     this.churchGoldText = null;
+    this._churchNode = null;
   }
 
   handleShop(node) {
@@ -805,12 +903,22 @@ export class NodeMapScene extends Phaser.Scene {
       this.gameData.weapons, this.gameData.consumables,
       this.gameData.accessories, rm.roster
     );
+    shopItems = this.applyDifficultyShopPricing(shopItems);
     const shopItemDelta = rm.getShopItemCountDelta();
     if (shopItemDelta < 0 && shopItems.length > 0) {
       const trimmedCount = Math.max(1, shopItems.length + shopItemDelta);
       shopItems = shopItems.slice(0, trimmedCount);
     }
     this.showShopOverlay(node, shopItems);
+  }
+
+  applyDifficultyShopPricing(items) {
+    const multiplier = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
+    if (!Array.isArray(items)) return [];
+    return items.map((entry) => ({
+      ...entry,
+      price: Math.max(1, Math.floor((entry.price || 0) * multiplier)),
+    }));
   }
 
   showShopOverlay(node, shopItems) {
@@ -859,14 +967,22 @@ export class NodeMapScene extends Phaser.Scene {
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.shopRerollCount = 0;
-      this.closeShopOverlay();
-      this.runManager.markNodeComplete(node.id);
-      this.checkActComplete();
+      this.leaveShopNode();
     });
     this.shopOverlay.push(leaveBtn);
+  }
+
+  leaveShopNode() {
+    if (!this.shopOverlay) return;
+    const node = this._shopNode;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+    this.shopRerollCount = 0;
+    this.closeShopOverlay();
+    if (node) {
+      this.runManager.markNodeComplete(node.id);
+      this.checkActComplete();
+    }
   }
 
   drawShopTabs() {
@@ -1318,7 +1434,8 @@ export class NodeMapScene extends Phaser.Scene {
           this.gameData.weapons, this.gameData.consumables,
           this.gameData.accessories, this.runManager.roster
         );
-        this.shopBuyItems = newItems.map((entry, i) => ({ ...entry, index: i }));
+        const pricedItems = this.applyDifficultyShopPricing(newItems);
+        this.shopBuyItems = pricedItems.map((entry, i) => ({ ...entry, index: i }));
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         this.refreshShop();
@@ -1397,6 +1514,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.unitPicker.forEach(o => o.destroy());
       this.unitPicker = null;
     }
+    this._shopNode = null;
   }
 
   checkActComplete() {

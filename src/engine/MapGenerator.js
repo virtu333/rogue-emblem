@@ -7,12 +7,12 @@ const DEBUG_MAP_GEN = false;
 
 /**
  * Generate a full battle configuration from params + game data.
- * @param {Object} params - { act, objective, sizeKey? (optional override), difficultyMod? }
+ * @param {Object} params - { act, objective, sizeKey? (optional override), difficultyMod?, enemyCountBonus? }
  * @param {Object} deps - { terrain, classes, weapons, skills, mapSizes, mapTemplates, enemies }
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
-  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, isRecruitBattle = false, deployCount, levelRange, row, isBoss, templateId: preAssignedTemplateId } = params;
+  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, enemyCountBonus = 0, isRecruitBattle = false, deployCount, levelRange, row, isBoss, templateId: preAssignedTemplateId } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
   // 1. Pick map size
@@ -48,7 +48,7 @@ export function generateBattle(params, deps) {
   const pool = enemies.pools[act];
   const rolledEnemyCount = rollEnemyCount({
     deployCount: spawnCount, act, row, isBoss,
-    tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles,
+    tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles, enemyCountBonus,
   });
   const recruitBonus = isRecruitBattle ? 1 : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
@@ -707,7 +707,7 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
   return spawns;
 }
 
-function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap }) {
+function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap, enemyCountBonus = 0 }) {
   const actOffsets = ENEMY_COUNT_OFFSET[act];
   let offset;
   if (actOffsets) {
@@ -718,7 +718,7 @@ function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap }) {
     offset = [2, 3]; // fallback for unmapped acts (postAct)
   }
   const [minOff, maxOff] = offset;
-  const count = deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
+  const count = deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 
   // Density safety cap from tile table (prevents overcrowding)
   const cap = getEnemyDensityCapByTiles(tiles, densityCap);

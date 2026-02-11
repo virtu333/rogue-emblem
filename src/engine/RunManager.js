@@ -12,6 +12,7 @@ import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
+import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
@@ -86,10 +87,13 @@ export class RunManager {
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.battleConfigsByNodeId = {};
+    this.difficultyId = 'normal';
+    this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
+    this.actSequence = [...ACT_SEQUENCE];
   }
 
   get currentAct() {
-    return ACT_SEQUENCE[this.actIndex];
+    return this.actSequence[this.actIndex];
   }
 
   get currentActConfig() {
@@ -101,14 +105,18 @@ export class RunManager {
     const {
       runSeed = null,
       applyBlessingsAtStart = true,
+      difficultyId = this.difficultyId || 'normal',
     } = options;
+    this.applyDifficultySelection(difficultyId);
     this.roster = this.createInitialRoster();
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();
       this.runSeed = Number(initialSeed);
     }
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
+    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
+      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+    });
     this.currentNodeId = null;
     this.blessingRuntimeModifiers = {
       battleGoldMultiplierDelta: 0,
@@ -289,7 +297,7 @@ export class RunManager {
   _suppressPersonalSkillsForCurrentRosterIfNeeded() {
     const targetAct = this.blessingRuntimeModifiers?.disablePersonalSkillsUntilAct;
     if (!targetAct) return { applied: false, removedByUnit: {} };
-    const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+    const targetIndex = this.actSequence.indexOf(targetAct);
     if (targetIndex === -1 || this.actIndex >= targetIndex) {
       return { applied: false, removedByUnit: {} };
     }
@@ -325,7 +333,7 @@ export class RunManager {
   _restoreDisabledPersonalSkillsIfReady(stage = 'act_transition') {
     const targetAct = this.blessingRuntimeModifiers?.disablePersonalSkillsUntilAct;
     if (!targetAct) return;
-    const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+    const targetIndex = this.actSequence.indexOf(targetAct);
     if (targetIndex === -1 || this.actIndex < targetIndex) return;
     const blockedByUnit = this.blessingRuntimeModifiers?.blockedPersonalSkillsByUnit || {};
     const restoredByUnit = {};
@@ -571,7 +579,7 @@ export class RunManager {
 
     if (effect.type === 'disable_personal_skills_until_act') {
       const targetAct = String(effect.params.act || '').trim();
-      const targetIndex = ACT_SEQUENCE.indexOf(targetAct);
+      const targetIndex = this.actSequence.indexOf(targetAct);
       if (!targetAct || targetIndex === -1) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -580,7 +588,7 @@ export class RunManager {
         return;
       }
       const existingAct = this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct;
-      if (!existingAct || ACT_SEQUENCE.indexOf(existingAct) < targetIndex) {
+      if (!existingAct || this.actSequence.indexOf(existingAct) < targetIndex) {
         this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = targetAct;
       }
       const suppression = this._suppressPersonalSkillsForCurrentRosterIfNeeded();
@@ -787,7 +795,13 @@ export class RunManager {
 
   /** Get battleParams for a battle node. */
   getBattleParams(node) {
-    return node?.battleParams ? structuredClone(node.battleParams) : null;
+    if (!node?.battleParams) return null;
+    const battleParams = structuredClone(node.battleParams);
+    battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
+    battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
+    battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
+    battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
+    return battleParams;
   }
 
   getLockedBattleConfig(nodeId) {
@@ -846,7 +860,8 @@ export class RunManager {
     const baseGold = calculateBattleGold(goldEarned, node?.type);
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
-    const finalGold = Math.floor(baseGold * eliteMult * goldMult);
+    const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
+    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
     this.addGold(finalGold);
   }
 
@@ -899,9 +914,11 @@ export class RunManager {
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
     this.actIndex++;
-    if (this.actIndex >= ACT_SEQUENCE.length) return; // shouldn't happen, use isRunComplete
+    if (this.actIndex >= this.actSequence.length) return; // shouldn't happen, use isRunComplete
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates);
+    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
+      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+    });
     this.currentNodeId = null;
   }
 
@@ -928,7 +945,28 @@ export class RunManager {
 
   /** True if the final boss has been defeated. */
   isRunComplete() {
-    return this.actIndex >= ACT_SEQUENCE.length - 1 && this.isActComplete();
+    return this.actIndex >= this.actSequence.length - 1 && this.isActComplete();
+  }
+
+  applyDifficultySelection(difficultyId = 'normal') {
+    const resolved = resolveDifficultyMode(this.gameData?.difficulty, difficultyId);
+    this.difficultyId = resolved.id;
+    this.difficultyModifiers = {
+      ...resolved.modifiers,
+      actsIncluded: [...(resolved.modifiers.actsIncluded || DIFFICULTY_DEFAULTS.actsIncluded)],
+    };
+    this.actSequence = [...this.difficultyModifiers.actsIncluded];
+    if (!this.actSequence.length) this.actSequence = [...ACT_SEQUENCE];
+    if (this.actIndex >= this.actSequence.length) {
+      this.actIndex = Math.max(0, this.actSequence.length - 1);
+    }
+  }
+
+  getDifficultyModifier(key, fallback = 0) {
+    const value = this.difficultyModifiers?.[key];
+    if (typeof fallback === 'boolean') return typeof value === 'boolean' ? value : fallback;
+    if (Array.isArray(fallback)) return Array.isArray(value) ? value : fallback;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   /** Mark the run as a defeat. */
@@ -968,6 +1006,9 @@ export class RunManager {
       },
       runSeed: this.runSeed,
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
+      difficultyId: this.difficultyId || 'normal',
+      difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
+      actSequence: this.actSequence || [...ACT_SEQUENCE],
     };
   }
 
@@ -1072,14 +1113,27 @@ export class RunManager {
     rm.blessingRuntimeModifiers.skipFirstShop = Boolean(rm.blessingRuntimeModifiers.skipFirstShop);
     rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(rm.blessingRuntimeModifiers.shopItemCountDelta || 0);
     rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(rm.blessingRuntimeModifiers.allGrowthsDelta || 0);
-    rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = ACT_SEQUENCE.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
-      ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
-      : null;
     if (!rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
       rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
     }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
+    rm.applyDifficultySelection(saved.difficultyId || 'normal');
+    if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
+      rm.difficultyModifiers = {
+        ...DIFFICULTY_DEFAULTS,
+        ...saved.difficultyModifiers,
+        actsIncluded: Array.isArray(saved.difficultyModifiers.actsIncluded)
+          ? [...saved.difficultyModifiers.actsIncluded]
+          : [...rm.difficultyModifiers.actsIncluded],
+      };
+    }
+    rm.actSequence = Array.isArray(saved.actSequence) && saved.actSequence.length > 0
+      ? [...saved.actSequence]
+      : [...(rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)];
+    rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
+      ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
+      : null;
     rm._runStartBlessingsApplied = true;
     if (rm.nodeMap?.nodes && rm.battleConfigsByNodeId) {
       for (const node of rm.nodeMap.nodes) {

@@ -51,12 +51,18 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.meta = this.registry.get('meta');
     this.activeTab = 'recruit_stats';
+    this.selectedDifficulty = this.registry.get('selectedDifficulty') || 'normal';
+    this._touchTapDown = null;
+    this._tapMoveThreshold = 12;
+    this.refreshDifficultyAvailability();
 
     this.input.keyboard.on('keydown-ESC', () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      this.scene.start('Title', { gameData: this.gameData });
+      this.requestCancel({ allowExit: true });
     });
+    this.input.on('pointerdown', (pointer) => {
+      this._touchTapDown = { x: pointer.x, y: pointer.y };
+    });
+    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
 
     this.drawUI();
 
@@ -75,6 +81,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawUI() {
+    this.refreshDifficultyAvailability();
     if (this._prereqTooltip) {
       this._prereqTooltip.destroy();
       this._prereqTooltip = null;
@@ -601,6 +608,40 @@ export class HomeBaseScene extends Phaser.Scene {
   drawBottomButtons() {
     const cx = this.cameras.main.centerX;
     const btnY = 450;
+    const difficultyY = 410;
+
+    this.add.text(cx - 150, difficultyY, 'Difficulty:', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
+    }).setOrigin(0, 0.5);
+
+    const normalBtn = this.add.text(cx - 62, difficultyY, '[Normal]', {
+      fontFamily: 'monospace', fontSize: '12px', color: this.selectedDifficulty === 'normal' ? '#88ff88' : '#e0e0e0',
+      backgroundColor: '#222222', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    normalBtn.on('pointerdown', () => {
+      this.selectedDifficulty = 'normal';
+      this.registry.set('selectedDifficulty', this.selectedDifficulty);
+      this.drawUI();
+    });
+
+    const hardColor = this.hardUnlocked ? (this.selectedDifficulty === 'hard' ? '#ffbb66' : '#e0e0e0') : '#666666';
+    const hardBtn = this.add.text(cx + 20, difficultyY, '[Hard]', {
+      fontFamily: 'monospace', fontSize: '12px', color: hardColor,
+      backgroundColor: '#222222', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5);
+    if (this.hardUnlocked) {
+      hardBtn.setInteractive({ useHandCursor: true });
+      hardBtn.on('pointerdown', () => {
+        this.selectedDifficulty = 'hard';
+        this.registry.set('selectedDifficulty', this.selectedDifficulty);
+        this.drawUI();
+      });
+    }
+
+    this.add.text(cx + 112, difficultyY, '[Lunatic: Soon]', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#666666',
+      backgroundColor: '#222222', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5);
 
     const beginBtn = this.add.text(cx - 100, btnY, '[ Begin Run ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
@@ -615,7 +656,7 @@ export class HomeBaseScene extends Phaser.Scene {
       clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      this.scene.start('NodeMap', { gameData: this.gameData });
+      this.scene.start('NodeMap', { gameData: this.gameData, difficultyId: this.selectedDifficulty });
     });
 
     const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
@@ -630,5 +671,68 @@ export class HomeBaseScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
       this.scene.start('Title', { gameData: this.gameData });
     });
+  }
+
+  refreshDifficultyAvailability() {
+    if (this.selectedDifficulty !== 'normal' && this.selectedDifficulty !== 'hard') {
+      this.selectedDifficulty = 'normal';
+    }
+    this.hardUnlocked = Boolean(this.meta?.hasMilestone?.('beatAct3'));
+    if (this.selectedDifficulty === 'hard' && !this.hardUnlocked) {
+      this.selectedDifficulty = 'normal';
+      this.registry.set('selectedDifficulty', this.selectedDifficulty);
+    }
+  }
+
+  onPointerUp(pointer) {
+    if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+      const dx = pointer.x - this._touchTapDown.x;
+      const dy = pointer.y - this._touchTapDown.y;
+      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+        this._touchTapDown = null;
+        return;
+      }
+    }
+    this._touchTapDown = null;
+    if (this._isPointerOverInteractive(pointer)) return;
+    this.requestCancel({ allowExit: false });
+  }
+
+  _isPointerOverInteractive(pointer) {
+    if (!this.input || !pointer) return false;
+    let hit = [];
+    if (typeof this.input.hitTestPointer === 'function') {
+      hit = this.input.hitTestPointer(pointer) || [];
+    } else if (this.input.manager?.hitTest) {
+      hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
+    }
+    return Array.isArray(hit) && hit.some(obj =>
+      obj
+      && obj.visible !== false
+      && obj.active !== false
+      && obj.input?.enabled
+    );
+  }
+
+  canRequestCancel({ allowExit = true } = {}) {
+    if (this._skillPickerObjects) return true;
+    if (allowExit) return true;
+    return false;
+  }
+
+  requestCancel({ allowExit = true } = {}) {
+    if (!this.canRequestCancel({ allowExit })) return false;
+    if (this._skillPickerObjects) {
+      this._destroySkillPicker();
+      return true;
+    }
+    if (allowExit) {
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(this, 0);
+      this.scene.start('Title', { gameData: this.gameData });
+      return true;
+    }
+    return false;
   }
 }

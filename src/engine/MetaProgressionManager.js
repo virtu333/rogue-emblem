@@ -347,14 +347,18 @@ export class MetaProgressionManager {
  * @param {number} actIndex - 0-based act reached
  * @param {number} completedBattles - total battles won
  * @param {boolean} isVictory - whether the run was won
+ * @param {number} [currencyMultiplier=1] - run difficulty currency multiplier
  * @returns {{ valor: number, supply: number }}
  */
-export function calculateCurrencies(actIndex, completedBattles, isVictory) {
-  const valor = actIndex * VALOR_PER_ACT
+export function calculateCurrencies(actIndex, completedBattles, isVictory, currencyMultiplier = 1) {
+  const multiplier = Number.isFinite(currencyMultiplier) ? currencyMultiplier : 1;
+  const valorBase = actIndex * VALOR_PER_ACT
     + completedBattles * VALOR_PER_BATTLE
     + (isVictory ? VALOR_VICTORY_BONUS : 0);
-  const supply = actIndex * SUPPLY_PER_ACT
+  const supplyBase = actIndex * SUPPLY_PER_ACT
     + completedBattles * SUPPLY_PER_BATTLE
     + (isVictory ? SUPPLY_VICTORY_BONUS : 0);
+  const valor = Math.floor(valorBase * multiplier);
+  const supply = Math.floor(supplyBase * multiplier);
   return { valor, supply };
 }
