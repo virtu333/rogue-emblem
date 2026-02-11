@@ -326,6 +326,9 @@ export class BattleScene extends Phaser.Scene {
       this.forecastObjects = null;
       this.actionMenu = null;
       this.inEquipMenu = false;
+      this._lastPathPreviewKey = null;
+      this._touchTapDown = null;
+      this._tapMoveThreshold = 12;
 
       // Turn manager
       this.turnManager = new TurnManager({
@@ -402,10 +405,11 @@ export class BattleScene extends Phaser.Scene {
 
       // Input handlers
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-      this.input.on('pointerdown', (pointer) => this.onClick(pointer));
       this.input.on('pointerdown', (pointer) => {
+        this._touchTapDown = { x: pointer.x, y: pointer.y };
         if (pointer.rightButtonDown()) this.onRightClick(pointer);
       });
+      this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
       this.input.keyboard.on('keydown-V', () => {
         if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
           this.openUnitDetailOverlay();
@@ -501,13 +505,15 @@ export class BattleScene extends Phaser.Scene {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
           fontStyle: 'bold',
         }).setOrigin(0.5).setDepth(4); // depth 4 = above fog (3) but below highlights (5)
-        this.tweens.add({
-          targets: this.recruitFogMarker,
-          alpha: { from: 0.4, to: 1.0 },
-          duration: 1500,
-          yoyo: true,
-          repeat: -1,
-        });
+        if (!this._isReducedEffects()) {
+          this.tweens.add({
+            targets: this.recruitFogMarker,
+            alpha: { from: 0.4, to: 1.0 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+          });
+        }
       }
 
       // FOG OF WAR indicator
@@ -909,6 +915,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Pointer / click handling ---
 
   onPointerMove(pointer) {
+    if (pointer?.pointerType === 'touch') return;
     const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
     if (!gp) {
       this.cursorHighlight.setVisible(false);
@@ -948,14 +955,17 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === 'UNIT_SELECTED' && this.selectedUnit && this.movementRange) {
       const key = `${gp.col},${gp.row}`;
       if (this.movementRange.has(key) && key !== `${this.selectedUnit.col},${this.selectedUnit.row}`) {
+        if (this._lastPathPreviewKey === key) return;
         const path = this.grid.findPath(
           this.selectedUnit.col, this.selectedUnit.row,
           gp.col, gp.row, this.selectedUnit.moveType,
           this.unitPositions, this.selectedUnit.faction
         );
         if (path) this.grid.showPath(path);
+        this._lastPathPreviewKey = key;
       } else {
         this.grid.clearPath();
+        this._lastPathPreviewKey = null;
       }
     }
   }
@@ -1839,11 +1849,15 @@ export class BattleScene extends Phaser.Scene {
 
     // Visual feedback: brief sparkle/glow on target
     const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    const sparkle = this.add.circle(pos.x, pos.y, 20, 0x44ff88, 0.6).setDepth(200);
-    this.tweens.add({
-      targets: sparkle, alpha: 0, scale: 1.5, duration: 400, ease: 'Quad.easeOut',
-      onComplete: () => sparkle.destroy(),
-    });
+    const sparkle = this.add.circle(pos.x, pos.y, 20, 0x44ff88, this._isReducedEffects() ? 0.4 : 0.6).setDepth(200);
+    if (this._isReducedEffects()) {
+      this.time.delayedCall(120, () => sparkle.destroy());
+    } else {
+      this.tweens.add({
+        targets: sparkle, alpha: 0, scale: 1.5, duration: 400, ease: 'Quad.easeOut',
+        onComplete: () => sparkle.destroy(),
+      });
+    }
 
     // Reset target's action state
     target.ally.hasMoved = false;
@@ -1981,10 +1995,48 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Action Menu ---
 
-  _clampMenuY(preferredY, menuHeight) {
+  _clampMenuPosition(preferredX, preferredY, menuWidth, menuHeight) {
     const pad = 4;
-    const maxY = 480 - menuHeight - pad;
-    return Math.max(pad, Math.min(preferredY, maxY));
+    const cam = this.cameras.main;
+    const maxX = cam.width - menuWidth - pad;
+    const maxY = cam.height - menuHeight - pad;
+    return {
+      x: Math.max(pad, Math.min(preferredX, maxX)),
+      y: Math.max(pad, Math.min(preferredY, maxY)),
+    };
+  }
+
+  _makeMenuTextButton(x, y, label, textStyle, defaultColor, onClick, options = {}) {
+    const {
+      depth = 401,
+      originX = 0.5,
+      originY = 0.5,
+      hitWidth = 0,
+      hitHeight = 28,
+      hoverColor = '#ffdd44',
+    } = options;
+
+    const text = this.add.text(x, y, label, textStyle)
+      .setOrigin(originX, originY)
+      .setDepth(depth);
+
+    if (hitWidth > 0) {
+      text.setInteractive(
+        new Phaser.Geom.Rectangle(-hitWidth * originX, -hitHeight * originY, hitWidth, hitHeight),
+        Phaser.Geom.Rectangle.Contains,
+      );
+    } else {
+      text.setInteractive({ useHandCursor: true });
+    }
+    text.on('pointerover', () => text.setColor(hoverColor));
+    text.on('pointerout', () => text.setColor(defaultColor));
+    text.on('pointerdown', onClick);
+    return text;
+  }
+
+  _isReducedEffects() {
+    const settings = this.registry.get('settings');
+    return !!settings?.getReducedEffects?.();
   }
 
   showActionMenu(unit) {
@@ -2052,27 +2104,22 @@ export class BattleScene extends Phaser.Scene {
 
     const longestLabel = Math.max(...items.map(l => l.length));
     const menuWidth = Math.max(70, longestLabel * 8 + 16);
-    const itemHeight = 22;
+    const itemHeight = 28;
     const menuHeight = items.length * itemHeight + 8;
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     items.forEach((label, i) => {
-      const itemY = clampedY + 4 + i * itemHeight + itemHeight / 2;
-      const itemX = menuX + menuWidth / 2;
-
-      const text = this.add.text(itemX, itemY, label, {
+      const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
+      const itemX = menuPos.x + menuWidth / 2;
+      const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
-      }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor('#e0e0e0'));
-      text.on('pointerdown', () => {
+      }, '#e0e0e0', () => {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         if (label === 'Attack') {
@@ -2131,7 +2178,7 @@ export class BattleScene extends Phaser.Scene {
         } else if (label === 'Wait') {
           this.finishUnitAction(unit, { skipCanto: true });
         }
-      });
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
 
       this.actionMenu.push(text);
     });
@@ -2211,6 +2258,20 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  onPointerUp(pointer) {
+    if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+      const dx = pointer.x - this._touchTapDown.x;
+      const dy = pointer.y - this._touchTapDown.y;
+      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+        this._touchTapDown = null;
+        return;
+      }
+    }
+    this._touchTapDown = null;
+    this.onClick(pointer);
+  }
+
   getActiveHealStaff(unit, usableStaves = null) {
     const usable = usableStaves || this.getUsableStaves(unit);
     if (usable.length === 0) return null;
@@ -2277,17 +2338,17 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = 210;
     const itemHeight = 36;
     const menuHeight = usableStaves.length * itemHeight + 12;
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     usableStaves.forEach((staff, i) => {
-      const itemY = clampedY + 6 + i * itemHeight + itemHeight / 2;
-      const itemX = menuX + 8;
+      const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
+      const itemX = menuPos.x + 8;
       const marker = staff === unit.weapon ? '\u25b6 ' : '  ';
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
@@ -2295,13 +2356,9 @@ export class BattleScene extends Phaser.Scene {
       const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
       const defaultColor = staff === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this.add.text(itemX, itemY, label, {
+      const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
-      }).setOrigin(0, 0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor(defaultColor));
-      text.on('pointerdown', async () => {
+      }, defaultColor, async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         equipWeapon(unit, staff);
@@ -2314,7 +2371,7 @@ export class BattleScene extends Phaser.Scene {
         this.inEquipMenu = false;
         this.hideActionMenu();
         this.startHealTargetSelection(unit, healTargets, staff);
-      });
+      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
 
       this.actionMenu.push(text);
     });
@@ -2376,6 +2433,7 @@ export class BattleScene extends Phaser.Scene {
 
   animateHeal(target, healAmount) {
     return new Promise(resolve => {
+      const reduced = this._isReducedEffects();
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_heal');
       // Flash target green
@@ -2388,14 +2446,14 @@ export class BattleScene extends Phaser.Scene {
 
       this.tweens.add({
         targets: healText, y: pos.y - 36, alpha: 0,
-        duration: 600, onComplete: () => healText.destroy(),
+        duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
       });
 
-      this.time.delayedCall(250, () => {
+      this.time.delayedCall(reduced ? 120 : 250, () => {
         if (target.graphic.clearTint) target.graphic.clearTint();
       });
 
-      this.time.delayedCall(500, resolve);
+      this.time.delayedCall(reduced ? 220 : 500, resolve);
     });
   }
 
@@ -2418,29 +2476,25 @@ export class BattleScene extends Phaser.Scene {
     const menuWidth = 210;
     const itemHeight = 36;
     const menuHeight = combatWeapons.length * itemHeight + 12;
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     combatWeapons.forEach((wpn, i) => {
-      const itemY = clampedY + 6 + i * itemHeight + itemHeight / 2;
-      const itemX = menuX + 8;
+      const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
+      const itemX = menuPos.x + 8;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const rng = wpn.range.includes('-') ? `Rng${wpn.range}` : `Rng ${wpn.range}`;
       const label = `${marker}${wpn.name}\n   ${wpn.might}Mt ${wpn.hit}Hit ${wpn.crit}Crt ${rng}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this.add.text(itemX, itemY, label, {
+      const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
-      }).setOrigin(0, 0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor(defaultColor));
-      text.on('pointerdown', () => {
+      }, defaultColor, () => {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         equipWeapon(unit, wpn);
@@ -2452,7 +2506,7 @@ export class BattleScene extends Phaser.Scene {
         const attackTiles = this.attackTargets.map(e => ({ col: e.col, row: e.row }));
         this.grid.showAttackRange(attackTiles);
         this.battleState = 'SELECTING_TARGET';
-      });
+      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
 
       this.actionMenu.push(text);
     });
@@ -2476,33 +2530,29 @@ export class BattleScene extends Phaser.Scene {
     // Scrolls no longer in inventory (moved to team pool), so no need to filter them
     const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
     const menuWidth = 110;
-    const itemHeight = 22;
+    const itemHeight = 28;
     const menuHeight = equippable.length * itemHeight + 8;
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     equippable.forEach((wpn, i) => {
-      const itemY = clampedY + 4 + i * itemHeight + itemHeight / 2;
-      const itemX = menuX + menuWidth / 2;
+      const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
+      const itemX = menuPos.x + menuWidth / 2;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const label = marker + wpn.name;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this.add.text(itemX, itemY, label, {
+      const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '12px', color: defaultColor,
-      }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor(defaultColor));
-      text.on('pointerdown', () => {
+      }, defaultColor, () => {
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
-      });
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
 
       this.actionMenu.push(text);
     });
@@ -2542,20 +2592,20 @@ export class BattleScene extends Phaser.Scene {
     const menuX = (unit.col < this.grid.cols - 3) ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 120;
     const menuY = pos.y - 10;
 
-    const itemHeight = 22;
+    const itemHeight = 28;
     const menuWidth = 120;
     const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     consumables.forEach((item, i) => {
-      const iy = clampedY + 4 + i * itemHeight + itemHeight / 2;
-      const ix = menuX + menuWidth / 2;
+      const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
+      const ix = menuPos.x + menuWidth / 2;
 
       // Check usability
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
@@ -2572,7 +2622,10 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(401);
 
       if (usable) {
-        text.setInteractive({ useHandCursor: true });
+        text.setInteractive(
+          new Phaser.Geom.Rectangle(-(menuWidth - 10) / 2, -itemHeight / 2, menuWidth - 10, itemHeight),
+          Phaser.Geom.Rectangle.Contains,
+        );
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor('#88ff88'));
         text.on('pointerdown', () => {
@@ -2583,18 +2636,14 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Back button
-    const backY = clampedY + 4 + consumables.length * itemHeight + itemHeight / 2;
-    const backText = this.add.text(menuX + menuWidth / 2, backY, 'Back', {
+    const backY = menuPos.y + 4 + consumables.length * itemHeight + itemHeight / 2;
+    const backText = this._makeMenuTextButton(menuPos.x + menuWidth / 2, backY, 'Back', {
       fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-    backText.on('pointerover', () => backText.setColor('#ffdd44'));
-    backText.on('pointerout', () => backText.setColor('#aaaaaa'));
-    backText.on('pointerdown', () => {
+    }, '#aaaaaa', () => {
       this.hideActionMenu();
       this.inEquipMenu = false;
       this.showActionMenu(unit);
-    });
+    }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
     this.actionMenu.push(backText);
   }
 
@@ -2693,28 +2742,24 @@ export class BattleScene extends Phaser.Scene {
     items.push({ label: 'Back', action: 'back' });
 
     const menuWidth = 140;
-    const itemHeight = 22;
+    const itemHeight = 28;
     const menuHeight = items.length * itemHeight + 8;
-    const clampedY = this._clampMenuY(menuY, menuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add.rectangle(
-      menuX + menuWidth / 2, clampedY + menuHeight / 2,
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
       menuWidth, menuHeight, 0x000000, 0.85
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     items.forEach((entry, i) => {
-      const iy = clampedY + 4 + i * itemHeight + itemHeight / 2;
-      const ix = menuX + menuWidth / 2;
+      const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
+      const ix = menuPos.x + menuWidth / 2;
       const defaultColor = entry.action === 'unequip' ? '#cc88ff' : entry.action === 'back' ? '#aaaaaa' : '#e0e0e0';
 
-      const text = this.add.text(ix, iy, entry.label, {
+      const text = this._makeMenuTextButton(ix, iy, entry.label, {
         fontFamily: 'monospace', fontSize: '11px', color: defaultColor,
-      }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
-
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor(defaultColor));
-      text.on('pointerdown', () => {
+      }, defaultColor, () => {
         if (entry.action === 'back') {
           this.hideActionMenu();
           this.inEquipMenu = false;
@@ -2726,7 +2771,7 @@ export class BattleScene extends Phaser.Scene {
           this.doEquipAccessory(unit, entry.accessory);
           this.showAccessoryMenu(unit);
         }
-      });
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
       this.actionMenu.push(text);
     });
   }
@@ -3344,6 +3389,7 @@ export class BattleScene extends Phaser.Scene {
 
   animateStrike(event, attacker, defender) {
     return new Promise(resolve => {
+      const reduced = this._isReducedEffects();
       // Determine who is striking and who is receiving
       const striker = event.attacker === attacker.name ? attacker : defender;
       const target = event.attacker === attacker.name ? defender : attacker;
@@ -3358,7 +3404,7 @@ export class BattleScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(301);
         this.tweens.add({
           targets: skillText, y: sPos.y - 40, alpha: 0,
-          duration: 700, onComplete: () => skillText.destroy(),
+          duration: reduced ? 260 : 700, onComplete: () => skillText.destroy(),
         });
       }
 
@@ -3369,7 +3415,7 @@ export class BattleScene extends Phaser.Scene {
         audio.playSFX(this.getWeaponSFX(striker));
       }
 
-      this.time.delayedCall(120, () => {
+      this.time.delayedCall(reduced ? 70 : 120, () => {
         // Restore striker
         if (striker.graphic.clearTint) striker.graphic.clearTint();
 
@@ -3383,7 +3429,7 @@ export class BattleScene extends Phaser.Scene {
 
           this.tweens.add({
             targets: missText, y: pos.y - 32, alpha: 0,
-            duration: 500, onComplete: () => missText.destroy(),
+            duration: reduced ? 220 : 500, onComplete: () => missText.destroy(),
           });
         } else {
           // Flash target red and show damage
@@ -3401,7 +3447,7 @@ export class BattleScene extends Phaser.Scene {
 
           this.tweens.add({
             targets: dmgText, y: pos.y - 32, alpha: 0,
-            duration: 600, onComplete: () => dmgText.destroy(),
+            duration: reduced ? 260 : 600, onComplete: () => dmgText.destroy(),
           });
 
           // Update HP bar live
@@ -3419,18 +3465,18 @@ export class BattleScene extends Phaser.Scene {
             }).setOrigin(0.5).setDepth(300);
             this.tweens.add({
               targets: healText, y: sPos.y - 28, alpha: 0,
-              duration: 600, onComplete: () => healText.destroy(),
+              duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
             });
           }
 
-          this.time.delayedCall(150, () => {
+          this.time.delayedCall(reduced ? 80 : 150, () => {
             if (target.graphic.clearTint) target.graphic.clearTint();
           });
         }
       });
 
       // Resolve after animation time
-      this.time.delayedCall(400, resolve);
+      this.time.delayedCall(reduced ? 240 : 400, resolve);
     });
   }
 
@@ -3472,6 +3518,7 @@ export class BattleScene extends Phaser.Scene {
   /** Show poison damage floating text. */
   showPoisonDamage(unit, damage) {
     return new Promise(resolve => {
+      const reduced = this._isReducedEffects();
       if (!unit.graphic) { resolve(); return; }
       const pos = this.grid.gridToPixel(unit.col, unit.row);
       const text = this.add.text(pos.x, pos.y - 16, `Poison -${damage}`, {
@@ -3480,7 +3527,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(unit);
       this.tweens.add({
         targets: text, y: pos.y - 32, alpha: 0,
-        duration: 600, onComplete: () => { text.destroy(); resolve(); },
+        duration: reduced ? 260 : 600, onComplete: () => { text.destroy(); resolve(); },
       });
     });
   }
@@ -3788,11 +3835,16 @@ export class BattleScene extends Phaser.Scene {
       }
     ).setOrigin(0.5).setAlpha(0).setDepth(500);
 
-    this.tweens.add({
-      targets: banner, alpha: 1, duration: 300,
-      yoyo: true, hold: 800,
-      onComplete: () => banner.destroy(),
-    });
+    if (this._isReducedEffects()) {
+      banner.setAlpha(1);
+      this.time.delayedCall(420, () => banner.destroy());
+    } else {
+      this.tweens.add({
+        targets: banner, alpha: 1, duration: 300,
+        yoyo: true, hold: 800,
+        onComplete: () => banner.destroy(),
+      });
+    }
   }
 
   _showBossDefeatedBanner() {

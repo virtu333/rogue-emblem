@@ -22,12 +22,12 @@ export class SettingsOverlay {
     this.objects.push(bg);
 
     // Panel
-    const panel = this.scene.add.rectangle(cx, cy, 280, 200, 0x1a1a2e, 1)
+    const panel = this.scene.add.rectangle(cx, cy, 300, 250, 0x1a1a2e, 1)
       .setDepth(901).setStrokeStyle(2, 0x888888);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add.text(cx, cy - 75, 'Settings', {
+    const title = this.scene.add.text(cx, cy - 96, 'Settings', {
       fontFamily: 'monospace', fontSize: '18px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(902);
     this.objects.push(title);
@@ -36,13 +36,13 @@ export class SettingsOverlay {
     const audio = this.scene.registry.get('audio');
 
     // Music volume row
-    this._addVolumeRow(cx, cy - 25, 'Music', settings.getMusicVolume(), (val) => {
+    this._addVolumeRow(cx, cy - 46, 'Music', settings.getMusicVolume(), (val) => {
       settings.setMusicVolume(val);
       if (audio) audio.setMusicVolume(val);
     });
 
     // SFX volume row
-    this._addVolumeRow(cx, cy + 25, 'SFX', settings.getSFXVolume(), (val) => {
+    this._addVolumeRow(cx, cy + 4, 'SFX', settings.getSFXVolume(), (val) => {
       settings.setSFXVolume(val);
       if (audio) {
         audio.setSFXVolume(val);
@@ -50,8 +50,12 @@ export class SettingsOverlay {
       }
     });
 
+    this._addToggleRow(cx, cy + 54, 'Reduced Effects', settings.getReducedEffects?.() ?? false, (enabled) => {
+      if (settings?.setReducedEffects) settings.setReducedEffects(enabled);
+    });
+
     // Close button
-    const closeBtn = this.scene.add.text(cx, cy + 75, '[ Close ]', {
+    const closeBtn = this.scene.add.text(cx, cy + 96, '[ Close ]', {
       fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
@@ -96,6 +100,43 @@ export class SettingsOverlay {
     rightBtn.on('pointerover', () => rightBtn.setColor('#ffdd44'));
     rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
     rightBtn.on('pointerdown', () => update(10));
+    this.objects.push(rightBtn);
+  }
+
+  _addToggleRow(cx, y, label, initialValue, onChange) {
+    let value = !!initialValue;
+
+    const labelText = this.scene.add.text(cx - 120, y, label, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
+    }).setOrigin(0, 0.5).setDepth(902);
+    this.objects.push(labelText);
+
+    const valueText = this.scene.add.text(cx + 12, y, value ? 'ON' : 'OFF', {
+      fontFamily: 'monospace', fontSize: '14px', color: value ? '#88ff88' : '#ff8888',
+    }).setOrigin(0.5, 0.5).setDepth(902);
+    this.objects.push(valueText);
+
+    const update = (delta) => {
+      value = delta === 0 ? !value : delta > 0;
+      valueText.setText(value ? 'ON' : 'OFF');
+      valueText.setColor(value ? '#88ff88' : '#ff8888');
+      onChange(value);
+    };
+
+    const leftBtn = this.scene.add.text(cx - 20, y, '\u25C0', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
+    leftBtn.on('pointerover', () => leftBtn.setColor('#ffdd44'));
+    leftBtn.on('pointerout', () => leftBtn.setColor('#aaaaaa'));
+    leftBtn.on('pointerdown', () => update(-1));
+    this.objects.push(leftBtn);
+
+    const rightBtn = this.scene.add.text(cx + 44, y, '\u25B6', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
+    rightBtn.on('pointerover', () => rightBtn.setColor('#ffdd44'));
+    rightBtn.on('pointerout', () => rightBtn.setColor('#aaaaaa'));
+    rightBtn.on('pointerdown', () => update(1));
     this.objects.push(rightBtn);
   }
 

@@ -2,7 +2,21 @@
 // No Phaser deps.
 
 const STORAGE_KEY = 'emblem_rogue_settings';
-const DEFAULTS = { musicVolume: 0.5, sfxVolume: 0.7 };
+
+function detectMobileUA() {
+  try {
+    const ua = globalThis?.navigator?.userAgent || '';
+    return /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  } catch (_) {
+    return false;
+  }
+}
+
+const DEFAULTS = {
+  musicVolume: 0.5,
+  sfxVolume: 0.7,
+  reducedEffects: detectMobileUA(),
+};
 
 export class SettingsManager {
   constructor() {
@@ -33,6 +47,9 @@ export class SettingsManager {
 
   getSFXVolume() { return this.data.sfxVolume; }
   setSFXVolume(v) { this.set('sfxVolume', Math.max(0, Math.min(1, v))); }
+
+  getReducedEffects() { return !!this.data.reducedEffects; }
+  setReducedEffects(v) { this.set('reducedEffects', !!v); }
 
   _save() {
     try {

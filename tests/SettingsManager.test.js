@@ -20,13 +20,15 @@ describe('SettingsManager', () => {
     const sm = new SettingsManager();
     expect(sm.getMusicVolume()).toBe(0.5);
     expect(sm.getSFXVolume()).toBe(0.7);
+    expect(typeof sm.getReducedEffects()).toBe('boolean');
   });
 
   it('loads saved values from localStorage', () => {
-    store['emblem_rogue_settings'] = JSON.stringify({ musicVolume: 0.3, sfxVolume: 0.8 });
+    store['emblem_rogue_settings'] = JSON.stringify({ musicVolume: 0.3, sfxVolume: 0.8, reducedEffects: true });
     const sm = new SettingsManager();
     expect(sm.getMusicVolume()).toBe(0.3);
     expect(sm.getSFXVolume()).toBe(0.8);
+    expect(sm.getReducedEffects()).toBe(true);
   });
 
   it('ignores unknown keys in saved data', () => {
@@ -56,6 +58,14 @@ describe('SettingsManager', () => {
     const sm = new SettingsManager();
     sm.set('musicVolume', 0.9);
     expect(sm.get('musicVolume')).toBe(0.9);
+  });
+
+  it('persists reduced effects toggle', () => {
+    const sm = new SettingsManager();
+    sm.setReducedEffects(true);
+    expect(sm.getReducedEffects()).toBe(true);
+    const saved = JSON.parse(store['emblem_rogue_settings']);
+    expect(saved.reducedEffects).toBe(true);
   });
 
   it('survives localStorage throwing', () => {
