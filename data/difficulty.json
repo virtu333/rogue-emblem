@@ -2,6 +2,8 @@
   "version": 1,
   "modes": {
     "normal": {
+      "label": "Normal",
+      "color": "#44cc44",
       "enemyStatBonus": 0,
       "enemyCountBonus": 0,
       "enemyEquipTierShift": 0,
@@ -20,6 +22,8 @@
       "extendedLevelingEnabled": false
     },
     "hard": {
+      "label": "Hard",
+      "color": "#ff8800",
       "enemyStatBonus": 1,
       "enemyCountBonus": 1,
       "enemyEquipTierShift": 0,
@@ -38,6 +42,8 @@
       "extendedLevelingEnabled": false
     },
     "lunatic": {
+      "label": "Lunatic",
+      "color": "#cc3333",
       "enemyStatBonus": 2,
       "enemyCountBonus": 2,
       "enemyEquipTierShift": 1,

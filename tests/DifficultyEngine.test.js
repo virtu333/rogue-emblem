@@ -28,4 +28,25 @@ describe('DifficultyEngine', () => {
     expect(unknown.id).toBe('normal');
     expect(unknown.modifiers.currencyMultiplier).toBe(difficulty.modes.normal.currencyMultiplier);
   });
+
+  it('preserves optional label and color fields from config', () => {
+    const hard = resolveDifficultyMode(difficulty, 'hard');
+    expect(hard.modifiers.label).toBe('Hard');
+    expect(hard.modifiers.color).toBe('#ff8800');
+    const normal = resolveDifficultyMode(difficulty, 'normal');
+    expect(normal.modifiers.label).toBe('Normal');
+    expect(normal.modifiers.color).toBe('#44cc44');
+    const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
+    expect(lunatic.modifiers.label).toBe('Lunatic');
+    expect(lunatic.modifiers.color).toBe('#cc3333');
+  });
+
+  it('returns default label and color when mode data lacks them', () => {
+    const stripped = JSON.parse(JSON.stringify(difficulty));
+    delete stripped.modes.normal.label;
+    delete stripped.modes.normal.color;
+    const result = resolveDifficultyMode(stripped, 'normal');
+    expect(result.modifiers.label).toBe('Normal');
+    expect(result.modifiers.color).toBe('#44cc44');
+  });
 });

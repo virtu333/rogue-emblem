@@ -176,6 +176,7 @@ export class MetaProgressionManager {
         beatAct1: 'Beat Act 1',
         beatAct2: 'Beat Act 2',
         beatAct3: 'Beat Act 3',
+        beatGame: 'Beat the Game',
       };
       for (const m of reqs.milestones) {
         if (!this.milestones.has(m)) {

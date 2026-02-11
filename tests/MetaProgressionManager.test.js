@@ -726,6 +726,36 @@ describe('MetaProgressionManager', () => {
     meta.recordMilestone('beatAct2');
     expect(meta.meetsPrerequisites('deploy_limit')).toBe(true);
   });
+
+  // --- beatGame milestone ---
+
+  it('beatGame milestone is separate from beatAct3', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct3');
+    expect(meta.hasMilestone('beatAct3')).toBe(true);
+    expect(meta.hasMilestone('beatGame')).toBe(false);
+  });
+
+  it('beatGame milestone can be recorded independently', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatGame');
+    expect(meta.hasMilestone('beatGame')).toBe(true);
+    expect(meta.hasMilestone('beatAct3')).toBe(false);
+  });
+
+  it('getPrerequisiteInfo shows beatGame label', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // Manually create a fake upgrade with beatGame prerequisite to test the label
+    const fakeUpgrades = [...upgradesData, {
+      id: 'test_beatgame', category: 'economy', maxLevel: 1,
+      costs: [100], effects: [{ goldBonus: 1 }],
+      requires: { milestones: ['beatGame'] },
+    }];
+    const meta2 = new MetaProgressionManager(fakeUpgrades);
+    const info = meta2.getPrerequisiteInfo('test_beatgame');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('Beat the Game');
+  });
 });
 
 describe('calculateCurrencies', () => {

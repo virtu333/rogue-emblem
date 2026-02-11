@@ -24,6 +24,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
 ];
 
 export const DIFFICULTY_DEFAULTS = Object.freeze({
+  label: 'Normal',
+  color: '#44cc44',
   enemyStatBonus: 0,
   enemyCountBonus: 0,
   enemyEquipTierShift: 0,

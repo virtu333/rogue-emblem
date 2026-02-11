@@ -610,12 +610,18 @@ export class HomeBaseScene extends Phaser.Scene {
     const btnY = 450;
     const difficultyY = 410;
 
+    const modes = this.gameData?.difficulty?.modes || {};
+    const normalColor = modes.normal?.color || '#44cc44';
+    const hardColorData = modes.hard?.color || '#ff8800';
+    const lunaticLabel = modes.lunatic?.label || 'Lunatic';
+
     this.add.text(cx - 150, difficultyY, 'Difficulty:', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
     }).setOrigin(0, 0.5);
 
+    const normalBtnColor = this.selectedDifficulty === 'normal' ? normalColor : '#e0e0e0';
     const normalBtn = this.add.text(cx - 62, difficultyY, '[Normal]', {
-      fontFamily: 'monospace', fontSize: '12px', color: this.selectedDifficulty === 'normal' ? '#88ff88' : '#e0e0e0',
+      fontFamily: 'monospace', fontSize: '12px', color: normalBtnColor,
       backgroundColor: '#222222', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     normalBtn.on('pointerdown', () => {
@@ -624,7 +630,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this.drawUI();
     });
 
-    const hardColor = this.hardUnlocked ? (this.selectedDifficulty === 'hard' ? '#ffbb66' : '#e0e0e0') : '#666666';
+    const hardColor = this.hardUnlocked ? (this.selectedDifficulty === 'hard' ? hardColorData : '#e0e0e0') : '#666666';
     const hardBtn = this.add.text(cx + 20, difficultyY, '[Hard]', {
       fontFamily: 'monospace', fontSize: '12px', color: hardColor,
       backgroundColor: '#222222', padding: { x: 6, y: 3 },
@@ -638,7 +644,7 @@ export class HomeBaseScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(cx + 112, difficultyY, '[Lunatic: Soon]', {
+    this.add.text(cx + 112, difficultyY, `[${lunaticLabel}: Soon]`, {
       fontFamily: 'monospace', fontSize: '12px', color: '#666666',
       backgroundColor: '#222222', padding: { x: 6, y: 3 },
     }).setOrigin(0.5);
@@ -677,7 +683,9 @@ export class HomeBaseScene extends Phaser.Scene {
     if (this.selectedDifficulty !== 'normal' && this.selectedDifficulty !== 'hard') {
       this.selectedDifficulty = 'normal';
     }
-    this.hardUnlocked = Boolean(this.meta?.hasMilestone?.('beatAct3'));
+    this.hardUnlocked = Boolean(
+      this.meta?.hasMilestone?.('beatGame') || this.meta?.hasMilestone?.('beatAct3')
+    );
     if (this.selectedDifficulty === 'hard' && !this.hardUnlocked) {
       this.selectedDifficulty = 'normal';
       this.registry.set('selectedDifficulty', this.selectedDifficulty);

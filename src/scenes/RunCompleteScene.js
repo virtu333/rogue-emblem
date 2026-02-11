@@ -69,19 +69,28 @@ export class RunCompleteScene extends Phaser.Scene {
       if (rm.actIndex >= 1) meta.recordMilestone('beatAct1');
       if (rm.actIndex >= 2) meta.recordMilestone('beatAct2');
       if (rm.actIndex >= 3) meta.recordMilestone('beatAct3');
+      // beatGame requires actually winning, not just reaching the final boss
+      if (isVictory && rm.actIndex >= 3) meta.recordMilestone('beatGame');
     }
 
     // Stats
     const statsLines = [
       `Battles Won: ${rm.completedBattles}`,
       `Act Reached: ${actReached} / 4`,
-      `Difficulty: ${(rm.difficultyId || 'normal').toUpperCase()}  (x${currencyMultiplier.toFixed(2)} currency)`,
     ];
     const statsText = statsLines.join('\n');
 
     this.add.text(cx, cy - 20, statsText, {
       fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
       align: 'center', lineSpacing: 6,
+    }).setOrigin(0.5);
+
+    // Difficulty line (colored separately)
+    const diffLabel = rm.difficultyModifiers?.label || (rm.difficultyId || 'normal');
+    const diffColor = rm.difficultyModifiers?.color || '#44cc44';
+    this.add.text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
+      fontFamily: 'monospace', fontSize: '13px', color: diffColor,
+      align: 'center',
     }).setOrigin(0.5);
 
     // Currency earned display

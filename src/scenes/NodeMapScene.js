@@ -437,6 +437,15 @@ export class NodeMapScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
     }).setOrigin(1, 0);
 
+    // Difficulty label (non-Normal only, below gold)
+    const diffLabel = rm.difficultyModifiers?.label || 'Normal';
+    const diffColor = rm.difficultyModifiers?.color || '#44cc44';
+    if (diffLabel !== 'Normal') {
+      this.add.text(this.cameras.main.width - 20, 36, diffLabel, {
+        fontFamily: 'monospace', fontSize: '10px', color: diffColor,
+      }).setOrigin(1, 0);
+    }
+
     // Gear icon — opens settings
     const gear = this.add.text(20, 16, '\u2699', {
       fontFamily: 'monospace', fontSize: '20px', color: '#888888',
