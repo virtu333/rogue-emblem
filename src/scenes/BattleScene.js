@@ -85,6 +85,9 @@ function hashRewindSeed(seed, rewindCount) {
   return h >>> 0;
 }
 
+const TOUCH_INSPECT_HOLD_MS = 420;
+const TOUCH_INSPECT_MOVE_THRESHOLD = 14;
+
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -105,6 +108,11 @@ export class BattleScene extends Phaser.Scene {
     this.visionDialog = null;
     this.visionBaseSeed = null;
     this._battleRandomRestore = null;
+    this.isMobileInput = false;
+    this.inspectMode = false;
+    this._touchHoldTimer = null;
+    this._touchHoldStart = null;
+    this._touchHoldTriggered = false;
   }
 
   create() {
@@ -130,6 +138,10 @@ export class BattleScene extends Phaser.Scene {
 
   beginBattle(deployedRoster) {
     try {
+      const startupFlags = this.registry.get('startupFlags');
+      this.isMobileInput = Boolean(startupFlags?.isMobile);
+      this.inspectMode = false;
+
       // Track non-deployed units for merging back on victory
       if (this.roster && deployedRoster) {
         const deployedNames = new Set(deployedRoster.map(u => u.name));
@@ -164,6 +176,7 @@ export class BattleScene extends Phaser.Scene {
       this.events.once('shutdown', () => {
         const audio = this.registry.get('audio');
         if (audio) audio.releaseMusic(this, 0);
+        this.cancelTouchInspectHold();
         this._restoreBattleRng();
       });
 
@@ -359,6 +372,9 @@ export class BattleScene extends Phaser.Scene {
       this._lastPathPreviewKey = null;
       this._touchTapDown = null;
       this._tapMoveThreshold = 12;
+      this._touchHoldTimer = null;
+      this._touchHoldStart = null;
+      this._touchHoldTriggered = false;
 
       // Turn manager
       this.turnManager = new TurnManager({
@@ -417,9 +433,16 @@ export class BattleScene extends Phaser.Scene {
       this.rosterButton = makeButton(hw, '[O] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
       this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () => this.requestCancel({ allowPause: false }));
+      if (this.isMobileInput) {
+        this.inspectButton = makeButton(72, '[Inspect: OFF]', () => this.toggleInspectMode());
+      } else {
+        this.inspectButton = null;
+      }
       this.instructionText2 = this.add.text(
         hw, helpRowY,
-        '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
+        this.isMobileInput
+          ? '[R] Vision  [Inspect]/long-press unit: Details  |  [X]/off-map tap: cancel'
+          : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
         { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' }
       ).setOrigin(0.5).setDepth(100);
 
@@ -440,6 +463,7 @@ export class BattleScene extends Phaser.Scene {
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
       this.input.on('pointerdown', (pointer) => {
         this._touchTapDown = { x: pointer.x, y: pointer.y };
+        this.startTouchInspectHold(pointer);
         if (pointer.rightButtonDown()) this.onRightClick(pointer);
       });
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
@@ -1332,6 +1356,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Pointer / click handling ---
 
   onPointerMove(pointer) {
+    this.updateTouchInspectHold(pointer);
     if (pointer?.pointerType === 'touch') return;
     const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
     if (!gp) {
@@ -1387,6 +1412,105 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  startTouchInspectHold(pointer) {
+    if (pointer?.pointerType !== 'touch') return;
+    this.cancelTouchInspectHold();
+    this._touchHoldTriggered = false;
+    this._touchHoldStart = { x: pointer.x, y: pointer.y, id: pointer.id };
+    this._touchHoldTimer = this.time.delayedCall(TOUCH_INSPECT_HOLD_MS, () => {
+      const start = this._touchHoldStart;
+      this._touchHoldTimer = null;
+      if (!start) return;
+      if (this.unitDetailOverlay?.visible || this.pauseOverlay?.visible || this.lootSettingsOverlay) return;
+      if (this._showInspectionAtPixel(start.x, start.y)) {
+        this._touchHoldTriggered = true;
+      }
+    });
+  }
+
+  updateTouchInspectHold(pointer) {
+    if (pointer?.pointerType !== 'touch') return;
+    if (!this._touchHoldTimer || !this._touchHoldStart) return;
+    if (pointer.id !== this._touchHoldStart.id) return;
+    const dx = pointer.x - this._touchHoldStart.x;
+    const dy = pointer.y - this._touchHoldStart.y;
+    const threshold = TOUCH_INSPECT_MOVE_THRESHOLD;
+    if ((dx * dx + dy * dy) > (threshold * threshold)) {
+      this.cancelTouchInspectHold();
+    }
+  }
+
+  cancelTouchInspectHold() {
+    if (this._touchHoldTimer) {
+      this._touchHoldTimer.remove(false);
+      this._touchHoldTimer = null;
+    }
+    this._touchHoldStart = null;
+  }
+
+  clearInspectionVisuals() {
+    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+    this.grid.clearHighlights();
+    this.grid.clearAttackHighlights();
+    this.refreshEndTurnControl();
+  }
+
+  _showInspectionAtPixel(px, py) {
+    const gp = this.grid.pixelToGrid(px, py);
+    if (!gp) return false;
+    const unit = this.getUnitAt(gp.col, gp.row);
+    if (!unit) return false;
+    const terrain = this.grid.getTerrainAt(unit.col, unit.row);
+    this.inspectionPanel.show(unit, terrain, this.gameData);
+
+    if (this.battleState === 'PLAYER_IDLE' && unit.faction !== 'player') {
+      const positions = this.buildUnitPositionMap(unit.faction);
+      const mov = unit.mov ?? unit.stats?.MOV ?? 0;
+      const moveRange = this.grid.getMovementRange(
+        unit.col, unit.row, mov, unit.moveType, positions, unit.faction
+      );
+      this.grid.showMovementRange(moveRange, unit.col, unit.row, 0xcc3333, 0.35);
+
+      if (unit.weapon) {
+        const attackTiles = new Set();
+        for (const [key] of moveRange) {
+          const [mc, mr] = key.split(',').map(Number);
+          for (const t of this.grid.getAttackRange(mc, mr, unit.weapon)) {
+            const tk = `${t.col},${t.row}`;
+            if (!moveRange.has(tk)) attackTiles.add(tk);
+          }
+        }
+        const tiles = Array.from(attackTiles).map(k => {
+          const [col, row] = k.split(',').map(Number);
+          return { col, row };
+        });
+        this.grid.showAttackRange(tiles);
+      }
+    }
+
+    this.refreshEndTurnControl();
+    return true;
+  }
+
+  toggleInspectMode() {
+    if (!this.isMobileInput) return;
+    this.inspectMode = !this.inspectMode;
+    if (!this.inspectMode) this.clearInspectionVisuals();
+    this.refreshEndTurnControl();
+  }
+
+  handleInspectModeTap(pointer, px, py) {
+    const gp = this.grid.pixelToGrid(px, py);
+    if (!gp) {
+      if (this._isPointerOverInteractive(pointer)) return false;
+      this.clearInspectionVisuals();
+      return true;
+    }
+    if (this._showInspectionAtPixel(px, py)) return true;
+    this.clearInspectionVisuals();
+    return true;
+  }
+
   updateTopLeftHudLayout() {
     if (!this.infoText || !this.turnCounterText) return;
     const hasInfo = Boolean(this.infoText.text);
@@ -1420,6 +1544,9 @@ export class BattleScene extends Phaser.Scene {
 
     const px = clickPos?.x ?? pointer.x;
     const py = clickPos?.y ?? pointer.y;
+    if (this.isMobileInput && this.inspectMode) {
+      if (this.handleInspectModeTap(pointer, px, py)) return;
+    }
     const gp = this.grid.pixelToGrid(px, py);
     if (!gp) {
       if (!this._isPointerOverInteractive(pointer)) {
@@ -1476,51 +1603,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Right-click = unit inspection toggle
     if (this.inspectionPanel.visible) {
-      this.inspectionPanel.hide();
-      this.grid.clearHighlights();
-      this.grid.clearAttackHighlights();
-      this.refreshEndTurnControl();
+      this.clearInspectionVisuals();
       return;
     }
-    // Find unit at cursor position
-    if (pointer) {
-      const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
-      if (gp) {
-        const unit = this.getUnitAt(gp.col, gp.row);
-        if (unit) {
-          const terrain = this.grid.getTerrainAt(unit.col, unit.row);
-          this.inspectionPanel.show(unit, terrain, this.gameData);
-
-          // Show movement + attack range for non-player units when idle
-          if (this.battleState === 'PLAYER_IDLE' && unit.faction !== 'player') {
-            const positions = this.buildUnitPositionMap(unit.faction);
-            const mov = unit.mov ?? unit.stats?.MOV ?? 0;
-            const moveRange = this.grid.getMovementRange(
-              unit.col, unit.row, mov, unit.moveType, positions, unit.faction
-            );
-            this.grid.showMovementRange(moveRange, unit.col, unit.row, 0xcc3333, 0.35);
-
-            // Show attack reach from all reachable positions
-            if (unit.weapon) {
-              const attackTiles = new Set();
-              for (const [key] of moveRange) {
-                const [mc, mr] = key.split(',').map(Number);
-                for (const t of this.grid.getAttackRange(mc, mr, unit.weapon)) {
-                  const tk = `${t.col},${t.row}`;
-                  if (!moveRange.has(tk)) attackTiles.add(tk);
-                }
-              }
-              const tiles = Array.from(attackTiles).map(k => {
-                const [col, row] = k.split(',').map(Number);
-                return { col, row };
-              });
-              this.grid.showAttackRange(tiles);
-            }
-          }
-          return;
-        }
-      }
-    }
+    if (pointer && this._showInspectionAtPixel(pointer.x, pointer.y)) return;
     this.refreshEndTurnControl();
   }
 
@@ -1585,9 +1671,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.unitDetailOverlay?.visible) {
       this.unitDetailOverlay.hide();
     } else if (this.inspectionPanel?.visible) {
-      this.inspectionPanel.hide();
-      this.grid.clearHighlights();
-      this.grid.clearAttackHighlights();
+      this.clearInspectionVisuals();
     } else if (this.pauseOverlay?.visible) {
       this.pauseOverlay.hide();
     } else if (this.lootRosterVisible) {
@@ -1701,6 +1785,24 @@ export class BattleScene extends Phaser.Scene {
   }
 
   refreshEndTurnControl() {
+    if (this.inspectButton) {
+      const enabled = this.battleState !== 'ENEMY_PHASE'
+        && this.battleState !== 'BATTLE_END'
+        && this.battleState !== 'DEPLOY_SELECTION'
+        && this.battleState !== 'PAUSED'
+        && !this.pauseOverlay?.visible
+        && !this.unitDetailOverlay?.visible
+        && !this.lootSettingsOverlay;
+      this.inspectButton.setVisible(enabled);
+      this.inspectButton.setText(this.inspectMode ? '[Inspect: ON]' : '[Inspect: OFF]');
+      if (enabled) {
+        this.inspectButton.setColor(this.inspectMode ? '#ffdd44' : '#e0e0e0');
+        this.inspectButton.setInteractive({ useHandCursor: true });
+      } else {
+        this.inspectButton.disableInteractive();
+      }
+    }
+
     if (this.endTurnButton) {
       const enabled = this.canForceEndTurn();
       this.endTurnButton.setVisible(enabled);
@@ -2792,8 +2894,14 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerUp(pointer) {
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    this.cancelTouchInspectHold();
     let clickPos = null;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
+      if (this._touchHoldTriggered) {
+        this._touchHoldTriggered = false;
+        this._touchTapDown = null;
+        return;
+      }
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
       if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
@@ -4190,7 +4298,10 @@ export class BattleScene extends Phaser.Scene {
       if (hints && turn === 1) {
         this.time.delayedCall(1500, async () => {
           if (hints.shouldShow('battle_first_turn')) {
-            await showImportantHint(this, 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.');
+            const inspectHint = this.isMobileInput
+              ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+              : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
+            await showImportantHint(this, inspectHint);
           }
           if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
             await showImportantHint(this, 'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!');

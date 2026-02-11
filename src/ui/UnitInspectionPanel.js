@@ -51,8 +51,8 @@ export class UnitInspectionPanel {
     }).setDepth(151);
     this.objects.push(nameText);
 
-    // "View Unit [V]" hint
-    const hintText = this.scene.add.text(tx + 6, ty + 17, 'View Unit [V]', {
+    const hintLabel = this.scene?.isMobileInput ? 'Tap to View Unit' : 'View Unit [V]';
+    const hintText = this.scene.add.text(tx + 6, ty + 17, hintLabel, {
       fontFamily: 'monospace', fontSize: '9px', color: UI_COLORS.gray,
     }).setDepth(151);
     this.objects.push(hintText);

@@ -45,6 +45,7 @@ Then run the manual Audio Transition Soak flow (below).
 - Keep existing script names stable for parallel agents/CI while introducing aliases.
 - `test:unit` intentionally excludes `tests/harness` and `tests/sim` to stay fast.
 - Additional nightly seed sweeps can use existing fuzz/full-run commands in `package.json`.
+- For high-risk scene/audio/input changes, review `docs/issues/frequent_regressions.md` before merge.
 
 ## Manual Audio Transition Soak
 
