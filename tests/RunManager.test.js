@@ -1017,8 +1017,8 @@ describe('blessing run-start effect application', () => {
       rm.startRun();
       const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
-      params.fogEnabled = true;
-      expect(node.battleParams.fogEnabled).toBeUndefined();
+      params.enemyStatBonus = 999;
+      expect(node.battleParams.enemyStatBonus).toBeUndefined();
     });
 
     it('getBattleParams injects difficulty combat modifiers', () => {
@@ -1030,6 +1030,23 @@ describe('blessing run-start effect application', () => {
       expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
       expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
       expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
+    });
+
+    it('getBattleParams enforces first-map no-fog and fighter-only rules', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      node.fogEnabled = true;
+
+      const firstParams = rm.getBattleParams(node);
+      expect(firstParams.fogEnabled).toBe(false);
+      expect(firstParams.firstBattleFightersOnly).toBe(true);
+
+      rm.completedBattles = 1;
+      const laterParams = rm.getBattleParams(node);
+      expect(laterParams.fogEnabled).toBe(true);
+      expect(laterParams.firstBattleFightersOnly).toBe(false);
     });
   });
 
@@ -1150,12 +1167,20 @@ describe('blessing run-start effect application', () => {
 
   it('all_units_stat_delta applies MOV bonus and syncs unit.mov', () => {
     const gameData = loadGameData();
+    gameData.blessings.blessings.push({
+      id: 'test_worldly_stride',
+      name: 'Test Worldly Stride',
+      tier: 4,
+      description: '+1 MOV all units.',
+      boons: [{ type: 'all_units_stat_delta', params: { stat: 'MOV', value: 1 } }],
+      costs: [],
+    });
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseMov = rm.roster.map(u => u.stats.MOV);
     const baseRuntimeMov = rm.roster.map(u => u.mov);
 
-    rm.activeBlessings = ['worldly_stride'];
+    rm.activeBlessings = ['test_worldly_stride'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
@@ -1183,11 +1208,11 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['worldly_stride'];
+    rm.activeBlessings = ['pilgrim_coin'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    expect(rm.getShopItemCountDelta()).toBe(-2);
+    expect(rm.getShopItemCountDelta()).toBe(1);
   });
 
   it('all_growths_delta blessing applies to roster growths and recruit growth accessor', () => {
@@ -1288,6 +1313,17 @@ describe('blessing run-start effect application', () => {
     const restored = RunManager.fromJSON(json, gameData);
     expect(restored.blessingSelectionTelemetry.offeredIds).toEqual(['steady_hands', 'coin_of_fate']);
     expect(restored.blessingSelectionTelemetry.chosenIds).toEqual([]);
+  });
+
+  it('fromJSON normalizes legacy skill names to canonical ids', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.roster[1].skills = ['Renewal Aura'];
+
+    const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+    expect(restored.roster[1].skills).toContain('renewal_aura');
+    expect(restored.roster[1].skills).not.toContain('Renewal Aura');
   });
 
   it('fromJSON initializes missing actHitBonusByAct runtime modifier', () => {

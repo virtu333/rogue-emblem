@@ -123,7 +123,7 @@
       "id": "pilgrim_coin",
       "name": "Pilgrim Coin",
       "tier": 3,
-      "description": "Shops offer +1 item, but your units suffer -5 Hit in Act 1.",
+      "description": "Villages offer +1 item, but your units suffer -5 Hit in Act 1.",
       "weight": 0.6,
       "boons": [
         {
@@ -142,7 +142,7 @@
       "id": "merchant_bane",
       "name": "Merchant Bane",
       "tier": 3,
-      "description": "+15% battle gold, but all shop inventories have -1 item.",
+      "description": "+15% battle gold, but all village inventories have -1 item.",
       "weight": 0.65,
       "boons": [
         {
@@ -154,25 +154,6 @@
         {
           "type": "shop_item_count_delta",
           "params": { "value": -1 }
-        }
-      ]
-    },
-    {
-      "id": "worldly_stride",
-      "name": "Worldly Stride",
-      "tier": 4,
-      "description": "+1 MOV all units, but all shop inventories have -2 items.",
-      "weight": 0.2,
-      "boons": [
-        {
-          "type": "all_units_stat_delta",
-          "params": { "stat": "MOV", "value": 1 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "shop_item_count_delta",
-          "params": { "value": -2 }
         }
       ]
     },

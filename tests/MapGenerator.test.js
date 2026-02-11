@@ -189,6 +189,13 @@ describe('MapGenerator', () => {
       const act1Bosses = data.enemies.bosses.act1 || [];
       expect(act1Bosses.some(b => b.className === 'Knight')).toBe(false);
     });
+
+    it('firstBattleFightersOnly spawns only Fighter enemies', () => {
+      const config = generateBattle({ act: 'act1', objective: 'rout', firstBattleFightersOnly: true }, data);
+      for (const spawn of config.enemySpawns) {
+        expect(spawn.className).toBe('Fighter');
+      }
+    });
   });
 
   describe('all acts generate without errors', () => {

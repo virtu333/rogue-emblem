@@ -136,7 +136,7 @@ export class NodeMapScene extends Phaser.Scene {
     // Tutorial hint for node map
     const hints = this.registry.get('hints');
     if (hints?.shouldShow('nodemap_intro')) {
-      showImportantHint(this, 'Choose your path. Battles give loot and gold.\nShops sell gear. Churches heal and promote.');
+      showImportantHint(this, 'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.');
     }
 
     // HP persistence hint — show once after first battle return
@@ -597,7 +597,7 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.CHURCH) {
       label = 'Church — Heal, revive fallen, promote';
     } else if (node.type === NODE_TYPES.SHOP) {
-      label = 'Shop — Buy & sell items';
+      label = 'Village — Buy, sell, and forge';
     } else if (node.type === NODE_TYPES.RECRUIT) {
       label = 'Recruit — Battle with potential ally';
     } else if (node.battleParams?.isElite) {
@@ -647,8 +647,6 @@ export class NodeMapScene extends Phaser.Scene {
 
     const rm = this.runManager;
     const battleParams = rm.getBattleParams(node);
-    // Propagate fog flag from node to battleParams
-    if (node.fogEnabled) battleParams.fogEnabled = true;
     const roster = rm.getRoster();
 
     void startSceneLazy(this, 'Battle', {
@@ -918,7 +916,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay.push(bg);
 
     // Title
-    const title = this.add.text(320, 30, 'Merchant', {
+    const title = this.add.text(320, 30, 'Village', {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(301);
     this.shopOverlay.push(title);
@@ -940,7 +938,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawActiveTabContent();
 
     // Leave button
-    const leaveBtn = this.add.text(320, 440, '[ Leave Shop ]', {
+    const leaveBtn = this.add.text(320, 440, '[ Leave Village ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });

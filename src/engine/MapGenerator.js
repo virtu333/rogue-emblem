@@ -12,7 +12,19 @@ const DEBUG_MAP_GEN = false;
  * @returns {Object} battleConfig
  */
 export function generateBattle(params, deps) {
-  const { act = 'act1', objective = 'rout', difficultyMod = 1.0, enemyCountBonus = 0, isRecruitBattle = false, deployCount, levelRange, row, isBoss, templateId: preAssignedTemplateId } = params;
+  const {
+    act = 'act1',
+    objective = 'rout',
+    difficultyMod = 1.0,
+    enemyCountBonus = 0,
+    isRecruitBattle = false,
+    deployCount,
+    levelRange,
+    row,
+    isBoss,
+    templateId: preAssignedTemplateId,
+    firstBattleFightersOnly = false,
+  } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
   // 1. Pick map size
@@ -45,7 +57,10 @@ export function generateBattle(params, deps) {
   const playerSpawns = placeSpawns(mapLayout, template, cols, rows, 'playerSpawn', terrain, spawnCount);
 
   // 6. Enemy composition
-  const pool = enemies.pools[act];
+  const basePool = enemies.pools[act];
+  const pool = firstBattleFightersOnly
+    ? { ...basePool, base: ['Fighter'], promoted: [] }
+    : basePool;
   const rolledEnemyCount = rollEnemyCount({
     deployCount: spawnCount, act, row, isBoss,
     tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles, enemyCountBonus,

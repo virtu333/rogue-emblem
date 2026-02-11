@@ -415,7 +415,7 @@ export class BattleScene extends Phaser.Scene {
       this.instructionText2 = this.add.text(
         hw, helpRowY,
         '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
-        { fontFamily: 'monospace', fontSize: '11px', color: '#888888' }
+        { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' }
       ).setOrigin(0.5).setDepth(100);
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")

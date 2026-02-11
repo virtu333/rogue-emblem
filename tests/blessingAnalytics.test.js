@@ -52,7 +52,7 @@ describe('blessingAnalytics', () => {
   });
 
   it('records run outcomes and computes summary rates', () => {
-    recordBlessingSelection({ offeredIds: ['iron_oath', 'worldly_stride'], chosenId: 'iron_oath' });
+    recordBlessingSelection({ offeredIds: ['iron_oath', 'pilgrim_coin'], chosenId: 'iron_oath' });
     recordBlessingRunOutcome({
       activeBlessings: ['iron_oath'],
       result: 'victory',
@@ -72,4 +72,3 @@ describe('blessingAnalytics', () => {
     expect(iron.avgBattles).toBe(7);
   });
 });
-

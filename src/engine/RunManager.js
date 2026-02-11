@@ -804,6 +804,9 @@ export class RunManager {
   getBattleParams(node) {
     if (!node?.battleParams) return null;
     const battleParams = structuredClone(node.battleParams);
+    const isFirstBattle = this.completedBattles === 0;
+    battleParams.fogEnabled = !isFirstBattle && Boolean(node.fogEnabled);
+    battleParams.firstBattleFightersOnly = isFirstBattle;
     battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
@@ -1123,6 +1126,49 @@ export class RunManager {
     runManager.fallenUnits.forEach(applyLearnables);
   }
 
+  /**
+   * Normalize legacy skill strings (e.g. "Renewal Aura") to canonical skill IDs
+   * so on-turn-start and passive skill logic remains reliable across old saves.
+   */
+  static migrateSkillIds(runManager) {
+    const skillsData = runManager.gameData?.skills || [];
+    const validSkillIds = new Set(skillsData.map(s => s.id).filter(Boolean));
+    if (!validSkillIds.size) return;
+
+    const toCanonicalSkillId = (raw) => {
+      if (typeof raw !== 'string') return raw;
+      const value = raw.trim();
+      if (!value) return value;
+      if (validSkillIds.has(value)) return value;
+
+      const toSnake = (input) => input
+        .toLowerCase()
+        .replace(/[:].*$/, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+
+      const normalized = toSnake(value);
+      if (validSkillIds.has(normalized)) return normalized;
+      return value;
+    };
+
+    const normalizeUnit = (unit) => {
+      if (!unit || !Array.isArray(unit.skills)) return;
+      const seen = new Set();
+      const normalized = [];
+      for (const skillId of unit.skills) {
+        const canonical = toCanonicalSkillId(skillId);
+        if (seen.has(canonical)) continue;
+        seen.add(canonical);
+        normalized.push(canonical);
+      }
+      unit.skills = normalized;
+    };
+
+    runManager.roster.forEach(normalizeUnit);
+    runManager.fallenUnits.forEach(normalizeUnit);
+  }
+
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
@@ -1208,6 +1254,7 @@ export class RunManager {
     // Migrate old save format BEFORE relinking weapons
     // (migration may remove Consumables/Scrolls from inventory that relinkWeapon could pick as fallback)
     RunManager.migrateInventorySplit(rm);
+    RunManager.migrateSkillIds(rm);
     RunManager.migrateClassInnateSkills(rm);
     RunManager.migrateClassLearnableSkills(rm);
 
