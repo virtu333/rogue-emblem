@@ -5,6 +5,35 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 
+function withSeed(seed, fn) {
+  const origRandom = Math.random;
+  Math.random = mulberry32(seed);
+  try {
+    return fn();
+  } finally {
+    Math.random = origRandom;
+  }
+}
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function capForTiles(tiles, densityCap) {
+  const keys = Object.keys(densityCap).map(Number).sort((a, b) => a - b);
+  let cap = Infinity;
+  for (const k of keys) {
+    if (k <= tiles) cap = densityCap[String(k)][1];
+  }
+  return cap;
+}
+
 describe('MapGenerator', () => {
   describe('generateBattle basics', () => {
     it('returns a valid battleConfig for rout objective', () => {
@@ -398,6 +427,36 @@ describe('MapGenerator', () => {
         const count = config.enemySpawns.length;
         expect(count).toBeGreaterThanOrEqual(deployCount + 2);
         expect(count).toBeLessThanOrEqual(deployCount + 3);
+      }
+    });
+  });
+
+  describe('recruit battle enemy bump', () => {
+    it('adds +1 enemy for recruit battles when under density cap', () => {
+      for (let seed = 1; seed <= 30; seed++) {
+        const baseline = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0 }, data)
+        );
+        const recruit = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0, isRecruitBattle: true }, data)
+        );
+        expect(recruit.enemySpawns.length).toBe(baseline.enemySpawns.length + 1);
+      }
+    });
+
+    it('does not exceed density cap when recruit +1 would overflow cap', () => {
+      for (let seed = 1; seed <= 20; seed++) {
+        const baseline = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4 }, data)
+        );
+        const recruit = withSeed(seed, () =>
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4, isRecruitBattle: true }, data)
+        );
+
+        const tiles = baseline.cols * baseline.rows;
+        const cap = capForTiles(tiles, data.enemies.enemyCountByTiles);
+        expect(recruit.enemySpawns.length).toBeLessThanOrEqual(cap);
+        expect(recruit.enemySpawns.length).toBe(Math.min(baseline.enemySpawns.length + 1, cap));
       }
     });
   });

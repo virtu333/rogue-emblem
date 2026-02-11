@@ -46,10 +46,13 @@ export function generateBattle(params, deps) {
 
   // 6. Enemy composition
   const pool = enemies.pools[act];
-  const enemyCount = rollEnemyCount({
+  const rolledEnemyCount = rollEnemyCount({
     deployCount: spawnCount, act, row, isBoss,
     tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles,
   });
+  const recruitBonus = isRecruitBattle ? 1 : 0;
+  const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
+  const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
   const enemySpawns = generateEnemies(
     mapLayout, template, cols, rows, terrain,
     pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes
@@ -213,6 +216,12 @@ function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count) 
 }
 
 function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrainData, count) {
+  const zoneWidth = Math.max(0, endCol - startCol);
+  const zoneHeight = Math.max(0, endRow - startRow);
+  const zoneCapacity = zoneWidth * zoneHeight;
+  const targetCount = Math.min(Math.max(0, count), zoneCapacity);
+  if (targetCount === 0) return [];
+
   const candidates = [];
   for (let r = startRow; r < endRow; r++) {
     for (let c = startCol; c < endCol; c++) {
@@ -227,7 +236,7 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
   const spawns = [];
   const used = new Set();
   for (const pos of candidates) {
-    if (spawns.length >= count) break;
+    if (spawns.length >= targetCount) break;
     const key = `${pos.col},${pos.row}`;
     if (!used.has(key)) {
       used.add(key);
@@ -235,15 +244,22 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
     }
   }
 
-  // Fallback: if not enough spawns found, force some tiles to Plain
-  while (spawns.length < count) {
-    const r = startRow + Math.floor(Math.random() * (endRow - startRow));
-    const c = startCol + Math.floor(Math.random() * (endCol - startCol));
-    const key = `${c},${r}`;
-    if (!used.has(key)) {
-      mapLayout[r][c] = TERRAIN.Plain;
-      used.add(key);
-      spawns.push({ col: c, row: r });
+  // Fallback: deterministically fill remaining tiles in-zone by forcing them to Plain.
+  if (spawns.length < targetCount) {
+    const remainingTiles = [];
+    for (let r = startRow; r < endRow; r++) {
+      for (let c = startCol; c < endCol; c++) {
+        const key = `${c},${r}`;
+        if (!used.has(key)) remainingTiles.push({ col: c, row: r });
+      }
+    }
+    shuffleArray(remainingTiles);
+    const needed = targetCount - spawns.length;
+    for (let i = 0; i < needed && i < remainingTiles.length; i++) {
+      const pos = remainingTiles[i];
+      mapLayout[pos.row][pos.col] = TERRAIN.Plain;
+      used.add(`${pos.col},${pos.row}`);
+      spawns.push(pos);
     }
   }
 
@@ -705,10 +721,17 @@ function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap }) {
   const count = deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
 
   // Density safety cap from tile table (prevents overcrowding)
+  const cap = getEnemyDensityCapByTiles(tiles, densityCap);
+  return Math.min(count, cap);
+}
+
+function getEnemyDensityCapByTiles(tiles, densityCap) {
   const keys = Object.keys(densityCap).map(Number).sort((a, b) => a - b);
   let cap = Infinity;
-  for (const k of keys) { if (k <= tiles) cap = densityCap[String(k)][1]; }
-  return Math.min(count, cap);
+  for (const k of keys) {
+    if (k <= tiles) cap = densityCap[String(k)][1];
+  }
+  return cap;
 }
 
 // --- Reachability check ---
