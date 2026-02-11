@@ -21,6 +21,7 @@ export class Grid {
     this.highlightTiles = [];
     this.pathTiles = [];
     this.attackHighlightTiles = [];
+    this.temporaryTerrains = [];
 
     // Fog of war
     this.fogEnabled = fogEnabled;
@@ -42,23 +43,89 @@ export class Grid {
     for (let row = 0; row < this.rows; row++) {
       this.tiles[row] = [];
       for (let col = 0; col < this.cols; col++) {
-        const terrainIndex = this.mapLayout[row][col];
-        const terrain = this.terrainData[terrainIndex];
-        const { x, y } = this.gridToPixel(col, row);
-
-        const textureKey = `terrain_${terrain.name.toLowerCase()}`;
-        if (this.scene.textures.exists(textureKey)) {
-          const img = this.scene.add.image(x, y, textureKey);
-          img.setDisplaySize(TILE_SIZE, TILE_SIZE);
-          this.tiles[row][col] = img;
-        } else {
-          const color = TERRAIN_COLORS[terrain.name] || 0x808080;
-          const rect = this.scene.add.rectangle(
-            x, y, TILE_SIZE - 1, TILE_SIZE - 1, color
-          );
-          this.tiles[row][col] = rect;
-        }
+        this.tiles[row][col] = this._createTileDisplay(col, row);
       }
+    }
+  }
+
+  _createTileDisplay(col, row) {
+    const terrainIndex = this.mapLayout[row][col];
+    const terrain = this.terrainData[terrainIndex];
+    const { x, y } = this.gridToPixel(col, row);
+    const textureKey = `terrain_${terrain.name.toLowerCase()}`;
+    if (this.scene.textures.exists(textureKey)) {
+      const img = this.scene.add.image(x, y, textureKey);
+      img.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      return img;
+    }
+    const color = TERRAIN_COLORS[terrain.name] || 0x808080;
+    return this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color);
+  }
+
+  _rerenderTile(col, row) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return;
+    const oldTile = this.tiles?.[row]?.[col];
+    const depth = oldTile?.depth ?? 0;
+    oldTile?.destroy?.();
+    const newTile = this._createTileDisplay(col, row);
+    newTile.setDepth(depth);
+    this.tiles[row][col] = newTile;
+  }
+
+  setTerrainAt(col, row, terrainIndex) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+    if (!Number.isInteger(terrainIndex) || !this.terrainData[terrainIndex]) return false;
+    this.mapLayout[row][col] = terrainIndex;
+    this._rerenderTile(col, row);
+    return true;
+  }
+
+  setTemporaryTerrain(col, row, terrainName, duration = 1) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+    const terrainIndex = this.terrainData.findIndex(t => t?.name === terrainName);
+    if (terrainIndex < 0) return false;
+    const key = `${col},${row}`;
+    const existing = this.temporaryTerrains.find(t => t.key === key);
+    if (existing) {
+      existing.remainingTurns = Math.max(existing.remainingTurns, Math.max(1, duration | 0));
+      return this.setTerrainAt(col, row, terrainIndex);
+    }
+    this.temporaryTerrains.push({
+      key,
+      col,
+      row,
+      originalIndex: this.mapLayout[row][col],
+      temporaryIndex: terrainIndex,
+      remainingTurns: Math.max(1, duration | 0),
+    });
+    return this.setTerrainAt(col, row, terrainIndex);
+  }
+
+  clearTemporaryTerrainAt(col, row) {
+    const key = `${col},${row}`;
+    const idx = this.temporaryTerrains.findIndex(t => t.key === key);
+    if (idx < 0) return false;
+    const entry = this.temporaryTerrains.splice(idx, 1)[0];
+    return this.setTerrainAt(entry.col, entry.row, entry.originalIndex);
+  }
+
+  isTemporaryTerrainAt(col, row, terrainIndex = null) {
+    const key = `${col},${row}`;
+    const entry = this.temporaryTerrains.find(t => t.key === key);
+    if (!entry) return false;
+    if (terrainIndex == null) return true;
+    return this.mapLayout[row]?.[col] === terrainIndex;
+  }
+
+  tickTemporaryTerrains() {
+    if (!this.temporaryTerrains.length) return;
+    const toExpire = [];
+    for (const entry of this.temporaryTerrains) {
+      entry.remainingTurns -= 1;
+      if (entry.remainingTurns <= 0) toExpire.push(entry);
+    }
+    for (const entry of toExpire) {
+      this.clearTemporaryTerrainAt(entry.col, entry.row);
     }
   }
 

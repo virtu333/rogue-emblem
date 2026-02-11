@@ -7,7 +7,7 @@ import {
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
 } from '../utils/constants.js';
-import { rollDefenseAffixes, getAttackAffixes } from './AffixSystem.js';
+import { rollDefenseAffixes } from './AffixSystem.js';
 
 // --- Weapon classification ---
 
@@ -413,6 +413,19 @@ export function getCombatForecast(
   // Collect activated skills for UI display
   const atkActivated = atkMods?.activated || [];
   const defActivated = defMods?.activated || [];
+  const atkWarnings = [];
+  const defWarnings = [];
+
+  if (Array.isArray(defender.affixes)) {
+    if (defender.affixes.includes('shielded') && !defender._hitByPlayerThisPhase) atkWarnings.push('Shielded');
+    if (defender.affixes.includes('thorns') && distance === 1 && atkDmg > 0) atkWarnings.push('Thorns');
+    if (defender.affixes.includes('teleporter') && atkDmg > 0) atkWarnings.push('Teleporter');
+  }
+  if (Array.isArray(attacker.affixes)) {
+    if (attacker.affixes.includes('shielded') && !attacker._hitByPlayerThisPhase) defWarnings.push('Shielded');
+    if (attacker.affixes.includes('thorns') && distance === 1 && defDmg > 0) defWarnings.push('Thorns');
+    if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
+  }
 
   return {
     attacker: {
@@ -420,6 +433,7 @@ export function getCombatForecast(
       damage: atkDmg, hit: atkHit, crit: atkCrit,
       doubles: atkDoubles, brave: atkBrave, attackCount: atkCount,
       skills: atkActivated,
+      warnings: atkWarnings,
     },
     defender: {
       name: defender.name, hp: defender.currentHP ?? defender.stats.HP,
@@ -427,6 +441,7 @@ export function getCombatForecast(
       damage: defDmg, hit: defHit, crit: defCrit,
       doubles: defDoubles, brave: defBrave, attackCount: defCount,
       skills: defActivated,
+      warnings: defWarnings,
     },
   };
 }

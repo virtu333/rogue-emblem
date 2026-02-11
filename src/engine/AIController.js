@@ -65,6 +65,8 @@ export class AIController {
       if (enemy.weapon && isInRange(enemy.weapon, dist)) {
         await callbacks.onAttack(enemy, decision.target);
       }
+    } else if (decision.breakTile) {
+      await callbacks.onBreak?.(enemy, decision.breakTile);
     }
 
     callbacks.onUnitDone(enemy);
@@ -82,6 +84,7 @@ export class AIController {
    *   If no attack available, stay put (don't chase away from throne).
    */
   _decideAction(enemy, allEnemies, playerUnits, npcUnits) {
+    const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
     // --- Guard AI check ---
     if (enemy.aiMode === 'guard') {
       const attackableUnits = [...playerUnits, ...(npcUnits || [])];
@@ -155,8 +158,13 @@ export class AIController {
         const dist = gridDistance(tile.col, tile.row, target.col, target.row);
         if (!isInRange(enemy.weapon, dist)) continue;
 
-        // Score: prefer low-HP targets, then anti-turtle priorities in aggressive mode.
-        let score = (target.stats.HP - target.currentHP) + (100 - target.currentHP);
+        let score;
+        if (forceLowestHpTargeting) {
+          score = 1000 - (target.currentHP || 0);
+        } else {
+          // Default score: prefer damaged/lower HP targets.
+          score = (target.stats.HP - target.currentHP) + (100 - target.currentHP);
+        }
         if (this.aggressiveMode) {
           const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
           if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) score += 35;
@@ -197,7 +205,7 @@ export class AIController {
     }
 
     // No attack possible - move toward nearest player using path-aware pursuit.
-    const nearest = this._findPriorityTarget(enemy, playerUnits);
+    const nearest = this._findPriorityTarget(enemy, playerUnits, forceLowestHpTargeting);
     if (!nearest) {
       return this._finalizeDecision(enemy, {
         path: null,
@@ -273,6 +281,17 @@ export class AIController {
           });
         }
       }
+    }
+
+    const breakTile = this._findAdjacentBreakableWall(enemy, unitPositions);
+    if (breakTile) {
+      return this._finalizeDecision(enemy, {
+        path: null,
+        target: null,
+        breakTile,
+        reason: 'break_wall',
+        detail: { breakTile: { ...breakTile } },
+      });
     }
 
     return this._finalizeDecision(enemy, {
@@ -395,7 +414,15 @@ export class AIController {
     return decision;
   }
 
-  _findPriorityTarget(enemy, playerUnits) {
+  _findPriorityTarget(enemy, playerUnits, forceLowestHpTargeting = false) {
+    if (forceLowestHpTargeting) {
+      let lowest = null;
+      for (const p of playerUnits) {
+        if (!lowest || (p.currentHP || 0) < (lowest.currentHP || 0)) lowest = p;
+      }
+      return lowest;
+    }
+
     if (this.aggressiveMode) {
       const rank = (unit) => {
         const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
@@ -435,5 +462,29 @@ export class AIController {
 
   _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  _findAdjacentBreakableWall(enemy, unitPositions) {
+    if (typeof this.grid.isTemporaryTerrainAt !== 'function') return null;
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const col = enemy.col + dc;
+      const row = enemy.row + dr;
+      if (col < 0 || row < 0 || col >= this.grid.cols || row >= this.grid.rows) continue;
+      if (unitPositions?.has(`${col},${row}`)) continue;
+      if (this.grid.isTemporaryTerrainAt(col, row)) return { col, row };
+    }
+    return null;
+  }
+
+  _hasAiOverride(enemy, overrideName) {
+    if (!enemy?.affixes?.length) return false;
+    const affixList = this.gameData?.affixes?.affixes;
+    if (!Array.isArray(affixList)) return false;
+    for (const id of enemy.affixes) {
+      const affix = affixList.find(a => a.id === id);
+      if (affix?.aiOverride === overrideName) return true;
+    }
+    return false;
   }
 }

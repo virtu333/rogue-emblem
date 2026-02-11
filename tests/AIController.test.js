@@ -438,6 +438,27 @@ describe('AIController', () => {
     });
   });
 
+  describe('Affix AI overrides', () => {
+    it('berserker override targets the lowest HP unit', () => {
+      const moveTiles = [{ col: 5, row: 5 }];
+      const grid = createMockGrid(moveTiles);
+      const gameData = {
+        affixes: {
+          affixes: [{ id: 'berserker', aiOverride: 'target_lowest_hp' }],
+        },
+      };
+      const ai = new AIController(grid, gameData, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 5, row: 5, affixes: ['berserker'] });
+      const highHp = makePlayer({ col: 4, row: 5, currentHP: 18 });
+      const lowHp = makePlayer({ col: 6, row: 5, currentHP: 3 });
+
+      const decision = ai._decideAction(enemy, [enemy], [highHp, lowHp], []);
+      expect(decision.target).not.toBeNull();
+      expect(decision.target.col).toBe(6);
+      expect(decision.target.row).toBe(5);
+    });
+  });
+
   describe('Constructor options', () => {
     it('defaults to rout with no thronePos', () => {
       const ai = new AIController(createMockGrid(), {});
