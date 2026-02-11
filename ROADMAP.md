@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 720 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core contract/plumbing is now present on `main` (data + loader + run-state + deterministic selection/tests), with balancing/UI breadth still being finalized across parallel agent branches. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 800 tests passing on `main` (Feb 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core contract/plumbing is now present on `main` (data + loader + run-state + deterministic selection/tests), with balancing/UI breadth still being finalized across parallel agent branches. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -197,7 +197,7 @@ Wave 6 core pieces are already present on `main` and are being stabilized throug
 - **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
 - **Special Characters** - Named units with fixed growths and personal skills, unlocked via meta-progression
 - **Monetization** - If commercial: cosmetic palette swaps, campaign DLC. Never sell gameplay advantages
-- **Mobile Web Support** - Responsive scaling (ENVELOP mode or 960x640), touch controls (floating buttons, long-press), orientation lock
+- **Mobile Web Support** - Release target remains deferred until core gameplay stabilizes, but architecture guardrails are active now: avoid hardcoded 640x480 layout assumptions in new work, centralize scene/layout scaling math, and add touch-parity input paths for new controls so mobile delivery stays incremental later.
 - **iOS Port** - Capacitor wrapper after mobile web support stable (6-week effort, see `docs/ios-port-spec.md`)
 
 ---
@@ -215,6 +215,21 @@ Wave 6 core pieces are already present on `main` and are being stabilized throug
 
 ### Why Status Staves in Later?
 - Status effects are a significant new combat system (3 conditions, hit formula, AI targeting, countermeasure items). They add the most value alongside Act 4's harder enemies where status management becomes a core tactical concern. Countermeasure items (Herbs, Pure Water, Remedy) should be available in shops before status staves appear on enemies.
+
+### Why Enforce Mobile-Safe Architecture Now (Even With Mobile Deferred)?
+- Deferring mobile release is fine; deferring mobile-safe architecture is expensive. New gameplay/UI work must avoid locking in desktop-only assumptions so eventual mobile support does not require scene rewrites.
+- Guardrail policy for new features: avoid fixed-canvas literals in feature logic/layout placement, route controls through reusable input abstractions, and ensure every keyboard-only action has a clickable/touch-capable equivalent.
+
+### Asset Source of Truth Policy
+- `assets/` is the canonical source of truth for game assets.
+- `public/` should be treated as generated/deployment-facing output where needed, not an independently authored mirror of the same assets.
+- New asset pipeline work should prevent drift between authored assets and runtime-served assets.
+
+### Cloud Save Concurrency Policy
+- Adopt **versioned optimistic concurrency** for cloud saves (run/meta/settings payloads).
+- Save records should carry a revision/version token; writes succeed only if client revision matches server revision. On mismatch, client refetches latest, resolves per-slot merge policy, and retries with incremented revision.
+- Rationale: protects against silent lost updates from concurrent save operations (multi-tab, rapid fire-and-forget writes, cross-device overlap) while avoiding heavy locking.
+- Tradeoff: higher implementation complexity (revision checks + retry/merge flow), but materially stronger data correctness than whole-object last-write-wins upserts.
 
 ---
 
