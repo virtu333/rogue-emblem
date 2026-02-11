@@ -31,17 +31,17 @@ Organized by impact and logical sequencing:
 
 ### Later (3-6+ Months)
 12. **Additional Map Objectives** - Defend, Survive, Escape (battle variety) + reinforcement system
-13. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `difficulty_spec.md` section 10)
-14. **Terrain Hazards + Act 4 Content** - Lava, Cracked Floor, Rift Portal terrain + Zombies/Dragons/Manaketes + Act 4 structure + Temporal Guardian boss (See `difficulty_spec.md` section 4-5)
-15. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `difficulty_spec.md` section 5-6)
+13. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `docs/specs/difficulty_spec.md` section 10)
+14. **Terrain Hazards + Act 4 Content** - Lava, Cracked Floor, Rift Portal terrain + Zombies/Dragons/Manaketes + Act 4 structure + Temporal Guardian boss (See `docs/specs/difficulty_spec.md` section 4-5)
+15. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `docs/specs/difficulty_spec.md` section 5-6)
 16. **Meta-Progression Expansion** - Full GDD section 9.2 vision + Act 4/Lunatic-specific sinks
 17. **QoL** - Undo movement, battle log, battle speed (ongoing)
 18. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
 19. **Special Characters** + Lord selection
 20. **Full battle animations**
-21. **Additional biomes** (volcanic, void, cave, castle per act - See `difficulty_spec.md` section 8)
+21. **Additional biomes** (volcanic, void, cave, castle per act - See `docs/specs/difficulty_spec.md` section 8)
 22. **Campaign system**
-23. **Endless mode + Lunatic+** - Post-Lunatic content (See `difficulty_spec.md` section 12.3)
+23. **Endless mode + Lunatic+** - Post-Lunatic content (See `docs/specs/difficulty_spec.md` section 12.3)
 
 ---
 
@@ -89,7 +89,7 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 
 Difficulty foundation and blessings integration are now merged on `main`; active work is stabilization confidence plus next content ramp.
 
-1. Preserve blessing + difficulty contract invariants (`docs/blessings_contract.md`, `difficulty_spec.md` Part A).
+1. Preserve blessing + difficulty contract invariants (`docs/blessings_contract.md`, `docs/specs/difficulty_spec.md` Part A).
 2. Continue full-suite and harness validation on each merge that touches startup, run-state, or mode modifiers.
 3. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
 4. Keep mobile-safe input/scene-loading parity as a non-regression gate for new UI features.
@@ -117,7 +117,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 ### Wave 8: Difficulty Foundation (Part A) - Shipped
 **Status:** Complete on `main` (Feb 11, 2026)
 
-1. Source of truth remains `difficulty_spec.md` Part A and `docs/wave8_difficulty_kickoff.md`.
+1. Source of truth remains `docs/specs/difficulty_spec.md` Part A and `docs/wave8_difficulty_kickoff.md`.
 2. Delivered scope: Normal/Hard selectable, Lunatic visible but disabled, `difficulty.json` data contract, run-state persistence, deterministic modifier wiring, and test gates.
 3. Latest hardening: Hard unlock now requires true run victory; startup/watchdog flow updated for reliability.
 
@@ -200,7 +200,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - **Full Battle Animations** - Side-view combat animations (64x64 or 96x96) for each class. Combat resolution already decoupled from animation
 - **Additional Biomes** - Castle/fortress, cave/dungeon, forest, volcanic, tundra biomes beyond grassland. Map generator takes biome parameter
 - **Narrative & Dialogue** - Brief dialogue at rest/recruitment/boss events. Simple text box with speaker portrait, no VN engine
-- **Difficulty Modes** - Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
+- **Difficulty Modes** - Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `docs/specs/difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
 - **Story Scaffold** - Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`
 - **Campaign System** - Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
 - **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
