@@ -53,7 +53,7 @@ import {
   getTurnStartEffects,
   getWeaponRangeBonus,
 } from '../engine/SkillSystem.js';
-import { getTurnStartAffixes, getOnDeathAffixes } from '../engine/AffixSystem.js';
+import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes } from '../engine/AffixSystem.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
@@ -1635,6 +1635,9 @@ export class BattleScene extends Phaser.Scene {
       case 'SELECTING_DANCE_TARGET':
         this.handleDanceTargetClick(gp);
         break;
+      case 'SELECTING_BREAK_TARGET':
+        this.handleBreakTargetClick(gp);
+        break;
       case 'CANTO_MOVING':
         this.handleCantoClick(gp);
         break;
@@ -1684,6 +1687,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_TRADE_TARGET',
       'SELECTING_SWAP_TARGET',
       'SELECTING_DANCE_TARGET',
+      'SELECTING_BREAK_TARGET',
       'TRADING',
       'CANTO_MOVING',
     ];
@@ -1779,6 +1783,10 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.battleState === 'SELECTING_DANCE_TARGET') {
       this.grid.clearAttackHighlights();
       this.danceTargets = [];
+      this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_BREAK_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.breakTargets = [];
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
@@ -2309,6 +2317,21 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
+  findBreakTargets(unit) {
+    const targets = [];
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    for (const { dc, dr } of dirs) {
+      const col = unit.col + dc;
+      const row = unit.row + dr;
+      if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
+      if (this.getUnitAt(col, row)) continue;
+      if (this.grid.isTemporaryTerrainAt?.(col, row, TERRAIN.Wall)) {
+        targets.push({ col, row });
+      }
+    }
+    return targets;
+  }
+
   executeShove(unit, target) {
     this.hideActionMenu();
     const pos = this.grid.gridToPixel(target.destCol, target.destRow);
@@ -2352,6 +2375,33 @@ export class BattleScene extends Phaser.Scene {
         this.finishUnitAction(unit);
       },
     });
+  }
+
+  startBreakTargetSelection(unit) {
+    this.hideActionMenu();
+    this.battleState = 'SELECTING_BREAK_TARGET';
+    this.breakTargets = this.findBreakTargets(unit);
+    const tiles = this.breakTargets.map(t => ({ col: t.col, row: t.row }));
+    this.grid.showAttackRange(tiles, 0xffaa44, 0.45);
+  }
+
+  handleBreakTargetClick(gp) {
+    const target = this.breakTargets?.find(t => t.col === gp.col && t.row === gp.row);
+    if (!target) return;
+    this.grid.clearAttackHighlights();
+    this.executeBreak(this.selectedUnit, target);
+  }
+
+  executeBreak(unit, target) {
+    this.hideActionMenu();
+    const removed = this.grid.clearTemporaryTerrainAt?.(target.col, target.row);
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_hit');
+    if (removed) {
+      const pos = this.grid.gridToPixel(target.col, target.row);
+      this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
+    }
+    this.finishUnitAction(unit, { skipCanto: true });
   }
 
   startTradeTargetSelection(unit) {
@@ -2755,6 +2805,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.findSwapTargets(unit).length > 0) items.push('Swap');
     // Dance: show if unit has skill and valid targets exist
     if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0) items.push('Dance');
+    // Break: adjacent temporary wall terrain (Waller)
+    if (this.findBreakTargets(unit).length > 0) items.push('Break');
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
@@ -2846,6 +2898,8 @@ export class BattleScene extends Phaser.Scene {
           this.startSwapTargetSelection(unit);
         } else if (label === 'Dance') {
           this.startDanceTargetSelection(unit);
+        } else if (label === 'Break') {
+          this.startBreakTargetSelection(unit);
         } else if (label === 'Wait') {
           this.finishUnitAction(unit, { skipCanto: true });
         }
@@ -3623,7 +3677,10 @@ export class BattleScene extends Phaser.Scene {
       defMods,
       rollStrikeSkills,
       rollDefenseSkills,
+      rollDefenseAffixes,
+      getAttackAffixes,
       checkAstra,
+      affixData: affixes,
       skillsData: skills,
     };
   }
@@ -3840,6 +3897,15 @@ export class BattleScene extends Phaser.Scene {
         wordWrap: { width: sideW - 6 },
       }).setDepth(textDepth);
       this.forecastObjects.push(skillText);
+      y += 12;
+    }
+
+    if (info.warnings?.length) {
+      const warningText = this.add.text(x + 2, y, `Affix: ${info.warnings.join(', ')}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#ffcc88',
+        wordWrap: { width: sideW - 6 },
+      }).setDepth(textDepth);
+      this.forecastObjects.push(warningText);
     }
   }
 
@@ -4008,20 +4074,20 @@ export class BattleScene extends Phaser.Scene {
       skillCtx
     );
 
-    // Animate each event (strikes + skill activations)
     for (const event of result.events) {
       if (event.type === 'skill') {
         await this.animateSkillActivation(event);
       } else {
         await this.animateStrike(event, attacker, defender);
+        if (!event.miss && attacker.faction === 'player' && defender.faction === 'enemy') {
+          defender._hitByPlayerThisPhase = true;
+        }
       }
     }
 
-    // Apply final HP (Sol heals etc. may differ from per-strike tracking)
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
-    // Debug: invincibility â€” restore player units to full HP
     if (DEBUG_MODE && debugState.invincible) {
       if (attacker.faction === 'player') { attacker.currentHP = attacker.stats.HP; result.attackerDied = false; }
       if (defender.faction === 'player') { defender.currentHP = defender.stats.HP; result.defenderDied = false; }
@@ -4030,7 +4096,9 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(attacker);
     this.updateHPBar(defender);
 
-    // Show poison damage if applicable
+    await this.applyOnAttackAffixes(attacker, defender, result.events);
+    await this.applyOnAttackAffixes(defender, attacker, result.events);
+
     if (result.poisonEffects?.length > 0) {
       for (const pe of result.poisonEffects) {
         const poisonUnit = pe.target === 'defender' ? defender : attacker;
@@ -4038,24 +4106,20 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Award XP to player attacker if they survived
     if (attacker.faction === 'player' && !result.attackerDied) {
       await this.awardXP(attacker, defender, result.defenderDied);
     }
 
-    // Remove dead units
     if (result.defenderDied) {
-      this.removeUnit(defender);
+      await this.removeUnit(defender);
     }
     if (result.attackerDied) {
-      this.removeUnit(attacker);
+      await this.removeUnit(attacker);
     }
 
-    // Check battle end
     if (this.checkBattleEnd()) return;
 
     if (result.attackerDied) {
-      // Attacker died â€” skip finishUnitAction
       this.selectedUnit = null;
       this.battleState = 'PLAYER_IDLE';
       this.grid.clearAttackHighlights();
@@ -4063,7 +4127,6 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    // Commander's Gambit: attacker + nearby allies act again
     if (!attacker._gambitUsedThisTurn) {
       const gambitTriggered = result.events.some(e =>
         e.skillActivations?.some(s => s.id === 'commanders_gambit')
@@ -4091,103 +4154,154 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Finish action (attacker survived)
     this.finishUnitAction(attacker);
   }
 
-  animateStrike(event, attacker, defender) {
-    return new Promise(resolve => {
-      const reduced = this._isReducedEffects();
-      // Determine who is striking and who is receiving
-      const striker = event.attacker === attacker.name ? attacker : defender;
-      const target = event.attacker === attacker.name ? defender : attacker;
+  async applyOnAttackAffixes(attacker, defender, events) {
+    if (!attacker || !defender || defender.currentHP <= 0) return;
+    const didLandHit = events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+    if (!didLandHit || !attacker.affixes?.length) return;
+    const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
-      // Show per-strike skill activation text (Sol, Luna, Lethality)
-      if (event.skillActivations?.length) {
-        const names = event.skillActivations.map(s => s.name).join(', ');
-        const sPos = this.grid.gridToPixel(striker.col, striker.row);
-        const skillText = this.add.text(sPos.x, sPos.y - 24, names, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#88ffff',
-          fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(301);
-        this.tweens.add({
-          targets: skillText, y: sPos.y - 40, alpha: 0,
-          duration: reduced ? 260 : 700, onComplete: () => skillText.destroy(),
-        });
-      }
+    if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
+      defender.currentHP = Math.max(1, defender.currentHP - affixResult.poisonDamage);
+      this.updateHPBar(defender);
+      await this.showPoisonDamage(defender, affixResult.poisonDamage);
+    }
 
-      // Flash striker white + weapon SFX
-      if (striker.graphic.setTint) striker.graphic.setTint(0xffffff);
-      const audio = this.registry.get('audio');
-      if (audio && !event.miss) {
-        audio.playSFX(this.getWeaponSFX(striker));
-      }
-
-      this.time.delayedCall(reduced ? 70 : 120, () => {
-        // Restore striker
-        if (striker.graphic.clearTint) striker.graphic.clearTint();
-
-        if (event.miss) {
-          // Show "MISS" text
-          const pos = this.grid.gridToPixel(target.col, target.row);
-          const missText = this.add.text(pos.x, pos.y - 16, 'MISS', {
-            fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-            fontStyle: 'bold',
-          }).setOrigin(0.5).setDepth(300);
-
-          this.tweens.add({
-            targets: missText, y: pos.y - 32, alpha: 0,
-            duration: reduced ? 220 : 500, onComplete: () => missText.destroy(),
-          });
-        } else {
-          // Flash target red and show damage
-          if (target.graphic.setTint) target.graphic.setTint(0xff4444);
-          const audio2 = this.registry.get('audio');
-          if (audio2) audio2.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
-          const pos = this.grid.gridToPixel(target.col, target.row);
-
-          const dmgStr = event.isCrit ? `${event.damage}!` : `${event.damage}`;
-          const dmgColor = event.isCrit ? '#ffff00' : '#ffffff';
-          const dmgText = this.add.text(pos.x, pos.y - 16, dmgStr, {
-            fontFamily: 'monospace', fontSize: '13px', color: dmgColor,
-            fontStyle: 'bold',
-          }).setOrigin(0.5).setDepth(300);
-
-          this.tweens.add({
-            targets: dmgText, y: pos.y - 32, alpha: 0,
-            duration: reduced ? 260 : 600, onComplete: () => dmgText.destroy(),
-          });
-
-          // Update HP bar live
-          target.currentHP = event.targetHPAfter;
-          this.updateHPBar(target);
-
-          // Sol heal â€” show heal on striker
-          if (event.heal > 0 && event.strikerHealTo !== undefined) {
-            striker.currentHP = event.strikerHealTo;
-            this.updateHPBar(striker);
-            const sPos = this.grid.gridToPixel(striker.col, striker.row);
-            const healText = this.add.text(sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
-              fontFamily: 'monospace', fontSize: '11px', color: '#44ff44',
-              fontStyle: 'bold',
-            }).setOrigin(0.5).setDepth(300);
-            this.tweens.add({
-              targets: healText, y: sPos.y - 28, alpha: 0,
-              duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
-            });
-          }
-
-          this.time.delayedCall(reduced ? 80 : 150, () => {
-            if (target.graphic.clearTint) target.graphic.clearTint();
-          });
-        }
-      });
-
-      // Resolve after animation time
-      this.time.delayedCall(reduced ? 240 : 400, resolve);
-    });
+    if (affixResult.debuffStat && defender.currentHP > 0) {
+      this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
+      const pos = this.grid.gridToPixel(defender.col, defender.row);
+      this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`, '#ff8888');
+    }
   }
 
+  async animateStrike(event, attacker, defender) {
+    const reduced = this._isReducedEffects();
+    const striker = event.attacker === attacker.name ? attacker : defender;
+    const target = event.attacker === attacker.name ? defender : attacker;
+
+    if (event.skillActivations?.length) {
+      const names = event.skillActivations.map(s => s.name).join(', ');
+      const sPos = this.grid.gridToPixel(striker.col, striker.row);
+      const skillText = this.add.text(sPos.x, sPos.y - 24, names, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#88ffff', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(301);
+      this.tweens.add({
+        targets: skillText, y: sPos.y - 40, alpha: 0,
+        duration: reduced ? 260 : 700, onComplete: () => skillText.destroy(),
+      });
+    }
+
+    const audio = this.registry.get('audio');
+    if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
+    if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
+    await new Promise(resolve => this.time.delayedCall(reduced ? 70 : 120, resolve));
+    if (striker.graphic?.clearTint) striker.graphic.clearTint();
+
+    if (event.miss) {
+      const pos = this.grid.gridToPixel(target.col, target.row);
+      const missText = this.add.text(pos.x, pos.y - 16, 'MISS', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(300);
+      this.tweens.add({
+        targets: missText, y: pos.y - 32, alpha: 0,
+        duration: reduced ? 220 : 500, onComplete: () => missText.destroy(),
+      });
+      await new Promise(resolve => this.time.delayedCall(reduced ? 200 : 300, resolve));
+      return;
+    }
+
+    if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
+    if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+    const pos = this.grid.gridToPixel(target.col, target.row);
+    const dmgText = this.add.text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
+      fontFamily: 'monospace', fontSize: '13px', color: event.isCrit ? '#ffff00' : '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(300);
+    this.tweens.add({
+      targets: dmgText, y: pos.y - 32, alpha: 0,
+      duration: reduced ? 260 : 600, onComplete: () => dmgText.destroy(),
+    });
+
+    target.currentHP = event.targetHPAfter;
+    this.updateHPBar(target);
+
+    if (event.heal > 0 && event.strikerHealTo !== undefined) {
+      striker.currentHP = event.strikerHealTo;
+      this.updateHPBar(striker);
+      const sPos = this.grid.gridToPixel(striker.col, striker.row);
+      const healText = this.add.text(sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#44ff44', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(300);
+      this.tweens.add({
+        targets: healText, y: sPos.y - 28, alpha: 0,
+        duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
+      });
+    }
+
+    if (event.reflectDamage > 0 && striker.currentHP > 0) {
+      striker.currentHP = Math.max(1, striker.currentHP - event.reflectDamage);
+      this.updateHPBar(striker);
+      const sPos = this.grid.gridToPixel(striker.col, striker.row);
+      const refText = this.add.text(sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#ff4444', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(300);
+      this.tweens.add({
+        targets: refText, y: sPos.y - 32, alpha: 0,
+        duration: reduced ? 260 : 600, onComplete: () => refText.destroy(),
+      });
+    }
+
+    await new Promise(resolve => this.time.delayedCall(reduced ? 80 : 150, resolve));
+    if (target.graphic?.clearTint) target.graphic.clearTint();
+
+    if (event.warpRange > 0 && target.currentHP > 0) {
+      await this.executeWarp(target, event.warpRange, striker);
+    }
+  }
+
+  /** Execute warp for Teleporter affix. Target is the unit warping. */
+  async executeWarp(unit, range, attacker) {
+    const candidates = [];
+    for (let dr = -range; dr <= range; dr++) {
+      for (let dc = -range; dc <= range; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        if (Math.abs(dr) + Math.abs(dc) > range) continue;
+        const col = unit.col + dc;
+        const row = unit.row + dr;
+        if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
+        if (this.getUnitAt(col, row)) continue;
+        if (this.grid.getMoveCost(col, row, unit.moveType) === Infinity) continue;
+        const distToAttacker = gridDistance(col, row, attacker.col, attacker.row);
+        candidates.push({ col, row, distToAttacker });
+      }
+    }
+
+    if (candidates.length === 0) return;
+    candidates.sort((a, b) => b.distToAttacker - a.distToAttacker);
+    const maxDist = candidates[0].distToAttacker;
+    const bestPicks = candidates.filter(c => c.distToAttacker === maxDist);
+    const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
+
+    await new Promise(resolve => {
+      this.tweens.add({
+        targets: [unit.graphic, unit.label, unit.factionIndicator, unit.hpBar.bg, unit.hpBar.fill].filter(Boolean),
+        alpha: 0,
+        duration: 180,
+        onComplete: () => {
+          unit.col = pick.col;
+          unit.row = pick.row;
+          this.updateUnitPosition(unit);
+          this.tweens.add({
+            targets: [unit.graphic, unit.label, unit.factionIndicator, unit.hpBar.bg, unit.hpBar.fill].filter(Boolean),
+            alpha: unit.hasActed ? 0.5 : 1,
+            duration: 180,
+            onComplete: resolve,
+          });
+        },
+      });
+    });
+  }
   /** Animate a skill activation event (Vantage, Astra banner) */
   animateSkillActivation(event) {
     return new Promise(resolve => {
@@ -4277,7 +4391,12 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  removeUnit(unit) {
+  async removeUnit(unit) {
+    if (!unit || unit._removing) return;
+    unit._removing = true;
+    const deathCol = unit.col;
+    const deathRow = unit.row;
+
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_death');
     this.removeUnitGraphic(unit);
@@ -4302,6 +4421,31 @@ export class BattleScene extends Phaser.Scene {
       this._showBossDefeatedBanner();
     }
     this.updateObjectiveText();
+
+    const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
+    for (const effect of deathEffects) {
+      if (effect.type !== 'aoe_damage') continue;
+      const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
+        .filter(other => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1));
+      for (const victim of victims) {
+        if (victim.currentHP <= 0) continue;
+        victim.currentHP = Math.max(0, victim.currentHP - effect.amount);
+        this.updateHPBar(victim);
+        const pos = this.grid.gridToPixel(victim.col, victim.row);
+        const txt = this.add.text(pos.x, pos.y - 16, `${effect.amount}`, {
+          fontFamily: 'monospace', fontSize: '12px', color: '#ff8844', fontStyle: 'bold',
+        }).setOrigin(0.5).setDepth(320);
+        this.tweens.add({
+          targets: txt, y: pos.y - 32, alpha: 0, duration: 500, onComplete: () => txt.destroy(),
+        });
+        if (victim.currentHP <= 0) {
+          await this.removeUnit(victim);
+        }
+      }
+      await new Promise(resolve => this.time.delayedCall(120, resolve));
+    }
+
+    unit._removing = false;
   }
 
   // --- Phase management ---
@@ -4375,6 +4519,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
       this.updateAntiTurtlePressure();
+      this.grid.tickTemporaryTerrains?.();
       // Terrain healing for enemies, then start AI
       this.time.delayedCall(1400, async () => {
         await this.processTurnStartEffects(this.enemyUnits);
@@ -4384,21 +4529,124 @@ export class BattleScene extends Phaser.Scene {
     this.refreshEndTurnControl();
   }
 
-  /** Apply turn-start skill effects (e.g. Renewal Aura healing) */
-  async processTurnStartSkills(units) {
-    const effects = getTurnStartEffects(units, this.gameData.skills);
-    for (const effect of effects) {
+  /** Apply all turn-start effects (skills, affixes, terrain) in unified sequence */
+  async processTurnStartEffects(units) {
+    // 1. Skill effects (e.g. Renewal)
+    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.amount > 0) {
-        effect.target.currentHP = Math.min(
-          effect.target.stats.HP,
-          effect.target.currentHP + effect.amount
-        );
+        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
         this.updateHPBar(effect.target);
         await this.animateHeal(effect.target, effect.amount);
       }
     }
-    // Terrain healing (Fort/Throne) after skill effects
+
+    // 2. Affix effects (e.g. Regenerator, Waller)
+    const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
+    for (const effect of affixEffects) {
+      if (effect.type === 'heal' && effect.amount > 0) {
+        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
+        this.updateHPBar(effect.target);
+        await this.animateHeal(effect.target, effect.amount);
+      } else if (effect.type === 'spawn_terrain') {
+        await this.executeWallerSpawn(effect);
+      }
+    }
+
+    // 3. Terrain healing (Fort/Throne)
     await this.processTerrainHealing(units);
+  }
+
+  /** Backward-compatible alias for older call sites/cherry-picks. */
+  async processTurnStartSkills(units) {
+    return this.processTurnStartEffects(units);
+  }
+
+  /** Handle the Waller affix terrain creation */
+  async executeWallerSpawn(effect) {
+    const unit = effect.sourceUnit;
+    const range = effect.range || 1;
+    
+    // Find valid adjacent tiles: empty, no combat stats (Plain/Floor usually)
+    const candidates = [];
+    for (let dr = -range; dr <= range; dr++) {
+      for (let dc = -range; dc <= range; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        if (Math.abs(dr) + Math.abs(dc) > range) continue;
+        const col = unit.col + dc;
+        const row = unit.row + dr;
+        
+        if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
+        if (this.getUnitAt(col, row)) continue;
+        
+        const terrain = this.grid.getTerrainAt(col, row);
+        // Only spawn on "boring" terrain (no DEF/AVO bonus) to avoid destroying tactical spots
+        const hasCombatBonus = (parseInt(terrain?.avoidBonus) || 0) !== 0 || (parseInt(terrain?.defBonus) || 0) !== 0;
+        if (!hasCombatBonus) {
+          candidates.push({ col, row });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return;
+    
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    // We'll implement this.grid.setTemporaryTerrain in 6.4
+    if (this.grid.setTemporaryTerrain) {
+      this.grid.setTemporaryTerrain(pick.col, pick.row, effect.terrainType, effect.duration);
+      // Visual feedback
+      const pos = this.grid.gridToPixel(pick.col, pick.row);
+      this.showMinorHintAt(pos.x, pos.y, 'Wall!', '#ffffff');
+    }
+  }
+
+  showMinorHintAt(x, y, message, color = '#ffdd44') {
+    const text = this.add.text(x, y, message, {
+      fontFamily: 'monospace', fontSize: '11px', color,
+      backgroundColor: '#000000cc', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5).setDepth(1000);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 20,
+      alpha: 0,
+      delay: 800,
+      duration: 600,
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  /** Apply a battle-scoped stat debuff (e.g. Corrosive) with flooring guards. */
+  applyBattleDebuff(unit, stat, value) {
+    if (!unit._battleDeltas) unit._battleDeltas = {};
+    if (!unit._battleDeltas[stat]) unit._battleDeltas[stat] = 0;
+
+    const oldVal = unit.stats[stat];
+    // Apply delta
+    unit.stats[stat] = Math.max(0, unit.stats[stat] + value);
+    // Special guard for MOV: minimum 1
+    if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat]);
+    
+    // Store the actual delta applied (in case value was clamped by floor)
+    const actualDelta = unit.stats[stat] - oldVal;
+    unit._battleDeltas[stat] += actualDelta;
+    
+    if (stat === 'MOV') unit.mov = unit.stats.MOV;
+  }
+
+  clearBattleScopedDeltas(units) {
+    if (!Array.isArray(units)) return;
+    for (const unit of units) {
+      if (!unit?._battleDeltas) continue;
+      for (const [stat, delta] of Object.entries(unit._battleDeltas)) {
+        if (!Number.isFinite(delta) || delta === 0) continue;
+        unit.stats[stat] = (unit.stats[stat] || 0) - delta;
+        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
+        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
+      }
+      unit.mov = unit.stats.MOV;
+      delete unit._battleDeltas;
+    }
   }
 
   /** Heal units standing on Fort or Throne at turn start */
@@ -4446,6 +4694,10 @@ export class BattleScene extends Phaser.Scene {
           onAttack: (enemy, target) => {
             if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
             return this.executeEnemyCombat(enemy, target);
+          },
+          onBreak: (enemy, tile) => {
+            if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+            return this.executeEnemyBreak(enemy, tile);
           },
           onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
           onUnitDone: (enemy) => {
@@ -4533,6 +4785,9 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(enemy);
     this.updateHPBar(target);
 
+    await this.applyOnAttackAffixes(enemy, target, result.events);
+    await this.applyOnAttackAffixes(target, enemy, result.events);
+
     // Show poison damage if applicable
     if (result.poisonEffects?.length > 0) {
       for (const pe of result.poisonEffects) {
@@ -4546,13 +4801,17 @@ export class BattleScene extends Phaser.Scene {
       await this.awardXP(target, enemy, result.attackerDied);
     }
 
-    if (result.defenderDied) {
-      this.removeUnit(target);
-    }
-    if (result.attackerDied) {
-      this.removeUnit(enemy);
-    }
+    if (result.defenderDied) await this.removeUnit(target);
+    if (result.attackerDied) await this.removeUnit(enemy);
     this.checkBattleEnd();
+  }
+
+  async executeEnemyBreak(enemy, tile) {
+    if (!tile) return;
+    this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
+    const pos = this.grid.gridToPixel(tile.col, tile.row);
+    this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
+    await new Promise(resolve => this.time.delayedCall(120, resolve));
   }
 
   showPhaseBanner(phase, turn) {
@@ -4721,6 +4980,8 @@ export class BattleScene extends Phaser.Scene {
     ).setOrigin(0.5).setDepth(600);
 
     if (this.runManager) {
+      this.clearBattleScopedDeltas(this.playerUnits);
+      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const surviving = this.playerUnits.map(u => serializeUnit(u));
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
       this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned);
