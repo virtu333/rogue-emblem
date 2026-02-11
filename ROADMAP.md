@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 846 tests passing on `main` (Feb 11, 2026 baseline). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 852 tests in suite on `main` baseline (Feb 11, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -14,9 +14,14 @@ Organized by impact and logical sequencing:
 3. ~~**Anti-Juggernaut & Balance (Wave 0)**~~ - XP scaling, Sunder weapons, enemy skills, shop frequency
 4. ~~**Church Upgrades**~~ - Heal/Revive/Promote 3-service menu
 5. ~~**Playtest Fixes (Feb 2026)**~~ - Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
+6. ~~**Playtest Fixes (Feb 2026, follow-up batch)**~~ - Recruit card mojibake separator fix, fort guard AI assignment restricted to seize maps, touch-down battle tap targeting, fog-of-war undo visibility fix, Master Seal-required battle promotion, battle music overlap self-heal, meta currency cloud-sync hardening
 
 ### Now (Current Sprint)
-6. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, difficulty UX/unlock messaging, and blessings telemetry confidence across full runs
+7. **AI reliability pass (P0)** - Reproduce and resolve long-distance enemy idle/non-engagement behavior (reported on fort/river-crossing contexts)
+8. **Cloud-save correctness + observability (P0)** - Add conflict/timeout visibility and complete versioned optimistic-concurrency flow
+9. **Combat UX clarity (P1)** - Reduce confusion around action/combat menu appearance timing and target selection intent
+10. **Regression harness expansion (P1)** - Add targeted tests for long-distance AI activation and combat target edge cases
+11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, difficulty UX/unlock messaging, and blessings telemetry confidence across full runs
 
 ### Next (1-3 Months)
 7. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
@@ -48,6 +53,7 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 2. **Harness/regression stream** - Keep deterministic harness and replay compatibility stable while blessings and map/difficulty-adjacent changes merge.
 3. **Difficulty follow-up stream** - Tune Part A values/UX based on playtest data while keeping Lunatic and future content decoupled.
 4. **Integration cadence** - Small PRs, frequent rebase on `main`, no cross-stream contract breaks (harness/Wave 2 surfaces treated as external).
+5. **Economy rebalance stream (active, separate agent plan)** - `C:\Users\davec\.claude\plans\velvet-napping-spark.md` covers turn bonus payout correction, kill-gold tuning, church promote pricing, and late-game forge sink expansion.
 
 ---
 
@@ -71,6 +77,8 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 - **Wave P1** (UI Polish) - Complete. Weapon proficiency display, V-overlay Stats/Gear tabs, shop forge hover stats, guaranteed Vulnerary/Elixir
 - **Church Upgrades** - Complete. 3-service menu: Heal All (free), Revive Fallen (1000G), Promote (3000G)
 - **Playtest Fixes (Feb 2026)** - Complete. FE GBA-style combat forecast with weapon cycling, weapon reference integrity after JSON round-trips (relinkWeapon), proficiency enforcement across all equip/heal/relink paths, music overlap singleton boot guard, quadratic volume curve, HP persistence hint, recruit spawn bias toward players
+- **Playtest Fixes (Feb 2026 follow-up)** - Complete on `main`. Recruit card separator text corruption fix, seize-only fort guard assignment, touch-down tap targeting, fog visibility rollback on move cancel, Master Seal gating for battle promotion, and same-key music overlap recovery
+- **Cloud Sync Hardening (Meta Currency)** - Complete on `main`. Timestamped meta payload (`savedAt`), serialized per-table cloud writes, and safer cloud-fetch error handling to reduce silent currency rollback risk
 - **Wave 6 Blessings Stabilization** - Complete on `main`. Blessings telemetry + act hit bonus integration landed with analytics coverage
 - **Wave 8 Part A (Difficulty Foundation)** - Complete on `main`. Normal/Hard selector, `difficulty.json` contract, deterministic modifier plumbing, run-state persistence, and victory-only Hard unlock gating
 - **Startup/Mobile Reliability Hardening** - Complete on `main`. startup telemetry/runtime flags, asset warmup + scene loader split, and watchdog recovery flow

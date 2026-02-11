@@ -16,7 +16,7 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 - **Hosting:** Netlify (static CDN) — https://emblem-rogue.netlify.app
 - **Auth:** Supabase Auth (username/password, email confirmation disabled)
 - **Cloud DB:** Supabase Postgres — 3 tables (`run_saves`, `meta_progression`, `user_settings`) with RLS per user
-- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (fire-and-forget push on save, fetch on login). Offline play degrades gracefully. Old single-save data auto-migrates to slot 1.
+- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard to reduce lost-update/rollback risk. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1.
 - **Art Pipeline:** PixelLab MCP for AI-generated pixel art assets
 
 ## Project Structure
@@ -51,7 +51,7 @@ emblem-rogue/
 │   ├── main.js            # Auth gate + Phaser bootstrap (exports cloudState)
 │   ├── cloud/             # Supabase auth + cloud sync
 │   │   ├── supabaseClient.js # Supabase singleton, signUp/signIn/signOut/getSession ✅
-│   │   └── CloudSync.js   # Fire-and-forget cloud save/load (fetchAllToLocalStorage, push*, delete*) ✅
+│   │   └── CloudSync.js   # Cloud save/load (fetchAllToLocalStorage, push*, delete*) with serialized updates + meta freshness guard ✅
 │   ├── engine/            # Core game systems
 │   │   ├── Grid.js        # Grid rendering, tile management, pathfinding, fog of war ✅
 │   │   ├── Combat.js      # Damage formula, weapon triangle, hit/crit calc, skill mods, weapon specials (drain/poison/siege), accessory combatEffects ✅
@@ -93,7 +93,7 @@ emblem-rogue/
 │       ├── SettingsManager.js # Pure localStorage wrapper for user settings (volumes), onSave callback ✅
 │       ├── constants.js   # Game-wide constants (ACT_CONFIG, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS, gold/meta economy, VISION_RANGES, FOG_CHANCE, NODE_GOLD_MULTIPLIER, SHOP_REROLL_COST)
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-├── tests/                 # Vitest test suite (846 tests passing on main, Feb 11 2026)
+├── tests/                 # Vitest test suite (852 tests on main baseline, Feb 11 2026)
 │   ├── testData.js        # Shared data loader for tests
 │   ├── MapGenerator.test.js # map generation, reachability, spawns, template routing ✅
 │   ├── Combat.test.js     # combat math, forecast, weapon specials, staff behavior ✅
@@ -228,7 +228,7 @@ Follow this order — each phase should be testable:
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
 8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 41 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→NodeMap), Save & Exit, localStorage persistence
 9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (18 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (51 total, throwables, effectiveness, specials) ✅ | Expanded skills (21 total, on-defend trigger) ✅ | Lord classes in classes.json (29 total) ✅ | **3 save slots + user flow rework** ✅
-10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Fire-and-forget cloud sync via `onSave` callbacks. Offline play supported.
+10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Cloud sync is callback-driven via `onSave` with hardening against write races/older-meta overwrite. Offline play supported.
 
 ## Art Style Guidelines
 - SNES-era pixel art, 32x32 base tile / character sprite size
@@ -258,7 +258,7 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (846 tests passing on main, Feb 11 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, blessings + difficulty data sync/engine coverage, startup telemetry/runtime flag utilities, and deterministic run hooks
+- **Coverage (852 tests on main baseline, Feb 11 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, blessings + difficulty data sync/engine coverage, startup telemetry/runtime flag utilities, cloud-sync guard tests, and deterministic run hooks
 - **Residual testing gap:** Scene-level integration assertions for some menu/UX states (for example difficulty unlock messaging and certain mobile touch parity paths) still rely on behavior tests + manual verification.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
