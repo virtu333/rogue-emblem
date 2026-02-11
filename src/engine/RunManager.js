@@ -811,6 +811,7 @@ export class RunManager {
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
+    battleParams.difficultyId = this.difficultyId || 'normal';
     return battleParams;
   }
 

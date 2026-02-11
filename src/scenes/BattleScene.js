@@ -262,6 +262,9 @@ export class BattleScene extends Phaser.Scene {
 
         enemy.col = spawn.col;
         enemy.row = spawn.row;
+        if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
+          enemy.affixes = [...spawn.affixes];
+        }
         if (spawn.isBoss) {
           enemy.isBoss = true;
           enemy.name = spawn.name || enemy.name;

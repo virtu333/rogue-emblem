@@ -2,6 +2,7 @@
 // Pure functions, no Phaser dependency.
 
 import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } from '../utils/constants.js';
+import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 
 const DEBUG_MAP_GEN = false;
 
@@ -68,10 +69,15 @@ export function generateBattle(params, deps) {
   const recruitBonus = isRecruitBattle ? 1 : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
-  const enemySpawns = generateEnemies(
+  let enemySpawns = generateEnemies(
     mapLayout, template, cols, rows, terrain,
     pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes
   );
+  enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
+    affixConfig: deps.affixes,
+    difficultyId: params.difficultyId || 'normal',
+    act,
+  });
 
   // 7. NPC spawn for recruit battles
   let npcSpawn = null;
