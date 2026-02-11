@@ -17,7 +17,7 @@ Organized by impact and logical sequencing:
 6. ~~**Playtest Fixes (Feb 2026, follow-up batch)**~~ - Recruit card mojibake separator fix, fort guard AI assignment restricted to seize maps, touch-down battle tap targeting, fog-of-war undo visibility fix, Master Seal-required battle promotion, battle music overlap self-heal, meta currency cloud-sync hardening
 
 ### Now (Current Sprint)
-7. **AI reliability pass (P0)** - Reproduce and resolve long-distance enemy idle/non-engagement behavior (reported on fort/river-crossing contexts)
+7. **AI reliability pass (P0)** - Reproduce and resolve long-distance enemy idle/non-engagement behavior (reported on fort/river-crossing contexts). **Phase 1 landed:** path-aware chase now follows real approach routes (including detours) instead of Manhattan-only greedy movement.
 8. **Cloud-save correctness + observability (P0)** - Add conflict/timeout visibility and complete versioned optimistic-concurrency flow
 9. **Combat UX clarity (P1)** - Reduce confusion around action/combat menu appearance timing and target selection intent
 10. **Regression harness expansion (P1)** - Add targeted tests for long-distance AI activation and combat target edge cases

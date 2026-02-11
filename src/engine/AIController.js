@@ -173,9 +173,15 @@ export class AIController {
       return { path: null, target: null };
     }
 
-    // No attack possible - move toward nearest player
+    // No attack possible - move toward nearest player using path-aware pursuit.
     const nearest = this._findPriorityTarget(enemy, playerUnits);
     if (!nearest) return { path: null, target: null };
+
+    const pathAwareTile = this._findPathAwareChaseTile(enemy, nearest, candidates, unitPositions);
+    if (pathAwareTile) {
+      const path = this._buildPath(enemy, pathAwareTile, unitPositions);
+      return { path, target: null };
+    }
 
     // Find candidate tile closest to nearest player
     let closestDist = Infinity;
@@ -194,6 +200,45 @@ export class AIController {
     }
 
     return { path: null, target: null };
+  }
+
+  _findPathAwareChaseTile(enemy, target, candidates, unitPositions) {
+    const candidateSet = new Set(candidates.map(t => `${t.col},${t.row}`));
+    const approachTiles = this._getApproachTilesForTarget(enemy, target);
+    if (approachTiles.length === 0) return null;
+
+    let bestPath = null;
+    for (const tile of approachTiles) {
+      const path = this.grid.findPath(
+        enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
+        unitPositions, enemy.faction
+      );
+      if (!path || path.length < 2) continue;
+      if (!bestPath || path.length < bestPath.length) bestPath = path;
+    }
+    if (!bestPath) return null;
+
+    // Choose the farthest reachable node on the best long-path approach.
+    for (let i = bestPath.length - 1; i >= 1; i--) {
+      const node = bestPath[i];
+      if (candidateSet.has(`${node.col},${node.row}`)) return node;
+    }
+
+    return null;
+  }
+
+  _getApproachTilesForTarget(enemy, target) {
+    if (!enemy.weapon || typeof this.grid.getAttackRange !== 'function') {
+      return [{ col: target.col, row: target.row }];
+    }
+
+    const tiles = this.grid.getAttackRange(target.col, target.row, enemy.weapon) || [];
+    const passable = [];
+    for (const tile of tiles) {
+      if (this.grid.getMoveCost(tile.col, tile.row, enemy.moveType) === Infinity) continue;
+      passable.push(tile);
+    }
+    return passable;
   }
 
   _findPriorityTarget(enemy, playerUnits) {

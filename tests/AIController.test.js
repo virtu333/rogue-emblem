@@ -4,6 +4,24 @@ import { AIController } from '../src/engine/AIController.js';
 // Minimal grid mock: returns movement range as a Map of "col,row" -> cost
 function createMockGrid(moveTiles = []) {
   return {
+    cols: 20,
+    rows: 20,
+    getMoveCost: () => 1,
+    getAttackRange: (col, row, weapon) => {
+      const range = weapon?.range || '1';
+      const [minS, maxS] = String(range).split('-');
+      const min = Number(minS);
+      const max = Number(maxS || minS);
+      const tiles = [];
+      for (let dr = -max; dr <= max; dr++) {
+        for (let dc = -max; dc <= max; dc++) {
+          const dist = Math.abs(dr) + Math.abs(dc);
+          if (dist < min || dist > max) continue;
+          tiles.push({ col: col + dc, row: row + dr });
+        }
+      }
+      return tiles;
+    },
     getMovementRange: () => {
       const map = new Map();
       for (const t of moveTiles) {
@@ -275,6 +293,62 @@ describe('AIController', () => {
   });
 
   describe('Default chase behavior preserved', () => {
+    it('chases along path even when all immediate moves increase Manhattan distance', () => {
+      const grid = createMockGrid([
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+      ]);
+      grid.getAttackRange = () => [
+        { col: 4, row: 1 },
+        { col: 6, row: 1 },
+      ];
+      grid.findPath = (fromCol, fromRow, toCol, toRow) => {
+        if (fromCol === 5 && fromRow === 5 && toCol === 4 && toRow === 5) {
+          return [
+            { col: 5, row: 5 },
+            { col: 4, row: 5 },
+          ];
+        }
+        if (fromCol === 5 && fromRow === 5 && toCol === 6 && toRow === 5) {
+          return [
+            { col: 5, row: 5 },
+            { col: 6, row: 5 },
+          ];
+        }
+        if (fromCol === 5 && fromRow === 5 && toCol === 4 && toRow === 1) {
+          return [
+            { col: 5, row: 5 },
+            { col: 4, row: 5 },
+            { col: 4, row: 4 },
+            { col: 4, row: 3 },
+            { col: 4, row: 2 },
+            { col: 4, row: 1 },
+          ];
+        }
+        if (fromCol === 5 && fromRow === 5 && toCol === 6 && toRow === 1) {
+          return [
+            { col: 5, row: 5 },
+            { col: 6, row: 5 },
+            { col: 6, row: 4 },
+            { col: 6, row: 3 },
+            { col: 6, row: 2 },
+            { col: 6, row: 1 },
+          ];
+        }
+        return null;
+      };
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      const enemy = makeEnemy({ col: 5, row: 5, weapon: { range: '1', type: 'Sword' } });
+      const player = makePlayer({ col: 5, row: 1 }); // both side-steps increase Manhattan distance
+
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.path).not.toBeNull();
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest.col).toBe(4);
+      expect(dest.row).toBe(5);
+    });
+
     it('normal enemy (no aiMode) chases normally', () => {
       const moveTiles = [
         { col: 4, row: 5 }, { col: 6, row: 5 },
