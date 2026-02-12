@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { HowToPlayOverlay } from '../ui/HowToPlayOverlay.js';
+import { HelpOverlay } from '../ui/HelpOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { signOut } from '../cloud/supabaseClient.js';
 import { pushMeta } from '../cloud/CloudSync.js';
@@ -23,6 +24,7 @@ const GOLD_DARK = '#a67c2e';
 const TEXT_SUB = '#8888aa';
 const BTN_BG = 0x12111f;
 const BTN_BORDER = 0x3a3660;
+const MORE_INFO_URL = 'https://github.com/virtu333/rogue-emblem';
 
 // --- Background drawing helpers (all operate on a 2D canvas context) ---
 
@@ -462,6 +464,7 @@ export class TitleScene extends Phaser.Scene {
       this.bgCtx = null;
       this.bgTexture = null;
       this.howToPlayOverlay = null;
+      this.helpOverlay = null;
     });
 
     // --- Animated background ---
@@ -594,13 +597,23 @@ export class TitleScene extends Phaser.Scene {
     }
 
     // HOW TO PLAY button
-    const htpBtn = createMenuButton(this, cx, menuY, 'HOW TO PLAY', () => {
+    const htpBtn = createMenuButton(this, cx, menuY, 'MORE INFO', () => {
       if (this.howToPlayOverlay?.visible) return;
       this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
         this.howToPlayOverlay = null;
         try { localStorage.setItem('emblem_rogue_seen_how_to_play', '1'); } catch (_) {}
       });
       this.howToPlayOverlay.show();
+    }, btnDelay + delayIdx * 150);
+    menuY += btnGap;
+    delayIdx++;
+
+    createMenuButton(this, cx, menuY, 'HELP', () => {
+      if (this.helpOverlay?.visible) return;
+      this.helpOverlay = new HelpOverlay(this, () => {
+        this.helpOverlay = null;
+      });
+      this.helpOverlay.show();
     }, btnDelay + delayIdx * 150);
     menuY += btnGap;
     delayIdx++;
@@ -651,10 +664,21 @@ export class TitleScene extends Phaser.Scene {
     }).setOrigin(0.5, 0).setDepth(30);
 
     if (cloud) {
-      this.add.text(W - 12, H - 16, cloud.displayName, {
+      this.add.text(W - 12, H - 28, cloud.displayName, {
         fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.5)',
       }).setOrigin(1, 0).setDepth(30);
     }
+
+    const moreInfoText = this.add.text(W - 12, H - 16, 'MORE INFO', {
+      fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.75)',
+    }).setOrigin(1, 0).setDepth(30).setInteractive({ useHandCursor: true });
+    moreInfoText.on('pointerover', () => moreInfoText.setColor(GOLD_LIGHT));
+    moreInfoText.on('pointerout', () => moreInfoText.setColor('rgba(136,136,170,0.75)'));
+    moreInfoText.on('pointerdown', () => {
+      try {
+        window.open(MORE_INFO_URL, '_blank', 'noopener,noreferrer');
+      } catch (_) {}
+    });
   }
 
   _drawBackground(time) {

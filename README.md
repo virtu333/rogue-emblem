@@ -6,6 +6,19 @@ A Fire Emblem x roguelike tactical RPG built with Phaser + Vite.
 
 Core gameplay, run progression, and simulation/harness testing are active.
 
+## More info
+
+- GitHub: https://github.com/virtu333/rogue-emblem
+- Title screen includes a `MORE INFO` link to this repository.
+
+## Data viewer
+
+- Open `data-viewer.html` for a full balance/data reference page.
+- In local dev, run `npm run dev` and visit `/data-viewer.html`.
+- Reference content is generated from a shared source:
+  - `data/mechanicsReference.json`
+  - build script: `npm run build:reference`
+
 ## Local development
 
 1. Install dependencies:
