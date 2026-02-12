@@ -21,7 +21,7 @@ function makeArt(overrides = {}) {
   };
 }
 
-describe('HomeBase weapon art helpers', () => {
+describe('WeaponArt visibility helpers', () => {
   it('formats act labels', () => {
     expect(formatWeaponArtActLabel('act3')).toBe('Act 3');
     expect(formatWeaponArtActLabel('epilogue')).toBe('epilogue');
