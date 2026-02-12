@@ -653,6 +653,19 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     }
   });
 
+  it('getRoster() sanitizes invalid roster entries', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.roster.push(undefined);
+    rm.roster.push(null);
+    rm.roster.push({ name: 'BrokenUnit' });
+
+    const cloned = rm.getRoster();
+
+    expect(cloned.every(u => u && u.stats && u.name)).toBe(true);
+    expect(rm.roster.every(u => u && u.stats && u.name)).toBe(true);
+  });
+
   it('fromJSON() round-trip preserves weapon === inventory[idx]', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -663,6 +676,19 @@ describe('weapon reference integrity (relinkWeapon)', () => {
         expect(unit.inventory).toContain(unit.weapon);
       }
     }
+  });
+
+  it('fromJSON() drops invalid roster/fallen entries from corrupted saves', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    json.roster.push(null, { name: 'Corrupt' });
+    json.fallenUnits = [null, { foo: 'bar' }, ...json.fallenUnits];
+
+    const restored = RunManager.fromJSON(json, gameData);
+
+    expect(restored.roster.every(u => u && u.stats && u.name)).toBe(true);
+    expect(restored.fallenUnits.every(u => u && u.stats && u.name)).toBe(true);
   });
 
   it('relink handles empty inventory → weapon null', () => {

@@ -4,7 +4,16 @@ import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
 import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
-import { addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, addToConsumables, canPromote, promoteUnit } from '../engine/UnitManager.js';
+import {
+  addToInventory,
+  removeFromInventory,
+  isLastCombatWeapon,
+  hasProficiency,
+  addToConsumables,
+  canPromote,
+  promoteUnit,
+  resolvePromotionTargetClass,
+} from '../engine/UnitManager.js';
 import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
@@ -573,6 +582,7 @@ export class NodeMapScene extends Phaser.Scene {
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
+      if (!unit || !unit.stats) continue;
       const x = startX + i * spacing;
 
       // Name and class — truncate in compact mode
@@ -822,7 +832,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.churchOverlay.push(promoteLabel);
     yOffset += 25;
 
-    const eligibleUnits = rm.roster.filter(u => canPromote(u, this.gameData.classes));
+    const eligibleUnits = rm.roster.filter(u => canPromote(u));
     if (eligibleUnits.length === 0) {
       const noneText = this.add.text(320, yOffset, '(No units eligible for promotion)', {
         fontFamily: 'monospace', fontSize: '12px', color: '#888888',
@@ -844,13 +854,30 @@ export class NodeMapScene extends Phaser.Scene {
         });
         unitBtn.on('pointerdown', () => {
           if (rm.spendGold(CHURCH_PROMOTE_COST)) {
-            const promotedUnit = promoteUnit(unit, this.gameData.classes, this.gameData.weapons, this.gameData.skills);
-            const idx = rm.roster.findIndex(u => u.name === unit.name);
-            if (idx !== -1) rm.roster[idx] = promotedUnit;
+            const lordData = this.gameData.lords.find(l => l.name === unit.name);
+            const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
+            if (!promotedClassData) {
+              rm.gold += CHURCH_PROMOTE_COST;
+              const audio = this.registry.get('audio');
+              if (audio) audio.playSFX('sfx_cancel');
+              this.showChurchMessage('Promotion unavailable for this unit.', '#ff4444');
+              return;
+            }
+
+            const promotionBonuses = lordData?.promotionBonuses || promotedClassData.promotionBonuses;
+            if (!promotionBonuses) {
+              rm.gold += CHURCH_PROMOTE_COST;
+              const audio = this.registry.get('audio');
+              if (audio) audio.playSFX('sfx_cancel');
+              this.showChurchMessage('Promotion data missing.', '#ff4444');
+              return;
+            }
+
+            promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
 
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_levelup');
-            this.showChurchMessage(`${unit.name} promoted to ${promotedUnit.className}!`, '#ffdd44');
+            this.showChurchMessage(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
             this.churchGoldText.setText(`Gold: ${rm.gold}G`);
             this.refreshChurchOverlay(node);
           } else {

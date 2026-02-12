@@ -97,6 +97,17 @@ export class RunManager {
     this.actSequence = [...ACT_SEQUENCE];
   }
 
+  _isValidSerializedUnit(unit) {
+    return !!(unit && typeof unit === 'object' && unit.name && unit.stats && typeof unit.stats === 'object');
+  }
+
+  _sanitizeUnitPools() {
+    if (!Array.isArray(this.roster)) this.roster = [];
+    if (!Array.isArray(this.fallenUnits)) this.fallenUnits = [];
+    this.roster = this.roster.filter(u => this._isValidSerializedUnit(u));
+    this.fallenUnits = this.fallenUnits.filter(u => this._isValidSerializedUnit(u));
+  }
+
   get currentAct() {
     return this.actSequence[this.actIndex];
   }
@@ -836,6 +847,7 @@ export class RunManager {
 
   /** Get a deep copy of the roster for deployment. */
   getRoster() {
+    this._sanitizeUnitPools();
     const cloned = JSON.parse(JSON.stringify(this.roster));
     cloned.forEach(u => relinkWeapon(u));
     return cloned;
@@ -858,6 +870,7 @@ export class RunManager {
    * @param {number} goldEarned - accumulated kill gold from battle
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0) {
+    this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map(u => u.name));
     const newlyFallen = this.roster.filter(u => !survivingNames.has(u.name));
@@ -1180,8 +1193,8 @@ export class RunManager {
     const rm = new RunManager(gameData, saved.metaEffects || null);
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
-    rm.roster = saved.roster;
-    rm.fallenUnits = saved.fallenUnits || [];
+    rm.roster = Array.isArray(saved.roster) ? saved.roster.filter(u => rm._isValidSerializedUnit(u)) : [];
+    rm.fallenUnits = Array.isArray(saved.fallenUnits) ? saved.fallenUnits.filter(u => rm._isValidSerializedUnit(u)) : [];
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
