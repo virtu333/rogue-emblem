@@ -4,6 +4,7 @@
 
 ### Weapon Arts + Wyvern + Convoy (Feb 12, 2026)
 - **Weapon Arts foundation shipped**: Added weapon art data/system integration, battle command flow, and forecast/execution parity safeguards (including HP-cost timing parity and unlock gating hardening).
+- **Scroll overwrite transaction hardening**: Scroll apply now commits atomically on confirm (no pre-confirm mutation), re-plans at commit time to avoid stale overwrite state, and preserves cancel/failure behavior without mutating weapon slots.
 - **Act-based weapon art progression**: Added run-state unlock progression by act and node-map unlock banner notifications.
 - **Unlock safety hardening**: Empty unlock states are treated as authoritative (no fallback leak to full catalog), and unknown `unlockAct` values now fail closed.
 - **Weapon art contract hardening**: Added engine-level `unlockAct` config validation so malformed act IDs fail closed anywhere `canUseWeaponArt` is evaluated.
@@ -43,7 +44,7 @@
 - **Test baseline updated**: `npm test` now passes at **846 tests** on `main`.
 
 ### New Features
-- **Complete Weapon Stats Display**: All weapon stats (Mt/Ht/Cr/Wt/Rng) now visible in RosterOverlay and UnitInspectionPanel. Hover tooltip for weapon specials (Ragnell, Runesword, etc.). Asterisk indicator (*) for weapons with special abilities in compact panels.
+- **Complete Weapon Stats Display**: All weapon stats (Mt/Ht/Cr/Wt/Rng) now visible in RosterOverlay and UnitInspectionPanel. Hover tooltip for weapon specials (Ragnell, Runesword, etc.).
 
 ### Major Features
 - **Turn Bonus System**: S/A/B/C rating per battle based on turn par, bonus gold per act
