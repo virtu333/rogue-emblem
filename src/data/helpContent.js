@@ -133,6 +133,24 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Weapon Arts',
+        lines: [
+          { text: 'Weapon Arts are special combat techniques.', color: GOLD },
+          { text: 'They modify combat (Mt/Hit/Crit/etc).', color: CYAN },
+          { text: '' },
+          { text: 'How to use:', color: GOLD },
+          { text: '  Attack -> Weapon Arts -> choose an art.' },
+          { text: '  Cost is paid only on confirmed combat.', color: GRAY },
+          { text: '' },
+          { text: 'Limits:', color: GOLD },
+          { text: '  Arts can have per-turn and per-map caps.' },
+          { text: '  They can also require Prof or Mast rank.' },
+          { text: '' },
+          { text: 'Unlocks are run-based and act-based.', color: GRAY },
+          { text: 'Some effects can unlock arts persistently.', color: GRAY },
+        ],
+      },
+      {
         title: 'Staves',
         lines: [
           { text: 'Staves heal allies instead of attacking.', color: GOLD },
