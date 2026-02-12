@@ -7,6 +7,9 @@ import {
   NODE_GOLD_MULTIPLIER, LOOT_GOLD_TEAM_XP,
 } from '../utils/constants.js';
 
+const META_INNATE_TIERS = new Set(['Iron', 'Steel']);
+const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
+
 /**
  * Calculate gold earned from killing an enemy.
  * @param {{ level: number, isBoss?: boolean }} enemy
@@ -119,6 +122,49 @@ function filterByRosterTypes(names, rosterTypes, allWeapons) {
   });
 }
 
+function buildMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
+  const unlockedIds = Array.isArray(weaponArtSpawnConfig?.unlockedWeaponArtIds)
+    ? weaponArtSpawnConfig.unlockedWeaponArtIds
+    : [];
+  const catalog = Array.isArray(weaponArtSpawnConfig?.weaponArtCatalog)
+    ? weaponArtSpawnConfig.weaponArtCatalog
+    : [];
+  if (unlockedIds.length <= 0 || catalog.length <= 0) return null;
+  const unlockedSet = new Set(
+    unlockedIds
+      .filter((id) => typeof id === 'string')
+      .map((id) => id.trim())
+      .filter(Boolean)
+  );
+  if (unlockedSet.size <= 0) return null;
+
+  const byType = new Map();
+  for (const art of catalog) {
+    if (!art?.id || !unlockedSet.has(art.id)) continue;
+    const weaponType = typeof art.weaponType === 'string' ? art.weaponType.trim() : '';
+    if (!META_INNATE_WEAPON_TYPES.has(weaponType)) continue;
+    if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
+    if (Array.isArray(art.allowedFactions) && art.allowedFactions.length > 0) {
+      const factions = new Set(art.allowedFactions.map((f) => String(f).toLowerCase()));
+      if (!factions.has('player')) continue;
+    }
+    if (!byType.has(weaponType)) byType.set(weaponType, art.id);
+  }
+  return byType.size > 0 ? byType : null;
+}
+
+function applyMetaInnateArtToItem(item, artByWeaponType) {
+  if (!item || !artByWeaponType) return item;
+  if (!META_INNATE_WEAPON_TYPES.has(item.type)) return item;
+  if (!META_INNATE_TIERS.has(item.tier)) return item;
+  if (typeof item.weaponArtId === 'string' && item.weaponArtId.trim().length > 0) return item;
+  const artId = artByWeaponType.get(item.type);
+  if (!artId) return item;
+  item.weaponArtId = artId;
+  item.weaponArtSource = 'meta_innate';
+  return item;
+}
+
 // --- Random Legendary Weapon ---
 
 const LEGENDARY_NAMES = [
@@ -218,12 +264,13 @@ export function generateRandomLegendary(allWeapons) {
  * @param {boolean} [isBoss=false] - shift weights toward rare/accessory/forge for boss battles
  * @returns {Array}
  */
-export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null, isElite = false) {
+export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null, isElite = false, weaponArtSpawnConfig = null) {
   const table = lootTables[actId] || lootTables.act3;
   const choices = [];
   const usedNames = new Set();
   const maxAttempts = count * 5;
   let attempts = 0;
+  const metaInnateArtByWeaponType = buildMetaInnateArtByWeaponType(weaponArtSpawnConfig);
 
   // Apply weapon weight bonus from meta upgrades
   const weights = { ...table.weights };
@@ -295,6 +342,7 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
       item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
     }
     if (!item) continue;
+    applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
 
     usedNames.add(name);
     choices.push({ type: category, item });
@@ -321,9 +369,10 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
  * @param {Array} [roster] - current roster for weapon type filtering
  * @returns {Array<{ item: object, price: number, type: string }>}
  */
-export function generateShopInventory(actId, lootTables, allWeapons, consumables, allAccessories = null, roster = null) {
+export function generateShopInventory(actId, lootTables, allWeapons, consumables, allAccessories = null, roster = null, weaponArtSpawnConfig = null) {
   const table = lootTables[actId] || lootTables.act3;
   const itemCount = SHOP_ITEM_COUNT.min + Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
+  const metaInnateArtByWeaponType = buildMetaInnateArtByWeaponType(weaponArtSpawnConfig);
 
   const inventory = [];
   const usedNames = new Set();
@@ -346,6 +395,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     const name = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item && item.price > 0) {
+      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
     }
@@ -362,6 +412,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     const name = shopConsumables[Math.floor(Math.random() * shopConsumables.length)];
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item) {
+      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: 'consumable' });
     }
@@ -373,6 +424,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     if (usedNames.has(name)) continue; // Already picked randomly
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item && item.price > 0 && inventory.length < itemCount) {
+      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: 'consumable' });
     }
@@ -391,6 +443,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
 
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (!item || item.price === 0) continue;
+    applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
 
     usedNames.add(name);
     inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });

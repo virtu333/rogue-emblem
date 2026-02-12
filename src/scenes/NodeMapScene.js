@@ -1025,7 +1025,11 @@ export class NodeMapScene extends Phaser.Scene {
     let shopItems = generateShopInventory(
       rm.currentAct, this.gameData.lootTables,
       this.gameData.weapons, this.gameData.consumables,
-      this.gameData.accessories, rm.roster
+      this.gameData.accessories, rm.roster,
+      {
+        unlockedWeaponArtIds: rm.getMetaUnlockedWeaponArtIds(),
+        weaponArtCatalog: this.gameData.weaponArts?.arts || [],
+      }
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
     const shopItemDelta = rm.getShopItemCountDelta();
@@ -1653,7 +1657,11 @@ export class NodeMapScene extends Phaser.Scene {
         const newItems = generateShopInventory(
           this.runManager.currentAct, this.gameData.lootTables,
           this.gameData.weapons, this.gameData.consumables,
-          this.gameData.accessories, this.runManager.roster
+          this.gameData.accessories, this.runManager.roster,
+          {
+            unlockedWeaponArtIds: this.runManager.getMetaUnlockedWeaponArtIds(),
+            weaponArtCatalog: this.gameData.weaponArts?.arts || [],
+          }
         );
         const pricedItems = this.applyDifficultyShopPricing(newItems);
         this.shopBuyItems = pricedItems.map((entry, i) => ({ ...entry, index: i }));

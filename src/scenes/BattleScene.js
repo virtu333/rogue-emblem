@@ -5702,7 +5702,11 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.roster,
       this.isBoss,
       null,
-      this.isElite
+      this.isElite,
+      {
+        unlockedWeaponArtIds: this.runManager.getMetaUnlockedWeaponArtIds(),
+        weaponArtCatalog: this.gameData.weaponArts?.arts || [],
+      }
     );
 
     // Skip bonus gold

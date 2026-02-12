@@ -236,6 +236,62 @@ describe('LootSystem', () => {
         expect(new Set(names).size).toBe(names.length);
       }
     });
+
+    it('binds meta-unlocked art to spawned steel/iron shop weapons', () => {
+      const customTables = {
+        act1: {
+          weapons: ['Steel Sword'],
+          consumables: ['Vulnerary'],
+          accessories: [],
+          weights: { weapon: 100, consumable: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const inv = generateShopInventory(
+        'act1',
+        customTables,
+        gameData.weapons,
+        gameData.consumables,
+        gameData.accessories,
+        null,
+        {
+          unlockedWeaponArtIds: ['sword_precise_cut'],
+          weaponArtCatalog: gameData.weaponArts.arts,
+        }
+      );
+      const steelSword = inv.find((entry) => entry.item.name === 'Steel Sword')?.item;
+      expect(steelSword).toBeTruthy();
+      expect(steelSword.weaponArtId).toBe('sword_precise_cut');
+      expect(steelSword.weaponArtSource).toBe('meta_innate');
+    });
+
+    it('does not bind legendary-only arts onto non-legendary shop weapons', () => {
+      const customTables = {
+        act1: {
+          weapons: ['Steel Sword'],
+          consumables: ['Vulnerary'],
+          accessories: [],
+          weights: { weapon: 100, consumable: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const inv = generateShopInventory(
+        'act1',
+        customTables,
+        gameData.weapons,
+        gameData.consumables,
+        gameData.accessories,
+        null,
+        {
+          unlockedWeaponArtIds: ['legend_gemini_tempest'],
+          weaponArtCatalog: gameData.weaponArts.arts,
+        }
+      );
+      const steelSword = inv.find((entry) => entry.item.name === 'Steel Sword')?.item;
+      expect(steelSword).toBeTruthy();
+      expect(steelSword.weaponArtId).toBeUndefined();
+      expect(steelSword.weaponArtSource).toBeUndefined();
+    });
   });
 
   describe('forge loot', () => {
@@ -535,6 +591,44 @@ describe('LootSystem', () => {
           expect(c.goldAmount).toBeLessThanOrEqual(eliteMax);
         }
       }
+    });
+  });
+
+  describe('meta-innate loot binding', () => {
+    it('binds meta-unlocked art to steel/iron loot weapons', () => {
+      const customTables = {
+        act1: {
+          weapons: ['Steel Sword'],
+          consumables: ['Vulnerary'],
+          rare: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, consumable: 0, rare: 0, accessory: 0, forge: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const choices = generateLootChoices(
+        'act1',
+        customTables,
+        gameData.weapons,
+        gameData.consumables,
+        3,
+        0,
+        gameData.accessories,
+        gameData.whetstones,
+        null,
+        false,
+        null,
+        false,
+        {
+          unlockedWeaponArtIds: ['sword_precise_cut'],
+          weaponArtCatalog: gameData.weaponArts.arts,
+        }
+      );
+      const steelSword = choices.find((choice) => choice.item?.name === 'Steel Sword')?.item;
+      expect(steelSword).toBeTruthy();
+      expect(steelSword.weaponArtId).toBe('sword_precise_cut');
+      expect(steelSword.weaponArtSource).toBe('meta_innate');
     });
   });
 

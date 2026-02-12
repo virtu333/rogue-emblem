@@ -505,8 +505,10 @@ describe('MetaProgressionManager', () => {
     const unlocked = meta.getUnlockedWeaponArts(gameData.weaponArts.arts);
     expect(unlocked).toEqual([
       'sword_precise_cut',
+      'sword_comet_edge',
       'legend_gemini_tempest',
       'bow_longshot',
+      'bow_hunters_focus',
       'legend_starfall_volley',
     ]);
   });
