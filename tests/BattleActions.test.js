@@ -3,6 +3,7 @@
 // Full integration testing requires manual gameplay testing.
 
 import { describe, it, expect } from 'vitest';
+import { shouldCommitTradeExit, shouldAllowUndoMove } from '../src/engine/TradeFlow.js';
 
 describe('Battle Actions - Trade', () => {
   it('should validate trade requirements (items or space)', () => {
@@ -126,5 +127,18 @@ describe('Battle Actions - Integration Notes', () => {
     expect(testingChecklist.Trade.length).toBe(4);
     expect(testingChecklist.Swap.length).toBe(3);
     expect(testingChecklist.Dance.length).toBe(4);
+  });
+});
+
+describe('Battle Actions - Trade Cancel Exploit Guard', () => {
+  it('commits trade exit once any trade mutation occurred', () => {
+    expect(shouldCommitTradeExit(true)).toBe(true);
+    expect(shouldCommitTradeExit(false)).toBe(false);
+  });
+
+  it('blocks move undo after trade mutation but allows normal pre-action undo', () => {
+    expect(shouldAllowUndoMove({ col: 3, row: 4 }, true)).toBe(false);
+    expect(shouldAllowUndoMove({ col: 3, row: 4 }, false)).toBe(true);
+    expect(shouldAllowUndoMove(null, false)).toBe(false);
   });
 });

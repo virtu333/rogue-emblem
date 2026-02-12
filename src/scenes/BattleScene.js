@@ -55,6 +55,7 @@ import {
   getWeaponRangeBonus,
 } from '../engine/SkillSystem.js';
 import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes, getWarpCandidates } from '../engine/AffixSystem.js';
+import { shouldCommitTradeExit, shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
@@ -379,6 +380,7 @@ export class BattleScene extends Phaser.Scene {
       this.forecastObjects = null;
       this.actionMenu = null;
       this.inEquipMenu = false;
+      this.tradeMutatedThisSession = false;
       this._lastPathPreviewKey = null;
       this._touchTapDown = null;
       this._tapMoveThreshold = 12;
@@ -787,6 +789,7 @@ export class BattleScene extends Phaser.Scene {
     this.tradeTargets = [];
     this.swapTargets = [];
     this.danceTargets = [];
+    this.tradeMutatedThisSession = false;
     this.hideActionMenu();
     this.hideForecast();
     this.cleanupTradeUI();
@@ -1808,7 +1811,11 @@ export class BattleScene extends Phaser.Scene {
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
-      this.showActionMenu(this.selectedUnit);
+      if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
+        this.finishUnitAction(this.selectedUnit, { skipCanto: true });
+      } else {
+        this.showActionMenu(this.selectedUnit);
+      }
     } else if (this.battleState === 'CANTO_MOVING') {
       // Skip Canto â€” end unit's turn
       this.grid.clearHighlights();
@@ -1824,7 +1831,11 @@ export class BattleScene extends Phaser.Scene {
         this.showActionMenu(this.selectedUnit);
       } else {
         this.hideActionMenu();
-        this.undoMove(this.selectedUnit);
+        if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
+          this.finishUnitAction(this.selectedUnit, { skipCanto: true });
+        } else {
+          this.undoMove(this.selectedUnit);
+        }
       }
     } else if (this.battleState === 'UNIT_SELECTED') {
       this.deselectUnit();
@@ -2211,6 +2222,7 @@ export class BattleScene extends Phaser.Scene {
     this.attackTargets = [];
     this.healTargets = [];
     this.inEquipMenu = false;
+    this.tradeMutatedThisSession = false;
 
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
@@ -2437,6 +2449,7 @@ export class BattleScene extends Phaser.Scene {
 
   executeTrade(unit, target) {
     this.hideActionMenu();
+    this.tradeMutatedThisSession = false;
     this.showBattleTradeUI(unit, target.ally);
   }
 
@@ -2487,6 +2500,10 @@ export class BattleScene extends Phaser.Scene {
             if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
               removeFromInventory(unit, item);
               addToInventory(otherUnit, item);
+              if (!this.tradeMutatedThisSession) {
+                this.tradeMutatedThisSession = true;
+                this.preMoveLoc = null;
+              }
               this.cleanupTradeUI();
               this.showBattleTradeUI(unitA, unitB);
             }
@@ -2511,6 +2528,10 @@ export class BattleScene extends Phaser.Scene {
             if (idx !== -1) unit.consumables.splice(idx, 1);
             if (!otherUnit.consumables) otherUnit.consumables = [];
             otherUnit.consumables.push(item);
+            if (!this.tradeMutatedThisSession) {
+              this.tradeMutatedThisSession = true;
+              this.preMoveLoc = null;
+            }
             this.cleanupTradeUI();
             this.showBattleTradeUI(unitA, unitB);
           }
@@ -2531,7 +2552,11 @@ export class BattleScene extends Phaser.Scene {
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
     doneBtn.on('pointerdown', () => {
       this.cleanupTradeUI();
-      this.showActionMenu(unitA);
+      if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
+        this.finishUnitAction(unitA, { skipCanto: true });
+      } else {
+        this.showActionMenu(unitA);
+      }
     });
     this.tradeUIObjects.push(doneBtn);
   }
@@ -2787,6 +2812,7 @@ export class BattleScene extends Phaser.Scene {
   showActionMenu(unit) {
     this.hideActionMenu();
     this.inEquipMenu = false;
+    this.tradeMutatedThisSession = false;
     this.battleState = 'UNIT_ACTION_MENU';
 
     const attackTargets = this.findAttackTargets(unit);
@@ -2948,7 +2974,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   undoMove(unit) {
-    if (!this.preMoveLoc) {
+    if (!shouldAllowUndoMove(this.preMoveLoc, this.tradeMutatedThisSession)) {
       this.deselectUnit();
       return;
     }
