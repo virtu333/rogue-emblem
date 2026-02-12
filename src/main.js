@@ -17,6 +17,8 @@ const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
 const BOOT_WATCHDOG_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 30000 : 22000;
+const startupQuery = new URLSearchParams(globalThis?.location?.search || '');
+const devStartupRequested = startupQuery.has('qaStep') || startupQuery.has('devScene');
 
 initStartupTelemetry({
   isMobile: startupFlags.isMobile,
@@ -143,10 +145,19 @@ function hideBootRecoveryOverlay() {
   if (overlay) overlay.remove();
 }
 
-function hasReachedInteractiveTitle() {
+function hasReachedStartupTarget() {
   const telemetry = getStartupTelemetry();
   const markers = telemetry?.markers || [];
-  return markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
+  const reachedTitle = markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
+  if (reachedTitle) return true;
+  if (!devStartupRequested) return false;
+
+  return markers.some((m) => {
+    if (m?.name === 'boot_dev_route') return true;
+    if (m?.name !== 'scene_lazy_load_complete') return false;
+    const key = typeof m?.data?.key === 'string' ? m.data.key : '';
+    return key.length > 0 && key !== 'Title';
+  });
 }
 
 function installStartupErrorHooks() {
@@ -167,20 +178,23 @@ function installStartupErrorHooks() {
 
 function installBootWatchdog() {
   const monitor = window.setInterval(() => {
-    if (!hasReachedInteractiveTitle()) return;
+    if (!hasReachedStartupTarget()) return;
     hideBootRecoveryOverlay();
     window.clearInterval(monitor);
   }, 1000);
 
   window.setTimeout(() => {
-    if (hasReachedInteractiveTitle()) {
+    if (hasReachedStartupTarget()) {
       window.clearInterval(monitor);
       return;
     }
     markStartup('boot_watchdog_timeout', { timeoutMs: BOOT_WATCHDOG_TIMEOUT_MS });
-    showBootRecoveryOverlay('The game did not reach the title screen in time. Try reload or safe mode.');
+    const timeoutMessage = devStartupRequested
+      ? 'The game did not reach the requested startup scene in time. Try reload or safe mode.'
+      : 'The game did not reach the title screen in time. Try reload or safe mode.';
+    showBootRecoveryOverlay(timeoutMessage);
     const recover = window.setInterval(() => {
-      if (!hasReachedInteractiveTitle()) return;
+      if (!hasReachedStartupTarget()) return;
       markStartup('boot_watchdog_recovered_after_timeout');
       hideBootRecoveryOverlay();
       window.clearInterval(recover);
