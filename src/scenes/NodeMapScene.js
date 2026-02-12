@@ -61,6 +61,11 @@ const SHOP_LIST_BOTTOM_Y = 390;
 const SHOP_SCROLL_STEP = 24;
 const UNIT_PICKER_SCROLL_STEP = 30;
 
+const OVERLAY_PANEL_W = 560;
+const OVERLAY_PANEL_H = 440;
+const OVERLAY_PANEL_DEPTH = 301;
+const OVERLAY_CONTENT_DEPTH = 302;
+
 const NODE_ICONS = {
   [NODE_TYPES.BATTLE]:  '\u2694',  // ⚔
   [NODE_TYPES.BOSS]:    '\u2620',  // ☠
@@ -752,16 +757,23 @@ export class NodeMapScene extends Phaser.Scene {
     const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
     this.churchOverlay.push(bg);
 
+    // Centered panel container
+    const panel = this.add.rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+      .setDepth(OVERLAY_PANEL_DEPTH)
+      .setStrokeStyle(2, 0x444444)
+      .setInteractive();
+    this.churchOverlay.push(panel);
+
     // Title
     const title = this.add.text(320, 40, 'Church', {
       fontFamily: 'monospace', fontSize: '22px', color: '#cccccc',
-    }).setOrigin(0.5).setDepth(301);
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(title);
 
     // Gold display
     this.churchGoldText = this.add.text(320, 70, `Gold: ${this.runManager.gold}G`, {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(301);
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(this.churchGoldText);
 
     const rm = this.runManager;
@@ -771,7 +783,7 @@ export class NodeMapScene extends Phaser.Scene {
     const healBtn = this.add.text(320, yOffset, '[ Heal All Units ] (Free)', {
       fontFamily: 'monospace', fontSize: '16px', color: '#44ff44',
       backgroundColor: '#222222', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
     healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
     healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
     healBtn.on('pointerdown', () => {
@@ -789,7 +801,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.fallenUnits.length > 0) {
       const reviveLabel = this.add.text(320, yOffset, 'Revive Fallen Unit (1000G):', {
         fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
-      }).setOrigin(0.5).setDepth(301);
+      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
       this.churchOverlay.push(reviveLabel);
       yOffset += 25;
 
@@ -797,7 +809,7 @@ export class NodeMapScene extends Phaser.Scene {
         const unitBtn = this.add.text(320, yOffset, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
           fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
           backgroundColor: '#222222', padding: { x: 10, y: 4 },
-        }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
           if (rm.gold >= 1000) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
@@ -828,7 +840,7 @@ export class NodeMapScene extends Phaser.Scene {
     // Service 3: Promote Unit
     const promoteLabel = this.add.text(320, yOffset, `Promote Unit (${CHURCH_PROMOTE_COST}G):`, {
       fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
-    }).setOrigin(0.5).setDepth(301);
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(promoteLabel);
     yOffset += 25;
 
@@ -836,14 +848,14 @@ export class NodeMapScene extends Phaser.Scene {
     if (eligibleUnits.length === 0) {
       const noneText = this.add.text(320, yOffset, '(No units eligible for promotion)', {
         fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      }).setOrigin(0.5).setDepth(301);
+      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
       this.churchOverlay.push(noneText);
     } else {
       for (const unit of eligibleUnits) {
         const unitBtn = this.add.text(320, yOffset, `${unit.name} (Lv${unit.level} ${unit.className})`, {
           fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
           backgroundColor: '#222222', padding: { x: 10, y: 4 },
-        }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
           if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
@@ -895,7 +907,7 @@ export class NodeMapScene extends Phaser.Scene {
     const leaveBtn = this.add.text(320, 440, '[ Leave Church ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
@@ -1017,16 +1029,23 @@ export class NodeMapScene extends Phaser.Scene {
     const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
     this.shopOverlay.push(bg);
 
+    // Centered panel container
+    const panel = this.add.rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+      .setDepth(OVERLAY_PANEL_DEPTH)
+      .setStrokeStyle(2, 0x444444)
+      .setInteractive();
+    this.shopOverlay.push(panel);
+
     // Title
     const title = this.add.text(320, 30, 'Village', {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(301);
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(title);
 
     // Gold display
     this.shopGoldText = this.add.text(320, 58, `Gold: ${this.runManager.gold}G`, {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(301);
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(this.shopGoldText);
 
     this.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
@@ -1043,7 +1062,7 @@ export class NodeMapScene extends Phaser.Scene {
     const leaveBtn = this.add.text(320, 440, '[ Leave Village ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(301).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
@@ -1088,7 +1107,7 @@ export class NodeMapScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '14px', color,
         backgroundColor: isActive ? '#333355' : '#222222',
         padding: { x: 12, y: 4 },
-      }).setOrigin(0.5).setDepth(302).setInteractive({ useHandCursor: true });
+      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
 
       tabText.on('pointerdown', () => {
         if (this.activeShopTab === tab.key) return;
@@ -1135,7 +1154,7 @@ export class NodeMapScene extends Phaser.Scene {
       const color = affordable ? '#e0e0e0' : '#666666';
       const text = this.add.text(60, y, `${entry.item.name}  ${entry.price}G`, {
         fontFamily: 'monospace', fontSize: '12px', color,
-      }).setDepth(302);
+      }).setDepth(OVERLAY_CONTENT_DEPTH);
 
       if (affordable) {
         text.setInteractive({ useHandCursor: true });
@@ -1241,7 +1260,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
         const nameText = this.add.text(60, nameY, `${unit.name}:`, {
           fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-        }).setDepth(302);
+        }).setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(nameText);
         this.shopOverlay.push(nameText);
       }
@@ -1260,7 +1279,7 @@ export class NodeMapScene extends Phaser.Scene {
         const text = this.add.text(70, y,
           `${equipped}${wpn.name}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
-        }).setDepth(302);
+        }).setDepth(OVERLAY_CONTENT_DEPTH);
 
         if (!locked) {
           text.setInteractive({ useHandCursor: true });
@@ -1306,7 +1325,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (headerY >= SHOP_LIST_TOP_Y - lineH && headerY <= SHOP_LIST_BOTTOM_Y) {
       const header = this.add.text(60, headerY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
         fontFamily: 'monospace', fontSize: '12px', color: '#ff8844',
-      }).setDepth(302);
+      }).setDepth(OVERLAY_CONTENT_DEPTH);
       this.shopContentGroup.push(header);
       this.shopOverlay.push(header);
     }
@@ -1322,7 +1341,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
         const nameText = this.add.text(60, nameY, `${unit.name}:`, {
           fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-        }).setDepth(302);
+        }).setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(nameText);
         this.shopOverlay.push(nameText);
       }
@@ -1339,7 +1358,7 @@ export class NodeMapScene extends Phaser.Scene {
         }
         const wpnText = this.add.text(70, y, label, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
-        }).setDepth(302);
+        }).setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(wpnText);
         this.shopOverlay.push(wpnText);
 
@@ -1353,20 +1372,20 @@ export class NodeMapScene extends Phaser.Scene {
         if (level >= FORGE_MAX_LEVEL) {
           const maxLabel = this.add.text(350, y, 'MAX', {
             fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-          }).setDepth(302);
+          }).setDepth(OVERLAY_CONTENT_DEPTH);
           this.shopContentGroup.push(maxLabel);
           this.shopOverlay.push(maxLabel);
         } else if (limitReached) {
           const limitLabel = this.add.text(350, y, '(limit)', {
             fontFamily: 'monospace', fontSize: '11px', color: '#666666',
-          }).setDepth(302);
+          }).setDepth(OVERLAY_CONTENT_DEPTH);
           this.shopContentGroup.push(limitLabel);
           this.shopOverlay.push(limitLabel);
         } else {
           const forgeBtn = this.add.text(350, y, '[ Forge ]', {
             fontFamily: 'monospace', fontSize: '11px', color: '#ff8844',
             backgroundColor: '#333333', padding: { x: 4, y: 1 },
-          }).setDepth(302).setInteractive({ useHandCursor: true });
+          }).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
           forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
           forgeBtn.on('pointerdown', () => this.showForgeStatPicker(wpn));
@@ -1383,7 +1402,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
         const emptyText = this.add.text(60, emptyY, 'No forgeable weapons in roster.', {
           fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-        }).setDepth(302);
+        }).setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(emptyText);
         this.shopOverlay.push(emptyText);
       }
@@ -1400,7 +1419,7 @@ export class NodeMapScene extends Phaser.Scene {
     const hint = this.add.text(445, 410, `Scroll: ${percent}%`, {
       fontFamily: 'monospace', fontSize: '10px', color: '#888888',
       backgroundColor: '#222222', padding: { x: 4, y: 2 },
-    }).setDepth(302);
+    }).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopContentGroup.push(hint);
     this.shopOverlay.push(hint);
   }
@@ -1558,7 +1577,7 @@ export class NodeMapScene extends Phaser.Scene {
     const rerollBtn = this.add.text(60, 410, `[ Reroll ${cost}G ]`, {
       fontFamily: 'monospace', fontSize: '12px', color,
       backgroundColor: '#333333', padding: { x: 8, y: 4 },
-    }).setDepth(302);
+    }).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopContentGroup.push(rerollBtn);
     this.shopOverlay.push(rerollBtn);
 
