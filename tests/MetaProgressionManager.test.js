@@ -4,6 +4,7 @@ import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 const upgradesData = gameData.metaUpgrades;
+const getUpgrade = (id) => upgradesData.find((u) => u.id === id);
 
 // Mock localStorage
 const store = {};
@@ -85,23 +86,29 @@ describe('MetaProgressionManager', () => {
 
   it('getNextCost returns correct cost for each level of 5-tier recruit growth upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(75);   // L0 → cost[0]
+    const upgrade = getUpgrade('recruit_hp_growth');
+    expect(upgrade).toBeTruthy();
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(upgrade.costs[0]);
     meta.purchasedUpgrades.recruit_hp_growth = 1;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(100);  // L1 → cost[1]
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(upgrade.costs[1]);
     meta.purchasedUpgrades.recruit_hp_growth = 4;
-    expect(meta.getNextCost('recruit_hp_growth')).toBe(350);  // L4 → cost[4]
+    expect(meta.getNextCost('recruit_hp_growth')).toBe(upgrade.costs[4]);
     meta.purchasedUpgrades.recruit_hp_growth = 5;
-    expect(meta.getNextCost('recruit_hp_growth')).toBeNull();  // maxed
+    expect(meta.getNextCost('recruit_hp_growth')).toBeNull();
   });
 
   it('getNextCost returns correct cost for 3-tier flat upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    expect(meta.getNextCost('recruit_hp_flat')).toBe(200);
+    const upgrade = getUpgrade('recruit_hp_flat');
+    expect(upgrade).toBeTruthy();
+    expect(meta.getNextCost('recruit_hp_flat')).toBe(upgrade.costs[0]);
     meta.purchasedUpgrades.recruit_hp_flat = 2;
-    expect(meta.getNextCost('recruit_hp_flat')).toBe(1000);
+    expect(meta.getNextCost('recruit_hp_flat')).toBe(upgrade.costs[2]);
     meta.purchasedUpgrades.recruit_hp_flat = 3;
     expect(meta.getNextCost('recruit_hp_flat')).toBeNull();
   });
+
+
 
   it('getNextCost returns null for unknown upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
@@ -169,25 +176,29 @@ describe('MetaProgressionManager', () => {
 
   it('purchaseUpgrade deducts from supply for recruit upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
+    const expectedCost = getUpgrade('recruit_hp_growth').costs[0];
     meta.totalSupply = 300;
     meta.totalValor = 300;
     const result = meta.purchaseUpgrade('recruit_hp_growth');
     expect(result).toBe(true);
-    expect(meta.getTotalSupply()).toBe(225); // 300 - 75
-    expect(meta.getTotalValor()).toBe(300);  // untouched
+    expect(meta.getTotalSupply()).toBe(300 - expectedCost);
+    expect(meta.getTotalValor()).toBe(300);
     expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(1);
   });
 
   it('purchaseUpgrade deducts from valor for lord upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
+    const expectedCost = getUpgrade('lord_hp_growth').costs[0];
     meta.totalSupply = 300;
     meta.totalValor = 300;
     const result = meta.purchaseUpgrade('lord_hp_growth');
     expect(result).toBe(true);
-    expect(meta.getTotalValor()).toBe(200);  // 300 - 100
-    expect(meta.getTotalSupply()).toBe(300); // untouched
+    expect(meta.getTotalValor()).toBe(300 - expectedCost);
+    expect(meta.getTotalSupply()).toBe(300);
     expect(meta.getUpgradeLevel('lord_hp_growth')).toBe(1);
   });
+
+
 
   it('purchaseUpgrade fails with insufficient currency', () => {
     const meta = new MetaProgressionManager(upgradesData);

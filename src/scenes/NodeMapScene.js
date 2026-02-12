@@ -1737,6 +1737,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.isActComplete()) {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
+        rm.settleEndRunRewards(this.registry.get('meta'), 'victory');
         void startSceneLazy(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: rm,

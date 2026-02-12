@@ -1989,6 +1989,7 @@ export class BattleScene extends Phaser.Scene {
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
+      this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       void startSceneLazy(this, 'Title', { gameData: this.gameData });
@@ -5054,6 +5055,7 @@ export class BattleScene extends Phaser.Scene {
       if (this.runManager.isActComplete()) {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
+          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
           void startSceneLazy(this, 'RunComplete', {
             gameData: this.gameData,
             runManager: this.runManager,
@@ -5086,6 +5088,7 @@ export class BattleScene extends Phaser.Scene {
   forceTransitionAfterBattle() {
     try {
       if (this.runManager?.isRunComplete?.()) {
+        this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
         void startSceneLazy(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: this.runManager,

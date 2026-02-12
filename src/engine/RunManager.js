@@ -6,6 +6,7 @@ import {
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES,
 } from '../utils/constants.js';
+import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip, getClassInnateSkills } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
@@ -95,6 +96,7 @@ export class RunManager {
     this.difficultyId = 'normal';
     this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
     this.actSequence = [...ACT_SEQUENCE];
+    this.endRunRewards = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -1002,6 +1004,49 @@ export class RunManager {
     this.status = 'defeat';
   }
 
+  _applySettledRewardsToMeta(meta, summary) {
+    if (!meta || !summary || summary.appliedToMeta) return;
+    meta.addValor(summary.valor);
+    meta.addSupply(summary.supply);
+    meta.incrementRunsCompleted();
+    if (this.actIndex >= 1) meta.recordMilestone('beatAct1');
+    if (this.actIndex >= 2) meta.recordMilestone('beatAct2');
+    if (this.actIndex >= 3) meta.recordMilestone('beatAct3');
+    if (summary.result === 'victory' && this.actIndex >= 3) meta.recordMilestone('beatGame');
+    summary.appliedToMeta = true;
+  }
+
+  /**
+   * Compute and apply end-of-run rewards exactly once.
+   * Safe to call repeatedly and from multiple scenes.
+   */
+  settleEndRunRewards(meta = null, result = this.status) {
+    if (this.endRunRewards) {
+      this._applySettledRewardsToMeta(meta, this.endRunRewards);
+      return { ...this.endRunRewards };
+    }
+
+    const normalizedResult = result === 'victory' ? 'victory' : 'defeat';
+    const currencyMultiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
+    const { valor, supply } = calculateCurrencies(
+      this.actIndex,
+      this.completedBattles,
+      normalizedResult === 'victory',
+      currencyMultiplier
+    );
+
+    this.endRunRewards = {
+      result: normalizedResult,
+      valor,
+      supply,
+      currencyMultiplier,
+      appliedToMeta: false,
+      settledAt: Date.now(),
+    };
+    this._applySettledRewardsToMeta(meta, this.endRunRewards);
+    return { ...this.endRunRewards };
+  }
+
   /** Serialize run state to a plain object for localStorage. */
   toJSON() {
     return {
@@ -1041,6 +1086,7 @@ export class RunManager {
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
+      endRunRewards: this.endRunRewards || null,
     };
   }
 
@@ -1261,6 +1307,7 @@ export class RunManager {
     rm.actSequence = Array.isArray(saved.actSequence) && saved.actSequence.length > 0
       ? [...saved.actSequence]
       : [...(rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)];
+    rm.endRunRewards = saved.endRunRewards || null;
     rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;

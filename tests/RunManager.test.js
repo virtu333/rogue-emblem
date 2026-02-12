@@ -259,6 +259,59 @@ describe('RunManager', () => {
     });
   });
 
+  describe('settleEndRunRewards', () => {
+    it('applies defeat rewards to meta exactly once', () => {
+      rm.startRun();
+      rm.failRun();
+      rm.actIndex = 2;
+      rm.completedBattles = 4;
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+
+      const first = rm.settleEndRunRewards(meta, 'defeat');
+      const second = rm.settleEndRunRewards(meta, 'defeat');
+
+      expect(first.valor).toBeGreaterThan(0);
+      expect(first.supply).toBeGreaterThan(0);
+      expect(second).toEqual(first);
+      expect(meta.addValor).toHaveBeenCalledTimes(1);
+      expect(meta.addValor).toHaveBeenCalledWith(first.valor);
+      expect(meta.addSupply).toHaveBeenCalledTimes(1);
+      expect(meta.addSupply).toHaveBeenCalledWith(first.supply);
+      expect(meta.incrementRunsCompleted).toHaveBeenCalledTimes(1);
+      expect(meta.recordMilestone).toHaveBeenCalledWith('beatAct1');
+      expect(meta.recordMilestone).toHaveBeenCalledWith('beatAct2');
+    });
+
+    it('allows deferred meta application when rewards were settled before meta was available', () => {
+      rm.startRun();
+      rm.failRun();
+      rm.actIndex = 1;
+      rm.completedBattles = 2;
+
+      const settled = rm.settleEndRunRewards(null, 'defeat');
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      const replayed = rm.settleEndRunRewards(meta, 'defeat');
+
+      expect(replayed.valor).toBe(settled.valor);
+      expect(replayed.supply).toBe(settled.supply);
+      expect(meta.addValor).toHaveBeenCalledTimes(1);
+      expect(meta.addValor).toHaveBeenCalledWith(settled.valor);
+      expect(meta.addSupply).toHaveBeenCalledTimes(1);
+      expect(meta.addSupply).toHaveBeenCalledWith(settled.supply);
+      expect(meta.incrementRunsCompleted).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('getRoster', () => {
     it('returns copies of roster units', () => {
       rm.startRun();

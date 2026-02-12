@@ -2,7 +2,6 @@
 
 import Phaser from 'phaser';
 import { clearSavedRun } from '../engine/RunManager.js';
-import { calculateCurrencies } from '../engine/MetaProgressionManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
@@ -57,22 +56,9 @@ export class RunCompleteScene extends Phaser.Scene {
       actIndex: rm.actIndex,
       completedBattles: rm.completedBattles,
     });
-    const currencyMultiplier = rm.getDifficultyModifier?.('currencyMultiplier', 1) || 1;
-    const { valor, supply } = calculateCurrencies(rm.actIndex, rm.completedBattles, isVictory, currencyMultiplier);
     const meta = this.registry.get('meta');
-    if (meta) {
-      meta.addValor(valor);
-      meta.addSupply(supply);
-      meta.incrementRunsCompleted();
-
-      // Record milestones based on highest act reached
-      // actIndex 0 = Act 1 in progress; reaching actIndex >= 1 means Act 1 was beaten
-      if (rm.actIndex >= 1) meta.recordMilestone('beatAct1');
-      if (rm.actIndex >= 2) meta.recordMilestone('beatAct2');
-      if (rm.actIndex >= 3) meta.recordMilestone('beatAct3');
-      // beatGame requires actually winning, not just reaching the final boss
-      if (isVictory && rm.actIndex >= 3) meta.recordMilestone('beatGame');
-    }
+    const rewards = rm.settleEndRunRewards(meta, this.result);
+    const { valor, supply, currencyMultiplier } = rewards;
 
     // Stats
     const statsLines = [
