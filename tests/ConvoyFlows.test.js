@@ -233,6 +233,7 @@ describe('convoy scene/UI flows', () => {
       return makeDisplayObject();
     };
 
+    overlay._activeTab = 'gear';
     overlay.drawUnitDetails();
     const storeAction = actions.find(a => a.label === '[Store]');
     expect(storeAction).toBeTruthy();
@@ -263,13 +264,46 @@ describe('convoy scene/UI flows', () => {
       return makeDisplayObject();
     };
 
+    overlay.select('convoy');
     overlay.drawUnitDetails();
-    const takeAction = actions.find(a => a.label === '[Take]');
+    const takeAction = actions.find(a => a.label === '[ Withdraw ]');
     expect(takeAction).toBeTruthy();
     takeAction.onClick();
 
     expect(unit.consumables).toHaveLength(1);
     expect(unit.consumables[0].name).toBe('Vulnerary');
     expect(rm.getConvoyCounts().consumables).toBe(0);
+  });
+
+  it('does not crash convoy detail when roster is empty', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.roster = [];
+    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    rm.addToConvoy(vuln);
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+    });
+
+    overlay.select('convoy');
+    expect(() => overlay.drawUnitDetails()).not.toThrow();
+  });
+
+  it('show/hide is safe when scene input plugins are unavailable', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+    });
+
+    expect(() => overlay.show()).not.toThrow();
+    expect(() => overlay.hide()).not.toThrow();
   });
 });

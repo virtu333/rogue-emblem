@@ -9,7 +9,7 @@ import {
   addToConsumables, removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
+import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
 
 const DEPTH_BG = 700;
 const DEPTH_PANEL = 701;
@@ -42,9 +42,17 @@ export class RosterOverlay {
     this.detailObjects = [];
     this.tradeObjects = [];
     this.visible = false;
-    this.selectedIndex = 0;
+
+    // New state
+    this.selection = { kind: 'unit', index: 0 };
+    this._activeTab = 'stats'; // 'stats' | 'gear'
+    this._convoyScrollOffset = 0;
+    this._convoyScrollMax = 0;
+    this._targetUnitIndex = 0; // for convoy withdraw default
+
     this._skillTooltip = null;
     this._weaponTooltip = null;
+    this._listenersRegistered = false;
   }
 
   show() {
@@ -77,17 +85,136 @@ export class RosterOverlay {
       .setDepth(DEPTH_TEXT);
     this.objects.push(divider);
 
+    this._registerListeners();
     this.drawUnitList();
     this.drawUnitDetails();
   }
 
   hide() {
+    this._unregisterListeners();
     this._destroyDetails();
     this._destroyTrade();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     this.visible = false;
     if (this.onClose) this.onClose();
+  }
+
+  _clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  _registerListeners() {
+    if (this._listenersRegistered) return;
+    this._listenersRegistered = true;
+
+    this._keyHandler = (event) => {
+      if (!this.visible) return;
+      
+      if (event.code === 'ArrowUp') {
+        this._cycleSelection(-1);
+      } else if (event.code === 'ArrowDown') {
+        this._cycleSelection(1);
+      } else if (event.code === 'ArrowLeft' || event.code === 'ArrowRight') {
+        if (this.selection.kind === 'unit') {
+          this._activeTab = this._activeTab === 'stats' ? 'gear' : 'stats';
+          this.drawUnitDetails();
+        }
+      }
+    };
+
+    const input = this.scene?.input;
+    const kb = input?.keyboard;
+    if (kb) kb.on('keydown', this._keyHandler);
+
+    this._wheelHandler = (pointer, gameObjects, deltaX, deltaY) => {
+      if (!this.visible || this.selection.kind !== 'convoy') return;
+      if (pointer.x < DETAIL_X) return; // Only scroll in detail panel
+
+      const step = Math.sign(deltaY) * 20;
+      this._convoyScrollOffset = this._clamp(
+        this._convoyScrollOffset + step,
+        0,
+        this._convoyScrollMax
+      );
+      this.drawUnitDetails();
+    };
+    if (input?.on) {
+      input.on('wheel', this._wheelHandler);
+    }
+
+    // Touch/Drag handlers
+    this._dragStart = null;
+    this._pointerDownHandler = (pointer) => {
+      if (!this.visible || this.selection.kind !== 'convoy') return;
+      if (pointer.x < DETAIL_X) return;
+      this._dragStart = { y: pointer.y, offset: this._convoyScrollOffset };
+    };
+    this._pointerMoveHandler = (pointer) => {
+      if (!this._dragStart || !pointer.isDown) return;
+      const dy = this._dragStart.y - pointer.y;
+      this._convoyScrollOffset = this._clamp(
+        this._dragStart.offset + dy,
+        0,
+        this._convoyScrollMax
+      );
+      this.drawUnitDetails();
+    };
+    this._pointerUpHandler = () => {
+      this._dragStart = null;
+    };
+
+    if (input?.on) {
+      input.on('pointerdown', this._pointerDownHandler);
+      input.on('pointermove', this._pointerMoveHandler);
+      input.on('pointerup', this._pointerUpHandler);
+    }
+  }
+
+  _unregisterListeners() {
+    if (!this._listenersRegistered) return;
+    const input = this.scene?.input;
+    const kb = input?.keyboard;
+    if (kb) kb.off('keydown', this._keyHandler);
+    if (input?.off) {
+      input.off('wheel', this._wheelHandler);
+      input.off('pointerdown', this._pointerDownHandler);
+      input.off('pointermove', this._pointerMoveHandler);
+      input.off('pointerup', this._pointerUpHandler);
+    }
+    this._listenersRegistered = false;
+  }
+
+  _cycleSelection(dir) {
+    const rosterCount = this.runManager.roster.length;
+    const totalCount = rosterCount + 1; // units + convoy
+    
+    let currentIndex = this.selection.kind === 'unit' ? this.selection.index : rosterCount;
+    let nextIndex = (currentIndex + dir + totalCount) % totalCount;
+
+    if (nextIndex < rosterCount) {
+      this.select('unit', nextIndex);
+    } else {
+      this.select('convoy');
+    }
+  }
+
+  select(kind, index = 0) {
+    if (kind === 'unit') {
+      const rosterCount = this.runManager.roster.length;
+      if (rosterCount <= 0) {
+        this.selection = { kind: 'convoy' };
+      } else {
+        const clamped = this._clamp(index, 0, rosterCount - 1);
+        this.selection = { kind: 'unit', index: clamped };
+        this._targetUnitIndex = clamped;
+      }
+    } else {
+      this.selection = { kind: 'convoy' };
+      this._convoyScrollOffset = 0;
+    }
+    this.drawUnitList();
+    this.drawUnitDetails();
   }
 
   // --- Left panel: unit list ---
@@ -110,10 +237,11 @@ export class RosterOverlay {
     listBg._rosterList = true;
     this.objects.push(listBg);
 
+    // 1. Draw units
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const y = startY + i * entryH;
-      const isSelected = i === this.selectedIndex;
+      const isSelected = this.selection.kind === 'unit' && this.selection.index === i;
 
       // Hit area
       const hitZone = this.scene.add.rectangle(
@@ -152,20 +280,41 @@ export class RosterOverlay {
       }).setOrigin(1, 0).setDepth(DEPTH_TEXT);
       hpText._rosterList = true;
 
-      hitZone.on('pointerdown', () => {
-        this.selectedIndex = i;
-        this.drawUnitList();
-        this.drawUnitDetails();
-      });
+      hitZone.on('pointerdown', () => this.select('unit', i));
       hitZone.on('pointerover', () => {
-        if (i !== this.selectedIndex) nameText.setColor('#ffdd44');
+        if (!isSelected) nameText.setColor('#ffdd44');
       });
       hitZone.on('pointerout', () => {
-        if (i !== this.selectedIndex) nameText.setColor('#e0e0e0');
+        if (!isSelected) nameText.setColor('#e0e0e0');
       });
 
       this.objects.push(hitZone, nameText, barBg, barFill, hpText);
     }
+
+    // 2. Draw Convoy entry
+    const convoyY = startY + roster.length * entryH;
+    const isConvoySelected = this.selection.kind === 'convoy';
+    const convoyHitZone = this.scene.add.rectangle(
+      LIST_X + LIST_WIDTH / 2, convoyY + entryH / 2, LIST_WIDTH - 4, entryH - 2,
+      isConvoySelected ? 0x333355 : 0x000000, isConvoySelected ? 1 : 0
+    ).setDepth(DEPTH_PANEL + 1).setInteractive({ useHandCursor: true });
+    convoyHitZone._rosterList = true;
+
+    const convoyColor = isConvoySelected ? '#ffdd44' : '#88ccff';
+    const convoyText = this.scene.add.text(LIST_X + 8, convoyY + 12, 'Convoy Management', {
+      fontFamily: 'monospace', fontSize: '11px', color: convoyColor,
+    }).setDepth(DEPTH_TEXT);
+    convoyText._rosterList = true;
+
+    convoyHitZone.on('pointerdown', () => this.select('convoy'));
+    convoyHitZone.on('pointerover', () => {
+      if (!isConvoySelected) convoyText.setColor('#ffdd44');
+    });
+    convoyHitZone.on('pointerout', () => {
+      if (!isConvoySelected) convoyText.setColor('#88ccff');
+    });
+
+    this.objects.push(convoyHitZone, convoyText);
   }
 
   // --- Right panel: unit details ---
@@ -181,20 +330,27 @@ export class RosterOverlay {
     this._destroyDetails();
     this._destroyTrade();
 
-    const unit = this.runManager.roster[this.selectedIndex];
-    if (!unit) return;
-
     // Detail panel background
     const detailBg = this.scene.add.rectangle(
       DETAIL_X + DETAIL_WIDTH / 2, PANEL_CENTER_Y, DETAIL_WIDTH, PANEL_HEIGHT, 0x1a1a2e
     ).setDepth(DEPTH_PANEL).setStrokeStyle(1, 0x444444);
     this.detailObjects.push(detailBg);
 
+    if (this.selection.kind === 'unit') {
+      this._drawUnitDetail();
+    } else {
+      this._drawConvoyDetail();
+    }
+  }
+
+  _drawUnitDetail() {
+    const unit = this.runManager.roster[this.selection.index];
+    if (!unit) return;
+
     let y = 50;
     const x = DETAIL_X + 12;
-    const col2X = DETAIL_X + 220;
 
-    // --- Header ---
+    // --- Fixed Header ---
     const tierLabel = unit.tier === 'promoted' ? 'Promoted' : 'Base';
     this._text(x, y, `${unit.name}  Lv${unit.level} ${unit.className}  (${tierLabel})`, '#ffdd44', '12px');
 
@@ -208,35 +364,143 @@ export class RosterOverlay {
     }
 
     y += 18;
-
-    // XP
     if (unit.xp !== undefined) {
       this._text(x, y, `XP: ${unit.xp}/${XP_PER_LEVEL}`, '#88ccff', '10px');
       y += 14;
     }
 
-    // --- Stats (two columns) ---
-    this._text(x, y, `HP  ${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    // HP Bar
+    const barW = 180;
+    const barH = 8;
+    const ratio = unit.currentHP / unit.stats.HP;
+    const barBg = this.scene.add.rectangle(x, y + 4, barW, barH, 0x333333).setOrigin(0, 0.5).setDepth(DEPTH_TEXT);
+    const barFill = this.scene.add.rectangle(x, y + 4, barW * ratio, barH, getHPBarColor(ratio)).setOrigin(0, 0.5).setDepth(DEPTH_TEXT);
+    const hpText = this._text(x + barW + 8, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    this.detailObjects.push(barBg, barFill);
+    y += 20;
+
+    // --- Navigation Arrows ---
+    const navX = DETAIL_X + DETAIL_WIDTH - 85;
+    const navY = 50;
+    
+    // Unit navigation
+    const upArrow = this.scene.add.text(navX, navY + 6, '\u25b2', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    upArrow.on('pointerdown', () => this._cycleSelection(-1));
+    this.detailObjects.push(upArrow);
+
+    const downArrow = this.scene.add.text(navX, navY + 40, '\u25bc', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    downArrow.on('pointerdown', () => this._cycleSelection(1));
+    this.detailObjects.push(downArrow);
+
+    // --- Tab Buttons ---
+    this._drawTabButtons(x, y);
+    y += 28;
+
+    // --- Tab Content ---
+    if (this._activeTab === 'stats') {
+      this._drawStatsTab(x, y, unit);
+    } else {
+      this._drawGearTab(x, y, unit);
+    }
+
+    // --- Fixed Footer Actions ---
+    const footerY = PANEL_BOTTOM - 25;
+    if (this.runManager.roster.length > 1) {
+      this._actionBtn(x, footerY, '[ Trade ]', () => this._showTradePicker(unit), '12px');
+    }
+  }
+
+  _drawTabButtons(x, y) {
+    const tabW = 80;
+    const tabH = 18;
+    const gap = 8;
+
+    // Stats tab
+    const isStats = this._activeTab === 'stats';
+    const statsBtn = this.scene.add.rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, isStats ? 0x443300 : 0x222233)
+      .setDepth(DEPTH_TEXT).setStrokeStyle(1, isStats ? 0xffdd44 : 0x666666).setInteractive({ useHandCursor: true });
+    const statsLabel = this.scene.add.text(x + tabW / 2, y + tabH / 2, 'Stats', {
+      fontFamily: 'monospace', fontSize: '10px', color: isStats ? '#ffffff' : '#888888',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
+    statsBtn.on('pointerdown', () => { this._activeTab = 'stats'; this.drawUnitDetails(); });
+    this.detailObjects.push(statsBtn, statsLabel);
+
+    // Gear tab
+    const gx = x + tabW + gap;
+    const isGear = this._activeTab === 'gear';
+    const gearBtn = this.scene.add.rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, isGear ? 0x443300 : 0x222233)
+      .setDepth(DEPTH_TEXT).setStrokeStyle(1, isGear ? 0xffdd44 : 0x666666).setInteractive({ useHandCursor: true });
+    const gearLabel = this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
+      fontFamily: 'monospace', fontSize: '10px', color: isGear ? '#ffffff' : '#888888',
+    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
+    gearBtn.on('pointerdown', () => { this._activeTab = 'gear'; this.drawUnitDetails(); });
+    this.detailObjects.push(gearBtn, gearLabel);
+
+    // Tab cycle arrows (visible hint)
+    this._text(gx + tabW + gap + 4, y + 4, '\u25c4 \u25ba', UI_COLORS.gray, '10px');
+  }
+
+  _drawStatsTab(x, y, unit) {
+    const col2X = x + 160;
+
+    // Stats
+    this._text(x, y, '\u2500\u2500 Attributes \u2500\u2500', '#888888', '10px');
+    y += 14;
+
     const leftStats = ['STR', 'MAG', 'SKL', 'SPD'];
     const rightStats = ['DEF', 'RES', 'LCK', 'MOV'];
-    y += 14;
     for (let s = 0; s < leftStats.length; s++) {
       const ls = leftStats[s];
       const rs = rightStats[s];
       const lVal = ls === 'MOV' ? (unit.mov || unit.stats.MOV) : unit.stats[ls];
       const rVal = rs === 'MOV' ? (unit.mov || unit.stats.MOV) : unit.stats[rs];
       this._text(x, y, `${ls.padEnd(4)}${String(lVal).padStart(3)}`, STAT_COLORS[ls], '10px');
-      this._text(x + 90, y, `${rs.padEnd(4)}${String(rVal).padStart(3)}`, STAT_COLORS[rs], '10px');
+      this._text(col2X, y, `${rs.padEnd(4)}${String(rVal).padStart(3)}`, STAT_COLORS[rs], '10px');
       y += 13;
     }
 
-    // --- Inventory ---
-    y += 4;
-    this._text(x, y, '\u2500\u2500 Inventory \u2500\u2500', '#888888', '10px');
+    // Effective Stats
+    y += 6;
+    const combat = getStaticCombatStats(unit, unit.weapon);
+    this._text(x, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
+    this._text(col2X, y, `AS  ${String(combat.as).padStart(3)}`, (combat.as < unit.stats.SPD ? '#ff6666' : '#ffffff'), '10px');
+    y += 16;
+
+    // Proficiencies
+    this._text(x, y, '\u2500\u2500 Proficiencies \u2500\u2500', '#888888', '10px');
+    y += 14;
+    if (unit.proficiencies && unit.proficiencies.length > 0) {
+      const profStr = unit.proficiencies.map(p => `${p.type}(${p.rank[0]})`).join('  ');
+      this._text(x, y, profStr, '#aaaacc', '10px');
+      y += 16;
+    } else {
+      this._text(x, y, '(none)', '#888888', '10px');
+      y += 16;
+    }
+
+    // Growths
+    if (unit.faction !== 'enemy' && unit.growths) {
+      this._text(x, y, '\u2500\u2500 Growths \u2500\u2500', '#888888', '10px');
+      y += 14;
+      const growthPairs = XP_STAT_NAMES.map(s => `${s}:${unit.growths[s] || 0}`);
+      for (let i = 0; i < growthPairs.length; i += 4) {
+        this._text(x, y, growthPairs.slice(i, i + 4).join('  '), '#888888', '9px');
+        y += 12;
+      }
+    }
+  }
+
+  _drawGearTab(x, y, unit) {
+    // Inventory
+    this._text(x, y, '\u2500\u2500 Equipment \u2500\u2500', '#888888', '10px');
     y += 14;
 
     if (unit.inventory.length === 0) {
-      this._text(x, y, '(empty)', '#888888', '10px');
+      this._text(x + 8, y, '(empty)', '#888888', '10px');
       y += 14;
     } else {
       for (const item of unit.inventory) {
@@ -252,28 +516,21 @@ export class RosterOverlay {
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          label = `${marker}${item.name}  Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`;
+          label = `${marker}${item.name} Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`;
         } else {
           label = `${marker}${item.name}`;
         }
 
         const color = isForged(item) ? '#44ff88' : '#e0e0e0';
-        const weaponText = this._text(x, y, label, color, '10px');
-
-        // Add tooltip for weapon specials
+        const weaponText = this._text(x, y, label, color, '9px');
         if (item.special) {
           weaponText.setInteractive({ useHandCursor: true });
-          weaponText.on('pointerover', () => {
-            this._showWeaponSpecialTooltip(item, weaponText);
-          });
-          weaponText.on('pointerout', () => {
-            this._hideWeaponSpecialTooltip();
-          });
+          weaponText.on('pointerover', () => this._showWeaponSpecialTooltip(item, weaponText));
+          weaponText.on('pointerout', () => this._hideWeaponSpecialTooltip());
         }
 
-        // Equip weapon button (if not already equipped)
-        const btnX = x + 250;
-        const storeX = x + 318;
+        const btnX = x + 280;
+        const storeX = x + 340;
         if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
             equipWeapon(unit, item);
@@ -287,29 +544,24 @@ export class RosterOverlay {
             this.refresh();
           });
         }
-
-        y += 14;
+        y += 13;
       }
     }
 
-    // --- Consumables ---
+    // Consumables
     y += 4;
     this._text(x, y, '\u2500\u2500 Consumables \u2500\u2500', '#888888', '10px');
     y += 14;
 
     const consumables = unit.consumables || [];
     if (consumables.length === 0) {
-      this._text(x, y, '(empty)', '#888888', '10px');
+      this._text(x + 8, y, '(empty)', '#888888', '10px');
       y += 14;
     } else {
       for (const item of consumables) {
-        const marker = '  ';
-        const label = `${marker}${item.name} (${item.uses})`;
-        this._text(x, y, label, '#88ff88', '10px');
-
-        // Action buttons
-        const btnX = x + 250;
-        const storeX = x + 318;
+        this._text(x + 8, y, `${item.name} (${item.uses})`, '#88ff88', '9px');
+        const btnX = x + 280;
+        const storeX = x + 340;
         if (item.effect === 'heal' || item.effect === 'healFull') {
           if (unit.currentHP < unit.stats.HP) {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
@@ -326,163 +578,29 @@ export class RosterOverlay {
             this.refresh();
           });
         }
-
-        y += 14;
+        y += 13;
       }
     }
 
-    // --- Convoy ---
-    y += 4;
-    this._text(x, y, '\u2500\u2500 Convoy \u2500\u2500', '#888888', '10px');
-    y += 14;
-    const convoyCaps = this.runManager.getConvoyCapacities();
-    const convoyCounts = this.runManager.getConvoyCounts();
-    const convoyItems = this.runManager.getConvoyItems();
-    this._text(x, y, `Weapons ${convoyCounts.weapons}/${convoyCaps.weapons}  Consumables ${convoyCounts.consumables}/${convoyCaps.consumables}`, '#88ccff', '10px');
-    y += 14;
-
-    const convoyPreviewMax = 4;
-    const convoyWeapons = convoyItems.weapons;
-    if (convoyWeapons.length > 0) {
-      this._text(x, y, 'Weapons:', '#888888', '10px');
-      y += 13;
-      for (let i = 0; i < Math.min(convoyWeapons.length, convoyPreviewMax); i++) {
-        const item = convoyWeapons[i];
-        this._text(x + 8, y, item.name, '#aaccff', '10px');
-        if ((unit.inventory?.length || 0) < INVENTORY_MAX) {
-          this._actionBtn(x + 250, y, '[Take]', () => {
-            const pulled = this.runManager.takeFromConvoy('weapon', i);
-            if (!pulled) return;
-            addToInventory(unit, pulled);
-            this.refresh();
-          });
-        } else {
-          this._text(x + 250, y, '(full)', '#666666', '10px');
-        }
-        y += 13;
-      }
-      if (convoyWeapons.length > convoyPreviewMax) {
-        this._text(x + 8, y, `... +${convoyWeapons.length - convoyPreviewMax} more`, '#666666', '10px');
-        y += 13;
-      }
-    } else {
-      this._text(x, y, '(no convoy weapons)', '#888888', '10px');
-      y += 14;
-    }
-
-    const convoyConsumables = convoyItems.consumables;
-    if (convoyConsumables.length > 0) {
-      this._text(x, y, 'Consumables:', '#888888', '10px');
-      y += 13;
-      for (let i = 0; i < Math.min(convoyConsumables.length, convoyPreviewMax); i++) {
-        const item = convoyConsumables[i];
-        this._text(x + 8, y, `${item.name} (${item.uses})`, '#88ffcc', '10px');
-        if ((unit.consumables?.length || 0) < CONSUMABLE_MAX) {
-          this._actionBtn(x + 250, y, '[Take]', () => {
-            const pulled = this.runManager.takeFromConvoy('consumable', i);
-            if (!pulled) return;
-            addToConsumables(unit, pulled);
-            this.refresh();
-          });
-        } else {
-          this._text(x + 250, y, '(full)', '#666666', '10px');
-        }
-        y += 13;
-      }
-      if (convoyConsumables.length > convoyPreviewMax) {
-        this._text(x + 8, y, `... +${convoyConsumables.length - convoyPreviewMax} more`, '#666666', '10px');
-        y += 13;
-      }
-    } else {
-      this._text(x, y, '(no convoy consumables)', '#888888', '10px');
-      y += 14;
-    }
-
-    // --- Team Scrolls ---
-    y += 4;
-    this._text(x, y, '\u2500\u2500 Team Scrolls \u2500\u2500', '#888888', '10px');
-    y += 14;
-
-    const scrollPool = this.runManager.scrolls || [];
-    if (scrollPool.length === 0) {
-      this._text(x, y, '(no scrolls)', '#888888', '10px');
-      y += 14;
-    } else {
-      for (const scroll of scrollPool) {
-        this._text(x, y, scroll.name, '#88ffff', '10px');
-
-        // Check if unit can learn
-        const canLearn = unit.skills.length < MAX_SKILLS
-          && !unit.skills.includes(scroll.skillId);
-
-        const btnX = x + 250;
-        if (canLearn) {
-          this._actionBtn(btnX, y, '[Teach]', () => this._teachScroll(unit, scroll));
-        } else {
-          const reason = unit.skills.length >= MAX_SKILLS ? '(cap)' : '(known)';
-          this._text(btnX, y, reason, '#888888', '10px');
-        }
-        y += 14;
-      }
-    }
-
-    // --- Accessory ---
+    // Accessory
     y += 4;
     this._text(x, y, '\u2500\u2500 Accessory \u2500\u2500', '#888888', '10px');
     y += 14;
-
     if (unit.accessory) {
-      const fx = Object.entries(unit.accessory.effects || {}).filter(([, v]) => v).map(([k, v]) => `${k}+${v}`).join(' ');
-      const ce = unit.accessory.combatEffects;
-      let ceDesc = '';
-      if (ce) {
-        const parts = [];
-        if (ce.critBonus) parts.push(`Crit+${ce.critBonus}`);
-        if (ce.atkBonus) parts.push(`Atk+${ce.atkBonus}`);
-        if (ce.defBonus) parts.push(`Def+${ce.defBonus}`);
-        if (ce.preventEnemyDouble) parts.push('No double');
-        if (ce.doubleThresholdReduction) parts.push(`Dbl-${ce.doubleThresholdReduction}`);
-        if (ce.negateEffectiveness) parts.push('Negate eff.');
-        if (ce.avoidBonus) parts.push(`Avo+${ce.avoidBonus}`);
-        if (ce.condition) parts.push(`(${ce.condition.replace('_', ' ')})`);
-        ceDesc = parts.join(' ');
-      }
-      const desc = [fx, ceDesc].filter(Boolean).join(' ');
-      this._text(x, y, `${unit.accessory.name} (${desc})`, '#cc88ff', '10px');
-      this._actionBtn(x + 250, y, '[Unequip]', () => {
+      const acc = unit.accessory;
+      this._text(x + 8, y, acc.name, '#cc88ff', '9px');
+      this._actionBtn(x + 280, y, '[Unequip]', () => {
         const old = unequipAccessory(unit);
         if (old) this.runManager.accessories.push(old);
         this.refresh();
       });
-      y += 14;
-    } else {
-      this._text(x, y, '(none)', '#888888', '10px');
-      y += 14;
-    }
-
-    // Team pool
-    const pool = this.runManager.accessories || [];
-    if (pool.length > 0) {
-      this._text(x, y, 'Pool:', '#888888', '10px');
       y += 13;
-      for (let a = 0; a < pool.length; a++) {
-        const acc = pool[a];
-        const fx = Object.entries(acc.effects || {}).map(([k, v]) => `${k}+${v}`).join(' ');
-        this._text(x + 8, y, `${acc.name} (${fx})`, '#aa88cc', '10px');
-        this._actionBtn(x + 250, y, '[Equip]', () => {
-          const old = equipAccessory(unit, acc);
-          // Remove from pool
-          const idx = this.runManager.accessories.indexOf(acc);
-          if (idx !== -1) this.runManager.accessories.splice(idx, 1);
-          // Return old to pool
-          if (old) this.runManager.accessories.push(old);
-          this.refresh();
-        });
-        y += 13;
-      }
+    } else {
+      this._text(x + 8, y, '(none)', '#888888', '10px');
+      y += 14;
     }
 
-    // --- Skills ---
+    // Skills
     if (unit.skills && unit.skills.length > 0) {
       y += 4;
       this._text(x, y, `\u2500\u2500 Skills (${unit.skills.length}/${MAX_SKILLS}) \u2500\u2500`, '#888888', '10px');
@@ -490,35 +608,95 @@ export class RosterOverlay {
       for (const sid of unit.skills) {
         const skillData = this.gameData.skills?.find(s => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
-        const skillText = this._text(x + 4, y, name, '#88ffff', '10px');
+        const skillText = this._text(x + 8, y, name, '#88ffff', '9px');
         if (skillData?.description) {
           skillText.setInteractive({ useHandCursor: true });
-          skillText.on('pointerover', () => {
-            this._showSkillTooltip(skillText, skillData.description);
-          });
+          skillText.on('pointerover', () => this._showSkillTooltip(skillText, skillData.description));
           skillText.on('pointerout', () => this._hideSkillTooltip());
         }
-        y += 13;
+        y += 12;
       }
     }
+  }
 
-    // --- Growths (player only) ---
-    if (unit.faction !== 'enemy' && unit.growths) {
-      y += 4;
-      this._text(x, y, '\u2500\u2500 Growths \u2500\u2500', '#888888', '10px');
-      y += 14;
-      const growthPairs = XP_STAT_NAMES.map(s => `${s}:${unit.growths[s] || 0}`);
-      // Show 4 per line
-      for (let i = 0; i < growthPairs.length; i += 4) {
-        this._text(x + 4, y, growthPairs.slice(i, i + 4).join('  '), '#888888', '10px');
-        y += 13;
-      }
+  _drawConvoyDetail() {
+    let y = 50;
+    const x = DETAIL_X + 12;
+
+    this._text(x, y, 'Convoy Management', '#ffdd44', '14px');
+    y += 24;
+
+    const caps = this.runManager.getConvoyCapacities();
+    const counts = this.runManager.getConvoyCounts();
+    const items = this.runManager.getConvoyItems();
+    this._text(x, y, `Weapons: ${counts.weapons}/${caps.weapons}  Consumables: ${counts.consumables}/${caps.consumables}`, '#88ccff', '10px');
+    y += 24;
+
+    const roster = this.runManager.roster;
+    if (!roster || roster.length === 0) {
+      this._text(x, y, 'Withdrawing to: (no units)', '#666666', '10px');
+      y += 20;
+      this._text(x, y, 'No roster units available for withdraw.', '#888888', '10px');
+      this._convoyScrollMax = 0;
+      return;
     }
 
-    // --- Trade button ---
-    y += 8;
-    if (this.runManager.roster.length > 1) {
-      this._actionBtn(x, y, '[ Trade ]', () => this._showTradePicker(unit), '12px');
+    this._targetUnitIndex = this._clamp(this._targetUnitIndex, 0, roster.length - 1);
+    const targetUnit = roster[this._targetUnitIndex];
+    this._text(x, y, `Withdrawing to: ${targetUnit.name}`, '#aaaaaa', '10px');
+    if (roster.length > 1) {
+      this._actionBtn(x + 250, y, '[ Change ]', () => {
+        this.showUnitPicker((idx) => {
+          this._targetUnitIndex = idx;
+          this.drawUnitDetails();
+        });
+      });
+    }
+    y += 20;
+
+    const startY = y;
+    const itemH = 18;
+    const totalItems = items.weapons.length + items.consumables.length + (items.weapons.length > 0 ? 1 : 0) + (items.consumables.length > 0 ? 1 : 0);
+    const visibleH = PANEL_BOTTOM - y - 40;
+    this._convoyScrollMax = Math.max(0, (totalItems * itemH) - visibleH);
+
+    let rowY = startY - this._convoyScrollOffset;
+
+    const drawItem = (item, type, idx) => {
+      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) {
+        const color = type === 'weapon' ? (isForged(item) ? '#44ff88' : '#aaccff') : '#88ffcc';
+        this._text(x + 8, rowY, item.name, color, '10px');
+        
+        const isFull = type === 'weapon' ? (targetUnit.inventory.length >= INVENTORY_MAX) : (targetUnit.consumables.length >= CONSUMABLE_MAX);
+        if (isFull) {
+          this._text(x + 250, rowY, '(unit full)', '#666666', '10px');
+        } else {
+          this._actionBtn(x + 250, rowY, '[ Withdraw ]', () => {
+            const pulled = this.runManager.takeFromConvoy(type, idx);
+            if (!pulled) return;
+            if (type === 'weapon') addToInventory(targetUnit, pulled);
+            else addToConsumables(targetUnit, pulled);
+            this.drawUnitDetails();
+          });
+        }
+      }
+      rowY += itemH;
+    };
+
+    if (items.weapons.length > 0) {
+      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) this._text(x, rowY, 'Weapons:', '#888888', '10px');
+      rowY += itemH;
+      items.weapons.forEach((wpn, i) => drawItem(wpn, 'weapon', i));
+    }
+    if (items.consumables.length > 0) {
+      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) this._text(x, rowY, 'Consumables:', '#888888', '10px');
+      rowY += itemH;
+      items.consumables.forEach((item, i) => drawItem(item, 'consumable', i));
+    }
+
+    if (this._convoyScrollMax > 0) {
+      const pct = Math.round((this._convoyScrollOffset / this._convoyScrollMax) * 100);
+      this._text(x + DETAIL_WIDTH - 60, PANEL_BOTTOM - 25, `${pct}%`, '#888888', '10px');
     }
   }
 
@@ -625,13 +803,13 @@ export class RosterOverlay {
     this._destroyTrade();
 
     const roster = this.runManager.roster;
-    const targets = roster.filter((_, i) => i !== this.selectedIndex);
+    const targets = roster.filter((_, i) => i !== this.selection.index);
     const cx = 320;
     const itemH = 28;
     const titleH = 30;
     const pad = 12;
     const totalH = titleH + targets.length * itemH + itemH + pad; // title + targets + cancel + padding
-    const cy = 200;
+    const cy = 240;
     const topY = cy - totalH / 2;
 
     const pickerBg = this.scene.add.rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
@@ -662,6 +840,54 @@ export class RosterOverlay {
 
     // Cancel
     const cancelY = topY + titleH + targets.length * itemH + pad;
+    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerdown', () => this._destroyTrade());
+    this.tradeObjects.push(cancelBtn);
+  }
+
+  showUnitPicker(onSelect) {
+    this._destroyTrade();
+
+    const roster = this.runManager.roster;
+    const cx = 320;
+    const itemH = 28;
+    const titleH = 30;
+    const pad = 12;
+    const totalH = titleH + roster.length * itemH + itemH + pad;
+    const cy = 240;
+    const topY = cy - totalH / 2;
+
+    const pickerBg = this.scene.add.rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    this.tradeObjects.push(pickerBg);
+
+    const pickerTitle = this.scene.add.text(cx, topY + pad, 'Select Unit:', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(pickerTitle);
+
+    roster.forEach((unit, i) => {
+      const y = topY + titleH + i * itemH + pad;
+      const btn = this.scene.add.text(cx, y, unit.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+        backgroundColor: '#444444', padding: { x: 12, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerdown', () => {
+        this._destroyTrade();
+        onSelect(i);
+      });
+      this.tradeObjects.push(btn);
+    });
+
+    const cancelY = topY + titleH + roster.length * itemH + pad;
     const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888',
       backgroundColor: '#333333', padding: { x: 10, y: 3 },
