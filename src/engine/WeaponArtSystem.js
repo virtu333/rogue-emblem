@@ -1,6 +1,8 @@
 // WeaponArtSystem.js - Weapon Art gating, usage tracking, and combat mod helpers
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
+const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
+const VALID_OWNER_SCOPES = new Set(['player', 'enemy', 'npc', 'any']);
 
 function toFiniteNumber(value, fallback = 0) {
   const n = Number(value);
@@ -9,6 +11,72 @@ function toFiniteNumber(value, fallback = 0) {
 
 function getRequiredRank(art) {
   return art?.requiredRank || 'Prof';
+}
+
+function toNonEmptyString(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeStringList(value) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) return undefined;
+  const out = value
+    .map(toNonEmptyString)
+    .filter(Boolean);
+  return [...new Set(out)];
+}
+
+function getFactionFromContext(unit, context = {}) {
+  return toNonEmptyString(context.actorFaction) || toNonEmptyString(unit?.faction);
+}
+
+function normalizeAllowedScopes(art) {
+  const raw = art?.allowedOwners ?? art?.owner ?? null;
+  if (raw === null) return null;
+  if (typeof raw === 'string') {
+    const scope = toNonEmptyString(raw)?.toLowerCase();
+    return scope ? [scope] : undefined;
+  }
+  const list = normalizeStringList(raw);
+  if (list === null) return null;
+  if (list === undefined) return undefined;
+  return list.map((v) => v.toLowerCase());
+}
+
+function normalizeAllowedFactions(art) {
+  const raw = art?.allowedFactions ?? art?.faction ?? null;
+  if (raw === null) return null;
+  if (typeof raw === 'string') {
+    const faction = toNonEmptyString(raw)?.toLowerCase();
+    return faction ? [faction] : undefined;
+  }
+  const list = normalizeStringList(raw);
+  if (list === null) return null;
+  if (list === undefined) return undefined;
+  return list.map((v) => v.toLowerCase());
+}
+
+function validateArtConstraintConfig(art) {
+  const owners = normalizeAllowedScopes(art);
+  if (owners === undefined) return { ok: false, reason: 'invalid_owner_scope_config' };
+  if (owners && owners.some((v) => !VALID_OWNER_SCOPES.has(v))) {
+    return { ok: false, reason: 'invalid_owner_scope_config' };
+  }
+
+  const factions = normalizeAllowedFactions(art);
+  if (factions === undefined) return { ok: false, reason: 'invalid_faction_config' };
+  if (factions && factions.some((v) => !VALID_FACTIONS.has(v))) {
+    return { ok: false, reason: 'invalid_faction_config' };
+  }
+
+  const legendaryIds = normalizeStringList(art?.legendaryWeaponIds);
+  if (art?.legendaryWeaponIds !== undefined && legendaryIds === undefined) {
+    return { ok: false, reason: 'invalid_legendary_weapon_ids_config' };
+  }
+
+  return { ok: true, owners, factions, legendaryIds };
 }
 
 function getUnitRankForType(unit, weaponType) {
@@ -62,6 +130,26 @@ export function getWeaponArtCombatMods(art) {
 
 export function canUseWeaponArt(unit, weapon, art, context = {}) {
   if (!unit || !weapon || !art) return { ok: false, reason: 'invalid_input' };
+  const config = validateArtConstraintConfig(art);
+  if (!config.ok) return { ok: false, reason: config.reason };
+
+  const actorFaction = getFactionFromContext(unit, context)?.toLowerCase() || null;
+  if (config.owners && !config.owners.includes('any')) {
+    if (!actorFaction || !config.owners.includes(actorFaction)) {
+      return { ok: false, reason: 'owner_scope_mismatch' };
+    }
+  }
+  if (config.factions) {
+    if (!actorFaction || !config.factions.includes(actorFaction)) {
+      return { ok: false, reason: 'faction_mismatch' };
+    }
+  }
+  if (Array.isArray(config.legendaryIds) && config.legendaryIds.length > 0) {
+    const weaponToken = toNonEmptyString(weapon?.id) || toNonEmptyString(weapon?.name);
+    if (!weaponToken || !config.legendaryIds.includes(weaponToken)) {
+      return { ok: false, reason: 'legendary_weapon_required' };
+    }
+  }
 
   const artWeaponType = art.weaponType;
   if (!artWeaponType || weapon.type !== artWeaponType) {
@@ -78,10 +166,24 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     return { ok: false, reason: 'initiation_only' };
   }
 
+  if (context.isAI && art.aiEnabled === false) {
+    return { ok: false, reason: 'ai_disabled' };
+  }
+
   const hpCost = Math.max(0, toFiniteNumber(art.hpCost, 0));
+  const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
+  const maxHp = Math.max(0, toFiniteNumber(unit?.stats?.HP, hp));
   if (hpCost > 0) {
-    const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
     if (hp <= hpCost) return { ok: false, reason: 'insufficient_hp' };
+  }
+  if (context.isAI) {
+    const defaultMinHpAfterCost = Math.max(2, Math.ceil(maxHp * 0.25));
+    const minHp = Math.max(
+      defaultMinHpAfterCost,
+      Math.trunc(toFiniteNumber(art.aiMinHpAfterCost, 0)),
+      Math.ceil(maxHp * Math.max(0, toFiniteNumber(art.aiMinHpAfterCostPercent, 0)))
+    );
+    if ((hp - hpCost) < minHp) return { ok: false, reason: 'ai_hp_floor' };
   }
 
   const mapLimit = Math.max(0, Math.trunc(toFiniteNumber(art.perMapLimit, 0)));
@@ -90,8 +192,10 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   }
 
   const turnLimit = Math.max(0, Math.trunc(toFiniteNumber(art.perTurnLimit, 0)));
+  const aiTurnLimit = context.isAI ? Math.max(0, Math.trunc(toFiniteNumber(art.aiPerTurnLimit, 0))) : 0;
+  const effectiveTurnLimit = aiTurnLimit > 0 ? (turnLimit > 0 ? Math.min(turnLimit, aiTurnLimit) : aiTurnLimit) : turnLimit;
   const turnKey = getTurnKey(context);
-  if (turnLimit > 0 && turnKey && getTurnCount(unit, art.id, turnKey) >= turnLimit) {
+  if (effectiveTurnLimit > 0 && turnKey && getTurnCount(unit, art.id, turnKey) >= effectiveTurnLimit) {
     return { ok: false, reason: 'per_turn_limit' };
   }
 
@@ -127,4 +231,3 @@ export function resetWeaponArtTurnUsage(unit, context = {}) {
   usage.turn = {};
   usage.turnKey = getTurnKey(context);
 }
-

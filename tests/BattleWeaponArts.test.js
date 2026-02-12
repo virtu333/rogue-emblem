@@ -246,4 +246,154 @@ describe('BattleScene weapon art helpers', () => {
     expect(attacker._battleWeaponArtUsage?.map?.[art.id]).toBe(1);
     expect(attacker._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
   });
+
+  it('selects a legal enemy weapon art using AI constraints', () => {
+    const scene = new BattleScene();
+    const legal = makeArt({
+      id: 'enemy_legal',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+      aiMinHpAfterCostPercent: 0.25,
+    });
+    const blocked = makeArt({
+      id: 'enemy_blocked',
+      hpCost: 8,
+      combatMods: { atkBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+      aiMinHpAfterCostPercent: 0.5,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 10,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [blocked, legal] } };
+
+    const picked = scene._selectEnemyWeaponArt(enemy, target);
+
+    expect(picked?.id).toBe('enemy_legal');
+  });
+
+  it('shows legendary-bound art only while matching weapon is equipped', () => {
+    const scene = new BattleScene();
+    const legendaryArt = makeArt({
+      id: 'legend_gemini_tempest',
+      name: 'Gemini Tempest',
+      requiredRank: 'Mast',
+      legendaryWeaponIds: ['Gemini'],
+      combatMods: { atkBonus: 5, hitBonus: 15 },
+    });
+    const unit = makeUnit({
+      currentHP: 20,
+      proficiencies: [{ type: 'Sword', rank: 'Mast' }],
+      weapon: { type: 'Sword', name: 'Gemini' },
+    });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legendaryArt] } };
+    scene.runManager = { getUnlockedWeaponArtIds: () => [] };
+
+    const withLegendary = scene._getWeaponArtChoices(unit, unit.weapon);
+    expect(withLegendary).toHaveLength(1);
+    expect(withLegendary[0].canUse).toBe(true);
+
+    unit.weapon = { type: 'Sword', name: 'Iron Sword' };
+    const withIron = scene._getWeaponArtChoices(unit, unit.weapon);
+    expect(withIron).toHaveLength(0);
+  });
+
+  it('prevents enemy from selecting player-only legendary arts', () => {
+    const scene = new BattleScene();
+    const legendaryArt = makeArt({
+      id: 'legend_gemini_tempest',
+      name: 'Gemini Tempest',
+      requiredRank: 'Mast',
+      allowedFactions: ['player'],
+      legendaryWeaponIds: ['Gemini'],
+      combatMods: { atkBonus: 5, hitBonus: 15 },
+    });
+    const enemy = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      currentHP: 20,
+      stats: { HP: 24 },
+      proficiencies: [{ type: 'Sword', rank: 'Mast' }],
+      weapon: { type: 'Sword', name: 'Gemini' },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legendaryArt] } };
+
+    const picked = scene._selectEnemyWeaponArt(enemy, target);
+    expect(picked).toBeNull();
+  });
+
+  it('consumes HP and records usage on enemy execute when art is selected', async () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'enemy_art',
+      hpCost: 2,
+      combatMods: { atkBonus: 5, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+      aiMinHpAfterCostPercent: 0.25,
+    });
+    const enemy = {
+      name: 'Bandit',
+      faction: 'enemy',
+      col: 0,
+      row: 0,
+      currentHP: 12,
+      stats: { HP: 20, STR: 9, MAG: 0, SKL: 7, SPD: 7, DEF: 6, RES: 2, LCK: 3 },
+      weaponRank: 'Prof',
+      weapon: { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '' },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+    };
+    const target = {
+      name: 'Edric',
+      faction: 'player',
+      col: 1,
+      row: 0,
+      currentHP: 20,
+      stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
+      weaponRank: 'Prof',
+      weapon: null,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+    };
+
+    scene.gameData = { skills: [], affixes: [], weaponArts: { arts: [art] } };
+    scene.turnManager = { turnNumber: 2, currentPhase: 'enemy' };
+    scene.playerUnits = [target];
+    scene.enemyUnits = [enemy];
+    scene.npcUnits = [];
+    scene.grid = {
+      getTerrainAt() { return {}; },
+    };
+    scene.resetFortHealStreak = () => {};
+    scene.buildSkillCtx = vi.fn(() => ({}));
+    scene.animateSkillActivation = vi.fn(async () => {});
+    scene.animateStrike = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.applyOnAttackAffixes = vi.fn(async () => {});
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.awardXP = vi.fn(async () => {});
+    scene.removeUnit = vi.fn(async () => {});
+    scene.checkBattleEnd = vi.fn(() => false);
+
+    await BattleScene.prototype.executeEnemyCombat.call(scene, enemy, target);
+
+    expect(enemy.currentHP).toBe(10);
+    expect(enemy._battleWeaponArtUsage?.map?.[art.id]).toBe(1);
+    expect(enemy._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
+    expect(scene.buildSkillCtx).toHaveBeenCalledWith(enemy, target, expect.objectContaining({ id: art.id }));
+  });
 });

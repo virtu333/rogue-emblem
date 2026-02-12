@@ -96,6 +96,63 @@
           }
         ]
       }
+    },
+    {
+      "id": "legend_gemini_tempest",
+      "name": "Gemini Tempest",
+      "weaponType": "Sword",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A legendary multi-hit cut tuned for Gemini.",
+      "allowedFactions": [
+        "player"
+      ],
+      "legendaryWeaponIds": [
+        "Gemini"
+      ],
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 15,
+        "critBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Gemini Tempest"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legend_starfall_volley",
+      "name": "Starfall Volley",
+      "weaponType": "Bow",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A legendary burst shot bound to Starfall.",
+      "allowedFactions": [
+        "player"
+      ],
+      "legendaryWeaponIds": [
+        "Starfall"
+      ],
+      "combatMods": {
+        "hitBonus": 20,
+        "critBonus": 15,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Starfall Volley"
+          }
+        ]
+      }
     }
   ]
 }

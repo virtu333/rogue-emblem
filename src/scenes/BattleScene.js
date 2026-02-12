@@ -3759,8 +3759,9 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  _getWeaponArtCatalog() {
+  _getWeaponArtCatalog(options = {}) {
     const arts = this.gameData?.weaponArts?.arts || [];
+    if (options?.ignoreUnlocks) return arts;
     const hasRunManager = !!this.runManager;
     const fromRun = this.runManager?.getUnlockedWeaponArts?.(arts);
     if (Array.isArray(fromRun)) return fromRun;
@@ -3771,6 +3772,24 @@ export class BattleScene extends Phaser.Scene {
     }
     if (hasRunManager) return [];
     return arts;
+  }
+
+  _getAvailableWeaponArtCatalogForUnit(unit, options = {}) {
+    const base = this._getWeaponArtCatalog(options);
+    if (!unit?.weapon) return base;
+    const allArts = this.gameData?.weaponArts?.arts || [];
+    const weaponToken = unit.weapon?.id || unit.weapon?.name || null;
+    if (!weaponToken) return base;
+    const legendaryBound = allArts.filter((art) =>
+      Array.isArray(art?.legendaryWeaponIds)
+      && art.legendaryWeaponIds.includes(weaponToken)
+    );
+    if (legendaryBound.length <= 0) return base;
+    const byId = new Map();
+    for (const art of [...base, ...legendaryBound]) {
+      if (art?.id) byId.set(art.id, art);
+    }
+    return [...byId.values()];
   }
 
   _getWeaponArtHpAfterCost(unit, art) {
@@ -3795,7 +3814,7 @@ export class BattleScene extends Phaser.Scene {
   _getSelectedWeaponArtForUnit(unit, context = {}) {
     const selected = this._selectedWeaponArt;
     if (!unit || !selected || selected.unitName !== unit.name) return null;
-    const art = this._getWeaponArtCatalog().find(a => a.id === selected.artId);
+    const art = this._getAvailableWeaponArtCatalogForUnit(unit).find(a => a.id === selected.artId);
     if (!art) return null;
     const valid = canUseWeaponArt(unit, unit.weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
@@ -3807,7 +3826,7 @@ export class BattleScene extends Phaser.Scene {
 
   _clearSelectedWeaponArtIfInvalid(unit, context = {}) {
     if (!this._selectedWeaponArt || !unit || this._selectedWeaponArt.unitName !== unit.name) return;
-    const art = this._getWeaponArtCatalog().find(a => a.id === this._selectedWeaponArt.artId);
+    const art = this._getAvailableWeaponArtCatalogForUnit(unit).find(a => a.id === this._selectedWeaponArt.artId);
     if (!art) {
       this._clearSelectedWeaponArt();
       return;
@@ -3820,19 +3839,59 @@ export class BattleScene extends Phaser.Scene {
     if (!valid.ok) this._clearSelectedWeaponArt();
   }
 
-  _getWeaponArtChoices(unit, weapon = null, context = {}) {
+  _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
     if (!unit) return [];
     const activeWeapon = weapon || unit.weapon;
     if (!activeWeapon) return [];
-    const arts = this._getWeaponArtCatalog().filter(a => a.weaponType === activeWeapon.type);
+    const arts = this._getAvailableWeaponArtCatalogForUnit(
+      { ...unit, weapon: activeWeapon },
+      options
+    ).filter(a => a.weaponType === activeWeapon.type);
     return arts.map((art) => {
       const check = canUseWeaponArt(unit, activeWeapon, art, {
         turnNumber: this.turnManager?.turnNumber,
         isInitiating: true,
+        actorFaction: unit.faction,
         ...context,
       });
       return { art, canUse: check.ok, reason: check.reason };
     });
+  }
+
+  _scoreEnemyWeaponArt(art) {
+    const mods = getWeaponArtCombatMods(art);
+    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    return (
+      (mods.atkBonus * 3)
+      + (mods.hitBonus * 0.35)
+      + (mods.critBonus * 0.25)
+      + (mods.spdBonus * 0.5)
+      + (mods.avoidBonus * 0.15)
+      + (mods.defBonus * 0.1)
+      - (hpCost * 0.75)
+    );
+  }
+
+  _selectEnemyWeaponArt(unit, target) {
+    if (!unit?.weapon) return null;
+    const choices = this._getWeaponArtChoices(unit, unit.weapon, {
+      isAI: true,
+      isInitiating: true,
+      actorFaction: unit.faction,
+      targetFaction: target?.faction,
+    }, { ignoreUnlocks: true }).filter((entry) => entry.canUse);
+    if (choices.length <= 0) return null;
+    let best = null;
+    let bestScore = -Infinity;
+    for (const choice of choices) {
+      const score = this._scoreEnemyWeaponArt(choice.art);
+      if (score <= 0) continue;
+      if (score > bestScore) {
+        bestScore = score;
+        best = choice.art;
+      }
+    }
+    return best;
   }
 
   _weaponArtReasonLabel(reason) {
@@ -3844,6 +3903,14 @@ export class BattleScene extends Phaser.Scene {
       case 'wrong_weapon_type': return 'Wrong weapon type';
       case 'no_proficiency': return 'No proficiency';
       case 'initiation_only': return 'Player phase only';
+      case 'owner_scope_mismatch': return 'Unavailable';
+      case 'faction_mismatch': return 'Unavailable';
+      case 'legendary_weapon_required': return 'Legendary weapon required';
+      case 'ai_disabled': return 'Unavailable';
+      case 'ai_hp_floor': return 'Unavailable';
+      case 'invalid_owner_scope_config': return 'Unavailable';
+      case 'invalid_faction_config': return 'Unavailable';
+      case 'invalid_legendary_weapon_ids_config': return 'Unavailable';
       default: return 'Unavailable';
     }
   }
@@ -5019,7 +5086,13 @@ export class BattleScene extends Phaser.Scene {
     const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
     const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
     const defTerrain = this.grid.getTerrainAt(target.col, target.row);
-    const skillCtx = this.buildSkillCtx(enemy, target);
+    const selectedArt = this._selectEnemyWeaponArt(enemy, target);
+    if (selectedArt) {
+      applyWeaponArtCost(enemy, selectedArt);
+      recordWeaponArtUse(enemy, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+      this.updateHPBar(enemy);
+    }
+    const skillCtx = this.buildSkillCtx(enemy, target, selectedArt);
 
     const result = resolveCombat(
       enemy, enemy.weapon,

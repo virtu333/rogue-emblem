@@ -91,5 +91,77 @@ describe('WeaponArtSystem', () => {
     applyWeaponArtCost(unit, makeArt({ hpCost: 99 }));
     expect(unit.currentHP).toBe(1);
   });
-});
 
+  it('enforces owner and faction constraints when configured', () => {
+    const unit = makeUnit({ faction: 'player' });
+    const weapon = { type: 'Sword' };
+
+    const enemyOnly = canUseWeaponArt(unit, weapon, makeArt({ owner: 'enemy' }));
+    expect(enemyOnly.ok).toBe(false);
+    expect(enemyOnly.reason).toBe('owner_scope_mismatch');
+
+    const factionOnly = canUseWeaponArt(unit, weapon, makeArt({ allowedFactions: ['enemy'] }));
+    expect(factionOnly.ok).toBe(false);
+    expect(factionOnly.reason).toBe('faction_mismatch');
+  });
+
+  it('rejects malformed owner/faction constraint config', () => {
+    const unit = makeUnit({ faction: 'player' });
+    const weapon = { type: 'Sword' };
+
+    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedOwners: { bad: true } })).reason)
+      .toBe('invalid_owner_scope_config');
+    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedFactions: ['players'] })).reason)
+      .toBe('invalid_faction_config');
+  });
+
+  it('supports legendary weapon id gating', () => {
+    const unit = makeUnit({ faction: 'player' });
+    const art = makeArt({ legendaryWeaponIds: ['legend_sword'] });
+
+    const mismatch = canUseWeaponArt(unit, { type: 'Sword', id: 'iron_sword' }, art);
+    expect(mismatch.ok).toBe(false);
+    expect(mismatch.reason).toBe('legendary_weapon_required');
+
+    const match = canUseWeaponArt(unit, { type: 'Sword', id: 'legend_sword' }, art);
+    expect(match.ok).toBe(true);
+  });
+
+  it('applies AI-specific guardrails when context.isAI is true', () => {
+    const unit = makeUnit({ faction: 'enemy', currentHP: 10, stats: { ...makeUnit().stats, HP: 20 } });
+    const weapon = { type: 'Sword' };
+
+    const disabled = canUseWeaponArt(unit, weapon, makeArt({ aiEnabled: false }), { isAI: true });
+    expect(disabled.ok).toBe(false);
+    expect(disabled.reason).toBe('ai_disabled');
+
+    const disabledZeroCost = canUseWeaponArt(unit, weapon, makeArt({ hpCost: 0, aiEnabled: false }), { isAI: true });
+    expect(disabledZeroCost.ok).toBe(false);
+    expect(disabledZeroCost.reason).toBe('ai_disabled');
+
+    const defaultFloorBlocked = canUseWeaponArt(
+      makeUnit({ faction: 'enemy', currentHP: 6, stats: { ...makeUnit().stats, HP: 20 } }),
+      weapon,
+      makeArt({ hpCost: 2 }),
+      { isAI: true }
+    );
+    expect(defaultFloorBlocked.ok).toBe(false);
+    expect(defaultFloorBlocked.reason).toBe('ai_hp_floor');
+
+    const floorBlocked = canUseWeaponArt(
+      unit,
+      weapon,
+      makeArt({ hpCost: 3, aiMinHpAfterCostPercent: 0.5 }),
+      { isAI: true }
+    );
+    expect(floorBlocked.ok).toBe(false);
+    expect(floorBlocked.reason).toBe('ai_hp_floor');
+
+    const perTurnArt = makeArt({ perTurnLimit: 2, aiPerTurnLimit: 1 });
+    expect(canUseWeaponArt(unit, weapon, perTurnArt, { isAI: true, turnNumber: 1 }).ok).toBe(true);
+    recordWeaponArtUse(unit, perTurnArt, { turnNumber: 1 });
+    const blocked = canUseWeaponArt(unit, weapon, perTurnArt, { isAI: true, turnNumber: 1 });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.reason).toBe('per_turn_limit');
+  });
+});
