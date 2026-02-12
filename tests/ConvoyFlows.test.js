@@ -307,6 +307,24 @@ describe('convoy scene/UI flows', () => {
     expect(() => overlay.hide()).not.toThrow();
   });
 
+  it('does not fire onClose during initial show', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const onClose = vi.fn();
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+    }, { onClose });
+
+    overlay.show();
+    expect(onClose).not.toHaveBeenCalled();
+
+    overlay.hide();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('clamps convoy scroll offset after convoy content shrinks', () => {
     const rm = new RunManager(gameData);
     rm.startRun();

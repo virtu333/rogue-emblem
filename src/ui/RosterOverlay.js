@@ -56,7 +56,7 @@ export class RosterOverlay {
   }
 
   show() {
-    this.hide();
+    if (this.visible) this.hide();
     this.visible = true;
 
     // Full-screen dark overlay (blocks clicks below)
@@ -91,6 +91,7 @@ export class RosterOverlay {
   }
 
   hide() {
+    if (!this.visible) return;
     this._unregisterListeners();
     this._destroyDetails();
     this._destroyTrade();
