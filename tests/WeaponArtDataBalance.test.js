@@ -33,5 +33,16 @@ describe('weapon arts data guards', () => {
       expect(art.hpCost).toBeGreaterThanOrEqual(5);
       expect(art.perMapLimit).toBeLessThanOrEqual(2);
     }
+
+    // Non-legendary Mast arts should still carry meaningful cost/limit guardrails.
+    const advancedArts = arts.filter((art) =>
+      art?.requiredRank === 'Mast'
+      && (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0)
+    );
+    expect(advancedArts.length).toBeGreaterThan(0);
+    for (const art of advancedArts) {
+      expect(art.hpCost).toBeGreaterThanOrEqual(4);
+      expect(art.perMapLimit).toBeLessThanOrEqual(2);
+    }
   });
 });

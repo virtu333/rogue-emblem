@@ -98,6 +98,97 @@
       }
     },
     {
+      "id": "sword_comet_edge",
+      "name": "Comet Edge",
+      "weaponType": "Sword",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A high-precision sword art for seasoned duelists.",
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "critBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Comet Edge"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_vaulting_thrust",
+      "name": "Vaulting Thrust",
+      "weaponType": "Lance",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A committed leap-thrust that hits with extra force.",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Vaulting Thrust"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_rending_cleave",
+      "name": "Rending Cleave",
+      "weaponType": "Axe",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A savage overhead cleave with heavy momentum.",
+      "combatMods": {
+        "atkBonus": 7,
+        "hitBonus": -10,
+        "critBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Rending Cleave"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bow_hunters_focus",
+      "name": "Hunter's Focus",
+      "weaponType": "Bow",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 4,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A disciplined release that sharpens speed and aim.",
+      "combatMods": {
+        "hitBonus": 18,
+        "critBonus": 10,
+        "spdBonus": 2,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Hunter's Focus"
+          }
+        ]
+      }
+    },
+    {
       "id": "legend_gemini_tempest",
       "name": "Gemini Tempest",
       "weaponType": "Sword",

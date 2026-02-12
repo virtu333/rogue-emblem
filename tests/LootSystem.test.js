@@ -385,6 +385,16 @@ describe('LootSystem', () => {
       expect(pool).toContain('Aura');
     });
 
+    it('act2/act3 rare pools include advanced weapon-art scrolls', () => {
+      const act2Rare = gameData.lootTables.act2.rare;
+      const act3Rare = gameData.lootTables.act3.rare;
+      const expected = ['Comet Edge Scroll', 'Vaulting Thrust Scroll', 'Rending Cleave Scroll', "Hunter's Focus Scroll"];
+      for (const name of expected) {
+        expect(act2Rare).toContain(name);
+        expect(act3Rare).toContain(name);
+      }
+    });
+
     it('act2 consumable pool includes stat boosters', () => {
       const pool = gameData.lootTables.act2.consumables;
       expect(pool).toContain('Energy Drop');
