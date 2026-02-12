@@ -205,3 +205,30 @@ export function getOnDeathAffixes(unit, affixData) {
   }
   return effects;
 }
+
+/**
+ * Find valid warp tiles for Teleporter affix.
+ * Returns { col, row, distToAttacker }[] representing candidates at the MAXIMUM valid distance.
+ */
+export function getWarpCandidates(unit, range, attacker, grid, getUnitAt) {
+  const candidates = [];
+  for (let dr = -range; dr <= range; dr++) {
+    for (let dc = -range; dc <= range; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      if (Math.abs(dr) + Math.abs(dc) > range) continue;
+      const col = unit.col + dc;
+      const row = unit.row + dr;
+      if (col < 0 || col >= grid.cols || row < 0 || row >= grid.rows) continue;
+      if (getUnitAt(col, row)) continue;
+      if (grid.getMoveCost(col, row, unit.moveType) === Infinity) continue;
+      const distToAttacker = gridDistance(col, row, attacker.col, attacker.row);
+      candidates.push({ col, row, distToAttacker });
+    }
+  }
+
+  if (candidates.length === 0) return [];
+  // Sort by distance descending
+  candidates.sort((a, b) => b.distToAttacker - a.distToAttacker);
+  const maxDist = candidates[0].distToAttacker;
+  return candidates.filter(c => c.distToAttacker === maxDist);
+}

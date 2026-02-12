@@ -688,6 +688,11 @@ export function resolveCombat(
       }
       events.push(evt);
 
+      // Update first-hit flag for Shielded consumption
+      if (!evt.miss && strikeSkills) {
+        strikeSkills.isFirstHit = false;
+      }
+
       // Check Cancel on defend (negates opponent's follow-up)
       if (!evt.miss && evt.skillActivations) {
         for (const sa of evt.skillActivations) {

@@ -183,4 +183,63 @@ export class HeadlessGrid {
     if (!this.fogEnabled) return true;
     return this.visibleSet.has(`${col},${row}`);
   }
+
+  setTerrainAt(col, row, terrainIndex) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+    if (!Number.isInteger(terrainIndex) || !this.terrainData[terrainIndex]) return false;
+    this.mapLayout[row][col] = terrainIndex;
+    return true;
+  }
+
+  setTemporaryTerrain(col, row, terrainName, duration = 1) {
+    if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
+    const terrainIndex = this.terrainData.findIndex(t => t?.name === terrainName);
+    if (terrainIndex < 0) return false;
+    if (!this.temporaryTerrains) this.temporaryTerrains = [];
+    const key = `${col},${row}`;
+    const existing = this.temporaryTerrains.find(t => t.key === key);
+    if (existing) {
+      existing.remainingTurns = Math.max(existing.remainingTurns, Math.max(1, duration | 0));
+      return this.setTerrainAt(col, row, terrainIndex);
+    }
+    this.temporaryTerrains.push({
+      key,
+      col,
+      row,
+      originalIndex: this.mapLayout[row][col],
+      temporaryIndex: terrainIndex,
+      remainingTurns: Math.max(1, duration | 0),
+    });
+    return this.setTerrainAt(col, row, terrainIndex);
+  }
+
+  clearTemporaryTerrainAt(col, row) {
+    const key = `${col},${row}`;
+    if (!this.temporaryTerrains) return false;
+    const idx = this.temporaryTerrains.findIndex(t => t.key === key);
+    if (idx < 0) return false;
+    const entry = this.temporaryTerrains.splice(idx, 1)[0];
+    return this.setTerrainAt(entry.col, entry.row, entry.originalIndex);
+  }
+
+  isTemporaryTerrainAt(col, row, terrainIndex = null) {
+    const key = `${col},${row}`;
+    if (!this.temporaryTerrains) return false;
+    const entry = this.temporaryTerrains.find(t => t.key === key);
+    if (!entry) return false;
+    if (terrainIndex == null) return true;
+    return this.mapLayout[row]?.[col] === terrainIndex;
+  }
+
+  tickTemporaryTerrains() {
+    if (!this.temporaryTerrains || !this.temporaryTerrains.length) return;
+    const toExpire = [];
+    for (const entry of this.temporaryTerrains) {
+      entry.remainingTurns -= 1;
+      if (entry.remainingTurns <= 0) toExpire.push(entry);
+    }
+    for (const entry of toExpire) {
+      this.clearTemporaryTerrainAt(entry.col, entry.row);
+    }
+  }
 }

@@ -42,6 +42,11 @@ import {
   getTurnStartEffects,
   getWeaponRangeBonus,
 } from '../../src/engine/SkillSystem.js';
+import {
+  getAttackAffixes,
+  getTurnStartAffixes,
+  rollDefenseAffixes,
+} from '../../src/engine/AffixSystem.js';
 import { calculateKillGold } from '../../src/engine/LootSystem.js';
 import {
   BOSS_STAT_BONUS,
@@ -488,11 +493,12 @@ export class HeadlessBattle {
       }
       // Apply turn-start effects (Renewal, etc.) — skip turn 1 to match BattleScene
       if (turn > 1) {
-        this._processTurnStartEffects();
+        this._processTurnStartEffects(this.playerUnits);
       }
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      this.grid.tickTemporaryTerrains?.();
       this.battleState = HEADLESS_STATES.ENEMY_PHASE;
     }
   }
@@ -507,15 +513,40 @@ export class HeadlessBattle {
     this.battleState = HEADLESS_STATES.BATTLE_END;
   }
 
-  _processTurnStartEffects() {
-    const effects = getTurnStartEffects(this.playerUnits, this.gameData.skills);
-    for (const effect of effects) {
+  _processTurnStartEffects(units) {
+    if (!Array.isArray(units)) return;
+    // 1. Skills
+    const skillEffects = getTurnStartEffects(units, this.gameData.skills);
+    for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
         effect.target.currentHP = Math.min(
           effect.target.stats.HP,
           effect.target.currentHP + effect.amount
         );
       }
+    }
+    // 2. Affixes
+    const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
+    for (const effect of affixEffects) {
+      if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
+        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
+      }
+      // Note: spawn_terrain is not fully simulated in HeadlessBattle MVP for now
+    }
+  }
+
+  _applyOnAttackAffixes(attacker, defender, events) {
+    if (!attacker || !defender || defender.currentHP <= 0) return;
+    const didLandHit = events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+    if (!didLandHit || !attacker.affixes?.length) return;
+    const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
+
+    if (affixResult.poisonDamage > 0 && defender.currentHP > 0) {
+      defender.currentHP = Math.max(1, defender.currentHP - affixResult.poisonDamage);
+    }
+
+    if (affixResult.debuffStat && defender.currentHP > 0) {
+      this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
     }
   }
 
@@ -654,6 +685,9 @@ export class HeadlessBattle {
     if (result.defenderDied) this._removeUnit(defender);
     if (result.attackerDied) this._removeUnit(attacker);
 
+    this._applyOnAttackAffixes(attacker, defender, result.events);
+    this._applyOnAttackAffixes(defender, attacker, result.events);
+
     // Check battle end
     if (this._checkBattleEnd()) return;
 
@@ -785,6 +819,7 @@ export class HeadlessBattle {
   }
 
   async _processEnemyPhase() {
+    this._processTurnStartEffects(this.enemyUnits);
     this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
     try {
       await this.aiController.processEnemyPhase(
@@ -889,7 +924,36 @@ export class HeadlessBattle {
     if (result.defenderDied) this._removeUnit(defender);
     if (result.attackerDied) this._removeUnit(attacker);
 
+    this._applyOnAttackAffixes(attacker, defender, result.events);
+    this._applyOnAttackAffixes(defender, attacker, result.events);
+
     this._checkBattleEnd();
+  }
+
+  applyBattleDebuff(unit, stat, value) {
+    if (!unit._battleDeltas) unit._battleDeltas = {};
+    if (!unit._battleDeltas[stat]) unit._battleDeltas[stat] = 0;
+    const oldVal = unit.stats[stat];
+    unit.stats[stat] = Math.max(0, unit.stats[stat] + value);
+    if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat]);
+    const actualDelta = unit.stats[stat] - oldVal;
+    unit._battleDeltas[stat] += actualDelta;
+    if (stat === 'MOV') unit.mov = unit.stats.MOV;
+  }
+
+  clearBattleScopedDeltas(units) {
+    if (!Array.isArray(units)) return;
+    for (const unit of units) {
+      if (!unit?._battleDeltas) continue;
+      for (const [stat, delta] of Object.entries(unit._battleDeltas)) {
+        if (!Number.isFinite(delta) || delta === 0) continue;
+        unit.stats[stat] = (unit.stats[stat] || 0) - delta;
+        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
+        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
+      }
+      unit.mov = unit.stats.MOV;
+      delete unit._battleDeltas;
+    }
   }
 
   getUnitAt(col, row) {

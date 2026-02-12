@@ -53,7 +53,7 @@ import {
   getTurnStartEffects,
   getWeaponRangeBonus,
 } from '../engine/SkillSystem.js';
-import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes } from '../engine/AffixSystem.js';
+import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes, getWarpCandidates } from '../engine/AffixSystem.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
@@ -1968,13 +1968,17 @@ export class BattleScene extends Phaser.Scene {
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
       clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      this.clearBattleScopedDeltas(this.playerUnits);
+      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       void startSceneLazy(this, 'Title', { gameData: this.gameData });
     } : null;
     const saveExitCb = this.runManager ? () => {
-      // Return to title â€” last NodeMap auto-save preserved. Battle progress lost.
+      // Return to title — last NodeMap auto-save preserved. Battle progress lost.
+      this.clearBattleScopedDeltas(this.playerUnits);
+      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       void startSceneLazy(this, 'Title', { gameData: this.gameData });
@@ -3901,11 +3905,21 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (info.warnings?.length) {
-      const warningText = this.add.text(x + 2, y, `Affix: ${info.warnings.join(', ')}`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#ffcc88',
-        wordWrap: { width: sideW - 6 },
-      }).setDepth(textDepth);
-      this.forecastObjects.push(warningText);
+      y += 2;
+      for (const warn of info.warnings) {
+        let label = warn.toUpperCase();
+        let color = '#ffcc88';
+        if (warn === 'Shielded') { label = '[BLOCK]'; color = '#88ccff'; }
+        if (warn === 'Thorns') { label = '[REFLECT]'; color = '#ff8888'; }
+        if (warn === 'Teleporter') { label = '[WARP]'; color = '#cc88ff'; }
+
+        const warningText = this.add.text(x + 2, y, label, {
+          fontFamily: 'monospace', fontSize: '10px', color, fontStyle: 'bold',
+          backgroundColor: '#00000088', padding: { x: 4, y: 1 }
+        }).setDepth(textDepth);
+        this.forecastObjects.push(warningText);
+        y += 14;
+      }
     }
   }
 
@@ -4262,25 +4276,8 @@ export class BattleScene extends Phaser.Scene {
 
   /** Execute warp for Teleporter affix. Target is the unit warping. */
   async executeWarp(unit, range, attacker) {
-    const candidates = [];
-    for (let dr = -range; dr <= range; dr++) {
-      for (let dc = -range; dc <= range; dc++) {
-        if (dr === 0 && dc === 0) continue;
-        if (Math.abs(dr) + Math.abs(dc) > range) continue;
-        const col = unit.col + dc;
-        const row = unit.row + dr;
-        if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
-        if (this.getUnitAt(col, row)) continue;
-        if (this.grid.getMoveCost(col, row, unit.moveType) === Infinity) continue;
-        const distToAttacker = gridDistance(col, row, attacker.col, attacker.row);
-        candidates.push({ col, row, distToAttacker });
-      }
-    }
-
-    if (candidates.length === 0) return;
-    candidates.sort((a, b) => b.distToAttacker - a.distToAttacker);
-    const maxDist = candidates[0].distToAttacker;
-    const bestPicks = candidates.filter(c => c.distToAttacker === maxDist);
+    const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) => this.getUnitAt(c, r));
+    if (bestPicks.length === 0) return;
     const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
 
     await new Promise(resolve => {
@@ -4442,7 +4439,7 @@ export class BattleScene extends Phaser.Scene {
           await this.removeUnit(victim);
         }
       }
-      await new Promise(resolve => this.time.delayedCall(120, resolve));
+      await new Promise(resolve => this.time.delayedCall(150, resolve));
     }
 
     unit._removing = false;
@@ -4580,6 +4577,11 @@ export class BattleScene extends Phaser.Scene {
         if (this.getUnitAt(col, row)) continue;
         
         const terrain = this.grid.getTerrainAt(col, row);
+        if (!terrain) continue;
+
+        // Explicitly protect Fort and Throne tiles from being overwritten
+        if (terrain.name === 'Fort' || terrain.name === 'Throne') continue;
+
         // Only spawn on "boring" terrain (no DEF/AVO bonus) to avoid destroying tactical spots
         const hasCombatBonus = (parseInt(terrain?.avoidBonus) || 0) !== 0 || (parseInt(terrain?.defBonus) || 0) !== 0;
         if (!hasCombatBonus) {
@@ -6191,6 +6193,8 @@ export class BattleScene extends Phaser.Scene {
     ).setOrigin(0.5).setDepth(600);
 
     if (this.runManager) {
+      this.clearBattleScopedDeltas(this.playerUnits);
+      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
       this.time.delayedCall(2000, () => {
         void startSceneLazy(this, 'RunComplete', {

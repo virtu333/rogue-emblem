@@ -231,6 +231,26 @@ export class AIController {
       }
     }
 
+    // --- WALL FALLBACKS ---
+    // If blocked (pathAwareTile is null), try to move adjacent to a wall that's closer to the target
+    if (nearest && !pathAwareTile) {
+      const bestWallMove = this._findMoveToBreakableWall(enemy, nearest, candidates, unitPositions);
+      if (bestWallMove && (bestWallMove.tile.col !== enemy.col || bestWallMove.tile.row !== enemy.row)) {
+        const path = this._buildPath(enemy, bestWallMove.tile, unitPositions);
+        if (path && path.length >= 2) {
+          return this._finalizeDecision(enemy, {
+            path,
+            target: null,
+            reason: 'move_to_break',
+            detail: {
+              wallPos: bestWallMove.wall,
+              destination: bestWallMove.tile,
+            },
+          });
+        }
+      }
+    }
+
     // Find candidate tile closest to nearest player
     let closestDist = Infinity;
     let closestTile = null;
@@ -472,9 +492,42 @@ export class AIController {
       const row = enemy.row + dr;
       if (col < 0 || row < 0 || col >= this.grid.cols || row >= this.grid.rows) continue;
       if (unitPositions?.has(`${col},${row}`)) continue;
-      if (this.grid.isTemporaryTerrainAt(col, row)) return { col, row };
+      if (this.grid.isTemporaryTerrainAt(col, row)) {
+        const terrain = this.grid.getTerrainAt(col, row);
+        if (terrain?.name === 'Wall') return { col, row };
+      }
     }
     return null;
+  }
+
+  /** Find a reachable tile adjacent to a breakable wall that brings us closer to target. */
+  _findMoveToBreakableWall(enemy, target, candidates, unitPositions) {
+    if (typeof this.grid.isTemporaryTerrainAt !== 'function') return null;
+    
+    let best = null;
+    let minDist = Infinity;
+    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+
+    for (const tile of candidates) {
+      for (const { dc, dr } of dirs) {
+        const wc = tile.col + dc;
+        const wr = tile.row + dr;
+        if (wc < 0 || wr < 0 || wc >= this.grid.cols || wr >= this.grid.rows) continue;
+        
+        if (this.grid.isTemporaryTerrainAt(wc, wr)) {
+          const terrain = this.grid.getTerrainAt(wc, wr);
+          if (terrain?.name !== 'Wall') continue;
+
+          // If this tile is adjacent to a wall, see how close the WALL is to the target
+          const dist = gridDistance(wc, wr, target.col, target.row);
+          if (dist < minDist) {
+            minDist = dist;
+            best = { tile, wall: { col: wc, row: wr } };
+          }
+        }
+      }
+    }
+    return best;
   }
 
   _hasAiOverride(enemy, overrideName) {

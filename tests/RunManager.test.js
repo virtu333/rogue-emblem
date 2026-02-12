@@ -97,6 +97,18 @@ describe('RunManager', () => {
       expect(serialized.graphic).toBeNull();
       expect(serialized.label).toBeNull();
       expect(serialized.hpBar).toBeNull();
+      expect(serialized.hasMoved).toBe(false);
+      expect(serialized.hasActed).toBe(false);
+    });
+
+    it('strips battle-scoped deltas', () => {
+      const unit = {
+        name: 'Test',
+        stats: { HP: 20, DEF: 5 },
+        _battleDeltas: { DEF: -2 },
+      };
+      const serialized = serializeUnit(unit);
+      expect(serialized._battleDeltas).toBeUndefined();
     });
 
     it('resets per-battle flags', () => {
