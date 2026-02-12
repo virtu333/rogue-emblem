@@ -17,6 +17,14 @@ import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.j
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
+const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
+
+function getConvoyBucket(item) {
+  if (!item || typeof item !== 'object') return null;
+  if (item.type === 'Consumable') return 'consumables';
+  if (CONVOY_WEAPON_TYPES.has(item.type)) return 'weapons';
+  return null;
+}
 
 /** After JSON round-trip, re-link unit.weapon to matching inventory reference.
  *  Enforces proficiency: drops non-proficient equipped weapons to first valid or null. */
@@ -888,17 +896,19 @@ export class RunManager {
   }
 
   canAddToConvoy(item) {
-    if (!item || typeof item !== 'object') return false;
+    const bucket = getConvoyBucket(item);
+    if (!bucket) return false;
     this._sanitizeUnitPools();
     const caps = this.getConvoyCapacities();
-    if (item.type === 'Consumable') return this.convoy.consumables.length < caps.consumables;
+    if (bucket === 'consumables') return this.convoy.consumables.length < caps.consumables;
     return this.convoy.weapons.length < caps.weapons;
   }
 
   addToConvoy(item) {
-    if (!this.canAddToConvoy(item)) return false;
+    const bucket = getConvoyBucket(item);
+    if (!bucket || !this.canAddToConvoy(item)) return false;
     const clone = structuredClone(item);
-    if (clone.type === 'Consumable') {
+    if (bucket === 'consumables') {
       this.convoy.consumables.push(clone);
     } else {
       this.convoy.weapons.push(clone);

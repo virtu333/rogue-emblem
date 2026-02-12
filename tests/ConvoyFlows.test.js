@@ -72,6 +72,34 @@ describe('convoy scene/UI flows', () => {
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Vulnerary sent to convoy.', '#88ccff');
   });
 
+  it('does not consume shop entry when overflow convoy purchase cannot spend gold', () => {
+    const audio = { playSFX: vi.fn() };
+    const unit = { name: 'Iris', inventory: [], consumables: new Array(CONSUMABLE_MAX).fill({}) };
+    const entry = { price: 120, item: { name: 'Vulnerary', type: 'Consumable', uses: 3 } };
+    const rm = {
+      gold: 999,
+      roster: [unit],
+      spendGold: vi.fn(() => false),
+      addToConvoy: vi.fn(() => true),
+      addGold: vi.fn(),
+    };
+    const ctx = {
+      runManager: rm,
+      shopBuyItems: [entry],
+      showUnitPicker: (onPick) => onPick(0),
+      registry: { get: () => audio },
+      refreshShop: vi.fn(),
+      showShopBanner: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
+
+    expect(rm.addToConvoy).not.toHaveBeenCalled();
+    expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(ctx.shopBuyItems).toHaveLength(1);
+    expect(ctx.showShopBanner).toHaveBeenCalledWith('Not enough gold.', '#ff8888');
+  });
+
   it('routes full-inventory shop purchase to convoy', () => {
     const audio = { playSFX: vi.fn() };
     const unit = { name: 'Kane', inventory: new Array(INVENTORY_MAX).fill({}), consumables: [] };
@@ -97,6 +125,92 @@ describe('convoy scene/UI flows', () => {
     expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
     expect(ctx.shopBuyItems).toHaveLength(0);
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Iron Sword sent to convoy.', '#88ccff');
+  });
+
+  it('does not consume weapon shop entry when overflow convoy purchase cannot spend gold', () => {
+    const audio = { playSFX: vi.fn() };
+    const unit = { name: 'Kane', inventory: new Array(INVENTORY_MAX).fill({}), consumables: [] };
+    const entry = { price: 200, item: { name: 'Iron Sword', type: 'Sword' } };
+    const rm = {
+      gold: 999,
+      roster: [unit],
+      spendGold: vi.fn(() => false),
+      addToConvoy: vi.fn(() => true),
+      addGold: vi.fn(),
+    };
+    const ctx = {
+      runManager: rm,
+      shopBuyItems: [entry],
+      showUnitPicker: (onPick) => onPick(0),
+      registry: { get: () => audio },
+      refreshShop: vi.fn(),
+      showShopBanner: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
+
+    expect(rm.addToConvoy).not.toHaveBeenCalled();
+    expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(ctx.shopBuyItems).toHaveLength(1);
+    expect(ctx.showShopBanner).toHaveBeenCalledWith('Not enough gold.', '#ff8888');
+  });
+
+  it('refunds gold and aborts when consumable overflow convoy add fails after spend', () => {
+    const audio = { playSFX: vi.fn() };
+    const unit = { name: 'Iris', inventory: [], consumables: new Array(CONSUMABLE_MAX).fill({}) };
+    const entry = { price: 120, item: { name: 'Vulnerary', type: 'Consumable', uses: 3 } };
+    const rm = {
+      gold: 999,
+      roster: [unit],
+      spendGold: vi.fn(() => true),
+      addToConvoy: vi.fn(() => false),
+      addGold: vi.fn(),
+    };
+    const ctx = {
+      runManager: rm,
+      shopBuyItems: [entry],
+      showUnitPicker: (onPick) => onPick(0),
+      registry: { get: () => audio },
+      refreshShop: vi.fn(),
+      showShopBanner: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
+
+    expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
+    expect(rm.addGold).toHaveBeenCalledWith(entry.price);
+    expect(ctx.shopBuyItems).toHaveLength(1);
+    expect(ctx.showShopBanner).toHaveBeenCalledWith("Iris's consumables are full!", '#ff8888');
+  });
+
+  it('refunds gold and aborts when weapon overflow convoy add fails after spend', () => {
+    const audio = { playSFX: vi.fn() };
+    const unit = { name: 'Kane', inventory: new Array(INVENTORY_MAX).fill({}), consumables: [] };
+    const entry = { price: 200, item: { name: 'Iron Sword', type: 'Sword' } };
+    const rm = {
+      gold: 999,
+      roster: [unit],
+      spendGold: vi.fn(() => true),
+      addToConvoy: vi.fn(() => false),
+      addGold: vi.fn(),
+    };
+    const ctx = {
+      runManager: rm,
+      shopBuyItems: [entry],
+      showUnitPicker: (onPick) => onPick(0),
+      registry: { get: () => audio },
+      refreshShop: vi.fn(),
+      showShopBanner: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onBuyItem.call(ctx, entry);
+
+    expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
+    expect(rm.addGold).toHaveBeenCalledWith(entry.price);
+    expect(ctx.shopBuyItems).toHaveLength(1);
+    expect(ctx.showShopBanner).toHaveBeenCalledWith("Kane's inventory is full!", '#ff8888');
   });
 
   it('stores a consumable from roster into convoy via store action', () => {

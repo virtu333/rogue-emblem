@@ -1206,11 +1206,15 @@ export class NodeMapScene extends Phaser.Scene {
         const unit = rm.roster[unitIndex];
         const consumableCount = unit.consumables ? unit.consumables.length : 0;
         if (consumableCount >= CONSUMABLE_MAX) {
+          if (!rm.spendGold(entry.price)) {
+            this.showShopBanner('Not enough gold.', '#ff8888');
+            return;
+          }
           if (!rm.addToConvoy(entry.item)) {
+            if (typeof rm.addGold === 'function') rm.addGold(entry.price);
             this.showShopBanner(`${unit.name}'s consumables are full!`, '#ff8888');
             return;
           }
-          rm.spendGold(entry.price);
           const idx = this.shopBuyItems.indexOf(entry);
           if (idx !== -1) this.shopBuyItems.splice(idx, 1);
           const audio = this.registry.get('audio');
@@ -1235,11 +1239,15 @@ export class NodeMapScene extends Phaser.Scene {
     this.showUnitPicker((unitIndex) => {
       const unit = rm.roster[unitIndex];
       if (unit.inventory.length >= INVENTORY_MAX) {
+        if (!rm.spendGold(entry.price)) {
+          this.showShopBanner('Not enough gold.', '#ff8888');
+          return;
+        }
         if (!rm.addToConvoy(entry.item)) {
+          if (typeof rm.addGold === 'function') rm.addGold(entry.price);
           this.showShopBanner(`${unit.name}'s inventory is full!`, '#ff8888');
           return;
         }
-        rm.spendGold(entry.price);
         const idx = this.shopBuyItems.indexOf(entry);
         if (idx !== -1) this.shopBuyItems.splice(idx, 1);
         const audio = this.registry.get('audio');

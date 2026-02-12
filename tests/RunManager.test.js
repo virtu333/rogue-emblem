@@ -294,6 +294,20 @@ describe('RunManager', () => {
       expect(rm.getConvoyCounts().weapons).toBe(1);
     });
 
+    it('rejects non-convoy item categories', () => {
+      rm.startRun();
+      const accessory = gameData.accessories[0];
+      const scroll = { name: 'Astra Scroll', type: 'Scroll' };
+      const unknown = { name: 'Mystery Crate', type: 'Mystery' };
+      expect(rm.canAddToConvoy(accessory)).toBe(false);
+      expect(rm.canAddToConvoy(scroll)).toBe(false);
+      expect(rm.canAddToConvoy(unknown)).toBe(false);
+      expect(rm.addToConvoy(accessory)).toBe(false);
+      expect(rm.addToConvoy(scroll)).toBe(false);
+      expect(rm.addToConvoy(unknown)).toBe(false);
+      expect(rm.getConvoyCounts()).toEqual({ weapons: 0, consumables: 0 });
+    });
+
     it('getConvoyItems returns cloned snapshots', () => {
       rm.startRun();
       const sword = gameData.weapons.find(w => w.name === 'Iron Sword');

@@ -5880,7 +5880,10 @@ export class BattleScene extends Phaser.Scene {
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
       convoyBtn.on('pointerdown', () => {
-        this.runManager.addToConvoy(item);
+        if (!this.runManager.addToConvoy(item)) {
+          this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
+          return;
+        }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         for (const obj of pickerGroup) obj.destroy();
@@ -6030,7 +6033,10 @@ export class BattleScene extends Phaser.Scene {
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
       convoyBtn.on('pointerdown', () => {
-        this.runManager.addToConvoy(item);
+        if (!this.runManager.addToConvoy(item)) {
+          this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
+          return;
+        }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         for (const obj of pickerGroup) obj.destroy();
