@@ -124,7 +124,7 @@ describe('HeadlessBattle', () => {
     const unsupported = actions.filter(a => !a.supported);
     // All unsupported actions should have known labels
     for (const a of unsupported) {
-      expect(['Equip', 'Promote', 'Item', 'Accessory', 'Shove', 'Pull', 'Trade', 'Swap', 'Dance']).toContain(a.label);
+      expect(['Equip', 'Promote', 'Item', 'Shove', 'Pull', 'Trade', 'Swap', 'Dance']).toContain(a.label);
     }
   });
 

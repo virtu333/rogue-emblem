@@ -41,8 +41,6 @@ import {
   isLastCombatWeapon,
   hasProficiency,
   canEquip,
-  equipAccessory,
-  unequipAccessory,
   applyStatBoost,
   getClassInnateSkills,
 } from '../engine/UnitManager.js';
@@ -2848,8 +2846,6 @@ export class BattleScene extends Phaser.Scene {
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
-    // Accessory: show if unit has accessory or team has accessories in pool
-    if (unit.accessory || (this.runManager?.accessories?.length > 0)) items.push('Accessory');
     // Shove/Pull: show if unit has skill and valid targets exist
     if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0) items.push('Shove');
     if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
@@ -2934,8 +2930,6 @@ export class BattleScene extends Phaser.Scene {
           this.executePromotion(unit, this.getPromotionConsumable(unit));
         } else if (label === 'Item') {
           this.showItemMenu(unit);
-        } else if (label === 'Accessory') {
-          this.showAccessoryMenu(unit);
         } else if (label === 'Talk') {
           this.hideActionMenu();
           this.executeTalk(unit);
@@ -3520,85 +3514,6 @@ export class BattleScene extends Phaser.Scene {
         onComplete: () => { banner.destroy(); resolve(); },
       });
     });
-  }
-
-  // --- Accessory Menu ---
-
-  showAccessoryMenu(unit) {
-    this.hideActionMenu();
-    this.inEquipMenu = true;
-    this.battleState = 'UNIT_ACTION_MENU';
-
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = (unit.col < this.grid.cols - 3) ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 140;
-    const menuY = pos.y - 10;
-
-    this.actionMenu = [];
-    const pool = this.runManager?.accessories || [];
-    const items = [];
-
-    // Current accessory (unequip option)
-    if (unit.accessory) {
-      items.push({ label: `\u25b6 ${unit.accessory.name}`, action: 'unequip', accessory: unit.accessory });
-    }
-    // Pool accessories (equip options)
-    for (const acc of pool) {
-      items.push({ label: `  ${acc.name}`, action: 'equip', accessory: acc });
-    }
-    items.push({ label: 'Back', action: 'back' });
-
-    const menuWidth = 140;
-    const itemHeight = 28;
-    const menuHeight = items.length * itemHeight + 8;
-    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
-
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
-    this.actionMenu.push(bg);
-
-    items.forEach((entry, i) => {
-      const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
-      const ix = menuPos.x + menuWidth / 2;
-      const defaultColor = entry.action === 'unequip' ? '#cc88ff' : entry.action === 'back' ? '#aaaaaa' : '#e0e0e0';
-
-      const text = this._makeMenuTextButton(ix, iy, entry.label, {
-        fontFamily: 'monospace', fontSize: '11px', color: defaultColor,
-      }, defaultColor, () => {
-        if (entry.action === 'back') {
-          this.hideActionMenu();
-          this.inEquipMenu = false;
-          this.showActionMenu(unit);
-        } else if (entry.action === 'unequip') {
-          this.doUnequipAccessory(unit);
-          this.showAccessoryMenu(unit);
-        } else if (entry.action === 'equip') {
-          this.doEquipAccessory(unit, entry.accessory);
-          this.showAccessoryMenu(unit);
-        }
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
-      this.actionMenu.push(text);
-    });
-  }
-
-  doEquipAccessory(unit, accessory) {
-    const pool = this.runManager?.accessories;
-    if (!pool) return;
-    const idx = pool.indexOf(accessory);
-    if (idx === -1) return;
-    pool.splice(idx, 1);
-    const old = equipAccessory(unit, accessory);
-    if (old) pool.push(old);
-    this.updateHPBar(unit);
-  }
-
-  doUnequipAccessory(unit) {
-    const pool = this.runManager?.accessories;
-    if (!pool) return;
-    const old = unequipAccessory(unit);
-    if (old) pool.push(old);
-    this.updateHPBar(unit);
   }
 
   // --- Promotion ---
@@ -5956,6 +5871,23 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
+    const convoyBtn = this.add.text(cam.centerX, cam.height - 54, convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]', {
+      fontFamily: 'monospace', fontSize: '12px', color: convoyCanStore ? '#88ccff' : '#666666',
+      backgroundColor: '#223344', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(711);
+    if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
+    pickerGroup.push(convoyBtn);
+    if (convoyCanStore) {
+      convoyBtn.on('pointerdown', () => {
+        this.runManager.addToConvoy(item);
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_gold');
+        for (const obj of pickerGroup) obj.destroy();
+        this.finalizeLootPick(lootGroup, cardIdx);
+      });
+    }
+
     // Back button
     const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
@@ -6087,6 +6019,23 @@ export class BattleScene extends Phaser.Scene {
           this.finalizeLootPick(lootGroup, cardIdx);
         });
       }
+    }
+
+    const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
+    const convoyBtn = this.add.text(cam.centerX, cam.height - 54, convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]', {
+      fontFamily: 'monospace', fontSize: '12px', color: convoyCanStore ? '#88ccff' : '#666666',
+      backgroundColor: '#223344', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(711);
+    if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
+    pickerGroup.push(convoyBtn);
+    if (convoyCanStore) {
+      convoyBtn.on('pointerdown', () => {
+        this.runManager.addToConvoy(item);
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_gold');
+        for (const obj of pickerGroup) obj.destroy();
+        this.finalizeLootPick(lootGroup, cardIdx);
+      });
     }
 
     // Back button
