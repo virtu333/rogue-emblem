@@ -22,6 +22,7 @@ import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
+import { normalizeWeaponArtBinding } from './WeaponArtSystem.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
@@ -1420,6 +1421,63 @@ export class RunManager {
   }
 
   /**
+   * Normalize weapon-art metadata on item instances loaded from save data.
+   * Supports legacy fields and strips malformed metadata fail-closed.
+   */
+  static migrateWeaponArtItemState(runManager) {
+    const validArtIds = new Set(
+      Array.isArray(runManager.gameData?.weaponArts?.arts)
+        ? runManager.gameData.weaponArts.arts.map((art) => art?.id).filter(Boolean)
+        : []
+    );
+
+    const normalizeScrollMetadata = (item) => {
+      if (!item || typeof item !== 'object') return;
+      if (item.type !== 'Scroll') return;
+      const teachesId = typeof item.teachesWeaponArtId === 'string'
+        ? item.teachesWeaponArtId.trim()
+        : '';
+      if (!teachesId || !validArtIds.has(teachesId)) {
+        delete item.teachesWeaponArtId;
+      } else {
+        item.teachesWeaponArtId = teachesId;
+      }
+
+      if (Array.isArray(item.allowedWeaponTypes)) {
+        const clean = [...new Set(item.allowedWeaponTypes
+          .filter((type) => typeof type === 'string')
+          .map((type) => type.trim())
+          .filter(Boolean))];
+        if (clean.length > 0) item.allowedWeaponTypes = clean;
+        else delete item.allowedWeaponTypes;
+      } else {
+        delete item.allowedWeaponTypes;
+      }
+    };
+
+    const normalizeWeaponList = (items) => {
+      if (!Array.isArray(items)) return;
+      for (const item of items) {
+        normalizeWeaponArtBinding(item, { validArtIds });
+        normalizeScrollMetadata(item);
+      }
+    };
+
+    const normalizeUnit = (unit) => {
+      if (!unit || typeof unit !== 'object') return;
+      normalizeWeaponArtBinding(unit.weapon, { validArtIds });
+      normalizeWeaponList(unit.inventory);
+      normalizeWeaponList(unit.consumables);
+    };
+
+    runManager.roster.forEach(normalizeUnit);
+    runManager.fallenUnits.forEach(normalizeUnit);
+    normalizeWeaponList(runManager.convoy?.weapons);
+    normalizeWeaponList(runManager.convoy?.consumables);
+    normalizeWeaponList(runManager.scrolls);
+  }
+
+  /**
    * Normalize legacy skill strings (e.g. "Renewal Aura") to canonical skill IDs
    * so on-turn-start and passive skill logic remains reliable across old saves.
    */
@@ -1565,6 +1623,7 @@ export class RunManager {
     // Normalize stale tier/proficiency/move state before class-learnable migration;
     // promoted learnables depend on unit.tier.
     RunManager.migrateUnitClassState(rm);
+    RunManager.migrateWeaponArtItemState(rm);
     RunManager.migrateClassLearnableSkills(rm);
 
     rm.roster.forEach(u => relinkWeapon(u));

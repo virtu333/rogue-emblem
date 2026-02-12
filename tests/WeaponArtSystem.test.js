@@ -5,6 +5,8 @@ import {
   recordWeaponArtUse,
   applyWeaponArtCost,
   resetWeaponArtTurnUsage,
+  normalizeWeaponArtSource,
+  normalizeWeaponArtBinding,
 } from '../src/engine/WeaponArtSystem.js';
 
 function makeUnit(overrides = {}) {
@@ -172,5 +174,32 @@ describe('WeaponArtSystem', () => {
     const blocked = canUseWeaponArt(unit, weapon, perTurnArt, { isAI: true, turnNumber: 1 });
     expect(blocked.ok).toBe(false);
     expect(blocked.reason).toBe('per_turn_limit');
+  });
+
+  it('normalizes weapon-art source labels', () => {
+    expect(normalizeWeaponArtSource('innate')).toBe('innate');
+    expect(normalizeWeaponArtSource(' META_INNATE ')).toBe('meta_innate');
+    expect(normalizeWeaponArtSource('player')).toBeNull();
+  });
+
+  it('normalizes legacy weapon-art binding fields fail-closed', () => {
+    const weapon = {
+      id: 'test_blade',
+      weaponArtBinding: { artId: 'sword_precise_cut', source: 'scroll' },
+    };
+    normalizeWeaponArtBinding(weapon, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(weapon.weaponArtId).toBe('sword_precise_cut');
+    expect(weapon.weaponArtSource).toBe('scroll');
+    expect(weapon.weaponArtBinding).toBeUndefined();
+
+    const bad = {
+      id: 'bad_blade',
+      weaponArt: 'invalid_art',
+      weaponArtSource: 'unknown_source',
+    };
+    normalizeWeaponArtBinding(bad, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(bad.weaponArtId).toBeUndefined();
+    expect(bad.weaponArtSource).toBeUndefined();
+    expect(bad.weaponArt).toBeUndefined();
   });
 });

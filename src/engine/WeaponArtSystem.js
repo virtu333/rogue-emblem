@@ -3,6 +3,7 @@
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
 const VALID_OWNER_SCOPES = new Set(['player', 'enemy', 'npc', 'any']);
+const VALID_WEAPON_ART_SOURCES = new Set(['innate', 'scroll', 'meta_innate']);
 const UNLOCK_ACT_RE = /^act\d+$/i;
 
 function toFiniteNumber(value, fallback = 0) {
@@ -18,6 +19,44 @@ function toNonEmptyString(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function normalizeWeaponArtSource(value) {
+  const source = toNonEmptyString(value)?.toLowerCase() || null;
+  if (!source) return null;
+  return VALID_WEAPON_ART_SOURCES.has(source) ? source : null;
+}
+
+export function normalizeWeaponArtBinding(weapon, options = {}) {
+  if (!weapon || typeof weapon !== 'object') return weapon;
+  const validArtIds = options.validArtIds instanceof Set ? options.validArtIds : null;
+  const legacyBinding = weapon.weaponArtBinding && typeof weapon.weaponArtBinding === 'object'
+    ? weapon.weaponArtBinding
+    : null;
+
+  const rawArtId = toNonEmptyString(
+    weapon.weaponArtId
+    ?? legacyBinding?.artId
+    ?? weapon.weaponArt
+    ?? weapon.artId
+  );
+  const artId = rawArtId && (!validArtIds || validArtIds.has(rawArtId)) ? rawArtId : null;
+  let source = normalizeWeaponArtSource(weapon.weaponArtSource);
+  if (!source) source = normalizeWeaponArtSource(legacyBinding?.source);
+
+  delete weapon.weaponArtBinding;
+  delete weapon.weaponArt;
+  delete weapon.artId;
+
+  if (!artId) {
+    delete weapon.weaponArtId;
+    delete weapon.weaponArtSource;
+    return weapon;
+  }
+
+  weapon.weaponArtId = artId;
+  weapon.weaponArtSource = source || 'innate';
+  return weapon;
 }
 
 function normalizeStringList(value) {
