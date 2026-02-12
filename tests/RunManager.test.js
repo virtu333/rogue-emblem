@@ -632,6 +632,18 @@ describe('RunManager', () => {
       expect(weapon.weaponArt).toBeUndefined();
     });
 
+    it('fromJSON recovers legacy binding when weaponArtId is invalid', () => {
+      rm.startRun();
+      const json = rm.toJSON();
+      const artId = gameData.weaponArts.arts[0].id;
+      json.roster[0].inventory[0].weaponArtId = 'missing_art';
+      json.roster[0].inventory[0].weaponArtBinding = { artId, source: 'scroll' };
+      const restored = RunManager.fromJSON(json, gameData);
+      const weapon = restored.roster[0].inventory[0];
+      expect(weapon.weaponArtId).toBe(artId);
+      expect(weapon.weaponArtSource).toBe('scroll');
+    });
+
     it('fromJSON strips invalid scroll weapon-art metadata fail-closed', () => {
       rm.startRun();
       const json = rm.toJSON();
@@ -639,7 +651,7 @@ describe('RunManager', () => {
         name: 'Test Art Scroll',
         type: 'Scroll',
         teachesWeaponArtId: 'missing_art',
-        allowedWeaponTypes: ['Sword', '', 42],
+        allowedWeaponTypes: [' sword ', 'SWORD', 'Blade', '', 42],
       }];
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.scrolls[0].teachesWeaponArtId).toBeUndefined();

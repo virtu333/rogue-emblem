@@ -33,14 +33,13 @@ export function normalizeWeaponArtBinding(weapon, options = {}) {
   const legacyBinding = weapon.weaponArtBinding && typeof weapon.weaponArtBinding === 'object'
     ? weapon.weaponArtBinding
     : null;
-
-  const rawArtId = toNonEmptyString(
-    weapon.weaponArtId
-    ?? legacyBinding?.artId
-    ?? weapon.weaponArt
-    ?? weapon.artId
-  );
-  const artId = rawArtId && (!validArtIds || validArtIds.has(rawArtId)) ? rawArtId : null;
+  const candidates = [
+    toNonEmptyString(weapon.weaponArtId),
+    toNonEmptyString(legacyBinding?.artId),
+    toNonEmptyString(weapon.weaponArt),
+    toNonEmptyString(weapon.artId),
+  ].filter(Boolean);
+  const artId = candidates.find((candidate) => !validArtIds || validArtIds.has(candidate)) || null;
   let source = normalizeWeaponArtSource(weapon.weaponArtSource);
   if (!source) source = normalizeWeaponArtSource(legacyBinding?.source);
 

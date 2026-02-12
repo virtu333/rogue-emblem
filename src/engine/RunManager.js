@@ -1430,6 +1430,9 @@ export class RunManager {
         ? runManager.gameData.weaponArts.arts.map((art) => art?.id).filter(Boolean)
         : []
     );
+    const canonicalWeaponTypeByLower = new Map(
+      [...CONVOY_WEAPON_TYPES].map((type) => [type.toLowerCase(), type])
+    );
 
     const normalizeScrollMetadata = (item) => {
       if (!item || typeof item !== 'object') return;
@@ -1447,6 +1450,8 @@ export class RunManager {
         const clean = [...new Set(item.allowedWeaponTypes
           .filter((type) => typeof type === 'string')
           .map((type) => type.trim())
+          .filter(Boolean)
+          .map((type) => canonicalWeaponTypeByLower.get(type.toLowerCase()))
           .filter(Boolean))];
         if (clean.length > 0) item.allowedWeaponTypes = clean;
         else delete item.allowedWeaponTypes;

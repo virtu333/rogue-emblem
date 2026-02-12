@@ -202,4 +202,17 @@ describe('WeaponArtSystem', () => {
     expect(bad.weaponArtSource).toBeUndefined();
     expect(bad.weaponArt).toBeUndefined();
   });
+
+  it('recovers legacy art binding when modern field is present but invalid', () => {
+    const weapon = {
+      id: 'mixed_blade',
+      weaponArtId: 'missing_art',
+      weaponArtSource: 'scroll',
+      weaponArtBinding: { artId: 'sword_precise_cut', source: 'scroll' },
+    };
+    normalizeWeaponArtBinding(weapon, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(weapon.weaponArtId).toBe('sword_precise_cut');
+    expect(weapon.weaponArtSource).toBe('scroll');
+    expect(weapon.weaponArtBinding).toBeUndefined();
+  });
 });
