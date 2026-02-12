@@ -104,14 +104,18 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
 - [x] `npm run test:unit` passes (41 files / 888 tests on Feb 12, 2026).
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
-- [ ] Two consecutive QA passes with no repro on known crash paths.
+- [x] Two consecutive QA passes with no repro on known crash paths.
 
 ### Wave 2 Scope (Low-Risk / High-Impact)
 - [x] Enemy affixes runtime wiring from `affixes.json` (difficulty-gated, exclusion rules, scaling).
 - [x] Affix UI indicator + inspection visibility.
 - [x] Recruit naming pools + dialogue scaffold integration (`dialogue.json` data + loader/test coverage).
 - [x] Deterministic tests for spawn, exclusions, and serialization.
-- [ ] Post-merge QA confirms no startup/audio/scene transition regressions.
+- [x] Post-merge QA confirms no startup/audio/scene transition regressions.
+
+QA evidence (Feb 12, 2026):
+- Pass 1: `npm run test:unit` (42 files / 890 tests), `npm run test:harness` (5 files / 53 tests), `npm run test:sim` (2 files / 5 tests) all green.
+- Pass 2: repeated `npm run test:unit`, `npm run test:harness`, `npm run test:sim`; all green with identical coverage.
 
 ### Open Engineering Tickets
 - [x] **TICKET: Boss recruit test suite regression triage (non-blocking for UI overlays)**
