@@ -187,6 +187,88 @@ describe('BattleScene weapon art helpers', () => {
     expect(unit._battleWeaponArtUsage).toBeUndefined();
   });
 
+  it('uses identical post-cost HP context for forecast and execute skill ctx', async () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 3, perTurnLimit: 1, perMapLimit: 3 });
+    const attacker = {
+      name: 'Edric',
+      faction: 'player',
+      col: 0,
+      row: 0,
+      currentHP: 20,
+      stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
+      weaponRank: 'Prof',
+      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '' },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+      _gambitUsedThisTurn: true,
+    };
+    const defender = {
+      name: 'Brigand',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      currentHP: 24,
+      stats: { HP: 24, STR: 8, MAG: 0, SKL: 6, SPD: 6, DEF: 5, RES: 1, LCK: 2 },
+      weaponRank: 'Prof',
+      weapon: null,
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+    };
+
+    scene.gameData = { skills: [], affixes: [], weaponArts: { arts: [art] } };
+    scene.turnManager = { turnNumber: 1, currentPhase: 'player' };
+    scene.playerUnits = [attacker];
+    scene.enemyUnits = [defender];
+    scene.npcUnits = [];
+    scene.grid = {
+      clearAttackHighlights() {},
+      getTerrainAt() { return {}; },
+    };
+    scene.resetFortHealStreak = () => {};
+    const seenHp = [];
+    scene.buildSkillCtx = vi.fn((a) => {
+      seenHp.push(a.currentHP);
+      return {};
+    });
+    scene.animateSkillActivation = vi.fn(async () => {});
+    scene.animateStrike = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.applyOnAttackAffixes = vi.fn(async () => {});
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.awardXP = vi.fn(async () => {});
+    scene.removeUnit = vi.fn(async () => {});
+    scene.checkBattleEnd = vi.fn(() => false);
+    scene.finishUnitAction = vi.fn();
+
+    scene._buildForecastSkillCtx(attacker, defender, art);
+    scene._setSelectedWeaponArt(attacker, art.id);
+    await BattleScene.prototype.executeCombat.call(scene, attacker, defender);
+
+    expect(seenHp).toHaveLength(2);
+    expect(seenHp[0]).toBe(17);
+    expect(seenHp[1]).toBe(17);
+    expect(attacker.currentHP).toBe(17);
+  });
+
+  it('does not consume HP or usage across repeated forecast previews before confirm', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 4 });
+    const attacker = makeUnit({ currentHP: 20 });
+    const defender = makeUnit({ name: 'Enemy', faction: 'enemy' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.buildSkillCtx = vi.fn(() => ({}));
+
+    scene._buildForecastSkillCtx(attacker, defender, art);
+    scene._buildForecastSkillCtx(attacker, defender, art);
+    scene._buildForecastSkillCtx(attacker, defender, art);
+
+    expect(attacker.currentHP).toBe(20);
+    expect(attacker._battleWeaponArtUsage).toBeUndefined();
+  });
+
   it('consumes HP and records usage exactly once on executeCombat', async () => {
     const scene = new BattleScene();
     const art = makeArt({ hpCost: 2, perTurnLimit: 1, perMapLimit: 3 });
@@ -338,6 +420,36 @@ describe('BattleScene weapon art helpers', () => {
 
     const picked = scene._selectEnemyWeaponArt(enemy, target);
     expect(picked?.id).toBe('enemy_safe');
+  });
+
+  it('ignores illegal enemy-art tie candidates and remains deterministic', () => {
+    const scene = new BattleScene();
+    const illegalTie = makeArt({
+      id: 'enemy_aa_illegal',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['player'],
+      aiEnabled: true,
+    });
+    const legalTie = makeArt({
+      id: 'enemy_bb_legal',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 12,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legalTie, illegalTie] } };
+
+    const picked = scene._selectEnemyWeaponArt(enemy, target);
+    expect(picked?.id).toBe('enemy_bb_legal');
   });
 
   it('shows legendary-bound art only while matching weapon is equipped', () => {

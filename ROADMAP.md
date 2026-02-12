@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 969 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act-based unlock progression are now in progress on `main`. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 972 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act-based unlock progression are now in progress on `main`. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -102,7 +102,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (49 files / 969 tests on Feb 12, 2026).
+- [x] `npm run test:unit` passes (49 files / 972 tests on Feb 12, 2026).
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
 
@@ -114,7 +114,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Post-merge QA confirms no startup/audio/scene transition regressions.
 
 QA evidence (Feb 12, 2026):
-- Pass 1: `npm run test:unit` (49 files / 969 tests), `npm run test:harness` (5 files / 53 tests), `npm run test:sim` (2 files / 5 tests) all green.
+- Pass 1: `npm run test:unit` (49 files / 972 tests), `npm run test:harness` (5 files / 53 tests), `npm run test:sim` (2 files / 5 tests) all green.
 - Pass 2: repeated `npm run test:unit`, `npm run test:harness`, `npm run test:sim`; all green with identical coverage.
 
 ### Open Engineering Tickets
