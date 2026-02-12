@@ -328,9 +328,11 @@ function createParticles() {
 
 // --- Menu button builder ---
 
-function createMenuButton(scene, x, y, label, onClick, delay) {
-  const btnW = 240;
-  const btnH = 42;
+function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
+  const btnW = options.width || 240;
+  const btnH = options.height || 42;
+  const fontSize = options.fontSize || '11px';
+  const letterSpacing = options.letterSpacing !== undefined ? options.letterSpacing : 2;
 
   const container = scene.add.container(x, y).setDepth(20).setAlpha(0);
 
@@ -344,15 +346,16 @@ function createMenuButton(scene, x, y, label, onClick, delay) {
 
   // Label
   const text = scene.add.text(0, 0, label, {
-    fontFamily: FONT, fontSize: '11px', color: '#cccccc',
-    letterSpacing: 2,
+    fontFamily: FONT, fontSize: fontSize, color: '#cccccc',
+    letterSpacing: letterSpacing,
   }).setOrigin(0.5);
   container.add(text);
 
   // Cursor arrow (hidden)
   const cursor = scene.add.text(-btnW / 2 + 12, 0, '\u25b6', {
-    fontFamily: FONT, fontSize: '10px', color: GOLD,
+    fontFamily: FONT, fontSize: options.fontSize || '10px', color: GOLD,
   }).setOrigin(0, 0.5).setAlpha(0);
+  if (btnW < 150) cursor.setVisible(false); // Hide arrow on small buttons
   container.add(cursor);
 
   // Corner accents (hidden)
@@ -507,25 +510,25 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Title block ---
     // Shadow text (3D emboss)
-    this.add.text(cx, 100 + 4, 'ROGUE EMBLEM', {
+    this.add.text(cx, 70 + 4, 'ROGUE EMBLEM', {
       fontFamily: FONT, fontSize: '28px', color: '#7a5520',
     }).setOrigin(0.5).setDepth(9).setAlpha(0);
 
     // Main title
-    const titleText = this.add.text(cx, 100, 'ROGUE EMBLEM', {
+    const titleText = this.add.text(cx, 70, 'ROGUE EMBLEM', {
       fontFamily: FONT, fontSize: '28px', color: GOLD,
       shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.5)', blur: 20, fill: true },
     }).setOrigin(0.5).setDepth(10).setAlpha(0);
 
     // Subtitle
-    const subtitleText = this.add.text(cx, 140, 'TACTICAL ROGUELIKE', {
+    const subtitleText = this.add.text(cx, 110, 'TACTICAL ROGUELIKE', {
       fontFamily: FONT, fontSize: '10px', color: TEXT_SUB,
       letterSpacing: 4,
       shadow: { offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.8)', blur: 8, fill: true },
     }).setOrigin(0.5).setDepth(10).setAlpha(0);
 
     // Alpha Testing tag
-    const alphaTag = this.add.text(cx, 162, 'ALPHA TESTING', {
+    const alphaTag = this.add.text(cx, 132, 'ALPHA TESTING', {
       fontFamily: FONT, fontSize: '8px', color: '#ff6666',
       letterSpacing: 2,
       backgroundColor: '#220000aa',
@@ -538,16 +541,16 @@ export class TitleScene extends Phaser.Scene {
     divider.lineStyle(1, 0xa67c2e, 1);
     // Left line
     divider.beginPath();
-    divider.moveTo(cx - divW / 2, 184);
-    divider.lineTo(cx - 15, 184);
+    divider.moveTo(cx - divW / 2, 154);
+    divider.lineTo(cx - 15, 154);
     divider.strokePath();
     // Right line
     divider.beginPath();
-    divider.moveTo(cx + 15, 184);
-    divider.lineTo(cx + divW / 2, 184);
+    divider.moveTo(cx + 15, 154);
+    divider.lineTo(cx + divW / 2, 154);
     divider.strokePath();
 
-    const swordIcon = this.add.text(cx, 184, '\u2694', {
+    const swordIcon = this.add.text(cx, 154, '\u2694', {
       fontFamily: FONT, fontSize: '12px', color: GOLD_DARK,
       shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.3)', blur: 8, fill: true },
     }).setOrigin(0.5).setDepth(10).setAlpha(0);
@@ -560,7 +563,7 @@ export class TitleScene extends Phaser.Scene {
     // Entry animations
     this.tweens.add({
       targets: [titleText, titleShadow],
-      alpha: 1, y: { from: 80, to: titleText.y },
+      alpha: 1, y: { from: 50, to: titleText.y },
       duration: 1500, ease: 'Power2',
     });
     this.tweens.add({
@@ -577,9 +580,9 @@ export class TitleScene extends Phaser.Scene {
     });
 
     // --- Menu buttons ---
-    let menuY = 220;
+    let menuY = 190;
     const btnDelay = 1000;
-    const btnGap = 50;
+    const btnGap = 42;
     const hasSlots = getSlotCount() > 0;
 
     createMenuButton(this, cx, menuY, 'NEW GAME', () => this.runMenuTransition(() => this.handleNewGame()), btnDelay);
@@ -597,7 +600,7 @@ export class TitleScene extends Phaser.Scene {
     }
 
     // HOW TO PLAY button
-    const htpBtn = createMenuButton(this, cx, menuY, 'MORE INFO', () => {
+    const htpBtn = createMenuButton(this, cx, menuY, 'HOW TO PLAY', () => {
       if (this.howToPlayOverlay?.visible) return;
       this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
         this.howToPlayOverlay = null;
@@ -608,7 +611,7 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
-    createMenuButton(this, cx, menuY, 'HELP', () => {
+    createMenuButton(this, cx, menuY, 'MORE INFO', () => {
       if (this.helpOverlay?.visible) return;
       this.helpOverlay = new HelpOverlay(this, () => {
         this.helpOverlay = null;
@@ -643,14 +646,20 @@ export class TitleScene extends Phaser.Scene {
 
     const cloud = this.registry.get('cloud');
     if (cloud) {
-      createMenuButton(this, cx, menuY, 'LOG OUT', async () => {
+      // Small Log Out button in top-right
+      createMenuButton(this, W - 70, 30, 'LOG OUT', async () => {
         try { await signOut(); } catch (_) {}
         try {
           clearAllSlotData();
           localStorage.removeItem('emblem_rogue_settings');
         } catch (_) {}
         location.reload();
-      }, btnDelay + delayIdx * 150);
+      }, btnDelay + delayIdx * 150, { width: 110, height: 28, fontSize: '8px', letterSpacing: 1 });
+
+      // User name near Log Out
+      this.add.text(W - 132, 30, cloud.displayName, {
+        fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.6)',
+      }).setOrigin(1, 0.5).setDepth(30);
     }
 
     // --- Footer ---
@@ -663,13 +672,7 @@ export class TitleScene extends Phaser.Scene {
       fontFamily: FONT, fontSize: '6px', color: 'rgba(100,100,120,0.4)',
     }).setOrigin(0.5, 0).setDepth(30);
 
-    if (cloud) {
-      this.add.text(W - 12, H - 28, cloud.displayName, {
-        fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.5)',
-      }).setOrigin(1, 0).setDepth(30);
-    }
-
-    const moreInfoText = this.add.text(W - 12, H - 16, 'MORE INFO', {
+    const moreInfoText = this.add.text(W - 12, H - 16, 'GITHUB', {
       fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.75)',
     }).setOrigin(1, 0).setDepth(30).setInteractive({ useHandCursor: true });
     moreInfoText.on('pointerover', () => moreInfoText.setColor(GOLD_LIGHT));

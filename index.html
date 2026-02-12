@@ -50,7 +50,7 @@
       flex-direction: column;
       align-items: center;
       pointer-events: none;
-      padding-top: 41%; /* align just below canvas-drawn title/divider */
+      padding-top: 36%; /* align just below canvas-drawn title/divider */
     }
     #auth-content > * {
       pointer-events: auto;
@@ -434,12 +434,12 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#7a5520';
-      ctx.fillText('ROGUE EMBLEM', cx, 104);
+      ctx.fillText('ROGUE EMBLEM', cx, 74);
       // Main title with glow
       ctx.shadowColor = 'rgba(232,184,73,0.5)';
       ctx.shadowBlur = 20;
       ctx.fillStyle = '#e8b849';
-      ctx.fillText('ROGUE EMBLEM', cx, 100);
+      ctx.fillText('ROGUE EMBLEM', cx, 70);
       ctx.shadowBlur = 0;
 
       // Subtitle
@@ -448,7 +448,7 @@
       ctx.shadowBlur = 8;
       ctx.shadowOffsetY = 2;
       ctx.fillStyle = '#8888aa';
-      ctx.fillText('TACTICAL ROGUELIKE', cx, 140);
+      ctx.fillText('TACTICAL ROGUELIKE', cx, 110);
       ctx.shadowBlur = 0;
       ctx.shadowOffsetY = 0;
 
@@ -457,20 +457,20 @@
       const tagText = 'ALPHA TESTING';
       const tagW = ctx.measureText(tagText).width + 16;
       ctx.fillStyle = 'rgba(34, 0, 0, 0.67)';
-      ctx.fillRect(cx - tagW / 2, 155, tagW, 16);
+      ctx.fillRect(cx - tagW / 2, 125, tagW, 16);
       ctx.fillStyle = '#ff6666';
-      ctx.fillText(tagText, cx, 163);
+      ctx.fillText(tagText, cx, 133);
 
       // Divider
       ctx.strokeStyle = '#a67c2e';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(cx - 100, 184);
-      ctx.lineTo(cx - 15, 184);
+      ctx.moveTo(cx - 100, 154);
+      ctx.lineTo(cx - 15, 154);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(cx + 15, 184);
-      ctx.lineTo(cx + 100, 184);
+      ctx.moveTo(cx + 15, 154);
+      ctx.lineTo(cx + 100, 154);
       ctx.stroke();
 
       // Sword icon
@@ -478,7 +478,7 @@
       ctx.shadowBlur = 8;
       ctx.font = '12px "Press Start 2P", monospace';
       ctx.fillStyle = '#a67c2e';
-      ctx.fillText('\u2694', cx, 187);
+      ctx.fillText('\u2694', cx, 157);
       ctx.shadowBlur = 0;
 
       ctx.restore();

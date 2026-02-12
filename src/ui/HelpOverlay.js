@@ -55,7 +55,7 @@ export class HelpOverlay {
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add.text(left + 20, top + 16, 'HELP', {
+    const title = this.scene.add.text(left + 20, top + 16, 'MORE INFO', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44', fontStyle: 'bold',
     }).setDepth(DEPTH_UI);
     this.objects.push(title);

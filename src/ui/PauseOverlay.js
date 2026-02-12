@@ -66,8 +66,8 @@ export class PauseOverlay {
     });
     btnY += 40;
 
-    // Help
-    this._addButton(cx, btnY, 'Help', () => {
+    // More Info
+    this._addButton(cx, btnY, 'More Info', () => {
       if (this.helpOverlay?.visible) return;
       this.helpOverlay = new HelpOverlay(this.scene, () => { this.helpOverlay = null; });
       this.helpOverlay.show();
