@@ -4,7 +4,7 @@ dist/
 *.log
 .env
 .env.local
-References/
+/References/
 .claude/
 
 # Local Netlify folder

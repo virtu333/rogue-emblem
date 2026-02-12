@@ -127,8 +127,9 @@ QA evidence (Feb 12, 2026):
 ### Wave 3-4 Planned Sequence
 - **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration. *(In progress / landing)*
 - **Wave 3A (Wyvern Foundation, Reclass Deferred):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, movement/pathing QA, and deterministic tests. Defer Second Seal/Reclass.
+  - TEMP: Wyvern Rider/Lord battle sprites currently use split blue/red placeholder art. Replace with finalized class-specific sprite set in Wave 3A polish.
 - **Wave 4 (Weapon Arts):** foundation (combat + data contract), acquisition/meta, enemy/legendary arts, then balance pass.
-- **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `References/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
+- **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `docs/references/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
 ---

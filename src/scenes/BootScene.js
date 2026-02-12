@@ -92,27 +92,28 @@ export class BootScene extends Phaser.Scene {
     });
     this._installPreloadStallWatch();
 
-    // Character sprites (32) - keyed by filename
+    // Character sprites (34) - keyed by filename
     const characterSprites = [
       'edric', 'archer', 'assassin', 'bishop', 'bishop_alt',
       'cavalier', 'cleric', 'cleric_alt', 'dancer', 'falcon_knight',
       'fighter', 'general', 'grandmaster', 'great_lord', 'hero',
       'knight', 'light_priestess', 'light_sage', 'lord', 'mage',
       'mercenary', 'myrmidon', 'paladin', 'pegasus_knight', 'ranger',
-      'sage', 'sniper', 'swordmaster', 'tactician', 'thief',
+      'sage', 'sniper', 'swordmaster', 'tactician', 'thief', 'wyvern_rider',
+      'wyvern_lord',
       'vanguard', 'warrior',
     ];
     for (const name of characterSprites) {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
     }
 
-    // Enemy sprites (25) - keyed as enemy_{name}
+    // Enemy sprites (27) - keyed as enemy_{name}
     const enemySprites = [
       'archer', 'assassin', 'bishop', 'cavalier', 'cleric', 'dragon',
       'falcon_knight', 'fighter', 'general', 'hero', 'knight',
       'mage', 'mercenary', 'myrmidon', 'paladin', 'pegasus_knight',
       'sage', 'sniper', 'swordmaster', 'thief', 'warrior', 'warrior_alt',
-      'wyvern_priest', 'zombie', 'zombie_brute',
+      'wyvern_priest', 'wyvern_rider', 'wyvern_lord', 'zombie', 'zombie_brute',
     ];
     for (const name of enemySprites) {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
@@ -127,7 +128,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);
     }
 
-    // Portraits (32) - keyed as portrait_{name}
+    // Portraits (34) - keyed as portrait_{name}
     const portraits = [
       'lord_edric', 'lord_kira', 'lord_sera', 'lord_voss',
       'generic_archer', 'generic_assassin', 'generic_bishop',
@@ -137,6 +138,7 @@ export class BootScene extends Phaser.Scene {
       'generic_mercenary', 'generic_myrmidon', 'generic_paladin',
       'generic_pegasus_knight', 'generic_sage', 'generic_sniper',
       'generic_swordmaster', 'generic_thief', 'generic_warrior',
+      'generic_wyvern_rider', 'generic_wyvern_lord',
       'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
       'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_dark_champion',
     ];

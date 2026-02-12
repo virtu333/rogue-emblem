@@ -66,7 +66,7 @@ Owner: gameplay roadmap stream
 
 Use Imagen API pipeline prompt and scaffold:
 
-- Reference: `References/imagen-asset-pipeline-prompt.md`
+- Reference: `docs/references/imagen-asset-pipeline-prompt.md`
 - Target location: `tools/imagen-pipeline/`
 - Required outputs:
   1. `generate.js` (Imagen generation runner)
@@ -94,4 +94,3 @@ Asset governance:
    - Control: ship narrow MVP first; keep menu interactions deterministic.
 3. Asset pipeline drift:
    - Control: enforce assets/public source-of-truth policy and scriptable regeneration.
-

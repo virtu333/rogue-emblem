@@ -173,7 +173,13 @@ function stripVariant(fileName) {
 }
 
 async function pickRawFile(categoryDir, assetName) {
-  const entries = await fs.readdir(categoryDir, { withFileTypes: true });
+  let entries = [];
+  try {
+    entries = await fs.readdir(categoryDir, { withFileTypes: true });
+  } catch (err) {
+    if (err?.code === 'ENOENT') return null;
+    throw err;
+  }
   const candidates = entries
     .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.png') && e.name.startsWith(`${assetName}_v`))
     .map((e) => e.name)
