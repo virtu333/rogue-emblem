@@ -1064,7 +1064,7 @@ export class RunManager {
     if (!art || !art.id) return false;
     const unlockAct = art.unlockAct || this.actSequence[0] || 'act1';
     const requiredIndex = this._getActOrderIndex(unlockAct);
-    if (requiredIndex === -1) return true;
+    if (requiredIndex === -1) return false;
     return this.actIndex >= requiredIndex;
   }
 

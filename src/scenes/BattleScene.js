@@ -3760,7 +3760,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getWeaponArtCatalog() {
-    return this.gameData?.weaponArts?.arts || [];
+    const arts = this.gameData?.weaponArts?.arts || [];
+    const hasRunManager = !!this.runManager;
+    const fromRun = this.runManager?.getUnlockedWeaponArts?.(arts);
+    if (Array.isArray(fromRun)) return fromRun;
+    const ids = this.runManager?.getUnlockedWeaponArtIds?.();
+    if (Array.isArray(ids)) {
+      const unlocked = new Set(ids);
+      return arts.filter((art) => art?.id && unlocked.has(art.id));
+    }
+    if (hasRunManager) return [];
+    return arts;
   }
 
   _getWeaponArtHpAfterCost(unit, art) {

@@ -307,6 +307,28 @@ describe('convoy scene/UI flows', () => {
     expect(() => overlay.hide()).not.toThrow();
   });
 
+  it('shows weapon-art unlock banner after act transition', () => {
+    const ctx = {
+      runManager: {
+        isActComplete: () => true,
+        isRunComplete: () => false,
+        advanceAct: () => ['sword_precise_cut'],
+      },
+      gameData: {
+        weaponArts: { arts: [{ id: 'sword_precise_cut', name: 'Precise Cut' }] },
+      },
+      drawMap: vi.fn(),
+      showActCompleteBanner: (onComplete) => { if (onComplete) onComplete(); },
+      showShopBanner: vi.fn(),
+      showWeaponArtsUnlockedBanner: NodeMapScene.prototype.showWeaponArtsUnlockedBanner,
+    };
+
+    NodeMapScene.prototype.checkActComplete.call(ctx);
+
+    expect(ctx.drawMap).toHaveBeenCalled();
+    expect(ctx.showShopBanner).toHaveBeenCalledWith('Weapon Art unlocked: Precise Cut', '#88ddff');
+  });
+
   it('does not fire onClose during initial show', () => {
     const rm = new RunManager(gameData);
     rm.startRun();

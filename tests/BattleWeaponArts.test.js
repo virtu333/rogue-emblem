@@ -49,6 +49,19 @@ describe('BattleScene weapon art helpers', () => {
     expect(arts[0].id).toBe('art_unlocked');
   });
 
+  it('treats empty unlock state as authoritative when runManager exists', () => {
+    const scene = new BattleScene();
+    scene.gameData = { weaponArts: { arts: [makeArt({ id: 'art_a' }), makeArt({ id: 'art_b' })] } };
+    scene.runManager = {
+      getUnlockedWeaponArtIds: () => [],
+    };
+
+    const arts = scene._getWeaponArtCatalog();
+
+    expect(Array.isArray(arts)).toBe(true);
+    expect(arts).toHaveLength(0);
+  });
+
   it('returns selected weapon art when valid for the unit weapon', () => {
     const scene = new BattleScene();
     const art = makeArt();

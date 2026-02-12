@@ -277,6 +277,26 @@ describe('RunManager', () => {
       expect(unlocked).toContain('test_act2_art');
       expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(true);
     });
+
+    it('does not unlock arts with unknown unlockAct values', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts.push({
+        id: 'test_bad_unlock_act',
+        name: 'Bad Unlock',
+        weaponType: 'Sword',
+        unlockAct: 'ac2',
+        requiredRank: 'Prof',
+        hpCost: 1,
+        perTurnLimit: 1,
+        perMapLimit: 3,
+        combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Bad Unlock' }] },
+      });
+      const localRm = new RunManager(localData);
+      localRm.startRun();
+      expect(localRm.isWeaponArtUnlocked('test_bad_unlock_act')).toBe(false);
+      localRm.advanceAct();
+      expect(localRm.isWeaponArtUnlocked('test_bad_unlock_act')).toBe(false);
+    });
   });
 
   describe('failRun', () => {
