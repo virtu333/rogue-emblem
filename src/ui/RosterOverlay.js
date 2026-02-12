@@ -11,6 +11,8 @@ import {
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
 
+const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
+
 const DEPTH_BG = 700;
 const DEPTH_PANEL = 701;
 const DEPTH_TEXT = 702;
@@ -618,6 +620,18 @@ export class RosterOverlay {
         y += 12;
       }
     }
+
+    y += 6;
+    const teamScrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
+    this._text(x, y, `\u2500\u2500 Team Scrolls (${teamScrolls.length}) \u2500\u2500`, '#888888', '10px');
+    y += 14;
+    if (teamScrolls.length <= 0) {
+      this._text(x + 8, y, '(none)', '#888888', '10px');
+      y += 14;
+    } else {
+      this._actionBtn(x + 8, y, '[Use Scroll]', () => this._showScrollPicker(unit), '10px');
+      y += 14;
+    }
   }
 
   _drawConvoyDetail() {
@@ -793,6 +807,236 @@ export class RosterOverlay {
         : 'Already knows this skill!';
       this._showBanner(reason, '#ff8888');
     }
+  }
+
+  _isWeaponArtScroll(scroll) {
+    return typeof scroll?.teachesWeaponArtId === 'string' && scroll.teachesWeaponArtId.trim().length > 0;
+  }
+
+  _removeTeamScroll(scroll) {
+    if (!Array.isArray(this.runManager.scrolls)) return false;
+    const idx = this.runManager.scrolls.indexOf(scroll);
+    if (idx === -1) return false;
+    this.runManager.scrolls.splice(idx, 1);
+    return true;
+  }
+
+  _getWeaponArtFromScroll(scroll) {
+    const artId = typeof scroll?.teachesWeaponArtId === 'string' ? scroll.teachesWeaponArtId.trim() : '';
+    if (!artId) return null;
+    const arts = this.gameData?.weaponArts?.arts || [];
+    return arts.find((art) => art?.id === artId) || null;
+  }
+
+  _getWeaponArtScrollBlockReason(unit, weapon, scroll, art) {
+    if (!unit || !weapon || !scroll || !art) return 'invalid';
+    if (Array.isArray(scroll.allowedWeaponTypes) && scroll.allowedWeaponTypes.length > 0) {
+      if (!scroll.allowedWeaponTypes.includes(weapon.type)) return 'wrong_type';
+    }
+    if (art.weaponType && weapon.type !== art.weaponType) return 'wrong_type';
+
+    const prof = (unit.proficiencies || []).find((p) => p?.type === weapon.type);
+    if (!prof) return 'no_proficiency';
+    const rank = prof.rank || 'Prof';
+    const requiredRank = art.requiredRank || 'Prof';
+    if ((WEAPON_ART_RANK_ORDER[rank] ?? -1) < (WEAPON_ART_RANK_ORDER[requiredRank] ?? 0)) {
+      return 'insufficient_rank';
+    }
+
+    const existingId = typeof weapon.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
+    if (!existingId) return null;
+    if (existingId === art.id) return 'already_has_art';
+    const source = typeof weapon.weaponArtSource === 'string' ? weapon.weaponArtSource : 'innate';
+    if (source === 'innate' || source === 'meta_innate') return 'has_innate_art';
+    return 'has_bound_art';
+  }
+
+  _weaponArtScrollReasonLabel(reason) {
+    switch (reason) {
+      case 'wrong_type': return 'No compatible weapon for this scroll.';
+      case 'no_proficiency': return 'Unit lacks proficiency for this art.';
+      case 'insufficient_rank': return 'Weapon rank too low for this art.';
+      case 'already_has_art': return 'Weapon already has this art.';
+      case 'has_innate_art': return 'Weapon has innate art and cannot be overwritten.';
+      case 'has_bound_art': return 'Weapon already has a scroll-bound art.';
+      default: return 'Cannot apply this scroll.';
+    }
+  }
+
+  _getScrollEligibleWeaponsForArt(unit, scroll, art) {
+    const inventory = Array.isArray(unit?.inventory) ? unit.inventory : [];
+    const weapons = inventory.filter((item) =>
+      item
+      && item.type
+      && item.type !== 'Consumable'
+      && item.type !== 'Scroll'
+      && item.type !== 'Accessory'
+    );
+    return weapons
+      .map((weapon) => ({
+        weapon,
+        reason: this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art),
+      }))
+      .filter((entry) => !entry.reason);
+  }
+
+  _showScrollPicker(unit) {
+    this._destroyTrade();
+    const scrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
+    if (scrolls.length <= 0) {
+      this._showBanner('No scrolls available.', '#ff8888');
+      return;
+    }
+
+    const cx = 320;
+    const itemH = 24;
+    const titleH = 30;
+    const pad = 12;
+    const totalH = titleH + scrolls.length * itemH + itemH + pad;
+    const cy = 240;
+    const topY = cy - totalH / 2;
+
+    const pickerBg = this.scene.add.rectangle(cx, cy, 300, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    this.tradeObjects.push(pickerBg);
+
+    const pickerTitle = this.scene.add.text(cx, topY + pad, 'Use Scroll:', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(pickerTitle);
+
+    scrolls.forEach((scroll, i) => {
+      const y = topY + titleH + i * itemH + pad;
+      const isWeaponArt = this._isWeaponArtScroll(scroll);
+      const color = isWeaponArt ? '#88ddff' : '#88ffff';
+      const btn = this.scene.add.text(cx, y, scroll.name, {
+        fontFamily: 'monospace', fontSize: '11px', color,
+        backgroundColor: '#444444', padding: { x: 10, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor(color));
+      btn.on('pointerdown', () => {
+        this._destroyTrade();
+        this._useTeamScroll(unit, scroll);
+      });
+      this.tradeObjects.push(btn);
+    });
+
+    const cancelY = topY + titleH + scrolls.length * itemH + pad;
+    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerdown', () => this._destroyTrade());
+    this.tradeObjects.push(cancelBtn);
+  }
+
+  _showWeaponPickerForScroll(weapons, title, onSelect) {
+    this._destroyTrade();
+    const cx = 320;
+    const itemH = 24;
+    const titleH = 30;
+    const pad = 12;
+    const totalH = titleH + weapons.length * itemH + itemH + pad;
+    const cy = 240;
+    const topY = cy - totalH / 2;
+
+    const pickerBg = this.scene.add.rectangle(cx, cy, 320, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    this.tradeObjects.push(pickerBg);
+
+    const pickerTitle = this.scene.add.text(cx, topY + pad, title, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(pickerTitle);
+
+    weapons.forEach((weapon, i) => {
+      const y = topY + titleH + i * itemH + pad;
+      const btn = this.scene.add.text(cx, y, weapon.name, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+        backgroundColor: '#444444', padding: { x: 10, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerdown', () => {
+        this._destroyTrade();
+        onSelect(weapon);
+      });
+      this.tradeObjects.push(btn);
+    });
+
+    const cancelY = topY + titleH + weapons.length * itemH + pad;
+    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerdown', () => this._destroyTrade());
+    this.tradeObjects.push(cancelBtn);
+  }
+
+  _useTeamScroll(unit, scroll) {
+    if (!unit || !scroll) return;
+
+    if (!this._isWeaponArtScroll(scroll)) {
+      if (scroll.skillId) {
+        this._teachScroll(unit, scroll);
+        return;
+      }
+      this._showBanner('This scroll cannot be used.', '#ff8888');
+      return;
+    }
+
+    const art = this._getWeaponArtFromScroll(scroll);
+    if (!art) {
+      this._showBanner('Scroll references unknown weapon art.', '#ff8888');
+      return;
+    }
+
+    const eligible = this._getScrollEligibleWeaponsForArt(unit, scroll, art).map((entry) => entry.weapon);
+    if (eligible.length <= 0) {
+      const firstWeapon = Array.isArray(unit.inventory) ? unit.inventory.find((item) =>
+        item && item.type && item.type !== 'Consumable' && item.type !== 'Scroll' && item.type !== 'Accessory'
+      ) : null;
+      const reason = firstWeapon ? this._getWeaponArtScrollBlockReason(unit, firstWeapon, scroll, art) : 'wrong_type';
+      this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
+      return;
+    }
+
+    const applyToWeapon = (weapon) => {
+      const reason = this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art);
+      if (reason) {
+        this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
+        return;
+      }
+
+      weapon.weaponArtId = art.id;
+      weapon.weaponArtSource = 'scroll';
+      if (!this._removeTeamScroll(scroll)) {
+        this._showBanner('Scroll could not be consumed.', '#ff8888');
+        return;
+      }
+      const audio = this.scene.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      this._showBanner(`${weapon.name} learned ${art.name}!`, '#88ddff');
+      this.refresh();
+    };
+
+    if (eligible.length === 1) {
+      applyToWeapon(eligible[0]);
+      return;
+    }
+
+    this._showWeaponPickerForScroll(
+      eligible,
+      `Apply ${art.name} to:`,
+      applyToWeapon
+    );
   }
 
   // --- Trade ---

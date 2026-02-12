@@ -62,6 +62,20 @@ describe('BattleScene weapon art helpers', () => {
     expect(arts).toHaveLength(0);
   });
 
+  it('includes weapon-bound art even when globally locked', () => {
+    const scene = new BattleScene();
+    const bound = makeArt({ id: 'sword_bound_art', name: 'Bound Art' });
+    const unit = makeUnit({
+      weapon: { type: 'Sword', weaponArtId: 'sword_bound_art', weaponArtSource: 'scroll' },
+    });
+    scene.gameData = { weaponArts: { arts: [bound] } };
+    scene.runManager = { getUnlockedWeaponArtIds: () => [] };
+
+    const arts = scene._getAvailableWeaponArtCatalogForUnit(unit);
+
+    expect(arts.map((art) => art.id)).toContain('sword_bound_art');
+  });
+
   it('returns selected weapon art when valid for the unit weapon', () => {
     const scene = new BattleScene();
     const art = makeArt();

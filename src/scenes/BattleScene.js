@@ -3778,17 +3778,28 @@ export class BattleScene extends Phaser.Scene {
     const base = this._getWeaponArtCatalog(options);
     if (!unit?.weapon) return base;
     const allArts = this.gameData?.weaponArts?.arts || [];
-    const weaponToken = unit.weapon?.id || unit.weapon?.name || null;
-    if (!weaponToken) return base;
-    const legendaryBound = allArts.filter((art) =>
-      Array.isArray(art?.legendaryWeaponIds)
-      && art.legendaryWeaponIds.includes(weaponToken)
-    );
-    if (legendaryBound.length <= 0) return base;
     const byId = new Map();
-    for (const art of [...base, ...legendaryBound]) {
+    for (const art of base) {
       if (art?.id) byId.set(art.id, art);
     }
+
+    const boundId = typeof unit.weapon?.weaponArtId === 'string' ? unit.weapon.weaponArtId.trim() : '';
+    if (boundId) {
+      const boundArt = allArts.find((art) => art?.id === boundId);
+      if (boundArt?.id) byId.set(boundArt.id, boundArt);
+    }
+
+    const weaponToken = unit.weapon?.id || unit.weapon?.name || null;
+    if (weaponToken) {
+      const legendaryBound = allArts.filter((art) =>
+        Array.isArray(art?.legendaryWeaponIds)
+        && art.legendaryWeaponIds.includes(weaponToken)
+      );
+      for (const art of legendaryBound) {
+        if (art?.id) byId.set(art.id, art);
+      }
+    }
+
     return [...byId.values()];
   }
 

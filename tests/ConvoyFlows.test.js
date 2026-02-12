@@ -243,6 +243,73 @@ describe('convoy scene/UI flows', () => {
     expect(rm.getConvoyCounts().consumables).toBe(1);
   });
 
+  it('applies a weapon-art scroll to an eligible weapon and consumes the scroll', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    unit.skills = unit.skills || [];
+    rm.scrolls = [{
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    }];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+
+    overlay._useTeamScroll(unit, rm.scrolls[0]);
+
+    expect(sword.weaponArtId).toBe('sword_precise_cut');
+    expect(sword.weaponArtSource).toBe('scroll');
+    expect(rm.scrolls).toHaveLength(0);
+  });
+
+  it('does not consume a weapon-art scroll when target weapon has innate art', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    unit.skills = unit.skills || [];
+    rm.scrolls = [{
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    }];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+
+    overlay._useTeamScroll(unit, rm.scrolls[0]);
+
+    expect(rm.scrolls).toHaveLength(1);
+    expect(sword.weaponArtId).toBe('legend_gemini_tempest');
+    expect(sword.weaponArtSource).toBe('innate');
+    expect(overlay._showBanner).toHaveBeenCalledWith('Weapon has innate art and cannot be overwritten.', '#ff8888');
+  });
+
   it('takes a consumable from convoy into roster via take action', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
