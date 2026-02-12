@@ -97,4 +97,15 @@ describe('sceneLoader.startSceneLazy', () => {
       vi.useRealTimers();
     }
   });
+
+  it('returns false when scene start throws', async () => {
+    const scene = makeScene({ active: true });
+    scene.scene.start.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const result = await startSceneLazy(scene, 'Title', { foo: 1 });
+
+    expect(result).toBe(false);
+  });
 });

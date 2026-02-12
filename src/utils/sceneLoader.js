@@ -132,6 +132,13 @@ export async function startSceneLazy(scene, key, data = undefined) {
     markAudioDiag(scene, 'transition_started', { targetScene: key });
     scheduleRelease();
     return true;
+  } catch (err) {
+    markAudioDiag(scene, 'transition_error', {
+      targetScene: key,
+      message: err?.message || String(err),
+    });
+    console.error('[sceneLoader] startSceneLazy failed:', key, err);
+    return false;
   } finally {
     if (!started) {
       markAudioDiag(scene, 'transition_aborted', { targetScene: key });

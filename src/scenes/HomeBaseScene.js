@@ -42,6 +42,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData;
+    this.isTransitioning = false;
   }
 
   create() {
@@ -697,9 +698,7 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', async () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      await startSceneLazy(this, 'DifficultySelect', { gameData: this.gameData });
+      await this.runTransition(() => startSceneLazy(this, 'DifficultySelect', { gameData: this.gameData }));
     });
 
     const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
@@ -710,9 +709,77 @@ export class HomeBaseScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', async () => {
+      await this.runTransition(async () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.stopMusic(this, 0);
+        return startSceneLazy(this, 'Title', { gameData: this.gameData });
+      });
+    });
+  }
+
+  async runTransition(action) {
+    if (this.isTransitioning) return false;
+    this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
+    try {
+      await this.ensureAudioUnlocked();
+      const transitioned = await action();
+      if (transitioned) {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        return true;
+      }
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
+      this.showTransientMessage('Could not start transition. Try again.', '#ff8888');
       const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      await startSceneLazy(this, 'Title', { gameData: this.gameData });
+      if (audio) audio.playSFX('sfx_cancel');
+      return false;
+    } catch (err) {
+      console.error('[HomeBaseScene] transition failed:', err);
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
+      const msg = (err?.message || '').includes('dynamically imported module')
+        ? 'Update detected. Refresh page to continue.'
+        : 'Transition failed. Please try again.';
+      this.showTransientMessage(msg, '#ff8888');
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_cancel');
+      return false;
+    }
+  }
+
+  async ensureAudioUnlocked(timeoutMs = 200) {
+    const sound = this.sound;
+    if (!sound?.locked) return;
+    await new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      if (typeof sound.once === 'function') {
+        sound.once('unlocked', finish);
+      }
+      try {
+        if (typeof sound.unlock === 'function') sound.unlock();
+      } catch (_) {}
+      this.time.delayedCall(timeoutMs, finish);
+    });
+  }
+
+  showTransientMessage(text, color = '#ff8888') {
+    if (this.transientMessage) this.transientMessage.destroy();
+    this.transientMessage = this.add.text(this.cameras.main.centerX, 414, text, {
+      fontFamily: 'monospace', fontSize: '11px', color,
+      backgroundColor: '#000000cc', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(950);
+    this.time.delayedCall(2200, () => {
+      if (this.transientMessage) {
+        this.transientMessage.destroy();
+        this.transientMessage = null;
+      }
     });
   }
 
