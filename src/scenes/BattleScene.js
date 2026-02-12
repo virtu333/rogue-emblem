@@ -3872,8 +3872,22 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
+  _getEnemyWeaponArtDifficultyId() {
+    return this.battleParams?.difficultyId || this.runManager?.difficultyId || null;
+  }
+
+  _getEnemyWeaponArtTuning() {
+    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
+    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
+    const difficultyId = String(rawDifficulty).toLowerCase();
+    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
+    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
+    return { minScore: 0.75, useChance: 0.9 };
+  }
+
   _selectEnemyWeaponArt(unit, target) {
     if (!unit?.weapon) return null;
+    const tuning = this._getEnemyWeaponArtTuning();
     const choices = this._getWeaponArtChoices(unit, unit.weapon, {
       isAI: true,
       isInitiating: true,
@@ -3883,8 +3897,9 @@ export class BattleScene extends Phaser.Scene {
     if (choices.length <= 0) return null;
     const scored = choices
       .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
-      .filter((entry) => entry.score > 0);
+      .filter((entry) => entry.score >= tuning.minScore);
     if (scored.length <= 0) return null;
+    if (tuning.useChance < 1 && Math.random() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       const aCost = Math.max(0, Number(a.art?.hpCost) || 0);

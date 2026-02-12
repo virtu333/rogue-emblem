@@ -14,6 +14,7 @@
 - **Help clarity follow-up**: Clarified Weapon Arts help copy for `Req Prof` vs `Req Mast`, and explicitly documented act-unlock (run progression) vs meta-unlock (active from run start) semantics.
 - **Acquisition/meta surface clarity**: Home Base upgrade descriptions now call out Weapon Art unlock side effects (for example, Deadly Arsenal now explicitly indicates it unlocks Weapon Arts).
 - **Initial Weapon Arts balance pass**: Tuned `Longshot` and increased legendary art HP costs, with new data-level guardrail tests to prevent reintroducing low-risk dominant picks.
+- **Difficulty-aware enemy art frequency**: Enemy Weapon Art usage now scales by difficulty (stricter/less frequent on Normal, more frequent on Hard/Lunatic) with deterministic regression coverage for thresholding and proc-rate behavior.
 - **Wyvern foundation (no reclass)**: Added Wyvern Rider/Lord integration and deterministic coverage while explicitly deferring Second Seal/reclass scope.
 - **Convoy MVP landed**: Added convoy storage + overflow routing with hardened transaction paths for shop overflow and battle loot pickup failure cases.
 - **Accessory flow simplification**: Removed in-battle accessory action; accessory management is now roster-oriented.

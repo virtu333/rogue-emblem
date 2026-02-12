@@ -452,6 +452,67 @@ describe('BattleScene weapon art helpers', () => {
     expect(picked?.id).toBe('enemy_bb_legal');
   });
 
+  it('uses stricter score threshold on normal difficulty than hard', () => {
+    const scene = new BattleScene();
+    const lowValue = makeArt({
+      id: 'enemy_low_value',
+      hpCost: 2,
+      combatMods: { atkBonus: 1 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 12,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [lowValue] } };
+
+    scene.battleParams = { difficultyId: 'normal' };
+    expect(scene._selectEnemyWeaponArt(enemy, target)).toBeNull();
+
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    try {
+      scene.battleParams = { difficultyId: 'hard' };
+      expect(scene._selectEnemyWeaponArt(enemy, target)?.id).toBe('enemy_low_value');
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('uses lower enemy art proc chance on normal than hard', () => {
+    const scene = new BattleScene();
+    const legal = makeArt({
+      id: 'enemy_proc_test',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 12,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legal] } };
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.85);
+    try {
+      scene.battleParams = { difficultyId: 'normal' };
+      expect(scene._selectEnemyWeaponArt(enemy, target)).toBeNull();
+
+      scene.battleParams = { difficultyId: 'hard' };
+      expect(scene._selectEnemyWeaponArt(enemy, target)?.id).toBe('enemy_proc_test');
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it('shows legendary-bound art only while matching weapon is equipped', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({
