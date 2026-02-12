@@ -113,11 +113,8 @@ export class NodeMapScene extends Phaser.Scene {
       void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this);
     }
 
-    // Ensure music is stopped when scene shuts down
-    this.events.once('shutdown', () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.releaseMusic(this, 0);
-    });
+    this._bindInputHandlers();
+    this.events.once('shutdown', () => this._onSceneShutdown());
 
     // Auto-save on every node map entry
     this.persistRunSave();
@@ -128,18 +125,6 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
-
-    // ESC key handler
-    this.input.keyboard.on('keydown-ESC', () => {
-      this.requestCancel();
-    });
-    this.input.on('pointerdown', (pointer) => {
-      this._touchTapDown = { x: pointer.x, y: pointer.y };
-      this.onPointerDown(pointer);
-    });
-    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
-    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
 
     // Debug overlay (dev-only)
     if (DEBUG_MODE) {
@@ -165,6 +150,52 @@ export class NodeMapScene extends Phaser.Scene {
       showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
 
+  }
+
+  _bindInputHandlers() {
+    const input = this.input;
+    const keyboard = input?.keyboard;
+
+    // Idempotent unbind to avoid stacked listeners across scene lifecycles.
+    this._unbindInputHandlers();
+
+    this._onEsc = (event) => {
+      if (event?.repeat) return;
+      this.requestCancel();
+    };
+    this._onPointerDown = (pointer) => {
+      this._touchTapDown = { x: pointer.x, y: pointer.y };
+      this.onPointerDown(pointer);
+    };
+    this._onPointerMove = (pointer) => this.onPointerMove(pointer);
+    this._onPointerUp = (pointer) => this.onPointerUp(pointer);
+    this._onWheel = (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY);
+
+    if (keyboard?.on) keyboard.on('keydown-ESC', this._onEsc);
+    if (input?.on) {
+      input.on('pointerdown', this._onPointerDown);
+      input.on('pointermove', this._onPointerMove);
+      input.on('pointerup', this._onPointerUp);
+      input.on('wheel', this._onWheel);
+    }
+  }
+
+  _unbindInputHandlers() {
+    const input = this.input;
+    const keyboard = input?.keyboard;
+    if (keyboard?.off && this._onEsc) keyboard.off('keydown-ESC', this._onEsc);
+    if (input?.off) {
+      if (this._onPointerDown) input.off('pointerdown', this._onPointerDown);
+      if (this._onPointerMove) input.off('pointermove', this._onPointerMove);
+      if (this._onPointerUp) input.off('pointerup', this._onPointerUp);
+      if (this._onWheel) input.off('wheel', this._onWheel);
+    }
+  }
+
+  _onSceneShutdown() {
+    const audio = this.registry.get('audio');
+    if (audio) audio.releaseMusic(this, 0);
+    this._unbindInputHandlers();
   }
 
   async finalizeSceneReady() {
@@ -327,12 +358,12 @@ export class NodeMapScene extends Phaser.Scene {
       this.settingsOverlay.hide();
       return true;
     }
-    if (this.rosterOverlay?.visible) {
-      this.rosterOverlay.hide();
-      return true;
-    }
     if (this.pauseOverlay?.visible) {
       this.pauseOverlay.hide();
+      return true;
+    }
+    if (this.rosterOverlay?.visible) {
+      this.rosterOverlay.hide();
       return true;
     }
     if (this.shopOverlay) {
@@ -357,6 +388,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showPauseMenu() {
+    if (this.pauseOverlay?.visible) return;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => { this.pauseOverlay = null; },
       onSaveAndExit: () => {
