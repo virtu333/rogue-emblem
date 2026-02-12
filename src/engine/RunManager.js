@@ -8,7 +8,15 @@ import {
 } from '../utils/constants.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
-import { createLordUnit, addToInventory, addToConsumables, equipAccessory, canEquip, getClassInnateSkills } from './UnitManager.js';
+import {
+  createLordUnit,
+  addToInventory,
+  addToConsumables,
+  equipAccessory,
+  canEquip,
+  getClassInnateSkills,
+  normalizeUnitClassState,
+} from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
@@ -1396,6 +1404,22 @@ export class RunManager {
   }
 
   /**
+   * Normalize loaded units against current class schema to prevent stale class-state drift.
+   */
+  static migrateUnitClassState(runManager) {
+    const classByName = new Map((runManager.gameData?.classes || []).map(c => [c.name, c]));
+    if (classByName.size <= 0) return;
+    const normalize = (unit) => {
+      if (!unit || !unit.className) return;
+      const classData = classByName.get(unit.className);
+      if (!classData) return;
+      normalizeUnitClassState(unit, classData);
+    };
+    runManager.roster.forEach(normalize);
+    runManager.fallenUnits.forEach(normalize);
+  }
+
+  /**
    * Normalize legacy skill strings (e.g. "Renewal Aura") to canonical skill IDs
    * so on-turn-start and passive skill logic remains reliable across old saves.
    */
@@ -1539,6 +1563,7 @@ export class RunManager {
     RunManager.migrateSkillIds(rm);
     RunManager.migrateClassInnateSkills(rm);
     RunManager.migrateClassLearnableSkills(rm);
+    RunManager.migrateUnitClassState(rm);
 
     rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits.forEach(u => relinkWeapon(u));

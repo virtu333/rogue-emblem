@@ -1192,6 +1192,57 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     }
   });
 
+  it('fromJSON normalizes stale Wyvern class state and relinks legal weapon', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    const ironSword = gameData.weapons.find(w => w.name === 'Iron Sword');
+    const ironLance = gameData.weapons.find(w => w.name === 'Iron Lance');
+    expect(ironSword).toBeTruthy();
+    expect(ironLance).toBeTruthy();
+
+    json.roster.push({
+      name: 'LegacyWyvern',
+      className: 'Wyvern Rider',
+      tier: 'base',
+      level: 8,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
+      growths: { HP: 70, STR: 50, MAG: 0, SKL: 35, SPD: 35, DEF: 40, RES: 15, LCK: 25 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      col: 0,
+      row: 0,
+      mov: 2,
+      moveType: 'Infantry',
+      stats: { HP: 25, STR: 9, MAG: 0, SKL: 7, SPD: 7, DEF: 9, RES: 3, LCK: 5, MOV: 5 },
+      currentHP: 25,
+      faction: 'player',
+      weapon: structuredClone(ironSword),
+      inventory: [structuredClone(ironSword), structuredClone(ironLance)],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
+    });
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const wyvern = restored.roster.find(u => u.name === 'LegacyWyvern');
+
+    expect(wyvern).toBeTruthy();
+    expect(wyvern.moveType).toBe('Flying');
+    expect(wyvern.mov).toBe(5);
+    expect(wyvern.stats.MOV).toBe(5);
+    expect(wyvern.proficiencies).toEqual([{ type: 'Lance', rank: 'Prof' }]);
+    expect(wyvern.weapon?.type).toBe('Lance');
+    expect(wyvern.inventory).toContain(wyvern.weapon);
+  });
+
   describe('class-innate migration', () => {
     function makeLegacyUnit(className, tier = 'base', skills = []) {
       return {

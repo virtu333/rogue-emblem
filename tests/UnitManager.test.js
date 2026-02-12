@@ -202,6 +202,34 @@ describe('canPromote', () => {
     equipWeapon(unit, braveAxe);
     expect(unit.weapon).toBe(braveAxe);
   });
+
+  it('promotion normalizes class state and re-equips a legal weapon when needed', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 10, data.weapons);
+    const ironLance = structuredClone(data.weapons.find(w => w.name === 'Iron Lance'));
+    unit.inventory.push(ironLance);
+
+    const customPromoted = {
+      name: 'Skyblade Test',
+      tier: 'promoted',
+      baseStats: { MOV: 7 },
+      moveType: 'Flying',
+      weaponProficiencies: 'Lances (M)',
+      promotionBonuses: {
+        HP: 0, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0, MOV: 0,
+      },
+    };
+
+    promoteUnit(unit, customPromoted, customPromoted.promotionBonuses, data.skills);
+
+    expect(unit.className).toBe('Skyblade Test');
+    expect(unit.tier).toBe('promoted');
+    expect(unit.moveType).toBe('Flying');
+    expect(unit.mov).toBe(unit.stats.MOV);
+    expect(unit.proficiencies).toEqual([{ type: 'Lance', rank: 'Mast' }]);
+    expect(unit.weapon?.type).toBe('Lance');
+    expect(unit.weapon).toBe(ironLance);
+  });
 });
 
 describe('resolvePromotionTargetClass', () => {

@@ -31,6 +31,11 @@ function applyPromotedMastery(proficiencies, tier) {
   return proficiencies.map((p) => ({ ...p, rank: 'Mast' }));
 }
 
+function getCanonicalClassMove(classData, fallbackMove = 4) {
+  const classMov = Number(classData?.baseStats?.MOV);
+  return Number.isFinite(classMov) && classMov > 0 ? classMov : fallbackMove;
+}
+
 /**
  * Parse "Swords (P), Lances (M)" → [{type:'Sword', rank:'Prof'}, {type:'Lance', rank:'Mast'}]
  */
@@ -553,6 +558,43 @@ export function canPromote(unit) {
   return unit.tier === 'base' && unit.level >= PROMOTION_MIN_LEVEL;
 }
 
+/**
+ * Normalize class-driven unit state (tier/moveType/proficiencies/mov sync).
+ * Keeps stats.MOV authoritative when present to preserve existing bonuses.
+ */
+export function normalizeUnitClassState(unit, classData) {
+  if (!unit || !classData) return unit;
+
+  const canonicalTier = classData.tier || unit.tier || 'base';
+  unit.tier = canonicalTier;
+
+  if (classData.moveType) unit.moveType = classData.moveType;
+
+  if (!unit.stats || typeof unit.stats !== 'object') unit.stats = {};
+  const fallbackMov = getCanonicalClassMove(classData, Number(unit.mov) || 4);
+  const statsMov = Number(unit.stats.MOV);
+  if (Number.isFinite(statsMov) && statsMov > 0) {
+    unit.mov = statsMov;
+  } else {
+    unit.stats.MOV = fallbackMov;
+    unit.mov = fallbackMov;
+  }
+
+  const canonicalProficiencies = applyPromotedMastery(
+    parseWeaponProficiencies(classData.weaponProficiencies),
+    canonicalTier
+  );
+  if (canonicalProficiencies.length > 0) {
+    unit.proficiencies = canonicalProficiencies;
+    unit.weaponRank = canonicalProficiencies[0]?.rank || 'Prof';
+  } else {
+    if (!Array.isArray(unit.proficiencies)) unit.proficiencies = [];
+    unit.weaponRank = unit.proficiencies[0]?.rank || 'Prof';
+  }
+
+  return unit;
+}
+
 const BLOCKED_PROMOTION_CLASSES = new Set(['Bard']);
 
 /** Returns true when a promotion target class is temporarily disabled. */
@@ -594,12 +636,10 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   unit.level = 1;
   unit.xp = 0;
 
-  // Update proficiencies
-  unit.proficiencies = applyPromotedMastery(
-    parseWeaponProficiencies(promotedClassData.weaponProficiencies),
-    'promoted'
-  );
-  unit.weaponRank = unit.proficiencies[0]?.rank || 'Prof';
+  normalizeUnitClassState(unit, promotedClassData);
+  if (unit.weapon && !canEquip(unit, unit.weapon)) {
+    unit.weapon = getCombatWeapons(unit)[0] || null;
+  }
 
   // Add class-innate skills
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);

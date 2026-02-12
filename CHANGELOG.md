@@ -19,6 +19,7 @@
 - **Weapon Arts UX copy polish**: Help page now explicitly calls out that status text explains why an art is unavailable.
 - **QA playtest checklist added**: Added `docs/weapon_arts_playtest_checklist.md` as a repeatable smoke path for forecast parity, unlock-source behavior, requirement clarity, legendary/enemy guardrails, and difficulty sanity.
 - **Wyvern foundation (no reclass)**: Added Wyvern Rider/Lord integration and deterministic coverage while explicitly deferring Second Seal/reclass scope.
+- **Wyvern hardening follow-up**: Promotion/load paths now normalize class-driven state (`moveType`, `mov` sync, tier/proficiencies) to prevent legacy drift; post-normalization weapon relink ensures equipped weapons remain legal.
 - **Convoy MVP landed**: Added convoy storage + overflow routing with hardened transaction paths for shop overflow and battle loot pickup failure cases.
 - **Accessory flow simplification**: Removed in-battle accessory action; accessory management is now roster-oriented.
 
