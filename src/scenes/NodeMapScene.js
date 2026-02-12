@@ -1771,6 +1771,20 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 
+  showWeaponArtsUnlockedBanner(artIds = []) {
+    if (!Array.isArray(artIds) || artIds.length <= 0) return;
+    const catalog = this.gameData?.weaponArts?.arts || [];
+    const names = artIds
+      .map((id) => catalog.find((art) => art?.id === id)?.name || id)
+      .filter(Boolean);
+    if (names.length <= 0) return;
+    const suffix = names.length > 1 ? 's' : '';
+    const label = names.length > 2
+      ? `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
+      : names.join(', ');
+    this.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, '#88ddff');
+  }
+
   closeShopOverlay() {
     this.closeForgeStatPicker();
     this._hideForgeTooltip();
@@ -1805,8 +1819,9 @@ export class NodeMapScene extends Phaser.Scene {
         });
       } else {
         this.showActCompleteBanner(() => {
-          rm.advanceAct();
+          const unlockedArtIds = rm.advanceAct();
           this.drawMap();
+          this.showWeaponArtsUnlockedBanner(unlockedArtIds);
         });
       }
     } else {

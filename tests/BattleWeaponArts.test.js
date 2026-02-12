@@ -34,6 +34,21 @@ function makeUnit(overrides = {}) {
 }
 
 describe('BattleScene weapon art helpers', () => {
+  it('filters weapon art catalog against run unlock state when available', () => {
+    const scene = new BattleScene();
+    const unlocked = makeArt({ id: 'art_unlocked' });
+    const locked = makeArt({ id: 'art_locked', name: 'Locked Art' });
+    scene.gameData = { weaponArts: { arts: [unlocked, locked] } };
+    scene.runManager = {
+      getUnlockedWeaponArts: () => [unlocked],
+    };
+
+    const arts = scene._getWeaponArtCatalog();
+
+    expect(arts).toHaveLength(1);
+    expect(arts[0].id).toBe('art_unlocked');
+  });
+
   it('returns selected weapon art when valid for the unit weapon', () => {
     const scene = new BattleScene();
     const art = makeArt();

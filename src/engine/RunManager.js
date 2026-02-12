@@ -107,6 +107,7 @@ export class RunManager {
     this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
     this.actSequence = [...ACT_SEQUENCE];
     this.endRunRewards = null;
+    this.unlockedWeaponArts = [];
   }
 
   _isValidSerializedUnit(unit) {
@@ -166,6 +167,8 @@ export class RunManager {
     };
     this.usedRecruitNames = {};
     this.battleConfigsByNodeId = {};
+    this.unlockedWeaponArts = [];
+    this._syncWeaponArtUnlocksForCurrentAct();
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
     this.initializeBlessingsAtRunStart(options);
@@ -1016,12 +1019,14 @@ export class RunManager {
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
     this.actIndex++;
-    if (this.actIndex >= this.actSequence.length) return; // shouldn't happen, use isRunComplete
+    if (this.actIndex >= this.actSequence.length) return []; // shouldn't happen, use isRunComplete
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
     });
+    const unlockedNow = this._syncWeaponArtUnlocksForCurrentAct();
     this.currentNodeId = null;
+    return unlockedNow;
   }
 
   _revertActScopedBlessingEffects(expiredAct) {
@@ -1048,6 +1053,63 @@ export class RunManager {
   /** True if the final boss has been defeated. */
   isRunComplete() {
     return this.actIndex >= this.actSequence.length - 1 && this.isActComplete();
+  }
+
+  _getActOrderIndex(actId) {
+    if (!actId) return -1;
+    return this.actSequence.indexOf(String(actId));
+  }
+
+  _isWeaponArtEligibleForCurrentAct(art) {
+    if (!art || !art.id) return false;
+    const unlockAct = art.unlockAct || this.actSequence[0] || 'act1';
+    const requiredIndex = this._getActOrderIndex(unlockAct);
+    if (requiredIndex === -1) return true;
+    return this.actIndex >= requiredIndex;
+  }
+
+  _syncWeaponArtUnlocksForCurrentAct() {
+    const arts = this.gameData?.weaponArts?.arts;
+    if (!Array.isArray(arts)) return [];
+    if (!Array.isArray(this.unlockedWeaponArts)) this.unlockedWeaponArts = [];
+    const unlocked = new Set(this.unlockedWeaponArts);
+    const addedIds = [];
+    for (const art of arts) {
+      if (!art?.id) continue;
+      if (!this._isWeaponArtEligibleForCurrentAct(art)) continue;
+      if (unlocked.has(art.id)) continue;
+      unlocked.add(art.id);
+      addedIds.push(art.id);
+    }
+    this.unlockedWeaponArts = [...unlocked];
+    return addedIds;
+  }
+
+  isWeaponArtUnlocked(artId) {
+    if (!artId) return false;
+    if (!Array.isArray(this.unlockedWeaponArts)) return false;
+    return this.unlockedWeaponArts.includes(artId);
+  }
+
+  unlockWeaponArt(artId) {
+    if (!artId) return false;
+    if (!Array.isArray(this.unlockedWeaponArts)) this.unlockedWeaponArts = [];
+    if (this.unlockedWeaponArts.includes(artId)) return false;
+    this.unlockedWeaponArts.push(artId);
+    return true;
+  }
+
+  getUnlockedWeaponArtIds() {
+    return Array.isArray(this.unlockedWeaponArts) ? [...this.unlockedWeaponArts] : [];
+  }
+
+  getUnlockedWeaponArts(catalog = null) {
+    const source = Array.isArray(catalog)
+      ? catalog
+      : (Array.isArray(this.gameData?.weaponArts?.arts) ? this.gameData.weaponArts.arts : []);
+    if (!Array.isArray(source) || source.length === 0) return [];
+    const unlocked = new Set(this.getUnlockedWeaponArtIds());
+    return source.filter((art) => art?.id && unlocked.has(art.id));
   }
 
   applyDifficultySelection(difficultyId = 'normal') {
@@ -1160,6 +1222,7 @@ export class RunManager {
       difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       endRunRewards: this.endRunRewards || null,
+      unlockedWeaponArts: this.unlockedWeaponArts || [],
     };
   }
 
@@ -1382,6 +1445,9 @@ export class RunManager {
       ? [...saved.actSequence]
       : [...(rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)];
     rm.endRunRewards = saved.endRunRewards || null;
+    rm.unlockedWeaponArts = Array.isArray(saved.unlockedWeaponArts)
+      ? [...new Set(saved.unlockedWeaponArts.filter(id => typeof id === 'string' && id.length > 0))]
+      : [];
     rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;
@@ -1403,6 +1469,7 @@ export class RunManager {
     rm.fallenUnits.forEach(u => relinkWeapon(u));
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
+    rm._syncWeaponArtUnlocksForCurrentAct();
 
     return rm;
   }

@@ -82,6 +82,13 @@ describe('RunManager', () => {
       expect(rmWithMeta.visionChargesRemaining).toBe(3);
       expect(rmWithMeta.visionCount).toBe(0);
     });
+
+    it('initializes unlocked weapon arts for current act', () => {
+      rm.startRun();
+      const ids = rm.getUnlockedWeaponArtIds();
+      expect(ids.length).toBeGreaterThan(0);
+      expect(ids).toContain('sword_precise_cut');
+    });
   });
 
   describe('serializeUnit', () => {
@@ -248,6 +255,27 @@ describe('RunManager', () => {
       const bossNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.bossNodeId);
       bossNode.completed = true;
       expect(rm.isActComplete()).toBe(true);
+    });
+
+    it('unlocks act-gated weapon arts when advancing acts', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts.push({
+        id: 'test_act2_art',
+        name: 'Test Act 2 Art',
+        weaponType: 'Sword',
+        unlockAct: 'act2',
+        requiredRank: 'Prof',
+        hpCost: 1,
+        perTurnLimit: 1,
+        perMapLimit: 3,
+        combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Test Act 2 Art' }] },
+      });
+      const localRm = new RunManager(localData);
+      localRm.startRun();
+      expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(false);
+      const unlocked = localRm.advanceAct();
+      expect(unlocked).toContain('test_act2_art');
+      expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(true);
     });
   });
 
@@ -433,6 +461,22 @@ describe('RunManager', () => {
       const json = rm.toJSON();
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.gameData).toBe(gameData);
+    });
+
+    it('round-trips unlocked weapon arts through save/load', () => {
+      rm.startRun();
+      rm.unlockWeaponArt('test_manual_unlock');
+      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(restored.isWeaponArtUnlocked('test_manual_unlock')).toBe(true);
+    });
+
+    it('migrates saves without unlockedWeaponArts by syncing current-act defaults', () => {
+      rm.startRun();
+      const json = rm.toJSON();
+      delete json.unlockedWeaponArts;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.getUnlockedWeaponArtIds().length).toBeGreaterThan(0);
+      expect(restored.isWeaponArtUnlocked('sword_precise_cut')).toBe(true);
     });
 
     it('initializes blessings state to safe defaults', () => {
