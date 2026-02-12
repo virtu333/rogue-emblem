@@ -196,6 +196,13 @@ describe('MapGenerator', () => {
         expect(spawn.className).toBe('Fighter');
       }
     });
+
+    it('act2+ enemy pools include wyvern classes', () => {
+      expect(data.enemies.pools.act2.base).toContain('Wyvern Rider');
+      expect(data.enemies.pools.act3.base).toContain('Wyvern Rider');
+      expect(data.enemies.pools.act3.promoted).toContain('Wyvern Lord');
+      expect(data.enemies.pools.postAct.promoted).toContain('Wyvern Lord');
+    });
   });
 
   describe('all acts generate without errors', () => {
@@ -249,6 +256,10 @@ describe('MapGenerator', () => {
     it('non-recruit battle produces null npcSpawn', () => {
       const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
       expect(config.npcSpawn).toBeNull();
+    });
+
+    it('act2 recruit pool includes Wyvern Rider', () => {
+      expect(data.recruits.act2.classPool).toContain('Wyvern Rider');
     });
 
     it('avoids duplicate recruit names in a run while class names remain available', () => {

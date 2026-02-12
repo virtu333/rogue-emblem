@@ -344,6 +344,41 @@
     ]
   },
   {
+    "name": "Wyvern Rider",
+    "tier": "base",
+    "baseStats": {
+      "HP": 20,
+      "STR": 7,
+      "MAG": 0,
+      "SKL": 5,
+      "SPD": 6,
+      "DEF": 7,
+      "RES": 2,
+      "LCK": 3,
+      "MOV": 5
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Lances (P)",
+    "role": "Flying bruiser, bow-weak",
+    "growthRanges": {
+      "HP": "65-80",
+      "STR": "45-60",
+      "MAG": "0-10",
+      "SKL": "30-45",
+      "SPD": "30-45",
+      "DEF": "35-50",
+      "RES": "10-20",
+      "LCK": "20-30"
+    },
+    "promotesTo": "Wyvern Lord",
+    "learnableSkills": [
+      {
+        "skillId": "guard",
+        "level": 15
+      }
+    ]
+  },
+  {
     "name": "Mercenary",
     "tier": "base",
     "baseStats": {
@@ -573,6 +608,25 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
     "roleChange": "Gains Swords"
+  },
+  {
+    "name": "Wyvern Lord",
+    "tier": "promoted",
+    "promotesFrom": "Wyvern Rider",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 3,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 3,
+      "RES": 1,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Lances (M), Axes (P)",
+    "roleChange": "Gains Axes, heavy flying bruiser"
   },
   {
     "name": "Hero",

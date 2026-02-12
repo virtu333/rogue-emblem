@@ -467,6 +467,7 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
       const lanceClasses = [...pool.base, ...pool.promoted].filter(c =>
         c === 'Cavalier' || c === 'Knight' || c === 'Soldier' ||
         c === 'Paladin' || c === 'General' || c === 'Pegasus Knight' || c === 'Falcon Knight'
+        || c === 'Wyvern Rider' || c === 'Wyvern Lord'
       );
       return lanceClasses.length > 0
         ? lanceClasses[Math.floor(Math.random() * lanceClasses.length)]

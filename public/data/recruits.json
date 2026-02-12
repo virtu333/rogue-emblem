@@ -12,6 +12,7 @@
     "Knight":         ["Osric", "Gunther", "Ingrid", "Baldric", "Thane", "Helga"],
     "Dancer":         ["Sylvie", "Aria", "Melodia", "Cadence", "Lyric", "Rhapsody"],
     "Wyvern Rider":   ["Draven", "Ragna", "Scales", "Obsidian", "Cinder", "Talon"],
+    "Wyvern Lord":    ["Drakon", "Skyrend", "Tempest", "Onyx", "Stormclaw", "Ashwing"],
     "Hero":           ["Dante", "Roland", "Sigurd", "Ajax", "Hector", "Leonidas"],
     "Falcon Knight":  ["Celeste", "Seraphina", "Valkyrie", "Tempest", "Azure", "Gale"],
     "Sage":           ["Vaelan", "Merric", "Arcanis", "Sage", "Grimoire", "Tomes"],
@@ -25,14 +26,14 @@
   },
   "act2": {
     "levelRange": [5, 8],
-    "classPool": ["Thief", "Mercenary", "Pegasus Knight", "Mage", "Knight", "Cavalier", "Dancer"]
+    "classPool": ["Thief", "Mercenary", "Pegasus Knight", "Wyvern Rider", "Mage", "Knight", "Cavalier", "Dancer"]
   },
   "act3": {
     "levelRange": [5, 8],
-    "classPool": ["Hero", "Falcon Knight", "Sage", "Assassin", "Sniper", "Bishop"]
+    "classPool": ["Hero", "Falcon Knight", "Wyvern Lord", "Sage", "Assassin", "Sniper", "Bishop"]
   },
   "act4": {
     "levelRange": [12, 16],
-    "classPool": ["Hero", "Sage", "Sniper", "Paladin", "Warrior", "Bishop"]
+    "classPool": ["Hero", "Sage", "Sniper", "Paladin", "Wyvern Lord", "Warrior", "Bishop"]
   }
 }

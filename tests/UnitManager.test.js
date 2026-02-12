@@ -218,6 +218,13 @@ describe('resolvePromotionTargetClass', () => {
     const target = resolvePromotionTargetClass(unit, data.classes, data.lords);
     expect(target).toBeNull();
   });
+
+  it('returns Wyvern Lord for Wyvern Rider promotion', () => {
+    const wyvernRider = data.classes.find(c => c.name === 'Wyvern Rider');
+    const unit = createEnemyUnit(wyvernRider, 10, data.weapons);
+    const target = resolvePromotionTargetClass(unit, data.classes, data.lords);
+    expect(target?.name).toBe('Wyvern Lord');
+  });
 });
 
 describe('learnSkill', () => {

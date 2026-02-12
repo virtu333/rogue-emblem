@@ -1,0 +1,64 @@
+{
+  "globalStyle": "SNES 16-bit pixel art, top-down tactical RPG style, limited color palette, clean pixel edges, fantasy medieval setting",
+  "categories": {
+    "map_sprites": {
+      "targetSize": 32,
+      "aspectRatio": "1:1",
+      "removeBg": true,
+      "sampleCount": 4,
+      "stylePrefix": "32x32 pixel art character sprite, top-down 3/4 view, Fire Emblem-inspired tactical style, single character centered on a plain background",
+      "assets": [
+        {
+          "name": "wyvern_rider",
+          "prompt": "armored wyvern rider with lance, dark steel armor, mounted on a fierce wyvern, dynamic mid-flight pose"
+        },
+        {
+          "name": "wyvern_lord",
+          "prompt": "elite wyvern lord with lance and axe, ornate heavy armor, commanding wyvern mount, regal but menacing silhouette"
+        },
+        {
+          "name": "enemy_wyvern_rider",
+          "prompt": "enemy wyvern rider in red and black armor with lance, aggressive flying posture"
+        }
+      ]
+    },
+    "portraits": {
+      "targetSize": 128,
+      "aspectRatio": "1:1",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "128x128 pixel art character portrait, bust shot, expressive face, tactical RPG portrait framing",
+      "assets": [
+        {
+          "name": "generic_wyvern_rider",
+          "prompt": "battle-worn wyvern rider with scarred cheek, dark pauldrons, wind-swept hair, stern expression"
+        },
+        {
+          "name": "generic_wyvern_lord",
+          "prompt": "veteran wyvern lord with ornate helm details, calm confident stare, commanding demeanor"
+        }
+      ]
+    },
+    "weapon_arts_fx": {
+      "targetSize": 64,
+      "aspectRatio": "1:1",
+      "removeBg": true,
+      "sampleCount": 4,
+      "stylePrefix": "pixel art combat effect icon, high-contrast silhouette, clean transparent-ready edges",
+      "assets": [
+        {
+          "name": "weapon_art_sunder_arc",
+          "prompt": "curved crimson slash arc with metallic sparks, heavy impact feel"
+        },
+        {
+          "name": "weapon_art_piercing_thrust",
+          "prompt": "focused lance thrust streak with bright tip and motion trail"
+        },
+        {
+          "name": "weapon_art_guard_break",
+          "prompt": "shattered shield emblem with radial shock lines"
+        }
+      ]
+    }
+  }
+}
