@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node tools/syncData.js && node tools/syncAssets.js && vite build",
+    "build": "node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && vite build",
     "preview": "vite preview",
+    "build:reference": "node tools/buildReferenceContent.js",
+    "check:reference": "node tools/buildReferenceContent.js --check",
     "sync-data": "node tools/syncData.js",
     "sync-assets": "node tools/syncAssets.js",
     "test": "vitest run",

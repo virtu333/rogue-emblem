@@ -1,0 +1,197 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, '..');
+
+function readJSON(path) {
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function stableStringify(value) {
+  return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function summarizeEffects(effects) {
+  if (!effects || typeof effects !== 'object') return '';
+  const parts = [];
+  for (const [key, value] of Object.entries(effects)) {
+    if (typeof value === 'boolean') {
+      if (value) parts.push(key);
+      continue;
+    }
+    if (value && typeof value === 'object') {
+      parts.push(`${key}:${JSON.stringify(value)}`);
+      continue;
+    }
+    parts.push(`${key}:${value}`);
+  }
+  return parts.join(', ');
+}
+
+function buildReference() {
+  const pkg = readJSON(join(ROOT, 'package.json'));
+  const reference = readJSON(join(ROOT, 'data', 'mechanicsReference.json'));
+  const weapons = readJSON(join(ROOT, 'data', 'weapons.json'));
+  const affixData = readJSON(join(ROOT, 'data', 'affixes.json'));
+
+  const legendaryTier = reference.weaponRanks.legendaryTierName;
+  const legendaryWeapons = weapons
+    .filter((weapon) => weapon.tier === legendaryTier && weapon.type !== 'Scroll')
+    .map((weapon) => ({
+      name: weapon.name,
+      type: weapon.type,
+      rankRequired: weapon.rankRequired,
+      range: weapon.range,
+      special: weapon.special || '',
+    }))
+    .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+
+  const rankRequirements = reference.weaponRanks.displayOrder.map((rank) => ({
+    rank,
+    totalWeapons: weapons.filter((weapon) => weapon.rankRequired === rank).length,
+    legendaryWeapons: weapons.filter(
+      (weapon) => weapon.rankRequired === rank && weapon.tier === legendaryTier && weapon.type !== 'Scroll'
+    ).length,
+  }));
+
+  const affixById = new Map((affixData.affixes || []).map((affix) => [affix.id, affix]));
+  const featuredAffixes = [];
+  for (const affixId of reference.affixes.featuredIds || []) {
+    const affix = affixById.get(affixId);
+    if (!affix) continue;
+    featuredAffixes.push({
+      id: affix.id,
+      name: affix.name,
+      trigger: affix.trigger,
+      description: affix.description,
+      effects: summarizeEffects(affix.effects),
+    });
+    if (featuredAffixes.length >= (reference.affixes.maxHelpEntries || 8)) break;
+  }
+
+  const rules = {
+    promotedMastery: reference.help.notes.find((line) => line.toLowerCase().includes('promoted units')) || '',
+    forecastAs: reference.help.notes.find((line) => line.toLowerCase().includes('forecast as')) || '',
+  };
+
+  const viewerReference = {
+    version: reference.version,
+    gameVersion: pkg.version,
+    helpTabLabel: reference.help.tabLabel,
+    combat: {
+      atkFormula: reference.combat.atkFormula,
+      asFormula: reference.combat.asFormula,
+      doublingRule: reference.combat.doublingRule,
+      effectiveDamageRule: reference.combat.effectiveDamageRule,
+    },
+    weaponRanks: {
+      displayOrder: reference.weaponRanks.displayOrder,
+      rankRequirements,
+      legendaryRequires: reference.weaponRanks.legendaryRequires,
+      legendaryCount: legendaryWeapons.length,
+    },
+    legendaryWeapons,
+    featuredAffixes,
+    rules,
+  };
+
+  const helpPages = [
+    {
+      title: 'Atk, AS, Doubling',
+      lines: [
+        { text: reference.combat.atkFormula, color: '#ffdd44' },
+        { text: '' },
+        { text: reference.combat.asFormula, color: '#66ddff' },
+        { text: '' },
+        { text: reference.combat.doublingRule, color: '#66ff66' },
+        { text: '' },
+        { text: reference.combat.effectiveDamageRule, color: '#ff6666' },
+        { text: '' },
+        { text: rules.forecastAs, color: '#888888' },
+      ],
+    },
+    {
+      title: 'Ranks and Promotion',
+      lines: [
+        { text: `Weapon ranks: ${reference.weaponRanks.displayOrder.join(' -> ')}`, color: '#ffdd44' },
+        ...rankRequirements.map((entry) => ({
+          text: `${entry.rank}: ${entry.totalWeapons} weapons (${entry.legendaryWeapons} legendary)`,
+          color: '#66ddff',
+        })),
+        { text: '' },
+        { text: `Legendary weapons require ${reference.weaponRanks.legendaryRequires}.`, color: '#66ff66' },
+        { text: rules.promotedMastery, color: '#888888' },
+      ],
+    },
+    {
+      title: 'Affix Timing',
+      lines: [
+        { text: 'Common enemy affix triggers:', color: '#ffdd44' },
+        ...featuredAffixes.slice(0, reference.affixes.maxHelpEntries || 8).map((affix) => ({
+          text: `${affix.name} (${affix.trigger})`,
+          color: '#66ddff',
+        })),
+        { text: '' },
+        { text: 'Inspect enemies to see full effect text.', color: '#888888' },
+      ],
+    },
+  ];
+
+  const helpModule = `// AUTO-GENERATED by tools/buildReferenceContent.js. Do not edit manually.\n` +
+    `export const GENERATED_HELP_TABS = ${JSON.stringify([{ label: reference.help.tabLabel, pages: helpPages }], null, 2)};\n` +
+    `export const GENERATED_MECHANICS_REFERENCE = ${JSON.stringify(viewerReference, null, 2)};\n`;
+
+  return {
+    viewerReference: stableStringify(viewerReference),
+    helpModule,
+  };
+}
+
+function ensureDir(path) {
+  mkdirSync(path, { recursive: true });
+}
+
+function checkOrWrite(path, expected, checkMode) {
+  let actual = null;
+  try {
+    actual = readFileSync(path, 'utf8');
+  } catch {
+    actual = null;
+  }
+
+  if (checkMode) {
+    if (actual !== expected) {
+      console.error(`Reference output is stale: ${path}`);
+      return false;
+    }
+    return true;
+  }
+
+  writeFileSync(path, expected, 'utf8');
+  console.log(`wrote ${path}`);
+  return true;
+}
+
+const checkMode = process.argv.includes('--check');
+const output = buildReference();
+
+const helpOutputPath = join(ROOT, 'src', 'data', 'generated', 'mechanicsHelp.js');
+const viewerOutputPath = join(ROOT, 'data', 'referenceViewer.json');
+
+ensureDir(join(ROOT, 'src', 'data', 'generated'));
+ensureDir(join(ROOT, 'data'));
+
+const results = [
+  checkOrWrite(helpOutputPath, output.helpModule, checkMode),
+  checkOrWrite(viewerOutputPath, output.viewerReference, checkMode),
+];
+
+if (!results.every(Boolean)) {
+  process.exit(1);
+}
+
+if (checkMode) {
+  console.log('Reference content is up to date.');
+}

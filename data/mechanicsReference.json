@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "help": {
+    "tabLabel": "Adv",
+    "tabTitle": "Advanced Mechanics",
+    "notes": [
+      "Forecast AS is full effective combat speed and should include active combat bonuses.",
+      "Promoted units gain Mast rank in all currently held weapon proficiencies."
+    ]
+  },
+  "combat": {
+    "atkFormula": "Atk = Weapon Might + STR/MAG + combat bonuses",
+    "asFormula": "AS = SPD - max(Weapon Wt - floor(STR / 5), 0) + SPD bonuses",
+    "doublingRule": "Double attack if your AS is at least foe AS + 5",
+    "effectiveDamageRule": "Effective weapons deal 3x damage vs matching move type"
+  },
+  "weaponRanks": {
+    "displayOrder": ["Prof", "Mast"],
+    "legendaryTierName": "Legend",
+    "legendaryRequires": "Mast"
+  },
+  "affixes": {
+    "featuredIds": [
+      "shielded",
+      "thorns",
+      "teleporter",
+      "regenerator",
+      "waller",
+      "deathburst",
+      "venomous",
+      "corrosive",
+      "anchored"
+    ],
+    "maxHelpEntries": 8
+  }
+}

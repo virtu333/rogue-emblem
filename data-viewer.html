@@ -114,6 +114,13 @@
   .summary-stat .val { color: var(--gold); font-weight: 600; font-size: 1.2em; }
   .summary-stat .lbl { color: var(--text-dim); font-size: 0.85em; }
   .impassable { color: var(--red); font-weight: 600; }
+  .reference-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 10px; }
+  .reference-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .reference-card h3 { color: var(--gold); margin-bottom: 8px; font-size: 0.95em; }
+  .reference-list { color: var(--text); font-size: 0.84em; }
+  .reference-list div { margin: 4px 0; }
+  .reference-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #1a2540; color: var(--accent); font-size: 0.75em; margin-right: 6px; }
+  .reference-meta { color: var(--text-dim); font-size: 0.82em; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -134,6 +141,7 @@
   <div class="tab" data-tab="loot">Loot Tables</div>
   <div class="tab" data-tab="meta">Meta Upgrades <span class="count">(41)</span></div>
   <div class="tab" data-tab="terrain">Terrain <span class="count">(10)</span></div>
+  <div class="tab" data-tab="reference">Reference</div>
   <div class="tab" data-tab="audit">Asset Audit</div>
 </div>
 
@@ -304,6 +312,11 @@
   <div id="audit-content"></div>
 </div>
 
+<!-- REFERENCE -->
+<div class="panel" id="panel-reference">
+  <div id="reference-content"></div>
+</div>
+
 </div>
 
 <script>
@@ -312,6 +325,7 @@
 // ============================================================
 
 const DATA = {};
+DATA.reference = null;
 
 DATA.weapons = [
   {"name":"Iron Sword","type":"Sword","tier":"Iron","rankRequired":"Prof","might":5,"hit":95,"crit":0,"weight":3,"range":"1","special":"","price":500},
@@ -1138,21 +1152,94 @@ function renderAudit() {
 }
 
 // ============================================================
+// REFERENCE TAB
+// ============================================================
+async function loadReferenceData() {
+  try {
+    const response = await fetch('data/referenceViewer.json', { cache: 'no-store' });
+    if (!response.ok) return;
+    DATA.reference = await response.json();
+  } catch {
+    DATA.reference = null;
+  }
+}
+
+function renderReference() {
+  const host = document.getElementById('reference-content');
+  if (!host) return;
+
+  if (!DATA.reference) {
+    host.innerHTML = '<div class="reference-meta">Reference data unavailable. Run `npm run build:reference` and serve via Vite/static server.</div>';
+    return;
+  }
+
+  const r = DATA.reference;
+  host.innerHTML = `
+    <div class="reference-meta">Version ${r.version} | Game ${r.gameVersion}</div>
+    <div class="reference-grid">
+      <div class="reference-card">
+        <h3>Combat Formulas</h3>
+        <div class="reference-list">
+          <div>${r.combat.atkFormula}</div>
+          <div>${r.combat.asFormula}</div>
+          <div>${r.combat.doublingRule}</div>
+          <div>${r.combat.effectiveDamageRule}</div>
+        </div>
+      </div>
+      <div class="reference-card">
+        <h3>Weapon Ranks</h3>
+        <div class="reference-list">
+          <div>${r.weaponRanks.displayOrder.map((rank) => `<span class="reference-pill">${rank}</span>`).join('')}</div>
+          ${r.weaponRanks.rankRequirements.map((entry) => `<div>${entry.rank}: ${entry.totalWeapons} weapons (${entry.legendaryWeapons} legendary)</div>`).join('')}
+          <div>Legendary requirement: ${r.weaponRanks.legendaryRequires}</div>
+          <div>Total legendary weapons: ${r.weaponRanks.legendaryCount}</div>
+        </div>
+      </div>
+      <div class="reference-card">
+        <h3>Legendary Weapons</h3>
+        <div class="reference-list">
+          ${r.legendaryWeapons.map((weapon) => `<div><strong>${weapon.name}</strong> (${weapon.type}) - ${weapon.rankRequired}</div>`).join('')}
+        </div>
+      </div>
+      <div class="reference-card">
+        <h3>Featured Affixes</h3>
+        <div class="reference-list">
+          ${r.featuredAffixes.map((affix) => `<div><strong>${affix.name}</strong> <span class="reference-pill">${affix.trigger}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="reference-card">
+        <h3>Current Rules</h3>
+        <div class="reference-list">
+          <div>${r.rules.forecastAs}</div>
+          <div>${r.rules.promotedMastery}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
 // INIT
 // ============================================================
-renderWeapons(getWeaponFilters());
-makeSortable('weapon-table');
-renderSkills();
-makeSortable('skill-table');
-renderAccessories();
-renderConsumables();
-renderClasses();
-renderLords();
-renderRecruits();
-renderLoot();
-renderMeta();
-renderTerrain();
-renderAudit();
+async function init() {
+  renderWeapons(getWeaponFilters());
+  makeSortable('weapon-table');
+  renderSkills();
+  makeSortable('skill-table');
+  renderAccessories();
+  renderConsumables();
+  renderClasses();
+  renderLords();
+  renderRecruits();
+  renderLoot();
+  renderMeta();
+  renderTerrain();
+  renderAudit();
+  await loadReferenceData();
+  renderReference();
+}
+
+init();
 </script>
 </body>
 </html>

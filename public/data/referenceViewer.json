@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "gameVersion": "0.1.0",
+  "helpTabLabel": "Adv",
+  "combat": {
+    "atkFormula": "Atk = Weapon Might + STR/MAG + combat bonuses",
+    "asFormula": "AS = SPD - max(Weapon Wt - floor(STR / 5), 0) + SPD bonuses",
+    "doublingRule": "Double attack if your AS is at least foe AS + 5",
+    "effectiveDamageRule": "Effective weapons deal 3x damage vs matching move type"
+  },
+  "weaponRanks": {
+    "displayOrder": [
+      "Prof",
+      "Mast"
+    ],
+    "rankRequirements": [
+      {
+        "rank": "Prof",
+        "totalWeapons": 63,
+        "legendaryWeapons": 0
+      },
+      {
+        "rank": "Mast",
+        "totalWeapons": 16,
+        "legendaryWeapons": 16
+      }
+    ],
+    "legendaryRequires": "Mast",
+    "legendaryCount": 16
+  },
+  "legendaryWeapons": [
+    {
+      "name": "Brave Axe",
+      "type": "Axe",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Ruin",
+      "type": "Axe",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Ignores weapon triangle disadvantage"
+    },
+    {
+      "name": "Stormbreaker",
+      "type": "Axe",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "+5 DEF, +5 RES when equipped"
+    },
+    {
+      "name": "Brave Bow",
+      "type": "Bow",
+      "rankRequired": "Mast",
+      "range": "2",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Starfall",
+      "type": "Bow",
+      "rankRequired": "Mast",
+      "range": "2-3",
+      "special": "Extended range"
+    },
+    {
+      "name": "Brave Lance",
+      "type": "Lance",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Doomblade",
+      "type": "Lance",
+      "rankRequired": "Mast",
+      "range": "1-2",
+      "special": ""
+    },
+    {
+      "name": "Gae Bolg",
+      "type": "Lance",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "+5 STR when counterattacking"
+    },
+    {
+      "name": "Luce",
+      "type": "Light",
+      "rankRequired": "Mast",
+      "range": "1-2",
+      "special": "Effective vs dark enemies"
+    },
+    {
+      "name": "Fortify",
+      "type": "Staff",
+      "rankRequired": "Mast",
+      "range": "2",
+      "special": "Heals all allies in range, MAG + 5 HP"
+    },
+    {
+      "name": "Brave Sword",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Gemini",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Ragnarok",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1-2",
+      "special": "+5 DEF when equipped"
+    },
+    {
+      "name": "Soulreaver",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "Drains HP equal to damage dealt"
+    },
+    {
+      "name": "Bolting",
+      "type": "Tome",
+      "rankRequired": "Mast",
+      "range": "3-10",
+      "special": "Siege magic"
+    },
+    {
+      "name": "Excalibur",
+      "type": "Tome",
+      "rankRequired": "Mast",
+      "range": "1-2",
+      "special": "Effective vs Flying (3x)"
+    }
+  ],
+  "featuredAffixes": [
+    {
+      "id": "shielded",
+      "name": "Shielded",
+      "trigger": "on-defend",
+      "description": "First hit each player phase deals 0 damage",
+      "effects": "negateFirstHit"
+    },
+    {
+      "id": "thorns",
+      "name": "Thorns",
+      "trigger": "on-defend",
+      "description": "Reflects 25% of melee damage taken back to attacker",
+      "effects": "reflectMeleePct:0.25"
+    },
+    {
+      "id": "teleporter",
+      "name": "Teleporter",
+      "trigger": "on-defend",
+      "description": "After taking damage, warps to a random passable tile within 3 spaces",
+      "effects": "warpRange:3"
+    },
+    {
+      "id": "regenerator",
+      "name": "Regenerator",
+      "trigger": "on-turn-start",
+      "description": "Heals 20% max HP at start of enemy phase",
+      "effects": "healSelfPct:0.2"
+    },
+    {
+      "id": "waller",
+      "name": "Waller",
+      "trigger": "on-turn-start",
+      "description": "At start of enemy phase, spawns a temporary Wall tile on a random adjacent empty tile (lasts 2 turns)",
+      "effects": "spawnTerrain:Wall, terrainDuration:2, terrainRange:1"
+    },
+    {
+      "id": "deathburst",
+      "name": "Deathburst",
+      "trigger": "on-death",
+      "description": "On death, deals 5 damage to all units within 1 tile",
+      "effects": "aoeDamage:5"
+    },
+    {
+      "id": "venomous",
+      "name": "Venomous",
+      "trigger": "on-attack",
+      "description": "All attacks inflict 5 poison damage after combat",
+      "effects": "poisonDamage:5"
+    },
+    {
+      "id": "corrosive",
+      "name": "Corrosive",
+      "trigger": "on-attack",
+      "description": "Attacks reduce target DEF by 2 for the rest of battle (stacks)",
+      "effects": "debuffStat:DEF, debuffValue:-2, debuffDuration:battle"
+    }
+  ],
+  "rules": {
+    "promotedMastery": "Promoted units gain Mast rank in all currently held weapon proficiencies.",
+    "forecastAs": "Forecast AS is full effective combat speed and should include active combat bonuses."
+  }
+}

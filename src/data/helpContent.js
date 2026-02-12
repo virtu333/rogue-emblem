@@ -2,13 +2,15 @@
 // Each page has { title, lines: [{ text, color? }] }
 // Max ~15 lines per page to fit within 640x480 viewport
 
+import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
+
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
 const GREEN = '#66ff66';
 const RED = '#ff6666';
 const GRAY = '#888888';
 
-export const HELP_TABS = [
+const STATIC_HELP_TABS = [
   {
     label: 'Stats',
     pages: [
@@ -339,6 +341,8 @@ export const HELP_TABS = [
     ],
   },
 ];
+
+export const HELP_TABS = [...STATIC_HELP_TABS, ...GENERATED_HELP_TABS];
 
 export const HOW_TO_PLAY_PAGES = [
   {
