@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Weapon Arts + Wyvern + Convoy (Feb 12, 2026)
+- **Weapon Arts foundation shipped**: Added weapon art data/system integration, battle command flow, and forecast/execution parity safeguards (including HP-cost timing parity and unlock gating hardening).
+- **Act-based weapon art progression**: Added run-state unlock progression by act and node-map unlock banner notifications.
+- **Unlock safety hardening**: Empty unlock states are treated as authoritative (no fallback leak to full catalog), and unknown `unlockAct` values now fail closed.
+- **Weapon art contract hardening**: Added engine-level `unlockAct` config validation so malformed act IDs fail closed anywhere `canUseWeaponArt` is evaluated.
+- **Enemy art AI guardrails**: Enemy weapon art selection now uses deterministic tie-breaks (score -> lower HP cost -> ID), with explicit regression tests for tie resolution and lethal self-cost rejection.
+- **Home Base UI declutter**: Removed the non-interactive Arts tab from Home Base to reduce navigation noise while Weapon Arts progression remains handled in run/battle flows.
+- **Wyvern foundation (no reclass)**: Added Wyvern Rider/Lord integration and deterministic coverage while explicitly deferring Second Seal/reclass scope.
+- **Convoy MVP landed**: Added convoy storage + overflow routing with hardened transaction paths for shop overflow and battle loot pickup failure cases.
+- **Accessory flow simplification**: Removed in-battle accessory action; accessory management is now roster-oriented.
+
+### UX / Input Reliability (Feb 12, 2026)
+- **Menu click bleed-through guard**: Added one-shot input suppression so UI clicks (weapon picker/menu buttons) do not trigger unintended map actions on pointer-up.
+- **Defeat-state hardening**: Added stronger post-defeat input/state guards to avoid softlock-like interaction drift.
+- **Title screen polish**: Added `MORE INFO` surface + GitHub link, title-button layout refresh, and desktop notice readability improvements.
+
 ### AI Reliability (Feb 11, 2026)
 - **Path-aware enemy chase fix**: Enemy AI no longer idles when reaching a target requires temporarily increasing Manhattan distance (common around river/bridge detours). Chase logic now picks a reachable step along the shortest real path to an eventual attack tile.
 - **Regression coverage added**: `tests/AIController.test.js` now includes a detour scenario to prevent reintroducing long-distance idle behavior.

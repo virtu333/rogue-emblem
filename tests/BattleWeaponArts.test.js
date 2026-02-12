@@ -280,6 +280,66 @@ describe('BattleScene weapon art helpers', () => {
     expect(picked?.id).toBe('enemy_legal');
   });
 
+  it('breaks enemy art ties deterministically by lower hpCost then id', () => {
+    const scene = new BattleScene();
+    const tieB = makeArt({
+      id: 'enemy_tie_b',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const tieA = makeArt({
+      id: 'enemy_tie_a',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 10,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [tieB, tieA] } };
+
+    const picked = scene._selectEnemyWeaponArt(enemy, target);
+    expect(picked?.id).toBe('enemy_tie_a');
+  });
+
+  it('does not select lethal self-cost enemy arts', () => {
+    const scene = new BattleScene();
+    const lethal = makeArt({
+      id: 'enemy_lethal',
+      hpCost: 5,
+      combatMods: { atkBonus: 12, hitBonus: 20 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const safe = makeArt({
+      id: 'enemy_safe',
+      hpCost: 1,
+      combatMods: { atkBonus: 2, hitBonus: 5 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 5,
+      stats: { HP: 8 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [lethal, safe] } };
+
+    const picked = scene._selectEnemyWeaponArt(enemy, target);
+    expect(picked?.id).toBe('enemy_safe');
+  });
+
   it('shows legendary-bound art only while matching weapon is equipped', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({

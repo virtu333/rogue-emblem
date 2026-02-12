@@ -3,6 +3,7 @@
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
 const VALID_OWNER_SCOPES = new Set(['player', 'enemy', 'npc', 'any']);
+const UNLOCK_ACT_RE = /^act\d+$/i;
 
 function toFiniteNumber(value, fallback = 0) {
   const n = Number(value);
@@ -59,6 +60,11 @@ function normalizeAllowedFactions(art) {
 }
 
 function validateArtConstraintConfig(art) {
+  const unlockAct = toNonEmptyString(art?.unlockAct);
+  if (unlockAct !== null && !UNLOCK_ACT_RE.test(unlockAct)) {
+    return { ok: false, reason: 'invalid_unlock_act_config' };
+  }
+
   const owners = normalizeAllowedScopes(art);
   if (owners === undefined) return { ok: false, reason: 'invalid_owner_scope_config' };
   if (owners && owners.some((v) => !VALID_OWNER_SCOPES.has(v))) {

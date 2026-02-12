@@ -3881,17 +3881,20 @@ export class BattleScene extends Phaser.Scene {
       targetFaction: target?.faction,
     }, { ignoreUnlocks: true }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const choice of choices) {
-      const score = this._scoreEnemyWeaponArt(choice.art);
-      if (score <= 0) continue;
-      if (score > bestScore) {
-        bestScore = score;
-        best = choice.art;
-      }
-    }
-    return best;
+    const scored = choices
+      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
+      .filter((entry) => entry.score > 0);
+    if (scored.length <= 0) return null;
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aCost = Math.max(0, Number(a.art?.hpCost) || 0);
+      const bCost = Math.max(0, Number(b.art?.hpCost) || 0);
+      if (aCost !== bCost) return aCost - bCost;
+      const aId = String(a.art?.id || '');
+      const bId = String(b.art?.id || '');
+      return aId.localeCompare(bId);
+    });
+    return scored[0].art;
   }
 
   _weaponArtReasonLabel(reason) {

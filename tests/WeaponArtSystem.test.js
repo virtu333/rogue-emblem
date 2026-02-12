@@ -115,6 +115,15 @@ describe('WeaponArtSystem', () => {
       .toBe('invalid_faction_config');
   });
 
+  it('rejects malformed unlockAct config', () => {
+    const unit = makeUnit({ faction: 'player' });
+    const weapon = { type: 'Sword' };
+
+    const result = canUseWeaponArt(unit, weapon, makeArt({ unlockAct: 'ac2' }));
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('invalid_unlock_act_config');
+  });
+
   it('supports legendary weapon id gating', () => {
     const unit = makeUnit({ faction: 'player' });
     const art = makeArt({ legendaryWeaponIds: ['legend_sword'] });

@@ -57,17 +57,25 @@ export function resolveWeaponArtStatus(art, options = {}) {
     return {
       label: 'Meta Unlocked',
       detail: isActUnlocked ? `Also ${formatWeaponArtActLabel(unlockAct)}` : null,
+      sourceLabel: 'Meta',
       rank: 0,
       unlockIdx: Math.max(0, unlockIdx),
     };
   }
   if (isActUnlocked || isUnlockedById || isUnlockedByAct) {
-    return { label: 'Unlocked', detail: null, rank: 0, unlockIdx: Math.max(0, unlockIdx) };
+    return {
+      label: 'Unlocked',
+      detail: null,
+      sourceLabel: 'Act',
+      rank: 0,
+      unlockIdx: Math.max(0, unlockIdx),
+    };
   }
   if (unlockIdx === -1) {
     return {
       label: 'Invalid unlock act',
       detail: null,
+      sourceLabel: 'Data',
       rank: 4,
       unlockIdx: Number.MAX_SAFE_INTEGER,
     };
@@ -76,6 +84,7 @@ export function resolveWeaponArtStatus(art, options = {}) {
     return {
       label: `Unlocks in ${formatWeaponArtActLabel(unlockAct)}`,
       detail: null,
+      sourceLabel: 'Act',
       rank: 1,
       unlockIdx,
     };
@@ -83,6 +92,7 @@ export function resolveWeaponArtStatus(art, options = {}) {
   return {
     label: requirementLabel,
     detail: null,
+    sourceLabel: 'Rank',
     rank: requiredRank === 'Mast' ? 3 : 2,
     unlockIdx: Math.max(0, unlockIdx),
   };
@@ -104,6 +114,7 @@ export function buildWeaponArtVisibilityRows(arts, options = {}) {
         perMapLimit: Math.max(0, Math.trunc(toNumber(art.perMapLimit, 0))),
         status: status.label,
         statusDetail: status.detail || null,
+        statusSource: status.sourceLabel || 'Act',
         statusRank: status.rank,
         unlockAct: art.unlockAct || 'act1',
         unlockIdx: status.unlockIdx,
