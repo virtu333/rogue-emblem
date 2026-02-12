@@ -123,5 +123,19 @@ describe('DataLoader blessings integration', () => {
     expect(data.dialogue).toBeTruthy();
     expect(data.dialogue.recruitLines.Fighter.length).toBe(1);
   });
+
+  it('loads optional weapon arts payload when present', async () => {
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => makeMinimalPayload(path);
+    loader.loadOptionalJSON = async (path) => {
+      if (path === 'data/weaponArts.json') {
+        return { version: 1, arts: [{ id: 'test_art', weaponType: 'Sword' }] };
+      }
+      return null;
+    };
+    const data = await loader.loadAll();
+    expect(data.weaponArts).toBeTruthy();
+    expect(data.weaponArts.arts[0].id).toBe('test_art');
+  });
 });
 

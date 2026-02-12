@@ -59,6 +59,7 @@ export function serializeUnit(unit) {
   data.hasActed = false;
   data._miracleUsed = false;
   delete data._battleDeltas;
+  delete data._battleWeaponArtUsage;
   return data;
 }
 

@@ -24,10 +24,11 @@ export class DataLoader {
     this.difficulty = null;
     this.affixes = null;
     this.dialogue = null;
+    this.weaponArts = null;
   }
 
   async loadAll() {
-    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue] = await Promise.all([
+    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue, weaponArts] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
       this.loadJSON('data/classes.json'),
@@ -47,6 +48,7 @@ export class DataLoader {
       this.loadJSON('data/difficulty.json'),
       this.loadOptionalJSON('data/affixes.json'),
       this.loadOptionalJSON('data/dialogue.json'),
+      this.loadOptionalJSON('data/weaponArts.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -67,6 +69,7 @@ export class DataLoader {
     this.difficulty = difficulty;
     this.affixes = affixes;
     this.dialogue = dialogue;
+    this.weaponArts = weaponArts;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -77,7 +80,7 @@ export class DataLoader {
     if (!diffValidation.valid) {
       throw new Error(`Invalid difficulty data: ${diffValidation.errors.join('; ')}`);
     }
-    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue };
+    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue, weaponArts };
   }
 
   async loadJSON(path) {

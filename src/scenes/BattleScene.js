@@ -3329,18 +3329,21 @@ export class BattleScene extends Phaser.Scene {
       const rowY = menuPos.y + 6 + (i + 1) * itemHeight + itemHeight / 2;
       const isActive = current === art.id;
       const marker = isActive ? '▶ ' : '  ';
-      const hpCost = Number(art.hpCost) || 0;
-      const { mapCount, turnCount } = this._getWeaponArtUsageCounts(unit, art);
-      const mapLimit = Number(art.perMapLimit) > 0 ? `${mapCount}/${art.perMapLimit}` : '-';
-      const turnLimit = Number(art.perTurnLimit) > 0 ? `${turnCount}/${art.perTurnLimit}` : '-';
-      const status = canUse ? `HP-${hpCost}  Turn ${turnLimit}  Map ${mapLimit}` : this._weaponArtReasonLabel(reason);
+      const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
       const color = canUse ? (isActive ? '#ffdd44' : '#e0e0e0') : '#888888';
       const label = `${marker}${art.name}\n   ${status}`;
 
       const text = this._makeMenuTextButton(menuPos.x + 8, rowY, label, {
         fontFamily: 'monospace', fontSize: '10px', color, lineSpacing: 1,
       }, color, () => {
-        if (!canUse) return;
+        const latest = canUseWeaponArt(unit, unit.weapon, art, {
+          turnNumber: this.turnManager?.turnNumber,
+          isInitiating: true,
+        });
+        if (!latest.ok) {
+          this.showWeaponArtPicker(unit);
+          return;
+        }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
         this._setSelectedWeaponArt(unit, art.id);
@@ -3830,6 +3833,7 @@ export class BattleScene extends Phaser.Scene {
       case 'per_map_limit': return 'Map limit reached';
       case 'wrong_weapon_type': return 'Wrong weapon type';
       case 'no_proficiency': return 'No proficiency';
+      case 'initiation_only': return 'Player phase only';
       default: return 'Unavailable';
     }
   }
@@ -3840,6 +3844,22 @@ export class BattleScene extends Phaser.Scene {
     const currentTurnKey = String(this.turnManager?.turnNumber ?? '');
     const turnCount = usage.turnKey === currentTurnKey ? (usage.turn?.[art.id] || 0) : 0;
     return { mapCount, turnCount };
+  }
+
+  _getWeaponArtStatusLine(unit, art, availability = null) {
+    const check = availability || canUseWeaponArt(unit, unit?.weapon, art, {
+      turnNumber: this.turnManager?.turnNumber,
+      isInitiating: true,
+    });
+    if (!check?.canUse && check?.ok === false) return this._weaponArtReasonLabel(check.reason);
+    if (check?.canUse === false) return this._weaponArtReasonLabel(check.reason);
+    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
+    const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
+    const { mapCount, turnCount } = this._getWeaponArtUsageCounts(unit, art);
+    const mapLimit = Number(art?.perMapLimit) > 0 ? `${mapCount}/${art.perMapLimit}` : '-';
+    const turnLimit = Number(art?.perTurnLimit) > 0 ? `${turnCount}/${art.perTurnLimit}` : '-';
+    return `HP-${hpCost} (${hpNow}->${hpAfter})  Turn ${turnLimit}  Map ${mapLimit}`;
   }
 
   _beginAttackSelection(unit) {
@@ -4104,7 +4124,9 @@ export class BattleScene extends Phaser.Scene {
 
     if (isAttacker && this._forecastWeaponArt) {
       const hpCost = Number(this._forecastWeaponArt.hpCost) || 0;
-      const artText = this.add.text(x + 2, y, `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost})`, {
+      const hpNow = Number(unit.currentHP) || 0;
+      const hpAfter = this._getWeaponArtHpAfterCost(unit, this._forecastWeaponArt);
+      const artText = this.add.text(x + 2, y, `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`, {
         fontFamily: 'monospace', fontSize: '9px', color: '#ffd98a',
         wordWrap: { width: sideW - 6 },
       }).setDepth(textDepth);

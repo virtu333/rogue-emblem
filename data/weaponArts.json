@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "mvp": {
+    "wave": "4-foundation",
+    "costModel": "hp",
+    "notes": [
+      "MVP uses HP cost only; no durability/stamina costs yet.",
+      "Player-only command flow lands in a follow-up scene update."
+    ]
+  },
+  "arts": [
+    {
+      "id": "sword_precise_cut",
+      "name": "Precise Cut",
+      "weaponType": "Sword",
+      "requiredRank": "Prof",
+      "hpCost": 2,
+      "perTurnLimit": 1,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A careful strike trading HP for accuracy.",
+      "combatMods": {
+        "hitBonus": 20,
+        "critBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Precise Cut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_piercing_drive",
+      "name": "Piercing Drive",
+      "weaponType": "Lance",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perTurnLimit": 1,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A committed thrust with extra stopping power.",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Piercing Drive"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_wild_swing",
+      "name": "Wild Swing",
+      "weaponType": "Axe",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A brutal swing with high damage but shaky aim.",
+      "combatMods": {
+        "atkBonus": 6,
+        "hitBonus": -15,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Wild Swing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bow_longshot",
+      "name": "Longshot",
+      "weaponType": "Bow",
+      "requiredRank": "Prof",
+      "hpCost": 2,
+      "perTurnLimit": 1,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A focused ranged shot that improves hit and crit.",
+      "combatMods": {
+        "hitBonus": 15,
+        "critBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Longshot"
+          }
+        ]
+      }
+    }
+  ]
+}

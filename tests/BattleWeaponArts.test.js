@@ -81,6 +81,31 @@ describe('BattleScene weapon art helpers', () => {
     expect(choices[0].reason).toBe('per_turn_limit');
   });
 
+  it('returns readable reason for initiation-only arts', () => {
+    const scene = new BattleScene();
+    expect(scene._weaponArtReasonLabel('initiation_only')).toBe('Player phase only');
+  });
+
+  it('renders status preview with HP-after-cost and usage counters', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 3, perTurnLimit: 2, perMapLimit: 4 });
+    const unit = makeUnit({
+      currentHP: 18,
+      _battleWeaponArtUsage: {
+        map: { [art.id]: 1 },
+        turn: { [art.id]: 1 },
+        turnKey: '2',
+      },
+    });
+    scene.turnManager = { turnNumber: 2 };
+
+    const text = scene._getWeaponArtStatusLine(unit, art, { canUse: true, reason: null });
+
+    expect(text).toContain('HP-3 (18->15)');
+    expect(text).toContain('Turn 1/2');
+    expect(text).toContain('Map 1/4');
+  });
+
   it('builds forecast skill context using temporary post-cost HP and restores HP', () => {
     const scene = new BattleScene();
     const art = makeArt({ hpCost: 3 });
@@ -114,6 +139,21 @@ describe('BattleScene weapon art helpers', () => {
 
     scene._setSelectedWeaponArt(unit, art.id);
     BattleScene.prototype.handleCancel.call(scene);
+
+    expect(unit.currentHP).toBe(20);
+    expect(unit._battleWeaponArtUsage).toBeUndefined();
+  });
+
+  it('does not consume HP or usage when selecting an art before confirm', () => {
+    const scene = new BattleScene();
+    const art = makeArt();
+    const unit = makeUnit({ currentHP: 20 });
+    scene.gameData = { weaponArts: { arts: [art] } };
+    scene.turnManager = { turnNumber: 1 };
+    scene.buildSkillCtx = vi.fn(() => ({}));
+
+    scene._setSelectedWeaponArt(unit, art.id);
+    scene._buildForecastSkillCtx(unit, makeUnit({ name: 'Enemy' }), art);
 
     expect(unit.currentHP).toBe(20);
     expect(unit._battleWeaponArtUsage).toBeUndefined();

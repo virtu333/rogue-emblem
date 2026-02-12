@@ -30,5 +30,6 @@ export function loadGameData() {
     blessings: loadJSON('blessings.json'),
     difficulty: loadJSON('difficulty.json'),
     affixes: loadJSON('affixes.json'),
+    weaponArts: loadJSON('weaponArts.json'),
   };
 }

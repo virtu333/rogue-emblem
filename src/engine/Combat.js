@@ -14,6 +14,45 @@ import { rollDefenseAffixes } from './AffixSystem.js';
 const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light']);
 
+function normalizeCombatMods(mods) {
+  if (!mods || typeof mods !== 'object') return null;
+  return {
+    hitBonus: Number(mods.hitBonus) || 0,
+    avoidBonus: Number(mods.avoidBonus) || 0,
+    critBonus: Number(mods.critBonus) || 0,
+    atkBonus: Number(mods.atkBonus) || 0,
+    defBonus: Number(mods.defBonus) || 0,
+    spdBonus: Number(mods.spdBonus) || 0,
+    ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
+    vantage: Boolean(mods.vantage),
+    quickRiposte: Boolean(mods.quickRiposte),
+    desperation: Boolean(mods.desperation),
+    activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
+  };
+}
+
+export function mergeCombatMods(baseMods, extraMods) {
+  const base = normalizeCombatMods(baseMods);
+  const extra = normalizeCombatMods(extraMods);
+  if (!base && !extra) return null;
+  if (!base) return extra;
+  if (!extra) return base;
+
+  return {
+    hitBonus: base.hitBonus + extra.hitBonus,
+    avoidBonus: base.avoidBonus + extra.avoidBonus,
+    critBonus: base.critBonus + extra.critBonus,
+    atkBonus: base.atkBonus + extra.atkBonus,
+    defBonus: base.defBonus + extra.defBonus,
+    spdBonus: base.spdBonus + extra.spdBonus,
+    ignoreTerrainAvoid: base.ignoreTerrainAvoid || extra.ignoreTerrainAvoid,
+    vantage: base.vantage || extra.vantage,
+    quickRiposte: base.quickRiposte || extra.quickRiposte,
+    desperation: base.desperation || extra.desperation,
+    activated: [...base.activated, ...extra.activated],
+  };
+}
+
 export function isPhysical(weapon) {
   return PHYSICAL_TYPES.has(weapon.type);
 }
@@ -375,8 +414,8 @@ export function getCombatForecast(
     };
   }
 
-  const atkMods = skillCtx?.atkMods;
-  const defMods = skillCtx?.defMods;
+  const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
+  const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
 
   const atkTriangle = defWeapon
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
@@ -603,8 +642,8 @@ export function resolveCombat(
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
 
-  const atkMods = skillCtx?.atkMods;
-  const defMods = skillCtx?.defMods;
+  const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
+  const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
 
   // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES) — combat-time mods only
   // Pick the relevant defensive bonus based on incoming weapon type

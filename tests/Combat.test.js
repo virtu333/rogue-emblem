@@ -24,6 +24,7 @@ import {
   getEffectiveStaffRange,
   calculateEffectiveWeight,
   hasSunderEffect,
+  mergeCombatMods,
 } from '../src/engine/Combat.js';
 import { loadGameData } from './testData.js';
 
@@ -225,6 +226,29 @@ describe('Combat forecast', () => {
     expect(forecast.attacker.damage).toBeGreaterThanOrEqual(0);
     expect(forecast.attacker.hit).toBeGreaterThanOrEqual(0);
     expect(forecast.attacker.hit).toBeLessThanOrEqual(100);
+  });
+
+  it('applies attacker weapon-art mods through combat context', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 10, SKL: 10, SPD: 10, LCK: 5 },
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 24, DEF: 6, SPD: 8, LCK: 4 },
+      currentHP: 24,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { atkBonus: 3, hitBonus: 15, activated: [{ id: 'weapon_art', name: 'Test Art' }] },
+    });
+
+    expect(withArt.attacker.damage).toBeGreaterThanOrEqual(base.attacker.damage + 3);
+    expect(withArt.attacker.hit).toBeGreaterThanOrEqual(base.attacker.hit);
+    expect(withArt.attacker.skills.some((s) => s.id === 'weapon_art')).toBe(true);
   });
 });
 
@@ -633,5 +657,19 @@ describe('Sunder effect', () => {
     const dmg = calculateDamage(attacker, sunderSword, defender, null, null);
     // (10+4) - floor(20/2) = 14-10 = 4
     expect(dmg).toBe(4);
+  });
+});
+
+describe('Combat mod merging', () => {
+  it('merges additive and boolean combat mods', () => {
+    const merged = mergeCombatMods(
+      { atkBonus: 2, hitBonus: 10, ignoreTerrainAvoid: false, activated: [{ id: 'a', name: 'A' }] },
+      { atkBonus: 3, critBonus: 5, ignoreTerrainAvoid: true, activated: [{ id: 'b', name: 'B' }] }
+    );
+    expect(merged.atkBonus).toBe(5);
+    expect(merged.hitBonus).toBe(10);
+    expect(merged.critBonus).toBe(5);
+    expect(merged.ignoreTerrainAvoid).toBe(true);
+    expect(merged.activated.length).toBe(2);
   });
 });

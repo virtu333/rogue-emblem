@@ -42,13 +42,17 @@ Owner: gameplay roadmap stream
 
 ### B1. Foundation
 
-1. Add `data/weaponArts.json` contract and loader validation.
-2. Add combat engine hooks:
+1. Add `data/weaponArts.json` contract and loader integration.
+2. Lock MVP v1 scope:
+   - 4 player arts (Sword/Lance/Axe/Bow)
+   - HP-only cost model (no durability/stamina in v1)
+   - Per-turn + per-map usage limits
+3. Add combat engine hooks:
    - art selection
    - eligibility checks
    - effect application
    - resource/cooldown/uses consumption
-3. Integrate battle UI and forecast deltas for active art selection.
+4. Integrate battle UI and forecast deltas for active art selection.
 
 ### B2. Acquisition + Persistence
 
