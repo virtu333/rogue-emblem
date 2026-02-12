@@ -76,6 +76,7 @@ import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
+import { retryBooleanAction } from '../utils/retry.js';
 
 function hashRewindSeed(seed, rewindCount) {
   const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
@@ -186,6 +187,9 @@ export class BattleScene extends Phaser.Scene {
       this.playerUnits = [];
       this.enemyUnits = [];
       this.npcUnits = [];
+
+      // Input lockout to prevent menu clicks bleeding through to map
+      this._lastMenuInteractionTime = 0;
 
       // Gold tracking for loot system
       this.goldEarned = 0;
@@ -431,7 +435,10 @@ export class BattleScene extends Phaser.Scene {
           .setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
-        btn.on('pointerdown', () => handler());
+        btn.on('pointerdown', () => {
+          this._lastMenuInteractionTime = Date.now();
+          handler();
+        });
         return btn;
       };
       this.dangerButton = makeButton(hw - 140, '[D] Danger', () => this._onDangerClick());
@@ -943,7 +950,10 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', callback);
+      btn.on('pointerdown', () => {
+        this._lastMenuInteractionTime = Date.now();
+        callback();
+      });
       group.push(btn);
     };
     makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, '#a6ffb0', () => {
@@ -1403,6 +1413,12 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerMove(pointer) {
     this.updateTouchInspectHold(pointer);
+    if (this.battleState === 'BATTLE_END') {
+      if (this.cursorHighlight) this.cursorHighlight.setVisible(false);
+      if (this.infoText) this.infoText.setText('');
+      this.updateTopLeftHudLayout();
+      return;
+    }
     if (pointer?.pointerType === 'touch') return;
     const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
     if (!gp) {
@@ -1645,6 +1661,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onRightClick(pointer) {
+    if (this.battleState === 'BATTLE_END') return;
     // Right-click cancels active selection states (like ESC)
     if (this.requestCancel({ allowPause: false })) {
       return;
@@ -2753,7 +2770,10 @@ export class BattleScene extends Phaser.Scene {
     }
     text.on('pointerover', () => text.setColor(hoverColor));
     text.on('pointerout', () => text.setColor(defaultColor));
-    text.on('pointerdown', onClick);
+    text.on('pointerdown', () => {
+      this._lastMenuInteractionTime = Date.now();
+      onClick();
+    });
     return text;
   }
 
@@ -3001,6 +3021,15 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerUp(pointer) {
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+
+    // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
+    // to prevent 'bleed-through' clicks to the map.
+    if (this._lastMenuInteractionTime && Date.now() - this._lastMenuInteractionTime < 100) {
+      this._lastMenuInteractionTime = 0;
+      return;
+    }
+    this._lastMenuInteractionTime = 0;
+
     this.cancelTouchInspectHold();
     let clickPos = null;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
@@ -6181,6 +6210,8 @@ export class BattleScene extends Phaser.Scene {
   onDefeat() {
     if (this.battleState === 'BATTLE_END') return;
     this.battleState = 'BATTLE_END';
+    this.clearInspectionVisuals();
+    this.hideActionMenu();
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, this, 0);
     this.add.text(
@@ -6196,12 +6227,9 @@ export class BattleScene extends Phaser.Scene {
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
-      this.time.delayedCall(2000, () => {
-        void startSceneLazy(this, 'RunComplete', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-          result: 'defeat',
-        });
+      this.time.delayedCall(2000, async () => {
+        const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
+        if (!transitioned) this.showDefeatTransitionRecovery();
       });
     } else {
       // Standalone mode â€” restart battle after delay
@@ -6209,5 +6237,86 @@ export class BattleScene extends Phaser.Scene {
         this.scene.restart();
       });
     }
+  }
+
+  async transitionToRunCompleteWithRetry(result = 'defeat') {
+    return retryBooleanAction(
+      () => startSceneLazy(this, 'RunComplete', {
+        gameData: this.gameData,
+        runManager: this.runManager,
+        result,
+      }),
+      {
+        attempts: 3,
+        initialDelayMs: 150,
+        delayMultiplier: 1.8,
+        wait: (ms) => new Promise((resolve) => {
+          if (this.time?.delayedCall) this.time.delayedCall(ms, resolve);
+          else setTimeout(resolve, ms);
+        }),
+      }
+    );
+  }
+
+  showDefeatTransitionRecovery() {
+    if (this.defeatRecoveryPrompt?.length) return;
+    const cam = this.cameras.main;
+    const group = [];
+
+    const blocker = this.add.rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
+      .setDepth(910)
+      .setInteractive();
+    group.push(blocker);
+
+    const panel = this.add.rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+      .setDepth(911)
+      .setStrokeStyle(2, 0x777777)
+      .setInteractive();
+    group.push(panel);
+
+    const title = this.add.text(cam.centerX, cam.centerY - 42, 'Transition failed', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ff8888', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(912);
+    group.push(title);
+
+    const msg = this.add.text(cam.centerX, cam.centerY - 12, 'Could not open Run Complete.\nRetry or return to title.', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#dddddd', align: 'center',
+    }).setOrigin(0.5).setDepth(912);
+    group.push(msg);
+
+    const retryBtn = this.add.text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#aaddff',
+      backgroundColor: '#223344', padding: { x: 10, y: 5 },
+    }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
+    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
+    retryBtn.on('pointerdown', async () => {
+      retryBtn.disableInteractive();
+      retryBtn.setText('[ Retrying... ]');
+      const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
+      if (!transitioned) {
+        retryBtn.setText('[ Retry ]');
+        retryBtn.setInteractive({ useHandCursor: true });
+      }
+    });
+    group.push(retryBtn);
+
+    const titleBtn = this.add.text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 10, y: 5 },
+    }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
+    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
+    titleBtn.on('pointerdown', () => {
+      const cloud = this.registry.get('cloud');
+      const slot = this.registry.get('activeSlot');
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(this, 0);
+      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+    });
+    group.push(titleBtn);
+
+    this.defeatRecoveryPrompt = group;
   }
 }
