@@ -10,9 +10,15 @@ import {
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
-import { canUseWeaponArt } from '../engine/WeaponArtSystem.js';
+import { canUseWeaponArt, getWeaponArtBindings, getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import {
+  TOOLTIP_HOVER_DELAY_MS,
+  TOOLTIP_LONG_PRESS_MS,
+  TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
+} from '../utils/tooltipTiming.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
+const WEAPON_ART_MAX_SLOTS = 3;
 const HIDDEN_WEAPON_ART_REASONS = new Set([
   'legendary_weapon_required',
   'owner_scope_mismatch',
@@ -66,6 +72,10 @@ export class RosterOverlay {
 
     this._skillTooltip = null;
     this._weaponTooltip = null;
+    this._tooltipHoverTimer = null;
+    this._tooltipPressTimer = null;
+    this._tooltipPressStart = null;
+    this._sceneCleanupBound = false;
     this._listenersRegistered = false;
   }
 
@@ -100,12 +110,14 @@ export class RosterOverlay {
     this.objects.push(divider);
 
     this._registerListeners();
+    this._bindSceneCleanup();
     this.drawUnitList();
     this.drawUnitDetails();
   }
 
   hide() {
     if (!this.visible) return;
+    this._clearTooltipTimers();
     this._unregisterListeners();
     this._destroyDetails();
     this._destroyTrade();
@@ -335,6 +347,7 @@ export class RosterOverlay {
   // --- Right panel: unit details ---
 
   _destroyDetails() {
+    this._clearTooltipTimers();
     this._hideSkillTooltip();
     this._hideWeaponSpecialTooltip();
     for (const obj of this.detailObjects) obj.destroy();
@@ -560,13 +573,7 @@ export class RosterOverlay {
           ], '9px');
           tooltipAnchor = line.anchor;
         }
-        if (item.special) {
-          const star = this._text(x + 250, y, '*', '#ff8844', '9px');
-          const anchor = tooltipAnchor || star;
-          star.setInteractive({ useHandCursor: true });
-          star.on('pointerover', () => this._showWeaponSpecialTooltip(item, anchor));
-          star.on('pointerout', () => this._hideWeaponSpecialTooltip());
-        }
+        if (tooltipAnchor) this._wireTooltipTarget(tooltipAnchor, () => this._showWeaponSpecialTooltip(item, tooltipAnchor));
 
         const btnX = x + 280;
         const storeX = x + 340;
@@ -670,7 +677,9 @@ export class RosterOverlay {
         const color = canUse ? '#88ddff' : '#666666';
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
-        this._text(x + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        const row = this._text(x + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        const effect = art?.description || 'No description';
+        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, `${art.name}: ${effect}`));
         y += 12;
       }
     }
@@ -688,43 +697,31 @@ export class RosterOverlay {
     }
   }
 
-  _getWeaponArtCatalog(options = {}) {
-    const arts = this.gameData?.weaponArts?.arts || [];
-    if (options?.ignoreUnlocks) return arts;
-    const fromRun = this.runManager?.getUnlockedWeaponArts?.(arts);
-    if (Array.isArray(fromRun)) return fromRun;
-    const ids = this.runManager?.getUnlockedWeaponArtIds?.();
-    if (Array.isArray(ids)) {
-      const unlocked = new Set(ids);
-      return arts.filter((art) => art?.id && unlocked.has(art.id));
-    }
-    if (this.runManager) return [];
-    return arts;
-  }
-
-  _getInspectableWeaponArtChoices(unit, weapon, options = {}) {
-    if (!unit || !weapon) return [];
-    const base = this._getWeaponArtCatalog(options);
+  _collectWeaponBoundArts(weapon) {
+    if (!weapon) return [];
     const allArts = this.gameData?.weaponArts?.arts || [];
+    if (allArts.length <= 0) return [];
     const byId = new Map();
-    for (const art of base) {
-      if (art?.id) byId.set(art.id, art);
-    }
-    const boundId = typeof weapon?.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
-    if (boundId) {
+    for (const boundId of getWeaponArtIds(weapon)) {
       const boundArt = allArts.find((art) => art?.id === boundId);
       if (boundArt?.id) byId.set(boundArt.id, boundArt);
     }
     const weaponToken = weapon?.id || weapon?.name || null;
     if (weaponToken) {
       for (const art of allArts) {
-        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken) && art?.id) {
+        if (!art?.id) continue;
+        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
           byId.set(art.id, art);
         }
       }
     }
+    return [...byId.values()];
+  }
+
+  _getInspectableWeaponArtChoices(unit, weapon) {
+    if (!unit || !weapon) return [];
     const choices = [];
-    for (const art of byId.values()) {
+    for (const art of this._collectWeaponBoundArts(weapon)) {
       if (!art || art.weaponType !== weapon.type) continue;
       const check = canUseWeaponArt(unit, weapon, art, {
         turnNumber: this.scene?.turnManager?.turnNumber,
@@ -737,7 +734,6 @@ export class RosterOverlay {
     choices.sort((a, b) => a.art.name.localeCompare(b.art.name));
     return choices;
   }
-
   _weaponArtReasonLabel(reason) {
     switch (reason) {
       case 'insufficient_rank': return 'Rank too low';
@@ -959,12 +955,10 @@ export class RosterOverlay {
       return 'insufficient_rank';
     }
 
-    const existingId = typeof weapon.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
-    if (!existingId) return null;
-    if (existingId === art.id) return 'already_has_art';
-    const source = typeof weapon.weaponArtSource === 'string' ? weapon.weaponArtSource : 'innate';
-    if (source === 'innate' || source === 'meta_innate') return 'has_innate_art';
-    return 'has_bound_art';
+    const existingIds = getWeaponArtIds(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
+    if (existingIds.includes(art.id)) return 'already_has_art';
+    if (existingIds.length >= WEAPON_ART_MAX_SLOTS) return 'needs_replacement';
+    return null;
   }
 
   _weaponArtScrollReasonLabel(reason) {
@@ -973,10 +967,16 @@ export class RosterOverlay {
       case 'no_proficiency': return 'Unit lacks proficiency for this art.';
       case 'insufficient_rank': return 'Weapon rank too low for this art.';
       case 'already_has_art': return 'Weapon already has this art.';
-      case 'has_innate_art': return 'Weapon has innate art and cannot be overwritten.';
-      case 'has_bound_art': return 'Weapon already has a scroll-bound art.';
       default: return 'Cannot apply this scroll.';
     }
+  }
+
+  _isHardWeaponArtScrollBlockReason(reason) {
+    return reason === 'invalid'
+      || reason === 'wrong_type'
+      || reason === 'no_proficiency'
+      || reason === 'insufficient_rank'
+      || reason === 'already_has_art';
   }
 
   _getScrollEligibleWeaponsForArt(unit, scroll, art) {
@@ -993,7 +993,197 @@ export class RosterOverlay {
         weapon,
         reason: this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art),
       }))
-      .filter((entry) => !entry.reason);
+      .filter((entry) => !this._isHardWeaponArtScrollBlockReason(entry.reason));
+  }
+
+  _weaponArtSourceLabel(source) {
+    if (source === 'meta_innate') return 'Meta Innate';
+    if (source === 'scroll') return 'Scroll';
+    return 'Innate';
+  }
+
+  _showConfirmPicker(title, message, onConfirm) {
+    this._destroyTrade();
+    const cx = 320;
+    const cy = 240;
+    const width = 360;
+    const height = 140;
+
+    const bg = this.scene.add.rectangle(cx, cy, width, height, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    this.tradeObjects.push(bg);
+
+    const titleText = this.scene.add.text(cx, cy - 46, title, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(titleText);
+
+    const messageText = this.scene.add.text(cx, cy - 18, message, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+      align: 'center',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(messageText);
+
+    const yesBtn = this.scene.add.text(cx - 60, cy + 24, 'Overwrite', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#ff8888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    yesBtn.on('pointerover', () => yesBtn.setColor('#ff4444'));
+    yesBtn.on('pointerout', () => yesBtn.setColor('#ff8888'));
+    yesBtn.on('pointerdown', () => {
+      this._destroyTrade();
+      onConfirm?.();
+    });
+    this.tradeObjects.push(yesBtn);
+
+    const cancelBtn = this.scene.add.text(cx + 60, cy + 24, 'Cancel', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerdown', () => this._destroyTrade());
+    this.tradeObjects.push(cancelBtn);
+  }
+
+  _showWeaponArtSlotPicker(weapon, art, onSelect) {
+    const bindings = getWeaponArtBindings(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
+    if (!bindings.length) {
+      onSelect?.(null);
+      return;
+    }
+
+    this._destroyTrade();
+    const cx = 320;
+    const itemH = 24;
+    const titleH = 46;
+    const pad = 12;
+    const totalH = titleH + bindings.length * itemH + itemH + pad;
+    const cy = 240;
+    const topY = cy - totalH / 2;
+
+    const pickerBg = this.scene.add.rectangle(cx, cy, 380, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    this.tradeObjects.push(pickerBg);
+
+    const pickerTitle = this.scene.add.text(cx, topY + pad, `Replace with ${art.name}:`, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(pickerTitle);
+
+    const subTitle = this.scene.add.text(cx, topY + pad + 16, 'Choose an existing art slot to overwrite', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    this.tradeObjects.push(subTitle);
+
+    const allArts = this.gameData?.weaponArts?.arts || [];
+    bindings.forEach((binding, i) => {
+      const y = topY + titleH + i * itemH + pad;
+      const boundArt = allArts.find((row) => row?.id === binding.id);
+      const artName = boundArt?.name || binding.id;
+      const sourceLabel = this._weaponArtSourceLabel(binding.source);
+      const btn = this.scene.add.text(cx, y, `${artName} (${sourceLabel})`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
+        backgroundColor: '#444444', padding: { x: 10, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor('#e0e0e0'));
+      btn.on('pointerdown', () => {
+        this._destroyTrade();
+        onSelect?.({ index: i, binding });
+      });
+      this.tradeObjects.push(btn);
+    });
+
+    const cancelY = topY + titleH + bindings.length * itemH + pad;
+    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+      backgroundColor: '#333333', padding: { x: 10, y: 3 },
+    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+    cancelBtn.on('pointerdown', () => this._destroyTrade());
+    this.tradeObjects.push(cancelBtn);
+  }
+
+  _planWeaponArtScrollApply(weapon, art, replacementIndex = null) {
+    const bindings = getWeaponArtBindings(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
+    if (bindings.some((binding) => binding.id === art.id)) {
+      return { ok: false, reason: 'already_has_art' };
+    }
+
+    let overwritten = null;
+    if (bindings.length < WEAPON_ART_MAX_SLOTS) {
+      bindings.push({ id: art.id, source: 'scroll' });
+    } else {
+      if (!Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= bindings.length) {
+        return { ok: false, reason: 'needs_replacement' };
+      }
+      overwritten = bindings[replacementIndex];
+      bindings[replacementIndex] = { id: art.id, source: 'scroll' };
+    }
+
+    return { ok: true, overwritten, nextBindings: bindings };
+  }
+
+  _writeWeaponArtBindings(weapon, bindings) {
+    const safeBindings = Array.isArray(bindings) ? bindings : [];
+    weapon.weaponArtIds = safeBindings.map((binding) => binding.id);
+    weapon.weaponArtSources = safeBindings.map((binding) => binding.source || 'innate');
+    weapon.weaponArtId = weapon.weaponArtIds[0];
+    weapon.weaponArtSource = weapon.weaponArtSources[0] || 'innate';
+  }
+
+  _resolveWeaponArtScrollBlockReasonForApply(unit, weapon, scroll, art, replacementIndex = null) {
+    const reason = this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art);
+    if (reason !== 'needs_replacement') return reason;
+    const bindings = getWeaponArtBindings(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
+    const hasValidReplacementIndex = Number.isInteger(replacementIndex)
+      && replacementIndex >= 0
+      && replacementIndex < bindings.length;
+    return hasValidReplacementIndex ? null : reason;
+  }
+
+  _commitWeaponArtScrollApply(unit, scroll, weapon, art, plan, replacementIndex = null) {
+    if (!plan?.ok) {
+      this._showBanner(this._weaponArtScrollReasonLabel(plan?.reason), '#ff8888');
+      return false;
+    }
+
+    // Revalidate right before commit in case state changed during confirm/picker UI.
+    const reason = this._resolveWeaponArtScrollBlockReasonForApply(unit, weapon, scroll, art, replacementIndex);
+    if (this._isHardWeaponArtScrollBlockReason(reason)) {
+      this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
+      return false;
+    }
+
+    // Rebuild the apply plan against current weapon state to avoid stale writes.
+    const freshPlan = this._planWeaponArtScrollApply(weapon, art, replacementIndex);
+    if (!freshPlan?.ok) {
+      this._showBanner(this._weaponArtScrollReasonLabel(freshPlan?.reason), '#ff8888');
+      return false;
+    }
+
+    if (!this._removeTeamScroll(scroll)) {
+      this._showBanner('Scroll could not be consumed.', '#ff8888');
+      return false;
+    }
+
+    this._writeWeaponArtBindings(weapon, freshPlan.nextBindings);
+    const audio = this.scene.registry.get('audio');
+    if (audio) audio.playSFX('sfx_confirm');
+    const replaced = freshPlan.overwritten ? ' (replaced existing art)' : '';
+    this._showBanner(`${weapon.name} learned ${art.name}!${replaced}`, '#88ddff');
+    this.refresh();
+    return true;
+  }
+
+  _showWeaponArtOverwriteConfirm(overwrittenBinding, art, onConfirm) {
+    const source = overwrittenBinding?.source || 'innate';
+    const sourceLabel = this._weaponArtSourceLabel(source);
+    const message = `This weapon art will be overwritten. (${sourceLabel})`;
+    this._showConfirmPicker('Confirm Overwrite', message, onConfirm);
   }
 
   _showScrollPicker(unit) {
@@ -1114,7 +1304,8 @@ export class RosterOverlay {
       return;
     }
 
-    const eligible = this._getScrollEligibleWeaponsForArt(unit, scroll, art).map((entry) => entry.weapon);
+    const eligibleEntries = this._getScrollEligibleWeaponsForArt(unit, scroll, art);
+    const eligible = eligibleEntries.map((entry) => entry.weapon);
     if (eligible.length <= 0) {
       const firstWeapon = Array.isArray(unit.inventory) ? unit.inventory.find((item) =>
         item && item.type && item.type !== 'Consumable' && item.type !== 'Scroll' && item.type !== 'Accessory'
@@ -1124,23 +1315,39 @@ export class RosterOverlay {
       return;
     }
 
-    const applyToWeapon = (weapon) => {
-      const reason = this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art);
-      if (reason) {
+    const applyToWeapon = (weapon, replacementIndex = null) => {
+      const reason = this._resolveWeaponArtScrollBlockReasonForApply(unit, weapon, scroll, art, replacementIndex);
+      if (this._isHardWeaponArtScrollBlockReason(reason)) {
         this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
         return;
       }
 
-      weapon.weaponArtId = art.id;
-      weapon.weaponArtSource = 'scroll';
-      if (!this._removeTeamScroll(scroll)) {
-        this._showBanner('Scroll could not be consumed.', '#ff8888');
+      const bindings = getWeaponArtBindings(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
+      if (reason === 'needs_replacement' && !Number.isInteger(replacementIndex)) {
+        this._showWeaponArtSlotPicker(weapon, art, (slot) => {
+          if (!slot || !Number.isInteger(slot.index)) return;
+          applyToWeapon(weapon, slot.index);
+        });
         return;
       }
-      const audio = this.scene.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      this._showBanner(`${weapon.name} learned ${art.name}!`, '#88ddff');
-      this.refresh();
+
+      const plan = this._planWeaponArtScrollApply(weapon, art, replacementIndex);
+      if (!plan.ok) {
+        this._showBanner(this._weaponArtScrollReasonLabel(plan.reason), '#ff8888');
+        return;
+      }
+
+      const overwrittenSource = plan.overwritten?.source || null;
+      if (overwrittenSource === 'innate' || overwrittenSource === 'meta_innate') {
+        this._showWeaponArtOverwriteConfirm(
+          plan.overwritten,
+          art,
+          () => this._commitWeaponArtScrollApply(unit, scroll, weapon, art, plan, replacementIndex)
+        );
+        return;
+      }
+
+      this._commitWeaponArtScrollApply(unit, scroll, weapon, art, plan, replacementIndex);
     };
 
     if (eligible.length === 1) {
@@ -1319,9 +1526,6 @@ export class RosterOverlay {
             segments.push({ text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', '#e0e0e0') });
             segments.push({ text: ` ${rngStr}`, color: '#e0e0e0' });
           }
-          if (item.special) {
-            segments.push({ text: ' *', color: '#ff8844' });
-          }
           if (noProf) {
             segments.push({ text: ' (no prof)', color: '#cc8844' });
           }
@@ -1413,6 +1617,7 @@ export class RosterOverlay {
   _textSegments(x, y, segments, fontSize = '10px') {
     let cursor = x;
     let anchor = null;
+    const texts = [];
     for (const segment of segments) {
       const text = String(segment?.text ?? '');
       if (!text) continue;
@@ -1421,9 +1626,10 @@ export class RosterOverlay {
       }).setDepth(DEPTH_TEXT);
       this.detailObjects.push(t);
       if (!anchor) anchor = t;
+      texts.push(t);
       cursor += t.width;
     }
-    return { anchor, width: Math.max(0, cursor - x) };
+    return { anchor, texts, width: Math.max(0, cursor - x) };
   }
 
   _getWeaponBaseName(weapon) {
@@ -1522,8 +1728,72 @@ export class RosterOverlay {
     return null;
   }
 
+  _bindSceneCleanup() {
+    if (this._sceneCleanupBound) return;
+    if (!this.scene?.events?.on) return;
+    this._sceneCleanupBound = true;
+    this.scene.events.on('shutdown', () => {
+      this._clearTooltipTimers();
+      this._hideSkillTooltip();
+      this._hideWeaponSpecialTooltip();
+    });
+  }
+
+  _clearTooltipTimers() {
+    if (this._tooltipHoverTimer) {
+      this._tooltipHoverTimer.remove(false);
+      this._tooltipHoverTimer = null;
+    }
+    if (this._tooltipPressTimer) {
+      this._tooltipPressTimer.remove(false);
+      this._tooltipPressTimer = null;
+    }
+    this._tooltipPressStart = null;
+  }
+
+  _wireTooltipTarget(target, showFn) {
+    if (!target || !showFn) return;
+    target.setInteractive({ useHandCursor: true });
+    target.on('pointerover', () => {
+      this._clearTooltipTimers();
+      this._tooltipHoverTimer = this.scene.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+        this._tooltipHoverTimer = null;
+        showFn();
+      });
+    });
+    target.on('pointerout', () => {
+      this._clearTooltipTimers();
+      this._hideSkillTooltip();
+      this._hideWeaponSpecialTooltip();
+    });
+    target.on('pointerdown', (pointer) => {
+      this._clearTooltipTimers();
+      this._tooltipPressStart = { id: pointer.id, x: pointer.x, y: pointer.y };
+      this._tooltipPressTimer = this.scene.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
+        this._tooltipPressTimer = null;
+        showFn();
+      });
+    });
+    target.on('pointerup', () => {
+      if (this._tooltipPressTimer) {
+        this._tooltipPressTimer.remove(false);
+        this._tooltipPressTimer = null;
+      }
+    });
+    target.on('pointermove', (pointer) => {
+      if (!this._tooltipPressStart || pointer.id !== this._tooltipPressStart.id || !this._tooltipPressTimer) return;
+      const dx = pointer.x - this._tooltipPressStart.x;
+      const dy = pointer.y - this._tooltipPressStart.y;
+      if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
+        this._tooltipPressTimer.remove(false);
+        this._tooltipPressTimer = null;
+      }
+    });
+  }
+
   _showSkillTooltip(anchor, description) {
     this._hideSkillTooltip();
+    this._hideWeaponSpecialTooltip();
 
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     let tipY = anchor.y;
@@ -1556,12 +1826,25 @@ export class RosterOverlay {
 
   _showWeaponSpecialTooltip(weapon, textObject) {
     if (this._weaponTooltip) this._weaponTooltip.destroy();
+    if (!weapon || !textObject) return;
 
     const tooltip = this.scene.add.container(0, 0).setDepth(DEPTH_TEXT + 1);
     const padding = 8;
     const maxWidth = 200;
+    const lines = [];
+    if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    const boundArts = this._collectWeaponBoundArts(weapon);
+    if (boundArts.length > 0) {
+      for (const art of boundArts) {
+        if (!art?.name) continue;
+        const detail = art.description ? ` - ${art.description}` : '';
+        lines.push(`Weapon Art: ${art.name}${detail}`);
+      }
+    }
+    if (lines.length <= 0) return;
+    const body = lines.join('\n');
 
-    const descText = this.scene.add.text(0, 0, weapon.special, {
+    const descText = this.scene.add.text(0, 0, body, {
       fontFamily: 'monospace',
       fontSize: '9px',
       color: '#ffffff',

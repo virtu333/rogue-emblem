@@ -270,16 +270,20 @@ describe('convoy scene/UI flows', () => {
 
     overlay._useTeamScroll(unit, rm.scrolls[0]);
 
+    expect(sword.weaponArtIds).toEqual(['sword_precise_cut']);
+    expect(sword.weaponArtSources).toEqual(['scroll']);
     expect(sword.weaponArtId).toBe('sword_precise_cut');
     expect(sword.weaponArtSource).toBe('scroll');
     expect(rm.scrolls).toHaveLength(0);
   });
 
-  it('does not consume a weapon-art scroll when target weapon has innate art', () => {
+  it('supports overwrite confirmation for innate weapon arts with single consume and single write', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
     const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
     sword.weaponArtSource = 'innate';
     unit.inventory = [sword];
@@ -301,15 +305,223 @@ describe('convoy scene/UI flows', () => {
     overlay.scene.registry = { get: () => null };
     overlay._showBanner = vi.fn();
     overlay.refresh = vi.fn();
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtOverwriteConfirm = vi.fn((binding, art, onConfirm) => onConfirm());
+
+    const removeSpy = vi.spyOn(overlay, '_removeTeamScroll');
+    const writeSpy = vi.spyOn(overlay, '_writeWeaponArtBindings');
+
+    overlay._useTeamScroll(unit, rm.scrolls[0]);
+
+    expect(overlay._showWeaponArtOverwriteConfirm).toHaveBeenCalled();
+    expect(removeSpy).toHaveBeenCalledTimes(1);
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    expect(rm.scrolls).toHaveLength(0);
+    expect(sword.weaponArtIds).toEqual(['sword_precise_cut', 'custom_art_a', 'custom_art_b']);
+    expect(sword.weaponArtSources).toEqual(['scroll', 'scroll', 'scroll']);
+    expect(sword.weaponArtId).toBe('sword_precise_cut');
+    expect(sword.weaponArtSource).toBe('scroll');
+  });
+
+  it('does not mutate weapon arts when overwrite confirm is canceled', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    rm.scrolls = [{
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    }];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtOverwriteConfirm = vi.fn((_binding, _art, _onConfirm) => {});
 
     overlay._useTeamScroll(unit, rm.scrolls[0]);
 
     expect(rm.scrolls).toHaveLength(1);
+    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'custom_art_a', 'custom_art_b']);
+    expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
     expect(sword.weaponArtId).toBe('legend_gemini_tempest');
     expect(sword.weaponArtSource).toBe('innate');
-    expect(overlay._showBanner).toHaveBeenCalledWith('Weapon has innate art and cannot be overwritten.', '#ff8888');
   });
 
+  it('does not mutate weapon arts when scroll consumption fails', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    rm.scrolls = [{
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    }];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtOverwriteConfirm = vi.fn((binding, art, onConfirm) => onConfirm());
+    vi.spyOn(overlay, '_removeTeamScroll').mockReturnValue(false);
+
+    overlay._useTeamScroll(unit, rm.scrolls[0]);
+
+    expect(rm.scrolls).toHaveLength(1);
+    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'custom_art_a', 'custom_art_b']);
+    expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
+    expect(sword.weaponArtId).toBe('legend_gemini_tempest');
+    expect(sword.weaponArtSource).toBe('innate');
+  });
+
+  it('slot picker cancel on full weapon path leaves scroll and weapon unchanged', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    rm.scrolls = [{
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    }];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect(null));
+
+    overlay._useTeamScroll(unit, rm.scrolls[0]);
+
+    expect(rm.scrolls).toHaveLength(1);
+    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b']);
+    expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
+    expect(sword.weaponArtId).toBe('legend_gemini_tempest');
+    expect(sword.weaponArtSource).toBe('innate');
+  });
+
+  it('replaces only the selected slot and preserves other arts in insertion order', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+
+    const plan = overlay._planWeaponArtScrollApply(
+      sword,
+      { id: 'sword_precise_cut', name: 'Precise Cut' },
+      1
+    );
+
+    expect(plan.ok).toBe(true);
+    expect(plan.overwritten).toEqual({ id: 'sword_comet_edge', source: 'scroll' });
+    overlay._writeWeaponArtBindings(sword, plan.nextBindings);
+    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'sword_precise_cut', 'custom_art_b']);
+    expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
+  });
+  it('recomputes plan at commit time to avoid stale overwrite state', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+    unit.inventory = [sword];
+    unit.weapon = sword;
+    unit.skills = unit.skills || [];
+
+    const scroll = {
+      name: 'Precise Cut Scroll',
+      teachesWeaponArtId: 'sword_precise_cut',
+      allowedWeaponTypes: ['Sword'],
+    };
+    rm.scrolls = [scroll];
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+      weaponArts: gameData.weaponArts || { arts: [] },
+    });
+    overlay.scene.registry = { get: () => null };
+    overlay._showBanner = vi.fn();
+    overlay.refresh = vi.fn();
+
+    const art = { id: 'sword_precise_cut', name: 'Precise Cut', weaponType: 'Sword', requiredRank: 'Prof' };
+    const stalePlan = overlay._planWeaponArtScrollApply(sword, art, 0);
+    expect(stalePlan.ok).toBe(true);
+
+    // Simulate state drift while overwrite confirm is open.
+    sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_z'];
+    sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
+    sword.weaponArtId = 'legend_gemini_tempest';
+    sword.weaponArtSource = 'innate';
+
+    const committed = overlay._commitWeaponArtScrollApply(unit, scroll, sword, art, stalePlan, 0);
+
+    expect(committed).toBe(true);
+    expect(rm.scrolls).toHaveLength(0);
+    expect(sword.weaponArtIds).toEqual(['sword_precise_cut', 'custom_art_a', 'custom_art_z']);
+    expect(sword.weaponArtSources).toEqual(['scroll', 'scroll', 'scroll']);
+    expect(sword.weaponArtId).toBe('sword_precise_cut');
+    expect(sword.weaponArtSource).toBe('scroll');
+  });
   it('takes a consumable from convoy into roster via take action', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
