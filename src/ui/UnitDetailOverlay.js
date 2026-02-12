@@ -5,7 +5,13 @@
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getStaffRemainingUses, getStaffMaxUses, getEffectiveStaffRange, parseRange } from '../engine/Combat.js';
+import {
+  getStaticCombatStats,
+  getStaffRemainingUses,
+  getStaffMaxUses,
+  getEffectiveStaffRange,
+  parseRange
+} from '../engine/Combat.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -331,6 +337,14 @@ export class UnitDetailOverlay {
       this._tabText(rx, y, `${rs.padEnd(4)}${String(rv).padStart(3)}`, STAT_COLORS[rs], '10px');
       y += 13;
     }
+
+    // Effective Stats (Atk, AS)
+    const combat = getStaticCombatStats(unit, unit.weapon);
+    const asColor = (combat.weight > 0) ? '#ff6666' : (combat.as > unit.stats.SPD ? '#44ff88' : STAT_COLORS.SPD);
+    
+    this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(rx, y, `AS  ${String(combat.as).padStart(3)}`, asColor, '10px');
+    y += 15;
 
     // Proficiencies
     if (unit.proficiencies && unit.proficiencies.length > 0) {

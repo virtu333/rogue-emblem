@@ -84,6 +84,26 @@ export function calculateEffectiveWeight(weapon, unit) {
   return Math.max(0, weapon.weight - strReduction);
 }
 
+/**
+ * Calculate basic combat stats for a unit without an opponent.
+ * Used for status screens and inventory previews.
+ */
+export function getStaticCombatStats(unit, weapon) {
+  if (!weapon || isStaff(weapon)) {
+    return { atk: 0, as: unit.stats.SPD, hit: 0, crit: 0 };
+  }
+
+  const atk = calculateAttack(unit, weapon);
+  const weight = calculateEffectiveWeight(weapon, unit);
+  const as = unit.stats.SPD - weight;
+
+  // Static Hit/Crit (standard formulas without defender avoid/luck)
+  const hit = weapon.hit + (unit.stats.SKL * 2) + unit.stats.LCK;
+  const crit = Math.floor(unit.stats.SKL / 2) + weapon.crit;
+
+  return { atk, as, hit, crit, weight };
+}
+
 // --- Healing ---
 
 /**

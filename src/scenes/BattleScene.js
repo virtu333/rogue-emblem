@@ -9,6 +9,7 @@ import {
   resolveCombat,
   resolveHeal,
   gridDistance,
+  calculateEffectiveWeight,
   parseRange,
   isInRange,
   isStaff,
@@ -189,7 +190,7 @@ export class BattleScene extends Phaser.Scene {
       this.npcUnits = [];
 
       // Input lockout to prevent menu clicks bleeding through to map
-      this._lastMenuInteractionTime = 0;
+      this._uiClickBlocked = false;
 
       // Gold tracking for loot system
       this.goldEarned = 0;
@@ -436,7 +437,7 @@ export class BattleScene extends Phaser.Scene {
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
         btn.on('pointerdown', () => {
-          this._lastMenuInteractionTime = Date.now();
+          this._uiClickBlocked = true;
           handler();
         });
         return btn;
@@ -951,7 +952,7 @@ export class BattleScene extends Phaser.Scene {
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', () => {
-        this._lastMenuInteractionTime = Date.now();
+        this._uiClickBlocked = true;
         callback();
       });
       group.push(btn);
@@ -2771,7 +2772,7 @@ export class BattleScene extends Phaser.Scene {
     text.on('pointerover', () => text.setColor(hoverColor));
     text.on('pointerout', () => text.setColor(defaultColor));
     text.on('pointerdown', () => {
-      this._lastMenuInteractionTime = Date.now();
+      this._uiClickBlocked = true;
       onClick();
     });
     return text;
@@ -3024,11 +3025,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
     // to prevent 'bleed-through' clicks to the map.
-    if (this._lastMenuInteractionTime && Date.now() - this._lastMenuInteractionTime < 100) {
-      this._lastMenuInteractionTime = 0;
+    if (this._uiClickBlocked) {
+      this._uiClickBlocked = false;
       return;
     }
-    this._lastMenuInteractionTime = 0;
 
     this.cancelTouchInspectHold();
     let clickPos = null;
@@ -3856,8 +3856,21 @@ export class BattleScene extends Phaser.Scene {
     }).setDepth(textDepth);
     this.forecastObjects.push(crtVal);
 
+    // AS display
+    const weight = calculateEffectiveWeight(unit.weapon, unit);
+    const as = unit.stats.SPD - weight;
+    const asLabel = this.add.text(x + 80, y, 'AS', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+    }).setDepth(textDepth);
+    this.forecastObjects.push(asLabel);
+    const asVal = this.add.text(x + 108, y, `${as}`, {
+      fontFamily: 'monospace', fontSize: '10px', color: (weight > 0 ? '#ff6666' : '#e0e0e0'),
+    }).setDepth(textDepth);
+    this.forecastObjects.push(asVal);
+
+    // Doubling indicator
     if (info.attackCount > 1) {
-      const countText = this.add.text(x + 80, y, `x${info.attackCount}`, {
+      const countText = this.add.text(x + 134, y, `x${info.attackCount}`, {
         fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
       }).setDepth(textDepth);
       this.forecastObjects.push(countText);
