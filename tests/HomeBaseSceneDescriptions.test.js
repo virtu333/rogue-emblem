@@ -35,4 +35,21 @@ describe('HomeBaseScene upgrade description helpers', () => {
 
     expect(scene._getActionDesc(upgrade)).toBe('Unlocks 1 weapon art');
   });
+
+  it('describes multi-art unlock effects for equipment upgrades', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      description: 'arcane etching',
+      effects: [{
+        unlockWeaponArts: [
+          'sword_precise_cut',
+          'lance_piercing_drive',
+          'axe_wild_swing',
+          'bow_longshot',
+        ],
+      }],
+    };
+
+    expect(scene._getActionDesc(upgrade)).toBe('Unlocks 4 weapon arts');
+  });
 });

@@ -54,3 +54,23 @@ Risk:
 Checks:
 - Open/close inspection, detail overlay, pause, and action menu in sequence.
 - Confirm cancel behavior always returns to stable `PLAYER_IDLE` when appropriate.
+
+## 6) Menu click bleed-through into map input
+
+Risk:
+- A pointer/tap used to select a menu option is also interpreted as a map click on pointer-up (unintended move/target/confirm).
+
+Checks:
+- In battle, open weapon/action picker and click an option near map targets.
+- Confirm no immediate map action occurs unless the next click explicitly targets the map.
+- Repeat with mouse and touch paths.
+
+## 7) Defeat/overlay lock-state escape paths
+
+Risk:
+- After defeat or interrupted overlays, input remains partially active, preventing clean return to NodeMap/Title.
+
+Checks:
+- Trigger defeat and verify transition to post-battle flow is deterministic.
+- Confirm ESC/right-click cannot re-open stale battle interaction states after defeat banner appears.
+- Reload and verify run-state resumes at expected NodeMap position.

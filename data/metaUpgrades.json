@@ -998,6 +998,31 @@
     ]
   },
   {
+    "id": "weapon_art_infusion",
+    "name": "Arcane Etching",
+    "description": "Iron/Steel weapons can spawn with basic weapon arts",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      450
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "unlockWeaponArts": [
+          "sword_precise_cut",
+          "lance_piercing_drive",
+          "axe_wild_swing",
+          "bow_longshot"
+        ]
+      }
+    ]
+  },
+  {
     "id": "starting_accessory",
     "name": "Battle Trinket",
     "description": "Edric starts with an accessory",

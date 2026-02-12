@@ -416,8 +416,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 43 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(43);
+  it('has 44 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(44);
   });
 
   it('has correct category distribution', () => {
@@ -429,7 +429,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
     expect(byCategory.capacity).toBe(5);
-    expect(byCategory.starting_equipment).toBe(4);
+    expect(byCategory.starting_equipment).toBe(5);
     expect(byCategory.starting_skills).toBe(8);
   });
 
@@ -626,6 +626,18 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.meta_unlock_one = 1;
     const effects = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts.arts });
     expect(effects.metaUnlockedWeaponArts).toEqual(['legend_gemini_tempest']);
+  });
+
+  it('weapon_art_infusion unlocks basic art IDs for spawn binding', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.weapon_art_infusion = 1;
+    const effects = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts.arts });
+    expect(effects.metaUnlockedWeaponArts).toEqual([
+      'sword_precise_cut',
+      'lance_piercing_drive',
+      'axe_wild_swing',
+      'bow_longshot',
+    ]);
   });
 
   it('reset clears skillAssignments', () => {

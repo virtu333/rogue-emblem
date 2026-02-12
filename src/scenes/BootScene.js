@@ -9,6 +9,7 @@ import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
+import { parseDevStartupConfig, buildDevStartupRoute } from '../utils/devStartup.js';
 
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 
@@ -380,6 +381,23 @@ export class BootScene extends Phaser.Scene {
     }
 
     markStartup('boot_scene_complete');
+    const devStartupConfig = parseDevStartupConfig(globalThis?.location?.search || '');
+    if (devStartupConfig?.enabled) {
+      const devRoute = buildDevStartupRoute(data, this.registry, devStartupConfig);
+      if (devRoute?.key) {
+        markStartup('boot_dev_route', {
+          scene: devRoute.key,
+          preset: devStartupConfig.preset,
+          qaStep: devStartupConfig.qaStep || null,
+          qaDescription: devStartupConfig.qaDescription || null,
+          hasSeed: Number.isFinite(devStartupConfig.seed),
+          devTools: Boolean(devStartupConfig.devTools),
+        });
+        await startSceneLazy(this, devRoute.key, devRoute.data);
+        return;
+      }
+    }
+
     await startSceneLazy(this, 'Title', { gameData: data });
   }
 }

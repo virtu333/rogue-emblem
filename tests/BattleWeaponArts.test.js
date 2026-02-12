@@ -581,6 +581,28 @@ describe('BattleScene weapon art helpers', () => {
     expect(withIron).toHaveLength(0);
   });
 
+  it('hides globally unlocked legendary arts when no matching weapon is equipped', () => {
+    const scene = new BattleScene();
+    const legendaryArt = makeArt({
+      id: 'legend_gemini_tempest',
+      name: 'Gemini Tempest',
+      requiredRank: 'Mast',
+      legendaryWeaponIds: ['Gemini'],
+      combatMods: { atkBonus: 5, hitBonus: 15 },
+    });
+    const unit = makeUnit({
+      currentHP: 20,
+      proficiencies: [{ type: 'Sword', rank: 'Mast' }],
+      weapon: { type: 'Sword', name: 'Iron Sword' },
+    });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legendaryArt] } };
+    scene.runManager = { getUnlockedWeaponArtIds: () => ['legend_gemini_tempest'] };
+
+    const choices = scene._getWeaponArtChoices(unit, unit.weapon);
+    expect(choices).toHaveLength(0);
+  });
+
   it('prevents enemy from selecting player-only legendary arts', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({

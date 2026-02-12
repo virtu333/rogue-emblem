@@ -97,10 +97,25 @@ function hashRewindSeed(seed, rewindCount) {
 
 const TOUCH_INSPECT_HOLD_MS = 420;
 const TOUCH_INSPECT_MOVE_THRESHOLD = 14;
+const HIDDEN_WEAPON_ART_REASONS = new Set([
+  'legendary_weapon_required',
+  'owner_scope_mismatch',
+  'faction_mismatch',
+  'wrong_weapon_type',
+  'invalid_owner_scope_config',
+  'invalid_faction_config',
+  'invalid_legendary_weapon_ids_config',
+  'invalid_unlock_act_config',
+  'invalid_input',
+]);
 
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
+  }
+
+  isDevToolsEnabled() {
+    return DEBUG_MODE || this.registry.get('devToolsEnabled') === true;
   }
 
   init(data) {
@@ -597,7 +612,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Debug overlay (dev-only)
-      if (DEBUG_MODE) {
+      if (this.isDevToolsEnabled()) {
         this.debugOverlay = new DebugOverlay(this);
         this.input.keyboard.addKey(192).on('down', () => {
           if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
@@ -1086,7 +1101,7 @@ export class BattleScene extends Phaser.Scene {
     const noPathCount = this.currentEnemyPhaseAiStats.byReason.no_reachable_move || 0;
     if (noPathCount > 0) {
       console.warn('[AI] Enemy phase summary (no-path detected)', this.currentEnemyPhaseAiStats);
-    } else if (DEBUG_MODE) {
+    } else if (this.isDevToolsEnabled()) {
       console.debug('[AI] Enemy phase summary', this.currentEnemyPhaseAiStats);
     }
     this.currentEnemyPhaseAiStats = null;
@@ -1723,7 +1738,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   canRequestCancel({ allowPause = true } = {}) {
-    if (DEBUG_MODE && this.debugOverlay?.visible) return true;
+    if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
     if (this.unitDetailOverlay?.visible) return true;
     if (this.inspectionPanel?.visible) return true;
@@ -1737,7 +1752,7 @@ export class BattleScene extends Phaser.Scene {
 
   requestCancel({ allowPause = true } = {}) {
     if (!this.canRequestCancel({ allowPause })) return false;
-    if (DEBUG_MODE && this.debugOverlay?.visible) {
+    if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
       this.refreshEndTurnControl();
       return true;
@@ -3866,7 +3881,7 @@ export class BattleScene extends Phaser.Scene {
         ...context,
       });
       return { art, canUse: check.ok, reason: check.reason };
-    });
+    }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
   _scoreEnemyWeaponArt(art) {
@@ -4459,7 +4474,7 @@ export class BattleScene extends Phaser.Scene {
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
-    if (DEBUG_MODE && debugState.invincible) {
+    if (this.isDevToolsEnabled() && debugState.invincible) {
       if (attacker.faction === 'player') { attacker.currentHP = attacker.stats.HP; result.attackerDied = false; }
       if (defender.faction === 'player') { defender.currentHP = defender.stats.HP; result.defenderDied = false; }
     }
@@ -5043,7 +5058,7 @@ export class BattleScene extends Phaser.Scene {
 
   async startEnemyPhase() {
     // Debug: skip enemy phase entirely
-    if (DEBUG_MODE && this._debugSkipEnemyPhase) {
+    if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
       this._debugSkipEnemyPhase = false;
       if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
       return;
@@ -5153,7 +5168,7 @@ export class BattleScene extends Phaser.Scene {
     target.currentHP = result.defenderHP;
 
     // Debug: invincibility â€” restore player units to full HP
-    if (DEBUG_MODE && debugState.invincible) {
+    if (this.isDevToolsEnabled() && debugState.invincible) {
       if (target.faction === 'player') { target.currentHP = target.stats.HP; result.defenderDied = false; }
     }
 

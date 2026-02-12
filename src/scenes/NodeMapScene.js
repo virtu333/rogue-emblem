@@ -87,6 +87,10 @@ export class NodeMapScene extends Phaser.Scene {
     super('NodeMap');
   }
 
+  isDevToolsEnabled() {
+    return DEBUG_MODE || this.registry.get('devToolsEnabled') === true;
+  }
+
   init(data) {
     this.gameData = data.gameData || data;
     this.isTransitioning = false;
@@ -129,7 +133,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchScrollDrag = null;
 
     // Debug overlay (dev-only)
-    if (DEBUG_MODE) {
+    if (this.isDevToolsEnabled()) {
       this.debugOverlay = new DebugOverlay(this);
       this.input.keyboard.addKey(192).on('down', () => {
         if (this.shopOverlay || this.rosterOverlay?.visible) return;
@@ -330,7 +334,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   canRequestCancel({ allowPause = true } = {}) {
-    if (DEBUG_MODE && this.debugOverlay?.visible) return true;
+    if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.forgePicker) return true;
     if (this.unitPicker || this.unitPickerState) return true;
     if (this.settingsOverlay?.visible) return true;
@@ -344,7 +348,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   requestCancel({ allowPause = true } = {}) {
     if (!this.canRequestCancel({ allowPause })) return false;
-    if (DEBUG_MODE && this.debugOverlay?.visible) {
+    if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
       return true;
     }

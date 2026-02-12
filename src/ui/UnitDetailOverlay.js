@@ -4,7 +4,6 @@
 
 import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
-import { isForged } from '../engine/ForgeSystem.js';
 import {
   getStaticCombatStats,
   getStaffRemainingUses,
@@ -12,6 +11,7 @@ import {
   getEffectiveStaffRange,
   parseRange
 } from '../engine/Combat.js';
+import { canUseWeaponArt } from '../engine/WeaponArtSystem.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -21,6 +21,17 @@ const DEPTH_BG = 750;
 const DEPTH_PANEL = 751;
 const DEPTH_TEXT = 752;
 const DEPTH_TOOLTIP = 760;
+const HIDDEN_WEAPON_ART_REASONS = new Set([
+  'legendary_weapon_required',
+  'owner_scope_mismatch',
+  'faction_mismatch',
+  'wrong_weapon_type',
+  'invalid_owner_scope_config',
+  'invalid_faction_config',
+  'invalid_legendary_weapon_ids_config',
+  'invalid_unlock_act_config',
+  'invalid_input',
+]);
 
 export class UnitDetailOverlay {
   constructor(scene, gameData) {
@@ -409,23 +420,42 @@ export class UnitDetailOverlay {
     if (unit.inventory && unit.inventory.length > 0) {
       for (const item of unit.inventory) {
         const marker = item === unit.weapon ? '\u25b6' : ' ';
-        const color = isForged(item) ? '#44ff88' : UI_COLORS.white;
-        let line;
+        const baseNameColor = this._getWeaponNameColor(item, UI_COLORS.white);
+        const nameLine = this._tabTextSegments(lx, y, [
+          { text: marker, color: UI_COLORS.white },
+          { text: this._getWeaponBaseName(item), color: baseNameColor },
+          ...this._getWeaponForgeSuffixSegments(item),
+        ], '9px');
+        let contentX = lx + nameLine.width;
+        if (item.special) {
+          this._tabText(contentX + 2, y, '*', '#ff8844', '9px');
+          contentX += 8;
+        }
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
           const rng = getEffectiveStaffRange(item, unit);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          line = `${marker}${item.name} (${rem}/${max}) ${rngStr}`;
+          this._tabTextSegments(contentX, y, [
+            { text: ` (${rem}/${max}) ${rngStr}`, color: UI_COLORS.white },
+          ], '9px');
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          line = `${marker}${item.name} Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`;
+          this._tabTextSegments(contentX, y, [
+            { text: ' ', color: UI_COLORS.white },
+            { text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', UI_COLORS.white) },
+            { text: ' ', color: UI_COLORS.white },
+            { text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', UI_COLORS.white) },
+            { text: ' ', color: UI_COLORS.white },
+            { text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', UI_COLORS.white) },
+            { text: ' ', color: UI_COLORS.white },
+            { text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', UI_COLORS.white) },
+            { text: ` ${rngStr}`, color: UI_COLORS.white },
+          ], '9px');
         } else {
-          line = `${marker}${item.name}`;
+          // Name already rendered in the segmented prefix above.
         }
-        if (item.special) line += ' *';
-        this._tabText(lx, y, line, color, '9px');
         y += 12;
       }
     } else {
@@ -488,6 +518,24 @@ export class UnitDetailOverlay {
       }
     }
 
+    this._tabSep(lx, y); y += 12;
+    this._tabText(lx, y, 'Weapon Arts:', '#88ddff', '9px');
+    y += 13;
+    const weaponArtChoices = this._getInspectableWeaponArtChoices(unit, unit.weapon);
+    if (weaponArtChoices.length <= 0) {
+      this._tabText(lx + 8, y, '(none)', UI_COLORS.gray, '9px');
+      y += 12;
+    } else {
+      for (const { art, canUse, reason } of weaponArtChoices) {
+        const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
+        const color = canUse ? '#88ddff' : UI_COLORS.gray;
+        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        this._tabText(lx + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        y += 12;
+      }
+    }
+
     return y;
   }
 
@@ -511,6 +559,116 @@ export class UnitDetailOverlay {
 
   _tabSep(x, y) {
     this._tabText(x, y, '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500', UI_COLORS.gray, '9px');
+  }
+
+  _tabTextSegments(x, y, segments, fontSize = '9px') {
+    let cursor = x;
+    let anchor = null;
+    for (const segment of segments) {
+      const text = String(segment?.text ?? '');
+      if (!text) continue;
+      const t = this._tabText(cursor, y, text, segment?.color || UI_COLORS.white, fontSize);
+      if (!anchor) anchor = t;
+      cursor += t.width;
+    }
+    return { anchor, width: Math.max(0, cursor - x) };
+  }
+
+  _getWeaponBaseName(weapon) {
+    if (!weapon) return '';
+    const explicit = typeof weapon._baseName === 'string' ? weapon._baseName.trim() : '';
+    if (explicit) return explicit;
+    const name = typeof weapon.name === 'string' ? weapon.name : '';
+    return name.replace(/\s\+\d+$/, '');
+  }
+
+  _getWeaponForgeLevel(weapon) {
+    const explicit = Number(weapon?._forgeLevel);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const name = typeof weapon?.name === 'string' ? weapon.name : '';
+    const m = name.match(/\s\+(\d+)$/);
+    if (!m) return 0;
+    const parsed = Number(m[1]);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }
+
+  _getWeaponForgeSuffixSegments(weapon) {
+    const level = this._getWeaponForgeLevel(weapon);
+    if (level <= 0) return [];
+    return [{ text: ` +${level}`, color: '#44ff88' }];
+  }
+
+  _getForgeStatColor(weapon, statKey, fallbackColor) {
+    const bonuses = weapon?._forgeBonuses || {};
+    const delta = Number(bonuses?.[statKey]) || 0;
+    return delta !== 0 ? '#44ff88' : fallbackColor;
+  }
+
+  _getWeaponNameColor(weapon, fallbackColor) {
+    return weapon?.tier === 'Legend' ? UI_COLORS.gold : fallbackColor;
+  }
+
+  _getWeaponArtCatalog(options = {}) {
+    const arts = this.gameData?.weaponArts?.arts || [];
+    if (options?.ignoreUnlocks) return arts;
+    const runManager = this.scene?.runManager || null;
+    if (!runManager) return arts;
+    const fromRun = runManager.getUnlockedWeaponArts?.(arts);
+    if (Array.isArray(fromRun)) return fromRun;
+    const ids = runManager.getUnlockedWeaponArtIds?.();
+    if (Array.isArray(ids)) {
+      const unlocked = new Set(ids);
+      return arts.filter((art) => art?.id && unlocked.has(art.id));
+    }
+    return [];
+  }
+
+  _getInspectableWeaponArtChoices(unit, weapon, options = {}) {
+    if (!unit || !weapon) return [];
+    const base = this._getWeaponArtCatalog(options);
+    const allArts = this.gameData?.weaponArts?.arts || [];
+    const byId = new Map();
+    for (const art of base) {
+      if (art?.id) byId.set(art.id, art);
+    }
+    const boundId = typeof weapon?.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
+    if (boundId) {
+      const boundArt = allArts.find((art) => art?.id === boundId);
+      if (boundArt?.id) byId.set(boundArt.id, boundArt);
+    }
+    const weaponToken = weapon?.id || weapon?.name || null;
+    if (weaponToken) {
+      for (const art of allArts) {
+        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken) && art?.id) {
+          byId.set(art.id, art);
+        }
+      }
+    }
+    const choices = [];
+    for (const art of byId.values()) {
+      if (!art || art.weaponType !== weapon.type) continue;
+      const check = canUseWeaponArt(unit, weapon, art, {
+        turnNumber: this.scene?.turnManager?.turnNumber,
+        isInitiating: true,
+        actorFaction: unit.faction,
+      });
+      if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
+      choices.push({ art, canUse: check.ok, reason: check.reason });
+    }
+    choices.sort((a, b) => a.art.name.localeCompare(b.art.name));
+    return choices;
+  }
+
+  _weaponArtReasonLabel(reason) {
+    switch (reason) {
+      case 'insufficient_rank': return 'Rank too low';
+      case 'insufficient_hp': return 'Not enough HP';
+      case 'per_turn_limit': return 'Turn limit';
+      case 'per_map_limit': return 'Map limit';
+      case 'no_proficiency': return 'No proficiency';
+      case 'initiation_only': return 'Player phase only';
+      default: return 'Unavailable';
+    }
   }
 
   _getPortraitKey(unit) {

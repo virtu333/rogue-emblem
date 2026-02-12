@@ -10,8 +10,20 @@ import {
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
+import { canUseWeaponArt } from '../engine/WeaponArtSystem.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
+const HIDDEN_WEAPON_ART_REASONS = new Set([
+  'legendary_weapon_required',
+  'owner_scope_mismatch',
+  'faction_mismatch',
+  'wrong_weapon_type',
+  'invalid_owner_scope_config',
+  'invalid_faction_config',
+  'invalid_legendary_weapon_ids_config',
+  'invalid_unlock_act_config',
+  'invalid_input',
+]);
 
 const DEPTH_BG = 700;
 const DEPTH_PANEL = 701;
@@ -509,27 +521,51 @@ export class RosterOverlay {
       for (const item of unit.inventory) {
         const isEquipped = item === unit.weapon;
         const marker = isEquipped ? '\u25b6 ' : '  ';
-        let label;
+        let tooltipAnchor = null;
+        const nameColor = this._getWeaponNameColor(item, '#e0e0e0');
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          label = `${marker}${item.name} (${rem}/${max}) ${rngStr}`;
+          const line = this._textSegments(x, y, [
+            { text: marker, color: '#e0e0e0' },
+            { text: this._getWeaponBaseName(item), color: nameColor },
+            ...this._getWeaponForgeSuffixSegments(item),
+            { text: ` (${rem}/${max}) ${rngStr}`, color: '#e0e0e0' },
+          ], '9px');
+          tooltipAnchor = line.anchor;
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          label = `${marker}${item.name} Mt${item.might} Ht${item.hit} Cr${item.crit} Wt${item.weight} ${rngStr}`;
+          const line = this._textSegments(x, y, [
+            { text: marker, color: '#e0e0e0' },
+            { text: this._getWeaponBaseName(item), color: nameColor },
+            ...this._getWeaponForgeSuffixSegments(item),
+            { text: ' ', color: '#e0e0e0' },
+            { text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', '#e0e0e0') },
+            { text: ' ', color: '#e0e0e0' },
+            { text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', '#e0e0e0') },
+            { text: ' ', color: '#e0e0e0' },
+            { text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', '#e0e0e0') },
+            { text: ' ', color: '#e0e0e0' },
+            { text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', '#e0e0e0') },
+            { text: ` ${rngStr}`, color: '#e0e0e0' },
+          ], '9px');
+          tooltipAnchor = line.anchor;
         } else {
-          label = `${marker}${item.name}`;
+          const line = this._textSegments(x, y, [
+            { text: marker, color: '#e0e0e0' },
+            { text: item.name || '', color: nameColor },
+          ], '9px');
+          tooltipAnchor = line.anchor;
         }
-
-        const color = isForged(item) ? '#44ff88' : '#e0e0e0';
-        const weaponText = this._text(x, y, label, color, '9px');
         if (item.special) {
-          weaponText.setInteractive({ useHandCursor: true });
-          weaponText.on('pointerover', () => this._showWeaponSpecialTooltip(item, weaponText));
-          weaponText.on('pointerout', () => this._hideWeaponSpecialTooltip());
+          const star = this._text(x + 250, y, '*', '#ff8844', '9px');
+          const anchor = tooltipAnchor || star;
+          star.setInteractive({ useHandCursor: true });
+          star.on('pointerover', () => this._showWeaponSpecialTooltip(item, anchor));
+          star.on('pointerout', () => this._hideWeaponSpecialTooltip());
         }
 
         const btnX = x + 280;
@@ -621,6 +657,24 @@ export class RosterOverlay {
       }
     }
 
+    y += 4;
+    this._text(x, y, '\u2500\u2500 Weapon Arts \u2500\u2500', '#888888', '10px');
+    y += 14;
+    const weaponArtChoices = this._getInspectableWeaponArtChoices(unit, unit.weapon);
+    if (weaponArtChoices.length <= 0) {
+      this._text(x + 8, y, '(none)', '#888888', '10px');
+      y += 14;
+    } else {
+      for (const { art, canUse, reason } of weaponArtChoices) {
+        const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
+        const color = canUse ? '#88ddff' : '#666666';
+        const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+        const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
+        this._text(x + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        y += 12;
+      }
+    }
+
     y += 6;
     const teamScrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
     this._text(x, y, `\u2500\u2500 Team Scrolls (${teamScrolls.length}) \u2500\u2500`, '#888888', '10px');
@@ -631,6 +685,68 @@ export class RosterOverlay {
     } else {
       this._actionBtn(x + 8, y, '[Use Scroll]', () => this._showScrollPicker(unit), '10px');
       y += 14;
+    }
+  }
+
+  _getWeaponArtCatalog(options = {}) {
+    const arts = this.gameData?.weaponArts?.arts || [];
+    if (options?.ignoreUnlocks) return arts;
+    const fromRun = this.runManager?.getUnlockedWeaponArts?.(arts);
+    if (Array.isArray(fromRun)) return fromRun;
+    const ids = this.runManager?.getUnlockedWeaponArtIds?.();
+    if (Array.isArray(ids)) {
+      const unlocked = new Set(ids);
+      return arts.filter((art) => art?.id && unlocked.has(art.id));
+    }
+    if (this.runManager) return [];
+    return arts;
+  }
+
+  _getInspectableWeaponArtChoices(unit, weapon, options = {}) {
+    if (!unit || !weapon) return [];
+    const base = this._getWeaponArtCatalog(options);
+    const allArts = this.gameData?.weaponArts?.arts || [];
+    const byId = new Map();
+    for (const art of base) {
+      if (art?.id) byId.set(art.id, art);
+    }
+    const boundId = typeof weapon?.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
+    if (boundId) {
+      const boundArt = allArts.find((art) => art?.id === boundId);
+      if (boundArt?.id) byId.set(boundArt.id, boundArt);
+    }
+    const weaponToken = weapon?.id || weapon?.name || null;
+    if (weaponToken) {
+      for (const art of allArts) {
+        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken) && art?.id) {
+          byId.set(art.id, art);
+        }
+      }
+    }
+    const choices = [];
+    for (const art of byId.values()) {
+      if (!art || art.weaponType !== weapon.type) continue;
+      const check = canUseWeaponArt(unit, weapon, art, {
+        turnNumber: this.scene?.turnManager?.turnNumber,
+        isInitiating: true,
+        actorFaction: unit.faction,
+      });
+      if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
+      choices.push({ art, canUse: check.ok, reason: check.reason });
+    }
+    choices.sort((a, b) => a.art.name.localeCompare(b.art.name));
+    return choices;
+  }
+
+  _weaponArtReasonLabel(reason) {
+    switch (reason) {
+      case 'insufficient_rank': return 'Rank too low';
+      case 'insufficient_hp': return 'Not enough HP';
+      case 'per_turn_limit': return 'Turn limit';
+      case 'per_map_limit': return 'Map limit';
+      case 'no_proficiency': return 'No proficiency';
+      case 'initiation_only': return 'Player phase only';
+      default: return 'Unavailable';
     }
   }
 
@@ -1180,30 +1296,57 @@ export class RosterOverlay {
         for (const item of [...unit.inventory]) {
           const marker = item === unit.weapon ? '\u25b6 ' : '  ';
           const noProf = !hasProficiency(otherUnit, item);
-          const baseColor = isForged(item) ? '#44ff88' : (noProf ? '#cc8844' : '#e0e0e0');
-          let label = `${marker}${item.name}`;
+          const baseNameColor = this._getWeaponNameColor(item, '#e0e0e0');
+          const segments = [
+            { text: marker, color: '#e0e0e0' },
+            { text: this._getWeaponBaseName(item), color: baseNameColor },
+            ...this._getWeaponForgeSuffixSegments(item),
+          ];
           if (item.type === 'Staff') {
             const rem = getStaffRemainingUses(item, unit);
             const max = getStaffMaxUses(item, unit);
-            label += ` (${rem}/${max})`;
+            segments.push({ text: ` (${rem}/${max})`, color: '#e0e0e0' });
+          } else if (item.might !== undefined) {
+            const rng = parseRange(item.range);
+            const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
+            segments.push({ text: ' ', color: '#e0e0e0' });
+            segments.push({ text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', '#e0e0e0') });
+            segments.push({ text: ' ', color: '#e0e0e0' });
+            segments.push({ text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', '#e0e0e0') });
+            segments.push({ text: ' ', color: '#e0e0e0' });
+            segments.push({ text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', '#e0e0e0') });
+            segments.push({ text: ' ', color: '#e0e0e0' });
+            segments.push({ text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', '#e0e0e0') });
+            segments.push({ text: ` ${rngStr}`, color: '#e0e0e0' });
           }
-          if (noProf) label += ' (no prof)';
+          if (item.special) {
+            segments.push({ text: ' *', color: '#ff8844' });
+          }
+          if (noProf) {
+            segments.push({ text: ' (no prof)', color: '#cc8844' });
+          }
 
           const locked = isLastCombatWeapon(unit, item);
           if (!locked && otherUnit.inventory.length < INVENTORY_MAX) {
-            const btn = this.scene.add.text(xPos, sy, label + '  \u25b6', {
-              fontFamily: 'monospace', fontSize: '10px', color: baseColor,
-            }).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
-            btn.on('pointerover', () => btn.setColor('#ffdd44'));
-            btn.on('pointerout', () => btn.setColor(baseColor));
-            btn.on('pointerdown', () => {
+            const interactiveSegments = [...segments, { text: '  \u25b6', color: '#e0e0e0' }];
+            const row = this._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
+            const hit = this.scene.add.rectangle(
+              xPos + Math.max(row.width, 12) / 2, sy + 6, Math.max(row.width, 12), 12, 0x000000, 0
+            ).setOrigin(0.5).setDepth(DEPTH_PICKER + 3).setInteractive({ useHandCursor: true });
+            const restore = () => {
+              row.texts.forEach((t, idx) => t.setColor(interactiveSegments[idx]?.color || '#e0e0e0'));
+            };
+            hit.on('pointerover', () => row.texts.forEach((t) => t.setColor('#ffdd44')));
+            hit.on('pointerout', restore);
+            hit.on('pointerdown', () => {
               removeFromInventory(unit, item);
               addToInventory(otherUnit, item);
               this._showTradeScreen(unitA, unitB); // redraw
             });
-            this.tradeObjects.push(btn);
+            this.tradeObjects.push(hit);
           } else {
-            this._tradeText(xPos, sy, label, '#666666', '10px');
+            const disabledSegments = segments.map((segment) => ({ ...segment, color: '#666666' }));
+            this._tradeTextSegments(xPos, sy, disabledSegments, '10px');
           }
           sy += 14;
         }
@@ -1267,6 +1410,56 @@ export class RosterOverlay {
     this.drawUnitDetails();
   }
 
+  _textSegments(x, y, segments, fontSize = '10px') {
+    let cursor = x;
+    let anchor = null;
+    for (const segment of segments) {
+      const text = String(segment?.text ?? '');
+      if (!text) continue;
+      const t = this.scene.add.text(cursor, y, text, {
+        fontFamily: 'monospace', fontSize, color: segment?.color || '#e0e0e0',
+      }).setDepth(DEPTH_TEXT);
+      this.detailObjects.push(t);
+      if (!anchor) anchor = t;
+      cursor += t.width;
+    }
+    return { anchor, width: Math.max(0, cursor - x) };
+  }
+
+  _getWeaponBaseName(weapon) {
+    if (!weapon) return '';
+    const explicit = typeof weapon._baseName === 'string' ? weapon._baseName.trim() : '';
+    if (explicit) return explicit;
+    const name = typeof weapon.name === 'string' ? weapon.name : '';
+    return name.replace(/\s\+\d+$/, '');
+  }
+
+  _getWeaponForgeLevel(weapon) {
+    const explicit = Number(weapon?._forgeLevel);
+    if (Number.isFinite(explicit) && explicit > 0) return explicit;
+    const name = typeof weapon?.name === 'string' ? weapon.name : '';
+    const m = name.match(/\s\+(\d+)$/);
+    if (!m) return 0;
+    const parsed = Number(m[1]);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }
+
+  _getWeaponForgeSuffixSegments(weapon) {
+    const level = this._getWeaponForgeLevel(weapon);
+    if (level <= 0) return [];
+    return [{ text: ` +${level}`, color: '#44ff88' }];
+  }
+
+  _getForgeStatColor(weapon, statKey, fallbackColor) {
+    const bonuses = weapon?._forgeBonuses || {};
+    const delta = Number(bonuses?.[statKey]) || 0;
+    return delta !== 0 ? '#44ff88' : fallbackColor;
+  }
+
+  _getWeaponNameColor(weapon, fallbackColor) {
+    return weapon?.tier === 'Legend' ? '#ffdd44' : fallbackColor;
+  }
+
   _text(x, y, str, color = '#e0e0e0', fontSize = '10px') {
     const t = this.scene.add.text(x, y, str, {
       fontFamily: 'monospace', fontSize, color,
@@ -1281,6 +1474,22 @@ export class RosterOverlay {
     }).setDepth(DEPTH_PICKER + 2);
     this.tradeObjects.push(t);
     return t;
+  }
+
+  _tradeTextSegments(x, y, segments, fontSize = '10px') {
+    let cursor = x;
+    const texts = [];
+    for (const segment of segments) {
+      const text = String(segment?.text ?? '');
+      if (!text) continue;
+      const t = this.scene.add.text(cursor, y, text, {
+        fontFamily: 'monospace', fontSize, color: segment?.color || '#e0e0e0',
+      }).setDepth(DEPTH_PICKER + 2);
+      this.tradeObjects.push(t);
+      texts.push(t);
+      cursor += t.width;
+    }
+    return { texts, width: Math.max(0, cursor - x) };
   }
 
   _actionBtn(x, y, label, onClick, fontSize = '10px') {
