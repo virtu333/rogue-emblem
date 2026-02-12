@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { generateBossRecruitCandidates, getAvailableLords, createBossLordUnit } from '../src/engine/BossRecruitSystem.js';
 import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
@@ -11,6 +11,18 @@ function makeBaseRoster() {
     { name: 'Edric', className: 'Lord', isLord: true, level: 8, faction: 'player' },
     { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
   ];
+}
+
+function getPoolClassNames(recruitsData, actKey) {
+  const actData = recruitsData?.[actKey];
+  if (!actData) return [];
+  if (Array.isArray(actData.pool) && actData.pool.length > 0) {
+    return actData.pool.map(r => r.className);
+  }
+  if (Array.isArray(actData.classPool)) {
+    return [...actData.classPool];
+  }
+  return [];
 }
 
 describe('BossRecruitSystem', () => {
@@ -301,8 +313,7 @@ describe('BossRecruitSystem', () => {
     it('promoted candidates have correct promoted className', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
-      const act3Pool = gameData.recruits.act3.pool;
-      const validClassNames = act3Pool.map(r => r.className);
+      const validClassNames = getPoolClassNames(gameData.recruits, 'act3');
       for (const c of candidates) {
         expect(validClassNames).toContain(c.className);
       }

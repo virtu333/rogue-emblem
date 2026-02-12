@@ -9,6 +9,29 @@ import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
+function getRecruitPoolEntries(recruits, poolKey) {
+  const poolData = recruits?.[poolKey];
+  if (!poolData) return [];
+
+  // Legacy structure: { pool: [{ className, name }, ...] }
+  if (Array.isArray(poolData.pool) && poolData.pool.length > 0) {
+    return poolData.pool
+      .filter(entry => entry && typeof entry.className === 'string')
+      .map(entry => ({ className: entry.className, name: entry.name || entry.className }));
+  }
+
+  // Current structure: { classPool: [...] } + top-level recruits.namePool
+  if (!Array.isArray(poolData.classPool) || poolData.classPool.length === 0) return [];
+  const namePool = recruits?.namePool || {};
+  return poolData.classPool.map(className => {
+    const names = Array.isArray(namePool[className]) ? namePool[className] : [];
+    const name = names.length > 0
+      ? names[0]
+      : className;
+    return { className, name };
+  });
+}
+
 /**
  * Get lords (Kira/Voss) not already in the roster.
  * @param {Array} roster - serialized roster units
@@ -85,7 +108,7 @@ export function generateBossRecruitCandidates(actIndex, roster, gameData, metaEf
   // Determine if promoted and which recruit pool to use
   const usePromoted = actIndex >= 1;
   const poolKey = actIndex === 0 ? 'act2' : 'act3';
-  const recruitPool = recruits[poolKey]?.pool || [];
+  const recruitPool = getRecruitPoolEntries(recruits, poolKey);
 
   // Filter pool to classes not already in roster and not temporarily blocked
   let availablePool = recruitPool.filter(r =>
