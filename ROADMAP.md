@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 852 tests in suite on `main` baseline (Feb 11, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 888 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -99,25 +99,25 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 5. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
 
 ### Wave 1 Gate (Required Before Major Feature Merges)
-- [ ] Audio overlap and orphaned-track recovery verified on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
-- [ ] Scene transition spam-click race coverage present (automated + manual smoke).
-- [ ] Save/cloud conflict path verified (timeout/retry/version mismatch observability).
-- [ ] `npm run test:unit` passes.
-- [ ] Harness/sim smoke passes (`tests/harness` + `tests/sim` targeted batch).
+- [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
+- [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
+- [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
+- [x] `npm run test:unit` passes (41 files / 888 tests on Feb 12, 2026).
+- [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [ ] Two consecutive QA passes with no repro on known crash paths.
 
 ### Wave 2 Scope (Low-Risk / High-Impact)
-- [ ] Enemy affixes runtime wiring from `affixes.json` (difficulty-gated, exclusion rules, scaling).
-- [ ] Affix UI indicator + inspection visibility.
-- [ ] Recruit naming pools + dialogue scaffold integration.
-- [ ] Deterministic tests for spawn, exclusions, and serialization.
+- [x] Enemy affixes runtime wiring from `affixes.json` (difficulty-gated, exclusion rules, scaling).
+- [x] Affix UI indicator + inspection visibility.
+- [x] Recruit naming pools + dialogue scaffold integration (`dialogue.json` data + loader/test coverage).
+- [x] Deterministic tests for spawn, exclusions, and serialization.
 - [ ] Post-merge QA confirms no startup/audio/scene transition regressions.
 
 ### Open Engineering Tickets
-- [ ] **TICKET: Boss recruit test suite regression triage (non-blocking for UI overlays)**
+- [x] **TICKET: Boss recruit test suite regression triage (non-blocking for UI overlays)**
   - File: `tests/BossRecruitSystem.test.js`
-  - Current state: 18 failing tests (verified locally on Feb 12, 2026)
-  - Scope: investigate candidate pool contract drift (`generateBossRecruitCandidates`), update implementation or tests to match intended act/pool behavior, and restore green suite.
+  - Current state: resolved via `63b80ed`; suite is green (32 passing tests on Feb 12, 2026).
+  - Scope: completed candidate pool contract compatibility update (`generateBossRecruitCandidates`) and restored green suite.
   - Priority: P2 (address before next boss-recruit/affix/recruit-system logic merge; not a blocker for NodeMap church/village panel UX fixes)
 
 ### Wave 3-4 Planned Sequence
