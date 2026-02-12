@@ -112,6 +112,9 @@ function filterByRosterTypes(names, rosterTypes, allWeapons) {
   return names.filter(name => {
     const wpn = allWeapons.find(w => w.name === name);
     if (!wpn) return true; // not a weapon → keep
+    if (!['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff'].includes(wpn.type)) {
+      return true; // non-combat entries (e.g. scrolls) pass through
+    }
     return rosterTypes.has(wpn.type);
   });
 }
@@ -324,6 +327,13 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
 
   const inventory = [];
   const usedNames = new Set();
+  const shopEntryTypeForItem = (item) => {
+    if (!item) return 'weapon';
+    if (item.type === 'Consumable') return 'consumable';
+    if (item.type === 'Accessory') return 'accessory';
+    if (item.type === 'Scroll') return 'scroll';
+    return 'weapon';
+  };
 
   // Roster weapon type filter
   const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
@@ -337,7 +347,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item && item.price > 0) {
       usedNames.add(name);
-      inventory.push({ item, price: item.price, type: 'weapon' });
+      inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
     }
   }
 
@@ -383,8 +393,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     if (!item || item.price === 0) continue;
 
     usedNames.add(name);
-    const type = item.type === 'Consumable' ? 'consumable' : item.type === 'Accessory' ? 'accessory' : 'weapon';
-    inventory.push({ item, price: item.price, type });
+    inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
   }
 
   return inventory;

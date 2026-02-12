@@ -187,6 +187,39 @@ describe('LootSystem', () => {
       }
     });
 
+    it('classifies scroll shop entries as scroll type', () => {
+      const customTables = {
+        act2: {
+          weapons: ['Precise Cut Scroll'],
+          consumables: ['Vulnerary'],
+          accessories: [],
+          weights: { weapon: 100, consumable: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const inv = generateShopInventory('act2', customTables, gameData.weapons, gameData.consumables, gameData.accessories);
+      const scrollEntry = inv.find((entry) => entry.item.name === 'Precise Cut Scroll');
+      expect(scrollEntry).toBeTruthy();
+      expect(scrollEntry.type).toBe('scroll');
+    });
+
+    it('does not filter scrolls out of shop pool by roster weapon types', () => {
+      const customTables = {
+        act2: {
+          weapons: ['Precise Cut Scroll'],
+          consumables: ['Vulnerary'],
+          accessories: [],
+          weights: { weapon: 100, consumable: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const roster = [{
+        proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      }];
+      const inv = generateShopInventory('act2', customTables, gameData.weapons, gameData.consumables, gameData.accessories, roster);
+      expect(inv.some((entry) => entry.item.name === 'Precise Cut Scroll')).toBe(true);
+    });
+
     it('no Legend-tier items in shop', () => {
       for (let i = 0; i < 30; i++) {
         const inv = generateShopInventory('act3', gameData.lootTables, gameData.weapons, gameData.consumables);
