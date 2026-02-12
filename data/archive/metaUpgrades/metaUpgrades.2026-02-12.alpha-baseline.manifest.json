@@ -1,0 +1,7 @@
+{
+  "archivedAt": "2026-02-12",
+  "source": "data/metaUpgrades.json",
+  "snapshot": "data/archive/metaUpgrades/metaUpgrades.2026-02-12.alpha-baseline.json",
+  "sha256": "FEEABBEC0A221505AAA9FEF89ACA107E61DE41CE9B4A446E60F8CF8B8B33B8BC",
+  "purpose": "Pre-alpha price reduction baseline for future reference"
+}

@@ -1,0 +1,780 @@
+{
+  "generatedAt": "2026-02-12T02:36:25.924Z",
+  "source": "data/metaUpgrades.json",
+  "baseline": {
+    "upgradeCount": 43,
+    "tierCount": 118,
+    "totalCost": 50350,
+    "byCurrency": {
+      "valor": 25850,
+      "supply": 24500
+    },
+    "byCategory": {
+      "recruit_stats": 16950,
+      "lord_bonuses": 18750,
+      "economy": 2700,
+      "capacity": 4850,
+      "starting_equipment": 4900,
+      "starting_skills": 2200
+    },
+    "distribution": {
+      "min": 75,
+      "median": 300,
+      "p75": 550,
+      "p90": 1000,
+      "max": 1600
+    },
+    "fullVictoryRunsToMaxAll": {
+      "normal": {
+        "valor": 49,
+        "supply": 47
+      },
+      "hard": {
+        "valor": 40,
+        "supply": 38
+      },
+      "lunatic": {
+        "valor": 33,
+        "supply": 31
+      }
+    }
+  },
+  "profiles": {
+    "conservative": {
+      "label": "Conservative",
+      "multipliers": {
+        "recruit_stats": 0.75,
+        "lord_bonuses": 0.75,
+        "economy": 0.8,
+        "capacity": 0.8,
+        "starting_equipment": 0.8,
+        "starting_skills": 0.85
+      },
+      "summary": {
+        "upgradeCount": 43,
+        "tierCount": 118,
+        "totalCost": 38775,
+        "byCurrency": {
+          "valor": 19925,
+          "supply": 18850
+        },
+        "byCategory": {
+          "recruit_stats": 12825,
+          "lord_bonuses": 14150,
+          "economy": 2150,
+          "capacity": 3875,
+          "starting_equipment": 3875,
+          "starting_skills": 1900
+        },
+        "distribution": {
+          "min": 50,
+          "median": 225,
+          "p75": 425,
+          "p90": 800,
+          "max": 1200
+        },
+        "fullVictoryRunsToMaxAll": {
+          "normal": {
+            "valor": 38,
+            "supply": 36
+          },
+          "hard": {
+            "valor": 31,
+            "supply": 29
+          },
+          "lunatic": {
+            "valor": 26,
+            "supply": 24
+          }
+        }
+      },
+      "deltas": {
+        "totalCostPct": 77,
+        "valorPct": 77.1,
+        "supplyPct": 76.9
+      },
+      "sampleChanges": [
+        {
+          "id": "recruit_hp_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            75,
+            125,
+            175,
+            275
+          ]
+        },
+        {
+          "id": "recruit_str_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            100,
+            125,
+            200,
+            325
+          ]
+        },
+        {
+          "id": "recruit_def_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            100,
+            125,
+            200,
+            325
+          ]
+        },
+        {
+          "id": "recruit_spd_growth",
+          "before": [
+            75,
+            125,
+            200,
+            300,
+            450
+          ],
+          "after": [
+            50,
+            100,
+            150,
+            225,
+            350
+          ]
+        },
+        {
+          "id": "recruit_skl_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            75,
+            125,
+            175,
+            275
+          ]
+        },
+        {
+          "id": "recruit_res_growth",
+          "before": [
+            75,
+            100,
+            125,
+            200,
+            300
+          ],
+          "after": [
+            50,
+            75,
+            100,
+            150,
+            225
+          ]
+        },
+        {
+          "id": "recruit_hp_flat",
+          "before": [
+            200,
+            500,
+            1000
+          ],
+          "after": [
+            150,
+            375,
+            750
+          ]
+        },
+        {
+          "id": "recruit_str_flat",
+          "before": [
+            250,
+            600,
+            1200
+          ],
+          "after": [
+            200,
+            450,
+            900
+          ]
+        }
+      ]
+    },
+    "moderate": {
+      "label": "Moderate",
+      "multipliers": {
+        "recruit_stats": 0.6,
+        "lord_bonuses": 0.6,
+        "economy": 0.65,
+        "capacity": 0.65,
+        "starting_equipment": 0.65,
+        "starting_skills": 0.7
+      },
+      "summary": {
+        "upgradeCount": 43,
+        "tierCount": 118,
+        "totalCost": 31050,
+        "byCurrency": {
+          "valor": 15900,
+          "supply": 15150
+        },
+        "byCategory": {
+          "recruit_stats": 10200,
+          "lord_bonuses": 11175,
+          "economy": 1775,
+          "capacity": 3175,
+          "starting_equipment": 3175,
+          "starting_skills": 1550
+        },
+        "distribution": {
+          "min": 50,
+          "median": 175,
+          "p75": 325,
+          "p90": 650,
+          "max": 975
+        },
+        "fullVictoryRunsToMaxAll": {
+          "normal": {
+            "valor": 30,
+            "supply": 29
+          },
+          "hard": {
+            "valor": 25,
+            "supply": 23
+          },
+          "lunatic": {
+            "valor": 20,
+            "supply": 20
+          }
+        }
+      },
+      "deltas": {
+        "totalCostPct": 61.7,
+        "valorPct": 61.5,
+        "supplyPct": 61.8
+      },
+      "sampleChanges": [
+        {
+          "id": "recruit_hp_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            50,
+            100,
+            125,
+            200
+          ]
+        },
+        {
+          "id": "recruit_str_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            75,
+            100,
+            175,
+            250
+          ]
+        },
+        {
+          "id": "recruit_def_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            75,
+            100,
+            175,
+            250
+          ]
+        },
+        {
+          "id": "recruit_spd_growth",
+          "before": [
+            75,
+            125,
+            200,
+            300,
+            450
+          ],
+          "after": [
+            50,
+            75,
+            125,
+            175,
+            275
+          ]
+        },
+        {
+          "id": "recruit_skl_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            50,
+            100,
+            125,
+            200
+          ]
+        },
+        {
+          "id": "recruit_res_growth",
+          "before": [
+            75,
+            100,
+            125,
+            200,
+            300
+          ],
+          "after": [
+            50,
+            50,
+            75,
+            125,
+            175
+          ]
+        },
+        {
+          "id": "recruit_hp_flat",
+          "before": [
+            200,
+            500,
+            1000
+          ],
+          "after": [
+            125,
+            300,
+            600
+          ]
+        },
+        {
+          "id": "recruit_str_flat",
+          "before": [
+            250,
+            600,
+            1200
+          ],
+          "after": [
+            150,
+            350,
+            725
+          ]
+        }
+      ]
+    },
+    "aggressive": {
+      "label": "Aggressive Alpha",
+      "multipliers": {
+        "recruit_stats": 0.45,
+        "lord_bonuses": 0.45,
+        "economy": 0.5,
+        "capacity": 0.5,
+        "starting_equipment": 0.5,
+        "starting_skills": 0.55
+      },
+      "summary": {
+        "upgradeCount": 43,
+        "tierCount": 118,
+        "totalCost": 23775,
+        "byCurrency": {
+          "valor": 12200,
+          "supply": 11575
+        },
+        "byCategory": {
+          "recruit_stats": 7800,
+          "lord_bonuses": 8500,
+          "economy": 1350,
+          "capacity": 2425,
+          "starting_equipment": 2450,
+          "starting_skills": 1250
+        },
+        "distribution": {
+          "min": 50,
+          "median": 125,
+          "p75": 250,
+          "p90": 500,
+          "max": 750
+        },
+        "fullVictoryRunsToMaxAll": {
+          "normal": {
+            "valor": 24,
+            "supply": 22
+          },
+          "hard": {
+            "valor": 19,
+            "supply": 18
+          },
+          "lunatic": {
+            "valor": 16,
+            "supply": 15
+          }
+        }
+      },
+      "deltas": {
+        "totalCostPct": 47.2,
+        "valorPct": 47.2,
+        "supplyPct": 47.2
+      },
+      "sampleChanges": [
+        {
+          "id": "recruit_hp_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            50,
+            75,
+            100,
+            150
+          ]
+        },
+        {
+          "id": "recruit_str_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            50,
+            75,
+            125,
+            200
+          ]
+        },
+        {
+          "id": "recruit_def_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            50,
+            50,
+            75,
+            125,
+            200
+          ]
+        },
+        {
+          "id": "recruit_spd_growth",
+          "before": [
+            75,
+            125,
+            200,
+            300,
+            450
+          ],
+          "after": [
+            50,
+            50,
+            100,
+            125,
+            200
+          ]
+        },
+        {
+          "id": "recruit_skl_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            50,
+            50,
+            75,
+            100,
+            150
+          ]
+        },
+        {
+          "id": "recruit_res_growth",
+          "before": [
+            75,
+            100,
+            125,
+            200,
+            300
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            100,
+            125
+          ]
+        },
+        {
+          "id": "recruit_hp_flat",
+          "before": [
+            200,
+            500,
+            1000
+          ],
+          "after": [
+            100,
+            225,
+            450
+          ]
+        },
+        {
+          "id": "recruit_str_flat",
+          "before": [
+            250,
+            600,
+            1200
+          ],
+          "after": [
+            125,
+            275,
+            550
+          ]
+        }
+      ]
+    },
+    "sandbox": {
+      "label": "Sandbox Alpha",
+      "multipliers": {
+        "recruit_stats": 0.3,
+        "lord_bonuses": 0.3,
+        "economy": 0.35,
+        "capacity": 0.35,
+        "starting_equipment": 0.35,
+        "starting_skills": 0.4
+      },
+      "summary": {
+        "upgradeCount": 43,
+        "tierCount": 118,
+        "totalCost": 16000,
+        "byCurrency": {
+          "valor": 8300,
+          "supply": 7700
+        },
+        "byCategory": {
+          "recruit_stats": 5075,
+          "lord_bonuses": 5650,
+          "economy": 925,
+          "capacity": 1700,
+          "starting_equipment": 1750,
+          "starting_skills": 900
+        },
+        "distribution": {
+          "min": 25,
+          "median": 100,
+          "p75": 175,
+          "p90": 325,
+          "max": 525
+        },
+        "fullVictoryRunsToMaxAll": {
+          "normal": {
+            "valor": 16,
+            "supply": 15
+          },
+          "hard": {
+            "valor": 13,
+            "supply": 12
+          },
+          "lunatic": {
+            "valor": 11,
+            "supply": 10
+          }
+        }
+      },
+      "deltas": {
+        "totalCostPct": 31.8,
+        "valorPct": 32.1,
+        "supplyPct": 31.4
+      },
+      "sampleChanges": [
+        {
+          "id": "recruit_hp_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            25,
+            25,
+            50,
+            75,
+            100
+          ]
+        },
+        {
+          "id": "recruit_str_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            25,
+            50,
+            50,
+            75,
+            125
+          ]
+        },
+        {
+          "id": "recruit_def_growth",
+          "before": [
+            75,
+            125,
+            175,
+            275,
+            425
+          ],
+          "after": [
+            25,
+            50,
+            50,
+            75,
+            125
+          ]
+        },
+        {
+          "id": "recruit_spd_growth",
+          "before": [
+            75,
+            125,
+            200,
+            300,
+            450
+          ],
+          "after": [
+            25,
+            50,
+            50,
+            100,
+            125
+          ]
+        },
+        {
+          "id": "recruit_skl_growth",
+          "before": [
+            75,
+            100,
+            150,
+            225,
+            350
+          ],
+          "after": [
+            25,
+            25,
+            50,
+            75,
+            100
+          ]
+        },
+        {
+          "id": "recruit_res_growth",
+          "before": [
+            75,
+            100,
+            125,
+            200,
+            300
+          ],
+          "after": [
+            25,
+            25,
+            50,
+            50,
+            100
+          ]
+        },
+        {
+          "id": "recruit_hp_flat",
+          "before": [
+            200,
+            500,
+            1000
+          ],
+          "after": [
+            50,
+            150,
+            300
+          ]
+        },
+        {
+          "id": "recruit_str_flat",
+          "before": [
+            250,
+            600,
+            1200
+          ],
+          "after": [
+            75,
+            175,
+            350
+          ]
+        }
+      ]
+    }
+  }
+}

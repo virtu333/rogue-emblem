@@ -7,10 +7,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
       75,
-      100,
-      150
+      125,
+      175,
+      275
     ],
     "effects": [
       {
@@ -43,10 +43,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
-      75,
+      100,
       125,
-      200
+      200,
+      325
     ],
     "effects": [
       {
@@ -79,10 +79,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
-      75,
+      100,
       125,
-      200
+      200,
+      325
     ],
     "effects": [
       {
@@ -115,10 +115,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
       100,
-      125,
-      200
+      150,
+      225,
+      350
     ],
     "effects": [
       {
@@ -151,10 +151,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
       75,
-      100,
-      150
+      125,
+      175,
+      275
     ],
     "effects": [
       {
@@ -187,10 +187,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      50,
-      50,
+      75,
       100,
-      125
+      150,
+      225
     ],
     "effects": [
       {
@@ -222,9 +222,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      225,
-      450
+      150,
+      375,
+      750
     ],
     "requires": {
       "upgrades": [
@@ -256,9 +256,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      550
+      200,
+      450,
+      900
     ],
     "requires": {
       "upgrades": [
@@ -290,9 +290,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      550
+      200,
+      450,
+      900
     ],
     "requires": {
       "upgrades": [
@@ -324,9 +324,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      300,
-      625
+      200,
+      500,
+      1050
     ],
     "requires": {
       "upgrades": [
@@ -358,9 +358,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      200,
-      400
+      150,
+      350,
+      675
     ],
     "requires": {
       "upgrades": [
@@ -392,9 +392,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      100,
-      175,
-      350
+      150,
+      300,
+      600
     ],
     "requires": {
       "upgrades": [
@@ -426,11 +426,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      100,
       125,
-      200
+      150,
+      225,
+      350
     ],
     "effects": [
       {
@@ -462,11 +462,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
       125,
-      175,
-      250
+      200,
+      275,
+      425
     ],
     "effects": [
       {
@@ -498,11 +498,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
       125,
-      175,
-      250
+      200,
+      275,
+      425
     ],
     "effects": [
       {
@@ -534,11 +534,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
       125,
-      175,
-      275
+      200,
+      300,
+      450
     ],
     "effects": [
       {
@@ -570,11 +570,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
       75,
-      100,
       125,
-      200
+      150,
+      225,
+      350
     ],
     "effects": [
       {
@@ -606,9 +606,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      300,
-      575
+      225,
+      500,
+      975
     ],
     "requires": {
       "upgrades": [
@@ -643,9 +643,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      325,
-      675
+      225,
+      525,
+      1125
     ],
     "requires": {
       "upgrades": [
@@ -680,9 +680,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      325,
-      675
+      225,
+      525,
+      1125
     ],
     "requires": {
       "upgrades": [
@@ -717,9 +717,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      350,
-      725
+      225,
+      575,
+      1200
     ],
     "requires": {
       "upgrades": [
@@ -754,9 +754,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      125,
-      275,
-      500
+      225,
+      450,
+      825
     ],
     "requires": {
       "upgrades": [
@@ -788,9 +788,9 @@
     "category": "economy",
     "maxLevel": 3,
     "costs": [
-      75,
-      150,
-      250
+      125,
+      250,
+      400
     ],
     "effects": [
       {
@@ -811,8 +811,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      100,
-      225
+      150,
+      350
     ],
     "effects": [
       {
@@ -830,7 +830,7 @@
     "category": "economy",
     "maxLevel": 1,
     "costs": [
-      100
+      150
     ],
     "effects": [
       {
@@ -845,8 +845,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      150,
-      300
+      250,
+      475
     ],
     "requires": {
       "milestones": [
@@ -869,7 +869,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      500
+      800
     ],
     "requires": {
       "milestones": [
@@ -889,7 +889,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      300
+      475
     ],
     "requires": {
       "milestones": [
@@ -909,7 +909,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      375
+      600
     ],
     "effects": [
       {
@@ -924,7 +924,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      750
+      1200
     ],
     "requires": {
       "upgrades": [
@@ -947,7 +947,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      500
+      800
     ],
     "effects": [
       {
@@ -962,9 +962,9 @@
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
-      100,
-      200,
-      350
+      150,
+      325,
+      550
     ],
     "effects": [
       {
@@ -985,7 +985,7 @@
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      750
+      1200
     ],
     "effects": [
       {
@@ -1000,9 +1000,9 @@
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
-      100,
-      225,
-      375
+      150,
+      350,
+      600
     ],
     "effects": [
       {
@@ -1023,8 +1023,8 @@
     "category": "starting_equipment",
     "maxLevel": 2,
     "costs": [
-      100,
-      250
+      150,
+      400
     ],
     "effects": [
       {
@@ -1042,7 +1042,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      250
     ],
     "effects": [
       {
@@ -1057,7 +1057,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      250
     ],
     "effects": [
       {
@@ -1072,7 +1072,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      300
     ],
     "effects": [
       {
@@ -1087,7 +1087,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      225
     ],
     "effects": [
       {
@@ -1102,7 +1102,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      225
     ],
     "effects": [
       {
@@ -1117,7 +1117,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      300
     ],
     "effects": [
       {
@@ -1132,7 +1132,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      100
+      175
     ],
     "effects": [
       {
@@ -1147,7 +1147,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      100
+      175
     ],
     "effects": [
       {
