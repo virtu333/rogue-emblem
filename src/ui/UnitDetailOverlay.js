@@ -340,7 +340,9 @@ export class UnitDetailOverlay {
 
     // Effective Stats (Atk, AS)
     const combat = getStaticCombatStats(unit, unit.weapon);
-    const asColor = (combat.weight > 0) ? '#ff6666' : (combat.as > unit.stats.SPD ? '#44ff88' : STAT_COLORS.SPD);
+    let asColor = STAT_COLORS.SPD;
+    if (combat.as < unit.stats.SPD) asColor = '#ff6666';
+    else if (combat.as > unit.stats.SPD) asColor = '#44ff88';
     
     this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
     this._tabText(rx, y, `AS  ${String(combat.as).padStart(3)}`, asColor, '10px');

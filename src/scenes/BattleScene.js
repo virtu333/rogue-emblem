@@ -9,7 +9,7 @@ import {
   resolveCombat,
   resolveHeal,
   gridDistance,
-  calculateEffectiveWeight,
+  calculateEffectiveSpeed,
   parseRange,
   isInRange,
   isStaff,
@@ -3857,14 +3857,16 @@ export class BattleScene extends Phaser.Scene {
     this.forecastObjects.push(crtVal);
 
     // AS display
-    const weight = calculateEffectiveWeight(unit.weapon, unit);
-    const as = unit.stats.SPD - weight;
+    const baseAs = calculateEffectiveSpeed(unit, unit.weapon);
+    let asColor = '#e0e0e0';
+    if (info.as < baseAs) asColor = '#ff6666';
+    else if (info.as > baseAs) asColor = '#44ff88';
     const asLabel = this.add.text(x + 80, y, 'AS', {
       fontFamily: 'monospace', fontSize: '10px', color: '#888888',
     }).setDepth(textDepth);
     this.forecastObjects.push(asLabel);
-    const asVal = this.add.text(x + 108, y, `${as}`, {
-      fontFamily: 'monospace', fontSize: '10px', color: (weight > 0 ? '#ff6666' : '#e0e0e0'),
+    const asVal = this.add.text(x + 108, y, `${info.as}`, {
+      fontFamily: 'monospace', fontSize: '10px', color: asColor,
     }).setDepth(textDepth);
     this.forecastObjects.push(asVal);
 

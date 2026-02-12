@@ -85,17 +85,31 @@ export function calculateEffectiveWeight(weapon, unit) {
 }
 
 /**
+ * Calculate effective Attack Speed (AS).
+ * Formula: SPD - effectiveWeight + weaponBonus + additionalBonus (skills/accessories)
+ */
+export function calculateEffectiveSpeed(unit, weapon, additionalSpdBonus = 0) {
+  if (!weapon || isStaff(weapon)) return unit.stats.SPD + additionalSpdBonus;
+  
+  const weight = calculateEffectiveWeight(weapon, unit);
+  const wpnBonuses = getWeaponStatBonuses(weapon);
+  const wpnSpdBonus = sumWeaponBonus(wpnBonuses, 'SPD');
+  
+  return unit.stats.SPD - weight + wpnSpdBonus + additionalSpdBonus;
+}
+
+/**
  * Calculate basic combat stats for a unit without an opponent.
  * Used for status screens and inventory previews.
  */
 export function getStaticCombatStats(unit, weapon) {
   if (!weapon || isStaff(weapon)) {
-    return { atk: 0, as: unit.stats.SPD, hit: 0, crit: 0 };
+    return { atk: 0, as: unit.stats.SPD, hit: 0, crit: 0, weight: 0 };
   }
 
   const atk = calculateAttack(unit, weapon);
   const weight = calculateEffectiveWeight(weapon, unit);
-  const as = unit.stats.SPD - weight;
+  const as = calculateEffectiveSpeed(unit, weapon);
 
   // Static Hit/Crit (standard formulas without defender avoid/luck)
   const hit = weapon.hit + (unit.stats.SKL * 2) + unit.stats.LCK;
@@ -321,10 +335,8 @@ export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defend
 
 /** True if attacker is fast enough to strike twice (after weight penalty) */
 export function canDouble(attacker, defender, atkWeapon, defWeapon) {
-  const atkWeight = calculateEffectiveWeight(atkWeapon, attacker);
-  const defWeight = calculateEffectiveWeight(defWeapon, defender);
-  const atkEffectiveSpd = attacker.stats.SPD - atkWeight;
-  const defEffectiveSpd = defender.stats.SPD - defWeight;
+  const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon);
+  const defEffectiveSpd = calculateEffectiveSpeed(defender, defWeapon);
   return atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD;
 }
 
@@ -397,12 +409,11 @@ export function getCombatForecast(
   const atkSpdBonus = atkMods?.spdBonus || 0;
   const defSpdBonus = defMods?.spdBonus || 0;
 
-  // Weight penalties
-  const atkWeight = calculateEffectiveWeight(atkWeapon, attacker);
-  const defWeight = calculateEffectiveWeight(defWeapon, defender);
+  const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon, atkSpdBonus);
+  const defEffectiveSpd = calculateEffectiveSpeed(defender, defWeapon, defSpdBonus);
 
   const atkDoubles = !fDefPrevent && (
-    (attacker.stats.SPD - atkWeight + atkSpdBonus) >= (defender.stats.SPD - defWeight + defSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
+    atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
   );
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
   const atkCount = (atkBrave ? 2 : 1) * (atkDoubles ? 2 : 1);
@@ -424,7 +435,7 @@ export function getCombatForecast(
     defCrit = Math.max(0, Math.min(100, defCrit));
     // Quick Riposte: always double when defending above 50% HP
     defDoubles = (defMods?.quickRiposte) || (!fAtkPrevent && (
-      (defender.stats.SPD - defWeight + defSpdBonus) >= (attacker.stats.SPD - atkWeight + atkSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
+      defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
     ));
     defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
     defCount = (defBrave ? 2 : 1) * (defDoubles ? 2 : 1);
@@ -451,6 +462,7 @@ export function getCombatForecast(
     attacker: {
       name: attacker.name, hp: attacker.currentHP ?? attacker.stats.HP,
       damage: atkDmg, hit: atkHit, crit: atkCrit,
+      as: atkEffectiveSpd,
       doubles: atkDoubles, brave: atkBrave, attackCount: atkCount,
       skills: atkActivated,
       warnings: atkWarnings,
@@ -459,6 +471,7 @@ export function getCombatForecast(
       name: defender.name, hp: defender.currentHP ?? defender.stats.HP,
       canCounter: defCanCounter,
       damage: defDmg, hit: defHit, crit: defCrit,
+      as: defEffectiveSpd,
       doubles: defDoubles, brave: defBrave, attackCount: defCount,
       skills: defActivated,
       warnings: defWarnings,
@@ -629,16 +642,16 @@ export function resolveCombat(
   const rAtkSpdBonus = atkMods?.spdBonus || 0;
   const rDefSpdBonus = defMods?.spdBonus || 0;
 
-  // Weight penalties
-  const rAtkWeight = calculateEffectiveWeight(atkWeapon, attacker);
-  const rDefWeight = calculateEffectiveWeight(defWeapon, defender);
+  // Use shared AS helper to keep combat resolution aligned with forecast/UI.
+  const rAtkAs = calculateEffectiveSpeed(attacker, atkWeapon, rAtkSpdBonus);
+  const rDefAs = calculateEffectiveSpeed(defender, defWeapon, rDefSpdBonus);
 
   const atkDoubles = !defPreventDouble && (
-    (attacker.stats.SPD - rAtkWeight + rAtkSpdBonus) >= (defender.stats.SPD - rDefWeight + rDefSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
+    rAtkAs >= rDefAs + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
   );
   // Quick Riposte: always double when defending above 50% HP
   const defDoubles = defCanCounter && ((defMods?.quickRiposte) || (!atkPreventDouble && (
-    (defender.stats.SPD - rDefWeight + rDefSpdBonus) >= (attacker.stats.SPD - rAtkWeight + rAtkSpdBonus) + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
+    rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
   )));
 
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
