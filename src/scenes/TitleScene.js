@@ -668,8 +668,8 @@ export class TitleScene extends Phaser.Scene {
     }).setDepth(30);
 
     // Desktop notice
-    this.add.text(W / 2, H - 16, 'Best played on desktop | Not optimized for mobile', {
-      fontFamily: FONT, fontSize: '6px', color: 'rgba(100,100,120,0.4)',
+    this.add.text(W / 2, H - 56, 'Best played on desktop | Not optimized for mobile', {
+      fontFamily: FONT, fontSize: '9px', color: 'rgba(100,100,120,0.4)',
     }).setOrigin(0.5, 0).setDepth(30);
 
     const moreInfoText = this.add.text(W - 12, H - 16, 'GITHUB', {
