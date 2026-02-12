@@ -337,11 +337,12 @@ export class RosterOverlay {
     y += 14;
     const convoyCaps = this.runManager.getConvoyCapacities();
     const convoyCounts = this.runManager.getConvoyCounts();
+    const convoyItems = this.runManager.getConvoyItems();
     this._text(x, y, `Weapons ${convoyCounts.weapons}/${convoyCaps.weapons}  Consumables ${convoyCounts.consumables}/${convoyCaps.consumables}`, '#88ccff', '10px');
     y += 14;
 
     const convoyPreviewMax = 4;
-    const convoyWeapons = this.runManager.convoy?.weapons || [];
+    const convoyWeapons = convoyItems.weapons;
     if (convoyWeapons.length > 0) {
       this._text(x, y, 'Weapons:', '#888888', '10px');
       y += 13;
@@ -369,7 +370,7 @@ export class RosterOverlay {
       y += 14;
     }
 
-    const convoyConsumables = this.runManager.convoy?.consumables || [];
+    const convoyConsumables = convoyItems.consumables;
     if (convoyConsumables.length > 0) {
       this._text(x, y, 'Consumables:', '#888888', '10px');
       y += 13;

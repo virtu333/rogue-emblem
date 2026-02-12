@@ -879,6 +879,14 @@ export class RunManager {
     };
   }
 
+  getConvoyItems() {
+    this._sanitizeUnitPools();
+    return {
+      weapons: this.convoy.weapons.map(item => structuredClone(item)),
+      consumables: this.convoy.consumables.map(item => structuredClone(item)),
+    };
+  }
+
   canAddToConvoy(item) {
     if (!item || typeof item !== 'object') return false;
     this._sanitizeUnitPools();
@@ -900,12 +908,16 @@ export class RunManager {
 
   takeFromConvoy(type, index) {
     this._sanitizeUnitPools();
+    if (!Number.isInteger(index) || index < 0) return null;
     if (type === 'consumable') {
-      if (!Number.isInteger(index) || index < 0 || index >= this.convoy.consumables.length) return null;
+      if (index >= this.convoy.consumables.length) return null;
       return this.convoy.consumables.splice(index, 1)[0];
     }
-    if (!Number.isInteger(index) || index < 0 || index >= this.convoy.weapons.length) return null;
-    return this.convoy.weapons.splice(index, 1)[0];
+    if (type === 'weapon') {
+      if (index >= this.convoy.weapons.length) return null;
+      return this.convoy.weapons.splice(index, 1)[0];
+    }
+    return null;
   }
 
   spendGold(amount) {

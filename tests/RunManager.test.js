@@ -285,6 +285,25 @@ describe('RunManager', () => {
       expect(rm.getConvoyCounts().weapons).toBe(0);
     });
 
+    it('takeFromConvoy returns null for invalid type', () => {
+      rm.startRun();
+      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      rm.addToConvoy(sword);
+      const pulled = rm.takeFromConvoy('invalid-type', 0);
+      expect(pulled).toBeNull();
+      expect(rm.getConvoyCounts().weapons).toBe(1);
+    });
+
+    it('getConvoyItems returns cloned snapshots', () => {
+      rm.startRun();
+      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      rm.addToConvoy(sword);
+      const snapshot = rm.getConvoyItems();
+      snapshot.weapons[0].name = 'Mutated';
+      const fresh = rm.getConvoyItems();
+      expect(fresh.weapons[0].name).toBe('Iron Sword');
+    });
+
     it('fromJSON migrates missing convoy to defaults', () => {
       rm.startRun();
       const saved = rm.toJSON();
