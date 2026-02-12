@@ -1243,6 +1243,47 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     expect(wyvern.inventory).toContain(wyvern.weapon);
   });
 
+  it('fromJSON normalizes stale promoted tier before class-learnable migration', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    json.roster.push({
+      name: 'LegacyPaladinTier',
+      className: 'Paladin',
+      tier: 'base',
+      level: 10,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
+      growths: { HP: 60, STR: 45, MAG: 10, SKL: 40, SPD: 40, DEF: 35, RES: 20, LCK: 30 },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      col: 0,
+      row: 0,
+      mov: 4,
+      moveType: 'Infantry',
+      stats: { HP: 30, STR: 14, MAG: 4, SKL: 11, SPD: 11, DEF: 12, RES: 6, LCK: 8, MOV: 7 },
+      currentHP: 30,
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
+    });
+
+    const restored = RunManager.fromJSON(json, gameData);
+    const paladin = restored.roster.find(u => u.name === 'LegacyPaladinTier');
+    expect(paladin).toBeTruthy();
+    expect(paladin.tier).toBe('promoted');
+    expect(paladin.skills).toContain('sol');
+  });
+
   describe('class-innate migration', () => {
     function makeLegacyUnit(className, tier = 'base', skills = []) {
       return {

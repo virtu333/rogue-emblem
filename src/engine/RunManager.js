@@ -1562,8 +1562,10 @@ export class RunManager {
     RunManager.migrateInventorySplit(rm);
     RunManager.migrateSkillIds(rm);
     RunManager.migrateClassInnateSkills(rm);
-    RunManager.migrateClassLearnableSkills(rm);
+    // Normalize stale tier/proficiency/move state before class-learnable migration;
+    // promoted learnables depend on unit.tier.
     RunManager.migrateUnitClassState(rm);
+    RunManager.migrateClassLearnableSkills(rm);
 
     rm.roster.forEach(u => relinkWeapon(u));
     rm.fallenUnits.forEach(u => relinkWeapon(u));
