@@ -61,7 +61,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
@@ -2609,7 +2609,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.showAttackRange(tiles, 0x44ff88, 0.4);
   }
 
-  executeDance(unit, target) {
+  async executeDance(unit, target) {
     this.hideActionMenu();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
@@ -2630,6 +2630,8 @@ export class BattleScene extends Phaser.Scene {
     target.ally.hasMoved = false;
     target.ally.hasActed = false;
     this.undimUnit(target.ally);
+
+    await this.awardScaledXP(unit, XP_BASE_DANCE);
 
     // Dancer ends turn
     this.finishUnitAction(unit);
@@ -2697,13 +2699,13 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  handleDanceTargetClick(gp) {
+  async handleDanceTargetClick(gp) {
     const target = this.danceTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
       this.grid.clearAttackHighlights();
-      this.executeDance(this.selectedUnit, target);
+      await this.executeDance(this.selectedUnit, target);
     }
   }
 
@@ -4425,6 +4427,10 @@ export class BattleScene extends Phaser.Scene {
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
   async awardXP(playerUnit, opponent, opponentDied) {
     const baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    await this.awardScaledXP(playerUnit, baseXp);
+  }
+
+  async awardScaledXP(playerUnit, baseXp) {
     const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier) ? this.battleParams.xpMultiplier : 1;
     const xp = Math.max(1, Math.floor(baseXp * xpMultiplier));
 

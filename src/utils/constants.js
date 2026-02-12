@@ -35,6 +35,7 @@ export const MAX_SKILLS = 5;
 export const XP_PER_LEVEL = 100;
 export const XP_BASE_COMBAT = 30;
 export const XP_KILL_BONUS = 20;
+export const XP_BASE_DANCE = 20;
 export const XP_LEVEL_DIFF_SCALE = 5;
 export const XP_LEVEL_DIFF_STEEP = 8; // Steep XP penalty per level for advantage 4-6
 export const XP_MIN = 1;
