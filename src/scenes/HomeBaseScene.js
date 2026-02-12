@@ -452,6 +452,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _getActionDesc(upgrade) {
     const effect = upgrade.effects[0];
+    const weaponArtUnlockText = this._getWeaponArtUnlockText(effect);
     if (effect.recruitGrowth !== undefined) return `${effect.recruitGrowth} growth rate`;
     if (effect.lordGrowth !== undefined) return `${effect.lordGrowth} growth rate`;
     if (effect.stat !== undefined) return `Base ${effect.stat}`;
@@ -463,11 +464,37 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
-    if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
+    if (effect.deadlyArsenal !== undefined) {
+      const suffix = weaponArtUnlockText ? `; ${weaponArtUnlockText.toLowerCase()}` : '';
+      return `Random Silver/Killer/Brave/Legend weapon${suffix}`;
+    }
     if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for Edric';
     if (effect.startingStaffTier !== undefined) return "Sera's starting staff";
+    if (weaponArtUnlockText) return weaponArtUnlockText;
     return upgrade.description;
+  }
+
+  _getWeaponArtUnlockText(effect = {}) {
+    const ids = new Set();
+    const pushId = (value) => {
+      if (!value) return;
+      const id = String(value).trim();
+      if (id) ids.add(id);
+    };
+
+    pushId(effect.unlockWeaponArt);
+    if (Array.isArray(effect.unlockWeaponArts)) {
+      for (const id of effect.unlockWeaponArts) pushId(id);
+    }
+    const hasBundleUnlock = effect.unlockWeaponArtsByWeaponType !== undefined
+      && effect.unlockWeaponArtsByWeaponType !== null;
+
+    if (hasBundleUnlock && ids.size > 0) return `Unlocks ${ids.size}+ weapon arts`;
+    if (hasBundleUnlock) return 'Unlocks weapon-art bundles';
+    if (ids.size === 1) return 'Unlocks 1 weapon art';
+    if (ids.size > 1) return `Unlocks ${ids.size} weapon arts`;
+    return null;
   }
 
   // --- Skills tab custom layout ---
