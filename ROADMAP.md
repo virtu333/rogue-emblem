@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 888 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 908 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP is actively landing. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -102,7 +102,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (41 files / 888 tests on Feb 12, 2026).
+- [x] `npm run test:unit` passes (44 files / 908 tests on Feb 12, 2026).
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
 
@@ -125,7 +125,7 @@ QA evidence (Feb 12, 2026):
   - Priority: P2 (address before next boss-recruit/affix/recruit-system logic merge; not a blocker for NodeMap church/village panel UX fixes)
 
 ### Wave 3-4 Planned Sequence
-- **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration.
+- **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration. *(In progress / landing)*
 - **Wave 3A (Wyvern + Reclass Foundation):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, Second Seal core rules.
 - **Wave 4 (Weapon Arts):** foundation (combat + data contract), acquisition/meta, enemy/legendary arts, then balance pass.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
@@ -287,7 +287,7 @@ QA evidence (Feb 12, 2026):
 5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
 6. **Wave 1 Stabilization Gate** (audio/scene/save/cloud + transition spam QA + merge gates)
 7. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
-8. **Wave 3B** (Convoy MVP) -> **Wave 3A** (Wyvern + reclass foundation)
+8. **Wave 3B** (Convoy MVP, landing) -> **Wave 3A** (Wyvern + reclass foundation)
 9. **Wave 4** (Weapon Arts phased rollout)
 10. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
 
