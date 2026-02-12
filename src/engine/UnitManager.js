@@ -26,6 +26,11 @@ const PROF_TO_TYPE = {
 // Map rank abbreviation → full name
 const RANK_ABBREV = { P: 'Prof', M: 'Mast' };
 
+function applyPromotedMastery(proficiencies, tier) {
+  if (tier !== 'promoted') return proficiencies;
+  return proficiencies.map((p) => ({ ...p, rank: 'Mast' }));
+}
+
 /**
  * Parse "Swords (P), Lances (M)" → [{type:'Sword', rank:'Prof'}, {type:'Lance', rank:'Mast'}]
  */
@@ -202,7 +207,10 @@ export function createLordUnit(lordData, classData, allWeapons) {
  * Growth rates are rolled randomly from class growthRanges.
  */
 export function createUnit(classData, level, allWeapons, options = {}) {
-  const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
+  const proficiencies = applyPromotedMastery(
+    parseWeaponProficiencies(classData.weaponProficiencies),
+    classData.tier || 'base'
+  );
   const growths = rollGrowthRates(classData.growthRanges);
   const weapon = getDefaultWeapon(proficiencies, allWeapons);
   const weaponClone = weapon ? structuredClone(weapon) : null;
@@ -254,7 +262,10 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * act: 'act1'/'act2'/'act3'/'finalBoss' — determines skill assignment probability.
  */
 export function createEnemyUnit(classData, level, allWeapons, difficultyConfig = 1.0, skillsData = null, act = 'act1') {
-  const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
+  const proficiencies = applyPromotedMastery(
+    parseWeaponProficiencies(classData.weaponProficiencies),
+    classData.tier || 'base'
+  );
   const growths = rollGrowthRates(classData.growthRanges);
 
   // Pick weapon tier by level
@@ -357,7 +368,10 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
  */
 export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses = null, growthBonuses = null, randomSkillPool = null) {
-  const proficiencies = parseWeaponProficiencies(classData.weaponProficiencies);
+  const proficiencies = applyPromotedMastery(
+    parseWeaponProficiencies(classData.weaponProficiencies),
+    classData.tier || 'base'
+  );
   const growths = rollGrowthRates(classData.growthRanges);
 
   const weaponTier = recruitDef.level >= 13 ? 'Silver' : recruitDef.level >= 6 ? 'Steel' : 'Iron';
@@ -581,7 +595,10 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   unit.xp = 0;
 
   // Update proficiencies
-  unit.proficiencies = parseWeaponProficiencies(promotedClassData.weaponProficiencies);
+  unit.proficiencies = applyPromotedMastery(
+    parseWeaponProficiencies(promotedClassData.weaponProficiencies),
+    'promoted'
+  );
   unit.weaponRank = unit.proficiencies[0]?.rank || 'Prof';
 
   // Add class-innate skills

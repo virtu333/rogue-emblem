@@ -179,6 +179,29 @@ describe('canPromote', () => {
     promoteUnit(unit, general, general.promotionBonuses);
     expect(canPromote(unit)).toBe(false);
   });
+
+  it('promotion upgrades all promoted weapon proficiencies to Mast', () => {
+    const general = data.classes.find(c => c.name === 'General');
+    const knight = data.classes.find(c => c.name === 'Knight');
+    const unit = createEnemyUnit(knight, 10, data.weapons);
+    promoteUnit(unit, general, general.promotionBonuses);
+    expect(unit.proficiencies.length).toBeGreaterThan(0);
+    expect(unit.proficiencies.every((p) => p.rank === 'Mast')).toBe(true);
+  });
+
+  it('promoted units can equip Mast-rank legendaries for their proficiencies', () => {
+    const general = data.classes.find(c => c.name === 'General');
+    const knight = data.classes.find(c => c.name === 'Knight');
+    const unit = createEnemyUnit(knight, 10, data.weapons);
+    promoteUnit(unit, general, general.promotionBonuses);
+
+    const braveAxe = structuredClone(data.weapons.find(w => w.name === 'Brave Axe'));
+    unit.inventory.push(braveAxe);
+
+    expect(canEquip(unit, braveAxe)).toBe(true);
+    equipWeapon(unit, braveAxe);
+    expect(unit.weapon).toBe(braveAxe);
+  });
 });
 
 describe('resolvePromotionTargetClass', () => {

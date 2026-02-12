@@ -5892,18 +5892,19 @@ export class BattleScene extends Phaser.Scene {
       const unit = roster[i];
       const invCount = unit.inventory ? unit.inventory.length : 0;
       const full = invCount >= INVENTORY_MAX;
-      const noProf = !hasProficiency(unit, item);
+      const cannotEquip = !canEquip(unit, item);
       const by = topY + i * rowGap;
 
-      const btnColor = full ? 0x444444 : (noProf ? 0x554433 : 0x335566);
-      const borderColor = full ? 0x666666 : (noProf ? 0xcc8844 : 0x66aacc);
+      const btnColor = full ? 0x444444 : (cannotEquip ? 0x554433 : 0x335566);
+      const borderColor = full ? 0x666666 : (cannotEquip ? 0xcc8844 : 0x66aacc);
       const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
         .setStrokeStyle(2, borderColor).setDepth(711);
-      if (!full) btn.setInteractive({ useHandCursor: true });
+      if (!full && !cannotEquip) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const nameColor = full ? '#666666' : (noProf ? '#cc8844' : '#ffffff');
-      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + (noProf ? '  (no prof)' : ''), {
+      const nameColor = full ? '#666666' : (cannotEquip ? '#cc8844' : '#ffffff');
+      const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
+      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
         fontFamily: 'monospace', fontSize: '13px', color: nameColor,
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
@@ -5914,7 +5915,7 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(invLabel);
 
-      if (!full) {
+      if (!full && !cannotEquip) {
         btn.on('pointerdown', () => {
           addToInventory(unit, { ...item });
           for (const obj of pickerGroup) obj.destroy();
