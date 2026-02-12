@@ -638,6 +638,7 @@ export class RosterOverlay {
       y += 20;
       this._text(x, y, 'No roster units available for withdraw.', '#888888', '10px');
       this._convoyScrollMax = 0;
+      this._convoyScrollOffset = 0;
       return;
     }
 
@@ -659,6 +660,7 @@ export class RosterOverlay {
     const totalItems = items.weapons.length + items.consumables.length + (items.weapons.length > 0 ? 1 : 0) + (items.consumables.length > 0 ? 1 : 0);
     const visibleH = PANEL_BOTTOM - y - 40;
     this._convoyScrollMax = Math.max(0, (totalItems * itemH) - visibleH);
+    this._convoyScrollOffset = this._clamp(this._convoyScrollOffset, 0, this._convoyScrollMax);
 
     let rowY = startY - this._convoyScrollOffset;
 

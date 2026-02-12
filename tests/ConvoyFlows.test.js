@@ -306,4 +306,50 @@ describe('convoy scene/UI flows', () => {
     expect(() => overlay.show()).not.toThrow();
     expect(() => overlay.hide()).not.toThrow();
   });
+
+  it('clamps convoy scroll offset after convoy content shrinks', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    const ironSword = gameData.weapons.find(w => w.name === 'Iron Sword');
+    const unit = rm.roster[0];
+    unit.inventory = [];
+    unit.consumables = [];
+
+    for (let i = 0; i < 60; i++) {
+      rm.addToConvoy(vuln);
+    }
+    rm.addToConvoy(ironSword);
+
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+    });
+
+    overlay.select('convoy');
+    overlay._convoyScrollOffset = 2000;
+    overlay.drawUnitDetails();
+    const beforeMax = overlay._convoyScrollMax;
+    expect(beforeMax).toBeGreaterThan(0);
+    expect(overlay._convoyScrollOffset).toBeLessThanOrEqual(beforeMax);
+
+    while (rm.convoy.consumables.length > 0) {
+      const pulled = rm.takeFromConvoy('consumable', 0);
+      if (!pulled) break;
+      unit.consumables.push(pulled);
+      unit.consumables = [];
+    }
+    while (rm.convoy.weapons.length > 0) {
+      const pulled = rm.takeFromConvoy('weapon', 0);
+      if (!pulled) break;
+      unit.inventory.push(pulled);
+      unit.inventory = [];
+    }
+
+    overlay.drawUnitDetails();
+    expect(overlay._convoyScrollMax).toBe(0);
+    expect(overlay._convoyScrollOffset).toBe(0);
+  });
 });
