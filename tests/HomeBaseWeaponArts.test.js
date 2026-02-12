@@ -83,4 +83,19 @@ describe('HomeBase weapon art helpers', () => {
       'd:Invalid unlock act',
     ]);
   });
+
+  it('shows Meta Unlocked precedence and optional act detail when both sources apply', () => {
+    const row = buildWeaponArtVisibilityRows([
+      makeArt({ id: 'meta_both', unlockAct: 'act2' }),
+    ], {
+      unlockedIds: ['meta_both'],
+      metaUnlockedIds: ['meta_both'],
+      actUnlockedIds: ['meta_both'],
+      currentAct: 'act3',
+      actSequence: ['act1', 'act2', 'act3'],
+    })[0];
+
+    expect(row.status).toBe('Meta Unlocked');
+    expect(row.statusDetail).toBe('Also Act 2');
+  });
 });

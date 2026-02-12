@@ -89,6 +89,15 @@ describe('RunManager', () => {
       expect(ids.length).toBeGreaterThan(0);
       expect(ids).toContain('sword_precise_cut');
     });
+
+    it('activates meta-unlocked weapon arts immediately at run start', () => {
+      const metaEffects = { metaUnlockedWeaponArts: ['legend_gemini_tempest', 'not_real_art'] };
+      const rmWithMeta = new RunManager(gameData, metaEffects);
+      rmWithMeta.startRun();
+      expect(rmWithMeta.getMetaUnlockedWeaponArtIds()).toEqual(['legend_gemini_tempest']);
+      expect(rmWithMeta.isWeaponArtUnlocked('legend_gemini_tempest')).toBe(true);
+      expect(rmWithMeta.isWeaponArtUnlocked('not_real_art')).toBe(false);
+    });
   });
 
   describe('serializeUnit', () => {
@@ -276,6 +285,30 @@ describe('RunManager', () => {
       const unlocked = localRm.advanceAct();
       expect(unlocked).toContain('test_act2_art');
       expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(true);
+    });
+
+    it('merges meta unlocks before act unlocks deterministically', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts.push({
+        id: 'test_act2_ordered',
+        name: 'Test Act 2 Ordered',
+        weaponType: 'Sword',
+        unlockAct: 'act2',
+        requiredRank: 'Prof',
+        hpCost: 1,
+        perTurnLimit: 1,
+        perMapLimit: 3,
+        combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Test Act 2 Ordered' }] },
+      });
+      const localRm = new RunManager(localData, { metaUnlockedWeaponArts: ['legend_gemini_tempest'] });
+      localRm.startRun();
+      const ids = localRm.getUnlockedWeaponArtIds();
+      const metaIdx = ids.indexOf('legend_gemini_tempest');
+      const actIdx = ids.indexOf('sword_precise_cut');
+      expect(metaIdx).toBeGreaterThanOrEqual(0);
+      expect(actIdx).toBeGreaterThanOrEqual(0);
+      expect(metaIdx).toBeLessThan(actIdx);
+      expect(localRm.getActUnlockedWeaponArtIds()).not.toContain('legend_gemini_tempest');
     });
 
     it('does not unlock arts with unknown unlockAct values', () => {
@@ -483,10 +516,25 @@ describe('RunManager', () => {
       expect(restored.gameData).toBe(gameData);
     });
 
-    it('round-trips unlocked weapon arts through save/load', () => {
-      rm.startRun();
-      rm.unlockWeaponArt('test_manual_unlock');
-      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+    it('round-trips source-separated weapon arts through save/load', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts.push({
+        id: 'test_manual_unlock',
+        name: 'Manual Unlock',
+        weaponType: 'Sword',
+        unlockAct: 'act3',
+        requiredRank: 'Prof',
+        hpCost: 1,
+        perTurnLimit: 1,
+        perMapLimit: 3,
+        combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Manual Unlock' }] },
+      });
+      const localRm = new RunManager(localData, { metaUnlockedWeaponArts: ['legend_starfall_volley'] });
+      localRm.startRun();
+      expect(localRm.unlockWeaponArt('test_manual_unlock')).toBe(true);
+      const restored = RunManager.fromJSON(localRm.toJSON(), localData);
+      expect(restored.getMetaUnlockedWeaponArtIds()).toContain('legend_starfall_volley');
+      expect(restored.getActUnlockedWeaponArtIds()).toContain('test_manual_unlock');
       expect(restored.isWeaponArtUnlocked('test_manual_unlock')).toBe(true);
     });
 
@@ -494,9 +542,22 @@ describe('RunManager', () => {
       rm.startRun();
       const json = rm.toJSON();
       delete json.unlockedWeaponArts;
+      delete json.metaUnlockedWeaponArts;
+      delete json.actUnlockedWeaponArts;
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.getUnlockedWeaponArtIds().length).toBeGreaterThan(0);
       expect(restored.isWeaponArtUnlocked('sword_precise_cut')).toBe(true);
+    });
+
+    it('migrates legacy merged unlockedWeaponArts into act unlock source', () => {
+      rm.startRun();
+      const json = rm.toJSON();
+      json.unlockedWeaponArts = [...json.unlockedWeaponArts, 'legend_gemini_tempest'];
+      delete json.metaUnlockedWeaponArts;
+      delete json.actUnlockedWeaponArts;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.getActUnlockedWeaponArtIds()).toContain('legend_gemini_tempest');
+      expect(restored.getMetaUnlockedWeaponArtIds()).not.toContain('legend_gemini_tempest');
     });
 
     it('initializes blessings state to safe defaults', () => {

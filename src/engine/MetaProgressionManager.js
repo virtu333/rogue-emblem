@@ -218,6 +218,60 @@ export class MetaProgressionManager {
     return unlocked;
   }
 
+  /**
+   * Resolve weapon-art unlocks from purchased meta upgrades.
+   * Supports:
+   * - effect.unlockWeaponArt: string
+   * - effect.unlockWeaponArts: string[]
+   * - effect.unlockWeaponArtsByWeaponType: string | string[]
+   * Returns a stable, de-duplicated ID list and fails closed for unknown IDs.
+   */
+  getUnlockedWeaponArts(weaponArtCatalog = null) {
+    const catalog = Array.isArray(weaponArtCatalog) ? weaponArtCatalog : [];
+    const validArtIds = new Set();
+    const artIdsByWeaponType = new Map();
+
+    for (const art of catalog) {
+      if (!art?.id) continue;
+      validArtIds.add(art.id);
+      const weaponType = typeof art.weaponType === 'string' ? art.weaponType : null;
+      if (!weaponType) continue;
+      if (!artIdsByWeaponType.has(weaponType)) artIdsByWeaponType.set(weaponType, []);
+      artIdsByWeaponType.get(weaponType).push(art.id);
+    }
+
+    const unlocked = [];
+    const seen = new Set();
+    const pushIfValid = (artId) => {
+      if (typeof artId !== 'string' || artId.length <= 0) return;
+      if (!validArtIds.has(artId)) return;
+      if (seen.has(artId)) return;
+      seen.add(artId);
+      unlocked.push(artId);
+    };
+    const toStringList = (value) => {
+      if (typeof value === 'string') return [value];
+      if (Array.isArray(value)) return value.filter(v => typeof v === 'string' && v.length > 0);
+      return [];
+    };
+
+    for (const upgrade of this.upgradesData) {
+      const level = this.getUpgradeLevel(upgrade.id);
+      if (level === 0) continue;
+      const effect = upgrade.effects[level - 1];
+      if (!effect) continue;
+
+      pushIfValid(effect.unlockWeaponArt);
+      for (const artId of toStringList(effect.unlockWeaponArts)) pushIfValid(artId);
+      for (const weaponType of toStringList(effect.unlockWeaponArtsByWeaponType)) {
+        const bundle = artIdsByWeaponType.get(weaponType) || [];
+        for (const artId of bundle) pushIfValid(artId);
+      }
+    }
+
+    return unlocked;
+  }
+
   /** Get the skill assignments object: { lordName: [skillId, ...] } */
   getSkillAssignments() {
     return this.skillAssignments;
@@ -253,9 +307,9 @@ export class MetaProgressionManager {
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponWeightBonus,
    *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, startingWeaponForge, deadlyArsenal,
-   *            startingAccessoryTier, startingStaffTier, startingSkills }
+   *            startingAccessoryTier, startingStaffTier, startingSkills, metaUnlockedWeaponArts }
    */
-  getActiveEffects() {
+  getActiveEffects(options = {}) {
     const effects = {
       statBonuses: {},
       growthBonuses: {},
@@ -274,6 +328,7 @@ export class MetaProgressionManager {
       startingAccessoryTier: 0,
       startingStaffTier: 0,
       startingSkills: this.getSkillAssignments(),
+      metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
     };
 
     for (const upgrade of this.upgradesData) {

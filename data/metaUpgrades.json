@@ -989,7 +989,11 @@
     ],
     "effects": [
       {
-        "deadlyArsenal": 1
+        "deadlyArsenal": 1,
+        "unlockWeaponArts": [
+          "legend_gemini_tempest",
+          "legend_starfall_volley"
+        ]
       }
     ]
   },

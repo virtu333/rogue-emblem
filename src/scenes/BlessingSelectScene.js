@@ -35,7 +35,9 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Create RunManager — not committed until we transition to NodeMap
     const meta = this.registry.get('meta');
-    const metaEffects = meta ? meta.getActiveEffects() : null;
+    const metaEffects = meta ? meta.getActiveEffects({
+      weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+    }) : null;
     this.runManager = new RunManager(this.gameData, metaEffects);
     this.runManager.startRun({ difficultyId: this.difficultyId, applyBlessingsAtStart: false });
 

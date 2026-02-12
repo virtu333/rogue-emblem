@@ -36,7 +36,7 @@ const TAB_CONTENT_BOTTOM_Y = 392;
 const TAB_CONTENT_LEFT_X = 30;
 const TAB_CONTENT_RIGHT_X = 610;
 const TAB_SCROLL_STEP = 24;
-const WEAPON_ART_ROW_H = 50;
+const WEAPON_ART_ROW_H = 62;
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -745,7 +745,7 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     for (const row of rows) {
-      const statusColor = row.status === 'Unlocked'
+      const statusColor = row.status === 'Unlocked' || row.status === 'Meta Unlocked'
         ? '#88ff88'
         : (row.status.startsWith('Unlocks in') ? '#88ccff' : (row.status === 'Invalid unlock act' ? '#ff7777' : '#ffcc88'));
       const turnLimitText = row.perTurnLimit > 0 ? String(row.perTurnLimit) : '-';
@@ -760,7 +760,12 @@ export class HomeBaseScene extends Phaser.Scene {
       this.add.text(50, y + 14, `HP-${row.hpCost}  Turn ${turnLimitText}  Map ${mapLimitText}  Req ${row.requiredRank}`, {
         fontFamily: 'monospace', fontSize: '10px', color: '#9aa6cc',
       });
-      this.add.text(50, y + 28, row.effectSummary, {
+      if (row.statusDetail) {
+        this.add.text(360, y + 14, row.statusDetail, {
+          fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
+        });
+      }
+      this.add.text(50, y + 40, row.effectSummary, {
         fontFamily: 'monospace', fontSize: '10px', color: '#666666',
       });
       y += WEAPON_ART_ROW_H;
@@ -916,9 +921,16 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _getWeaponArtRows() {
     const arts = this.gameData?.weaponArts?.arts || [];
-    const unlockedIds = this.runManager?.getUnlockedWeaponArtIds?.() || [];
+    const metaUnlockedIds = this.meta?.getUnlockedWeaponArts?.(arts) || [];
+    const runUnlockedIds = this.runManager?.getUnlockedWeaponArtIds?.() || [];
+    const actUnlockedIds = this.runManager?.getActUnlockedWeaponArtIds?.() || [];
+    const unlockedIds = this.runManager
+      ? runUnlockedIds
+      : [...new Set(metaUnlockedIds)];
     return buildWeaponArtVisibilityRows(arts, {
       unlockedIds,
+      metaUnlockedIds,
+      actUnlockedIds,
       currentAct: this.runManager?.currentAct || 'act1',
       actSequence: this.runManager?.actSequence || ['act1', 'act2', 'act3'],
     });

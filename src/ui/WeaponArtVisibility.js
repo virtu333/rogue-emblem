@@ -43,18 +43,31 @@ export function resolveWeaponArtStatus(art, options = {}) {
   const currentIdx = Math.max(0, actSequence.indexOf(String(currentAct)));
   const unlockIdx = actSequence.indexOf(String(unlockAct));
   const unlockedIds = new Set(Array.isArray(options.unlockedIds) ? options.unlockedIds : []);
+  const metaUnlockedIds = new Set(Array.isArray(options.metaUnlockedIds) ? options.metaUnlockedIds : []);
+  const actUnlockedIds = new Set(Array.isArray(options.actUnlockedIds) ? options.actUnlockedIds : []);
   const isUnlockedById = !!art?.id && unlockedIds.has(art.id);
+  const isMetaUnlocked = !!art?.id && metaUnlockedIds.has(art.id);
+  const isActUnlocked = !!art?.id && actUnlockedIds.has(art.id);
   const inferActUnlocked = Boolean(options.inferActUnlocked);
   const isUnlockedByAct = inferActUnlocked && unlockIdx !== -1 && unlockIdx <= currentIdx;
   const requiredRank = String(art?.requiredRank || 'Prof');
   const requirementLabel = requiredRank === 'Mast' ? 'Requires Mast' : 'Requires Prof';
 
-  if (isUnlockedById || isUnlockedByAct) {
-    return { label: 'Unlocked', rank: 0, unlockIdx: Math.max(0, unlockIdx) };
+  if (isMetaUnlocked) {
+    return {
+      label: 'Meta Unlocked',
+      detail: isActUnlocked ? `Also ${formatWeaponArtActLabel(unlockAct)}` : null,
+      rank: 0,
+      unlockIdx: Math.max(0, unlockIdx),
+    };
+  }
+  if (isActUnlocked || isUnlockedById || isUnlockedByAct) {
+    return { label: 'Unlocked', detail: null, rank: 0, unlockIdx: Math.max(0, unlockIdx) };
   }
   if (unlockIdx === -1) {
     return {
       label: 'Invalid unlock act',
+      detail: null,
       rank: 4,
       unlockIdx: Number.MAX_SAFE_INTEGER,
     };
@@ -62,12 +75,14 @@ export function resolveWeaponArtStatus(art, options = {}) {
   if (unlockIdx > currentIdx) {
     return {
       label: `Unlocks in ${formatWeaponArtActLabel(unlockAct)}`,
+      detail: null,
       rank: 1,
       unlockIdx,
     };
   }
   return {
     label: requirementLabel,
+    detail: null,
     rank: requiredRank === 'Mast' ? 3 : 2,
     unlockIdx: Math.max(0, unlockIdx),
   };
@@ -88,6 +103,7 @@ export function buildWeaponArtVisibilityRows(arts, options = {}) {
         perTurnLimit: Math.max(0, Math.trunc(toNumber(art.perTurnLimit, 0))),
         perMapLimit: Math.max(0, Math.trunc(toNumber(art.perMapLimit, 0))),
         status: status.label,
+        statusDetail: status.detail || null,
         statusRank: status.rank,
         unlockAct: art.unlockAct || 'act1',
         unlockIdx: status.unlockIdx,

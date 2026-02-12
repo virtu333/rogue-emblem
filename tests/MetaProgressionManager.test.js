@@ -482,6 +482,50 @@ describe('MetaProgressionManager', () => {
     expect(unlocked.length).toBe(2);
   });
 
+  it('getUnlockedWeaponArts resolves explicit IDs and weapon-type bundles in stable order', () => {
+    const customUpgrades = [
+      {
+        id: 'meta_bundle',
+        category: 'starting_equipment',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ unlockWeaponArtsByWeaponType: ['Sword', 'Bow'] }],
+      },
+      {
+        id: 'meta_explicit',
+        category: 'starting_equipment',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ unlockWeaponArt: 'legend_gemini_tempest', unlockWeaponArts: ['legend_starfall_volley'] }],
+      },
+    ];
+    const meta = new MetaProgressionManager(customUpgrades);
+    meta.purchasedUpgrades.meta_bundle = 1;
+    meta.purchasedUpgrades.meta_explicit = 1;
+    const unlocked = meta.getUnlockedWeaponArts(gameData.weaponArts.arts);
+    expect(unlocked).toEqual([
+      'sword_precise_cut',
+      'legend_gemini_tempest',
+      'bow_longshot',
+      'legend_starfall_volley',
+    ]);
+  });
+
+  it('getUnlockedWeaponArts fails closed on unknown IDs', () => {
+    const customUpgrades = [
+      {
+        id: 'meta_bad_id',
+        category: 'starting_equipment',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ unlockWeaponArt: 'not_real_art', unlockWeaponArts: ['also_not_real'] }],
+      },
+    ];
+    const meta = new MetaProgressionManager(customUpgrades);
+    meta.purchasedUpgrades.meta_bad_id = 1;
+    expect(meta.getUnlockedWeaponArts(gameData.weaponArts.arts)).toEqual([]);
+  });
+
   it('assignSkill adds skill to lord', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.unlock_sol = 1;
@@ -564,6 +608,22 @@ describe('MetaProgressionManager', () => {
     meta.assignSkill('Edric', 'sol');
     const effects = meta.getActiveEffects();
     expect(effects.startingSkills.Edric).toEqual(['sol']);
+  });
+
+  it('getActiveEffects includes metaUnlockedWeaponArts when catalog is provided', () => {
+    const customUpgrades = [
+      {
+        id: 'meta_unlock_one',
+        category: 'starting_equipment',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ unlockWeaponArt: 'legend_gemini_tempest' }],
+      },
+    ];
+    const meta = new MetaProgressionManager(customUpgrades);
+    meta.purchasedUpgrades.meta_unlock_one = 1;
+    const effects = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts.arts });
+    expect(effects.metaUnlockedWeaponArts).toEqual(['legend_gemini_tempest']);
   });
 
   it('reset clears skillAssignments', () => {

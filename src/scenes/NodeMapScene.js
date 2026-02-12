@@ -99,7 +99,9 @@ export class NodeMapScene extends Phaser.Scene {
     } else {
       console.warn('NodeMapScene: no runManager provided, creating fallback (should not happen in normal flow)');
       const meta = this.registry.get('meta');
-      const metaEffects = meta ? meta.getActiveEffects() : null;
+      const metaEffects = meta ? meta.getActiveEffects({
+        weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+      }) : null;
       this.runManager = new RunManager(this.gameData, metaEffects);
       this.runManager.startRun({ difficultyId: selectedDifficulty });
       this.registry.set('selectedDifficulty', this.runManager.difficultyId);
