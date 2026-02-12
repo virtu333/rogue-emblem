@@ -6,7 +6,7 @@ import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
   equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
   canPromote, promoteUnit, equipAccessory, unequipAccessory, resolvePromotionTargetClass,
-  removeFromConsumables, learnSkill,
+  addToConsumables, removeFromConsumables, learnSkill,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange } from '../engine/Combat.js';
@@ -273,9 +273,17 @@ export class RosterOverlay {
 
         // Equip weapon button (if not already equipped)
         const btnX = x + 250;
+        const storeX = x + 318;
         if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
             equipWeapon(unit, item);
+            this.refresh();
+          });
+        }
+        if (!isLastCombatWeapon(unit, item) && this.runManager.canAddToConvoy(item)) {
+          this._actionBtn(storeX, y, '[Store]', () => {
+            if (!this.runManager.addToConvoy(item)) return;
+            removeFromInventory(unit, item);
             this.refresh();
           });
         }
@@ -301,6 +309,7 @@ export class RosterOverlay {
 
         // Action buttons
         const btnX = x + 250;
+        const storeX = x + 318;
         if (item.effect === 'heal' || item.effect === 'healFull') {
           if (unit.currentHP < unit.stats.HP) {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
@@ -310,9 +319,82 @@ export class RosterOverlay {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
         }
+        if (this.runManager.canAddToConvoy(item)) {
+          this._actionBtn(storeX, y, '[Store]', () => {
+            if (!this.runManager.addToConvoy(item)) return;
+            removeFromConsumables(unit, item);
+            this.refresh();
+          });
+        }
 
         y += 14;
       }
+    }
+
+    // --- Convoy ---
+    y += 4;
+    this._text(x, y, '\u2500\u2500 Convoy \u2500\u2500', '#888888', '10px');
+    y += 14;
+    const convoyCaps = this.runManager.getConvoyCapacities();
+    const convoyCounts = this.runManager.getConvoyCounts();
+    this._text(x, y, `Weapons ${convoyCounts.weapons}/${convoyCaps.weapons}  Consumables ${convoyCounts.consumables}/${convoyCaps.consumables}`, '#88ccff', '10px');
+    y += 14;
+
+    const convoyPreviewMax = 4;
+    const convoyWeapons = this.runManager.convoy?.weapons || [];
+    if (convoyWeapons.length > 0) {
+      this._text(x, y, 'Weapons:', '#888888', '10px');
+      y += 13;
+      for (let i = 0; i < Math.min(convoyWeapons.length, convoyPreviewMax); i++) {
+        const item = convoyWeapons[i];
+        this._text(x + 8, y, item.name, '#aaccff', '10px');
+        if ((unit.inventory?.length || 0) < INVENTORY_MAX) {
+          this._actionBtn(x + 250, y, '[Take]', () => {
+            const pulled = this.runManager.takeFromConvoy('weapon', i);
+            if (!pulled) return;
+            addToInventory(unit, pulled);
+            this.refresh();
+          });
+        } else {
+          this._text(x + 250, y, '(full)', '#666666', '10px');
+        }
+        y += 13;
+      }
+      if (convoyWeapons.length > convoyPreviewMax) {
+        this._text(x + 8, y, `... +${convoyWeapons.length - convoyPreviewMax} more`, '#666666', '10px');
+        y += 13;
+      }
+    } else {
+      this._text(x, y, '(no convoy weapons)', '#888888', '10px');
+      y += 14;
+    }
+
+    const convoyConsumables = this.runManager.convoy?.consumables || [];
+    if (convoyConsumables.length > 0) {
+      this._text(x, y, 'Consumables:', '#888888', '10px');
+      y += 13;
+      for (let i = 0; i < Math.min(convoyConsumables.length, convoyPreviewMax); i++) {
+        const item = convoyConsumables[i];
+        this._text(x + 8, y, `${item.name} (${item.uses})`, '#88ffcc', '10px');
+        if ((unit.consumables?.length || 0) < CONSUMABLE_MAX) {
+          this._actionBtn(x + 250, y, '[Take]', () => {
+            const pulled = this.runManager.takeFromConvoy('consumable', i);
+            if (!pulled) return;
+            addToConsumables(unit, pulled);
+            this.refresh();
+          });
+        } else {
+          this._text(x + 250, y, '(full)', '#666666', '10px');
+        }
+        y += 13;
+      }
+      if (convoyConsumables.length > convoyPreviewMax) {
+        this._text(x + 8, y, `... +${convoyConsumables.length - convoyPreviewMax} more`, '#666666', '10px');
+        y += 13;
+      }
+    } else {
+      this._text(x, y, '(no convoy consumables)', '#888888', '10px');
+      y += 14;
     }
 
     // --- Team Scrolls ---

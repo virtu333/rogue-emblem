@@ -24,8 +24,8 @@ Organized by impact and logical sequencing:
 11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, and full transition QA after each merge batch.
 
 ### Next (1-3 Months)
-12. **Wave 3A: Wyvern + Reclass Foundation** - Wyvern Rider/Lord integration, loot table structure alignment, and Second Seal core rules.
-13. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
+12. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
+13. **Wave 3A: Wyvern + Reclass Foundation** - Wyvern Rider/Lord integration, loot table structure alignment, and Second Seal core rules.
 14. **Wave 4: Weapon Arts (phased)** - Foundation -> acquisition/meta -> enemy/legendary arts -> polish/balance.
 15. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
 16. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
@@ -125,8 +125,8 @@ QA evidence (Feb 12, 2026):
   - Priority: P2 (address before next boss-recruit/affix/recruit-system logic merge; not a blocker for NodeMap church/village panel UX fixes)
 
 ### Wave 3-4 Planned Sequence
-- **Wave 3A (Wyvern + Reclass Foundation):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, Second Seal core rules.
 - **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration.
+- **Wave 3A (Wyvern + Reclass Foundation):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, Second Seal core rules.
 - **Wave 4 (Weapon Arts):** foundation (combat + data contract), acquisition/meta, enemy/legendary arts, then balance pass.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
@@ -287,7 +287,7 @@ QA evidence (Feb 12, 2026):
 5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
 6. **Wave 1 Stabilization Gate** (audio/scene/save/cloud + transition spam QA + merge gates)
 7. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
-8. **Wave 3A** (Wyvern + reclass foundation) -> **Wave 3B** (Convoy MVP)
+8. **Wave 3B** (Convoy MVP) -> **Wave 3A** (Wyvern + reclass foundation)
 9. **Wave 4** (Weapon Arts phased rollout)
 10. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
 

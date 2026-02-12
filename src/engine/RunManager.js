@@ -4,7 +4,7 @@
 import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
-  ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES,
+  ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
 } from '../utils/constants.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
@@ -72,6 +72,7 @@ export class RunManager {
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = [];  // team accessory pool (unequipped accessories)
     this.scrolls = [];      // team scroll pool (skill teaching items)
+    this.convoy = { weapons: [], consumables: [] };
     this.activeBlessings = [];
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
@@ -108,6 +109,9 @@ export class RunManager {
     if (!Array.isArray(this.fallenUnits)) this.fallenUnits = [];
     this.roster = this.roster.filter(u => this._isValidSerializedUnit(u));
     this.fallenUnits = this.fallenUnits.filter(u => this._isValidSerializedUnit(u));
+    if (!this.convoy || typeof this.convoy !== 'object') this.convoy = { weapons: [], consumables: [] };
+    if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
+    if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
   }
 
   get currentAct() {
@@ -859,6 +863,51 @@ export class RunManager {
     this.gold += amount;
   }
 
+  getConvoyCapacities() {
+    const bonus = Math.max(0, Math.trunc(this.metaEffects?.convoyCapacityBonus || 0));
+    return {
+      weapons: CONVOY_WEAPON_CAPACITY + bonus,
+      consumables: CONVOY_CONSUMABLE_CAPACITY + bonus,
+    };
+  }
+
+  getConvoyCounts() {
+    this._sanitizeUnitPools();
+    return {
+      weapons: this.convoy.weapons.length,
+      consumables: this.convoy.consumables.length,
+    };
+  }
+
+  canAddToConvoy(item) {
+    if (!item || typeof item !== 'object') return false;
+    this._sanitizeUnitPools();
+    const caps = this.getConvoyCapacities();
+    if (item.type === 'Consumable') return this.convoy.consumables.length < caps.consumables;
+    return this.convoy.weapons.length < caps.weapons;
+  }
+
+  addToConvoy(item) {
+    if (!this.canAddToConvoy(item)) return false;
+    const clone = structuredClone(item);
+    if (clone.type === 'Consumable') {
+      this.convoy.consumables.push(clone);
+    } else {
+      this.convoy.weapons.push(clone);
+    }
+    return true;
+  }
+
+  takeFromConvoy(type, index) {
+    this._sanitizeUnitPools();
+    if (type === 'consumable') {
+      if (!Number.isInteger(index) || index < 0 || index >= this.convoy.consumables.length) return null;
+      return this.convoy.consumables.splice(index, 1)[0];
+    }
+    if (!Number.isInteger(index) || index < 0 || index >= this.convoy.weapons.length) return null;
+    return this.convoy.weapons.splice(index, 1)[0];
+  }
+
   spendGold(amount) {
     if (amount > this.gold) return false;
     this.gold -= amount;
@@ -1062,6 +1111,7 @@ export class RunManager {
       metaEffects: this.metaEffects,
       accessories: this.accessories,
       scrolls: this.scrolls,
+      convoy: this.convoy,
       randomLegendary: this.randomLegendary || null,
       activeBlessings: this.activeBlessings || [],
       blessingHistory: this.blessingHistory || [],
@@ -1247,6 +1297,7 @@ export class RunManager {
     rm.gold = saved.gold;
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
+    rm.convoy = saved.convoy || { weapons: [], consumables: [] };
     rm.randomLegendary = saved.randomLegendary || null;
     rm.activeBlessings = saved.activeBlessings || [];
     rm.blessingHistory = saved.blessingHistory || [];

@@ -259,6 +259,51 @@ describe('RunManager', () => {
     });
   });
 
+  describe('convoy', () => {
+    it('starts with an empty convoy', () => {
+      rm.startRun();
+      expect(rm.getConvoyCounts()).toEqual({ weapons: 0, consumables: 0 });
+    });
+
+    it('stores weapons and consumables in separate convoy pools', () => {
+      rm.startRun();
+      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+      expect(rm.addToConvoy(sword)).toBe(true);
+      expect(rm.addToConvoy(vuln)).toBe(true);
+      expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 1 });
+      expect(rm.convoy.weapons[0].name).toBe('Iron Sword');
+      expect(rm.convoy.consumables[0].name).toBe('Vulnerary');
+    });
+
+    it('takeFromConvoy removes and returns an item', () => {
+      rm.startRun();
+      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      rm.addToConvoy(sword);
+      const pulled = rm.takeFromConvoy('weapon', 0);
+      expect(pulled?.name).toBe('Iron Sword');
+      expect(rm.getConvoyCounts().weapons).toBe(0);
+    });
+
+    it('fromJSON migrates missing convoy to defaults', () => {
+      rm.startRun();
+      const saved = rm.toJSON();
+      delete saved.convoy;
+      const restored = RunManager.fromJSON(saved, gameData);
+      expect(restored.convoy).toEqual({ weapons: [], consumables: [] });
+    });
+
+    it('toJSON/fromJSON preserves convoy data', () => {
+      rm.startRun();
+      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+      rm.addToConvoy(sword);
+      rm.addToConvoy(vuln);
+      const restored = RunManager.fromJSON(rm.toJSON(), gameData);
+      expect(restored.getConvoyCounts()).toEqual({ weapons: 1, consumables: 1 });
+    });
+  });
+
   describe('settleEndRunRewards', () => {
     it('applies defeat rewards to meta exactly once', () => {
       rm.startRun();
