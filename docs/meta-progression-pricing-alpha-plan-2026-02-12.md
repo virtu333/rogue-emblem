@@ -28,18 +28,21 @@ Candidate data files: `data/archive/metaUpgrades/proposals-2026-02-12/`
 | Aggressive Alpha | 47.2% | 12,200 | 11,575 | 24 / 22 |
 | Sandbox Alpha | 31.8% | 8,300 | 7,700 | 16 / 15 |
 
-## Recommendation
+## Selected Profile
 
-Use **Sandbox Alpha** during current alpha phase.
+Use **Aggressive Alpha** during current alpha phase.
 
 Reasoning:
-- The stated goal is experimentation, not long-term retention pacing.
-- 16/15 full-victory runs on Normal is still meaningful but no longer a major blocker.
-- It gives room for mixed outcomes (non-victory runs) without making progression feel stalled.
+- Keeps progression substantially faster than baseline while preserving some medium-term unlock pacing.
+- Matches current playtest direction for broad experimentation without fully sandboxing progression.
+
+Implementation status:
+- Applied to source data (`data/metaUpgrades.json`) in commit `38c3d15`.
+- Synced to runtime copy (`public/data/metaUpgrades.json`) in commit `6af2715`.
 
 ## Rollout Plan
 
-1. Apply `sandbox` candidate prices to live `data/metaUpgrades.json`.
+1. Apply `aggressive` candidate prices to live `data/metaUpgrades.json`. (done)
 2. Keep the baseline archive immutable for easy rollback/reference.
 3. Run 1 week of alpha playtests and track:
    - % of players buying at least 1 upgrade in first 2 runs
@@ -47,10 +50,10 @@ Reasoning:
    - Distribution of spending by category/currency
    - % of players who unlock at least one high-impact node (`deploy_limit`, `weapon_tier`, or level-3 stat nodes)
 4. Re-tune from observed data:
-   - If progression is still too slow, move to 25-30% total-cost band.
-   - If progression is too fast, move toward Aggressive (47.2%) selectively by category.
+   - If progression is still too slow, move toward Sandbox selectively by category.
+   - If progression is too fast, move toward Moderate/Conservative selectively by category.
 
 ## Notes
 
-- `data-viewer.html` contains an embedded meta-upgrades copy that is stale for at least one row (`recruit_skill` differs from `data/metaUpgrades.json`).
+- `data-viewer.html` has been synced to current meta-upgrade data in the aggressive rollout batch.
 - Treat `data/metaUpgrades.json` as source-of-truth for balancing changes.
