@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
+import { buildWeaponArtVisibilityRows } from '../ui/WeaponArtVisibility.js';
 import { startSceneLazy } from '../utils/sceneLoader.js';
 
 const CATEGORIES = [
@@ -12,6 +13,7 @@ const CATEGORIES = [
   { key: 'economy',            label: 'Economy' },
   { key: 'capacity',           label: 'Battalion' },
   { key: 'starting_equipment', label: 'Equip' },
+  { key: 'weapon_arts',        label: 'Arts' },
   { key: 'starting_skills',    label: 'Skills' },
 ];
 
@@ -34,6 +36,7 @@ const TAB_CONTENT_BOTTOM_Y = 392;
 const TAB_CONTENT_LEFT_X = 30;
 const TAB_CONTENT_RIGHT_X = 610;
 const TAB_SCROLL_STEP = 24;
+const WEAPON_ART_ROW_H = 50;
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -42,6 +45,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData;
+    this.runManager = data.runManager || null;
     this.isTransitioning = false;
   }
 
@@ -115,9 +119,9 @@ export class HomeBaseScene extends Phaser.Scene {
     });
 
     // Show both currencies — highlight the one used by the active tab
-    const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || 'supply';
-    const valorColor = activeCurrency === 'valor' ? '#ffcc44' : '#665522';
-    const supplyColor = activeCurrency === 'supply' ? '#44ccbb' : '#225544';
+    const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || null;
+    const valorColor = activeCurrency === 'valor' ? '#ffcc44' : (activeCurrency ? '#665522' : '#6b728f');
+    const supplyColor = activeCurrency === 'supply' ? '#44ccbb' : (activeCurrency ? '#225544' : '#6b728f');
     this.add.text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
       fontFamily: 'monospace', fontSize: '12px', color: valorColor,
     }).setOrigin(1, 0);
@@ -224,6 +228,11 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawTabContent(category) {
+    if (category === 'weapon_arts') {
+      this._drawWeaponArtsTab();
+      return;
+    }
+
     if (category === 'starting_skills') {
       this._drawSkillsTab();
       return;
@@ -717,6 +726,47 @@ export class HomeBaseScene extends Phaser.Scene {
     });
   }
 
+  _drawWeaponArtsTab() {
+    const rows = this._getWeaponArtRows();
+
+    const offset = this._getTabScrollOffset('weapon_arts');
+    let y = TAB_CONTENT_TOP_Y - offset;
+
+    this.add.text(40, y, 'Weapon Arts', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
+    });
+    y += 18;
+
+    if (rows.length <= 0) {
+      this.add.text(50, y, '(no weapon arts)', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#666666',
+      });
+      return;
+    }
+
+    for (const row of rows) {
+      const statusColor = row.status === 'Unlocked'
+        ? '#88ff88'
+        : (row.status.startsWith('Unlocks in') ? '#88ccff' : (row.status === 'Invalid unlock act' ? '#ff7777' : '#ffcc88'));
+      const turnLimitText = row.perTurnLimit > 0 ? String(row.perTurnLimit) : '-';
+      const mapLimitText = row.perMapLimit > 0 ? String(row.perMapLimit) : '-';
+
+      this.add.text(50, y, `${row.name} (${row.weaponType})`, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+      });
+      this.add.text(360, y, row.status, {
+        fontFamily: 'monospace', fontSize: '11px', color: statusColor,
+      });
+      this.add.text(50, y + 14, `HP-${row.hpCost}  Turn ${turnLimitText}  Map ${mapLimitText}  Req ${row.requiredRank}`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#9aa6cc',
+      });
+      this.add.text(50, y + 28, row.effectSummary, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#666666',
+      });
+      y += WEAPON_ART_ROW_H;
+    }
+  }
+
   async runTransition(action) {
     if (this.isTransitioning) return false;
     this.isTransitioning = true;
@@ -832,6 +882,11 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   _estimateTabContentHeight(category) {
+    if (category === 'weapon_arts') {
+      const rows = this._getWeaponArtRows();
+      return 18 + (Math.max(1, rows.length) * WEAPON_ART_ROW_H);
+    }
+
     if (category === 'starting_skills') {
       const skillUpgrades = this.meta.upgradesData.filter(u => u.category === 'starting_skills');
       return 18 + 80 + 18 + (skillUpgrades.length * 22);
@@ -857,6 +912,16 @@ export class HomeBaseScene extends Phaser.Scene {
     this.tabScrollOffsets[category] = clamped;
     if (category === this.activeTab) this.tabScrollMax = max;
     return clamped;
+  }
+
+  _getWeaponArtRows() {
+    const arts = this.gameData?.weaponArts?.arts || [];
+    const unlockedIds = this.runManager?.getUnlockedWeaponArtIds?.() || [];
+    return buildWeaponArtVisibilityRows(arts, {
+      unlockedIds,
+      currentAct: this.runManager?.currentAct || 'act1',
+      actSequence: this.runManager?.actSequence || ['act1', 'act2', 'act3'],
+    });
   }
 
   onPointerUp(pointer) {
