@@ -421,7 +421,7 @@ export const HOW_TO_PLAY_PAGES = [
       { text: 'Scrolls teach skills or weapon arts.', color: GOLD },
       { text: 'Weapon-art scrolls bind to one weapon' },
       { text: 'from Roster. Skill cap is still 5.' },
-      { text: 'Advanced art scrolls need Mast rank.' },
+      { text: 'Some advanced weapon arts need Mast rank.' },
       { text: '' },
       { text: 'After each battle, choose loot from', color: GRAY },
       { text: '3 random cards: weapons, consumables,', color: GRAY },
