@@ -513,6 +513,33 @@ describe('BattleScene weapon art helpers', () => {
     }
   });
 
+  it('uses injected enemy art roll helper when provided and clamps invalid values', () => {
+    const scene = new BattleScene();
+    const legal = makeArt({
+      id: 'enemy_proc_injected',
+      hpCost: 2,
+      combatMods: { atkBonus: 4, hitBonus: 10 },
+      allowedFactions: ['enemy'],
+      aiEnabled: true,
+    });
+    const enemy = makeUnit({
+      name: 'Bandit',
+      faction: 'enemy',
+      currentHP: 12,
+      stats: { HP: 20 },
+    });
+    const target = makeUnit({ name: 'Edric', faction: 'player' });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [legal] } };
+    scene.battleParams = { difficultyId: 'normal' };
+
+    scene._enemyWeaponArtRandom = () => Number.NaN;
+    expect(scene._selectEnemyWeaponArt(enemy, target)).toBeNull();
+
+    scene._enemyWeaponArtRandom = () => -10;
+    expect(scene._selectEnemyWeaponArt(enemy, target)?.id).toBe('enemy_proc_injected');
+  });
+
   it('shows legendary-bound art only while matching weapon is equipped', () => {
     const scene = new BattleScene();
     const legendaryArt = makeArt({

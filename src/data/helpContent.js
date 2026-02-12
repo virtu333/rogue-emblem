@@ -143,7 +143,7 @@ const STATIC_HELP_TABS = [
           { text: '  Cost is paid only on confirmed combat.', color: GRAY },
           { text: '' },
           { text: 'Limits:', color: GOLD },
-          { text: '  Arts can have per-turn and per-map caps.' },
+          { text: '  Status text shows why an art is unavailable.' },
           { text: '  Req Prof = base proficiency for that weapon.' },
           { text: '  Req Mast = mastery proficiency for that weapon.' },
           { text: '' },

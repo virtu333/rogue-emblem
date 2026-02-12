@@ -18,6 +18,7 @@ describe('Weapon Arts help content', () => {
   it('clarifies proficiency requirements and unlock-source semantics', () => {
     const page = getWeaponArtsHelpPage();
     const lines = (page?.lines || []).map((line) => line?.text || '');
+    expect(lines).toContain('  Status text shows why an art is unavailable.');
     expect(lines).toContain('  Req Prof = base proficiency for that weapon.');
     expect(lines).toContain('  Req Mast = mastery proficiency for that weapon.');
     expect(lines).toContain('  Act unlocks apply during the current run.');

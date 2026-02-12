@@ -3899,7 +3899,7 @@ export class BattleScene extends Phaser.Scene {
       .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
       .filter((entry) => entry.score >= tuning.minScore);
     if (scored.length <= 0) return null;
-    if (tuning.useChance < 1 && Math.random() > tuning.useChance) return null;
+    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       const aCost = Math.max(0, Number(a.art?.hpCost) || 0);
@@ -3910,6 +3910,14 @@ export class BattleScene extends Phaser.Scene {
       return aId.localeCompare(bId);
     });
     return scored[0].art;
+  }
+
+  _rollEnemyWeaponArtChance() {
+    const roll = typeof this._enemyWeaponArtRandom === 'function'
+      ? Number(this._enemyWeaponArtRandom())
+      : Math.random();
+    if (!Number.isFinite(roll)) return 1;
+    return Math.min(1, Math.max(0, roll));
   }
 
   _weaponArtReasonLabel(reason) {
@@ -3929,6 +3937,8 @@ export class BattleScene extends Phaser.Scene {
       case 'invalid_owner_scope_config': return 'Unavailable';
       case 'invalid_faction_config': return 'Unavailable';
       case 'invalid_legendary_weapon_ids_config': return 'Unavailable';
+      case 'invalid_unlock_act_config': return 'Unavailable';
+      case 'invalid_input': return 'Unavailable';
       default: return 'Unavailable';
     }
   }
@@ -3946,8 +3956,7 @@ export class BattleScene extends Phaser.Scene {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
     });
-    if (!check?.canUse && check?.ok === false) return this._weaponArtReasonLabel(check.reason);
-    if (check?.canUse === false) return this._weaponArtReasonLabel(check.reason);
+    if (check?.ok === false || check?.canUse === false) return this._weaponArtReasonLabel(check.reason);
     const hpCost = Math.max(0, Number(art?.hpCost) || 0);
     const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
     const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
