@@ -113,6 +113,13 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [ ] Deterministic tests for spawn, exclusions, and serialization.
 - [ ] Post-merge QA confirms no startup/audio/scene transition regressions.
 
+### Open Engineering Tickets
+- [ ] **TICKET: Boss recruit test suite regression triage (non-blocking for UI overlays)**
+  - File: `tests/BossRecruitSystem.test.js`
+  - Current state: 18 failing tests (verified locally on Feb 12, 2026)
+  - Scope: investigate candidate pool contract drift (`generateBossRecruitCandidates`), update implementation or tests to match intended act/pool behavior, and restore green suite.
+  - Priority: P2 (address before next boss-recruit/affix/recruit-system logic merge; not a blocker for NodeMap church/village panel UX fixes)
+
 ### Wave 3-4 Planned Sequence
 - **Wave 3A (Wyvern + Reclass Foundation):** Wyvern classes, enemy pool/recruit integration, loot table compatibility, Second Seal core rules.
 - **Wave 3B (Convoy MVP):** convoy data model + persistence, overflow routing, node/deploy access UI, meta capacity integration.
