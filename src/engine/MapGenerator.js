@@ -3,8 +3,10 @@
 
 import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
+import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
+const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
 
 /**
  * Generate a full battle configuration from params + game data.
@@ -543,7 +545,7 @@ function resolveClassWeight(className, enemyWeights, classData) {
   }
 
   if (DEBUG_MAP_GEN && matched.length > 0) {
-    console.log(`[MapGen] Weight: ${className} -> [${matched.join(', ')}] -> x${composite.toFixed(2)}`);
+    mapGenLog.debug(`Weight: ${className} -> [${matched.join(', ')}] -> x${composite.toFixed(2)}`);
   }
 
   return composite;
@@ -617,7 +619,7 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
           isBoss: false,
         });
 
-        if (DEBUG_MAP_GEN) console.log(`[MapGen] Anchor placed: ${className} at (${tile.col},${tile.row}) for ${anchor.position}`);
+        if (DEBUG_MAP_GEN) mapGenLog.debug(`Anchor placed: ${className} at (${tile.col},${tile.row}) for ${anchor.position}`);
       }
     }
   }
@@ -659,9 +661,9 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
   const enemyWeights = template.enemyWeights || null;
 
   if (DEBUG_MAP_GEN) {
-    console.log(`[MapGen] Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles, template=${template.id}`);
+    mapGenLog.debug(`Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles, template=${template.id}`);
     if (enemyWeights) {
-      console.log(`[MapGen] Template enemyWeights: ${JSON.stringify(enemyWeights)}`);
+      mapGenLog.debug(`Template enemyWeights: ${JSON.stringify(enemyWeights)}`);
     }
   }
 
@@ -706,7 +708,7 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     if (DEBUG_MAP_GEN) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
       const chosenScore = scored.find(s => s.item === pos)?.weight;
-      console.log(`[MapGen]  ${className} -> (${pos.col},${pos.row}) ${tName} score=${chosenScore} candidates=${scored.length}`);
+      mapGenLog.debug(`${className} -> (${pos.col},${pos.row}) ${tName} score=${chosenScore} candidates=${scored.length}`);
     }
 
     spawns.push({
@@ -729,7 +731,7 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     shuffleArray(shuffledGuards);
     for (let i = 0; i < guardCount; i++) {
       shuffledGuards[i].aiMode = 'guard';
-      if (DEBUG_MAP_GEN) console.log(`[MapGen] Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
+      if (DEBUG_MAP_GEN) mapGenLog.debug(`Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
     }
   }
 
@@ -920,8 +922,8 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   const wideEndCol = Math.ceil(cols * 0.55);
 
   if (DEBUG_MAP_GEN) {
-    console.log(`[NPC Spawn] Template: ${template?.id}, isRiver: ${isRiverTemplate}`);
-    if (isRiverTemplate) console.log(`[NPC Spawn] River bias: trying tight zone [${tightStartCol}-${tightEndCol}] first`);
+    mapGenLog.debug(`NPC Spawn template=${template?.id}, isRiver=${isRiverTemplate}`);
+    if (isRiverTemplate) mapGenLog.debug(`NPC Spawn river bias: trying tight zone [${tightStartCol}-${tightEndCol}] first`);
   }
 
   // Pre-compute enemy turn-1 reach for D3 threat radius check
@@ -949,10 +951,10 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   let candidates;
   if (isRiverTemplate) {
     candidates = findCandidates(tightStartCol, tightEndCol);
-    if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] River tight zone: ${candidates.length} candidates`);
+    if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn river tight zone: ${candidates.length} candidates`);
     if (candidates.length === 0) {
       candidates = findCandidates(wideStartCol, wideEndCol);
-      if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] River fallback to wide zone: ${candidates.length} candidates`);
+      if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn river fallback to wide zone: ${candidates.length} candidates`);
     }
   } else {
     candidates = findCandidates(wideStartCol, wideEndCol);
@@ -970,7 +972,7 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
       const candidate = pickPool[attempt];
       const threatsInRange = countThreats(candidate.col, candidate.row, enemyReach);
       if (DEBUG_MAP_GEN) {
-        console.log(`[NPC Spawn] Attempt ${attempt + 1}: (${candidate.col},${candidate.row}) threats=${threatsInRange} ${threatsInRange > 2 ? 'REJECTED' : 'ACCEPTED'}`);
+        mapGenLog.debug(`NPC Spawn attempt ${attempt + 1}: (${candidate.col},${candidate.row}) threats=${threatsInRange} ${threatsInRange > 2 ? 'REJECTED' : 'ACCEPTED'}`);
       }
       if (threatsInRange <= 2) {
         pos = candidate;
@@ -980,7 +982,7 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
     // If all retries failed, place anyway with warning
     if (!pos) {
       pos = pickPool[0];
-      if (DEBUG_MAP_GEN) console.warn(`[NPC Spawn] All ${maxRetries} retries exceeded threat limit, placing at (${pos.col},${pos.row}) anyway`);
+      if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn all ${maxRetries} retries exceeded threat limit, placing at (${pos.col},${pos.row}) anyway`);
     }
   } else {
     // Fallback: any passable tile in wide zone (relax distance constraints)
@@ -1001,7 +1003,7 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
       mapLayout[centerRow][centerCol] = TERRAIN.Plain;
       pos = { col: centerCol, row: centerRow };
     }
-    if (DEBUG_MAP_GEN) console.log(`[NPC Spawn] Fallback placement at (${pos.col},${pos.row})`);
+    if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn fallback placement at (${pos.col},${pos.row})`);
   }
 
   return {

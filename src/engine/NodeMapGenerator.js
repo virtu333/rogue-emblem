@@ -3,8 +3,10 @@
 // Uses a fixed column-lane system (like Slay the Spire) to prevent edge crossings.
 
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
+import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
+const nodeMapLog = createScopedLogger('NodeMapGen', { debug: DEBUG_MAP_GEN });
 
 // Number of fixed column lanes for the node map grid
 const NUM_COLUMNS = 5;
@@ -121,7 +123,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             node.fogEnabled = true;
           }
           if (DEBUG_MAP_GEN) {
-            console.log(`[MAP_GEN] Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${adjustedFogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
+            nodeMapLog.debug(`Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${adjustedFogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
           }
         }
       }

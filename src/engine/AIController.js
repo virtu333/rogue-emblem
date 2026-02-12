@@ -7,8 +7,10 @@ import {
   gridDistance,
   isInRange,
 } from './Combat.js';
+import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
+const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
 const TERRAIN_FORT = 3;
 const TERRAIN_THRONE = 4;
 const NO_MOVE_STREAK_RECOVERY_THRESHOLD = 2;
@@ -97,10 +99,10 @@ export class AIController {
       if (nearestDist <= triggerDist) {
         // Trigger: permanently switch to chase
         enemy.aiMode = 'chase';
-        if (DEBUG_AI) console.log(`[AI] Guard triggered at (${enemy.col},${enemy.row}), dist=${nearestDist}`);
+        aiLog.debug(`Guard triggered at (${enemy.col},${enemy.row}), dist=${nearestDist}`);
       } else if (!this.aggressiveMode) {
         // Stay put - no movement, no attack
-        if (DEBUG_AI) console.log(`[AI] Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
+        aiLog.debug(`Guard holding at (${enemy.col},${enemy.row}), nearest=${nearestDist}`);
         return this._finalizeDecision(enemy, {
           path: null,
           target: null,
@@ -142,7 +144,7 @@ export class AIController {
       if (!candidates.some(t => t.col === enemy.col && t.row === enemy.row)) {
         candidates.push({ col: enemy.col, row: enemy.row });
       }
-      if (DEBUG_AI) console.log(`[AI] Boss clamped to ${candidates.length} tiles near throne`);
+      aiLog.debug(`Boss clamped to ${candidates.length} tiles near throne`);
     }
 
     // Find best attack opportunity
@@ -195,7 +197,7 @@ export class AIController {
 
     // Boss on seize: don't chase if no attack available - stay on throne
     if (isBossOnSeize) {
-      if (DEBUG_AI) console.log('[AI] Boss staying on throne - no targets in range');
+      aiLog.debug('Boss staying on throne - no targets in range');
       return this._finalizeDecision(enemy, {
         path: null,
         target: null,
