@@ -37,6 +37,8 @@ const TAB_CONTENT_LEFT_X = 30;
 const TAB_CONTENT_RIGHT_X = 610;
 const TAB_SCROLL_STEP = 24;
 const WEAPON_ART_ROW_H = 62;
+const WEAPON_ART_SECTION_HEADER_H = 18;
+const WEAPON_ART_SECTION_GAP_H = 8;
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -736,6 +738,10 @@ export class HomeBaseScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
     });
     y += 18;
+    this.add.text(50, y, 'Catalog of weapon arts and unlock conditions', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#6677aa',
+    });
+    y += 18;
 
     if (rows.length <= 0) {
       this.add.text(50, y, '(no weapon arts)', {
@@ -744,31 +750,51 @@ export class HomeBaseScene extends Phaser.Scene {
       return;
     }
 
-    for (const row of rows) {
-      const statusColor = row.status === 'Unlocked' || row.status === 'Meta Unlocked'
-        ? '#88ff88'
-        : (row.status.startsWith('Unlocks in') ? '#88ccff' : (row.status === 'Invalid unlock act' ? '#ff7777' : '#ffcc88'));
-      const turnLimitText = row.perTurnLimit > 0 ? String(row.perTurnLimit) : '-';
-      const mapLimitText = row.perMapLimit > 0 ? String(row.perMapLimit) : '-';
+    const unlockedNow = rows.filter((row) => row.status === 'Unlocked' || row.status === 'Meta Unlocked');
+    const unlocksLater = rows.filter((row) => row.status.startsWith('Unlocks in'));
+    const rankGated = rows.filter((row) => row.status === 'Requires Prof' || row.status === 'Requires Mast');
+    const invalid = rows.filter((row) => row.status === 'Invalid unlock act');
 
-      this.add.text(50, y, `${row.name} (${row.weaponType})`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+    const sections = [
+      { title: 'Unlocked Now', rows: unlockedNow, color: '#88ff88' },
+      { title: 'Unlocks Later', rows: unlocksLater, color: '#88ccff' },
+      { title: 'Rank-Gated', rows: rankGated, color: '#ffcc88' },
+      { title: 'Other', rows: invalid, color: '#ff7777' },
+    ];
+
+    for (const section of sections) {
+      if (!section.rows.length) continue;
+      this.add.text(50, y, section.title, {
+        fontFamily: 'monospace', fontSize: '11px', color: section.color, fontStyle: 'bold',
       });
-      this.add.text(360, y, row.status, {
-        fontFamily: 'monospace', fontSize: '11px', color: statusColor,
-      });
-      this.add.text(50, y + 14, `HP-${row.hpCost}  Turn ${turnLimitText}  Map ${mapLimitText}  Req ${row.requiredRank}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#9aa6cc',
-      });
-      if (row.statusDetail) {
-        this.add.text(360, y + 14, row.statusDetail, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
+      y += WEAPON_ART_SECTION_HEADER_H;
+      for (const row of section.rows) {
+        const statusColor = row.status === 'Unlocked' || row.status === 'Meta Unlocked'
+          ? '#88ff88'
+          : (row.status.startsWith('Unlocks in') ? '#88ccff' : (row.status === 'Invalid unlock act' ? '#ff7777' : '#ffcc88'));
+        const turnLimitText = row.perTurnLimit > 0 ? String(row.perTurnLimit) : '-';
+        const mapLimitText = row.perMapLimit > 0 ? String(row.perMapLimit) : '-';
+
+        this.add.text(50, y, `${row.name} (${row.weaponType})`, {
+          fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
         });
+        this.add.text(360, y, row.status, {
+          fontFamily: 'monospace', fontSize: '11px', color: statusColor,
+        });
+        this.add.text(50, y + 14, `HP-${row.hpCost}  Turn ${turnLimitText}  Map ${mapLimitText}  Req ${row.requiredRank}`, {
+          fontFamily: 'monospace', fontSize: '10px', color: '#9aa6cc',
+        });
+        if (row.statusDetail) {
+          this.add.text(360, y + 14, row.statusDetail, {
+            fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
+          });
+        }
+        this.add.text(50, y + 40, row.effectSummary, {
+          fontFamily: 'monospace', fontSize: '10px', color: '#666666',
+        });
+        y += WEAPON_ART_ROW_H;
       }
-      this.add.text(50, y + 40, row.effectSummary, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#666666',
-      });
-      y += WEAPON_ART_ROW_H;
+      y += WEAPON_ART_SECTION_GAP_H;
     }
   }
 
@@ -889,7 +915,17 @@ export class HomeBaseScene extends Phaser.Scene {
   _estimateTabContentHeight(category) {
     if (category === 'weapon_arts') {
       const rows = this._getWeaponArtRows();
-      return 18 + (Math.max(1, rows.length) * WEAPON_ART_ROW_H);
+      if (rows.length <= 0) return 36;
+      const unlockedNow = rows.filter((row) => row.status === 'Unlocked' || row.status === 'Meta Unlocked').length;
+      const unlocksLater = rows.filter((row) => row.status.startsWith('Unlocks in')).length;
+      const rankGated = rows.filter((row) => row.status === 'Requires Prof' || row.status === 'Requires Mast').length;
+      const invalid = rows.filter((row) => row.status === 'Invalid unlock act').length;
+      const counts = [unlockedNow, unlocksLater, rankGated, invalid].filter((n) => n > 0);
+      const rowCount = unlockedNow + unlocksLater + rankGated + invalid;
+      const sectionCount = counts.length;
+      const sectionHeaderHeight = sectionCount * WEAPON_ART_SECTION_HEADER_H;
+      const sectionGapHeight = sectionCount * WEAPON_ART_SECTION_GAP_H;
+      return 36 + sectionHeaderHeight + sectionGapHeight + (rowCount * WEAPON_ART_ROW_H);
     }
 
     if (category === 'starting_skills') {
