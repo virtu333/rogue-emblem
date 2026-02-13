@@ -2,7 +2,7 @@
 
 Date: 2026-02-13  
 Owner: gameplay roadmap stream  
-Status: Phase 1 READY — executing Phase 2 next
+Status: Phase 3 shipped; Phase 4 reinforcement integration in progress
 
 ## Goal
 
@@ -25,11 +25,10 @@ Ship meaningful new content earlier by inserting Act 4 into Hard mode before Def
 
 ## Baseline Gaps (Read-Only Audit)
 
-- Objective runtime supports Rout/Seize only.
-- Reinforcement fields exist in data but no live gameplay scheduler is active.
-- Terrain data does not yet include Act 4 hazard entries.
-- Core act sequence still ends at `finalBoss`; no `act4` entry in run sequence.
-- No biome-to-tileset production pipeline for Tundra/Volcano is formalized.
+- Objective runtime still supports Rout/Seize only (Defend/Survive/Escape remain intentionally deferred).
+- Fixed-boss scripted reinforcement exception path is not wired yet.
+- Reinforcement anti-farm balancing + full merge-gate validation are still in progress.
+- Biome-to-tileset production remains incremental (pipeline/process exists; content expansion continues).
 
 ## Canonical Act 4 Terrain Direction
 
@@ -293,9 +292,9 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 | Phase | Status | Date |
 |-------|--------|------|
 | Phase 1: Contract Alignment | **READY** | 2026-02-13 |
-| Phase 2: Terrain Hazards + Tilesets | Pending | — |
-| Phase 3: Act 4 Progression | Pending | — |
-| Phase 4: Reinforcement System | Pending | — |
+| Phase 2: Terrain Hazards + Tilesets | **READY** | 2026-02-13 |
+| Phase 3: Act 4 Progression | **READY** | 2026-02-13 |
+| Phase 4: Reinforcement System | **IN PROGRESS** | 2026-02-13 |
 
 ### Phase 1 Completion Notes
 

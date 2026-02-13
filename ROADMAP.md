@@ -14,36 +14,32 @@ Organized by impact and logical sequencing:
 3. ~~**Anti-Juggernaut & Balance (Wave 0)**~~ - XP scaling, Sunder weapons, enemy skills, shop frequency
 4. ~~**Church Upgrades**~~ - Heal/Revive/Promote 3-service menu
 5. ~~**Playtest Fixes (Feb 2026)**~~ - Weapon reference integrity, proficiency enforcement, music overlap, volume curve, recruit spawn bias
-6. ~~**Playtest Fixes (Feb 2026, follow-up batch)**~~ - Recruit card mojibake separator fix, fort guard AI assignment restricted to seize maps, touch-down battle tap targeting, fog-of-war undo visibility fix, Master Seal-required battle promotion, battle music overlap self-heal, meta currency cloud-sync hardening
+6. ~~**Playtest Fixes (Feb 2026, follow-up batch)**~~ - Recruit card mojibake, fort guard AI, touch tap targeting, fog undo, Master Seal gating, music overlap recovery, cloud-sync hardening
+6a. ~~**Wave 1 Stabilization Gate**~~ - Audio overlap, scene-transition spam, save/cloud correctness
+6b. ~~**Wave 2 Low-Risk Content**~~ - Enemy affixes, recruit naming/dialogue scaffold
+6c. ~~**Wave 3B Convoy MVP + Wave 3A Wyvern Foundation**~~ - Convoy 5+5 slots, Wyvern classes, enemy/recruit pools
+6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - 39 of 67 arts, stat-scaling, magic catalog, tactical-depth arts
+6e. ~~**Scene-Router + transition hardening**~~ - SceneRouter, SceneGuard, cleanup audits, leak-gate e2e
 
 ### Now (Current Sprint)
-7. **Wave 1: Stabilization Gate (P0)** - Treat audio overlap, scene-transition spam races, and save/cloud correctness as a mandatory release gate before major feature merges.
-8. **Wave 2: Low-Risk / High-Impact Content (P0-P1)** - Ship enemy affixes + recruit naming/dialogue scaffolding with deterministic tests and no startup/audio regressions.
-9. **AI reliability pass (P0)** - Continue long-distance enemy engagement hardening and targeted regression coverage (fort/river-crossing edge cases).
-10. **Regression harness expansion (P1)** - Keep battle + full-run harness parity as a merge gate for scene/run-state/difficulty changes.
-11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, and full transition QA after each merge batch.
-12. **Scene-Router + transition hardening (P0)** - Centralize scene lifecycle transitions, enforce cleanup contracts, and add post-transition leak checks before any new feature merge.
+7. **Act 4 Hard-Mode Acceleration** - Contract alignment -> terrain hazards + tilesets -> Act 4 progression -> reinforcement system. Phase-gated rollout: `docs/act4-hardmode-rollout-plan.md`. GDD vision docs: `docs/gdd/`.
 
 ### Next (1-3 Months)
-13. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
-14. **Wave 3A: Wyvern Foundation (Reclass Deferred)** - Wyvern Rider/Lord integration, enemy/recruit pool integration, and loot table structure alignment. Explicitly defer Second Seal/Reclass rules and UI.
-15. **Wave 4: Weapon Arts (phased)** - Foundation -> acquisition/meta -> enemy/legendary arts -> polish/balance.
-16. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
-17. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
-18. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
-19. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
+9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency. Natural follow-on after Act 4 extends the run length.
+10. **Difficulty Follow-up (Part B+)** - Balance iteration, Lunatic rollout timing, expanded difficulty-aware tuning hooks after Act 4 stabilizes.
+11. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
+12. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `docs/specs/difficulty_spec.md` section 10)
 
 ### Later (3-6+ Months)
-12. **Act 4 Hard-Mode Acceleration** - Contract alignment -> terrain hazards + tilesets -> Act 4 progression -> reinforcement system (See `docs/act4-hardmode-rollout-plan.md`)
-13. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `docs/specs/difficulty_spec.md` section 10)
-14. **Additional Map Objectives (Deferred)** - Defend, Survive, Escape after Act 4 stabilization
-15. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `docs/specs/difficulty_spec.md` section 5-6)
+13. **Additional Map Objectives** - Defend, Survive, Escape after Act 4 stabilization
+14. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `docs/specs/difficulty_spec.md` section 5-6)
+15. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve (seize maps already cover much of this niche)
 16. **Meta-Progression Expansion** - Full GDD section 9.2 vision + Act 4/Lunatic-specific sinks
 17. **QoL** - Undo movement, battle log, battle speed (ongoing)
 18. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
 19. **Special Characters** + Lord selection
 20. **Full battle animations**
-21. **Additional biomes** (volcanic, void, cave, castle per act - See `docs/specs/difficulty_spec.md` section 8)
+21. **Additional biomes** (coastal, desert, cave, castle per act - See `docs/gdd/gdd_biomes_maps.md`)
 22. **Campaign system**
 23. **Endless mode + Lunatic+** - Post-Lunatic content (See `docs/specs/difficulty_spec.md` section 12.3)
 
@@ -148,8 +144,15 @@ QA evidence (Feb 12, 2026):
 
 ---
 
-## LATER: Content Expansion (Act 4 First)
-- Act 4 rollout order and scope lock: `docs/act4-hardmode-rollout-plan.md`
+## NOW: Act 4 Hard-Mode Acceleration
+
+- **Rollout plan:** `docs/act4-hardmode-rollout-plan.md` (4 phases, phase-gated)
+- **GDD vision docs:** `docs/gdd/` (ported from GDDExpansion, with implementation status headers)
+- **Spec:** `docs/specs/difficulty_spec.md` §8 (Act 4 Hard+ Only)
+- Phase 1 (Contract Alignment): READY — doc alignment complete
+- Phase 2 (Terrain Hazards + Tilesets): shipped on `main`
+- Phase 3 (Act 4 Progression): shipped on `main`
+- Phase 4 (Reinforcement System): in progress (slices 1-3 active)
 
 ### Wave 7: Additional Map Objectives (Deferred)
 **Priority:** Medium - Adds battle variety
@@ -177,15 +180,14 @@ QA evidence (Feb 12, 2026):
 
 ---
 
-### Wave 9: Special Terrain Hazards
-**Priority:** Low-Medium - Adds map variety, but content-heavy
-**Effort:** 1-2 weeks
+### Wave 9: Special Terrain Hazards - Shipped
+**Status:** Complete on `main` (Phase 2 of Act 4 acceleration)
 
 #### 9A: New Terrain Types
-- [ ] Add to terrain.json: Ice (sliding), Lava Crack (end-turn damage)
-- [ ] Implement hazard behavior in Grid/turn flow (movement preview + deterministic resolution)
-- [ ] Add terrain to mapTemplates.json (Tundra + Volcano biome templates)
-- [ ] Add biome-specific tilesets/art mapping for new terrains
+- [x] Add to terrain.json: Ice (sliding), Lava Crack (end-turn damage)
+- [x] Implement hazard behavior in Grid/turn flow (movement preview + deterministic resolution)
+- [x] Add terrain to mapTemplates.json (Tundra + Volcano biome templates)
+- [x] Add biome-specific tilesets/art mapping for new terrains
 - [ ] Defer Cracked Floor/Pit/Rift Portal and Quicksand to later extension scope
 
 #### 9B: Boss Arena Features
@@ -193,8 +195,8 @@ QA evidence (Feb 12, 2026):
 - [ ] Keep fixed boss encounters as explicit exception to generic reinforcement contract
 
 **Success Criteria:**
+- [x] Terrain hazards create tactical decisions (risk damage for shortcut?)
 - [ ] Boss battles feel unique and memorable
-- [ ] Terrain hazards create tactical decisions (risk damage for shortcut?)
 
 ---
 
@@ -262,8 +264,8 @@ QA evidence (Feb 12, 2026):
 - **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
 - **Special Characters** - Named units with fixed growths and personal skills, unlocked via meta-progression
 - **Monetization** - If commercial: cosmetic palette swaps, campaign DLC. Never sell gameplay advantages
-- **Mobile Web Support** - Release target remains deferred until core gameplay stabilizes, but architecture guardrails are active now: avoid hardcoded 640x480 layout assumptions in new work, centralize scene/layout scaling math, and add touch-parity input paths for new controls so mobile delivery stays incremental later.
-- **iOS Port** - Capacitor wrapper after mobile web support stable (6-week effort, see `docs/ios-port-spec.md`)
+- **Mobile Web Support** - Spec complete: `docs/mobile-controls-spec.md`. Approach: HTML overlay panels in landscape letterbox space (no d-pad, no canvas changes). Context-sensitive action buttons replace all 11 keyboard shortcuts. Hidden on desktop. ~16-21 hour effort. Architecture guardrails active now: avoid hardcoded 640x480 layout assumptions in new work, centralize scene/layout scaling math, and add touch-parity input paths for new controls.
+- **iOS Port** - Capacitor wrapper after mobile web support stable (6-week effort, see `docs/ios-port-spec.md`). Mobile controls HTML overlay works identically in Capacitor's WKWebView — no additional changes needed.
 
 ---
 
@@ -284,6 +286,7 @@ QA evidence (Feb 12, 2026):
 ### Why Enforce Mobile-Safe Architecture Now (Even With Mobile Deferred)?
 - Deferring mobile release is fine; deferring mobile-safe architecture is expensive. New gameplay/UI work must avoid locking in desktop-only assumptions so eventual mobile support does not require scene rewrites.
 - Guardrail policy for new features: avoid fixed-canvas literals in feature logic/layout placement, route controls through reusable input abstractions, and ensure every keyboard-only action has a clickable/touch-capable equivalent.
+- Mobile controls spec (`docs/mobile-controls-spec.md`) defines the HTML overlay approach: landscape-only, context-sensitive buttons in letterbox side panels, Phaser game event bridge. Implementation is independent of Act 4 and can proceed in parallel.
 
 ### Asset Source of Truth Policy
 - `assets/` is the canonical source of truth for game assets.
@@ -305,12 +308,14 @@ QA evidence (Feb 12, 2026):
 3. ~~**Wave 2** (Map Generation Enhancements)~~ [done] Done
 4. ~~**Wave 6** (Blessings)~~ [done] Core + telemetry integration merged on `main`
 5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
-6. **Wave 1 Stabilization Gate** (audio/scene/save/cloud + transition spam QA + merge gates)
-7. **Wave 1.5 Reliability Hardening** (SceneRouter + transition leak + crash traceability)
-8. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
-9. **Wave 3B** (Convoy MVP, landing) -> **Wave 3A** (Wyvern foundation, reclass deferred)
-10. **Wave 4** (Weapon Arts phased rollout; priority after Wyvern integration)
-11. **After Wave 4 stability:** Elite/Miniboss Nodes -> Act 4 Hard-Mode Acceleration (contract -> terrain/tilesets -> act4 progression -> reinforcements) -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion
+6. ~~**Wave 1 Stabilization Gate**~~ [done] Audio/scene/save/cloud + transition spam QA + merge gates
+7. ~~**Wave 1.5 Reliability Hardening**~~ [done] SceneRouter + transition leak + crash traceability
+8. ~~**Wave 2 Low-Risk Content**~~ [done] Enemy affixes + recruit naming scaffold
+9. ~~**Wave 3B**~~ [done] Convoy MVP -> ~~**Wave 3A**~~ [done] Wyvern foundation (reclass deferred)
+10. ~~**Wave 4**~~ [done] Weapon Arts phases 1-2 (39 of 67 arts, stat-scaling, magic catalog, tactical-depth)
+11. **Act 4 Hard-Mode Acceleration** — Phase 1/2/3 shipped; Phase 4 reinforcement integration in progress. See `docs/act4-hardmode-rollout-plan.md`
+12. **Dynamic Recruit Nodes** — Roster-aware recruit frequency (after Act 4)
+13. **Difficulty Follow-up (Part B+)** -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion
 
 ## Deployment
 
