@@ -20,7 +20,7 @@
 - **Weapon Arts UX copy polish**: Help page now explicitly calls out that status text explains why an art is unavailable.
 - **QA playtest checklist added**: Added `docs/weapon_arts_playtest_checklist.md` as a repeatable smoke path for forecast parity, unlock-source behavior, requirement clarity, legendary/enemy guardrails, and difficulty sanity.
 - **Meta-innate spawn wiring**: Shop and battle-loot weapon generation now bind eligible meta-unlocked arts onto spawned Iron/Steel weapons (`meta_innate` source), with deterministic selection and regression tests.
-- **Meta unlock surfaced for spawn binding**: Added the `Arcane Etching` Home Base upgrade (`weapon_art_infusion`) to unlock the basic Sword/Lance/Axe/Bow arts for Iron/Steel spawn binding in future runs.
+- **Meta unlock surfaced for spawn binding**: Replaced legacy `Arcane Etching` (`weapon_art_infusion`) with `iron_arms` + `steel_arms` + `art_adept`; basic Sword/Lance/Axe/Bow arts now bind to eligible Iron/Steel spawns via the new upgrades, with legacy key support retained only for save migration.
 - **Wyvern foundation (no reclass)**: Added Wyvern Rider/Lord integration and deterministic coverage while explicitly deferring Second Seal/reclass scope.
 - **Wyvern hardening follow-up**: Promotion/load paths now normalize class-driven state (`moveType`, `mov` sync, tier/proficiencies) to prevent legacy drift; post-normalization weapon relink ensures equipped weapons remain legal.
 - **Convoy MVP landed**: Added convoy storage + overflow routing with hardened transaction paths for shop overflow and battle loot pickup failure cases.
