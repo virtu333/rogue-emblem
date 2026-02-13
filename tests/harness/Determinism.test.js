@@ -52,4 +52,47 @@ describe('Determinism', () => {
       JSON.stringify(run1.actions) !== JSON.stringify(run2.actions);
     expect(differ).toBe(true);
   });
+
+  it('act4 reinforcement scenario is deterministic for same seed', async () => {
+    const fixture = {
+      id: 'act4_reinforcement_determinism',
+      roster: null,
+      battleParams: {
+        act: 'act4',
+        objective: 'rout',
+        row: 3,
+        templateId: 'frozen_pass',
+        difficultyMod: 1.0,
+        difficultyId: 'normal',
+        reinforcementTurnOffset: -2,
+      },
+    };
+    const factory = (driver) => new ScriptedAgent(driver);
+
+    const run1 = await new ScenarioRunner(777, fixture, factory).run(2200);
+    const run2 = await new ScenarioRunner(777, fixture, factory).run(2200);
+
+    expect(run1.actions).toEqual(run2.actions);
+    expect(run1.result).toBe(run2.result);
+    expect(run1.failure).toEqual(run2.failure);
+  });
+
+  it('ScenarioRunner injects default runSeed/nodeId for harness-runtime seed parity', async () => {
+    const fixture = loadFixture('act1_rout_basic');
+    let capturedParams = null;
+    const factory = (driver) => {
+      capturedParams = {
+        runSeed: driver?.battle?.battleParams?.runSeed,
+        nodeId: driver?.battle?.battleParams?.nodeId,
+      };
+      return new ScriptedAgent(driver);
+    };
+
+    await new ScenarioRunner(12345, fixture, factory).run(1);
+
+    expect(capturedParams).toEqual({
+      runSeed: 12345 >>> 0,
+      nodeId: fixture.id,
+    });
+  });
 });

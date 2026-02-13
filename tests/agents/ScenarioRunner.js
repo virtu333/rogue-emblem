@@ -25,6 +25,13 @@ export class ScenarioRunner {
       }
 
       const battleParams = { ...this.fixture.battleParams };
+      if (!Number.isFinite(battleParams.runSeed)) {
+        const seedValue = Number(this.seed);
+        battleParams.runSeed = Number.isFinite(seedValue) ? (seedValue >>> 0) : 0;
+      }
+      if (battleParams.nodeId == null || battleParams.nodeId === '') {
+        battleParams.nodeId = String(this.fixture.id || `${battleParams.act || 'battle'}:${battleParams.objective || 'rout'}`);
+      }
       const driver = new GameDriver(gameData, battleParams, roster);
 
       try {
