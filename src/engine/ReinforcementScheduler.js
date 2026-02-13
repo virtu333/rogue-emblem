@@ -104,6 +104,17 @@ function getTemplateTurnOffset(reinforcements, difficultyId) {
   return normalizeInteger(reinforcements?.turnOffsetByDifficulty?.[difficultyId], 0);
 }
 
+export function getReinforcementTurnJitter(reinforcements) {
+  const range = reinforcements?.turnJitter;
+  if (!Array.isArray(range) || range.length !== 2) return [0, 0];
+  let minDelta = normalizeInteger(range[0], 0);
+  let maxDelta = normalizeInteger(range[1], 0);
+  if (maxDelta < minDelta) {
+    [minDelta, maxDelta] = [maxDelta, minDelta];
+  }
+  return [minDelta, maxDelta];
+}
+
 function getXpMultiplier(reinforcements, waveIndex) {
   const xpDecay = Array.isArray(reinforcements?.xpDecay) ? reinforcements.xpDecay : null;
   if (!xpDecay || xpDecay.length === 0) return 1.0;
@@ -128,8 +139,39 @@ export function createSeededRng(seed) {
   };
 }
 
+export function rollWaveTurnJitter({
+  seed = 0,
+  waveIndex = 0,
+  turnJitter = [0, 0],
+} = {}) {
+  const [minDelta, maxDelta] = Array.isArray(turnJitter) && turnJitter.length === 2
+    ? turnJitter
+    : [0, 0];
+  const min = normalizeInteger(minDelta, 0);
+  const max = normalizeInteger(maxDelta, min);
+  if (max <= min) return min;
+
+  const waveSeed = mixSeed(normalizeInteger(seed, 0), normalizeInteger(waveIndex, 0));
+  const rng = createSeededRng(waveSeed);
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+export function resolveScheduledTurn({
+  baseTurn,
+  totalOffset = 0,
+  seed = 0,
+  waveIndex = 0,
+  turnJitter = [0, 0],
+} = {}) {
+  const normalizedBaseTurn = normalizeInteger(baseTurn, 0);
+  if (normalizedBaseTurn <= 0) return 0;
+  const jitter = rollWaveTurnJitter({ seed, waveIndex, turnJitter });
+  return Math.max(1, normalizedBaseTurn + normalizeInteger(totalOffset, 0) + jitter);
+}
+
 export function getDueReinforcementWaves({
   turn,
+  seed = 0,
   reinforcements,
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
@@ -140,13 +182,20 @@ export function getDueReinforcementWaves({
   const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
   const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
   const totalOffset = globalOffset + templateOffset;
+  const turnJitter = getReinforcementTurnJitter(reinforcements);
 
   const due = [];
   for (let waveIndex = 0; waveIndex < reinforcements.waves.length; waveIndex++) {
     const wave = reinforcements.waves[waveIndex];
     const baseTurn = normalizeInteger(wave?.turn, 0);
     if (baseTurn <= 0) continue;
-    const scheduledTurn = Math.max(1, baseTurn + totalOffset);
+    const scheduledTurn = resolveScheduledTurn({
+      baseTurn,
+      totalOffset,
+      seed,
+      waveIndex,
+      turnJitter,
+    });
     if (scheduledTurn !== currentTurn) continue;
     due.push({
       waveIndex,
@@ -215,6 +264,7 @@ export function scheduleReinforcementsForTurn({
 } = {}) {
   const dueWaves = getDueReinforcementWaves({
     turn,
+    seed,
     reinforcements,
     difficultyId,
     difficultyTurnOffset,

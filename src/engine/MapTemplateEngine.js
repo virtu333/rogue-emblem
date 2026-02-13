@@ -85,6 +85,21 @@ function validateTurnOffsets(path, offsets, errors) {
   }
 }
 
+function validateTurnJitter(path, turnJitter, errors) {
+  if (!Array.isArray(turnJitter) || turnJitter.length !== 2) {
+    errors.push(`${path} must be [minDelta,maxDelta] integers`);
+    return;
+  }
+  const [minDelta, maxDelta] = turnJitter;
+  if (!isInteger(minDelta) || !isInteger(maxDelta)) {
+    errors.push(`${path} must be [minDelta,maxDelta] integers`);
+    return;
+  }
+  if (minDelta > maxDelta) {
+    errors.push(`${path} must satisfy minDelta <= maxDelta`);
+  }
+}
+
 function validateXpDecay(path, xpDecay, errors) {
   if (!Array.isArray(xpDecay) || xpDecay.length === 0) {
     errors.push(`${path} must be a non-empty array`);
@@ -133,12 +148,13 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     'turnOffsetByDifficulty',
     'xpDecay',
   ]);
+  const knownKeys = new Set([...requiredKeys, 'turnJitter']);
   for (const key of requiredKeys) {
     if (!(key in reinforcements)) {
       errors.push(`${path}.reinforcements missing required key: ${key}`);
     }
   }
-  if (!hasOnlyKnownKeys(reinforcements, requiredKeys)) {
+  if (!hasOnlyKnownKeys(reinforcements, knownKeys)) {
     errors.push(`${path}.reinforcements contains unknown keys`);
   }
 
@@ -157,6 +173,9 @@ function validateReinforcements(path, template, strict, errors, warnings) {
   }
 
   validateTurnOffsets(`${path}.reinforcements.turnOffsetByDifficulty`, reinforcements.turnOffsetByDifficulty, errors);
+  if (reinforcements.turnJitter !== undefined) {
+    validateTurnJitter(`${path}.reinforcements.turnJitter`, reinforcements.turnJitter, errors);
+  }
   validateXpDecay(`${path}.reinforcements.xpDecay`, reinforcements.xpDecay, errors);
 }
 

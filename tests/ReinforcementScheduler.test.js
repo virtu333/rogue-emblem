@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectEdgeSpawnCandidates,
+  getReinforcementTurnJitter,
   getDueReinforcementWaves,
+  resolveScheduledTurn,
+  rollWaveTurnJitter,
   scheduleReinforcementsForTurn,
 } from '../src/engine/ReinforcementScheduler.js';
 
@@ -22,6 +25,32 @@ const terrainData = [
 ];
 
 describe('ReinforcementScheduler', () => {
+  describe('turn jitter helpers', () => {
+    it('normalizes absent turnJitter to [0,0]', () => {
+      expect(getReinforcementTurnJitter({})).toEqual([0, 0]);
+    });
+
+    it('rolls deterministic per-wave jitter for same seed and wave index', () => {
+      const a = rollWaveTurnJitter({ seed: 777, waveIndex: 1, turnJitter: [-1, 1] });
+      const b = rollWaveTurnJitter({ seed: 777, waveIndex: 1, turnJitter: [-1, 1] });
+      expect(a).toBe(b);
+    });
+
+    it('varies due-turn timing across seed samples when jitter range is non-zero', () => {
+      const observed = new Set();
+      for (let seed = 1; seed <= 16; seed++) {
+        observed.add(resolveScheduledTurn({
+          baseTurn: 5,
+          totalOffset: 0,
+          seed,
+          waveIndex: 0,
+          turnJitter: [-1, 1],
+        }));
+      }
+      expect(observed.size).toBeGreaterThan(1);
+    });
+  });
+
   describe('getDueReinforcementWaves', () => {
     it('applies template and global turn offsets deterministically', () => {
       const reinforcements = {
@@ -51,6 +80,51 @@ describe('ReinforcementScheduler', () => {
       });
       expect(hardTurn3WithGlobal.map((w) => w.waveIndex)).toEqual([1]);
       expect(hardTurn3WithGlobal[0].scheduledTurn).toBe(3);
+    });
+
+    it('keeps legacy fixed-turn behavior when turnJitter is absent', () => {
+      const reinforcements = {
+        spawnEdges: ['right'],
+        waves: [{ turn: 3, count: [1, 1] }],
+        difficultyScaling: true,
+        turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+        xpDecay: [1.0],
+      };
+      const dueAt3 = getDueReinforcementWaves({
+        turn: 3,
+        seed: 999,
+        reinforcements,
+        difficultyId: 'normal',
+      });
+      const dueAt2 = getDueReinforcementWaves({
+        turn: 2,
+        seed: 999,
+        reinforcements,
+        difficultyId: 'normal',
+      });
+
+      expect(dueAt3.map((w) => w.waveIndex)).toEqual([0]);
+      expect(dueAt3[0].scheduledTurn).toBe(3);
+      expect(dueAt2).toEqual([]);
+    });
+
+    it('resolves identical due turns for same seed and jitter config', () => {
+      const reinforcements = {
+        spawnEdges: ['right'],
+        waves: [{ turn: 4, count: [1, 1] }],
+        difficultyScaling: true,
+        turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+        turnJitter: [-1, 1],
+        xpDecay: [1.0],
+      };
+      const passA = [];
+      const passB = [];
+      for (let turn = 1; turn <= 8; turn++) {
+        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0) passA.push(turn);
+        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0) passB.push(turn);
+      }
+      expect(passA).toEqual(passB);
+      expect(passA).toHaveLength(1);
     });
 
     it('does not apply template difficulty offset when difficultyScaling is disabled', () => {

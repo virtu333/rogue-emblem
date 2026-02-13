@@ -28,6 +28,34 @@ function setsEqual(a, b) {
   return true;
 }
 
+function getDueTurnSearchUpperBound(battle) {
+  const waves = battle?.battleConfig?.reinforcements?.waves || [];
+  if (!waves.length) return 1;
+
+  let maxWaveTurn = 1;
+  for (const wave of waves) {
+    if (Number.isInteger(wave?.turn)) maxWaveTurn = Math.max(maxWaveTurn, wave.turn);
+  }
+
+  const reinforcementTurnOffset = Number.isInteger(battle?.difficultyModel?.reinforcementTurnOffset)
+    ? battle.difficultyModel.reinforcementTurnOffset
+    : 0;
+  const turnJitter = battle?.battleConfig?.reinforcements?.turnJitter;
+  const maxJitter = (Array.isArray(turnJitter) && turnJitter.length === 2 && Number.isInteger(turnJitter[1]))
+    ? turnJitter[1]
+    : 0;
+
+  return Math.max(1, maxWaveTurn + reinforcementTurnOffset + maxJitter + 5);
+}
+
+function findFirstDueTurn(battle) {
+  const upperBound = getDueTurnSearchUpperBound(battle);
+  for (let turn = 1; turn <= upperBound; turn++) {
+    if ((battle._resolveReinforcementsForTurn(turn)?.dueWaves?.length || 0) > 0) return turn;
+  }
+  return null;
+}
+
 describe('HeadlessBattle', () => {
   let gameData;
 
@@ -315,8 +343,11 @@ describe('HeadlessBattle', () => {
     battle.init();
     battle.aiController.processEnemyPhase = async () => {};
 
+    const dueTurn = findFirstDueTurn(battle);
+    expect(dueTurn).not.toBeNull();
+
     const before = battle.enemyUnits.length;
-    battle.turnManager.turnNumber = 3;
+    battle.turnManager.turnNumber = dueTurn;
     battle.turnManager.currentPhase = 'enemy';
     battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
 
@@ -338,11 +369,6 @@ describe('HeadlessBattle', () => {
     });
     withOffset.init();
     withOffset.aiController.processEnemyPhase = async () => {};
-    const withOffsetBefore = withOffset.enemyUnits.length;
-    withOffset.turnManager.turnNumber = 2;
-    withOffset.turnManager.currentPhase = 'enemy';
-    withOffset.battleState = HEADLESS_STATES.ENEMY_PHASE;
-    await withOffset._processEnemyPhase();
 
     const withoutOffset = new HeadlessBattle(gameData, {
       act: 'act4',
@@ -355,8 +381,20 @@ describe('HeadlessBattle', () => {
     });
     withoutOffset.init();
     withoutOffset.aiController.processEnemyPhase = async () => {};
+    const withOffsetDueTurn = findFirstDueTurn(withOffset);
+    const withoutOffsetDueTurn = findFirstDueTurn(withoutOffset);
+    expect(withOffsetDueTurn).not.toBeNull();
+    expect(withoutOffsetDueTurn).not.toBeNull();
+    expect(withOffsetDueTurn).toBe(withoutOffsetDueTurn - 1);
+
+    const withOffsetBefore = withOffset.enemyUnits.length;
+    withOffset.turnManager.turnNumber = withOffsetDueTurn;
+    withOffset.turnManager.currentPhase = 'enemy';
+    withOffset.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    await withOffset._processEnemyPhase();
+
     const withoutOffsetBefore = withoutOffset.enemyUnits.length;
-    withoutOffset.turnManager.turnNumber = 2;
+    withoutOffset.turnManager.turnNumber = withOffsetDueTurn;
     withoutOffset.turnManager.currentPhase = 'enemy';
     withoutOffset.battleState = HEADLESS_STATES.ENEMY_PHASE;
     await withoutOffset._processEnemyPhase();
