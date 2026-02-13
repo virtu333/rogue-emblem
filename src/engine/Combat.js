@@ -13,6 +13,7 @@ import { rollDefenseAffixes } from './AffixSystem.js';
 
 const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light']);
+const IS_DEV = Boolean(import.meta?.env?.DEV);
 
 function normalizeCombatMods(mods) {
   if (!mods || typeof mods !== 'object') return null;
@@ -369,7 +370,11 @@ export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defend
     def = Math.floor(def / 2);
   }
   const terrainDef = parseInt(defenderTerrain?.defBonus, 10) || 0;
-  return Math.max(0, atk - def - terrainDef);
+  const result = Math.max(0, atk - def - terrainDef);
+  if (IS_DEV && Number.isNaN(result)) {
+    console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
+  }
+  return result;
 }
 
 /** True if attacker is fast enough to strike twice (after weight penalty) */
@@ -497,7 +502,7 @@ export function getCombatForecast(
     if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
   }
 
-  return {
+  const forecast = {
     attacker: {
       name: attacker.name, hp: attacker.currentHP ?? attacker.stats.HP,
       damage: atkDmg, hit: atkHit, crit: atkCrit,
@@ -516,6 +521,18 @@ export function getCombatForecast(
       warnings: defWarnings,
     },
   };
+
+  if (IS_DEV) {
+    for (const side of [forecast.attacker, forecast.defender]) {
+      for (const [k, v] of Object.entries(side)) {
+        if (typeof v === 'number' && Number.isNaN(v)) {
+          console.warn(`[Combat] NaN forecast.${k}:`, { unit: side.name });
+        }
+      }
+    }
+  }
+
+  return forecast;
 }
 
 // --- Combat Resolution (RNG rolls → event log) ---

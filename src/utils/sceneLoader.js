@@ -1,5 +1,25 @@
 import { markStartup } from './startupTelemetry.js';
 
+export const TRANSITION_REASONS = {
+  BATTLE_COMPLETE: 'battle_complete',
+  VICTORY: 'victory',
+  DEFEAT: 'defeat',
+  ENTER_BATTLE: 'enter_battle',
+  BEGIN_RUN: 'begin_run',
+  SAVE_EXIT: 'save_exit',
+  ABANDON_RUN: 'abandon_run',
+  BOOT: 'boot',
+  BACK: 'back',
+};
+
+function captureResourceSnapshot(scene) {
+  let sounds = 0;
+  let tweens = 0;
+  try { sounds = scene?.game?.sound?.sounds?.filter(s => s?.isPlaying)?.length || 0; } catch (_) {}
+  try { tweens = scene?.tweens?.getTweens()?.length || 0; } catch (_) {}
+  return { sounds, tweens };
+}
+
 const SCENE_LOADERS = {
   Title: () => import('../scenes/TitleScene.js').then(m => m.TitleScene),
   SlotPicker: () => import('../scenes/SlotPickerScene.js').then(m => m.SlotPickerScene),
@@ -75,8 +95,19 @@ export async function ensureSceneLoaded(scene, key) {
   markStartup('scene_lazy_load_complete', { key });
 }
 
-export async function startSceneLazy(scene, key, data = undefined) {
+export async function startSceneLazy(scene, key, data = undefined, { reason } = {}) {
   if (!scene || !key) return false;
+  const sourceKey = scene?.sys?.settings?.key || null;
+
+  // Build transition metadata early so all exit paths can clean it up
+  const meta = {
+    reason: reason || null,
+    pre: null,
+    from: sourceKey,
+    to: key,
+    token: Date.now(),
+  };
+
   const now = Date.now();
   if (now < globalSceneStartCooldownUntil) {
     markAudioDiag(scene, 'transition_blocked_cooldown', { targetScene: key });
@@ -117,6 +148,12 @@ export async function startSceneLazy(scene, key, data = undefined) {
     } catch (_) {}
   };
 
+  const cleanupMeta = () => {
+    if (globalThis.__sceneState?._pendingTransitionMeta?.token === meta.token) {
+      globalThis.__sceneState._pendingTransitionMeta = null;
+    }
+  };
+
   try {
     await ensureSceneLoaded(scene, key);
     const isActive = typeof scene.sys?.isActive === 'function'
@@ -126,6 +163,15 @@ export async function startSceneLazy(scene, key, data = undefined) {
       markAudioDiag(scene, 'transition_blocked_inactive_source', { targetScene: key });
       return false;
     }
+
+    // Capture pre-snapshot AFTER lock acquired, BEFORE scene.start()
+    meta.pre = captureResourceSnapshot(scene);
+
+    // Write metadata for SceneGuard to merge on the success path
+    if (globalThis.__sceneState) {
+      globalThis.__sceneState._pendingTransitionMeta = meta;
+    }
+
     scene.scene.start(key, data);
     started = true;
     globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
@@ -133,6 +179,7 @@ export async function startSceneLazy(scene, key, data = undefined) {
     scheduleRelease();
     return true;
   } catch (err) {
+    cleanupMeta();
     markAudioDiag(scene, 'transition_error', {
       targetScene: key,
       message: err?.message || String(err),
@@ -141,6 +188,7 @@ export async function startSceneLazy(scene, key, data = undefined) {
     return false;
   } finally {
     if (!started) {
+      cleanupMeta();
       markAudioDiag(scene, 'transition_aborted', { targetScene: key });
       releaseTransitionLock();
     }

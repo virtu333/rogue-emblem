@@ -4,6 +4,8 @@
 // transition history, sound/tween counts, battle state, overlay visibility,
 // and runtime invariants.
 
+import { cleanupScene } from './sceneCleanup.js';
+
 // --- Overlay registries per scene (property → detection strategy) ---
 // 'visible'  = object with .visible boolean (persistent or null-pattern with .visible)
 // 'truthy'   = null when closed, truthy object when open (no .visible)
@@ -42,6 +44,21 @@ const SOUND_LEAK_THRESHOLD = 3;
 const SOUND_LEAK_TRANSITION_THRESHOLD = 3; // absolute check after scene transition
 const SNAPSHOT_INTERVAL = 30; // frames between periodic checks
 
+// Ring buffer capacity for crash trace
+const RING_BUFFER_CAP = 50;
+
+// Per-scene tween tolerance for transition leak detection
+// (some scenes have heavier entry animations)
+const TRANSITION_TWEEN_TOLERANCE = {
+  Battle: 15,   // deploy screen animations
+  Title: 20,    // animated background, menu entry animations
+  _default: 10,
+};
+
+// Module-level guard — prevents duplicate crash dump listeners across
+// multiple installSceneGuard() calls (defensive, normally called once).
+let _crashDumpInstalled = false;
+
 // Battle states considered "blocking" (game shouldn't show overlays during these)
 const BLOCKING_STATES = new Set([
   'COMBAT_RESOLVING', 'HEAL_RESOLVING', 'UNIT_MOVING', 'ENEMY_PHASE',
@@ -56,7 +73,7 @@ const BLOCKING_STATES = new Set([
 export function installSceneGuard(game) {
   const state = {
     activeScene: null,
-    history: [],      // last 20 transitions: { from, to, ts }
+    history: [],      // last 20 transitions: { from, to, ts, reason?, pre?, post? }
     sounds: 0,        // currently playing sound count
     tweens: 0,        // active tween count in current scene
     errors: [],       // invariant violation strings (capped at MAX_ERRORS)
@@ -77,6 +94,12 @@ export function installSceneGuard(game) {
       state: null,         // IDLE | SHOP | CHURCH | ROSTER | PAUSED | SETTINGS | DEBUG | FORGE_PICKER | UNIT_PICKER
       activeShopTab: null, // 'buy' | 'sell' | 'forge' | null
     },
+
+    // Transition metadata (set by sceneLoader, consumed in create handler)
+    _pendingTransitionMeta: null,
+
+    // Ring buffer for crash trace
+    _ringBuffer: [],
   };
   window.__sceneState = state;
 
@@ -86,6 +109,33 @@ export function installSceneGuard(game) {
   const recentErrors = new Map(); // key → last timestamp
 
   const hooked = new Set();
+
+  // --- Ring buffer ---
+
+  function pushEvent(type, data) {
+    state._ringBuffer.push({ type, ts: Date.now(), d: data });
+    if (state._ringBuffer.length > RING_BUFFER_CAP) {
+      state._ringBuffer.shift();
+    }
+  }
+
+  // --- Crash dump (one-shot per page lifecycle) ---
+
+  function installCrashDump() {
+    if (_crashDumpInstalled) return;
+    _crashDumpInstalled = true;
+    const dump = () => {
+      const trace = state._ringBuffer.slice();
+      const tail = trace.slice(-10);
+      console.error('[SceneGuard] Crash trace (last 10):', tail);
+      console.error('[SceneGuard] Full trace:', trace);
+      window.__sceneTrace = trace;
+      window.__sceneTraceTail = tail;
+    };
+    window.addEventListener('error', dump);
+    window.addEventListener('unhandledrejection', dump);
+  }
+  installCrashDump();
 
   // --- Helpers ---
 
@@ -113,6 +163,7 @@ export function installSceneGuard(game) {
     if (last && now - last < DEDUP_WINDOW) return;
     recentErrors.set(key, now);
     state.errors.push(message);
+    pushEvent('invariant_error', { key, message });
   }
 
   // --- Overlay snapshot ---
@@ -185,6 +236,7 @@ export function installSceneGuard(game) {
         state.battle.prevState = prev;
         state.battle.stateChangedAt = Date.now();
         checkBattleInvariants(scene, prev, v);
+        pushEvent('battle_state', { from: prev, to: v });
       },
       configurable: true,
       enumerable: true,
@@ -229,6 +281,27 @@ export function installSceneGuard(game) {
     }
   }
 
+  // --- Transition leak detection (Chunk 3) ---
+
+  function checkTransitionLeaks(sceneKey, mergedMeta) {
+    if (!mergedMeta?.pre) return; // No pre-snapshot — skip check
+
+    const soundDelta = state.sounds - mergedMeta.pre.sounds;
+    const tweenTolerance = TRANSITION_TWEEN_TOLERANCE[sceneKey]
+      || TRANSITION_TWEEN_TOLERANCE._default;
+
+    if (soundDelta > SOUND_LEAK_TRANSITION_THRESHOLD) {
+      pushError('transition_sound_leak',
+        `transition_sound_leak: +${soundDelta} sounds after ` +
+        `${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`);
+    }
+    if (state.tweens > tweenTolerance) {
+      pushError('transition_tween_leak',
+        `transition_tween_leak: ${state.tweens} tweens (tolerance ${tweenTolerance}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`);
+    }
+  }
+
   // --- Scene hooks ---
 
   function hookScene(scene) {
@@ -255,6 +328,26 @@ export function installSceneGuard(game) {
         pushError('sound_leak', `sound_leak: ${state.sounds} playing after transition to ${key}`);
       }
 
+      // Merge transition metadata from sceneLoader (Chunk 1)
+      // Token + from/to match prevents stale meta from a prior transition
+      let mergedMeta = null;
+      const meta = state._pendingTransitionMeta;
+      if (meta && meta.token && meta.to === key && meta.from === prev) {
+        const last = state.history[state.history.length - 1];
+        last.reason = meta.reason;
+        last.pre = meta.pre;
+        last.post = { sounds: state.sounds, tweens: state.tweens };
+        mergedMeta = meta;
+      }
+      // Always clear — stale meta must never survive to next transition
+      state._pendingTransitionMeta = null;
+
+      // Transition leak detection (Chunk 3)
+      checkTransitionLeaks(key, mergedMeta);
+
+      // Ring buffer event
+      pushEvent('scene_create', { scene: key, from: prev, reason: mergedMeta?.reason });
+
       // Immediate overlay snapshot on create
       snapshotOverlays(scene, key);
 
@@ -272,6 +365,12 @@ export function installSceneGuard(game) {
       frameCounter = 0;
       scene.events.off('update', periodicUpdate); // clean old listener
       scene.events.on('update', periodicUpdate);
+
+      // Register cleanup AFTER scene's own shutdown handler
+      // (scene registers its handler in create, we register ours after)
+      scene.events.once('shutdown', () => {
+        cleanupScene(scene);
+      });
     });
 
     function periodicUpdate() {
@@ -305,6 +404,7 @@ export function installSceneGuard(game) {
     scene.events.on('shutdown', () => {
       scene.events.off('update', periodicUpdate);
       snapshot(scene);
+      pushEvent('scene_shutdown', { scene: key });
 
       // Null out scene-specific state
       if (key === 'Battle') {
