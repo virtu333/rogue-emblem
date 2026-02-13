@@ -566,32 +566,36 @@ export class HeadlessBattle {
   }
 
   _buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
-    if (scheduledSpawn && typeof scheduledSpawn.className === 'string') {
-      return {
-        className: scheduledSpawn.className,
-        level: Math.max(1, Math.trunc(Number(scheduledSpawn.level) || this._getEnemySpawnFallbackLevel())),
-        col: scheduledSpawn.col,
-        row: scheduledSpawn.row,
-        sunderWeapon: Boolean(scheduledSpawn.sunderWeapon),
-        aiMode: scheduledSpawn.aiMode || null,
-        affixes: Array.isArray(scheduledSpawn.affixes) ? [...scheduledSpawn.affixes] : [],
-      };
+    const classOverride = (scheduledSpawn && typeof scheduledSpawn.className === 'string')
+      ? scheduledSpawn.className
+      : null;
+
+    let template = null;
+    if (!classOverride) {
+      const templates = this._getReinforcementTemplatePool();
+      if (!Array.isArray(templates) || templates.length === 0) return null;
+      const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
+      template = templates[pickIndex];
+      if (!template || typeof template.className !== 'string') return null;
     }
 
-    const templates = this._getReinforcementTemplatePool();
-    if (!Array.isArray(templates) || templates.length === 0) return null;
-    const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
-    const template = templates[pickIndex];
-    if (!template) return null;
-
+    const className = classOverride || template.className;
+    const hasLevelOverride = Number.isFinite(scheduledSpawn?.level);
+    const baseLevel = template ? template.level : this._getEnemySpawnFallbackLevel();
     return {
-      className: template.className,
-      level: template.level,
+      className,
+      level: Math.max(1, Math.trunc(Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) || this._getEnemySpawnFallbackLevel())),
       col: scheduledSpawn.col,
       row: scheduledSpawn.row,
-      sunderWeapon: template.sunderWeapon,
-      aiMode: template.aiMode,
-      affixes: Array.isArray(template.affixes) ? [...template.affixes] : [],
+      sunderWeapon: typeof scheduledSpawn?.sunderWeapon === 'boolean'
+        ? scheduledSpawn.sunderWeapon
+        : Boolean(template?.sunderWeapon),
+      aiMode: typeof scheduledSpawn?.aiMode === 'string'
+        ? scheduledSpawn.aiMode
+        : (template?.aiMode || null),
+      affixes: Array.isArray(scheduledSpawn?.affixes)
+        ? [...scheduledSpawn.affixes]
+        : (Array.isArray(template?.affixes) ? [...template.affixes] : []),
     };
   }
 

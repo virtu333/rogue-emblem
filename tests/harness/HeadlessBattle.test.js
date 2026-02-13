@@ -430,6 +430,43 @@ describe('HeadlessBattle', () => {
     expect(spawned._reinforcementSpawnTurn).toBe(1);
   });
 
+  it('applies classless scripted metadata overrides when selecting from template pool', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+    });
+    battle.init();
+    battle.reinforcementTemplatePool = [{
+      className: 'Fighter',
+      level: 3,
+      sunderWeapon: false,
+      aiMode: 'rush',
+      affixes: ['template_affix'],
+    }];
+
+    const spec = battle._buildReinforcementSpawnSpec({
+      col: 1,
+      row: 1,
+      level: 9,
+      sunderWeapon: true,
+      aiMode: 'guard',
+      affixes: ['scripted_affix'],
+    }, 0);
+
+    expect(spec).toEqual({
+      className: 'Fighter',
+      level: 9,
+      col: 1,
+      row: 1,
+      sunderWeapon: true,
+      aiMode: 'guard',
+      affixes: ['scripted_affix'],
+    });
+  });
+
   it('reinforcementTurnOffset advances reinforcement waves in enemy phase flow', async () => {
     const withOffset = new HeadlessBattle(gameData, {
       act: 'act4',

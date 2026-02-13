@@ -238,7 +238,10 @@ function validateReinforcements(path, template, strict, errors, warnings) {
 
   const spawnEdges = validateEdges(`${path}.reinforcements.spawnEdges`, reinforcements.spawnEdges, errors);
 
-  if (!Array.isArray(reinforcements.waves) || reinforcements.waves.length === 0) {
+  const hasScriptedWaves = Array.isArray(reinforcements.scriptedWaves) && reinforcements.scriptedWaves.length > 0;
+  if (!Array.isArray(reinforcements.waves)) {
+    errors.push(`${path}.reinforcements.waves must be an array`);
+  } else if (reinforcements.waves.length === 0 && !hasScriptedWaves) {
     errors.push(`${path}.reinforcements.waves must be a non-empty array`);
   } else {
     reinforcements.waves.forEach((wave, index) => {

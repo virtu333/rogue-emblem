@@ -90,6 +90,30 @@ describe('MapTemplateEngine', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts scripted-only reinforcement configs with empty procedural waves', () => {
+    const ok = JSON.parse(JSON.stringify(mapTemplates));
+    const template = ok.seize.find((entry) => entry.id === 'eruption_point');
+    template.reinforcements.waves = [];
+    template.reinforcements.scriptedWaves = [
+      {
+        turn: 2,
+        spawns: [{ col: 0, row: 0 }],
+      },
+    ];
+    const result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects reinforcement configs when both procedural and scripted waves are empty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === 'eruption_point');
+    template.reinforcements.waves = [];
+    delete template.reinforcements.scriptedWaves;
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('reinforcements.waves must be a non-empty array'))).toBe(true);
+  });
+
   it('rejects scripted reinforcement waves with invalid spawn coordinates', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     const template = bad.rout.find((entry) => entry.id === 'frozen_pass');

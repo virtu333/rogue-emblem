@@ -324,6 +324,8 @@ export function scheduleReinforcementsForTurn({
   const waveResults = [];
   let blockedSpawns = 0;
 
+  // Scripted waves resolve first on a shared due turn, so authored placements
+  // reserve tiles before procedural edge sampling runs.
   for (const due of dueScriptedWaves) {
     const requestedCount = Array.isArray(due.wave?.spawns) ? due.wave.spawns.length : 0;
     let spawnedCount = 0;

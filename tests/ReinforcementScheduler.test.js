@@ -393,5 +393,45 @@ describe('ReinforcementScheduler', () => {
       expect(early.spawns[0].scheduledTurn).toBe(2);
       expect(base.spawns[0].scheduledTurn).toBe(3);
     });
+
+    it('gives scripted waves precedence over procedural waves on the same turn', () => {
+      const mapLayout = [
+        [TERRAIN.Plain, TERRAIN.Plain],
+        [TERRAIN.Plain, TERRAIN.Plain],
+      ];
+      const reinforcements = {
+        spawnEdges: ['left'],
+        waves: [{ turn: 1, count: [1, 1], edges: ['left'] }],
+        scriptedWaves: [
+          {
+            turn: 1,
+            spawns: [{ col: 0, row: 0 }, { col: 0, row: 1 }],
+          },
+        ],
+        difficultyScaling: false,
+        turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+        xpDecay: [1.0],
+      };
+
+      const result = scheduleReinforcementsForTurn({
+        turn: 1,
+        seed: 17,
+        reinforcements,
+        mapLayout,
+        terrain: terrainData,
+      });
+
+      expect(result.spawns).toEqual([
+        expect.objectContaining({ col: 0, row: 0, waveType: 'scripted' }),
+        expect.objectContaining({ col: 0, row: 1, waveType: 'scripted' }),
+      ]);
+      expect(result.blockedSpawns).toBe(1);
+      expect(result.dueWaves.map((wave) => wave.waveType)).toEqual(['scripted', 'procedural']);
+      expect(result.dueWaves[1]).toEqual(expect.objectContaining({
+        requestedCount: 1,
+        spawnedCount: 0,
+        blockedCount: 1,
+      }));
+    });
   });
 });
