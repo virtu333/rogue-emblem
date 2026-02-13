@@ -1,6 +1,7 @@
 # Emblem Rogue
 
 A Fire Emblem x roguelike tactical RPG built with Phaser + Vite.
+Netlify web app: https://emblem-rogue.netlify.app/
 
 ## Project status
 
