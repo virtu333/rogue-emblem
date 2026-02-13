@@ -9,6 +9,7 @@ export default defineConfig({
     browserName: 'chromium',
     headless: true,
     screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
     viewport: { width: 640, height: 480 },
   },
   webServer: {

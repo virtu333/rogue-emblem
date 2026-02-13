@@ -5,6 +5,7 @@
 // and runtime invariants.
 
 import { cleanupScene } from './sceneCleanup.js';
+import { captureResourceSnapshot } from './resourceSnapshot.js';
 
 // --- Overlay registries per scene (property → detection strategy) ---
 // 'visible'  = object with .visible boolean (persistent or null-pattern with .visible)
@@ -55,6 +56,22 @@ const TRANSITION_TWEEN_TOLERANCE = {
   _default: 10,
 };
 
+const TRANSITION_RESOURCE_DELTA_BUDGET = {
+  Battle: { timers: 12, listeners: 180, objects: 500, overlayOpen: 2 },
+  NodeMap: { timers: 14, listeners: 220, objects: 700, overlayOpen: 3 },
+  Title: { timers: 8, listeners: 120, objects: 260, overlayOpen: 1 },
+  _default: { timers: 10, listeners: 140, objects: 320, overlayOpen: 1 },
+};
+
+const SHUTDOWN_CLEANUP_BUDGET = {
+  maxTweens: 0,
+  maxTimers: 0,
+  maxOverlayOpen: 0,
+  maxSoundGrowth: 1,
+  maxListenerGrowth: 0,
+  maxObjectGrowth: 0,
+};
+
 // Module-level guard — prevents duplicate crash dump listeners across
 // multiple installSceneGuard() calls (defensive, normally called once).
 let _crashDumpInstalled = false;
@@ -76,6 +93,7 @@ export function installSceneGuard(game) {
     history: [],      // last 20 transitions: { from, to, ts, reason?, pre?, post? }
     sounds: 0,        // currently playing sound count
     tweens: 0,        // active tween count in current scene
+    resources: null,  // latest resource snapshot for active scene
     errors: [],       // invariant violation strings (capped at MAX_ERRORS)
     ready: true,      // game booted successfully
 
@@ -100,6 +118,10 @@ export function installSceneGuard(game) {
 
     // Ring buffer for crash trace
     _ringBuffer: [],
+
+    // Recent transition/cleanup audits for e2e assertions and crash bundles
+    transitionAudits: [],
+    cleanupAudits: [],
   };
   window.__sceneState = state;
 
@@ -148,12 +170,11 @@ export function installSceneGuard(game) {
   }
 
   function snapshot(scene) {
-    state.sounds = countPlayingSounds();
-    try {
-      state.tweens = scene?.tweens?.getTweens()?.length || 0;
-    } catch (_) {
-      state.tweens = -1;
-    }
+    const resource = captureResourceSnapshot(scene);
+    state.sounds = resource.sounds;
+    state.tweens = resource.tweens;
+    state.resources = resource;
+    return resource;
   }
 
   function pushError(key, message) {
@@ -166,11 +187,28 @@ export function installSceneGuard(game) {
     pushEvent('invariant_error', { key, message });
   }
 
+  function pushTransitionAudit(audit) {
+    state.transitionAudits.push(audit);
+    if (state.transitionAudits.length > RING_BUFFER_CAP) {
+      state.transitionAudits.shift();
+    }
+  }
+
+  function pushCleanupAudit(audit) {
+    state.cleanupAudits.push(audit);
+    if (state.cleanupAudits.length > RING_BUFFER_CAP) {
+      state.cleanupAudits.shift();
+    }
+  }
+
   // --- Overlay snapshot ---
 
   function snapshotOverlays(scene, sceneKey) {
     const registry = OVERLAY_PROPS[sceneKey];
-    if (!registry) return;
+    if (!registry) {
+      state.overlays = {};
+      return;
+    }
     const map = {};
     for (const [prop, strategy] of Object.entries(registry)) {
       const val = scene[prop];
@@ -260,6 +298,7 @@ export function installSceneGuard(game) {
     // Sound leak (delta from baseline)
     const current = countPlayingSounds();
     state.sounds = current;
+    if (state.resources) state.resources.sounds = current;
     if (current >= 0 && current - soundBaseline > SOUND_LEAK_THRESHOLD) {
       pushError(
         'sound_leak_periodic',
@@ -283,23 +322,171 @@ export function installSceneGuard(game) {
 
   // --- Transition leak detection (Chunk 3) ---
 
-  function checkTransitionLeaks(sceneKey, mergedMeta) {
-    if (!mergedMeta?.pre) return; // No pre-snapshot — skip check
+  function checkTransitionLeaks(sceneKey, mergedMeta, postSnapshot) {
+    if (!mergedMeta?.pre) return null; // No pre-snapshot, skip check
 
-    const soundDelta = state.sounds - mergedMeta.pre.sounds;
+    const pre = mergedMeta.pre;
+    const post = postSnapshot || state.resources || snapshot(null);
     const tweenTolerance = TRANSITION_TWEEN_TOLERANCE[sceneKey]
       || TRANSITION_TWEEN_TOLERANCE._default;
+    const budget = TRANSITION_RESOURCE_DELTA_BUDGET[sceneKey]
+      || TRANSITION_RESOURCE_DELTA_BUDGET._default;
 
-    if (soundDelta > SOUND_LEAK_TRANSITION_THRESHOLD) {
-      pushError('transition_sound_leak',
-        `transition_sound_leak: +${soundDelta} sounds after ` +
-        `${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`);
+    const deltas = {
+      sounds: post.sounds - (pre.sounds || 0),
+      timers: post.timers - (pre.timers || 0),
+      listeners: post.listenerTotal - (pre.listenerTotal || 0),
+      objects: post.objects - (pre.objects || 0),
+      overlayOpen: post.overlayOpen - (pre.overlayOpen || 0),
+    };
+
+    const breaches = [];
+
+    if (deltas.sounds > SOUND_LEAK_TRANSITION_THRESHOLD) {
+      breaches.push('sounds');
+      pushError(
+        'transition_sound_leak',
+        `transition_sound_leak: +${deltas.sounds} sounds after ` +
+        `${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
     }
-    if (state.tweens > tweenTolerance) {
-      pushError('transition_tween_leak',
-        `transition_tween_leak: ${state.tweens} tweens (tolerance ${tweenTolerance}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`);
+    if (post.tweens > tweenTolerance) {
+      breaches.push('tweens');
+      pushError(
+        'transition_tween_leak',
+        `transition_tween_leak: ${post.tweens} tweens (tolerance ${tweenTolerance}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
     }
+    if (deltas.timers > budget.timers) {
+      breaches.push('timers');
+      pushError(
+        'transition_timer_leak',
+        `transition_timer_leak: delta +${deltas.timers} timers (budget ${budget.timers}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
+    }
+    if (deltas.listeners > budget.listeners) {
+      breaches.push('listeners');
+      pushError(
+        'transition_listener_leak',
+        `transition_listener_leak: delta +${deltas.listeners} listeners (budget ${budget.listeners}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
+    }
+    if (deltas.objects > budget.objects) {
+      breaches.push('objects');
+      pushError(
+        'transition_object_leak',
+        `transition_object_leak: delta +${deltas.objects} objects (budget ${budget.objects}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
+    }
+    if (deltas.overlayOpen > budget.overlayOpen) {
+      breaches.push('overlay_open');
+      pushError(
+        'transition_overlay_leak',
+        `transition_overlay_leak: delta +${deltas.overlayOpen} open overlays (budget ${budget.overlayOpen}) ` +
+        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+      );
+    }
+
+    const audit = {
+      ts: Date.now(),
+      from: mergedMeta.from,
+      to: sceneKey,
+      reason: mergedMeta.reason || null,
+      pre,
+      post,
+      deltas,
+      budgets: {
+        soundDelta: SOUND_LEAK_TRANSITION_THRESHOLD,
+        tweens: tweenTolerance,
+        timers: budget.timers,
+        listeners: budget.listeners,
+        objects: budget.objects,
+        overlayOpen: budget.overlayOpen,
+      },
+      breaches,
+    };
+    pushTransitionAudit(audit);
+    pushEvent('transition_audit', {
+      from: audit.from,
+      to: audit.to,
+      reason: audit.reason,
+      breaches: audit.breaches,
+    });
+    return audit;
+  }
+
+  function checkShutdownCleanup(sceneKey, beforeCleanup, afterCleanup) {
+    const breaches = [];
+    const soundGrowth = afterCleanup.sounds - beforeCleanup.sounds;
+    const listenerGrowth = afterCleanup.listenerTotal - beforeCleanup.listenerTotal;
+    const objectGrowth = afterCleanup.objects - beforeCleanup.objects;
+
+    if (afterCleanup.tweens > SHUTDOWN_CLEANUP_BUDGET.maxTweens) {
+      breaches.push('tweens');
+      pushError(
+        'shutdown_tween_leak',
+        `shutdown_tween_leak: ${afterCleanup.tweens} tweens after shutdown cleanup in ${sceneKey}`
+      );
+    }
+    if (afterCleanup.timers > SHUTDOWN_CLEANUP_BUDGET.maxTimers) {
+      breaches.push('timers');
+      pushError(
+        'shutdown_timer_leak',
+        `shutdown_timer_leak: ${afterCleanup.timers} timers after shutdown cleanup in ${sceneKey}`
+      );
+    }
+    if (afterCleanup.overlayOpen > SHUTDOWN_CLEANUP_BUDGET.maxOverlayOpen) {
+      breaches.push('overlay_open');
+      pushError(
+        'shutdown_overlay_leak',
+        `shutdown_overlay_leak: ${afterCleanup.overlayOpen} overlays still open in ${sceneKey}`
+      );
+    }
+    if (soundGrowth > SHUTDOWN_CLEANUP_BUDGET.maxSoundGrowth) {
+      breaches.push('sounds');
+      pushError(
+        'shutdown_sound_growth',
+        `shutdown_sound_growth: +${soundGrowth} sounds during shutdown cleanup in ${sceneKey}`
+      );
+    }
+    if (listenerGrowth > SHUTDOWN_CLEANUP_BUDGET.maxListenerGrowth) {
+      breaches.push('listeners');
+      pushError(
+        'shutdown_listener_growth',
+        `shutdown_listener_growth: +${listenerGrowth} listeners during shutdown cleanup in ${sceneKey}`
+      );
+    }
+    if (objectGrowth > SHUTDOWN_CLEANUP_BUDGET.maxObjectGrowth) {
+      breaches.push('objects');
+      pushError(
+        'shutdown_object_growth',
+        `shutdown_object_growth: +${objectGrowth} objects during shutdown cleanup in ${sceneKey}`
+      );
+    }
+
+    const audit = {
+      ts: Date.now(),
+      scene: sceneKey,
+      before: beforeCleanup,
+      after: afterCleanup,
+      deltas: {
+        sounds: soundGrowth,
+        listeners: listenerGrowth,
+        objects: objectGrowth,
+      },
+      budgets: SHUTDOWN_CLEANUP_BUDGET,
+      breaches,
+    };
+    pushCleanupAudit(audit);
+    pushEvent('scene_cleanup_audit', {
+      scene: sceneKey,
+      breaches,
+    });
+    return audit;
   }
 
   // --- Scene hooks ---
@@ -321,7 +508,10 @@ export function installSceneGuard(game) {
       // Record sound baseline at scene entry
       soundBaseline = countPlayingSounds();
       if (soundBaseline < 0) soundBaseline = 0;
-      snapshot(scene);
+
+      // Capture overlays before resource snapshot so overlayOpen is current
+      snapshotOverlays(scene, key);
+      const postSnapshot = snapshot(scene);
 
       // Invariant: excessive sounds after transition
       if (state.sounds > SOUND_LEAK_TRANSITION_THRESHOLD) {
@@ -336,20 +526,22 @@ export function installSceneGuard(game) {
         const last = state.history[state.history.length - 1];
         last.reason = meta.reason;
         last.pre = meta.pre;
-        last.post = { sounds: state.sounds, tweens: state.tweens };
+        last.post = postSnapshot;
         mergedMeta = meta;
       }
-      // Always clear — stale meta must never survive to next transition
+      // Always clear, stale meta must never survive to next transition
       state._pendingTransitionMeta = null;
 
       // Transition leak detection (Chunk 3)
-      checkTransitionLeaks(key, mergedMeta);
+      const transitionAudit = checkTransitionLeaks(key, mergedMeta, postSnapshot);
 
       // Ring buffer event
-      pushEvent('scene_create', { scene: key, from: prev, reason: mergedMeta?.reason });
-
-      // Immediate overlay snapshot on create
-      snapshotOverlays(scene, key);
+      pushEvent('scene_create', {
+        scene: key,
+        from: prev,
+        reason: mergedMeta?.reason,
+        transitionBreaches: transitionAudit?.breaches || [],
+      });
 
       // Battle state proxy
       if (key === 'Battle') {
@@ -366,10 +558,32 @@ export function installSceneGuard(game) {
       scene.events.off('update', periodicUpdate); // clean old listener
       scene.events.on('update', periodicUpdate);
 
-      // Register cleanup AFTER scene's own shutdown handler
-      // (scene registers its handler in create, we register ours after)
+      // Register cleanup after scene-local shutdown handlers from create().
       scene.events.once('shutdown', () => {
+        scene.events.off('update', periodicUpdate);
+        snapshotOverlays(scene, key);
+        const beforeCleanup = snapshot(scene);
         cleanupScene(scene);
+        snapshotOverlays(scene, key);
+        const afterCleanup = snapshot(scene);
+        const cleanupAudit = checkShutdownCleanup(key, beforeCleanup, afterCleanup);
+
+        pushEvent('scene_shutdown', {
+          scene: key,
+          cleanupBreaches: cleanupAudit.breaches,
+        });
+
+        // Null out scene-specific state
+        if (key === 'Battle') {
+          state.battle.state = null;
+          state.battle.prevState = null;
+          state.battle.stateChangedAt = null;
+        }
+        if (key === 'NodeMap') {
+          state.nodeMap.state = null;
+          state.nodeMap.activeShopTab = null;
+        }
+        state.overlays = {};
       });
     });
 
@@ -400,24 +614,6 @@ export function installSceneGuard(game) {
         }
       }
     }
-
-    scene.events.on('shutdown', () => {
-      scene.events.off('update', periodicUpdate);
-      snapshot(scene);
-      pushEvent('scene_shutdown', { scene: key });
-
-      // Null out scene-specific state
-      if (key === 'Battle') {
-        state.battle.state = null;
-        state.battle.prevState = null;
-        state.battle.stateChangedAt = null;
-      }
-      if (key === 'NodeMap') {
-        state.nodeMap.state = null;
-        state.nodeMap.activeShopTab = null;
-      }
-      state.overlays = {};
-    });
   }
 
   // Hook all scenes already registered (Boot at minimum)

@@ -9,8 +9,15 @@ import {
   getSceneState,
   getOverlays,
   assertNoInvariantErrors,
+  assertLatestTransitionWithinBudget,
+  assertLatestCleanupWithinBudget,
+  attachSceneCrashArtifacts,
   collectErrors,
 } from './helpers.js';
+
+test.afterEach(async ({ page }, testInfo) => {
+  await attachSceneCrashArtifacts(page, testInfo);
+});
 
 // States from which ESC opens the pause menu
 const PAUSE_OPENABLE = ['PLAYER_IDLE', 'DEPLOY_SELECTION'];
@@ -223,6 +230,43 @@ test.describe('Battle invariants', () => {
     // Let periodic checks run
     await page.waitForTimeout(1000);
 
+    await assertNoInvariantErrors(page);
+  });
+
+  test('pause/resume then transition does not leak overlays or listeners', async ({ page }) => {
+    await page.goto('/?devScene=battle&preset=battle_smoke');
+    await waitForGame(page);
+    await waitForScene(page, 'Battle');
+
+    await ensurePlayerIdle(page);
+    await clearUIBlockers(page);
+
+    await pressEscape(page);
+    await page.waitForFunction(
+      () => window.__sceneState?.battle?.state === 'PAUSED',
+      null,
+      { timeout: 5_000 },
+    );
+    await pressEscape(page);
+    await page.waitForFunction(
+      () => window.__sceneState?.battle?.state !== 'PAUSED',
+      null,
+      { timeout: 5_000 },
+    );
+    await page.waitForTimeout(900); // allow startup transition cooldown/lock to clear
+
+    const ok = await page.evaluate(async () => {
+      const { startSceneLazy } = await import('/src/utils/sceneLoader.js');
+      const game = window.__emblemRogueGame;
+      const battle = game?.scene?.getScene?.('Battle');
+      if (!battle) return false;
+      return startSceneLazy(battle, 'Title');
+    });
+    expect(ok).toBe(true);
+
+    await waitForScene(page, 'Title');
+    await assertLatestTransitionWithinBudget(page, 'Title');
+    await assertLatestCleanupWithinBudget(page, 'Battle');
     await assertNoInvariantErrors(page);
   });
 });

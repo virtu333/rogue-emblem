@@ -88,6 +88,90 @@ export async function assertNoInvariantErrors(page) {
   }
 }
 
+/**
+ * Assert the latest transition audit is inside SceneGuard's leak budgets.
+ * Optionally filter to transitions ending at a specific scene key.
+ */
+export async function assertLatestTransitionWithinBudget(page, toScene = null) {
+  const audit = await page.evaluate((targetScene) => {
+    const audits = window.__sceneState?.transitionAudits || [];
+    if (!targetScene) return audits[audits.length - 1] || null;
+    for (let i = audits.length - 1; i >= 0; i--) {
+      if (audits[i]?.to === targetScene) return audits[i];
+    }
+    return null;
+  }, toScene);
+
+  if (!audit) {
+    throw new Error(`No transition audit found${toScene ? ` for to=${toScene}` : ''}.`);
+  }
+
+  const breaches = Array.isArray(audit.breaches) ? audit.breaches : [];
+  if (breaches.length > 0) {
+    throw new Error(
+      `Transition leak budget exceeded${toScene ? ` for to=${toScene}` : ''}: ` +
+      `${breaches.join(', ')}\n` +
+      `${JSON.stringify(audit, null, 2)}`
+    );
+  }
+}
+
+/**
+ * Assert the latest shutdown cleanup audit is inside SceneGuard budgets.
+ */
+export async function assertLatestCleanupWithinBudget(page, sceneKey = null) {
+  const audit = await page.evaluate((targetScene) => {
+    const audits = window.__sceneState?.cleanupAudits || [];
+    if (!targetScene) return audits[audits.length - 1] || null;
+    for (let i = audits.length - 1; i >= 0; i--) {
+      if (audits[i]?.scene === targetScene) return audits[i];
+    }
+    return null;
+  }, sceneKey);
+
+  if (!audit) {
+    throw new Error(`No cleanup audit found${sceneKey ? ` for scene=${sceneKey}` : ''}.`);
+  }
+
+  const breaches = Array.isArray(audit.breaches) ? audit.breaches : [];
+  if (breaches.length > 0) {
+    throw new Error(
+      `Shutdown cleanup budget exceeded${sceneKey ? ` for scene=${sceneKey}` : ''}: ` +
+      `${breaches.join(', ')}\n` +
+      `${JSON.stringify(audit, null, 2)}`
+    );
+  }
+}
+
+/**
+ * Attach SceneGuard crash bundle data when a Playwright test fails.
+ * Includes scene state, transition/cleanup audits, and crash trace ring buffer.
+ */
+export async function attachSceneCrashArtifacts(page, testInfo) {
+  if (testInfo.status === testInfo.expectedStatus) return;
+
+  let payload;
+  try {
+    payload = await page.evaluate(() => ({
+      url: window.location.href,
+      sceneState: window.__sceneState || null,
+      sceneTrace: window.__sceneTrace || null,
+      sceneTraceTail: window.__sceneTraceTail || null,
+      capturedAt: Date.now(),
+    }));
+  } catch (err) {
+    payload = {
+      captureError: err?.message || String(err),
+      capturedAt: Date.now(),
+    };
+  }
+
+  await testInfo.attach('scene-crash-bundle.json', {
+    body: Buffer.from(JSON.stringify(payload, null, 2)),
+    contentType: 'application/json',
+  });
+}
+
 // Error patterns expected from Phaser / browser internals — not real bugs.
 const IGNORE_PATTERNS = [
   /Unable to decode audio data/i,

@@ -3,7 +3,17 @@
 // without errors.
 
 import { test, expect } from '@playwright/test';
-import { waitForGame, waitForScene, getSceneState, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  getSceneState,
+  collectErrors,
+  attachSceneCrashArtifacts,
+} from './helpers.js';
+
+test.afterEach(async ({ page }, testInfo) => {
+  await attachSceneCrashArtifacts(page, testInfo);
+});
 
 test.describe('Boot & Title', () => {
   test('game boots to Title scene without errors', async ({ page }) => {
@@ -20,7 +30,7 @@ test.describe('Boot & Title', () => {
     expect(errors).toEqual([]);
   });
 
-  test('SceneGuard tracks Boot → Title transition', async ({ page }) => {
+  test('SceneGuard tracks Boot -> Title transition', async ({ page }) => {
     await page.goto('/');
     await waitForGame(page);
     await waitForScene(page, 'Title');

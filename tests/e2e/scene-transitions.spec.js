@@ -3,7 +3,20 @@
 // the scene loads without errors.
 
 import { test, expect } from '@playwright/test';
-import { waitForGame, waitForScene, getSceneState, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  getSceneState,
+  collectErrors,
+  assertNoInvariantErrors,
+  assertLatestTransitionWithinBudget,
+  assertLatestCleanupWithinBudget,
+  attachSceneCrashArtifacts,
+} from './helpers.js';
+
+test.afterEach(async ({ page }, testInfo) => {
+  await attachSceneCrashArtifacts(page, testInfo);
+});
 
 test.describe('Scene transitions via devScene', () => {
   test('HomeBase loads via devScene', async ({ page }) => {
@@ -43,5 +56,26 @@ test.describe('Scene transitions via devScene', () => {
     expect(state.activeScene).toBe('Battle');
     expect(state.ready).toBe(true);
     expect(errors).toEqual([]);
+  });
+
+  test('Battle -> Title transition stays within leak budgets', async ({ page }) => {
+    await page.goto('/?devScene=battle&preset=battle_smoke');
+    await waitForGame(page);
+    await waitForScene(page, 'Battle');
+    await page.waitForTimeout(900); // allow startup transition cooldown/lock to clear
+
+    const ok = await page.evaluate(async () => {
+      const { startSceneLazy } = await import('/src/utils/sceneLoader.js');
+      const game = window.__emblemRogueGame;
+      const battle = game?.scene?.getScene?.('Battle');
+      if (!battle) return false;
+      return startSceneLazy(battle, 'Title');
+    });
+
+    expect(ok).toBe(true);
+    await waitForScene(page, 'Title');
+    await assertLatestTransitionWithinBudget(page, 'Title');
+    await assertLatestCleanupWithinBudget(page, 'Battle');
+    await assertNoInvariantErrors(page);
   });
 });
