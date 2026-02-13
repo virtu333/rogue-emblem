@@ -23,7 +23,12 @@ export class PauseOverlay {
   }
 
   show() {
-    this.hide();
+    // Clean up stale objects without triggering onResume callback
+    if (this.helpOverlay?.visible) this.helpOverlay.hide();
+    if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
+    this._hideConfirm();
+    for (const obj of this.objects) obj.destroy();
+    this.objects = [];
     this.visible = true;
 
     const cx = this.scene.cameras.main.centerX;
