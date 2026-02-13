@@ -990,6 +990,7 @@ export class RunManager {
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
+    battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
     battleParams.difficultyId = this.difficultyId || 'normal';
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;

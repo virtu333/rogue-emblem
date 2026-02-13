@@ -59,6 +59,24 @@ describe('MapGenerator', () => {
       const bosses = config.enemySpawns.filter(e => e.isBoss);
       expect(bosses.length).toBe(1);
     });
+
+    it('throws a clear error when no valid template is available', () => {
+      const deps = { ...data, mapTemplates: { rout: [], seize: [] } };
+      expect(() => generateBattle({ act: 'act1', objective: 'rout' }, deps))
+        .toThrow('No valid map template found');
+    });
+
+    it('throws a clear error for seize when seize pool is empty', () => {
+      const deps = {
+        ...data,
+        mapTemplates: {
+          rout: data.mapTemplates.rout,
+          seize: [],
+        },
+      };
+      expect(() => generateBattle({ act: 'act1', objective: 'seize' }, deps))
+        .toThrow('No valid map template found');
+    });
   });
 
   describe('map dimensions', () => {
@@ -561,6 +579,29 @@ describe('MapGenerator', () => {
         expect(config.enemySpawns.length).toBeLessThanOrEqual(cap);
       }
     });
+
+    it('passes reinforcement contract fields through for act4 templates', () => {
+      const config = generateBattle({
+        act: 'act4',
+        objective: 'rout',
+        templateId: 'frozen_pass',
+      }, data);
+      expect(config.reinforcementContractVersion).toBe(1);
+      expect(config.reinforcements).toBeDefined();
+      expect(Array.isArray(config.reinforcements.waves)).toBe(true);
+      expect(config.reinforcements.waves.length).toBeGreaterThan(0);
+    });
+
+    it('returns a deep clone of reinforcement config (no shared mutation)', () => {
+      const template = data.mapTemplates.rout.find((t) => t.id === 'frozen_pass');
+      const config = generateBattle({
+        act: 'act4',
+        objective: 'rout',
+        templateId: 'frozen_pass',
+      }, data);
+      config.reinforcements.waves[0].turn = 99;
+      expect(template.reinforcements.waves[0].turn).not.toBe(99);
+    });
   });
 
   describe('DEPLOY_LIMITS validation', () => {
@@ -893,6 +934,32 @@ describe('pre-assigned templateId', () => {
     // Should fall back to a valid rout template
     const routIds = data.mapTemplates.rout.map(t => t.id);
     expect(routIds).toContain(config.templateId);
+  });
+
+  it('generateBattle rejects pre-assigned templateId that does not match objective pool', () => {
+    const deps = {
+      ...data,
+      mapTemplates: {
+        rout: data.mapTemplates.rout,
+        seize: [],
+      },
+    };
+    expect(() => generateBattle({
+      act: 'act1',
+      objective: 'seize',
+      templateId: data.mapTemplates.rout[0].id,
+    }, deps)).toThrow('No valid map template found');
+  });
+
+  it('generateBattle falls back to a valid objective template when pre-assigned template mismatches objective', () => {
+    const config = generateBattle({
+      act: 'act1',
+      objective: 'seize',
+      templateId: data.mapTemplates.rout[0].id,
+    }, data);
+    const seizeIds = data.mapTemplates.seize.map((template) => template.id);
+    expect(seizeIds).toContain(config.templateId);
+    expect(config.thronePos).not.toBeNull();
   });
 
   it('generateBattle picks random template when no templateId provided', () => {

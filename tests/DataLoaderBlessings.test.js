@@ -9,7 +9,20 @@ function makeMinimalPayload(path) {
     'data/weapons.json': [],
     'data/skills.json': [],
     'data/mapSizes.json': [],
-    'data/mapTemplates.json': {},
+    'data/mapTemplates.json': {
+      rout: [
+        {
+          id: 'minimal_rout',
+          zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }],
+        },
+      ],
+      seize: [
+        {
+          id: 'minimal_seize',
+          zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }],
+        },
+      ],
+    },
     'data/enemies.json': {},
     'data/consumables.json': [],
     'data/lootTables.json': {},
@@ -108,6 +121,42 @@ describe('DataLoader blessings integration', () => {
     };
     loader.loadOptionalJSON = async () => null;
     await expect(loader.loadAll()).rejects.toThrow('Invalid difficulty data');
+  });
+
+  it('throws cleanly for invalid map template payload', async () => {
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => {
+      if (path === 'data/mapTemplates.json') {
+        return { rout: [{ id: 'bad_template', zones: [], reinforcementContractVersion: 1 }], seize: [] };
+      }
+      return makeMinimalPayload(path);
+    };
+    loader.loadOptionalJSON = async () => null;
+    await expect(loader.loadAll()).rejects.toThrow('Invalid map templates data');
+  });
+
+  it('throws cleanly when rout template pool is empty', async () => {
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => {
+      if (path === 'data/mapTemplates.json') {
+        return { rout: [], seize: [{ id: 'minimal_seize', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }] };
+      }
+      return makeMinimalPayload(path);
+    };
+    loader.loadOptionalJSON = async () => null;
+    await expect(loader.loadAll()).rejects.toThrow('Invalid map templates data');
+  });
+
+  it('throws cleanly when seize template pool is empty', async () => {
+    const loader = new DataLoader();
+    loader.loadJSON = async (path) => {
+      if (path === 'data/mapTemplates.json') {
+        return { rout: [{ id: 'minimal_rout', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }], seize: [] };
+      }
+      return makeMinimalPayload(path);
+    };
+    loader.loadOptionalJSON = async () => null;
+    await expect(loader.loadAll()).rejects.toThrow('Invalid map templates data');
   });
 
   it('loads optional dialogue payload when present', async () => {

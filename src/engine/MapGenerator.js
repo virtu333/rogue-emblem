@@ -37,10 +37,15 @@ export function generateBattle(params, deps) {
 
   // 2. Pick template (use pre-assigned templateId if available)
   const preAssignedTemplate = preAssignedTemplateId ? findTemplateById(preAssignedTemplateId, mapTemplates) : null;
-  const preAssignedAllowed = preAssignedTemplate && isTemplateAllowedForAct(preAssignedTemplate, act);
+  const preAssignedAllowed = preAssignedTemplate
+    && isTemplateAllowedForAct(preAssignedTemplate, act)
+    && isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
   const template = preAssignedTemplateId
     ? (preAssignedAllowed ? preAssignedTemplate : pickTemplate(objective, mapTemplates, act))
     : pickTemplate(objective, mapTemplates, act);
+  if (!template) {
+    throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
+  }
 
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
@@ -104,6 +109,8 @@ export function generateBattle(params, deps) {
     ensureBridges(mapLayout, cols, rows, terrain, template.minBridges);
   }
 
+  const reinforcementConfig = cloneReinforcementConfig(template);
+
   return {
     mapLayout,
     cols,
@@ -115,6 +122,7 @@ export function generateBattle(params, deps) {
     npcSpawn,
     thronePos,
     templateId: template.id,
+    ...reinforcementConfig,
   };
 }
 
@@ -150,12 +158,17 @@ export function filterTemplatesByAct(pool, act) {
 export function pickTemplate(objective, mapTemplates, act = null) {
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
-    // Fallback to rout if objective templates missing
-    return mapTemplates.rout[0];
+    return null;
   }
   const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
   const sourcePool = filteredPool.length > 0 ? filteredPool : pool;
   return sourcePool[Math.floor(Math.random() * sourcePool.length)];
+}
+
+function isTemplateAllowedForObjective(template, objective, mapTemplates) {
+  const pool = mapTemplates?.[objective];
+  if (!Array.isArray(pool)) return false;
+  return pool.some((candidate) => candidate?.id === template.id);
 }
 
 function findTemplateById(templateId, mapTemplates) {
@@ -165,6 +178,14 @@ function findTemplateById(templateId, mapTemplates) {
     if (found) return found;
   }
   return null;
+}
+
+function cloneReinforcementConfig(template) {
+  if (!template || !template.reinforcements) return {};
+  return {
+    reinforcementContractVersion: template.reinforcementContractVersion,
+    reinforcements: JSON.parse(JSON.stringify(template.reinforcements)),
+  };
 }
 
 // --- Terrain generation ---

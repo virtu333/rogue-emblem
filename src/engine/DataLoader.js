@@ -1,5 +1,6 @@
 import { validateBlessingsConfig } from './BlessingEngine.js';
 import { validateDifficultyConfig } from './DifficultyEngine.js';
+import { validateMapTemplatesConfig } from './MapTemplateEngine.js';
 
 // DataLoader — fetches and parses game data JSON files
 
@@ -75,6 +76,10 @@ export class DataLoader {
       if (!validation.valid) {
         throw new Error(`Invalid blessings data: ${validation.errors.join('; ')}`);
       }
+    }
+    const mapTemplateValidation = validateMapTemplatesConfig(this.mapTemplates);
+    if (!mapTemplateValidation.valid) {
+      throw new Error(`Invalid map templates data: ${mapTemplateValidation.errors.join('; ')}`);
     }
     const diffValidation = validateDifficultyConfig(this.difficulty);
     if (!diffValidation.valid) {

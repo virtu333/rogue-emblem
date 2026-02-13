@@ -181,6 +181,17 @@
       "enemyWeights": {
         "cavalry": 0.8,
         "infantry": 1.2
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right", "top"],
+        "waves": [
+          { "turn": 3, "count": [2, 3], "edges": ["right"] },
+          { "turn": 5, "count": [2, 4], "edges": ["top", "right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "xpDecay": [1.0, 0.75, 0.5, 0.25]
       }
     },
     {
@@ -218,6 +229,17 @@
       "enemyWeights": {
         "mage": 1.4,
         "armored": 1.2
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right", "bottom"],
+        "waves": [
+          { "turn": 3, "count": [2, 3], "edges": ["right"] },
+          { "turn": 6, "count": [3, 4], "edges": ["bottom", "right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "xpDecay": [1.0, 0.75, 0.5, 0.25]
       }
     }
   ],
@@ -341,6 +363,17 @@
       "enemyWeights": {
         "armored": 1.5,
         "archer": 1.2
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right"],
+        "waves": [
+          { "turn": 4, "count": [2, 2], "edges": ["right"] },
+          { "turn": 7, "count": [2, 3], "edges": ["right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "xpDecay": [1.0, 0.75, 0.5, 0.25]
       }
     },
     {
@@ -382,6 +415,17 @@
       "enemyWeights": {
         "mage": 1.4,
         "knight": 1.3
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right", "top"],
+        "waves": [
+          { "turn": 3, "count": [2, 3], "edges": ["right"] },
+          { "turn": 5, "count": [2, 4], "edges": ["top", "right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "xpDecay": [1.0, 0.75, 0.5, 0.25]
       }
     }
   ]

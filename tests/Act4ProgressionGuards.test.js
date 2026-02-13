@@ -57,6 +57,23 @@ describe('Act4 progression guards', () => {
       .toBe('act4_only');
   });
 
+  it('act4 templates that define reinforcements use contract v1 with required fields', () => {
+    const act4Templates = [
+      ...data.mapTemplates.rout.filter((template) => Array.isArray(template.acts) && template.acts.includes('act4')),
+      ...data.mapTemplates.seize.filter((template) => Array.isArray(template.acts) && template.acts.includes('act4')),
+    ];
+    const withReinforcements = act4Templates.filter((template) => template.reinforcements);
+    expect(withReinforcements.length).toBeGreaterThan(0);
+    for (const template of withReinforcements) {
+      expect(template.reinforcementContractVersion).toBe(1);
+      expect(Array.isArray(template.reinforcements.spawnEdges)).toBe(true);
+      expect(Array.isArray(template.reinforcements.waves)).toBe(true);
+      expect(template.reinforcements.waves.length).toBeGreaterThan(0);
+      expect(template.reinforcements.turnOffsetByDifficulty).toBeDefined();
+      expect(Array.isArray(template.reinforcements.xpDecay)).toBe(true);
+    }
+  });
+
   it('music lookup has safe fallback when act4 key is missing in a purpose table', () => {
     const original = MUSIC.battle.act4;
     delete MUSIC.battle.act4;

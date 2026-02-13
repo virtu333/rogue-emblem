@@ -1613,6 +1613,7 @@ describe('blessing run-start effect application', () => {
       expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
       expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
       expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
+      expect(params.reinforcementTurnOffset).toBe(gameData.difficulty.modes.hard.reinforcementTurnOffset);
     });
 
     it('getBattleParams forwards usedRecruitNames tracker', () => {
