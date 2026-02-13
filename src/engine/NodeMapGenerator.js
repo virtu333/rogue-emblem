@@ -306,7 +306,7 @@ function pickTemplateForNode(objective, mapTemplates, actId = null, isBossNode =
     const routPool = mapTemplates.rout || [];
     const allowedRout = routPool.filter((template) => !template?.bossOnly || isBossNode);
     if (allowedRout.length === 0) return null;
-    return allowedRout[Math.floor(Math.random() * allowedRout.length)];
+    return allowedRout[0];
   }
   const filteredByAct = actId
     ? pool.filter(template => !Array.isArray(template.acts) || template.acts.includes(actId))

@@ -565,6 +565,21 @@ describe('Template-driven fog', () => {
     }
   });
 
+  it('falls back to the first rout template when objective pool is missing', () => {
+    const customTemplates = {
+      rout: [
+        { id: 'fallback_first', zones: [] },
+        { id: 'fallback_second', zones: [] },
+      ],
+      seize: [],
+    };
+    for (let i = 0; i < 25; i++) {
+      const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss, customTemplates);
+      expect(map.nodes[0].templateId).toBe('fallback_first');
+      expect(map.nodes[0].battleParams.templateId).toBe('fallback_first');
+    }
+  });
+
   it('forest_ambush nodes have fog ~55-65% of the time', () => {
     // Force all templates to forest_ambush (fogChance=0.60)
     const forestOnly = { rout: [mapTemplates.rout.find(t => t.id === 'forest_ambush')], seize: [mapTemplates.rout.find(t => t.id === 'forest_ambush')] };
