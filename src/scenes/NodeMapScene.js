@@ -23,7 +23,7 @@ import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -401,7 +401,7 @@ export class NodeMapScene extends Phaser.Scene {
         // Run is already auto-saved on NodeMap entry. Just navigate.
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        void startSceneLazy(this, 'Title', { gameData: this.gameData });
+        void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
       },
       onAbandon: () => {
         const cloud = this.registry.get('cloud');
@@ -410,7 +410,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.runManager.failRun();
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        void startSceneLazy(this, 'Title', { gameData: this.gameData });
+        void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
       },
     });
     this.pauseOverlay.show();
@@ -726,7 +726,7 @@ export class NodeMapScene extends Phaser.Scene {
       const rm = this.runManager;
       const battleParams = rm.getBattleParams(node);
       const roster = rm.getRoster();
-      const transitioned = await startSceneLazy(this, 'Battle', {
+      const transitioned = await transitionToScene(this, 'Battle', {
         gameData: this.gameData,
         runManager: rm,
         battleParams,
@@ -734,7 +734,7 @@ export class NodeMapScene extends Phaser.Scene {
         nodeId: node.id,
         isBoss: node.type === NODE_TYPES.BOSS,
         isElite: battleParams?.isElite || false,
-      });
+      }, { reason: TRANSITION_REASONS.ENTER_BATTLE });
       if (transitioned === false) {
         this.battleLaunchInFlight = false;
         this.isTransitioning = false;
@@ -1030,10 +1030,7 @@ export class NodeMapScene extends Phaser.Scene {
       rm.currentAct, this.gameData.lootTables,
       this.gameData.weapons, this.gameData.consumables,
       this.gameData.accessories, rm.roster,
-      {
-        unlockedWeaponArtIds: rm.getMetaUnlockedWeaponArtIds(),
-        weaponArtCatalog: this.gameData.weaponArts?.arts || [],
-      }
+      rm.getWeaponArtSpawnConfig()
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
     const shopItemDelta = rm.getShopItemCountDelta();
@@ -1662,10 +1659,7 @@ export class NodeMapScene extends Phaser.Scene {
           this.runManager.currentAct, this.gameData.lootTables,
           this.gameData.weapons, this.gameData.consumables,
           this.gameData.accessories, this.runManager.roster,
-          {
-            unlockedWeaponArtIds: this.runManager.getMetaUnlockedWeaponArtIds(),
-            weaponArtCatalog: this.gameData.weaponArts?.arts || [],
-          }
+          this.runManager.getWeaponArtSpawnConfig()
         );
         const pricedItems = this.applyDifficultyShopPricing(newItems);
         this.shopBuyItems = pricedItems.map((entry, i) => ({ ...entry, index: i }));
@@ -1826,11 +1820,11 @@ export class NodeMapScene extends Phaser.Scene {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
         rm.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        void startSceneLazy(this, 'RunComplete', {
+        void transitionToScene(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: rm,
           result: 'victory',
-        });
+        }, { reason: TRANSITION_REASONS.VICTORY });
       } else {
         this.showActCompleteBanner(() => {
           const unlockedArtIds = rm.advanceAct();

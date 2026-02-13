@@ -8,8 +8,9 @@ import { pushSettings } from '../cloud/CloudSync.js';
 import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { parseDevStartupConfig, buildDevStartupRoute } from '../utils/devStartup.js';
+import { installSceneGuard } from '../utils/SceneGuard.js';
 
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 
@@ -312,7 +313,7 @@ export class BootScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     retryBtn.on('pointerdown', () => {
       markStartup('boot_data_retry_manual');
-      this.scene.restart();
+      restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
     });
 
     const safeBtn = this.add.text(320, 336, '[ Reload Safe Mode ]', {
@@ -381,6 +382,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     markStartup('boot_scene_complete');
+    installSceneGuard(this.game);
+
     const devStartupConfig = parseDevStartupConfig(globalThis?.location?.search || '');
     if (devStartupConfig?.enabled) {
       const devRoute = buildDevStartupRoute(data, this.registry, devStartupConfig);
@@ -393,11 +396,11 @@ export class BootScene extends Phaser.Scene {
           hasSeed: Number.isFinite(devStartupConfig.seed),
           devTools: Boolean(devStartupConfig.devTools),
         });
-        await startSceneLazy(this, devRoute.key, devRoute.data);
+        await transitionToScene(this, devRoute.key, devRoute.data, { reason: TRANSITION_REASONS.BOOT });
         return;
       }
     }
 
-    await startSceneLazy(this, 'Title', { gameData: data });
+    await transitionToScene(this, 'Title', { gameData: data }, { reason: TRANSITION_REASONS.BOOT });
   }
 }

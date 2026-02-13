@@ -1,4 +1,5 @@
 import { markStartup } from './startupTelemetry.js';
+import { captureResourceSnapshot } from './resourceSnapshot.js';
 
 export const TRANSITION_REASONS = {
   BATTLE_COMPLETE: 'battle_complete',
@@ -6,18 +7,26 @@ export const TRANSITION_REASONS = {
   DEFEAT: 'defeat',
   ENTER_BATTLE: 'enter_battle',
   BEGIN_RUN: 'begin_run',
+  CONTINUE: 'continue',
+  NEW_GAME: 'new_game',
   SAVE_EXIT: 'save_exit',
   ABANDON_RUN: 'abandon_run',
+  RETRY: 'retry',
+  RETURN_HOME: 'return_home',
+  RETURN_TITLE: 'return_title',
   BOOT: 'boot',
   BACK: 'back',
 };
 
-function captureResourceSnapshot(scene) {
-  let sounds = 0;
-  let tweens = 0;
-  try { sounds = scene?.game?.sound?.sounds?.filter(s => s?.isPlaying)?.length || 0; } catch (_) {}
-  try { tweens = scene?.tweens?.getTweens()?.length || 0; } catch (_) {}
-  return { sounds, tweens };
+const TRANSITION_REASON_VALUES = new Set(Object.values(TRANSITION_REASONS));
+
+export function normalizeTransitionReason(reason, context = 'startSceneLazy') {
+  if (reason == null) return null;
+  if (TRANSITION_REASON_VALUES.has(reason)) return reason;
+  if (import.meta?.env?.DEV) {
+    console.warn(`[SceneLoader] Invalid transition reason in ${context}:`, reason);
+  }
+  return null;
 }
 
 const SCENE_LOADERS = {
@@ -101,7 +110,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
 
   // Build transition metadata early so all exit paths can clean it up
   const meta = {
-    reason: reason || null,
+    reason: normalizeTransitionReason(reason),
     pre: null,
     from: sourceKey,
     to: key,
@@ -184,7 +193,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
       targetScene: key,
       message: err?.message || String(err),
     });
-    console.error('[sceneLoader] startSceneLazy failed:', key, err);
+    console.error('[SceneLoader] startSceneLazy failed:', key, err);
     return false;
   } finally {
     if (!started) {

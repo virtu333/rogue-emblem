@@ -989,36 +989,60 @@
     ],
     "effects": [
       {
-        "deadlyArsenal": 1,
-        "unlockWeaponArts": [
-          "legend_gemini_tempest",
-          "legend_starfall_volley"
-        ]
+        "deadlyArsenal": 1
       }
     ]
   },
   {
-    "id": "weapon_art_infusion",
-    "name": "Arcane Etching",
-    "description": "Iron/Steel weapons can spawn with basic weapon arts",
+    "id": "iron_arms",
+    "name": "Iron Arms",
+    "description": "Iron weapons can spawn with 1 random type-appropriate weapon art",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      450
+      400
+    ],
+    "effects": [
+      {
+        "ironArms": 1
+      }
+    ]
+  },
+  {
+    "id": "steel_arms",
+    "name": "Steel Arms",
+    "description": "Steel weapons can spawn with 1 random type-appropriate weapon art",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      800
     ],
     "requires": {
-      "milestones": [
-        "beatAct1"
+      "upgrades": [
+        {
+          "id": "iron_arms",
+          "level": 1
+        }
       ]
     },
     "effects": [
       {
-        "unlockWeaponArts": [
-          "sword_precise_cut",
-          "lance_piercing_drive",
-          "axe_wild_swing",
-          "bow_longshot"
-        ]
+        "steelArms": 1
+      }
+    ]
+  },
+  {
+    "id": "art_adept",
+    "name": "Art Adept",
+    "description": "One lord starting weapon gains 1 additional random weapon art",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "effects": [
+      {
+        "artAdept": 1
       }
     ]
   },

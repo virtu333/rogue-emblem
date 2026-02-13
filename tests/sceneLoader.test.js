@@ -138,6 +138,15 @@ describe('sceneLoader.startSceneLazy', () => {
     expect(meta.to).toBe('Title');
   });
 
+  it('normalizes invalid reason values to null', async () => {
+    const scene = makeScene({ active: true, key: 'NodeMap' });
+    await startSceneLazy(scene, 'Title', {}, { reason: 'typo_reason' });
+
+    const meta = globalThis.__sceneState._pendingTransitionMeta;
+    expect(meta).not.toBeNull();
+    expect(meta.reason).toBeNull();
+  });
+
   it('pre-snapshot has numeric sounds and tweens fields', async () => {
     const scene = makeScene({ active: true, key: 'Battle' });
     await startSceneLazy(scene, 'NodeMap', {}, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
@@ -160,21 +169,23 @@ describe('sceneLoader.startSceneLazy', () => {
   it('cleans up meta on cooldown block (no stale meta)', async () => {
     vi.useFakeTimers();
     try {
+      const firstReason = TRANSITION_REASONS.BACK;
+      const blockedReason = TRANSITION_REASONS.BOOT;
       const scene = makeScene({ active: true, key: 'A' });
-      await startSceneLazy(scene, 'Title', {}, { reason: 'first' });
+      await startSceneLazy(scene, 'Title', {}, { reason: firstReason });
       const firstMeta = globalThis.__sceneState._pendingTransitionMeta;
       expect(firstMeta).not.toBeNull();
-      expect(firstMeta.reason).toBe('first');
+      expect(firstMeta.reason).toBe(firstReason);
 
       // Now try a blocked-by-cooldown transition after shutdown
       scene.__emitLifecycle('shutdown');
-      const blocked = await startSceneLazy(scene, 'HomeBase', {}, { reason: 'should_not_persist' });
+      const blocked = await startSceneLazy(scene, 'HomeBase', {}, { reason: blockedReason });
       expect(blocked).toBe(false);
       // Meta should still be from the first successful transition, not overwritten
       // (blocked path returns before writing meta)
       const afterMeta = globalThis.__sceneState._pendingTransitionMeta;
       expect(afterMeta).not.toBeNull();
-      expect(afterMeta.reason).toBe('first');
+      expect(afterMeta.reason).toBe(firstReason);
       expect(afterMeta.to).toBe('Title');
     } finally {
       vi.useRealTimers();
@@ -185,7 +196,7 @@ describe('sceneLoader.startSceneLazy', () => {
     const scene = makeScene({ active: true, key: 'A' });
     scene.scene.start.mockImplementation(() => { throw new Error('boom'); });
 
-    await startSceneLazy(scene, 'Title', {}, { reason: 'crash_test' });
+    await startSceneLazy(scene, 'Title', {}, { reason: TRANSITION_REASONS.BACK });
 
     expect(globalThis.__sceneState._pendingTransitionMeta).toBeNull();
   });
@@ -193,7 +204,7 @@ describe('sceneLoader.startSceneLazy', () => {
   it('cleans up meta when source scene is inactive', async () => {
     const scene = makeScene({ active: false, key: 'A' });
 
-    await startSceneLazy(scene, 'Title', {}, { reason: 'inactive_test' });
+    await startSceneLazy(scene, 'Title', {}, { reason: TRANSITION_REASONS.BACK });
 
     expect(globalThis.__sceneState._pendingTransitionMeta).toBeNull();
   });
@@ -201,8 +212,10 @@ describe('sceneLoader.startSceneLazy', () => {
   it('meta token prevents stale merges from different transitions', async () => {
     vi.useFakeTimers();
     try {
+      const firstReason = TRANSITION_REASONS.BACK;
+      const secondReason = TRANSITION_REASONS.SAVE_EXIT;
       const scene = makeScene({ active: true, key: 'A' });
-      await startSceneLazy(scene, 'Title', {}, { reason: 'first' });
+      await startSceneLazy(scene, 'Title', {}, { reason: firstReason });
 
       const meta1 = globalThis.__sceneState._pendingTransitionMeta;
       expect(typeof meta1.token).toBe('number');
@@ -215,12 +228,12 @@ describe('sceneLoader.startSceneLazy', () => {
 
       // Second transition produces a different token
       const scene2 = makeScene({ active: true, key: 'Title' });
-      await startSceneLazy(scene2, 'HomeBase', {}, { reason: 'second' });
+      await startSceneLazy(scene2, 'HomeBase', {}, { reason: secondReason });
 
       const meta2 = globalThis.__sceneState._pendingTransitionMeta;
       expect(meta2.token).toBeGreaterThan(0);
       expect(meta2.token).not.toBe(token1);
-      expect(meta2.reason).toBe('second');
+      expect(meta2.reason).toBe(secondReason);
     } finally {
       vi.useRealTimers();
     }

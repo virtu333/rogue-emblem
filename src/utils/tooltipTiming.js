@@ -1,0 +1,3 @@
+export const TOOLTIP_HOVER_DELAY_MS = 180;
+export const TOOLTIP_LONG_PRESS_MS = 420;
+export const TOOLTIP_LONG_PRESS_MOVE_THRESHOLD = 14;

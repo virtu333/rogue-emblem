@@ -41,7 +41,8 @@ export class MetaProgressionManager {
           if (typeof saved.totalSupply === 'number') this.totalSupply = saved.totalSupply;
         }
 
-        if (saved.purchasedUpgrades) this.purchasedUpgrades = saved.purchasedUpgrades;
+        if (saved.purchasedUpgrades) this.purchasedUpgrades = { ...saved.purchasedUpgrades };
+        this._migrateLegacyWeaponArtUpgradeState();
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
@@ -49,6 +50,21 @@ export class MetaProgressionManager {
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
       }
     } catch (_) { /* incognito / quota exceeded */ }
+  }
+
+  _migrateLegacyWeaponArtUpgradeState() {
+    const legacyLevel = Math.max(0, Number(this.purchasedUpgrades?.weapon_art_infusion) || 0);
+    if (legacyLevel <= 0) return;
+
+    // Legacy Arcane Etching mapped to both Iron and Steel Arms.
+    this.purchasedUpgrades.iron_arms = Math.max(
+      legacyLevel,
+      Number(this.purchasedUpgrades?.iron_arms) || 0
+    );
+    this.purchasedUpgrades.steel_arms = Math.max(
+      legacyLevel,
+      Number(this.purchasedUpgrades?.steel_arms) || 0
+    );
   }
 
   getTotalValor() {
@@ -307,7 +323,8 @@ export class MetaProgressionManager {
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponWeightBonus,
    *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, startingWeaponForge, deadlyArsenal,
-   *            startingAccessoryTier, startingStaffTier, startingSkills, metaUnlockedWeaponArts }
+   *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
+   *            startingSkills, metaUnlockedWeaponArts }
    */
   getActiveEffects(options = {}) {
     const effects = {
@@ -325,6 +342,9 @@ export class MetaProgressionManager {
       recruitRandomSkill: false,
       startingWeaponForge: 0,
       deadlyArsenal: 0,
+      ironArms: 0,
+      steelArms: 0,
+      artAdept: 0,
       startingAccessoryTier: 0,
       startingStaffTier: 0,
       startingSkills: this.getSkillAssignments(),
@@ -368,6 +388,9 @@ export class MetaProgressionManager {
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined) effects.startingWeaponForge = effect.startingWeaponForge;
       if (effect.deadlyArsenal !== undefined) effects.deadlyArsenal = effect.deadlyArsenal;
+      if (effect.ironArms !== undefined) effects.ironArms = Math.max(effects.ironArms, Number(effect.ironArms) || 0);
+      if (effect.steelArms !== undefined) effects.steelArms = Math.max(effects.steelArms, Number(effect.steelArms) || 0);
+      if (effect.artAdept !== undefined) effects.artAdept = Math.max(effects.artAdept, Number(effect.artAdept) || 0);
       if (effect.startingAccessoryTier !== undefined) effects.startingAccessoryTier = effect.startingAccessoryTier;
       if (effect.startingStaffTier !== undefined) effects.startingStaffTier = effect.startingStaffTier;
     }

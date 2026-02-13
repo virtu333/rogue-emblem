@@ -7,7 +7,7 @@ import { HintManager } from '../engine/HintManager.js';
 import { loadRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -45,7 +45,7 @@ export class SlotPickerScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', async () => {
-      await this.runTransition(() => startSceneLazy(this, 'Title', { gameData: this.gameData }));
+      await this.runTransition(() => transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK }));
     });
   }
 
@@ -88,7 +88,7 @@ export class SlotPickerScene extends Phaser.Scene {
       return true;
     }
     if (allowExit) {
-      void this.runTransition(() => startSceneLazy(this, 'Title', { gameData: this.gameData }));
+      void this.runTransition(() => transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK }));
       return true;
     }
     return false;
@@ -216,14 +216,14 @@ export class SlotPickerScene extends Phaser.Scene {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
         if (rm) {
-          transitioned = await startSceneLazy(this, 'NodeMap', { gameData: this.gameData, runManager: rm });
+          transitioned = await transitionToScene(this, 'NodeMap', { gameData: this.gameData, runManager: rm }, { reason: TRANSITION_REASONS.CONTINUE });
         } else {
           // Run data corrupt - go to HomeBase
-          transitioned = await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+          transitioned = await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.CONTINUE });
         }
       } else {
         // No active run - go to HomeBase
-        transitioned = await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+        transitioned = await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.CONTINUE });
       }
       if (transitioned === false) {
         this.isTransitioning = false;

@@ -5,7 +5,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { RunManager, clearSavedRun } from '../engine/RunManager.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingSelection } from '../utils/blessingAnalytics.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 const TIER_COLORS = {
   1: { label: '#88ffbb', border: 0x2c7a4a, bg: 0x14281f },
@@ -82,10 +82,10 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void startSceneLazy(this, 'NodeMap', {
+    void transitionToScene(this, 'NodeMap', {
       gameData: this.gameData,
       runManager: this.runManager,
-    });
+    }, { reason: TRANSITION_REASONS.BEGIN_RUN });
   }
 
   _back() {
@@ -93,7 +93,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.runManager = null;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void startSceneLazy(this, 'DifficultySelect', { gameData: this.gameData });
+    void transitionToScene(this, 'DifficultySelect', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
   }
 
   _draw() {

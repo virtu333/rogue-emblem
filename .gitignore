@@ -10,3 +10,5 @@ dist/
 # Local Netlify folder
 .netlify
 test-results/
+playwright-report/
+tests/artifacts/replays/

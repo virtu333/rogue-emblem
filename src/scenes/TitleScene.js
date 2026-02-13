@@ -11,7 +11,7 @@ import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAll
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 // --- Constants ---
 const W = 640, H = 480, PIXEL = 2;
@@ -593,7 +593,7 @@ export class TitleScene extends Phaser.Scene {
     // CONTINUE button (if slots exist)
     if (hasSlots) {
       createMenuButton(this, cx, menuY, 'CONTINUE', () => this.runMenuTransition(
-        () => startSceneLazy(this, 'SlotPicker', { gameData: this.gameData }),
+        () => transitionToScene(this, 'SlotPicker', { gameData: this.gameData }, { reason: TRANSITION_REASONS.CONTINUE }),
       ), btnDelay + delayIdx * 150);
       menuY += btnGap;
       delayIdx++;
@@ -724,7 +724,7 @@ export class TitleScene extends Phaser.Scene {
     setActiveSlot(nextSlot);
     this.registry.set('activeSlot', nextSlot);
 
-    await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+    await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.NEW_GAME });
     return true;
   }
 

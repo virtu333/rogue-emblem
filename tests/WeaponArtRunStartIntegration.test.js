@@ -40,7 +40,7 @@ describe('Weapon Art run-start integration', () => {
     expect(choices.some((entry) => entry.art?.id === 'legend_gemini_tempest')).toBe(true);
   });
 
-  it('unlocks act-gated arts only after advancing into the required act', () => {
+  it('keeps legendary bound art availability instance-bound and not act-gated', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -50,13 +50,15 @@ describe('Weapon Art run-start integration', () => {
     scene.runManager = rm;
     scene.turnManager = { turnNumber: 1 };
 
-    const before = scene._getWeaponArtCatalog();
-    expect(before.some((art) => art?.id === 'legend_gemini_tempest')).toBe(false);
+    const unit = makeLegendarySwordUnit();
+    const before = scene._getWeaponArtChoices(unit, unit.weapon);
+    expect(before.some((entry) => entry.art?.id === 'legend_gemini_tempest')).toBe(true);
 
     rm.advanceAct();
     rm.advanceAct();
 
-    const after = scene._getWeaponArtCatalog();
-    expect(after.some((art) => art?.id === 'legend_gemini_tempest')).toBe(true);
+    const after = scene._getWeaponArtChoices(unit, unit.weapon);
+    expect(after.some((entry) => entry.art?.id === 'legend_gemini_tempest')).toBe(true);
   });
 });
+

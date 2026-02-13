@@ -9,47 +9,24 @@ vi.mock('phaser', () => ({
 import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 
 describe('HomeBaseScene upgrade description helpers', () => {
-  it('surfaces weapon art unlock side effects on deadly arsenal upgrade text', () => {
+  it('describes deadly arsenal without legacy weapon-art unlock suffix', () => {
     const scene = new HomeBaseScene();
     const upgrade = {
       description: 'deadly arsenal',
       effects: [{
         deadlyArsenal: 1,
-        unlockWeaponArts: ['legend_gemini_tempest', 'legend_starfall_volley'],
       }],
     };
 
     const desc = scene._getActionDesc(upgrade);
-    expect(desc).toContain('Random Silver/Killer/Brave/Legend weapon');
-    expect(desc).toContain('unlocks 2 weapon arts');
+    expect(desc).toBe('Random Silver/Killer/Brave/Legend weapon');
   });
 
-  it('describes standalone weapon art unlock effects', () => {
+  it('describes iron/steel/art adept weapon-art spawn upgrades', () => {
     const scene = new HomeBaseScene();
-    const upgrade = {
-      description: 'fallback text',
-      effects: [{
-        unlockWeaponArt: 'legend_gemini_tempest',
-      }],
-    };
 
-    expect(scene._getActionDesc(upgrade)).toBe('Unlocks 1 weapon art');
-  });
-
-  it('describes multi-art unlock effects for equipment upgrades', () => {
-    const scene = new HomeBaseScene();
-    const upgrade = {
-      description: 'arcane etching',
-      effects: [{
-        unlockWeaponArts: [
-          'sword_precise_cut',
-          'lance_piercing_drive',
-          'axe_wild_swing',
-          'bow_longshot',
-        ],
-      }],
-    };
-
-    expect(scene._getActionDesc(upgrade)).toBe('Unlocks 4 weapon arts');
+    expect(scene._getActionDesc({ effects: [{ ironArms: 1 }] })).toBe('Iron weapons can spawn with arts');
+    expect(scene._getActionDesc({ effects: [{ steelArms: 1 }] })).toBe('Steel weapons can spawn with arts');
+    expect(scene._getActionDesc({ effects: [{ artAdept: 1 }] })).toBe('Extra art on a lord starting weapon');
   });
 });

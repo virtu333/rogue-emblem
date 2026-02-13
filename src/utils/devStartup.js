@@ -16,6 +16,7 @@ const DEV_PRESETS = new Set([
   'weapon_arts',
   'late_act',
   'battle_smoke',
+  'soulreaver_mast',
 ]);
 const DEV_QA_SEQUENCE = [
   {
@@ -109,8 +110,10 @@ function applyMetaPreset(meta, preset) {
   meta.totalSupply = 20000;
   meta.milestones = new Set(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame']);
 
-  if (preset === 'weapon_arts' || preset === 'battle_smoke') {
-    meta.purchasedUpgrades.weapon_art_infusion = 1;
+  if (preset === 'weapon_arts' || preset === 'battle_smoke' || preset === 'soulreaver_mast') {
+    meta.purchasedUpgrades.iron_arms = 1;
+    meta.purchasedUpgrades.steel_arms = 1;
+    meta.purchasedUpgrades.art_adept = 1;
   }
 }
 
@@ -138,6 +141,33 @@ function createRunPreset(gameData, meta, config) {
   if (config.preset === 'battle_smoke') {
     const firstNode = runManager.getAvailableNodes()[0];
     if (firstNode) runManager.markNodeComplete(firstNode.id);
+  }
+
+  if (config.preset === 'soulreaver_mast') {
+    runManager.addGold(20000);
+    addTeamWeaponArtScrolls(runManager, gameData, 4);
+    const edric = runManager.roster.find((unit) => unit?.name === 'Edric');
+    if (edric) {
+      edric.tier = 'promoted';
+      edric.level = Math.max(10, Number(edric.level) || 1);
+      if (Array.isArray(edric.proficiencies)) {
+        edric.proficiencies = edric.proficiencies.map((prof) => ({
+          ...prof,
+          rank: 'Mast',
+        }));
+      }
+      const soulreaver = (gameData?.weapons || []).find((weapon) => weapon?.name === 'Soulreaver');
+      if (soulreaver && Array.isArray(edric.inventory) && !edric.inventory.some((weapon) => weapon?.name === 'Soulreaver')) {
+        edric.inventory.push(structuredClone(soulreaver));
+      }
+      const equippedSoulreaver = Array.isArray(edric.inventory)
+        ? edric.inventory.find((weapon) => weapon?.name === 'Soulreaver')
+        : null;
+      if (equippedSoulreaver) edric.weapon = equippedSoulreaver;
+      if (Number.isFinite(edric?.stats?.HP)) {
+        edric.currentHP = Math.min(edric.stats.HP, Math.max(1, edric.currentHP || edric.stats.HP));
+      }
+    }
   }
 
   return runManager;

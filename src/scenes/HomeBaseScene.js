@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats',      label: 'Recruits' },
@@ -464,10 +464,10 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
-    if (effect.deadlyArsenal !== undefined) {
-      const suffix = weaponArtUnlockText ? `; ${weaponArtUnlockText.toLowerCase()}` : '';
-      return `Random Silver/Killer/Brave/Legend weapon${suffix}`;
-    }
+    if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
+    if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
+    if (effect.steelArms !== undefined) return 'Steel weapons can spawn with arts';
+    if (effect.artAdept !== undefined) return 'Extra art on a lord starting weapon';
     if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for Edric';
     if (effect.startingStaffTier !== undefined) return "Sera's starting staff";
@@ -726,7 +726,7 @@ export class HomeBaseScene extends Phaser.Scene {
     beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', async () => {
-      await this.runTransition(() => startSceneLazy(this, 'DifficultySelect', { gameData: this.gameData }));
+      await this.runTransition(() => transitionToScene(this, 'DifficultySelect', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BEGIN_RUN }));
     });
 
     const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
@@ -740,7 +740,7 @@ export class HomeBaseScene extends Phaser.Scene {
       await this.runTransition(async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        return startSceneLazy(this, 'Title', { gameData: this.gameData });
+        return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
       });
     });
   }
@@ -934,7 +934,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (allowExit) {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
       return true;
     }
     return false;

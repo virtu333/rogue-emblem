@@ -3,6 +3,9 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: './',
   publicDir: 'public',
+  test: {
+    exclude: ['tests/e2e/**', 'node_modules/**'],
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

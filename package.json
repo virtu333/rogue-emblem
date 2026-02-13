@@ -32,15 +32,19 @@
     "sim:fullrun:pr": "node tests/sim/fullrun-slice-runner.js --suite pr",
     "sim:fullrun:harness:pr:single": "node tests/sim/fullrun-runner.js --seeds 10 --difficulty normal --mode strict",
     "sim:fullrun:harness:slices:list": "node tests/sim/fullrun-slice-runner.js --list",
+    "test:merge-gate:scene-lifecycle": "npm run test:unit && npm run test:harness && npm run sim:fullrun:pr && npm run test:e2e",
     "fuzz": "node tests/agents/fuzz-runner.js --seeds 100 --scenario act1_rout_basic",
     "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode reporting --timeout-rate-threshold 5 --use-default-scenario-budgets",
-    "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets"
+    "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets",
+    "test:e2e": "npx playwright test",
+    "test:e2e:headed": "npx playwright test --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
     "phaser": "^3.80.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "sharp": "^0.34.5",
     "vite": "^5.4.0",
     "vitest": "^4.0.18"

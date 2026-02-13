@@ -5,7 +5,7 @@ import { clearSavedRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -111,7 +111,7 @@ export class RunCompleteScene extends Phaser.Scene {
     homeBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      await startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+      await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.RETURN_HOME });
     });
 
     // Back to Title button (secondary)
@@ -125,7 +125,7 @@ export class RunCompleteScene extends Phaser.Scene {
     titleBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      await startSceneLazy(this, 'Title', { gameData: this.gameData });
+      await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.RETURN_TITLE });
     });
   }
 }

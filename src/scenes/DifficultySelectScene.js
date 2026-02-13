@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { DIFFICULTY_IDS, generateModifierSummary } from '../engine/DifficultyEngine.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 export class DifficultySelectScene extends Phaser.Scene {
   constructor() {
@@ -75,16 +75,16 @@ export class DifficultySelectScene extends Phaser.Scene {
     }
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void startSceneLazy(this, 'BlessingSelect', {
+    void transitionToScene(this, 'BlessingSelect', {
       gameData: this.gameData,
       difficultyId: mode.id,
-    });
+    }, { reason: TRANSITION_REASONS.BEGIN_RUN });
   }
 
   _back() {
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void startSceneLazy(this, 'HomeBase', { gameData: this.gameData });
+    void transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
   }
 
   _draw() {
