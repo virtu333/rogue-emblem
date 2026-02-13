@@ -41,8 +41,8 @@ export function generateBattle(params, deps) {
     && isTemplateAllowedForAct(preAssignedTemplate, act)
     && isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
   const template = preAssignedTemplateId
-    ? (preAssignedAllowed ? preAssignedTemplate : pickTemplate(objective, mapTemplates, act))
-    : pickTemplate(objective, mapTemplates, act);
+    ? (preAssignedAllowed ? preAssignedTemplate : pickTemplate(objective, mapTemplates, act, { isBoss }))
+    : pickTemplate(objective, mapTemplates, act, { isBoss });
   if (!template) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
   }
@@ -155,13 +155,21 @@ export function filterTemplatesByAct(pool, act) {
   return pool.filter(template => isTemplateAllowedForAct(template, act));
 }
 
-export function pickTemplate(objective, mapTemplates, act = null) {
+function isTemplateAllowedForBoss(template, isBoss = false) {
+  return !template?.bossOnly || isBoss === true;
+}
+
+export function pickTemplate(objective, mapTemplates, act = null, options = {}) {
+  const { isBoss = false } = options;
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
     return null;
   }
   const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
-  const sourcePool = filteredPool.length > 0 ? filteredPool : pool;
+  const bossFilteredPool = filteredPool.filter((template) => isTemplateAllowedForBoss(template, isBoss));
+  const fallbackBossFilteredPool = pool.filter((template) => isTemplateAllowedForBoss(template, isBoss));
+  const sourcePool = bossFilteredPool.length > 0 ? bossFilteredPool : fallbackBossFilteredPool;
+  if (sourcePool.length === 0) return null;
   return sourcePool[Math.floor(Math.random() * sourcePool.length)];
 }
 

@@ -5,6 +5,9 @@ import { ScenarioRunner } from '../agents/ScenarioRunner.js';
 import { ScriptedAgent } from '../agents/ScriptedAgent.js';
 import { loadFixture } from '../fixtures/battles/index.js';
 
+const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
+const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
+
 describe('Determinism', () => {
   it('same seed produces identical action log and final hash', async () => {
     const fixture = loadFixture('act1_rout_basic');
@@ -72,6 +75,56 @@ describe('Determinism', () => {
     const run1 = await new ScenarioRunner(777, fixture, factory).run(2200);
     const run2 = await new ScenarioRunner(777, fixture, factory).run(2200);
 
+    expect(run1.actions).toEqual(run2.actions);
+    expect(run1.result).toBe(run2.result);
+    expect(run1.failure).toEqual(run2.failure);
+  });
+
+  it('act4 boss-intent scripted seize scenario is deterministic for same seed', async () => {
+    const fixture = {
+      id: 'act4_boss_intent_scripted_determinism',
+      roster: null,
+      battleParams: {
+        act: 'act4',
+        objective: 'seize',
+        row: 11,
+        templateId: ACT4_BOSS_INTENT_TEMPLATE_ID,
+        difficultyMod: 1.0,
+        difficultyId: 'normal',
+      },
+    };
+    const factory = (driver) => new ScriptedAgent(driver);
+
+    const run1 = await new ScenarioRunner(1701, fixture, factory).run(2200);
+    const run2 = await new ScenarioRunner(1701, fixture, factory).run(2200);
+
+    expect(run1.resolvedTemplateId).toBe(ACT4_BOSS_INTENT_TEMPLATE_ID);
+    expect(run2.resolvedTemplateId).toBe(ACT4_BOSS_INTENT_TEMPLATE_ID);
+    expect(run1.actions).toEqual(run2.actions);
+    expect(run1.result).toBe(run2.result);
+    expect(run1.failure).toEqual(run2.failure);
+  });
+
+  it('act3 dark-champion scripted seize scenario is deterministic for same seed', async () => {
+    const fixture = {
+      id: 'act3_dark_champion_scripted_determinism',
+      roster: null,
+      battleParams: {
+        act: 'act3',
+        objective: 'seize',
+        row: 7,
+        templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID,
+        difficultyMod: 1.0,
+        difficultyId: 'normal',
+      },
+    };
+    const factory = (driver) => new ScriptedAgent(driver);
+
+    const run1 = await new ScenarioRunner(1702, fixture, factory).run(2200);
+    const run2 = await new ScenarioRunner(1702, fixture, factory).run(2200);
+
+    expect(run1.resolvedTemplateId).toBe(ACT3_DARK_CHAMPION_TEMPLATE_ID);
+    expect(run2.resolvedTemplateId).toBe(ACT3_DARK_CHAMPION_TEMPLATE_ID);
     expect(run1.actions).toEqual(run2.actions);
     expect(run1.result).toBe(run2.result);
     expect(run1.failure).toEqual(run2.failure);

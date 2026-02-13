@@ -4,6 +4,8 @@ import { TERRAIN, DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
+const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
+const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
 
 function withSeed(seed, fn) {
   const origRandom = Math.random;
@@ -620,6 +622,44 @@ describe('MapGenerator', () => {
       config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
       expect(template.reinforcements.scriptedWaves[0].spawns[0].col).toBe(0);
     });
+
+    it('passes scripted-only reinforcement fields through for concrete seize templates', () => {
+      const scenarios = [
+        { act: 'act4', templateId: ACT4_BOSS_INTENT_TEMPLATE_ID },
+        { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID },
+      ];
+      for (const scenario of scenarios) {
+        const config = generateBattle({
+          act: scenario.act,
+          objective: 'seize',
+          templateId: scenario.templateId,
+        }, data);
+        expect(config.templateId).toBe(scenario.templateId);
+        expect(config.reinforcementContractVersion).toBe(1);
+        expect(config.reinforcements).toBeDefined();
+        expect(Array.isArray(config.reinforcements.waves)).toBe(true);
+        expect(config.reinforcements.waves.length).toBe(0);
+        expect(Array.isArray(config.reinforcements.scriptedWaves)).toBe(true);
+        expect(config.reinforcements.scriptedWaves.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('deep-clones scripted wave payload for concrete seize templates', () => {
+      const scenarios = [
+        { act: 'act4', templateId: ACT4_BOSS_INTENT_TEMPLATE_ID },
+        { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID },
+      ];
+      for (const scenario of scenarios) {
+        const template = data.mapTemplates.seize.find((candidate) => candidate.id === scenario.templateId);
+        const config = generateBattle({
+          act: scenario.act,
+          objective: 'seize',
+          templateId: scenario.templateId,
+        }, data);
+        config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
+        expect(template.reinforcements.scriptedWaves[0].spawns[0].col).not.toBe(99);
+      }
+    });
   });
 
   describe('DEPLOY_LIMITS validation', () => {
@@ -988,6 +1028,51 @@ describe('pre-assigned templateId', () => {
     }
     // Should see multiple different templates
     expect(ids.size).toBeGreaterThan(1);
+  });
+
+  it('generateBattle excludes bossOnly templates from non-boss random selection', () => {
+    const seizeBase = data.mapTemplates.seize.find((template) => template.id === 'castle_assault');
+    const bossOnlyTemplate = {
+      ...seizeBase,
+      id: 'boss_only_selection_test',
+      acts: ['act1'],
+      bossOnly: true,
+    };
+    const deps = {
+      ...data,
+      mapTemplates: {
+        ...data.mapTemplates,
+        seize: [seizeBase, bossOnlyTemplate],
+      },
+    };
+    for (let i = 0; i < 30; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'seize', isBoss: false }, deps);
+      expect(config.templateId).toBe(seizeBase.id);
+    }
+  });
+
+  it('generateBattle still allows explicit pre-assigned bossOnly templateId', () => {
+    const seizeBase = data.mapTemplates.seize.find((template) => template.id === 'castle_assault');
+    const bossOnlyTemplate = {
+      ...seizeBase,
+      id: 'boss_only_preassign_test',
+      acts: ['act1'],
+      bossOnly: true,
+    };
+    const deps = {
+      ...data,
+      mapTemplates: {
+        ...data.mapTemplates,
+        seize: [seizeBase, bossOnlyTemplate],
+      },
+    };
+    const config = generateBattle({
+      act: 'act1',
+      objective: 'seize',
+      isBoss: false,
+      templateId: bossOnlyTemplate.id,
+    }, deps);
+    expect(config.templateId).toBe(bossOnlyTemplate.id);
   });
 });
 

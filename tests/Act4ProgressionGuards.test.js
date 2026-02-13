@@ -12,6 +12,8 @@ import { pickTemplate } from '../src/engine/MapGenerator.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
+const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
+const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
 
 describe('Act4 progression guards', () => {
   it('act-indexed runtime tables include act4 and finalBoss entries', () => {
@@ -57,6 +59,15 @@ describe('Act4 progression guards', () => {
       .toBe('act4_only');
   });
 
+  it('pickTemplate excludes bossOnly templates unless isBoss is true', () => {
+    const templates = {
+      rout: [],
+      seize: [{ id: 'boss_only', acts: ['act3'], bossOnly: true }],
+    };
+    expect(pickTemplate('seize', templates, 'act3', { isBoss: false })).toBeNull();
+    expect(pickTemplate('seize', templates, 'act3', { isBoss: true })?.id).toBe('boss_only');
+  });
+
   it('act4 templates that define reinforcements use contract v1 with required fields', () => {
     const act4Templates = [
       ...data.mapTemplates.rout.filter((template) => Array.isArray(template.acts) && template.acts.includes('act4')),
@@ -68,9 +79,27 @@ describe('Act4 progression guards', () => {
       expect(template.reinforcementContractVersion).toBe(1);
       expect(Array.isArray(template.reinforcements.spawnEdges)).toBe(true);
       expect(Array.isArray(template.reinforcements.waves)).toBe(true);
-      expect(template.reinforcements.waves.length).toBeGreaterThan(0);
+      expect((template.reinforcements.waves?.length || 0) + (template.reinforcements.scriptedWaves?.length || 0)).toBeGreaterThan(0);
       expect(template.reinforcements.turnOffsetByDifficulty).toBeDefined();
       expect(Array.isArray(template.reinforcements.xpDecay)).toBe(true);
+    }
+  });
+
+  it('includes scripted-only seize templates for act4 boss intent and act3 dark champion', () => {
+    const expected = [
+      { id: ACT4_BOSS_INTENT_TEMPLATE_ID, act: 'act4' },
+      { id: ACT3_DARK_CHAMPION_TEMPLATE_ID, act: 'act3' },
+    ];
+    for (const entry of expected) {
+      const template = data.mapTemplates.seize.find((candidate) => candidate.id === entry.id);
+      expect(template).toBeDefined();
+      expect(template.acts).toEqual([entry.act]);
+      expect(template.bossOnly).toBe(true);
+      expect(template.reinforcementContractVersion).toBe(1);
+      expect(Array.isArray(template.reinforcements.waves)).toBe(true);
+      expect(template.reinforcements.waves.length).toBe(0);
+      expect(Array.isArray(template.reinforcements.scriptedWaves)).toBe(true);
+      expect(template.reinforcements.scriptedWaves.length).toBeGreaterThan(0);
     }
   });
 

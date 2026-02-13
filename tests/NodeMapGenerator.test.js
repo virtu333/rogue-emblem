@@ -659,6 +659,31 @@ describe('Template-driven fog', () => {
     }
   });
 
+  it('seize battle nodes never receive bossOnly templates', () => {
+    const seizeBase = mapTemplates.seize.find((template) => template.id === 'castle_assault');
+    const bossOnlyTemplate = {
+      ...seizeBase,
+      id: 'boss_only_node_selection_test',
+      acts: ['act1'],
+      bossOnly: true,
+    };
+    const customTemplates = {
+      ...mapTemplates,
+      seize: [seizeBase, bossOnlyTemplate],
+    };
+
+    let sawSeizeBattleNode = false;
+    for (let i = 0; i < 100; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, customTemplates);
+      const seizeBattleNodes = map.nodes.filter((node) => node.type === NODE_TYPES.BATTLE && node.battleParams?.objective === 'seize');
+      if (seizeBattleNodes.length > 0) sawSeizeBattleNode = true;
+      for (const node of seizeBattleNodes) {
+        expect(node.templateId).toBe(seizeBase.id);
+      }
+    }
+    expect(sawSeizeBattleNode).toBe(true);
+  });
+
   it('boss nodes never have fogEnabled', () => {
     for (let i = 0; i < 100; i++) {
       const map = generateNodeMap('act1', ACT_CONFIG.act1, mapTemplates);

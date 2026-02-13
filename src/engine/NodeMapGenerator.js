@@ -45,7 +45,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       completed: false,
     };
     // Assign template for single-node boss
-    const template = pickTemplateForNode('seize', mapTemplates, actId);
+    const template = pickTemplateForNode('seize', mapTemplates, actId, true);
     if (template) {
       node.templateId = template.id;
       node.battleParams.templateId = template.id;
@@ -106,7 +106,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       // Assign template for combat nodes (BATTLE and BOSS)
       if (type === NODE_TYPES.BATTLE || type === NODE_TYPES.BOSS) {
         const objective = node.battleParams?.objective || 'rout';
-        const template = pickTemplateForNode(objective, mapTemplates, actId);
+        const template = pickTemplateForNode(objective, mapTemplates, actId, type === NODE_TYPES.BOSS);
         if (template) {
           node.templateId = template.id;
           node.battleParams.templateId = template.id;
@@ -299,16 +299,22 @@ function rollBattleSeed() {
  * @param {string} [actId] - optional act id for template act filtering
  * @returns {Object|null} template or null if mapTemplates not provided
  */
-function pickTemplateForNode(objective, mapTemplates, actId = null) {
+function pickTemplateForNode(objective, mapTemplates, actId = null, isBossNode = false) {
   if (!mapTemplates) return null;
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
-    return mapTemplates.rout?.[0] || null;
+    const routPool = mapTemplates.rout || [];
+    const allowedRout = routPool.filter((template) => !template?.bossOnly || isBossNode);
+    if (allowedRout.length === 0) return null;
+    return allowedRout[Math.floor(Math.random() * allowedRout.length)];
   }
-  const filtered = actId
+  const filteredByAct = actId
     ? pool.filter(template => !Array.isArray(template.acts) || template.acts.includes(actId))
     : pool;
-  const source = filtered.length > 0 ? filtered : pool;
+  const bossFiltered = filteredByAct.filter((template) => !template?.bossOnly || isBossNode);
+  const fallbackBossFiltered = pool.filter((template) => !template?.bossOnly || isBossNode);
+  const source = bossFiltered.length > 0 ? bossFiltered : fallbackBossFiltered;
+  if (source.length === 0) return null;
   return source[Math.floor(Math.random() * source.length)];
 }
 
