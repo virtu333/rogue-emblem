@@ -10,7 +10,12 @@ import {
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
-import { canUseWeaponArt, getWeaponArtBindings, getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import {
+  canUseWeaponArt,
+  getWeaponArtBindings,
+  getWeaponArtIds,
+  isWeaponArtCompatibleWithWeapon,
+} from '../engine/WeaponArtSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -535,40 +540,45 @@ export class RosterOverlay {
         const isEquipped = item === unit.weapon;
         const marker = isEquipped ? '\u25b6 ' : '  ';
         let tooltipAnchor = null;
-        const nameColor = this._getWeaponNameColor(item, '#e0e0e0');
+        const usableNow = canEquip(unit, item);
+        const lineColor = usableNow ? '#e0e0e0' : '#777777';
+        const nameColor = usableNow ? this._getWeaponNameColor(item, lineColor) : lineColor;
+        const forgeSuffixSegments = usableNow
+          ? this._getWeaponForgeSuffixSegments(item)
+          : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: lineColor }));
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           const line = this._textSegments(x, y, [
-            { text: marker, color: '#e0e0e0' },
+            { text: marker, color: lineColor },
             { text: this._getWeaponBaseName(item), color: nameColor },
-            ...this._getWeaponForgeSuffixSegments(item),
-            { text: ` (${rem}/${max}) ${rngStr}`, color: '#e0e0e0' },
+            ...forgeSuffixSegments,
+            { text: ` (${rem}/${max}) ${rngStr}`, color: lineColor },
           ], '9px');
           tooltipAnchor = line.anchor;
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           const line = this._textSegments(x, y, [
-            { text: marker, color: '#e0e0e0' },
+            { text: marker, color: lineColor },
             { text: this._getWeaponBaseName(item), color: nameColor },
-            ...this._getWeaponForgeSuffixSegments(item),
-            { text: ' ', color: '#e0e0e0' },
-            { text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', '#e0e0e0') },
-            { text: ' ', color: '#e0e0e0' },
-            { text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', '#e0e0e0') },
-            { text: ' ', color: '#e0e0e0' },
-            { text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', '#e0e0e0') },
-            { text: ' ', color: '#e0e0e0' },
-            { text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', '#e0e0e0') },
-            { text: ` ${rngStr}`, color: '#e0e0e0' },
+            ...forgeSuffixSegments,
+            { text: ' ', color: lineColor },
+            { text: `Mt${item.might}`, color: usableNow ? this._getForgeStatColor(item, 'might', lineColor) : lineColor },
+            { text: ' ', color: lineColor },
+            { text: `Ht${item.hit}`, color: usableNow ? this._getForgeStatColor(item, 'hit', lineColor) : lineColor },
+            { text: ' ', color: lineColor },
+            { text: `Cr${item.crit}`, color: usableNow ? this._getForgeStatColor(item, 'crit', lineColor) : lineColor },
+            { text: ' ', color: lineColor },
+            { text: `Wt${item.weight}`, color: usableNow ? this._getForgeStatColor(item, 'weight', lineColor) : lineColor },
+            { text: ` ${rngStr}`, color: lineColor },
           ], '9px');
           tooltipAnchor = line.anchor;
         } else {
           const line = this._textSegments(x, y, [
-            { text: marker, color: '#e0e0e0' },
+            { text: marker, color: lineColor },
             { text: item.name || '', color: nameColor },
           ], '9px');
           tooltipAnchor = line.anchor;
@@ -667,19 +677,20 @@ export class RosterOverlay {
     y += 4;
     this._text(x, y, '\u2500\u2500 Weapon Arts \u2500\u2500', '#888888', '10px');
     y += 14;
-    const weaponArtChoices = this._getInspectableWeaponArtChoices(unit, unit.weapon);
+    const weaponArtChoices = this._getInspectableWeaponArtChoicesForInventory(unit);
     if (weaponArtChoices.length <= 0) {
       this._text(x + 8, y, '(none)', '#888888', '10px');
       y += 14;
     } else {
-      for (const { art, canUse, reason } of weaponArtChoices) {
+      for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? '#88ddff' : '#666666';
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
-        const row = this._text(x + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        const weaponName = this._getWeaponBaseName(weapon);
+        const row = this._text(x + 8, y, `${art.name} (${weaponName})${suffix}  ${status}`, color, '9px');
         const effect = art?.description || 'No description';
-        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, `${art.name}: ${effect}`));
+        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, `${art.name} [${weaponName}]: ${effect}`));
         y += 12;
       }
     }
@@ -722,7 +733,7 @@ export class RosterOverlay {
     if (!unit || !weapon) return [];
     const choices = [];
     for (const art of this._collectWeaponBoundArts(weapon)) {
-      if (!art || art.weaponType !== weapon.type) continue;
+      if (!art || !isWeaponArtCompatibleWithWeapon(art, weapon)) continue;
       const check = canUseWeaponArt(unit, weapon, art, {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
@@ -734,6 +745,20 @@ export class RosterOverlay {
     choices.sort((a, b) => a.art.name.localeCompare(b.art.name));
     return choices;
   }
+
+  _getInspectableWeaponArtChoicesForInventory(unit) {
+    if (!unit) return [];
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    const rows = [];
+    for (const weapon of inventory) {
+      if (!weapon || !weapon.type) continue;
+      for (const entry of this._getInspectableWeaponArtChoices(unit, weapon)) {
+        rows.push({ weapon, ...entry });
+      }
+    }
+    return rows;
+  }
+
   _weaponArtReasonLabel(reason) {
     switch (reason) {
       case 'insufficient_rank': return 'Rank too low';
@@ -945,7 +970,7 @@ export class RosterOverlay {
     if (Array.isArray(scroll.allowedWeaponTypes) && scroll.allowedWeaponTypes.length > 0) {
       if (!scroll.allowedWeaponTypes.includes(weapon.type)) return 'wrong_type';
     }
-    if (art.weaponType && weapon.type !== art.weaponType) return 'wrong_type';
+    if (!isWeaponArtCompatibleWithWeapon(art, weapon)) return 'wrong_type';
 
     const prof = (unit.proficiencies || []).find((p) => p?.type === weapon.type);
     if (!prof) return 'no_proficiency';
@@ -1503,28 +1528,33 @@ export class RosterOverlay {
         for (const item of [...unit.inventory]) {
           const marker = item === unit.weapon ? '\u25b6 ' : '  ';
           const noProf = !hasProficiency(otherUnit, item);
-          const baseNameColor = this._getWeaponNameColor(item, '#e0e0e0');
+          const ownerUsable = canEquip(unit, item);
+          const rowColor = ownerUsable ? '#e0e0e0' : '#777777';
+          const baseNameColor = ownerUsable ? this._getWeaponNameColor(item, rowColor) : rowColor;
+          const forgeSuffixSegments = ownerUsable
+            ? this._getWeaponForgeSuffixSegments(item)
+            : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: rowColor }));
           const segments = [
-            { text: marker, color: '#e0e0e0' },
+            { text: marker, color: rowColor },
             { text: this._getWeaponBaseName(item), color: baseNameColor },
-            ...this._getWeaponForgeSuffixSegments(item),
+            ...forgeSuffixSegments,
           ];
           if (item.type === 'Staff') {
             const rem = getStaffRemainingUses(item, unit);
             const max = getStaffMaxUses(item, unit);
-            segments.push({ text: ` (${rem}/${max})`, color: '#e0e0e0' });
+            segments.push({ text: ` (${rem}/${max})`, color: rowColor });
           } else if (item.might !== undefined) {
             const rng = parseRange(item.range);
             const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-            segments.push({ text: ' ', color: '#e0e0e0' });
-            segments.push({ text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', '#e0e0e0') });
-            segments.push({ text: ' ', color: '#e0e0e0' });
-            segments.push({ text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', '#e0e0e0') });
-            segments.push({ text: ' ', color: '#e0e0e0' });
-            segments.push({ text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', '#e0e0e0') });
-            segments.push({ text: ' ', color: '#e0e0e0' });
-            segments.push({ text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', '#e0e0e0') });
-            segments.push({ text: ` ${rngStr}`, color: '#e0e0e0' });
+            segments.push({ text: ' ', color: rowColor });
+            segments.push({ text: `Mt${item.might}`, color: ownerUsable ? this._getForgeStatColor(item, 'might', rowColor) : rowColor });
+            segments.push({ text: ' ', color: rowColor });
+            segments.push({ text: `Ht${item.hit}`, color: ownerUsable ? this._getForgeStatColor(item, 'hit', rowColor) : rowColor });
+            segments.push({ text: ' ', color: rowColor });
+            segments.push({ text: `Cr${item.crit}`, color: ownerUsable ? this._getForgeStatColor(item, 'crit', rowColor) : rowColor });
+            segments.push({ text: ' ', color: rowColor });
+            segments.push({ text: `Wt${item.weight}`, color: ownerUsable ? this._getForgeStatColor(item, 'weight', rowColor) : rowColor });
+            segments.push({ text: ` ${rngStr}`, color: rowColor });
           }
           if (noProf) {
             segments.push({ text: ' (no prof)', color: '#cc8844' });

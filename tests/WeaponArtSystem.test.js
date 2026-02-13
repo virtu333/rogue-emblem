@@ -46,12 +46,41 @@ describe('WeaponArtSystem', () => {
     expect(Array.isArray(mods.activated)).toBe(true);
   });
 
+  it('normalizes statScaling in combat mods', () => {
+    const mods = getWeaponArtCombatMods(makeArt({
+      combatMods: {
+        statScaling: { stat: 'skl', divisor: 2 },
+        activated: [{ id: 'weapon_art', name: 'Precise Cut' }],
+      },
+    }));
+    expect(mods.statScaling).toEqual({ stat: 'SKL', divisor: 2 });
+  });
+
   it('rejects weapon arts for wrong weapon type', () => {
     const unit = makeUnit();
     const weapon = { type: 'Lance' };
     const result = canUseWeaponArt(unit, weapon, makeArt());
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('wrong_weapon_type');
+  });
+
+  it('supports allowedTypes compatibility for magic arts', () => {
+    const art = makeArt({
+      weaponType: 'Tome',
+      allowedTypes: ['Tome', 'Light'],
+      combatMods: { atkBonus: 5 },
+    });
+
+    const tomeUnit = makeUnit({ proficiencies: [{ type: 'Tome', rank: 'Prof' }] });
+    expect(canUseWeaponArt(tomeUnit, { type: 'Tome' }, art).ok).toBe(true);
+
+    const lightUnit = makeUnit({ proficiencies: [{ type: 'Light', rank: 'Prof' }] });
+    expect(canUseWeaponArt(lightUnit, { type: 'Light' }, art).ok).toBe(true);
+
+    const swordUnit = makeUnit({ proficiencies: [{ type: 'Sword', rank: 'Prof' }] });
+    const blocked = canUseWeaponArt(swordUnit, { type: 'Sword' }, art);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.reason).toBe('wrong_weapon_type');
   });
 
   it('enforces mastery rank requirement', () => {
@@ -188,6 +217,8 @@ describe('WeaponArtSystem', () => {
       weaponArtBinding: { artId: 'sword_precise_cut', source: 'scroll' },
     };
     normalizeWeaponArtBinding(weapon, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(weapon.weaponArtIds).toEqual(['sword_precise_cut']);
+    expect(weapon.weaponArtSources).toEqual(['scroll']);
     expect(weapon.weaponArtId).toBe('sword_precise_cut');
     expect(weapon.weaponArtSource).toBe('scroll');
     expect(weapon.weaponArtBinding).toBeUndefined();
@@ -198,6 +229,8 @@ describe('WeaponArtSystem', () => {
       weaponArtSource: 'unknown_source',
     };
     normalizeWeaponArtBinding(bad, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(bad.weaponArtIds).toBeUndefined();
+    expect(bad.weaponArtSources).toBeUndefined();
     expect(bad.weaponArtId).toBeUndefined();
     expect(bad.weaponArtSource).toBeUndefined();
     expect(bad.weaponArt).toBeUndefined();
@@ -211,8 +244,40 @@ describe('WeaponArtSystem', () => {
       weaponArtBinding: { artId: 'sword_precise_cut', source: 'scroll' },
     };
     normalizeWeaponArtBinding(weapon, { validArtIds: new Set(['sword_precise_cut']) });
+    expect(weapon.weaponArtIds).toEqual(['sword_precise_cut']);
+    expect(weapon.weaponArtSources).toEqual(['scroll']);
     expect(weapon.weaponArtId).toBe('sword_precise_cut');
     expect(weapon.weaponArtSource).toBe('scroll');
     expect(weapon.weaponArtBinding).toBeUndefined();
+  });
+  it('normalizes canonical weaponArtIds with legacy fallback and slot cap', () => {
+    const weapon = {
+      id: 'multi_blade',
+      weaponArtIds: ['bad_id', 'sword_precise_cut', 'sword_precise_cut', 'extra'],
+      weaponArtSources: ['scroll', 'meta_innate', 'innate', 'scroll'],
+      weaponArtBinding: { artId: 'legacy_art', source: 'scroll' },
+    };
+    normalizeWeaponArtBinding(weapon, {
+      validArtIds: new Set(['sword_precise_cut', 'legacy_art']),
+      maxSlots: 3,
+    });
+    expect(weapon.weaponArtIds).toEqual(['sword_precise_cut', 'legacy_art']);
+    expect(weapon.weaponArtSources).toEqual(['meta_innate', 'scroll']);
+  });
+
+  it('preserves source alignment when invalid and duplicate ids are filtered', () => {
+    const weapon = {
+      id: 'source_alignment_blade',
+      weaponArtIds: ['bad_id', 'sword_precise_cut', 'sword_precise_cut', 'sword_comet_edge'],
+      weaponArtSources: ['scroll', 'meta_innate', 'innate', 'scroll'],
+    };
+
+    normalizeWeaponArtBinding(weapon, {
+      validArtIds: new Set(['sword_precise_cut', 'sword_comet_edge']),
+      maxSlots: 3,
+    });
+
+    expect(weapon.weaponArtIds).toEqual(['sword_precise_cut', 'sword_comet_edge']);
+    expect(weapon.weaponArtSources).toEqual(['meta_innate', 'scroll']);
   });
 });

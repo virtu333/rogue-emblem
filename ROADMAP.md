@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 1082 tests in suite on `main` baseline (Feb 13, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act/meta progression are on `main`, with 3c polish wrap-up hardening landed (run-start integration coverage + deterministic enemy-proc test seam + playtest checklist). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 1118 tests in suite on `main` baseline (Feb 13, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act/meta progression are on `main`, with 3c polish wrap-up hardening landed (run-start integration coverage + deterministic enemy-proc test seam + playtest checklist). For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -34,9 +34,9 @@ Organized by impact and logical sequencing:
 19. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
 
 ### Later (3-6+ Months)
-12. **Additional Map Objectives** - Defend, Survive, Escape (battle variety) + reinforcement system
+12. **Act 4 Hard-Mode Acceleration** - Contract alignment -> terrain hazards + tilesets -> Act 4 progression -> reinforcement system (See `docs/act4-hardmode-rollout-plan.md`)
 13. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `docs/specs/difficulty_spec.md` section 10)
-14. **Terrain Hazards + Act 4 Content** - Lava, Cracked Floor, Rift Portal terrain + Zombies/Dragons/Manaketes + Act 4 structure + Temporal Guardian boss (See `docs/specs/difficulty_spec.md` section 4-5)
+14. **Additional Map Objectives (Deferred)** - Defend, Survive, Escape after Act 4 stabilization
 15. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `docs/specs/difficulty_spec.md` section 5-6)
 16. **Meta-Progression Expansion** - Full GDD section 9.2 vision + Act 4/Lunatic-specific sinks
 17. **QoL** - Undo movement, battle log, battle speed (ongoing)
@@ -104,20 +104,20 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline in current state: 1082 tests on Feb 13, 2026.
+- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline in current state: 1118 tests on Feb 13, 2026.
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
-- [ ] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).
-- [ ] Transition cleanup audits are in place: input handlers, tweens, timers, listeners, and scene-local objects.
-- [ ] Post-transition leak checks run in e2e harness with bounded budgets (listeners/objects/tweens/sound deltas).
-- [ ] On crash/repro, `SceneGuard` emits last-50 transition/state actions and overlay/input/tween diagnostics.
-- [ ] Full-run harness exists and is required for merge classes touching scenes, transitions, mode modifiers, and run-state.
+- [x] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).
+- [x] Transition cleanup audits are in place: input handlers, tweens, timers, listeners, and scene-local objects.
+- [x] Post-transition leak checks run in e2e harness with bounded budgets (listeners/objects/tweens/sound deltas).
+- [x] On crash/repro, `SceneGuard` emits last-50 transition/state actions and overlay/input/tween diagnostics.
+- [x] Full-run harness exists and is required for merge classes touching scenes, transitions, mode modifiers, and run-state.
 
 ### Wave 1.5 Reliability Hardening (Execution Priority: immediate, pre-content)
-- [ ] Add a canonical `SceneRouter` integration test matrix and migrate remaining manual `scene.start/sleep/wake` callsites.
-- [ ] Enforce cleanup assertions in `SceneGuard` for every scene transition (active listeners, timers, overlays, tweens, audio channels).
-- [ ] Add transition-level instrumentation tests for stale overlay/input bleed after pause/resume and scene churn.
-- [ ] Publish crash bundle artifact (`sceneState`, last 50 events, overlay deltas) for every CI failure in affected suites.
+- [x] Add a canonical `SceneRouter` integration test matrix and migrate remaining manual `scene.start/sleep/wake` callsites.
+- [x] Enforce cleanup assertions in `SceneGuard` for every scene transition (active listeners, timers, overlays, tweens, audio channels).
+- [x] Add transition-level instrumentation tests for stale overlay/input bleed after pause/resume and scene churn.
+- [x] Publish crash bundle artifact (`sceneState`, last 50 events, overlay deltas) for every CI failure in affected suites.
 - [ ] Add budgeted leak thresholds per scene and fail fast when exceeded during full-run harness execution.
 
 ### Wave 2 Scope (Low-Risk / High-Impact)
@@ -142,14 +142,16 @@ QA evidence (Feb 12, 2026):
 - **Wave 3B (Convoy MVP):** core convoy model + persistence, overflow routing, node/deploy access UI, and defensive transaction hardening are now on `main`. Remaining follow-up is cap tuning + incremental UX polish.
 - **Wave 3A (Wyvern Foundation, Reclass Deferred):** Wyvern classes, enemy pool/recruit integration, and loot table compatibility are on `main`; class-state hardening for promotion/save-load paths is also landed (moveType/proficiency normalization + legal weapon relink). Remaining work is movement/pathing QA polish and sprite finalization. Defer Second Seal/Reclass.
   - TEMP: Wyvern Rider/Lord battle sprites currently use split blue/red placeholder art. Replace with finalized class-specific sprite set in Wave 3A polish.
-- **Wave 4 (Weapon Arts):** data contract + combat/menu flow + forecast parity + act/meta unlock progression are on `main`; Home Base informational Arts tab was intentionally removed to reduce UI clutter; acquisition/meta surfaces and enemy/legendary integrations are in, with initial balance tuning and guardrail tests now landed. Legacy `Arcane Etching` (`weapon_art_infusion`) has been replaced by `iron_arms` + `steel_arms` + `art_adept` (legacy key retained only for migration compatibility). Difficulty-aware enemy art usage frequency tuning and 3c polish wrap-up hardening are on `main`; next is iterative playtest balancing + content expansion (more arts).
+- **Wave 4 (Weapon Arts):** data contract + combat/menu flow + forecast parity + act/meta unlock progression are on `main`; Home Base informational Arts tab was intentionally removed to reduce UI clutter; acquisition/meta surfaces and enemy/legendary integrations are in, with initial balance tuning and guardrail tests now landed. Legacy `Arcane Etching` (`weapon_art_infusion`) has been replaced by `iron_arms` + `steel_arms` + `art_adept` (legacy key retained only for migration compatibility). Difficulty-aware enemy art usage frequency tuning and 3c polish wrap-up hardening are on `main`; **Phase 1 catalog expansion is complete** (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`, and normal follow-up suppression while a weapon art is active). Next is **Phase 2 tactical-depth arts** (effectiveness/no-counter/range modifiers) plus iterative playtest balancing.
 - **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `docs/references/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
 ---
 
-## LATER: Objectives & Content Expansion
-### Wave 7: Additional Map Objectives
+## LATER: Content Expansion (Act 4 First)
+- Act 4 rollout order and scope lock: `docs/act4-hardmode-rollout-plan.md`
+
+### Wave 7: Additional Map Objectives (Deferred)
 **Priority:** Medium - Adds battle variety
 **Effort:** 2 weeks
 
@@ -180,13 +182,15 @@ QA evidence (Feb 12, 2026):
 **Effort:** 1-2 weeks
 
 #### 9A: New Terrain Types
-- [ ] Add to terrain.json: Ice (slippery), Lava (damage per turn), Quicksand (immobilize)
-- [ ] Terrain effects in Combat.js
-- [ ] Add terrain to mapTemplates.json (volcanic, tundra biomes)
+- [ ] Add to terrain.json: Ice (sliding), Lava Crack (end-turn damage)
+- [ ] Implement hazard behavior in Grid/turn flow (movement preview + deterministic resolution)
+- [ ] Add terrain to mapTemplates.json (Tundra + Volcano biome templates)
+- [ ] Add biome-specific tilesets/art mapping for new terrains
+- [ ] Defer Cracked Floor/Pit/Rift Portal and Quicksand to later extension scope
 
 #### 9B: Boss Arena Features
-- [ ] Add `arenaFeatures` field to boss configs in enemies.json
-- [ ] MapGenerator: Place arena features based on boss config
+- [ ] Add fixed-boss map contract scaffolding (procedural reinforcements remain generic)
+- [ ] Keep fixed boss encounters as explicit exception to generic reinforcement contract
 
 **Success Criteria:**
 - [ ] Boss battles feel unique and memorable
@@ -306,7 +310,7 @@ QA evidence (Feb 12, 2026):
 8. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
 9. **Wave 3B** (Convoy MVP, landing) -> **Wave 3A** (Wyvern foundation, reclass deferred)
 10. **Wave 4** (Weapon Arts phased rollout; priority after Wyvern integration)
-11. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
+11. **After Wave 4 stability:** Elite/Miniboss Nodes -> Act 4 Hard-Mode Acceleration (contract -> terrain/tilesets -> act4 progression -> reinforcements) -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion
 
 ## Deployment
 

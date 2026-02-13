@@ -6,6 +6,7 @@ import {
   GOLD_SKIP_LOOT_MULTIPLIER, SHOP_SELL_RATIO, LOOT_CHOICES, SHOP_ITEM_COUNT,
   NODE_GOLD_MULTIPLIER, LOOT_GOLD_TEAM_XP,
 } from '../utils/constants.js';
+import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -122,7 +123,39 @@ function filterByRosterTypes(names, rosterTypes, allWeapons) {
   });
 }
 
-function buildMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
+function normalizeSpawnTier(value) {
+  const tier = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (tier === 'iron') return 'Iron';
+  if (tier === 'steel') return 'Steel';
+  if (tier === 'silver') return 'Silver';
+  return null;
+}
+
+function resolveSpawnTierFromArt(art) {
+  const explicitTier = normalizeSpawnTier(art?.spawnTier || art?.tierAffinity);
+  if (explicitTier) return explicitTier;
+  const unlockAct = typeof art?.unlockAct === 'string' ? art.unlockAct.trim().toLowerCase() : '';
+  if (unlockAct === 'act1') return 'Iron';
+  if (unlockAct === 'act2') return 'Steel';
+  if (unlockAct === 'act3') return 'Silver';
+  return null;
+}
+
+function isPlayerEligibleSpawnArt(art) {
+  if (!art?.id) return false;
+  if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) return false;
+  if (Array.isArray(art.allowedFactions) && art.allowedFactions.length > 0) {
+    const factions = new Set(art.allowedFactions.map((f) => String(f).toLowerCase()));
+    if (!factions.has('player')) return false;
+  }
+  if (Array.isArray(art.allowedOwners) && art.allowedOwners.length > 0) {
+    const owners = new Set(art.allowedOwners.map((f) => String(f).toLowerCase()));
+    if (!owners.has('player') && !owners.has('any')) return false;
+  }
+  return true;
+}
+
+function buildLegacyMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
   const unlockedIds = Array.isArray(weaponArtSpawnConfig?.unlockedWeaponArtIds)
     ? weaponArtSpawnConfig.unlockedWeaponArtIds
     : [];
@@ -141,27 +174,94 @@ function buildMetaInnateArtByWeaponType(weaponArtSpawnConfig) {
   const byType = new Map();
   for (const art of catalog) {
     if (!art?.id || !unlockedSet.has(art.id)) continue;
-    const weaponType = typeof art.weaponType === 'string' ? art.weaponType.trim() : '';
-    if (!META_INNATE_WEAPON_TYPES.has(weaponType)) continue;
-    if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
-    if (Array.isArray(art.allowedFactions) && art.allowedFactions.length > 0) {
-      const factions = new Set(art.allowedFactions.map((f) => String(f).toLowerCase()));
-      if (!factions.has('player')) continue;
+    const weaponTypes = getWeaponArtAllowedTypes(art)
+      .filter((weaponType) => META_INNATE_WEAPON_TYPES.has(weaponType));
+    if (weaponTypes.length <= 0) continue;
+    if (!isPlayerEligibleSpawnArt(art)) continue;
+    for (const weaponType of weaponTypes) {
+      if (!byType.has(weaponType)) byType.set(weaponType, art.id);
     }
-    if (!byType.has(weaponType)) byType.set(weaponType, art.id);
   }
   return byType.size > 0 ? byType : null;
 }
 
-function applyMetaInnateArtToItem(item, artByWeaponType) {
-  if (!item || !artByWeaponType) return item;
-  if (!META_INNATE_WEAPON_TYPES.has(item.type)) return item;
-  if (!META_INNATE_TIERS.has(item.tier)) return item;
-  if (typeof item.weaponArtId === 'string' && item.weaponArtId.trim().length > 0) return item;
-  const artId = artByWeaponType.get(item.type);
-  if (!artId) return item;
+function buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig) {
+  const catalog = Array.isArray(weaponArtSpawnConfig?.weaponArtCatalog)
+    ? weaponArtSpawnConfig.weaponArtCatalog
+    : [];
+  if (catalog.length <= 0) return null;
+
+  const enabledTiers = new Set();
+  if (weaponArtSpawnConfig?.enableIron || weaponArtSpawnConfig?.ironArms) enabledTiers.add('Iron');
+  if (weaponArtSpawnConfig?.enableSteel || weaponArtSpawnConfig?.steelArms) enabledTiers.add('Steel');
+  if (weaponArtSpawnConfig?.enableSilver || weaponArtSpawnConfig?.silverInnate) enabledTiers.add('Silver');
+  if (enabledTiers.size <= 0) return null;
+
+  const poolsByTier = new Map();
+  for (const art of catalog) {
+    if (!isPlayerEligibleSpawnArt(art)) continue;
+    const weaponTypes = getWeaponArtAllowedTypes(art)
+      .filter((weaponType) => META_INNATE_WEAPON_TYPES.has(weaponType));
+    if (weaponTypes.length <= 0) continue;
+    const tier = resolveSpawnTierFromArt(art);
+    if (!tier || !enabledTiers.has(tier)) continue;
+    if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
+    const byType = poolsByTier.get(tier);
+    for (const weaponType of weaponTypes) {
+      if (!byType.has(weaponType)) byType.set(weaponType, []);
+      byType.get(weaponType).push(art.id);
+    }
+  }
+
+  return poolsByTier.size > 0 ? poolsByTier : null;
+}
+
+function buildMetaInnateArtConfig(weaponArtSpawnConfig) {
+  const poolsByTier = buildMetaInnateArtPoolsByTier(weaponArtSpawnConfig);
+  if (poolsByTier) return { mode: 'tier_pools', value: poolsByTier };
+  const legacy = buildLegacyMetaInnateArtByWeaponType(weaponArtSpawnConfig);
+  if (legacy) return { mode: 'legacy_map', value: legacy };
+  return null;
+}
+
+function hasAnyBoundArt(item) {
+  if (!item || typeof item !== 'object') return false;
+  if (Array.isArray(item.weaponArtIds) && item.weaponArtIds.some((id) => typeof id === 'string' && id.trim().length > 0)) {
+    return true;
+  }
+  return typeof item.weaponArtId === 'string' && item.weaponArtId.trim().length > 0;
+}
+
+function writeMetaInnateArt(item, artId) {
+  item.weaponArtIds = [artId];
+  item.weaponArtSources = ['meta_innate'];
   item.weaponArtId = artId;
   item.weaponArtSource = 'meta_innate';
+}
+
+function applyMetaInnateArtToItem(item, artConfig) {
+  if (!item || !artConfig) return item;
+  if (!META_INNATE_WEAPON_TYPES.has(item.type)) return item;
+  if (!META_INNATE_TIERS.has(item.tier)) return item;
+  if (hasAnyBoundArt(item)) return item;
+
+  if (artConfig.mode === 'legacy_map') {
+    const artId = artConfig.value.get(item.type);
+    if (!artId) return item;
+    writeMetaInnateArt(item, artId);
+    return item;
+  }
+
+  if (artConfig.mode === 'tier_pools') {
+    const tierPools = artConfig.value.get(item.tier);
+    const pool = tierPools?.get(item.type) || [];
+    if (pool.length <= 0) return item;
+    const artId = pool[Math.floor(Math.random() * pool.length)];
+    if (!artId) return item;
+    writeMetaInnateArt(item, artId);
+    return item;
+  }
+
   return item;
 }
 
@@ -270,7 +370,7 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
   const usedNames = new Set();
   const maxAttempts = count * 5;
   let attempts = 0;
-  const metaInnateArtByWeaponType = buildMetaInnateArtByWeaponType(weaponArtSpawnConfig);
+  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
   // Apply weapon weight bonus from meta upgrades
   const weights = { ...table.weights };
@@ -342,7 +442,7 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
       item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
     }
     if (!item) continue;
-    applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
+    applyMetaInnateArtToItem(item, metaInnateArtConfig);
 
     usedNames.add(name);
     choices.push({ type: category, item });
@@ -372,7 +472,7 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
 export function generateShopInventory(actId, lootTables, allWeapons, consumables, allAccessories = null, roster = null, weaponArtSpawnConfig = null) {
   const table = lootTables[actId] || lootTables.act3;
   const itemCount = SHOP_ITEM_COUNT.min + Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
-  const metaInnateArtByWeaponType = buildMetaInnateArtByWeaponType(weaponArtSpawnConfig);
+  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
   const inventory = [];
   const usedNames = new Set();
@@ -395,7 +495,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     const name = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item && item.price > 0) {
-      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
+      applyMetaInnateArtToItem(item, metaInnateArtConfig);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
     }
@@ -412,7 +512,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     const name = shopConsumables[Math.floor(Math.random() * shopConsumables.length)];
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item) {
-      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
+      applyMetaInnateArtToItem(item, metaInnateArtConfig);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: 'consumable' });
     }
@@ -424,7 +524,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
     if (usedNames.has(name)) continue; // Already picked randomly
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (item && item.price > 0 && inventory.length < itemCount) {
-      applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
+      applyMetaInnateArtToItem(item, metaInnateArtConfig);
       usedNames.add(name);
       inventory.push({ item, price: item.price, type: 'consumable' });
     }
@@ -443,7 +543,7 @@ export function generateShopInventory(actId, lootTables, allWeapons, consumables
 
     const item = findItem(name, allWeapons, consumables, allAccessories);
     if (!item || item.price === 0) continue;
-    applyMetaInnateArtToItem(item, metaInnateArtByWeaponType);
+    applyMetaInnateArtToItem(item, metaInnateArtConfig);
 
     usedNames.add(name);
     inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });

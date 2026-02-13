@@ -15,6 +15,30 @@ const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light']);
 const IS_DEV = Boolean(import.meta?.env?.DEV);
 
+function normalizeCombatStatScaling(value) {
+  if (!value || typeof value !== 'object') return null;
+  const stat = typeof value.stat === 'string' ? value.stat.trim().toUpperCase() : '';
+  if (!stat) return null;
+  const divisor = Math.max(1, Math.trunc(Number(value.divisor) || 1));
+  return { stat, divisor };
+}
+
+function getCombatStatScalingBonus(unit, mods) {
+  const scaling = mods?.statScaling;
+  if (!scaling) return 0;
+  const stat = typeof scaling.stat === 'string' ? scaling.stat.trim().toUpperCase() : '';
+  if (!stat) return 0;
+  const divisor = Math.max(1, Math.trunc(Number(scaling.divisor) || 1));
+  const statValue = Number(unit?.stats?.[stat]) || 0;
+  return Math.floor(statValue / divisor);
+}
+
+function hasWeaponArtActivation(mods) {
+  if (mods?.weaponArt) return true;
+  if (!Array.isArray(mods?.activated)) return false;
+  return mods.activated.some((entry) => entry?.id === 'weapon_art');
+}
+
 function normalizeCombatMods(mods) {
   if (!mods || typeof mods !== 'object') return null;
   return {
@@ -24,6 +48,8 @@ function normalizeCombatMods(mods) {
     atkBonus: Number(mods.atkBonus) || 0,
     defBonus: Number(mods.defBonus) || 0,
     spdBonus: Number(mods.spdBonus) || 0,
+    statScaling: normalizeCombatStatScaling(mods.statScaling),
+    weaponArt: Boolean(mods.weaponArt),
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     vantage: Boolean(mods.vantage),
     quickRiposte: Boolean(mods.quickRiposte),
@@ -46,6 +72,8 @@ export function mergeCombatMods(baseMods, extraMods) {
     atkBonus: base.atkBonus + extra.atkBonus,
     defBonus: base.defBonus + extra.defBonus,
     spdBonus: base.spdBonus + extra.spdBonus,
+    statScaling: base.statScaling || extra.statScaling,
+    weaponArt: base.weaponArt || extra.weaponArt,
     ignoreTerrainAvoid: base.ignoreTerrainAvoid || extra.ignoreTerrainAvoid,
     vantage: base.vantage || extra.vantage,
     quickRiposte: base.quickRiposte || extra.quickRiposte,
@@ -397,7 +425,7 @@ export function canCounter(defender, defenderWeapon, distance) {
  * Used by StatPanel/HUD to show combat preview before the player commits.
  *
  * skillCtx (optional): { atkMods, defMods } from SkillSystem.getSkillCombatMods().
- *   Each has: { hitBonus, avoidBonus, critBonus, atkBonus, defBonus, ignoreTerrainAvoid, vantage, activated }
+ *   Each has: { hitBonus, avoidBonus, critBonus, atkBonus, defBonus, statScaling, ignoreTerrainAvoid, vantage, activated }
  */
 export function getCombatForecast(
   attacker, atkWeapon,
@@ -437,6 +465,7 @@ export function getCombatForecast(
   const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
   let atkDmg = calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain)
     + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - fDefWpnDef;
+  atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   atkDmg = Math.max(0, atkDmg);
   let atkHit = calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
     + (atkMods?.hitBonus || 0) - (defMods?.avoidBonus || 0);
@@ -456,7 +485,8 @@ export function getCombatForecast(
   const atkEffectiveSpd = calculateEffectiveSpeed(attacker, atkWeapon, atkSpdBonus);
   const defEffectiveSpd = calculateEffectiveSpeed(defender, defWeapon, defSpdBonus);
 
-  const atkDoubles = !fDefPrevent && (
+  const atkArtActive = hasWeaponArtActivation(atkMods);
+  const atkDoubles = !atkArtActive && !fDefPrevent && (
     atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
   );
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
@@ -470,6 +500,7 @@ export function getCombatForecast(
     const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
     defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - fAtkWpnDef;
+    defDmg += getCombatStatScalingBonus(defender, defMods);
     defDmg = Math.max(0, defDmg);
     defHit = calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
       + (defMods?.hitBonus || 0) - (atkMods?.avoidBonus || 0);
@@ -478,7 +509,8 @@ export function getCombatForecast(
       + (defMods?.critBonus || 0);
     defCrit = Math.max(0, Math.min(100, defCrit));
     // Quick Riposte: always double when defending above 50% HP
-    defDoubles = (defMods?.quickRiposte) || (!fAtkPrevent && (
+    const defArtActive = hasWeaponArtActivation(defMods);
+    defDoubles = (defMods?.quickRiposte) || (!defArtActive && !fAtkPrevent && (
       defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
     ));
     defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
@@ -681,6 +713,7 @@ export function resolveCombat(
   let atkDmg = Math.max(0,
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain)
     + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - defWeaponDefBonus);
+  atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   atkDmg = Math.max(0, atkDmg);
   let atkHit = Math.max(0, Math.min(100,
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
@@ -702,11 +735,13 @@ export function resolveCombat(
   const rAtkAs = calculateEffectiveSpeed(attacker, atkWeapon, rAtkSpdBonus);
   const rDefAs = calculateEffectiveSpeed(defender, defWeapon, rDefSpdBonus);
 
-  const atkDoubles = !defPreventDouble && (
+  const atkArtActive = hasWeaponArtActivation(atkMods);
+  const atkDoubles = !atkArtActive && !defPreventDouble && (
     rAtkAs >= rDefAs + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
   );
+  const defArtActive = hasWeaponArtActivation(defMods);
   // Quick Riposte: always double when defending above 50% HP
-  const defDoubles = defCanCounter && ((defMods?.quickRiposte) || (!atkPreventDouble && (
+  const defDoubles = defCanCounter && ((defMods?.quickRiposte) || (!defArtActive && !atkPreventDouble && (
     rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
   )));
 
@@ -719,6 +754,7 @@ export function resolveCombat(
     defDmg = Math.max(0,
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - atkWeaponDefBonus);
+    defDmg += getCombatStatScalingBonus(defender, defMods);
     defDmg = Math.max(0, defDmg);
     defHit = Math.max(0, Math.min(100,
       calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)

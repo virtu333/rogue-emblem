@@ -244,6 +244,382 @@
           }
         ]
       }
+    },
+    {
+      "id": "sword_wrath_strike",
+      "name": "Wrath Strike",
+      "weaponType": "Sword",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A forceful sword art that boosts might and hit.",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Wrath Strike"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_dueling_blade",
+      "name": "Dueling Blade",
+      "weaponType": "Sword",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A measured stance that sharply improves avoid.",
+      "combatMods": {
+        "avoidBonus": 30,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Dueling Blade"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_tempest_lance",
+      "name": "Tempest Lance",
+      "weaponType": "Lance",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A surging thrust with extra attack power.",
+      "combatMods": {
+        "atkBonus": 8,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Tempest Lance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_countering_strike",
+      "name": "Countering Strike",
+      "weaponType": "Lance",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A guarded lance technique that hardens defense.",
+      "combatMods": {
+        "defBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Countering Strike"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_smash",
+      "name": "Smash",
+      "weaponType": "Axe",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A reckless swing with massive hit and crit spikes.",
+      "combatMods": {
+        "hitBonus": 20,
+        "critBonus": 20,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Smash"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_gamble",
+      "name": "Gamble",
+      "weaponType": "Axe",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A high-risk strike trading accuracy for power.",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": -30,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Gamble"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bow_heavy_draw",
+      "name": "Heavy Draw",
+      "weaponType": "Bow",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 5,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A heavy draw that adds significant might.",
+      "combatMods": {
+        "atkBonus": 8,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Heavy Draw"
+          }
+        ]
+      }
+    },
+    {
+      "id": "magic_focused_bolt",
+      "name": "Focused Bolt",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome",
+        "Light"
+      ],
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A focused cast that boosts magical might and hit.",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Focused Bolt"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_diamond_axe",
+      "name": "Diamond Axe",
+      "weaponType": "Axe",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A crushing blow with huge power but reduced accuracy.",
+      "combatMods": {
+        "atkBonus": 14,
+        "hitBonus": -20,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Diamond Axe"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_wild_abandon",
+      "name": "Wild Abandon",
+      "weaponType": "Axe",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A feral strike with immense risk-reward profile.",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": -30,
+        "critBonus": 30,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Wild Abandon"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_shadow_gambit",
+      "name": "Shadow Gambit",
+      "weaponType": "Sword",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A silver-tier feint that ignores terrain avoid.",
+      "combatMods": {
+        "critBonus": 10,
+        "ignoreTerrainAvoid": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Shadow Gambit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "magic_purifying_light",
+      "name": "Purifying Light",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome",
+        "Light"
+      ],
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A sanctified blast with elevated magical force.",
+      "combatMods": {
+        "atkBonus": 5,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Purifying Light"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_finesse_blade",
+      "name": "Finesse Blade",
+      "weaponType": "Sword",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A precise cut that scales with skill.",
+      "combatMods": {
+        "statScaling": {
+          "stat": "SKL",
+          "divisor": 2
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Finesse Blade"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_dragonhaze",
+      "name": "Dragonhaze",
+      "weaponType": "Sword",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A blinding flourish that scales with speed.",
+      "combatMods": {
+        "statScaling": {
+          "stat": "SPD",
+          "divisor": 2
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Dragonhaze"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_armored_strike",
+      "name": "Armored Strike",
+      "weaponType": "Axe",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A fortified blow that scales with defense.",
+      "combatMods": {
+        "statScaling": {
+          "stat": "DEF",
+          "divisor": 2
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Armored Strike"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_glowing_ember",
+      "name": "Glowing Ember",
+      "weaponType": "Lance",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A burning lance technique that scales with defense and grants avoid.",
+      "combatMods": {
+        "statScaling": {
+          "stat": "DEF",
+          "divisor": 2
+        },
+        "avoidBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Glowing Ember"
+          }
+        ]
+      }
+    },
+    {
+      "id": "magic_resonance",
+      "name": "Resonance",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome",
+        "Light"
+      ],
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 5,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A resonant cast that scales with magic.",
+      "combatMods": {
+        "statScaling": {
+          "stat": "MAG",
+          "divisor": 3
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Resonance"
+          }
+        ]
+      }
     }
   ]
 }

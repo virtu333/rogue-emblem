@@ -22,11 +22,14 @@ import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
-import { normalizeWeaponArtBinding } from './WeaponArtSystem.js';
+import { normalizeWeaponArtBinding, getWeaponArtBindings, getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
+const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel']);
+const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
+
 
 function getConvoyBucket(item) {
   if (!item || typeof item !== 'object') return null;
@@ -724,6 +727,125 @@ export class RunManager {
     return true;
   }
 
+  getWeaponArtSpawnConfig() {
+    return {
+      weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+      ironArms: Boolean(this.metaEffects?.ironArms),
+      steelArms: Boolean(this.metaEffects?.steelArms),
+    };
+  }
+
+  _resolveWeaponArtSpawnTier(art) {
+    if (!art) return null;
+    const explicitTier = typeof art.spawnTier === 'string'
+      ? art.spawnTier.trim().toLowerCase()
+      : (typeof art.tierAffinity === 'string' ? art.tierAffinity.trim().toLowerCase() : '');
+    if (explicitTier === 'iron') return 'Iron';
+    if (explicitTier === 'steel') return 'Steel';
+    if (explicitTier === 'silver') return 'Silver';
+
+    const unlockAct = typeof art.unlockAct === 'string' ? art.unlockAct.trim().toLowerCase() : '';
+    if (unlockAct === 'act1') return 'Iron';
+    if (unlockAct === 'act2') return 'Steel';
+    if (unlockAct === 'act3') return 'Silver';
+    return null;
+  }
+
+  _buildWeaponArtSpawnPools({ includeIron = false, includeSteel = false } = {}) {
+    const enabledTiers = new Set();
+    if (includeIron) enabledTiers.add('Iron');
+    if (includeSteel) enabledTiers.add('Steel');
+    if (enabledTiers.size <= 0) return null;
+
+    const catalog = this.gameData?.weaponArts?.arts;
+    if (!Array.isArray(catalog) || catalog.length <= 0) return null;
+
+    const poolsByTier = new Map();
+    for (const art of catalog) {
+      if (!art?.id) continue;
+      if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
+      const weaponTypes = getWeaponArtAllowedTypes(art)
+        .filter((weaponType) => WEAPON_ART_SPAWN_WEAPON_TYPES.has(weaponType));
+      if (weaponTypes.length <= 0) continue;
+      const tier = this._resolveWeaponArtSpawnTier(art);
+      if (!tier || !enabledTiers.has(tier)) continue;
+
+      if (!poolsByTier.has(tier)) poolsByTier.set(tier, new Map());
+      const byType = poolsByTier.get(tier);
+      for (const weaponType of weaponTypes) {
+        if (!byType.has(weaponType)) byType.set(weaponType, []);
+        byType.get(weaponType).push(art.id);
+      }
+    }
+
+    return poolsByTier.size > 0 ? poolsByTier : null;
+  }
+
+  _appendWeaponArtBinding(weapon, artId, source = 'meta_innate') {
+    if (!weapon || typeof artId !== 'string' || artId.trim().length <= 0) return false;
+
+    const bindings = getWeaponArtBindings(weapon, { maxSlots: 3 });
+    if (bindings.some((binding) => binding.id === artId)) return false;
+    if (bindings.length >= 3) return false;
+
+    bindings.push({ id: artId, source });
+    weapon.weaponArtIds = bindings.map((binding) => binding.id);
+    weapon.weaponArtSources = bindings.map((binding) => binding.source || 'innate');
+    weapon.weaponArtId = weapon.weaponArtIds[0];
+    weapon.weaponArtSource = weapon.weaponArtSources[0] || 'innate';
+    return true;
+  }
+
+  _assignMetaWeaponArtsToStartingWeapons(lords) {
+    const includeIron = Boolean(this.metaEffects?.ironArms);
+    const includeSteel = Boolean(this.metaEffects?.steelArms);
+    const addExtraArt = Boolean(this.metaEffects?.artAdept);
+
+    const poolsByTier = this._buildWeaponArtSpawnPools({ includeIron, includeSteel });
+    if (!poolsByTier) return;
+
+    const rollFromPool = (pool) => {
+      if (!Array.isArray(pool) || pool.length <= 0) return null;
+      return pool[Math.floor(Math.random() * pool.length)] || null;
+    };
+
+    const candidatesForAdept = [];
+
+    for (const unit of lords) {
+      const inventory = Array.isArray(unit?.inventory) ? unit.inventory : [];
+      for (const weapon of inventory) {
+        if (!weapon || !WEAPON_ART_SPAWN_WEAPON_TYPES.has(weapon.type)) continue;
+        const tier = typeof weapon.tier === 'string' ? weapon.tier : null;
+        if (!WEAPON_ART_SPAWN_TIERS.has(tier)) continue;
+        if (tier === 'Iron' && !includeIron) continue;
+        if (tier === 'Steel' && !includeSteel) continue;
+
+        const pool = poolsByTier.get(tier)?.get(weapon.type) || [];
+        if (pool.length <= 0) continue;
+
+        const firstArtId = rollFromPool(pool);
+        if (firstArtId) {
+          this._appendWeaponArtBinding(weapon, firstArtId, 'meta_innate');
+        }
+
+        if (addExtraArt) {
+          candidatesForAdept.push({ weapon, pool });
+        }
+      }
+    }
+
+    if (!addExtraArt || candidatesForAdept.length <= 0) return;
+
+    const picked = candidatesForAdept[Math.floor(Math.random() * candidatesForAdept.length)];
+    if (!picked?.weapon || !Array.isArray(picked.pool) || picked.pool.length <= 0) return;
+
+    const existingIds = new Set(getWeaponArtBindings(picked.weapon, { maxSlots: 3 }).map((binding) => binding.id));
+    const available = picked.pool.filter((id) => !existingIds.has(id));
+    const extraArtId = rollFromPool(available);
+    if (!extraArtId) return;
+    this._appendWeaponArtBinding(picked.weapon, extraArtId, 'meta_innate');
+  }
+
   /** Create Edric + Sera as the starting two lords. */
   createInitialRoster() {
     const { lords, classes, weapons, accessories } = this.gameData;
@@ -772,6 +894,9 @@ export class RunManager {
     }
 
     seraUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
+
+    // Meta weapon-art spawns for starting weapons (Iron/Steel + Art Adept extra slot).
+    this._assignMetaWeaponArtsToStartingWeapons([edricUnit, seraUnit]);
 
     // Apply weapon forges (Might) to all lords' combat weapons
     const forgeLevels = me?.startingWeaponForge || 0;

@@ -11,7 +11,13 @@ import {
   getEffectiveStaffRange,
   parseRange
 } from '../engine/Combat.js';
-import { canUseWeaponArt } from '../engine/WeaponArtSystem.js';
+import { canUseWeaponArt, getWeaponArtIds, isWeaponArtCompatibleWithWeapon } from '../engine/WeaponArtSystem.js';
+import { canEquip } from '../engine/UnitManager.js';
+import {
+  TOOLTIP_HOVER_DELAY_MS,
+  TOOLTIP_LONG_PRESS_MS,
+  TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
+} from '../utils/tooltipTiming.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -42,6 +48,11 @@ export class UnitDetailOverlay {
     this._tabObjects = [];    // tab-specific objects (cleared on tab switch)
     this.visible = false;
     this._skillTooltip = null;
+    this._weaponTooltip = null;
+    this._tooltipHoverTimer = null;
+    this._tooltipPressTimer = null;
+    this._tooltipPressStart = null;
+    this._sceneCleanupBound = false;
     this._activeTab = 'stats';
     this._unit = null;
     this._terrain = null;
@@ -57,6 +68,7 @@ export class UnitDetailOverlay {
   show(unit, terrain, gameData, rosterOptions) {
     this.hide();
     this.visible = true;
+    this._bindSceneCleanup();
     if (gameData) this.gameData = gameData;
     this._activeTab = 'stats';
 
@@ -116,6 +128,7 @@ export class UnitDetailOverlay {
   _renderUnitContent(unit, terrain) {
     // Destroy previous unit content (and tab content within it)
     this._hideSkillTooltip();
+    this._hideWeaponTooltip();
     for (const obj of this._tabObjects) obj.destroy();
     this._tabObjects = [];
     for (const obj of this._unitObjects) obj.destroy();
@@ -230,7 +243,9 @@ export class UnitDetailOverlay {
   }
 
   hide() {
+    this._clearTooltipTimers();
     this._hideSkillTooltip();
+    this._hideWeaponTooltip();
     if (this._keyHandlerLeft) {
       this.scene.input.keyboard.off('keydown-LEFT', this._keyHandlerLeft);
       this.scene.input.keyboard.off('keydown-RIGHT', this._keyHandlerRight);
@@ -309,6 +324,7 @@ export class UnitDetailOverlay {
 
   _drawTabContent() {
     this._hideSkillTooltip();
+    this._hideWeaponTooltip();
     for (const obj of this._tabObjects) obj.destroy();
     this._tabObjects = [];
 
@@ -420,38 +436,41 @@ export class UnitDetailOverlay {
     if (unit.inventory && unit.inventory.length > 0) {
       for (const item of unit.inventory) {
         const marker = item === unit.weapon ? '\u25b6' : ' ';
-        const baseNameColor = this._getWeaponNameColor(item, UI_COLORS.white);
+        const usableNow = canEquip(unit, item);
+        const rowColor = usableNow ? UI_COLORS.white : '#777777';
+        const baseNameColor = usableNow ? this._getWeaponNameColor(item, rowColor) : rowColor;
+        const forgeSuffixSegments = usableNow
+          ? this._getWeaponForgeSuffixSegments(item)
+          : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: rowColor }));
         const nameLine = this._tabTextSegments(lx, y, [
-          { text: marker, color: UI_COLORS.white },
+          { text: marker, color: rowColor },
           { text: this._getWeaponBaseName(item), color: baseNameColor },
-          ...this._getWeaponForgeSuffixSegments(item),
+          ...forgeSuffixSegments,
         ], '9px');
         let contentX = lx + nameLine.width;
-        if (item.special) {
-          this._tabText(contentX + 2, y, '*', '#ff8844', '9px');
-          contentX += 8;
-        }
+        const tooltipAnchor = nameLine.texts[1] || nameLine.anchor;
+        if (tooltipAnchor) this._wireTooltipTarget(tooltipAnchor, () => this._showWeaponTooltip(item, tooltipAnchor));
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
           const rng = getEffectiveStaffRange(item, unit);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           this._tabTextSegments(contentX, y, [
-            { text: ` (${rem}/${max}) ${rngStr}`, color: UI_COLORS.white },
+            { text: ` (${rem}/${max}) ${rngStr}`, color: rowColor },
           ], '9px');
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
           this._tabTextSegments(contentX, y, [
-            { text: ' ', color: UI_COLORS.white },
-            { text: `Mt${item.might}`, color: this._getForgeStatColor(item, 'might', UI_COLORS.white) },
-            { text: ' ', color: UI_COLORS.white },
-            { text: `Ht${item.hit}`, color: this._getForgeStatColor(item, 'hit', UI_COLORS.white) },
-            { text: ' ', color: UI_COLORS.white },
-            { text: `Cr${item.crit}`, color: this._getForgeStatColor(item, 'crit', UI_COLORS.white) },
-            { text: ' ', color: UI_COLORS.white },
-            { text: `Wt${item.weight}`, color: this._getForgeStatColor(item, 'weight', UI_COLORS.white) },
-            { text: ` ${rngStr}`, color: UI_COLORS.white },
+            { text: ' ', color: rowColor },
+            { text: `Mt${item.might}`, color: usableNow ? this._getForgeStatColor(item, 'might', rowColor) : rowColor },
+            { text: ' ', color: rowColor },
+            { text: `Ht${item.hit}`, color: usableNow ? this._getForgeStatColor(item, 'hit', rowColor) : rowColor },
+            { text: ' ', color: rowColor },
+            { text: `Cr${item.crit}`, color: usableNow ? this._getForgeStatColor(item, 'crit', rowColor) : rowColor },
+            { text: ' ', color: rowColor },
+            { text: `Wt${item.weight}`, color: usableNow ? this._getForgeStatColor(item, 'weight', rowColor) : rowColor },
+            { text: ` ${rngStr}`, color: rowColor },
           ], '9px');
         } else {
           // Name already rendered in the segmented prefix above.
@@ -521,17 +540,20 @@ export class UnitDetailOverlay {
     this._tabSep(lx, y); y += 12;
     this._tabText(lx, y, 'Weapon Arts:', '#88ddff', '9px');
     y += 13;
-    const weaponArtChoices = this._getInspectableWeaponArtChoices(unit, unit.weapon);
+    const weaponArtChoices = this._getInspectableWeaponArtChoicesForInventory(unit);
     if (weaponArtChoices.length <= 0) {
       this._tabText(lx + 8, y, '(none)', UI_COLORS.gray, '9px');
       y += 12;
     } else {
-      for (const { art, canUse, reason } of weaponArtChoices) {
+      for (const { weapon, art, canUse, reason } of weaponArtChoices) {
         const status = canUse ? 'Ready' : this._weaponArtReasonLabel(reason);
         const color = canUse ? '#88ddff' : UI_COLORS.gray;
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
-        this._tabText(lx + 8, y, `${art.name}${suffix}  ${status}`, color, '9px');
+        const weaponName = this._getWeaponBaseName(weapon);
+        const row = this._tabText(lx + 8, y, `${art.name} (${weaponName})${suffix}  ${status}`, color, '9px');
+        const effect = art?.description || 'No description';
+        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, `${art.name} [${weaponName}]: ${effect}`));
         y += 12;
       }
     }
@@ -564,14 +586,16 @@ export class UnitDetailOverlay {
   _tabTextSegments(x, y, segments, fontSize = '9px') {
     let cursor = x;
     let anchor = null;
+    const texts = [];
     for (const segment of segments) {
       const text = String(segment?.text ?? '');
       if (!text) continue;
       const t = this._tabText(cursor, y, text, segment?.color || UI_COLORS.white, fontSize);
       if (!anchor) anchor = t;
+      texts.push(t);
       cursor += t.width;
     }
-    return { anchor, width: Math.max(0, cursor - x) };
+    return { anchor, texts, width: Math.max(0, cursor - x) };
   }
 
   _getWeaponBaseName(weapon) {
@@ -608,45 +632,32 @@ export class UnitDetailOverlay {
     return weapon?.tier === 'Legend' ? UI_COLORS.gold : fallbackColor;
   }
 
-  _getWeaponArtCatalog(options = {}) {
-    const arts = this.gameData?.weaponArts?.arts || [];
-    if (options?.ignoreUnlocks) return arts;
-    const runManager = this.scene?.runManager || null;
-    if (!runManager) return arts;
-    const fromRun = runManager.getUnlockedWeaponArts?.(arts);
-    if (Array.isArray(fromRun)) return fromRun;
-    const ids = runManager.getUnlockedWeaponArtIds?.();
-    if (Array.isArray(ids)) {
-      const unlocked = new Set(ids);
-      return arts.filter((art) => art?.id && unlocked.has(art.id));
-    }
-    return [];
-  }
-
-  _getInspectableWeaponArtChoices(unit, weapon, options = {}) {
-    if (!unit || !weapon) return [];
-    const base = this._getWeaponArtCatalog(options);
+  _collectWeaponBoundArts(weapon) {
+    if (!weapon) return [];
     const allArts = this.gameData?.weaponArts?.arts || [];
+    if (allArts.length <= 0) return [];
     const byId = new Map();
-    for (const art of base) {
-      if (art?.id) byId.set(art.id, art);
-    }
-    const boundId = typeof weapon?.weaponArtId === 'string' ? weapon.weaponArtId.trim() : '';
-    if (boundId) {
+    for (const boundId of getWeaponArtIds(weapon)) {
       const boundArt = allArts.find((art) => art?.id === boundId);
       if (boundArt?.id) byId.set(boundArt.id, boundArt);
     }
     const weaponToken = weapon?.id || weapon?.name || null;
     if (weaponToken) {
       for (const art of allArts) {
-        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken) && art?.id) {
+        if (!art?.id) continue;
+        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
           byId.set(art.id, art);
         }
       }
     }
+    return [...byId.values()];
+  }
+
+  _getInspectableWeaponArtChoices(unit, weapon) {
+    if (!unit || !weapon) return [];
     const choices = [];
-    for (const art of byId.values()) {
-      if (!art || art.weaponType !== weapon.type) continue;
+    for (const art of this._collectWeaponBoundArts(weapon)) {
+      if (!art || !isWeaponArtCompatibleWithWeapon(art, weapon)) continue;
       const check = canUseWeaponArt(unit, weapon, art, {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
@@ -657,6 +668,19 @@ export class UnitDetailOverlay {
     }
     choices.sort((a, b) => a.art.name.localeCompare(b.art.name));
     return choices;
+  }
+
+  _getInspectableWeaponArtChoicesForInventory(unit) {
+    if (!unit) return [];
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    const rows = [];
+    for (const weapon of inventory) {
+      if (!weapon || !weapon.type) continue;
+      for (const entry of this._getInspectableWeaponArtChoices(unit, weapon)) {
+        rows.push({ weapon, ...entry });
+      }
+    }
+    return rows;
   }
 
   _weaponArtReasonLabel(reason) {
@@ -684,8 +708,108 @@ export class UnitDetailOverlay {
     return null;
   }
 
+  _bindSceneCleanup() {
+    if (this._sceneCleanupBound) return;
+    if (!this.scene?.events?.on) return;
+    this._sceneCleanupBound = true;
+    this.scene.events.on('shutdown', () => {
+      this._clearTooltipTimers();
+      this._hideSkillTooltip();
+      this._hideWeaponTooltip();
+    });
+  }
+
+  _clearTooltipTimers() {
+    if (this._tooltipHoverTimer) {
+      this._tooltipHoverTimer.remove(false);
+      this._tooltipHoverTimer = null;
+    }
+    if (this._tooltipPressTimer) {
+      this._tooltipPressTimer.remove(false);
+      this._tooltipPressTimer = null;
+    }
+    this._tooltipPressStart = null;
+  }
+
+  _wireTooltipTarget(target, showFn) {
+    if (!target || !showFn) return;
+    target.setInteractive({ useHandCursor: true });
+    target.on('pointerover', () => {
+      this._clearTooltipTimers();
+      this._tooltipHoverTimer = this.scene.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+        this._tooltipHoverTimer = null;
+        showFn();
+      });
+    });
+    target.on('pointerout', () => {
+      this._clearTooltipTimers();
+      this._hideSkillTooltip();
+      this._hideWeaponTooltip();
+    });
+    target.on('pointerdown', (pointer) => {
+      this._clearTooltipTimers();
+      this._tooltipPressStart = { id: pointer.id, x: pointer.x, y: pointer.y };
+      this._tooltipPressTimer = this.scene.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
+        this._tooltipPressTimer = null;
+        showFn();
+      });
+    });
+    target.on('pointerup', () => {
+      if (this._tooltipPressTimer) {
+        this._tooltipPressTimer.remove(false);
+        this._tooltipPressTimer = null;
+      }
+    });
+    target.on('pointermove', (pointer) => {
+      if (!this._tooltipPressStart || pointer.id !== this._tooltipPressStart.id || !this._tooltipPressTimer) return;
+      const dx = pointer.x - this._tooltipPressStart.x;
+      const dy = pointer.y - this._tooltipPressStart.y;
+      if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
+        this._tooltipPressTimer.remove(false);
+        this._tooltipPressTimer = null;
+      }
+    });
+  }
+
+  _showWeaponTooltip(weapon, anchor) {
+    this._hideWeaponTooltip();
+    if (!weapon || !anchor) return;
+    const lines = [];
+    if (weapon.special) lines.push(`Special: ${weapon.special}`);
+    const boundArts = this._collectWeaponBoundArts(weapon);
+    if (boundArts.length > 0) {
+      for (const art of boundArts) {
+        if (!art?.name) continue;
+        const detail = art.description ? ` - ${art.description}` : '';
+        lines.push(`Weapon Art: ${art.name}${detail}`);
+      }
+    }
+    if (lines.length <= 0) return;
+
+    const tipX = Math.min(anchor.x + anchor.width + 8, 430);
+    const tipY = Math.min(anchor.y, 430);
+    const tipBg = this.scene.add.rectangle(tipX, tipY, 200, 10, 0x111111, 0.95)
+      .setOrigin(0, 0).setDepth(DEPTH_TOOLTIP).setStrokeStyle(1, 0x555555);
+    const tipText = this.scene.add.text(tipX + 4, tipY + 3, lines.join('\n'), {
+      fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
+      wordWrap: { width: 192 },
+    }).setDepth(DEPTH_TOOLTIP + 1);
+    tipBg.setSize(200, tipText.height + 8);
+    if (tipBg.y + tipBg.height > 480) tipBg.y = 480 - tipBg.height;
+    tipText.y = tipBg.y + 3;
+    this._weaponTooltip = [tipBg, tipText];
+  }
+
+  _hideWeaponTooltip() {
+    if (this._weaponTooltip) {
+      for (const obj of this._weaponTooltip) obj.destroy();
+      this._weaponTooltip = null;
+    }
+  }
+
   _showSkillTooltip(anchor, description) {
     this._hideSkillTooltip();
+    this._hideWeaponTooltip();
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     const tipY = Math.min(anchor.y, 440);
     const tipBg = this.scene.add.rectangle(tipX, tipY, 200, 10, 0x111111, 0.95)
@@ -707,3 +831,4 @@ export class UnitDetailOverlay {
     }
   }
 }
+

@@ -5,6 +5,7 @@ const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
 const VALID_OWNER_SCOPES = new Set(['player', 'enemy', 'npc', 'any']);
 const VALID_WEAPON_ART_SOURCES = new Set(['innate', 'scroll', 'meta_innate']);
 const UNLOCK_ACT_RE = /^act\d+$/i;
+const MAX_WEAPON_ART_SLOTS = 3;
 
 function toFiniteNumber(value, fallback = 0) {
   const n = Number(value);
@@ -21,40 +22,81 @@ function toNonEmptyString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+
 export function normalizeWeaponArtSource(value) {
   const source = toNonEmptyString(value)?.toLowerCase() || null;
   if (!source) return null;
   return VALID_WEAPON_ART_SOURCES.has(source) ? source : null;
 }
 
-export function normalizeWeaponArtBinding(weapon, options = {}) {
-  if (!weapon || typeof weapon !== 'object') return weapon;
+export function getWeaponArtBindings(weapon, options = {}) {
+  if (!weapon || typeof weapon !== 'object') return [];
   const validArtIds = options.validArtIds instanceof Set ? options.validArtIds : null;
+  const maxSlots = Math.max(1, Math.trunc(Number(options.maxSlots) || MAX_WEAPON_ART_SLOTS));
   const legacyBinding = weapon.weaponArtBinding && typeof weapon.weaponArtBinding === 'object'
     ? weapon.weaponArtBinding
     : null;
-  const candidates = [
+  const bindings = [];
+  const seen = new Set();
+
+  const explicitIds = Array.isArray(weapon.weaponArtIds) ? weapon.weaponArtIds : [];
+  const explicitSources = Array.isArray(weapon.weaponArtSources) ? weapon.weaponArtSources : [];
+  const fallbackSource = normalizeWeaponArtSource(weapon.weaponArtSource)
+    || normalizeWeaponArtSource(legacyBinding?.source)
+    || 'innate';
+
+  for (let i = 0; i < explicitIds.length; i++) {
+    const id = toNonEmptyString(explicitIds[i]);
+    if (!id || seen.has(id)) continue;
+    if (validArtIds && !validArtIds.has(id)) continue;
+    const source = normalizeWeaponArtSource(explicitSources[i]) || fallbackSource;
+    bindings.push({ id, source });
+    seen.add(id);
+    if (bindings.length >= maxSlots) return bindings;
+  }
+
+  const legacyCandidates = [
     toNonEmptyString(weapon.weaponArtId),
     toNonEmptyString(legacyBinding?.artId),
     toNonEmptyString(weapon.weaponArt),
     toNonEmptyString(weapon.artId),
-  ].filter(Boolean);
-  const artId = candidates.find((candidate) => !validArtIds || validArtIds.has(candidate)) || null;
-  let source = normalizeWeaponArtSource(weapon.weaponArtSource);
-  if (!source) source = normalizeWeaponArtSource(legacyBinding?.source);
+  ];
+  for (const candidate of legacyCandidates) {
+    if (!candidate || seen.has(candidate)) continue;
+    if (validArtIds && !validArtIds.has(candidate)) continue;
+    bindings.push({ id: candidate, source: fallbackSource });
+    seen.add(candidate);
+    if (bindings.length >= maxSlots) break;
+  }
+
+  return bindings;
+}
+
+export function getWeaponArtIds(weapon, options = {}) {
+  return getWeaponArtBindings(weapon, options).map((binding) => binding.id);
+}
+
+export function normalizeWeaponArtBinding(weapon, options = {}) {
+  if (!weapon || typeof weapon !== 'object') return weapon;
+  const bindings = getWeaponArtBindings(weapon, options);
 
   delete weapon.weaponArtBinding;
   delete weapon.weaponArt;
   delete weapon.artId;
 
-  if (!artId) {
+  if (bindings.length <= 0) {
+    delete weapon.weaponArtIds;
+    delete weapon.weaponArtSources;
     delete weapon.weaponArtId;
     delete weapon.weaponArtSource;
     return weapon;
   }
 
-  weapon.weaponArtId = artId;
-  weapon.weaponArtSource = source || 'innate';
+  weapon.weaponArtIds = bindings.map((binding) => binding.id);
+  weapon.weaponArtSources = bindings.map((binding) => binding.source || 'innate');
+  // Keep singular aliases for backward compatibility while runtime migrates to arrays.
+  weapon.weaponArtId = weapon.weaponArtIds[0];
+  weapon.weaponArtSource = weapon.weaponArtSources[0] || 'innate';
   return weapon;
 }
 
@@ -65,6 +107,29 @@ function normalizeStringList(value) {
     .map(toNonEmptyString)
     .filter(Boolean);
   return [...new Set(out)];
+}
+
+function normalizeStatScaling(value) {
+  if (!value || typeof value !== 'object') return null;
+  const stat = toNonEmptyString(value.stat);
+  if (!stat) return null;
+  const divisor = Math.max(1, Math.trunc(toFiniteNumber(value.divisor, 1)));
+  return { stat: stat.toUpperCase(), divisor };
+}
+
+export function getWeaponArtAllowedTypes(art) {
+  const allowedTypes = normalizeStringList(art?.allowedTypes);
+  if (allowedTypes === undefined) return [];
+  if (Array.isArray(allowedTypes) && allowedTypes.length > 0) return allowedTypes;
+  const weaponType = toNonEmptyString(art?.weaponType);
+  return weaponType ? [weaponType] : [];
+}
+
+export function isWeaponArtCompatibleWithWeapon(art, weapon) {
+  const weaponType = toNonEmptyString(weapon?.type);
+  if (!weaponType) return false;
+  const allowedTypes = getWeaponArtAllowedTypes(art);
+  return allowedTypes.includes(weaponType);
 }
 
 function getFactionFromContext(unit, context = {}) {
@@ -167,6 +232,8 @@ export function getWeaponArtCombatMods(art) {
     spdBonus: toFiniteNumber(mods.spdBonus, 0),
     avoidBonus: toFiniteNumber(mods.avoidBonus, 0),
     defBonus: toFiniteNumber(mods.defBonus, 0),
+    statScaling: normalizeStatScaling(mods.statScaling),
+    weaponArt: true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
@@ -195,8 +262,7 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     }
   }
 
-  const artWeaponType = art.weaponType;
-  if (!artWeaponType || weapon.type !== artWeaponType) {
+  if (!isWeaponArtCompatibleWithWeapon(art, weapon)) {
     return { ok: false, reason: 'wrong_weapon_type' };
   }
 
@@ -275,3 +341,6 @@ export function resetWeaponArtTurnUsage(unit, context = {}) {
   usage.turn = {};
   usage.turnKey = getTurnKey(context);
 }
+
+
+

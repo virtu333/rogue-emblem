@@ -630,6 +630,69 @@ describe('LootSystem', () => {
       expect(steelSword.weaponArtId).toBe('sword_precise_cut');
       expect(steelSword.weaponArtSource).toBe('meta_innate');
     });
+
+    it('maps allowedTypes magic arts onto Light and Tome pools', () => {
+      const customArt = {
+        id: 'magic_test_art',
+        name: 'Magic Test Art',
+        weaponType: 'Tome',
+        allowedTypes: ['Tome', 'Light'],
+        unlockAct: 'act2',
+        requiredRank: 'Prof',
+        hpCost: 1,
+        perMapLimit: 3,
+        combatMods: { atkBonus: 3 },
+      };
+      const customTables = {
+        act2: {
+          weapons: ['Elfire', 'Shine'],
+          consumables: ['Vulnerary'],
+          rare: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, consumable: 0, rare: 0, accessory: 0, forge: 0, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+
+      const tomeChoices = generateLootChoices(
+        'act2',
+        { act2: { ...customTables.act2, weapons: ['Elfire'] } },
+        gameData.weapons,
+        gameData.consumables,
+        1,
+        0,
+        gameData.accessories,
+        gameData.whetstones,
+        null,
+        false,
+        null,
+        false,
+        { steelArms: true, weaponArtCatalog: [customArt] }
+      );
+      const elfire = tomeChoices.find((choice) => choice.item?.name === 'Elfire')?.item;
+      expect(elfire?.weaponArtId).toBe('magic_test_art');
+      expect(elfire?.weaponArtSource).toBe('meta_innate');
+
+      const lightChoices = generateLootChoices(
+        'act2',
+        { act2: { ...customTables.act2, weapons: ['Shine'] } },
+        gameData.weapons,
+        gameData.consumables,
+        1,
+        0,
+        gameData.accessories,
+        gameData.whetstones,
+        null,
+        false,
+        null,
+        false,
+        { steelArms: true, weaponArtCatalog: [customArt] }
+      );
+      const shine = lightChoices.find((choice) => choice.item?.name === 'Shine')?.item;
+      expect(shine?.weaponArtId).toBe('magic_test_art');
+      expect(shine?.weaponArtSource).toBe('meta_innate');
+    });
   });
 
   describe('guaranteed shop consumables', () => {

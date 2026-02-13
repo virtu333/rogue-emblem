@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   gridDistance,
   parseRange,
@@ -250,6 +250,93 @@ describe('Combat forecast', () => {
     expect(withArt.attacker.hit).toBeGreaterThanOrEqual(base.attacker.hit);
     expect(withArt.attacker.skills.some((s) => s.id === 'weapon_art')).toBe(true);
   });
+
+  it('applies stat-scaling damage from attacker weapon art (SKL/2)', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 10, SKL: 11, SPD: 10, LCK: 5 },
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 24, DEF: 6, SPD: 8, LCK: 4 },
+      currentHP: 24,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: {
+        statScaling: { stat: 'SKL', divisor: 2 },
+        activated: [{ id: 'weapon_art', name: 'Finesse Blade' }],
+      },
+    });
+
+    expect(withArt.attacker.damage).toBe(base.attacker.damage + Math.floor(attacker.stats.SKL / 2));
+  });
+
+  it('applies stat-scaling damage from magic weapon art (MAG/3)', () => {
+    const fire = data.weapons.find(w => w.name === 'Fire');
+    const attacker = makeUnit({
+      weapon: fire,
+      stats: { ...makeUnit().stats, STR: 1, MAG: 13, SKL: 10, SPD: 10, LCK: 5 },
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 24, RES: 4, SPD: 8, LCK: 4 },
+      currentHP: 24,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain, {
+      atkWeaponArtMods: {
+        statScaling: { stat: 'MAG', divisor: 3 },
+        activated: [{ id: 'weapon_art', name: 'Resonance' }],
+      },
+    });
+
+    expect(withArt.attacker.damage).toBe(base.attacker.damage + Math.floor(attacker.stats.MAG / 3));
+  });
+
+  it('suppresses normal attacker follow-up when weapon art is active', () => {
+    const attacker = makeUnit({ stats: { ...makeUnit().stats, SPD: 20 } });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, SPD: 10 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    expect(base.attacker.doubles).toBe(true);
+
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
+    });
+    expect(withArt.attacker.doubles).toBe(false);
+  });
+
+  it('still allows defender follow-up against an art-using attacker', () => {
+    const attacker = makeUnit({ stats: { ...makeUnit().stats, SPD: 5 } });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, SPD: 15 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
+    });
+    expect(withArt.attacker.doubles).toBe(false);
+    expect(withArt.defender.doubles).toBe(true);
+  });
 });
 
 describe('Combat resolution', () => {
@@ -309,6 +396,41 @@ describe('Combat resolution', () => {
     const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
     expect(result.poisonEffects).toBeDefined();
     expect(result.poisonEffects.length).toBe(0);
+  });
+
+  it('suppresses attacker follow-up strikes in resolution when weapon art is active', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, HP: 40, STR: 1, SPD: 20, DEF: 10 },
+      currentHP: 40,
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 40, STR: 1, SPD: 5, DEF: 20 },
+      currentHP: 40,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const withArt = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] } }
+      );
+
+      const baseAttackerStrikes = base.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
+      const artAttackerStrikes = withArt.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
+      expect(baseAttackerStrikes).toBeGreaterThan(artAttackerStrikes);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });
 
@@ -664,11 +786,12 @@ describe('Combat mod merging', () => {
   it('merges additive and boolean combat mods', () => {
     const merged = mergeCombatMods(
       { atkBonus: 2, hitBonus: 10, ignoreTerrainAvoid: false, activated: [{ id: 'a', name: 'A' }] },
-      { atkBonus: 3, critBonus: 5, ignoreTerrainAvoid: true, activated: [{ id: 'b', name: 'B' }] }
+      { atkBonus: 3, critBonus: 5, statScaling: { stat: 'SKL', divisor: 2 }, ignoreTerrainAvoid: true, activated: [{ id: 'b', name: 'B' }] }
     );
     expect(merged.atkBonus).toBe(5);
     expect(merged.hitBonus).toBe(10);
     expect(merged.critBonus).toBe(5);
+    expect(merged.statScaling).toEqual({ stat: 'SKL', divisor: 2 });
     expect(merged.ignoreTerrainAvoid).toBe(true);
     expect(merged.activated.length).toBe(2);
   });

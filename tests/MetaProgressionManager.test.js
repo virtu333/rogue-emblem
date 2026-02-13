@@ -416,8 +416,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 44 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(44);
+  it('has 46 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(46);
   });
 
   it('has correct category distribution', () => {
@@ -429,8 +429,8 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
     expect(byCategory.capacity).toBe(5);
-    expect(byCategory.starting_equipment).toBe(5);
-    expect(byCategory.starting_skills).toBe(8);
+    expect(byCategory.starting_equipment).toBe(6);
+    expect(byCategory.starting_skills).toBe(9);
   });
 
   // --- Starting Equipment effects ---
@@ -503,14 +503,15 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.meta_bundle = 1;
     meta.purchasedUpgrades.meta_explicit = 1;
     const unlocked = meta.getUnlockedWeaponArts(gameData.weaponArts.arts);
-    expect(unlocked).toEqual([
-      'sword_precise_cut',
-      'sword_comet_edge',
-      'legend_gemini_tempest',
-      'bow_longshot',
-      'bow_hunters_focus',
-      'legend_starfall_volley',
-    ]);
+    const expected = [];
+    for (const weaponType of ['Sword', 'Bow']) {
+      expected.push(...gameData.weaponArts.arts
+        .filter((art) => art.weaponType === weaponType)
+        .map((art) => art.id));
+    }
+    if (!expected.includes('legend_gemini_tempest')) expected.push('legend_gemini_tempest');
+    if (!expected.includes('legend_starfall_volley')) expected.push('legend_starfall_volley');
+    expect(unlocked).toEqual(expected);
   });
 
   it('getUnlockedWeaponArts fails closed on unknown IDs', () => {
@@ -628,16 +629,15 @@ describe('MetaProgressionManager', () => {
     expect(effects.metaUnlockedWeaponArts).toEqual(['legend_gemini_tempest']);
   });
 
-  it('weapon_art_infusion unlocks basic art IDs for spawn binding', () => {
+  it('migrates legacy weapon_art_infusion ownership to iron_arms + steel_arms', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.weapon_art_infusion = 1;
+    // Constructor migration handles saved state; mirror it directly for this unit test path.
+    meta._migrateLegacyWeaponArtUpgradeState();
+
     const effects = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts.arts });
-    expect(effects.metaUnlockedWeaponArts).toEqual([
-      'sword_precise_cut',
-      'lance_piercing_drive',
-      'axe_wild_swing',
-      'bow_longshot',
-    ]);
+    expect(effects.ironArms).toBe(1);
+    expect(effects.steelArms).toBe(1);
   });
 
   it('reset clears skillAssignments', () => {

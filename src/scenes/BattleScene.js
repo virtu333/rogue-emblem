@@ -60,6 +60,8 @@ import {
   recordWeaponArtUse,
   applyWeaponArtCost,
   resetWeaponArtTurnUsage,
+  getWeaponArtIds,
+  isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
@@ -82,8 +84,13 @@ import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
-import { startSceneLazy } from '../utils/sceneLoader.js';
+import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { retryBooleanAction } from '../utils/retry.js';
+import {
+  TOOLTIP_HOVER_DELAY_MS,
+  TOOLTIP_LONG_PRESS_MS,
+  TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
+} from '../utils/tooltipTiming.js';
 
 function hashRewindSeed(seed, rewindCount) {
   const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
@@ -95,8 +102,6 @@ function hashRewindSeed(seed, rewindCount) {
   return h >>> 0;
 }
 
-const TOUCH_INSPECT_HOLD_MS = 420;
-const TOUCH_INSPECT_MOVE_THRESHOLD = 14;
 const HIDDEN_WEAPON_ART_REASONS = new Set([
   'legendary_weapon_required',
   'owner_scope_mismatch',
@@ -202,6 +207,7 @@ export class BattleScene extends Phaser.Scene {
         const audio = this.registry.get('audio');
         if (audio) audio.releaseMusic(this, 0);
         this.cancelTouchInspectHold();
+        this._hideMenuTooltip();
         this._restoreBattleRng();
       });
 
@@ -635,12 +641,12 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(2000, () => {
         toast.destroy();
         if (this.runManager) {
-          void startSceneLazy(this, 'NodeMap', {
+          void transitionToScene(this, 'NodeMap', {
             gameData: this.gameData,
             runManager: this.runManager,
-          });
+          }, { reason: TRANSITION_REASONS.BACK });
         } else {
-          void startSceneLazy(this, 'Title');
+          void transitionToScene(this, 'Title', undefined, { reason: TRANSITION_REASONS.BACK });
         }
       });
     }
@@ -1505,7 +1511,7 @@ export class BattleScene extends Phaser.Scene {
     this.cancelTouchInspectHold();
     this._touchHoldTriggered = false;
     this._touchHoldStart = { x: pointer.x, y: pointer.y, id: pointer.id };
-    this._touchHoldTimer = this.time.delayedCall(TOUCH_INSPECT_HOLD_MS, () => {
+    this._touchHoldTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
       const start = this._touchHoldStart;
       this._touchHoldTimer = null;
       if (!start) return;
@@ -1522,7 +1528,7 @@ export class BattleScene extends Phaser.Scene {
     if (pointer.id !== this._touchHoldStart.id) return;
     const dx = pointer.x - this._touchHoldStart.x;
     const dy = pointer.y - this._touchHoldStart.y;
-    const threshold = TOUCH_INSPECT_MOVE_THRESHOLD;
+    const threshold = TOOLTIP_LONG_PRESS_MOVE_THRESHOLD;
     if ((dx * dx + dy * dy) > (threshold * threshold)) {
       this.cancelTouchInspectHold();
     }
@@ -2027,7 +2033,7 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
     } : null;
     const saveExitCb = this.runManager ? () => {
       // Return to title — last NodeMap auto-save preserved. Battle progress lost.
@@ -2035,7 +2041,7 @@ export class BattleScene extends Phaser.Scene {
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
     } : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => {
@@ -2810,6 +2816,7 @@ export class BattleScene extends Phaser.Scene {
       hitWidth = 0,
       hitHeight = 28,
       hoverColor = '#ffdd44',
+      clickOnPointerUp = false,
     } = options;
 
     const text = this.add.text(x, y, label, textStyle)
@@ -2826,11 +2833,95 @@ export class BattleScene extends Phaser.Scene {
     }
     text.on('pointerover', () => text.setColor(hoverColor));
     text.on('pointerout', () => text.setColor(defaultColor));
-    text.on('pointerdown', () => {
-      this._uiClickBlocked = true;
-      onClick();
-    });
+    if (clickOnPointerUp) {
+      text.on('pointerdown', () => {
+        this._uiClickBlocked = true;
+      });
+      text.on('pointerup', () => {
+        if (text._suppressNextClick) {
+          text._suppressNextClick = false;
+          return;
+        }
+        onClick();
+      });
+    } else {
+      text.on('pointerdown', () => {
+        this._uiClickBlocked = true;
+        onClick();
+      });
+    }
     return text;
+  }
+
+  _clearMenuTooltipTimer(key) {
+    const timer = this[key];
+    if (!timer) return;
+    timer.remove(false);
+    this[key] = null;
+  }
+
+  _hideMenuTooltip() {
+    this._clearMenuTooltipTimer('_menuTooltipHoverTimer');
+    this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+    if (this._menuTooltip) {
+      this._menuTooltip.destroy();
+      this._menuTooltip = null;
+    }
+  }
+
+  _showWeaponArtTooltip(anchorText, art) {
+    if (!anchorText || !art) return;
+    this._hideMenuTooltip();
+    const summary = art?.description || 'No description';
+    const lines = [art.name, summary];
+    const body = lines.join('\n');
+    const padding = 8;
+    const maxWidth = 220;
+    const txt = this.add.text(0, 0, body, {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#e0e0e0',
+      wordWrap: { width: maxWidth - (padding * 2) },
+    }).setDepth(450);
+    const bg = this.add.rectangle(
+      0, 0,
+      txt.width + (padding * 2),
+      txt.height + (padding * 2),
+      0x222222, 0.95
+    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(449);
+    const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
+    txt.setPosition(padding, padding);
+
+    const b = anchorText.getBounds();
+    let x = b.right + 8;
+    let y = b.top - 4;
+    if (x + bg.width > this.cameras.main.width - 4) x = b.left - bg.width - 8;
+    if (x < 4) x = 4;
+    if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
+    if (y < 4) y = 4;
+    box.setPosition(x, y);
+    this._menuTooltip = box;
+  }
+
+  _wireWeaponArtTooltip(text, art) {
+    if (!text || !art) return;
+    text.on('pointerover', () => {
+      this._clearMenuTooltipTimer('_menuTooltipHoverTimer');
+      this._menuTooltipHoverTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+        this._menuTooltipHoverTimer = null;
+        this._showWeaponArtTooltip(text, art);
+      });
+    });
+    text.on('pointerout', () => this._hideMenuTooltip());
+    text.on('pointerdown', () => {
+      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      this._menuTooltipPressTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
+        this._menuTooltipPressTimer = null;
+        text._suppressNextClick = true;
+        this._showWeaponArtTooltip(text, art);
+      });
+    });
+    text.on('pointerup', () => this._clearMenuTooltipTimer('_menuTooltipPressTimer'));
   }
 
   _isReducedEffects() {
@@ -2992,6 +3083,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   hideActionMenu() {
+    this._hideMenuTooltip();
     if (this.actionMenu) {
       this.actionMenu.forEach(obj => obj.destroy());
       this.actionMenu = null;
@@ -3325,11 +3417,11 @@ export class BattleScene extends Phaser.Scene {
     ).setDepth(400).setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
-    const current = this._selectedWeaponArt?.unitName === unit.name ? this._selectedWeaponArt.artId : null;
+    const current = this._selectedWeaponArt?.unitName === unit.name ? this._selectedWeaponArt : null;
 
     const noneY = menuPos.y + 6 + itemHeight / 2;
     const noneColor = current ? '#e0e0e0' : '#ffdd44';
-    const noneText = this._makeMenuTextButton(menuPos.x + 8, noneY, `${current ? '  ' : '▶ '}Normal Attack`, {
+    const noneText = this._makeMenuTextButton(menuPos.x + 8, noneY, `${current ? '  ' : '> '}Normal Attack`, {
       fontFamily: 'monospace', fontSize: '12px', color: noneColor,
     }, noneColor, () => {
       const audio = this.registry.get('audio');
@@ -3340,18 +3432,26 @@ export class BattleScene extends Phaser.Scene {
     }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
     this.actionMenu.push(noneText);
 
-    choices.forEach(({ art, canUse, reason }, i) => {
+    choices.forEach(({ weapon, art, canUse, reason }, i) => {
       const rowY = menuPos.y + 6 + (i + 1) * itemHeight + itemHeight / 2;
-      const isActive = current === art.id;
-      const marker = isActive ? '▶ ' : '  ';
+      const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;
+      const isActive = Boolean(
+        current
+        && current.artId === art.id
+        && Number.isInteger(current.weaponIndex)
+        && current.weaponIndex === weaponIndex
+      );
+      const marker = isActive ? '> ' : '  ';
       const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
       const color = canUse ? (isActive ? '#ffdd44' : '#e0e0e0') : '#888888';
-      const label = `${marker}${art.name}\n   ${status}`;
+      const weaponName = weapon?.name || weapon?.id || art.weaponType;
+      const label = `${marker}${art.name} (${weaponName})
+   ${status}`;
 
       const text = this._makeMenuTextButton(menuPos.x + 8, rowY, label, {
         fontFamily: 'monospace', fontSize: '10px', color, lineSpacing: 1,
       }, color, () => {
-        const latest = canUseWeaponArt(unit, unit.weapon, art, {
+        const latest = canUseWeaponArt(unit, weapon, art, {
           turnNumber: this.turnManager?.turnNumber,
           isInitiating: true,
         });
@@ -3361,10 +3461,12 @@ export class BattleScene extends Phaser.Scene {
         }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
-        this._setSelectedWeaponArt(unit, art.id);
+        if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+        this._setSelectedWeaponArt(unit, art.id, weapon);
         this.inEquipMenu = false;
         this._beginAttackSelection(unit);
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
+      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight, clickOnPointerUp: true });
+      this._wireWeaponArtTooltip(text, art);
 
       this.actionMenu.push(text);
     });
@@ -3774,48 +3876,52 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  _getWeaponArtCatalog(options = {}) {
-    const arts = this.gameData?.weaponArts?.arts || [];
-    if (options?.ignoreUnlocks) return arts;
-    const hasRunManager = !!this.runManager;
-    const fromRun = this.runManager?.getUnlockedWeaponArts?.(arts);
-    if (Array.isArray(fromRun)) return fromRun;
-    const ids = this.runManager?.getUnlockedWeaponArtIds?.();
-    if (Array.isArray(ids)) {
-      const unlocked = new Set(ids);
-      return arts.filter((art) => art?.id && unlocked.has(art.id));
-    }
-    if (hasRunManager) return [];
-    return arts;
+  _getWeaponArtCatalog() {
+    return this.gameData?.weaponArts?.arts || [];
   }
 
-  _getAvailableWeaponArtCatalogForUnit(unit, options = {}) {
-    const base = this._getWeaponArtCatalog(options);
-    if (!unit?.weapon) return base;
+  _collectWeaponBoundArts(weapon) {
+    if (!weapon) return [];
     const allArts = this.gameData?.weaponArts?.arts || [];
+    if (allArts.length <= 0) return [];
     const byId = new Map();
-    for (const art of base) {
-      if (art?.id) byId.set(art.id, art);
-    }
 
-    const boundId = typeof unit.weapon?.weaponArtId === 'string' ? unit.weapon.weaponArtId.trim() : '';
-    if (boundId) {
+    for (const boundId of getWeaponArtIds(weapon)) {
       const boundArt = allArts.find((art) => art?.id === boundId);
       if (boundArt?.id) byId.set(boundArt.id, boundArt);
     }
 
-    const weaponToken = unit.weapon?.id || unit.weapon?.name || null;
+    const weaponToken = weapon?.id || weapon?.name || null;
     if (weaponToken) {
-      const legendaryBound = allArts.filter((art) =>
-        Array.isArray(art?.legendaryWeaponIds)
-        && art.legendaryWeaponIds.includes(weaponToken)
-      );
-      for (const art of legendaryBound) {
-        if (art?.id) byId.set(art.id, art);
+      for (const art of allArts) {
+        if (!art?.id) continue;
+        if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
+          byId.set(art.id, art);
+        }
       }
     }
 
     return [...byId.values()];
+  }
+
+  _getAvailableWeaponArtEntriesForUnit(unit) {
+    if (!unit) return [];
+    const inventory = Array.isArray(unit.inventory) && unit.inventory.length > 0
+      ? unit.inventory
+      : (unit.weapon ? [unit.weapon] : []);
+    const entries = [];
+    for (const weapon of inventory) {
+      if (!weapon || !weapon.type || isStaff(weapon)) continue;
+      for (const art of this._collectWeaponBoundArts(weapon)) {
+        if (!art || !isWeaponArtCompatibleWithWeapon(art, weapon)) continue;
+        entries.push({ weapon, art });
+      }
+    }
+    return entries;
+  }
+
+  _getAvailableWeaponArtCatalogForUnit(unit) {
+    return this._getAvailableWeaponArtEntriesForUnit(unit).map((entry) => entry.art);
   }
 
   _getWeaponArtHpAfterCost(unit, art) {
@@ -3825,39 +3931,69 @@ export class BattleScene extends Phaser.Scene {
     return Math.max(1, hp - cost);
   }
 
-  _setSelectedWeaponArt(unit, artId = null) {
+  _setSelectedWeaponArt(unit, artId = null, weapon = null) {
     if (!unit || !artId) {
       this._selectedWeaponArt = null;
       return;
     }
-    this._selectedWeaponArt = { unitName: unit.name, artId };
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    const activeWeapon = weapon || unit.weapon || null;
+    const weaponIndex = activeWeapon ? inventory.indexOf(activeWeapon) : -1;
+    this._selectedWeaponArt = {
+      unitName: unit.name,
+      artId,
+      weaponIndex,
+    };
   }
 
   _clearSelectedWeaponArt() {
     this._selectedWeaponArt = null;
   }
 
-  _getSelectedWeaponArtForUnit(unit, context = {}) {
+  _resolveSelectedWeaponArtEntry(unit) {
     const selected = this._selectedWeaponArt;
     if (!unit || !selected || selected.unitName !== unit.name) return null;
-    const art = this._getAvailableWeaponArtCatalogForUnit(unit).find(a => a.id === selected.artId);
-    if (!art) return null;
-    const valid = canUseWeaponArt(unit, unit.weapon, art, {
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
+    if (entries.length <= 0) return null;
+
+    if (Number.isInteger(selected.weaponIndex)
+      && selected.weaponIndex >= 0
+      && Array.isArray(unit.inventory)
+      && selected.weaponIndex < unit.inventory.length) {
+      const selectedWeapon = unit.inventory[selected.weaponIndex];
+      const strict = entries.find((entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon);
+      if (strict) return strict;
+    }
+
+    return entries.find((entry) => entry.art.id === selected.artId) || null;
+  }
+
+  _getSelectedWeaponArtForUnit(unit, context = {}) {
+    const selectedEntry = this._resolveSelectedWeaponArtEntry(unit);
+    if (!selectedEntry) return null;
+
+    const { weapon, art } = selectedEntry;
+    const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
       ...context,
     });
-    return valid.ok ? art : null;
+    if (!valid.ok) return null;
+
+    if (unit.weapon !== weapon) {
+      equipWeapon(unit, weapon);
+    }
+    return art;
   }
 
   _clearSelectedWeaponArtIfInvalid(unit, context = {}) {
     if (!this._selectedWeaponArt || !unit || this._selectedWeaponArt.unitName !== unit.name) return;
-    const art = this._getAvailableWeaponArtCatalogForUnit(unit).find(a => a.id === this._selectedWeaponArt.artId);
-    if (!art) {
+    const selectedEntry = this._resolveSelectedWeaponArtEntry(unit);
+    if (!selectedEntry) {
       this._clearSelectedWeaponArt();
       return;
     }
-    const valid = canUseWeaponArt(unit, unit.weapon, art, {
+    const valid = canUseWeaponArt(unit, selectedEntry.weapon, selectedEntry.art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
       ...context,
@@ -3867,20 +4003,18 @@ export class BattleScene extends Phaser.Scene {
 
   _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
     if (!unit) return [];
-    const activeWeapon = weapon || unit.weapon;
-    if (!activeWeapon) return [];
-    const arts = this._getAvailableWeaponArtCatalogForUnit(
-      { ...unit, weapon: activeWeapon },
-      options
-    ).filter(a => a.weaponType === activeWeapon.type);
-    return arts.map((art) => {
-      const check = canUseWeaponArt(unit, activeWeapon, art, {
+    const restrictToWeapon = Boolean(options?.restrictToWeapon && weapon);
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit)
+      .filter((entry) => !restrictToWeapon || entry.weapon === weapon);
+
+    return entries.map(({ weapon: sourceWeapon, art }) => {
+      const check = canUseWeaponArt(unit, sourceWeapon, art, {
         turnNumber: this.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
         ...context,
       });
-      return { art, canUse: check.ok, reason: check.reason };
+      return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
     }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
@@ -3919,7 +4053,7 @@ export class BattleScene extends Phaser.Scene {
       isInitiating: true,
       actorFaction: unit.faction,
       targetFaction: target?.faction,
-    }, { ignoreUnlocks: true }).filter((entry) => entry.canUse);
+    }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
     const scored = choices
       .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
@@ -5385,7 +5519,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       // Standalone mode â€” restart battle after delay
       this.time.delayedCall(2000, () => {
-        this.scene.restart();
+        restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
     }
   }
@@ -5399,23 +5533,23 @@ export class BattleScene extends Phaser.Scene {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
           this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-          void startSceneLazy(this, 'RunComplete', {
+          void transitionToScene(this, 'RunComplete', {
             gameData: this.gameData,
             runManager: this.runManager,
             result: 'victory',
-          });
+          }, { reason: TRANSITION_REASONS.VICTORY });
         } else {
           this.runManager.advanceAct();
-          void startSceneLazy(this, 'NodeMap', {
+          void transitionToScene(this, 'NodeMap', {
             gameData: this.gameData,
             runManager: this.runManager,
-          });
+          }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
         }
       } else {
-        void startSceneLazy(this, 'NodeMap', {
+        void transitionToScene(this, 'NodeMap', {
           gameData: this.gameData,
           runManager: this.runManager,
-        });
+        }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
       }
     } catch (err) {
       this.isTransitioningOut = false;
@@ -5432,17 +5566,17 @@ export class BattleScene extends Phaser.Scene {
     try {
       if (this.runManager?.isRunComplete?.()) {
         this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        void startSceneLazy(this, 'RunComplete', {
+        void transitionToScene(this, 'RunComplete', {
           gameData: this.gameData,
           runManager: this.runManager,
           result: 'victory',
-        });
+        }, { reason: TRANSITION_REASONS.VICTORY });
         return;
       }
-      void startSceneLazy(this, 'NodeMap', {
+      void transitionToScene(this, 'NodeMap', {
         gameData: this.gameData,
         runManager: this.runManager,
-      });
+      }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
     } catch (err) {
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
       this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
@@ -5718,10 +5852,7 @@ export class BattleScene extends Phaser.Scene {
       this.isBoss,
       null,
       this.isElite,
-      {
-        unlockedWeaponArtIds: this.runManager.getMetaUnlockedWeaponArtIds(),
-        weaponArtCatalog: this.gameData.weaponArts?.arts || [],
-      }
+      this.runManager.getWeaponArtSpawnConfig()
     );
 
     // Skip bonus gold
@@ -6640,18 +6771,18 @@ export class BattleScene extends Phaser.Scene {
     } else {
       // Standalone mode â€” restart battle after delay
       this.time.delayedCall(2000, () => {
-        this.scene.restart();
+        restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
     }
   }
 
   async transitionToRunCompleteWithRetry(result = 'defeat') {
     return retryBooleanAction(
-      () => startSceneLazy(this, 'RunComplete', {
+      () => transitionToScene(this, 'RunComplete', {
         gameData: this.gameData,
         runManager: this.runManager,
         result,
-      }),
+      }, { reason: TRANSITION_REASONS.DEFEAT }),
       {
         attempts: 3,
         initialDelayMs: 150,
@@ -6719,10 +6850,13 @@ export class BattleScene extends Phaser.Scene {
       clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void startSceneLazy(this, 'Title', { gameData: this.gameData });
+      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.DEFEAT });
     });
     group.push(titleBtn);
 
     this.defeatRecoveryPrompt = group;
   }
 }
+
+
+
