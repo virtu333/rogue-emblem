@@ -400,19 +400,23 @@ A multi-phase boss encounter on a volcanic/rift arena.
 - Gains **Warp Strike** — can teleport to any tile adjacent to a player unit once per turn before attacking
 - Reinforcements accelerate to every 2 turns
 
-### 8.6 Terrain: Volcanic / Corrupted Rift
+### 8.6 Terrain: Tundra + Volcano (Accelerated Act 4 Scope)
 
 New terrain types for Act 4 maps:
 
 | Terrain | Move Cost | Avoid | DEF | Special |
 |---------|-----------|-------|-----|---------|
+| Ice | 1 | -10 | 0 | Slide in entry direction until non-Ice tile or map edge. Preview should show slide path. Flying units ignore slide. |
+| Lava Crack | 1 | 0 | 0 | Unit ending turn on tile takes fixed damage (v1 target: 5 HP). Deterministic (no RNG). |
 | Lava | — (impassable by default) | — | — | Units ending turn adjacent to lava take 2 fire damage. Fliers can cross (move cost 2). Some maps have lava that shifts/flows each turn |
 | Cracked Floor | 1 | 0 | 0 | After any unit walks on it, becomes a Pit next turn. Visual warning (cracks appear). **Map gen constraint:** Cracked Floor tiles must not block the only path between player spawn and objectives. Generator should verify reachability assuming all Cracked Floor tiles become Pits. Cap at ~15-20% of walkable tiles per map to ensure viable alternate routes. |
 | Pit | — (impassable) | — | — | Former cracked floor. Blocks movement permanently. Creates dynamic terrain denial. Fliers can cross (move cost 2). |
 | Rift Portal | 1 | 0 | 0 | Enemies may spawn from these tiles. Player units can destroy a portal by using Wait on it (Lord or any unit) |
 | Corrupted Fort | 1 | +10 | +1 | Weaker fort variant. Heals 5% HP per turn instead of 10% |
 
-**Design intent:** Lava + cracked floor creates an "arena shrinks over time" mechanic. Players must advance aggressively rather than turtling. Rift portals give a secondary objective (destroy spawners or deal with endless reinforcements).
+**Design intent:** Tundra + Volcano create environmental pressure and route-planning tension without requiring new objective types.
+
+**Scope note (fast-track):** Cracked Floor, Pit, Rift Portal, and Corrupted Fort remain valid future extensions but are deferred from the initial Hard-mode Act 4 acceleration.
 
 ---
 
@@ -620,15 +624,14 @@ When a revived zombie is killed again, the combat results should show "0 XP" wit
 ### Implementation Phases (Part B)
 
 **Phase D — Act 4 Content (3-5 days):**
-- [ ] ACT_CONFIG: act4 entry with volcanic biome
-- [ ] terrain.json: Lava, Cracked Floor, Pit, Rift Portal, Corrupted Fort
-- [ ] mapTemplates.json: 2-3 volcanic/rift templates
-- [ ] Act 4 Boss: Temporal Guardian (2-phase, arena mechanics)
-- [ ] Lava damage + cracked floor → pit transition in TurnManager
-- [ ] Rift Portal enemy spawning + player destruction mechanic
+- [ ] ACT_CONFIG: act4 entry with Tundra/Volcano emphasis
+- [ ] terrain.json: Ice, Lava Crack
+- [ ] mapTemplates.json: 3-4 templates from Tundra/Volcano pool (for example: Frozen Pass, Glacier Fortress, Caldera)
+- [ ] Ice slide + Lava Crack damage handling in movement/turn flow
+- [ ] Generic reinforcement scheduler contract (fixed boss maps may script overrides)
 - [ ] lootTables.json: act4 entry
 - [ ] Narrative transitions (Act 3 → Act 4, Act 4 → Post-Act)
-- [ ] Tests: new terrain effects, boss phases, act progression
+- [ ] Tests: new terrain effects, act progression
 
 **Phase E — Secret Act Content (3-5 days):**
 - [ ] ACT_CONFIG: secretAct entry with void biome
@@ -683,13 +686,16 @@ Difficulty modes are a **content expansion** that builds on top of existing syst
 3. Wave 4 (Dynamic Recruits)
 4. Wave 5 (Expanded Skills)
 5. Wave 6 (Blessing System)
-6. **Wave 7 (Additional Map Objectives)** — Defend, Survive, Escape
-7. **Wave 8A (Terrain Hazards: Lava, Cracked Floor, Rift Portal)** — Required for Act 4
-8. **→ Difficulty Modes (this spec)** — Hard/Lunatic, Act 4, Secret Act, extended leveling, new enemies
-9. Wave 9 (Meta-Progression Expansion) — More sinks for extended play
-10. Wave 10 (QoL)
+6. **Wave 7A (Act 4 Contract Alignment)** — canonical terrain/objective/reinforcement contracts
+7. **Wave 7B (Terrain Hazards + Tilesets)** — Ice + Lava Crack, Tundra/Volcano templates
+8. **Wave 7C (Act 4 Progression)** — Hard-mode act insertion + content wiring
+9. **Wave 7D (Reinforcement System)** — generic wave scheduler (fixed-boss exception allowed)
+10. **Wave 8 (Additional Map Objectives, deferred)** — Defend, Survive, Escape
+11. **→ Difficulty Modes (this spec)** — Hard/Lunatic, Secret Act, extended leveling, new enemies
+12. Wave 9 (Meta-Progression Expansion) — More sinks for extended play
+13. Wave 10 (QoL)
 
-**Rationale:** Difficulty modes depend on varied objectives (Wave 7) and terrain hazards (Wave 8) to make the extended acts feel distinct. Shipping them without those foundations would make Act 4 and Secret Act feel like "more of the same but harder" rather than genuinely new content.
+**Rationale:** To ship meaningful Hard-mode content sooner, Act 4 now fast-tracks terrain identity and progression first, while Defend/Survive/Escape remains explicitly deferred. This preserves novelty without blocking on objective-system expansion.
 
 ---
 
