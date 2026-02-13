@@ -232,6 +232,16 @@ describe('Terrain hazards', () => {
       expect(pickTemplate('rout', templates, 'act1').id).toBe('global_template');
       expect(pickTemplate('rout', templates, 'act4').id).toBe('global_template');
     });
+
+    it('pickTemplate falls back to unfiltered pool when act-filtered pool is empty', () => {
+      const templates = {
+        rout: [
+          { id: 'act4_only', acts: ['act4'] },
+        ],
+        seize: [],
+      };
+      expect(pickTemplate('rout', templates, 'act1').id).toBe('act4_only');
+    });
   });
 
   describe('Data integrity', () => {

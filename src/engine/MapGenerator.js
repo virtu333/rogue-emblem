@@ -126,6 +126,7 @@ function pickMapSize(act, mapSizes) {
     act1: 'Act 1',
     act2: 'Act 2',
     act3: 'Act 3',
+    act4: 'Act 4',
     postAct: 'Post-Act',
     finalBoss: 'Final Boss',
   };

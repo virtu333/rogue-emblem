@@ -61,7 +61,7 @@ export function getRating(turnsTaken, par, config) {
 /**
  * Calculate bonus gold for a battle based on rating and act.
  * @param {{ rating: string, bonusMultiplier: number }} rating - from getRating()
- * @param {string} actId - "act1", "act2", "act3", or "finalBoss"
+ * @param {string} actId - "act1", "act2", "act3", "act4", or "finalBoss"
  * @param {object} config - turnBonus.json data
  * @returns {number} bonus gold (floored)
  */

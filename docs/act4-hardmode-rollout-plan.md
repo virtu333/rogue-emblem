@@ -2,7 +2,7 @@
 
 Date: 2026-02-13  
 Owner: gameplay roadmap stream  
-Status: active planning and execution kickoff
+Status: Phase 1 READY — executing Phase 2 next
 
 ## Goal
 
@@ -17,7 +17,7 @@ Ship meaningful new content earlier by inserting Act 4 into Hard mode before Def
 
 ## Decision Locks
 
-- Canonical terrain and biome source is `References/GDDExpansion/gdd_biomes_maps.md`.
+- Canonical terrain and biome source is `docs/gdd/gdd_biomes_maps.md`.
 - Reinforcements use one generic contract for procedural battles.
 - Fixed boss maps may use explicit per-map reinforcement scripts as a controlled exception.
 - Defend/Survive/Escape are deferred for this wave.
@@ -288,10 +288,19 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - Cracked Floor, Pit, Rift Portal, Quicksand
 - Secret Act and void terrain
 
-## Immediate Kickoff (Begin Now)
+## Phase Status
 
-Status: `in_progress`
+| Phase | Status | Date |
+|-------|--------|------|
+| Phase 1: Contract Alignment | **READY** | 2026-02-13 |
+| Phase 2: Terrain Hazards + Tilesets | Pending | — |
+| Phase 3: Act 4 Progression | Pending | — |
+| Phase 4: Reinforcement System | Pending | — |
 
-1. Complete Phase 1 consistency sweep and resolve any remaining wording drift across roadmap/spec/plan docs.
-2. Add reinforcement contract version marker and scheduler interface notes to spec docs.
-3. Open Milestone A docs-only PR with scope/deferral lock and acceptance checklist.
+### Phase 1 Completion Notes
+
+1. Doc consistency sweep complete — ROADMAP.md, difficulty_spec.md, and this plan are aligned.
+2. GDD vision docs ported from `References/GDDExpansion/` to `docs/gdd/` with implementation status headers.
+3. Canonical decisions locked: The Emperor (General class) as Act 4 boss, standard promoted enemy pool, Ice (-10 avoid + slide, no damage), Lava Crack (5 HP end-of-turn), Rout/Seize only.
+4. Reinforcement contract v1 defined above (§Phase 4).
+5. Deferred scope explicitly listed (Defend/Escape objectives, Cracked Floor/Pit/Rift Portal/Quicksand, Secret Act).

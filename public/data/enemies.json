@@ -18,6 +18,12 @@
       "promoted": ["Swordmaster", "General", "Paladin", "Sniper", "Wyvern Lord"],
       "sunderChance": 0.20
     },
+    "act4": {
+      "levelRange": [11, 17],
+      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero"],
+      "sunderChance": 0.25
+    },
     "postAct": {
       "levelRange": [12, 18],
       "base": ["Myrmidon", "Fighter", "Cavalier", "Mage"],
@@ -43,6 +49,9 @@
     "act3": [
       { "className": "Swordmaster", "level": 17, "name": "Blade Lord" },
       { "className": "General", "level": 17, "name": "Iron Wall" }
+    ],
+    "act4": [
+      { "className": "General", "level": 20, "name": "The Emperor" }
     ],
     "finalBoss": [
       { "className": "Hero", "level": 20, "name": "Dark Champion" }

@@ -223,6 +223,11 @@ describe('TurnBonusCalculator', () => {
       expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(400);
     });
 
+    it('returns full bonus for S rating in act4', () => {
+      const rating = { rating: 'S', bonusMultiplier: 1.0 };
+      expect(calculateBonusGold(rating, 'act4', config)).toBe(350);
+    });
+
     it('returns 0 for unknown act', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act99', config)).toBe(0);
@@ -233,10 +238,12 @@ describe('TurnBonusCalculator', () => {
       const act1 = calculateBonusGold(rating, 'act1', config);
       const act2 = calculateBonusGold(rating, 'act2', config);
       const act3 = calculateBonusGold(rating, 'act3', config);
+      const act4 = calculateBonusGold(rating, 'act4', config);
       const boss = calculateBonusGold(rating, 'finalBoss', config);
       expect(act1).toBeLessThan(act2);
       expect(act2).toBeLessThan(act3);
-      expect(act3).toBeLessThan(boss);
+      expect(act3).toBeLessThan(act4);
+      expect(act4).toBeLessThan(boss);
     });
   });
 

@@ -29,6 +29,14 @@ const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
+const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
+
+function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
+  const source = Array.isArray(sequence) ? sequence : fallback;
+  const normalized = source.filter((actId) => typeof actId === 'string' && KNOWN_ACT_IDS.has(actId));
+  if (normalized.length > 0) return [...new Set(normalized)];
+  return [...fallback.filter((actId) => KNOWN_ACT_IDS.has(actId))];
+}
 
 
 function getConvoyBucket(item) {
@@ -1317,10 +1325,12 @@ export class RunManager {
     this.difficultyId = resolved.id;
     this.difficultyModifiers = {
       ...resolved.modifiers,
-      actsIncluded: [...(resolved.modifiers.actsIncluded || DIFFICULTY_DEFAULTS.actsIncluded)],
+      actsIncluded: sanitizeActSequence(
+        resolved.modifiers.actsIncluded || DIFFICULTY_DEFAULTS.actsIncluded,
+        DIFFICULTY_DEFAULTS.actsIncluded
+      ),
     };
-    this.actSequence = [...this.difficultyModifiers.actsIncluded];
-    if (!this.actSequence.length) this.actSequence = [...ACT_SEQUENCE];
+    this.actSequence = sanitizeActSequence(this.difficultyModifiers.actsIncluded, ACT_SEQUENCE);
     if (this.actIndex >= this.actSequence.length) {
       this.actIndex = Math.max(0, this.actSequence.length - 1);
     }
@@ -1716,14 +1726,27 @@ export class RunManager {
       rm.difficultyModifiers = {
         ...DIFFICULTY_DEFAULTS,
         ...saved.difficultyModifiers,
-        actsIncluded: Array.isArray(saved.difficultyModifiers.actsIncluded)
-          ? [...saved.difficultyModifiers.actsIncluded]
-          : [...rm.difficultyModifiers.actsIncluded],
+        actsIncluded: sanitizeActSequence(
+          Array.isArray(saved.difficultyModifiers.actsIncluded)
+            ? saved.difficultyModifiers.actsIncluded
+            : rm.difficultyModifiers.actsIncluded,
+          rm.difficultyModifiers.actsIncluded
+        ),
       };
     }
-    rm.actSequence = Array.isArray(saved.actSequence) && saved.actSequence.length > 0
-      ? [...saved.actSequence]
-      : [...(rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)];
+    const hasSavedActSequence = Array.isArray(saved.actSequence) && saved.actSequence.length > 0;
+    const hasSavedActsIncluded = Array.isArray(saved?.difficultyModifiers?.actsIncluded)
+      && saved.difficultyModifiers.actsIncluded.length > 0;
+    const legacySafeFallback = hasSavedActSequence || hasSavedActsIncluded
+      ? (rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)
+      : DIFFICULTY_DEFAULTS.actsIncluded;
+    const sequenceSource = hasSavedActSequence
+      ? saved.actSequence
+      : (hasSavedActsIncluded ? saved.difficultyModifiers.actsIncluded : legacySafeFallback);
+    rm.actSequence = sanitizeActSequence(sequenceSource, legacySafeFallback);
+    if (rm.actIndex >= rm.actSequence.length) {
+      rm.actIndex = Math.max(0, rm.actSequence.length - 1);
+    }
     rm.endRunRewards = saved.endRunRewards || null;
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)

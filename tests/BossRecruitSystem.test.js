@@ -87,6 +87,16 @@ describe('BossRecruitSystem', () => {
       expect(candidates).toHaveLength(BOSS_RECRUIT_COUNT);
     });
 
+    it('supports actId input and returns candidates for act4', () => {
+      const candidates = generateBossRecruitCandidates('act4', makeBaseRoster(), gameData, null);
+      expect(candidates).not.toBeNull();
+      expect(candidates).toHaveLength(BOSS_RECRUIT_COUNT);
+      const validClassNames = getPoolClassNames(gameData.recruits, 'act4');
+      for (const c of candidates) {
+        if (!c.isLord) expect(validClassNames).toContain(c.className);
+      }
+    });
+
     it('Act 1 boss candidates are unpromoted (base tier)', () => {
       // Force no lord slot
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);

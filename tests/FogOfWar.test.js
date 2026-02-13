@@ -55,6 +55,7 @@ describe('Fog of War', () => {
       expect(FOG_CHANCE_BY_ACT.act1).toBe(0.10);
       expect(FOG_CHANCE_BY_ACT.act2).toBe(0.25);
       expect(FOG_CHANCE_BY_ACT.act3).toBe(0.35);
+      expect(FOG_CHANCE_BY_ACT.act4).toBe(0.45);
       expect(FOG_CHANCE_BY_ACT.finalBoss).toBe(0);
     });
   });

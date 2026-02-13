@@ -42,6 +42,20 @@
     "notes": "Boss approach maps"
   },
   {
+    "phase": "Act 4 (Standard)",
+    "mapSize": "18x12",
+    "tiles": 216,
+    "deployLimit": "6",
+    "notes": "Tundra and volcano hazard maps"
+  },
+  {
+    "phase": "Act 4 (Large)",
+    "mapSize": "18x14",
+    "tiles": 252,
+    "deployLimit": "6",
+    "notes": "Late-act push with dense enemy formations"
+  },
+  {
     "phase": "Post-Act",
     "mapSize": "18x14",
     "tiles": 252,

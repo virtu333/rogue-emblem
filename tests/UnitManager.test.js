@@ -622,6 +622,18 @@ describe('Enemy skill scaling by act', () => {
     expect(withSkills).toBeLessThan(550);
   });
 
+  it('createEnemyUnit respects act4 skill chance (60%)', () => {
+    const fighter = data.classes.find(c => c.name === 'Fighter');
+    // Generate 1000 level 5 enemies in act4, expect ~550-650 with combat skills
+    let withSkills = 0;
+    for (let i = 0; i < 1000; i++) {
+      const enemy = createEnemyUnit(fighter, 5, data.weapons, 1.0, data.skills, 'act4');
+      if (enemy.skills.length > 0) withSkills++;
+    }
+    expect(withSkills).toBeGreaterThan(550);
+    expect(withSkills).toBeLessThan(650);
+  });
+
   it('createEnemyUnit respects finalBoss skill chance (65%)', () => {
     const fighter = data.classes.find(c => c.name === 'Fighter');
     // Generate 1000 level 5 enemies in finalBoss, expect ~600-720 with combat skills

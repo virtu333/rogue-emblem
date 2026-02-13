@@ -206,7 +206,7 @@ describe('MapGenerator', () => {
   });
 
   describe('all acts generate without errors', () => {
-    for (const act of ['act1', 'act2', 'act3', 'postAct', 'finalBoss']) {
+    for (const act of ['act1', 'act2', 'act3', 'act4', 'postAct', 'finalBoss']) {
       for (const objective of ['rout', 'seize']) {
         it(`${act} / ${objective}`, () => {
           const config = generateBattle({ act, objective }, data);
@@ -412,7 +412,7 @@ describe('MapGenerator', () => {
 
   describe('deploy-aware enemy count', () => {
     it('enemies >= deployCount for all acts', () => {
-      for (const act of ['act1', 'act2', 'act3', 'finalBoss']) {
+      for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
         for (let i = 0; i < 10; i++) {
           const deployCount = DEPLOY_LIMITS[act]?.max || 4;
           const config = generateBattle({ act, objective: 'rout', deployCount }, data);
@@ -513,6 +513,52 @@ describe('MapGenerator', () => {
           expect(spawn.level).toBeGreaterThanOrEqual(13);
           expect(spawn.level).toBeLessThanOrEqual(18);
         }
+      }
+    });
+  });
+
+  describe('act4 progression data', () => {
+    it('includes two act4 map sizes (18x12 and 18x14)', () => {
+      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
+      const keys = new Set(act4Sizes.map(s => s.mapSize));
+      expect(act4Sizes.length).toBe(2);
+      expect(keys.has('18x12')).toBe(true);
+      expect(keys.has('18x14')).toBe(true);
+    });
+
+    it('act4 enemy pool has enough base/promoted variety for large-map spawns', () => {
+      const pool = data.enemies.pools.act4;
+      expect(pool).toBeDefined();
+      expect(pool.levelRange[0]).toBeLessThanOrEqual(pool.levelRange[1]);
+      expect(pool.base.length).toBeGreaterThanOrEqual(8);
+      expect(pool.promoted.length).toBeGreaterThanOrEqual(8);
+    });
+
+    it('act4 enemy count offsets stay under density caps for both act4 map sizes', () => {
+      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
+      const deployCount = DEPLOY_LIMITS.act4.max;
+      const maxOffset = ENEMY_COUNT_OFFSET.act4.default[1];
+      for (const size of act4Sizes) {
+        const cap = capForTiles(size.tiles, data.enemies.enemyCountByTiles);
+        expect(deployCount + maxOffset).toBeLessThanOrEqual(cap);
+      }
+    });
+
+    it('generateBattle produces valid act4 rout battles for each act4 map size', () => {
+      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
+      const deployCount = DEPLOY_LIMITS.act4.max;
+      for (const sizeEntry of act4Sizes) {
+        const deps = { ...data, mapSizes: [sizeEntry] };
+        const config = generateBattle({
+          act: 'act4',
+          objective: 'rout',
+          deployCount,
+          templateId: 'frozen_pass',
+        }, deps);
+        const cap = capForTiles(sizeEntry.tiles, data.enemies.enemyCountByTiles);
+        expect(`${config.cols}x${config.rows}`).toBe(sizeEntry.mapSize);
+        expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount);
+        expect(config.enemySpawns.length).toBeLessThanOrEqual(cap);
       }
     });
   });

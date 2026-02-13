@@ -617,6 +617,41 @@ describe('RunManager', () => {
       expect(restored.actSequence).toEqual(gameData.difficulty.modes.normal.actsIncluded);
     });
 
+    it('resumes legacy hard saves without act4 metadata using legacy-safe sequence', () => {
+      rm.startRun({ difficultyId: 'hard' });
+      const json = rm.toJSON();
+      json.difficultyId = 'hard';
+      json.actIndex = 3;
+      json.nodeMap = {
+        actId: 'finalBoss',
+        nodes: [{
+          id: 'finalBoss_0_0',
+          row: 0,
+          col: 0,
+          type: NODE_TYPES.BOSS,
+          edges: [],
+          battleParams: { act: 'finalBoss', objective: 'seize', battleSeed: 1 },
+          completed: false,
+        }],
+        startNodeId: 'finalBoss_0_0',
+        bossNodeId: 'finalBoss_0_0',
+      };
+      delete json.difficultyModifiers;
+      delete json.actSequence;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'act3', 'finalBoss']);
+      expect(restored.currentAct).toBe('finalBoss');
+      expect(restored.nodeMap?.actId).toBe('finalBoss');
+    });
+
+    it('sanitizes unknown acts out of saved actSequence', () => {
+      rm.startRun();
+      const json = rm.toJSON();
+      json.actSequence = ['act1', 'act2', 'unknown_act', 'finalBoss'];
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'finalBoss']);
+    });
+
     it('fromJSON normalizes weapon instance art binding fields', () => {
       rm.startRun();
       const json = rm.toJSON();

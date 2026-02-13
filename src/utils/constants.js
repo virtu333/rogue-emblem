@@ -46,6 +46,7 @@ export const DEPLOY_LIMITS = {
   act1:      { min: 3, max: 4 },
   act2:      { min: 4, max: 5 },
   act3:      { min: 5, max: 6 },
+  act4:      { min: 6, max: 6 },
   postAct:   { min: 4, max: 6 },
   finalBoss: { min: 4, max: 6 },
 };
@@ -56,6 +57,7 @@ export const ENEMY_COUNT_OFFSET = {
   act1:      { 0: [0, 0], 1: [0, 0], 2: [0, 1], 3: [0, 1], default: [1, 2], boss: [1, 2] },
   act2:      { 0: [1, 1], 1: [1, 2], default: [2, 3], boss: [3, 4] },
   act3:      { 0: [2, 2], default: [3, 4], boss: [4, 5] },
+  act4:      { 0: [2, 3], 1: [3, 3], default: [4, 5], boss: [5, 6] },
   finalBoss: { boss: [3, 5] },
 };
 
@@ -91,12 +93,13 @@ export const BOSS_RECRUIT_LORD_CHANCE = 0.12;  // 12% chance one slot is a lord
 export const BOSS_RECRUIT_COUNT = 3;
 
 // Act sequence and config for node map
-export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'finalBoss'];
+export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
   act1:      { name: 'Border Skirmishes', rows: 6 },  // +1 row (~16 nodes avg, was ~13)
   act2:      { name: 'Occupied Territory', rows: 7 },  // +1 row (~19 nodes avg, was ~16)
   act3:      { name: 'Enemy Stronghold',  rows: 7 },  // +2 rows (~19 nodes avg, was ~13)
+  act4:      { name: 'Ashen Summit',      rows: 8 },
   finalBoss: { name: 'Final Battle',      rows: 1 },
 };
 
@@ -132,7 +135,7 @@ export const CONVOY_WEAPON_CAPACITY = 20;
 export const CONVOY_CONSUMABLE_CAPACITY = 15;
 export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
-export const LOOT_GOLD_TEAM_XP = { act1: 15, act2: 20, act3: 30, finalBoss: 40 };
+export const LOOT_GOLD_TEAM_XP = { act1: 15, act2: 20, act3: 30, act4: 35, finalBoss: 40 };
 
 // Weapon forging
 export const FORGE_MAX_LEVEL = 15;
@@ -144,7 +147,7 @@ export const FORGE_COSTS = {
   hit:    [250, 450, 750, 1000, 1400],
   weight: [250, 450, 750, 1000, 1400],
 };
-export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, finalBoss: 0 };
+export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
 
 // Dual currency economy (Valor = lord-focused, Supply = army-focused)
 export const VALOR_PER_ACT = 50;
@@ -197,7 +200,7 @@ export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
-export const FOG_CHANCE_BY_ACT = { act1: 0.10, act2: 0.25, act3: 0.35, finalBoss: 0 };
+export const FOG_CHANCE_BY_ACT = { act1: 0.10, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
 
 // Placeholder terrain colors (Phase 1 colored rectangles)
 export const TERRAIN_COLORS = {

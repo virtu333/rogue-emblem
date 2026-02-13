@@ -8,6 +8,7 @@ import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnate
 import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
+const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
 
 function getRecruitPoolEntries(recruits, poolKey) {
   const poolData = recruits?.[poolKey];
@@ -30,6 +31,25 @@ function getRecruitPoolEntries(recruits, poolKey) {
       : className;
     return { className, name };
   });
+}
+
+function resolveActId(actRef) {
+  if (typeof actRef === 'string' && actRef.trim().length > 0) return actRef;
+  if (Number.isFinite(actRef)) {
+    const index = Math.max(0, Math.trunc(actRef));
+    if (index < LEGACY_ACT_ORDER.length) return LEGACY_ACT_ORDER[index];
+    return 'finalBoss';
+  }
+  return 'act1';
+}
+
+function resolveRecruitPoolKey(actId, recruits) {
+  const hasAct4Pool = Array.isArray(recruits?.act4?.classPool) || Array.isArray(recruits?.act4?.pool);
+  if (actId === 'act1') return 'act2';
+  if (actId === 'act2') return 'act3';
+  if (actId === 'act3') return hasAct4Pool ? 'act4' : 'act3';
+  if (actId === 'act4') return hasAct4Pool ? 'act4' : 'act3';
+  return 'act3';
 }
 
 /**
@@ -88,15 +108,17 @@ export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, 
 
 /**
  * Generate 3 boss recruit candidates.
- * @param {number} actIndex - 0=act1, 1=act2, 2=act3, 3=finalBoss
+ * @param {number|string} actRef - legacy actIndex or canonical actId
  * @param {Array} roster - current serialized roster
  * @param {Object} gameData - { lords, classes, weapons, recruits, skills }
  * @param {Object|null} metaEffects - meta-progression effects
  * @returns {Array|null} 3 candidate objects or null for final boss
  */
-export function generateBossRecruitCandidates(actIndex, roster, gameData, metaEffects) {
+export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffects) {
+  const actId = resolveActId(actRef);
+
   // Final boss — run ends, no recruit event
-  if (actIndex >= 3) return null;
+  if (actId === 'finalBoss') return null;
 
   const { lords, classes, weapons, recruits, skills } = gameData;
   const rosterClassNames = new Set(roster.map(u => u.className));
@@ -106,8 +128,8 @@ export function generateBossRecruitCandidates(actIndex, roster, gameData, metaEf
   const targetLevel = Math.max(1, ...lordLevels);
 
   // Determine if promoted and which recruit pool to use
-  const usePromoted = actIndex >= 1;
-  const poolKey = actIndex === 0 ? 'act2' : 'act3';
+  const usePromoted = actId !== 'act1';
+  const poolKey = resolveRecruitPoolKey(actId, recruits);
   const recruitPool = getRecruitPoolEntries(recruits, poolKey);
 
   // Filter pool to classes not already in roster and not temporarily blocked

@@ -5746,7 +5746,7 @@ export class BattleScene extends Phaser.Scene {
   /** Show boss recruit selection: pick 1 of 3 recruits or skip, then proceed to loot. */
   showBossRecruitScreen() {
     const candidates = generateBossRecruitCandidates(
-      this.runManager.actIndex,
+      this.runManager.currentAct,
       this.runManager.roster,
       this.gameData,
       this.runManager.getEffectiveMetaEffects()

@@ -264,7 +264,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
  * skillsData: if provided, promoted enemies get class innate skills,
  * level 5+ enemies get 1 random combat skill (chance scaled by act).
- * act: 'act1'/'act2'/'act3'/'finalBoss' — determines skill assignment probability.
+ * act: 'act1'/'act2'/'act3'/'act4'/'finalBoss' — determines skill assignment probability.
  */
 export function createEnemyUnit(classData, level, allWeapons, difficultyConfig = 1.0, skillsData = null, act = 'act1') {
   const proficiencies = applyPromotedMastery(
@@ -352,6 +352,7 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
       act1: 0.10,
       act2: 0.25,
       act3: 0.50,
+      act4: 0.60,
       finalBoss: 0.65,
     };
     const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;

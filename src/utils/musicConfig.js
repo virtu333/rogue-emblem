@@ -8,6 +8,7 @@ export const MUSIC = {
     act1: ['music_explore_act1', 'music_explore_act1_2'],
     act2: 'music_explore_act2',
     act3: ['music_explore_act3', 'music_explore_act3_2', 'music_explore_act3_3'],
+    act4: ['music_explore_act3', 'music_explore_act3_2', 'music_explore_act3_3'],
     finalBoss: 'music_explore_act3',
   },
 
@@ -15,6 +16,7 @@ export const MUSIC = {
     act1: ['music_battle_act1_1', 'music_battle_act1_2', 'music_battle_act1_3', 'music_battle_act1_4'],
     act2: ['music_battle_act2_1', 'music_battle_act2_2', 'music_battle_act2_3'],
     act3: ['music_battle_act3_1', 'music_battle_act3_2', 'music_battle_act3_3', 'music_battle_act3_4', 'music_battle_act3_5', 'music_battle_act3_6'],
+    act4: ['music_battle_act3_1', 'music_battle_act3_2', 'music_battle_act3_3', 'music_battle_act3_4', 'music_battle_act3_5', 'music_battle_act3_6'],
     finalBoss: ['music_battle_act3_1', 'music_battle_act3_2'],
   },
 
@@ -22,6 +24,7 @@ export const MUSIC = {
     act1: 'music_boss_act1',
     act2: 'music_boss_act2',
     act3: 'music_boss_act3',
+    act4: 'music_boss_act3',
     finalBoss: ['music_boss_final', 'music_boss_final_2', 'music_boss_final_3', 'music_boss_final_4', 'music_boss_final_5'],
   },
 
@@ -40,15 +43,31 @@ export function pickTrack(pool) {
   return pool;
 }
 
+function resolveActMusicPool(entry, act) {
+  if (!entry || typeof entry !== 'object') return undefined;
+  const orderedActs = [];
+  if (typeof act === 'string' && act.trim().length > 0) orderedActs.push(act);
+  for (const fallbackAct of ['act4', 'act3', 'act2', 'act1', 'finalBoss']) {
+    if (!orderedActs.includes(fallbackAct)) orderedActs.push(fallbackAct);
+  }
+  for (const key of orderedActs) {
+    const candidate = entry[key];
+    if (candidate !== undefined && candidate !== null) return candidate;
+  }
+  const firstDefined = Object.values(entry).find((value) => value !== undefined && value !== null);
+  return firstDefined;
+}
+
 /** Get the correct music key for a purpose + act. */
 export function getMusicKey(purpose, act) {
   const entry = MUSIC[purpose];
   if (typeof entry === 'string') return entry;
   if (entry && typeof entry === 'object') {
-    const actEntry = entry[act] ?? entry.act1;
-    return pickTrack(actEntry);
+    const actEntry = resolveActMusicPool(entry, act);
+    const picked = pickTrack(actEntry);
+    return picked || MUSIC.title;
   }
-  return entry;
+  return entry || MUSIC.title;
 }
 
 /** Flat array of every unique track key (for BootScene preload). */

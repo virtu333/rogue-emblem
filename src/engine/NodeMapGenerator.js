@@ -45,7 +45,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       completed: false,
     };
     // Assign template for single-node boss
-    const template = pickTemplateForNode('seize', mapTemplates);
+    const template = pickTemplateForNode('seize', mapTemplates, actId);
     if (template) {
       node.templateId = template.id;
       node.battleParams.templateId = template.id;
@@ -106,7 +106,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       // Assign template for combat nodes (BATTLE and BOSS)
       if (type === NODE_TYPES.BATTLE || type === NODE_TYPES.BOSS) {
         const objective = node.battleParams?.objective || 'rout';
-        const template = pickTemplateForNode(objective, mapTemplates);
+        const template = pickTemplateForNode(objective, mapTemplates, actId);
         if (template) {
           node.templateId = template.id;
           node.battleParams.templateId = template.id;
@@ -296,15 +296,20 @@ function rollBattleSeed() {
  * Pick a random template matching the given objective from mapTemplates.
  * @param {string} objective - 'rout' or 'seize'
  * @param {Object} [mapTemplates] - { rout: [...], seize: [...] }
+ * @param {string} [actId] - optional act id for template act filtering
  * @returns {Object|null} template or null if mapTemplates not provided
  */
-function pickTemplateForNode(objective, mapTemplates) {
+function pickTemplateForNode(objective, mapTemplates, actId = null) {
   if (!mapTemplates) return null;
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
     return mapTemplates.rout?.[0] || null;
   }
-  return pool[Math.floor(Math.random() * pool.length)];
+  const filtered = actId
+    ? pool.filter(template => !Array.isArray(template.acts) || template.acts.includes(actId))
+    : pool;
+  const source = filtered.length > 0 ? filtered : pool;
+  return source[Math.floor(Math.random() * source.length)];
 }
 
 /**
