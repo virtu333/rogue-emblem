@@ -630,6 +630,7 @@ When a revived zombie is killed again, the combat results should show "0 XP" wit
 - [ ] Phase D.2 — Terrain hazards: Ice + Lava Crack in terrain.json, deterministic behavior, Tundra/Volcano tilesets
 - [ ] Phase D.3 — Act 4 progression: ACT_CONFIG act4, enemy pool, boss, loot, music, save/load
 - [ ] Phase D.4 — Reinforcement system: generic wave scheduler, difficulty offset, XP decay guardrails
+- [ ] Phase D.4b — Hybrid boss arena contract + fixed-boss exception path (see `docs/specs/act4_hybrid_boss_arena_spec.md`)
 - [ ] mapTemplates.json: 3-4 templates from Tundra/Volcano pool (Frozen Pass, Glacier Fortress, Caldera)
 - [ ] Narrative transitions (Act 3 → Act 4, Act 4 → Post-Act)
 - [ ] Tests: new terrain effects, act progression, reinforcement determinism

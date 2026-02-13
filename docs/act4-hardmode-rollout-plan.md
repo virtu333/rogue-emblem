@@ -172,7 +172,7 @@ Goal: make Hard mode include Act 4 with stable content hooks and save/load compa
 
 ## Phase 4: Reinforcement System
 
-Goal: activate deterministic reinforcements on Act 4 rout/seize templates using one generic contract.
+Goal: activate deterministic reinforcements on Act 4 rout/seize templates using one generic contract, including boss-map exception support.
 
 ### Entry Criteria
 
@@ -202,6 +202,7 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - Fixed boss maps may define `scriptedWaves` with exact turn and spawn coordinates.
 - `scriptedWaves` must execute through the same scheduler API as procedural waves.
 - Shared scheduler guarantees telemetry parity and deterministic testability.
+- Hybrid fixed-arena contract scope is defined in `docs/specs/act4_hybrid_boss_arena_spec.md`.
 
 ### Implementation Tasks
 
@@ -209,6 +210,8 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - Add spawn legality checks (occupied/out-of-bounds/path-block).
 - Add difficulty offset handling.
 - Add anti-farm economy/XP guardrails for reinforcement kills.
+- Add hybrid boss-arena contract validation and generation coverage per `docs/specs/act4_hybrid_boss_arena_spec.md`.
+- Add deterministic scripted boss-wave coverage using shared scheduler API.
 
 ### Test Gate
 
@@ -222,6 +225,7 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - Reinforcements fire deterministically on selected Act 4 templates.
 - No deadlocks, spawn illegalities, or XP/economy runaway loops.
 - Fixed boss exception path is validated by contract tests.
+- Hybrid boss-arena acceptance criteria in `docs/specs/act4_hybrid_boss_arena_spec.md` are met.
 
 ### Rollback Trigger
 
