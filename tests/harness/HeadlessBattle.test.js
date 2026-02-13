@@ -357,6 +357,79 @@ describe('HeadlessBattle', () => {
     expect(battle.lastReinforcementSchedule?.spawns?.length || 0).toBeGreaterThan(0);
   });
 
+  it('scripted reinforcement waves spawn exact configured units in headless flow', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+    });
+    battle.init();
+
+    const occupied = new Set(
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map((unit) => `${unit.col},${unit.row}`)
+    );
+    let spawnTile = null;
+    for (let row = 0; row < battle.battleConfig.rows && !spawnTile; row++) {
+      for (let col = 0; col < battle.battleConfig.cols && !spawnTile; col++) {
+        const key = `${col},${row}`;
+        if (occupied.has(key)) continue;
+        const terrainIdx = battle.battleConfig.mapLayout[row][col];
+        const tile = gameData.terrain[terrainIdx];
+        if (tile?.moveCost?.Infantry !== '--') {
+          spawnTile = { col, row };
+        }
+      }
+    }
+    expect(spawnTile).toBeTruthy();
+
+    battle.battleConfig.reinforcements = {
+      spawnEdges: ['right'],
+      waves: [],
+      scriptedWaves: [
+        {
+          turn: 1,
+          xpMultiplier: 0.5,
+          spawns: [{
+            col: spawnTile.col,
+            row: spawnTile.row,
+            className: 'Fighter',
+            level: 7,
+            aiMode: 'guard',
+            affixes: ['scripted_affix'],
+          }],
+        },
+      ],
+      difficultyScaling: true,
+      turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+      xpDecay: [1.0],
+    };
+
+    const before = battle.enemyUnits.length;
+    const schedule = battle._applyReinforcementsForTurn(1);
+
+    expect(schedule.spawned).toBe(1);
+    expect(schedule.spawns[0]).toEqual(expect.objectContaining({
+      waveType: 'scripted',
+      className: 'Fighter',
+      level: 7,
+      col: spawnTile.col,
+      row: spawnTile.row,
+      xpMultiplier: 0.5,
+    }));
+    expect(battle.enemyUnits.length).toBe(before + 1);
+
+    const spawned = battle.enemyUnits.find((unit) => unit.col === spawnTile.col && unit.row === spawnTile.row);
+    expect(spawned).toBeTruthy();
+    expect(spawned.className).toBe('Fighter');
+    expect(spawned.level).toBe(7);
+    expect(spawned.aiMode).toBe('guard');
+    expect(spawned.affixes || []).toContain('scripted_affix');
+    expect(spawned._isReinforcement).toBe(true);
+    expect(spawned._reinforcementSpawnTurn).toBe(1);
+  });
+
   it('reinforcementTurnOffset advances reinforcement waves in enemy phase flow', async () => {
     const withOffset = new HeadlessBattle(gameData, {
       act: 'act4',

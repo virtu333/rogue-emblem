@@ -122,6 +122,11 @@ function getXpMultiplier(reinforcements, waveIndex) {
   return xpDecay[i];
 }
 
+function getScriptedWaveXpMultiplier(reinforcements, scriptedWave, scriptedWaveIndex) {
+  if (Number.isFinite(scriptedWave?.xpMultiplier)) return scriptedWave.xpMultiplier;
+  return getXpMultiplier(reinforcements, scriptedWaveIndex);
+}
+
 function mixSeed(baseSeed, salt) {
   let x = (baseSeed >>> 0) ^ ((salt + 0x9E3779B9) >>> 0);
   x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B);
@@ -208,6 +213,38 @@ export function getDueReinforcementWaves({
   return due;
 }
 
+function getDueScriptedReinforcementWaves({
+  turn,
+  reinforcements,
+  difficultyId = 'normal',
+  difficultyTurnOffset = 0,
+} = {}) {
+  const currentTurn = normalizeInteger(turn, 0);
+  if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves)) return [];
+
+  const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
+  const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
+  const totalOffset = globalOffset + templateOffset;
+
+  const due = [];
+  for (let scriptedWaveIndex = 0; scriptedWaveIndex < reinforcements.scriptedWaves.length; scriptedWaveIndex++) {
+    const scriptedWave = reinforcements.scriptedWaves[scriptedWaveIndex];
+    const baseTurn = normalizeInteger(scriptedWave?.turn, 0);
+    if (baseTurn <= 0) continue;
+    const scheduledTurn = Math.max(1, baseTurn + totalOffset);
+    if (scheduledTurn !== currentTurn) continue;
+    due.push({
+      waveType: 'scripted',
+      waveIndex: scriptedWaveIndex,
+      baseTurn,
+      scheduledTurn,
+      wave: scriptedWave,
+      xpMultiplier: getScriptedWaveXpMultiplier(reinforcements, scriptedWave, scriptedWaveIndex),
+    });
+  }
+  return due;
+}
+
 export function collectEdgeSpawnCandidates({
   edge,
   mapLayout,
@@ -269,7 +306,13 @@ export function scheduleReinforcementsForTurn({
     difficultyId,
     difficultyTurnOffset,
   });
-  if (dueWaves.length === 0) {
+  const dueScriptedWaves = getDueScriptedReinforcementWaves({
+    turn,
+    reinforcements,
+    difficultyId,
+    difficultyTurnOffset,
+  });
+  if (dueWaves.length === 0 && dueScriptedWaves.length === 0) {
     return { spawns: [], dueWaves: [], blockedSpawns: 0 };
   }
 
@@ -280,6 +323,55 @@ export function scheduleReinforcementsForTurn({
   const spawns = [];
   const waveResults = [];
   let blockedSpawns = 0;
+
+  for (const due of dueScriptedWaves) {
+    const requestedCount = Array.isArray(due.wave?.spawns) ? due.wave.spawns.length : 0;
+    let spawnedCount = 0;
+
+    for (const rawSpawn of (due.wave?.spawns || [])) {
+      const col = normalizeInteger(rawSpawn?.col, -1);
+      const row = normalizeInteger(rawSpawn?.row, -1);
+      const occupiedNow = new Set([...baseOccupied, ...spawnedKeys]);
+      const key = toTileKey(col, row);
+      const legal = (
+        isInBounds(col, row, mapLayout?.[0]?.length || 0, mapLayout?.length || 0)
+        && !occupiedNow.has(key)
+        && isPassable(terrain, mapLayout, col, row, moveType)
+      );
+      if (!legal) {
+        blockedSpawns++;
+        continue;
+      }
+
+      const scriptedSpawn = {
+        col,
+        row,
+        waveType: 'scripted',
+        waveIndex: due.waveIndex,
+        scheduledTurn: due.scheduledTurn,
+        xpMultiplier: due.xpMultiplier,
+      };
+      if (typeof rawSpawn.className === 'string') scriptedSpawn.className = rawSpawn.className;
+      if (Number.isFinite(rawSpawn.level)) scriptedSpawn.level = normalizeInteger(rawSpawn.level, 1);
+      if (typeof rawSpawn.sunderWeapon === 'boolean') scriptedSpawn.sunderWeapon = rawSpawn.sunderWeapon;
+      if (typeof rawSpawn.aiMode === 'string') scriptedSpawn.aiMode = rawSpawn.aiMode;
+      if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
+      spawns.push(scriptedSpawn);
+      spawnedKeys.add(key);
+      spawnedCount++;
+    }
+
+    waveResults.push({
+      waveType: 'scripted',
+      waveIndex: due.waveIndex,
+      scheduledTurn: due.scheduledTurn,
+      xpMultiplier: due.xpMultiplier,
+      edges: [],
+      requestedCount,
+      spawnedCount,
+      blockedCount: requestedCount - spawnedCount,
+    });
+  }
 
   for (const due of dueWaves) {
     const edges = resolveWaveEdges(reinforcements, due.wave);
@@ -327,6 +419,7 @@ export function scheduleReinforcementsForTurn({
     }
 
     waveResults.push({
+      waveType: 'procedural',
       waveIndex: due.waveIndex,
       scheduledTurn: due.scheduledTurn,
       xpMultiplier: due.xpMultiplier,

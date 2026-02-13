@@ -117,6 +117,84 @@ function validateXpDecay(path, xpDecay, errors) {
   }
 }
 
+function validateScriptedWaveSpawn(path, spawn, errors) {
+  if (!isObject(spawn)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+
+  const knownKeys = new Set(['col', 'row', 'className', 'level', 'sunderWeapon', 'aiMode', 'affixes']);
+  if (!hasOnlyKnownKeys(spawn, knownKeys)) {
+    errors.push(`${path} contains unknown keys`);
+  }
+
+  if (!isInteger(spawn.col) || spawn.col < 0) {
+    errors.push(`${path}.col must be a non-negative integer`);
+  }
+  if (!isInteger(spawn.row) || spawn.row < 0) {
+    errors.push(`${path}.row must be a non-negative integer`);
+  }
+
+  if (spawn.className !== undefined && (typeof spawn.className !== 'string' || spawn.className.trim() === '')) {
+    errors.push(`${path}.className must be a non-empty string when provided`);
+  }
+  if (spawn.level !== undefined && (!isInteger(spawn.level) || spawn.level <= 0)) {
+    errors.push(`${path}.level must be a positive integer when provided`);
+  }
+  if (spawn.sunderWeapon !== undefined && typeof spawn.sunderWeapon !== 'boolean') {
+    errors.push(`${path}.sunderWeapon must be boolean when provided`);
+  }
+  if (spawn.aiMode !== undefined && (typeof spawn.aiMode !== 'string' || spawn.aiMode.trim() === '')) {
+    errors.push(`${path}.aiMode must be a non-empty string when provided`);
+  }
+  if (spawn.affixes !== undefined) {
+    if (!Array.isArray(spawn.affixes) || spawn.affixes.some((value) => typeof value !== 'string' || value.trim() === '')) {
+      errors.push(`${path}.affixes must be a string array when provided`);
+    }
+  }
+}
+
+function validateScriptedWave(path, wave, errors) {
+  if (!isObject(wave)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+
+  const knownKeys = new Set(['turn', 'spawns', 'xpMultiplier']);
+  if (!hasOnlyKnownKeys(wave, knownKeys)) {
+    errors.push(`${path} contains unknown keys`);
+  }
+
+  if (!isInteger(wave.turn) || wave.turn <= 0) {
+    errors.push(`${path}.turn must be a positive integer`);
+  }
+
+  if (!Array.isArray(wave.spawns) || wave.spawns.length === 0) {
+    errors.push(`${path}.spawns must be a non-empty array`);
+  } else {
+    wave.spawns.forEach((spawn, index) => {
+      validateScriptedWaveSpawn(`${path}.spawns[${index}]`, spawn, errors);
+    });
+  }
+
+  if (wave.xpMultiplier !== undefined) {
+    if (typeof wave.xpMultiplier !== 'number' || !Number.isFinite(wave.xpMultiplier) || wave.xpMultiplier < 0 || wave.xpMultiplier > 1) {
+      errors.push(`${path}.xpMultiplier must be a finite number in [0,1] when provided`);
+    }
+  }
+}
+
+function validateScriptedWaves(path, scriptedWaves, errors) {
+  if (scriptedWaves === undefined) return;
+  if (!Array.isArray(scriptedWaves) || scriptedWaves.length === 0) {
+    errors.push(`${path} must be a non-empty array when provided`);
+    return;
+  }
+  scriptedWaves.forEach((wave, index) => {
+    validateScriptedWave(`${path}[${index}]`, wave, errors);
+  });
+}
+
 function validateReinforcements(path, template, strict, errors, warnings) {
   const hasVersion = Object.prototype.hasOwnProperty.call(template, 'reinforcementContractVersion');
   const hasConfig = Object.prototype.hasOwnProperty.call(template, 'reinforcements');
@@ -148,7 +226,7 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     'turnOffsetByDifficulty',
     'xpDecay',
   ]);
-  const knownKeys = new Set([...requiredKeys, 'turnJitter']);
+  const knownKeys = new Set([...requiredKeys, 'turnJitter', 'scriptedWaves']);
   for (const key of requiredKeys) {
     if (!(key in reinforcements)) {
       errors.push(`${path}.reinforcements missing required key: ${key}`);
@@ -177,6 +255,7 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     validateTurnJitter(`${path}.reinforcements.turnJitter`, reinforcements.turnJitter, errors);
   }
   validateXpDecay(`${path}.reinforcements.xpDecay`, reinforcements.xpDecay, errors);
+  validateScriptedWaves(`${path}.reinforcements.scriptedWaves`, reinforcements.scriptedWaves, errors);
 }
 
 function validateZone(path, zone, errors) {

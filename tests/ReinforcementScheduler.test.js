@@ -309,5 +309,89 @@ describe('ReinforcementScheduler', () => {
       expect(result.blockedSpawns).toBe(1);
       expect(result.dueWaves[0].blockedCount).toBe(1);
     });
+
+    it('supports deterministic scripted waves with legality filtering and metadata pass-through', () => {
+      const mapLayout = [
+        [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Wall],
+        [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+      ];
+      const reinforcements = {
+        spawnEdges: ['right'],
+        waves: [],
+        scriptedWaves: [
+          {
+            turn: 2,
+            xpMultiplier: 0.4,
+            spawns: [
+              { col: 0, row: 0, className: 'Fighter', level: 9 },
+              { col: 1, row: 0, className: 'Archer', level: 8, aiMode: 'guard', affixes: ['test_affix'] },
+              { col: 2, row: 0, className: 'Knight', level: 10 },
+            ],
+          },
+        ],
+        difficultyScaling: true,
+        turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+        xpDecay: [1.0],
+      };
+
+      const result = scheduleReinforcementsForTurn({
+        turn: 2,
+        seed: 123,
+        reinforcements,
+        mapLayout,
+        terrain: terrainData,
+        occupied: [{ col: 1, row: 0 }],
+      });
+
+      expect(result.spawns).toEqual([
+        expect.objectContaining({
+          col: 0,
+          row: 0,
+          waveType: 'scripted',
+          className: 'Fighter',
+          level: 9,
+          xpMultiplier: 0.4,
+        }),
+      ]);
+      expect(result.blockedSpawns).toBe(2);
+      expect(result.dueWaves[0]).toEqual(expect.objectContaining({
+        waveType: 'scripted',
+        requestedCount: 3,
+        spawnedCount: 1,
+        blockedCount: 2,
+      }));
+    });
+
+    it('applies shared difficulty turn offset to scripted waves', () => {
+      const mapLayout = Array.from({ length: 3 }, () => Array(3).fill(TERRAIN.Plain));
+      const reinforcements = {
+        spawnEdges: ['right'],
+        waves: [],
+        scriptedWaves: [{ turn: 3, spawns: [{ col: 0, row: 0 }] }],
+        difficultyScaling: true,
+        turnOffsetByDifficulty: { normal: 0, hard: -1, lunatic: -1 },
+        xpDecay: [1.0],
+      };
+
+      const early = scheduleReinforcementsForTurn({
+        turn: 2,
+        reinforcements,
+        difficultyId: 'hard',
+        mapLayout,
+        terrain: terrainData,
+      });
+      const base = scheduleReinforcementsForTurn({
+        turn: 3,
+        reinforcements,
+        difficultyId: 'normal',
+        mapLayout,
+        terrain: terrainData,
+      });
+
+      expect(early.spawns).toHaveLength(1);
+      expect(base.spawns).toHaveLength(1);
+      expect(early.spawns[0].scheduledTurn).toBe(2);
+      expect(base.spawns[0].scheduledTurn).toBe(3);
+    });
   });
 });

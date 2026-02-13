@@ -602,6 +602,24 @@ describe('MapGenerator', () => {
       config.reinforcements.waves[0].turn = 99;
       expect(template.reinforcements.waves[0].turn).not.toBe(99);
     });
+
+    it('returns a deep clone of scripted reinforcement wave data when present', () => {
+      const clonedData = structuredClone(data);
+      const template = clonedData.mapTemplates.rout.find((t) => t.id === 'frozen_pass');
+      template.reinforcements.scriptedWaves = [
+        { turn: 2, spawns: [{ col: 0, row: 0, className: 'Fighter', level: 8 }] },
+      ];
+
+      const config = generateBattle({
+        act: 'act4',
+        objective: 'rout',
+        templateId: 'frozen_pass',
+      }, clonedData);
+
+      expect(config.reinforcements.scriptedWaves).toBeDefined();
+      config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
+      expect(template.reinforcements.scriptedWaves[0].spawns[0].col).toBe(0);
+    });
   });
 
   describe('DEPLOY_LIMITS validation', () => {

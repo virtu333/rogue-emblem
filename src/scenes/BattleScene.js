@@ -830,6 +830,18 @@ export class BattleScene extends Phaser.Scene {
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
+    if (scheduledSpawn && typeof scheduledSpawn.className === 'string') {
+      return {
+        className: scheduledSpawn.className,
+        level: Math.max(1, Math.trunc(Number(scheduledSpawn.level) || this.getEnemySpawnFallbackLevel())),
+        col: scheduledSpawn.col,
+        row: scheduledSpawn.row,
+        sunderWeapon: Boolean(scheduledSpawn.sunderWeapon),
+        aiMode: scheduledSpawn.aiMode || null,
+        affixes: Array.isArray(scheduledSpawn.affixes) ? [...scheduledSpawn.affixes] : [],
+      };
+    }
+
     const templates = this.getReinforcementTemplatePool();
     if (!Array.isArray(templates) || templates.length === 0) return null;
     const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
