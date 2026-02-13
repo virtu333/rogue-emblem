@@ -337,6 +337,108 @@ describe('Combat forecast', () => {
     expect(withArt.attacker.doubles).toBe(false);
     expect(withArt.defender.doubles).toBe(true);
   });
+
+  it('prevents defender counter-attacks when art has preventCounter', () => {
+    const attacker = makeUnit();
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { preventCounter: true, activated: [{ id: 'weapon_art', name: 'Windsweep' }] },
+    });
+    expect(withArt.defender.canCounter).toBe(false);
+    expect(withArt.defender.damage).toBe(0);
+  });
+
+  it('targets RES instead of DEF when art has targetsRES', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 10 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, DEF: 18, RES: 2 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { targetsRES: true, activated: [{ id: 'weapon_art', name: 'Hexblade' }] },
+    });
+    expect(withArt.attacker.damage).toBeGreaterThan(base.attacker.damage);
+  });
+
+  it('applies vengeance bonus from missing HP', () => {
+    const attacker = makeUnit({
+      currentHP: 13,
+      stats: { ...makeUnit().stats, HP: 20, STR: 10, SPD: 8 },
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      atkWeaponArtMods: { vengeance: true, activated: [{ id: 'weapon_art', name: 'Vengeance' }] },
+    });
+    expect(withArt.attacker.damage).toBe(base.attacker.damage + 7);
+  });
+
+  it('caps stacked weapon+art effectiveness at 5x', () => {
+    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const attacker = makeUnit({
+      weapon: bow,
+      stats: { ...makeUnit().stats, STR: 10, SKL: 10, SPD: 8 },
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      moveType: 'Flying',
+      stats: { ...makeUnit().stats, DEF: 5, RES: 5, SPD: 8 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, bow, defender, defender.weapon, 2, terrain, terrain);
+    const withArt = getCombatForecast(attacker, bow, defender, defender.weapon, 2, terrain, terrain, {
+      atkWeaponArtMods: {
+        effectiveness: { moveTypes: ['flying'], multiplier: 3 },
+        activated: [{ id: 'weapon_art', name: 'Grounder' }],
+      },
+    });
+    expect(withArt.attacker.damage).toBe(base.attacker.damage + (bow.might * 2));
+  });
+
+  it('halves incoming physical damage when defender art has halfPhysicalDamage', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 12, SPD: 8 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+
+    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
+      defWeaponArtMods: { halfPhysicalDamage: true, activated: [{ id: 'weapon_art', name: 'Pavise Strike' }] },
+    });
+    expect(withArt.attacker.damage).toBe(Math.floor(base.attacker.damage / 2));
+  });
 });
 
 describe('Combat resolution', () => {
@@ -428,6 +530,136 @@ describe('Combat resolution', () => {
       const baseAttackerStrikes = base.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
       const artAttackerStrikes = withArt.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
       expect(baseAttackerStrikes).toBeGreaterThan(artAttackerStrikes);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('applies preventCounter in combat resolution', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 12, SPD: 8 },
+      currentHP: 24,
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, STR: 12, SPD: 8 },
+      currentHP: 24,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: { preventCounter: true, activated: [{ id: 'weapon_art', name: 'Windsweep' }] } }
+      );
+      const defenderStrikes = result.events.filter((e) => e.type === 'strike' && e.attacker === defender.name);
+      expect(defenderStrikes.length).toBe(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('applies vengeance bonus in combat resolution', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, HP: 24, STR: 10, SPD: 8 },
+      currentHP: 16,
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 28, DEF: 8, SPD: 8 },
+      currentHP: 28,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const withArt = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: { vengeance: true, activated: [{ id: 'weapon_art', name: 'Vengeance' }] } }
+      );
+      const missingHp = attacker.stats.HP - attacker.currentHP;
+      expect(withArt.defenderHP).toBe(base.defenderHP - missingHp);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('targets RES in combat resolution when art sets targetsRES', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 10, SPD: 8 },
+      currentHP: 24,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 28, DEF: 18, RES: 2, SPD: 8 },
+      currentHP: 28,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const withArt = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: { targetsRES: true, activated: [{ id: 'weapon_art', name: 'Hexblade' }] } }
+      );
+      expect(withArt.defenderHP).toBeLessThan(base.defenderHP);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('halves incoming physical damage in resolution when attacker art has halfPhysicalDamage', () => {
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, HP: 30, STR: 8, SPD: 8, DEF: 6 },
+      currentHP: 30,
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, HP: 30, STR: 15, SPD: 8, DEF: 6 },
+      currentHP: 30,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const withArt = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkWeaponArtMods: { halfPhysicalDamage: true, activated: [{ id: 'weapon_art', name: 'Pavise Strike' }] } }
+      );
+      expect(withArt.attackerHP).toBeGreaterThan(base.attackerHP);
     } finally {
       randomSpy.mockRestore();
     }
@@ -785,14 +1017,40 @@ describe('Sunder effect', () => {
 describe('Combat mod merging', () => {
   it('merges additive and boolean combat mods', () => {
     const merged = mergeCombatMods(
-      { atkBonus: 2, hitBonus: 10, ignoreTerrainAvoid: false, activated: [{ id: 'a', name: 'A' }] },
-      { atkBonus: 3, critBonus: 5, statScaling: { stat: 'SKL', divisor: 2 }, ignoreTerrainAvoid: true, activated: [{ id: 'b', name: 'B' }] }
+      {
+        atkBonus: 2,
+        hitBonus: 10,
+        ignoreTerrainAvoid: false,
+        rangeBonus: 1,
+        activated: [{ id: 'a', name: 'A' }],
+      },
+      {
+        atkBonus: 3,
+        critBonus: 5,
+        statScaling: { stat: 'SKL', divisor: 2 },
+        ignoreTerrainAvoid: true,
+        preventCounter: true,
+        targetsRES: true,
+        effectiveness: { moveTypes: ['flying'], multiplier: 3 },
+        rangeBonus: 2,
+        rangeOverride: 2,
+        halfPhysicalDamage: true,
+        vengeance: true,
+        activated: [{ id: 'b', name: 'B' }],
+      }
     );
     expect(merged.atkBonus).toBe(5);
     expect(merged.hitBonus).toBe(10);
     expect(merged.critBonus).toBe(5);
     expect(merged.statScaling).toEqual({ stat: 'SKL', divisor: 2 });
     expect(merged.ignoreTerrainAvoid).toBe(true);
+    expect(merged.preventCounter).toBe(true);
+    expect(merged.targetsRES).toBe(true);
+    expect(merged.effectiveness).toEqual({ moveTypes: ['flying'], multiplier: 3 });
+    expect(merged.rangeBonus).toBe(3);
+    expect(merged.rangeOverride).toEqual({ min: 2, max: 2 });
+    expect(merged.halfPhysicalDamage).toBe(true);
+    expect(merged.vengeance).toBe(true);
     expect(merged.activated.length).toBe(2);
   });
 });

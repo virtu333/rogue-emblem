@@ -117,6 +117,34 @@ function normalizeStatScaling(value) {
   return { stat: stat.toUpperCase(), divisor };
 }
 
+function normalizeEffectiveness(value) {
+  if (!value || typeof value !== 'object') return null;
+  const rawMoveTypes = Array.isArray(value.moveTypes)
+    ? value.moveTypes
+    : (typeof value.moveType === 'string' ? [value.moveType] : []);
+  const moveTypes = [...new Set(
+    rawMoveTypes
+      .map((entry) => toNonEmptyString(entry)?.toLowerCase())
+      .filter(Boolean)
+  )];
+  const multiplier = Math.max(1, Math.trunc(toFiniteNumber(value.multiplier, 1)));
+  if (moveTypes.length <= 0 || multiplier <= 1) return null;
+  return { moveTypes, multiplier };
+}
+
+function normalizeRangeOverride(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' || typeof value === 'string') {
+    const n = Math.trunc(toFiniteNumber(value, 0));
+    if (n < 1) return null;
+    return { min: n, max: n };
+  }
+  if (typeof value !== 'object') return null;
+  const min = Math.max(1, Math.trunc(toFiniteNumber(value.min, 0)));
+  const max = Math.max(min, Math.trunc(toFiniteNumber(value.max, min)));
+  return { min, max };
+}
+
 export function getWeaponArtAllowedTypes(art) {
   const allowedTypes = normalizeStringList(art?.allowedTypes);
   if (allowedTypes === undefined) return [];
@@ -233,6 +261,13 @@ export function getWeaponArtCombatMods(art) {
     avoidBonus: toFiniteNumber(mods.avoidBonus, 0),
     defBonus: toFiniteNumber(mods.defBonus, 0),
     statScaling: normalizeStatScaling(mods.statScaling),
+    preventCounter: Boolean(mods.preventCounter),
+    targetsRES: Boolean(mods.targetsRES),
+    effectiveness: normalizeEffectiveness(mods.effectiveness),
+    rangeBonus: Math.trunc(toFiniteNumber(mods.rangeBonus, 0)),
+    rangeOverride: normalizeRangeOverride(mods.rangeOverride),
+    halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
+    vengeance: Boolean(mods.vengeance),
     weaponArt: true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],

@@ -23,6 +23,75 @@ function normalizeCombatStatScaling(value) {
   return { stat, divisor };
 }
 
+function normalizeCombatEffectiveness(value) {
+  if (!value || typeof value !== 'object') return null;
+  const rawMoveTypes = Array.isArray(value.moveTypes)
+    ? value.moveTypes
+    : (typeof value.moveType === 'string' ? [value.moveType] : []);
+  const moveTypes = [...new Set(
+    rawMoveTypes
+      .map((entry) => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
+      .filter(Boolean)
+  )];
+  const multiplier = Math.max(1, Math.trunc(Number(value.multiplier) || 1));
+  if (moveTypes.length <= 0 || multiplier <= 1) return null;
+  return { moveTypes, multiplier };
+}
+
+function normalizeCombatRangeOverride(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' || typeof value === 'string') {
+    const n = Math.trunc(Number(value));
+    if (!Number.isFinite(n) || n < 1) return null;
+    return { min: n, max: n };
+  }
+  if (typeof value !== 'object') return null;
+  const min = Math.max(1, Math.trunc(Number(value.min) || 0));
+  const max = Math.max(min, Math.trunc(Number(value.max) || min));
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  return { min, max };
+}
+
+function mergeCombatEffectiveness(baseValue, extraValue) {
+  const base = normalizeCombatEffectiveness(baseValue);
+  const extra = normalizeCombatEffectiveness(extraValue);
+  if (!base && !extra) return null;
+  if (!base) return extra;
+  if (!extra) return base;
+  return {
+    moveTypes: [...new Set([...base.moveTypes, ...extra.moveTypes])],
+    multiplier: Math.max(base.multiplier, extra.multiplier),
+  };
+}
+
+function getArtEffectivenessMultiplier(mods, defender) {
+  const effectiveness = mods?.effectiveness;
+  if (!effectiveness) return 1;
+  const defenderType = typeof defender?.moveType === 'string'
+    ? defender.moveType.trim().toLowerCase()
+    : '';
+  if (!defenderType) return 1;
+  if (!Array.isArray(effectiveness.moveTypes) || effectiveness.moveTypes.length <= 0) return 1;
+  if (!effectiveness.moveTypes.includes(defenderType)) return 1;
+  return Math.max(1, Math.trunc(Number(effectiveness.multiplier) || 1));
+}
+
+function getCombinedEffectivenessMultiplier(weapon, defender, mods = null) {
+  if (defender?.accessory?.combatEffects?.negateEffectiveness) return 1;
+  const weaponMult = getEffectivenessMultiplier(weapon, defender);
+  const artMult = getArtEffectivenessMultiplier(mods, defender);
+  if (weaponMult > 1 && artMult > 1) {
+    return Math.min(5, weaponMult * artMult);
+  }
+  return Math.max(weaponMult, artMult, 1);
+}
+
+function getMissingHp(unit) {
+  const maxHp = Math.max(0, Number(unit?.stats?.HP) || 0);
+  const currentHp = Math.max(0, Number(unit?.currentHP) || 0);
+  return Math.max(0, maxHp - currentHp);
+}
+
 function getCombatStatScalingBonus(unit, mods) {
   const scaling = mods?.statScaling;
   if (!scaling) return 0;
@@ -49,6 +118,13 @@ function normalizeCombatMods(mods) {
     defBonus: Number(mods.defBonus) || 0,
     spdBonus: Number(mods.spdBonus) || 0,
     statScaling: normalizeCombatStatScaling(mods.statScaling),
+    preventCounter: Boolean(mods.preventCounter),
+    targetsRES: Boolean(mods.targetsRES),
+    effectiveness: normalizeCombatEffectiveness(mods.effectiveness),
+    rangeBonus: Math.trunc(Number(mods.rangeBonus) || 0),
+    rangeOverride: normalizeCombatRangeOverride(mods.rangeOverride),
+    halfPhysicalDamage: Boolean(mods.halfPhysicalDamage),
+    vengeance: Boolean(mods.vengeance),
     weaponArt: Boolean(mods.weaponArt),
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     vantage: Boolean(mods.vantage),
@@ -73,6 +149,13 @@ export function mergeCombatMods(baseMods, extraMods) {
     defBonus: base.defBonus + extra.defBonus,
     spdBonus: base.spdBonus + extra.spdBonus,
     statScaling: base.statScaling || extra.statScaling,
+    preventCounter: base.preventCounter || extra.preventCounter,
+    targetsRES: base.targetsRES || extra.targetsRES,
+    effectiveness: mergeCombatEffectiveness(base.effectiveness, extra.effectiveness),
+    rangeBonus: base.rangeBonus + extra.rangeBonus,
+    rangeOverride: extra.rangeOverride || base.rangeOverride,
+    halfPhysicalDamage: base.halfPhysicalDamage || extra.halfPhysicalDamage,
+    vengeance: base.vengeance || extra.vengeance,
     weaponArt: base.weaponArt || extra.weaponArt,
     ignoreTerrainAvoid: base.ignoreTerrainAvoid || extra.ignoreTerrainAvoid,
     vantage: base.vantage || extra.vantage,
@@ -352,9 +435,20 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
 // --- Core stat calculations ---
 
 /** Attack power = relevant stat + weapon might (×effectiveness) + triangle damage bonus */
-export function calculateAttack(unit, weapon, triangleBonus = { damage: 0 }, defender = null, isInitiating = true) {
+export function calculateAttack(
+  unit,
+  weapon,
+  triangleBonus = { damage: 0 },
+  defender = null,
+  isInitiating = true,
+  effectivenessMultiplier = null
+) {
   const stat = usesMagic(weapon) ? unit.stats.MAG : unit.stats.STR;
-  const effMult = defender ? getEffectivenessMultiplier(weapon, defender) : 1;
+  const normalizedEffMult = (effectivenessMultiplier !== null && effectivenessMultiplier !== undefined
+    && Number.isFinite(Number(effectivenessMultiplier)))
+    ? Math.max(1, Number(effectivenessMultiplier))
+    : null;
+  const effMult = normalizedEffMult ?? (defender ? getEffectivenessMultiplier(weapon, defender) : 1);
   // Gae Bolg: +5 STR when counterattacking (defending)
   let bonus = 0;
   if (!isInitiating && weapon?.special?.includes('+5 STR when counterattacking')) {
@@ -388,13 +482,32 @@ export function calculateCritRate(attacker, weapon, defender) {
 }
 
 /** Raw damage (before crit), minimum 0. Includes terrain DEF bonus + weapon effectiveness. */
-export function calculateDamage(attacker, atkWeapon, defender, defWeapon, defenderTerrain, isInitiating = true) {
+export function calculateDamage(
+  attacker,
+  atkWeapon,
+  defender,
+  defWeapon,
+  defenderTerrain,
+  isInitiating = true,
+  options = null
+) {
   const triangle = defWeapon
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
     : { hit: 0, damage: 0 };
-  const atk = calculateAttack(attacker, atkWeapon, triangle, defender, isInitiating);
-  let def = calculateDefense(defender, atkWeapon);
-  if (hasSunderEffect(atkWeapon)) {
+  const targetsRES = Boolean(options?.targetsRES);
+  const effectivenessMultiplier = Number(options?.effectivenessMultiplier);
+  const atk = calculateAttack(
+    attacker,
+    atkWeapon,
+    triangle,
+    defender,
+    isInitiating,
+    Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null
+  );
+  let def = targetsRES
+    ? (Number(defender?.stats?.RES) || 0)
+    : calculateDefense(defender, atkWeapon);
+  if (!targetsRES && hasSunderEffect(atkWeapon)) {
     def = Math.floor(def / 2);
   }
   const terrainDef = parseInt(defenderTerrain?.defBonus, 10) || 0;
@@ -425,7 +538,7 @@ export function canCounter(defender, defenderWeapon, distance) {
  * Used by StatPanel/HUD to show combat preview before the player commits.
  *
  * skillCtx (optional): { atkMods, defMods } from SkillSystem.getSkillCombatMods().
- *   Each has: { hitBonus, avoidBonus, critBonus, atkBonus, defBonus, statScaling, ignoreTerrainAvoid, vantage, activated }
+ *   Each has: { hitBonus, avoidBonus, critBonus, atkBonus, defBonus, statScaling, preventCounter, targetsRES, effectiveness, rangeBonus, rangeOverride, halfPhysicalDamage, vengeance, ignoreTerrainAvoid, vantage, activated }
  */
 export function getCombatForecast(
   attacker, atkWeapon,
@@ -463,9 +576,15 @@ export function getCombatForecast(
 
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
-  let atkDmg = calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain)
+  const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
+  let atkDmg = calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
+    targetsRES: atkMods?.targetsRES,
+    effectivenessMultiplier: atkEffectiveness,
+  })
     + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - fDefWpnDef;
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
+  if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
+  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   atkDmg = Math.max(0, atkDmg);
   let atkHit = calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
     + (atkMods?.hitBonus || 0) - (defMods?.avoidBonus || 0);
@@ -492,15 +611,21 @@ export function getCombatForecast(
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
   const atkCount = (atkBrave ? 2 : 1) * (atkDoubles ? 2 : 1);
 
-  const defCanCounter = canCounter(defender, defWeapon, distance);
+  const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
   let defDmg = 0, defHit = 0, defCrit = 0, defDoubles = false, defBrave = false, defCount = 0;
 
   if (defCanCounter) {
     const defTriangle = getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
     const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
-    defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
+    const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
+    defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
+      targetsRES: defMods?.targetsRES,
+      effectivenessMultiplier: defEffectiveness,
+    })
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - fAtkWpnDef;
     defDmg += getCombatStatScalingBonus(defender, defMods);
+    if (defMods?.vengeance) defDmg += getMissingHp(defender);
+    if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     defDmg = Math.max(0, defDmg);
     defHit = calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
       + (defMods?.hitBonus || 0) - (atkMods?.avoidBonus || 0);
@@ -710,10 +835,16 @@ export function resolveCombat(
     : { hit: 0, damage: 0 };
 
   const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
+  const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
   let atkDmg = Math.max(0,
-    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain)
+    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
+      targetsRES: atkMods?.targetsRES,
+      effectivenessMultiplier: atkEffectiveness,
+    })
     + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - defWeaponDefBonus);
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
+  if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
+  if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   atkDmg = Math.max(0, atkDmg);
   let atkHit = Math.max(0, Math.min(100,
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
@@ -721,7 +852,7 @@ export function resolveCombat(
   let atkCrit = Math.max(0, Math.min(100,
     calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)));
 
-  const defCanCounter = canCounter(defender, defWeapon, distance);
+  const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
 
   // Doubling: apply accessory + skill + weight modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
@@ -751,10 +882,16 @@ export function resolveCombat(
   let defDmg = 0, defHit = 0, defCrit = 0;
   if (defCanCounter) {
     const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
+    const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
     defDmg = Math.max(0,
-      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false)
+      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
+        targetsRES: defMods?.targetsRES,
+        effectivenessMultiplier: defEffectiveness,
+      })
       + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - atkWeaponDefBonus);
     defDmg += getCombatStatScalingBonus(defender, defMods);
+    if (defMods?.vengeance) defDmg += getMissingHp(defender);
+    if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     defDmg = Math.max(0, defDmg);
     defHit = Math.max(0, Math.min(100,
       calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)

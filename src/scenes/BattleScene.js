@@ -2211,9 +2211,33 @@ export class BattleScene extends Phaser.Scene {
     this.showActionMenu(unit);
   }
 
-  findAttackTargets(unit) {
+  _getCombatRangeForUnitWeapon(unit, weapon, weaponArt = null) {
+    const { min: baseMin, max: baseMax } = parseRange(weapon.range);
+    const skillBonus = getWeaponRangeBonus(unit, weapon, this.gameData.skills);
+    let min = Math.max(1, baseMin);
+    let max = Math.max(min, baseMax + skillBonus);
+    if (weaponArt) {
+      const mods = getWeaponArtCombatMods(weaponArt);
+      if (mods.rangeOverride) {
+        min = Math.max(1, Number(mods.rangeOverride.min) || min);
+        max = Math.max(min, Number(mods.rangeOverride.max) || min);
+      } else if (mods.rangeBonus) {
+        max = Math.max(min, max + mods.rangeBonus);
+      }
+    }
+    return { min, max };
+  }
+
+  _isDistanceInWeaponRange(unit, weapon, distance, weaponArt = null) {
+    const range = this._getCombatRangeForUnitWeapon(unit, weapon, weaponArt);
+    return distance >= range.min && distance <= range.max;
+  }
+
+  findAttackTargets(unit, options = {}) {
     const targets = [];
-    const combatWeapons = getCombatWeapons(unit);
+    const selectedWeapon = options.weapon || null;
+    const selectedArt = options.weaponArt || null;
+    const combatWeapons = selectedWeapon ? [selectedWeapon] : getCombatWeapons(unit);
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     // Check all combat weapons in inventory for range (with skill bonuses)
@@ -2222,9 +2246,8 @@ export class BattleScene extends Phaser.Scene {
       if (this.grid.fogEnabled && unit.faction === 'player' && !this.grid.isVisible(enemy.col, enemy.row)) continue;
       const dist = gridDistance(unit.col, unit.row, enemy.col, enemy.row);
       if (combatWeapons.some(w => {
-        const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
-        const { min, max } = parseRange(w.range);
-        return dist >= min && dist <= max + bonus;
+        const art = selectedWeapon === w ? selectedArt : null;
+        return this._isDistanceInWeaponRange(unit, w, dist, art);
       })) {
         targets.push(enemy);
       }
@@ -2233,17 +2256,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Auto-swap to a combat weapon that can reach the given distance. */
-  ensureValidWeaponForRange(unit, dist) {
+  ensureValidWeaponForRange(unit, dist, options = {}) {
+    const selectedArt = options.weaponArt || null;
+    if (unit.weapon && this._isDistanceInWeaponRange(unit, unit.weapon, dist, selectedArt)) return;
+    if (selectedArt) return;
     if (unit.weapon) {
-      const { min, max } = parseRange(unit.weapon.range);
-      const bonus = getWeaponRangeBonus(unit, unit.weapon, this.gameData.skills);
-      if (dist >= min && dist <= max + bonus) return; // equipped weapon is fine
+      if (this._isDistanceInWeaponRange(unit, unit.weapon, dist)) return;
     }
     // Find first combat weapon that can reach
     const validWeapon = getCombatWeapons(unit).find(w => {
-      const { min, max } = parseRange(w.range);
-      const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
-      return dist >= min && dist <= max + bonus;
+      return this._isDistanceInWeaponRange(unit, w, dist);
     });
     if (validWeapon) equipWeapon(unit, validWeapon);
   }
@@ -4021,6 +4043,12 @@ export class BattleScene extends Phaser.Scene {
   _scoreEnemyWeaponArt(art) {
     const mods = getWeaponArtCombatMods(art);
     const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const effectivenessScore = mods.effectiveness?.multiplier > 1
+      ? (mods.effectiveness.multiplier - 1) * 4
+      : 0;
+    const rangeOverrideScore = mods.rangeOverride
+      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
+      : 0;
     return (
       (mods.atkBonus * 3)
       + (mods.hitBonus * 0.35)
@@ -4028,6 +4056,13 @@ export class BattleScene extends Phaser.Scene {
       + (mods.spdBonus * 0.5)
       + (mods.avoidBonus * 0.15)
       + (mods.defBonus * 0.1)
+      + effectivenessScore
+      + ((mods.rangeBonus || 0) * 1.2)
+      + rangeOverrideScore
+      + (mods.preventCounter ? 3.5 : 0)
+      + (mods.targetsRES ? 2.5 : 0)
+      + (mods.halfPhysicalDamage ? 2.5 : 0)
+      + (mods.vengeance ? 4 : 0)
       - (hpCost * 0.75)
     );
   }
@@ -4127,9 +4162,21 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _beginAttackSelection(unit) {
-    const attackTargets = this.findAttackTargets(unit);
+    const selectedArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
+    const selectedEntry = selectedArt ? this._resolveSelectedWeaponArtEntry(unit) : null;
+    const attackTargets = selectedEntry
+      ? this.findAttackTargets(unit, { weapon: selectedEntry.weapon, weaponArt: selectedArt })
+      : this.findAttackTargets(unit);
     if (attackTargets.length <= 0) {
       this.showActionMenu(unit);
+      return;
+    }
+    if (selectedEntry) {
+      this.hideActionMenu();
+      this.attackTargets = attackTargets;
+      const attackTiles = attackTargets.map(e => ({ col: e.col, row: e.row }));
+      this.grid.showAttackRange(attackTiles);
+      this.battleState = 'SELECTING_TARGET';
       return;
     }
     const combatWeapons = getCombatWeapons(unit);
@@ -4422,14 +4469,17 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SHOWING_FORECAST';
 
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
-
-    // Auto-swap to a weapon that can reach the target if equipped weapon can't
-    this.ensureValidWeaponForRange(attacker, dist);
     this._clearSelectedWeaponArtIfInvalid(attacker);
+    const weaponArt = this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true });
+    const selectedEntry = weaponArt ? this._resolveSelectedWeaponArtEntry(attacker) : null;
+    // Auto-swap only for normal attacks; art attacks stay bound to selected weapon + art range.
+    this.ensureValidWeaponForRange(attacker, dist, { weaponArt });
+    if (selectedEntry && attacker.weapon !== selectedEntry.weapon) {
+      equipWeapon(attacker, selectedEntry.weapon);
+    }
 
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
-    const weaponArt = this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true });
     this._forecastWeaponArt = weaponArt;
     const skillCtx = this._buildForecastSkillCtx(attacker, defender, weaponArt);
 
@@ -4441,11 +4491,9 @@ export class BattleScene extends Phaser.Scene {
     );
 
     // Compute valid weapons for cycling (weapons that can reach this target)
-    const validWeapons = getCombatWeapons(attacker).filter(w => {
-      const { min, max } = parseRange(w.range);
-      const bonus = getWeaponRangeBonus(attacker, w, this.gameData.skills);
-      return dist >= min && dist <= max + bonus;
-    });
+    const validWeapons = selectedEntry
+      ? [selectedEntry.weapon]
+      : getCombatWeapons(attacker).filter((w) => this._isDistanceInWeaponRange(attacker, w, dist));
     this._forecastValidWeapons = validWeapons;
 
     // Build graphical forecast panel (FE GBA-style split layout)

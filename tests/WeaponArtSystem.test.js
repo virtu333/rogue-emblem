@@ -56,6 +56,27 @@ describe('WeaponArtSystem', () => {
     expect(mods.statScaling).toEqual({ stat: 'SKL', divisor: 2 });
   });
 
+  it('normalizes tactical-depth combat mod fields', () => {
+    const mods = getWeaponArtCombatMods(makeArt({
+      combatMods: {
+        preventCounter: true,
+        targetsRES: true,
+        effectiveness: { moveType: 'Flying', multiplier: 3 },
+        rangeBonus: 2,
+        rangeOverride: 2,
+        halfPhysicalDamage: true,
+        vengeance: true,
+      },
+    }));
+    expect(mods.preventCounter).toBe(true);
+    expect(mods.targetsRES).toBe(true);
+    expect(mods.effectiveness).toEqual({ moveTypes: ['flying'], multiplier: 3 });
+    expect(mods.rangeBonus).toBe(2);
+    expect(mods.rangeOverride).toEqual({ min: 2, max: 2 });
+    expect(mods.halfPhysicalDamage).toBe(true);
+    expect(mods.vengeance).toBe(true);
+  });
+
   it('rejects weapon arts for wrong weapon type', () => {
     const unit = makeUnit();
     const weapon = { type: 'Lance' };

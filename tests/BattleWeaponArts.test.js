@@ -105,6 +105,102 @@ describe('BattleScene weapon art helpers', () => {
     expect(selected?.id).toBe(art.id);
   });
 
+  it('includes distant targets when selected art grants rangeBonus', () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'bow_curved_shot',
+      name: 'Curved Shot',
+      weaponType: 'Bow',
+      combatMods: {
+        rangeBonus: 1,
+        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+      },
+    });
+    const bow = {
+      id: 'iron_bow',
+      name: 'Iron Bow',
+      type: 'Bow',
+      range: '2',
+      rankRequired: 'Prof',
+      might: 6,
+      hit: 85,
+      crit: 0,
+      weight: 5,
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    };
+    const unit = makeUnit({
+      faction: 'player',
+      col: 0,
+      row: 0,
+      weapon: bow,
+      inventory: [bow],
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+    });
+    const enemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 0, row: 3 });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [art] }, skills: [] };
+    scene.grid = { fogEnabled: false };
+    scene.enemyUnits = [enemy];
+    scene.playerUnits = [unit];
+
+    const baseTargets = scene.findAttackTargets(unit);
+    expect(baseTargets).toHaveLength(0);
+
+    scene._setSelectedWeaponArt(unit, art.id, bow);
+    const selectedArt = scene._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
+    const artTargets = scene.findAttackTargets(unit, { weapon: bow, weaponArt: selectedArt });
+    expect(artTargets).toHaveLength(1);
+    expect(artTargets[0].name).toBe('Enemy');
+  });
+
+  it('rangeOverride enforces exact attack range for selected art', () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'lance_longearche',
+      name: 'Longearche',
+      weaponType: 'Lance',
+      requiredRank: 'Mast',
+      combatMods: {
+        rangeOverride: 2,
+        activated: [{ id: 'weapon_art', name: 'Longearche' }],
+      },
+    });
+    const lance = {
+      id: 'iron_lance',
+      name: 'Iron Lance',
+      type: 'Lance',
+      range: '1',
+      rankRequired: 'Mast',
+      might: 7,
+      hit: 85,
+      crit: 0,
+      weight: 8,
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    };
+    const unit = makeUnit({
+      faction: 'player',
+      col: 0,
+      row: 0,
+      weapon: lance,
+      inventory: [lance],
+      proficiencies: [{ type: 'Lance', rank: 'Mast' }],
+    });
+    const adjacent = makeUnit({ name: 'Adjacent', faction: 'enemy', col: 0, row: 1 });
+    const atTwo = makeUnit({ name: 'AtTwo', faction: 'enemy', col: 0, row: 2 });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [art] }, skills: [] };
+    scene.grid = { fogEnabled: false };
+    scene.enemyUnits = [adjacent, atTwo];
+    scene.playerUnits = [unit];
+
+    scene._setSelectedWeaponArt(unit, art.id, lance);
+    const selectedArt = scene._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
+    const artTargets = scene.findAttackTargets(unit, { weapon: lance, weaponArt: selectedArt });
+    expect(artTargets.map((t) => t.name)).toEqual(['AtTwo']);
+  });
+
   it('resolves selected art to the exact inventory weapon instance when duplicates exist', () => {
     const scene = new BattleScene();
     const art = makeArt({ id: 'shared_art' });

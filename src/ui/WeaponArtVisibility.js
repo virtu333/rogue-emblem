@@ -28,6 +28,24 @@ export function summarizeWeaponArtEffect(art) {
   pushSigned('Spd', mods.spdBonus);
   pushSigned('Avoid', mods.avoidBonus);
   pushSigned('Def', mods.defBonus);
+  if (mods.targetsRES) chunks.push('Targets RES');
+  if (mods.preventCounter) chunks.push('No counter');
+  if (mods.vengeance) chunks.push('Vengeance dmg');
+  if (mods.halfPhysicalDamage) chunks.push('Half physical taken');
+  if (mods.rangeOverride) {
+    const range = (typeof mods.rangeOverride === 'object')
+      ? `${mods.rangeOverride.min}-${mods.rangeOverride.max}`
+      : String(mods.rangeOverride);
+    chunks.push(`Range = ${range}`);
+  } else {
+    pushSigned('Range', mods.rangeBonus);
+  }
+  if (mods.effectiveness?.multiplier > 1) {
+    const targets = Array.isArray(mods.effectiveness.moveTypes)
+      ? mods.effectiveness.moveTypes.join('/')
+      : 'target';
+    chunks.push(`${mods.effectiveness.multiplier}x vs ${targets}`);
+  }
   if (mods.ignoreTerrainAvoid) chunks.push('Ignores terrain avoid');
   if (chunks.length > 0) return chunks.join(', ');
   if (art?.description) return art.description;

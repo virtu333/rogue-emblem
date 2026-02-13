@@ -620,6 +620,279 @@
           }
         ]
       }
+    },
+    {
+      "id": "sword_grounder",
+      "name": "Grounder",
+      "weaponType": "Sword",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A grounded slash with effectiveness against fliers.",
+      "combatMods": {
+        "effectiveness": {
+          "moveTypes": [
+            "flying"
+          ],
+          "multiplier": 3
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Grounder"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_windsweep",
+      "name": "Windsweep",
+      "weaponType": "Sword",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A fast cut that prevents enemy counterattacks.",
+      "combatMods": {
+        "preventCounter": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Windsweep"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sword_hexblade",
+      "name": "Hexblade",
+      "weaponType": "Sword",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A cursed edge that targets resistance instead of defense.",
+      "combatMods": {
+        "targetsRES": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Hexblade"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_knightkneeler",
+      "name": "Knightkneeler",
+      "weaponType": "Lance",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A punishing thrust effective against cavalry.",
+      "combatMods": {
+        "effectiveness": {
+          "moveTypes": [
+            "cavalry"
+          ],
+          "multiplier": 3
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Knightkneeler"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_helm_splitter",
+      "name": "Helm Splitter",
+      "weaponType": "Axe",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A heavy overhead strike effective against armored units.",
+      "combatMods": {
+        "effectiveness": {
+          "moveTypes": [
+            "armored"
+          ],
+          "multiplier": 3
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Helm Splitter"
+          }
+        ]
+      }
+    },
+    {
+      "id": "magic_seraphim",
+      "name": "Seraphim",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome",
+        "Light"
+      ],
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Sacred magic highly effective against armored foes.",
+      "combatMods": {
+        "targetsRES": true,
+        "effectiveness": {
+          "moveTypes": [
+            "armored"
+          ],
+          "multiplier": 3
+        },
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Seraphim"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bow_curved_shot",
+      "name": "Curved Shot",
+      "weaponType": "Bow",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "An arcing shot with longer reach and improved accuracy.",
+      "combatMods": {
+        "rangeBonus": 1,
+        "hitBonus": 30,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Curved Shot"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bow_deadeye",
+      "name": "Deadeye",
+      "weaponType": "Bow",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "An extreme-range shot that sacrifices some hit rate.",
+      "combatMods": {
+        "rangeBonus": 3,
+        "hitBonus": -20,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Deadeye"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_longearche",
+      "name": "Longearche",
+      "weaponType": "Lance",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A stance that overrides range to exactly 2 tiles.",
+      "combatMods": {
+        "rangeOverride": 2,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Longearche"
+          }
+        ]
+      }
+    },
+    {
+      "id": "magic_mire",
+      "name": "Mire",
+      "weaponType": "Tome",
+      "allowedTypes": [
+        "Tome",
+        "Light"
+      ],
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A distant mire cast with reduced hit chance.",
+      "combatMods": {
+        "rangeBonus": 2,
+        "hitBonus": -15,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Mire"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lance_vengeance",
+      "name": "Vengeance",
+      "weaponType": "Lance",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A retaliatory thrust adding damage based on missing HP.",
+      "combatMods": {
+        "vengeance": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Vengeance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "axe_pavise_strike",
+      "name": "Pavise Strike",
+      "weaponType": "Axe",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A guarded strike: -3 Mt, but halves incoming physical damage.",
+      "combatMods": {
+        "atkBonus": -3,
+        "halfPhysicalDamage": true,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Pavise Strike"
+          }
+        ]
+      }
     }
   ]
 }

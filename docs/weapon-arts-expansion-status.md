@@ -47,3 +47,52 @@ Date: 2026-02-13
   - counter suppression flags
   - range bonus/override mechanics
   - associated BattleScene targeting/range refresh behavior
+
+## Phase 2
+
+Status: BLOCKED
+
+Date: 2026-02-13
+
+### Scope Completed
+
+- Added 12 tactical-depth arts (27 -> 39 total):
+  - Grounder, Windsweep, Hexblade, Knightkneeler, Helm Splitter, Seraphim
+  - Curved Shot, Deadeye, Longearche, Mire, Vengeance, Pavise Strike
+- Extended `combatMods` contract with:
+  - `preventCounter`, `targetsRES`, `effectiveness`, `rangeBonus`, `rangeOverride`, `halfPhysicalDamage`, `vengeance`
+- Implemented tactical-depth combat logic in:
+  - `Combat.normalizeCombatMods`
+  - `Combat.mergeCombatMods`
+  - `Combat.getCombatForecast`
+  - `Combat.resolveCombat`
+  - included art+weapon effectiveness stacking cap at `5x`
+- Updated battle targeting/range flow so selected weapon arts recalculate valid targets before target selection (`rangeBonus` / `rangeOverride`).
+- Extended weapon art UI effect summarization for tactical-depth flags.
+
+### Tests Run
+
+- PASS: `npx vitest run tests/WeaponArtSystem.test.js tests/Combat.test.js`
+  - Executed in this environment as:
+  - `npx vitest run tests/WeaponArtSystem.test.js tests/Combat.test.js --configLoader runner --pool=threads`
+  - Result: 2 files / 94 tests passed.
+- PASS: `npm run test:unit`
+  - Executed in this environment as:
+  - `npm run test:unit -- --configLoader runner --pool=threads`
+  - Result: 61 files / 1091 tests passed.
+- FAIL (environment): `npm run test:e2e`
+  - Playwright cannot start workers in this sandbox (`spawn EPERM`).
+  - Reproduced with both default worker count and `--workers=1`.
+
+### Known Risks
+
+- Required Phase 2 e2e gate is not executable in this sandbox due Playwright process-spawn restrictions.
+- Enemy AI art scoring now considers new tactical flags, but movement/pathing logic still does not proactively reposition for long-range art opportunities.
+- Art scroll production/pipeline remains deferred; existing scroll icon asset path remains reserved:
+  - `assets/sprites/ui/icon_scroll.png`
+
+### Next Phase Entry Criteria
+
+- Run `npm run test:e2e` in an unrestricted environment where Playwright worker processes can spawn.
+- Confirm no P0/P1 regressions in range-targeting UI flows (normal attack vs selected weapon art range override paths).
+- Once e2e gate passes, mark Phase 2 READY and begin Phase 3.
