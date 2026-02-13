@@ -39,9 +39,16 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     maxDefeatRate: null,
     minAvgNodes: null,
     maxAvgNodes: null,
+    minAvgGold: null,
+    maxAvgGold: null,
+    minAvgShopSpent: null,
+    maxAvgShopSpent: null,
     minAvgRecruits: null,
     maxAvgUnitsLost: null,
     maxAvgTurns: null,
+    minPromotionByAct2Rate: null,
+    maxPromotionByAct2Rate: null,
+    maxAvgInvalidShopEntries: null,
     writeArtifactsOnFailure: true,
   };
 
@@ -63,9 +70,16 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     else if (arg === '--max-defeat-rate' && args[i + 1]) opts.maxDefeatRate = parseOptionalNumber(args[++i], '--max-defeat-rate');
     else if (arg === '--min-avg-nodes' && args[i + 1]) opts.minAvgNodes = parseOptionalNumber(args[++i], '--min-avg-nodes');
     else if (arg === '--max-avg-nodes' && args[i + 1]) opts.maxAvgNodes = parseOptionalNumber(args[++i], '--max-avg-nodes');
+    else if (arg === '--min-avg-gold' && args[i + 1]) opts.minAvgGold = parseOptionalNumber(args[++i], '--min-avg-gold');
+    else if (arg === '--max-avg-gold' && args[i + 1]) opts.maxAvgGold = parseOptionalNumber(args[++i], '--max-avg-gold');
+    else if (arg === '--min-avg-shop-spent' && args[i + 1]) opts.minAvgShopSpent = parseOptionalNumber(args[++i], '--min-avg-shop-spent');
+    else if (arg === '--max-avg-shop-spent' && args[i + 1]) opts.maxAvgShopSpent = parseOptionalNumber(args[++i], '--max-avg-shop-spent');
     else if (arg === '--min-avg-recruits' && args[i + 1]) opts.minAvgRecruits = parseOptionalNumber(args[++i], '--min-avg-recruits');
     else if (arg === '--max-avg-units-lost' && args[i + 1]) opts.maxAvgUnitsLost = parseOptionalNumber(args[++i], '--max-avg-units-lost');
     else if (arg === '--max-avg-turns' && args[i + 1]) opts.maxAvgTurns = parseOptionalNumber(args[++i], '--max-avg-turns');
+    else if (arg === '--min-promotion-by-act2-rate' && args[i + 1]) opts.minPromotionByAct2Rate = parseOptionalNumber(args[++i], '--min-promotion-by-act2-rate');
+    else if (arg === '--max-promotion-by-act2-rate' && args[i + 1]) opts.maxPromotionByAct2Rate = parseOptionalNumber(args[++i], '--max-promotion-by-act2-rate');
+    else if (arg === '--max-avg-invalid-shop-entries' && args[i + 1]) opts.maxAvgInvalidShopEntries = parseOptionalNumber(args[++i], '--max-avg-invalid-shop-entries');
     else if (arg === '--no-artifacts') opts.writeArtifactsOnFailure = false;
   }
 
@@ -143,8 +157,11 @@ export function computeSummary(totals) {
     avgBattles: runs > 0 ? totals.totalBattles / runs : 0,
     avgTurns: runs > 0 ? totals.totalTurns / runs : 0,
     avgGold: runs > 0 ? totals.totalGold / runs : 0,
+    avgShopSpent: runs > 0 ? (totals.totalShopSpent || 0) / runs : 0,
     avgRecruits: runs > 0 ? totals.totalRecruits / runs : 0,
     avgUnitsLost: runs > 0 ? totals.totalUnitsLost / runs : 0,
+    promotionByAct2Rate: runs > 0 ? ((totals.promotionsByAct2Runs || 0) / runs) * 100 : 0,
+    avgInvalidShopEntries: runs > 0 ? (totals.totalInvalidShopEntries || 0) / runs : 0,
   };
 }
 
@@ -155,9 +172,16 @@ export function evaluateThresholdBreaches(summary, opts) {
     ['maxDefeatRate', 'defeat_rate_pct', 'max', summary.defeatRate],
     ['minAvgNodes', 'avg_nodes', 'min', summary.avgNodes],
     ['maxAvgNodes', 'avg_nodes', 'max', summary.avgNodes],
+    ['minAvgGold', 'avg_gold', 'min', summary.avgGold],
+    ['maxAvgGold', 'avg_gold', 'max', summary.avgGold],
+    ['minAvgShopSpent', 'avg_shop_spent', 'min', summary.avgShopSpent],
+    ['maxAvgShopSpent', 'avg_shop_spent', 'max', summary.avgShopSpent],
     ['minAvgRecruits', 'avg_recruits', 'min', summary.avgRecruits],
     ['maxAvgUnitsLost', 'avg_units_lost', 'max', summary.avgUnitsLost],
     ['maxAvgTurns', 'avg_turns', 'max', summary.avgTurns],
+    ['minPromotionByAct2Rate', 'promotion_by_act2_rate_pct', 'min', summary.promotionByAct2Rate],
+    ['maxPromotionByAct2Rate', 'promotion_by_act2_rate_pct', 'max', summary.promotionByAct2Rate],
+    ['maxAvgInvalidShopEntries', 'avg_invalid_shop_entries', 'max', summary.avgInvalidShopEntries],
   ];
 
   for (const [optKey, metricName, kind, metricValue] of limits) {
@@ -198,8 +222,11 @@ export async function runBatch(opts, gameDataOverride = null) {
     totalBattles: 0,
     totalTurns: 0,
     totalGold: 0,
+    totalShopSpent: 0,
     totalRecruits: 0,
     totalUnitsLost: 0,
+    promotionsByAct2Runs: 0,
+    totalInvalidShopEntries: 0,
   };
   const failures = [];
 
@@ -216,8 +243,17 @@ export async function runBatch(opts, gameDataOverride = null) {
     totals.totalBattles += replay.metrics.battles;
     totals.totalTurns += replay.metrics.totalTurns;
     totals.totalGold += replay.gold || 0;
+    totals.totalShopSpent += replay.metrics.shopGoldSpent || 0;
     totals.totalRecruits += replay.metrics.recruitsGained;
     totals.totalUnitsLost += replay.metrics.unitsLost;
+    totals.totalInvalidShopEntries += replay.metrics.invalidShopEntries || 0;
+
+    const promotedByAct2 = Array.isArray(replay.trace) && replay.trace.some((event) =>
+      event?.nodeType === 'church'
+        && Boolean(event.promoted)
+        && (event.act === 'act1' || event.act === 'act2')
+    );
+    if (promotedByAct2) totals.promotionsByAct2Runs++;
 
     if (replay.result === 'victory') totals.victories++;
     else if (replay.result === 'defeat') totals.defeats++;
@@ -251,7 +287,10 @@ export async function runBatch(opts, gameDataOverride = null) {
     `win_rate_pct=${summary.winRate.toFixed(2)} defeat_rate_pct=${summary.defeatRate.toFixed(2)} timeout_rate_pct=${summary.timeoutRate.toFixed(2)} avg_nodes=${summary.avgNodes.toFixed(2)} avg_battles=${summary.avgBattles.toFixed(2)}`
   );
   console.log(
-    `avg_turns=${summary.avgTurns.toFixed(2)} avg_gold=${summary.avgGold.toFixed(0)} avg_recruits=${summary.avgRecruits.toFixed(2)} avg_units_lost=${summary.avgUnitsLost.toFixed(2)}`
+    `avg_turns=${summary.avgTurns.toFixed(2)} avg_gold=${summary.avgGold.toFixed(0)} avg_shop_spent=${summary.avgShopSpent.toFixed(0)} avg_recruits=${summary.avgRecruits.toFixed(2)} avg_units_lost=${summary.avgUnitsLost.toFixed(2)}`
+  );
+  console.log(
+    `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)}`
   );
 
   const thresholdBreaches = evaluateThresholdBreaches(summary, opts);

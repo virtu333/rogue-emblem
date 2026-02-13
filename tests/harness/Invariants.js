@@ -36,7 +36,10 @@ export function checkInvariants(driver, context = {}) {
 
   // 4. Weapon consistency
   for (const u of [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits]) {
-    if (u.weapon && u.inventory && !u.inventory.includes(u.weapon)) {
+    const hasWeaponMatch = !u.weapon || !Array.isArray(u.inventory) || u.inventory.some((item) =>
+      item === u.weapon || (item?.name === u.weapon?.name && item?.type === u.weapon?.type)
+    );
+    if (!hasWeaponMatch) {
       errors.push(`weapon_consistency: ${u.name}'s equipped weapon "${u.weapon.name}" not in inventory`);
     }
   }

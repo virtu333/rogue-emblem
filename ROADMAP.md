@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 986 tests in suite on `main` baseline (Feb 12, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act/meta progression are on `main`, with 3c polish wrap-up hardening landed (run-start integration coverage + deterministic enemy-proc test seam + playtest checklist). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 1082 tests in suite on `main` baseline (Feb 13, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act/meta progression are on `main`, with 3c polish wrap-up hardening landed (run-start integration coverage + deterministic enemy-proc test seam + playtest checklist). For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -22,15 +22,16 @@ Organized by impact and logical sequencing:
 9. **AI reliability pass (P0)** - Continue long-distance enemy engagement hardening and targeted regression coverage (fort/river-crossing edge cases).
 10. **Regression harness expansion (P1)** - Keep battle + full-run harness parity as a merge gate for scene/run-state/difficulty changes.
 11. **Post-merge stabilization + playtest pass** - Validate startup watchdog behavior, mobile-safe scene loading, and full transition QA after each merge batch.
+12. **Scene-Router + transition hardening (P0)** - Centralize scene lifecycle transitions, enforce cleanup contracts, and add post-transition leak checks before any new feature merge.
 
 ### Next (1-3 Months)
-12. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
-13. **Wave 3A: Wyvern Foundation (Reclass Deferred)** - Wyvern Rider/Lord integration, enemy/recruit pool integration, and loot table structure alignment. Explicitly defer Second Seal/Reclass rules and UI.
-14. **Wave 4: Weapon Arts (phased)** - Foundation -> acquisition/meta -> enemy/legendary arts -> polish/balance.
-15. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
-16. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
-17. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
-18. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
+13. **Wave 3B: Convoy MVP** - Convoy data model, overflow flow, node/deploy access, persistence, and meta-capacity hooks.
+14. **Wave 3A: Wyvern Foundation (Reclass Deferred)** - Wyvern Rider/Lord integration, enemy/recruit pool integration, and loot table structure alignment. Explicitly defer Second Seal/Reclass rules and UI.
+15. **Wave 4: Weapon Arts (phased)** - Foundation -> acquisition/meta -> enemy/legendary arts -> polish/balance.
+16. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve
+17. **Difficulty Follow-up (Part B+)** - Balance iteration, additional mode content (Lunatic rollout timing), and expanded difficulty-aware tuning hooks after Part A ship
+18. **Dynamic Recruit Nodes** - Roster-aware recruit frequency
+19. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
 
 ### Later (3-6+ Months)
 12. **Additional Map Objectives** - Defend, Survive, Escape (battle variety) + reinforcement system
@@ -97,14 +98,27 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 3. Run full-suite + harness validation on each merge touching startup, run-state, mode modifiers, or scene transitions.
 4. Keep mobile-safe input/scene-loading parity as a non-regression gate for new UI features.
 5. Use playtest telemetry to tune Hard economic pressure and blessing pacing before Lunatic rollout.
+6. Gate major scene/gameplay merges on SceneRouter adoption and transition leak checks (`SceneGuard` + harness parity).
 
 ### Wave 1 Gate (Required Before Major Feature Merges)
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026).
+- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline in current state: 1082 tests on Feb 13, 2026.
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
+- [ ] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).
+- [ ] Transition cleanup audits are in place: input handlers, tweens, timers, listeners, and scene-local objects.
+- [ ] Post-transition leak checks run in e2e harness with bounded budgets (listeners/objects/tweens/sound deltas).
+- [ ] On crash/repro, `SceneGuard` emits last-50 transition/state actions and overlay/input/tween diagnostics.
+- [ ] Full-run harness exists and is required for merge classes touching scenes, transitions, mode modifiers, and run-state.
+
+### Wave 1.5 Reliability Hardening (Execution Priority: immediate, pre-content)
+- [ ] Add a canonical `SceneRouter` integration test matrix and migrate remaining manual `scene.start/sleep/wake` callsites.
+- [ ] Enforce cleanup assertions in `SceneGuard` for every scene transition (active listeners, timers, overlays, tweens, audio channels).
+- [ ] Add transition-level instrumentation tests for stale overlay/input bleed after pause/resume and scene churn.
+- [ ] Publish crash bundle artifact (`sceneState`, last 50 events, overlay deltas) for every CI failure in affected suites.
+- [ ] Add budgeted leak thresholds per scene and fail fast when exceeded during full-run harness execution.
 
 ### Wave 2 Scope (Low-Risk / High-Impact)
 - [x] Enemy affixes runtime wiring from `affixes.json` (difficulty-gated, exclusion rules, scaling).
@@ -288,10 +302,11 @@ QA evidence (Feb 12, 2026):
 4. ~~**Wave 6** (Blessings)~~ [done] Core + telemetry integration merged on `main`
 5. ~~**Wave 8** (Difficulty Foundation Part A)~~ [done] Selector + modifier layer + unlock gating merged on `main`
 6. **Wave 1 Stabilization Gate** (audio/scene/save/cloud + transition spam QA + merge gates)
-7. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
-8. **Wave 3B** (Convoy MVP, landing) -> **Wave 3A** (Wyvern foundation, reclass deferred)
-9. **Wave 4** (Weapon Arts phased rollout; priority after Wyvern integration)
-10. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
+7. **Wave 1.5 Reliability Hardening** (SceneRouter + transition leak + crash traceability)
+8. **Wave 2 Low-Risk Content** (enemy affixes + recruit naming scaffold)
+9. **Wave 3B** (Convoy MVP, landing) -> **Wave 3A** (Wyvern foundation, reclass deferred)
+10. **Wave 4** (Weapon Arts phased rollout; priority after Wyvern integration)
+11. **After Wave 4 stability:** Status Staves -> Elite/Miniboss Nodes -> Objectives/Terrain -> Act 4/Secret Act -> Meta Expansion
 
 ## Deployment
 

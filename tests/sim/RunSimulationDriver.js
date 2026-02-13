@@ -55,6 +55,10 @@ export class RunSimulationDriver {
       unitsLost: 0,
       totalTurns: 0,
       totalGoldEarnedFromBattles: 0,
+      shopGoldSpent: 0,
+      churchGoldSpent: 0,
+      promotions: 0,
+      invalidShopEntries: 0,
       forcedBattleWins: 0,
     };
   }
@@ -260,6 +264,10 @@ export class RunSimulationDriver {
     let spent = 0;
     const picks = chooseShopPurchases(this.runManager, adjusted);
     for (const entry of picks) {
+      if (!Number.isFinite(entry?.price) || entry.price <= 0) {
+        this.metrics.invalidShopEntries++;
+        continue;
+      }
       if (entry.price > this.runManager.gold) continue;
       if (!this.runManager.spendGold(entry.price)) continue;
 
@@ -287,6 +295,7 @@ export class RunSimulationDriver {
       spent += entry.price;
     }
 
+    this.metrics.shopGoldSpent += spent;
     this.runManager.markNodeComplete(node.id);
     return { result: 'shop_done', purchases, spent, offered: adjusted.length };
   }
@@ -304,12 +313,17 @@ export class RunSimulationDriver {
       const pick = this.runManager.fallenUnits[0];
       if (this.runManager.reviveFallenUnit(pick.name, this.options.reviveCost)) {
         revived = pick.name;
+        this.metrics.churchGoldSpent += this.options.reviveCost;
       }
     }
 
     let promoted = null;
     if (plan.promote) {
       promoted = this._tryChurchPromotion();
+      if (promoted) {
+        this.metrics.churchGoldSpent += CHURCH_PROMOTE_COST;
+        this.metrics.promotions++;
+      }
     }
 
     // Church always heals at end of visit in this sim.

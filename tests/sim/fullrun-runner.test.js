@@ -23,6 +23,23 @@ describe('fullrun-runner helpers', () => {
     expect(range.seeds).toEqual([77]);
   });
 
+  it('parses economy window threshold options', () => {
+    const opts = parseArgsFrom([
+      '--min-avg-gold', '4000',
+      '--max-avg-gold', '6500',
+      '--min-avg-shop-spent', '1000',
+      '--max-avg-shop-spent', '6500',
+      '--min-promotion-by-act2-rate', '10',
+      '--max-promotion-by-act2-rate', '50',
+    ]);
+    expect(opts.minAvgGold).toBe(4000);
+    expect(opts.maxAvgGold).toBe(6500);
+    expect(opts.minAvgShopSpent).toBe(1000);
+    expect(opts.maxAvgShopSpent).toBe(6500);
+    expect(opts.minPromotionByAct2Rate).toBe(10);
+    expect(opts.maxPromotionByAct2Rate).toBe(50);
+  });
+
   it('evaluates metric threshold breaches', () => {
     const summary = computeSummary({
       runs: 10,
@@ -33,8 +50,11 @@ describe('fullrun-runner helpers', () => {
       totalBattles: 15,
       totalTurns: 120,
       totalGold: 3000,
+      totalShopSpent: 1200,
       totalRecruits: 1,
       totalUnitsLost: 10,
+      promotionsByAct2Runs: 1,
+      totalInvalidShopEntries: 12,
     });
 
     const breaches = evaluateThresholdBreaches(summary, {
@@ -45,14 +65,23 @@ describe('fullrun-runner helpers', () => {
       maxDefeatRate: 70,
       minAvgNodes: 3,
       maxAvgNodes: null,
+      minAvgGold: 500,
+      minAvgShopSpent: 200,
+      maxAvgShopSpent: 100,
       minAvgRecruits: 0.2,
       maxAvgUnitsLost: 0.8,
       maxAvgTurns: 10,
+      minPromotionByAct2Rate: 20,
+      maxPromotionByAct2Rate: 5,
+      maxAvgInvalidShopEntries: 0.1,
     });
 
     expect(breaches.length).toBeGreaterThanOrEqual(5);
     expect(breaches.some((line) => line.includes('win_rate_pct'))).toBe(true);
     expect(breaches.some((line) => line.includes('defeat_rate_pct'))).toBe(true);
     expect(breaches.some((line) => line.includes('timeout_rate_pct'))).toBe(true);
+    expect(breaches.some((line) => line.includes('avg_shop_spent'))).toBe(true);
+    expect(breaches.some((line) => line.includes('promotion_by_act2_rate_pct'))).toBe(true);
+    expect(breaches.some((line) => line.includes('avg_invalid_shop_entries'))).toBe(true);
   });
 });

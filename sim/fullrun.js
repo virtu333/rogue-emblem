@@ -104,7 +104,7 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
         const injured = alive.player.filter(u => u.currentHP < u.stats.HP && u !== unit);
         if (injured.length > 0) {
           const target = injured.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP))[0];
-          const healResult = resolveHeal(unit.weapon, target);
+          const healResult = resolveHeal(unit.weapon, unit, target);
           target.currentHP = healResult.targetHPAfter;
           if (verbose) console.log(`  ${unit.name} heals ${target.name} for ${healResult.healAmount}`);
         }
@@ -247,8 +247,8 @@ function simulateRun(metaLevel, verbose) {
         const isBoss = node.type === NODE_TYPES.BOSS;
 
         // Create enemies — deploy+offset formula
-        const deployCount = Math.min(roster.length, DEPLOY_LIMITS[actId]?.max || 4);
-        const enemyCount = getEnemyCount(actId, deployCount, node.row, isBoss);
+        const enemySizingDeployCount = Math.min(roster.length, DEPLOY_LIMITS[actId]?.max || 4);
+        const enemyCount = getEnemyCount(actId, enemySizingDeployCount, node.row, isBoss);
         const enemies = [];
         for (let i = 0; i < enemyCount; i++) {
           const cls = pickEnemyClass(actId);
@@ -272,12 +272,18 @@ function simulateRun(metaLevel, verbose) {
         // NPC recruit
         let recruitUnit = null;
         if (node.type === NODE_TYPES.RECRUIT) {
-          const pool = data.recruits[actId];
-          if (pool) {
-            const pick = pool.pool[Math.floor(Math.random() * pool.pool.length)];
-            const level = pool.levelRange[0] + Math.floor(Math.random() * (pool.levelRange[1] - pool.levelRange[0] + 1));
+          const recruitConfig = data.recruits?.[actId];
+          const classPool = recruitConfig?.classPool;
+          if (Array.isArray(classPool) && classPool.length > 0) {
+            const className = classPool[Math.floor(Math.random() * classPool.length)];
+            const namePool = data.recruits?.namePool?.[className] || [];
+            const recruitName = namePool.length > 0
+              ? namePool[Math.floor(Math.random() * namePool.length)]
+              : `${className} Recruit`;
+            const [minLevel, maxLevel] = recruitConfig.levelRange || [1, 1];
+            const level = minLevel + Math.floor(Math.random() * (maxLevel - minLevel + 1));
             try {
-              recruitUnit = createRecruit(pick.className, pick.name, level);
+              recruitUnit = createRecruit(className, recruitName, level);
             } catch (_) { /* skip recruit */ }
           }
         }
