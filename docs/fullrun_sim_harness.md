@@ -49,9 +49,16 @@ cmd /c npm run sim:fullrun:harness:slices:list
 - `--max-defeat-rate <pct>`
 - `--min-avg-nodes <n>`
 - `--max-avg-nodes <n>`
+- `--min-avg-gold <n>`
+- `--max-avg-gold <n>`
+- `--min-avg-shop-spent <n>`
+- `--max-avg-shop-spent <n>`
 - `--min-avg-recruits <n>`
 - `--max-avg-units-lost <n>`
 - `--max-avg-turns <n>`
+- `--min-promotion-by-act2-rate <pct>`
+- `--max-promotion-by-act2-rate <pct>`
+- `--max-avg-invalid-shop-entries <n>`
 
 ## Notes
 
@@ -82,6 +89,7 @@ Not covered by full-run simulation:
 - `progression_invincible` (long-run progression/economy telemetry under invincibility)
 
 Slice definitions live in `tests/sim/fullrun-slices.js`.
+Calibration guidance lives in `docs/harness-thresholds.md`.
 
 ## Exit code semantics
 
