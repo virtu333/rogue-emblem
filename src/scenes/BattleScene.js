@@ -85,6 +85,7 @@ import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
+import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import {
@@ -144,6 +145,8 @@ export class BattleScene extends Phaser.Scene {
     this._touchHoldTimer = null;
     this._touchHoldStart = null;
     this._touchHoldTriggered = false;
+    this.reinforcementTemplatePool = null;
+    this.lastReinforcementSchedule = null;
   }
 
   create() {
@@ -276,54 +279,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Create enemies from generated spawns
       for (const spawn of bc.enemySpawns) {
-        const classData = this.gameData.classes.find(c => c.name === spawn.className);
-        if (!classData) continue;
-        const difficultyConfig = {
-          multiplier: this.battleParams.difficultyMod || 1.0,
-          enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
-        };
-
-        let enemy;
-        if (classData.tier === 'promoted') {
-          // Promoted class: create from base class, then promote
-          const baseClassName = classData.promotesFrom;
-          const baseClassData = this.gameData.classes.find(c => c.name === baseClassName);
-          if (!baseClassData) continue;
-          enemy = createEnemyUnitFromClass(baseClassData, spawn.level, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
-          promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
-        } else {
-          enemy = createEnemyUnitFromClass(classData, spawn.level, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
-        }
-
-        enemy.col = spawn.col;
-        enemy.row = spawn.row;
-        if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
-          enemy.affixes = [...spawn.affixes];
-        }
-        if (spawn.isBoss) {
-          enemy.isBoss = true;
-          enemy.name = spawn.name || enemy.name;
-          // Boss stat bonus
-          for (const stat of Object.keys(enemy.stats)) {
-            enemy.stats[stat] += BOSS_STAT_BONUS;
-          }
-          enemy.currentHP = enemy.stats.HP;
-        }
-        // Apply Sunder weapon from spawn (enemy-only anti-juggernaut mechanic)
-        if (spawn.sunderWeapon) {
-          const primaryType = enemy.proficiencies?.[0]?.type;
-          const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
-          if (sunderName) {
-            const sunderData = this.gameData.weapons.find(w => w.name === sunderName);
-            if (sunderData) {
-              const sunderClone = structuredClone(sunderData);
-              enemy.weapon = sunderClone;
-              enemy.inventory = [sunderClone];
-            }
-          }
-        }
-        this.enemyUnits.push(enemy);
-        this.addUnitGraphic(enemy);
+        this.addEnemyFromSpawn(spawn);
       }
 
       // Spawn NPC for recruit battles
@@ -716,6 +672,264 @@ export class BattleScene extends Phaser.Scene {
     } else {
       this.visionBaseSeed = this.deriveBattleSeed() >>> 0;
     }
+  }
+
+  getEnemyDifficultyConfig() {
+    return {
+      multiplier: this.battleParams.difficultyMod || 1.0,
+      enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+    };
+  }
+
+  getReinforcementSeed() {
+    const configuredSeed = this.battleParams?.battleSeed;
+    if (Number.isFinite(configuredSeed)) return configuredSeed >>> 0;
+    if (Number.isFinite(this.visionBaseSeed)) return this.visionBaseSeed >>> 0;
+    return this.deriveBattleSeed() >>> 0;
+  }
+
+  getEnemySpawnFallbackLevel() {
+    const nonBossLevels = (this.battleConfig?.enemySpawns || [])
+      .filter((spawn) => spawn && !spawn.isBoss)
+      .map((spawn) => Math.trunc(Number(spawn.level) || 0))
+      .filter((level) => level > 0);
+    if (nonBossLevels.length > 0) {
+      const total = nonBossLevels.reduce((sum, level) => sum + level, 0);
+      return Math.max(1, Math.round(total / nonBossLevels.length));
+    }
+    const byAct = { act1: 3, act2: 6, act3: 9, act4: 12, finalBoss: 14 };
+    return byAct[this.battleParams?.act] || 3;
+  }
+
+  getReinforcementTemplatePool() {
+    if (Array.isArray(this.reinforcementTemplatePool) && this.reinforcementTemplatePool.length > 0) {
+      return this.reinforcementTemplatePool;
+    }
+
+    const templates = [];
+    const seen = new Set();
+    for (const spawn of this.battleConfig?.enemySpawns || []) {
+      if (!spawn || spawn.isBoss || typeof spawn.className !== 'string') continue;
+      const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+      if (!classData) continue;
+      const level = Math.max(1, Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()));
+      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      templates.push({
+        className: spawn.className,
+        level,
+        sunderWeapon: Boolean(spawn.sunderWeapon),
+        aiMode: spawn.aiMode || null,
+        affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
+      });
+    }
+
+    if (templates.length === 0) {
+      const fallbackLevel = this.getEnemySpawnFallbackLevel();
+      const act = this.battleParams?.act || 'act1';
+      const pool = this.gameData?.enemies?.pools?.[act];
+      const classNames = [
+        ...(Array.isArray(pool?.base) ? pool.base : []),
+        ...(Array.isArray(pool?.promoted) ? pool.promoted : []),
+      ];
+      for (const className of classNames) {
+        if (typeof className !== 'string') continue;
+        const classData = this.gameData.classes.find((candidate) => candidate.name === className);
+        if (!classData) continue;
+        templates.push({
+          className,
+          level: fallbackLevel,
+          sunderWeapon: false,
+          aiMode: null,
+          affixes: [],
+        });
+      }
+    }
+
+    this.reinforcementTemplatePool = templates;
+    return templates;
+  }
+
+  normalizeEnemyRewardMultiplier(value) {
+    if (!Number.isFinite(value)) return 1;
+    return Math.max(0, Math.min(1, value));
+  }
+
+  getEnemyRewardMultiplier(enemyUnit) {
+    if (!enemyUnit?._isReinforcement) return 1;
+    const rewardMultiplier = Number.isFinite(enemyUnit._reinforcementRewardMultiplier)
+      ? enemyUnit._reinforcementRewardMultiplier
+      : enemyUnit._reinforcementXpMultiplier;
+    return this.normalizeEnemyRewardMultiplier(rewardMultiplier);
+  }
+
+  _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
+    let hash = this.getReinforcementSeed() >>> 0;
+    const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
+    const col = Math.trunc(Number(spawn?.col) || 0) + 1;
+    const row = Math.trunc(Number(spawn?.row) || 0) + 1;
+    const ordinal = Math.trunc(Number(spawnOrdinal) || 0) + 1;
+    hash ^= Math.imul(waveIndex, 0x9e3779b1);
+    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+    hash ^= Math.imul(col, 0xc2b2ae35);
+    hash = Math.imul(hash ^ (hash >>> 13), 0x27d4eb2d);
+    hash ^= Math.imul(row, 0x165667b1);
+    hash ^= Math.imul(ordinal, 0x1b873593);
+    return (hash ^ (hash >>> 16)) >>> 0;
+  }
+
+  buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
+    const templates = this.getReinforcementTemplatePool();
+    if (!Array.isArray(templates) || templates.length === 0) return null;
+    const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
+    const template = templates[pickIndex];
+    if (!template) return null;
+
+    return {
+      className: template.className,
+      level: template.level,
+      col: scheduledSpawn.col,
+      row: scheduledSpawn.row,
+      sunderWeapon: template.sunderWeapon,
+      aiMode: template.aiMode,
+      affixes: Array.isArray(template.affixes) ? [...template.affixes] : [],
+    };
+  }
+
+  addEnemyFromSpawn(spawn, options = {}) {
+    if (!spawn || typeof spawn.className !== 'string') return null;
+    const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+    if (!classData) return null;
+
+    const spawnLevel = Math.max(1, Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()));
+    const difficultyConfig = this.getEnemyDifficultyConfig();
+
+    let enemy;
+    if (classData.tier === 'promoted') {
+      const baseClassData = this.gameData.classes.find((candidate) => candidate.name === classData.promotesFrom);
+      if (!baseClassData) return null;
+      enemy = createEnemyUnitFromClass(baseClassData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
+    } else {
+      enemy = createEnemyUnitFromClass(classData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+    }
+
+    enemy.col = spawn.col;
+    enemy.row = spawn.row;
+    if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
+      enemy.affixes = [...spawn.affixes];
+    }
+    if (spawn.isBoss) {
+      enemy.isBoss = true;
+      enemy.name = spawn.name || enemy.name;
+      for (const stat of Object.keys(enemy.stats)) {
+        enemy.stats[stat] += BOSS_STAT_BONUS;
+      }
+      enemy.currentHP = enemy.stats.HP;
+    }
+    if (spawn.sunderWeapon) {
+      const primaryType = enemy.proficiencies?.[0]?.type;
+      const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
+      if (sunderName) {
+        const sunderData = this.gameData.weapons.find((weapon) => weapon.name === sunderName);
+        if (sunderData) {
+          const sunderClone = structuredClone(sunderData);
+          enemy.weapon = sunderClone;
+          enemy.inventory = [sunderClone];
+        }
+      }
+    }
+    if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+
+    const reinforcementMeta = options.reinforcementMeta || null;
+    if (reinforcementMeta) {
+      enemy._isReinforcement = true;
+      enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
+      enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
+      const rewardMultiplier = this.normalizeEnemyRewardMultiplier(
+        Number(reinforcementMeta.xpMultiplier)
+      );
+      enemy._reinforcementRewardMultiplier = rewardMultiplier;
+      // Backward compatibility for legacy field name.
+      enemy._reinforcementXpMultiplier = rewardMultiplier;
+    }
+
+    this.enemyUnits.push(enemy);
+    this.addUnitGraphic(enemy);
+    return enemy;
+  }
+
+  getReinforcementOccupiedTiles() {
+    return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
+      .filter((unit) => unit && Number.isFinite(unit.col) && Number.isFinite(unit.row))
+      .map((unit) => ({ col: unit.col, row: unit.row }));
+  }
+
+  resolveReinforcementsForTurn(turn) {
+    if (!this.battleConfig?.reinforcements) {
+      return { spawns: [], dueWaves: [], blockedSpawns: 0 };
+    }
+    return scheduleReinforcementsForTurn({
+      turn,
+      seed: this.getReinforcementSeed(),
+      reinforcements: this.battleConfig.reinforcements,
+      mapLayout: this.battleConfig.mapLayout,
+      terrain: this.gameData.terrain,
+      occupied: this.getReinforcementOccupiedTiles(),
+      difficultyId: this.battleParams?.difficultyId || this.runManager?.difficultyId || 'normal',
+      difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
+      enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
+    });
+  }
+
+  applyReinforcementsForTurn(turn) {
+    const schedule = this.resolveReinforcementsForTurn(turn);
+    this.lastReinforcementSchedule = schedule;
+    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0) return { ...schedule, spawned: 0 };
+
+    let spawned = 0;
+    for (let i = 0; i < schedule.spawns.length; i++) {
+      const scheduledSpawn = schedule.spawns[i];
+      const spec = this.buildReinforcementSpawnSpec(scheduledSpawn, i);
+      if (!spec) continue;
+      const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
+      if (enemy) spawned++;
+    }
+
+    if (spawned > 0) {
+      this.dangerZoneStale = true;
+      if (this.grid.fogEnabled) this.updateEnemyVisibility();
+      this.updateObjectiveText();
+      this.showReinforcementBanner(spawned);
+    }
+
+    return { ...schedule, spawned };
+  }
+
+  showReinforcementBanner(spawnedCount) {
+    if (!Number.isFinite(spawnedCount) || spawnedCount <= 0) return;
+    const label = spawnedCount === 1 ? 'Reinforcement arrives!' : `${spawnedCount} reinforcements arrive!`;
+    const banner = this.add.text(
+      this.cameras.main.centerX,
+      38,
+      label,
+      {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffbb55',
+        backgroundColor: '#000000dd',
+        padding: { x: 10, y: 5 },
+      }
+    ).setOrigin(0.5).setDepth(520).setAlpha(0);
+    this.tweens.add({
+      targets: banner,
+      alpha: 1,
+      duration: 180,
+      yoyo: true,
+      hold: 700,
+      onComplete: () => banner.destroy(),
+    });
   }
 
   getVisionChargesRemaining() {
@@ -4961,7 +5175,10 @@ export class BattleScene extends Phaser.Scene {
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
   async awardXP(playerUnit, opponent, opponentDied) {
     const baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
-    await this.awardScaledXP(playerUnit, baseXp);
+    const rewardMultiplier = this.getEnemyRewardMultiplier(opponent);
+    const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier);
+    if (adjustedBaseXp <= 0) return;
+    await this.awardScaledXP(playerUnit, adjustedBaseXp);
   }
 
   async awardScaledXP(playerUnit, baseXp) {
@@ -5020,7 +5237,9 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       // Track gold earned from enemy kills
       if (this.runManager) {
-        this.goldEarned += calculateKillGold(unit);
+        const rewardMultiplier = this.getEnemyRewardMultiplier(unit);
+        const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * rewardMultiplier));
+        this.goldEarned += adjustedGold;
       }
     }
     this.dangerZoneStale = true;
@@ -5136,6 +5355,7 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1400, async () => {
         await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
+        this.applyReinforcementsForTurn(turn);
         this.startEnemyPhase();
       });
     }

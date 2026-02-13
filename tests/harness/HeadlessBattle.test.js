@@ -61,6 +61,48 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits.some(u => u.name === 'Sera')).toBe(true);
   });
 
+  it('init resets reinforcement caches when reusing the same battle instance', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act4',
+      objective: 'rout',
+      row: 3,
+      templateId: 'frozen_pass',
+    });
+    battle.init();
+
+    battle.reinforcementTemplatePool = [{ className: '__stale__', level: 1 }];
+    battle.lastReinforcementSchedule = { spawns: [{ col: 0, row: 0 }] };
+
+    battle.init();
+
+    expect(battle.reinforcementTemplatePool).toBeNull();
+    expect(battle.lastReinforcementSchedule).toBeNull();
+    const rebuiltPool = battle._getReinforcementTemplatePool();
+    expect(rebuiltPool.some((entry) => entry.className === '__stale__')).toBe(false);
+  });
+
+  it('uses battle-seed fallback parity for reinforcement seed derivation', () => {
+    const runSeed = 777;
+    const base = {
+      act: 'act4',
+      runSeed,
+      nodeId: 'node_test_01',
+    };
+    const a = new HeadlessBattle(gameData, { ...base, objective: 'rout', row: 3 });
+    const b = new HeadlessBattle(gameData, { ...base, objective: 'seize', row: 9 });
+
+    let expected = 2166136261 >>> 0;
+    const input = `${runSeed >>> 0}:node_test_01`;
+    for (let i = 0; i < input.length; i++) {
+      expected ^= input.charCodeAt(i);
+      expected = Math.imul(expected, 16777619);
+    }
+    expected >>>= 0;
+
+    expect(a._getReinforcementSeed()).toBe(expected);
+    expect(b._getReinforcementSeed()).toBe(expected);
+  });
+
   it('selectUnit transitions to UNIT_SELECTED', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();
@@ -259,6 +301,70 @@ describe('HeadlessBattle', () => {
       expect(positions.has(key)).toBe(false);
       positions.add(key);
     }
+  });
+
+  it('enemy phase applies deterministic reinforcement spawns on due turns', async () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act4',
+      objective: 'rout',
+      row: 3,
+      templateId: 'frozen_pass',
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+    });
+    battle.init();
+    battle.aiController.processEnemyPhase = async () => {};
+
+    const before = battle.enemyUnits.length;
+    battle.turnManager.turnNumber = 3;
+    battle.turnManager.currentPhase = 'enemy';
+    battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
+
+    await battle._processEnemyPhase();
+
+    expect(battle.enemyUnits.length).toBeGreaterThan(before);
+    expect(battle.lastReinforcementSchedule?.spawns?.length || 0).toBeGreaterThan(0);
+  });
+
+  it('reinforcementTurnOffset advances reinforcement waves in enemy phase flow', async () => {
+    const withOffset = new HeadlessBattle(gameData, {
+      act: 'act4',
+      objective: 'rout',
+      row: 3,
+      templateId: 'frozen_pass',
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+      reinforcementTurnOffset: -1,
+    });
+    withOffset.init();
+    withOffset.aiController.processEnemyPhase = async () => {};
+    const withOffsetBefore = withOffset.enemyUnits.length;
+    withOffset.turnManager.turnNumber = 2;
+    withOffset.turnManager.currentPhase = 'enemy';
+    withOffset.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    await withOffset._processEnemyPhase();
+
+    const withoutOffset = new HeadlessBattle(gameData, {
+      act: 'act4',
+      objective: 'rout',
+      row: 3,
+      templateId: 'frozen_pass',
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+      reinforcementTurnOffset: 0,
+    });
+    withoutOffset.init();
+    withoutOffset.aiController.processEnemyPhase = async () => {};
+    const withoutOffsetBefore = withoutOffset.enemyUnits.length;
+    withoutOffset.turnManager.turnNumber = 2;
+    withoutOffset.turnManager.currentPhase = 'enemy';
+    withoutOffset.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    await withoutOffset._processEnemyPhase();
+
+    expect(withOffset.lastReinforcementSchedule?.dueWaves?.length || 0).toBeGreaterThan(0);
+    expect(withOffset.enemyUnits.length).toBeGreaterThan(withOffsetBefore);
+    expect(withoutOffset.lastReinforcementSchedule?.dueWaves || []).toHaveLength(0);
+    expect(withoutOffset.enemyUnits.length).toBe(withoutOffsetBefore);
   });
 
   it('selectUnit prefers an unacted unit when duplicate names exist', () => {

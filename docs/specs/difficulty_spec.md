@@ -127,7 +127,7 @@ A single config file defining modifier values per difficulty. The engine reads t
 | `deployLimitBonus` | Added to deploy limits per act (0 across all difficulties — deploy reduction felt too punishing without Blessing system offset) |
 | `xpMultiplier` | Multiplier on all XP gained (slows leveling on higher difficulties) |
 | `fogChanceBonus` | Adds to per-act `FOG_CHANCE_BY_ACT` values in constants.js. Capped at 0.9 |
-| `reinforcementTurnOffset` | **Deferred — no-op until reinforcement system ships.** Config key exists for stable data contract. When active: reinforcements arrive N turns earlier (negative = sooner) |
+| `reinforcementTurnOffset` | Reinforcements arrive N turns earlier/later (negative = sooner) |
 | `currencyMultiplier` | Multiplier applied to all Valor and Supply earned during the run. See §7 for source-side application |
 | `actsIncluded` | Which acts appear in the campaign sequence |
 | `extendedLevelingEnabled` | Whether units can level past promoted L20 |
@@ -141,7 +141,7 @@ These modifiers touch the following existing systems:
 - **NodeMapScene/Shop** — `shopPriceMultiplier` on displayed prices
 - **Combat/UnitManager** — `xpMultiplier` on XP awards
 - **NodeMapGenerator** — `fogChanceBonus` adds to per-act `FOG_CHANCE_BY_ACT` values in constants.js (capped at 0.9)
-- **TurnManager** — `reinforcementTurnOffset` adjusts reinforcement scheduling (no-op until reinforcement system ships)
+- **BattleScene + ReinforcementScheduler** — `reinforcementTurnOffset` adjusts reinforcement scheduling in turn flow
 - **RunManager** — `actsIncluded` drives `ACT_SEQUENCE`, `currencyMultiplier` on Valor + Supply calculation
 - **RunManager** — stores `difficulty` in run state for persistence + display
 
@@ -265,7 +265,7 @@ This table maps spec concepts to their current codebase locations. Use it as a r
 | `goldMultiplier` | `calculateKillGold()` / `calculateBattleGold()` in LootSystem.js | Source-side: each gold source applies multiplier |
 | `shopPriceMultiplier` | NodeMapScene / ShopScene | Display-side; base data prices unchanged |
 | `fogChanceBonus` | `FOG_CHANCE_BY_ACT` in constants.js:191, NodeMapGenerator.js:91 | Adds to per-act values |
-| `reinforcementTurnOffset` | TurnManager.js | NO-OP — no reinforcement system exists yet |
+| `reinforcementTurnOffset` | BattleScene.js + ReinforcementScheduler.js | Active: shifts scheduled reinforcement turns |
 | `deployLimitBonus` | `DEPLOY_LIMITS` in constants.js | Added to per-act deploy values |
 
 ---

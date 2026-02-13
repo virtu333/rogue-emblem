@@ -5,6 +5,7 @@ import { HeadlessGrid } from './HeadlessGrid.js';
 import { TurnManager } from '../../src/engine/TurnManager.js';
 import { AIController } from '../../src/engine/AIController.js';
 import { generateBattle } from '../../src/engine/MapGenerator.js';
+import { scheduleReinforcementsForTurn } from '../../src/engine/ReinforcementScheduler.js';
 import {
   resolveCombat,
   resolveHeal,
@@ -94,6 +95,8 @@ export class HeadlessBattle {
     this.aiPhaseStatsHistory = [];
     this.lastEnemyPhaseAiStats = null;
     this.currentEnemyPhaseAiStats = null;
+    this.reinforcementTemplatePool = null;
+    this.lastReinforcementSchedule = null;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -121,6 +124,8 @@ export class HeadlessBattle {
     this.aiPhaseStatsHistory = [];
     this.lastEnemyPhaseAiStats = null;
     this.currentEnemyPhaseAiStats = null;
+    this.reinforcementTemplatePool = null;
+    this.lastReinforcementSchedule = null;
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -143,45 +148,7 @@ export class HeadlessBattle {
 
     // Create enemies
     for (const spawn of bc.enemySpawns) {
-      const classData = this.gameData.classes.find(c => c.name === spawn.className);
-      if (!classData) continue;
-      const diffMod = this.battleParams.difficultyMod || 1.0;
-
-      let enemy;
-      if (classData.tier === 'promoted') {
-        const baseClassData = this.gameData.classes.find(c => c.name === classData.promotesFrom);
-        if (!baseClassData) continue;
-        enemy = createEnemyUnit(baseClassData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
-        promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
-      } else {
-        enemy = createEnemyUnit(classData, spawn.level, this.gameData.weapons, diffMod, this.gameData.skills, this.battleParams.act);
-      }
-
-      enemy.col = spawn.col;
-      enemy.row = spawn.row;
-      if (spawn.isBoss) {
-        enemy.isBoss = true;
-        enemy.name = spawn.name || enemy.name;
-        for (const stat of Object.keys(enemy.stats)) {
-          enemy.stats[stat] += BOSS_STAT_BONUS;
-        }
-        enemy.currentHP = enemy.stats.HP;
-      }
-      if (spawn.sunderWeapon) {
-        const primaryType = enemy.proficiencies?.[0]?.type;
-        const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
-        if (sunderName) {
-          const sunderData = this.gameData.weapons.find(w => w.name === sunderName);
-          if (sunderData) {
-            const sunderClone = structuredClone(sunderData);
-            enemy.weapon = sunderClone;
-            enemy.inventory = [sunderClone];
-          }
-        }
-      }
-      // Assign guard AI mode if spawn has it
-      if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
-      this.enemyUnits.push(enemy);
+      this._addEnemyFromSpawn(spawn);
     }
 
     // Spawn NPC for recruit battles
@@ -483,6 +450,238 @@ export class HeadlessBattle {
     }
   }
 
+  _getEnemyDifficultyConfig() {
+    return {
+      multiplier: this.battleParams.difficultyMod || 1.0,
+      enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+    };
+  }
+
+  _deriveBattleSeed() {
+    const runSeed = Number(this.battleParams?.runSeed || 0) >>> 0;
+    const nodePart = String(this.battleParams?.nodeId || this.battleParams?.act || 'battle');
+    let hash = 2166136261 >>> 0;
+    const input = `${runSeed}:${nodePart}`;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  _getReinforcementSeed() {
+    if (Number.isFinite(this.battleParams?.battleSeed)) return this.battleParams.battleSeed >>> 0;
+    return this._deriveBattleSeed() >>> 0;
+  }
+
+  _getEnemySpawnFallbackLevel() {
+    const nonBossLevels = (this.battleConfig?.enemySpawns || [])
+      .filter((spawn) => spawn && !spawn.isBoss)
+      .map((spawn) => Math.trunc(Number(spawn.level) || 0))
+      .filter((level) => level > 0);
+    if (nonBossLevels.length > 0) {
+      const total = nonBossLevels.reduce((sum, level) => sum + level, 0);
+      return Math.max(1, Math.round(total / nonBossLevels.length));
+    }
+    const byAct = { act1: 3, act2: 6, act3: 9, act4: 12, finalBoss: 14 };
+    return byAct[this.battleParams?.act] || 3;
+  }
+
+  _getReinforcementTemplatePool() {
+    if (Array.isArray(this.reinforcementTemplatePool) && this.reinforcementTemplatePool.length > 0) {
+      return this.reinforcementTemplatePool;
+    }
+
+    const templates = [];
+    const seen = new Set();
+    for (const spawn of this.battleConfig?.enemySpawns || []) {
+      if (!spawn || spawn.isBoss || typeof spawn.className !== 'string') continue;
+      const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+      if (!classData) continue;
+      const level = Math.max(1, Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()));
+      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      templates.push({
+        className: spawn.className,
+        level,
+        sunderWeapon: Boolean(spawn.sunderWeapon),
+        aiMode: spawn.aiMode || null,
+        affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
+      });
+    }
+
+    if (templates.length === 0) {
+      const fallbackLevel = this._getEnemySpawnFallbackLevel();
+      const act = this.battleParams?.act || 'act1';
+      const pool = this.gameData?.enemies?.pools?.[act];
+      const classNames = [
+        ...(Array.isArray(pool?.base) ? pool.base : []),
+        ...(Array.isArray(pool?.promoted) ? pool.promoted : []),
+      ];
+      for (const className of classNames) {
+        if (typeof className !== 'string') continue;
+        const classData = this.gameData.classes.find((candidate) => candidate.name === className);
+        if (!classData) continue;
+        templates.push({
+          className,
+          level: fallbackLevel,
+          sunderWeapon: false,
+          aiMode: null,
+          affixes: [],
+        });
+      }
+    }
+
+    this.reinforcementTemplatePool = templates;
+    return templates;
+  }
+
+  _normalizeEnemyRewardMultiplier(value) {
+    if (!Number.isFinite(value)) return 1;
+    return Math.max(0, Math.min(1, value));
+  }
+
+  _getEnemyRewardMultiplier(unit) {
+    if (!unit?._isReinforcement) return 1;
+    const rewardMultiplier = Number.isFinite(unit._reinforcementRewardMultiplier)
+      ? unit._reinforcementRewardMultiplier
+      : unit._reinforcementXpMultiplier;
+    return this._normalizeEnemyRewardMultiplier(rewardMultiplier);
+  }
+
+  _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
+    let hash = this._getReinforcementSeed() >>> 0;
+    const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
+    const col = Math.trunc(Number(spawn?.col) || 0) + 1;
+    const row = Math.trunc(Number(spawn?.row) || 0) + 1;
+    const ordinal = Math.trunc(Number(spawnOrdinal) || 0) + 1;
+    hash ^= Math.imul(waveIndex, 0x9e3779b1);
+    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+    hash ^= Math.imul(col, 0xc2b2ae35);
+    hash = Math.imul(hash ^ (hash >>> 13), 0x27d4eb2d);
+    hash ^= Math.imul(row, 0x165667b1);
+    hash ^= Math.imul(ordinal, 0x1b873593);
+    return (hash ^ (hash >>> 16)) >>> 0;
+  }
+
+  _buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
+    const templates = this._getReinforcementTemplatePool();
+    if (!Array.isArray(templates) || templates.length === 0) return null;
+    const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
+    const template = templates[pickIndex];
+    if (!template) return null;
+
+    return {
+      className: template.className,
+      level: template.level,
+      col: scheduledSpawn.col,
+      row: scheduledSpawn.row,
+      sunderWeapon: template.sunderWeapon,
+      aiMode: template.aiMode,
+      affixes: Array.isArray(template.affixes) ? [...template.affixes] : [],
+    };
+  }
+
+  _addEnemyFromSpawn(spawn, options = {}) {
+    if (!spawn || typeof spawn.className !== 'string') return null;
+    const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+    if (!classData) return null;
+
+    const spawnLevel = Math.max(1, Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()));
+    const difficultyConfig = this._getEnemyDifficultyConfig();
+
+    let enemy;
+    if (classData.tier === 'promoted') {
+      const baseClassData = this.gameData.classes.find((candidate) => candidate.name === classData.promotesFrom);
+      if (!baseClassData) return null;
+      enemy = createEnemyUnit(baseClassData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
+    } else {
+      enemy = createEnemyUnit(classData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+    }
+
+    enemy.col = spawn.col;
+    enemy.row = spawn.row;
+    if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
+      enemy.affixes = [...spawn.affixes];
+    }
+    if (spawn.isBoss) {
+      enemy.isBoss = true;
+      enemy.name = spawn.name || enemy.name;
+      for (const stat of Object.keys(enemy.stats)) {
+        enemy.stats[stat] += BOSS_STAT_BONUS;
+      }
+      enemy.currentHP = enemy.stats.HP;
+    }
+    if (spawn.sunderWeapon) {
+      const primaryType = enemy.proficiencies?.[0]?.type;
+      const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
+      if (sunderName) {
+        const sunderData = this.gameData.weapons.find((weapon) => weapon.name === sunderName);
+        if (sunderData) {
+          const sunderClone = structuredClone(sunderData);
+          enemy.weapon = sunderClone;
+          enemy.inventory = [sunderClone];
+        }
+      }
+    }
+    if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
+
+    const reinforcementMeta = options.reinforcementMeta || null;
+    if (reinforcementMeta) {
+      enemy._isReinforcement = true;
+      enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
+      enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
+      const rewardMultiplier = this._normalizeEnemyRewardMultiplier(
+        Number(reinforcementMeta.xpMultiplier)
+      );
+      enemy._reinforcementRewardMultiplier = rewardMultiplier;
+      // Backward compatibility for legacy field name.
+      enemy._reinforcementXpMultiplier = rewardMultiplier;
+    }
+
+    this.enemyUnits.push(enemy);
+    return enemy;
+  }
+
+  _getReinforcementOccupiedTiles() {
+    return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
+      .filter((unit) => unit && Number.isFinite(unit.col) && Number.isFinite(unit.row))
+      .map((unit) => ({ col: unit.col, row: unit.row }));
+  }
+
+  _resolveReinforcementsForTurn(turn) {
+    if (!this.battleConfig?.reinforcements) return { spawns: [], dueWaves: [], blockedSpawns: 0 };
+    return scheduleReinforcementsForTurn({
+      turn,
+      seed: this._getReinforcementSeed(),
+      reinforcements: this.battleConfig.reinforcements,
+      mapLayout: this.battleConfig.mapLayout,
+      terrain: this.gameData.terrain,
+      occupied: this._getReinforcementOccupiedTiles(),
+      difficultyId: this.battleParams?.difficultyId || 'normal',
+      difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
+      enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
+    });
+  }
+
+  _applyReinforcementsForTurn(turn) {
+    const schedule = this._resolveReinforcementsForTurn(turn);
+    this.lastReinforcementSchedule = schedule;
+    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0) return { ...schedule, spawned: 0 };
+
+    let spawned = 0;
+    for (let i = 0; i < schedule.spawns.length; i++) {
+      const scheduledSpawn = schedule.spawns[i];
+      const spec = this._buildReinforcementSpawnSpec(scheduledSpawn, i);
+      if (!spec) continue;
+      const enemy = this._addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
+      if (enemy) spawned++;
+    }
+    return { ...schedule, spawned };
+  }
+
   _onPhaseChange(phase, turn) {
     if (phase === 'player') {
       for (const u of this.playerUnits) {
@@ -676,9 +875,12 @@ export class HeadlessBattle {
 
     // Award XP to player attacker
     if (attacker.faction === 'player' && !result.attackerDied) {
-      const xp = calculateCombatXP(attacker, defender, result.defenderDied);
-      gainExperience(attacker, xp);
-      checkLevelUpSkills(attacker, this.gameData.classes);
+      const baseXp = calculateCombatXP(attacker, defender, result.defenderDied);
+      const xp = Math.floor(baseXp * this._getEnemyRewardMultiplier(defender));
+      if (xp > 0) {
+        gainExperience(attacker, xp);
+        checkLevelUpSkills(attacker, this.gameData.classes);
+      }
     }
 
     // Remove dead units
@@ -801,7 +1003,8 @@ export class HeadlessBattle {
     } else {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
-      this.goldEarned += calculateKillGold(unit);
+      const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * this._getEnemyRewardMultiplier(unit)));
+      this.goldEarned += adjustedGold;
     }
   }
 
@@ -820,6 +1023,7 @@ export class HeadlessBattle {
 
   async _processEnemyPhase() {
     this._processTurnStartEffects(this.enemyUnits);
+    this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
     this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
     try {
       await this.aiController.processEnemyPhase(
@@ -916,9 +1120,12 @@ export class HeadlessBattle {
 
     // Award XP to player defender
     if (defender.faction === 'player' && !result.defenderDied) {
-      const xp = calculateCombatXP(defender, attacker, result.attackerDied);
-      gainExperience(defender, xp);
-      checkLevelUpSkills(defender, this.gameData.classes);
+      const baseXp = calculateCombatXP(defender, attacker, result.attackerDied);
+      const xp = Math.floor(baseXp * this._getEnemyRewardMultiplier(attacker));
+      if (xp > 0) {
+        gainExperience(defender, xp);
+        checkLevelUpSkills(defender, this.gameData.classes);
+      }
     }
 
     if (result.defenderDied) this._removeUnit(defender);
