@@ -17,4 +17,16 @@ describe('data/public parity guards', () => {
     const publicCopy = readJson('public/data/lootTables.json');
     expect(publicCopy).toEqual(source);
   });
+
+  it('keeps terrain JSON in sync', () => {
+    const source = readJson('data/terrain.json');
+    const publicCopy = readJson('public/data/terrain.json');
+    expect(publicCopy).toEqual(source);
+  });
+
+  it('keeps map templates JSON in sync', () => {
+    const source = readJson('data/mapTemplates.json');
+    const publicCopy = readJson('public/data/mapTemplates.json');
+    expect(publicCopy).toEqual(source);
+  });
 });

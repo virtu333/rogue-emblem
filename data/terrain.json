@@ -118,5 +118,29 @@
     "avoidBonus": "10",
     "defBonus": "1",
     "special": "Can be visited for items/events"
+  },
+  {
+    "name": "Ice",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "-10",
+    "defBonus": "0",
+    "special": "Slide: non-flying units slide in entry direction until non-Ice tile"
+  },
+  {
+    "name": "Lava Crack",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "2",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "0",
+    "defBonus": "0",
+    "special": "5 damage at end of phase (min 1 HP)"
   }
 ]

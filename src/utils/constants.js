@@ -74,11 +74,13 @@ export const ATTACK_RANGE_ALPHA = 0.4;
 export const TERRAIN_HEAL_PERCENT = 0.10;
 export const FORT_HEAL_DECAY_MULTIPLIERS = [1, 0.67, 0.34, 0.17, 0];
 export const ANTI_TURTLE_NO_PROGRESS_TURNS = 3;
+export const LAVA_CRACK_DAMAGE = 5;
 
 // Terrain index enum (matches terrain.json order)
 export const TERRAIN = {
   Plain: 0, Forest: 1, Mountain: 2, Fort: 3, Throne: 4,
   Wall: 5, Water: 6, Bridge: 7, Sand: 8, Village: 9,
+  Ice: 10, LavaCrack: 11,
 };
 
 // Boss stat bonus (flat added to all stats)
@@ -209,4 +211,6 @@ export const TERRAIN_COLORS = {
   Bridge:   0x8b6c42,
   Sand:     0xd4b96a,
   Village:  0xc47035,
+  Ice:      0x99ccee,
+  'Lava Crack': 0xcc4400,
 };

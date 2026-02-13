@@ -1,7 +1,7 @@
 // BattleScene â€” Phase 3: multi-unit tactical combat with unit system
 
 import Phaser from 'phaser';
-import { Grid } from '../engine/Grid.js';
+import { Grid, computeEffectivePath } from '../engine/Grid.js';
 import { TurnManager } from '../engine/TurnManager.js';
 import { AIController } from '../engine/AIController.js';
 import {
@@ -68,9 +68,10 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, LAVA_CRACK_DAMAGE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
+import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
 import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
 import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
@@ -200,7 +201,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
-      this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled);
+      this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled, bc.biome || null);
 
       // Ensure music is stopped when scene shuts down
       this.events.once('shutdown', () => {
@@ -1441,6 +1442,26 @@ export class BattleScene extends Phaser.Scene {
     return map;
   }
 
+  buildOccupiedSet(excludeUnit = null) {
+    const occupied = new Set();
+    for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
+      occupied.add(`${unit.col},${unit.row}`);
+    }
+    return occupied;
+  }
+
+  calculatePathMovementCost(path, moveType, endStepIndex = path.length - 1) {
+    if (!Array.isArray(path) || path.length < 2) return 0;
+    let cost = 0;
+    for (let i = 1; i <= endStepIndex && i < path.length; i++) {
+      const stepCost = this.grid.getMoveCost(path[i].col, path[i].row, moveType);
+      if (!Number.isFinite(stepCost)) break;
+      cost += stepCost;
+    }
+    return cost;
+  }
+
   // --- Pointer / click handling ---
 
   onPointerMove(pointer) {
@@ -1471,7 +1492,8 @@ export class BattleScene extends Phaser.Scene {
     const moveType = hovered ? hovered.moveType : 'Infantry';
     const moveCost = terrain.moveCost[moveType];
     info += ` | Move: ${moveCost}`;
-    if (parseInt(terrain.avoidBonus)) info += ` | Avo +${terrain.avoidBonus}`;
+    const avoidBonus = parseInt(terrain.avoidBonus, 10);
+    if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
 
     // Unit info (skip hidden units in fog)
@@ -1497,7 +1519,20 @@ export class BattleScene extends Phaser.Scene {
           gp.col, gp.row, this.selectedUnit.moveType,
           this.unitPositions, this.selectedUnit.faction
         );
-        if (path) this.grid.showPath(path);
+        if (path) {
+          const occupied = this.buildOccupiedSet(this.selectedUnit);
+          const effective = computeEffectivePath(
+            path,
+            this.grid.mapLayout,
+            this.grid.terrainData,
+            this.grid.cols,
+            this.grid.rows,
+            this.selectedUnit.moveType,
+            occupied,
+          );
+          this.grid.showPath(effective.effectivePath);
+          this.grid.showSlidePath(effective.slidePath);
+        }
         this._lastPathPreviewKey = key;
       } else {
         this.grid.clearPath();
@@ -2165,10 +2200,25 @@ export class BattleScene extends Phaser.Scene {
     );
     if (!path || path.length < 2) return;
 
-    // Track movement cost for Canto
-    const moveRange = this.grid.getMovementRange(unit.col, unit.row, unit.stats.MOV, unit.moveType, this.unitPositions, unit.faction);
-    const destKey = `${toCol},${toRow}`;
-    unit._movementSpent = moveRange.get(destKey)?.cost || 0;
+    const occupied = this.buildOccupiedSet(unit);
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      unit.moveType,
+      occupied,
+    );
+    const finalPath = effective.effectivePath;
+    if (!finalPath || finalPath.length < 2) return;
+    const finalDest = finalPath[finalPath.length - 1];
+
+    // Forced slide tiles do not consume movement for Canto.
+    const moveCostEndIndex = Number.isInteger(effective.pathEndIndex)
+      ? effective.pathEndIndex
+      : (path.length - 1);
+    unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex);
 
     this.battleState = 'UNIT_MOVING';
     this.preMoveLoc = { col: unit.col, row: unit.row };
@@ -2182,19 +2232,20 @@ export class BattleScene extends Phaser.Scene {
       : [unit.graphic];
 
     const animateStep = (stepIndex) => {
-      if (stepIndex >= path.length) {
-        unit.col = toCol;
-        unit.row = toRow;
+      if (stepIndex >= finalPath.length) {
+        unit.col = finalDest.col;
+        unit.row = finalDest.row;
         unit.hasMoved = true;
         this.updateUnitPosition(unit);
         this.afterMove(unit);
         return;
       }
-      const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
+      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+      const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
       this.tweens.add({
         targets,
         x: pos.x, y: pos.y,
-        duration: 80,
+        duration,
         ease: 'Linear',
         onComplete: () => animateStep(stepIndex + 1),
       });
@@ -5081,8 +5132,9 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.enemyUnits) {
         resetWeaponArtTurnUsage(u, { turnNumber: turn });
       }
-      // Terrain healing for enemies, then start AI
+      // End-of-player-phase terrain hazards, then enemy turn start effects.
       this.time.delayedCall(1400, async () => {
+        await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
         this.startEnemyPhase();
       });
@@ -5238,6 +5290,48 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  async processTerrainDamage(units) {
+    for (const unit of [...units]) {
+      if (!unit || unit._removing || unit.currentHP <= 0) continue;
+      const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
+      if (!isLavaCrackTerrainIndex(terrainIdx)) continue;
+
+      const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
+      if (appliedDamage <= 0) continue;
+      unit.currentHP = nextHP;
+      this.updateHPBar(unit);
+      await this.showTerrainDamage(unit, appliedDamage);
+    }
+  }
+
+  showTerrainDamage(unit, damage) {
+    return new Promise(resolve => {
+      const wasTinted = Boolean(unit.graphic?.isTinted);
+      const previousTint = unit.graphic?.tintTopLeft;
+      if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
+
+      const pos = this.grid.gridToPixel(unit.col, unit.row);
+      const text = this.add.text(pos.x, pos.y - 16, `Lava -${damage}`, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#ff8844', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(320);
+
+      this.tweens.add({
+        targets: text,
+        y: pos.y - 32,
+        alpha: 0,
+        duration: 450,
+        onComplete: () => text.destroy(),
+      });
+
+      this.time.delayedCall(120, () => {
+        if (!unit.graphic) return;
+        if (wasTinted && unit.graphic.setTint && previousTint != null) unit.graphic.setTint(previousTint);
+        else if (unit.graphic.clearTint) unit.graphic.clearTint();
+      });
+      this.time.delayedCall(180, resolve);
+    });
+  }
+
   async startEnemyPhase() {
     // Debug: skip enemy phase entirely
     if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
@@ -5278,6 +5372,7 @@ export class BattleScene extends Phaser.Scene {
 
     // End enemy phase (skip if battle already ended during combat)
     if (this.battleState !== 'BATTLE_END') {
+      await this.processTerrainDamage(this.enemyUnits);
       this.turnManager.endEnemyPhase();
     }
   }
@@ -5289,13 +5384,29 @@ export class BattleScene extends Phaser.Scene {
         return;
       }
 
+      const occupied = this.buildOccupiedSet(enemy);
+      const effective = computeEffectivePath(
+        path,
+        this.grid.mapLayout,
+        this.grid.terrainData,
+        this.grid.cols,
+        this.grid.rows,
+        enemy.moveType,
+        occupied,
+      );
+      const finalPath = effective.effectivePath;
+      if (!finalPath || finalPath.length < 2) {
+        resolve();
+        return;
+      }
+
       const targets = enemy.label
         ? [enemy.graphic, enemy.label]
         : [enemy.graphic];
 
       const animateStep = (stepIndex) => {
-        if (stepIndex >= path.length) {
-          const dest = path[path.length - 1];
+        if (stepIndex >= finalPath.length) {
+          const dest = finalPath[finalPath.length - 1];
           enemy.col = dest.col;
           enemy.row = dest.row;
           this.updateUnitPosition(enemy);
@@ -5303,11 +5414,12 @@ export class BattleScene extends Phaser.Scene {
           resolve();
           return;
         }
-        const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
+        const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+        const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
         this.tweens.add({
           targets,
           x: pos.x, y: pos.y,
-          duration: 80,
+          duration,
           ease: 'Linear',
           onComplete: () => animateStep(stepIndex + 1),
         });

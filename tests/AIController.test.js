@@ -459,6 +459,115 @@ describe('AIController', () => {
     });
   });
 
+  describe('Ice slide-aware planning', () => {
+    it('does not choose attack_in_range when slide-adjusted destination is out of range', () => {
+      const grid = createMockGrid([{ col: 1, row: 0 }]);
+      grid.cols = 5;
+      grid.rows = 2;
+      grid.mapLayout = [
+        [0, 1, 1, 1, 0],
+        [0, 0, 0, 0, 0],
+      ];
+      grid.terrainData = [
+        {
+          name: 'Plain',
+          moveCost: { Infantry: '1', Armored: '1', Cavalry: '1', Flying: '1' },
+        },
+        {
+          name: 'Ice',
+          moveCost: { Infantry: '1', Armored: '1', Cavalry: '1', Flying: '1' },
+        },
+      ];
+
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({
+        col: 0,
+        row: 0,
+        mov: 1,
+        weapon: { range: '1', type: 'Sword' },
+      });
+      const player = makePlayer({ col: 1, row: 1 });
+
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.reason).not.toBe('attack_in_range');
+      expect(decision.target).toBeNull();
+    });
+  });
+
+  describe('Post-move retarget fallback', () => {
+    it('retargets to an in-range unit when planned target is no longer in range after move', async () => {
+      const ai = new AIController(createMockGrid(), {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 0, weapon: { range: '1', type: 'Sword' } });
+      const plannedTarget = makePlayer({ name: 'Planned', col: 1, row: 0, currentHP: 20 });
+      const fallbackTarget = makePlayer({ name: 'Fallback', col: 3, row: 1, currentHP: 20 });
+      const attacks = [];
+      let unitDoneCalled = false;
+
+      ai._decideAction = () => ({
+        path: [{ col: 0, row: 0 }, { col: 1, row: 0 }],
+        target: plannedTarget,
+        reason: 'attack_in_range',
+      });
+
+      await ai._processOneEnemy(
+        enemy,
+        [enemy],
+        [plannedTarget, fallbackTarget],
+        [],
+        {
+          onDecision: () => {},
+          onMoveUnit: async () => {
+            enemy.col = 3;
+            enemy.row = 0;
+          },
+          onAttack: async (_enemy, target) => attacks.push(target.name),
+          onUnitDone: () => {
+            unitDoneCalled = true;
+          },
+        }
+      );
+
+      expect(attacks).toEqual(['Fallback']);
+      expect(unitDoneCalled).toBe(true);
+    });
+
+    it('does not attack when planned target is invalid and no fallback target is in range', async () => {
+      const ai = new AIController(createMockGrid(), {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 0, weapon: { range: '1', type: 'Sword' } });
+      const plannedTarget = makePlayer({ name: 'Planned', col: 1, row: 0, currentHP: 20 });
+      const farTarget = makePlayer({ name: 'Far', col: 0, row: 5, currentHP: 20 });
+      const attacks = [];
+      let unitDoneCalled = false;
+
+      ai._decideAction = () => ({
+        path: [{ col: 0, row: 0 }, { col: 1, row: 0 }],
+        target: plannedTarget,
+        reason: 'attack_in_range',
+      });
+
+      await ai._processOneEnemy(
+        enemy,
+        [enemy],
+        [plannedTarget, farTarget],
+        [],
+        {
+          onDecision: () => {},
+          onMoveUnit: async () => {
+            enemy.col = 4;
+            enemy.row = 0;
+          },
+          onAttack: async (_enemy, target) => attacks.push(target.name),
+          onUnitDone: () => {
+            unitDoneCalled = true;
+          },
+        }
+      );
+
+      expect(attacks).toEqual([]);
+      expect(unitDoneCalled).toBe(true);
+    });
+  });
+
   describe('Constructor options', () => {
     it('defaults to rout with no thronePos', () => {
       const ai = new AIController(createMockGrid(), {});

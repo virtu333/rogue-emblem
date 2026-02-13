@@ -10,13 +10,150 @@ const DIRECTIONS = [
   { dc: 1, dr: 0 },
 ];
 
+function normalizeTerrainName(name) {
+  return String(name || '').toLowerCase().replace(/ /g, '_');
+}
+
+function getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows) {
+  if (col < 0 || col >= cols || row < 0 || row >= rows) return null;
+  const terrainIdx = mapLayout[row]?.[col];
+  if (terrainIdx == null) return null;
+  return terrainData[terrainIdx] || null;
+}
+
+function isPassableForMoveType(mapLayout, terrainData, col, row, cols, rows, moveType) {
+  const terrain = getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows);
+  if (!terrain) return false;
+  const moveCost = terrain.moveCost?.[moveType];
+  if (moveCost === '--') return false;
+  return Number.isFinite(parseInt(moveCost, 10));
+}
+
+export function getEntryDirection(path) {
+  if (!Array.isArray(path) || path.length < 2) return null;
+  const prev = path[path.length - 2];
+  const curr = path[path.length - 1];
+  return { dc: curr.col - prev.col, dr: curr.row - prev.row };
+}
+
+export function resolveIceSlide(
+  col,
+  row,
+  entryDir,
+  mapLayout,
+  terrainData,
+  cols,
+  rows,
+  moveType,
+  occupiedTiles = new Set(),
+) {
+  if (!entryDir || (!entryDir.dc && !entryDir.dr)) {
+    return { col, row, slidePath: [{ col, row }] };
+  }
+
+  let currentCol = col;
+  let currentRow = row;
+  const slidePath = [{ col, row }];
+
+  while (true) {
+    const nextCol = currentCol + entryDir.dc;
+    const nextRow = currentRow + entryDir.dr;
+    const nextKey = `${nextCol},${nextRow}`;
+
+    if (nextCol < 0 || nextCol >= cols || nextRow < 0 || nextRow >= rows) {
+      return { col: currentCol, row: currentRow, slidePath };
+    }
+    if (occupiedTiles.has(nextKey)) {
+      return { col: currentCol, row: currentRow, slidePath };
+    }
+    if (!isPassableForMoveType(mapLayout, terrainData, nextCol, nextRow, cols, rows, moveType)) {
+      return { col: currentCol, row: currentRow, slidePath };
+    }
+
+    const nextTerrain = getTerrainAtLayout(mapLayout, terrainData, nextCol, nextRow, cols, rows);
+    slidePath.push({ col: nextCol, row: nextRow });
+
+    if (nextTerrain?.name === 'Ice') {
+      currentCol = nextCol;
+      currentRow = nextRow;
+      continue;
+    }
+
+    return { col: nextCol, row: nextRow, slidePath };
+  }
+}
+
+export function computeEffectivePath(
+  path,
+  mapLayout,
+  terrainData,
+  cols,
+  rows,
+  moveType,
+  occupiedTiles = new Set(),
+) {
+  if (!Array.isArray(path) || path.length < 2 || moveType === 'Flying') {
+    return {
+      effectivePath: path || [],
+      slideStartIndex: -1,
+      slidePath: [],
+      pathEndIndex: Array.isArray(path) && path.length > 0 ? path.length - 1 : -1,
+    };
+  }
+
+  for (let i = 1; i < path.length; i++) {
+    const step = path[i];
+    const stepKey = `${step.col},${step.row}`;
+    const stepTerrain = getTerrainAtLayout(mapLayout, terrainData, step.col, step.row, cols, rows);
+    if (stepTerrain?.name !== 'Ice') continue;
+
+    // Pathfinding can traverse ally tiles; if first Ice entry is occupied, force-stop
+    // at the nearest prior unoccupied tile (never end on an occupied tile).
+    if (occupiedTiles.has(stepKey)) {
+      let stopIndex = i - 1;
+      while (stopIndex >= 0) {
+        const stopStep = path[stopIndex];
+        const stopKey = `${stopStep.col},${stopStep.row}`;
+        if (!occupiedTiles.has(stopKey)) break;
+        stopIndex -= 1;
+      }
+      if (stopIndex < 0) stopIndex = 0;
+      return {
+        effectivePath: path.slice(0, stopIndex + 1),
+        slideStartIndex: -1,
+        slidePath: [],
+        pathEndIndex: stopIndex,
+      };
+    }
+
+    const prev = path[i - 1];
+    const entryDir = { dc: step.col - prev.col, dr: step.row - prev.row };
+    const slide = resolveIceSlide(
+      step.col,
+      step.row,
+      entryDir,
+      mapLayout,
+      terrainData,
+      cols,
+      rows,
+      moveType,
+      occupiedTiles,
+    );
+    const effectivePath = path.slice(0, i).concat(slide.slidePath);
+    return { effectivePath, slideStartIndex: i, slidePath: slide.slidePath, pathEndIndex: i };
+  }
+
+  return { effectivePath: path, slideStartIndex: -1, slidePath: [], pathEndIndex: path.length - 1 };
+}
+
 export class Grid {
-  constructor(scene, cols, rows, terrainData, mapLayout, fogEnabled = false) {
+  constructor(scene, cols, rows, terrainData, mapLayout, fogEnabled = false, biome = null) {
     this.scene = scene;
     this.cols = cols;
     this.rows = rows;
     this.terrainData = terrainData;
     this.mapLayout = mapLayout; // 2D array of terrain indices
+    this.biome = biome;
     this.tiles = [];
     this.highlightTiles = [];
     this.pathTiles = [];
@@ -52,7 +189,10 @@ export class Grid {
     const terrainIndex = this.mapLayout[row][col];
     const terrain = this.terrainData[terrainIndex];
     const { x, y } = this.gridToPixel(col, row);
-    const textureKey = `terrain_${terrain.name.toLowerCase()}`;
+    const baseName = normalizeTerrainName(terrain?.name);
+    const biomeKey = this.biome ? `terrain_${baseName}_${this.biome}` : null;
+    const baseKey = `terrain_${baseName}`;
+    const textureKey = biomeKey && this.scene.textures.exists(biomeKey) ? biomeKey : baseKey;
     if (this.scene.textures.exists(textureKey)) {
       const img = this.scene.add.image(x, y, textureKey);
       img.setDisplaySize(TILE_SIZE, TILE_SIZE);
@@ -353,6 +493,17 @@ export class Grid {
     for (let i = 1; i < path.length; i++) {
       const { x, y } = this.gridToPixel(path[i].col, path[i].row);
       const dot = this.scene.add.rectangle(x, y, TILE_SIZE * 0.4, TILE_SIZE * 0.4, 0x88bbff, 0.7);
+      dot.setDepth(6);
+      this.pathTiles.push(dot);
+    }
+  }
+
+  // Overlay cyan dots for the slide segment of a path preview.
+  showSlidePath(slidePath) {
+    if (!Array.isArray(slidePath) || slidePath.length === 0) return;
+    for (const step of slidePath) {
+      const { x, y } = this.gridToPixel(step.col, step.row);
+      const dot = this.scene.add.rectangle(x, y, TILE_SIZE * 0.28, TILE_SIZE * 0.28, 0x66ddff, 0.7);
       dot.setDepth(6);
       this.pathTiles.push(dot);
     }

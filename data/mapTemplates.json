@@ -145,6 +145,80 @@
         "knight": 1.5,
         "lance": 1.3
       }
+    },
+    {
+      "id": "frozen_pass",
+      "name": "Frozen Pass",
+      "fogChance": 0.25,
+      "acts": ["act4"],
+      "biome": "tundra",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 45, "Ice": 35, "Mountain": 20 },
+          "priority": 0
+        },
+        {
+          "rect": [0.25, 0.2, 0.75, 0.8],
+          "terrain": { "Ice": 80, "Plain": 20 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.7, 0, 1, 1],
+          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "enemyWeights": {
+        "cavalry": 0.8,
+        "infantry": 1.2
+      }
+    },
+    {
+      "id": "caldera",
+      "name": "Caldera",
+      "fogChance": 0.10,
+      "acts": ["act4"],
+      "biome": "volcano",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 50, "Mountain": 30, "Lava Crack": 20 },
+          "priority": 0
+        },
+        {
+          "rect": [0.3, 0.25, 0.7, 0.75],
+          "terrain": { "Lava Crack": 75, "Plain": 25 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.7, 0, 1, 1],
+          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "enemyWeights": {
+        "mage": 1.4,
+        "armored": 1.2
+      }
     }
   ],
   "seize": [
@@ -226,6 +300,88 @@
       "enemyWeights": {
         "archer": 1.3,
         "armored": 1.5
+      }
+    },
+    {
+      "id": "glacier_fortress",
+      "name": "Glacier Fortress",
+      "fogChance": 0.20,
+      "acts": ["act4"],
+      "biome": "tundra",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 40, "Ice": 40, "Mountain": 20 },
+          "priority": 0
+        },
+        {
+          "rect": [0.55, 0.2, 0.95, 0.8],
+          "terrain": { "Wall": 35, "Fort": 30, "Ice": 20, "Plain": 15 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.6, 0.25, 0.9, 0.75],
+          "terrain": { "Fort": 35, "Ice": 35, "Plain": 20, "Wall": 10 },
+          "priority": 3,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [
+        { "type": "Throne", "position": "topRight" }
+      ],
+      "anchors": [
+        { "position": "throne", "unit": "boss_or_strongest" }
+      ],
+      "enemyWeights": {
+        "armored": 1.5,
+        "archer": 1.2
+      }
+    },
+    {
+      "id": "eruption_point",
+      "name": "Eruption Point",
+      "fogChance": 0.05,
+      "acts": ["act4"],
+      "biome": "volcano",
+      "zones": [
+        {
+          "rect": [0, 0, 1, 1],
+          "terrain": { "Plain": 45, "Mountain": 30, "Lava Crack": 25 },
+          "priority": 0
+        },
+        {
+          "rect": [0.5, 0.15, 0.95, 0.85],
+          "terrain": { "Lava Crack": 40, "Wall": 25, "Fort": 20, "Plain": 15 },
+          "priority": 2
+        },
+        {
+          "rect": [0, 0, 0.3, 1],
+          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [0.65, 0.2, 0.95, 0.8],
+          "terrain": { "Fort": 35, "Wall": 25, "Lava Crack": 25, "Plain": 15 },
+          "priority": 3,
+          "role": "enemySpawn"
+        }
+      ],
+      "features": [
+        { "type": "Throne", "position": "right" }
+      ],
+      "anchors": [
+        { "position": "throne", "unit": "boss_or_strongest" }
+      ],
+      "enemyWeights": {
+        "mage": 1.4,
+        "knight": 1.3
       }
     }
   ]

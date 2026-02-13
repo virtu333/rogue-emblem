@@ -10,7 +10,7 @@ const PUBLIC_DIR = resolve('public/assets/sprites/tilesets');
 
 const tiles = [
   'plain', 'forest', 'mountain', 'fort', 'throne',
-  'wall', 'water', 'bridge', 'sand', 'village',
+  'wall', 'water', 'bridge', 'sand', 'village', 'ice', 'lava_crack',
 ];
 
 // Ensure public dir exists
@@ -23,7 +23,7 @@ for (const name of tiles) {
   const publicOutput = join(PUBLIC_DIR, `${name}.png`);
 
   await sharp(input)
-    .resize(TILE_SIZE, TILE_SIZE, { fit: 'cover' })
+    .resize(TILE_SIZE, TILE_SIZE, { fit: 'cover', kernel: sharp.kernel.nearest })
     .png()
     .toFile(output);
 

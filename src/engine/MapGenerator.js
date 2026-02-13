@@ -36,9 +36,11 @@ export function generateBattle(params, deps) {
   const [cols, rows] = sizeEntry.mapSize.split('x').map(Number);
 
   // 2. Pick template (use pre-assigned templateId if available)
+  const preAssignedTemplate = preAssignedTemplateId ? findTemplateById(preAssignedTemplateId, mapTemplates) : null;
+  const preAssignedAllowed = preAssignedTemplate && isTemplateAllowedForAct(preAssignedTemplate, act);
   const template = preAssignedTemplateId
-    ? findTemplateById(preAssignedTemplateId, mapTemplates) || pickTemplate(objective, mapTemplates)
-    : pickTemplate(objective, mapTemplates);
+    ? (preAssignedAllowed ? preAssignedTemplate : pickTemplate(objective, mapTemplates, act))
+    : pickTemplate(objective, mapTemplates, act);
 
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
@@ -107,6 +109,7 @@ export function generateBattle(params, deps) {
     cols,
     rows,
     objective,
+    biome: template.biome || null,
     playerSpawns,
     enemySpawns,
     npcSpawn,
@@ -134,13 +137,24 @@ function pickMapSize(act, mapSizes) {
 
 // --- Template selection ---
 
-function pickTemplate(objective, mapTemplates) {
+function isTemplateAllowedForAct(template, act) {
+  return !Array.isArray(template.acts) || template.acts.includes(act);
+}
+
+export function filterTemplatesByAct(pool, act) {
+  if (!Array.isArray(pool)) return [];
+  return pool.filter(template => isTemplateAllowedForAct(template, act));
+}
+
+export function pickTemplate(objective, mapTemplates, act = null) {
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
     // Fallback to rout if objective templates missing
     return mapTemplates.rout[0];
   }
-  return pool[Math.floor(Math.random() * pool.length)];
+  const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
+  const sourcePool = filteredPool.length > 0 ? filteredPool : pool;
+  return sourcePool[Math.floor(Math.random() * sourcePool.length)];
 }
 
 function findTemplateById(templateId, mapTemplates) {

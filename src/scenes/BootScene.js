@@ -121,10 +121,10 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
     }
 
-    // Terrain tiles (10)
+    // Terrain tiles (12)
     const terrainNames = [
       'plain', 'forest', 'mountain', 'fort', 'throne',
-      'wall', 'water', 'bridge', 'sand', 'village',
+      'wall', 'water', 'bridge', 'sand', 'village', 'ice', 'lava_crack',
     ];
     for (const name of terrainNames) {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);

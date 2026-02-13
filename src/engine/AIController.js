@@ -7,6 +7,7 @@ import {
   gridDistance,
   isInRange,
 } from './Combat.js';
+import { computeEffectivePath } from './Grid.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
@@ -61,11 +62,16 @@ export class AIController {
       await callbacks.onMoveUnit(enemy, decision.path);
     }
 
-    // Attack if we have a target in range
+    // Attack if we have a target in range. If movement/terrain changed state and the
+    // planned target is no longer valid, attempt a fallback retarget in current range.
     if (decision.target) {
-      const dist = gridDistance(enemy.col, enemy.row, decision.target.col, decision.target.row);
-      if (enemy.weapon && isInRange(enemy.weapon, dist)) {
-        await callbacks.onAttack(enemy, decision.target);
+      let targetToAttack = decision.target;
+      const plannedDist = gridDistance(enemy.col, enemy.row, decision.target.col, decision.target.row);
+      if (!enemy.weapon || !isInRange(enemy.weapon, plannedDist)) {
+        targetToAttack = this._selectBestInRangeTarget(enemy, [...playerUnits, ...(npcUnits || [])]);
+      }
+      if (targetToAttack) {
+        await callbacks.onAttack(enemy, targetToAttack);
       }
     } else if (decision.breakTile) {
       await callbacks.onBreak?.(enemy, decision.breakTile);
@@ -147,41 +153,42 @@ export class AIController {
       aiLog.debug(`Boss clamped to ${candidates.length} tiles near throne`);
     }
 
+    const occupiedTiles = new Set(unitPositions.keys());
+    const candidatePlans = [];
+    for (const tile of candidates) {
+      let path = null;
+      if (tile.col !== enemy.col || tile.row !== enemy.row) {
+        path = this._buildPath(enemy, tile, unitPositions);
+        if (!path || path.length < 2) continue;
+      }
+      const { finalTile } = this._predictFinalTileFromPath(enemy, tile, path, occupiedTiles);
+      candidatePlans.push({ tile, path, finalTile });
+    }
+
     // Find best attack opportunity
     let bestAttack = null;
     let bestScore = -Infinity;
 
     // Combine player + NPC units as valid attack targets
     const attackableUnits = [...playerUnits, ...(npcUnits || [])];
-    for (const tile of candidates) {
+    for (const candidate of candidatePlans) {
       if (!enemy.weapon) break;
 
       for (const target of attackableUnits) {
-        const dist = gridDistance(tile.col, tile.row, target.col, target.row);
+        const dist = gridDistance(candidate.finalTile.col, candidate.finalTile.row, target.col, target.row);
         if (!isInRange(enemy.weapon, dist)) continue;
 
-        let score;
-        if (forceLowestHpTargeting) {
-          score = 1000 - (target.currentHP || 0);
-        } else {
-          // Default score: prefer damaged/lower HP targets.
-          score = (target.stats.HP - target.currentHP) + (100 - target.currentHP);
-        }
-        if (this.aggressiveMode) {
-          const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
-          if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) score += 35;
-          if (target.weapon?.type === 'Staff') score += 25;
-        }
+        const score = this._scoreAttackTarget(enemy, target, forceLowestHpTargeting);
         if (score > bestScore) {
           bestScore = score;
-          bestAttack = { tile, target };
+          bestAttack = { candidate, target };
         }
       }
     }
 
     if (bestAttack) {
       // Move to attack tile and attack
-      const path = this._buildPath(enemy, bestAttack.tile, unitPositions);
+      const path = bestAttack.candidate.path;
       return this._finalizeDecision(enemy, {
         path,
         target: bestAttack.target,
@@ -190,7 +197,8 @@ export class AIController {
           targetName: bestAttack.target.name || null,
           targetPos: { col: bestAttack.target.col, row: bestAttack.target.row },
           fromPos: { col: enemy.col, row: enemy.row },
-          attackTile: { col: bestAttack.tile.col, row: bestAttack.tile.row },
+          attackTile: { col: bestAttack.candidate.finalTile.col, row: bestAttack.candidate.finalTile.row },
+          plannedTile: { col: bestAttack.candidate.tile.col, row: bestAttack.candidate.tile.row },
         },
       });
     }
@@ -480,6 +488,76 @@ export class AIController {
       unitPositions, enemy.faction
     );
     return path;
+  }
+
+  _scoreAttackTarget(enemy, target, forceLowestHpTargeting = false) {
+    let score;
+    if (forceLowestHpTargeting) {
+      score = 1000 - (target.currentHP || 0);
+    } else {
+      // Default score: prefer damaged/lower HP targets.
+      const maxHp = target?.stats?.HP || target.currentHP || 0;
+      score = (maxHp - (target.currentHP || 0)) + (100 - (target.currentHP || 0));
+    }
+    if (this.aggressiveMode) {
+      const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
+      if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) score += 35;
+      if (target.weapon?.type === 'Staff') score += 25;
+    }
+    return score;
+  }
+
+  _selectBestInRangeTarget(enemy, targets) {
+    if (!enemy?.weapon || !Array.isArray(targets) || targets.length === 0) return null;
+    const forceLowestHpTargeting = this._hasAiOverride(enemy, 'target_lowest_hp');
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const target of targets) {
+      if (!target || target.currentHP <= 0 || target._removing) continue;
+      const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
+      if (!isInRange(enemy.weapon, dist)) continue;
+      const score = this._scoreAttackTarget(enemy, target, forceLowestHpTargeting);
+      if (score > bestScore) {
+        bestScore = score;
+        best = target;
+      }
+    }
+    return best;
+  }
+
+  _predictFinalTileFromPath(enemy, tile, path, occupiedTiles) {
+    if (!path || path.length < 2) {
+      return { finalTile: { col: tile.col, row: tile.row } };
+    }
+
+    if (
+      !Array.isArray(this.grid?.mapLayout)
+      || !Array.isArray(this.grid?.terrainData)
+      || !Number.isInteger(this.grid?.cols)
+      || !Number.isInteger(this.grid?.rows)
+    ) {
+      const fallback = path[path.length - 1];
+      return { finalTile: { col: fallback.col, row: fallback.row } };
+    }
+
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      enemy.moveType,
+      occupiedTiles,
+    );
+    const effectivePath = effective?.effectivePath;
+    if (Array.isArray(effectivePath) && effectivePath.length > 0) {
+      const dest = effectivePath[effectivePath.length - 1];
+      return { finalTile: { col: dest.col, row: dest.row } };
+    }
+
+    const fallback = path[path.length - 1];
+    return { finalTile: { col: fallback.col, row: fallback.row } };
   }
 
   _delay(ms) {

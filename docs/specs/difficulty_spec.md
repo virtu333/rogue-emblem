@@ -371,34 +371,36 @@ FE-style dragon enemies. One class for now:
 ### 8.4 Act 4 Enemy Pool
 ```json
 "act4": {
-  "levelRange": [18, 22],
-  "base": ["Revenant"],
-  "promoted": ["Swordmaster", "General", "Sniper", "Sage", "Paladin", "Warrior", "Wight", "Manakete"],
-  "promotedRatio": 0.8,
-  "skillChance": 0.4,
-  "bosses": [{ "className": "TemporalGuardian", "level": 23, "name": "Temporal Guardian" }]
+  "levelRange": [15, 20],
+  "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Pegasus Knight", "Wyvern Rider"],
+  "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Hero", "Wyvern Lord"],
+  "sunderChance": 0.25
 }
 ```
 
-Act 4 is predominantly promoted enemies. Zombies provide a unique tactical puzzle (manage revive timers, bring Light users). Manaketes serve as elite mini-boss threats within regular battles.
+Act 4 enemies are a mix of high-level base classes and promoted classes — the full standard roster. Sunder chance is highest of any act.
 
-### 8.5 Act 4 Boss: Temporal Guardian
+**Zombies & Dragons in Act 4 (Hard, optional extension):** Revenants, Wights, and Manaketes CAN appear in the Act 4 enemy pool on Hard/Lunatic difficulty as an optional future extension. These require new weapon types (Claws for zombies, Dragonstone/Dragonbreath for Manaketes) and the Undying/Dragon Skin mechanics. They are NOT required for the initial Act 4 rollout — standard promoted classes provide sufficient challenge. Asset sprites already exist for these enemy types, so the primary implementation cost is the new weapon categories and combat mechanics.
 
-A multi-phase boss encounter on a volcanic/rift arena.
+### 8.5 Act 4 Boss: The Emperor
 
-**Phase 1 — The Guardian:**
-- Class: Custom boss class (armored dragon-type)
-- Stats: Boss-scaled with high HP/DEF/RES
-- Weapon: Temporal Blade (range 1–2, magical damage)
-- Skill: **Stasis** — once per phase, freezes a random player unit for 1 turn (can't move or act)
-- Arena: Lava tiles around the perimeter, safe path to the throne
-- Reinforcements: Wights spawn every 3 turns from rift portals
+The Emperor is a General-class boss — an armored conqueror who rules through military might rather than magic. Enhanced stats (+4 all over class base, compared to the normal +2). Pre-fixed boss map uses a fortress/throne room setting (see `gdd_biomes_maps.md`).
 
-**Phase 2 — Unbound (at 50% HP):**
-- Guardian moves off throne, becomes aggressive
-- Lava tiles shift inward (arena shrinks by 1 tile ring)
-- Gains **Warp Strike** — can teleport to any tile adjacent to a player unit once per turn before attacking
-- Reinforcements accelerate to every 2 turns
+```json
+{
+  "className": "General",
+  "level": 20,
+  "name": "The Emperor",
+  "bossStatBonus": 4,
+  "skills": ["pavise", "renewal"]
+}
+```
+
+**Design rationale:** The Emperor has Pavise (chance to halve physical damage) and Renewal (sustain). He is pragmatic, not magical — he conquered through military might, and the ritual to revive the entity is simply another tool of empire. He doesn't understand what he's awakening.
+
+**Narrative beat:** "You think you've won something by killing my seer? I don't need visions. I have power."
+
+**Fixed boss map:** The Emperor's encounter uses a hand-designed throne room map. This is a controlled exception to procedural generation — see `docs/act4-hardmode-rollout-plan.md` Phase 3 for progression details and fixed-map integration notes.
 
 ### 8.6 Terrain: Tundra + Volcano (Accelerated Act 4 Scope)
 
@@ -408,15 +410,15 @@ New terrain types for Act 4 maps:
 |---------|-----------|-------|-----|---------|
 | Ice | 1 | -10 | 0 | Slide in entry direction until non-Ice tile or map edge. Preview should show slide path. Flying units ignore slide. |
 | Lava Crack | 1 | 0 | 0 | Unit ending turn on tile takes fixed damage (v1 target: 5 HP). Deterministic (no RNG). |
-| Lava | — (impassable by default) | — | — | Units ending turn adjacent to lava take 2 fire damage. Fliers can cross (move cost 2). Some maps have lava that shifts/flows each turn |
-| Cracked Floor | 1 | 0 | 0 | After any unit walks on it, becomes a Pit next turn. Visual warning (cracks appear). **Map gen constraint:** Cracked Floor tiles must not block the only path between player spawn and objectives. Generator should verify reachability assuming all Cracked Floor tiles become Pits. Cap at ~15-20% of walkable tiles per map to ensure viable alternate routes. |
-| Pit | — (impassable) | — | — | Former cracked floor. Blocks movement permanently. Creates dynamic terrain denial. Fliers can cross (move cost 2). |
-| Rift Portal | 1 | 0 | 0 | Enemies may spawn from these tiles. Player units can destroy a portal by using Wait on it (Lord or any unit) |
-| Corrupted Fort | 1 | +10 | +1 | Weaker fort variant. Heals 5% HP per turn instead of 10% |
+| Lava | — (impassable by default) | — | — | **Deferred:** not in Phase 2. Originally: units ending turn adjacent to lava take 2 fire damage; some maps have shifting lava. |
+| Cracked Floor | 1 | 0 | 0 | **Deferred:** not in Phase 2. Originally: degrades to Pit after traversal with map-gen reachability constraints. |
+| Pit | — (impassable) | — | — | **Deferred:** not in Phase 2. Originally: permanent denial tile created from Cracked Floor. |
+| Rift Portal | 1 | 0 | 0 | **Deferred:** not in Phase 2. Originally: enemy spawn portal removable by waiting on it. |
+| Corrupted Fort | 1 | +10 | +1 | **Deferred:** not in Phase 2. Originally: weaker fort with 5% heal. |
 
 **Design intent:** Tundra + Volcano create environmental pressure and route-planning tension without requiring new objective types.
 
-**Scope note (fast-track):** Cracked Floor, Pit, Rift Portal, and Corrupted Fort remain valid future extensions but are deferred from the initial Hard-mode Act 4 acceleration.
+**Scope note (fast-track):** Lava, Cracked Floor, Pit, Rift Portal, and Corrupted Fort remain valid future extensions but are deferred from the initial Hard-mode Act 4 acceleration.
 
 ---
 
@@ -623,15 +625,14 @@ When a revived zombie is killed again, the combat results should show "0 XP" wit
 
 ### Implementation Phases (Part B)
 
-**Phase D — Act 4 Content (3-5 days):**
-- [ ] ACT_CONFIG: act4 entry with Tundra/Volcano emphasis
-- [ ] terrain.json: Ice, Lava Crack
-- [ ] mapTemplates.json: 3-4 templates from Tundra/Volcano pool (for example: Frozen Pass, Glacier Fortress, Caldera)
-- [ ] Ice slide + Lava Crack damage handling in movement/turn flow
-- [ ] Generic reinforcement scheduler contract (fixed boss maps may script overrides)
-- [ ] lootTables.json: act4 entry
+**Phase D — Act 4 Content (phase-gated rollout, see `docs/act4-hardmode-rollout-plan.md`):**
+- [x] Phase D.1 — Contract alignment: doc consistency, canonical terrain/boss/enemy decisions locked
+- [ ] Phase D.2 — Terrain hazards: Ice + Lava Crack in terrain.json, deterministic behavior, Tundra/Volcano tilesets
+- [ ] Phase D.3 — Act 4 progression: ACT_CONFIG act4, enemy pool, boss, loot, music, save/load
+- [ ] Phase D.4 — Reinforcement system: generic wave scheduler, difficulty offset, XP decay guardrails
+- [ ] mapTemplates.json: 3-4 templates from Tundra/Volcano pool (Frozen Pass, Glacier Fortress, Caldera)
 - [ ] Narrative transitions (Act 3 → Act 4, Act 4 → Post-Act)
-- [ ] Tests: new terrain effects, act progression
+- [ ] Tests: new terrain effects, act progression, reinforcement determinism
 
 **Phase E — Secret Act Content (3-5 days):**
 - [ ] ACT_CONFIG: secretAct entry with void biome
@@ -678,22 +679,17 @@ These are acknowledged but not specced here — add to "Later" section of ROADMA
 
 ### Where This Fits
 
-Difficulty modes are a **content expansion** that builds on top of existing systems. It should slot in after the current tactical depth waves are complete:
+Difficulty modes are a **content expansion** that builds on top of existing systems. Part A (foundation) is shipped. Part B phases D-F are the next priority.
 
-**Revised priority sequence:**
-1. ~~Wave 2 (Map Gen Enhancements)~~ — Current
-2. Wave 3 (Elite/Miniboss Nodes)
-3. Wave 4 (Dynamic Recruits)
-4. Wave 5 (Expanded Skills)
-5. Wave 6 (Blessing System)
-6. **Wave 7A (Act 4 Contract Alignment)** — canonical terrain/objective/reinforcement contracts
-7. **Wave 7B (Terrain Hazards + Tilesets)** — Ice + Lava Crack, Tundra/Volcano templates
-8. **Wave 7C (Act 4 Progression)** — Hard-mode act insertion + content wiring
-9. **Wave 7D (Reinforcement System)** — generic wave scheduler (fixed-boss exception allowed)
-10. **Wave 8 (Additional Map Objectives, deferred)** — Defend, Survive, Escape
-11. **→ Difficulty Modes (this spec)** — Hard/Lunatic, Secret Act, extended leveling, new enemies
-12. Wave 9 (Meta-Progression Expansion) — More sinks for extended play
-13. Wave 10 (QoL)
+**Current priority sequence (Feb 2026):**
+1. ~~Waves 1-6~~ — All shipped (stabilization, convoy, wyvern, weapon arts, blessings, difficulty Part A)
+2. **Act 4 Hard-Mode Acceleration (Phase D)** — Contract -> terrain hazards -> act4 progression -> reinforcements. See `docs/act4-hardmode-rollout-plan.md`
+3. **Dynamic Recruit Nodes** — Roster-aware recruit frequency (after Act 4)
+4. **Difficulty Follow-up (Part B+)** — Lunatic rollout, balance iteration
+5. **Status Staves + Countermeasures** — Sleep/Berserk/Plant staves, counter items
+6. **Additional Map Objectives** — Defend, Survive, Escape (after Act 4 stable)
+7. **Secret Act (Phase E)** — Void terrain, Chronophage, true ending
+8. Meta-Progression Expansion / QoL
 
 **Rationale:** To ship meaningful Hard-mode content sooner, Act 4 now fast-tracks terrain identity and progression first, while Defend/Survive/Escape remains explicitly deferred. This preserves novelty without blocking on objective-system expansion.
 
