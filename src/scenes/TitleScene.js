@@ -8,6 +8,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { signOut } from '../cloud/supabaseClient.js';
 import { pushMeta } from '../cloud/CloudSync.js';
 import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAllSlotData } from '../engine/SlotManager.js';
+import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
@@ -611,6 +612,24 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
+    // TUTORIAL button
+    const tutBtn = createMenuButton(this, cx, menuY, 'TUTORIAL', () => this.runMenuTransition(() => {
+      const roster = this.buildTutorialRoster();
+      return transitionToScene(this, 'Battle', {
+        gameData: this.gameData,
+        roster,
+        battleParams: {
+          tutorialMode: true,
+          act: 'act1',
+          objective: 'rout',
+          battleSeed: 42,
+          deployCount: 2,
+        },
+      }, { reason: TRANSITION_REASONS.NEW_GAME });
+    }), btnDelay + delayIdx * 150);
+    menuY += btnGap;
+    delayIdx++;
+
     createMenuButton(this, cx, menuY, 'MORE INFO', () => {
       if (this.helpOverlay?.visible) return;
       this.helpOverlay = new HelpOverlay(this, () => {
@@ -621,7 +640,7 @@ export class TitleScene extends Phaser.Scene {
     menuY += btnGap;
     delayIdx++;
 
-    // First-run "NEW" badge
+    // First-run "NEW" badges
     try {
       if (!localStorage.getItem('emblem_rogue_seen_how_to_play')) {
         const newBadge = this.add.text(135, 0, 'NEW', {
@@ -631,6 +650,17 @@ export class TitleScene extends Phaser.Scene {
         htpBtn.add(newBadge);
         this.tweens.add({
           targets: newBadge, alpha: { from: 1, to: 0.3 },
+          duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        });
+      }
+      if (!localStorage.getItem('emblem_rogue_tutorial_completed')) {
+        const tutBadge = this.add.text(135, 0, 'NEW', {
+          fontFamily: FONT, fontSize: '8px', color: '#ff6666',
+          backgroundColor: '#330000', padding: { x: 4, y: 2 },
+        }).setOrigin(0, 0.5).setDepth(21);
+        tutBtn.add(tutBadge);
+        this.tweens.add({
+          targets: tutBadge, alpha: { from: 1, to: 0.3 },
           duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
         });
       }
@@ -726,6 +756,10 @@ export class TitleScene extends Phaser.Scene {
 
     await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.NEW_GAME });
     return true;
+  }
+
+  buildTutorialRoster() {
+    return _buildTutorialRoster(this.gameData);
   }
 
   async runMenuTransition(action) {

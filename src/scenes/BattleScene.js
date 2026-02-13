@@ -1,4 +1,4 @@
-// BattleScene â€” Phase 3: multi-unit tactical combat with unit system
+// BattleScene -- Phase 3: multi-unit tactical combat with unit system
 
 import Phaser from 'phaser';
 import { Grid, computeEffectivePath } from '../engine/Grid.js';
@@ -87,6 +87,7 @@ import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { buildTutorialBattleConfig as _buildTutorialBattleConfig, buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -157,13 +158,13 @@ export class BattleScene extends Phaser.Scene {
     const limits = { min: baseLimits.min + deployBonus, max: baseLimits.max + deployBonus };
 
     if (!this.roster) {
-      // Standalone mode â€” no deploy screen
+      // Standalone mode -- no deploy screen
       this.beginBattle(null);
     } else if (this.roster.length <= limits.max) {
-      // Small roster â€” auto-deploy all
+      // Small roster -- auto-deploy all
       this.beginBattle(this.roster);
     } else {
-      // Roster exceeds max â€” show deploy selection
+      // Roster exceeds max -- show deploy selection
       this.showDeployScreen(this.roster, limits, (selectedRoster) => {
         this.beginBattle(selectedRoster);
       });
@@ -177,7 +178,7 @@ export class BattleScene extends Phaser.Scene {
       this.inspectMode = false;
 
       // Track non-deployed units for merging back on victory
-      if (this.roster && deployedRoster) {
+      if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
         const deployedNames = new Set(deployedRoster.map(u => u.name));
         this.nonDeployedUnits = this.roster.filter(u => !deployedNames.has(u.name));
       } else {
@@ -185,20 +186,24 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Set deployCount for MapGenerator spawn generation
-      const deployCount = deployedRoster ? deployedRoster.length : 2;
+      const deployCount = this.battleParams?.tutorialMode ? 2 : (deployedRoster ? deployedRoster.length : 2);
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
       // Generate or reuse locked encounter for this node.
-      const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
-      if (lockedConfig) {
-        this.battleConfig = lockedConfig;
+      if (this.battleParams?.tutorialMode) {
+        this.battleConfig = this.buildTutorialBattleConfig();
       } else {
-        const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
-          ? this.battleParams.battleSeed
-          : this.deriveBattleSeed();
-        this.battleConfig = this.withBattleSeed(battleSeed, () => generateBattle(this.battleParams, this.gameData));
-        this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
+        const lockedConfig = this.runManager?.getLockedBattleConfig?.(this.nodeId);
+        if (lockedConfig) {
+          this.battleConfig = lockedConfig;
+        } else {
+          const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
+            ? this.battleParams.battleSeed
+            : this.deriveBattleSeed();
+          this.battleConfig = this.withBattleSeed(battleSeed, () => generateBattle(this.battleParams, this.gameData));
+          this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
+        }
       }
       const bc = this.battleConfig;
 
@@ -232,8 +237,25 @@ export class BattleScene extends Phaser.Scene {
       this.initializeVisionState();
       this.installBattleRng();
 
-      // Create player units â€” from deployed roster (run mode) or fresh lords (standalone)
-      if (deployedRoster) {
+      // Create player units.
+      // tutorialMode is authoritative for tutorial composition/loadout.
+      if (this.battleParams?.tutorialMode) {
+        const tutorialRoster = this.buildTutorialRoster();
+        for (let i = 0; i < tutorialRoster.length && i < bc.playerSpawns.length; i++) {
+          const unit = tutorialRoster[i];
+          unit.col = bc.playerSpawns[i].col;
+          unit.row = bc.playerSpawns[i].row;
+          unit.hasMoved = false;
+          unit.hasActed = false;
+          unit._miracleUsed = false;
+          unit._gambitUsedThisTurn = false;
+          for (const w of (unit.inventory || [])) {
+            if (w.perBattleUses) w._usesSpent = 0;
+          }
+          this.playerUnits.push(unit);
+          this.addUnitGraphic(unit);
+        }
+      } else if (deployedRoster) {
         for (let i = 0; i < deployedRoster.length && i < bc.playerSpawns.length; i++) {
           const unit = deployedRoster[i];
           unit.col = bc.playerSpawns[i].col;
@@ -250,7 +272,7 @@ export class BattleScene extends Phaser.Scene {
           this.addUnitGraphic(unit);
         }
       } else {
-        // Standalone fallback â€” create lords directly
+        // Standalone fallback -- create lords directly
         const edric = this.gameData.lords.find(l => l.name === 'Edric');
         const edricClass = this.gameData.classes.find(c => c.name === edric.class);
         const playerUnit1 = createLordUnit(edric, edricClass, this.gameData.weapons);
@@ -354,6 +376,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Battle state machine
       this.battleState = 'PLAYER_IDLE';
+      this.tutorialStep = this.battleParams.tutorialMode ? 0 : -1;
       this.selectedUnit = null;
       this.movementRange = null;
       this.preMoveLoc = null;
@@ -398,7 +421,7 @@ export class BattleScene extends Phaser.Scene {
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
       }).setDepth(100);
 
-      // Objective display (top-right) â€” dynamic
+      // Objective display (top-right) -- dynamic
       this.objectiveText = this.add.text(this.cameras.main.width - 8, 8, '', {
         fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
@@ -412,7 +435,7 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0, 0).setDepth(100);
       this.updateTopLeftHudLayout();
 
-      // Bottom command bar — Row 1: clickable action buttons, Row 2: info text
+      // Bottom command bar -- Row 1: clickable action buttons, Row 2: info text
       const hw = this.cameras.main.width / 2;
       const hh = this.cameras.main.height;
       const commandRowY = hh - 58;
@@ -445,6 +468,25 @@ export class BattleScene extends Phaser.Scene {
           : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
         { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' }
       ).setOrigin(0.5).setDepth(100);
+
+      // Tutorial skip button (bottom-right)
+      if (this.battleParams.tutorialMode) {
+        const cam = this.cameras.main;
+        const skipBtn = this.add.text(cam.width - 8, cam.height - 12, 'SKIP', {
+          fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+          backgroundColor: '#00000088', padding: { x: 6, y: 3 },
+        }).setOrigin(1, 1).setDepth(101).setInteractive({ useHandCursor: true });
+        skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
+        skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
+        skipBtn.on('pointerdown', () => {
+          const confirmed = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+            ? window.confirm('Skip tutorial and return to title?')
+            : true;
+          if (!confirmed) return;
+          void transitionToScene(this, 'Title', { gameData: this.gameData },
+            { reason: TRANSITION_REASONS.BACK });
+        });
+      }
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
       this.inspectionPanel = new UnitInspectionPanel(this);
@@ -519,7 +561,7 @@ export class BattleScene extends Phaser.Scene {
         this._cycleForecastWeapon(1);
       });
 
-      // Start battle music â€” per-act tracks
+      // Start battle music -- per-act tracks
       const audio = this.registry.get('audio');
       if (audio) {
         const act = this.battleParams?.act || 'act1';
@@ -535,7 +577,7 @@ export class BattleScene extends Phaser.Scene {
         this.updateEnemyVisibility();
       }
 
-      // D1: Recruit NPC fog hint marker — pulsing "?" visible through fog
+      // D1: Recruit NPC fog hint marker -- pulsing "?" visible through fog
       this.recruitFogMarker = null;
       if (this.grid.fogEnabled && this.battleParams.isRecruitBattle && this.npcUnits.length > 0) {
         const npc = this.npcUnits[0];
@@ -619,6 +661,14 @@ export class BattleScene extends Phaser.Scene {
       h = Math.imul(h, 16777619);
     }
     return h >>> 0;
+  }
+
+  buildTutorialBattleConfig() {
+    return _buildTutorialBattleConfig();
+  }
+
+  buildTutorialRoster() {
+    return _buildTutorialRoster(this.gameData);
   }
 
   withBattleSeed(seed, fn) {
@@ -1424,7 +1474,7 @@ export class BattleScene extends Phaser.Scene {
 
       rowObjects.push({ index: i, updateRow });
 
-      // Click handler (skip Edric â€” always locked)
+      // Click handler (skip Edric -- always locked)
       if (!isEdric) {
         rowBg.on('pointerdown', () => {
           const audio = this.registry.get('audio');
@@ -1883,6 +1933,7 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'COMBAT_RESOLVING' ||
         this.battleState === 'HEAL_RESOLVING' ||
         this.battleState === 'DEPLOY_SELECTION' ||
+        this.battleState === 'TUTORIAL_HINT' ||
         this.battleState === 'PAUSED') return;
 
     const px = clickPos?.x ?? pointer.x;
@@ -2094,7 +2145,7 @@ export class BattleScene extends Phaser.Scene {
         this.showActionMenu(this.selectedUnit);
       }
     } else if (this.battleState === 'CANTO_MOVING') {
-      // Skip Canto â€” end unit's turn
+      // Skip Canto -- end unit's turn
       this.grid.clearHighlights();
       this.cantoRange = null;
       const cantoUnit = this.selectedUnit;
@@ -2285,7 +2336,7 @@ export class BattleScene extends Phaser.Scene {
       void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
     } : null;
     const saveExitCb = this.runManager ? () => {
-      // Return to title — last NodeMap auto-save preserved. Battle progress lost.
+      // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const audio = this.registry.get('audio');
@@ -2323,7 +2374,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleSelectedClick(gp) {
-    // Click own tile to stay in place â†’ show action menu
+    // Click own tile to stay in place -> show action menu
     if (gp.col === this.selectedUnit.col && gp.row === this.selectedUnit.row) {
       this.grid.clearHighlights();
       if (this.selectedUnit.graphic.clearTint) this.selectedUnit.graphic.clearTint();
@@ -2337,7 +2388,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.movementRange && this.movementRange.has(key)) {
       this.moveUnit(this.selectedUnit, gp.col, gp.row);
     } else {
-      // Click unreachable tile â†’ deselect (FE standard behavior)
+      // Click unreachable tile -> deselect (FE standard behavior)
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       this.deselectUnit();
@@ -2392,6 +2443,16 @@ export class BattleScene extends Phaser.Scene {
       unit.col, unit.row, unit.mov, unit.moveType, this.unitPositions, unit.faction
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
+
+    if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
+      this.tutorialStep = 3;
+      const prevState = this.battleState;
+      this.battleState = 'TUTORIAL_HINT';
+      const verb = this.isMobileInput ? 'Tap' : 'Click';
+      showImportantHint(this, `${verb} a blue tile to move there.\nOr ${verb.toLowerCase()} your unit's tile to stay in place.`).then(() => {
+        if (this.scene?.isActive?.()) this.battleState = 'UNIT_SELECTED';
+      });
+    }
   }
 
   deselectUnit() {
@@ -2467,11 +2528,17 @@ export class BattleScene extends Phaser.Scene {
     animateStep(1);
   }
 
-  afterMove(unit) {
+  async afterMove(unit) {
     // Update fog of war after player movement
     if (this.grid.fogEnabled && unit.faction === 'player') {
       this.grid.updateFogOfWar(this.playerUnits);
       this.updateEnemyVisibility();
+    }
+    if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
+      this.tutorialStep = 4;
+      this.battleState = 'TUTORIAL_HINT';
+      await showImportantHint(this, 'Choose an action:\n  Attack -- strike an adjacent enemy\n  Wait -- end this unit\'s turn\n  Items -- use a consumable');
+      if (!this.scene?.isActive?.()) return;
     }
     this.showActionMenu(unit);
   }
@@ -2603,7 +2670,7 @@ export class BattleScene extends Phaser.Scene {
       if (retreatC < 0 || retreatC >= this.grid.cols || retreatR < 0 || retreatR >= this.grid.rows) continue;
       const retreatCost = this.grid.getMoveCost(retreatC, retreatR, unit.moveType);
       if (retreatCost === Infinity) continue;
-      // Ally moves to unit's old position â€” passable for ally?
+      // Ally moves to unit's old position -- passable for ally?
       const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
       if (allyDestCost === Infinity) continue;
       const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(u => u.col === retreatC && u.row === retreatR);
@@ -4507,7 +4574,7 @@ export class BattleScene extends Phaser.Scene {
     const textDepth = depth + 1;
     let y = panelY + 6;
 
-    // Portrait (40x40) â€” attacker on left edge, defender on right edge
+    // Portrait (40x40) -- attacker on left edge, defender on right edge
     const portraitKey = this._getPortraitKey(unit);
     if (portraitKey && this.textures.exists(portraitKey)) {
       const px = isAttacker ? x + 2 : x + sideW - 42;
@@ -4516,14 +4583,14 @@ export class BattleScene extends Phaser.Scene {
       this.forecastObjects.push(portrait);
     }
 
-    // Name â€” positioned next to portrait
+    // Name -- positioned next to portrait
     const nameX = isAttacker ? x + 48 : x + 2;
     const name = this.add.text(nameX, y + 6, unit.name, {
       fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
     }).setDepth(textDepth);
     this.forecastObjects.push(name);
 
-    // EFFECTIVE! banner â€” below name, beside portrait
+    // EFFECTIVE! banner -- below name, beside portrait
     if (unit.weapon && getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
         (isAttacker || info.canCounter)) {
       const eff = this.add.text(nameX, y + 22, 'EFFECTIVE!', {
@@ -4532,7 +4599,7 @@ export class BattleScene extends Phaser.Scene {
       this.forecastObjects.push(eff);
     }
 
-    // HP row â€” below portrait area
+    // HP row -- below portrait area
     y += 44;
     const hpLabel = this.add.text(x + 2, y, 'HP', {
       fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
@@ -4630,7 +4697,7 @@ export class BattleScene extends Phaser.Scene {
 
     y += 14;
 
-    // Weapon name (with â—„ â–º arrows + next weapon preview if attacker has 2+ valid weapons)
+    // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons)
     const wpnName = unit.weapon?.name || 'Unarmed';
     const wpnColor = unit.weapon && isForged(unit.weapon) ? '#44ff88' : '#88bbff';
     const validWpns = this._forecastValidWeapons;
@@ -4729,7 +4796,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  showForecast(attacker, defender) {
+  async showForecast(attacker, defender) {
     this.forecastTarget = defender;
     this.battleState = 'SHOWING_FORECAST';
 
@@ -4870,6 +4937,14 @@ export class BattleScene extends Phaser.Scene {
       wordWrap: { width: hintWrapW, useAdvancedWrap: false },
     }).setOrigin(0, 0.5).setDepth(depth + 1);
     this.forecastObjects.push(hint);
+
+    if (this.battleParams?.tutorialMode && this.tutorialStep === 4) {
+      this.tutorialStep = 5;
+      const prevState = this.battleState;
+      this.battleState = 'TUTORIAL_HINT';
+      await showImportantHint(this, 'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.');
+      if (this.scene?.isActive?.()) this.battleState = prevState;
+    }
   }
 
   hideForecast() {
@@ -4941,6 +5016,14 @@ export class BattleScene extends Phaser.Scene {
 
     if (attacker.faction === 'player' && !result.attackerDied) {
       await this.awardXP(attacker, defender, result.defenderDied);
+    }
+
+    if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
+      this.tutorialStep = 6;
+      this.battleState = 'TUTORIAL_HINT';
+      await showImportantHint(this, 'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!');
+      if (!this.scene?.isActive?.()) return;
+      this.battleState = 'COMBAT_RESOLVING';
     }
 
     if (result.defenderDied) {
@@ -5125,7 +5208,7 @@ export class BattleScene extends Phaser.Scene {
     return new Promise(resolve => {
       const text = this.add.text(
         this.cameras.main.centerX, this.cameras.main.centerY - 40,
-        `${event.unit} â€” ${event.name}!`,
+        `${event.unit} -- ${event.name}!`,
         {
           fontFamily: 'monospace', fontSize: '14px', color: '#88ffff',
           backgroundColor: '#000000cc', padding: { x: 10, y: 4 },
@@ -5243,7 +5326,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.dangerZoneStale = true;
-    // Detect boss death on seize maps â€” show prominent notification
+    // Detect boss death on seize maps -- show prominent notification
     if (unit.isBoss && unit.faction === 'enemy' && this.battleConfig.objective === 'seize') {
       this._showBossDefeatedBanner();
     }
@@ -5321,6 +5404,22 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1200, () => this.processTurnStartEffects(this.playerUnits));
 
       // Tutorial hints (after phase banner fades)
+      if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
+        this.time.delayedCall(1500, async () => {
+          const prevState = this.battleState;
+          this.battleState = 'TUTORIAL_HINT';
+          await showImportantHint(this, 'Welcome to the tutorial!\nLearn the basics of tactical combat.');
+          if (!this.scene?.isActive?.()) return;
+          this.tutorialStep = 1;
+          const verb = this.isMobileInput ? 'Tap' : 'Click';
+          await showImportantHint(this, `${verb} a blue unit to select it.\nBlue tiles show where it can move.`);
+          if (!this.scene?.isActive?.()) return;
+          this.tutorialStep = 2;
+          this.battleState = prevState;
+        });
+      } else if (this.battleParams.tutorialMode) {
+        // Suppress normal hints during tutorial -- do nothing
+      } else {
       const hints = this.registry.get('hints');
       if (hints && turn === 1) {
         this.time.delayedCall(1500, async () => {
@@ -5344,6 +5443,7 @@ export class BattleScene extends Phaser.Scene {
           }
         });
       }
+      } // end else (non-tutorial hints)
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
       this.updateAntiTurtlePressure();
@@ -5681,7 +5781,7 @@ export class BattleScene extends Phaser.Scene {
     enemy.currentHP = result.attackerHP;
     target.currentHP = result.defenderHP;
 
-    // Debug: invincibility â€” restore player units to full HP
+    // Debug: invincibility -- restore player units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
       if (target.faction === 'player') { target.currentHP = target.stats.HP; result.defenderDied = false; }
     }
@@ -5772,7 +5872,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Win/lose ---
 
   checkBattleEnd() {
-    // Edric defeat = immediate loss (permadeath rule â€” other lords can fall)
+    // Edric defeat = immediate loss (permadeath rule -- other lords can fall)
     const edricAlive = this.playerUnits.some(u => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {
       if (this.turnManager?.currentPhase === 'enemy' && this.showLordDeathVisionPrompt()) {
@@ -5798,10 +5898,10 @@ export class BattleScene extends Phaser.Scene {
       const bossAlive = this.enemyUnits.some(u => u.isBoss);
       if (bossAlive) {
         label = 'Seize: Defeat boss, then capture throne';
-        color = '#ff6666'; // red â€” boss still alive
+        color = '#ff6666'; // red -- boss still alive
       } else {
         label = 'Seize: Capture throne with a Lord!';
-        color = '#66ff66'; // green â€” ready to seize
+        color = '#66ff66'; // green -- ready to seize
       }
     } else {
       label = `Rout: ${this.enemyUnits.length} enemies remaining`;
@@ -5883,7 +5983,15 @@ export class BattleScene extends Phaser.Scene {
       }
     ).setOrigin(0.5).setDepth(600);
 
-    if (this.runManager) {
+    if (this.battleParams.tutorialMode) {
+      this.time.delayedCall(1500, async () => {
+        await showImportantHint(this, 'Victory! You\'ve completed the tutorial.\nYou\'re ready for a real run -- good luck!');
+        if (!this.scene?.isActive?.()) return;
+        try { localStorage.setItem('emblem_rogue_tutorial_completed', '1'); } catch (_) {}
+        transitionToScene(this, 'Title', { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.BACK });
+      });
+    } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const surviving = this.playerUnits.map(u => serializeUnit(u));
@@ -5897,7 +6005,7 @@ export class BattleScene extends Phaser.Scene {
         }
       });
     } else {
-      // Standalone mode â€” restart battle after delay
+      // Standalone mode -- restart battle after delay
       this.time.delayedCall(2000, () => {
         restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
@@ -6374,7 +6482,7 @@ export class BattleScene extends Phaser.Scene {
             this.runManager.accessories.push({ ...item });
             this.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
-            // Path 3a: Stat boosters â†’ immediate apply via unit picker
+            // Path 3a: Stat boosters -> immediate apply via unit picker
             this.showStatBoostUnitPicker(item, lootGroup, cardIdx);
           } else if (item.type === 'Consumable') {
             // Path 3b: Regular consumables show dedicated picker with consumable limits
@@ -6475,7 +6583,7 @@ export class BattleScene extends Phaser.Scene {
     return lines.join('\n');
   }
 
-  /** Show forge loot picker: unit â†’ weapon â†’ (stat for Silver). */
+  /** Show forge loot picker: unit -> weapon -> (stat for Silver). */
   showForgeLootPicker(whetstone, lootGroup, cardIdx) {
     for (const obj of lootGroup) obj.setVisible(false);
 
@@ -6853,7 +6961,7 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(label);
 
-      const statLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `${item.stat}: ${currentVal} â†’ ${currentVal + item.value}`, {
+      const statLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `${item.stat}: ${currentVal} -> ${currentVal + item.value}`, {
         fontFamily: 'monospace', fontSize: '9px', color: '#88ff88',
       }).setOrigin(0.5).setDepth(712);
       pickerGroup.push(statLabel);
@@ -7032,7 +7140,7 @@ export class BattleScene extends Phaser.Scene {
   finalizeLootPick(lootGroup, cardIndex) {
     if (this._lootResolving) return;
     if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
-      // Non-elite or last pick â€” clean up immediately
+      // Non-elite or last pick -- clean up immediately
       this._lootResolving = true;
       this._lootCards = null;
       this._lootInstruction = null;
@@ -7140,7 +7248,14 @@ export class BattleScene extends Phaser.Scene {
       }
     ).setOrigin(0.5).setDepth(600);
 
-    if (this.runManager) {
+    if (this.battleParams.tutorialMode) {
+      this.time.delayedCall(1500, async () => {
+        await showImportantHint(this, 'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.');
+        if (!this.scene?.isActive?.()) return;
+        transitionToScene(this, 'Title', { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.BACK });
+      });
+    } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
@@ -7149,7 +7264,7 @@ export class BattleScene extends Phaser.Scene {
         if (!transitioned) this.showDefeatTransitionRecovery();
       });
     } else {
-      // Standalone mode â€” restart battle after delay
+      // Standalone mode -- restart battle after delay
       this.time.delayedCall(2000, () => {
         restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
