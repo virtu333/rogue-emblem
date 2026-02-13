@@ -626,6 +626,8 @@ describe('RunManager', () => {
       json.roster[0].inventory[0].weaponArtSource = 'bad_source';
       const restored = RunManager.fromJSON(json, gameData);
       const weapon = restored.roster[0].inventory[0];
+      expect(weapon.weaponArtIds).toEqual([artId]);
+      expect(weapon.weaponArtSources).toEqual(['scroll']);
       expect(weapon.weaponArtId).toBe(artId);
       expect(weapon.weaponArtSource).toBe('scroll');
       expect(weapon.weaponArtBinding).toBeUndefined();
@@ -640,6 +642,8 @@ describe('RunManager', () => {
       json.roster[0].inventory[0].weaponArtBinding = { artId, source: 'scroll' };
       const restored = RunManager.fromJSON(json, gameData);
       const weapon = restored.roster[0].inventory[0];
+      expect(weapon.weaponArtIds).toEqual([artId]);
+      expect(weapon.weaponArtSources).toEqual(['scroll']);
       expect(weapon.weaponArtId).toBe(artId);
       expect(weapon.weaponArtSource).toBe('scroll');
     });
@@ -706,6 +710,114 @@ describe('RunManager', () => {
   });
 
   describe('starting equipment meta effects', () => {
+    it('ironArms assigns arts to Iron weapons only at run start', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts = [
+        {
+          id: 'iron_sword_art_a',
+          name: 'Iron Sword Art A',
+          weaponType: 'Sword',
+          unlockAct: 'act1',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+        {
+          id: 'steel_sword_art_a',
+          name: 'Steel Sword Art A',
+          weaponType: 'Sword',
+          unlockAct: 'act2',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+      ];
+      const rmMeta = new RunManager(localData, { ironArms: 1 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        rmMeta.startRun();
+      } finally {
+        randomSpy.mockRestore();
+      }
+
+      const edric = rmMeta.roster[0];
+      const ironSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Iron');
+      const steelSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Steel');
+      expect(ironSword?.weaponArtIds).toEqual(['iron_sword_art_a']);
+      expect(steelSword?.weaponArtIds || []).toEqual([]);
+    });
+
+    it('artAdept adds one extra non-duplicate art to one eligible starting weapon', () => {
+      const localData = loadGameData();
+      localData.weaponArts.arts = [
+        {
+          id: 'iron_sword_art_a',
+          name: 'Iron Sword Art A',
+          weaponType: 'Sword',
+          unlockAct: 'act1',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+        {
+          id: 'iron_sword_art_b',
+          name: 'Iron Sword Art B',
+          weaponType: 'Sword',
+          unlockAct: 'act1',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+        {
+          id: 'steel_sword_art_a',
+          name: 'Steel Sword Art A',
+          weaponType: 'Sword',
+          unlockAct: 'act2',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+        {
+          id: 'steel_sword_art_b',
+          name: 'Steel Sword Art B',
+          weaponType: 'Sword',
+          unlockAct: 'act2',
+          requiredRank: 'Prof',
+          hpCost: 1,
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          combatMods: { hitBonus: 5 },
+        },
+      ];
+      const rmMeta = new RunManager(localData, { ironArms: 1, steelArms: 1, artAdept: 1 });
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        rmMeta.startRun();
+      } finally {
+        randomSpy.mockRestore();
+      }
+
+      const edric = rmMeta.roster[0];
+      const ironSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Iron');
+      const steelSword = edric.inventory.find((w) => w.type === 'Sword' && w.tier === 'Steel');
+      const ironIds = ironSword?.weaponArtIds || [];
+      const steelIds = steelSword?.weaponArtIds || [];
+      expect(ironIds).toHaveLength(2);
+      expect(new Set(ironIds).size).toBe(2);
+      expect(steelIds).toHaveLength(1);
+      expect([...ironIds, ...steelIds]).toHaveLength(3);
+    });
+
     it('weapon_forge applies forge levels to Edric combat weapons', () => {
       const metaEffects = { startingWeaponForge: 2 };
       const rmMeta = new RunManager(gameData, metaEffects);
@@ -1793,3 +1905,9 @@ describe('blessing run-start effect application', () => {
     expect(rm.blessingHistory.some(e => e.details?.reason === 'unknown_blessing_id')).toBe(true);
   });
 });
+
+
+
+
+
+

@@ -34,22 +34,19 @@ function makeUnit(overrides = {}) {
 }
 
 describe('BattleScene weapon art helpers', () => {
-  it('filters weapon art catalog against run unlock state when available', () => {
+  it('returns full weapon art catalog without unlock gating', () => {
     const scene = new BattleScene();
     const unlocked = makeArt({ id: 'art_unlocked' });
     const locked = makeArt({ id: 'art_locked', name: 'Locked Art' });
     scene.gameData = { weaponArts: { arts: [unlocked, locked] } };
-    scene.runManager = {
-      getUnlockedWeaponArts: () => [unlocked],
-    };
 
     const arts = scene._getWeaponArtCatalog();
 
-    expect(arts).toHaveLength(1);
-    expect(arts[0].id).toBe('art_unlocked');
+    expect(arts).toHaveLength(2);
+    expect(arts.map((a) => a.id)).toEqual(['art_unlocked', 'art_locked']);
   });
 
-  it('treats empty unlock state as authoritative when runManager exists', () => {
+  it('does not use run unlock state when building catalog', () => {
     const scene = new BattleScene();
     scene.gameData = { weaponArts: { arts: [makeArt({ id: 'art_a' }), makeArt({ id: 'art_b' })] } };
     scene.runManager = {
@@ -59,14 +56,15 @@ describe('BattleScene weapon art helpers', () => {
     const arts = scene._getWeaponArtCatalog();
 
     expect(Array.isArray(arts)).toBe(true);
-    expect(arts).toHaveLength(0);
+    expect(arts).toHaveLength(2);
   });
 
-  it('includes weapon-bound art even when globally locked', () => {
+  it('shows weapon-bound art even when run unlock state is empty', () => {
     const scene = new BattleScene();
     const bound = makeArt({ id: 'sword_bound_art', name: 'Bound Art' });
     const unit = makeUnit({
-      weapon: { type: 'Sword', weaponArtId: 'sword_bound_art', weaponArtSource: 'scroll' },
+      faction: 'player',
+      weapon: { type: 'Sword', weaponArtIds: ['sword_bound_art'], weaponArtSources: ['scroll'] },
     });
     scene.gameData = { weaponArts: { arts: [bound] } };
     scene.runManager = { getUnlockedWeaponArtIds: () => [] };
@@ -76,10 +74,28 @@ describe('BattleScene weapon art helpers', () => {
     expect(arts.map((art) => art.id)).toContain('sword_bound_art');
   });
 
+  it('does not allow enemy global fallback when weapon has no bound arts', () => {
+    const scene = new BattleScene();
+    const globalArt = makeArt({ id: 'enemy_global' });
+    const enemy = makeUnit({
+      faction: 'enemy',
+      weapon: { type: 'Sword' },
+    });
+    scene.gameData = { weaponArts: { arts: [globalArt] } };
+    scene.runManager = { getUnlockedWeaponArtIds: () => ['enemy_global'] };
+
+    const arts = scene._getAvailableWeaponArtCatalogForUnit(enemy);
+
+    expect(arts).toHaveLength(0);
+  });
+
   it('returns selected weapon art when valid for the unit weapon', () => {
     const scene = new BattleScene();
     const art = makeArt();
-    const unit = makeUnit();
+    const unit = makeUnit({
+      faction: 'player',
+      weapon: { type: 'Sword', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
+    });
     scene.gameData = { weaponArts: { arts: [art] } };
     scene.turnManager = { turnNumber: 1 };
 
@@ -87,6 +103,27 @@ describe('BattleScene weapon art helpers', () => {
     const selected = scene._getSelectedWeaponArtForUnit(unit);
 
     expect(selected?.id).toBe(art.id);
+  });
+
+  it('resolves selected art to the exact inventory weapon instance when duplicates exist', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ id: 'shared_art' });
+    const firstWeapon = { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', weaponArtIds: ['shared_art'], weaponArtSources: ['scroll'] };
+    const secondWeapon = { id: 'steel_sword', name: 'Steel Sword', type: 'Sword', rankRequired: 'Prof', weaponArtIds: ['shared_art'], weaponArtSources: ['scroll'] };
+    const unit = makeUnit({
+      faction: 'player',
+      inventory: [firstWeapon, secondWeapon],
+      weapon: firstWeapon,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    });
+    scene.gameData = { weaponArts: { arts: [art] } };
+    scene.turnManager = { turnNumber: 1 };
+
+    scene._setSelectedWeaponArt(unit, art.id, secondWeapon);
+    const selected = scene._getSelectedWeaponArtForUnit(unit);
+
+    expect(selected?.id).toBe('shared_art');
+    expect(unit.weapon).toBe(secondWeapon);
   });
 
   it('clears selected weapon art when weapon becomes incompatible', () => {
@@ -107,6 +144,8 @@ describe('BattleScene weapon art helpers', () => {
     const scene = new BattleScene();
     const art = makeArt({ perTurnLimit: 1 });
     const unit = makeUnit({
+      faction: 'player',
+      weapon: { type: 'Sword', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
       _battleWeaponArtUsage: {
         map: { [art.id]: 0 },
         turn: { [art.id]: 1 },
@@ -121,6 +160,20 @@ describe('BattleScene weapon art helpers', () => {
     expect(choices).toHaveLength(1);
     expect(choices[0].canUse).toBe(false);
     expect(choices[0].reason).toBe('per_turn_limit');
+  });
+
+  it('fails closed on invalid weaponArtId without throwing', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ id: 'valid_art' });
+    const unit = makeUnit({
+      faction: 'player',
+      weapon: { type: 'Sword', weaponArtIds: ['invalid_art_id'], weaponArtSources: ['scroll'] },
+    });
+    scene.gameData = { weaponArts: { arts: [art] } };
+    scene.runManager = { getUnlockedWeaponArtIds: () => ['valid_art'] };
+
+    expect(() => scene._getWeaponArtChoices(unit, unit.weapon)).not.toThrow();
+    expect(scene._getWeaponArtChoices(unit, unit.weapon)).toHaveLength(0);
   });
 
   it('returns readable reason for initiation-only arts', () => {
@@ -212,7 +265,7 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
-      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '' },
+      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -294,7 +347,7 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
-      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '' },
+      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -343,6 +396,64 @@ describe('BattleScene weapon art helpers', () => {
     expect(attacker._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
   });
 
+  it('applies weapon-art HP cost before Soulreaver drain heal during executeCombat', async () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 2, perTurnLimit: 1, perMapLimit: 3 });
+    const attacker = {
+      name: 'Edric',
+      faction: 'player',
+      col: 0,
+      row: 0,
+      currentHP: 20,
+      stats: { HP: 24, STR: 18, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
+      weaponRank: 'Prof',
+      weapon: { name: 'Soulreaver', type: 'Sword', might: 12, hit: 90, crit: 0, weight: 6, range: '1', special: 'Drains HP equal to damage dealt' },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+      _gambitUsedThisTurn: true,
+    };
+    const defender = {
+      name: 'Brigand',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      currentHP: 24,
+      stats: { HP: 24, STR: 8, MAG: 0, SKL: 6, SPD: 6, DEF: 2, RES: 1, LCK: 2 },
+      weaponRank: 'Prof',
+      weapon: null,
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      skills: [],
+      accessory: null,
+    };
+
+    scene.gameData = { skills: [], affixes: [], weaponArts: { arts: [art] } };
+    scene.turnManager = { turnNumber: 1, currentPhase: 'player' };
+    scene.playerUnits = [attacker];
+    scene.enemyUnits = [defender];
+    scene.npcUnits = [];
+    scene.grid = {
+      clearAttackHighlights() {},
+      getTerrainAt() { return {}; },
+    };
+    scene.resetFortHealStreak = () => {};
+    scene.buildSkillCtx = vi.fn(() => ({}));
+    scene.animateSkillActivation = vi.fn(async () => {});
+    scene.animateStrike = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.applyOnAttackAffixes = vi.fn(async () => {});
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.awardXP = vi.fn(async () => {});
+    scene.removeUnit = vi.fn(async () => {});
+    scene.checkBattleEnd = vi.fn(() => false);
+    scene.finishUnitAction = vi.fn();
+
+    scene._setSelectedWeaponArt(attacker, art.id);
+    await BattleScene.prototype.executeCombat.call(scene, attacker, defender);
+
+    expect(attacker.currentHP).toBeGreaterThan(18);
+  });
+
   it('selects a legal enemy weapon art using AI constraints', () => {
     const scene = new BattleScene();
     const legal = makeArt({
@@ -366,6 +477,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 10,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_blocked', 'enemy_legal'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -397,6 +509,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 10,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_tie_b', 'enemy_tie_a'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -427,6 +540,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 5,
       stats: { HP: 8 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_lethal', 'enemy_safe'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -457,6 +571,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 12,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_bb_legal', 'enemy_aa_illegal'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -480,6 +595,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 12,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_low_value'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -511,6 +627,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 12,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_proc_test'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -541,6 +658,7 @@ describe('BattleScene weapon art helpers', () => {
       faction: 'enemy',
       currentHP: 12,
       stats: { HP: 20 },
+      weapon: { type: 'Sword', weaponArtIds: ['enemy_proc_injected'] },
     });
     const target = makeUnit({ name: 'Edric', faction: 'player' });
     scene.turnManager = { turnNumber: 1 };
@@ -570,7 +688,7 @@ describe('BattleScene weapon art helpers', () => {
     });
     scene.turnManager = { turnNumber: 1 };
     scene.gameData = { weaponArts: { arts: [legendaryArt] } };
-    scene.runManager = { getUnlockedWeaponArtIds: () => [] };
+    scene.runManager = { getUnlockedWeaponArtIds: () => ['legend_gemini_tempest'] };
 
     const withLegendary = scene._getWeaponArtChoices(unit, unit.weapon);
     expect(withLegendary).toHaveLength(1);
@@ -647,7 +765,7 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 12,
       stats: { HP: 20, STR: 9, MAG: 0, SKL: 7, SPD: 7, DEF: 6, RES: 2, LCK: 3 },
       weaponRank: 'Prof',
-      weapon: { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '' },
+      weapon: { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['innate'] },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -693,3 +811,4 @@ describe('BattleScene weapon art helpers', () => {
     expect(scene.buildSkillCtx).toHaveBeenCalledWith(enemy, target, expect.objectContaining({ id: art.id }));
   });
 });
+
