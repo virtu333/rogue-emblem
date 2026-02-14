@@ -26,6 +26,19 @@
     "price": 1000
   },
   {
+    "name": "Rapier",
+    "type": "Sword",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 95,
+    "crit": 5,
+    "weight": 2,
+    "range": "1",
+    "special": "Effective vs Armored/Calvary (2x)",
+    "price": 1800
+  },
+  {
     "name": "Silver Sword",
     "type": "Sword",
     "tier": "Silver",

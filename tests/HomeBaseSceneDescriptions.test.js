@@ -9,17 +9,11 @@ vi.mock('phaser', () => ({
 import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 
 describe('HomeBaseScene upgrade description helpers', () => {
-  it('describes deadly arsenal without legacy weapon-art unlock suffix', () => {
+  it('describes deadly arsenal split tiers', () => {
     const scene = new HomeBaseScene();
-    const upgrade = {
-      description: 'deadly arsenal',
-      effects: [{
-        deadlyArsenal: 1,
-      }],
-    };
-
-    const desc = scene._getActionDesc(upgrade);
-    expect(desc).toBe('Random Silver/Killer/Brave/Legend weapon');
+    expect(scene._getActionDesc({ effects: [{ deadlyArsenalTier: 1 }] })).toBe('Edric starting sword upgrades');
+    expect(scene._formatEffectValue({ deadlyArsenalTier: 1 })).toBe('Tier 1');
+    expect(scene._formatEffectValue({ deadlyArsenalTier: 2 })).toBe('Tier 2');
   });
 
   it('describes iron/steel/art adept weapon-art spawn upgrades', () => {

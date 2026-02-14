@@ -951,36 +951,44 @@ describe('RunManager', () => {
       expect(steelSword.might).toBe(10); // 8 + 2
     });
 
-    it('deadlyArsenal gives Edric a weapon from the Sword pool', () => {
-      const metaEffects = { deadlyArsenal: 1 };
+    it('deadlyArsenalTier 1 replaces Edric Steel Sword with Rapier', () => {
+      const metaEffects = { deadlyArsenalTier: 1 };
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'];
-      const hasPoolWeapon = edric.inventory.some(w => pool.includes(w.name));
-      expect(hasPoolWeapon).toBe(true);
+      expect(edric.inventory.some(w => w.name === 'Rapier')).toBe(true);
       expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(false);
     });
 
-    it('deadlyArsenal gives Sera a Light combat weapon from pool', () => {
-      const metaEffects = { deadlyArsenal: 1 };
-      const rmMeta = new RunManager(gameData, metaEffects);
-      rmMeta.startRun();
-      const sera = rmMeta.roster[1];
-      const pool = ['Aura', 'Luce'];
-      const hasPoolWeapon = sera.inventory.some(w => pool.includes(w.name));
-      expect(hasPoolWeapon).toBe(true);
-    });
-
-    it('deadlyArsenal + weapon_forge stacks forges on pool weapon', () => {
-      const metaEffects = { deadlyArsenal: 1, startingWeaponForge: 3 };
+    it('deadlyArsenalTier 2 gives Edric Rapier + Silver Sword and auto-equips Silver Sword', () => {
+      const metaEffects = { deadlyArsenalTier: 2 };
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const pool = ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'];
-      const poolWeapon = edric.inventory.find(w => pool.includes(w._baseName));
-      expect(poolWeapon).toBeTruthy();
-      expect(poolWeapon._forgeLevel).toBe(3);
+      expect(edric.inventory.some(w => w.name === 'Rapier')).toBe(true);
+      expect(edric.inventory.some(w => w.name === 'Silver Sword')).toBe(true);
+      expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(false);
+      expect(edric.weapon?.name).toBe('Silver Sword');
+    });
+
+    it('deadlyArsenalTier 2 + weapon_forge stacks forges on Silver Sword', () => {
+      const metaEffects = { deadlyArsenalTier: 2, startingWeaponForge: 3 };
+      const rmMeta = new RunManager(gameData, metaEffects);
+      rmMeta.startRun();
+      const edric = rmMeta.roster[0];
+      const silverSword = edric.inventory.find(w => w._baseName === 'Silver Sword');
+      expect(silverSword).toBeTruthy();
+      expect(silverSword._forgeLevel).toBe(3);
+    });
+
+    it('deadlyArsenalTier does not grant Sera a random Light combat weapon', () => {
+      const metaEffects = { deadlyArsenalTier: 2 };
+      const rmMeta = new RunManager(gameData, metaEffects);
+      rmMeta.startRun();
+      const sera = rmMeta.roster[1];
+      const lightWeapons = sera.inventory.filter(w => w.type === 'Light');
+      expect(lightWeapons).toHaveLength(1);
+      expect(lightWeapons[0].name).toBe('Lightning');
     });
 
     it('starting_accessory equips Goddess Icon on Edric at tier 1', () => {

@@ -195,6 +195,15 @@ describe('Effectiveness', () => {
     expect(getEffectivenessMultiplier(hammer, knight)).toBe(3);
   });
 
+  it('Rapier is effective vs Armored and Cavalry', () => {
+    const rapier = data.weapons.find(w => w.name === 'Rapier');
+    if (!rapier) return;
+    const armored = makeUnit({ moveType: 'Armored' });
+    const cavalry = makeUnit({ moveType: 'Cavalry' });
+    expect(getEffectivenessMultiplier(rapier, armored)).toBe(2);
+    expect(getEffectivenessMultiplier(rapier, cavalry)).toBe(2);
+  });
+
   it('bows are globally effective vs Flying (3x)', () => {
     const bow = data.weapons.find(w => w.name === 'Iron Bow');
     const flier = makeUnit({ moveType: 'Flying' });

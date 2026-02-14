@@ -1092,15 +1092,38 @@
   {
     "id": "weapon_tier",
     "name": "Deadly Arsenal",
-    "description": "Lords start with a random Silver, Killer, Brave, or Legendary weapon",
+    "description": "Edric's Steel Sword is replaced with Rapier",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      750
+      250
     ],
     "effects": [
       {
-        "deadlyArsenal": 1
+        "deadlyArsenalTier": 1
+      }
+    ]
+  },
+  {
+    "id": "weapon_tier_silver",
+    "name": "Deadly Arsenal II",
+    "description": "Edric also starts with a Silver Sword (auto-equipped)",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "weapon_tier",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "deadlyArsenalTier": 2
       }
     ]
   },

@@ -512,7 +512,8 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.extraStartingUnitTier !== undefined) return EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] || `Tier ${effect.extraStartingUnitTier}`;
     if (effect.lethalArmoryTier !== undefined) return `Tier ${effect.lethalArmoryTier}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
-    if (effect.deadlyArsenal !== undefined) return 'Random';
+    if (effect.deadlyArsenalTier !== undefined) return `Tier ${effect.deadlyArsenalTier}`;
+    if (effect.deadlyArsenal !== undefined) return 'Tier 2';
     if (effect.recruitRandomSkill) return '+1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] || '?';
     if (effect.startingStaffTier !== undefined) return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
@@ -568,7 +569,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
-    if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
+    if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined) return 'Edric starting sword upgrades';
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
     if (effect.steelArms !== undefined) return 'Steel weapons can spawn with arts';
     if (effect.artAdept !== undefined) return 'Extra art on a lord starting weapon';

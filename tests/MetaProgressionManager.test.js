@@ -446,8 +446,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 51 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(51);
+  it('has 52 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(52);
   });
 
   it('has correct category distribution', () => {
@@ -459,7 +459,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
     expect(byCategory.capacity).toBe(10);
-    expect(byCategory.starting_equipment).toBe(6);
+    expect(byCategory.starting_equipment).toBe(7);
     expect(byCategory.starting_skills).toBe(9);
   });
 
@@ -469,11 +469,12 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.weapon_forge = 2;
     meta.purchasedUpgrades.weapon_tier = 1;
+    meta.purchasedUpgrades.weapon_tier_silver = 1;
     meta.purchasedUpgrades.starting_accessory = 3;
     meta.purchasedUpgrades.staff_upgrade = 1;
     const effects = meta.getActiveEffects();
     expect(effects.startingWeaponForge).toBe(2);
-    expect(effects.deadlyArsenal).toBe(1);
+    expect(effects.deadlyArsenalTier).toBe(2);
     expect(effects.startingAccessoryTier).toBe(3);
     expect(effects.startingStaffTier).toBe(1);
   });
@@ -482,7 +483,7 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     const effects = meta.getActiveEffects();
     expect(effects.startingWeaponForge).toBe(0);
-    expect(effects.deadlyArsenal).toBe(0);
+    expect(effects.deadlyArsenalTier).toBe(0);
     expect(effects.startingAccessoryTier).toBe(0);
     expect(effects.startingStaffTier).toBe(0);
     expect(effects.recruitRandomSkill).toBe(false);
@@ -668,6 +669,32 @@ describe('MetaProgressionManager', () => {
     const effects = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts.arts });
     expect(effects.ironArms).toBe(1);
     expect(effects.steelArms).toBe(1);
+  });
+
+  it('migrates pre-split deadly arsenal buyers to include silver tier', () => {
+    store.emblem_rogue_meta_save = JSON.stringify({
+      totalValor: 1000,
+      totalSupply: 1000,
+      purchasedUpgrades: { weapon_tier: 1 },
+      savedAt: Date.UTC(2026, 1, 1),
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getUpgradeLevel('weapon_tier')).toBe(1);
+    expect(meta.getUpgradeLevel('weapon_tier_silver')).toBe(1);
+    expect(meta.getActiveEffects().deadlyArsenalTier).toBe(2);
+  });
+
+  it('does not auto-grant silver tier for post-split tier-1 purchases', () => {
+    store.emblem_rogue_meta_save = JSON.stringify({
+      totalValor: 1000,
+      totalSupply: 1000,
+      purchasedUpgrades: { weapon_tier: 1 },
+      savedAt: Date.UTC(2026, 1, 20),
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getUpgradeLevel('weapon_tier')).toBe(1);
+    expect(meta.getUpgradeLevel('weapon_tier_silver')).toBe(0);
+    expect(meta.getActiveEffects().deadlyArsenalTier).toBe(1);
   });
 
   it('reset clears skillAssignments', () => {

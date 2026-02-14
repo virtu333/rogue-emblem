@@ -8,6 +8,7 @@ import {
 } from '../utils/constants.js';
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
+const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
 
 export class MetaProgressionManager {
   /**
@@ -43,6 +44,7 @@ export class MetaProgressionManager {
 
         if (saved.purchasedUpgrades) this.purchasedUpgrades = { ...saved.purchasedUpgrades };
         this._migrateLegacyWeaponArtUpgradeState();
+        this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
@@ -65,6 +67,19 @@ export class MetaProgressionManager {
       legacyLevel,
       Number(this.purchasedUpgrades?.steel_arms) || 0
     );
+  }
+
+  _migrateLegacyDeadlyArsenalUpgradeState(saved = null) {
+    const legacyLevel = Math.max(0, Number(this.purchasedUpgrades?.weapon_tier) || 0);
+    const splitLevel = Math.max(0, Number(this.purchasedUpgrades?.weapon_tier_silver) || 0);
+    if (legacyLevel <= 0 || splitLevel > 0) return;
+
+    const savedAt = Number(saved?.savedAt);
+    const shouldGrantSplitTier = !Number.isFinite(savedAt) || savedAt < DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF;
+    if (!shouldGrantSplitTier) return;
+
+    // Preserve old Deadly Arsenal value after split: prior buyers receive both new tiers.
+    this.purchasedUpgrades.weapon_tier_silver = 1;
   }
 
   getTotalValor() {
@@ -321,10 +336,10 @@ export class MetaProgressionManager {
   /**
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
- *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
- *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
+   *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
+   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier,
-   *            startingWeaponForge, deadlyArsenal,
+   *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingSkills, metaUnlockedWeaponArts }
    */
@@ -346,7 +361,7 @@ export class MetaProgressionManager {
       extraStartingUnitTier: 0,
       lethalArmoryTier: 0,
       startingWeaponForge: 0,
-      deadlyArsenal: 0,
+      deadlyArsenalTier: 0,
       ironArms: 0,
       steelArms: 0,
       artAdept: 0,
@@ -398,7 +413,12 @@ export class MetaProgressionManager {
       }
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined) effects.startingWeaponForge = effect.startingWeaponForge;
-      if (effect.deadlyArsenal !== undefined) effects.deadlyArsenal = effect.deadlyArsenal;
+      if (effect.deadlyArsenalTier !== undefined) {
+        effects.deadlyArsenalTier = Math.max(effects.deadlyArsenalTier, Number(effect.deadlyArsenalTier) || 0);
+      }
+      if (effect.deadlyArsenal !== undefined && Number(effect.deadlyArsenal) > 0) {
+        effects.deadlyArsenalTier = Math.max(effects.deadlyArsenalTier, 2);
+      }
       if (effect.ironArms !== undefined) effects.ironArms = Math.max(effects.ironArms, Number(effect.ironArms) || 0);
       if (effect.steelArms !== undefined) effects.steelArms = Math.max(effects.steelArms, Number(effect.steelArms) || 0);
       if (effect.artAdept !== undefined) effects.artAdept = Math.max(effects.artAdept, Number(effect.artAdept) || 0);

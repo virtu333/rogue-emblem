@@ -179,14 +179,25 @@ export function isStaff(weapon) {
 
 /** Check weapon effectiveness vs defender's moveType. Returns multiplier (1 if none). */
 export function getEffectivenessMultiplier(weapon, defender) {
+  const normalizeMoveType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'calvary') return 'cavalry';
+    return normalized;
+  };
+
   // Check if defender's accessory negates effectiveness
   if (defender.accessory?.combatEffects?.negateEffectiveness) return 1;
   // Global rule: all bows are effective against fliers
   if (weapon?.type === 'Bow' && defender.moveType === 'Flying') return 3;
   if (!weapon?.special) return 1;
-  const match = weapon.special.match(/Effective vs (\w+)\s*\((\d+)x\)/i);
+  const match = weapon.special.match(/Effective vs ([^()]+)\s*\((\d+)x\)/i);
   if (!match) return 1;
-  return defender.moveType === match[1] ? parseInt(match[2], 10) : 1;
+  const defenderMoveType = normalizeMoveType(defender.moveType);
+  const targets = match[1]
+    .split(/[\/,]| and /i)
+    .map(normalizeMoveType)
+    .filter(Boolean);
+  return targets.includes(defenderMoveType) ? parseInt(match[2], 10) : 1;
 }
 
 /** Parse weapon stat bonuses from special string (e.g. "+5 DEF when equipped", "+5 DEF, +5 RES when equipped"). */

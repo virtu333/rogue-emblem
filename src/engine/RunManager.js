@@ -3,7 +3,7 @@
 
 import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
-  DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
+  STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
   RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
@@ -908,6 +908,39 @@ export class RunManager {
       || null;
   }
 
+  _removeWeaponByName(unit, weaponName) {
+    const idx = unit.inventory.findIndex((weapon) => weapon?.name === weaponName);
+    if (idx === -1) return false;
+    const [removed] = unit.inventory.splice(idx, 1);
+    if (unit.weapon === removed || unit.weapon?.name === weaponName) {
+      unit.weapon = unit.inventory.find((weapon) => canEquip(unit, weapon)) || null;
+    }
+    return true;
+  }
+
+  _applyDeadlyArsenalLoadout(edricUnit) {
+    const tierFromNewEffect = Math.max(0, Math.trunc(Number(this.metaEffects?.deadlyArsenalTier) || 0));
+    const legacyDeadlyArsenal = Number(this.metaEffects?.deadlyArsenal) > 0;
+    const deadlyArsenalTier = Math.max(tierFromNewEffect, legacyDeadlyArsenal ? 2 : 0);
+    if (deadlyArsenalTier <= 0) return;
+
+    const allWeapons = this.gameData?.weapons || [];
+    const rapier = allWeapons.find((weapon) => weapon.name === 'Rapier');
+    const silverSword = allWeapons.find((weapon) => weapon.name === 'Silver Sword');
+
+    // Tier 1: replace the Steel Sword slot with Rapier.
+    this._removeWeaponByName(edricUnit, 'Steel Sword');
+    if (rapier) addToInventory(edricUnit, rapier);
+
+    // Tier 2: add Silver Sword and auto-equip it.
+    if (deadlyArsenalTier >= 2 && silverSword && addToInventory(edricUnit, silverSword)) {
+      const addedSilver = edricUnit.inventory.find((weapon) => weapon?.name === 'Silver Sword');
+      if (addedSilver && canEquip(edricUnit, addedSilver)) {
+        edricUnit.weapon = addedSilver;
+      }
+    }
+  }
+
   _createExtraStartingUnit(className) {
     const classes = this.gameData?.classes || [];
     const classData = classes.find(c => c.name === className);
@@ -970,14 +1003,10 @@ export class RunManager {
     const edricUnit = createLordUnit(edric, edricClass, weapons);
     this._applyLordMetaBonuses(edricUnit);
 
-    // Edric's combat weapon — Deadly Arsenal (random) or default Steel Sword
-    const edricProfType = edricUnit.proficiencies[0]?.type || 'Sword';
-    const edricPool = me?.deadlyArsenal ? DEADLY_ARSENAL_POOL[edricProfType] : null;
-    const edricWeaponName = edricPool
-      ? edricPool[Math.floor(Math.random() * edricPool.length)]
-      : 'Steel Sword';
-    const edricWeapon = weapons.find(w => w.name === edricWeaponName);
-    if (edricWeapon) addToInventory(edricUnit, edricWeapon);
+    // Edric's extra combat sword defaults to Steel Sword, then Deadly Arsenal tiers adjust this loadout.
+    const edricSteelSword = weapons.find(w => w.name === 'Steel Sword');
+    if (edricSteelSword) addToInventory(edricUnit, edricSteelSword);
+    this._applyDeadlyArsenalLoadout(edricUnit);
 
     edricUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
     if (me?.extraVulnerary) {
@@ -996,15 +1025,6 @@ export class RunManager {
     const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
     const staff = weapons.find(w => w.name === staffName);
     if (staff) addToInventory(seraUnit, staff);
-
-    // Sera's combat Light weapon — only if deadlyArsenal purchased
-    if (me?.deadlyArsenal) {
-      const seraProfType = seraUnit.proficiencies[0]?.type || 'Light';
-      const seraPool = DEADLY_ARSENAL_POOL[seraProfType] || ['Aura'];
-      const seraWeaponName = seraPool[Math.floor(Math.random() * seraPool.length)];
-      const seraWeapon = weapons.find(w => w.name === seraWeaponName);
-      if (seraWeapon) addToInventory(seraUnit, seraWeapon);
-    }
 
     seraUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
 

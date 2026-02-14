@@ -262,6 +262,7 @@ QA evidence (Feb 12, 2026):
 - **Story Scaffold** - Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`. Spec: `docs/specs/light_story_scaffold_spec.md`
 - **Campaign System** - Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
 - **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
+- **Deadly Arsenal + Lord Selection Follow-up** - When lord selection ships, rework Deadly Arsenal to upgrade the selected main lord's baseline Steel weapon into that lord's Personal Weapon path (instead of Edric-only replacement logic).
 - **Special Characters** - Named units with fixed growths and personal skills, unlocked via meta-progression
 - **Monetization** - If commercial: cosmetic palette swaps, campaign DLC. Never sell gameplay advantages
 - **Mobile Web Support** - Spec complete: `docs/mobile-controls-spec.md`. Approach: HTML overlay panels in landscape letterbox space (no d-pad, no canvas changes). Context-sensitive action buttons replace all 11 keyboard shortcuts. Hidden on desktop. ~16-21 hour effort. Architecture guardrails active now: avoid hardcoded 640x480 layout assumptions in new work, centralize scene/layout scaling math, and add touch-parity input paths for new controls.
