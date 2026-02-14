@@ -956,6 +956,29 @@
     ]
   },
   {
+    "id": "recruit_field_supplies",
+    "name": "Field Supplies II",
+    "description": "Recruits start with a Vulnerary",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      300
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "starting_vulnerary",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "recruitStartingVulnerary": 1
+      }
+    ]
+  },
+  {
     "id": "extra_starting_unit_pool",
     "name": "Vanguard Cadre",
     "description": "Start with 1 extra random unit from an expanding class pool",

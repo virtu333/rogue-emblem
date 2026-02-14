@@ -35,6 +35,7 @@ import {
   canPromote,
   promoteUnit,
   resolvePromotionTargetClass,
+  grantLethalArmoryWeapon,
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
@@ -224,6 +225,12 @@ export class BattleScene extends Phaser.Scene {
         this.cancelTouchInspectHold();
         this._hideMenuTooltip();
         this._restoreBattleRng();
+        if (this.isMobileInput && this._mobileHandlers) {
+          const ge = this.game.events;
+          for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+            ge.off(`mobile:${action}`, handler);
+          }
+        }
       });
 
       // Unit arrays
@@ -347,6 +354,14 @@ export class BattleScene extends Phaser.Scene {
             for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
             }
+          }
+
+          if (this.runManager?.metaEffects?.lethalArmoryTier) {
+            grantLethalArmoryWeapon(npc, this.gameData.weapons, this.runManager.metaEffects.lethalArmoryTier);
+          }
+          if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
+            const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+            if (vulnerary) addToConsumables(npc, vulnerary);
           }
 
           npc.col = npcSpawn.col;
@@ -475,6 +490,16 @@ export class BattleScene extends Phaser.Scene {
         { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' }
       ).setOrigin(0.5).setDepth(100);
 
+      // Hide in-canvas buttons on mobile (HTML overlay provides them)
+      if (this.isMobileInput) {
+        this.dangerButton.setVisible(false);
+        this.rosterButton.setVisible(false);
+        this.endTurnButton.setVisible(false);
+        this.cancelButton.setVisible(false);
+        if (this.inspectButton) this.inspectButton.setVisible(false);
+        this.instructionText2.setVisible(false);
+      }
+
       // Tutorial skip button (bottom-right)
       if (this.battleParams.tutorialMode) {
         const cam = this.cameras.main;
@@ -561,6 +586,44 @@ export class BattleScene extends Phaser.Scene {
         if (this.unitDetailOverlay?.visible) return;
         this._cycleForecastWeapon(1);
       });
+
+      // Mobile virtual control listeners
+      if (this.isMobileInput) {
+        const ge = this.game.events;
+        this._mobileHandlers = {
+          cancel: () => this.requestCancel({ allowPause: false }),
+          menu: () => {
+            if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+              this.grid.clearHighlights();
+              this.cantoRange = null;
+              const unit = this.selectedUnit;
+              this.dimUnit(unit);
+              this.selectedUnit = null;
+              this.battleState = 'PLAYER_IDLE';
+              this.turnManager.unitActed(unit);
+              this.refreshEndTurnControl();
+            } else {
+              this.requestCancel();
+            }
+          },
+          danger: () => this._onDangerClick(),
+          roster: () => {
+            if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+              if (this.lootRosterVisible) this.hideLootRoster(); else this.showLootRoster();
+            } else {
+              this._onRosterClick();
+            }
+          },
+          objective: () => this.requestVisionRewind(),
+          inspect: () => this.toggleInspectMode(),
+          endTurn: () => this.forceEndTurn(),
+          prevWeapon: () => this._cycleForecastWeapon(-1),
+          nextWeapon: () => this._cycleForecastWeapon(1),
+        };
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          ge.on(`mobile:${action}`, handler);
+        }
+      }
 
       // Start battle music -- per-act tracks
       const audio = this.registry.get('audio');
@@ -2380,7 +2443,27 @@ export class BattleScene extends Phaser.Scene {
       && this.battleState !== 'BATTLE_END';
   }
 
+  _emitMobileContext() {
+    if (!this.isMobileInput) return;
+    const s = this.battleState;
+    let ctx = 'none';
+    if (s === 'PLAYER_IDLE' || s === 'UNIT_SELECTED') ctx = 'battle_idle';
+    else if (s === 'UNIT_MOVED' || s === 'UNIT_ACTION_MENU' || s === 'SELECTING_TARGET'
+      || s === 'SELECTING_HEAL_TARGET' || s === 'SELECTING_SHOVE_TARGET'
+      || s === 'SELECTING_PULL_TARGET' || s === 'SELECTING_TRADE_TARGET'
+      || s === 'SELECTING_SWAP_TARGET' || s === 'SELECTING_DANCE_TARGET'
+      || s === 'SELECTING_BREAK_TARGET' || s === 'TRADING'
+      || s === 'CANTO_MOVING') ctx = 'battle_selected';
+    else if (s === 'SHOWING_FORECAST' || s === 'CONFIRMING_ATTACK') ctx = 'battle_forecast';
+    else if (s === 'BATTLE_END') ctx = 'battle_end';
+    this.game.events.emit('mobile:setContext', { context: ctx });
+  }
+
   refreshEndTurnControl() {
+    if (this.isMobileInput) {
+      this._emitMobileContext();
+      return; // Skip in-canvas button management on mobile
+    }
     if (this.inspectButton) {
       const enabled = this.battleState !== 'ENEMY_PHASE'
         && this.battleState !== 'BATTLE_END'
@@ -6540,7 +6623,9 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Generate loot choices
-    const lootWeaponBonus = this.runManager?.metaEffects?.lootWeaponWeightBonus || 0;
+    const lootWeaponQualityBonus = this.runManager?.metaEffects?.lootWeaponQualityBonus
+      || this.runManager?.metaEffects?.lootWeaponWeightBonus
+      || 0;
     const lootCount = this.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
     const choices = generateLootChoices(
       this.runManager.currentAct,
@@ -6548,7 +6633,7 @@ export class BattleScene extends Phaser.Scene {
       this.gameData.weapons,
       this.gameData.consumables,
       lootCount,
-      lootWeaponBonus,
+      lootWeaponQualityBonus,
       this.gameData.accessories,
       this.gameData.whetstones,
       this.runManager.roster,

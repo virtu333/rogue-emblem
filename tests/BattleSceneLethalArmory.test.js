@@ -43,7 +43,7 @@ function makeDisplayObject() {
   };
 }
 
-function makeBattleSceneWithRecruit({ lethalArmoryTier = 0 } = {}) {
+function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulnerary = 0 } = {}) {
   const gameData = loadGameData();
   const scene = new BattleScene();
 
@@ -67,7 +67,7 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0 } = {}) {
   };
 
   const runManager = {
-    metaEffects: { lethalArmoryTier },
+    metaEffects: { lethalArmoryTier, recruitStartingVulnerary },
     getLockedBattleConfig: vi.fn(() => battleConfig),
     getEffectiveRecruitGrowthBonuses: vi.fn(() => null),
   };
@@ -160,6 +160,21 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
       expect(recruit.inventory).toHaveLength(1);
       expect(recruit.weapon.name).toBe(recruit.inventory[0].name);
       expect(recruit.weapon.name).not.toMatch(/Steel|Killer|Silver/);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('adds a Vulnerary when recruit field supplies is active', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.25);
+    try {
+      const scene = makeBattleSceneWithRecruit({ recruitStartingVulnerary: 1 });
+      const deployedRoster = scene.roster;
+      BattleScene.prototype.beginBattle.call(scene, deployedRoster);
+
+      expect(scene.npcUnits).toHaveLength(1);
+      const recruit = scene.npcUnits[0];
+      expect(recruit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }

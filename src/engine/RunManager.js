@@ -19,6 +19,7 @@ import {
   canEquip,
   getClassInnateSkills,
   normalizeUnitClassState,
+  grantLethalArmoryWeapon,
 } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
 import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
@@ -946,6 +947,11 @@ export class RunManager {
 
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);
+    }
+    grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
+    if (this.metaEffects?.recruitStartingVulnerary) {
+      const vulnerary = this.gameData?.consumables?.find(c => c.name === 'Vulnerary');
+      if (vulnerary) addToConsumables(unit, vulnerary);
     }
     if (unit.weapon && !canEquip(unit, unit.weapon)) {
       unit.weapon = unit.inventory.find(w => canEquip(unit, w)) || null;

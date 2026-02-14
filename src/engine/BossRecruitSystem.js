@@ -4,7 +4,7 @@
  */
 
 import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT } from '../utils/constants.js';
-import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked } from './UnitManager.js';
+import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked, grantLethalArmoryWeapon } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
@@ -120,7 +120,7 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   // Final boss — run ends, no recruit event
   if (actId === 'finalBoss') return null;
 
-  const { lords, classes, weapons, recruits, skills } = gameData;
+  const { lords, classes, weapons, recruits, skills, consumables } = gameData;
   const rosterClassNames = new Set(roster.map(u => u.className));
 
   // Determine target level from highest lord level in roster
@@ -160,7 +160,7 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   // Regular recruit candidates
   for (let i = 0; i < shuffled.length && candidates.length < regularCount; i++) {
     const r = shuffled[i];
-    const unit = createRecruitFromPool(r, usePromoted, targetLevel, classes, weapons, skills, metaEffects);
+    const unit = createRecruitFromPool(r, usePromoted, targetLevel, classes, weapons, consumables, skills, metaEffects);
     if (unit) {
       unit.faction = 'player';
       candidates.push({
@@ -195,9 +195,14 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
 /**
  * Create a recruit unit from pool entry, handling promoted/unpromoted.
  */
-function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, weapons, skills, metaEffects) {
+function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, weapons, consumables, skills, metaEffects) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
+  const maybeAddStartingVulnerary = (unit) => {
+    if (!metaEffects?.recruitStartingVulnerary) return;
+    const vulnerary = (consumables || []).find(c => c.name === 'Vulnerary');
+    if (vulnerary) unit.consumables.push(structuredClone(vulnerary));
+  };
   const addClassInnates = (unit, className) => {
     for (const sid of getClassInnateSkills(className, skills)) {
       if (!unit.skills.includes(sid)) unit.skills.push(sid);
@@ -215,6 +220,10 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses);
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
+    if (metaEffects?.lethalArmoryTier) {
+      grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
+    }
+    maybeAddStartingVulnerary(unit);
     return unit;
   } else {
     // Act2 pool has base class names
@@ -224,6 +233,10 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     const recruitDef = { className: classData.name, name: recruitEntry.name, level: targetLevel };
     const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
     addClassInnates(unit, classData.name);
+    if (metaEffects?.lethalArmoryTier) {
+      grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
+    }
+    maybeAddStartingVulnerary(unit);
     return unit;
   }
 }

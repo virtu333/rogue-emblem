@@ -322,7 +322,7 @@ export class MetaProgressionManager {
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
  *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
-   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, extraStartingUnitTier,
+ *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenal,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
@@ -342,6 +342,7 @@ export class MetaProgressionManager {
       rosterCapBonus: 0,
       visionChargesBonus: 0,
       recruitRandomSkill: false,
+      recruitStartingVulnerary: 0,
       extraStartingUnitTier: 0,
       lethalArmoryTier: 0,
       startingWeaponForge: 0,
@@ -390,6 +391,7 @@ export class MetaProgressionManager {
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;
       if (effect.recruitRandomSkill) effects.recruitRandomSkill = true;
+      if (effect.recruitStartingVulnerary !== undefined) effects.recruitStartingVulnerary = effect.recruitStartingVulnerary;
       if (effect.extraStartingUnitTier !== undefined) effects.extraStartingUnitTier = effect.extraStartingUnitTier;
       if (effect.lethalArmoryTier !== undefined) {
         effects.lethalArmoryTier = Math.max(effects.lethalArmoryTier, Number(effect.lethalArmoryTier) || 0);

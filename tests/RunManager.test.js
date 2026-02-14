@@ -55,6 +55,20 @@ describe('RunManager', () => {
       expect(allowed.has(extra.className)).toBe(true);
     });
 
+    it('extra starter receives one additional Lethal Armory weapon', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, lethalArmoryTier: 2 });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        expect(extra.inventory.length).toBe(2);
+        expect(extra.weapon).toBe(extra.inventory[extra.inventory.length - 1]);
+        expect(extra.weapon.type).toBe('Bow');
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('extra starter receives recruit meta bonuses and random skill', () => {
       const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
       try {
@@ -76,6 +90,18 @@ describe('RunManager', () => {
         expect(boosted.stats.STR).toBe(baseline.stats.STR + 3);
         expect(boosted.growths.STR).toBe(baseline.growths.STR + 7);
         expect(boosted.skills.length).toBeGreaterThan(0);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('extra starter receives a Vulnerary when recruit_field_supplies is active', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, recruitStartingVulnerary: 1 });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        expect(extra.consumables.some(c => c.name === 'Vulnerary')).toBe(true);
       } finally {
         randomSpy.mockRestore();
       }

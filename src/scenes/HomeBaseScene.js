@@ -131,6 +131,10 @@ export class HomeBaseScene extends Phaser.Scene {
       this._prereqTooltip.destroy();
       this._prereqTooltip = null;
     }
+    if (this._tierTooltip) {
+      this._tierTooltip.destroy();
+      this._tierTooltip = null;
+    }
     this._hideRefundConfirm();
     this.children.removeAll(true);
 
@@ -332,7 +336,7 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       });
 
-      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed);
+      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
 
       this.add.text(descX, y, this._getActionDesc(upgrade), {
         fontFamily: 'monospace', fontSize: '10px', color: '#888888',
@@ -356,7 +360,7 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       });
 
-      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed);
+      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
 
       this._drawValueText(valuesX, y, current, next, maxed);
 
@@ -431,15 +435,57 @@ export class HomeBaseScene extends Phaser.Scene {
     }
   }
 
-  _drawProgressBar(x, y, level, maxLevel, maxed) {
+  _drawProgressBar(x, y, level, maxLevel, maxed, upgrade) {
     for (let i = 0; i < maxLevel; i++) {
       const filled = i < level;
       const color = filled ? (maxed ? BAR_FILLED_MAX : BAR_FILLED) : BAR_EMPTY;
-      this.add.rectangle(
+      const rect = this.add.rectangle(
         x + i * (BAR_SEGMENT_W + BAR_GAP) + BAR_SEGMENT_W / 2,
         y + BAR_SEGMENT_H / 2,
         BAR_SEGMENT_W, BAR_SEGMENT_H, color
       );
+
+      if (upgrade) {
+        rect.setInteractive({ useHandCursor: false });
+        const tierIndex = i;
+        rect.on('pointerover', () => {
+          if (this._tierTooltip) {
+            this._tierTooltip.destroy();
+            this._tierTooltip = null;
+          }
+          const tierNum = tierIndex + 1;
+          const owned = tierIndex < level;
+          const isNext = tierIndex === level;
+          const status = owned ? ' (Owned)' : (isNext ? ' (Next)' : '');
+          const effect = this._formatEffectValue(upgrade.effects[tierIndex]);
+          const cost = upgrade.costs?.[tierIndex];
+          const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
+          const suffix = currency === 'valor' ? 'V' : 'S';
+          const costLine = cost != null
+            ? (owned ? `Paid: ${cost}${suffix}` : `Cost: ${cost}${suffix}`)
+            : '';
+          const lines = [`Tier ${tierNum}/${maxLevel}${status}`, effect, costLine].filter(Boolean);
+          const tipText = lines.join('\n');
+
+          const tipH = lines.length * 12 + 8; // ~12px per line + padding
+          const tipX = rect.x;
+          const above = y - tipH - 2;
+          const below = y + BAR_SEGMENT_H + 6;
+          let tipY = above >= TAB_CONTENT_TOP_Y ? above : below;
+          if (tipY + tipH > TAB_CONTENT_BOTTOM_Y) tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
+
+          this._tierTooltip = this.add.text(tipX, tipY, tipText, {
+            fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
+            backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
+          }).setOrigin(0.5, 0).setDepth(950);
+        });
+        rect.on('pointerout', () => {
+          if (this._tierTooltip) {
+            this._tierTooltip.destroy();
+            this._tierTooltip = null;
+          }
+        });
+      }
     }
   }
 
@@ -462,6 +508,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
+    if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
     if (effect.extraStartingUnitTier !== undefined) return EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] || `Tier ${effect.extraStartingUnitTier}`;
     if (effect.lethalArmoryTier !== undefined) return `Tier ${effect.lethalArmoryTier}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
@@ -517,6 +564,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lootWeaponQualityBonus !== undefined) return 'Higher chance for upgraded weapons';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
+    if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';

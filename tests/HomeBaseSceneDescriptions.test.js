@@ -54,4 +54,11 @@ describe('HomeBaseScene upgrade description helpers', () => {
     expect(scene._formatEffectValue({ lethalArmoryTier: 2 })).toBe('Tier 2');
     expect(scene._formatEffectValue({ lethalArmoryTier: 3 })).toBe('Tier 3');
   });
+
+  it('formats and describes recruit field supplies upgrade', () => {
+    const scene = new HomeBaseScene();
+
+    expect(scene._getActionDesc({ effects: [{ recruitStartingVulnerary: 1 }] })).toBe('Recruits start with Vulnerary');
+    expect(scene._formatEffectValue({ recruitStartingVulnerary: 1 })).toBe('+1');
+  });
 });

@@ -324,6 +324,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.deploy_limit = 1;
     meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
+    meta.purchasedUpgrades.recruit_field_supplies = 1;
     meta.purchasedUpgrades.extra_starting_unit_pool = 3;
     meta.purchasedUpgrades.lethal_armory = 1;
     meta.purchasedUpgrades.lethal_armory_killer = 1;
@@ -332,6 +333,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.deployBonus).toBe(1);
     expect(effects.rosterCapBonus).toBe(2);
     expect(effects.visionChargesBonus).toBe(1);
+    expect(effects.recruitStartingVulnerary).toBe(1);
     expect(effects.extraStartingUnitTier).toBe(3);
     expect(effects.lethalArmoryTier).toBe(3);
   });
@@ -356,6 +358,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.deployBonus).toBe(0);
     expect(effects.rosterCapBonus).toBe(0);
     expect(effects.visionChargesBonus).toBe(0);
+    expect(effects.recruitStartingVulnerary).toBe(0);
     expect(effects.extraStartingUnitTier).toBe(0);
     expect(effects.lethalArmoryTier).toBe(0);
   });
@@ -443,8 +446,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 50 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(50);
+  it('has 51 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(51);
   });
 
   it('has correct category distribution', () => {
@@ -455,7 +458,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
-    expect(byCategory.capacity).toBe(9);
+    expect(byCategory.capacity).toBe(10);
     expect(byCategory.starting_equipment).toBe(6);
     expect(byCategory.starting_skills).toBe(9);
   });

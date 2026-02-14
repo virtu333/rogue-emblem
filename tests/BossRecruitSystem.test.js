@@ -183,6 +183,37 @@ describe('BossRecruitSystem', () => {
         }
       }
     });
+
+    it('grants non-lord boss candidates a Lethal Armory extra weapon', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const meta = { lethalArmoryTier: 2 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      expect(candidates.every((c) => c.unit.inventory.length > 1)).toBe(true);
+    });
+
+    it('does not grant Lethal Armory to lord candidates', () => {
+      let callCount = 0;
+      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return 0.05;
+        return 0.99;
+      });
+      const meta = { lethalArmoryTier: 3 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      const lordCandidate = candidates.find((c) => c.isLord);
+      const nonLordCandidates = candidates.filter((c) => !c.isLord);
+      if (lordCandidate) {
+        expect(lordCandidate.unit.inventory.length).toBe(1);
+      }
+      expect(nonLordCandidates.every((c) => c.unit.inventory.length > 1)).toBe(true);
+    });
+
+    it('grants non-lord boss candidates a Vulnerary when recruit field supplies is active', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const meta = { recruitStartingVulnerary: 1 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
+      expect(candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Vulnerary'))).toBe(true);
+    });
   });
 
   describe('lord slot', () => {
