@@ -757,10 +757,10 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialFortGuide = null;
   }
 
-  _transitionTutorialToTitle(reason) {
+  _transitionTutorialToTitle() {
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
-    return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason });
+    return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
   }
 
   _handleTutorialSkipRequested() {
@@ -768,7 +768,7 @@ export class BattleScene extends Phaser.Scene {
       ? window.confirm('Skip tutorial and return to title?')
       : true;
     if (!confirmed) return false;
-    void this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
+    void this._transitionTutorialToTitle();
     return true;
   }
 
@@ -1706,7 +1706,11 @@ export class BattleScene extends Phaser.Scene {
   getSpriteKey(unit) {
     const classKey = unit.className.toLowerCase().replace(/ /g, '_');
     if (unit.faction === 'enemy') {
-      return `enemy_${classKey}`;
+      const defaultEnemySpriteKey = `enemy_${classKey}`;
+      if (unit.isBoss && unit.name === 'The Emperor' && this.textures?.exists?.('enemy_emperor')) {
+        return 'enemy_emperor';
+      }
+      return defaultEnemySpriteKey;
     }
     // Lords: try personal name first (Edric has unique sprite), fall back to class
     if (unit.isLord) {
@@ -6200,7 +6204,7 @@ export class BattleScene extends Phaser.Scene {
         await showImportantHint(this, 'Victory! You\'ve completed the tutorial.\nYou\'re ready for a real run -- good luck!');
         if (!this.scene?.isActive?.()) return;
         try { localStorage.setItem('emblem_rogue_tutorial_completed', '1'); } catch (_) {}
-        this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
+        this._transitionTutorialToTitle();
       });
     } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);
@@ -7463,7 +7467,7 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1500, async () => {
         await showImportantHint(this, 'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.');
         if (!this.scene?.isActive?.()) return;
-        this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
+        this._transitionTutorialToTitle();
       });
     } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);

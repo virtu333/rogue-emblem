@@ -539,12 +539,12 @@ describe('MapGenerator', () => {
   });
 
   describe('act4 progression data', () => {
-    it('includes two act4 map sizes (18x12 and 18x14)', () => {
+    it('includes two act4 map sizes (18x12 and 18x13)', () => {
       const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
       const keys = new Set(act4Sizes.map(s => s.mapSize));
       expect(act4Sizes.length).toBe(2);
       expect(keys.has('18x12')).toBe(true);
-      expect(keys.has('18x14')).toBe(true);
+      expect(keys.has('18x13')).toBe(true);
     });
 
     it('act4 enemy pool has enough base/promoted variety for large-map spawns', () => {

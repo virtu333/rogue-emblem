@@ -50,22 +50,22 @@
   },
   {
     "phase": "Act 4 (Large)",
-    "mapSize": "18x14",
-    "tiles": 252,
+    "mapSize": "18x13",
+    "tiles": 234,
     "deployLimit": "6",
     "notes": "Late-act push with dense enemy formations"
   },
   {
     "phase": "Post-Act",
-    "mapSize": "18x14",
-    "tiles": 252,
+    "mapSize": "18x13",
+    "tiles": 234,
     "deployLimit": "6",
     "notes": "Endgame gauntlets"
   },
   {
     "phase": "Final Boss",
-    "mapSize": "20x14",
-    "tiles": 280,
+    "mapSize": "20x13",
+    "tiles": 260,
     "deployLimit": "6",
     "notes": "Multi-phase boss arena"
   }

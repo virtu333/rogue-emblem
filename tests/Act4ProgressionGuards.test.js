@@ -86,6 +86,10 @@ describe('Act4 progression guards', () => {
   });
 
   it('includes scripted-only seize templates for act4 boss intent and act3 dark champion', () => {
+    const act4LargeMapSize = data.mapSizes.find((entry) => entry.phase === 'Act 4 (Large)');
+    expect(act4LargeMapSize).toBeDefined();
+    const act4Cols = Number((act4LargeMapSize?.mapSize || '').split('x')[0]);
+    const act4HalfCol = Math.floor(act4Cols / 2);
     const expected = [
       { id: ACT4_BOSS_INTENT_TEMPLATE_ID, act: 'act4' },
       { id: ACT3_DARK_CHAMPION_TEMPLATE_ID, act: 'act3' },
@@ -106,6 +110,12 @@ describe('Act4 progression guards', () => {
       expect(template.reinforcements.waves.length).toBe(0);
       expect(Array.isArray(template.reinforcements.scriptedWaves)).toBe(true);
       expect(template.reinforcements.scriptedWaves.length).toBeGreaterThan(0);
+      if (entry.id === ACT4_BOSS_INTENT_TEMPLATE_ID) {
+        const hasPlayerHalfSpawnIntent = template.reinforcements.scriptedWaves.some((wave) =>
+          Array.isArray(wave?.spawns) && wave.spawns.some((spawn) => Number.isInteger(spawn?.col) && spawn.col < act4HalfCol)
+        );
+        expect(hasPlayerHalfSpawnIntent).toBe(true);
+      }
     }
   });
 

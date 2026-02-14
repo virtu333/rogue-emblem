@@ -392,6 +392,7 @@ When the user rotates to landscape:
 8. **Landscape enforcement** — rotate prompt shown in portrait, hidden in landscape
 9. **Desktop hidden** — no mobile controls visible on desktop browsers
 10. **Safe areas** — buttons not obscured by notch/Dynamic Island on iPhone
+11. **Large-map readability** — on active late-game map sizes (post row-trim), control labels remain readable and not visually merged with map tiles
 
 ### Acceptance Criteria
 
@@ -429,6 +430,7 @@ When the user rotates to landscape:
 - **Haptic feedback:** If wrapped natively, can add vibration on button press (via Capacitor Haptics plugin).
 - **Customizable layout:** Could later let users drag-reposition panels or adjust button size. Not needed for v1.
 - **iPad:** Landscape layout works fine; panels may be unnecessarily wide. Could scale button size up and reduce panel count. Low priority.
+- **Battle HUD overlap parity:** Canvas HUD readability now tracks the "row-trim first, HUD fallback second" approach in `docs/specs/act4_boss_map_followup_spec.md`; mobile overlay implementation should keep controls outside map content by design.
 
 ---
 

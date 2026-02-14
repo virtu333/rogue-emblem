@@ -457,7 +457,7 @@
           "role": "playerSpawn"
         },
         {
-          "rect": [0.62, 0.2, 0.95, 0.8],
+          "rect": [0.45, 0.2, 0.95, 0.8],
           "terrain": { "Fort": 35, "Wall": 25, "Ice": 25, "Plain": 15 },
           "priority": 3,
           "role": "enemySpawn"
@@ -512,7 +512,7 @@
             "xpMultiplier": 0.85,
             "spawns": [
               { "col": 8, "row": 1, "className": "Fighter", "level": 11, "aiMode": "guard" },
-              { "col": 9, "row": 1, "className": "Archer", "level": 11 }
+              { "col": 7, "row": 1, "className": "Archer", "level": 11 }
             ]
           },
           {
@@ -520,7 +520,7 @@
             "xpMultiplier": 0.65,
             "spawns": [
               { "col": 10, "row": 1, "className": "Knight", "level": 12, "sunderWeapon": true },
-              { "col": 9, "row": 2, "className": "Archer", "level": 11, "aiMode": "guard" }
+              { "col": 7, "row": 2, "className": "Archer", "level": 11, "aiMode": "guard" }
             ]
           }
         ],

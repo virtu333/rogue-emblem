@@ -95,4 +95,15 @@ describe('BattleScene reinforcement reward scaling', () => {
       'startEnemyPhase',
     ]);
   });
+
+  it('routes The Emperor boss to enemy_emperor with safe fallback', () => {
+    const scene = new BattleScene();
+    scene.textures = { exists: vi.fn((key) => key === 'enemy_emperor') };
+
+    const emperor = { faction: 'enemy', className: 'General', isBoss: true, name: 'The Emperor' };
+    expect(BattleScene.prototype.getSpriteKey.call(scene, emperor)).toBe('enemy_emperor');
+
+    scene.textures.exists = vi.fn(() => false);
+    expect(BattleScene.prototype.getSpriteKey.call(scene, emperor)).toBe('enemy_general');
+  });
 });

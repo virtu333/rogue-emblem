@@ -604,6 +604,8 @@ describe('HeadlessBattle', () => {
 
       const scriptedWaves = battle.battleConfig?.reinforcements?.scriptedWaves || [];
       expect(scriptedWaves.length).toBeGreaterThan(0);
+      const halfCol = Math.floor(battle.battleConfig.cols / 2);
+      let hasPlayerHalfSpawnOpportunity = false;
 
       for (let waveIndex = 0; waveIndex < scriptedWaves.length; waveIndex++) {
         const wave = scriptedWaves[waveIndex];
@@ -615,6 +617,17 @@ describe('HeadlessBattle', () => {
         if (due) {
           expect(due.spawnedCount).toBeGreaterThanOrEqual(1);
         }
+        if (scenario.templateId === ACT4_BOSS_INTENT_TEMPLATE_ID) {
+          const spawnedForWave = (schedule.spawns || []).filter((spawn) =>
+            spawn.waveType === 'scripted' && spawn.waveIndex === waveIndex
+          );
+          if (spawnedForWave.some((spawn) => spawn.col < halfCol)) {
+            hasPlayerHalfSpawnOpportunity = true;
+          }
+        }
+      }
+      if (scenario.templateId === ACT4_BOSS_INTENT_TEMPLATE_ID) {
+        expect(hasPlayerHalfSpawnOpportunity).toBe(true);
       }
     }
   });

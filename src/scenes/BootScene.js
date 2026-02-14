@@ -109,13 +109,14 @@ export class BootScene extends Phaser.Scene {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
     }
 
-    // Enemy sprites (27) - keyed as enemy_{name}
+    // Enemy sprites (28) - keyed as enemy_{name}
     const enemySprites = [
       'archer', 'assassin', 'bishop', 'cavalier', 'cleric', 'dragon',
       'falcon_knight', 'fighter', 'general', 'hero', 'knight',
       'mage', 'mercenary', 'myrmidon', 'paladin', 'pegasus_knight',
       'sage', 'sniper', 'swordmaster', 'thief', 'warrior', 'warrior_alt',
       'wyvern_priest', 'wyvern_rider', 'wyvern_lord', 'zombie', 'zombie_brute',
+      'emperor',
     ];
     for (const name of enemySprites) {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);

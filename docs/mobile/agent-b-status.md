@@ -34,5 +34,6 @@ Branch: agent-b/mobile-ui-perf
 ## Next batch candidates
 
 - Full narrow-viewport audit for battle HUD and roster/detail overlays.
+- Large-map battle HUD readability pass (row-trim first on late-game sizes, HUD backdrop fallback only if needed); align with `docs/specs/act4_boss_map_followup_spec.md`.
 - Touch camera pan + selection mode separation on larger maps.
 - Additional reduced-effects hooks for non-critical tween-heavy overlays.
