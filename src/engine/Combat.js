@@ -623,6 +623,7 @@ export function getCombatForecast(
   const atkCount = (atkBrave ? 2 : 1) * (atkDoubles ? 2 : 1);
 
   const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
+  const combatSkillState = { adeptUsed: new Set() };
   let defDmg = 0, defHit = 0, defCrit = 0, defDoubles = false, defBrave = false, defCount = 0;
 
   if (defCanCounter) {
@@ -729,7 +730,7 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   // Per-strike skill effects (only on hit)
   if (strikeSkills?.rollStrikeSkills) {
     const skillResult = strikeSkills.rollStrikeSkills(
-      strikeSkills.striker, finalDmg, strikeSkills.target, strikeSkills.skillsData
+      strikeSkills.striker, finalDmg, strikeSkills.target, strikeSkills.skillsData, strikeSkills.combatState
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -812,7 +813,7 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
  *
  * skillCtx (optional): {
  *   atkMods, defMods — from SkillSystem.getSkillCombatMods()
- *   rollStrikeSkills — function(striker, dmg, target, skillsData)
+ *   rollStrikeSkills — function(striker, dmg, target, skillsData, combatState)
  *   checkAstra — function(striker, skillsData)
  *   skillsData — full skills array
  * }
@@ -823,6 +824,7 @@ export function resolveCombat(
   distance, atkTerrain, defTerrain,
   skillCtx = null
 ) {
+  const combatSkillState = { adeptUsed: new Set() };
   const events = [];
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
@@ -923,6 +925,7 @@ export function resolveCombat(
     isFirstHit: !defender._hitByPlayerThisPhase,
     isMelee,
     skillsData: skillCtx.skillsData,
+    combatState: combatSkillState,
   } : null;
   const defStrikeSkills = (skillCtx?.rollStrikeSkills && defCanCounter) ? {
     striker: defender, target: attacker,
@@ -934,6 +937,7 @@ export function resolveCombat(
     isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
     isMelee,
     skillsData: skillCtx.skillsData,
+    combatState: combatSkillState,
   } : null;
 
   // Track Cancel follow-up negation
