@@ -59,6 +59,15 @@ export class HomeBaseScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.refundMode = false;
       this._hideRefundConfirm();
+      if (this.isMobileInput && this._mobileHandlers) {
+        const ge = this.game?.events;
+        if (ge) {
+          for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+            ge.off(`mobile:${action}`, handler);
+          }
+        }
+        this._mobileHandlers = null;
+      }
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
     });
@@ -84,6 +93,22 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
     this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
     this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
+
+    const flags = this.registry.get('startupFlags');
+    this.isMobileInput = Boolean(flags?.isMobile);
+    if (this.isMobileInput) {
+      const ge = this.game?.events;
+      if (ge) {
+        this._mobileHandlers = {
+          cancel: () => this.requestCancel({ allowExit: false }),
+          menu: () => this.requestCancel({ allowExit: true }),
+        };
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          ge.on(`mobile:${action}`, handler);
+        }
+        ge.emit('mobile:setContext', { context: 'homebase' });
+      }
+    }
 
     this.drawUI();
 
