@@ -527,10 +527,16 @@ export function gainExperience(unit, xpAmount) {
  * - Advantage 0-3: normal scale (-5 per level)
  * - Advantage 4-6: steep scale (-8 per level for excess beyond 3)
  * - Advantage 7+: flat minimum XP, no kill bonus
+ * - Underdog bonus (defender higher than attacker) is capped at +6 levels
  */
+function getXpEffectiveLevel(unit) {
+  const visibleLevel = Math.max(1, Math.trunc(Number(unit?.level) || 1));
+  return unit?.tier === 'promoted' ? visibleLevel + 12 : visibleLevel;
+}
+
 export function calculateCombatXP(attacker, defender, defenderDied) {
-  const atkLevel = attacker.level || 1;
-  const defLevel = defender.level || 1;
+  const atkLevel = getXpEffectiveLevel(attacker);
+  const defLevel = getXpEffectiveLevel(defender);
   const advantage = atkLevel - defLevel; // positive when attacker is higher
 
   // Tier 3: extreme over-leveling — flat minimum, no kill bonus
@@ -547,7 +553,8 @@ export function calculateCombatXP(attacker, defender, defenderDied) {
   }
 
   // Tier 1: normal (under-leveled, equal, or slight advantage 0-3)
-  const levelDiff = defLevel - atkLevel; // positive when defender is higher (bonus), negative when attacker is higher (penalty)
+  const rawLevelDiff = defLevel - atkLevel; // positive when defender is higher (bonus), negative when attacker is higher (penalty)
+  const levelDiff = rawLevelDiff > 0 ? Math.min(rawLevelDiff, 6) : rawLevelDiff;
   const killBonus = defenderDied ? XP_KILL_BONUS : 0;
   return Math.max(XP_MIN, XP_BASE_COMBAT + levelDiff * XP_LEVEL_DIFF_SCALE + killBonus);
 }

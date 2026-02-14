@@ -841,7 +841,7 @@
   {
     "id": "loot_quality",
     "name": "Lucky Finds",
-    "description": "Better weapon drops from loot",
+    "description": "Higher chance for upgraded weapon drops",
     "category": "economy",
     "maxLevel": 2,
     "costs": [
@@ -855,10 +855,10 @@
     },
     "effects": [
       {
-        "lootWeaponWeightBonus": 10
+        "lootWeaponQualityBonus": 10
       },
       {
-        "lootWeaponWeightBonus": 20
+        "lootWeaponQualityBonus": 20
       }
     ]
   },
@@ -952,6 +952,33 @@
     "effects": [
       {
         "recruitRandomSkill": true
+      }
+    ]
+  },
+  {
+    "id": "extra_starting_unit_pool",
+    "name": "Vanguard Cadre",
+    "description": "Start with 1 extra random unit from an expanding class pool",
+    "category": "capacity",
+    "maxLevel": 4,
+    "costs": [
+      400,
+      700,
+      1000,
+      1500
+    ],
+    "effects": [
+      {
+        "extraStartingUnitTier": 1
+      },
+      {
+        "extraStartingUnitTier": 2
+      },
+      {
+        "extraStartingUnitTier": 3
+      },
+      {
+        "extraStartingUnitTier": 4
       }
     ]
   },

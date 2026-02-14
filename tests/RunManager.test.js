@@ -39,6 +39,66 @@ describe('RunManager', () => {
       expect(rm.roster[1].isLord).toBe(true);
     });
 
+    it('adds exactly one extra starter when extraStartingUnitTier is active', () => {
+      const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1 });
+      rmMeta.startRun();
+      expect(rmMeta.roster).toHaveLength(3);
+      expect(rmMeta.roster[2].className).toBe('Archer');
+      expect(rmMeta.usedRecruitNames[rmMeta.roster[2].className]).toContain(rmMeta.roster[2].name);
+    });
+
+    it('extra starter class is constrained to unlocked tier pool', () => {
+      const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 3 });
+      rmMeta.startRun();
+      const extra = rmMeta.roster[2];
+      const allowed = new Set(['Archer', 'Knight', 'Cavalier']);
+      expect(allowed.has(extra.className)).toBe(true);
+    });
+
+    it('extra starter receives recruit meta bonuses and random skill', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const baselineRm = new RunManager(gameData, { extraStartingUnitTier: 1 });
+        baselineRm.startRun();
+        const baseline = baselineRm.roster[2];
+
+        const boostedRm = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          statBonuses: { HP: 2, STR: 3 },
+          growthBonuses: { STR: 7 },
+          recruitRandomSkill: true,
+        });
+        boostedRm.startRun();
+        const boosted = boostedRm.roster[2];
+
+        expect(boosted.stats.HP).toBe(baseline.stats.HP + 2);
+        expect(boosted.currentHP).toBe(baseline.currentHP + 2);
+        expect(boosted.stats.STR).toBe(baseline.stats.STR + 3);
+        expect(boosted.growths.STR).toBe(baseline.growths.STR + 7);
+        expect(boosted.skills.length).toBeGreaterThan(0);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('paladin extra starter uses fixed Iron Sword + Steel Lance loadout', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.999);
+      try {
+        const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 4 });
+        rmMeta.startRun();
+        const extra = rmMeta.roster[2];
+        expect(extra.className).toBe('Paladin');
+
+        const names = extra.inventory.map(w => w.name).sort();
+        expect(names).toEqual(['Iron Sword', 'Steel Lance']);
+        expect(extra.inventory.some(w => w.name === 'Iron Lance')).toBe(false);
+        expect(extra.inventory.map(w => w.name)).toContain(extra.weapon?.name);
+        expect(extra.proficiencies.some(p => p.type === extra.weapon?.type)).toBe(true);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('Edric has Steel Sword in inventory', () => {
       rm.startRun();
       const edric = rm.roster[0];

@@ -321,8 +321,9 @@ export class MetaProgressionManager {
   /**
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
-   *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponWeightBonus,
-   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, startingWeaponForge, deadlyArsenal,
+ *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
+   *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, extraStartingUnitTier,
+   *            startingWeaponForge, deadlyArsenal,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingSkills, metaUnlockedWeaponArts }
    */
@@ -335,11 +336,12 @@ export class MetaProgressionManager {
       goldBonus: 0,
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
-      lootWeaponWeightBonus: 0,
+      lootWeaponQualityBonus: 0,
       deployBonus: 0,
       rosterCapBonus: 0,
       visionChargesBonus: 0,
       recruitRandomSkill: false,
+      extraStartingUnitTier: 0,
       startingWeaponForge: 0,
       deadlyArsenal: 0,
       ironArms: 0,
@@ -380,11 +382,13 @@ export class MetaProgressionManager {
       if (effect.goldBonus !== undefined) effects.goldBonus = effect.goldBonus;
       if (effect.battleGoldMultiplier !== undefined) effects.battleGoldMultiplier = effect.battleGoldMultiplier;
       if (effect.extraVulnerary !== undefined) effects.extraVulnerary = effect.extraVulnerary;
-      if (effect.lootWeaponWeightBonus !== undefined) effects.lootWeaponWeightBonus = effect.lootWeaponWeightBonus;
+      if (effect.lootWeaponWeightBonus !== undefined) effects.lootWeaponQualityBonus = effect.lootWeaponWeightBonus;
+      if (effect.lootWeaponQualityBonus !== undefined) effects.lootWeaponQualityBonus = effect.lootWeaponQualityBonus;
       if (effect.deployBonus !== undefined) effects.deployBonus = effect.deployBonus;
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;
       if (effect.recruitRandomSkill) effects.recruitRandomSkill = true;
+      if (effect.extraStartingUnitTier !== undefined) effects.extraStartingUnitTier = effect.extraStartingUnitTier;
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined) effects.startingWeaponForge = effect.startingWeaponForge;
       if (effect.deadlyArsenal !== undefined) effects.deadlyArsenal = effect.deadlyArsenal;

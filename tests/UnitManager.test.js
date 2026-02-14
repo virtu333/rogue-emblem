@@ -648,7 +648,7 @@ describe('Enemy skill scaling by act', () => {
 });
 
 describe('calculateCombatXP tiered diminishing returns', () => {
-  const unit = (level) => ({ level, stats: {} });
+  const unit = (level, tier = 'base') => ({ level, tier, stats: {} });
 
   it('returns base XP at equal level', () => {
     expect(calculateCombatXP(unit(5), unit(5), false)).toBe(XP_BASE_COMBAT);
@@ -709,6 +709,30 @@ describe('calculateCombatXP tiered diminishing returns', () => {
       const xp = calculateCombatXP(unit(1 + adv), unit(1), false);
       expect(xp).toBeGreaterThanOrEqual(XP_MIN);
     }
+  });
+
+  it('applies strong promoted damping versus base units', () => {
+    const noKill = calculateCombatXP(unit(1, 'promoted'), unit(1, 'base'), false);
+    const kill = calculateCombatXP(unit(1, 'promoted'), unit(1, 'base'), true);
+    expect(noKill).toBe(XP_MIN);
+    expect(kill).toBe(XP_MIN);
+  });
+
+  it('keeps promoted-vs-promoted XP broadly comparable', () => {
+    const noKill = calculateCombatXP(unit(5, 'promoted'), unit(5, 'promoted'), false);
+    const kill = calculateCombatXP(unit(5, 'promoted'), unit(5, 'promoted'), true);
+    expect(noKill).toBe(XP_BASE_COMBAT);
+    expect(kill - noKill).toBe(XP_KILL_BONUS);
+  });
+
+  it('rewards base units fighting promoted units', () => {
+    const xp = calculateCombatXP(unit(1, 'base'), unit(1, 'promoted'), false);
+    expect(xp).toBe(XP_BASE_COMBAT + 6 * XP_LEVEL_DIFF_SCALE);
+  });
+
+  it('caps underdog bonus at 6 levels for kill XP too', () => {
+    const xp = calculateCombatXP(unit(1, 'base'), unit(1, 'promoted'), true);
+    expect(xp).toBe(XP_BASE_COMBAT + 6 * XP_LEVEL_DIFF_SCALE + XP_KILL_BONUS);
   });
 });
 

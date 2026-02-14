@@ -294,10 +294,12 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.starting_gold = 2;
     meta.purchasedUpgrades.battle_gold = 1;
     meta.purchasedUpgrades.starting_vulnerary = 1;
+    meta.purchasedUpgrades.loot_quality = 1;
     const effects = meta.getActiveEffects();
     expect(effects.goldBonus).toBe(200);
     expect(effects.battleGoldMultiplier).toBe(0.2);
     expect(effects.extraVulnerary).toBe(1);
+    expect(effects.lootWeaponQualityBonus).toBe(10);
   });
 
   it('getActiveEffects returns capacity effects', () => {
@@ -305,10 +307,12 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.deploy_limit = 1;
     meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
+    meta.purchasedUpgrades.extra_starting_unit_pool = 3;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
     expect(effects.rosterCapBonus).toBe(2);
     expect(effects.visionChargesBonus).toBe(1);
+    expect(effects.extraStartingUnitTier).toBe(3);
   });
 
   it('vision_charges_3 overrides vision bonus to 2 when purchased', () => {
@@ -331,6 +335,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.deployBonus).toBe(0);
     expect(effects.rosterCapBonus).toBe(0);
     expect(effects.visionChargesBonus).toBe(0);
+    expect(effects.extraStartingUnitTier).toBe(0);
   });
 
   it('starts with 0 runsCompleted', () => {
@@ -416,8 +421,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 46 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(46);
+  it('has 47 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(47);
   });
 
   it('has correct category distribution', () => {
@@ -428,7 +433,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
-    expect(byCategory.capacity).toBe(5);
+    expect(byCategory.capacity).toBe(6);
     expect(byCategory.starting_equipment).toBe(6);
     expect(byCategory.starting_skills).toBe(9);
   });

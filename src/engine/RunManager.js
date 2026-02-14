@@ -5,11 +5,14 @@ import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   DEADLY_ARSENAL_POOL, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
+  RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
   createLordUnit,
+  createRecruitUnit,
+  promoteUnit,
   addToInventory,
   addToConsumables,
   equipAccessory,
@@ -30,6 +33,12 @@ const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Li
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
+const EXTRA_STARTER_CLASS_POOLS = {
+  1: ['Archer'],
+  2: ['Archer', 'Knight'],
+  3: ['Archer', 'Knight', 'Cavalier'],
+  4: ['Archer', 'Knight', 'Cavalier', 'Paladin'],
+};
 
 function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   const source = Array.isArray(sequence) ? sequence : fallback;
@@ -162,6 +171,7 @@ export class RunManager {
       difficultyId = this.difficultyId || 'normal',
     } = options;
     this.applyDifficultySelection(difficultyId);
+    this.usedRecruitNames = {};
     this.roster = this.createInitialRoster();
     if (!Number.isFinite(this.runSeed)) {
       const initialSeed = runSeed ?? Date.now();
@@ -187,7 +197,6 @@ export class RunManager {
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
     };
-    this.usedRecruitNames = {};
     this.battleConfigsByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -854,6 +863,96 @@ export class RunManager {
     this._appendWeaponArtBinding(picked.weapon, extraArtId, 'meta_innate');
   }
 
+  _resolveExtraStarterClassPoolByTier(tier) {
+    const numericTier = Math.max(0, Math.trunc(Number(tier) || 0));
+    const clampedTier = Math.min(4, numericTier);
+    const requestedPool = EXTRA_STARTER_CLASS_POOLS[clampedTier] || [];
+    const validClasses = new Set((this.gameData?.classes || []).map(c => c?.name).filter(Boolean));
+    return requestedPool.filter(className => validClasses.has(className));
+  }
+
+  _pickRecruitNameForClass(className) {
+    const namePool = this.gameData?.recruits?.namePool || {};
+    const classNames = Array.isArray(namePool[className]) ? namePool[className] : [];
+    const used = this.usedRecruitNames[className] || [];
+
+    let name = className;
+    if (classNames.length > 0) {
+      const available = classNames.filter(n => !used.includes(n));
+      if (available.length > 0) {
+        name = available[Math.floor(Math.random() * available.length)];
+      } else {
+        this.usedRecruitNames[className] = [];
+        name = classNames[Math.floor(Math.random() * classNames.length)];
+      }
+    }
+
+    if (!this.usedRecruitNames[className]) this.usedRecruitNames[className] = [];
+    this.usedRecruitNames[className].push(name);
+    return name;
+  }
+
+  _applyExtraStarterPaladinLoadout(unit) {
+    const allWeapons = this.gameData?.weapons || [];
+    const ironSword = allWeapons.find(w => w.name === 'Iron Sword');
+    const steelLance = allWeapons.find(w => w.name === 'Steel Lance');
+
+    unit.inventory = [];
+    unit.weapon = null;
+    if (ironSword) addToInventory(unit, ironSword);
+    if (steelLance) addToInventory(unit, steelLance);
+
+    unit.weapon = unit.inventory.find(w => w.name === 'Steel Lance' && canEquip(unit, w))
+      || unit.inventory.find(w => canEquip(unit, w))
+      || null;
+  }
+
+  _createExtraStartingUnit(className) {
+    const classes = this.gameData?.classes || [];
+    const classData = classes.find(c => c.name === className);
+    if (!classData) return null;
+
+    const recruitDef = {
+      name: this._pickRecruitNameForClass(className),
+      level: 1,
+    };
+    const statBonuses = this.metaEffects?.statBonuses || null;
+    const growthBonuses = this.metaEffects?.growthBonuses || null;
+    const randomSkillPool = this.metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
+
+    const hasRecruitTemplate = classData?.baseStats && classData?.growthRanges;
+    const recruitClassData = hasRecruitTemplate
+      ? classData
+      : classes.find(c => c.name === classData.promotesFrom);
+    if (!recruitClassData?.baseStats || !recruitClassData?.growthRanges) return null;
+
+    const unit = createRecruitUnit(
+      recruitDef,
+      recruitClassData,
+      this.gameData?.weapons || [],
+      statBonuses,
+      growthBonuses,
+      randomSkillPool
+    );
+    if (!hasRecruitTemplate) {
+      promoteUnit(
+        unit,
+        classData,
+        classData.promotionBonuses || {},
+        this.gameData?.skills || []
+      );
+    }
+    unit.faction = 'player';
+
+    if (className === 'Paladin') {
+      this._applyExtraStarterPaladinLoadout(unit);
+    }
+    if (unit.weapon && !canEquip(unit, unit.weapon)) {
+      unit.weapon = unit.inventory.find(w => canEquip(unit, w)) || null;
+    }
+    return serializeUnit(unit);
+  }
+
   /** Create Edric + Sera as the starting two lords. */
   createInitialRoster() {
     const { lords, classes, weapons, accessories } = this.gameData;
@@ -936,7 +1035,18 @@ export class RunManager {
       }
     }
 
-    return [serializeUnit(edricUnit), serializeUnit(seraUnit)];
+    const roster = [serializeUnit(edricUnit), serializeUnit(seraUnit)];
+    const extraStarterTier = Math.max(0, Math.trunc(Number(me?.extraStartingUnitTier) || 0));
+    if (extraStarterTier > 0) {
+      const classPool = this._resolveExtraStarterClassPoolByTier(extraStarterTier);
+      if (classPool.length > 0) {
+        const className = classPool[Math.floor(Math.random() * classPool.length)];
+        const extraStarter = this._createExtraStartingUnit(className);
+        if (extraStarter) roster.push(extraStarter);
+      }
+    }
+
+    return roster;
   }
 
   /** Apply lord meta-progression bonuses (stat + growth) to a lord unit. */

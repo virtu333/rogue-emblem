@@ -34,6 +34,12 @@ const TAB_CONTENT_BOTTOM_Y = 392;
 const TAB_CONTENT_LEFT_X = 30;
 const TAB_CONTENT_RIGHT_X = 610;
 const TAB_SCROLL_STEP = 24;
+const EXTRA_STARTER_TIER_LABELS = {
+  1: 'Archer',
+  2: 'Archer/Knight',
+  3: 'Archer/Knight/Cavalier',
+  4: 'Archer/Knight/Cavalier/Paladin',
+};
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -66,6 +72,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => {
       this.requestCancel({ allowExit: true });
     });
+
     this.input.on('pointerdown', (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
@@ -407,9 +414,11 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.goldBonus !== undefined) return `+${effect.goldBonus}G`;
     if (effect.battleGoldMultiplier !== undefined) return `+${Math.round(effect.battleGoldMultiplier * 100)}%`;
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
+    if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}`;
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
+    if (effect.extraStartingUnitTier !== undefined) return EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] || `Tier ${effect.extraStartingUnitTier}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenal !== undefined) return 'Random';
     if (effect.recruitRandomSkill) return '+1 random combat skill';
@@ -460,9 +469,10 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.goldBonus !== undefined) return 'Starting gold bonus';
     if (effect.battleGoldMultiplier !== undefined) return 'Battle gold bonus';
     if (effect.extraVulnerary !== undefined) return 'Starting Vulnerary';
-    if (effect.lootWeaponWeightBonus !== undefined) return 'Better weapon drops';
+    if (effect.lootWeaponQualityBonus !== undefined) return 'Higher chance for upgraded weapons';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
+    if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
