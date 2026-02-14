@@ -56,7 +56,7 @@
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
-    "might": 7,
+    "might": 5,
     "hit": 95,
     "crit": 35,
     "weight": 4,
