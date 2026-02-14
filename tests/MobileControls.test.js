@@ -319,6 +319,39 @@ describe('Overlay show/hide idempotency', () => {
   });
 });
 
+describe('Ghost-click double-fire prevention', () => {
+  const originalDocument = globalThis.document;
+  const originalScreen = globalThis.screen;
+
+  afterEach(() => {
+    globalThis.document = originalDocument;
+    globalThis.screen = originalScreen;
+  });
+
+  it('touch sequence (touchstart → touchend → click) fires handler exactly once', () => {
+    const events = createMockEvents();
+    const { documentMock, leftPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    const cancelBtn = leftPanel.children.find((c) => c.dataset.action === 'cancel');
+
+    let fireCount = 0;
+    events.on('mobile:cancel', () => { fireCount++; });
+
+    const evt = { preventDefault() {}, stopPropagation() {} };
+    cancelBtn.dispatch('touchstart', evt);
+    cancelBtn.dispatch('touchend', evt);
+    // Simulate ghost click arriving immediately after touchend
+    cancelBtn.dispatch('click', evt);
+
+    expect(fireCount).toBe(1);
+
+    controls.destroy();
+  });
+});
+
 describe('BattleScene refreshEndTurnControl mobile guard', () => {
   it('does not re-show canvas buttons when isMobileInput is true', () => {
     const scene = {
