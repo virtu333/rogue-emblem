@@ -116,7 +116,6 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
   'invalid_unlock_act_config',
   'invalid_input',
 ]);
-
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -150,6 +149,10 @@ export class BattleScene extends Phaser.Scene {
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
+    this._tutorialStrictGateReleased = !this.battleParams?.tutorialMode;
+    this._tutorialBlockingPromptActive = false;
+    this._tutorialEdricGuide = null;
+    this._tutorialFortGuide = null;
   }
 
   create() {
@@ -217,6 +220,7 @@ export class BattleScene extends Phaser.Scene {
       this.events.once('shutdown', () => {
         const audio = this.registry.get('audio');
         if (audio) audio.releaseMusic(this, 0);
+        this._clearTutorialGuideHighlights();
         this.cancelTouchInspectHold();
         this._hideMenuTooltip();
         this._restoreBattleRng();
@@ -481,12 +485,7 @@ export class BattleScene extends Phaser.Scene {
         skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
         skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
         skipBtn.on('pointerdown', () => {
-          const confirmed = (typeof window !== 'undefined' && typeof window.confirm === 'function')
-            ? window.confirm('Skip tutorial and return to title?')
-            : true;
-          if (!confirmed) return;
-          void transitionToScene(this, 'Title', { gameData: this.gameData },
-            { reason: TRANSITION_REASONS.BACK });
+          this._handleTutorialSkipRequested();
         });
       }
 
@@ -570,6 +569,9 @@ export class BattleScene extends Phaser.Scene {
         const key = this.isBoss
           ? getMusicKey('boss', act)
           : getMusicKey('battle', act);
+        if (this.battleParams?.tutorialMode) {
+          audio.releaseMusic(this, 0);
+        }
         audio.playMusic(key, this, 800);
       }
 
@@ -671,6 +673,103 @@ export class BattleScene extends Phaser.Scene {
 
   buildTutorialRoster() {
     return _buildTutorialRoster(this.gameData);
+  }
+
+  _isTutorialStrictGateActive() {
+    const step = Number(this.tutorialStep);
+    return Boolean(this.battleParams?.tutorialMode && !this._tutorialStrictGateReleased && Number.isFinite(step) && step >= 2);
+  }
+
+  _getTutorialEdricUnit() {
+    if (!Array.isArray(this.playerUnits)) return null;
+    return this.playerUnits.find((unit) => unit?.name === 'Edric') || null;
+  }
+
+  _getTutorialFortTile() {
+    const mapLayout = this.battleConfig?.mapLayout
+      || this.grid?.mapLayout
+      || this.buildTutorialBattleConfig?.()?.mapLayout
+      || null;
+    if (!Array.isArray(mapLayout)) return null;
+    for (let row = 0; row < mapLayout.length; row++) {
+      const rowData = mapLayout[row];
+      if (!Array.isArray(rowData)) continue;
+      for (let col = 0; col < rowData.length; col++) {
+        if (rowData[col] === TERRAIN.Fort) return { col, row };
+      }
+    }
+    return null;
+  }
+
+  async _showTutorialBlockingInstruction(text) {
+    if (this._tutorialBlockingPromptActive) return false;
+    this._tutorialBlockingPromptActive = true;
+    const prevState = this.battleState;
+    this.battleState = 'TUTORIAL_HINT';
+    try {
+      await showImportantHint(this, text);
+    } finally {
+      this._tutorialBlockingPromptActive = false;
+      if (this.scene?.isActive?.() && this.battleState === 'TUTORIAL_HINT') {
+        this.battleState = prevState;
+      }
+      this.refreshEndTurnControl();
+    }
+    return true;
+  }
+
+  _setTutorialGuideHighlight(mode) {
+    this._clearTutorialGuideHighlights();
+    if (!this.battleParams?.tutorialMode || !this.grid || !this.add) return;
+    const draw = (col, row, color) => {
+      const pos = this.grid.gridToPixel(col, row);
+      const marker = this.add.rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x000000, 0)
+        .setStrokeStyle(2, color, 1)
+        .setDepth(52);
+      if (!this._isReducedEffects()) {
+        this.tweens.add({
+          targets: marker,
+          alpha: { from: 0.45, to: 1 },
+          duration: 450,
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+      return marker;
+    };
+    if (mode === 'edric') {
+      const edric = this._getTutorialEdricUnit();
+      if (!edric) return;
+      this._tutorialEdricGuide = draw(edric.col, edric.row, 0x4aa3ff);
+      return;
+    }
+    if (mode === 'fort') {
+      const fort = this._getTutorialFortTile();
+      if (!fort) return;
+      this._tutorialFortGuide = draw(fort.col, fort.row, 0xffdd44);
+    }
+  }
+
+  _clearTutorialGuideHighlights() {
+    if (this._tutorialEdricGuide?.destroy) this._tutorialEdricGuide.destroy();
+    if (this._tutorialFortGuide?.destroy) this._tutorialFortGuide.destroy();
+    this._tutorialEdricGuide = null;
+    this._tutorialFortGuide = null;
+  }
+
+  _transitionTutorialToTitle(reason) {
+    const audio = this.registry.get('audio');
+    if (audio) audio.releaseMusic(this, 0);
+    return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason });
+  }
+
+  _handleTutorialSkipRequested() {
+    const confirmed = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+      ? window.confirm('Skip tutorial and return to title?')
+      : true;
+    if (!confirmed) return false;
+    void this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
+    return true;
   }
 
   withBattleSeed(seed, fn) {
@@ -2132,6 +2231,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   requestCancel({ allowPause = true } = {}) {
+    if (this._isTutorialStrictGateActive()) {
+      if (this.battleState !== 'TUTORIAL_HINT') {
+        void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
+      }
+      return true;
+    }
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
@@ -2355,6 +2460,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   forceEndTurn() {
+    if (this._isTutorialStrictGateActive()) {
+      if (this.battleState !== 'TUTORIAL_HINT') {
+        void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
+      }
+      return;
+    }
     if (!this.canForceEndTurn()) return;
     this.activatePendingVisionSnapshot();
     const audio = this.registry.get('audio');
@@ -2449,6 +2560,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleSelectedClick(gp) {
+    if (this._isTutorialStrictGateActive() && this.tutorialStep === 3) {
+      const fort = this._getTutorialFortTile();
+      const isFortTile = Boolean(fort && gp.col === fort.col && gp.row === fort.row);
+      const key = `${gp.col},${gp.row}`;
+      const canMoveToTile = Boolean(this.movementRange && this.movementRange.has(key));
+      if (!isFortTile || !canMoveToTile) {
+        void this._showTutorialBlockingInstruction('Move Edric to the highlighted Fort tile to continue.');
+        return;
+      }
+    }
+
     // Click own tile to stay in place -> show action menu
     if (gp.col === this.selectedUnit.col && gp.row === this.selectedUnit.row) {
       this.grid.clearHighlights();
@@ -2499,6 +2621,13 @@ export class BattleScene extends Phaser.Scene {
   // --- Unit selection & movement ---
 
   selectUnit(unit) {
+    if (this._isTutorialStrictGateActive() && this.tutorialStep === 2) {
+      const edric = this._getTutorialEdricUnit();
+      if (unit !== edric) {
+        void this._showTutorialBlockingInstruction('Select Edric first to continue the tutorial.');
+        return;
+      }
+    }
     if (this.turnManager?.currentPhase === 'player') {
       this.activatePendingVisionSnapshot();
     }
@@ -2520,11 +2649,12 @@ export class BattleScene extends Phaser.Scene {
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
 
     if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
+      this._setTutorialGuideHighlight('fort');
       this.tutorialStep = 3;
       const prevState = this.battleState;
       this.battleState = 'TUTORIAL_HINT';
       const verb = this.isMobileInput ? 'Tap' : 'Click';
-      showImportantHint(this, `${verb} a blue tile to move there.\nOr ${verb.toLowerCase()} your unit's tile to stay in place.`).then(() => {
+      showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`).then(() => {
         if (this.scene?.isActive?.()) this.battleState = 'UNIT_SELECTED';
       });
     }
@@ -2612,8 +2742,13 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
       this.tutorialStep = 4;
       this.battleState = 'TUTORIAL_HINT';
-      await showImportantHint(this, 'Choose an action:\n  Attack -- strike an adjacent enemy\n  Wait -- end this unit\'s turn\n  Items -- use a consumable');
+      this._clearTutorialGuideHighlights();
+      const infoHint = this.isMobileInput
+        ? 'Fort tile reached.\nCheck terrain in the top-left panel.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
+        : 'Fort tile reached.\nCheck terrain in the top-left panel.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
+      await showImportantHint(this, infoHint);
       if (!this.scene?.isActive?.()) return;
+      this._tutorialStrictGateReleased = true;
     }
     this.showActionMenu(unit);
   }
@@ -5490,6 +5625,7 @@ export class BattleScene extends Phaser.Scene {
           await showImportantHint(this, `${verb} a blue unit to select it.\nBlue tiles show where it can move.`);
           if (!this.scene?.isActive?.()) return;
           this.tutorialStep = 2;
+          this._setTutorialGuideHighlight('edric');
           this.battleState = prevState;
         });
       } else if (this.battleParams.tutorialMode) {
@@ -6064,8 +6200,7 @@ export class BattleScene extends Phaser.Scene {
         await showImportantHint(this, 'Victory! You\'ve completed the tutorial.\nYou\'re ready for a real run -- good luck!');
         if (!this.scene?.isActive?.()) return;
         try { localStorage.setItem('emblem_rogue_tutorial_completed', '1'); } catch (_) {}
-        transitionToScene(this, 'Title', { gameData: this.gameData },
-          { reason: TRANSITION_REASONS.BACK });
+        this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
       });
     } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);
@@ -7328,8 +7463,7 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1500, async () => {
         await showImportantHint(this, 'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.');
         if (!this.scene?.isActive?.()) return;
-        transitionToScene(this, 'Title', { gameData: this.gameData },
-          { reason: TRANSITION_REASONS.BACK });
+        this._transitionTutorialToTitle(TRANSITION_REASONS.BACK);
       });
     } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);

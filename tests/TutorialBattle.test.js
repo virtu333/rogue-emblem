@@ -28,6 +28,74 @@ import { transitionToScene } from '../src/utils/SceneRouter.js';
 
 const gameData = loadGameData();
 
+function makeGuideMarker() {
+  return {
+    setStrokeStyle() { return this; },
+    setDepth() { return this; },
+    destroy: vi.fn(),
+  };
+}
+
+function createTutorialGateScene({ isMobileInput = false } = {}) {
+  const scene = new BattleScene();
+  const edric = {
+    name: 'Edric',
+    faction: 'player',
+    hasActed: false,
+    col: 1,
+    row: 2,
+    mov: 5,
+    moveType: 'Infantry',
+    graphic: { setTint: vi.fn(), clearTint: vi.fn() },
+  };
+  const sera = {
+    name: 'Sera',
+    faction: 'player',
+    hasActed: false,
+    col: 1,
+    row: 4,
+    mov: 5,
+    moveType: 'Infantry',
+    graphic: { setTint: vi.fn(), clearTint: vi.fn() },
+  };
+  scene.battleParams = { tutorialMode: true };
+  scene.tutorialStep = 2;
+  scene._tutorialStrictGateReleased = false;
+  scene._tutorialBlockingPromptActive = false;
+  scene._tutorialEdricGuide = null;
+  scene._tutorialFortGuide = null;
+  scene.isMobileInput = isMobileInput;
+  scene.battleState = 'PLAYER_IDLE';
+  scene.scene = { isActive: () => true };
+  scene.turnManager = { currentPhase: 'player', endPlayerPhase: vi.fn() };
+  scene.activatePendingVisionSnapshot = vi.fn();
+  scene.refreshEndTurnControl = vi.fn();
+  scene.inspectionPanel = { hide: vi.fn(), visible: false };
+  scene.unitDetailOverlay = { visible: false, hide: vi.fn() };
+  scene.dangerZone = { hide: vi.fn() };
+  scene._clearSelectedWeaponArt = vi.fn();
+  scene.buildUnitPositionMap = vi.fn(() => new Map());
+  scene.showActionMenu = vi.fn();
+  scene.moveUnit = vi.fn();
+  scene._isReducedEffects = () => true;
+  scene.grid = {
+    cols: 8,
+    rows: 6,
+    fogEnabled: false,
+    clearHighlights: vi.fn(),
+    clearAttackHighlights: vi.fn(),
+    gridToPixel: (col, row) => ({ x: col * 16 + 8, y: row * 16 + 8 }),
+    getMovementRange: vi.fn(() => new Set(['3,3', '2,2'])),
+    showMovementRange: vi.fn(),
+  };
+  scene.add = {
+    rectangle: vi.fn(() => makeGuideMarker()),
+  };
+  scene.tweens = { add: vi.fn() };
+  scene.playerUnits = [edric, sera];
+  return { scene, edric, sera };
+}
+
 describe('TutorialBattle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,6 +158,15 @@ describe('TutorialBattle', () => {
       }
     });
 
+    it('exposes a Fort tile that matches tutorial gate target resolution', () => {
+      const scene = new BattleScene();
+      scene.battleParams = { tutorialMode: true };
+      scene.battleConfig = config;
+      const fort = BattleScene.prototype._getTutorialFortTile.call(scene);
+      expect(fort).not.toBeNull();
+      expect(config.mapLayout[fort.row][fort.col]).toBe(TERRAIN.Fort);
+    });
+
     it('has no npcSpawn or thronePos', () => {
       expect(config.npcSpawn).toBeNull();
       expect(config.thronePos).toBeNull();
@@ -143,6 +220,117 @@ describe('TutorialBattle', () => {
     });
   });
 
+  describe('tutorial strict gate', () => {
+    it('blocks non-Edric first selection and keeps step unchanged', async () => {
+      const { scene, sera } = createTutorialGateScene();
+      scene.getUnitAt = vi.fn(() => sera);
+
+      BattleScene.prototype.handleIdleClick.call(scene, { col: sera.col, row: sera.row });
+      await Promise.resolve();
+
+      expect(scene.tutorialStep).toBe(2);
+      expect(scene.selectedUnit).toBeUndefined();
+      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('Select Edric first'));
+    });
+
+    it('blocks first selection when Edric is missing from roster', async () => {
+      const { scene, sera } = createTutorialGateScene();
+      scene.playerUnits = [sera];
+      scene.getUnitAt = vi.fn(() => sera);
+
+      BattleScene.prototype.handleIdleClick.call(scene, { col: sera.col, row: sera.row });
+      await Promise.resolve();
+
+      expect(scene.tutorialStep).toBe(2);
+      expect(scene.selectedUnit).toBeUndefined();
+      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('Select Edric first'));
+    });
+
+    it('advances to Fort move gate after selecting Edric and swaps guide highlight', async () => {
+      const { scene, edric } = createTutorialGateScene();
+
+      BattleScene.prototype._setTutorialGuideHighlight.call(scene, 'edric');
+      const initialEdricGuide = scene._tutorialEdricGuide;
+      BattleScene.prototype.selectUnit.call(scene, edric);
+      await Promise.resolve();
+
+      expect(scene.tutorialStep).toBe(3);
+      expect(scene.selectedUnit).toBe(edric);
+      expect(initialEdricGuide.destroy).toHaveBeenCalledTimes(1);
+      expect(scene._tutorialEdricGuide).toBeNull();
+      expect(scene._tutorialFortGuide).not.toBeNull();
+      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('highlighted Fort tile'));
+    });
+
+    it('blocks non-Fort move attempts during Fort gate', async () => {
+      const { scene, edric } = createTutorialGateScene();
+      scene.tutorialStep = 3;
+      scene.selectedUnit = edric;
+      scene.movementRange = new Set(['3,3', '2,2']);
+
+      BattleScene.prototype.handleSelectedClick.call(scene, { col: 2, row: 2 });
+      await Promise.resolve();
+
+      expect(scene.moveUnit).not.toHaveBeenCalled();
+      expect(scene.tutorialStep).toBe(3);
+      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('highlighted Fort tile'));
+    });
+
+    it('post-Fort blocking hint includes required desktop guidance and gate releases after dismiss', async () => {
+      const { scene, edric } = createTutorialGateScene();
+      scene.tutorialStep = 3;
+      scene._setTutorialGuideHighlight('fort');
+      let resolveHint = null;
+      showImportantHint.mockImplementationOnce(() => new Promise((resolve) => {
+        resolveHint = resolve;
+      }));
+
+      const pending = BattleScene.prototype.afterMove.call(scene, edric);
+      const hintText = showImportantHint.mock.calls.at(-1)[1];
+
+      expect(hintText).toContain('top-left');
+      expect(hintText).toContain('Danger Zone');
+      expect(hintText).toContain('Right-click');
+      expect(hintText).toContain('[V]');
+      expect(scene._tutorialStrictGateReleased).toBe(false);
+      expect(scene._tutorialFortGuide).toBeNull();
+
+      resolveHint();
+      await pending;
+
+      expect(scene._tutorialStrictGateReleased).toBe(true);
+      expect(scene.showActionMenu).toHaveBeenCalledWith(edric);
+    });
+
+    it('post-Fort blocking hint includes required mobile inspect guidance', async () => {
+      const { scene, edric } = createTutorialGateScene({ isMobileInput: true });
+      scene.tutorialStep = 3;
+
+      await BattleScene.prototype.afterMove.call(scene, edric);
+      const hintText = showImportantHint.mock.calls.at(-1)[1];
+
+      expect(hintText).toContain('top-left');
+      expect(hintText).toContain('Danger Zone');
+      expect(hintText).toContain('Inspect');
+      expect(hintText).toContain('long-press');
+    });
+
+    it('blocks cancel and end-turn while strict gate is active', async () => {
+      const { scene, edric } = createTutorialGateScene();
+      scene.tutorialStep = 3;
+      scene.selectedUnit = edric;
+      scene.battleState = 'UNIT_SELECTED';
+
+      const canceled = BattleScene.prototype.requestCancel.call(scene, { allowPause: false });
+      BattleScene.prototype.forceEndTurn.call(scene);
+      await Promise.resolve();
+
+      expect(canceled).toBe(true);
+      expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('tutorial movement step'));
+    });
+  });
+
   describe('step-4 forecast hint blocks combat', () => {
     it('confirmForecastCombat is ignored while tutorial hint lock is active', () => {
       const scene = new BattleScene();
@@ -160,6 +348,37 @@ describe('TutorialBattle', () => {
   });
 
   describe('tutorial victory localStorage', () => {
+    it('skip confirm false does not transition', () => {
+      const scene = new BattleScene();
+      scene.gameData = {};
+      const audio = { playMusic: vi.fn(), releaseMusic: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+      vi.stubGlobal('window', { confirm: vi.fn(() => false) });
+
+      const transitioned = BattleScene.prototype._handleTutorialSkipRequested.call(scene);
+
+      expect(transitioned).toBe(false);
+      expect(window.confirm).toHaveBeenCalledWith('Skip tutorial and return to title?');
+      expect(audio.releaseMusic).not.toHaveBeenCalled();
+      expect(transitionToScene).not.toHaveBeenCalled();
+    });
+
+    it('skip confirm true transitions to Title with releaseMusic', () => {
+      const scene = new BattleScene();
+      scene.gameData = {};
+      const audio = { playMusic: vi.fn(), releaseMusic: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+      vi.stubGlobal('window', { confirm: vi.fn(() => true) });
+
+      const transitioned = BattleScene.prototype._handleTutorialSkipRequested.call(scene);
+
+      expect(transitioned).toBe(true);
+      expect(window.confirm).toHaveBeenCalledWith('Skip tutorial and return to title?');
+      expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
+      expect(transitionToScene).toHaveBeenCalledTimes(1);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
+    });
+
     it('onVictory writes tutorial completion flag and transitions to Title', async () => {
       const setItem = vi.fn();
       vi.stubGlobal('localStorage', { setItem });
@@ -167,7 +386,8 @@ describe('TutorialBattle', () => {
       const scene = new BattleScene();
       scene.battleState = 'PLAYER_IDLE';
       scene.battleParams = { tutorialMode: true };
-      scene.registry = { get: () => ({ playMusic: vi.fn() }) };
+      const audio = { playMusic: vi.fn(), releaseMusic: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
       scene.cameras = { main: { centerX: 320, centerY: 240 } };
       scene.add = {
         text: vi.fn(() => ({
@@ -190,6 +410,40 @@ describe('TutorialBattle', () => {
       expect(showImportantHint).toHaveBeenCalledTimes(1);
       expect(setItem).toHaveBeenCalledWith('emblem_rogue_tutorial_completed', '1');
       expect(transitionToScene).toHaveBeenCalledTimes(1);
+      expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
+    });
+
+    it('onDefeat tutorial path releases music before transition', async () => {
+      const scene = new BattleScene();
+      scene.battleState = 'PLAYER_IDLE';
+      scene.battleParams = { tutorialMode: true };
+      const audio = { playMusic: vi.fn(), releaseMusic: vi.fn() };
+      scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+      scene.cameras = { main: { centerX: 320, centerY: 240 } };
+      scene.add = {
+        text: vi.fn(() => ({
+          setOrigin() { return this; },
+          setDepth() { return this; },
+        })),
+      };
+      scene.clearInspectionVisuals = vi.fn();
+      scene.hideActionMenu = vi.fn();
+      const pending = [];
+      scene.time = {
+        delayedCall: vi.fn((_ms, cb) => {
+          pending.push(cb());
+        }),
+      };
+      scene.scene = { isActive: () => true };
+      scene.gameData = {};
+
+      BattleScene.prototype.onDefeat.call(scene);
+      await Promise.all(pending);
+
+      expect(transitionToScene).toHaveBeenCalledTimes(1);
+      expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
     });
   });
 });
