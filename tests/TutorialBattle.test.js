@@ -276,6 +276,20 @@ describe('TutorialBattle', () => {
       expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('highlighted Fort tile'));
     });
 
+    it('allows Fort move attempt during Fort gate', () => {
+      const { scene, edric } = createTutorialGateScene();
+      scene.tutorialStep = 3;
+      scene.selectedUnit = edric;
+      const fort = BattleScene.prototype._getTutorialFortTile.call(scene);
+      expect(fort).toBeTruthy();
+      scene.movementRange = new Set([`${fort.col},${fort.row}`]);
+
+      BattleScene.prototype.handleSelectedClick.call(scene, { col: fort.col, row: fort.row });
+
+      expect(scene.moveUnit).toHaveBeenCalledTimes(1);
+      expect(scene.moveUnit).toHaveBeenCalledWith(edric, fort.col, fort.row);
+    });
+
     it('post-Fort blocking hint includes required desktop guidance and gate releases after dismiss', async () => {
       const { scene, edric } = createTutorialGateScene();
       scene.tutorialStep = 3;

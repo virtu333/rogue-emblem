@@ -2744,8 +2744,8 @@ export class BattleScene extends Phaser.Scene {
       this.battleState = 'TUTORIAL_HINT';
       this._clearTutorialGuideHighlights();
       const infoHint = this.isMobileInput
-        ? 'Fort tile reached.\nCheck terrain in the top-left panel.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
-        : 'Fort tile reached.\nCheck terrain in the top-left panel.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
+        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
+        : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
       await showImportantHint(this, infoHint);
       if (!this.scene?.isActive?.()) return;
       this._tutorialStrictGateReleased = true;
