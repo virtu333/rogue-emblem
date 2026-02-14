@@ -784,7 +784,7 @@
   {
     "id": "starting_gold",
     "name": "War Chest",
-    "description": "+100 starting gold per level",
+    "description": "+500 starting gold per level",
     "category": "economy",
     "maxLevel": 3,
     "costs": [
@@ -794,13 +794,13 @@
     ],
     "effects": [
       {
-        "goldBonus": 100
+        "goldBonus": 500
       },
       {
-        "goldBonus": 200
+        "goldBonus": 1000
       },
       {
-        "goldBonus": 300
+        "goldBonus": 1500
       }
     ]
   },
@@ -979,6 +979,67 @@
       },
       {
         "extraStartingUnitTier": 4
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory",
+    "name": "Lethal Armory",
+    "description": "Recruits can gain one extra Steel weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      500
+    ],
+    "effects": [
+      {
+        "lethalArmoryTier": 1
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory_killer",
+    "name": "Lethal Armory II",
+    "description": "Recruits can also have a 25% chance at a Killer weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      900
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lethal_armory",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "lethalArmoryTier": 2
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory_silver",
+    "name": "Lethal Armory III",
+    "description": "Recruits can also have a 25% chance at a Silver weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      1400
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lethal_armory_killer",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "lethalArmoryTier": 3
       }
     ]
   },

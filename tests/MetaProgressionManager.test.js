@@ -296,7 +296,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.starting_vulnerary = 1;
     meta.purchasedUpgrades.loot_quality = 1;
     const effects = meta.getActiveEffects();
-    expect(effects.goldBonus).toBe(200);
+    expect(effects.goldBonus).toBe(1000);
     expect(effects.battleGoldMultiplier).toBe(0.2);
     expect(effects.extraVulnerary).toBe(1);
     expect(effects.lootWeaponQualityBonus).toBe(10);
