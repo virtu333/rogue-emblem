@@ -148,6 +148,8 @@ export class BattleScene extends Phaser.Scene {
     this._touchHoldTriggered = false;
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
+    this.appliedHybridOverrideTurns = new Set();
+    this.lastHybridOverrideResult = null;
   }
 
   create() {
@@ -971,6 +973,63 @@ export class BattleScene extends Phaser.Scene {
     }
 
     return { ...schedule, spawned };
+  }
+
+  applyDueHybridOverridesForTurn(turn) {
+    const normalizedTurn = Math.trunc(Number(turn) || 0);
+    const overrides = this.battleConfig?.phaseTerrainOverrides;
+    if (normalizedTurn <= 0 || !Array.isArray(overrides) || overrides.length === 0) {
+      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
+      this.lastHybridOverrideResult = none;
+      return none;
+    }
+
+    if (!(this.appliedHybridOverrideTurns instanceof Set)) {
+      this.appliedHybridOverrideTurns = new Set();
+    }
+
+    const dueOverrides = overrides.filter((entry) =>
+      Number.isInteger(entry?.turn)
+      && entry.turn === normalizedTurn
+      && !this.appliedHybridOverrideTurns.has(entry.turn)
+    );
+    if (dueOverrides.length === 0) {
+      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
+      this.lastHybridOverrideResult = none;
+      return none;
+    }
+
+    let changedTiles = 0;
+    const anchors = this.battleConfig?.hybridAnchors || {};
+    for (const entry of dueOverrides) {
+      if (!Array.isArray(entry?.setTiles)) continue;
+      for (const setTile of entry.setTiles) {
+        const target = Array.isArray(setTile?.coord)
+          ? { col: setTile.coord[0], row: setTile.coord[1] }
+          : anchors?.[setTile?.anchor];
+        if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
+        const terrainIndex = this.gameData.terrain.findIndex((terrain) => terrain?.name === setTile?.terrain);
+        if (terrainIndex < 0) continue;
+        const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
+        if (didSet) changedTiles++;
+      }
+      this.appliedHybridOverrideTurns.add(entry.turn);
+    }
+
+    if (changedTiles > 0) {
+      this.dangerZoneStale = true;
+      if (this.grid?.fogEnabled) this.updateEnemyVisibility();
+      this.updateObjectiveText();
+    }
+
+    const result = {
+      turn: normalizedTurn,
+      dueOverrides: dueOverrides.length,
+      appliedOverrides: dueOverrides.length,
+      changedTiles,
+    };
+    this.lastHybridOverrideResult = result;
+    return result;
   }
 
   showReinforcementBanner(spawnedCount) {
@@ -5471,6 +5530,7 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1400, async () => {
         await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
+        this.applyDueHybridOverridesForTurn(turn);
         this.applyReinforcementsForTurn(turn);
         this.startEnemyPhase();
       });

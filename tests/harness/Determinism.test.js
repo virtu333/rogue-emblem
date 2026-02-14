@@ -100,6 +100,8 @@ describe('Determinism', () => {
 
     expect(run1.resolvedTemplateId).toBe(ACT4_BOSS_INTENT_TEMPLATE_ID);
     expect(run2.resolvedTemplateId).toBe(ACT4_BOSS_INTENT_TEMPLATE_ID);
+    expect(run1.initialHash).toBe(run2.initialHash);
+    expect(run1.periodicSnapshots).toEqual(run2.periodicSnapshots);
     expect(run1.actions).toEqual(run2.actions);
     expect(run1.result).toBe(run2.result);
     expect(run1.failure).toEqual(run2.failure);
@@ -125,6 +127,8 @@ describe('Determinism', () => {
 
     expect(run1.resolvedTemplateId).toBe(ACT3_DARK_CHAMPION_TEMPLATE_ID);
     expect(run2.resolvedTemplateId).toBe(ACT3_DARK_CHAMPION_TEMPLATE_ID);
+    expect(run1.initialHash).toBe(run2.initialHash);
+    expect(run1.periodicSnapshots).toEqual(run2.periodicSnapshots);
     expect(run1.actions).toEqual(run2.actions);
     expect(run1.result).toBe(run2.result);
     expect(run1.failure).toEqual(run2.failure);

@@ -473,6 +473,35 @@
         "armored": 1.4,
         "mage": 1.2
       },
+      "hybridArena": {
+        "approachRect": [0, 0, 1, 1],
+        "arenaOrigin": [7, 0],
+        "arenaTiles": [
+          ["Plain", "Plain", "Plain", "Plain"],
+          ["Plain", "Plain", "Plain", "Plain"],
+          ["Plain", "Fort", "Plain", "Plain"]
+        ],
+        "anchors": {
+          "wave1_a": [8, 1],
+          "wave1_b": [9, 1],
+          "wave2_a": [10, 1]
+        }
+      },
+      "phaseTerrainOverrides": [
+        {
+          "turn": 2,
+          "setTiles": [
+            { "anchor": "wave1_a", "terrain": "Wall" },
+            { "coord": [8, 2], "terrain": "Wall" }
+          ]
+        },
+        {
+          "turn": 5,
+          "setTiles": [
+            { "anchor": "wave2_a", "terrain": "Wall" }
+          ]
+        }
+      ],
       "reinforcementContractVersion": 1,
       "reinforcements": {
         "spawnEdges": ["right", "top"],
@@ -482,15 +511,16 @@
             "turn": 2,
             "xpMultiplier": 0.85,
             "spawns": [
-              { "col": 1, "row": 1, "className": "Fighter", "level": 11, "aiMode": "guard" },
-              { "col": 2, "row": 1, "className": "Archer", "level": 11 }
+              { "col": 8, "row": 1, "className": "Fighter", "level": 11, "aiMode": "guard" },
+              { "col": 9, "row": 1, "className": "Archer", "level": 11 }
             ]
           },
           {
             "turn": 5,
             "xpMultiplier": 0.65,
             "spawns": [
-              { "col": 3, "row": 1, "className": "Knight", "level": 12, "sunderWeapon": true }
+              { "col": 10, "row": 1, "className": "Knight", "level": 12, "sunderWeapon": true },
+              { "col": 9, "row": 2, "className": "Archer", "level": 11, "aiMode": "guard" }
             ]
           }
         ],
@@ -540,6 +570,35 @@
         "knight": 1.3,
         "mage": 1.2
       },
+      "hybridArena": {
+        "approachRect": [0, 0, 1, 1],
+        "arenaOrigin": [6, 0],
+        "arenaTiles": [
+          ["Plain", "Plain", "Plain", "Plain"],
+          ["Plain", "Plain", "Plain", "Plain"],
+          ["Plain", "Fort", "Plain", "Plain"]
+        ],
+        "anchors": {
+          "wave1_a": [7, 1],
+          "wave1_b": [7, 2],
+          "wave2_a": [8, 1]
+        }
+      },
+      "phaseTerrainOverrides": [
+        {
+          "turn": 3,
+          "setTiles": [
+            { "anchor": "wave1_a", "terrain": "Wall" },
+            { "coord": [8, 2], "terrain": "Wall" }
+          ]
+        },
+        {
+          "turn": 6,
+          "setTiles": [
+            { "anchor": "wave2_a", "terrain": "Wall" }
+          ]
+        }
+      ],
       "reinforcementContractVersion": 1,
       "reinforcements": {
         "spawnEdges": ["right", "top"],
@@ -549,15 +608,16 @@
             "turn": 3,
             "xpMultiplier": 0.9,
             "spawns": [
-              { "col": 1, "row": 1, "className": "Fighter", "level": 9 },
-              { "col": 1, "row": 2, "className": "Mage", "level": 9, "aiMode": "guard" }
+              { "col": 7, "row": 1, "className": "Fighter", "level": 9 },
+              { "col": 7, "row": 2, "className": "Mage", "level": 9, "aiMode": "guard" }
             ]
           },
           {
             "turn": 6,
             "xpMultiplier": 0.7,
             "spawns": [
-              { "col": 2, "row": 1, "className": "Knight", "level": 10, "sunderWeapon": true }
+              { "col": 8, "row": 1, "className": "Knight", "level": 10, "sunderWeapon": true },
+              { "col": 9, "row": 2, "className": "Archer", "level": 10 }
             ]
           }
         ],

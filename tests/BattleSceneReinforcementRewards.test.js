@@ -54,4 +54,45 @@ describe('BattleScene reinforcement reward scaling', () => {
 
     expect(scene.goldEarned).toBe(Math.floor(calculateKillGold(enemy) * 0.5));
   });
+
+  it('enemy-phase flow applies hybrid overrides before reinforcements', async () => {
+    const scene = new BattleScene();
+    const order = [];
+
+    scene.showPhaseBanner = vi.fn();
+    scene.dangerZone = { hide: vi.fn() };
+    scene.updateAntiTurtlePressure = vi.fn();
+    scene.grid = {
+      tickTemporaryTerrains: vi.fn(),
+      fogEnabled: false,
+    };
+    scene.enemyUnits = [];
+    scene.refreshEndTurnControl = vi.fn();
+    scene.processTerrainDamage = vi.fn(async () => { order.push('terrainDamage'); });
+    scene.processTurnStartEffects = vi.fn(async () => { order.push('turnStartEffects'); });
+    scene.applyDueHybridOverridesForTurn = vi.fn((turn) => { order.push(`overrides:${turn}`); });
+    scene.applyReinforcementsForTurn = vi.fn((turn) => { order.push(`reinforcements:${turn}`); });
+    scene.startEnemyPhase = vi.fn(() => { order.push('startEnemyPhase'); });
+
+    let enemyPhaseCallback = null;
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        enemyPhaseCallback = cb;
+      }),
+    };
+
+    BattleScene.prototype.onPhaseChange.call(scene, 'enemy', 4);
+    expect(scene.time.delayedCall).toHaveBeenCalledTimes(1);
+    expect(typeof enemyPhaseCallback).toBe('function');
+
+    await enemyPhaseCallback();
+
+    expect(order).toEqual([
+      'terrainDamage',
+      'turnStartEffects',
+      'overrides:4',
+      'reinforcements:4',
+      'startEnemyPhase',
+    ]);
+  });
 });

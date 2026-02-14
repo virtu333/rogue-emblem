@@ -107,11 +107,15 @@ describe('HeadlessBattle', () => {
 
     battle.reinforcementTemplatePool = [{ className: '__stale__', level: 1 }];
     battle.lastReinforcementSchedule = { spawns: [{ col: 0, row: 0 }] };
+    battle.appliedHybridOverrideTurns = new Set([2]);
+    battle.lastHybridOverrideResult = { turn: 2, dueOverrides: 1, appliedOverrides: 1, changedTiles: 1 };
 
     battle.init();
 
     expect(battle.reinforcementTemplatePool).toBeNull();
     expect(battle.lastReinforcementSchedule).toBeNull();
+    expect(battle.appliedHybridOverrideTurns.size).toBe(0);
+    expect(battle.lastHybridOverrideResult).toBeNull();
     const rebuiltPool = battle._getReinforcementTemplatePool();
     expect(rebuiltPool.some((entry) => entry.className === '__stale__')).toBe(false);
   });
@@ -487,7 +491,10 @@ describe('HeadlessBattle', () => {
       };
       const battleA = new HeadlessBattle(gameData, params);
       const battleB = new HeadlessBattle(gameData, params);
+      const seedForInit = 24681357;
+      installSeed(seedForInit);
       battleA.init();
+      installSeed(seedForInit);
       battleB.init();
 
       const traceA = collectDueTrace(battleA);
@@ -496,6 +503,119 @@ describe('HeadlessBattle', () => {
       expect(traceA.length).toBeGreaterThan(0);
       expect(traceA.every((entry) => entry.dueWaves.every((wave) => wave.waveType === 'scripted'))).toBe(true);
       expect(traceA).toEqual(traceB);
+    }
+  });
+
+  it('applies due hybrid overrides before same-turn reinforcement scheduling', async () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+      battleSeed: 20260214,
+    });
+    battle.init();
+    battle.aiController.processEnemyPhase = async () => {};
+
+    const occupied = new Set(
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map((unit) => `${unit.col},${unit.row}`)
+    );
+    const passable = [];
+    for (let row = 0; row < battle.battleConfig.rows; row++) {
+      for (let col = 0; col < battle.battleConfig.cols; col++) {
+        if (occupied.has(`${col},${row}`)) continue;
+        const terrainIdx = battle.battleConfig.mapLayout[row][col];
+        const tile = gameData.terrain[terrainIdx];
+        if (tile?.moveCost?.Infantry !== '--') passable.push({ col, row });
+      }
+    }
+    expect(passable.length).toBeGreaterThan(2);
+    const blockedSpawn = passable[0];
+    const legalSpawn = passable[1];
+    const overrideTarget = blockedSpawn;
+    const wallTerrainIndex = gameData.terrain.findIndex((terrain) => terrain?.name === 'Wall');
+    expect(wallTerrainIndex).toBeGreaterThanOrEqual(0);
+
+    battle.battleConfig.phaseTerrainOverrides = [
+      {
+        turn: 2,
+        setTiles: [{ coord: [overrideTarget.col, overrideTarget.row], terrain: 'Wall' }],
+      },
+    ];
+    battle.battleConfig.reinforcements = {
+      spawnEdges: ['right'],
+      waves: [],
+      scriptedWaves: [
+        {
+          turn: 2,
+          xpMultiplier: 0.8,
+          spawns: [
+            { col: blockedSpawn.col, row: blockedSpawn.row, className: 'Fighter', level: 7 },
+            { col: legalSpawn.col, row: legalSpawn.row, className: 'Archer', level: 7 },
+          ],
+        },
+      ],
+      difficultyScaling: true,
+      turnOffsetByDifficulty: { normal: 0, hard: 0, lunatic: 0 },
+      xpDecay: [1.0],
+    };
+
+    const beforeSchedule = battle._resolveReinforcementsForTurn(2);
+    expect(beforeSchedule.spawns.length).toBe(2);
+
+    const beforeEnemyCount = battle.enemyUnits.length;
+    battle.turnManager.turnNumber = 2;
+    battle.turnManager.currentPhase = 'enemy';
+    battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    await battle._processEnemyPhase();
+
+    expect(battle.lastReinforcementSchedule?.dueWaves?.length || 0).toBe(1);
+    expect(battle.lastReinforcementSchedule?.spawns?.length || 0).toBe(1);
+    expect(battle.lastReinforcementSchedule?.blockedSpawns || 0).toBe(1);
+    expect(battle.enemyUnits.length).toBe(beforeEnemyCount + 1);
+    expect(battle.grid.mapLayout[overrideTarget.row][overrideTarget.col]).toBe(wallTerrainIndex);
+
+    const secondApply = battle._applyDueHybridOverridesForTurn(2);
+    expect(secondApply.appliedOverrides).toBe(0);
+  });
+
+  it('hybrid boss templates keep at least one baseline scripted spawn per wave after due overrides', () => {
+    const scenarios = [
+      { act: 'act4', templateId: ACT4_BOSS_INTENT_TEMPLATE_ID, row: 11 },
+      { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID, row: 7 },
+    ];
+
+    for (const scenario of scenarios) {
+      const battle = new HeadlessBattle(gameData, {
+        act: scenario.act,
+        objective: 'seize',
+        row: scenario.row,
+        templateId: scenario.templateId,
+        difficultyId: 'normal',
+        difficultyMod: 1.0,
+        battleSeed: 20260215,
+      });
+      battle.init();
+
+      battle.playerUnits = [];
+      battle.enemyUnits = [];
+      battle.npcUnits = [];
+
+      const scriptedWaves = battle.battleConfig?.reinforcements?.scriptedWaves || [];
+      expect(scriptedWaves.length).toBeGreaterThan(0);
+
+      for (let waveIndex = 0; waveIndex < scriptedWaves.length; waveIndex++) {
+        const wave = scriptedWaves[waveIndex];
+        const turn = wave.turn;
+        battle._applyDueHybridOverridesForTurn(turn);
+        const schedule = battle._resolveReinforcementsForTurn(turn);
+        const due = (schedule.dueWaves || []).find((entry) => entry.waveType === 'scripted' && entry.waveIndex === waveIndex);
+        expect(due).toBeTruthy();
+        if (due) {
+          expect(due.spawnedCount).toBeGreaterThanOrEqual(1);
+        }
+      }
     }
   });
 

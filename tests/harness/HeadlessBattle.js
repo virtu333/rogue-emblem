@@ -97,6 +97,8 @@ export class HeadlessBattle {
     this.currentEnemyPhaseAiStats = null;
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
+    this.appliedHybridOverrideTurns = new Set();
+    this.lastHybridOverrideResult = null;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -126,6 +128,8 @@ export class HeadlessBattle {
     this.currentEnemyPhaseAiStats = null;
     this.reinforcementTemplatePool = null;
     this.lastReinforcementSchedule = null;
+    this.appliedHybridOverrideTurns = new Set();
+    this.lastHybridOverrideResult = null;
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -698,6 +702,57 @@ export class HeadlessBattle {
     return { ...schedule, spawned };
   }
 
+  _applyDueHybridOverridesForTurn(turn) {
+    const normalizedTurn = Math.trunc(Number(turn) || 0);
+    const overrides = this.battleConfig?.phaseTerrainOverrides;
+    if (normalizedTurn <= 0 || !Array.isArray(overrides) || overrides.length === 0) {
+      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
+      this.lastHybridOverrideResult = none;
+      return none;
+    }
+
+    if (!(this.appliedHybridOverrideTurns instanceof Set)) {
+      this.appliedHybridOverrideTurns = new Set();
+    }
+
+    const dueOverrides = overrides.filter((entry) =>
+      Number.isInteger(entry?.turn)
+      && entry.turn === normalizedTurn
+      && !this.appliedHybridOverrideTurns.has(entry.turn)
+    );
+    if (dueOverrides.length === 0) {
+      const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
+      this.lastHybridOverrideResult = none;
+      return none;
+    }
+
+    let changedTiles = 0;
+    const anchors = this.battleConfig?.hybridAnchors || {};
+    for (const entry of dueOverrides) {
+      if (!Array.isArray(entry?.setTiles)) continue;
+      for (const setTile of entry.setTiles) {
+        const target = Array.isArray(setTile?.coord)
+          ? { col: setTile.coord[0], row: setTile.coord[1] }
+          : anchors?.[setTile?.anchor];
+        if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
+        const terrainIndex = this.gameData.terrain.findIndex((terrain) => terrain?.name === setTile?.terrain);
+        if (terrainIndex < 0) continue;
+        const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
+        if (didSet) changedTiles++;
+      }
+      this.appliedHybridOverrideTurns.add(entry.turn);
+    }
+
+    const result = {
+      turn: normalizedTurn,
+      dueOverrides: dueOverrides.length,
+      appliedOverrides: dueOverrides.length,
+      changedTiles,
+    };
+    this.lastHybridOverrideResult = result;
+    return result;
+  }
+
   _onPhaseChange(phase, turn) {
     if (phase === 'player') {
       for (const u of this.playerUnits) {
@@ -1039,6 +1094,7 @@ export class HeadlessBattle {
 
   async _processEnemyPhase() {
     this._processTurnStartEffects(this.enemyUnits);
+    this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
     this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
     this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
     try {

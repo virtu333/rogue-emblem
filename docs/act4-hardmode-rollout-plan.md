@@ -2,7 +2,7 @@
 
 Date: 2026-02-13  
 Owner: gameplay roadmap stream  
-Status: Phase 3 shipped; Phase 4 reinforcement integration in progress
+Status: Phase 3 shipped; Phase 4 reinforcement + hybrid boss-arena slices shipped
 
 ## Goal
 

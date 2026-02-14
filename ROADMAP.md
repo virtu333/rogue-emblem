@@ -313,7 +313,7 @@ QA evidence (Feb 12, 2026):
 8. ~~**Wave 2 Low-Risk Content**~~ [done] Enemy affixes + recruit naming scaffold
 9. ~~**Wave 3B**~~ [done] Convoy MVP -> ~~**Wave 3A**~~ [done] Wyvern foundation (reclass deferred)
 10. ~~**Wave 4**~~ [done] Weapon Arts phases 1-2 (39 of 67 arts, stat-scaling, magic catalog, tactical-depth)
-11. **Act 4 Hard-Mode Acceleration** — Phase 1/2/3 shipped; Phase 4 reinforcement integration in progress. See `docs/act4-hardmode-rollout-plan.md`
+11. **Act 4 Hard-Mode Acceleration** — Phase 1/2/3 shipped; Phase 4 reinforcement + hybrid boss-arena slices shipped. See `docs/act4-hardmode-rollout-plan.md`
 12. **Dynamic Recruit Nodes** — Roster-aware recruit frequency (after Act 4)
 13. **Difficulty Follow-up (Part B+)** -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion
 

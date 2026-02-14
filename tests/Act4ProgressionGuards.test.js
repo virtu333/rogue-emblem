@@ -95,6 +95,12 @@ describe('Act4 progression guards', () => {
       expect(template).toBeDefined();
       expect(template.acts).toEqual([entry.act]);
       expect(template.bossOnly).toBe(true);
+      expect(template.hybridArena).toBeDefined();
+      expect(Array.isArray(template.hybridArena?.approachRect)).toBe(true);
+      expect(Array.isArray(template.hybridArena?.arenaTiles)).toBe(true);
+      expect(template.hybridArena?.anchors).toBeDefined();
+      expect(Array.isArray(template.phaseTerrainOverrides)).toBe(true);
+      expect(template.phaseTerrainOverrides.length).toBeGreaterThan(0);
       expect(template.reinforcementContractVersion).toBe(1);
       expect(Array.isArray(template.reinforcements.waves)).toBe(true);
       expect(template.reinforcements.waves.length).toBe(0);
