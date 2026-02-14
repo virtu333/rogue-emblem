@@ -4,6 +4,7 @@
 **Scope:** Hard/Lunatic difficulty modes, Act 4, Secret Act, extended leveling, new enemies, terrain hazards, narrative scaffold
 **Structure:** Part A covers foundation systems (Hard mode, modifiers, leveling) shippable independently. Part B covers expansion content (Lunatic, Act 4, Secret Act, new enemies) requiring terrain hazards and map objectives as prerequisites.
 **Later (out of scope for this spec):** Endless mode, Lunatic+, detailed new enemy/weapon designs, full meta-progression sink expansion
+**Related narrative scaffold spec:** `docs/specs/light_story_scaffold_spec.md`
 
 ## Implementation Snapshot On `main` (Feb 11, 2026)
 
@@ -650,6 +651,7 @@ When a revived zombie is killed again, the combat results should show "0 XP" wit
 **Phase F — Story & Polish (2-3 days):**
 - [ ] `data/dialogue.json` — per-difficulty transition text, per-lord variants
 - [ ] Story scene overlay (portrait + text box, skip button)
+- [ ] Implement against `docs/specs/light_story_scaffold_spec.md` contract and trigger set
 - [ ] Difficulty badge on RunCompleteScene
 - [ ] Unlock conditions enforcement (clear Normal → unlock Hard, etc.)
 - [ ] Unlock notification/celebration when new difficulty is earned

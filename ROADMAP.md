@@ -191,8 +191,8 @@ QA evidence (Feb 12, 2026):
 - [ ] Defer Cracked Floor/Pit/Rift Portal and Quicksand to later extension scope
 
 #### 9B: Boss Arena Features
-- [ ] Add fixed-boss map contract scaffolding (procedural reinforcements remain generic)
-- [ ] Keep fixed boss encounters as explicit exception to generic reinforcement contract
+- [x] Add fixed-boss map contract scaffolding (`hybridArena`, `phaseTerrainOverrides`)
+- [x] Keep fixed boss encounters as explicit exception path via scripted reinforcements through shared scheduler APIs
 
 **Success Criteria:**
 - [x] Terrain hazards create tactical decisions (risk damage for shortcut?)
@@ -259,7 +259,7 @@ QA evidence (Feb 12, 2026):
 - **Additional Biomes** - Castle/fortress, cave/dungeon, forest, volcanic, tundra biomes beyond grassland. Map generator takes biome parameter
 - **Narrative & Dialogue** - Brief dialogue at rest/recruitment/boss events. Simple text box with speaker portrait, no VN engine
 - **Difficulty Modes** - Normal/Hard/Lunatic modifier layers, currency multiplier (Valor + Supply), Act 4, Secret Act, extended leveling, new enemies (Zombies/Dragons), status staves. Full spec: `docs/specs/difficulty_spec.md`. Foundation (modifier layer) ships early; content (Act 4+) ships after objectives/terrain waves.
-- **Story Scaffold** - Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`
+- **Story Scaffold** - Light narrative: per-Lord motivation, recruitment dialogue, boss encounter lines. Data in `dialogue.json`. Spec: `docs/specs/light_story_scaffold_spec.md`
 - **Campaign System** - Multiple campaigns with different biome progressions, boss rosters, enemy pools. Campaign = JSON config
 - **Additional Lords** - Kira, Voss, Sera playable (data exists in lords.json). Lord selection at run start
 - **Special Characters** - Named units with fixed growths and personal skills, unlocked via meta-progression
