@@ -698,7 +698,7 @@ export class TitleScene extends Phaser.Scene {
     }).setDepth(30);
 
     // Desktop notice
-    this.add.text(W / 2, H - 56, 'Best played on desktop | Not optimized for mobile', {
+    this.add.text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
       fontFamily: FONT, fontSize: '9px', color: 'rgba(100,100,120,0.4)',
     }).setOrigin(0.5, 0).setDepth(30);
 
