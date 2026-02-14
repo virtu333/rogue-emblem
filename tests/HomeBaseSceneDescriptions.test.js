@@ -46,4 +46,12 @@ describe('HomeBaseScene upgrade description helpers', () => {
     expect(scene._formatEffectValue({ extraStartingUnitTier: 4 })).toBe('Archer/Knight/Cavalier/Paladin');
     expect(scene._formatEffectValue({ extraStartingUnitTier: 9 })).toBe('Tier 9');
   });
+
+  it('formats and describes lethal armory upgrades', () => {
+    const scene = new HomeBaseScene();
+
+    expect(scene._getActionDesc({ effects: [{ lethalArmoryTier: 1 }] })).toBe('Recruits can gain extra weapons');
+    expect(scene._formatEffectValue({ lethalArmoryTier: 2 })).toBe('Tier 2');
+    expect(scene._formatEffectValue({ lethalArmoryTier: 3 })).toBe('Tier 3');
+  });
 });

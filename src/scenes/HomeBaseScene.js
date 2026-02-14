@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
-import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY } from '../utils/constants.js';
+import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY, REFUND_FEE } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
@@ -57,6 +57,8 @@ export class HomeBaseScene extends Phaser.Scene {
     if (audio) audio.playMusic(MUSIC.homeBase, this);
 
     this.events.once('shutdown', () => {
+      this.refundMode = false;
+      this._hideRefundConfirm();
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
     });
@@ -68,6 +70,8 @@ export class HomeBaseScene extends Phaser.Scene {
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
+    this.refundMode = false;
+    this.confirmOverlayObjects = [];
 
     this.input.keyboard.on('keydown-ESC', () => {
       this.requestCancel({ allowExit: true });
@@ -102,6 +106,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this._prereqTooltip.destroy();
       this._prereqTooltip = null;
     }
+    this._hideRefundConfirm();
     this.children.removeAll(true);
 
     const w = this.cameras.main.width;
@@ -114,6 +119,12 @@ export class HomeBaseScene extends Phaser.Scene {
     this.drawHeader();
     this.drawTabs();
     this.drawBottomButtons();
+
+    if (this.refundMode) {
+      this.add.text(w / 2, TAB_CONTENT_BOTTOM_Y + 4, '-- REFUND MODE: Select an upgrade to refund --', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#cc8844',
+      }).setOrigin(0.5, 0).setDepth(911);
+    }
   }
 
   drawHeader() {
@@ -303,7 +314,11 @@ export class HomeBaseScene extends Phaser.Scene {
       });
 
       this._drawValueText(valuesX, y, current, next, maxed);
-      this._drawCostButton(costX, y, upgrade, maxed, affordable);
+      if (this.refundMode) {
+        this._drawRefundButton(costX, y, upgrade);
+      } else {
+        this._drawCostButton(costX, y, upgrade, maxed, affordable);
+      }
     } else {
       // Named row: [Name] [Bar] [Current → Next] [Cost]
       //            [Description below]
@@ -324,7 +339,11 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '9px', color: '#666666',
       });
 
-      this._drawCostButton(costX, y, upgrade, maxed, affordable);
+      if (this.refundMode) {
+        this._drawRefundButton(costX, y, upgrade);
+      } else {
+        this._drawCostButton(costX, y, upgrade, maxed, affordable);
+      }
     }
   }
 
@@ -415,10 +434,11 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.battleGoldMultiplier !== undefined) return `+${Math.round(effect.battleGoldMultiplier * 100)}%`;
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
     if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
-    if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}`;
+    if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.extraStartingUnitTier !== undefined) return EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] || `Tier ${effect.extraStartingUnitTier}`;
+    if (effect.lethalArmoryTier !== undefined) return `Tier ${effect.lethalArmoryTier}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenal !== undefined) return 'Random';
     if (effect.recruitRandomSkill) return '+1 random combat skill';
@@ -473,6 +493,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
+    if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenal !== undefined) return 'Random Silver/Killer/Brave/Legend weapon';
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
@@ -625,8 +646,14 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '9px', color: '#666666',
       });
 
-      // Cost / Unlocked
-      if (maxed) {
+      // Cost / Unlocked / Refund
+      if (this.refundMode) {
+        if (maxed) {
+          this._drawRefundButton(costX, y, upgrade);
+        } else {
+          this._drawRefundButton(costX, y, upgrade);
+        }
+      } else if (maxed) {
         this.add.text(costX, y, 'UNLOCKED', {
           fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
         });
@@ -728,7 +755,39 @@ export class HomeBaseScene extends Phaser.Scene {
     const cx = this.cameras.main.centerX;
     const btnY = 440;
 
-    const beginBtn = this.add.text(cx - 100, btnY, '[ Begin Run ]', {
+    // Refund button — label is currency-neutral; per-row buttons show V/S
+    const canRefundAnything = this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;
+
+    if (this.refundMode) {
+      const cancelRefundBtn = this.add.text(cx - 260, btnY, '[ Cancel Refund ]', {
+        fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
+        backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      cancelRefundBtn.on('pointerover', () => cancelRefundBtn.setColor('#ffffff'));
+      cancelRefundBtn.on('pointerout', () => cancelRefundBtn.setColor('#ffdd44'));
+      cancelRefundBtn.on('pointerdown', () => {
+        this.refundMode = false;
+        this.drawUI();
+      });
+    } else {
+      const refundColor = canRefundAnything ? '#cc8844' : '#555555';
+      const refundBtn = this.add.text(cx - 260, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
+        fontFamily: 'monospace', fontSize: '14px', color: refundColor,
+        backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
+      }).setOrigin(0.5);
+      if (canRefundAnything) {
+        refundBtn.setInteractive({ useHandCursor: true });
+        refundBtn.on('pointerover', () => refundBtn.setColor('#ffdd44'));
+        refundBtn.on('pointerout', () => refundBtn.setColor(refundColor));
+        refundBtn.on('pointerdown', () => {
+          this.refundMode = true;
+          this.drawUI();
+        });
+      }
+    }
+
+    // Begin Run button
+    const beginBtn = this.add.text(cx - 80, btnY, '[ Begin Run ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -739,7 +798,8 @@ export class HomeBaseScene extends Phaser.Scene {
       await this.runTransition(() => transitionToScene(this, 'DifficultySelect', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BEGIN_RUN }));
     });
 
-    const backBtn = this.add.text(cx + 100, btnY, '[ Back to Title ]', {
+    // Back to Title button
+    const backBtn = this.add.text(cx + 120, btnY, '[ Back to Title ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -929,7 +989,123 @@ export class HomeBaseScene extends Phaser.Scene {
     );
   }
 
+  _drawRefundButton(x, y, upgrade) {
+    const level = this.meta.getUpgradeLevel(upgrade.id);
+    if (level <= 0) {
+      this.add.text(x, y, '---', {
+        fontFamily: 'monospace', fontSize: '11px', color: '#444444',
+      });
+      return;
+    }
+
+    const check = this.meta.canRefund(upgrade.id);
+    if (!check.success) {
+      const reason = check.reason === 'blocked_by_dependent' ? 'BLOCKED'
+        : check.reason === 'insufficient_fee' ? 'NO FEE' : 'BLOCKED';
+      const blockText = this.add.text(x, y, reason, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#aa4444',
+        backgroundColor: '#221111', padding: { x: 6, y: 2 },
+      }).setInteractive();
+
+      blockText.on('pointerover', () => {
+        const tipMsg = check.detail || check.reason;
+        this._prereqTooltip = this.add.text(x - 120, y + 18, tipMsg, {
+          fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
+          backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
+          wordWrap: { width: 200 },
+        }).setDepth(950);
+      });
+      blockText.on('pointerout', () => {
+        if (this._prereqTooltip) {
+          this._prereqTooltip.destroy();
+          this._prereqTooltip = null;
+        }
+      });
+      return;
+    }
+
+    const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
+    const suffix = currency === 'valor' ? 'V' : 'S';
+    const tierCost = check.refundAmount;
+    const btn = this.add.text(x, y, `[-1] +${tierCost}${suffix}`, {
+      fontFamily: 'monospace', fontSize: '11px', color: '#cc8844',
+      backgroundColor: '#332211', padding: { x: 6, y: 2 },
+    }).setInteractive({ useHandCursor: true });
+
+    btn.on('pointerover', () => btn.setColor('#ffdd44'));
+    btn.on('pointerout', () => btn.setColor('#cc8844'));
+    btn.on('pointerdown', () => {
+      this._showRefundConfirm(upgrade, level, tierCost, currency);
+    });
+  }
+
+  _showRefundConfirm(upgrade, level, tierCost, currency) {
+    this._hideRefundConfirm();
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+    const suffix = currency === 'valor' ? 'V' : 'S';
+
+    // Full-screen blocker
+    const blocker = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6)
+      .setDepth(850).setInteractive();
+    this.confirmOverlayObjects.push(blocker);
+
+    // Panel
+    const panelW = 360;
+    const panelH = 100;
+    const panel = this.add.rectangle(w / 2, h / 2, panelW, panelH, 0x111122, 0.95)
+      .setStrokeStyle(2, 0xcc8844).setDepth(851);
+    this.confirmOverlayObjects.push(panel);
+
+    // Message
+    const msg = this.add.text(w / 2, h / 2 - 24,
+      `Refund ${upgrade.name} tier ${level}?\nGet back ${tierCost}${suffix} (fee: ${REFUND_FEE}${suffix})`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#dddddd',
+        align: 'center',
+      }).setOrigin(0.5).setDepth(851);
+    this.confirmOverlayObjects.push(msg);
+
+    // Refund button
+    const confirmBtn = this.add.text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#cc8844',
+      backgroundColor: '#332211', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
+    confirmBtn.on('pointerout', () => confirmBtn.setColor('#cc8844'));
+    confirmBtn.on('pointerdown', () => {
+      const result = this.meta.refundUpgrade(upgrade.id);
+      if (result.success) {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        this.refundMode = false;
+        this.drawUI();
+      }
+    });
+    this.confirmOverlayObjects.push(confirmBtn);
+
+    // Cancel button
+    const cancelBtn = this.add.text(w / 2 + 60, h / 2 + 20, '[ Cancel ]', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#aaaaaa',
+      backgroundColor: '#222222', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffffff'));
+    cancelBtn.on('pointerout', () => cancelBtn.setColor('#aaaaaa'));
+    cancelBtn.on('pointerdown', () => {
+      this._hideRefundConfirm();
+    });
+    this.confirmOverlayObjects.push(cancelBtn);
+  }
+
+  _hideRefundConfirm() {
+    for (const obj of this.confirmOverlayObjects) {
+      if (obj && typeof obj.destroy === 'function') obj.destroy();
+    }
+    this.confirmOverlayObjects = [];
+  }
+
   canRequestCancel({ allowExit = true } = {}) {
+    if (this.confirmOverlayObjects.length > 0) return true;
+    if (this.refundMode) return true;
     if (this._skillPickerObjects) return true;
     if (allowExit) return true;
     return false;
@@ -937,6 +1113,15 @@ export class HomeBaseScene extends Phaser.Scene {
 
   requestCancel({ allowExit = true } = {}) {
     if (!this.canRequestCancel({ allowExit })) return false;
+    if (this.confirmOverlayObjects.length > 0) {
+      this._hideRefundConfirm();
+      return true;
+    }
+    if (this.refundMode) {
+      this.refundMode = false;
+      this.drawUI();
+      return true;
+    }
     if (this._skillPickerObjects) {
       this._destroySkillPicker();
       return true;

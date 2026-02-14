@@ -302,17 +302,38 @@ describe('MetaProgressionManager', () => {
     expect(effects.lootWeaponQualityBonus).toBe(10);
   });
 
+  it('maps legacy lootWeaponWeightBonus into lootWeaponQualityBonus', () => {
+    const legacyUpgrades = [
+      {
+        id: 'legacy_loot_quality',
+        name: 'Legacy Loot Quality',
+        category: 'economy',
+        maxLevel: 1,
+        effects: [{ lootWeaponWeightBonus: 15 }],
+        costs: [1],
+      },
+    ];
+    const meta = new MetaProgressionManager(legacyUpgrades);
+    meta.purchasedUpgrades.legacy_loot_quality = 1;
+    const effects = meta.getActiveEffects();
+    expect(effects.lootWeaponQualityBonus).toBe(15);
+  });
+
   it('getActiveEffects returns capacity effects', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.deploy_limit = 1;
     meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
     meta.purchasedUpgrades.extra_starting_unit_pool = 3;
+    meta.purchasedUpgrades.lethal_armory = 1;
+    meta.purchasedUpgrades.lethal_armory_killer = 1;
+    meta.purchasedUpgrades.lethal_armory_silver = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
     expect(effects.rosterCapBonus).toBe(2);
     expect(effects.visionChargesBonus).toBe(1);
     expect(effects.extraStartingUnitTier).toBe(3);
+    expect(effects.lethalArmoryTier).toBe(3);
   });
 
   it('vision_charges_3 overrides vision bonus to 2 when purchased', () => {
@@ -336,6 +357,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.rosterCapBonus).toBe(0);
     expect(effects.visionChargesBonus).toBe(0);
     expect(effects.extraStartingUnitTier).toBe(0);
+    expect(effects.lethalArmoryTier).toBe(0);
   });
 
   it('starts with 0 runsCompleted', () => {
@@ -421,8 +443,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 47 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(47);
+  it('has 50 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(50);
   });
 
   it('has correct category distribution', () => {
@@ -433,7 +455,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(4);
-    expect(byCategory.capacity).toBe(6);
+    expect(byCategory.capacity).toBe(9);
     expect(byCategory.starting_equipment).toBe(6);
     expect(byCategory.starting_skills).toBe(9);
   });
@@ -857,6 +879,197 @@ describe('MetaProgressionManager', () => {
     const info = meta2.getPrerequisiteInfo('test_beatgame');
     expect(info.met).toBe(false);
     expect(info.missing).toContain('Beat the Game');
+  });
+
+  // --- Refund methods ---
+
+  describe('getDependentUpgrades', () => {
+    it('returns correct dependent for recruit_hp_growth → recruit_hp_flat', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const deps = meta.getDependentUpgrades('recruit_hp_growth');
+      expect(deps.length).toBeGreaterThanOrEqual(1);
+      const flat = deps.find(d => d.id === 'recruit_hp_flat');
+      expect(flat).toBeTruthy();
+      expect(flat.requiredLevel).toBe(3);
+    });
+
+    it('returns empty array for upgrade with no dependents', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const deps = meta.getDependentUpgrades('deploy_limit');
+      expect(deps).toEqual([]);
+    });
+
+    it('returns correct dependent for vision_charges_2 → vision_charges_3', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const deps = meta.getDependentUpgrades('vision_charges_2');
+      const vc3 = deps.find(d => d.id === 'vision_charges_3');
+      expect(vc3).toBeTruthy();
+      expect(vc3.requiredLevel).toBe(1);
+    });
+  });
+
+  describe('canRefund', () => {
+    it('returns not_purchased for level 0', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const result = meta.canRefund('recruit_hp_growth');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('not_purchased');
+    });
+
+    it('returns insufficient_fee when balance < 20', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.purchasedUpgrades.recruit_hp_growth = 1;
+      meta.totalSupply = 10; // below REFUND_FEE of 20
+      const result = meta.canRefund('recruit_hp_growth');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('insufficient_fee');
+    });
+
+    it('returns success with refundAmount and refundFee for valid refund', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.purchasedUpgrades.recruit_hp_growth = 2;
+      meta.totalSupply = 100;
+      const result = meta.canRefund('recruit_hp_growth');
+      expect(result.success).toBe(true);
+      const upgrade = getUpgrade('recruit_hp_growth');
+      expect(result.refundAmount).toBe(upgrade.costs[1]);
+      expect(result.refundFee).toBe(20);
+    });
+
+    it('returns unknown_upgrade for nonexistent id', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const result = meta.canRefund('nonexistent');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('unknown_upgrade');
+    });
+  });
+
+  describe('refundUpgrade', () => {
+    it('happy path: refunds tier and returns correct shape', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const upgrade = getUpgrade('recruit_hp_growth');
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.recruit_hp_growth = 2;
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(true);
+      expect(result.refundAmount).toBe(upgrade.costs[1]);
+      expect(result.refundFee).toBe(20);
+      expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(1);
+    });
+
+    it('net currency correct: balance = original - 20 + tierCost', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const upgrade = getUpgrade('recruit_hp_growth');
+      const tierCost = upgrade.costs[0]; // cost of tier 1
+      meta.totalSupply = 100;
+      meta.purchasedUpgrades.recruit_hp_growth = 1;
+      meta.refundUpgrade('recruit_hp_growth');
+      expect(meta.getTotalSupply()).toBe(100 - 20 + tierCost);
+    });
+
+    it('fee deducted from valor for lord upgrades', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      const upgrade = getUpgrade('lord_hp_growth');
+      const tierCost = upgrade.costs[0];
+      meta.totalValor = 100;
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.lord_hp_growth = 1;
+      meta.refundUpgrade('lord_hp_growth');
+      expect(meta.getTotalValor()).toBe(100 - 20 + tierCost);
+      expect(meta.getTotalSupply()).toBe(500); // supply unchanged
+    });
+
+    it('returns not_purchased when level 0', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('not_purchased');
+    });
+
+    it('returns insufficient_fee when balance < 20, no side effects', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.purchasedUpgrades.recruit_hp_growth = 2;
+      meta.totalSupply = 10;
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('insufficient_fee');
+      expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(2);
+      expect(meta.getTotalSupply()).toBe(10);
+    });
+
+    it('returns blocked_by_dependent when dependent would break', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.recruit_hp_growth = 3;
+      meta.purchasedUpgrades.recruit_hp_flat = 1; // requires growth lv3
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('blocked_by_dependent');
+      expect(result.detail).toContain('requires this at Lv3');
+    });
+
+    it('allowed when level is above dependent required level', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.recruit_hp_growth = 4;
+      meta.purchasedUpgrades.recruit_hp_flat = 1; // requires growth lv3
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(true);
+      expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(3);
+    });
+
+    it('allowed when dependent has level 0 (not purchased)', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.recruit_hp_growth = 3;
+      // recruit_hp_flat NOT purchased
+      const result = meta.refundUpgrade('recruit_hp_growth');
+      expect(result.success).toBe(true);
+      expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(2);
+    });
+
+    it('multi-lord skill unassign on skill unlock refund', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalValor = 500;
+      meta.purchasedUpgrades.unlock_sol = 1;
+      meta.skillAssignments = { Edric: ['sol'], Sera: ['sol'] };
+      const result = meta.refundUpgrade('unlock_sol');
+      expect(result.success).toBe(true);
+      expect(meta.getUpgradeLevel('unlock_sol')).toBe(0);
+      expect(meta.getSkillAssignments().Edric).toBeUndefined();
+      expect(meta.getSkillAssignments().Sera).toBeUndefined();
+    });
+
+    it('persists to localStorage', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.recruit_hp_growth = 2;
+      meta.refundUpgrade('recruit_hp_growth');
+      const saved = JSON.parse(store['emblem_rogue_meta_save']);
+      expect(saved.purchasedUpgrades.recruit_hp_growth).toBe(1);
+    });
+
+    it('chain blocks: vision_charges_2 blocked by vision_charges_3', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalSupply = 500;
+      meta.purchasedUpgrades.vision_charges_2 = 1;
+      meta.purchasedUpgrades.vision_charges_3 = 1;
+      meta.recordMilestone('beatAct2');
+      const result = meta.refundUpgrade('vision_charges_2');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('blocked_by_dependent');
+    });
+
+    it('chain blocks: iron_arms blocked by steel_arms', () => {
+      const meta = new MetaProgressionManager(upgradesData);
+      meta.totalValor = 500;
+      meta.purchasedUpgrades.iron_arms = 1;
+      meta.purchasedUpgrades.steel_arms = 1;
+      const result = meta.refundUpgrade('iron_arms');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('blocked_by_dependent');
+    });
   });
 });
 

@@ -4,7 +4,7 @@
 import {
   VALOR_PER_ACT, VALOR_PER_BATTLE, VALOR_VICTORY_BONUS,
   SUPPLY_PER_ACT, SUPPLY_PER_BATTLE, SUPPLY_VICTORY_BONUS,
-  CATEGORY_CURRENCY, MAX_STARTING_SKILLS
+  CATEGORY_CURRENCY, MAX_STARTING_SKILLS, REFUND_FEE
 } from '../utils/constants.js';
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
@@ -323,6 +323,7 @@ export class MetaProgressionManager {
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
  *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
    *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, extraStartingUnitTier,
+   *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenal,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingSkills, metaUnlockedWeaponArts }
@@ -342,6 +343,7 @@ export class MetaProgressionManager {
       visionChargesBonus: 0,
       recruitRandomSkill: false,
       extraStartingUnitTier: 0,
+      lethalArmoryTier: 0,
       startingWeaponForge: 0,
       deadlyArsenal: 0,
       ironArms: 0,
@@ -389,6 +391,9 @@ export class MetaProgressionManager {
       if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;
       if (effect.recruitRandomSkill) effects.recruitRandomSkill = true;
       if (effect.extraStartingUnitTier !== undefined) effects.extraStartingUnitTier = effect.extraStartingUnitTier;
+      if (effect.lethalArmoryTier !== undefined) {
+        effects.lethalArmoryTier = Math.max(effects.lethalArmoryTier, Number(effect.lethalArmoryTier) || 0);
+      }
       // Starting equipment effects
       if (effect.startingWeaponForge !== undefined) effects.startingWeaponForge = effect.startingWeaponForge;
       if (effect.deadlyArsenal !== undefined) effects.deadlyArsenal = effect.deadlyArsenal;
@@ -400,6 +405,105 @@ export class MetaProgressionManager {
     }
 
     return effects;
+  }
+
+  /**
+   * Find upgrades that directly depend on `id` via their requires.upgrades[] field.
+   * Checks direct edges only — does not perform transitive graph traversal.
+   * This is intentional; the prerequisite graph is shallow (max depth 1).
+   * @param {string} id - upgrade ID
+   * @returns {Array<{ id: string, name: string, requiredLevel: number }>}
+   */
+  getDependentUpgrades(id) {
+    const dependents = [];
+    for (const upgrade of this.upgradesData) {
+      if (!upgrade.requires?.upgrades) continue;
+      for (const req of upgrade.requires.upgrades) {
+        if (req.id === id) {
+          dependents.push({ id: upgrade.id, name: upgrade.name, requiredLevel: req.level });
+        }
+      }
+    }
+    return dependents;
+  }
+
+  /**
+   * Check whether an upgrade tier can be refunded.
+   * @param {string} id - upgrade ID
+   * @returns {{ success: boolean, reason?: string, detail?: string, refundAmount?: number, refundFee?: number }}
+   */
+  canRefund(id) {
+    const upgrade = this.upgradesData.find(u => u.id === id);
+    if (!upgrade) return { success: false, reason: 'unknown_upgrade' };
+
+    const level = this.getUpgradeLevel(id);
+    if (level <= 0) return { success: false, reason: 'not_purchased' };
+
+    const currency = this.getCurrencyForUpgrade(id);
+    const balance = currency === 'valor' ? this.totalValor : this.totalSupply;
+    if (balance < REFUND_FEE) return { success: false, reason: 'insufficient_fee' };
+
+    // Check if any purchased dependent would break
+    const newLevel = level - 1;
+    const dependents = this.getDependentUpgrades(id);
+    for (const dep of dependents) {
+      if (this.getUpgradeLevel(dep.id) > 0 && newLevel < dep.requiredLevel) {
+        return {
+          success: false,
+          reason: 'blocked_by_dependent',
+          detail: `${dep.name} requires this at Lv${dep.requiredLevel}`,
+        };
+      }
+    }
+
+    const refundAmount = upgrade.costs[level - 1];
+    return { success: true, refundAmount, refundFee: REFUND_FEE };
+  }
+
+  /**
+   * Refund one tier of an upgrade. Deducts REFUND_FEE, refunds tier cost, decrements level.
+   * If a skill-unlock is refunded to 0, auto-unassigns that skill from all lords.
+   * @param {string} id - upgrade ID
+   * @returns {{ success: boolean, reason?: string, detail?: string, refundAmount?: number, refundFee?: number }}
+   */
+  refundUpgrade(id) {
+    const check = this.canRefund(id);
+    if (!check.success) return check;
+
+    const upgrade = this.upgradesData.find(u => u.id === id);
+    const level = this.getUpgradeLevel(id);
+    const currency = this.getCurrencyForUpgrade(id);
+    const refundAmount = upgrade.costs[level - 1];
+
+    // Deduct fee + refund tier cost
+    if (currency === 'valor') {
+      this.totalValor = this.totalValor - REFUND_FEE + refundAmount;
+    } else {
+      this.totalSupply = this.totalSupply - REFUND_FEE + refundAmount;
+    }
+
+    // Decrement level
+    this.purchasedUpgrades[id] = level - 1;
+    if (this.purchasedUpgrades[id] <= 0) delete this.purchasedUpgrades[id];
+
+    // If skill unlock refunded to 0, auto-unassign from all lords
+    if (level === 1) {
+      const effect = upgrade.effects[0];
+      const skillId = effect?.unlockSkill;
+      if (skillId) {
+        for (const lordName of Object.keys(this.skillAssignments)) {
+          const slots = this.skillAssignments[lordName];
+          const idx = slots.indexOf(skillId);
+          if (idx !== -1) {
+            slots.splice(idx, 1);
+            if (slots.length === 0) delete this.skillAssignments[lordName];
+          }
+        }
+      }
+    }
+
+    this._save();
+    return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
   reset() {

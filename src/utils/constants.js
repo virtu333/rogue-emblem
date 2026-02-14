@@ -167,6 +167,9 @@ export const CATEGORY_CURRENCY = {
   capacity: 'supply',
 };
 
+// Flat fee to refund one upgrade tier (deducted from the upgrade's currency)
+export const REFUND_FEE = 20;
+
 // Staff mechanics
 export const STAFF_BONUS_USE_THRESHOLDS = [8, 14, 20]; // MAG thresholds for +1 use each
 export const PHYSIC_RANGE_BONUSES = [{ mag: 10, bonus: 1 }, { mag: 18, bonus: 1 }];
