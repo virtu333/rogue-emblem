@@ -152,7 +152,7 @@ QA evidence (Feb 12, 2026):
 - Phase 1 (Contract Alignment): READY — doc alignment complete
 - Phase 2 (Terrain Hazards + Tilesets): shipped on `main`
 - Phase 3 (Act 4 Progression): shipped on `main`
-- Phase 4 (Reinforcement System): in progress (slices 1-3 active; hybrid boss-arena spec tracked in `docs/specs/act4_hybrid_boss_arena_spec.md`)
+- Phase 4 (Reinforcement System): in progress (slices 1-3 active; hybrid boss-arena spec tracked in `docs/specs/act4_hybrid_boss_arena_spec.md`, implementation plan in `docs/reports/phase4_hybrid_boss_arena_implementation_plan.md`)
 
 ### Wave 7: Additional Map Objectives (Deferred)
 **Priority:** Medium - Adds battle variety

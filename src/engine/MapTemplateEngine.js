@@ -309,6 +309,164 @@ function validateZone(path, zone, errors) {
   }
 }
 
+function validateCoordPair(path, coord, errors) {
+  if (!Array.isArray(coord) || coord.length !== 2 || !coord.every(isInteger) || coord[0] < 0 || coord[1] < 0) {
+    errors.push(`${path} must be [col,row] non-negative integers`);
+    return false;
+  }
+  return true;
+}
+
+function validateNormalizedRect(path, rect, errors) {
+  if (!Array.isArray(rect) || rect.length !== 4 || !rect.every(isFiniteNumber)) {
+    errors.push(`${path} must be [x1,y1,x2,y2] finite numbers`);
+    return false;
+  }
+  const [x1, y1, x2, y2] = rect;
+  if (x1 < 0 || y1 < 0 || x2 > 1 || y2 > 1 || x1 >= x2 || y1 >= y2) {
+    errors.push(`${path} must satisfy 0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1`);
+    return false;
+  }
+  return true;
+}
+
+function validateHybridArena(path, hybridArena, errors) {
+  if (!isObject(hybridArena)) {
+    errors.push(`${path} must be an object`);
+    return new Map();
+  }
+
+  const requiredKeys = new Set(['approachRect', 'arenaOrigin', 'arenaTiles', 'anchors']);
+  if (!hasOnlyKnownKeys(hybridArena, requiredKeys)) {
+    errors.push(`${path} contains unknown keys`);
+  }
+  for (const key of requiredKeys) {
+    if (!(key in hybridArena)) {
+      errors.push(`${path} missing required key: ${key}`);
+    }
+  }
+
+  validateNormalizedRect(`${path}.approachRect`, hybridArena.approachRect, errors);
+  validateCoordPair(`${path}.arenaOrigin`, hybridArena.arenaOrigin, errors);
+
+  let arenaWidth = -1;
+  if (!Array.isArray(hybridArena.arenaTiles) || hybridArena.arenaTiles.length === 0) {
+    errors.push(`${path}.arenaTiles must be a non-empty 2D array`);
+  } else {
+    hybridArena.arenaTiles.forEach((row, rowIndex) => {
+      if (!Array.isArray(row) || row.length === 0) {
+        errors.push(`${path}.arenaTiles[${rowIndex}] must be a non-empty array`);
+        return;
+      }
+      if (arenaWidth === -1) arenaWidth = row.length;
+      else if (row.length !== arenaWidth) errors.push(`${path}.arenaTiles must be rectangular`);
+      row.forEach((terrainName, colIndex) => {
+        if (typeof terrainName !== 'string' || terrainName.trim() === '') {
+          errors.push(`${path}.arenaTiles[${rowIndex}][${colIndex}] must be a non-empty terrain name`);
+        }
+      });
+    });
+  }
+
+  const anchorsPath = `${path}.anchors`;
+  if (!isObject(hybridArena.anchors) || Object.keys(hybridArena.anchors).length === 0) {
+    errors.push(`${anchorsPath} must be a non-empty object`);
+    return new Map();
+  }
+  const anchorCoords = new Map();
+  for (const [anchorName, coord] of Object.entries(hybridArena.anchors)) {
+    if (typeof anchorName !== 'string' || anchorName.trim() === '') {
+      errors.push(`${anchorsPath} contains an empty anchor name`);
+      continue;
+    }
+    if (!validateCoordPair(`${anchorsPath}.${anchorName}`, coord, errors)) {
+      continue;
+    }
+    anchorCoords.set(anchorName, `${coord[0]},${coord[1]}`);
+  }
+  return anchorCoords;
+}
+
+function validatePhaseTerrainOverrideSetTile(path, setTile, anchorCoords, errors) {
+  if (!isObject(setTile)) {
+    errors.push(`${path} must be an object`);
+    return null;
+  }
+  const knownKeys = new Set(['coord', 'anchor', 'terrain']);
+  if (!hasOnlyKnownKeys(setTile, knownKeys)) {
+    errors.push(`${path} contains unknown keys`);
+  }
+
+  if (typeof setTile.terrain !== 'string' || setTile.terrain.trim() === '') {
+    errors.push(`${path}.terrain must be a non-empty string`);
+  }
+  const anchors = anchorCoords instanceof Map ? anchorCoords : new Map();
+
+  const hasCoord = Object.prototype.hasOwnProperty.call(setTile, 'coord');
+  const hasAnchor = Object.prototype.hasOwnProperty.call(setTile, 'anchor');
+  if (hasCoord === hasAnchor) {
+    errors.push(`${path} must define exactly one of coord or anchor`);
+    return null;
+  }
+
+  if (hasCoord) {
+    if (!validateCoordPair(`${path}.coord`, setTile.coord, errors)) return null;
+    return `${setTile.coord[0]},${setTile.coord[1]}`;
+  }
+
+  if (typeof setTile.anchor !== 'string' || setTile.anchor.trim() === '') {
+    errors.push(`${path}.anchor must be a non-empty string`);
+    return null;
+  }
+  if (!anchors.has(setTile.anchor)) {
+    errors.push(`${path}.anchor references unknown hybridArena anchor: ${setTile.anchor}`);
+    return null;
+  }
+  return anchors.get(setTile.anchor);
+}
+
+function validatePhaseTerrainOverrides(path, overrides, anchorCoords, errors) {
+  if (overrides === undefined) return;
+  if (!Array.isArray(overrides) || overrides.length === 0) {
+    errors.push(`${path} must be a non-empty array when provided`);
+    return;
+  }
+  overrides.forEach((override, index) => {
+    const overridePath = `${path}[${index}]`;
+    if (!isObject(override)) {
+      errors.push(`${overridePath} must be an object`);
+      return;
+    }
+    const knownKeys = new Set(['turn', 'setTiles']);
+    if (!hasOnlyKnownKeys(override, knownKeys)) {
+      errors.push(`${overridePath} contains unknown keys`);
+    }
+    if (!isInteger(override.turn) || override.turn <= 0) {
+      errors.push(`${overridePath}.turn must be a positive integer`);
+    }
+
+    if (!Array.isArray(override.setTiles) || override.setTiles.length === 0) {
+      errors.push(`${overridePath}.setTiles must be a non-empty array`);
+      return;
+    }
+
+    const seenTargets = new Set();
+    override.setTiles.forEach((setTile, setTileIndex) => {
+      const target = validatePhaseTerrainOverrideSetTile(
+        `${overridePath}.setTiles[${setTileIndex}]`,
+        setTile,
+        anchorCoords,
+        errors,
+      );
+      if (target === null) return;
+      if (seenTargets.has(target)) {
+        errors.push(`${overridePath}.setTiles contains duplicate target tile`);
+      }
+      seenTargets.add(target);
+    });
+  });
+}
+
 export function validateMapTemplatesConfig(config, options = {}) {
   const strict = options.strict !== false;
   const errors = [];
@@ -361,6 +519,21 @@ export function validateMapTemplatesConfig(config, options = {}) {
 
       if (template.biome !== undefined && (typeof template.biome !== 'string' || template.biome.trim() === '')) {
         errors.push(`${path}.biome must be a non-empty string when provided`);
+      }
+
+      const hasHybridArena = Object.prototype.hasOwnProperty.call(template, 'hybridArena');
+      if (hasHybridArena && template.bossOnly !== true) {
+        errors.push(`${path}.bossOnly must be true when hybridArena is provided`);
+      }
+
+      let anchorCoords = new Map();
+      if (hasHybridArena) {
+        anchorCoords = validateHybridArena(`${path}.hybridArena`, template.hybridArena, errors);
+      } else if (template.phaseTerrainOverrides !== undefined) {
+        errors.push(`${path}.phaseTerrainOverrides requires hybridArena`);
+      }
+      if (template.phaseTerrainOverrides !== undefined) {
+        validatePhaseTerrainOverrides(`${path}.phaseTerrainOverrides`, template.phaseTerrainOverrides, anchorCoords, errors);
       }
 
       validateReinforcements(path, template, strict, errors, warnings);

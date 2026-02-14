@@ -49,6 +49,8 @@ export function generateBattle(params, deps) {
 
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
+  const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
+  applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
   // 4. Place features (Throne for Seize)
   let thronePos = null;
@@ -110,6 +112,7 @@ export function generateBattle(params, deps) {
   }
 
   const reinforcementConfig = cloneReinforcementConfig(template);
+  const hybridConfig = cloneHybridConfig(template, resolvedHybridAnchors);
 
   return {
     mapLayout,
@@ -123,6 +126,7 @@ export function generateBattle(params, deps) {
     thronePos,
     templateId: template.id,
     ...reinforcementConfig,
+    ...hybridConfig,
   };
 }
 
@@ -196,6 +200,85 @@ function cloneReinforcementConfig(template) {
   };
 }
 
+function cloneHybridConfig(template, resolvedHybridAnchors) {
+  if (!template || !template.hybridArena) return {};
+  return {
+    hybridArena: JSON.parse(JSON.stringify(template.hybridArena)),
+    hybridAnchors: JSON.parse(JSON.stringify(resolvedHybridAnchors || {})),
+    phaseTerrainOverrides: JSON.parse(JSON.stringify(template.phaseTerrainOverrides || [])),
+  };
+}
+
+function resolveHybridAnchors(hybridArena, cols, rows) {
+  if (!hybridArena || !hybridArena.anchors) return null;
+  const resolved = {};
+  for (const [anchorName, coord] of Object.entries(hybridArena.anchors)) {
+    if (!Array.isArray(coord) || coord.length !== 2 || !coord.every(Number.isInteger)) {
+      throw new Error(`hybridArena anchor "${anchorName}" must be [col,row] integers`);
+    }
+    const [col, row] = coord;
+    if (col < 0 || row < 0 || col >= cols || row >= rows) {
+      throw new Error(`hybridArena anchor "${anchorName}" is out of bounds`);
+    }
+    resolved[anchorName] = { col, row };
+  }
+  return resolved;
+}
+
+function applyHybridArenaOverlay(mapLayout, hybridArena, cols, rows, terrainData) {
+  if (!hybridArena) return;
+  const arenaTiles = hybridArena.arenaTiles;
+  const arenaOrigin = hybridArena.arenaOrigin;
+  if (!Array.isArray(arenaTiles) || arenaTiles.length === 0 || !Array.isArray(arenaOrigin) || arenaOrigin.length !== 2) {
+    throw new Error('hybridArena is malformed');
+  }
+
+  const [originCol, originRow] = arenaOrigin;
+  const overlayRows = arenaTiles.length;
+  const overlayCols = arenaTiles[0]?.length || 0;
+  if (originCol < 0 || originRow < 0 || originCol + overlayCols > cols || originRow + overlayRows > rows) {
+    throw new Error('hybridArena overlay exceeds map bounds');
+  }
+
+  for (let r = 0; r < overlayRows; r++) {
+    const row = arenaTiles[r];
+    if (!Array.isArray(row) || row.length !== overlayCols) {
+      throw new Error('hybridArena arenaTiles must be rectangular');
+    }
+    for (let c = 0; c < overlayCols; c++) {
+      const terrainName = row[c];
+      const terrainIndex = terrainNameToIndex(terrainName, terrainData);
+      if (terrainIndex === -1) {
+        throw new Error(`hybridArena references unknown terrain: ${terrainName}`);
+      }
+      mapLayout[originRow + r][originCol + c] = terrainIndex;
+    }
+  }
+}
+
+function applyPhaseOverrideToLayout(mapLayout, override, resolvedAnchors, terrainData) {
+  if (!override || !Array.isArray(override.setTiles)) return;
+  for (const setTile of override.setTiles) {
+    const target = Array.isArray(setTile.coord)
+      ? { col: setTile.coord[0], row: setTile.coord[1] }
+      : resolvedAnchors?.[setTile.anchor];
+    if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) {
+      throw new Error('phaseTerrainOverrides target could not be resolved');
+    }
+    const terrainIndex = terrainNameToIndex(setTile.terrain, terrainData);
+    if (terrainIndex === -1) {
+      throw new Error(`phaseTerrainOverrides references unknown terrain: ${setTile.terrain}`);
+    }
+    if (
+      target.row < 0 || target.row >= mapLayout.length
+      || target.col < 0 || target.col >= mapLayout[0].length
+    ) {
+      throw new Error('phaseTerrainOverrides target is out of bounds');
+    }
+    mapLayout[target.row][target.col] = terrainIndex;
+  }
+}
+
 // --- Terrain generation ---
 
 // Max forts per map (Throne excluded — placed by features, not random gen)
@@ -208,15 +291,29 @@ function generateTerrain(template, cols, rows, terrainData) {
     map[r] = new Array(cols).fill(TERRAIN.Plain);
   }
 
+  const approachBounds = resolveNormalizedRectBounds(template?.hybridArena?.approachRect, cols, rows);
+  if (template?.hybridArena && !approachBounds) {
+    throw new Error('hybridArena.approachRect is malformed');
+  }
+
   // Sort zones by priority ascending (lower priority filled first, higher overwrites)
   const sorted = [...template.zones].sort((a, b) => (a.priority || 0) - (b.priority || 0));
 
   for (const zone of sorted) {
     const [x1, y1, x2, y2] = zone.rect;
-    const startCol = Math.floor(x1 * cols);
-    const endCol = Math.min(Math.ceil(x2 * cols), cols);
-    const startRow = Math.floor(y1 * rows);
-    const endRow = Math.min(Math.ceil(y2 * rows), rows);
+    let startCol = Math.floor(x1 * cols);
+    let endCol = Math.min(Math.ceil(x2 * cols), cols);
+    let startRow = Math.floor(y1 * rows);
+    let endRow = Math.min(Math.ceil(y2 * rows), rows);
+
+    // Hybrid templates proceduralize only within the declared approach region.
+    if (approachBounds) {
+      startCol = Math.max(startCol, approachBounds.startCol);
+      endCol = Math.min(endCol, approachBounds.endCol);
+      startRow = Math.max(startRow, approachBounds.startRow);
+      endRow = Math.min(endRow, approachBounds.endRow);
+    }
+    if (startCol >= endCol || startRow >= endRow) continue;
 
     for (let r = startRow; r < endRow; r++) {
       for (let c = startCol; c < endCol; c++) {
@@ -231,6 +328,22 @@ function generateTerrain(template, cols, rows, terrainData) {
   capTerrainCount(map, TERRAIN.Fort, MAX_FORTS);
 
   return map;
+}
+
+function resolveNormalizedRectBounds(rect, cols, rows) {
+  if (!Array.isArray(rect) || rect.length !== 4 || rect.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
+    return null;
+  }
+  const [x1, y1, x2, y2] = rect;
+  if (x1 < 0 || y1 < 0 || x2 > 1 || y2 > 1 || x1 >= x2 || y1 >= y2) {
+    return null;
+  }
+  return {
+    startCol: Math.floor(x1 * cols),
+    endCol: Math.min(Math.ceil(x2 * cols), cols),
+    startRow: Math.floor(y1 * rows),
+    endRow: Math.min(Math.ceil(y2 * rows), rows),
+  };
 }
 
 function capTerrainCount(map, terrainIdx, maxCount) {
@@ -1133,4 +1246,10 @@ function shuffleArray(arr) {
 }
 
 // Exported for testing
-export { scoreSpawnTile, resolveClassWeight };
+export {
+  scoreSpawnTile,
+  resolveClassWeight,
+  resolveHybridAnchors,
+  applyHybridArenaOverlay,
+  applyPhaseOverrideToLayout,
+};

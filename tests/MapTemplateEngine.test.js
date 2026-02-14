@@ -6,6 +6,34 @@ import {
 } from '../src/engine/MapTemplateEngine.js';
 
 const mapTemplates = JSON.parse(readFileSync('data/mapTemplates.json', 'utf8'));
+const ACT4_HYBRID_BASE_TEMPLATE_ID = 'act4_boss_intent_bastion';
+
+function makeHybridTemplatePatch() {
+  return {
+    bossOnly: true,
+    hybridArena: {
+      approachRect: [0, 0, 0.5, 1],
+      arenaOrigin: [5, 2],
+      arenaTiles: [
+        ['Wall', 'Wall', 'Wall'],
+        ['Wall', 'Fort', 'Wall'],
+      ],
+      anchors: {
+        throne: [6, 3],
+        gate: [5, 2],
+      },
+    },
+    phaseTerrainOverrides: [
+      {
+        turn: 4,
+        setTiles: [
+          { anchor: 'gate', terrain: 'Plain' },
+          { coord: [7, 3], terrain: 'Forest' },
+        ],
+      },
+    ],
+  };
+}
 
 describe('MapTemplateEngine', () => {
   it('validates bundled map template config', () => {
@@ -150,5 +178,75 @@ describe('MapTemplateEngine', () => {
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
     expect(result.errors.some((error) => error.includes('terrain["Plain"] must be a positive number'))).toBe(true);
+  });
+
+  it('accepts valid hybrid arena contract shape', () => {
+    const ok = JSON.parse(JSON.stringify(mapTemplates));
+    const template = ok.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    Object.assign(template, makeHybridTemplatePatch());
+    const result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects hybrid arena templates when bossOnly is not true', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    Object.assign(template, makeHybridTemplatePatch());
+    template.bossOnly = false;
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('bossOnly must be true when hybridArena is provided'))).toBe(true);
+  });
+
+  it('rejects hybrid arena contract with ragged arenaTiles rows', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    Object.assign(template, makeHybridTemplatePatch());
+    template.hybridArena.arenaTiles = [
+      ['Wall', 'Wall'],
+      ['Wall'],
+    ];
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('hybridArena.arenaTiles must be rectangular'))).toBe(true);
+  });
+
+  it('rejects phase terrain overrides referencing unknown anchors', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    Object.assign(template, makeHybridTemplatePatch());
+    template.phaseTerrainOverrides[0].setTiles[0] = { anchor: 'unknown', terrain: 'Plain' };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('references unknown hybridArena anchor'))).toBe(true);
+  });
+
+  it('rejects phase terrain overrides with duplicate target tiles', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    Object.assign(template, makeHybridTemplatePatch());
+    template.phaseTerrainOverrides[0].setTiles = [
+      { coord: [7, 3], terrain: 'Plain' },
+      { coord: [7, 3], terrain: 'Forest' },
+    ];
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('phaseTerrainOverrides[0].setTiles contains duplicate target tile'))).toBe(true);
+  });
+
+  it('reports malformed hybridArena with overrides without throwing', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
+    template.hybridArena = 123;
+    template.phaseTerrainOverrides = [
+      {
+        turn: 1,
+        setTiles: [{ anchor: 'throne', terrain: 'Plain' }],
+      },
+    ];
+    expect(() => validateMapTemplatesConfig(bad)).not.toThrow();
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('hybridArena must be an object'))).toBe(true);
   });
 });

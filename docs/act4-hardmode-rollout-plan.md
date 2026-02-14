@@ -203,6 +203,7 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - `scriptedWaves` must execute through the same scheduler API as procedural waves.
 - Shared scheduler guarantees telemetry parity and deterministic testability.
 - Hybrid fixed-arena contract scope is defined in `docs/specs/act4_hybrid_boss_arena_spec.md`.
+- Hybrid fixed-arena execution order and patch slicing are tracked in `docs/reports/phase4_hybrid_boss_arena_implementation_plan.md`.
 
 ### Implementation Tasks
 
@@ -212,6 +213,8 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 - Add anti-farm economy/XP guardrails for reinforcement kills.
 - Add hybrid boss-arena contract validation and generation coverage per `docs/specs/act4_hybrid_boss_arena_spec.md`.
 - Add deterministic scripted boss-wave coverage using shared scheduler API.
+- For same-turn collisions, apply phase terrain overrides before reinforcement scheduling/spawn resolution.
+- Execute hybrid boss-arena delivery using `docs/reports/phase4_hybrid_boss_arena_implementation_plan.md`.
 
 ### Test Gate
 

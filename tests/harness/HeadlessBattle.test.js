@@ -10,6 +10,9 @@ import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { gridDistance } from '../../src/engine/Combat.js';
 import { hasStaff } from '../../src/engine/UnitManager.js';
 
+const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
+const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
+
 function captureVisibleTiles(grid) {
   const visible = new Set();
   for (let r = 0; r < grid.rows; r++) {
@@ -30,10 +33,14 @@ function setsEqual(a, b) {
 
 function getDueTurnSearchUpperBound(battle) {
   const waves = battle?.battleConfig?.reinforcements?.waves || [];
-  if (!waves.length) return 1;
+  const scriptedWaves = battle?.battleConfig?.reinforcements?.scriptedWaves || [];
+  if (!waves.length && !scriptedWaves.length) return 1;
 
   let maxWaveTurn = 1;
   for (const wave of waves) {
+    if (Number.isInteger(wave?.turn)) maxWaveTurn = Math.max(maxWaveTurn, wave.turn);
+  }
+  for (const wave of scriptedWaves) {
     if (Number.isInteger(wave?.turn)) maxWaveTurn = Math.max(maxWaveTurn, wave.turn);
   }
 
@@ -428,6 +435,68 @@ describe('HeadlessBattle', () => {
     expect(spawned.affixes || []).toContain('scripted_affix');
     expect(spawned._isReinforcement).toBe(true);
     expect(spawned._reinforcementSpawnTurn).toBe(1);
+  });
+
+  it('scripted-only seize templates expose deterministic scripted due-wave schedules', () => {
+    const scenarios = [
+      { act: 'act4', templateId: ACT4_BOSS_INTENT_TEMPLATE_ID, row: 11 },
+      { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID, row: 7 },
+    ];
+
+    const collectDueTrace = (battle) => {
+      const trace = [];
+      const upperBound = getDueTurnSearchUpperBound(battle);
+      for (let turn = 1; turn <= upperBound; turn++) {
+        const schedule = battle._resolveReinforcementsForTurn(turn);
+        if ((schedule?.dueWaves?.length || 0) === 0) continue;
+        trace.push({
+          turn,
+          dueWaves: schedule.dueWaves.map((wave) => ({
+            waveType: wave.waveType,
+            waveIndex: wave.waveIndex,
+            scheduledTurn: wave.scheduledTurn,
+            requestedCount: wave.requestedCount,
+            blockedCount: wave.blockedCount,
+            spawnedCount: wave.spawnedCount,
+            xpMultiplier: wave.xpMultiplier,
+          })),
+          spawns: schedule.spawns.map((spawn) => ({
+            col: spawn.col,
+            row: spawn.row,
+            className: spawn.className,
+            level: spawn.level,
+            xpMultiplier: spawn.xpMultiplier,
+            waveType: spawn.waveType,
+            waveIndex: spawn.waveIndex,
+            scheduledTurn: spawn.scheduledTurn,
+          })),
+        });
+      }
+      return trace;
+    };
+
+    for (const scenario of scenarios) {
+      const params = {
+        act: scenario.act,
+        objective: 'seize',
+        row: scenario.row,
+        templateId: scenario.templateId,
+        difficultyId: 'normal',
+        difficultyMod: 1.0,
+        battleSeed: 20260213,
+      };
+      const battleA = new HeadlessBattle(gameData, params);
+      const battleB = new HeadlessBattle(gameData, params);
+      battleA.init();
+      battleB.init();
+
+      const traceA = collectDueTrace(battleA);
+      const traceB = collectDueTrace(battleB);
+
+      expect(traceA.length).toBeGreaterThan(0);
+      expect(traceA.every((entry) => entry.dueWaves.every((wave) => wave.waveType === 'scripted'))).toBe(true);
+      expect(traceA).toEqual(traceB);
+    }
   });
 
   it('applies classless scripted metadata overrides when selecting from template pool', () => {

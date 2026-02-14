@@ -6,6 +6,7 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
 const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
+const HYBRID_TEST_TEMPLATE_ID = 'hybrid_arena_generator_test';
 
 function withSeed(seed, fn) {
   const origRandom = Math.random;
@@ -659,6 +660,165 @@ describe('MapGenerator', () => {
         config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
         expect(template.reinforcements.scriptedWaves[0].spawns[0].col).not.toBe(99);
       }
+    });
+
+    it('passes hybrid arena fields through and deep-clones returned hybrid config', () => {
+      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const hybridTemplate = {
+        ...baseTemplate,
+        id: HYBRID_TEST_TEMPLATE_ID,
+        acts: ['act4'],
+        hybridArena: {
+          approachRect: [0, 0, 0.5, 1],
+          arenaOrigin: [1, 1],
+          arenaTiles: [
+            ['Wall', 'Wall'],
+            ['Wall', 'Fort'],
+          ],
+          anchors: {
+            throneGate: [2, 2],
+          },
+        },
+        phaseTerrainOverrides: [
+          {
+            turn: 4,
+            setTiles: [{ anchor: 'throneGate', terrain: 'Plain' }],
+          },
+        ],
+      };
+      const deps = {
+        ...data,
+        mapTemplates: {
+          ...data.mapTemplates,
+          seize: [hybridTemplate],
+        },
+      };
+
+      const config = generateBattle({
+        act: 'act4',
+        objective: 'seize',
+        isBoss: true,
+        templateId: HYBRID_TEST_TEMPLATE_ID,
+      }, deps);
+
+      expect(config.templateId).toBe(HYBRID_TEST_TEMPLATE_ID);
+      expect(config.hybridArena).toBeDefined();
+      expect(config.phaseTerrainOverrides).toBeDefined();
+      expect(config.hybridAnchors).toEqual({ throneGate: { col: 2, row: 2 } });
+
+      config.hybridArena.anchors.throneGate[0] = 99;
+      config.phaseTerrainOverrides[0].setTiles[0].terrain = 'Forest';
+      expect(hybridTemplate.hybridArena.anchors.throneGate[0]).toBe(2);
+      expect(hybridTemplate.phaseTerrainOverrides[0].setTiles[0].terrain).toBe('Plain');
+    });
+
+    it('hybrid arena overlay stays fixed across seeds and differences stay in approach region', () => {
+      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const hybridTemplate = {
+        ...baseTemplate,
+        id: HYBRID_TEST_TEMPLATE_ID,
+        acts: ['act4'],
+        hybridArena: {
+          approachRect: [0, 0, 0.5, 1],
+          arenaOrigin: [1, 1],
+          arenaTiles: [
+            ['Wall', 'Wall'],
+            ['Wall', 'Fort'],
+          ],
+          anchors: {
+            throneGate: [2, 2],
+          },
+        },
+      };
+      const act4Size = data.mapSizes.find((entry) => entry.phase.startsWith('Act 4'));
+      const deps = {
+        ...data,
+        mapSizes: [act4Size],
+        mapTemplates: {
+          ...data.mapTemplates,
+          seize: [hybridTemplate],
+        },
+      };
+      const configA = withSeed(1001, () => generateBattle({
+        act: 'act4',
+        objective: 'seize',
+        isBoss: true,
+        templateId: HYBRID_TEST_TEMPLATE_ID,
+      }, deps));
+      const configB = withSeed(2002, () => generateBattle({
+        act: 'act4',
+        objective: 'seize',
+        isBoss: true,
+        templateId: HYBRID_TEST_TEMPLATE_ID,
+      }, deps));
+
+      const wallIdx = data.terrain.findIndex((entry) => entry.name === 'Wall');
+      const fortIdx = data.terrain.findIndex((entry) => entry.name === 'Fort');
+      expect(configA.mapLayout[1][1]).toBe(wallIdx);
+      expect(configA.mapLayout[1][2]).toBe(wallIdx);
+      expect(configA.mapLayout[2][1]).toBe(wallIdx);
+      expect(configA.mapLayout[2][2]).toBe(fortIdx);
+      expect(configB.mapLayout[1][1]).toBe(wallIdx);
+      expect(configB.mapLayout[1][2]).toBe(wallIdx);
+      expect(configB.mapLayout[2][1]).toBe(wallIdx);
+      expect(configB.mapLayout[2][2]).toBe(fortIdx);
+
+      const [ax1, ay1, ax2, ay2] = hybridTemplate.hybridArena.approachRect;
+      const approachStartCol = Math.floor(ax1 * configA.cols);
+      const approachEndCol = Math.min(Math.ceil(ax2 * configA.cols), configA.cols);
+      const approachStartRow = Math.floor(ay1 * configA.rows);
+      const approachEndRow = Math.min(Math.ceil(ay2 * configA.rows), configA.rows);
+      const [overlayStartCol, overlayStartRow] = hybridTemplate.hybridArena.arenaOrigin;
+      const overlayEndRow = overlayStartRow + hybridTemplate.hybridArena.arenaTiles.length;
+      const overlayEndCol = overlayStartCol + hybridTemplate.hybridArena.arenaTiles[0].length;
+
+      let nonApproachNonOverlayDiffs = 0;
+      for (let row = 0; row < configA.rows; row++) {
+        for (let col = 0; col < configA.cols; col++) {
+          const inApproach = row >= approachStartRow
+            && row < approachEndRow
+            && col >= approachStartCol
+            && col < approachEndCol;
+          const inOverlay = row >= overlayStartRow
+            && row < overlayEndRow
+            && col >= overlayStartCol
+            && col < overlayEndCol;
+          const differs = configA.mapLayout[row][col] !== configB.mapLayout[row][col];
+          if (!differs) continue;
+          if (!inApproach && !inOverlay) nonApproachNonOverlayDiffs++;
+        }
+      }
+      // Cross-seed generation may occasionally coincide, but it must never diverge
+      // outside the approach region (overlay is separately asserted fixed above).
+      expect(nonApproachNonOverlayDiffs).toBe(0);
+    });
+
+    it('throws a clear error when hybrid approachRect is malformed at runtime', () => {
+      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const hybridTemplate = {
+        ...baseTemplate,
+        id: HYBRID_TEST_TEMPLATE_ID,
+        acts: ['act4'],
+        hybridArena: {
+          approachRect: [0.5, 0.5, 0.2, 1], // invalid normalized rect
+          arenaOrigin: [1, 1],
+          arenaTiles: [['Wall']],
+          anchors: { throneGate: [1, 1] },
+        },
+      };
+      const deps = {
+        ...data,
+        mapTemplates: {
+          ...data.mapTemplates,
+          seize: [hybridTemplate],
+        },
+      };
+      expect(() => generateBattle({
+        act: 'act4',
+        objective: 'seize',
+        isBoss: true,
+        templateId: HYBRID_TEST_TEMPLATE_ID,
+      }, deps)).toThrow('hybridArena.approachRect is malformed');
     });
   });
 
