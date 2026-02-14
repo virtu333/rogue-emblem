@@ -27,7 +27,7 @@ Ship meaningful new content earlier by inserting Act 4 into Hard mode before Def
 
 - Objective runtime still supports Rout/Seize only (Defend/Survive/Escape remain intentionally deferred).
 - Fixed-boss scripted reinforcement exception path is not wired yet.
-- Reinforcement anti-farm balancing + full merge-gate validation are still in progress.
+- Reinforcement anti-farm balancing and focused Phase 4 gates are merged on `main`; broad regression gating continues in standard CI cadence.
 - Biome-to-tileset production remains incremental (pipeline/process exists; content expansion continues).
 
 ## Canonical Act 4 Terrain Direction
@@ -301,7 +301,7 @@ Goal: activate deterministic reinforcements on Act 4 rout/seize templates using 
 | Phase 1: Contract Alignment | **READY** | 2026-02-13 |
 | Phase 2: Terrain Hazards + Tilesets | **READY** | 2026-02-13 |
 | Phase 3: Act 4 Progression | **READY** | 2026-02-13 |
-| Phase 4: Reinforcement System | **IN PROGRESS** | 2026-02-13 |
+| Phase 4: Reinforcement System | **READY** | 2026-02-14 |
 
 ### Phase 1 Completion Notes
 
