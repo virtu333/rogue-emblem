@@ -6,11 +6,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      75,
-      100,
-      150
+      35,
+      35,
+      53,
+      70,
+      105
     ],
     "effects": [
       {
@@ -426,11 +426,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      75,
-      100,
-      125,
-      200
+      35,
+      53,
+      70,
+      88,
+      140
     ],
     "effects": [
       {
@@ -1126,7 +1126,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      500
+      200
     ],
     "effects": [
       {
@@ -1183,7 +1183,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      200
     ],
     "effects": [
       {
@@ -1228,7 +1228,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      175
     ],
     "effects": [
       {
@@ -1243,7 +1243,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      175
     ],
     "effects": [
       {
