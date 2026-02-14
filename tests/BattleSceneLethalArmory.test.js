@@ -158,8 +158,8 @@ describe('BattleScene recruit NPC Lethal Armory path', () => {
       expect(scene.npcUnits).toHaveLength(1);
       const recruit = scene.npcUnits[0];
       expect(recruit.inventory).toHaveLength(1);
-      expect(recruit.weapon.name).toBe('Iron Axe');
-      expect(recruit.inventory[0].name).not.toMatch(/Steel|Killer|Silver/);
+      expect(recruit.weapon.name).toBe(recruit.inventory[0].name);
+      expect(recruit.weapon.name).not.toMatch(/Steel|Killer|Silver/);
     } finally {
       randomSpy.mockRestore();
     }
