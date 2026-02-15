@@ -1462,6 +1462,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.selectedUnit = null;
     this.preMoveLoc = null;
+    this._preFogSnapshot = null;
     this.movementRange = null;
     this.unitPositions = null;
     this.attackTargets = [];
@@ -2745,6 +2746,7 @@ export class BattleScene extends Phaser.Scene {
     this.danceTargets = [];
     this._clearSelectedWeaponArt();
     this.preMoveLoc = null;
+    this._preFogSnapshot = null;
     this.movementRange = null;
     this.unitPositions = null;
     this.cantoRange = null;
@@ -2836,6 +2838,7 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearHighlights();
       if (this.selectedUnit.graphic.clearTint) this.selectedUnit.graphic.clearTint();
       this.preMoveLoc = { col: this.selectedUnit.col, row: this.selectedUnit.row };
+      this._preFogSnapshot = this.grid.snapshotFogState();
       this.showActionMenu(this.selectedUnit);
       return;
     }
@@ -2962,6 +2965,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'UNIT_MOVING';
     this.preMoveLoc = { col: unit.col, row: unit.row };
+    this._preFogSnapshot = this.grid.snapshotFogState();
     this.grid.clearHighlights();
 
     if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -2971,13 +2975,20 @@ export class BattleScene extends Phaser.Scene {
       ? [unit.graphic, unit.label]
       : [unit.graphic];
 
+    let movementResolved = false;
+    const finalizeMove = () => {
+      if (movementResolved) return;
+      movementResolved = true;
+      unit.col = finalDest.col;
+      unit.row = finalDest.row;
+      unit.hasMoved = true;
+      this.updateUnitPosition(unit);
+      this.afterMove(unit);
+    };
+
     const animateStep = (stepIndex) => {
       if (stepIndex >= finalPath.length) {
-        unit.col = finalDest.col;
-        unit.row = finalDest.row;
-        unit.hasMoved = true;
-        this.updateUnitPosition(unit);
-        this.afterMove(unit);
+        finalizeMove();
         return;
       }
       const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
@@ -2991,6 +3002,15 @@ export class BattleScene extends Phaser.Scene {
       });
     };
     animateStep(1);
+
+    // Safety net: if a tween completion callback is dropped, finalize movement anyway.
+    // This prevents tutorial deadlocks where a unit appears moved but state does not advance.
+    const fallbackMs = Math.max(500, finalPath.length * 140);
+    this.time.delayedCall(fallbackMs, () => {
+      if (!movementResolved && this.scene?.isActive?.()) {
+        finalizeMove();
+      }
+    });
   }
 
   async afterMove(unit) {
@@ -3090,6 +3110,7 @@ export class BattleScene extends Phaser.Scene {
         unit.hasActed = true;
         this.selectedUnit = unit;
         this.preMoveLoc = null;
+        this._preFogSnapshot = null;
         this.startCantoMove(unit, remaining);
         return;
       }
@@ -3099,6 +3120,7 @@ export class BattleScene extends Phaser.Scene {
     this.dimUnit(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
+    this._preFogSnapshot = null;
     this.battleState = 'PLAYER_IDLE';
     this.turnManager.unitActed(unit);
   }
@@ -3908,6 +3930,10 @@ export class BattleScene extends Phaser.Scene {
 
   hideActionMenu() {
     this._hideMenuTooltip();
+    if (this._actionMenuWheelHandler && this.input?.off) {
+      this.input.off('wheel', this._actionMenuWheelHandler);
+      this._actionMenuWheelHandler = null;
+    }
     if (this.actionMenu) {
       this.actionMenu.forEach(obj => obj.destroy());
       this.actionMenu = null;
@@ -3932,6 +3958,8 @@ export class BattleScene extends Phaser.Scene {
     unit.hasMoved = false;
     this.updateUnitPosition(unit);
     if (this.grid.fogEnabled && unit.faction === 'player') {
+      this.grid.restoreFogState(this._preFogSnapshot);
+      this._preFogSnapshot = null;
       this.grid.updateFogOfWar(this.playerUnits);
       this.updateEnemyVisibility();
     }
@@ -4374,19 +4402,12 @@ export class BattleScene extends Phaser.Scene {
     // Scrolls no longer in inventory (moved to team pool), so no need to filter them
     const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
     const menuWidth = 110;
-    const itemHeight = 40;
-    const menuHeight = equippable.length * itemHeight + 8;
-    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
-
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
-    this.actionMenu.push(bg);
-
-    equippable.forEach((wpn, i) => {
-      const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
-      const itemX = menuPos.x + menuWidth / 2;
+    const menuPadding = 8;
+    const baseItemHeight = 40; // 3 lines: name + 2 stat lines
+    const extraLineHeight = 10;
+    const maxSpecialLines = 2;
+    const specialWrapChars = Math.max(10, Math.floor((menuWidth - 10) / 5));
+    const rowMeta = equippable.map((wpn) => {
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
       const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
@@ -4395,18 +4416,81 @@ export class BattleScene extends Phaser.Scene {
       const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
       const statsLineA = `${might}Mt ${hit}Hit ${crit}Crt`;
       const statsLineB = `${weight}Wt Rng${range}`;
-      const label = `${marker}${wpn?.name || 'Weapon'}\n${statsLineA}\n${statsLineB}`;
+      const specialLines = this._formatSpecialLinesForUi(wpn?.special, specialWrapChars, maxSpecialLines);
+      const label = [
+        `${marker}${wpn?.name || 'Weapon'}`,
+        statsLineA,
+        statsLineB,
+        ...specialLines,
+      ].join('\n');
+      const lineCount = 3 + specialLines.length;
+      const rowHeight = baseItemHeight + Math.max(0, lineCount - 3) * extraLineHeight;
+      return { wpn, label, rowHeight };
+    });
+    const contentHeight = rowMeta.reduce((sum, row) => sum + row.rowHeight, 0);
+    const fullMenuHeight = contentHeight + menuPadding;
+    const maxMenuHeight = Math.max(baseItemHeight + menuPadding, this.cameras.main.height - 8);
+    const menuHeight = Math.min(fullMenuHeight, maxMenuHeight);
+    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
+
+    const bg = this.add.rectangle(
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
+      menuWidth, menuHeight, 0x000000, 0.85
+    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    this.actionMenu.push(bg);
+
+    const rows = [];
+    let cumY = 0;
+    rowMeta.forEach((row) => {
+      const thisHeight = row.rowHeight;
+      const itemY = menuPos.y + 4 + cumY + thisHeight / 2;
+      cumY += thisHeight;
+      const itemX = menuPos.x + menuWidth / 2;
+      const wpn = row.wpn;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this._makeMenuTextButton(itemX, itemY, label, {
+      const text = this._makeMenuTextButton(itemX, itemY, row.label, {
         fontFamily: 'monospace', fontSize: '9px', color: defaultColor, lineSpacing: 1,
       }, defaultColor, () => {
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+      }, { hitWidth: menuWidth - 10, hitHeight: thisHeight });
 
+      rows.push({ text, baseY: itemY, rowHeight: thisHeight });
       this.actionMenu.push(text);
     });
+
+    const viewHeight = menuHeight - menuPadding;
+    if (contentHeight > viewHeight && rows.length > 0 && this.input?.on) {
+      const topY = menuPos.y + 4;
+      const bottomY = menuPos.y + menuHeight - 4;
+      const minScroll = viewHeight - contentHeight;
+      let scrollY = 0;
+      const applyScroll = () => {
+        for (const row of rows) {
+          const centerY = row.baseY + scrollY;
+          row.text.y = centerY;
+          const visible = (centerY + row.rowHeight / 2) >= topY && (centerY - row.rowHeight / 2) <= bottomY;
+          if (typeof row.text.setVisible === 'function') row.text.setVisible(visible);
+          if (row.text.input) row.text.input.enabled = visible;
+        }
+      };
+      applyScroll();
+
+      const onWheel = (_pointer, _gameObjects, _deltaX, deltaY) => {
+        if (!this.inEquipMenu || this.battleState !== 'UNIT_ACTION_MENU' || !this.actionMenu) return;
+        if (!Number.isFinite(deltaY) || deltaY === 0) return;
+        scrollY = Phaser.Math.Clamp(scrollY - (Math.sign(deltaY) * 16), minScroll, 0);
+        applyScroll();
+      };
+      this._actionMenuWheelHandler = onWheel;
+      this.input.on('wheel', onWheel);
+
+      const hint = this.add.text(menuPos.x + menuWidth / 2, menuPos.y + menuHeight - 2, 'Scroll', {
+        fontFamily: 'monospace', fontSize: '8px', color: '#777777',
+      }).setOrigin(0.5, 1).setDepth(401);
+      this.actionMenu.push(hint);
+    }
   }
 
   /** DEPRECATED: Scrolls now handled in team pool via RosterOverlay. */
@@ -6948,7 +7032,7 @@ export class BattleScene extends Phaser.Scene {
       lootGroup.push(icon);
 
       if (choice.type === 'gold') {
-        const scaledGoldAmount = Math.floor((choice.goldAmount || 0) * GOLD_LOOT_REWARD_MULTIPLIER);
+        const scaledGoldAmount = choice.goldAmount || 0;
         // Gold choice
         const goldLabel = this.add.text(cx, cardY - 2, `${scaledGoldAmount}G`, {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
@@ -7021,11 +7105,11 @@ export class BattleScene extends Phaser.Scene {
         lootGroup.push(priceLabel);
 
         // Category-aware detail text for decision quality.
-        const detailInfo = this.getLootCardDetailLines(choice, item);
+        const detailInfo = this.getLootCardDetailLines(choice, item, cardW);
         if (detailInfo.lines.length > 0) {
-          const detailLabel = this.add.text(cx, cardY + 52, detailInfo.lines.join('\n'), {
+          const detailLabel = this.add.text(cx, cardY + 46, detailInfo.lines.join('\n'), {
             fontFamily: 'monospace', fontSize: '8px', color: detailInfo.color,
-            wordWrap: { width: cardW - 10 }, align: 'center',
+            align: 'center',
           }).setOrigin(0.5, 0).setDepth(702);
           lootGroup.push(detailLabel);
         }
@@ -7103,12 +7187,19 @@ export class BattleScene extends Phaser.Scene {
     this.lootGroup = lootGroup;
   }
 
-  getLootCardDetailLines(choice, item) {
+  getLootCardDetailLines(choice, item, cardWidth = 110) {
     if (!item) return { lines: [], color: '#999999' };
 
     const asNum = (value, fallback = 0) => {
       const num = Number(value);
       return Number.isFinite(num) ? num : fallback;
+    };
+    const detailWrapChars = Math.max(10, Math.floor((cardWidth - 12) / 5));
+    const wrapDetailLines = (lines, maxLines = 2) => {
+      const text = Array.isArray(lines)
+        ? lines.filter((line) => typeof line === 'string' && line.trim().length > 0).join('\n')
+        : String(lines || '');
+      return this._formatSpecialLinesForUi(text, detailWrapChars, maxLines);
     };
     const usesLine = item.uses !== undefined
       ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`
@@ -7117,18 +7208,17 @@ export class BattleScene extends Phaser.Scene {
 
     if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
       const range = item.range == null ? '1' : String(item.range);
-      return {
-        lines: [
-          `${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`,
-          `${asNum(item.weight)}Wt Rng${range}`,
-        ],
-        color: '#88bbff',
-      };
+      const lines = [
+        `${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`,
+        `${asNum(item.weight)}Wt Rng${range}`,
+      ];
+      lines.push(...this._formatSpecialLinesForUi(item.special, detailWrapChars, 2));
+      return { lines, color: '#88bbff' };
     }
 
     if (item.type === 'Accessory' || type === 'accessory') {
       const detail = this.getAccessoryDetailText(item);
-      return { lines: detail ? detail.split('\n') : ['Equip for passive bonus'], color: '#cc88ff' };
+      return { lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2), color: '#cc88ff' };
     }
 
     if (item.type === 'Scroll' || type === 'skillScroll' || type === 'weaponArtScroll') {
@@ -7136,21 +7226,21 @@ export class BattleScene extends Phaser.Scene {
         ? `For ${item.allowedWeaponTypes.join('/')}`
         : '';
       if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-        return { lines: ['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], color: '#ffaa55' };
+        return { lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2), color: '#ffaa55' };
       }
       const special = typeof item.special === 'string' && item.special.trim().length > 0
         ? item.special.trim()
         : 'Teaches a skill';
-      return { lines: [special], color: '#ffaa55' };
+      return { lines: wrapDetailLines([special], 2), color: '#ffaa55' };
     }
 
     if (item.effect === 'statBoost' || type === 'statBooster') {
       const stat = item.stat || 'Stat';
-      return { lines: [`Permanent +${asNum(item.value)} ${stat}`], color: '#88ff88' };
+      return { lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2), color: '#88ff88' };
     }
 
     if (item.effect === 'promote' || type === 'promotion') {
-      return { lines: ['Promote Lv 10+ unit'], color: '#ffaa55' };
+      return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffaa55' };
     }
 
     if (item.effect === 'healFull') {
@@ -7177,20 +7267,67 @@ export class BattleScene extends Phaser.Scene {
 
   /** Simple text wrapping helper. */
   wrapText(text, maxChars) {
-    if (text.length <= maxChars) return text;
-    const words = text.split(' ');
-    let lines = [];
+    const value = typeof text === 'string' ? text : String(text ?? '');
+    const width = Math.max(1, Math.floor(Number(maxChars) || 0));
+    if (value.length <= width) return value;
+    const words = value.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return '';
+    const lines = [];
     let line = '';
     for (const word of words) {
-      if (line.length + word.length + 1 > maxChars && line.length > 0) {
+      let remaining = word;
+      while (remaining.length > width) {
+        if (line.length > 0) {
+          lines.push(line);
+          line = '';
+        }
+        lines.push(remaining.slice(0, width));
+        remaining = remaining.slice(width);
+      }
+      if (!remaining) continue;
+      if (line.length === 0) {
+        line = remaining;
+      } else if (line.length + remaining.length + 1 > width) {
         lines.push(line);
-        line = word;
+        line = remaining;
       } else {
-        line = line ? line + ' ' + word : word;
+        line = `${line} ${remaining}`;
       }
     }
     if (line) lines.push(line);
     return lines.join('\n');
+  }
+
+  normalizeSpecialText(text) {
+    if (typeof text !== 'string') return '';
+    return text.replace(/\r\n?/g, '\n').trim();
+  }
+
+  _wrapTextLinesPreserveNewlines(text, maxChars) {
+    const normalized = this.normalizeSpecialText(text);
+    if (!normalized) return [];
+    const lines = [];
+    for (const segment of normalized.split('\n')) {
+      const trimmed = segment.trim();
+      if (!trimmed) continue;
+      const wrapped = this.wrapText(trimmed, maxChars);
+      lines.push(...wrapped.split('\n').map(line => line.trim()).filter(Boolean));
+    }
+    return lines;
+  }
+
+  _formatSpecialLinesForUi(text, maxChars, maxLines = 2) {
+    const lineWidth = Math.max(1, Math.floor(Number(maxChars) || 0));
+    const wrappedLines = this._wrapTextLinesPreserveNewlines(text, lineWidth);
+    if (wrappedLines.length <= maxLines) return wrappedLines;
+    const trimmed = wrappedLines.slice(0, maxLines);
+    const lastIndex = trimmed.length - 1;
+    const ellipsis = lineWidth <= 3 ? '.'.repeat(lineWidth) : '...';
+    const roomForText = Math.max(0, lineWidth - ellipsis.length);
+    const lastLine = String(trimmed[lastIndex] || '').trimEnd();
+    const head = roomForText > 0 ? lastLine.slice(0, roomForText).trimEnd() : '';
+    trimmed[lastIndex] = `${head}${ellipsis}`;
+    return trimmed;
   }
 
   /** Show forge loot picker: unit -> weapon -> (stat for Silver). */
