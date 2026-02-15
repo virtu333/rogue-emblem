@@ -42,6 +42,7 @@ const DEPTH_PANEL = 701;
 const DEPTH_TEXT = 702;
 const DEPTH_PICKER = 750;
 const ACCESSORY_PICKER_MAX_ROWS = 8;
+const SCROLL_PICKER_MAX_PER_PAGE = 6;
 
 const LIST_X = 20;
 const LIST_WIDTH = 160;
@@ -1362,7 +1363,6 @@ export class RosterOverlay {
   }
 
   _showScrollPicker(unit) {
-    this._destroyTrade();
     const scrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
     if (scrolls.length <= 0) {
       this._showBanner('No scrolls available.', '#ff8888');
@@ -1372,64 +1372,114 @@ export class RosterOverlay {
     const cx = 320;
     const pad = 12;
     const gap = 4;
+    const navH = 24;
+    let page = 0;
 
-    // Pass 1: create elements at y=0 so Phaser computes their height
-    const pickerTitle = this.scene.add.text(cx, 0, 'Use Scroll:', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const drawPage = () => {
+      this._destroyTrade();
+      const allScrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
+      if (allScrolls.length <= 0) {
+        this._showBanner('No scrolls available.', '#ff8888');
+        return;
+      }
 
-    const buttons = scrolls.map((scroll) => {
-      const isWeaponArt = this._isWeaponArtScroll(scroll);
-      const color = isWeaponArt ? '#88ddff' : '#88ffff';
-      const skillDef = this.gameData?.skills?.find(s => s.id === scroll.skillId);
-      const desc = skillDef?.description ? `\n${skillDef.description}` : '';
-      const label = `${scroll.name}${desc}`;
-      const btn = this.scene.add.text(cx, 0, label, {
-        fontFamily: 'monospace', fontSize: '11px', color,
-        backgroundColor: '#444444', padding: { x: 10, y: 3 },
-        wordWrap: { width: 260 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', () => {
-        this._destroyTrade();
-        this._useTeamScroll(unit, scroll);
+      const totalPages = Math.max(1, Math.ceil(allScrolls.length / SCROLL_PICKER_MAX_PER_PAGE));
+      page = Math.max(0, Math.min(page, totalPages - 1));
+      const start = page * SCROLL_PICKER_MAX_PER_PAGE;
+      const pageScrolls = allScrolls.slice(start, start + SCROLL_PICKER_MAX_PER_PAGE);
+
+      // Pass 1: create elements at y=0 so Phaser computes their height
+      const pickerTitle = this.scene.add.text(cx, 0, 'Use Scroll:', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+
+      const buttons = pageScrolls.map((scroll, i) => {
+        const isWeaponArt = this._isWeaponArtScroll(scroll);
+        const color = isWeaponArt ? '#88ddff' : '#88ffff';
+        const skillDef = this.gameData?.skills?.find(s => s.id === scroll.skillId);
+        const desc = skillDef?.description ? `\n${skillDef.description}` : '';
+        const label = `${scroll.name}${desc}`;
+        const btn = this.scene.add.text(cx, 0, label, {
+          fontFamily: 'monospace', fontSize: '11px', color,
+          backgroundColor: '#444444', padding: { x: 10, y: 3 },
+          wordWrap: { width: 260 },
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerout', () => btn.setColor(color));
+        btn.on('pointerdown', () => {
+          this._destroyTrade();
+          this._useTeamScroll(unit, scroll);
+        });
+        btn._scrollRef = scroll;
+        return btn;
       });
-      btn._scrollRef = scroll;
-      return btn;
-    });
 
-    const cancelBtn = this.scene.add.text(cx, 0, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
-    cancelBtn.on('pointerdown', () => this._destroyTrade());
+      // Pass 2: measure heights and position sequentially
+      const contentH = buttons.reduce((sum, b) => sum + b.height + gap, 0);
+      const totalH = pad + pickerTitle.height + gap + contentH + navH * 2 + pad;
+      const topY = Math.max(5, 240 - totalH / 2);
 
-    // Pass 2: measure heights and position sequentially
-    const contentH = buttons.reduce((sum, b) => sum + b.height + gap, 0);
-    const totalH = pad + pickerTitle.height + gap + contentH + cancelBtn.height + pad;
-    const topY = Math.max(5, 240 - totalH / 2);
+      let curY = topY + pad + pickerTitle.height / 2;
+      pickerTitle.setY(curY);
+      curY += pickerTitle.height / 2 + gap;
 
-    let curY = topY + pad + pickerTitle.height / 2;
-    pickerTitle.setY(curY);
-    curY += pickerTitle.height / 2 + gap;
+      buttons.forEach(btn => {
+        curY += btn.height / 2;
+        btn.setY(curY);
+        curY += btn.height / 2 + gap;
+      });
 
-    buttons.forEach(btn => {
-      curY += btn.height / 2;
-      btn.setY(curY);
-      curY += btn.height / 2 + gap;
-    });
+      // Nav row
+      const navY = curY + navH / 2;
+      const pageLabel = this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
 
-    curY += cancelBtn.height / 2;
-    cancelBtn.setY(curY);
+      const navObjects = [pageLabel];
+      if (totalPages > 1) {
+        const prevColor = page > 0 ? '#e0e0e0' : '#666666';
+        const prevBtn = this.scene.add.text(cx - 100, navY, 'Prev', {
+          fontFamily: 'monospace', fontSize: '11px', color: prevColor,
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        if (page > 0) {
+          prevBtn.setInteractive({ useHandCursor: true });
+          prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
+          prevBtn.on('pointerout', () => prevBtn.setColor('#e0e0e0'));
+          prevBtn.on('pointerdown', () => { page--; drawPage(); });
+        }
+        navObjects.push(prevBtn);
 
-    // Background behind everything
-    const pickerBg = this.scene.add.rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+        const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
+        const nextBtn = this.scene.add.text(cx + 100, navY, 'Next', {
+          fontFamily: 'monospace', fontSize: '11px', color: nextColor,
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        if (page < totalPages - 1) {
+          nextBtn.setInteractive({ useHandCursor: true });
+          nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
+          nextBtn.on('pointerout', () => nextBtn.setColor('#e0e0e0'));
+          nextBtn.on('pointerdown', () => { page++; drawPage(); });
+        }
+        navObjects.push(nextBtn);
+      }
 
-    this.tradeObjects.push(pickerBg, pickerTitle, ...buttons, cancelBtn);
+      // Cancel button
+      const cancelY = navY + navH;
+      const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+        backgroundColor: '#333333', padding: { x: 10, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+      cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+      cancelBtn.on('pointerdown', () => this._destroyTrade());
+
+      // Background behind everything
+      const pickerBg = this.scene.add.rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
+        .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+
+      this.tradeObjects.push(pickerBg, pickerTitle, ...buttons, ...navObjects, cancelBtn);
+    };
+
+    drawPage();
   }
 
   _showWeaponPickerForScroll(weapons, title, onSelect) {

@@ -17,6 +17,7 @@ function makeDisplayObject(seed = {}) {
     setStrokeStyle() { return this; },
     setInteractive(opts) { this._interactive = opts; return this; },
     setColor(color) { this._color = color; return this; },
+    setPosition(x, y) { this.x = x; this.y = y; return this; },
     on(event, cb) { this.handlers[event] = cb; return this; },
     destroy() { this._destroyed = true; },
   };
@@ -126,6 +127,46 @@ describe('NodeMap shop hover details', () => {
     const lines = text.split('\n');
     expect(lines[0]).toBe('Sword');
     expect(lines[1]).toContain('Mt: 5');
+  });
+
+  it('tooltip box is sized from text dimensions with wordWrap', () => {
+    const createdRects = [];
+    const scene = {
+      shopItemTooltip: null,
+      _hideShopItemTooltip: NodeMapScene.prototype._hideShopItemTooltip,
+      _getShopItemDetailText: NodeMapScene.prototype._getShopItemDetailText,
+      gameData: { skills: [] },
+      add: {
+        text: (_x, _y, _text, style) => {
+          const obj = makeDisplayObject({ x: _x, y: _y, text: _text, style, width: 200, height: 40 });
+          return obj;
+        },
+        rectangle: (x, y, w, h, color, alpha) => {
+          const obj = makeDisplayObject({ x, y, width: w, height: h, color, alpha });
+          createdRects.push(obj);
+          return obj;
+        },
+      },
+    };
+
+    const entry = {
+      type: 'weapon',
+      item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+
+    NodeMapScene.prototype._showShopItemTooltip.call(scene, entry, 100, 100);
+
+    expect(scene.shopItemTooltip).toHaveLength(2);
+    const [bg, detailText] = scene.shopItemTooltip;
+
+    // Text should use wordWrap width of 304
+    expect(detailText.style.wordWrap).toEqual({ width: 304 });
+
+    // Box dimensions: Clamp(200 + 16, 150, 320) = 216, height = 40 + 12 = 52
+    const expectedW = Math.min(320, Math.max(150, 200 + 16));
+    const expectedH = 40 + 12;
+    expect(bg.width).toBe(expectedW);
+    expect(bg.height).toBe(expectedH);
   });
 
   it('hides shop tooltip on active-tab redraw', () => {
