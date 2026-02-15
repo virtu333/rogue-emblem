@@ -19,6 +19,7 @@ vi.mock('../src/engine/LootSystem.js', async () => {
 });
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { GOLD_LOOT_REWARD_MULTIPLIER } from '../src/utils/constants.js';
 
 function makeDisplayObject(seed = {}) {
   return {
@@ -280,5 +281,31 @@ describe('BattleScene loot meta wiring', () => {
     expect(labels.some((text) => text.includes('+2 STR'))).toBe(true);
     expect(labels.some((text) => text.includes('Negate effectiveness'))).toBe(true);
     expect(labels.some((text) => text.includes('Promote Lv 10+ unit'))).toBe(true);
+  });
+
+  it('applies loot gold multiplier to displayed and awarded gold', () => {
+    const textCalls = [];
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'gold',
+        goldAmount: 500,
+      },
+    ]);
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.finalizeLootPick = vi.fn();
+    scene.add.text = (...args) => {
+      textCalls.push(args);
+      return makeDisplayObject();
+    };
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const lootCard = scene._lootCards?.[0]?.bg;
+    expect(lootCard).toBeTruthy();
+    lootCard.handlers.pointerdown();
+
+    const expectedGold = Math.floor(500 * GOLD_LOOT_REWARD_MULTIPLIER);
+    expect(scene.runManager.addGold).toHaveBeenCalledWith(expectedGold);
+    expect(textCalls.some((call) => call[2] === `${expectedGold}G`)).toBe(true);
   });
 });

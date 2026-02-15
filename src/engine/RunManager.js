@@ -5,7 +5,7 @@ import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
-  RECRUIT_SKILL_POOL,
+  RECRUIT_SKILL_POOL, GOLD_BATTLE_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
@@ -1266,7 +1266,7 @@ export class RunManager {
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
-    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
+    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult * GOLD_BATTLE_REWARD_MULTIPLIER);
     this.addGold(finalGold);
   }
 

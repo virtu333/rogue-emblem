@@ -69,7 +69,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
@@ -6882,7 +6882,7 @@ export class BattleScene extends Phaser.Scene {
     );
 
     // Skip bonus gold
-    const skipGold = calculateSkipLootBonus(totalGold);
+    const skipGold = Math.floor(calculateSkipLootBonus(totalGold) * GOLD_LOOT_REWARD_MULTIPLIER);
 
     // Render cards: loot choices + 1 skip (dynamic sizing for 4 or 5 cards)
     const totalCards = choices.length + 1;
@@ -6928,8 +6928,9 @@ export class BattleScene extends Phaser.Scene {
       lootGroup.push(icon);
 
       if (choice.type === 'gold') {
+        const scaledGoldAmount = Math.floor((choice.goldAmount || 0) * GOLD_LOOT_REWARD_MULTIPLIER);
         // Gold choice
-        const goldLabel = this.add.text(cx, cardY - 2, `${choice.goldAmount}G`, {
+        const goldLabel = this.add.text(cx, cardY - 2, `${scaledGoldAmount}G`, {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(goldLabel);
@@ -6949,7 +6950,7 @@ export class BattleScene extends Phaser.Scene {
         card.on('pointerdown', () => {
           const audio = this.registry.get('audio');
           if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
-          this.runManager.addGold(choice.goldAmount);
+          this.runManager.addGold(scaledGoldAmount);
           // Distribute team XP to entire roster
           if (choice.xpAmount && this.runManager.roster) {
             for (const unit of this.runManager.roster) {

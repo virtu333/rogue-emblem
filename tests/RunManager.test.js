@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RunManager, serializeUnit, saveRun, loadRun, hasSavedRun, clearSavedRun } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
-import { NODE_TYPES } from '../src/utils/constants.js';
+import { NODE_TYPES, GOLD_BATTLE_REWARD_MULTIPLIER } from '../src/utils/constants.js';
+import { calculateBattleGold } from '../src/engine/LootSystem.js';
 
 // Mock localStorage
 const store = {};
@@ -308,6 +309,17 @@ describe('RunManager', () => {
       const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
       rm.completeBattle(rm.getRoster(), startNode.id);
       expect(startNode.completed).toBe(true);
+    });
+
+    it('applies global battle gold multiplier', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startGold = rm.gold;
+      rm.completeBattle(rm.getRoster(), startNode.id, 100);
+
+      const expectedBase = calculateBattleGold(100, startNode?.type);
+      const expectedGain = Math.floor(expectedBase * GOLD_BATTLE_REWARD_MULTIPLIER);
+      expect(rm.gold - startGold).toBe(expectedGain);
     });
   });
 

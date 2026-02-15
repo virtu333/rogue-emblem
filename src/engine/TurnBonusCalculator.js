@@ -1,5 +1,6 @@
 // TurnBonusCalculator.js — Pure functions for turn-based rating and bonus gold.
 // No Phaser deps.
+import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
 
 /**
  * Calculate the par (target turn count) for a battle map.
@@ -67,5 +68,5 @@ export function getRating(turnsTaken, par, config) {
  */
 export function calculateBonusGold(rating, actId, config) {
   const baseGold = config.baseBonusGold[actId] || 0;
-  return Math.floor(baseGold * rating.bonusMultiplier);
+  return Math.floor(baseGold * rating.bonusMultiplier * GOLD_PAR_BONUS_MULTIPLIER);
 }

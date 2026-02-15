@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculatePar, getRating, calculateBonusGold } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
+import { GOLD_PAR_BONUS_MULTIPLIER } from '../src/utils/constants.js';
 
 const gameData = loadGameData();
 const config = gameData.turnBonus;
@@ -199,17 +200,23 @@ describe('TurnBonusCalculator', () => {
   describe('calculateBonusGold', () => {
     it('returns full bonus for S rating in act1', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
-      expect(calculateBonusGold(rating, 'act1', config)).toBe(150);
+      expect(calculateBonusGold(rating, 'act1', config)).toBe(
+        Math.floor(150 * GOLD_PAR_BONUS_MULTIPLIER)
+      );
     });
 
     it('returns 60% bonus for A rating in act2', () => {
       const rating = { rating: 'A', bonusMultiplier: 0.6 };
-      expect(calculateBonusGold(rating, 'act2', config)).toBe(180);
+      expect(calculateBonusGold(rating, 'act2', config)).toBe(
+        Math.floor(300 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER)
+      );
     });
 
     it('returns 25% bonus for B rating in act3', () => {
       const rating = { rating: 'B', bonusMultiplier: 0.25 };
-      expect(calculateBonusGold(rating, 'act3', config)).toBe(112);
+      expect(calculateBonusGold(rating, 'act3', config)).toBe(
+        Math.floor(450 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
+      );
     });
 
     it('returns 0 bonus for C rating', () => {
@@ -220,12 +227,16 @@ describe('TurnBonusCalculator', () => {
 
     it('returns full bonus for S rating in finalBoss', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
-      expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(600);
+      expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(
+        Math.floor(600 * GOLD_PAR_BONUS_MULTIPLIER)
+      );
     });
 
     it('returns full bonus for S rating in act4', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
-      expect(calculateBonusGold(rating, 'act4', config)).toBe(525);
+      expect(calculateBonusGold(rating, 'act4', config)).toBe(
+        Math.floor(525 * GOLD_PAR_BONUS_MULTIPLIER)
+      );
     });
 
     it('returns 0 for unknown act', () => {
@@ -258,13 +269,13 @@ describe('TurnBonusCalculator', () => {
       const sRating = getRating(par, par, config);
       expect(sRating.rating).toBe('S');
       const sGold = calculateBonusGold(sRating, 'act2', config);
-      expect(sGold).toBe(300);
+      expect(sGold).toBe(Math.floor(300 * GOLD_PAR_BONUS_MULTIPLIER));
 
       // Clear 4 turns over → B rank → 25% gold
       const bRating = getRating(par + 4, par, config);
       expect(bRating.rating).toBe('B');
       const bGold = calculateBonusGold(bRating, 'act2', config);
-      expect(bGold).toBe(75);
+      expect(bGold).toBe(Math.floor(75 * GOLD_PAR_BONUS_MULTIPLIER));
     });
   });
 });
