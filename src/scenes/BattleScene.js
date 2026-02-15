@@ -96,6 +96,13 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 
+function dimColor(color, factor = 0.3) {
+  const r = Math.floor(((color >> 16) & 0xff) * factor);
+  const g = Math.floor(((color >> 8) & 0xff) * factor);
+  const b = Math.floor((color & 0xff) * factor);
+  return (r << 16) | (g << 8) | b;
+}
+
 function hashRewindSeed(seed, rewindCount) {
   const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
   let h = 2166136261 >>> 0;
@@ -1951,10 +1958,11 @@ export class BattleScene extends Phaser.Scene {
     }
     unit.graphic.setDepth(10);
 
-    // Faction indicator circle (blue=player, red=enemy, green=npc)
-    const indicatorY = pos.y + TILE_SIZE / 2 - 8;
-    unit.factionIndicator = this.add.circle(pos.x, indicatorY, 5, color, 0.6)
-      .setDepth(9);
+    // Faction indicator ring (blue=player, red=enemy, green=npc)
+    const ringY = pos.y + 6;
+    unit.factionIndicator = this.add.ellipse(pos.x, ringY, 24, 12, 0x000000, 0)
+      .setStrokeStyle(2, color, 0.7)
+      .setDepth(8);
 
     // HP bar
     const barWidth = TILE_SIZE - 6;
@@ -1963,7 +1971,7 @@ export class BattleScene extends Phaser.Scene {
     const barY = pos.y + TILE_SIZE / 2 - 4;
     unit.hpBar = {
       bg: this.add.rectangle(
-        pos.x, barY, barWidth, barHeight, 0x333333
+        pos.x, barY, barWidth, barHeight, dimColor(color, 0.3)
       ).setDepth(12),
       fill: this.add.rectangle(
         barX + barWidth / 2, barY, barWidth, barHeight,
@@ -2006,7 +2014,7 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     unit.graphic.setPosition(pos.x, pos.y);
     if (unit.label) unit.label.setPosition(pos.x, pos.y);
-    if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + TILE_SIZE / 2 - 8);
+    if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + 6);
     this.updateHPBar(unit);
     this.updateAffixPips(unit);
   }
@@ -2043,7 +2051,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.setTint(0x888888);
     }
     if (unit.label) unit.label.setAlpha(0.5);
-    if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.3);
+    if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.5);
     if (unit.affixPips) {
       unit.affixPips.forEach(p => p.setAlpha(0.5));
     }
@@ -2054,7 +2062,7 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.clearTint();
     }
     if (unit.label) unit.label.setAlpha(1);
-    if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.6);
+    if (unit.factionIndicator) unit.factionIndicator.setAlpha(1);
     if (unit.affixPips) {
       unit.affixPips.forEach(p => p.setAlpha(1));
     }
