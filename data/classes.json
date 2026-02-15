@@ -409,10 +409,10 @@
     "description": "A sellsword — no weakness and no wasted stat, reliable in every fight.",
     "growthRanges": {
       "HP": "65-80",
-      "STR": "40-55",
+      "STR": "45-60",
       "MAG": "5-15",
       "SKL": "45-60",
-      "SPD": "40-55",
+      "SPD": "42-57",
       "DEF": "25-35",
       "RES": "15-25",
       "LCK": "30-40"
@@ -657,10 +657,10 @@
     "promotesFrom": "Mercenary",
     "promotionBonuses": {
       "HP": 3,
-      "STR": 2,
+      "STR": 3,
       "MAG": 0,
       "SKL": 2,
-      "SPD": 1,
+      "SPD": 2,
       "DEF": 2,
       "RES": 1,
       "LCK": 0,
