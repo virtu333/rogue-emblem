@@ -34,6 +34,10 @@ describe('BattleScene equip menu text', () => {
     const scene = new BattleScene();
     scene.hideActionMenu = vi.fn();
     scene.showActionMenu = vi.fn();
+    scene.cameras = {
+      main: { centerX: 320, centerY: 240, width: 640, height: 480 },
+    };
+    scene.input = { on: vi.fn(), off: vi.fn() };
     scene.grid = {
       cols: 10,
       gridToPixel: () => ({ x: 64, y: 64 }),

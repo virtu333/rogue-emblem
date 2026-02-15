@@ -123,7 +123,8 @@ export const GOLD_PER_LEVEL_BONUS = 8;
 export const GOLD_BATTLE_BONUS = 120;
 export const GOLD_BOSS_BONUS = 300;
 export const GOLD_BATTLE_REWARD_MULTIPLIER = 2.0;
-export const GOLD_LOOT_REWARD_MULTIPLIER = 2.0;
+// Shared loot multiplier: applied in LootSystem gold generation and BattleScene skip-loot payout.
+export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;
 export const GOLD_PAR_BONUS_MULTIPLIER = 2.0;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.50;
 export const SHOP_SELL_RATIO = 0.5;

@@ -223,6 +223,7 @@ QA evidence (Feb 12, 2026):
 **Priority:** Low-Medium - Nice-to-haves
 **Effort:** 1-2 days each
 
+- [ ] **Anti-Refresh Exploit** - Prevent browser refresh from resetting battles (reviving dead units, retrying with no consequence). Current state: refresh mid-battle returns to NodeMapScene with pre-battle roster intact. Preferred approach: save deployed roster snapshot on battle entry ("battle-in-progress" flag); on reload, restore with casualties locked in. Future upgrade path: full mid-battle turn-by-turn suspend saves (serialize grid positions, HP, turn count, fog state). See discussion notes in memory.
 - [ ] Undo Movement - store pre-move position, cancel returns unit if no action taken
 - [ ] Battle Log - scrollable log of combat results, level-ups, skill activations, defeats
 - [ ] Battle Speed Controls - fast mode toggle (2x animations), persist via SettingsManager

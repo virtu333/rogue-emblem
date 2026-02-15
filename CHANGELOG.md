@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Act 4 + Narrative + Systems Hardening (Feb 15, 2026)
+- **Act 4 hard-mode progression shipped**: Added runtime progression support for Act 4 with new templates, terrain hazards, and slide-aware AI behavior.
+- **Reinforcement system expanded and hardened**: Added contract validation, scripted boss-map waves, deterministic turn jitter, and parity/state fixes with focused regressions.
+- **Boss-map generation safeguards**: Added hybrid arena validation/overrides, boss-only template gating, and deterministic fallback handling for missing objective pools.
+- **Act 4 boss follow-up polish**: Trimmed map presentation, routed emperor sprite usage, and added spawn-pressure guards for boss encounters.
+- **Narrative flow foundation landed**: Added dialogue system support, act transition narrative hooks, and boss naming updates.
+- **NodeMap dialogue input safety**: Node clicks are now queued during story dialogue to avoid skipped or invalid map actions.
+- **Weapon Arts expansion (Phase 1/2)**: Added stat-scaling, expanded magic-art catalog coverage, and new tactical-depth arts/combat flags.
+- **Weapon Art assignment reliability**: Hardened run-start art assignment and instance-bound selection behavior with dedicated regression coverage.
+- **Weapon Art meta wiring split**: Meta upgrade progression for arts was split for clearer unlock flow, with migration-only legacy reference cleanup in docs.
+- **Scene lifecycle hardening pass**: Added transition metadata, cleanup contracts, leak detection/audits, crash tracing, SceneRouter facade coverage, and combat NaN guards.
+- **Audio lifecycle reliability**: Hardened overlap prevention and delayed-transition behavior with watchdog + scene guard improvements.
+- **Mobile controls architecture upgrade**: Added HTML overlay infrastructure, scene context stack handling, listener lifecycle cleanup, ghost-click prevention, and Home Base mobile cancel/menu semantics.
+- **Tutorial flow improvements**: Hardened tutorial gate/skip flows, clarified terrain hints and Fort move checks, and added a turn-3 vision-rewind intro step.
+- **Help/tutorial discoverability**: Added Eye guidance and help search support, plus tuned chunk-E tutorial rewards.
+- **Meta-progression economy updates**: Added a full refund system with UI/tests, split Deadly Arsenal into Rapier/Silver tiers, added Vanguard Cadre + Field Supplies II, and retuned upgrade costs.
+- **Economy reward rebalance**: Increased battle/loot/par gold rewards, updated gold multipliers, and tuned War Chest starting-gold scaling.
+- **XP tuning for priority targets**: Added a +30% XP bonus for boss/elite kills.
+- **Combat/runtime fixes**: Added `resBonus` support, fixed Adept state initialization paths, corrected Rapier cavalry effectiveness text/data mismatch, and fixed lethal-armory export/wiring.
+- **Loot/accessory flow fixes**: Restored accessory loot feedback, added accessory pool equip UX, fixed loot quality/category mapping/effect parsing, and hardened legacy migration parity.
+- **Battle/UI readability pass**: Added weapon stats in equip menus, weight in attack picker details, tighter equip stat layout, faction base rings, tinted HP bar backgrounds, and richer post-battle recruit/loot card text.
+- **Home Base / shop UX polish**: Added meta-upgrade hover tooltips, centered Home Base footer controls, and added NodeMap shop-item hover detail text.
+- **Release-gate and regression expansion**: Added CI workflow coverage for unit + harness gates, expanded Playwright scene/node-map coverage, and added economy/mobile/context regression + CLI smoke tests.
+- **Harness governance updates**: Added threshold calibration guidance and adjusted sim PR gate thresholds with refreshed reference artifacts.
+
 ### Weapon Arts + Wyvern + Convoy (Feb 12, 2026)
 - **Weapon Arts foundation shipped**: Added weapon art data/system integration, battle command flow, and forecast/execution parity safeguards (including HP-cost timing parity and unlock gating hardening).
 - **Scroll overwrite transaction hardening**: Scroll apply now commits atomically on confirm (no pre-confirm mutation), re-plans at commit time to avoid stale overwrite state, and preserves cancel/failure behavior without mutating weapon slots.
