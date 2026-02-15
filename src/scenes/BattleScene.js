@@ -171,6 +171,7 @@ export class BattleScene extends Phaser.Scene {
     this._postLootTransitionStartedAt = 0;
     this._postLootTransitionTimer = null;
     this._transitionAfterBattlePromise = null;
+    this._levelUpSfxKey = null;
   }
 
   create() {
@@ -238,6 +239,7 @@ export class BattleScene extends Phaser.Scene {
       this.events.once('shutdown', () => {
         const audio = this.registry.get('audio');
         if (audio) audio.releaseMusic(this, 0);
+        this._stopLevelUpSfx();
         this._clearTutorialGuideHighlights();
         this.cancelTouchInspectHold();
         this._hideMenuTooltip();
@@ -5713,6 +5715,22 @@ export class BattleScene extends Phaser.Scene {
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
   }
 
+  _playLevelUpSfx() {
+    this._stopLevelUpSfx();
+    const audio = this.registry.get('audio');
+    if (!audio) return;
+    this._levelUpSfxKey = 'sfx_levelup';
+    audio.playSFX(this._levelUpSfxKey);
+  }
+
+  _stopLevelUpSfx() {
+    if (!this._levelUpSfxKey) return;
+    if (typeof this.sound?.stopByKey === 'function') {
+      this.sound.stopByKey(this._levelUpSfxKey);
+    }
+    this._levelUpSfxKey = null;
+  }
+
   async awardScaledXP(playerUnit, baseXp) {
     const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier) ? this.battleParams.xpMultiplier : 1;
     const xp = Math.max(1, Math.floor(baseXp * xpMultiplier));
@@ -5733,8 +5751,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Show level-up popups sequentially
     for (const lvUp of result.levelUps) {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_levelup');
+      this._playLevelUpSfx();
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);
       // Check for new skills learned at this level
@@ -5744,7 +5761,11 @@ export class BattleScene extends Phaser.Scene {
         return skill ? skill.name : id;
       });
       const popup = new LevelUpPopup(this, playerUnit, lvUp, false, learnedNames);
-      await popup.show();
+      try {
+        await popup.show();
+      } finally {
+        this._stopLevelUpSfx();
+      }
     }
   }
 
@@ -6393,6 +6414,7 @@ export class BattleScene extends Phaser.Scene {
   /** Hide/show enemy and NPC graphics based on fog visibility. */
   updateEnemyVisibility() {
     if (!this.grid.fogEnabled) return;
+    this.dangerZoneStale = true;
     for (const enemy of this.enemyUnits) {
       const vis = this.grid.isVisible(enemy.col, enemy.row);
       if (enemy.graphic) enemy.graphic.setVisible(vis);
