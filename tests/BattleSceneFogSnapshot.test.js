@@ -1,4 +1,4 @@
-// BattleSceneFogSnapshot.test.js — Integration tests for fog snapshot lifecycle in BattleScene
+// BattleSceneFogSnapshot.test.js - Integration tests for fog snapshot lifecycle in BattleScene
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
@@ -79,6 +79,7 @@ function setupScene() {
   scene.buildUnitPositionMap = vi.fn(() => new Map());
   scene._clearSelectedWeaponArt = vi.fn();
   scene.isStoryInputLocked = () => false;
+  scene._isTutorialStrictGateActive = () => false;
   scene.inspectionPanel = null;
   scene.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn() };
 
@@ -89,7 +90,7 @@ describe('BattleScene fog snapshot lifecycle', () => {
   it('undoMove restores fog state from snapshot', async () => {
     const { scene, unit, restoreSpy, updateFogSpy } = setupScene();
 
-    // Simulate: unit selected and moved — preMoveLoc + snapshot set
+    // Simulate: unit selected and moved - preMoveLoc + snapshot set
     scene.preMoveLoc = { col: 1, row: 1 };
     const fakeSnapshot = new Set(['0,0', '1,1']);
     scene._preFogSnapshot = fakeSnapshot;
@@ -110,7 +111,7 @@ describe('BattleScene fog snapshot lifecycle', () => {
   it('finishUnitAction clears snapshot without restoring', () => {
     const { scene, unit, restoreSpy } = setupScene();
 
-    // Simulate: unit moved and acted — snapshot still set
+    // Simulate: unit moved and acted - snapshot still set
     scene.preMoveLoc = { col: 1, row: 1 };
     scene._preFogSnapshot = new Set(['0,0']);
 
@@ -120,22 +121,36 @@ describe('BattleScene fog snapshot lifecycle', () => {
     expect(restoreSpy).not.toHaveBeenCalled();
   });
 
-  it('stay-in-place takes a fresh snapshot', () => {
+  it('finishUnitAction canto branch clears snapshot before canto move', () => {
+    const { scene, unit, restoreSpy } = setupScene();
+
+    unit.skills = ['canto'];
+    unit.stats.MOV = 6;
+    unit._movementSpent = 2;
+    scene.preMoveLoc = { col: 1, row: 1 };
+    scene._preFogSnapshot = new Set(['0,0']);
+    scene.startCantoMove = vi.fn();
+
+    BattleScene.prototype.finishUnitAction.call(scene, unit);
+
+    expect(scene._preFogSnapshot).toBeNull();
+    expect(scene.preMoveLoc).toBeNull();
+    expect(scene.startCantoMove).toHaveBeenCalledWith(unit, 4);
+    expect(restoreSpy).not.toHaveBeenCalled();
+  });
+
+  it('stay-in-place selected-click path takes a fresh snapshot', () => {
     const { scene, unit, snapshotSpy } = setupScene();
 
-    // The click-own-tile path (line ~2837-2843) sets preMoveLoc + snapshot
-    // We call that inline block directly by simulating the relevant assignments
     scene.selectedUnit = unit;
     unit.col = 2;
     unit.row = 2;
+    scene.movementRange = new Map();
 
-    // Replicate the stay-in-place block from handleMovementClick
-    scene.grid.clearHighlights();
-    scene.preMoveLoc = { col: unit.col, row: unit.row };
-    scene._preFogSnapshot = scene.grid.snapshotFogState();
-    scene.showActionMenu(unit);
+    BattleScene.prototype.handleSelectedClick.call(scene, { col: 2, row: 2 });
 
     expect(snapshotSpy).toHaveBeenCalled();
+    expect(scene.preMoveLoc).toEqual({ col: 2, row: 2 });
     expect(scene._preFogSnapshot).toBeInstanceOf(Set);
     expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
   });
