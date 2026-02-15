@@ -53,6 +53,20 @@ const LOOT_CATEGORY_LABELS = {
   gold: 'Gold',
 };
 
+const STAT_GAMEPLAY_HINTS = {
+  HP:  'Hit Points — how much damage a unit can take.',
+  STR: 'Strength — adds to physical attack damage.',
+  MAG: 'Magic — adds to magical damage and healing.',
+  SKL: 'Skill — improves hit rate, crit chance, and skill activation.',
+  SPD: 'Speed — improves avoid. Double attack if SPD >= foe +5.',
+  DEF: 'Defense — reduces physical damage taken.',
+  RES: 'Resistance — reduces magical damage taken.',
+  LCK: 'Luck — small hit/avoid bonus, reduces enemy crit.',
+};
+const GROWTH_HINT = 'Growth = % chance to gain +1 at each level-up.';
+const FLAT_HINT_RECRUIT = 'Recruits start with this bonus at recruitment.';
+const FLAT_HINT_LORD = 'Lords begin each run with this bonus.';
+
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
     super('HomeBase');
@@ -156,6 +170,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this._tierTooltip.destroy();
       this._tierTooltip = null;
     }
+    this._hideUpgradeTooltip();
     this._hideRefundConfirm();
     this.children.removeAll(true);
 
@@ -353,8 +368,18 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = 370;
       const costX = 530;
 
-      this.add.text(labelX, y, this._getStatLabel(upgrade), {
+      const statLabel = this.add.text(labelX, y, this._getStatLabel(upgrade), {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+      });
+      statLabel.setInteractive({ useHandCursor: true });
+      statLabel.on('pointerover', () => {
+        statLabel.setColor('#ffdd44');
+        const tipLines = this._getUpgradeTooltipLines(upgrade);
+        this._showUpgradeTooltip(labelX, y, tipLines);
+      });
+      statLabel.on('pointerout', () => {
+        statLabel.setColor('#e0e0e0');
+        this._hideUpgradeTooltip();
       });
 
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
@@ -377,8 +402,18 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = barX + (BAR_SEGMENT_W + BAR_GAP) * upgrade.maxLevel + 10;
       const costX = 530;
 
-      this.add.text(labelX, y, upgrade.name, {
+      const nameLabel = this.add.text(labelX, y, upgrade.name, {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+      });
+      nameLabel.setInteractive({ useHandCursor: true });
+      nameLabel.on('pointerover', () => {
+        nameLabel.setColor('#ffdd44');
+        const tipLines = this._getUpgradeTooltipLines(upgrade);
+        this._showUpgradeTooltip(labelX, y, tipLines);
+      });
+      nameLabel.on('pointerout', () => {
+        nameLabel.setColor('#e0e0e0');
+        this._hideUpgradeTooltip();
       });
 
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
@@ -632,6 +667,69 @@ export class HomeBaseScene extends Phaser.Scene {
     return null;
   }
 
+  _getUpgradeTooltipLines(upgrade) {
+    if (!upgrade) return [];
+    const effect = upgrade.effects?.[0];
+    if (!effect) return upgrade.description ? [upgrade.description] : [];
+
+    // Growth upgrades
+    const statKey = effect.recruitGrowth || effect.lordGrowth;
+    if (statKey) {
+      const lines = [upgrade.name];
+      const hint = STAT_GAMEPLAY_HINTS[statKey];
+      lines.push(hint || upgrade.description || `${statKey} stat`);
+      lines.push(GROWTH_HINT);
+      return lines;
+    }
+
+    // Flat stat upgrades
+    const flatKey = effect.stat || effect.lordStat;
+    if (flatKey) {
+      const lines = [upgrade.name];
+      const hint = STAT_GAMEPLAY_HINTS[flatKey];
+      lines.push(hint || upgrade.description || `${flatKey} stat`);
+      lines.push(effect.lordStat ? FLAT_HINT_LORD : FLAT_HINT_RECRUIT);
+      return lines;
+    }
+
+    // Named upgrades — show name + description
+    if (upgrade.name && upgrade.description) {
+      return [upgrade.name, upgrade.description];
+    }
+
+    return upgrade.description ? [upgrade.description] : [];
+  }
+
+  _showUpgradeTooltip(x, y, lines) {
+    this._hideUpgradeTooltip();
+    if (!lines || lines.length === 0) return;
+    const text = lines.join('\n');
+    const tipX = Math.min(x, TAB_CONTENT_RIGHT_X - 290);
+
+    // Render off-screen first to measure actual height (accounts for word wrap)
+    const tip = this.add.text(tipX, -9999, text, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
+      backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
+      wordWrap: { width: 280 },
+    }).setDepth(950);
+
+    const tipH = tip.height;
+    const above = y - tipH - 4;
+    const below = y + 20;
+    let tipY = above >= TAB_CONTENT_TOP_Y ? above : below;
+    if (tipY + tipH > TAB_CONTENT_BOTTOM_Y) tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
+    tip.setY(tipY);
+
+    this._upgradeTooltip = tip;
+  }
+
+  _hideUpgradeTooltip() {
+    if (this._upgradeTooltip) {
+      this._upgradeTooltip.destroy();
+      this._upgradeTooltip = null;
+    }
+  }
+
   _formatLootCategoryBonuses(weightBonuses) {
     if (!weightBonuses || typeof weightBonuses !== 'object') return null;
     const entries = Object.entries(weightBonuses)
@@ -766,10 +864,32 @@ export class HomeBaseScene extends Phaser.Scene {
       const descX = 160;
       const costX = 530;
 
-      // Skill name
-      this.add.text(labelX, y, upgrade.name, {
-        fontFamily: 'monospace', fontSize: '12px',
-        color: maxed ? '#88ccff' : '#e0e0e0',
+      // Skill name — interactive with tooltip
+      const baseColor = maxed ? '#88ccff' : '#e0e0e0';
+      const skillLabel = this.add.text(labelX, y, upgrade.name, {
+        fontFamily: 'monospace', fontSize: '12px', color: baseColor,
+      });
+
+      // Look up skill details for tooltip
+      const skillEffect = upgrade.effects?.[0];
+      const skillId = skillEffect?.unlockSkill || skillEffect?.skillUnlock;
+      const skillInfo = skillId ? skillsData.find(s => s.id === skillId) : null;
+      skillLabel.setInteractive({ useHandCursor: true });
+      skillLabel.on('pointerover', () => {
+        skillLabel.setColor('#ffdd44');
+        let tipLines;
+        if (skillInfo) {
+          tipLines = [skillInfo.name, skillInfo.description];
+          if (skillInfo.trigger) tipLines.push(`Trigger: ${skillInfo.trigger}`);
+          if (skillInfo.activation) tipLines.push(`Activation: ${skillInfo.activation}`);
+        } else {
+          tipLines = [upgrade.name, upgrade.description].filter(Boolean);
+        }
+        this._showUpgradeTooltip(labelX, y, tipLines);
+      });
+      skillLabel.on('pointerout', () => {
+        skillLabel.setColor(baseColor);
+        this._hideUpgradeTooltip();
       });
 
       // Short description

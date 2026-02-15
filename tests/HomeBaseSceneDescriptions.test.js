@@ -32,6 +32,20 @@ describe('HomeBaseScene upgrade description helpers', () => {
     expect(scene._formatEffectValue(effect)).toBe('+10%');
   });
 
+  it('describes loot category bonus economy upgrades', () => {
+    const scene = new HomeBaseScene();
+    const effect = {
+      lootCategoryWeightBonuses: {
+        skillScroll: 2,
+        weaponArtScroll: 2,
+        gold: -2,
+      },
+    };
+
+    expect(scene._formatEffectValue(effect)).toBe('Skill Scroll +2, Weapon Art +2, Gold -2');
+    expect(scene._getActionDesc(effect)).toBe('Drop table: more Skill Scroll & Weapon Art; less Gold');
+  });
+
   it('formats and describes extra starting unit tier upgrade', () => {
     const scene = new HomeBaseScene();
 
@@ -54,5 +68,124 @@ describe('HomeBaseScene upgrade description helpers', () => {
 
     expect(scene._getActionDesc({ effects: [{ recruitStartingVulnerary: 1 }] })).toBe('Recruits start with Vulnerary');
     expect(scene._formatEffectValue({ recruitStartingVulnerary: 1 })).toBe('+1');
+  });
+});
+
+describe('HomeBaseScene _getUpgradeTooltipLines', () => {
+  it('returns growth tooltip with stat hint and growth explanation', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'HP Growth',
+      description: 'Increase HP growth',
+      effects: [{ recruitGrowth: 'HP', growthValue: 5 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('HP Growth');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('Hit Points'),
+    ]));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('Growth'),
+    ]));
+  });
+
+  it('returns lord growth tooltip with stat hint and growth explanation', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'Lord SPD Growth',
+      description: 'Increase lord SPD growth',
+      effects: [{ lordGrowth: 'SPD', growthValue: 5 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('Lord SPD Growth');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('Speed'),
+    ]));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('level-up'),
+    ]));
+  });
+
+  it('returns flat recruit tooltip with stat hint and recruitment text', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'STR Bonus',
+      description: 'Recruit STR bonus',
+      effects: [{ stat: 'STR', value: 1 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('STR Bonus');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('Strength'),
+    ]));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('recruitment'),
+    ]));
+  });
+
+  it('returns lord flat tooltip with stat hint and run text', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'Lord DEF',
+      description: 'Lord DEF bonus',
+      effects: [{ lordStat: 'DEF', value: 1 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('Lord DEF');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('Defense'),
+    ]));
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('run'),
+    ]));
+  });
+
+  it('returns name + description for named upgrades', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'Starting Gold',
+      description: 'Begin each run with extra gold.',
+      effects: [{ goldBonus: 100 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines).toEqual(['Starting Gold', 'Begin each run with extra gold.']);
+  });
+
+  it('falls back gracefully for empty effects', () => {
+    const scene = new HomeBaseScene();
+    expect(scene._getUpgradeTooltipLines(null)).toEqual([]);
+    expect(scene._getUpgradeTooltipLines({ effects: [] })).toEqual([]);
+    expect(scene._getUpgradeTooltipLines({ description: 'Fallback' })).toEqual(['Fallback']);
+  });
+
+  it('falls back to description for unrecognized growth stat key', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'CHA Growth',
+      description: 'Increase CHA growth rate',
+      effects: [{ recruitGrowth: 'CHA', growthValue: 5 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('CHA Growth');
+    // Should include the description as fallback instead of silently omitting
+    expect(lines[1]).toBe('Increase CHA growth rate');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('level-up'),
+    ]));
+  });
+
+  it('falls back to description for unrecognized flat stat key', () => {
+    const scene = new HomeBaseScene();
+    const upgrade = {
+      name: 'CHA Bonus',
+      description: 'Recruit CHA bonus',
+      effects: [{ stat: 'CHA', value: 1 }],
+    };
+    const lines = scene._getUpgradeTooltipLines(upgrade);
+    expect(lines[0]).toBe('CHA Bonus');
+    expect(lines[1]).toBe('Recruit CHA bonus');
+    expect(lines).toEqual(expect.arrayContaining([
+      expect.stringContaining('recruitment'),
+    ]));
   });
 });
