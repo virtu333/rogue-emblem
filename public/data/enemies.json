@@ -54,7 +54,7 @@
       { "className": "General", "level": 20, "name": "The Emperor" }
     ],
     "finalBoss": [
-      { "className": "Hero", "level": 20, "name": "Dark Champion" }
+      { "className": "Hero", "level": 20, "name": "The Lieutenant" }
     ]
   },
   "enemyCountByTiles": {

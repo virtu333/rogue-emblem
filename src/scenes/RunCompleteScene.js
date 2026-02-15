@@ -6,6 +6,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -18,7 +19,7 @@ export class RunCompleteScene extends Phaser.Scene {
     this.result = data.result || 'defeat';
   }
 
-  create() {
+  async create() {
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
     clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
@@ -46,6 +47,13 @@ export class RunCompleteScene extends Phaser.Scene {
       color: isVictory ? '#ffdd44' : '#cc3333',
       fontStyle: 'bold',
     }).setOrigin(0.5);
+
+    const dialogueEntries = this._getRunCompleteDialogue();
+    if (dialogueEntries) {
+      const overlay = new DialogueOverlay(this);
+      await overlay.showSequence(dialogueEntries);
+      overlay.destroy();
+    }
 
     // Calculate and award currencies
     const rm = this.runManager;
@@ -127,5 +135,15 @@ export class RunCompleteScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
       await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.RETURN_TITLE });
     });
+  }
+
+  _getRunCompleteDialogue() {
+    const dialogue = this.gameData?.dialogue?.runComplete;
+    if (!dialogue) return null;
+    const key = this.result === 'victory'
+      ? `victory_${this.runManager?.difficultyId || 'normal'}`
+      : 'defeat';
+    const entries = dialogue[key];
+    return Array.isArray(entries) && entries.length > 0 ? entries : null;
   }
 }

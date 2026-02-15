@@ -1,22 +1,261 @@
 {
   "recruitLines": {
-    "Fighter":        ["Need an axe? I'm with you.", "Point me at something to hit."],
-    "Archer":         ["I don't miss. Point me at a target.", "My arrows are yours."],
-    "Mage":           ["My spells aren't gentle, but they're effective.", "I've studied enough. Time to fight."],
-    "Cavalier":       ["My lance is yours, Commander.", "I rode from the front lines. Where do you need me?"],
-    "Cleric":         ["I can mend what's broken. Stay close.", "The wounded need me. Lead on."],
-    "Myrmidon":       ["I fight alone. But I'll fight beside you.", "One blade is enough. Mine."],
-    "Thief":          ["I go where I please. Right now, I please to go with you.", "Locks, traps, pockets — I handle them all."],
-    "Mercenary":      ["Coin's good. Cause is better. You've got both.", "I've fought for worse reasons."],
+    "Fighter": ["Need an axe? I'm with you.", "Point me at something to hit."],
+    "Archer": ["I don't miss. Point me at a target.", "My arrows are yours."],
+    "Mage": ["My spells aren't gentle, but they're effective.", "I've studied enough. Time to fight."],
+    "Cavalier": ["My lance is yours, Commander.", "I rode from the front lines. Where do you need me?"],
+    "Cleric": ["I can mend what's broken. Stay close.", "The wounded need me. Lead on."],
+    "Myrmidon": ["I fight alone. But I'll fight beside you.", "One blade is enough. Mine."],
+    "Thief": ["I go where I please. Right now, I please to go with you.", "Locks, traps, pockets - I handle them all."],
+    "Mercenary": ["Coin's good. Cause is better. You've got both.", "I've fought for worse reasons."],
     "Pegasus Knight": ["The skies are mine. Let's see what's ahead.", "From above, I've seen what the corruption does."],
-    "Knight":         ["I am the shield. You are the sword.", "Nothing gets past me. Nothing."],
-    "Dancer":         ["A dance can turn the tide. Watch and see.", "Morale wins wars. I'm here for that."],
-    "Wyvern Rider":   ["My wyvern and I answer to no lord. But for this fight — we'll make an exception.", "The skies belong to us."],
-    "Hero":           ["I've fought in darker wars than this. What matters is seeing it through.", "Another war. Let's end this one."],
-    "Falcon Knight":  ["From above, I've seen what the corruption does. No more.", "Lance and sky. That's all I need."],
-    "Sage":           ["The old magic is failing. Perhaps your seer can show us a better path.", "Knowledge is a weapon. I'm well-armed."],
-    "Assassin":       ["I don't do speeches. Just tell me who dies.", "Silence is my specialty."],
-    "Sniper":         ["One shot. One kill. That's the only math that matters.", "I see the target. That's enough."],
-    "Bishop":         ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."]
+    "Knight": ["I am the shield. You are the sword.", "Nothing gets past me. Nothing."],
+    "Dancer": ["A dance can turn the tide. Watch and see.", "Morale wins wars. I'm here for that."],
+    "Wyvern Rider": ["My wyvern and I answer to no lord. But for this fight - we'll make an exception.", "The skies belong to us."],
+    "Hero": ["I've fought in darker wars than this. What matters is seeing it through.", "Another war. Let's end this one."],
+    "Falcon Knight": ["From above, I've seen what the corruption does. No more.", "Lance and sky. That's all I need."],
+    "Sage": ["The old magic is failing. Perhaps your seer can show us a better path.", "Knowledge is a weapon. I'm well-armed."],
+    "Assassin": ["I don't do speeches. Just tell me who dies.", "Silence is my specialty."],
+    "Sniper": ["One shot. One kill. That's the only math that matters.", "I see the target. That's enough."],
+    "Bishop": ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."]
+  },
+  "actTransitions": {
+    "runStart": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "I see a path... fragmented, but there. Stay close, Edric."
+      }
+    ],
+    "act1_to_act2": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "The frontier is behind us. The emperor's forces know we're coming - I can feel the lieutenant watching."
+      }
+    ],
+    "act2_to_act3": [
+      {
+        "speaker": "Edric",
+        "portrait": "portrait_lord_edric",
+        "line": "The sacred ground ahead is corrupted. The ritual is close. And so is the lieutenant."
+      }
+    ],
+    "act3_to_finalBoss_normal": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "The lieutenant is near. I can feel their visions pressing against mine. This ends now."
+      }
+    ],
+    "act3_to_act4": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "The lieutenant is gone, but the corruption hasn't stopped. It's stronger. The ritual - the emperor must have completed it before we-"
+      },
+      {
+        "speaker": "Edric",
+        "portrait": "portrait_lord_edric",
+        "line": "Then we go to him."
+      }
+    ],
+    "act4_to_finalBoss": [
+      {
+        "speaker": "Edric",
+        "portrait": "portrait_lord_edric",
+        "line": "The emperor's stronghold. He thinks he can control what he's awakened. He's wrong."
+      }
+    ],
+    "finalBoss_to_secretAct": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "Wait - the ground is shaking. The ritual fed it too much. It's waking up. We have to go down there. Now."
+      }
+    ],
+    "secretAct_start": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "This place is... wrong. The air doesn't move. Time doesn't pass. It's here."
+      }
+    ]
+  },
+  "bossEncounters": {
+    "Iron Captain": {
+      "preBattle": [
+        {
+          "speaker": "Iron Captain",
+          "portrait": "portrait_boss_iron_captain",
+          "line": "You'll go no further. This border belongs to the empire now."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Iron Captain",
+          "portrait": "portrait_boss_iron_captain",
+          "line": "Impossible... the border was supposed to hold..."
+        }
+      ]
+    },
+    "Warchief": {
+      "preBattle": [
+        {
+          "speaker": "Warchief",
+          "portrait": "portrait_boss_warchief",
+          "line": "Another band of fools. My axe grows thirsty."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Warchief",
+          "portrait": "portrait_boss_warchief",
+          "line": "Hah... you fight well. Better than I expected."
+        }
+      ]
+    },
+    "Knight Commander": {
+      "preBattle": [
+        {
+          "speaker": "Knight Commander",
+          "portrait": "portrait_boss_knight_commander",
+          "line": "The emperor's will is absolute. Your little rebellion ends here."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Knight Commander",
+          "portrait": "portrait_boss_knight_commander",
+          "line": "The emperor will hear of this. You've only delayed the inevitable."
+        }
+      ]
+    },
+    "Archmage": {
+      "preBattle": [
+        {
+          "speaker": "Archmage",
+          "portrait": "portrait_boss_archmage",
+          "line": "I've studied the rifts your prophet creates. Fascinating - and so fragile."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Archmage",
+          "portrait": "portrait_boss_archmage",
+          "line": "The rifts... they're stronger than my models predicted..."
+        }
+      ]
+    },
+    "Blade Lord": {
+      "preBattle": [
+        {
+          "speaker": "Blade Lord",
+          "portrait": "portrait_boss_blade_lord",
+          "line": "The lieutenant sees all paths. You walk the one that ends in your grave."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Blade Lord",
+          "portrait": "portrait_boss_blade_lord",
+          "line": "You shouldn't be here. The lieutenant said this path was sealed."
+        }
+      ]
+    },
+    "Iron Wall": {
+      "preBattle": [
+        {
+          "speaker": "Iron Wall",
+          "portrait": "portrait_boss_iron_wall",
+          "line": "None have breached these walls. None ever will."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Iron Wall",
+          "portrait": "portrait_boss_iron_wall",
+          "line": "The walls... are nothing... without the will behind them..."
+        }
+      ]
+    },
+    "The Lieutenant": {
+      "preBattle": [
+        {
+          "speaker": "The Lieutenant",
+          "portrait": "portrait_boss_the_lieutenant",
+          "line": "I've seen every future you could reach. In all of them, you fall."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "The Lieutenant",
+          "portrait": "portrait_boss_the_lieutenant",
+          "line": "You... found the one path I couldn't block. But it won't matter. My master's work is already done."
+        }
+      ]
+    },
+    "The Emperor": {
+      "preBattle": [
+        {
+          "speaker": "The Emperor",
+          "portrait": "portrait_boss_the_emperor",
+          "line": "You think you've won something by killing my seer? I don't need visions. I have power."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "The Emperor",
+          "portrait": "portrait_boss_the_emperor",
+          "line": "You fools. You have no idea what I was holding back. Without me, there's nothing between you and-"
+        }
+      ]
+    },
+    "The Entity": {
+      "preBattle": [
+        {
+          "speaker": null,
+          "portrait": null,
+          "line": "..."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Sera",
+          "portrait": "portrait_lord_sera",
+          "line": "It's... receding. Going back to sleep. We did it. It's over."
+        }
+      ]
+    }
+  },
+  "runComplete": {
+    "victory_normal": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "The lieutenant has fallen. The visions are clearing... but something deeper still stirs. I can feel it."
+      }
+    ],
+    "victory_hard": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "The emperor is defeated. The ritual is broken... mostly. I still see something beneath it all. Sleeping, but not for long."
+      }
+    ],
+    "victory_lunatic": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "It's going back to sleep. The cycle is broken. For the first time... I can't see what comes next. And that's beautiful."
+      }
+    ],
+    "defeat": [
+      {
+        "speaker": "Sera",
+        "portrait": "portrait_lord_sera",
+        "line": "No... this path leads to ruin. We must try again."
+      }
+    ]
   }
 }
