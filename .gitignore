@@ -12,3 +12,4 @@ dist/
 test-results/
 playwright-report/
 tests/artifacts/replays/
+.tmp_netlify_*

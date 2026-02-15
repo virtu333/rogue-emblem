@@ -17,6 +17,7 @@ export class HowToPlayOverlay {
     this.escKey = null;
     this.leftKey = null;
     this.rightKey = null;
+    this._mobileContextPushed = false;
   }
 
   show() {
@@ -31,6 +32,17 @@ export class HowToPlayOverlay {
     this.leftKey.on('down', this._onLeft, this);
     this.rightKey = this.scene.input.keyboard.addKey('RIGHT');
     this.rightKey.on('down', this._onRight, this);
+
+    // Mobile overlay tab navigation
+    const game = this.scene?.game;
+    if (game?.events) {
+      game.events.emit('mobile:pushContext', { context: 'overlay_tabs' });
+      this._mobileContextPushed = true;
+      this._mobilePrev = () => this._onLeft();
+      this._mobileNext = () => this._onRight();
+      game.events.on('mobile:prevTab', this._mobilePrev);
+      game.events.on('mobile:nextTab', this._mobileNext);
+    }
   }
 
   _onEsc() { this.hide(); }
@@ -146,6 +158,17 @@ export class HowToPlayOverlay {
   }
 
   hide() {
+    const game = this.scene?.game;
+    if (game?.events) {
+      if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
+      if (this._mobileNext) game.events.off('mobile:nextTab', this._mobileNext);
+      this._mobilePrev = null;
+      this._mobileNext = null;
+      if (this._mobileContextPushed) {
+        this._mobileContextPushed = false;
+        game.events.emit('mobile:popContext');
+      }
+    }
     if (this.escKey) {
       this.escKey.off('down', this._onEsc, this);
       this.escKey = null;

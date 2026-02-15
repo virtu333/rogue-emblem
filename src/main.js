@@ -5,6 +5,7 @@ import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
 import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
+import { MobileControls } from './utils/MobileControls.js';
 import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
 import { reportAsyncError } from './utils/errorReporter.js';
 
@@ -107,10 +108,15 @@ function showBootRecoveryOverlay(message) {
   panel.style.fontFamily = 'monospace';
   panel.style.color = '#e0e0e0';
   panel.style.textAlign = 'center';
-  panel.innerHTML = `
-    <div style="font-size:16px; color:#ffcc88; margin-bottom:8px;">Startup Taking Too Long</div>
-    <div style="font-size:12px; color:#bbbbbb; margin-bottom:12px;">${message}</div>
-  `;
+  const heading = document.createElement('div');
+  heading.style.cssText = 'font-size:16px; color:#ffcc88; margin-bottom:8px;';
+  heading.textContent = 'Startup Taking Too Long';
+  panel.appendChild(heading);
+
+  const body = document.createElement('div');
+  body.style.cssText = 'font-size:12px; color:#bbbbbb; margin-bottom:12px;';
+  body.textContent = message;
+  panel.appendChild(body);
 
   const retryBtn = document.createElement('button');
   retryBtn.textContent = 'Reload';
@@ -244,6 +250,7 @@ function bootGame(user) {
   authForm.removeEventListener('submit', handleSubmit);
 
   document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('game-wrapper').style.display = 'flex';
   document.getElementById('game-container').style.display = 'block';
 
   const config = {
@@ -269,6 +276,9 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  if (startupFlags.isMobile) {
+    new MobileControls(window[GAME_INSTANCE_KEY]).show();
+  }
   markStartup('phaser_boot_complete');
 }
 

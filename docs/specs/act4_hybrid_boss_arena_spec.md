@@ -1,6 +1,6 @@
 # Act 4 Hybrid Boss Arena Spec
 
-Status: Planned (Phase 4 extension, implementation-ready)
+Status: Shipped on `main` (Phase 4 extension complete)
 Owner: gameplay roadmap stream
 Last updated: 2026-02-14
 

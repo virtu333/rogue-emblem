@@ -2,7 +2,7 @@
 
 Date: 2026-02-14
 Owner: gameplay roadmap stream
-Status: Planned
+Status: Complete on `main`
 
 ## 1. Implementation Strategy
 

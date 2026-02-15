@@ -7,6 +7,8 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 **Class/Weapon Data:** `docs/emblem_rogue_class_data.xlsx` (already parsed into `data/*.json`)
 **Roadmap:** `ROADMAP.md` (long-term vision + architecture notes)
 **Next Steps:** `ROADMAP.md` (actionable implementation waves)
+**Mobile Controls:** `docs/mobile-controls-spec.md` (HTML overlay, landscape, context-sensitive buttons)
+**iOS Port:** `docs/ios-port-spec.md` (Capacitor wrapper, deferred until mobile web stable)
 
 ## Tech Stack
 - **Engine:** Phaser.js 3 (HTML5 Canvas)
@@ -29,7 +31,9 @@ emblem-rogue/
 ├── public/                # Static files served as-is
 ├── docs/                  # Design documents (reference only)
 │   ├── emblem_rogue_gdd.docx
-│   └── emblem_rogue_class_data.xlsx
+│   ├── emblem_rogue_class_data.xlsx
+│   ├── mobile-controls-spec.md  # Mobile virtual controls spec (HTML overlay, landscape)
+│   └── ios-port-spec.md         # iOS Capacitor port spec (deferred)
 ├── data/                  # Game data JSON (loaded at runtime)
 │   ├── classes.json       # 29 entries: 15 base + 14 promoted (includes lord classes) ✅
 │   ├── lords.json         # 4 lord characters with stats/growths/promotions

@@ -1,6 +1,6 @@
 # Act 4 Boss Map Follow-up Spec
 
-Status: Planned (post-hybrid follow-up)
+Status: Shipped on `main` (primary follow-up slice complete)
 Owner: gameplay roadmap stream
 Last updated: 2026-02-14
 
@@ -16,29 +16,29 @@ This is intentionally small and does not change objective rules, reinforcement l
 
 ## 2. Investigation Summary
 
-### 2.1 Emperor asset is present but not used in runtime sprite routing
+### 2.1 Emperor asset and runtime sprite routing are now aligned
 
 - `assets/sprites/enemies/emperor.png` and `public/assets/sprites/enemies/emperor.png` exist.
-- Runtime enemy sprite selection uses `enemy_{className}`:
-  - `BattleScene.getSpriteKey()` maps enemy `General` to `enemy_general`.
-- Boot preload currently loads a fixed enemy sprite list that does not include `emperor`.
+- Boot preload includes `enemy_emperor`.
+- Runtime enemy sprite selection keeps class defaults, with an explicit route:
+  - `BattleScene.getSpriteKey()` maps boss `The Emperor` to `enemy_emperor` (safe fallback to `enemy_general`).
 
-Result: The Emperor currently renders as generic General art.
+Result: The Emperor renders with dedicated art in boss encounters.
 
-### 2.2 Player-side enemy pressure is low by template shape
+### 2.2 Player-side enemy pressure is increased for the Act 4 boss template
 
-- Boss-only hybrid templates keep `enemySpawn` weighted to the right-side region.
-- Scripted waves for `act4_boss_intent_bastion` are also concentrated near the arena side.
+- `act4_boss_intent_bastion` enemy spawn intent is widened toward mid-map.
+- Scripted waves for `act4_boss_intent_bastion` include player-half spawn opportunities while preserving per-wave baseline legal spawn intent.
 
-Result: pressure mostly arrives from the boss half of the map, with weaker player-area contest.
+Result: pressure now includes player-half reinforcement opportunities in baseline flow.
 
-### 2.3 Large-map HUD overlap/readability risk is real
+### 2.3 Large-map HUD overlap/readability risk is reduced by row trim
 
 - Grid render origin is fully camera-centered.
-- Act 4/Final map sizes include up to `18x14` and `20x14`, which consume most vertical space at `TILE_SIZE=32`.
+- Late-game sizes are trimmed to `18x13` and `20x13` in `data/mapSizes.json`.
 - Bottom command row (`[D] Danger`, `[O] Roster`, `[E] End Turn`) is screen-anchored, so map terrain can visually sit behind command text.
 
-Result: command text can be visually crowded by map content on large maps.
+Result: baseline readability is improved; optional HUD backdrop hardening remains available if needed.
 
 ## 3. Requirements
 
@@ -77,14 +77,14 @@ Acceptance:
   - `Post-Act`: `18x14 -> 18x13`
   - `Final Boss`: `20x14 -> 20x13`
 - If readability remains unacceptable after smoke verification, apply fallback 2-row trim:
-  - `Act 4 (Large)`: `18x14 -> 18x12`
-  - `Post-Act`: `18x14 -> 18x12`
-  - `Final Boss`: `20x14 -> 20x12`
+  - `Act 4 (Large)`: `18x13 -> 18x12`
+  - `Post-Act`: `18x13 -> 18x12`
+  - `Final Boss`: `20x13 -> 20x12`
 - Keep row-trim scope limited to map-size data plus tests; do not add camera or tile-size changes in this slice.
 - Keep existing objective, reinforcement legality, and hybrid override ordering unchanged.
 
 Acceptance:
-- `data/mapSizes.json` no longer exposes `18x14`/`20x14` once this slice lands.
+- `data/mapSizes.json` does not expose `18x14`/`20x14`.
 - In act4/final-boss battles, bottom command labels remain readable in baseline play without relying on new HUD overlays.
 - No regression to command click/tap behavior, turn flow, or scripted-wave determinism.
 

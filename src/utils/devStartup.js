@@ -10,6 +10,11 @@ const DEV_SCENE_ALIASES = {
   blessing: 'BlessingSelect',
   nodemap: 'NodeMap',
   battle: 'Battle',
+  shopui: 'NodeMap',
+  accessoryui: 'NodeMap',
+  equipui: 'Battle',
+  attackui: 'Battle',
+  lootui: 'Battle',
 };
 const DEV_PRESETS = new Set([
   'fresh',
@@ -60,6 +65,36 @@ const DEV_QA_SEQUENCE = [
     sceneKey: 'Battle',
     preset: 'late_act',
     description: 'Late-act combat pacing and defeat/exit handling',
+  },
+  {
+    step: 8,
+    sceneKey: 'NodeMap',
+    preset: 'weapon_arts',
+    description: 'Shop buy-list hover details (including unaffordable rows)',
+  },
+  {
+    step: 9,
+    sceneKey: 'NodeMap',
+    preset: 'weapon_arts',
+    description: 'Accessory equip/swap picker UX and item detail checks',
+  },
+  {
+    step: 10,
+    sceneKey: 'Battle',
+    preset: 'battle_smoke',
+    description: 'Battle equip menu weapon stat lines and equipped marker',
+  },
+  {
+    step: 11,
+    sceneKey: 'Battle',
+    preset: 'battle_smoke',
+    description: 'Attack picker includes weight and compact weapon detail rows',
+  },
+  {
+    step: 12,
+    sceneKey: 'Battle',
+    preset: 'late_act',
+    description: 'Post-battle loot/reward card UI pass (icons, categories, details)',
   },
 ];
 

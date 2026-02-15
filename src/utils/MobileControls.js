@@ -24,12 +24,16 @@ const CONTEXTS = {
   none:            [],
 };
 
+const MAX_CONTEXT_STACK_DEPTH = 8;
+
 export class MobileControls {
   constructor(game) {
     this.game = game;
+    this._baseContext = 'none';
     this._currentContext = 'none';
     this._lastRenderedContext = null;
     this._contextStack = [];
+    this._isVisible = false;
     this._rightButtons = [];
     this._leftPanelCleanups = [];
 
@@ -42,17 +46,23 @@ export class MobileControls {
 
     // Listen for context events from scenes
     this._onSetContext = (data) => {
-      this._contextStack = [];
-      this._currentContext = data?.context || 'none';
+      if (data?.resetStack === true) this._contextStack = [];
+      this._baseContext = this._normalizeContext(data?.context);
+      this._currentContext = this._resolveCurrentContext();
       this._renderRightPanel();
     };
     this._onPushContext = (data) => {
-      this._contextStack.push(this._currentContext);
-      this._currentContext = data?.context || 'none';
+      const next = this._normalizeContext(data?.context);
+      const active = this._resolveCurrentContext();
+      if (next === active) return;
+      if (this._contextStack.length >= MAX_CONTEXT_STACK_DEPTH) return;
+      this._contextStack.push(next);
+      this._currentContext = next;
       this._renderRightPanel();
     };
     this._onPopContext = () => {
-      this._currentContext = this._contextStack.pop() || 'none';
+      if (this._contextStack.length > 0) this._contextStack.pop();
+      this._currentContext = this._resolveCurrentContext();
       this._renderRightPanel();
     };
 
@@ -75,14 +85,14 @@ export class MobileControls {
   }
 
   show() {
-    if (this._leftPanel) this._leftPanel.style.display = 'flex';
-    if (this._rightPanel) this._rightPanel.style.display = 'flex';
+    this._isVisible = true;
+    this._syncPanelVisibility();
     this._renderRightPanel();
   }
 
   hide() {
-    if (this._leftPanel) this._leftPanel.style.display = 'none';
-    if (this._rightPanel) this._rightPanel.style.display = 'none';
+    this._isVisible = false;
+    this._syncPanelVisibility();
   }
 
   _wireLeftPanel() {
@@ -100,6 +110,7 @@ export class MobileControls {
 
   _renderRightPanel() {
     if (!this._rightPanel) return;
+    this._syncPanelVisibility();
     const ctx = this._currentContext;
     if (ctx === this._lastRenderedContext) return;
     this._lastRenderedContext = ctx;
@@ -118,6 +129,24 @@ export class MobileControls {
       this._rightPanel.appendChild(btn);
       this._rightButtons.push({ el: btn, action });
     }
+  }
+
+  _normalizeContext(context) {
+    const next = typeof context === 'string' ? context : 'none';
+    return CONTEXTS[next] ? next : 'none';
+  }
+
+  _resolveCurrentContext() {
+    if (this._contextStack.length > 0) {
+      return this._contextStack[this._contextStack.length - 1];
+    }
+    return this._baseContext;
+  }
+
+  _syncPanelVisibility() {
+    const shouldShow = this._isVisible && this._currentContext !== 'none';
+    if (this._leftPanel) this._leftPanel.style.display = shouldShow ? 'flex' : 'none';
+    if (this._rightPanel) this._rightPanel.style.display = shouldShow ? 'flex' : 'none';
   }
 
   _createButton(def, action) {
@@ -189,6 +218,7 @@ export class MobileControls {
   }
 
   destroy() {
+    this._isVisible = false;
     if (this.game?.events) {
       this.game.events.off('mobile:setContext', this._onSetContext);
       this.game.events.off('mobile:pushContext', this._onPushContext);

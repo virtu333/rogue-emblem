@@ -250,6 +250,7 @@ QA evidence (Feb 12, 2026):
 ## Residual Risk / Test Gaps
 
 - **Heal action hidden for non-proficient staff (no scene-level test):** `hasStaff()`/`getStaffWeapon()` now enforce `canEquip`, so the Heal button won't appear for units without Staff proficiency. This is validated by unit tests on the helpers, but no integration test explicitly asserts "Heal action hidden in BattleScene action menu." Validated by behavior inference + manual playtesting for now.
+- **Early-map Sera survivability (Normal) reviewed, no immediate stat change (Feb 14, 2026):** opener pressure can still create 2-hit lethal lines on Sera in first-map Fighter-heavy cases, but bumping her to Edric-adjacent bulk was deferred to preserve role identity and avoid broad early-game re-tuning. Keep this tracked under Difficulty Follow-up (Part B+) and prefer encounter-side knobs first if tuning is needed.
 
 ---
 

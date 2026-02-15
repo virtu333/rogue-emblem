@@ -63,10 +63,11 @@ export class UnitDetailOverlay {
     this._keyHandlerDown = null;
     this._rosterUnits = null;
     this._rosterIndex = 0;
+    this._mobileContextPushed = false;
   }
 
   show(unit, terrain, gameData, rosterOptions) {
-    this.hide();
+    if (this.visible) this.hide();
     this.visible = true;
     this._bindSceneCleanup();
     if (gameData) this.gameData = gameData;
@@ -119,6 +120,19 @@ export class UnitDetailOverlay {
       this._keyHandlerDown = () => this._cycleUnit(1);
       this.scene.input.keyboard.on('keydown-UP', this._keyHandlerUp);
       this.scene.input.keyboard.on('keydown-DOWN', this._keyHandlerDown);
+    }
+
+    // Mobile overlay tab navigation
+    const game = this.scene?.game;
+    if (game?.events) {
+      if (!this._mobileContextPushed) {
+        game.events.emit('mobile:pushContext', { context: 'overlay_tabs' });
+        this._mobileContextPushed = true;
+      }
+      this._mobilePrev = () => this._keyHandlerLeft();
+      this._mobileNext = () => this._keyHandlerRight();
+      game.events.on('mobile:prevTab', this._mobilePrev);
+      game.events.on('mobile:nextTab', this._mobileNext);
     }
 
     // Render unit-specific content
@@ -243,6 +257,20 @@ export class UnitDetailOverlay {
   }
 
   hide() {
+    if (!this.visible && !this._mobileContextPushed && !this._mobilePrev && !this._mobileNext) {
+      return;
+    }
+    const game = this.scene?.game;
+    if (game?.events) {
+      if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
+      if (this._mobileNext) game.events.off('mobile:nextTab', this._mobileNext);
+      this._mobilePrev = null;
+      this._mobileNext = null;
+      if (this._mobileContextPushed) {
+        this._mobileContextPushed = false;
+        game.events.emit('mobile:popContext');
+      }
+    }
     this._clearTooltipTimers();
     this._hideSkillTooltip();
     this._hideWeaponTooltip();

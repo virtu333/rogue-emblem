@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Rogue Emblem</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,7 +140,94 @@
       line-height: 1.5;
     }
 
-    #game-container { display: none; background: #0a0c1e; }
+    #game-container { display: none; background: #0a0c1e; flex-shrink: 0; }
+
+    /* --- Mobile virtual controls --- */
+    #game-wrapper {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    .mobile-panel {
+      display: none;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px;
+      width: 80px;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    #mobile-left-panel {
+      padding-left: max(8px, env(safe-area-inset-left, 8px));
+      padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    }
+    #mobile-right-panel {
+      padding-right: max(8px, env(safe-area-inset-right, 8px));
+      padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    }
+    .mobile-btn {
+      min-width: 48px;
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+      padding: 4px 2px;
+    }
+    .mobile-btn:active {
+      transform: scale(0.95);
+      border-color: rgba(255,255,255,0.6);
+    }
+    .mobile-btn:disabled {
+      opacity: 0.5;
+    }
+    .mobile-btn-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+    .mobile-btn-label {
+      font-size: 9px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* Desktop: always hide mobile panels and rotate prompt */
+    @media (pointer: fine) {
+      .mobile-panel, #rotate-prompt { display: none !important; }
+    }
+    /* Portrait: hide panels, show rotate prompt */
+    @media (pointer: coarse) and (orientation: portrait) {
+      .mobile-panel { display: none !important; }
+      #rotate-prompt { display: flex !important; }
+    }
+
+    #rotate-prompt {
+      position: fixed;
+      inset: 0;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      background: #0a0c1e;
+      color: #8888aa;
+      font-family: "Press Start 2P", monospace;
+      font-size: 14px;
+      z-index: 50;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -161,7 +248,24 @@
       </div>
     </div>
   </div>
-  <div id="game-container"></div>
+  <div id="game-wrapper">
+    <div id="mobile-left-panel" class="mobile-panel">
+      <button data-action="cancel" class="mobile-btn">
+        <span class="mobile-btn-icon">&times;</span>
+        <span class="mobile-btn-label">Cancel</span>
+      </button>
+      <button data-action="menu" class="mobile-btn">
+        <span class="mobile-btn-icon">&#9776;</span>
+        <span class="mobile-btn-label">Menu</span>
+      </button>
+    </div>
+    <div id="game-container"></div>
+    <div id="mobile-right-panel" class="mobile-panel"></div>
+  </div>
+
+  <div id="rotate-prompt">
+    <p>&#x21bb; Rotate your device to landscape</p>
+  </div>
 
   <script>
   // --- Auth screen animated background (mirrors TitleScene.js drawing) ---
