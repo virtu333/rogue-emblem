@@ -52,6 +52,55 @@ function resolveRecruitPoolKey(actId, recruits) {
   return 'act3';
 }
 
+function toRomanNumeral(value) {
+  let n = Math.max(1, Math.trunc(Number(value) || 1));
+  const map = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let out = '';
+  for (const [amount, glyph] of map) {
+    while (n >= amount) {
+      out += glyph;
+      n -= amount;
+    }
+  }
+  return out;
+}
+
+function makeUniqueRecruitName(baseName, takenNames) {
+  const safeBase = (typeof baseName === 'string' && baseName.trim().length > 0)
+    ? baseName.trim()
+    : 'Recruit';
+  if (!takenNames.has(safeBase)) return safeBase;
+
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${safeBase} ${toRomanNumeral(i)}`;
+    if (!takenNames.has(candidate)) return candidate;
+  }
+
+  let i = 2;
+  while (true) {
+    const candidate = `${safeBase} ${i}`;
+    if (!takenNames.has(candidate)) return candidate;
+    i++;
+  }
+}
+
+function pickUniqueRecruitNameForClass(recruitEntry, recruits, takenNames) {
+  const classNames = Array.isArray(recruits?.namePool?.[recruitEntry.className])
+    ? recruits.namePool[recruitEntry.className]
+    : [];
+  const available = classNames.filter(name => !takenNames.has(name));
+  if (available.length > 0) {
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  const fallbackBase = recruitEntry.name || recruitEntry.className || 'Recruit';
+  return makeUniqueRecruitName(fallbackBase, takenNames);
+}
+
 /**
  * Get lords (Kira/Voss) not already in the roster.
  * @param {Array} roster - serialized roster units
@@ -151,6 +200,12 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   const availLords = getAvailableLords(roster, lords);
   const lordSlot = availLords.length > 0 && Math.random() < BOSS_RECRUIT_LORD_CHANCE;
   const chosenLord = lordSlot ? availLords[Math.floor(Math.random() * availLords.length)] : null;
+  const takenNames = new Set(
+    (roster || [])
+      .map((unit) => (typeof unit?.name === 'string' ? unit.name.trim() : ''))
+      .filter(Boolean)
+  );
+  if (chosenLord?.name) takenNames.add(chosenLord.name);
 
   // Pick candidates
   const candidates = [];
@@ -160,8 +215,20 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   // Regular recruit candidates
   for (let i = 0; i < shuffled.length && candidates.length < regularCount; i++) {
     const r = shuffled[i];
-    const unit = createRecruitFromPool(r, usePromoted, targetLevel, classes, weapons, consumables, skills, metaEffects);
+    const recruitName = pickUniqueRecruitNameForClass(r, recruits, takenNames);
+    const unit = createRecruitFromPool(
+      { ...r, name: recruitName },
+      usePromoted,
+      targetLevel,
+      classes,
+      weapons,
+      consumables,
+      skills,
+      metaEffects
+    );
     if (unit) {
+      unit.name = makeUniqueRecruitName(unit.name, takenNames);
+      takenNames.add(unit.name);
       unit.faction = 'player';
       candidates.push({
         unit: serializeUnit(unit),
@@ -177,6 +244,8 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
     const lordClassData = classes.find(c => c.name === chosenLord.class);
     if (lordClassData) {
       const unit = createBossLordUnit(chosenLord, lordClassData, weapons, targetLevel, metaEffects);
+      unit.name = chosenLord.name || unit.name;
+      takenNames.add(unit.name);
       const lordCandidate = {
         unit: serializeUnit(unit),
         isLord: true,

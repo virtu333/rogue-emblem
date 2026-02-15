@@ -895,24 +895,130 @@ export class RunManager {
     return requestedPool.filter(className => validClasses.has(className));
   }
 
-  _pickRecruitNameForClass(className) {
-    const namePool = this.gameData?.recruits?.namePool || {};
-    const classNames = Array.isArray(namePool[className]) ? namePool[className] : [];
-    const used = this.usedRecruitNames[className] || [];
+  _toRomanNumeral(value) {
+    let n = Math.max(1, Math.trunc(Number(value) || 1));
+    const map = [
+      [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+      [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+      [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+    ];
+    let out = '';
+    for (const [amount, glyph] of map) {
+      while (n >= amount) {
+        out += glyph;
+        n -= amount;
+      }
+    }
+    return out;
+  }
 
-    let name = className;
-    if (classNames.length > 0) {
-      const available = classNames.filter(n => !used.includes(n));
-      if (available.length > 0) {
-        name = available[Math.floor(Math.random() * available.length)];
-      } else {
-        this.usedRecruitNames[className] = [];
-        name = classNames[Math.floor(Math.random() * classNames.length)];
+  _getTrackedRecruitNames() {
+    const tracked = new Set();
+    const tracker = (this.usedRecruitNames && typeof this.usedRecruitNames === 'object')
+      ? this.usedRecruitNames
+      : {};
+
+    for (const value of Object.values(tracker)) {
+      if (!Array.isArray(value)) continue;
+      for (const name of value) {
+        if (typeof name === 'string' && name.trim().length > 0) tracked.add(name);
       }
     }
 
-    if (!this.usedRecruitNames[className]) this.usedRecruitNames[className] = [];
-    this.usedRecruitNames[className].push(name);
+    for (const unit of (this.roster || [])) {
+      const name = typeof unit?.name === 'string' ? unit.name.trim() : '';
+      if (name) tracked.add(name);
+    }
+
+    return tracked;
+  }
+
+  _makeUniqueRecruitName(baseName, takenNames) {
+    const safeBase = (typeof baseName === 'string' && baseName.trim().length > 0)
+      ? baseName.trim()
+      : 'Recruit';
+    if (!takenNames.has(safeBase)) return safeBase;
+
+    for (let i = 2; i <= 99; i++) {
+      const candidate = `${safeBase} ${this._toRomanNumeral(i)}`;
+      if (!takenNames.has(candidate)) return candidate;
+    }
+
+    let i = 2;
+    while (true) {
+      const candidate = `${safeBase} ${i}`;
+      if (!takenNames.has(candidate)) return candidate;
+      i++;
+    }
+  }
+
+  _trackRecruitNameUse(className, name) {
+    if (!this.usedRecruitNames || typeof this.usedRecruitNames !== 'object') {
+      this.usedRecruitNames = {};
+    }
+
+    const classKey = (typeof className === 'string' && className.trim().length > 0)
+      ? className.trim()
+      : 'Recruit';
+
+    if (!Array.isArray(this.usedRecruitNames[classKey])) this.usedRecruitNames[classKey] = [];
+    if (!this.usedRecruitNames[classKey].includes(name)) {
+      this.usedRecruitNames[classKey].push(name);
+    }
+
+    if (!Array.isArray(this.usedRecruitNames.__all__)) this.usedRecruitNames.__all__ = [];
+    if (!this.usedRecruitNames.__all__.includes(name)) {
+      this.usedRecruitNames.__all__.push(name);
+    }
+  }
+
+  _repairDuplicateRosterNames() {
+    if (!Array.isArray(this.roster) || this.roster.length <= 1) return;
+
+    const seen = new Set();
+    for (const unit of this.roster) {
+      if (!unit || typeof unit !== 'object') continue;
+
+      const rawName = typeof unit.name === 'string' ? unit.name.trim() : '';
+      const fallbackBase = typeof unit.className === 'string' ? unit.className.trim() : '';
+      const baseName = rawName || fallbackBase || 'Recruit';
+      const uniqueName = this._makeUniqueRecruitName(baseName, seen);
+      unit.name = uniqueName;
+      seen.add(uniqueName);
+    }
+
+    for (const unit of this.roster) {
+      const name = typeof unit?.name === 'string' ? unit.name.trim() : '';
+      if (!name) continue;
+      this._trackRecruitNameUse(unit.className, name);
+    }
+  }
+
+  _pickRecruitNameForClass(className) {
+    const namePool = this.gameData?.recruits?.namePool || {};
+    const classNames = Array.isArray(namePool[className]) ? namePool[className] : [];
+    const usedByClass = Array.isArray(this.usedRecruitNames?.[className]) ? this.usedRecruitNames[className] : [];
+    const usedGlobal = this._getTrackedRecruitNames();
+
+    let name = className;
+    if (classNames.length > 0) {
+      const available = classNames.filter(n => !usedByClass.includes(n) && !usedGlobal.has(n));
+      if (available.length > 0) {
+        name = available[Math.floor(Math.random() * available.length)];
+      } else {
+        const globallyAvailable = classNames.filter(n => !usedGlobal.has(n));
+        if (globallyAvailable.length > 0) {
+          name = globallyAvailable[Math.floor(Math.random() * globallyAvailable.length)];
+        } else {
+          const baseName = classNames[Math.floor(Math.random() * classNames.length)] || className;
+          name = this._makeUniqueRecruitName(baseName, usedGlobal);
+        }
+      }
+    } else {
+      name = this._makeUniqueRecruitName(className, usedGlobal);
+    }
+
+    this._trackRecruitNameUse(className, name);
     return name;
   }
 
@@ -1151,6 +1257,7 @@ export class RunManager {
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
     battleParams.difficultyId = this.difficultyId || 'normal';
+    this._repairDuplicateRosterNames();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
   }
@@ -1906,6 +2013,7 @@ export class RunManager {
       ? Math.max(0, Math.trunc(saved.visionCount))
       : 0;
     rm.usedRecruitNames = saved.usedRecruitNames || {};
+    rm._repairDuplicateRosterNames();
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {

@@ -132,6 +132,17 @@ describe('BossRecruitSystem', () => {
       expect(new Set(classNames).size).toBe(classNames.length);
     });
 
+    it('avoids duplicate recruit names already present in roster', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      localData.recruits.namePool.Hero = ['Dante'];
+      const roster = [...makeBaseRoster(), { name: 'Dante', className: 'Mercenary', isLord: false, level: 8 }];
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].displayName).toBe('Dante II');
+    });
+
     it('excludes classes already in roster', () => {
       const roster = [
         ...makeBaseRoster(),

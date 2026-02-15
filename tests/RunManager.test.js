@@ -1717,7 +1717,9 @@ describe('blessing run-start effect application', () => {
       rm.startRun();
       rm.usedRecruitNames = { Fighter: ['Galvin'], Mage: ['Lira'] };
       const restored = RunManager.fromJSON(rm.toJSON(), gameData);
-      expect(restored.usedRecruitNames).toEqual({ Fighter: ['Galvin'], Mage: ['Lira'] });
+      expect(restored.usedRecruitNames.Fighter).toEqual(expect.arrayContaining(['Galvin']));
+      expect(restored.usedRecruitNames.Mage).toEqual(expect.arrayContaining(['Lira']));
+      expect(Array.isArray(restored.usedRecruitNames.__all__)).toBe(true);
     });
 
     it('getBattleParams returns a copy', () => {
@@ -1749,7 +1751,29 @@ describe('blessing run-start effect application', () => {
       rm.usedRecruitNames = { Fighter: ['Galvin'] };
       const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
-      expect(params.usedRecruitNames).toEqual({ Fighter: ['Galvin'] });
+      expect(params.usedRecruitNames.Fighter).toEqual(expect.arrayContaining(['Galvin']));
+      expect(Array.isArray(params.usedRecruitNames.__all__)).toBe(true);
+    });
+
+    it('getBattleParams repairs duplicate roster names before battle', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      const duplicateName = rm.roster[0].name;
+      rm.roster.push({
+        ...structuredClone(rm.roster[0]),
+        className: 'Hero',
+        name: duplicateName,
+      });
+
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      rm.getBattleParams(node);
+
+      const names = rm.roster.map((unit) => unit.name);
+      expect(new Set(names).size).toBe(names.length);
+      expect(names.filter((name) => name === duplicateName)).toHaveLength(1);
+      expect(names.some((name) => name.startsWith(`${duplicateName} `))).toBe(true);
+      expect(Array.isArray(rm.usedRecruitNames.__all__)).toBe(true);
     });
 
     it('getBattleParams enforces first-map no-fog and fighter-only rules', () => {

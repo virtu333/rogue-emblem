@@ -297,6 +297,27 @@ describe('MapGenerator', () => {
       }
     });
 
+    it('enforces global recruit name uniqueness across classes with suffix fallback', () => {
+      const localData = structuredClone(data);
+      localData.recruits.act1.classPool = ['Mercenary', 'Hero'];
+      localData.recruits.namePool.Mercenary = ['Dante'];
+      localData.recruits.namePool.Hero = ['Dante'];
+
+      const usedRecruitNames = {};
+      const first = generateBattle(
+        { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
+        localData
+      );
+      const second = generateBattle(
+        { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
+        localData
+      );
+
+      expect(first.npcSpawn).toBeTruthy();
+      expect(second.npcSpawn).toBeTruthy();
+      expect(first.npcSpawn.name).not.toBe(second.npcSpawn.name);
+    });
+
     it('NPC spawn is biased toward player side of map', () => {
       for (let i = 0; i < 20; i++) {
         const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);

@@ -1032,6 +1032,66 @@ function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
 
 // --- NPC spawn for recruit battles ---
 
+function toRomanNumeral(value) {
+  let n = Math.max(1, Math.trunc(Number(value) || 1));
+  const map = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let out = '';
+  for (const [amount, glyph] of map) {
+    while (n >= amount) {
+      out += glyph;
+      n -= amount;
+    }
+  }
+  return out;
+}
+
+function getUsedRecruitNameSet(usedRecruitNames = {}) {
+  const used = new Set();
+  for (const value of Object.values(usedRecruitNames || {})) {
+    if (!Array.isArray(value)) continue;
+    for (const name of value) {
+      if (typeof name === 'string' && name.trim().length > 0) used.add(name);
+    }
+  }
+  return used;
+}
+
+function makeUniqueRecruitName(baseName, usedNames) {
+  const safeBase = (typeof baseName === 'string' && baseName.trim().length > 0)
+    ? baseName.trim()
+    : 'Recruit';
+  if (!usedNames.has(safeBase)) return safeBase;
+
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${safeBase} ${toRomanNumeral(i)}`;
+    if (!usedNames.has(candidate)) return candidate;
+  }
+
+  let i = 2;
+  while (true) {
+    const candidate = `${safeBase} ${i}`;
+    if (!usedNames.has(candidate)) return candidate;
+    i++;
+  }
+}
+
+function trackRecruitNameUsage(usedRecruitNames, className, name) {
+  if (!usedRecruitNames || typeof usedRecruitNames !== 'object') return;
+  const classKey = (typeof className === 'string' && className.trim().length > 0)
+    ? className.trim()
+    : 'Recruit';
+
+  if (!Array.isArray(usedRecruitNames[classKey])) usedRecruitNames[classKey] = [];
+  if (!usedRecruitNames[classKey].includes(name)) usedRecruitNames[classKey].push(name);
+
+  if (!Array.isArray(usedRecruitNames.__all__)) usedRecruitNames.__all__ = [];
+  if (!usedRecruitNames.__all__.includes(name)) usedRecruitNames.__all__.push(name);
+}
+
 function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool, template, classesData, weaponsData, usedRecruitNames = {}) {
   const { classPool, namePool, levelRange } = recruitPool;
   // If we have classPool (new structure), pick from it. Else fall back to pool (old structure).
@@ -1040,26 +1100,31 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
     : recruitPool.pool[Math.floor(Math.random() * recruitPool.pool.length)].className;
 
   // Pick name from pool, avoiding duplicates in current run
-  let name = className; // Fallback
+  const usedGlobalNames = getUsedRecruitNameSet(usedRecruitNames);
+  let name = makeUniqueRecruitName(className, usedGlobalNames); // Fallback
   if (namePool && namePool[className]) {
     const classNames = namePool[className];
-    const used = usedRecruitNames[className] || [];
-    const available = classNames.filter(n => !used.includes(n));
+    const usedByClass = Array.isArray(usedRecruitNames[className]) ? usedRecruitNames[className] : [];
+    const available = classNames.filter(n => !usedByClass.includes(n) && !usedGlobalNames.has(n));
 
     if (available.length > 0) {
       name = available[Math.floor(Math.random() * available.length)];
     } else {
-      // Pool exhausted: reset for this class and pick any
-      usedRecruitNames[className] = [];
-      name = classNames[Math.floor(Math.random() * classNames.length)];
+      const globallyAvailable = classNames.filter(n => !usedGlobalNames.has(n));
+      if (globallyAvailable.length > 0) {
+        name = globallyAvailable[Math.floor(Math.random() * globallyAvailable.length)];
+      } else {
+        const baseName = classNames[Math.floor(Math.random() * classNames.length)] || className;
+        name = makeUniqueRecruitName(baseName, usedGlobalNames);
+      }
     }
     // Track as used
-    if (!usedRecruitNames[className]) usedRecruitNames[className] = [];
-    usedRecruitNames[className].push(name);
+    trackRecruitNameUsage(usedRecruitNames, className, name);
   } else if (recruitPool.pool) {
     // Old structure fallback
     const entry = recruitPool.pool.find(p => p.className === className) || recruitPool.pool[0];
-    name = entry.name;
+    name = makeUniqueRecruitName(entry.name, usedGlobalNames);
+    trackRecruitNameUsage(usedRecruitNames, className, name);
   }
 
   const [minLvl, maxLvl] = levelRange;
