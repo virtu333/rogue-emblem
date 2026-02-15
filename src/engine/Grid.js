@@ -588,6 +588,18 @@ export class Grid {
     }
   }
 
+  /** Snapshot fog state for undo support. */
+  snapshotFogState() {
+    if (!this.fogEnabled) return null;
+    return new Set(this.everSeenSet);
+  }
+
+  /** Restore fog state from a previous snapshot. */
+  restoreFogState(snapshot) {
+    if (!this.fogEnabled || !snapshot) return;
+    this.everSeenSet = new Set(snapshot);
+  }
+
   /** Check if a tile is currently visible (in fog mode). */
   isVisible(col, row) {
     if (!this.fogEnabled) return true;

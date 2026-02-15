@@ -194,4 +194,62 @@ describe('Fog of War', () => {
       }
     });
   });
+
+  describe('Grid fog snapshot/restore', () => {
+    it('snapshotFogState returns a copy of everSeenSet', () => {
+      const grid = makeTestGrid(6, 6, true);
+      grid.everSeenSet.add('1,1');
+      grid.everSeenSet.add('2,2');
+      const snapshot = grid.snapshotFogState();
+      expect(snapshot).toBeInstanceOf(Set);
+      expect(snapshot.size).toBe(2);
+      expect(snapshot.has('1,1')).toBe(true);
+      expect(snapshot.has('2,2')).toBe(true);
+      // Mutations to original should not affect snapshot
+      grid.everSeenSet.add('3,3');
+      expect(snapshot.has('3,3')).toBe(false);
+    });
+
+    it('snapshotFogState returns null when fog disabled', () => {
+      const grid = makeTestGrid(6, 6, false);
+      expect(grid.snapshotFogState()).toBeNull();
+    });
+
+    it('restoreFogState reverts everSeenSet to snapshot', () => {
+      const grid = makeTestGrid(6, 6, true);
+      grid.everSeenSet.add('0,0');
+      grid.everSeenSet.add('1,0');
+      const snapshot = grid.snapshotFogState();
+
+      // Simulate scouting — new tiles added
+      grid.everSeenSet.add('3,3');
+      grid.everSeenSet.add('4,4');
+      expect(grid.everSeenSet.size).toBe(4);
+
+      // Restore should revert to pre-scout state
+      grid.restoreFogState(snapshot);
+      expect(grid.everSeenSet.size).toBe(2);
+      expect(grid.everSeenSet.has('0,0')).toBe(true);
+      expect(grid.everSeenSet.has('1,0')).toBe(true);
+      expect(grid.everSeenSet.has('3,3')).toBe(false);
+      expect(grid.everSeenSet.has('4,4')).toBe(false);
+    });
+
+    it('restoreFogState is no-op when fog disabled', () => {
+      const grid = makeTestGrid(6, 6, false);
+      const fakeSnapshot = new Set(['1,1']);
+      grid.restoreFogState(fakeSnapshot);
+      // everSeenSet should remain empty (not replaced)
+      expect(grid.everSeenSet.size).toBe(0);
+    });
+
+    it('restoreFogState is no-op with null snapshot', () => {
+      const grid = makeTestGrid(6, 6, true);
+      grid.everSeenSet.add('1,1');
+      grid.restoreFogState(null);
+      // Should remain unchanged
+      expect(grid.everSeenSet.size).toBe(1);
+      expect(grid.everSeenSet.has('1,1')).toBe(true);
+    });
+  });
 });
