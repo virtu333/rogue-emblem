@@ -53,6 +53,7 @@ import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
   ROSTER_CAP,
+  XP_SPECIAL_ENEMY_MULTIPLIER,
 } from '../../src/utils/constants.js';
 
 export const HEADLESS_STATES = {
@@ -554,6 +555,13 @@ export class HeadlessBattle {
     return this._normalizeEnemyRewardMultiplier(rewardMultiplier);
   }
 
+  _getEnemyXpMultiplier(unit) {
+    const rewardMultiplier = this._getEnemyRewardMultiplier(unit);
+    const isSpecialEnemy = Boolean(unit?.isBoss || unit?.isElite);
+    if (!isSpecialEnemy) return rewardMultiplier;
+    return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  }
+
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
     let hash = this._getReinforcementSeed() >>> 0;
     const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
@@ -623,6 +631,7 @@ export class HeadlessBattle {
 
     enemy.col = spawn.col;
     enemy.row = spawn.row;
+    enemy.isElite = Boolean(spawn.isElite || this.battleParams?.isElite);
     if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
       enemy.affixes = [...spawn.affixes];
     }
@@ -947,7 +956,7 @@ export class HeadlessBattle {
     // Award XP to player attacker
     if (attacker.faction === 'player' && !result.attackerDied) {
       const baseXp = calculateCombatXP(attacker, defender, result.defenderDied);
-      const xp = Math.floor(baseXp * this._getEnemyRewardMultiplier(defender));
+      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(defender));
       if (xp > 0) {
         gainExperience(attacker, xp);
         checkLevelUpSkills(attacker, this.gameData.classes);
@@ -1193,7 +1202,7 @@ export class HeadlessBattle {
     // Award XP to player defender
     if (defender.faction === 'player' && !result.defenderDied) {
       const baseXp = calculateCombatXP(defender, attacker, result.attackerDied);
-      const xp = Math.floor(baseXp * this._getEnemyRewardMultiplier(attacker));
+      const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(attacker));
       if (xp > 0) {
         gainExperience(defender, xp);
         checkLevelUpSkills(defender, this.gameData.classes);

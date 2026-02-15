@@ -1117,7 +1117,7 @@ export class BattleScene extends Phaser.Scene {
 
   getEnemyXpMultiplier(enemyUnit) {
     const rewardMultiplier = this.getEnemyRewardMultiplier(enemyUnit);
-    const isSpecialEnemy = Boolean(enemyUnit?.isBoss || enemyUnit?.isElite || this.isElite);
+    const isSpecialEnemy = Boolean(enemyUnit?.isBoss || enemyUnit?.isElite);
     if (!isSpecialEnemy) return rewardMultiplier;
     return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
   }
@@ -1191,6 +1191,7 @@ export class BattleScene extends Phaser.Scene {
 
     enemy.col = spawn.col;
     enemy.row = spawn.row;
+    enemy.isElite = Boolean(spawn.isElite || this.isElite);
     if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
       enemy.affixes = [...spawn.affixes];
     }

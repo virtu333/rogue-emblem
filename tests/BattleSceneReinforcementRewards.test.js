@@ -28,6 +28,71 @@ describe('BattleScene reinforcement reward scaling', () => {
     expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 0.25));
   });
 
+  it('applies +30% XP against boss enemies', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+
+    const attacker = { level: 8 };
+    const defender = {
+      level: 4,
+      isBoss: true,
+    };
+
+    const baseXp = calculateCombatXP(attacker, defender, true);
+    await BattleScene.prototype.awardXP.call(scene, attacker, defender, true);
+
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 1.3));
+  });
+
+  it('applies +30% XP for elite targets and stacks with reinforcement multiplier', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+
+    const attacker = { level: 8 };
+    const defender = {
+      level: 4,
+      isElite: true,
+      _isReinforcement: true,
+      _reinforcementRewardMultiplier: 0.25,
+    };
+
+    const baseXp = calculateCombatXP(attacker, defender, true);
+    await BattleScene.prototype.awardXP.call(scene, attacker, defender, true);
+
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 0.25 * 1.3));
+  });
+
+  it('does not double-apply +30% XP when both boss and elite flags are present', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+
+    const attacker = { level: 8 };
+    const defender = {
+      level: 4,
+      isBoss: true,
+      isElite: true,
+    };
+
+    const baseXp = calculateCombatXP(attacker, defender, true);
+    await BattleScene.prototype.awardXP.call(scene, attacker, defender, true);
+
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 1.3));
+  });
+
+  it('does not apply +30% XP from elite encounter context alone', async () => {
+    const scene = new BattleScene();
+    scene.awardScaledXP = vi.fn(async () => {});
+    scene.isElite = true;
+
+    const attacker = { level: 8 };
+    const defender = { level: 4 };
+
+    const baseXp = calculateCombatXP(attacker, defender, true);
+    await BattleScene.prototype.awardXP.call(scene, attacker, defender, true);
+
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, baseXp);
+  });
+
   it('scales kill gold for reinforcement enemies', async () => {
     const scene = new BattleScene();
     scene.registry = { get: () => ({ playSFX() {} }) };
@@ -53,6 +118,34 @@ describe('BattleScene reinforcement reward scaling', () => {
     await BattleScene.prototype.removeUnit.call(scene, enemy);
 
     expect(scene.goldEarned).toBe(Math.floor(calculateKillGold(enemy) * 0.5));
+  });
+
+  it('keeps non-reinforcement boss gold unchanged by XP bonus rules', async () => {
+    const scene = new BattleScene();
+    scene.registry = { get: () => ({ playSFX() {} }) };
+    scene.removeUnitGraphic = vi.fn();
+    scene.updateObjectiveText = vi.fn();
+    scene.runManager = {};
+    scene.playerUnits = [];
+    scene.npcUnits = [];
+    scene.gameData = { affixes: [] };
+    scene.battleConfig = { objective: 'rout' };
+    scene.goldEarned = 0;
+    scene.isElite = true;
+
+    const enemy = {
+      faction: 'enemy',
+      level: 10,
+      col: 1,
+      row: 1,
+      isBoss: true,
+      isElite: true,
+    };
+    scene.enemyUnits = [enemy];
+
+    await BattleScene.prototype.removeUnit.call(scene, enemy);
+
+    expect(scene.goldEarned).toBe(calculateKillGold(enemy));
   });
 
   it('enemy-phase flow applies hybrid overrides before reinforcements', async () => {
