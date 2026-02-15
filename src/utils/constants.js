@@ -97,9 +97,9 @@ export const BOSS_RECRUIT_COUNT = 3;
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
 
 export const ACT_CONFIG = {
-  act1:      { name: 'Border Skirmishes', rows: 6 },  // +1 row (~16 nodes avg, was ~13)
-  act2:      { name: 'Occupied Territory', rows: 7 },  // +1 row (~19 nodes avg, was ~16)
-  act3:      { name: 'Enemy Stronghold',  rows: 7 },  // +2 rows (~19 nodes avg, was ~13)
+  act1:      { name: 'Border Skirmishes', rows: 7 },
+  act2:      { name: 'Occupied Territory', rows: 8 },
+  act3:      { name: 'Enemy Stronghold',  rows: 8 },
   act4:      { name: 'Ashen Summit',      rows: 8 },
   finalBoss: { name: 'Final Battle',      rows: 1 },
 };

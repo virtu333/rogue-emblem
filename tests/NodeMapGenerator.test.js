@@ -248,13 +248,25 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act1 middle row (row >= 2, non-boss) nodes have levelRange [2, 3]', () => {
+    it('act1 row 2 nodes have levelRange [1, 3]', () => {
       for (let i = 0; i < 20; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
-        const middleBattle = map.nodes.filter(n =>
-          n.row >= 2 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        const row2 = map.nodes.filter(n =>
+          n.row === 2 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
         );
-        for (const node of middleBattle) {
+        for (const node of row2) {
+          expect(node.battleParams.levelRange).toEqual([1, 3]);
+        }
+      }
+    });
+
+    it('act1 row >= 3 (non-boss) nodes have levelRange [2, 3]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act1', ACT_CONFIG.act1);
+        const laterRows = map.nodes.filter(n =>
+          n.row >= 3 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of laterRows) {
           expect(node.battleParams.levelRange).toEqual([2, 3]);
         }
       }
@@ -308,11 +320,23 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('act3 row 3+ nodes have levelRange [11, 15]', () => {
+    it('act3 row 3 nodes have levelRange [10, 14]', () => {
+      for (let i = 0; i < 20; i++) {
+        const map = generateNodeMap('act3', ACT_CONFIG.act3);
+        const row3 = map.nodes.filter(n =>
+          n.row === 3 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+        );
+        for (const node of row3) {
+          expect(node.battleParams.levelRange).toEqual([10, 14]);
+        }
+      }
+    });
+
+    it('act3 row 4+ nodes have levelRange [11, 15]', () => {
       for (let i = 0; i < 20; i++) {
         const map = generateNodeMap('act3', ACT_CONFIG.act3);
         const laterRows = map.nodes.filter(n =>
-          n.row >= 3 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
+          n.row >= 4 && n.type !== NODE_TYPES.BOSS && n.type !== NODE_TYPES.CHURCH && n.type !== NODE_TYPES.SHOP
         );
         for (const node of laterRows) {
           expect(node.battleParams.levelRange).toEqual([11, 15]);
@@ -322,20 +346,20 @@ describe('NodeMapGenerator', () => {
   });
 
   describe('per-act seize/elite restrictions', () => {
-    it('act1: seize only on rows 3-4 (second half, excluding boss row 5)', () => {
+    it('act1: seize only on rows 4-5 (second half, excluding boss row 6)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const seizeBattle = map.nodes.filter(n =>
           n.type === NODE_TYPES.BATTLE && n.battleParams?.objective === 'seize'
         );
         for (const node of seizeBattle) {
-          expect(node.row).toBeGreaterThanOrEqual(3);
+          expect(node.row).toBeGreaterThanOrEqual(Math.ceil(ACT_CONFIG.act1.rows / 2));
           expect(node.row).toBeLessThan(ACT_CONFIG.act1.rows - 1);
         }
       }
     });
 
-    it('act2: seize only on rows 3-5 (excluding boss row 6)', () => {
+    it('act2: seize only on rows 3-6 (excluding boss row 7)', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act2', ACT_CONFIG.act2);
         const seizeBattle = map.nodes.filter(n =>
@@ -401,7 +425,7 @@ describe('NodeMapGenerator', () => {
       for (let i = 0; i < 100; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
         const laterBattle = map.nodes.filter(n =>
-          n.row >= 3 && n.type === NODE_TYPES.BATTLE
+          n.row >= Math.ceil(ACT_CONFIG.act1.rows / 2) && n.type === NODE_TYPES.BATTLE
         );
         if (laterBattle.some(n => n.battleParams.objective === 'seize')) {
           foundSeize = true;
