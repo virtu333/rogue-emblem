@@ -1836,15 +1836,39 @@ describe('blessing run-start effect application', () => {
     expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(0);
   });
 
-  it('gold_delta blessing changes starting run gold', () => {
+  it('battle_gold_multiplier_delta blessing applies run-gold multiplier for coin_of_fate', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseGold = rm.gold;
+    const baseMultiplier = rm.getBattleGoldMultiplier();
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold + 100);
+    expect(rm.gold).toBe(baseGold);
+    expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier + 0.15);
+  });
+
+  it('battle_gold_multiplier_delta blessing applies run-gold multiplier penalties for scout_blessing', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseMultiplier = rm.getBattleGoldMultiplier();
+    rm.activeBlessings = ['scout_blessing'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
+  });
+
+  it('battle_gold_multiplier_delta blessing applies run-gold multiplier penalties for scholar_vow', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const baseMultiplier = rm.getBattleGoldMultiplier();
+    rm.activeBlessings = ['scholar_vow'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
   });
 
   it('battle_gold_multiplier_delta blessing changes battle rewards', () => {

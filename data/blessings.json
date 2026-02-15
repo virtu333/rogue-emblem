@@ -19,12 +19,12 @@
       "id": "coin_of_fate",
       "name": "Coin of Fate",
       "tier": 1,
-      "description": "Start with +100 gold.",
+      "description": "+15% gold during run.",
       "weight": 1.0,
       "boons": [
         {
-          "type": "gold_delta",
-          "params": { "value": 100 }
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": 0.15 }
         }
       ],
       "costs": []
@@ -66,7 +66,7 @@
       "id": "scout_blessing",
       "name": "Scout Blessing",
       "tier": 2,
-      "description": "Deploy +1 unit, but start with -100 gold.",
+      "description": "Deploy +1 unit, but -10% gold during run.",
       "weight": 0.9,
       "boons": [
         {
@@ -76,8 +76,8 @@
       ],
       "costs": [
         {
-          "type": "gold_delta",
-          "params": { "value": -100 }
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": -0.1 }
         }
       ]
     },
@@ -85,7 +85,7 @@
       "id": "scholar_vow",
       "name": "Scholar's Vow",
       "tier": 2,
-      "description": "All growths +10%, but start with -50 gold.",
+      "description": "All growths +10%, but -10% gold during run.",
       "weight": 0.85,
       "boons": [
         {
@@ -95,8 +95,8 @@
       ],
       "costs": [
         {
-          "type": "gold_delta",
-          "params": { "value": -50 }
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": -0.1 }
         }
       ]
     },
