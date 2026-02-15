@@ -203,6 +203,7 @@ function createNodeMapDrawSceneStub(events) {
     drawRoster: vi.fn(),
     requestCancel: vi.fn(),
     _openRoster: vi.fn(),
+    _unbindInputHandlers: vi.fn(),
     onNodeClick: vi.fn(),
     showNodeTooltip: vi.fn(),
     hideNodeTooltip: vi.fn(),
@@ -405,6 +406,33 @@ describe('Cancel vs Menu semantic parity', () => {
     expect(scene.requestCancel).toHaveBeenCalledTimes(2);
     expect(scene.requestCancel).toHaveBeenNthCalledWith(1, { allowPause: false });
     expect(scene.requestCancel).toHaveBeenNthCalledWith(2);
+  });
+
+  it('NodeMap shutdown unregisters mobile handlers and resets context stack', () => {
+    const events = createMockEvents();
+    const contexts = [];
+    events.on('mobile:setContext', (payload) => contexts.push(payload));
+    const scene = createNodeMapDrawSceneStub(events);
+
+    NodeMapScene.prototype.drawMap.call(scene);
+    expect(events._listeners['mobile:cancel']?.length ?? 0).toBe(1);
+    expect(events._listeners['mobile:menu']?.length ?? 0).toBe(1);
+    expect(events._listeners['mobile:roster']?.length ?? 0).toBe(1);
+
+    NodeMapScene.prototype._onSceneShutdown.call(scene);
+
+    expect(scene._unbindInputHandlers).toHaveBeenCalledTimes(1);
+    expect(scene._mobileHandlers).toBeNull();
+    expect(contexts.at(-1)).toEqual({ context: 'none', resetStack: true });
+    expect(events._listeners['mobile:cancel']?.length ?? 0).toBe(0);
+    expect(events._listeners['mobile:menu']?.length ?? 0).toBe(0);
+    expect(events._listeners['mobile:roster']?.length ?? 0).toBe(0);
+
+    events.emit('mobile:cancel');
+    events.emit('mobile:menu');
+    events.emit('mobile:roster');
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+    expect(scene._openRoster).not.toHaveBeenCalled();
   });
 
   it('NodeMap requestCancel does not open pause when allowPause is false', () => {
