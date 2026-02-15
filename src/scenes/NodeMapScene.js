@@ -98,6 +98,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.isTransitioning = false;
     this.isSceneReady = false;
     this.battleLaunchInFlight = false;
+    this._pendingNodeSelection = null;
     const selectedDifficulty = data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
       this.runManager = data.runManager;
@@ -206,6 +207,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.dialogueOverlay.destroy();
       this.dialogueOverlay = null;
     }
+    this._pendingNodeSelection = null;
     this._unbindInputHandlers();
     if (this.isMobileInput && this._mobileHandlers) {
       const ge = this.game.events;
@@ -244,6 +246,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.sys?.isActive?.() === false) return;
 
     this.isSceneReady = true;
+    this._consumePendingNodeSelection();
   }
 
   async _showPendingNodeMapHints() {
@@ -776,7 +779,15 @@ export class NodeMapScene extends Phaser.Scene {
   onNodeClick(node) {
     if (this.isTransitioning) return;
     if (this.battleLaunchInFlight) return;
-    if (!this.isSceneReady) return;
+    if (!this.isSceneReady) {
+      if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
+        this._pendingNodeSelection = node?.id ? { nodeId: node.id } : null;
+        if (this.dialogueOverlay?.visible && typeof this.dialogueOverlay.hide === 'function') {
+          this.dialogueOverlay.hide();
+        }
+      }
+      return;
+    }
     if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible) return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
@@ -790,6 +801,24 @@ export class NodeMapScene extends Phaser.Scene {
       if (this.input) this.input.enabled = false;
       void this.handleBattle(node);
     }
+  }
+
+  _consumePendingNodeSelection() {
+    const pending = this._pendingNodeSelection;
+    if (!pending?.nodeId) return false;
+    this._pendingNodeSelection = null;
+
+    if (!this.isSceneReady || this.isTransitioning || this.battleLaunchInFlight) return false;
+
+    const node = this.runManager?.nodeMap?.nodes?.find((entry) => entry?.id === pending.nodeId);
+    if (!node) return false;
+
+    const availableNodes = this.runManager?.getAvailableNodes?.() || [];
+    const isAvailable = availableNodes.some((entry) => entry?.id === node.id);
+    if (!isAvailable) return false;
+
+    this.onNodeClick(node);
+    return true;
   }
 
   async handleBattle(node) {

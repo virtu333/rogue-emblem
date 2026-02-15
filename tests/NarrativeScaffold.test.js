@@ -131,6 +131,7 @@ describe('Scene wiring', () => {
       },
       persistRunSave: vi.fn(() => order.push('save')),
       _showPendingNodeMapHints: vi.fn(async () => { order.push('hints'); }),
+      _consumePendingNodeSelection: vi.fn(() => false),
       _storyDialogueActive: false,
       isSceneReady: false,
     };
