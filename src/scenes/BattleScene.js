@@ -4305,8 +4305,13 @@ export class BattleScene extends Phaser.Scene {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const rng = wpn.range.includes('-') ? `Rng${wpn.range}` : `Rng ${wpn.range}`;
-      const label = `${marker}${wpn.name}\n   ${wpn.might}Mt ${wpn.hit}Hit ${wpn.crit}Crt ${rng}`;
+      const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
+      const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
+      const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
+      const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
+      const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
+      const rng = range.includes('-') ? `Rng${range}` : `Rng ${range}`;
+      const label = `${marker}${wpn?.name || 'Weapon'}\n   ${might}Mt ${hit}Hit ${crit}Crt ${weight}Wt ${rng}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
@@ -4348,7 +4353,7 @@ export class BattleScene extends Phaser.Scene {
     // Scrolls no longer in inventory (moved to team pool), so no need to filter them
     const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
     const menuWidth = 110;
-    const itemHeight = 28;
+    const itemHeight = 32;
     const menuHeight = equippable.length * itemHeight + 8;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
@@ -4362,11 +4367,16 @@ export class BattleScene extends Phaser.Scene {
       const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + menuWidth / 2;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const label = marker + wpn.name;
+      const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
+      const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
+      const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
+      const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
+      const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
+      const label = `${marker}${wpn?.name || 'Weapon'}\n${might}Mt ${hit}Hit ${crit}Crt ${weight}Wt Rng${range}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
-        fontFamily: 'monospace', fontSize: '12px', color: defaultColor,
+        fontFamily: 'monospace', fontSize: '9px', color: defaultColor, lineSpacing: 1,
       }, defaultColor, () => {
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
