@@ -304,6 +304,8 @@ describe('TutorialBattle', () => {
 
       expect(hintText).toContain('top-left');
       expect(hintText).toContain('Danger Zone');
+      expect(hintText).toContain('Eye');
+      expect(hintText).toContain('[R]');
       expect(hintText).toContain('Right-click');
       expect(hintText).toContain('[V]');
       expect(scene._tutorialStrictGateReleased).toBe(false);
@@ -325,6 +327,8 @@ describe('TutorialBattle', () => {
 
       expect(hintText).toContain('top-left');
       expect(hintText).toContain('Danger Zone');
+      expect(hintText).toContain('Eye');
+      expect(hintText).toContain('Objective');
       expect(hintText).toContain('Inspect');
       expect(hintText).toContain('long-press');
     });

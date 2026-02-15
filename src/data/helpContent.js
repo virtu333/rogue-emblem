@@ -316,6 +316,8 @@ const STATIC_HELP_TABS = [
           { text: 'If Edric (your lord) falls, the run', color: RED },
           { text: 'ends immediately. Other units can fall', color: RED },
           { text: 'but the run continues.', color: RED },
+          { text: '' },
+          { text: 'Par: target turns for better clear rewards.', color: CYAN },
         ],
       },
       {

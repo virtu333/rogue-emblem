@@ -135,7 +135,7 @@ export const CONVOY_WEAPON_CAPACITY = 20;
 export const CONVOY_CONSUMABLE_CAPACITY = 15;
 export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
-export const LOOT_GOLD_TEAM_XP = { act1: 15, act2: 20, act3: 30, act4: 35, finalBoss: 40 };
+export const LOOT_GOLD_TEAM_XP = { act1: 25, act2: 25, act3: 25, act4: 25, finalBoss: 25 };
 
 // Weapon forging
 export const FORGE_MAX_LEVEL = 15;

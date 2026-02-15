@@ -116,7 +116,7 @@
       "DEF": 6,
       "RES": 2,
       "LCK": 4,
-      "MOV": 6
+      "MOV": 5
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (P)",
