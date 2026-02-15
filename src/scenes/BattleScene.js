@@ -165,6 +165,7 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialBlockingPromptActive = false;
     this._tutorialEdricGuide = null;
     this._tutorialFortGuide = null;
+    this._tutorialVisionIntroShown = false;
     this._storyDialogueActive = false;
     this._bossName = null;
     this._postLootTransitionStarted = false;
@@ -916,6 +917,12 @@ export class BattleScene extends Phaser.Scene {
       this.refreshEndTurnControl();
     }
     return true;
+  }
+
+  _getVisionRewindIntroHint() {
+    return this.isMobileInput
+      ? 'Use the Eye button to spend 1 Vision and rewind the current turn if you want.\nYou do not have to use it.'
+      : 'Use Eye [R] to spend 1 Vision and rewind the current turn if you want.\nYou do not have to use it.';
   }
 
   _setTutorialGuideHighlight(mode) {
@@ -2997,8 +3004,8 @@ export class BattleScene extends Phaser.Scene {
       this.battleState = 'TUTORIAL_HINT';
       this._clearTutorialGuideHighlights();
       const infoHint = this.isMobileInput
-        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Eye (Objective button) to rewind the current turn when needed.\nUse Inspect or long-press any unit for details.'
-        : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nUse Eye with [R] to rewind the current turn when needed.\nRight-click any unit to inspect, then press [V] for details.';
+        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
+        : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
       await showImportantHint(this, infoHint);
       if (!this.scene?.isActive?.()) return;
       this._tutorialStrictGateReleased = true;
@@ -5912,6 +5919,19 @@ export class BattleScene extends Phaser.Scene {
           if (!this.scene?.isActive?.()) return;
           this.tutorialStep = 2;
           this._setTutorialGuideHighlight('edric');
+          this.battleState = prevState;
+        });
+      } else if (
+        this.battleParams.tutorialMode &&
+        !this._tutorialVisionIntroShown &&
+        turn === 3
+      ) {
+        this._tutorialVisionIntroShown = true;
+        this.time.delayedCall(1500, async () => {
+          const prevState = this.battleState;
+          this.battleState = 'TUTORIAL_HINT';
+          await showImportantHint(this, this._getVisionRewindIntroHint());
+          if (!this.scene?.isActive?.()) return;
           this.battleState = prevState;
         });
       } else if (this.battleParams.tutorialMode) {

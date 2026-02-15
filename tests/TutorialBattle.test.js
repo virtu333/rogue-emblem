@@ -96,6 +96,39 @@ function createTutorialGateScene({ isMobileInput = false } = {}) {
   return { scene, edric, sera };
 }
 
+function createTutorialTurnPhaseScene({ tutorialStep = 6, isMobileInput = false } = {}) {
+  const scene = new BattleScene();
+  scene.battleParams = { tutorialMode: true };
+  scene.tutorialStep = tutorialStep;
+  scene._tutorialVisionIntroShown = false;
+  scene.isMobileInput = isMobileInput;
+  scene.battleState = 'PLAYER_IDLE';
+  scene.scene = { isActive: () => true };
+  scene.turnCounterText = {
+    setText: vi.fn(),
+    setColor: vi.fn(),
+  };
+  scene.turnPar = null;
+  scene.turnBonusConfig = null;
+  scene.dangerZone = { hide: vi.fn() };
+  scene.playerUnits = [];
+  scene.enemyUnits = [];
+  scene.npcUnits = [];
+  scene.grid = {
+    fogEnabled: false,
+    updateFogOfWar: vi.fn(),
+  };
+  scene.updateEnemyVisibility = vi.fn();
+  scene.time = {
+    delayedCall: vi.fn((_, cb) => cb()),
+  };
+  scene.showPhaseBanner = vi.fn();
+  scene.captureVisionSnapshot = vi.fn();
+  scene.updateVisionHud = vi.fn();
+  scene.processTurnStartEffects = vi.fn();
+  return scene;
+}
+
 describe('TutorialBattle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -304,8 +337,6 @@ describe('TutorialBattle', () => {
 
       expect(hintText).toContain('top-left');
       expect(hintText).toContain('Danger Zone');
-      expect(hintText).toContain('Eye');
-      expect(hintText).toContain('[R]');
       expect(hintText).toContain('Right-click');
       expect(hintText).toContain('[V]');
       expect(scene._tutorialStrictGateReleased).toBe(false);
@@ -327,8 +358,6 @@ describe('TutorialBattle', () => {
 
       expect(hintText).toContain('top-left');
       expect(hintText).toContain('Danger Zone');
-      expect(hintText).toContain('Eye');
-      expect(hintText).toContain('Objective');
       expect(hintText).toContain('Inspect');
       expect(hintText).toContain('long-press');
     });
@@ -362,6 +391,34 @@ describe('TutorialBattle', () => {
 
       expect(scene.hideForecast).not.toHaveBeenCalled();
       expect(scene.executeCombat).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('tutorial vision intro', () => {
+    it('introduces eye/vision rewind at start of turn 3', async () => {
+      const scene = createTutorialTurnPhaseScene();
+
+      await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await Promise.resolve();
+
+      const hintText = showImportantHint.mock.calls.at(-1)[1];
+      expect(scene._tutorialVisionIntroShown).toBe(true);
+      expect(hintText).toContain('Eye');
+      expect(hintText).toContain('Vision');
+      expect(hintText).toContain('do not have to use it');
+    });
+
+    it('does not show vision intro more than once', async () => {
+      const scene = createTutorialTurnPhaseScene();
+
+      await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await Promise.resolve();
+      showImportantHint.mockClear();
+
+      await BattleScene.prototype.onPhaseChange.call(scene, 'player', 3);
+      await Promise.resolve();
+
+      expect(showImportantHint).not.toHaveBeenCalled();
     });
   });
 
