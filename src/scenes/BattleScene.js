@@ -95,6 +95,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { formatAccessoryDetail } from '../utils/accessoryText.js';
 
 function hashRewindSeed(seed, rewindCount) {
   const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
@@ -230,6 +231,7 @@ export class BattleScene extends Phaser.Scene {
           for (const [action, handler] of Object.entries(this._mobileHandlers)) {
             ge.off(`mobile:${action}`, handler);
           }
+          ge.emit('mobile:setContext', { context: 'none', resetStack: true });
         }
       });
 
@@ -6623,9 +6625,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Generate loot choices
-    const lootWeaponQualityBonus = this.runManager?.metaEffects?.lootWeaponQualityBonus
-      || this.runManager?.metaEffects?.lootWeaponWeightBonus
-      || 0;
+    const lootWeaponQualityBonus = this.runManager?.metaEffects?.lootWeaponQualityBonus ?? 0;
+    const metaLootBonuses = this.runManager?.metaEffects?.lootCategoryWeightBonuses;
     const lootCount = this.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
     const choices = generateLootChoices(
       this.runManager.currentAct,
@@ -6640,7 +6641,8 @@ export class BattleScene extends Phaser.Scene {
       this.isBoss,
       null,
       this.isElite,
-      this.runManager.getWeaponArtSpawnConfig()
+      this.runManager.getWeaponArtSpawnConfig(),
+      { lootCategoryWeightBonuses: metaLootBonuses }
     );
 
     // Skip bonus gold
@@ -6655,8 +6657,30 @@ export class BattleScene extends Phaser.Scene {
     const startX = cam.centerX - totalW / 2 + cardW / 2;
     const cardY = cam.centerY + 10;
 
-    const typeIcons = { weapon: 'W', consumable: 'H', rare: 'R', gold: '$', accessory: 'A', forge: 'F' };
-    const typeColors = { weapon: '#88bbff', consumable: '#88ff88', rare: '#ffaa55', gold: '#ffdd44', accessory: '#cc88ff', forge: '#ff8844' };
+    const typeIcons = {
+      weapon: 'W',
+      healing: 'H',
+      statBooster: '+',
+      promotion: 'P',
+      skillScroll: 'S',
+      weaponArtScroll: 'A',
+      legendaryWeapon: 'L',
+      accessory: 'A',
+      forge: 'F',
+      gold: '$',
+    };
+    const typeColors = {
+      weapon: '#88bbff',
+      healing: '#88ff88',
+      statBooster: '#44ddff',
+      promotion: '#ffaa55',
+      skillScroll: '#ffaa55',
+      weaponArtScroll: '#ff88cc',
+      legendaryWeapon: '#ffdd44',
+      accessory: '#cc88ff',
+      forge: '#ff8844',
+      gold: '#ffdd44',
+    };
 
     for (let i = 0; i < choices.length; i++) {
       const choice = choices[i];
@@ -6780,6 +6804,7 @@ export class BattleScene extends Phaser.Scene {
             // Path 2: Accessories go to team pool (existing code)
             if (!this.runManager.accessories) this.runManager.accessories = [];
             this.runManager.accessories.push({ ...item });
+            this.showLootStatus(`Added ${item.name} to Accessory Pool.`, '#88ff88');
             this.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
             // Path 3a: Stat boosters -> immediate apply via unit picker
@@ -6841,28 +6866,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Format accessory effects for loot card display. */
   getAccessoryDetailText(item) {
-    const parts = [];
-    // Stat effects
-    if (item.effects) {
-      const stats = Object.entries(item.effects);
-      if (stats.length > 0) {
-        const grouped = stats.map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`);
-        parts.push(grouped.join('/'));
-      }
-    }
-    // Combat effects
-    if (item.combatEffects) {
-      const desc = {
-        'Wrath Band':     '+15 Crit <50% HP',
-        'Counter Seal':   'Block double attacks',
-        'Pursuit Ring':   'Double at +3 SPD',
-        'Nullify Ring':   'Negate effectiveness',
-        'Life Ring':      '+3 Atk/+2 Def >75% HP',
-        'Forest Charm':   '+10 Avo/+2 Def (forest)',
-      };
-      parts.push(desc[item.name] || 'Combat effect');
-    }
-    return parts.join('\n');
+    return formatAccessoryDetail(item, { separator: '\n', fallback: '' });
   }
 
   /** Simple text wrapping helper. */

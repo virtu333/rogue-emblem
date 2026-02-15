@@ -35,7 +35,7 @@
     "crit": 5,
     "weight": 2,
     "range": "1",
-    "special": "Effective vs Armored/Calvary (2x)",
+    "special": "Effective vs Armored/Cavalry (2x)",
     "price": 1800
   },
   {
@@ -69,7 +69,7 @@
     "type": "Sword",
     "tier": "Steel",
     "rankRequired": "Prof",
-    "might": 7,
+    "might": 5,
     "hit": 95,
     "crit": 35,
     "weight": 4,
