@@ -20,13 +20,15 @@ vi.mock('../src/engine/LootSystem.js', async () => {
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 
-function makeDisplayObject() {
+function makeDisplayObject(seed = {}) {
   return {
+    ...seed,
+    handlers: {},
     setOrigin() { return this; },
     setDepth() { return this; },
     setInteractive() { return this; },
     setStrokeStyle() { return this; },
-    on() { return this; },
+    on(event, cb) { this.handlers[event] = cb; return this; },
     destroy() {},
     setVisible() { return this; },
   };
@@ -140,5 +142,56 @@ describe('BattleScene loot meta wiring', () => {
     expect(iconTexts).not.toContain('?');
     const healingIcon = iconCalls.find((call) => call[2] === 'H');
     expect(healingIcon[3].color).toBe('#88ff88');
+  });
+
+  it('routes stat-booster loot through unit picker and applies boost on selection', () => {
+    const rectangles = [];
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'statBooster',
+        item: {
+          name: 'Energy Drop',
+          type: 'Consumable',
+          effect: 'statBoost',
+          stat: 'STR',
+          value: 2,
+          price: 2000,
+        },
+      },
+    ]);
+    const scene = makeScene({
+      lootWeaponQualityBonus: 0,
+    });
+    const unit = {
+      name: 'Edric',
+      stats: { STR: 8, HP: 24 },
+      currentHP: 24,
+      inventory: [],
+      consumables: [],
+    };
+    scene.runManager.roster = [unit];
+    scene.add.rectangle = (...args) => {
+      const obj = makeDisplayObject({ args });
+      rectangles.push(obj);
+      return obj;
+    };
+    scene.add.text = (..._args) => makeDisplayObject();
+    scene.finalizeLootPick = vi.fn();
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const lootCard = scene._lootCards?.[0]?.bg;
+    expect(lootCard).toBeTruthy();
+    expect(typeof lootCard.handlers.pointerdown).toBe('function');
+
+    lootCard.handlers.pointerdown();
+
+    const unitBtn = [...rectangles].reverse().find((obj) => obj.args?.[2] === 200 && typeof obj.handlers.pointerdown === 'function');
+    expect(unitBtn).toBeTruthy();
+
+    unitBtn.handlers.pointerdown();
+
+    expect(unit.stats.STR).toBe(10);
+    expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
   });
 });

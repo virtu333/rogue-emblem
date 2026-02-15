@@ -163,6 +163,27 @@ describe('accessory UI flows', () => {
     expect(scene.created.texts.some(t => t.text === 'Page 2/2')).toBe(true);
   });
 
+  it('equips selected accessory from picker and returns prior accessory to pool', () => {
+    const { overlay, rm } = makeOverlay();
+    const unit = rm.roster[0];
+    unit.accessory = { name: 'Old Charm', effects: {} };
+    rm.accessories = [{ name: 'Goddess Icon', effects: { LCK: 5 } }];
+    overlay._showBanner = vi.fn();
+
+    overlay._showAccessoryPicker(unit);
+
+    const equipBtn = overlay.tradeObjects.find((obj) =>
+      typeof obj?.text === 'string' && obj.text.startsWith('Goddess Icon')
+    );
+    expect(equipBtn?.handlers.pointerdown).toBeTypeOf('function');
+
+    equipBtn.handlers.pointerdown();
+
+    expect(unit.accessory?.name).toBe('Goddess Icon');
+    expect(rm.accessories.some((a) => a.name === 'Old Charm')).toBe(true);
+    expect(rm.accessories.some((a) => a.name === 'Goddess Icon')).toBe(false);
+  });
+
   it('shows correct pool banner for scroll purchases', () => {
     const audio = { playSFX: vi.fn() };
     const entry = {
