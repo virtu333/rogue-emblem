@@ -195,7 +195,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
  * Roll per-strike skill effects after a hit lands.
  * Returns: { modifiedDamage, heal, lethal, astra, activated: [{id, name}] }
  */
-export function rollStrikeSkills(attacker, normalDamage, target, skillsData) {
+export function rollStrikeSkills(attacker, normalDamage, target, skillsData, combatState = null) {
   const result = {
     modifiedDamage: normalDamage,
     heal: 0,
@@ -239,10 +239,15 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData) {
         result.activated.push({ id: 'lethality', name: 'Lethality' });
         break;
 
-      case 'adept':
-        result.extraStrike = true;
-        result.activated.push({ id: 'adept', name: 'Adept' });
-        break;
+    case 'adept':
+      if (combatState?.adeptUsed?.has?.(attacker)) break;
+      if (combatState) {
+        if (!combatState.adeptUsed) combatState.adeptUsed = new Set();
+        combatState.adeptUsed.add(attacker);
+      }
+      result.extraStrike = true;
+      result.activated.push({ id: 'adept', name: 'Adept' });
+      break;
 
       case 'aether':
         // Sol then Luna: first hit heals, then an extra hit at 1.5x damage

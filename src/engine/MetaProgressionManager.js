@@ -9,6 +9,37 @@ import {
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
+const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
+  'weapon',
+  'healing',
+  'statBooster',
+  'promotion',
+  'skillScroll',
+  'weaponArtScroll',
+  'legendaryWeapon',
+  'accessory',
+  'forge',
+  'gold',
+]);
+
+function normalizeLootCategoryWeight(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function normalizeLootCategoryWeightBonuses(rawMap) {
+  if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) return null;
+  const out = {};
+  let added = false;
+  for (const [key, rawValue] of Object.entries(rawMap)) {
+    if (!LOOT_CATEGORY_WEIGHT_BONUS_KEYS.has(key)) continue;
+    const value = normalizeLootCategoryWeight(rawValue);
+    if (value === 0) continue;
+    out[key] = (out[key] || 0) + value;
+    added = true;
+  }
+  return added ? out : null;
+}
 
 export class MetaProgressionManager {
   /**
@@ -336,7 +367,7 @@ export class MetaProgressionManager {
   /**
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
-   *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus,
+   *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
    *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenalTier,
@@ -352,6 +383,7 @@ export class MetaProgressionManager {
       goldBonus: 0,
       battleGoldMultiplier: 0,
       extraVulnerary: 0,
+      lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
       deployBonus: 0,
       rosterCapBonus: 0,
@@ -400,8 +432,25 @@ export class MetaProgressionManager {
       if (effect.goldBonus !== undefined) effects.goldBonus = effect.goldBonus;
       if (effect.battleGoldMultiplier !== undefined) effects.battleGoldMultiplier = effect.battleGoldMultiplier;
       if (effect.extraVulnerary !== undefined) effects.extraVulnerary = effect.extraVulnerary;
-      if (effect.lootWeaponWeightBonus !== undefined) effects.lootWeaponQualityBonus = effect.lootWeaponWeightBonus;
-      if (effect.lootWeaponQualityBonus !== undefined) effects.lootWeaponQualityBonus = effect.lootWeaponQualityBonus;
+      if (effect.lootCategoryWeightBonuses) {
+        const mapped = normalizeLootCategoryWeightBonuses(effect.lootCategoryWeightBonuses);
+        if (mapped) {
+          for (const [category, delta] of Object.entries(mapped)) {
+            effects.lootCategoryWeightBonuses[category] =
+              normalizeLootCategoryWeight(effects.lootCategoryWeightBonuses[category]) + delta;
+          }
+        }
+      }
+      if (effect.lootWeaponWeightBonus !== undefined || effect.lootWeaponQualityBonus !== undefined) {
+        const bonus = normalizeLootCategoryWeight(
+          effect.lootWeaponQualityBonus ?? effect.lootWeaponWeightBonus
+        );
+        if (bonus !== 0) {
+          effects.lootWeaponQualityBonus = bonus;
+          effects.lootCategoryWeightBonuses.weapon =
+            normalizeLootCategoryWeight(effects.lootCategoryWeightBonuses.weapon) + bonus;
+        }
+      }
       if (effect.deployBonus !== undefined) effects.deployBonus = effect.deployBonus;
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;

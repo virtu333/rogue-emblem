@@ -6,11 +6,11 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      50,
-      50,
-      75,
-      100,
-      150
+      35,
+      35,
+      53,
+      70,
+      105
     ],
     "effects": [
       {
@@ -426,11 +426,11 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      50,
-      75,
-      100,
-      125,
-      200
+      35,
+      53,
+      70,
+      88,
+      140
     ],
     "effects": [
       {
@@ -863,6 +863,76 @@
     ]
   },
   {
+    "id": "studied_training",
+    "name": "Studied Training",
+    "description": "Increases art scroll quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      150,
+      300
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 1,
+          "weaponArtScroll": 1,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 2,
+          "weaponArtScroll": 2,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
+    "id": "trinket_collector",
+    "name": "Trinket Collector",
+    "description": "Increases accessory quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      150,
+      300
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 2,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 4,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
     "id": "deploy_limit",
     "name": "Tactical Advantage",
     "description": "+1 deploy slot in all acts",
@@ -1172,7 +1242,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      500
+      200
     ],
     "effects": [
       {
@@ -1229,7 +1299,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      200
     ],
     "effects": [
       {
@@ -1274,7 +1344,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      175
     ],
     "effects": [
       {
@@ -1289,7 +1359,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      175
     ],
     "effects": [
       {

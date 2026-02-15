@@ -116,6 +116,7 @@ function normalizeCombatMods(mods) {
     critBonus: Number(mods.critBonus) || 0,
     atkBonus: Number(mods.atkBonus) || 0,
     defBonus: Number(mods.defBonus) || 0,
+    resBonus: Number(mods.resBonus) || 0,
     spdBonus: Number(mods.spdBonus) || 0,
     statScaling: normalizeCombatStatScaling(mods.statScaling),
     preventCounter: Boolean(mods.preventCounter),
@@ -147,6 +148,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     critBonus: base.critBonus + extra.critBonus,
     atkBonus: base.atkBonus + extra.atkBonus,
     defBonus: base.defBonus + extra.defBonus,
+    resBonus: base.resBonus + extra.resBonus,
     spdBonus: base.spdBonus + extra.spdBonus,
     statScaling: base.statScaling || extra.statScaling,
     preventCounter: base.preventCounter || extra.preventCounter,
@@ -592,7 +594,8 @@ export function getCombatForecast(
     targetsRES: atkMods?.targetsRES,
     effectivenessMultiplier: atkEffectiveness,
   })
-    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - fDefWpnDef;
+    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0)
+    - (usesMagic(atkWeapon) ? (defMods?.resBonus || 0) : 0) - fDefWpnDef;
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
@@ -634,7 +637,8 @@ export function getCombatForecast(
       targetsRES: defMods?.targetsRES,
       effectivenessMultiplier: defEffectiveness,
     })
-      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - fAtkWpnDef;
+      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0)
+      - (usesMagic(defWeapon) ? (atkMods?.resBonus || 0) : 0) - fAtkWpnDef;
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
@@ -854,7 +858,8 @@ export function resolveCombat(
       targetsRES: atkMods?.targetsRES,
       effectivenessMultiplier: atkEffectiveness,
     })
-    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0) - defWeaponDefBonus);
+    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0)
+    - (usesMagic(atkWeapon) ? (defMods?.resBonus || 0) : 0) - defWeaponDefBonus);
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
@@ -901,7 +906,8 @@ export function resolveCombat(
         targetsRES: defMods?.targetsRES,
         effectivenessMultiplier: defEffectiveness,
       })
-      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0) - atkWeaponDefBonus);
+      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0)
+      - (usesMagic(defWeapon) ? (atkMods?.resBonus || 0) : 0) - atkWeaponDefBonus);
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);

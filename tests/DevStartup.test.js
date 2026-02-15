@@ -43,6 +43,14 @@ describe('dev startup helpers', () => {
     expect(config.devTools).toBe(true);
   });
 
+  it('resolves new UI qaStep checkpoints', () => {
+    const config = parseDevStartupConfig('?qaStep=10&devTools=1', { devMode: true });
+    expect(config.sceneKey).toBe('Battle');
+    expect(config.preset).toBe('battle_smoke');
+    expect(config.qaStep).toBe(10);
+    expect(config.devTools).toBe(true);
+  });
+
   it('builds NodeMap route with weapon art preset state', () => {
     const gameData = loadGameData();
     const registry = createRegistry();

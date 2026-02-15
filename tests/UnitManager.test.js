@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   parseWeaponProficiencies,
   rollGrowthRates,
@@ -21,6 +21,7 @@ import {
   applyStatBoost,
   calculateCombatXP,
   hasStaff,
+  grantLethalArmoryWeapon,
   getStaffWeapon,
   resolvePromotionTargetClass,
 } from '../src/engine/UnitManager.js';
@@ -419,6 +420,109 @@ describe('hasStaff / getStaffWeapon proficiency', () => {
   });
 });
 
+describe('grantLethalArmoryWeapon', () => {
+  const weaponPool = [
+    { name: 'Steel Sword', type: 'Sword', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Killing Edge', type: 'Sword', tier: 'Killer', rankRequired: 'Prof' },
+    { name: 'Silver Sword', type: 'Sword', tier: 'Silver', rankRequired: 'Mast' },
+    { name: 'Steel Bow', type: 'Bow', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Killer Bow', type: 'Bow', tier: 'Killer', rankRequired: 'Prof' },
+    { name: 'Silver Bow', type: 'Bow', tier: 'Silver', rankRequired: 'Mast' },
+    { name: 'Elfire', type: 'Tome', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Bolganone', type: 'Tome', tier: 'Silver', rankRequired: 'Mast' },
+    { name: 'Shine', type: 'Light', tier: 'Steel', rankRequired: 'Prof' },
+    { name: 'Aura', type: 'Light', tier: 'Silver', rankRequired: 'Mast' },
+  ];
+
+  it('grants only Steel on tier 1', () => {
+    const unit = {
+      isLord: false,
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+      inventory: [{ name: 'Iron Bow', type: 'Bow', rankRequired: 'Prof' }],
+      weapon: { name: 'Iron Bow', type: 'Bow', rankRequired: 'Prof' },
+    };
+
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      const granted = grantLethalArmoryWeapon(unit, weaponPool, 1);
+      expect(granted).toBe(true);
+      expect(unit.inventory).toHaveLength(2);
+      expect(unit.weapon.type).toBe('Bow');
+      expect(unit.weapon.name).toBe('Steel Bow');
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('rolls 75/25 on tier 2 with Killer fallback to Steel', () => {
+    const unit = {
+      isLord: false,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [{ name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof' }],
+      weapon: { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof' },
+    };
+
+    const killSpy = vi.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0.8);
+    try {
+      const granted = grantLethalArmoryWeapon(unit, weaponPool, 2);
+      expect(granted).toBe(true);
+      expect(unit.weapon.type).toBe('Sword');
+      expect(unit.weapon.name).toBe('Killing Edge');
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it('falls back to fallback tiers on missing mappings/tiers and excludes staff-only units', () => {
+    const tomeUnit = {
+      isLord: false,
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      inventory: [{ name: 'Elfire', type: 'Tome', rankRequired: 'Prof' }],
+      weapon: { name: 'Elfire', type: 'Tome', rankRequired: 'Prof' },
+    };
+    const tier2TomeSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99); // Tier 2 killer branch; Tome has no killer so fallback to steel
+    try {
+      const granted = grantLethalArmoryWeapon(tomeUnit, weaponPool, 2);
+      expect(granted).toBe(true);
+      expect(tomeUnit.weapon.name).toBe('Elfire');
+      expect(tomeUnit.inventory).toHaveLength(2);
+    } finally {
+      tier2TomeSpy.mockRestore();
+    }
+
+    const tier3Spy = vi.spyOn(Math, 'random').mockReturnValueOnce(0.2).mockReturnValueOnce(0.6);
+    try {
+      const unit = {
+        isLord: false,
+        proficiencies: [{ type: 'Light', rank: 'Mast' }],
+        inventory: [{ name: 'Shine', type: 'Light', rankRequired: 'Prof' }],
+        weapon: { name: 'Shine', type: 'Light', rankRequired: 'Prof' },
+      };
+      const granted = grantLethalArmoryWeapon(unit, weaponPool, 3);
+      expect(granted).toBe(true);
+      expect(unit.weapon.name).toBe('Aura');
+      expect(unit.inventory).toHaveLength(2);
+    } finally {
+      tier3Spy.mockRestore();
+    }
+
+    const staffUnit = {
+      isLord: false,
+      proficiencies: [{ type: 'Staff', rank: 'Prof' }],
+      inventory: [{ name: 'Heal', type: 'Staff', rankRequired: 'Prof' }],
+      weapon: { name: 'Heal', type: 'Staff', rankRequired: 'Prof' },
+    };
+    const staffSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      const granted = grantLethalArmoryWeapon(staffUnit, weaponPool, 3);
+      expect(granted).toBe(false);
+      expect(staffUnit.inventory).toHaveLength(1);
+    } finally {
+      staffSpy.mockRestore();
+    }
+  });
+});
+
 describe('removeFromInventory', () => {
   it('auto-equips next combat weapon, skipping non-combat items', () => {
     const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
@@ -748,5 +852,32 @@ describe('createUnit weapon cloning', () => {
     const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
     const unit = createUnit(myrmidon, 1, data.weapons);
     expect(unit.weapon).toBe(unit.inventory[0]);
+  });
+});
+
+describe('unit affixes initialization', () => {
+  it('createLordUnit initializes affixes as empty array', () => {
+    const edric = data.lords[0];
+    const edricClass = data.classes.find(c => c.name === edric.class);
+    const unit = createLordUnit(edric, edricClass, data.weapons);
+    expect(unit.affixes).toEqual([]);
+  });
+
+  it('createUnit initializes affixes as empty array', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createUnit(myrmidon, 1, data.weapons);
+    expect(unit.affixes).toEqual([]);
+  });
+
+  it('createEnemyUnit initializes affixes as empty array', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 3, data.weapons);
+    expect(unit.affixes).toEqual([]);
+  });
+
+  it('createRecruitUnit initializes affixes as empty array', () => {
+    const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
+    const unit = createRecruitUnit({ name: 'Test', level: 3 }, myrmidon, data.weapons);
+    expect(unit.affixes).toEqual([]);
   });
 });

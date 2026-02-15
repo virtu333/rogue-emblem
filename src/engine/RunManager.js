@@ -98,6 +98,13 @@ export function serializeUnit(unit) {
   return data;
 }
 
+function ensureSeraBaseStaffProficiency(unit) {
+  if (!unit || unit.name !== 'Sera' || unit.className !== 'Light Sage') return;
+  if (!Array.isArray(unit.proficiencies)) unit.proficiencies = [];
+  if (unit.proficiencies.some(p => p.type === 'Staff')) return;
+  unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+}
+
 export class RunManager {
   /**
    * @param {{ lords, classes, weapons, skills, terrain, mapSizes, mapTemplates, enemies }} gameData
@@ -1704,6 +1711,7 @@ export class RunManager {
       const classData = classByName.get(unit.className);
       if (!classData) return;
       normalizeUnitClassState(unit, classData);
+      ensureSeraBaseStaffProficiency(unit);
     };
     runManager.roster.forEach(normalize);
     runManager.fallenUnits.forEach(normalize);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import {
   calculateKillGold, calculateBattleGold, calculateSkipLootBonus,
@@ -7,6 +7,7 @@ import {
 import {
   GOLD_PER_KILL_BASE, GOLD_PER_LEVEL_BONUS, GOLD_BATTLE_BONUS, GOLD_BOSS_BONUS,
   SHOP_SELL_RATIO, LOOT_CHOICES, SHOP_ITEM_COUNT, NODE_GOLD_MULTIPLIER,
+  GOLD_BATTLE_REWARD_MULTIPLIER, GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../src/utils/constants.js';
 
 describe('LootSystem', () => {
@@ -38,29 +39,41 @@ describe('LootSystem', () => {
 
   describe('calculateBattleGold', () => {
     it('adds completion bonus to kill gold', () => {
-      expect(calculateBattleGold(200)).toBe(200 + GOLD_BATTLE_BONUS);
+      expect(calculateBattleGold(200)).toBe(
+        Math.floor((200 + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
 
     it('gives at least completion bonus for zero kills', () => {
-      expect(calculateBattleGold(0)).toBe(GOLD_BATTLE_BONUS);
+      expect(calculateBattleGold(0)).toBe(
+        Math.floor(GOLD_BATTLE_BONUS * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
 
     it('applies node type multiplier for recruit nodes', () => {
       const gold = calculateBattleGold(200, 'recruit');
-      expect(gold).toBe(Math.floor(200 * NODE_GOLD_MULTIPLIER.recruit) + GOLD_BATTLE_BONUS);
+      expect(gold).toBe(
+        Math.floor((Math.floor(200 * NODE_GOLD_MULTIPLIER.recruit) + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
 
     it('applies node type multiplier for boss nodes', () => {
       const gold = calculateBattleGold(200, 'boss');
-      expect(gold).toBe(Math.floor(200 * NODE_GOLD_MULTIPLIER.boss) + GOLD_BATTLE_BONUS);
+      expect(gold).toBe(
+        Math.floor((Math.floor(200 * NODE_GOLD_MULTIPLIER.boss) + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
 
     it('uses 1.0 multiplier for unknown node types', () => {
-      expect(calculateBattleGold(200, 'unknown')).toBe(200 + GOLD_BATTLE_BONUS);
+      expect(calculateBattleGold(200, 'unknown')).toBe(
+        Math.floor((200 + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
 
     it('uses 1.0 multiplier when nodeType is undefined', () => {
-      expect(calculateBattleGold(200)).toBe(200 + GOLD_BATTLE_BONUS);
+      expect(calculateBattleGold(200)).toBe(
+        Math.floor((200 + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER)
+      );
     });
   });
 
@@ -96,7 +109,18 @@ describe('LootSystem', () => {
       for (let i = 0; i < 20; i++) {
         const choices = generateLootChoices('act1', gameData.lootTables, gameData.weapons, gameData.consumables);
         for (const choice of choices) {
-          expect(['weapon', 'consumable', 'gold', 'rare', 'accessory', 'forge']).toContain(choice.type);
+          expect([
+            'weapon',
+            'healing',
+            'statBooster',
+            'promotion',
+            'skillScroll',
+            'weaponArtScroll',
+            'legendaryWeapon',
+            'gold',
+            'accessory',
+            'forge',
+          ]).toContain(choice.type);
         }
       }
     });
@@ -115,12 +139,14 @@ describe('LootSystem', () => {
 
     it('gold choices have goldAmount within range', () => {
       const [min, max] = gameData.lootTables.act1.goldRange;
+      const scaledMin = Math.floor(min * GOLD_LOOT_REWARD_MULTIPLIER);
+      const scaledMax = Math.floor(max * GOLD_LOOT_REWARD_MULTIPLIER);
       for (let i = 0; i < 50; i++) {
         const choices = generateLootChoices('act1', gameData.lootTables, gameData.weapons, gameData.consumables);
         const goldChoices = choices.filter(c => c.type === 'gold');
         for (const choice of goldChoices) {
-          expect(choice.goldAmount).toBeGreaterThanOrEqual(min);
-          expect(choice.goldAmount).toBeLessThanOrEqual(max);
+          expect(choice.goldAmount).toBeGreaterThanOrEqual(scaledMin);
+          expect(choice.goldAmount).toBeLessThanOrEqual(scaledMax);
         }
       }
     });
@@ -146,13 +172,158 @@ describe('LootSystem', () => {
       }
     });
 
-    it('act2 can include rare items', () => {
-      let foundRare = false;
+    it('act2 can include skill/weapon-art/legendary drops', () => {
+      let foundRareLikeDrop = false;
       for (let i = 0; i < 100; i++) {
         const choices = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables);
-        if (choices.some(c => c.type === 'rare')) { foundRare = true; break; }
+        if (choices.some(c => ['skillScroll', 'weaponArtScroll', 'legendaryWeapon'].includes(c.type))) {
+          foundRareLikeDrop = true;
+          break;
+        }
       }
-      expect(foundRare).toBe(true);
+      expect(foundRareLikeDrop).toBe(true);
+    });
+
+    it('does not force weapon upgrades without quality bonus', () => {
+      const customTables = {
+        act1: {
+          weapons: ['Iron Sword'],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const choices = generateLootChoices(
+        'act1',
+        customTables,
+        gameData.weapons,
+        gameData.consumables,
+        1,
+        0
+      );
+      randomSpy.mockRestore();
+      expect(choices[0].type).toBe('weapon');
+      expect(choices[0].item.tier).toBe('Iron');
+    });
+
+    it('upgrades loot weapon tiers with quality bonus', () => {
+      const customTables = {
+        act1: {
+          weapons: ['Steel Axe'],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const choices = generateLootChoices(
+        'act1',
+        customTables,
+        gameData.weapons,
+        gameData.consumables,
+        1,
+        100
+      );
+      randomSpy.mockRestore();
+      expect(choices[0].type).toBe('weapon');
+      expect(choices[0].item.tier).toBe('Legend');
+    });
+
+    it('upgrades one quality tier with 10% quality bonus when roll succeeds', () => {
+      const customWeapons = [
+        { name: 'Iron Axe', type: 'Axe', tier: 'Iron' },
+        { name: 'Steel Axe', type: 'Axe', tier: 'Steel' },
+        { name: 'Silver Axe', type: 'Axe', tier: 'Silver' },
+        { name: 'Legend Axe', type: 'Axe', tier: 'Legend' },
+      ];
+      const customTables = {
+        act1: {
+          weapons: ['Iron Axe'],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+
+      const randomValues = [0.5, 0.5, 0.05, 0.5, 0.95, 0.5];
+      let randomIndex = 0;
+      const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => randomValues[randomIndex++] ?? 0);
+
+      const choices = generateLootChoices(
+        'act1',
+        customTables,
+        customWeapons,
+        [],
+        1,
+        10
+      );
+
+      randomSpy.mockRestore();
+      expect(choices[0].type).toBe('weapon');
+      expect(choices[0].item.tier).toBe('Steel');
+    });
+
+    it('can chain multiple upgrades at 20% quality bonus', () => {
+      const customWeapons = [
+        { name: 'Iron Axe', type: 'Axe', tier: 'Iron' },
+        { name: 'Steel Axe', type: 'Axe', tier: 'Steel' },
+        { name: 'Silver Axe', type: 'Axe', tier: 'Silver' },
+        { name: 'Legend Axe', type: 'Axe', tier: 'Legend' },
+      ];
+      const customTables = {
+        act1: {
+          weapons: ['Iron Axe'],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { weapon: 100, gold: 0 },
+          goldRange: [1, 1],
+        },
+      };
+
+      const randomValues = [0.5, 0.5, 0.05, 0.5, 0.05, 0.5, 0.05, 0.5];
+      let randomIndex = 0;
+      const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => randomValues[randomIndex++] ?? 0);
+
+      const choices = generateLootChoices(
+        'act1',
+        customTables,
+        customWeapons,
+        [],
+        1,
+        20
+      );
+
+      randomSpy.mockRestore();
+      expect(choices[0].type).toBe('weapon');
+      expect(choices[0].item.tier).toBe('Legend');
     });
   });
 
@@ -191,9 +362,15 @@ describe('LootSystem', () => {
       const customTables = {
         act2: {
           weapons: ['Precise Cut Scroll'],
-          consumables: ['Vulnerary'],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
-          weights: { weapon: 100, consumable: 0, gold: 0 },
+          forge: [],
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };
@@ -203,13 +380,19 @@ describe('LootSystem', () => {
       expect(scrollEntry.type).toBe('scroll');
     });
 
-    it('does not filter scrolls out of shop pool by roster weapon types', () => {
+    it('respects roster weapon type filter for shop scroll pools', () => {
       const customTables = {
         act2: {
           weapons: ['Precise Cut Scroll'],
-          consumables: ['Vulnerary'],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
-          weights: { weapon: 100, consumable: 0, gold: 0 },
+          forge: [],
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };
@@ -217,7 +400,7 @@ describe('LootSystem', () => {
         proficiencies: [{ type: 'Axe', rank: 'Prof' }],
       }];
       const inv = generateShopInventory('act2', customTables, gameData.weapons, gameData.consumables, gameData.accessories, roster);
-      expect(inv.some((entry) => entry.item.name === 'Precise Cut Scroll')).toBe(true);
+      expect(inv.some((entry) => entry.item.name === 'Precise Cut Scroll')).toBe(false);
     });
 
     it('no Legend-tier items in shop', () => {
@@ -241,9 +424,15 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          consumables: ['Vulnerary'],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
-          weights: { weapon: 100, consumable: 0, gold: 0 },
+          forge: [],
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };
@@ -269,9 +458,15 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          consumables: ['Vulnerary'],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
-          weights: { weapon: 100, consumable: 0, gold: 0 },
+          forge: [],
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };
@@ -375,15 +570,15 @@ describe('LootSystem', () => {
     });
 
     it('non-weapon categories unaffected by roster filter', () => {
-      let foundConsumable = false;
+      let foundHealing = false;
       for (let i = 0; i < 50; i++) {
         const choices = generateLootChoices(
           'act1', gameData.lootTables, gameData.weapons, gameData.consumables,
           LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, swordLanceRoster
         );
-        if (choices.some(c => c.type === 'consumable')) { foundConsumable = true; break; }
+        if (choices.some(c => c.type === 'healing')) { foundHealing = true; break; }
       }
-      expect(foundConsumable).toBe(true);
+      expect(foundHealing).toBe(true);
     });
 
     it('shop still works without roster (no filter)', () => {
@@ -412,22 +607,29 @@ describe('LootSystem', () => {
       expect(pool).toContain('Wind Sword');
     });
 
-    it('act1 consumable pool has 4 Vulnerary + 1 Master Seal', () => {
-      const pool = gameData.lootTables.act1.consumables;
-      const vulnCount = pool.filter(n => n === 'Vulnerary').length;
-      const sealCount = pool.filter(n => n === 'Master Seal').length;
+    it('act1 healing/promotion pools are split correctly', () => {
+      const healing = gameData.lootTables.act1.healing;
+      const promotion = gameData.lootTables.act1.promotion;
+      const vulnCount = healing.filter(n => n === 'Vulnerary').length;
+      const sealCount = promotion.filter(n => n === 'Master Seal').length;
       expect(vulnCount).toBe(4);
       expect(sealCount).toBe(1);
-      expect(pool.length).toBe(5);
+      expect(healing.length).toBe(4);
+      expect(promotion.length).toBe(1);
     });
 
     it('act1 weights are rebalanced (more gold, less weapon)', () => {
       const w = gameData.lootTables.act1.weights;
       expect(w.weapon).toBe(20);
       expect(w.gold).toBe(35);
-      expect(w.consumable).toBe(15);
+      expect(w.healing).toBe(12);
+      expect(w.statBooster).toBe(0);
+      expect(w.promotion).toBe(3);
       expect(w.accessory).toBe(15);
       expect(w.forge).toBe(15);
+      expect(w.skillScroll).toBe(0);
+      expect(w.weaponArtScroll).toBe(0);
+      expect(w.legendaryWeapon).toBe(0);
     });
 
     it('act2 weapon pool has killers and advanced weapons', () => {
@@ -441,9 +643,9 @@ describe('LootSystem', () => {
       expect(pool).toContain('Aura');
     });
 
-    it('act2/act3 rare pools include advanced weapon-art scrolls', () => {
-      const act2Rare = gameData.lootTables.act2.rare;
-      const act3Rare = gameData.lootTables.act3.rare;
+    it('act2/act3 weapon-art split pools include advanced weapon-art scrolls', () => {
+      const act2Rare = gameData.lootTables.act2.weaponArtScroll;
+      const act3Rare = gameData.lootTables.act3.weaponArtScroll;
       const expected = ['Comet Edge Scroll', 'Vaulting Thrust Scroll', 'Rending Cleave Scroll', "Hunter's Focus Scroll"];
       for (const name of expected) {
         expect(act2Rare).toContain(name);
@@ -451,27 +653,34 @@ describe('LootSystem', () => {
       }
     });
 
-    it('act2 consumable pool includes stat boosters', () => {
-      const pool = gameData.lootTables.act2.consumables;
+    it('act2 statBooster pool includes stat boosters', () => {
+      const pool = gameData.lootTables.act2.statBooster;
       expect(pool).toContain('Energy Drop');
       expect(pool).toContain('Spirit Dust');
       expect(pool).toContain('Speedwing');
       expect(pool).toContain('Angelic Robe');
     });
 
-    it('act3 consumable pool includes stat boosters', () => {
-      const pool = gameData.lootTables.act3.consumables;
+    it('act3 statBooster pool includes stat boosters', () => {
+      const pool = gameData.lootTables.act3.statBooster;
       expect(pool).toContain('Energy Drop');
       expect(pool).toContain('Dracoshield');
       expect(pool).toContain('Talisman');
       expect(pool).toContain('Secret Book');
+      expect(pool).toContain('Speedwing');
+      expect(pool).toContain('Angelic Robe');
     });
 
     it('act2 weights are rebalanced', () => {
       const w = gameData.lootTables.act2.weights;
       expect(w.weapon).toBe(20);
       expect(w.gold).toBe(20);
-      expect(w.consumable).toBe(15);
+      expect(w.healing).toBe(3);
+      expect(w.statBooster).toBe(10);
+      expect(w.promotion).toBe(2);
+      expect(w.skillScroll).toBe(4);
+      expect(w.weaponArtScroll).toBe(6);
+      expect(w.legendaryWeapon).toBe(0);
       expect(w.forge).toBe(20);
     });
   });
@@ -499,9 +708,9 @@ describe('LootSystem', () => {
   });
 
   describe('boss loot (isBoss flag)', () => {
-    it('boss flag shifts distribution toward rare/accessory/forge', () => {
-      const counts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
-      const bossCountsObj = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+    it('boss flag shifts distribution toward high-value categories', () => {
+      const counts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, weapon: 0, gold: 0, healing: 0, statBooster: 0, promotion: 0 };
+      const bossCountsObj = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, weapon: 0, gold: 0, healing: 0, statBooster: 0, promotion: 0 };
       const trials = 200;
       for (let i = 0; i < trials; i++) {
         const normal = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
@@ -511,16 +720,16 @@ describe('LootSystem', () => {
           LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true);
         for (const c of boss) bossCountsObj[c.type] = (bossCountsObj[c.type] || 0) + 1;
       }
-      // Boss should have more rare+accessory+forge than normal
-      const normalHighValue = counts.rare + counts.accessory + counts.forge;
-      const bossHighValue = bossCountsObj.rare + bossCountsObj.accessory + bossCountsObj.forge;
+      // Boss should have more high-value categories than normal
+      const normalHighValue = counts.skillScroll + counts.weaponArtScroll + counts.legendaryWeapon + counts.accessory + counts.forge;
+      const bossHighValue = bossCountsObj.skillScroll + bossCountsObj.weaponArtScroll + bossCountsObj.legendaryWeapon + bossCountsObj.accessory + bossCountsObj.forge;
       expect(bossHighValue).toBeGreaterThan(normalHighValue);
     });
 
     it('boss gold range is 1.5x normal', () => {
       const [min, max] = gameData.lootTables.act2.goldRange;
-      const bossMin = Math.floor(min * 1.5);
-      const bossMax = Math.floor(max * 1.5);
+      const bossMin = Math.floor(min * 1.5 * GOLD_LOOT_REWARD_MULTIPLIER);
+      const bossMax = Math.floor(max * 1.5 * GOLD_LOOT_REWARD_MULTIPLIER);
       for (let i = 0; i < 100; i++) {
         const choices = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
           LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, true);
@@ -535,9 +744,9 @@ describe('LootSystem', () => {
 
   describe('elite loot (isElite flag)', () => {
     it('elite applies lighter weight shifts than boss', () => {
-      const normalCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
-      const eliteCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
-      const bossCounts = { rare: 0, accessory: 0, forge: 0, weapon: 0, consumable: 0, gold: 0 };
+      const normalCounts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, weapon: 0, gold: 0 };
+      const eliteCounts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, weapon: 0, gold: 0 };
+      const bossCounts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, weapon: 0, gold: 0 };
       const trials = 300;
       for (let i = 0; i < trials; i++) {
         const normal = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
@@ -551,16 +760,16 @@ describe('LootSystem', () => {
         for (const c of boss) bossCounts[c.type] = (bossCounts[c.type] || 0) + 1;
       }
       // Elite should shift toward high-value more than normal, but less than boss
-      const normalHV = normalCounts.rare + normalCounts.accessory + normalCounts.forge;
-      const eliteHV = eliteCounts.rare + eliteCounts.accessory + eliteCounts.forge;
-      const bossHV = bossCounts.rare + bossCounts.accessory + bossCounts.forge;
+      const normalHV = normalCounts.skillScroll + normalCounts.weaponArtScroll + normalCounts.legendaryWeapon + normalCounts.accessory + normalCounts.forge;
+      const eliteHV = eliteCounts.skillScroll + eliteCounts.weaponArtScroll + eliteCounts.legendaryWeapon + eliteCounts.accessory + eliteCounts.forge;
+      const bossHV = bossCounts.skillScroll + bossCounts.weaponArtScroll + bossCounts.legendaryWeapon + bossCounts.accessory + bossCounts.forge;
       expect(eliteHV).toBeGreaterThan(normalHV);
       expect(bossHV).toBeGreaterThan(eliteHV);
     });
 
     it('isBoss takes precedence when both isBoss and isElite are true', () => {
-      const bossOnlyCounts = { rare: 0, accessory: 0, forge: 0 };
-      const bothCounts = { rare: 0, accessory: 0, forge: 0 };
+      const bossOnlyCounts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0 };
+      const bothCounts = { skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0 };
       const trials = 300;
       for (let i = 0; i < trials; i++) {
         const bossOnly = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
@@ -572,16 +781,16 @@ describe('LootSystem', () => {
       }
       // When both flags are true, isBoss block fires first; isElite block is else-if so skipped
       // Distributions should be statistically similar (both get boss shifts)
-      const bossHV = bossOnlyCounts.rare + bossOnlyCounts.accessory + bossOnlyCounts.forge;
-      const bothHV = bothCounts.rare + bothCounts.accessory + bothCounts.forge;
+      const bossHV = bossOnlyCounts.skillScroll + bossOnlyCounts.weaponArtScroll + bossOnlyCounts.legendaryWeapon + bossOnlyCounts.accessory + bossOnlyCounts.forge;
+      const bothHV = bothCounts.skillScroll + bothCounts.weaponArtScroll + bothCounts.legendaryWeapon + bothCounts.accessory + bothCounts.forge;
       // Allow ±20% variance due to randomness
       expect(Math.abs(bossHV - bothHV)).toBeLessThan(bossHV * 0.2 + 10);
     });
 
     it('elite gold range is 1.25x normal', () => {
       const [min, max] = gameData.lootTables.act2.goldRange;
-      const eliteMin = Math.floor(min * 1.25);
-      const eliteMax = Math.floor(max * 1.25);
+      const eliteMin = Math.floor(min * 1.25 * GOLD_LOOT_REWARD_MULTIPLIER);
+      const eliteMax = Math.floor(max * 1.25 * GOLD_LOOT_REWARD_MULTIPLIER);
       for (let i = 0; i < 100; i++) {
         const choices = generateLootChoices('act2', gameData.lootTables, gameData.weapons, gameData.consumables,
           LOOT_CHOICES, 0, gameData.accessories, gameData.whetstones, null, false, null, true);
@@ -599,11 +808,15 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          consumables: ['Vulnerary'],
-          rare: [],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
           forge: [],
-          weights: { weapon: 100, consumable: 0, rare: 0, accessory: 0, forge: 0, gold: 0 },
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };
@@ -646,11 +859,15 @@ describe('LootSystem', () => {
       const customTables = {
         act2: {
           weapons: ['Elfire', 'Shine'],
-          consumables: ['Vulnerary'],
-          rare: [],
+          healing: ['Vulnerary'],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
           accessories: [],
           forge: [],
-          weights: { weapon: 100, consumable: 0, rare: 0, accessory: 0, forge: 0, gold: 0 },
+          weights: { weapon: 100, healing: 1, statBooster: 0, promotion: 0, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 0, forge: 0, gold: 0 },
           goldRange: [1, 1],
         },
       };

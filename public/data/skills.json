@@ -178,7 +178,7 @@
   {
     "id": "adept",
     "name": "Adept",
-    "description": "SPD% chance for an extra follow-up strike at full damage",
+    "description": "SPD% chance for an extra follow-up strike at full damage (once per combat)",
     "trigger": "on-attack",
     "activation": "SPD"
   },

@@ -45,7 +45,16 @@ export function getMetaEffects(level, metaUpgrades = []) {
     if (effect.goldBonus !== undefined) effects.goldBonus = effect.goldBonus;
     if (effect.battleGoldMultiplier !== undefined) effects.battleGoldMultiplier = effect.battleGoldMultiplier;
     const lootBonus = effect.lootWeaponQualityBonus ?? effect.lootWeaponWeightBonus;
-    if (lootBonus !== undefined) effects.lootWeaponQualityBonus = lootBonus;
+    if (lootBonus !== undefined) {
+      const normalizedLootBonus = Number(lootBonus);
+      if (Number.isFinite(normalizedLootBonus)) {
+        effects.lootWeaponQualityBonus = normalizedLootBonus;
+        if (normalizedLootBonus !== 0) {
+          effects.lootCategoryWeightBonuses.weapon =
+            (effects.lootCategoryWeightBonuses.weapon || 0) + normalizedLootBonus;
+        }
+      }
+    }
     if (effect.lootCategoryWeightBonuses && typeof effect.lootCategoryWeightBonuses === 'object') {
       for (const [key, rawValue] of Object.entries(effect.lootCategoryWeightBonuses)) {
         const value = Number(rawValue);

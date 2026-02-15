@@ -78,7 +78,7 @@ describe('economyMeta.getMetaEffects', () => {
       goldBonus: 1000,
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 10,
-      lootCategoryWeightBonuses: {},
+      lootCategoryWeightBonuses: { weapon: 10 },
     });
   });
 
@@ -88,6 +88,7 @@ describe('economyMeta.getMetaEffects', () => {
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 20,
       lootCategoryWeightBonuses: {
+        weapon: 20,
         skillScroll: 2,
         weaponArtScroll: 2,
         accessory: 4,
@@ -99,6 +100,7 @@ describe('economyMeta.getMetaEffects', () => {
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 20,
       lootCategoryWeightBonuses: {
+        weapon: 20,
         skillScroll: 2,
         weaponArtScroll: 2,
         accessory: 4,
@@ -116,8 +118,12 @@ describe('economyMeta.getMetaEffects', () => {
         effects: [{ lootWeaponWeightBonus: 11 }, { lootWeaponWeightBonus: 22 }],
       },
     ];
-    expect(getMetaEffects(2, legacy).lootWeaponQualityBonus).toBe(11);
-    expect(getMetaEffects(3, legacy).lootWeaponQualityBonus).toBe(22);
+    const tier2 = getMetaEffects(2, legacy);
+    const tier3 = getMetaEffects(3, legacy);
+    expect(tier2.lootWeaponQualityBonus).toBe(11);
+    expect(tier2.lootCategoryWeightBonuses.weapon).toBe(11);
+    expect(tier3.lootWeaponQualityBonus).toBe(22);
+    expect(tier3.lootCategoryWeightBonuses.weapon).toBe(22);
   });
 
   it('prefers lootWeaponQualityBonus when both fields exist', () => {

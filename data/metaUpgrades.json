@@ -863,6 +863,76 @@
     ]
   },
   {
+    "id": "studied_training",
+    "name": "Studied Training",
+    "description": "Increases art scroll quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      150,
+      300
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 1,
+          "weaponArtScroll": 1,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 2,
+          "weaponArtScroll": 2,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
+    "id": "trinket_collector",
+    "name": "Trinket Collector",
+    "description": "Increases accessory quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      150,
+      300
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 2,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 4,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
     "id": "deploy_limit",
     "name": "Tactical Advantage",
     "description": "+1 deploy slot in all acts",

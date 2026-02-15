@@ -198,6 +198,7 @@ export function createLordUnit(lordData, classData, allWeapons) {
     consumables: [],
     accessory: null,
     weaponRank: proficiencies[0]?.rank || 'Prof',
+    affixes: [],
     hasMoved: false,
     hasActed: false,
     graphic: null,
@@ -241,6 +242,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
     weapon: weaponClone,
     inventory: weaponClone ? [weaponClone] : [],
     consumables: [],
+    affixes: [],
     accessory: null,
     weaponRank: proficiencies[0]?.rank || 'Prof',
     hasMoved: false,
@@ -300,6 +302,7 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
     weapon: weaponClone,
     inventory: weaponClone ? [weaponClone] : [],
     consumables: [],
+    affixes: [],
     accessory: null,
     weaponRank: proficiencies[0]?.rank || 'Prof',
     hasMoved: false,
@@ -406,6 +409,7 @@ export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses
     weapon: weaponClone,
     inventory: weaponClone ? [weaponClone] : [],
     consumables: [],
+    affixes: [],
     accessory: null,
     weaponRank: proficiencies[0]?.rank || 'Prof',
     hasMoved: false,
@@ -522,7 +526,7 @@ function pickLethalArmoryWeapon(allWeapons, weaponType, lethalArmoryTier) {
   return pickByName(byType.silver) || pickByName(byType.steel);
 }
 
-// Grant one additional recruit-only weapon from Lethal Armory. Returns true when granted.
+/** Grant one additional recruit-only weapon from Lethal Armory. Returns true when granted. */
 export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) {
   const tier = Math.max(0, Math.trunc(Number(lethalArmoryTier) || 0));
   if (!unit || tier <= 0) return false;

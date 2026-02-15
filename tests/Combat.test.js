@@ -1062,4 +1062,78 @@ describe('Combat mod merging', () => {
     expect(merged.vengeance).toBe(true);
     expect(merged.activated.length).toBe(2);
   });
+
+  it('preserves resBonus through normalize and merge', () => {
+    const merged = mergeCombatMods(
+      { resBonus: 3 },
+      { resBonus: 2 }
+    );
+    expect(merged.resBonus).toBe(5);
+  });
+});
+
+describe('resBonus reduces magic damage in forecast and resolution', () => {
+  it('resBonus reduces magic damage in forecast', () => {
+    const attacker = makeUnit({ stats: { HP: 20, STR: 0, MAG: 12, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 } });
+    const defender = makeUnit();
+    const magicWeapon = data.weapons.find(w => w.type === 'Tome');
+
+    // Forecast without resBonus
+    const forecastBase = getCombatForecast(
+      attacker, magicWeapon, defender, defender.weapon, 1, null, null, null
+    );
+
+    // Forecast with resBonus on defender
+    const forecastWithRes = getCombatForecast(
+      attacker, magicWeapon, defender, defender.weapon, 1, null, null,
+      { defMods: { resBonus: 3 } }
+    );
+
+    expect(forecastWithRes.attacker.damage).toBe(forecastBase.attacker.damage - 3);
+  });
+
+  it('resBonus does NOT reduce physical damage in forecast', () => {
+    const attacker = makeUnit();
+    const defender = makeUnit();
+
+    const forecastBase = getCombatForecast(
+      attacker, attacker.weapon, defender, defender.weapon, 1, null, null, null
+    );
+
+    const forecastWithRes = getCombatForecast(
+      attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
+      { defMods: { resBonus: 5 } }
+    );
+
+    expect(forecastWithRes.attacker.damage).toBe(forecastBase.attacker.damage);
+  });
+
+  it('resBonus reduces magic damage in resolveCombat', () => {
+    const attacker = makeUnit({
+      name: 'Mage',
+      stats: { HP: 20, STR: 0, MAG: 15, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 20,
+    });
+    const magicWeapon = data.weapons.find(w => w.type === 'Tome');
+    const defender = makeUnit({ currentHP: 50, stats: { HP: 50, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 } });
+
+    // Resolve without resBonus — hit rate 100% for deterministic check
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const resultBase = resolveCombat(
+      attacker, magicWeapon, defender, defender.weapon, 1, null, null, null
+    );
+    vi.restoreAllMocks();
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const resultWithRes = resolveCombat(
+      attacker, magicWeapon, defender, defender.weapon, 1, null, null,
+      { defMods: { resBonus: 3 } }
+    );
+    vi.restoreAllMocks();
+
+    // Each hit should deal 3 less damage with resBonus
+    const baseStrike = resultBase.events.find(e => e.type === 'strike' && !e.miss);
+    const resStrike = resultWithRes.events.find(e => e.type === 'strike' && !e.miss);
+    expect(resStrike.damage).toBe(baseStrike.damage - 3);
+  });
 });

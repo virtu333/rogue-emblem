@@ -1,15 +1,33 @@
-// LootSystem.js — Pure functions: gold calculation, loot generation, shop inventory
+﻿// LootSystem.js â€” Pure functions: gold calculation, loot generation, shop inventory
 // No Phaser deps.
 
 import {
   GOLD_PER_KILL_BASE, GOLD_PER_LEVEL_BONUS, GOLD_BATTLE_BONUS, GOLD_BOSS_BONUS,
   GOLD_SKIP_LOOT_MULTIPLIER, SHOP_SELL_RATIO, LOOT_CHOICES, SHOP_ITEM_COUNT,
   NODE_GOLD_MULTIPLIER, LOOT_GOLD_TEAM_XP,
+  GOLD_BATTLE_REWARD_MULTIPLIER, GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
+const LOOT_WEAPON_TIER_UPGRADE_ORDER = ['Iron', 'Steel', 'Silver', 'Legend'];
+const LOOT_WEAPON_TIER_INDEX = new Map(LOOT_WEAPON_TIER_UPGRADE_ORDER.map((tier, idx) => [tier, idx]));
+
+/**
+ * Weapon quality progression tuning (chained per-tier chance).
+ * Bonus is interpreted as: chance per upgrade step to jump one tier up.
+ *
+ * Lv1 = 10%:
+ * - Iron -> 90.00% Iron, 9.00% Steel, 0.90% Silver, 0.09% Legend
+ * - Steel -> 90.00% Steel, 9.00% Silver, 0.90% Legend
+ * - Silver -> 90.00% Silver, 10.00% Legend
+ *
+ * Lv2 = 20%:
+ * - Iron -> 80.00% Iron, 18.00% Steel, 1.80% Silver, 0.80% Legend
+ * - Steel -> 80.00% Steel, 16.00% Silver, 4.00% Legend
+ * - Silver -> 80.00% Silver, 20.00% Legend
+ */
 
 /**
  * Calculate gold earned from killing an enemy.
@@ -30,7 +48,7 @@ export function calculateKillGold(enemy) {
  */
 export function calculateBattleGold(killGold, nodeType) {
   const multiplier = (nodeType && NODE_GOLD_MULTIPLIER[nodeType]) || 1.0;
-  return Math.floor(killGold * multiplier) + GOLD_BATTLE_BONUS;
+  return Math.floor((Math.floor(killGold * multiplier) + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER);
 }
 
 /**
@@ -57,14 +75,23 @@ export function getSellPrice(item) {
  * @returns {string} chosen category
  */
 function weightedRandom(weights) {
-  const entries = Object.entries(weights);
+  const entries = Object.entries(weights).filter(([, weight]) => weight > 0);
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  if (total <= 0) return null;
   let roll = Math.random() * total;
   for (const [category, weight] of entries) {
     roll -= weight;
     if (roll <= 0) return category;
   }
-  return entries[entries.length - 1][0];
+  return entries[entries.length - 1]?.[0] || null;
+}
+
+function normalizeLootArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function isCombatWeaponType(type) {
+  return ['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff'].includes(type);
 }
 
 /**
@@ -112,23 +139,77 @@ function getRosterWeaponTypes(roster) {
  * @param {Array} allWeapons - weapons.json array
  * @returns {string[]}
  */
-function filterByRosterTypes(names, rosterTypes, allWeapons) {
+function filterByRosterTypes(names, rosterTypes, allWeapons, categoriesToFilter = null) {
+  const filterSet = Array.isArray(categoriesToFilter) ? new Set(categoriesToFilter) : null;
   return names.filter(name => {
-    const wpn = allWeapons.find(w => w.name === name);
-    if (!wpn) return true; // not a weapon → keep
-    if (!['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff'].includes(wpn.type)) {
-      return true; // non-combat entries (e.g. scrolls) pass through
+    const item = allWeapons.find(w => w.name === name);
+    if (!item) return true;
+    if (filterSet && !filterSet.has(item.type)) return true;
+    if (!isCombatWeaponType(item.type)) {
+      if (item.type === 'Scroll' && Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0) {
+        return item.allowedWeaponTypes.some((type) => rosterTypes.has(type));
+      }
+      return true;
     }
-    return rosterTypes.has(wpn.type);
+    return rosterTypes.has(item.type);
   });
 }
-
 function normalizeSpawnTier(value) {
   const tier = typeof value === 'string' ? value.trim().toLowerCase() : '';
   if (tier === 'iron') return 'Iron';
   if (tier === 'steel') return 'Steel';
   if (tier === 'silver') return 'Silver';
   return null;
+}
+
+function buildWeaponUpgradePools(allWeapons, rosterTypes = null) {
+  const poolsByType = new Map();
+  for (const weapon of allWeapons) {
+    const name = typeof weapon?.name === 'string' ? weapon.name : null;
+    const type = typeof weapon?.type === 'string' ? weapon.type : null;
+    const tier = typeof weapon?.tier === 'string' ? weapon.tier : null;
+    if (!name || !type || !LOOT_WEAPON_TIER_INDEX.has(tier)) continue;
+    if (rosterTypes && !rosterTypes.has(type)) continue;
+
+    if (!poolsByType.has(type)) poolsByType.set(type, new Map());
+    const typeBuckets = poolsByType.get(type);
+    const bucket = typeBuckets.get(tier) || [];
+    bucket.push(name);
+    typeBuckets.set(tier, bucket);
+  }
+  return poolsByType;
+}
+
+function boostWeaponQuality(baseWeapon, allWeapons, qualityBonusPercent, bonusPoolsByType) {
+  if (!baseWeapon || qualityBonusPercent <= 0) return baseWeapon;
+
+  const baseType = typeof baseWeapon.type === 'string' ? baseWeapon.type : null;
+  const baseTierIndex = LOOT_WEAPON_TIER_INDEX.get(baseWeapon.tier);
+  if (!baseType || baseTierIndex === undefined) return baseWeapon;
+
+  const typeBuckets = bonusPoolsByType.get(baseType);
+  if (!typeBuckets) return baseWeapon;
+
+  const bonus = Number(qualityBonusPercent) || 0;
+  let currentWeapon = baseWeapon;
+  let currentTierIndex = baseTierIndex;
+
+  while (currentTierIndex < LOOT_WEAPON_TIER_UPGRADE_ORDER.length - 1) {
+    const nextTier = LOOT_WEAPON_TIER_UPGRADE_ORDER[currentTierIndex + 1];
+    const nextPool = typeBuckets.get(nextTier) || [];
+    if (nextPool.length === 0) break;
+    if (Math.random() * 100 >= bonus) break;
+
+    const nextName = nextPool[Math.floor(Math.random() * nextPool.length)];
+    const nextWeapon = allWeapons.find(w => w.name === nextName);
+    if (!nextWeapon) break;
+
+    currentWeapon = nextWeapon;
+    currentTierIndex += 1;
+    if (currentWeapon.tier === 'Legend') break;
+  }
+
+  return currentWeapon;
 }
 
 function resolveSpawnTierFromArt(art) {
@@ -357,84 +438,350 @@ export function generateRandomLegendary(allWeapons) {
  * @param {Array} allWeapons - weapons.json array
  * @param {Array} consumables - consumables.json array
  * @param {number} count
- * @param {number} lootWeaponWeightBonus
+ * @param {number} lootWeaponQualityBonus - percent chance per tier upgrade
  * @param {Array} [allAccessories] - accessories.json array
  * @param {Array} [allWhetstones] - whetstones.json array
  * @param {Array} [roster] - current roster for weapon type filtering
  * @param {boolean} [isBoss=false] - shift weights toward rare/accessory/forge for boss battles
  * @returns {Array}
  */
-export function generateLootChoices(actId, lootTables, allWeapons, consumables, count = LOOT_CHOICES, lootWeaponWeightBonus = 0, allAccessories = null, allWhetstones = null, roster = null, isBoss = false, randomLegendary = null, isElite = false, weaponArtSpawnConfig = null) {
+const LOOT_CATEGORY_KEYS = [
+  'weapon', 'healing', 'statBooster', 'promotion', 'skillScroll', 'weaponArtScroll',
+  'legendaryWeapon', 'accessory', 'forge', 'gold'
+];
+const LOOT_ROSTER_FILTER_CATEGORIES = new Set(['weapon', 'skillScroll', 'weaponArtScroll', 'legendaryWeapon']);
+const LOOT_LEGACY_CONSUMABLE_WEIGHTS = {
+  healing: 0.6,
+  statBooster: 0.3,
+  promotion: 0.1,
+};
+const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
+  'weapon', 'healing', 'statBooster', 'promotion',
+  'skillScroll', 'weaponArtScroll', 'legendaryWeapon',
+  'accessory', 'forge', 'gold'
+]);
+const BOSS_LOOT_WEIGHT_SHIFT = {
+  skillScroll: 3,
+  weaponArtScroll: 3,
+  legendaryWeapon: 4,
+  accessory: 5,
+  forge: 5,
+  weapon: -10,
+  healing: -5,
+  statBooster: -3,
+  promotion: -2,
+};
+const ELITE_LOOT_WEIGHT_SHIFT = {
+  skillScroll: 2,
+  weaponArtScroll: 2,
+  legendaryWeapon: 1,
+  accessory: 3,
+  forge: 3,
+  weapon: -5,
+  healing: -3,
+  statBooster: -1,
+  promotion: -1,
+};
+
+function normalizeLootNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function splitWeightByPoolCounts(totalWeight, categoryPools, fallbackRatios = null) {
+  const categories = Object.keys(categoryPools);
+  const poolCounts = {};
+  let countTotal = 0;
+
+  for (const category of categories) {
+    const count = Array.isArray(categoryPools[category]) ? categoryPools[category].length : 0;
+    poolCounts[category] = count;
+    countTotal += count;
+  }
+
+  const result = {};
+  const base = normalizeLootNumber(totalWeight);
+  if (base <= 0) {
+    for (const category of categories) result[category] = 0;
+    return result;
+  }
+
+  if (countTotal > 0) {
+    for (const category of categories) {
+      result[category] = base * (poolCounts[category] / countTotal);
+    }
+    return result;
+  }
+
+  const fallbackTotal = fallbackRatios ? Object.values(fallbackRatios).reduce((sum, val) => sum + val, 0) : 0;
+  if (fallbackTotal <= 0) {
+    const even = base / Math.max(categories.length, 1);
+    for (const category of categories) {
+      result[category] = even;
+    }
+    return result;
+  }
+
+  for (const category of categories) {
+    result[category] = base * ((fallbackRatios[category] || 0) / fallbackTotal);
+  }
+  return result;
+}
+
+function getConsumableLootCategory(item) {
+  if (!item) return null;
+  if (item.effect === 'heal' || item.effect === 'healFull') return 'healing';
+  if (item.effect === 'promote') return 'promotion';
+  if (item.effect === 'statBoost') return 'statBooster';
+  return null;
+}
+
+function splitLegacyConsumablesPool(consumablesPool, allWeapons, consumablesCatalog) {
+  const split = {
+    healing: [],
+    statBooster: [],
+    promotion: [],
+  };
+
+  for (const name of normalizeLootArray(consumablesPool)) {
+    const item = findItem(name, allWeapons, consumablesCatalog);
+    const category = getConsumableLootCategory(item);
+    if (category) split[category].push(name);
+  }
+
+  return split;
+}
+
+function splitLegacyRarePool(rarePool, allWeapons, consumablesCatalog) {
+  const split = {
+    skillScroll: [],
+    weaponArtScroll: [],
+    legendaryWeapon: [],
+  };
+
+  for (const name of normalizeLootArray(rarePool)) {
+    const item = findItem(name, allWeapons, consumablesCatalog);
+    if (!item) continue;
+    if (item.type === 'Scroll') {
+      const isWeaponArt = !!(
+        item.teachesWeaponArtId
+        || (Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0)
+      );
+      if (isWeaponArt) split.weaponArtScroll.push(name);
+      else split.skillScroll.push(name);
+      continue;
+    }
+    if (item.tier === 'Legend') {
+      split.legendaryWeapon.push(name);
+      continue;
+    }
+    split.skillScroll.push(name);
+  }
+
+  return split;
+}
+
+function hasSplitLootLayout(table) {
+  return Array.isArray(table?.healing)
+    || Array.isArray(table?.statBooster)
+    || Array.isArray(table?.promotion)
+    || Array.isArray(table?.skillScroll)
+    || Array.isArray(table?.weaponArtScroll)
+    || Array.isArray(table?.legendaryWeapon);
+}
+
+function buildLootTablesFromAct(lootTable, allWeapons, consumablesCatalog) {
+  const table = lootTable || {};
+  const weights = table.weights || {};
+  const hasSplitLayout = hasSplitLootLayout(table);
+
+  const legacyConsumables = normalizeLootArray(table.consumables);
+  const legacyRare = normalizeLootArray(table.rare);
+  const legacyConsumablesByCategory = splitLegacyConsumablesPool(legacyConsumables, allWeapons, consumablesCatalog);
+  const legacyRareByCategory = splitLegacyRarePool(legacyRare, allWeapons, consumablesCatalog);
+
+  const pools = {
+    weapon: normalizeLootArray(table.weapon ?? table.weapons),
+    healing: hasSplitLayout ? normalizeLootArray(table.healing) : legacyConsumablesByCategory.healing,
+    statBooster: hasSplitLayout ? normalizeLootArray(table.statBooster) : legacyConsumablesByCategory.statBooster,
+    promotion: hasSplitLayout ? normalizeLootArray(table.promotion) : legacyConsumablesByCategory.promotion,
+    skillScroll: hasSplitLayout ? normalizeLootArray(table.skillScroll) : legacyRareByCategory.skillScroll,
+    weaponArtScroll: hasSplitLayout ? normalizeLootArray(table.weaponArtScroll) : legacyRareByCategory.weaponArtScroll,
+    legendaryWeapon: hasSplitLayout ? normalizeLootArray(table.legendaryWeapon) : legacyRareByCategory.legendaryWeapon,
+    accessory: normalizeLootArray(table.accessory ?? table.accessories),
+    forge: normalizeLootArray(table.forge),
+    gold: [],
+  };
+
+  const resolvedWeights = {};
+  for (const key of LOOT_CATEGORY_KEYS) {
+    resolvedWeights[key] = normalizeLootNumber(weights[key]);
+  }
+
+  if (!hasSplitLayout) {
+    const consumableSplit = splitWeightByPoolCounts(weights.consumable, {
+      healing: legacyConsumablesByCategory.healing,
+      statBooster: legacyConsumablesByCategory.statBooster,
+      promotion: legacyConsumablesByCategory.promotion,
+    }, LOOT_LEGACY_CONSUMABLE_WEIGHTS);
+
+    const rareSplit = splitWeightByPoolCounts(weights.rare, {
+      skillScroll: legacyRareByCategory.skillScroll,
+      weaponArtScroll: legacyRareByCategory.weaponArtScroll,
+      legendaryWeapon: legacyRareByCategory.legendaryWeapon,
+    });
+
+    Object.assign(resolvedWeights, consumableSplit, rareSplit);
+    resolvedWeights.healing = normalizedLootNumberFromWeights(resolvedWeights.healing);
+    resolvedWeights.statBooster = normalizedLootNumberFromWeights(resolvedWeights.statBooster);
+    resolvedWeights.promotion = normalizedLootNumberFromWeights(resolvedWeights.promotion);
+    resolvedWeights.skillScroll = normalizedLootNumberFromWeights(resolvedWeights.skillScroll);
+    resolvedWeights.weaponArtScroll = normalizedLootNumberFromWeights(resolvedWeights.weaponArtScroll);
+    resolvedWeights.legendaryWeapon = normalizedLootNumberFromWeights(resolvedWeights.legendaryWeapon);
+  }
+
+  return {
+    pools,
+    weights: resolvedWeights,
+  };
+}
+
+function normalizedLootNumberFromWeights(value) {
+  return normalizeLootNumber(value);
+}
+
+function applyWeightShift(weights, shifts) {
+  for (const [category, delta] of Object.entries(shifts)) {
+    weights[category] = normalizeLootNumber(weights[category]) + normalizeLootNumber(delta);
+    if (weights[category] < 0) weights[category] = 0;
+  }
+}
+
+function applyMetaWeightBonuses(weights, options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) return;
+  const bonusMap = options.lootCategoryWeightBonuses || options.weightBonuses || options.lootWeightBonuses;
+  if (!bonusMap || typeof bonusMap !== 'object') return;
+
+  for (const [category, rawDelta] of Object.entries(bonusMap)) {
+    if (!LOOT_CATEGORY_WEIGHT_BONUS_KEYS.has(category)) continue;
+    weights[category] = normalizeLootNumber(weights[category]) + normalizeLootNumber(rawDelta);
+    if (weights[category] < 0) weights[category] = 0;
+  }
+}
+
+function applyFinalBossWeaponBonus(rollsForCategory, category, actId, randomLegendary, basePool) {
+  if (category !== 'legendaryWeapon' || actId !== 'act3' && actId !== 'finalBoss' || !randomLegendary) {
+    return basePool;
+  }
+  return [...basePool, randomLegendary.name];
+}
+
+function shopEntryTypeForItem(item) {
+  if (!item) return 'weapon';
+  if (item.type === 'Consumable') return 'consumable';
+  if (item.type === 'Accessory') return 'accessory';
+  if (item.type === 'Scroll') return 'scroll';
+  return 'weapon';
+}
+
+/**
+ * Generate N loot choices from act's loot table.
+ * Each choice: { type: 'weapon'|'healing'|'statBooster'|'promotion'|'skillScroll'| ... ,'|'gold', item?, goldAmount? }
+ * @param {string} actId
+ * @param {object} lootTables - keyed by act
+ * @param {Array} allWeapons - weapons.json array
+ * @param {Array} consumables - consumables.json array
+ * @param {number} count
+ * @param {number} lootWeaponQualityBonus - percent chance per tier upgrade
+ * @param {Array} [allAccessories] - accessories.json array
+ * @param {Array} [allWhetstones] - whetstones.json array
+ * @param {Array} [roster] - current roster for weapon type filtering
+ * @param {boolean} [isBoss=false] - shift weights toward high value drops for boss battles
+ * @param {object|null} randomLegendary - prebuilt legendary to inject
+ * @param {boolean} [isElite=false] - lighter boss-like shift
+ * @param {object|null} weaponArtSpawnConfig - meta-art spawn settings
+ * @param {object} [options={}] - optional settings, eg { lootCategoryWeightBonuses: { ... } }
+ * @returns {Array}
+ */
+export function generateLootChoices(
+  actId,
+  lootTables,
+  allWeapons,
+  consumables,
+  count = LOOT_CHOICES,
+  lootWeaponQualityBonus = 0,
+  allAccessories = null,
+  allWhetstones = null,
+  roster = null,
+  isBoss = false,
+  randomLegendary = null,
+  isElite = false,
+  weaponArtSpawnConfig = null,
+  generateOptions = {}
+) {
   const table = lootTables[actId] || lootTables.act3;
+  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
+  const qualityBonusPercent = normalizeLootNumber(lootWeaponQualityBonus);
+  const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
+  const options = generateOptions || {};
+
+  const adjustedWeights = { ...weights };
+  if (options.lootCategoryWeightBonuses || options.weightBonuses) {
+    applyMetaWeightBonuses(adjustedWeights, options);
+  }
+
+  if (isBoss) {
+    applyWeightShift(adjustedWeights, BOSS_LOOT_WEIGHT_SHIFT);
+  } else if (isElite) {
+    applyWeightShift(adjustedWeights, ELITE_LOOT_WEIGHT_SHIFT);
+  }
+
   const choices = [];
   const usedNames = new Set();
   const maxAttempts = count * 5;
   let attempts = 0;
-  const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
-  // Apply weapon weight bonus from meta upgrades
-  const weights = { ...table.weights };
-  if (lootWeaponWeightBonus > 0 && weights.weapon !== undefined) {
-    weights.weapon += lootWeaponWeightBonus;
-  }
-
-  // Boss loot: shift weights toward rare/accessory/forge
-  if (isBoss) {
-    if (weights.rare !== undefined || (table.rare && table.rare.length > 0)) {
-      weights.rare = (weights.rare || 0) + 10;
-    }
-    if (weights.accessory !== undefined) weights.accessory += 5;
-    if (weights.forge !== undefined) weights.forge += 5;
-    if (weights.weapon !== undefined) weights.weapon = Math.max(0, weights.weapon - 10);
-    if (weights.consumable !== undefined) weights.consumable = Math.max(0, weights.consumable - 10);
-  } else if (isElite) {
-    // Elite loot: half-boss shifts (lighter but still meaningful)
-    if (weights.rare !== undefined || (table.rare && table.rare.length > 0)) {
-      weights.rare = (weights.rare || 0) + 5;
-    }
-    if (weights.accessory !== undefined) weights.accessory += 3;
-    if (weights.forge !== undefined) weights.forge += 3;
-    if (weights.weapon !== undefined) weights.weapon = Math.max(0, weights.weapon - 5);
-    if (weights.consumable !== undefined) weights.consumable = Math.max(0, weights.consumable - 5);
-  }
-
-  // Roster weapon type filter
   const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
+  const qualityPoolsByType = buildWeaponUpgradePools(allWeapons, rosterTypes);
 
   while (choices.length < count && attempts < maxAttempts) {
     attempts++;
-    const category = weightedRandom(weights);
+    const category = weightedRandom(adjustedWeights);
+    if (!category) break;
 
     if (category === 'gold') {
       if (choices.some(c => c.type === 'gold')) continue;
       let [min, max] = table.goldRange;
-      if (isBoss) { min = Math.floor(min * 1.5); max = Math.floor(max * 1.5); }
-      else if (isElite) { min = Math.floor(min * 1.25); max = Math.floor(max * 1.25); }
-      const goldAmount = min + Math.floor(Math.random() * (max - min + 1));
+      if (isBoss) {
+        min = Math.floor(min * 1.5);
+        max = Math.floor(max * 1.5);
+      } else if (isElite) {
+        min = Math.floor(min * 1.25);
+        max = Math.floor(max * 1.25);
+      }
+      const goldAmount = Math.floor((min + Math.floor(Math.random() * (max - min + 1))) * GOLD_LOOT_REWARD_MULTIPLIER);
       const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
       choices.push({ type: 'gold', goldAmount, xpAmount });
       continue;
     }
 
-    const POOL_MAP = { rare: 'rare', weapon: 'weapons', consumable: 'consumables', accessory: 'accessories', forge: 'forge' };
-    let pool = table[POOL_MAP[category]];
-    if (!pool || pool.length === 0) continue;
+    let pool = normalizeLootArray(pools[category]);
+    if (!pool.length) continue;
+    pool = applyFinalBossWeaponBonus(pool, category, actId, randomLegendary, pool);
 
-    // Inject random legendary into rare pool for act3+
-    if (category === 'rare' && randomLegendary && (actId === 'act3' || actId === 'finalBoss')) {
-      pool = [...pool, randomLegendary.name];
-    }
-
-    // Filter weapon-type pools by roster proficiencies
-    if (rosterTypes && (category === 'weapon' || category === 'rare')) {
+    if (rosterTypes && LOOT_ROSTER_FILTER_CATEGORIES.has(category)) {
       pool = filterByRosterTypes(pool, rosterTypes, allWeapons);
-      if (pool.length === 0) continue;
+      if (!pool.length) continue;
     }
 
-    const name = pool[Math.floor(Math.random() * pool.length)];
+    let name = pool[Math.floor(Math.random() * pool.length)];
+    if (category === 'weapon' && qualityBonusPercent > 0) {
+      const baseWeapon = allWeapons.find(w => w.name === name && LOOT_WEAPON_TIER_INDEX.has(w.tier));
+      const upgradedWeapon = boostWeaponQuality(baseWeapon, allWeapons, qualityBonusPercent, qualityPoolsByType);
+      if (upgradedWeapon) name = upgradedWeapon.name;
+    }
     if (usedNames.has(name)) continue;
 
-    // Random legendary is not in allWeapons — use the object directly
     let item;
     if (randomLegendary && name === randomLegendary.name) {
       item = structuredClone(randomLegendary);
@@ -448,10 +795,9 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
     choices.push({ type: category, item });
   }
 
-  // Fill remaining slots with gold if item pools were exhausted
   while (choices.length < count) {
     const [min, max] = table.goldRange;
-    const goldAmount = min + Math.floor(Math.random() * (max - min + 1));
+    const goldAmount = Math.floor((min + Math.floor(Math.random() * (max - min + 1))) * GOLD_LOOT_REWARD_MULTIPLIER);
     const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
     choices.push({ type: 'gold', goldAmount, xpAmount });
   }
@@ -467,86 +813,102 @@ export function generateLootChoices(actId, lootTables, allWeapons, consumables, 
  * @param {Array} consumables
  * @param {Array} [allAccessories] - accessories.json array
  * @param {Array} [roster] - current roster for weapon type filtering
+ * @param {object|null} weaponArtSpawnConfig - meta-art spawn settings
+ * @param {object} [options={}] - future extension for loot effects
  * @returns {Array<{ item: object, price: number, type: string }>}
  */
-export function generateShopInventory(actId, lootTables, allWeapons, consumables, allAccessories = null, roster = null, weaponArtSpawnConfig = null) {
+export function generateShopInventory(
+  actId,
+  lootTables,
+  allWeapons,
+  consumables,
+  allAccessories = null,
+  roster = null,
+  weaponArtSpawnConfig = null,
+  generateOptions = {}
+) {
   const table = lootTables[actId] || lootTables.act3;
+  const { pools } = buildLootTablesFromAct(table, allWeapons, consumables);
   const itemCount = SHOP_ITEM_COUNT.min + Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
   const inventory = [];
   const usedNames = new Set();
-  const shopEntryTypeForItem = (item) => {
-    if (!item) return 'weapon';
-    if (item.type === 'Consumable') return 'consumable';
-    if (item.type === 'Accessory') return 'accessory';
-    if (item.type === 'Scroll') return 'scroll';
-    return 'weapon';
-  };
 
-  // Roster weapon type filter
   const rosterTypes = roster ? getRosterWeaponTypes(roster) : null;
   const filteredWeapons = rosterTypes
-    ? filterByRosterTypes(table.weapons, rosterTypes, allWeapons)
-    : table.weapons;
+    ? filterByRosterTypes(normalizeLootArray(pools.weapon), rosterTypes, allWeapons)
+    : normalizeLootArray(pools.weapon);
+  const filteredForRoster = (category, pool) => {
+    const source = normalizeLootArray(pool);
+    if (!rosterTypes || !LOOT_ROSTER_FILTER_CATEGORIES.has(category)) return source;
+    return filterByRosterTypes(source, rosterTypes, allWeapons);
+  };
+  const filteredSkillScrolls = filteredForRoster('skillScroll', pools.skillScroll);
+  const filteredWeaponArtScrolls = filteredForRoster('weaponArtScroll', pools.weaponArtScroll);
+  const filteredLegendaryWeapons = filteredForRoster('legendaryWeapon', pools.legendaryWeapon);
+  const filteredAccessories = normalizeLootArray(pools.accessory);
+  const filteredForge = normalizeLootArray(pools.forge);
 
-  // Guarantee at least 1 weapon (from filtered pool)
+  const addByName = (name, forcedType = null) => {
+    if (usedNames.has(name)) return false;
+    const item = findItem(name, allWeapons, consumables, allAccessories);
+    if (!item) return false;
+    if (item.price <= 0) return false;
+
+    usedNames.add(name);
+    const finalItem = applyMetaInnateArtToItem(structuredClone(item), metaInnateArtConfig) || item;
+    const type = forcedType || shopEntryTypeForItem(finalItem);
+    inventory.push({ item: finalItem, price: finalItem.price, type });
+    return true;
+  };
+
+  // Guarantee at least one weapon.
   if (filteredWeapons.length > 0) {
-    const name = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
-    const item = findItem(name, allWeapons, consumables, allAccessories);
-    if (item && item.price > 0) {
-      applyMetaInnateArtToItem(item, metaInnateArtConfig);
-      usedNames.add(name);
-      inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
-    }
+    const weaponName = filteredWeapons[Math.floor(Math.random() * filteredWeapons.length)];
+    addByName(weaponName);
   }
 
-  // Filter stat boosters out of shop consumables (loot-only items)
-  const shopConsumables = table.consumables.filter(name => {
-    const c = consumables.find(x => x.name === name);
-    return !c || c.effect !== 'statBoost';
-  });
+  const shopConsumables = [...normalizeLootArray(pools.healing), ...normalizeLootArray(pools.promotion)];
 
-  // Guarantee at least 1 consumable
   if (shopConsumables.length > 0) {
-    const name = shopConsumables[Math.floor(Math.random() * shopConsumables.length)];
-    const item = findItem(name, allWeapons, consumables, allAccessories);
-    if (item) {
-      applyMetaInnateArtToItem(item, metaInnateArtConfig);
-      usedNames.add(name);
-      inventory.push({ item, price: item.price, type: 'consumable' });
-    }
+    const consumableName = shopConsumables[Math.floor(Math.random() * shopConsumables.length)];
+    addByName(consumableName, 'consumable');
   }
 
-  // Pin Vulnerary and Elixir in every shop
   const guaranteedConsumables = ['Vulnerary', 'Elixir'];
   for (const name of guaranteedConsumables) {
-    if (usedNames.has(name)) continue; // Already picked randomly
-    const item = findItem(name, allWeapons, consumables, allAccessories);
-    if (item && item.price > 0 && inventory.length < itemCount) {
-      applyMetaInnateArtToItem(item, metaInnateArtConfig);
-      usedNames.add(name);
-      inventory.push({ item, price: item.price, type: 'consumable' });
-    }
+    if (usedNames.has(name)) continue;
+    const inHealingOrPromotion = [...normalizeLootArray(pools.healing), ...normalizeLootArray(pools.promotion)].includes(name);
+    if (!inHealingOrPromotion) continue;
+    addByName(name, 'consumable');
   }
 
-  // Fill remaining slots from combined filtered weapon + consumable + accessory pools
-  const accessoryPool = table.accessories || [];
-  const combinedPool = [...filteredWeapons, ...shopConsumables, ...accessoryPool];
+  const combinedPool = [
+    ...filteredWeapons,
+    ...shopConsumables,
+    ...filteredAccessories,
+    ...filteredSkillScrolls,
+    ...filteredWeaponArtScrolls,
+    ...filteredLegendaryWeapons,
+    ...filteredForge,
+  ];
   const maxAttempts = itemCount * 5;
   let attempts = 0;
 
   while (inventory.length < itemCount && attempts < maxAttempts) {
     attempts++;
+    if (combinedPool.length === 0) break;
     const name = combinedPool[Math.floor(Math.random() * combinedPool.length)];
     if (usedNames.has(name)) continue;
 
     const item = findItem(name, allWeapons, consumables, allAccessories);
-    if (!item || item.price === 0) continue;
-    applyMetaInnateArtToItem(item, metaInnateArtConfig);
+    if (!item || item.price <= 0) continue;
 
     usedNames.add(name);
-    inventory.push({ item, price: item.price, type: shopEntryTypeForItem(item) });
+    const finalItem = structuredClone(item);
+    applyMetaInnateArtToItem(finalItem, metaInnateArtConfig);
+    inventory.push({ item: finalItem, price: finalItem.price, type: shopEntryTypeForItem(finalItem) });
   }
 
   return inventory;
