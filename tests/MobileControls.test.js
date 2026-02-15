@@ -242,7 +242,7 @@ describe('MobileControls context stack', () => {
       .toEqual(['danger', 'roster', 'objective', 'endTurn']);
   });
 
-  it('pop on empty stack resolves to none context', () => {
+  it('pop on empty stack resolves to base context', () => {
     const events = createMockEvents();
     const { documentMock } = createMockMobileDom();
     globalThis.document = documentMock;
@@ -252,7 +252,7 @@ describe('MobileControls context stack', () => {
     controls.show();
     events.emit('mobile:setContext', { context: 'battle_idle' });
     events.emit('mobile:popContext');
-    expect(controls._currentContext).toBe('none');
+    expect(controls._currentContext).toBe('battle_idle');
   });
 });
 
@@ -392,6 +392,21 @@ describe('Cancel vs Menu semantic parity', () => {
     expect(scene.requestCancel).toHaveBeenNthCalledWith(2);
   });
 
+  it('NodeMap redraw does not duplicate mobile handlers', () => {
+    const events = createMockEvents();
+    const scene = createNodeMapDrawSceneStub(events);
+
+    NodeMapScene.prototype.drawMap.call(scene);
+    NodeMapScene.prototype.drawMap.call(scene);
+
+    events.emit('mobile:cancel');
+    events.emit('mobile:menu');
+
+    expect(scene.requestCancel).toHaveBeenCalledTimes(2);
+    expect(scene.requestCancel).toHaveBeenNthCalledWith(1, { allowPause: false });
+    expect(scene.requestCancel).toHaveBeenNthCalledWith(2);
+  });
+
   it('NodeMap requestCancel does not open pause when allowPause is false', () => {
     const scene = {
       isDevToolsEnabled: () => false,
@@ -444,5 +459,42 @@ describe('Cancel vs Menu semantic parity', () => {
 
     expect(scene.requestCancel).toHaveBeenNthCalledWith(1, { allowExit: false });
     expect(scene.requestCancel).toHaveBeenNthCalledWith(2, { allowExit: true });
+  });
+
+  it('HomeBase shutdown resets mobile context with stack reset', () => {
+    const events = createMockEvents();
+    const contexts = [];
+    events.on('mobile:setContext', (payload) => contexts.push(payload));
+    const scene = {
+      registry: {
+        get: vi.fn((key) => {
+          if (key === 'startupFlags') return { isMobile: true };
+          return null;
+        }),
+      },
+      events: { once: vi.fn() },
+      game: { events },
+      input: {
+        keyboard: { on: vi.fn(), off: vi.fn() },
+        on: vi.fn(),
+        off: vi.fn(),
+      },
+      requestCancel: vi.fn(),
+      drawUI: vi.fn(),
+      _hideRefundConfirm: vi.fn(),
+      add: {
+        rectangle: vi.fn(() => createDisplayObject()),
+        text: vi.fn(() => createDisplayObject()),
+      },
+      cameras: { main: { width: 640, height: 480 } },
+    };
+
+    HomeBaseScene.prototype.create.call(scene);
+    const shutdownHandler = scene.events.once.mock.calls.find(([eventName]) => eventName === 'shutdown')?.[1];
+    expect(typeof shutdownHandler).toBe('function');
+
+    shutdownHandler();
+
+    expect(contexts.at(-1)).toEqual({ context: 'none', resetStack: true });
   });
 });

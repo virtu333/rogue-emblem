@@ -71,13 +71,19 @@ export class HomeBaseScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.refundMode = false;
       this._hideRefundConfirm();
-      if (this.isMobileInput && this._mobileHandlers) {
+      this.input.keyboard.off('keydown-ESC', this._onEsc);
+      this.input.off('pointerdown', this._onPointerDown);
+      this.input.off('pointermove', this._onPointerMove);
+      this.input.off('pointerup', this._onPointerUp);
+      this.input.off('wheel', this._onWheelHandler);
+      if (this.isMobileInput) {
         const ge = this.game?.events;
-        if (ge) {
+        if (ge && this._mobileHandlers) {
           for (const [action, handler] of Object.entries(this._mobileHandlers)) {
             ge.off(`mobile:${action}`, handler);
           }
         }
+        if (ge) ge.emit('mobile:setContext', { context: 'none', resetStack: true });
         this._mobileHandlers = null;
       }
       const audio = this.registry.get('audio');
@@ -94,17 +100,20 @@ export class HomeBaseScene extends Phaser.Scene {
     this.refundMode = false;
     this.confirmOverlayObjects = [];
 
-    this.input.keyboard.on('keydown-ESC', () => {
-      this.requestCancel({ allowExit: true });
-    });
-
-    this.input.on('pointerdown', (pointer) => {
+    this._onEsc = () => this.requestCancel({ allowExit: true });
+    this._onPointerDown = (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
-    });
-    this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
-    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY));
+    };
+    this._onPointerMove = (pointer) => this.onPointerMove(pointer);
+    this._onPointerUp = (pointer) => this.onPointerUp(pointer);
+    this._onWheelHandler = (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY);
+
+    this.input.keyboard.on('keydown-ESC', this._onEsc);
+    this.input.on('pointerdown', this._onPointerDown);
+    this.input.on('pointermove', this._onPointerMove);
+    this.input.on('pointerup', this._onPointerUp);
+    this.input.on('wheel', this._onWheelHandler);
 
     const flags = this.registry.get('startupFlags');
     this.isMobileInput = Boolean(flags?.isMobile);

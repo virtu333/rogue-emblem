@@ -202,6 +202,14 @@ export class NodeMapScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
     this._unbindInputHandlers();
+    if (this.isMobileInput && this._mobileHandlers) {
+      const ge = this.game.events;
+      for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+        ge.off(`mobile:${action}`, handler);
+      }
+      ge.emit('mobile:setContext', { context: 'none', resetStack: true });
+      this._mobileHandlers = null;
+    }
   }
 
   async finalizeSceneReady() {
@@ -589,31 +597,51 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawRoster();
 
     // Roster button (bottom-right, near gear icon area)
-    const rosterBtn = this.add.text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
+    this._rosterBtn = this.add.text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
       fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    rosterBtn.on('pointerover', () => rosterBtn.setColor('#ffdd44'));
-    rosterBtn.on('pointerout', () => rosterBtn.setColor('#e0e0e0'));
-    rosterBtn.on('pointerdown', () => {
-      if (this.rosterOverlay?.visible) return;
-      this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
-        onClose: () => {
-          this.rosterOverlay = null;
-          // Auto-save after roster changes
-          const cloud = this.registry.get('cloud');
-          const slot = this.registry.get('activeSlot');
-          saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
-          this.drawMap(); // refresh roster bar
-        },
-      });
-      this.rosterOverlay.show();
-    });
+    this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor('#ffdd44'));
+    this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor('#e0e0e0'));
+    this._rosterBtn.on('pointerdown', () => this._openRoster());
+
+    // Mobile virtual controls
+    const flags = this.registry.get('startupFlags');
+    this.isMobileInput = Boolean(flags?.isMobile);
+    if (this.isMobileInput) {
+      this._rosterBtn.setVisible(false);
+      const ge = this.game.events;
+      if (!this._mobileHandlers) {
+        this._mobileHandlers = {
+          cancel: () => this.requestCancel({ allowPause: false }),
+          menu: () => this.requestCancel(),
+          roster: () => this._openRoster(),
+        };
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          ge.on(`mobile:${action}`, handler);
+        }
+      }
+      ge.emit('mobile:setContext', { context: 'nodemap' });
+    }
 
     // Instructions
     this.add.text(this.cameras.main.centerX, MAP_BOTTOM + 20, 'Click a node to proceed', {
       fontFamily: 'monospace', fontSize: '11px', color: '#888888',
     }).setOrigin(0.5);
+  }
+
+  _openRoster() {
+    if (this.rosterOverlay?.visible) return;
+    this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
+      onClose: () => {
+        this.rosterOverlay = null;
+        const cloud = this.registry.get('cloud');
+        const slot = this.registry.get('activeSlot');
+        saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
+        this.drawMap();
+      },
+    });
+    this.rosterOverlay.show();
   }
 
   drawRoster() {
