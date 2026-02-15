@@ -117,9 +117,9 @@ export const ROSTER_CAP = 12;
 
 // Gold economy
 export const STARTING_GOLD = 200;
-export const GOLD_PER_KILL_BASE = 25;
-export const GOLD_PER_LEVEL_BONUS = 7;
-export const GOLD_BATTLE_BONUS = 100;
+export const GOLD_PER_KILL_BASE = 28;
+export const GOLD_PER_LEVEL_BONUS = 8;
+export const GOLD_BATTLE_BONUS = 120;
 export const GOLD_BOSS_BONUS = 300;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.50;
 export const SHOP_SELL_RATIO = 0.5;
