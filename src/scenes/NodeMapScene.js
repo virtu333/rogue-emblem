@@ -1630,7 +1630,10 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     if (entryType === 'scroll' || item.type === 'Scroll') {
-      return item.special || 'Teaches a skill';
+      const header = item.special || 'Teaches a skill';
+      const skillDef = this.gameData?.skills?.find(s => s.id === item.skillId);
+      const desc = skillDef?.description || '';
+      return desc ? `${header}\n${desc}` : header;
     }
 
     if (item.type === 'Whetstone') {
@@ -1648,10 +1651,10 @@ export class NodeMapScene extends Phaser.Scene {
     const wt = Number.isFinite(Number(item.weight)) ? Number(item.weight) : 0;
     const rng = item.range ?? '1';
 
-    const lines = [
-      `Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`,
-      `Wt: ${wt}   Rng: ${rng}`,
-    ];
+    const lines = [];
+    if (item.type) lines.push(item.type);
+    lines.push(`Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`);
+    lines.push(`Wt: ${wt}   Rng: ${rng}`);
     if (item.special) lines.push(`Special: ${item.special}`);
     return lines.join('\n');
   }
@@ -1659,16 +1662,21 @@ export class NodeMapScene extends Phaser.Scene {
   _showShopItemTooltip(entry, anchorX, anchorY) {
     this._hideShopItemTooltip();
     const detail = this._getShopItemDetailText(entry);
-    const lines = String(detail || '').split('\n').filter(Boolean);
-    if (lines.length <= 0) return;
+    if (!detail) return;
     this.shopItemTooltip = [];
 
-    const lineH = 14;
     const padX = 8;
     const padY = 6;
-    const maxLineChars = lines.reduce((max, line) => Math.max(max, line.length), 0);
-    const boxW = Phaser.Math.Clamp(maxLineChars * 6 + padX * 2, 150, 320);
-    const boxH = lines.length * lineH + padY * 2;
+    const maxTextW = 304; // 320 - padX*2
+
+    // Create text first with wordWrap so Phaser computes accurate dimensions
+    const detailText = this.add.text(0, 0, detail, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0',
+      lineSpacing: 4, wordWrap: { width: maxTextW },
+    }).setDepth(311);
+
+    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 150, 320);
+    const boxH = detailText.height + padY * 2;
 
     let tx = anchorX;
     let ty = anchorY;
@@ -1679,15 +1687,9 @@ export class NodeMapScene extends Phaser.Scene {
 
     const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
       .setDepth(310).setStrokeStyle(1, 0x336666);
-    this.shopItemTooltip.push(bg);
+    detailText.setPosition(tx + padX, ty + padY);
 
-    const detailText = this.add.text(tx + padX, ty + padY, lines.join('\n'), {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#e0e0e0',
-      lineSpacing: 4,
-    }).setDepth(311);
-    this.shopItemTooltip.push(detailText);
+    this.shopItemTooltip.push(bg, detailText);
   }
 
   _hideShopItemTooltip() {

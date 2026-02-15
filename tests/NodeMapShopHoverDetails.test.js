@@ -107,6 +107,27 @@ describe('NodeMap shop hover details', () => {
     expect(weaponText).toContain('Special: Poison');
   });
 
+  it('formats detail text for scroll entries with skill descriptions', () => {
+    const skills = [{ id: 'adept', description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)' }];
+    const text = NodeMapScene.prototype._getShopItemDetailText.call(
+      { gameData: { skills } },
+      { type: 'scroll', item: { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Adept' } }
+    );
+    expect(text).toContain('Teaches Adept');
+    expect(text).toContain('SPD% chance');
+    expect(text.split('\n')).toHaveLength(2);
+  });
+
+  it('includes weapon type in detail text', () => {
+    const text = NodeMapScene.prototype._getShopItemDetailText.call({}, {
+      type: 'weapon',
+      item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    });
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('Sword');
+    expect(lines[1]).toContain('Mt: 5');
+  });
+
   it('hides shop tooltip on active-tab redraw', () => {
     const stale = makeDisplayObject();
     const scene = {

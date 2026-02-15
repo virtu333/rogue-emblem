@@ -42,8 +42,10 @@ describe('HomeBaseScene upgrade description helpers', () => {
       },
     };
 
-    expect(scene._formatEffectValue(effect)).toBe('Skill Scroll +2, Weapon Art +2, Gold -2');
-    expect(scene._getActionDesc(effect)).toBe('Drop table: more Skill Scroll & Weapon Art; less Gold');
+    expect(scene._formatEffectValue(effect)).toBe('+Scroll, +W.Art');
+    // _getActionDesc falls through to upgrade.description when lootCategoryWeightBonuses present
+    expect(scene._getActionDesc({ effects: [effect], description: 'Increases art scroll quality' }))
+      .toBe('Increases art scroll quality');
   });
 
   it('formats and describes extra starting unit tier upgrade', () => {
@@ -187,5 +189,30 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     expect(lines).toEqual(expect.arrayContaining([
       expect.stringContaining('recruitment'),
     ]));
+  });
+});
+
+describe('HomeBaseScene tooltip tab scope', () => {
+  it('ignores stale tooltip requests after a tab switch', () => {
+    const scene = new HomeBaseScene();
+    scene.activeTab = 'recruit_stats';
+    const tooltipObject = {
+      setDepth() { return this; },
+      setY() { return this; },
+      destroy: vi.fn(),
+      height: 16,
+    };
+    const addText = vi.fn(() => tooltipObject);
+
+    scene.add = { text: addText };
+
+    scene._showUpgradeTooltip(10, 20, ['Recruit growth'], 'starting_skills');
+    expect(addText).not.toHaveBeenCalled();
+    expect(scene._upgradeTooltip).toBeUndefined();
+
+    scene.activeTab = 'starting_skills';
+    scene._showUpgradeTooltip(10, 20, ['Starting skill'], 'starting_skills');
+    expect(addText).toHaveBeenCalledTimes(1);
+    expect(scene._upgradeTooltip).toBe(tooltipObject);
   });
 });

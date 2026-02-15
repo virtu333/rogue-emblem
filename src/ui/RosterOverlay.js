@@ -1370,49 +1370,66 @@ export class RosterOverlay {
     }
 
     const cx = 320;
-    const itemH = 24;
-    const titleH = 30;
     const pad = 12;
-    const totalH = titleH + scrolls.length * itemH + itemH + pad;
-    const cy = 240;
-    const topY = cy - totalH / 2;
+    const gap = 4;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 300, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
-    this.tradeObjects.push(pickerBg);
-
-    const pickerTitle = this.scene.add.text(cx, topY + pad, 'Use Scroll:', {
+    // Pass 1: create elements at y=0 so Phaser computes their height
+    const pickerTitle = this.scene.add.text(cx, 0, 'Use Scroll:', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
-    this.tradeObjects.push(pickerTitle);
 
-    scrolls.forEach((scroll, i) => {
-      const y = topY + titleH + i * itemH + pad;
+    const buttons = scrolls.map((scroll) => {
       const isWeaponArt = this._isWeaponArtScroll(scroll);
       const color = isWeaponArt ? '#88ddff' : '#88ffff';
-      const btn = this.scene.add.text(cx, y, scroll.name, {
+      const skillDef = this.gameData?.skills?.find(s => s.id === scroll.skillId);
+      const desc = skillDef?.description ? `\n${skillDef.description}` : '';
+      const label = `${scroll.name}${desc}`;
+      const btn = this.scene.add.text(cx, 0, label, {
         fontFamily: 'monospace', fontSize: '11px', color,
         backgroundColor: '#444444', padding: { x: 10, y: 3 },
+        wordWrap: { width: 260 },
       }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
-
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', () => {
         this._destroyTrade();
         this._useTeamScroll(unit, scroll);
       });
-      this.tradeObjects.push(btn);
+      btn._scrollRef = scroll;
+      return btn;
     });
 
-    const cancelY = topY + titleH + scrolls.length * itemH + pad;
-    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+    const cancelBtn = this.scene.add.text(cx, 0, 'Cancel', {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888',
       backgroundColor: '#333333', padding: { x: 10, y: 3 },
     }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
-    this.tradeObjects.push(cancelBtn);
+
+    // Pass 2: measure heights and position sequentially
+    const contentH = buttons.reduce((sum, b) => sum + b.height + gap, 0);
+    const totalH = pad + pickerTitle.height + gap + contentH + cancelBtn.height + pad;
+    const topY = Math.max(5, 240 - totalH / 2);
+
+    let curY = topY + pad + pickerTitle.height / 2;
+    pickerTitle.setY(curY);
+    curY += pickerTitle.height / 2 + gap;
+
+    buttons.forEach(btn => {
+      curY += btn.height / 2;
+      btn.setY(curY);
+      curY += btn.height / 2 + gap;
+    });
+
+    curY += cancelBtn.height / 2;
+    cancelBtn.setY(curY);
+
+    // Background behind everything
+    const pickerBg = this.scene.add.rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+
+    this.tradeObjects.push(pickerBg, pickerTitle, ...buttons, cancelBtn);
   }
 
   _showWeaponPickerForScroll(weapons, title, onSelect) {
@@ -2012,6 +2029,7 @@ export class RosterOverlay {
     const padding = 8;
     const maxWidth = 200;
     const lines = [];
+    if (weapon.type) lines.push(weapon.type);
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
     const boundArts = this._collectWeaponBoundArts(weapon);
     if (boundArts.length > 0) {

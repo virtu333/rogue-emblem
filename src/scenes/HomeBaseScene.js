@@ -297,6 +297,7 @@ export class HomeBaseScene extends Phaser.Scene {
       tab.on('pointerout', () => { if (!isActive) tab.setColor('#aaaaaa'); });
       tab.on('pointerdown', () => {
         if (this.activeTab !== cat.key) {
+          this._hideUpgradeTooltip();
           this.activeTab = cat.key;
           if (this.tabScrollOffsets[this.activeTab] === undefined) this.tabScrollOffsets[this.activeTab] = 0;
           this.drawUI();
@@ -371,11 +372,12 @@ export class HomeBaseScene extends Phaser.Scene {
       const statLabel = this.add.text(labelX, y, this._getStatLabel(upgrade), {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       });
+      const tooltipTab = this.activeTab;
       statLabel.setInteractive({ useHandCursor: true });
       statLabel.on('pointerover', () => {
         statLabel.setColor('#ffdd44');
         const tipLines = this._getUpgradeTooltipLines(upgrade);
-        this._showUpgradeTooltip(labelX, y, tipLines);
+        this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       statLabel.on('pointerout', () => {
         statLabel.setColor('#e0e0e0');
@@ -405,11 +407,12 @@ export class HomeBaseScene extends Phaser.Scene {
       const nameLabel = this.add.text(labelX, y, upgrade.name, {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
       });
+      const tooltipTab = this.activeTab;
       nameLabel.setInteractive({ useHandCursor: true });
       nameLabel.on('pointerover', () => {
         nameLabel.setColor('#ffdd44');
         const tipLines = this._getUpgradeTooltipLines(upgrade);
-        this._showUpgradeTooltip(labelX, y, tipLines);
+        this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       nameLabel.on('pointerout', () => {
         nameLabel.setColor('#e0e0e0');
@@ -447,9 +450,11 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '11px', color: '#aa4444',
         backgroundColor: '#221111', padding: { x: 6, y: 2 },
       }).setInteractive();
+      const tooltipTab = this.activeTab;
 
       // Tooltip on hover showing missing prerequisites
       lockText.on('pointerover', () => {
+        if (this.activeTab !== tooltipTab) return;
         const info = this.meta.getPrerequisiteInfo(upgrade.id);
         const tipText = 'Requires:\n' + info.missing.map(m => '  ' + m).join('\n');
         this._prereqTooltip = this.add.text(x - 120, y + 18, tipText, {
@@ -504,7 +509,9 @@ export class HomeBaseScene extends Phaser.Scene {
       if (upgrade) {
         rect.setInteractive({ useHandCursor: false });
         const tierIndex = i;
+        const tooltipTab = this.activeTab;
         rect.on('pointerover', () => {
+          if (this.activeTab !== tooltipTab) return;
           if (this._tierTooltip) {
             this._tierTooltip.destroy();
             this._tierTooltip = null;
@@ -700,7 +707,8 @@ export class HomeBaseScene extends Phaser.Scene {
     return upgrade.description ? [upgrade.description] : [];
   }
 
-  _showUpgradeTooltip(x, y, lines) {
+  _showUpgradeTooltip(x, y, lines, expectedTab = this.activeTab) {
+    if (this.activeTab !== expectedTab) return;
     this._hideUpgradeTooltip();
     if (!lines || lines.length === 0) return;
     const text = lines.join('\n');
@@ -732,29 +740,19 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _formatLootCategoryBonuses(weightBonuses) {
     if (!weightBonuses || typeof weightBonuses !== 'object') return null;
+    const SHORT_LABELS = {
+      skillScroll: 'Scroll', weaponArtScroll: 'W.Art', accessory: 'Accessory',
+      weapon: 'Weapon', forge: 'Forge', legendaryWeapon: 'Legendary',
+    };
     const entries = Object.entries(weightBonuses)
-      .filter(([, value]) => Number(value) !== 0)
-      .map(([key, value]) => `${LOOT_CATEGORY_LABELS[key] || key} ${Number(value) > 0 ? '+' : ''}${Number(value)}`);
+      .filter(([, value]) => Number(value) > 0)
+      .map(([key]) => `+${SHORT_LABELS[key] || LOOT_CATEGORY_LABELS[key] || key}`);
     return entries.length > 0 ? entries.join(', ') : null;
   }
 
-  _getLootCategoryBonusesDesc(weightBonuses) {
-    if (!weightBonuses || typeof weightBonuses !== 'object') return null;
-    const up = [];
-    const down = [];
-    for (const [key, rawValue] of Object.entries(weightBonuses)) {
-      const value = Number(rawValue);
-      if (Number.isNaN(value) || value === 0) continue;
-      const label = LOOT_CATEGORY_LABELS[key] || key;
-      if (value > 0) up.push(label);
-      else down.push(label);
-    }
-
-    if (up.length === 0 && down.length === 0) return 'Adjusts drop table weights';
-    const parts = [];
-    if (up.length) parts.push(`more ${up.join(' & ')}`);
-    if (down.length) parts.push(`less ${down.join(' & ')}`);
-    return `Drop table: ${parts.join('; ')}`;
+  _getLootCategoryBonusesDesc() {
+    // Return null to fall through to upgrade.description from metaUpgrades.json
+    return null;
   }
 
   // --- Skills tab custom layout ---
@@ -869,6 +867,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const skillLabel = this.add.text(labelX, y, upgrade.name, {
         fontFamily: 'monospace', fontSize: '12px', color: baseColor,
       });
+      const tooltipTab = this.activeTab;
 
       // Look up skill details for tooltip
       const skillEffect = upgrade.effects?.[0];
@@ -885,7 +884,7 @@ export class HomeBaseScene extends Phaser.Scene {
         } else {
           tipLines = [upgrade.name, upgrade.description].filter(Boolean);
         }
-        this._showUpgradeTooltip(labelX, y, tipLines);
+        this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       skillLabel.on('pointerout', () => {
         skillLabel.setColor(baseColor);

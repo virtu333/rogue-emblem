@@ -4446,16 +4446,18 @@ export class BattleScene extends Phaser.Scene {
       const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
       const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
       const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
+      const typeLine = wpn?.type || '';
       const statsLineA = `${might}Mt ${hit}Hit ${crit}Crt`;
       const statsLineB = `${weight}Wt Rng${range}`;
       const specialLines = this._formatSpecialLinesForUi(wpn?.special, specialWrapChars, maxSpecialLines);
       const label = [
         `${marker}${wpn?.name || 'Weapon'}`,
+        ...(typeLine ? [`  ${typeLine}`] : []),
         statsLineA,
         statsLineB,
         ...specialLines,
       ].join('\n');
-      const lineCount = 3 + specialLines.length;
+      const lineCount = 3 + (typeLine ? 1 : 0) + specialLines.length;
       const rowHeight = baseItemHeight + Math.max(0, lineCount - 3) * extraLineHeight;
       return { wpn, label, rowHeight };
     });
@@ -7279,11 +7281,11 @@ export class BattleScene extends Phaser.Scene {
 
     if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
       const range = item.range == null ? '1' : String(item.range);
-      const lines = [
-        `${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`,
-        `${asNum(item.weight)}Wt Rng${range}`,
-      ];
-      lines.push(...this._formatSpecialLinesForUi(item.special, detailWrapChars, 2));
+      const lines = [];
+      if (item.type) lines.push(item.type);
+      lines.push(`${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`);
+      lines.push(`${asNum(item.weight)}Wt Rng${range}`);
+      lines.push(...this._formatSpecialLinesForUi(item.special, detailWrapChars, 1));
       return { lines, color: '#88bbff' };
     }
 
@@ -7302,7 +7304,9 @@ export class BattleScene extends Phaser.Scene {
       const special = typeof item.special === 'string' && item.special.trim().length > 0
         ? item.special.trim()
         : 'Teaches a skill';
-      return { lines: wrapDetailLines([special], 2), color: '#ffaa55' };
+      const skillDef = this.gameData?.skills?.find(s => s.id === item.skillId);
+      const descLine = skillDef?.description || '';
+      return { lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3), color: '#ffaa55' };
     }
 
     if (item.effect === 'statBoost' || type === 'statBooster') {

@@ -395,12 +395,13 @@ describe('BattleScene loot meta wiring', () => {
       special: '  Heals HP equal to MAG+5 and grants barrier to allies nearby\r\nSecond line with extra detail that should be wrapped\r\nThird line should be truncated  ',
     }, 100);
 
-    const specialLines = detail.lines.slice(2);
-    expect(detail.lines[0]).toContain('7Mt 90Hit 5Crt');
-    expect(detail.lines[1]).toContain('6Wt Rng1');
-    expect(specialLines).toHaveLength(2);
+    expect(detail.lines[0]).toBe('Sword');
+    expect(detail.lines[1]).toContain('7Mt 90Hit 5Crt');
+    expect(detail.lines[2]).toContain('6Wt Rng1');
+    const specialLines = detail.lines.slice(3);
+    expect(specialLines).toHaveLength(1);
     expect(specialLines.join('\n').includes('\r')).toBe(false);
-    expect(specialLines[1].endsWith('...')).toBe(true);
+    expect(specialLines[0].endsWith('...')).toBe(true);
   });
 
   it('wraps and truncates non-weapon loot detail lines to fit card width', () => {
@@ -451,7 +452,8 @@ describe('BattleScene loot meta wiring', () => {
     for (const entry of cases) {
       const detail = BattleScene.prototype.getLootCardDetailLines.call(scene, entry.choice, entry.item, cardWidth);
       expect(detail.lines.length).toBeGreaterThan(0);
-      expect(detail.lines.length).toBeLessThanOrEqual(2);
+      const maxLines = (entry.item?.type === 'Scroll' && !entry.item?.teachesWeaponArtId) ? 3 : 2;
+      expect(detail.lines.length).toBeLessThanOrEqual(maxLines);
       expect(detail.lines.every((line) => typeof line === 'string' && line.length <= maxChars)).toBe(true);
       if (entry.expectsTruncation) {
         expect(detail.lines[detail.lines.length - 1].endsWith('...')).toBe(true);
@@ -491,9 +493,9 @@ describe('BattleScene loot meta wiring', () => {
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
     expect(rowCalls).toHaveLength(4);
-    expect(rowCalls[0].options.hitHeight).toBe(40);
-    expect(rowCalls[1].options.hitHeight).toBe(60);
-    const specialLines = rowCalls[1].label.split('\n').slice(3);
+    expect(rowCalls[0].options.hitHeight).toBe(50);
+    expect(rowCalls[1].options.hitHeight).toBe(70);
+    const specialLines = rowCalls[1].label.split('\n').slice(4);
     expect(specialLines).toHaveLength(2);
     expect(specialLines[1].endsWith('...')).toBe(true);
     expect(scene.input.on).toHaveBeenCalledWith('wheel', expect.any(Function));
