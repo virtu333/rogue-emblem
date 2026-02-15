@@ -18,13 +18,13 @@
     "personalSkill": "Charisma: Allies within 2 tiles +10 Hit, +5 Avoid",
     "personalGrowths": {
       "HP": 10,
-      "STR": 5,
-      "MAG": 5,
-      "SKL": 5,
-      "SPD": 5,
-      "DEF": 5,
-      "RES": 5,
-      "LCK": 5
+      "STR": 3,
+      "MAG": 3,
+      "SKL": 3,
+      "SPD": 3,
+      "DEF": 3,
+      "RES": 3,
+      "LCK": 3
     },
     "promotedClass": "Great Lord",
     "promotionBonuses": {
@@ -144,13 +144,13 @@
     "personalSkill": "Renewal Aura: Adjacent allies heal 5 HP/turn",
     "personalGrowths": {
       "HP": 10,
-      "STR": 5,
-      "MAG": 10,
-      "SKL": 5,
-      "SPD": 6,
-      "DEF": 5,
-      "RES": 15,
-      "LCK": 10
+      "STR": 3,
+      "MAG": 8,
+      "SKL": 3,
+      "SPD": 4,
+      "DEF": 3,
+      "RES": 13,
+      "LCK": 8
     },
     "promotedClass": "Light Priestess",
     "promotionBonuses": {
