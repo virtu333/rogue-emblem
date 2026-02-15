@@ -17,14 +17,14 @@
     "weapon": "Swords (P)",
     "personalSkill": "Charisma: Allies within 2 tiles +10 Hit, +5 Avoid",
     "personalGrowths": {
-      "HP": 15,
-      "STR": 10,
+      "HP": 10,
+      "STR": 5,
       "MAG": 5,
-      "SKL": 10,
-      "SPD": 10,
+      "SKL": 5,
+      "SPD": 5,
       "DEF": 5,
       "RES": 5,
-      "LCK": 10
+      "LCK": 5
     },
     "promotedClass": "Great Lord",
     "promotionBonuses": {
