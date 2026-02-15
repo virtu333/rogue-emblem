@@ -22,6 +22,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 
 function makeDisplayObject(seed = {}) {
   return {
+    height: 14,
     ...seed,
     handlers: {},
     setOrigin() { return this; },
@@ -53,7 +54,11 @@ function makeScene(textCalls) {
     roster: [],
     getEffectiveMetaEffects: () => ({}),
   };
-  scene.gameData = {};
+  scene.gameData = {
+    classes: [
+      { name: 'Wyvern Rider', description: 'A flying juggernaut — tough and strong in the air, but magic cuts deep.' },
+    ],
+  };
   return scene;
 }
 
@@ -99,5 +104,36 @@ describe('BattleScene boss recruit card details', () => {
     expect(labels.some((text) => text.includes('DEF 11 RES 6 MOV 8'))).toBe(true);
     expect(labels.some((text) => text.includes('Wpn: Lnc(P) Axe(A)'))).toBe(true);
     expect(labels.some((text) => text.includes('Skill: Adept'))).toBe(true);
+    expect(labels.some((text) => text.includes('flying juggernaut'))).toBe(true);
+  });
+
+  it('renders without crash when gameData.classes is missing', () => {
+    generateBossRecruitCandidatesMock.mockReturnValue([
+      {
+        isLord: false,
+        displayName: 'Rhea',
+        unit: {
+          name: 'Rhea',
+          className: 'Wyvern Rider',
+          level: 10,
+          mov: 8,
+          stats: { HP: 32, STR: 14, MAG: 3, SPD: 12, DEF: 11, RES: 6 },
+          proficiencies: [],
+          skills: [],
+        },
+      },
+    ]);
+
+    const textCalls = [];
+    const scene = makeScene(textCalls);
+    scene.gameData = {}; // no classes array
+
+    expect(() => {
+      BattleScene.prototype.showBossRecruitScreen.call(scene);
+    }).not.toThrow();
+
+    const labels = textCalls.map((call) => call[2]).filter((text) => typeof text === 'string');
+    // No description text should appear
+    expect(labels.some((text) => text.includes('flying juggernaut'))).toBe(false);
   });
 });

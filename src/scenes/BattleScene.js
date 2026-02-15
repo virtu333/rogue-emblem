@@ -2134,6 +2134,7 @@ export class BattleScene extends Phaser.Scene {
   buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      if (!u || u._removing || u.currentHP <= 0) continue;
       map.set(`${u.col},${u.row}`, { faction: u.faction });
     }
     return map;
@@ -2975,12 +2976,102 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
   }
 
+  _recoverFromMovementFault(unit, {
+    context = 'moveUnit',
+    reason = 'unknown movement failure',
+    error = null,
+    rollbackTo = null,
+  } = {}) {
+    const prefix = `[${context}]`;
+    if (error) {
+      console.error(`${prefix} ${reason}`, error);
+    } else {
+      console.warn(`${prefix} ${reason}`);
+    }
+
+    this.grid?.clearHighlights?.();
+    this.grid?.clearAttackHighlights?.();
+    this.grid?.clearPath?.();
+
+    if (rollbackTo) {
+      // Keep gameplay state coherent even if visual sync fails.
+      unit.col = rollbackTo.col;
+      unit.row = rollbackTo.row;
+      unit.hasMoved = false;
+      this.preMoveLoc = null;
+      this.cantoRange = null;
+      this.selectedUnit = unit;
+      this.battleState = 'UNIT_SELECTED';
+
+      if (this.grid?.fogEnabled && unit.faction === 'player') {
+        try {
+          this.grid.restoreFogState(this._preFogSnapshot);
+          this._preFogSnapshot = null;
+          this.grid.updateFogOfWar(this.playerUnits);
+          this.updateEnemyVisibility();
+        } catch (fogErr) {
+          console.error(`${prefix} failed to restore fog state during rollback`, fogErr);
+        }
+      } else {
+        this._preFogSnapshot = null;
+      }
+
+      try {
+        this.updateUnitPosition(unit);
+      } catch (posErr) {
+        console.error(`${prefix} failed to sync unit position visuals during rollback`, posErr);
+      }
+
+      try {
+        this.selectUnit(unit);
+      } catch (selectErr) {
+        console.error(`${prefix} failed to re-select unit after rollback`, selectErr);
+        this.selectedUnit = null;
+        this.movementRange = null;
+        this.unitPositions = null;
+        this.battleState = 'PLAYER_IDLE';
+      }
+      return;
+    }
+
+    this.preMoveLoc = null;
+    this.cantoRange = null;
+    this._preFogSnapshot = null;
+    this.selectedUnit = null;
+    this.battleState = 'PLAYER_IDLE';
+
+    try {
+      this.updateUnitPosition(unit);
+    } catch (posErr) {
+      console.error(`${prefix} failed to sync unit position visuals`, posErr);
+    }
+
+    try {
+      this.dimUnit(unit);
+    } catch (dimErr) {
+      console.error(`${prefix} failed to dim unit during recovery`, dimErr);
+    }
+
+    try {
+      this.turnManager?.unitActed?.(unit);
+    } catch (actErr) {
+      console.error(`${prefix} failed to finalize unit action during recovery`, actErr);
+    }
+  }
+
   moveUnit(unit, toCol, toRow) {
     const path = this.grid.findPath(
       unit.col, unit.row, toCol, toRow, unit.moveType,
       this.unitPositions, unit.faction
     );
-    if (!path || path.length < 2) return;
+    if (!path || path.length < 2) {
+      console.warn('[moveUnit] findPath returned null/short path for tile in movementRange', {
+        from: { col: unit.col, row: unit.row },
+        to: { col: toCol, row: toRow },
+      });
+      this.deselectUnit();
+      return;
+    }
 
     const occupied = this.buildOccupiedSet(unit);
     const effective = computeEffectivePath(
@@ -2993,7 +3084,14 @@ export class BattleScene extends Phaser.Scene {
       occupied,
     );
     const finalPath = effective.effectivePath;
-    if (!finalPath || finalPath.length < 2) return;
+    if (!finalPath || finalPath.length < 2) {
+      console.warn('[moveUnit] effectivePath returned null/short path', {
+        from: { col: unit.col, row: unit.row },
+        to: { col: toCol, row: toRow },
+      });
+      this.deselectUnit();
+      return;
+    }
     const finalDest = finalPath[finalPath.length - 1];
 
     // Forced slide tiles do not consume movement for Canto.
@@ -3005,51 +3103,88 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'UNIT_MOVING';
     this.preMoveLoc = { col: unit.col, row: unit.row };
     this._preFogSnapshot = this.grid.snapshotFogState();
-    this.grid.clearHighlights();
-
-    if (unit.graphic.clearTint) unit.graphic.clearTint();
+    const rollbackLoc = { ...this.preMoveLoc };
 
     // Animate step-by-step along path
     const targets = unit.label
       ? [unit.graphic, unit.label]
       : [unit.graphic];
 
-    let movementResolved = false;
+    let recoveryTriggered = false;
+    let finalizeTriggered = false;
+    const failMove = (reason, error = null) => {
+      if (recoveryTriggered) return;
+      recoveryTriggered = true;
+      this._recoverFromMovementFault(unit, {
+        context: 'moveUnit',
+        reason,
+        error,
+        rollbackTo: rollbackLoc,
+      });
+    };
+
     const finalizeMove = () => {
-      if (movementResolved) return;
-      movementResolved = true;
+      if (finalizeTriggered || recoveryTriggered) return;
+      finalizeTriggered = true;
       unit.col = finalDest.col;
       unit.row = finalDest.row;
       unit.hasMoved = true;
-      this.updateUnitPosition(unit);
-      this.afterMove(unit);
+      try {
+        this.updateUnitPosition(unit);
+      } catch (err) {
+        failMove('Error while finalizing move position update', err);
+        return;
+      }
+      Promise.resolve(this.afterMove(unit)).catch((err) => {
+        failMove('Error while resolving afterMove', err);
+      });
     };
 
     const animateStep = (stepIndex) => {
+      if (recoveryTriggered) return;
       if (stepIndex >= finalPath.length) {
         finalizeMove();
         return;
       }
-      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-      const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
-      this.tweens.add({
-        targets,
-        x: pos.x, y: pos.y,
-        duration,
-        ease: 'Linear',
-        onComplete: () => animateStep(stepIndex + 1),
-      });
-    };
-    animateStep(1);
-
-    // Safety net: if a tween completion callback is dropped, finalize movement anyway.
-    // This prevents tutorial deadlocks where a unit appears moved but state does not advance.
-    const fallbackMs = Math.max(500, finalPath.length * 140);
-    this.time.delayedCall(fallbackMs, () => {
-      if (!movementResolved && this.scene?.isActive?.()) {
-        finalizeMove();
+      try {
+        const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+        const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
+        this.tweens.add({
+          targets,
+          x: pos.x, y: pos.y,
+          duration,
+          ease: 'Linear',
+          onComplete: () => {
+            try {
+              animateStep(stepIndex + 1);
+            } catch (err) {
+              failMove('Error during move tween completion', err);
+            }
+          },
+        });
+      } catch (err) {
+        failMove('Error while creating move tween', err);
       }
-    });
+    };
+
+    try {
+      this.grid.clearHighlights();
+      if (unit.graphic.clearTint) unit.graphic.clearTint();
+
+      // Safety net: if a tween completion callback is dropped, finalize movement anyway.
+      // This must be armed before starting animation setup to avoid hard locks on throws.
+      const fallbackMs = Math.max(500, finalPath.length * 140);
+      this.time.delayedCall(fallbackMs, () => {
+        if (!finalizeTriggered && !recoveryTriggered && this.scene?.isActive?.()) {
+          console.warn('[moveUnit] Fallback timer triggered - movement animation stalled');
+          finalizeMove();
+        }
+      });
+
+      animateStep(1);
+    } catch (err) {
+      failMove('Error during movement animation setup', err);
+    }
   }
 
   async afterMove(unit) {
@@ -3652,10 +3787,23 @@ export class BattleScene extends Phaser.Scene {
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
     const destCol = gp.col;
     const destRow = gp.row;
-    const animateStep = (stepIndex) => {
-      if (stepIndex >= path.length) {
-        unit.col = destCol;
-        unit.row = destRow;
+    let recoveryTriggered = false;
+    let finalizeTriggered = false;
+    const failCantoMove = (reason, error = null) => {
+      if (recoveryTriggered) return;
+      recoveryTriggered = true;
+      this._recoverFromMovementFault(unit, {
+        context: 'handleCantoClick',
+        reason,
+        error,
+      });
+    };
+    const finalizeCantoMove = () => {
+      if (finalizeTriggered || recoveryTriggered) return;
+      finalizeTriggered = true;
+      unit.col = destCol;
+      unit.row = destRow;
+      try {
         this.updateUnitPosition(unit);
         if (this.grid.fogEnabled) {
           this.grid.updateFogOfWar(this.playerUnits);
@@ -3666,18 +3814,47 @@ export class BattleScene extends Phaser.Scene {
         this.selectedUnit = null;
         this.battleState = 'PLAYER_IDLE';
         this.turnManager.unitActed(unit);
+      } catch (err) {
+        failCantoMove('Error while finalizing canto move', err);
+      }
+    };
+    const animateStep = (stepIndex) => {
+      if (recoveryTriggered) return;
+      if (stepIndex >= path.length) {
+        finalizeCantoMove();
         return;
       }
-      const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
-      this.tweens.add({
-        targets,
-        x: pos.x, y: pos.y,
-        duration: 80,
-        ease: 'Linear',
-        onComplete: () => animateStep(stepIndex + 1),
-      });
+      try {
+        const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
+        this.tweens.add({
+          targets,
+          x: pos.x, y: pos.y,
+          duration: 80,
+          ease: 'Linear',
+          onComplete: () => {
+            try {
+              animateStep(stepIndex + 1);
+            } catch (err) {
+              failCantoMove('Error during canto tween completion', err);
+            }
+          },
+        });
+      } catch (err) {
+        failCantoMove('Error while creating canto tween', err);
+      }
     };
-    animateStep(1);
+    try {
+      const fallbackMs = Math.max(500, path.length * 140);
+      this.time.delayedCall(fallbackMs, () => {
+        if (!finalizeTriggered && !recoveryTriggered && this.scene?.isActive?.()) {
+          console.warn('[handleCantoClick] Fallback timer triggered - canto animation stalled');
+          finalizeCantoMove();
+        }
+      });
+      animateStep(1);
+    } catch (err) {
+      failCantoMove('Error during canto animation setup', err);
+    }
   }
 
   // --- Action Menu ---
@@ -3878,7 +4055,7 @@ export class BattleScene extends Phaser.Scene {
     // Seize: Lord on throne, boss dead
     if (this.battleConfig.objective === 'seize' && unit.isLord) {
       const throne = this.battleConfig.thronePos;
-      const bossAlive = this.enemyUnits.some(u => u.isBoss);
+      const bossAlive = this.enemyUnits.some(u => u.isBoss && u.currentHP > 0);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
         items.push('Seize');
       }
@@ -6559,7 +6736,7 @@ export class BattleScene extends Phaser.Scene {
     let label;
     let color = '#ffdd44'; // default gold
     if (this.battleConfig.objective === 'seize') {
-      const bossAlive = this.enemyUnits.some(u => u.isBoss);
+      const bossAlive = this.enemyUnits.some(u => u.isBoss && u.currentHP > 0);
       if (bossAlive) {
         label = 'Seize: Defeat boss, then capture throne';
         color = '#ff6666'; // red -- boss still alive
@@ -6867,6 +7044,18 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5).setDepth(702);
       recruitGroup.push(sep);
       yOff += 12;
+
+      // Class description
+      const classData = this.gameData.classes?.find(cl => cl.name === u.className);
+      const descText = classData?.description || '';
+      if (descText) {
+        const desc = this.add.text(cx, yOff, descText, {
+          fontFamily: 'monospace', fontSize: '7px', color: '#ccaa77',
+          wordWrap: { width: cardW - 14 }, align: 'center',
+        }).setOrigin(0.5, 0).setDepth(702);
+        recruitGroup.push(desc);
+        yOff += desc.height + 6;
+      }
 
       // Core comparison stats
       const useMag = (u.stats?.MAG || 0) > (u.stats?.STR || 0);

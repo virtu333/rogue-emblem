@@ -16,6 +16,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Fast melee, high crit",
+    "description": "A swift swordsman — high skill and speed, but fragile in prolonged fights.",
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -51,6 +52,7 @@
     "moveType": "Armored",
     "weaponProficiencies": "Lances (P)",
     "role": "Slow tank, very high DEF",
+    "description": "An armored wall — absorbs punishment, but too slow to chase anyone down.",
     "growthRanges": {
       "HP": "75-90",
       "STR": "45-60",
@@ -86,6 +88,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (P)",
     "role": "High STR bruiser",
+    "description": "A brute with an axe — hits hard and takes hits, but clumsy and unlucky.",
     "growthRanges": {
       "HP": "75-90",
       "STR": "55-70",
@@ -121,6 +124,7 @@
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (P)",
     "role": "Balanced mounted",
+    "description": "A mounted lancer — balanced stats and good reach, solid in any lineup.",
     "growthRanges": {
       "HP": "65-80",
       "STR": "40-55",
@@ -156,6 +160,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (P)",
     "role": "Ranged physical (2 range)",
+    "description": "A patient marksman — strikes safely from range, but helpless up close.",
     "growthRanges": {
       "HP": "60-75",
       "STR": "35-50",
@@ -191,6 +196,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (P)",
     "role": "Ranged magic damage",
+    "description": "A student of the arcane — melts armor with magic, but crumbles to a stiff breeze.",
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-15",
@@ -226,6 +232,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (P)",
     "role": "Healer, no offense",
+    "description": "A devoted healer — keeps your army alive, but can't fight back at all.",
     "growthRanges": {
       "HP": "45-60",
       "STR": "5-10",
@@ -261,6 +268,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Fast, picks locks, fog vision",
+    "description": "A nimble rogue — fastest on the field with keen eyes, but paper-thin defenses.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "25-40",
@@ -296,6 +304,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Support, refreshes allies",
+    "description": "A battlefield muse — refreshes allies for another action, rare and invaluable.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "20-35",
@@ -325,6 +334,7 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
     "role": "Flying, high RES, bow-weak",
+    "description": "A skyborne lancer — flies over terrain with high RES, but arrows are lethal.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "30-45",
@@ -360,6 +370,7 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
     "role": "Flying bruiser, bow-weak",
+    "description": "A flying juggernaut — tough and strong in the air, but magic cuts deep.",
     "growthRanges": {
       "HP": "65-80",
       "STR": "45-60",
@@ -395,6 +406,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced all-rounder",
+    "description": "A sellsword — no weakness and no wasted stat, reliable in every fight.",
     "growthRanges": {
       "HP": "65-80",
       "STR": "40-55",
@@ -430,7 +442,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
-    "roleChange": "+15 Crit innate"
+    "roleChange": "+15 Crit innate",
+    "description": "A blade master — innate +15 crit makes every strike a potential killing blow."
   },
   {
     "name": "General",
@@ -449,7 +462,8 @@
     },
     "moveType": "Armored",
     "weaponProficiencies": "Lances (M), Axes (P)",
-    "roleChange": "Gains Axes, even tankier"
+    "roleChange": "Gains Axes, even tankier",
+    "description": "An immovable fortress — gains axes and shrugs off nearly all physical damage."
   },
   {
     "name": "Warrior",
@@ -469,6 +483,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
     "roleChange": "Gains Bows, raw power",
+    "description": "A rampaging berserker — gains bows for range and hits like an avalanche.",
     "learnableSkills": [
       {
         "skillId": "wrath",
@@ -493,7 +508,8 @@
     },
     "moveType": "Cavalry",
     "weaponProficiencies": "Lances (M), Swords (P)",
-    "roleChange": "Gains Swords, +MOV"
+    "roleChange": "Gains Swords, +MOV",
+    "description": "A holy knight — gains swords, extra movement, and balanced defenses."
   },
   {
     "name": "Sniper",
@@ -512,7 +528,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
-    "roleChange": "Sure Shot: ignores terrain avoid"
+    "roleChange": "Sure Shot: ignores terrain avoid",
+    "description": "A dead-eye archer — ignores terrain dodge bonuses, nothing hides from this shot."
   },
   {
     "name": "Sage",
@@ -531,7 +548,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P)",
-    "roleChange": "Gains healing"
+    "roleChange": "Gains healing",
+    "description": "A master mage — gains healing staves while keeping devastating magic offense."
   },
   {
     "name": "Bishop",
@@ -550,7 +568,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Light (P)",
-    "roleChange": "Gains Light magic offense"
+    "roleChange": "Gains Light magic offense",
+    "description": "A radiant cleric — gains light magic offense and auto-heals each turn."
   },
   {
     "name": "Assassin",
@@ -569,7 +588,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
-    "roleChange": "Lethality chance, enhanced stealth"
+    "roleChange": "Lethality chance, enhanced stealth",
+    "description": "An elite killer — chance to instantly slay on hit, unmatched speed and skill."
   },
   {
     "name": "Bard",
@@ -588,7 +608,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
-    "roleChange": "Gains staff proficiency"
+    "roleChange": "Gains staff proficiency",
+    "description": "A war-poet — gains staves to heal alongside the power to refresh allies."
   },
   {
     "name": "Falcon Knight",
@@ -607,7 +628,8 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
-    "roleChange": "Gains Swords"
+    "roleChange": "Gains Swords",
+    "description": "A sky commander — gains swords and flies with grace, high speed and RES."
   },
   {
     "name": "Wyvern Lord",
@@ -626,7 +648,8 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
-    "roleChange": "Gains Axes, heavy flying bruiser"
+    "roleChange": "Gains Axes, heavy flying bruiser",
+    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air."
   },
   {
     "name": "Hero",
@@ -646,6 +669,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
     "roleChange": "Gains Axes, versatile",
+    "description": "A veteran champion — gains axes, learns Sol for self-healing, no real weakness.",
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -670,6 +694,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Balanced leader, Charisma aura",
+    "description": "A born leader — inspires nearby allies with Charisma and grows into a great warrior.",
     "growthRanges": {
       "HP": "50-65",
       "STR": "35-50",
@@ -699,6 +724,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (P)",
     "role": "Magical tactician, Foresight range bonus",
+    "description": "A battlefield scholar — wields magic with strategic vision, sees farther in fog.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "15-25",
@@ -728,6 +754,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (P)",
     "role": "Tanky melee, Resolve at low HP",
+    "description": "A rugged frontliner — tough and hits hard, grows fiercer when wounded.",
     "growthRanges": {
       "HP": "55-70",
       "STR": "40-55",
@@ -757,6 +784,7 @@
     "moveType": "Infantry",
     "weaponProficiencies": "Light (P)",
     "role": "Light magic, Renewal Aura healer",
+    "description": "A holy caster — wields light magic and heals nearby allies each turn.",
     "growthRanges": {
       "HP": "40-55",
       "STR": "5-15",
@@ -786,7 +814,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Lances (P)",
-    "roleChange": "Gains Lances, +MOV"
+    "roleChange": "Gains Lances, +MOV",
+    "description": "A proven sovereign — gains lances and extra movement, leads from the front."
   },
   {
     "name": "Grandmaster",
@@ -805,7 +834,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Swords (P)",
-    "roleChange": "Gains Swords, magic mastery"
+    "roleChange": "Gains Swords, magic mastery",
+    "description": "A supreme tactician — gains swords alongside mastered magic, total versatility."
   },
   {
     "name": "Vanguard",
@@ -824,7 +854,8 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
-    "roleChange": "Gains Axes, heavy armor"
+    "roleChange": "Gains Axes, heavy armor",
+    "description": "A shield-bearing titan — gains axes, extreme STR and DEF, an unstoppable advance."
   },
   {
     "name": "Light Priestess",
@@ -843,6 +874,7 @@
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Light (M), Staves (P)",
-    "roleChange": "Gains Staves, healing"
+    "roleChange": "Gains Staves, healing",
+    "description": "A divine oracle — gains staves for healing alongside mastered light magic."
   }
 ]
