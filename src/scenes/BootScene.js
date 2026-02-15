@@ -365,6 +365,11 @@ export class BootScene extends Phaser.Scene {
     this.registry.set('startupFlags', this._startupFlags);
     this.registry.set('deferredAssets', this._deferredAssets);
 
+    const prevAudio = this.registry.get('audio');
+    if (prevAudio?.stopOverlapWatchdog) {
+      prevAudio.stopOverlapWatchdog();
+    }
+
     const audio = new AudioManager(this.sound, {
       isMobile: this._startupFlags?.isMobile,
       musicLoadTimeoutMs: this._startupFlags?.isMobile ? 9000 : 7000,
@@ -381,6 +386,9 @@ export class BootScene extends Phaser.Scene {
       if (params.get('debugAudio') === '1') audio.debugMusic = true;
     } catch (_) {}
     audio.startOverlapWatchdog();
+    this.game?.events?.once?.('destroy', () => {
+      audio.stopOverlapWatchdog();
+    });
 
     // Wire cloud sync callbacks (settings only - meta is per-slot, wired on slot selection)
     if (cloudState) {

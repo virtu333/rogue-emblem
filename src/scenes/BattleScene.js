@@ -6484,6 +6484,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
+        if (!this.scene?.isActive?.()) return;
         await showImportantHint(this, 'Victory! You\'ve completed the tutorial.\nYou\'re ready for a real run -- good luck!');
         if (!this.scene?.isActive?.()) return;
         try { localStorage.setItem('emblem_rogue_tutorial_completed', '1'); } catch (_) {}
@@ -7834,6 +7835,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
+        if (!this.scene?.isActive?.()) return;
         await showImportantHint(this, 'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.');
         if (!this.scene?.isActive?.()) return;
         this._transitionTutorialToTitle();
