@@ -9,7 +9,7 @@ vi.mock('phaser', () => ({
 import { BattleScene } from '../src/scenes/BattleScene.js';
 
 describe('BattleScene fog danger invalidation', () => {
-  it('recomputes danger after movement reveals an enemy in fog', async () => {
+  it('recomputes danger after movement reveals an enemy in fog across action-menu flow', async () => {
     const scene = new BattleScene();
     let enemyVisible = false;
 
@@ -35,7 +35,9 @@ describe('BattleScene fog danger invalidation', () => {
     };
     scene.buildUnitPositionMap = vi.fn(() => new Map());
     scene.battleParams = { tutorialMode: false };
-    scene.showActionMenu = vi.fn();
+    scene.showActionMenu = vi.fn(() => {
+      scene.battleState = 'UNIT_ACTION_MENU';
+    });
     scene.dangerZone = { toggle: vi.fn() };
     scene.dangerZoneCache = [{ col: 0, row: 0 }];
     scene.dangerZoneStale = false;
@@ -46,6 +48,11 @@ describe('BattleScene fog danger invalidation', () => {
 
     expect(scene.grid.updateFogOfWar).toHaveBeenCalledWith(scene.playerUnits);
     expect(scene.dangerZoneStale).toBe(true);
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+    expect(scene.battleState).toBe('UNIT_ACTION_MENU');
+
+    // Match normal interaction: close action menu before toggling danger overlay.
+    scene.battleState = 'PLAYER_IDLE';
 
     BattleScene.prototype._onDangerClick.call(scene);
 

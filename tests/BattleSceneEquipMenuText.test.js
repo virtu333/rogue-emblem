@@ -70,11 +70,15 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toHaveLength(2);
 
     for (const label of labels) {
-      expect(label).toContain('Mt');
-      expect(label).toContain('Hit');
-      expect(label).toContain('Crt');
-      expect(label).toContain('Wt');
-      expect(label).toContain('Rng');
+      const lines = label.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('Mt');
+      expect(lines[1]).toContain('Hit');
+      expect(lines[1]).toContain('Crt');
+      expect(lines[2]).toContain('Wt');
+      expect(lines[2]).toContain('Rng');
+      expect(lines[1].length).toBeLessThanOrEqual(20);
+      expect(lines[2].length).toBeLessThanOrEqual(16);
       expect(label).not.toContain('undefined');
     }
 

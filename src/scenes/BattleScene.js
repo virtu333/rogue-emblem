@@ -4353,7 +4353,7 @@ export class BattleScene extends Phaser.Scene {
     // Scrolls no longer in inventory (moved to team pool), so no need to filter them
     const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
     const menuWidth = 110;
-    const itemHeight = 32;
+    const itemHeight = 40;
     const menuHeight = equippable.length * itemHeight + 8;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
@@ -4372,7 +4372,9 @@ export class BattleScene extends Phaser.Scene {
       const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
       const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
       const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
-      const label = `${marker}${wpn?.name || 'Weapon'}\n${might}Mt ${hit}Hit ${crit}Crt ${weight}Wt Rng${range}`;
+      const statsLineA = `${might}Mt ${hit}Hit ${crit}Crt`;
+      const statsLineB = `${weight}Wt Rng${range}`;
+      const label = `${marker}${wpn?.name || 'Weapon'}\n${statsLineA}\n${statsLineB}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
