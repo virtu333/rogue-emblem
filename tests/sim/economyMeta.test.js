@@ -21,6 +21,24 @@ const baseMetaUpgrades = [
     effects: [{ lootWeaponQualityBonus: 10 }, { lootWeaponQualityBonus: 20 }],
   },
   {
+    id: 'studied_training',
+    category: 'economy',
+    maxLevel: 2,
+    effects: [
+      { lootCategoryWeightBonuses: { skillScroll: 1, weaponArtScroll: 1, healing: -1 } },
+      { lootCategoryWeightBonuses: { skillScroll: 2, weaponArtScroll: 2, healing: -2 } },
+    ],
+  },
+  {
+    id: 'trinket_collector',
+    category: 'economy',
+    maxLevel: 2,
+    effects: [
+      { lootCategoryWeightBonuses: { accessory: 2, healing: -1 } },
+      { lootCategoryWeightBonuses: { accessory: 4, healing: -2 } },
+    ],
+  },
+  {
     id: 'starting_vulnerary',
     category: 'economy',
     maxLevel: 1,
@@ -40,6 +58,7 @@ describe('economyMeta.getMetaEffects', () => {
       goldBonus: 0,
       battleGoldMultiplier: 0,
       lootWeaponQualityBonus: 0,
+      lootCategoryWeightBonuses: {},
     });
   });
 
@@ -49,6 +68,7 @@ describe('economyMeta.getMetaEffects', () => {
       goldBonus: 500,
       battleGoldMultiplier: 0.2,
       lootWeaponQualityBonus: 0,
+      lootCategoryWeightBonuses: {},
     });
   });
 
@@ -58,6 +78,7 @@ describe('economyMeta.getMetaEffects', () => {
       goldBonus: 1000,
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 10,
+      lootCategoryWeightBonuses: {},
     });
   });
 
@@ -66,11 +87,23 @@ describe('economyMeta.getMetaEffects', () => {
       goldBonus: 1500,
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 20,
+      lootCategoryWeightBonuses: {
+        skillScroll: 2,
+        weaponArtScroll: 2,
+        accessory: 4,
+        healing: -4,
+      },
     });
     expect(getMetaEffects(4, baseMetaUpgrades)).toEqual({
       goldBonus: 1500,
       battleGoldMultiplier: 0.4,
       lootWeaponQualityBonus: 20,
+      lootCategoryWeightBonuses: {
+        skillScroll: 2,
+        weaponArtScroll: 2,
+        accessory: 4,
+        healing: -4,
+      },
     });
   });
 

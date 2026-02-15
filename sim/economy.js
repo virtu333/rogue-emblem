@@ -101,7 +101,26 @@ function simulateRunEconomy(strategy, metaLevel) {
         // Loot decision
         if (!isBoss) {
           const lootWeaponQualityBonus = meta.lootWeaponQualityBonus || 0;
-          const lootChoices = generateLootChoices(act, data.lootTables, data.weapons, data.consumables, 3, lootWeaponQualityBonus);
+          const lootCategoryWeightBonuses = meta.lootCategoryWeightBonuses || {};
+          const lootOptions = Object.keys(lootCategoryWeightBonuses).length > 0
+            ? { lootCategoryWeightBonuses }
+            : {};
+          const lootChoices = generateLootChoices(
+            act,
+            data.lootTables,
+            data.weapons,
+            data.consumables,
+            3,
+            lootWeaponQualityBonus,
+            null,
+            null,
+            null,
+            false,
+            null,
+            false,
+            null,
+            lootOptions
+          );
 
           if (strategy === 'save-for-seal') {
             // Always take gold from loot if available, otherwise skip

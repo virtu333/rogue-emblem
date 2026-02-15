@@ -15,10 +15,20 @@ export const META_TIER_PURCHASES = {
  * Resolve economy meta effects for a given abstract level.
  * @param {number} level
  * @param {Array<object>} metaUpgrades
- * @returns {{ goldBonus: number, battleGoldMultiplier: number, lootWeaponQualityBonus: number }}
+ * @returns {{
+ *   goldBonus: number,
+ *   battleGoldMultiplier: number,
+ *   lootWeaponQualityBonus: number,
+ *   lootCategoryWeightBonuses: Record<string, number>
+ * }}
  */
 export function getMetaEffects(level, metaUpgrades = []) {
-  const effects = { goldBonus: 0, battleGoldMultiplier: 0, lootWeaponQualityBonus: 0 };
+  const effects = {
+    goldBonus: 0,
+    battleGoldMultiplier: 0,
+    lootWeaponQualityBonus: 0,
+    lootCategoryWeightBonuses: {},
+  };
   if (level <= 0) return effects;
 
   const econUpgrades = metaUpgrades.filter((u) => u.category === 'economy');
@@ -36,6 +46,13 @@ export function getMetaEffects(level, metaUpgrades = []) {
     if (effect.battleGoldMultiplier !== undefined) effects.battleGoldMultiplier = effect.battleGoldMultiplier;
     const lootBonus = effect.lootWeaponQualityBonus ?? effect.lootWeaponWeightBonus;
     if (lootBonus !== undefined) effects.lootWeaponQualityBonus = lootBonus;
+    if (effect.lootCategoryWeightBonuses && typeof effect.lootCategoryWeightBonuses === 'object') {
+      for (const [key, rawValue] of Object.entries(effect.lootCategoryWeightBonuses)) {
+        const value = Number(rawValue);
+        if (!Number.isFinite(value) || value === 0) continue;
+        effects.lootCategoryWeightBonuses[key] = (effects.lootCategoryWeightBonuses[key] || 0) + value;
+      }
+    }
   }
 
   return effects;
