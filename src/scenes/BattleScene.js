@@ -2823,6 +2823,12 @@ export class BattleScene extends Phaser.Scene {
       if (audio) audio.stopMusic(this, 0);
       void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
     } : null;
+    const campaignMapData = this.runManager?.nodeMap ? {
+      nodeMap: this.runManager.nodeMap,
+      currentNodeId: this.runManager.currentNodeId,
+      actId: this.runManager.currentAct,
+      activeNodeId: this.nodeId,
+    } : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => {
         this.battleState = this.prePauseState || 'PLAYER_IDLE';
@@ -2832,6 +2838,7 @@ export class BattleScene extends Phaser.Scene {
       onSaveAndExit: saveExitCb,
       onSaveAndExitWarning: 'Battle Progress Will Be Lost',
       onAbandon: abandonCb,
+      campaignMapData,
     });
     this.pauseOverlay.show();
     this.refreshEndTurnControl();

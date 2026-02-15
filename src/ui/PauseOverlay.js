@@ -3,22 +3,25 @@
 
 import { SettingsOverlay } from './SettingsOverlay.js';
 import { HelpOverlay } from './HelpOverlay.js';
+import { CampaignMapOverlay } from './CampaignMapOverlay.js';
 
 export class PauseOverlay {
   /**
    * @param {Phaser.Scene} scene
    * @param {{ onResume: Function, onSaveAndExit?: Function, onAbandon?: Function, onSaveAndExitWarning?: string }} callbacks
    */
-  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning }) {
+  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData }) {
     this.scene = scene;
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;
     this.onAbandon = onAbandon;
+    this.campaignMapData = campaignMapData || null;
     this.objects = [];
     this.visible = false;
     this.settingsOverlay = null;
     this.helpOverlay = null;
+    this.campaignMapOverlay = null;
     this.confirmObjects = [];
   }
 
@@ -26,6 +29,7 @@ export class PauseOverlay {
     // Clean up stale objects without triggering onResume callback
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
+    if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
     this._hideConfirm();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
@@ -36,6 +40,7 @@ export class PauseOverlay {
 
     // Count buttons to size panel
     let buttonCount = 3; // Resume + Settings + Help always
+    if (this.campaignMapData) buttonCount++;
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
     const panelHeight = 100 + buttonCount * 40;
@@ -78,6 +83,19 @@ export class PauseOverlay {
       this.helpOverlay.show();
     });
     btnY += 40;
+
+    // Campaign Map (only when run data available)
+    if (this.campaignMapData) {
+      this._addButton(cx, btnY, 'Campaign Map', () => {
+        if (this.campaignMapOverlay?.visible) return;
+        this.campaignMapOverlay = new CampaignMapOverlay(this.scene, {
+          ...this.campaignMapData,
+          onClose: () => { this.campaignMapOverlay = null; },
+        });
+        this.campaignMapOverlay.show();
+      });
+      btnY += 40;
+    }
 
     // Save & Return to Title
     if (this.onSaveAndExit) {
@@ -158,6 +176,7 @@ export class PauseOverlay {
   hide() {
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
+    if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
     this._hideConfirm();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
