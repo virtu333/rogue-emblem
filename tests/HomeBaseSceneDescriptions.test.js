@@ -216,3 +216,49 @@ describe('HomeBaseScene tooltip tab scope', () => {
     expect(scene._upgradeTooltip).toBe(tooltipObject);
   });
 });
+
+describe('HomeBaseScene tab switching tooltip cleanup', () => {
+  it('hides tooltip before redraw when switching tabs', () => {
+    const scene = new HomeBaseScene();
+    scene.activeTab = 'recruit_stats';
+    scene.tabScrollOffsets = {};
+
+    const hideSpy = vi.spyOn(scene, '_hideUpgradeTooltip').mockImplementation(() => {});
+    const drawSpy = vi.spyOn(scene, 'drawUI').mockImplementation(() => {});
+
+    const tabs = [];
+    scene.add = {
+      text: vi.fn((x, y, label) => {
+        const handlers = {};
+        const tab = {
+          width: String(label).length * 8,
+          setInteractive() { return this; },
+          setColor() { return this; },
+          on(event, handler) {
+            handlers[event] = handler;
+            return this;
+          },
+          getBounds() {
+            return { x: 0, y: 0, width: this.width, height: 12 };
+          },
+        };
+        tabs.push({ label, handlers });
+        return tab;
+      }),
+      rectangle: vi.fn(() => ({})),
+    };
+
+    scene.drawTabs();
+
+    const before = scene.activeTab;
+    for (const tab of tabs) {
+      if (typeof tab.handlers.pointerdown === 'function') tab.handlers.pointerdown();
+      if (scene.activeTab !== before) break;
+    }
+
+    expect(scene.activeTab).not.toBe(before);
+    expect(hideSpy).toHaveBeenCalledTimes(1);
+    expect(drawSpy).toHaveBeenCalledTimes(1);
+    expect(hideSpy.mock.invocationCallOrder[0]).toBeLessThan(drawSpy.mock.invocationCallOrder[0]);
+  });
+});
