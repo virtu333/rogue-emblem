@@ -69,7 +69,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, LAVA_CRACK_DAMAGE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
@@ -1115,6 +1115,13 @@ export class BattleScene extends Phaser.Scene {
     return this.normalizeEnemyRewardMultiplier(rewardMultiplier);
   }
 
+  getEnemyXpMultiplier(enemyUnit) {
+    const rewardMultiplier = this.getEnemyRewardMultiplier(enemyUnit);
+    const isSpecialEnemy = Boolean(enemyUnit?.isBoss || enemyUnit?.isElite || this.isElite);
+    if (!isSpecialEnemy) return rewardMultiplier;
+    return rewardMultiplier * XP_SPECIAL_ENEMY_MULTIPLIER;
+  }
+
   _hashReinforcementTemplateChoice(spawn, spawnOrdinal = 0) {
     let hash = this.getReinforcementSeed() >>> 0;
     const waveIndex = Math.trunc(Number(spawn?.waveIndex) || 0) + 1;
@@ -1514,6 +1521,11 @@ export class BattleScene extends Phaser.Scene {
     this.updateVisionHud();
     this.refreshEndTurnControl();
     this.playVisionRewindEffect();
+    // Re-assert current music to trigger orphan scanner (no-op when clean)
+    const audio = this.registry.get('audio');
+    if (audio && audio.currentMusicKey) {
+      audio.playMusic(audio.currentMusicKey, this, 0);
+    }
     return true;
   }
 
@@ -5722,7 +5734,7 @@ export class BattleScene extends Phaser.Scene {
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
   async awardXP(playerUnit, opponent, opponentDied) {
     const baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
-    const rewardMultiplier = this.getEnemyRewardMultiplier(opponent);
+    const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
     const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier);
     if (adjustedBaseXp <= 0) return;
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
@@ -6483,6 +6495,7 @@ export class BattleScene extends Phaser.Scene {
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
       this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned);
       this.time.delayedCall(1500, async () => {
+        if (!this.scene?.isActive?.()) return;
         try {
           if (this.isBoss && this._bossName && this.runManager) {
             const bossName = this._resolveBossDialogueName(this._bossName);
@@ -6494,6 +6507,7 @@ export class BattleScene extends Phaser.Scene {
           console.warn('[BattleScene] boss defeat dialogue failed:', err);
         }
 
+        if (!this.scene?.isActive?.()) return;
         if (this.isBoss && !this.runManager.isRunComplete()) {
           this.showBossRecruitScreen();
         } else {
@@ -7828,8 +7842,9 @@ export class BattleScene extends Phaser.Scene {
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       this.runManager.failRun();
       this.time.delayedCall(2000, async () => {
+        if (!this.scene?.isActive?.()) return;
         const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
-        if (!transitioned) this.showDefeatTransitionRecovery();
+        if (!transitioned && this.scene?.isActive?.()) this.showDefeatTransitionRecovery();
       });
     } else {
       // Standalone mode -- restart battle after delay

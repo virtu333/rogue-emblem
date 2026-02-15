@@ -422,4 +422,88 @@ describe('AudioManager', () => {
     expect(keys).not.toContain('music_title');
     expect(audio._trackedMusicSounds.has(destroyed)).toBe(false);
   });
+
+  it('watchdog kills orphan sounds but leaves currentMusic alone', () => {
+    const current = makeLoopingSound('music_battle_act1_1');
+    const orphan = makeLoopingSound('music_explore_act1');
+    const sound = makeSoundManager({ sounds: [current, orphan] });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act1_1';
+
+    audio._runOverlapSweep();
+
+    expect(orphan.stop).toHaveBeenCalledTimes(1);
+    expect(orphan.destroy).toHaveBeenCalledTimes(1);
+    expect(current.stop).not.toHaveBeenCalled();
+    expect(current.destroy).not.toHaveBeenCalled();
+  });
+
+  it('watchdog does nothing when only currentMusic is playing', () => {
+    const current = makeLoopingSound('music_battle_act1_1');
+    const sound = makeSoundManager({ sounds: [current] });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act1_1';
+
+    audio._runOverlapSweep();
+
+    expect(current.stop).not.toHaveBeenCalled();
+    expect(current.destroy).not.toHaveBeenCalled();
+  });
+
+  it('startOverlapWatchdog and stopOverlapWatchdog manage interval lifecycle', () => {
+    vi.useFakeTimers();
+    try {
+      const current = makeLoopingSound('music_battle_act1_1');
+      const sound = makeSoundManager({ sounds: [current] });
+      const audio = new AudioManager(sound);
+      audio.currentMusic = current;
+      audio.currentMusicKey = 'music_battle_act1_1';
+
+      const sweepSpy = vi.spyOn(audio, '_runOverlapSweep');
+      audio.startOverlapWatchdog(1000);
+
+      vi.advanceTimersByTime(3000);
+      expect(sweepSpy).toHaveBeenCalledTimes(3);
+
+      audio.stopOverlapWatchdog();
+      vi.advanceTimersByTime(3000);
+      expect(sweepSpy).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fade safety net force-destroys sound when tween onComplete never fires', () => {
+    vi.useFakeTimers();
+    try {
+      const target = makeLoopingSound('music_title');
+      const sound = makeSoundManager({ sounds: [target] });
+      const audio = new AudioManager(sound);
+      audio._trackedMusicSounds.add(target);
+
+      // Scene with tweens.add that captures config but never calls onComplete
+      const scene = {
+        tweens: {
+          add: vi.fn(),
+          killTweensOf: vi.fn(),
+        },
+      };
+
+      audio._stopSound(target, scene, 300);
+
+      // Tween was created but onComplete was never called
+      expect(target.stop).not.toHaveBeenCalled();
+
+      // Advance past the safety net timeout (300 + 500 = 800ms)
+      vi.advanceTimersByTime(801);
+
+      expect(target.stop).toHaveBeenCalledTimes(1);
+      expect(target.destroy).toHaveBeenCalledTimes(1);
+      expect(audio._trackedMusicSounds.has(target)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

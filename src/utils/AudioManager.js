@@ -427,18 +427,24 @@ export class AudioManager {
     this._killSoundTweens(scene, sound);
     if (!alreadyStopped && fadeMs > 0 && scene?.tweens) {
       const startVolume = this._readSoundVolume(sound);
+      let fadeCompleted = false;
+      const cleanup = () => {
+        if (fadeCompleted) return;
+        fadeCompleted = true;
+        if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
+        try { sound.stop(); } catch (_) {}
+        try { sound.destroy(); } catch (_) {}
+      };
       this._tweenSoundVolume(
         scene,
         sound,
         startVolume,
         0,
         fadeMs,
-        () => {
-          if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
-          try { sound.stop(); } catch (_) {}
-          try { sound.destroy(); } catch (_) {}
-        },
+        cleanup,
       );
+      // Safety net: force-destroy if tween's onComplete never fires (e.g. scene destroyed mid-fade)
+      setTimeout(cleanup, fadeMs + 500);
       return;
     }
     if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
@@ -489,6 +495,32 @@ export class AudioManager {
         if (onComplete) onComplete();
       },
     });
+  }
+
+  /** Start periodic sweep that kills orphaned looping music sounds. */
+  startOverlapWatchdog(intervalMs = 5000) {
+    this.stopOverlapWatchdog();
+    this._watchdogInterval = setInterval(() => this._runOverlapSweep(), intervalMs);
+  }
+
+  /** Stop the overlap watchdog. */
+  stopOverlapWatchdog() {
+    if (this._watchdogInterval) {
+      clearInterval(this._watchdogInterval);
+      this._watchdogInterval = null;
+    }
+  }
+
+  /** Sweep for orphaned looping music and force-destroy any found. */
+  _runOverlapSweep() {
+    const active = this._getLoopingMusicSounds();
+    for (const sound of active) {
+      if (sound === this.currentMusic) continue;
+      if (this.debugMusic) {
+        console.warn('[AudioManager] watchdog killing orphan:', sound.key);
+      }
+      this._stopSound(sound, null, 0);
+    }
   }
 
   /** Play a one-shot sound effect. */

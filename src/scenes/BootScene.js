@@ -143,7 +143,7 @@ export class BootScene extends Phaser.Scene {
       'generic_swordmaster', 'generic_thief', 'generic_warrior',
       'generic_wyvern_rider', 'generic_wyvern_lord',
       'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
-      'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_dark_champion',
+      'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_the_lieutenant',
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');
@@ -374,6 +374,13 @@ export class BootScene extends Phaser.Scene {
     audio.setMusicVolume(settings.getMusicVolume());
     audio.setSFXVolume(settings.getSFXVolume());
     this.registry.set('audio', audio);
+
+    // Enable debug audio logging via URL param and start overlap watchdog
+    try {
+      const params = new URLSearchParams(globalThis?.location?.search || '');
+      if (params.get('debugAudio') === '1') audio.debugMusic = true;
+    } catch (_) {}
+    audio.startOverlapWatchdog();
 
     // Wire cloud sync callbacks (settings only - meta is per-slot, wired on slot selection)
     if (cloudState) {
