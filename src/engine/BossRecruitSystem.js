@@ -3,7 +3,7 @@
  * No Phaser dependencies. Generates 3 recruit candidates after boss victory.
  */
 
-import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT } from '../utils/constants.js';
+import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT, BASE_CLASS_LEVEL_CAP } from '../utils/constants.js';
 import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked, grantLethalArmoryWeapon } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
@@ -127,8 +127,9 @@ export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, 
     }
   }
 
-  // Auto-level to target (createLordUnit starts at level 1)
-  for (let i = 1; i < targetLevel; i++) {
+  // Auto-level to target (createLordUnit starts at level 1), capped at base class cap
+  const cappedLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+  for (let i = 1; i < cappedLevel; i++) {
     const result = levelUp(unit);
     if (result) {
       unit.level = result.newLevel;
@@ -172,8 +173,11 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   const { lords, classes, weapons, recruits, skills, consumables } = gameData;
   const rosterClassNames = new Set(roster.map(u => u.className));
 
-  // Determine target level from highest lord level in roster
-  const lordLevels = roster.filter(u => u.isLord).map(u => u.level);
+  // Determine target level from highest lord effective level in roster
+  // Promoted lords have an effective level = level + BASE_CLASS_LEVEL_CAP
+  const lordLevels = roster.filter(u => u.isLord).map(u =>
+    u.tier === 'promoted' ? u.level + BASE_CLASS_LEVEL_CAP : u.level
+  );
   const targetLevel = Math.max(1, ...lordLevels);
 
   // Determine if promoted and which recruit pool to use
@@ -285,21 +289,38 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     const baseClassData = classes.find(c => c.name === promotedClassData.promotesFrom);
     if (!baseClassData) return null;
 
-    const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: targetLevel };
+    // Cap base class leveling at BASE_CLASS_LEVEL_CAP
+    const baseLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+    const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: baseLevel };
     const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses);
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
+
+    // Post-promotion leveling if targetLevel exceeds base cap
+    const promotedLevels = Math.max(0, targetLevel - BASE_CLASS_LEVEL_CAP - 1);
+    for (let i = 0; i < promotedLevels; i++) {
+      const result = levelUp(unit);
+      if (result) {
+        unit.level = result.newLevel;
+        for (const stat of XP_STAT_NAMES) {
+          unit.stats[stat] += result.gains[stat];
+        }
+        unit.currentHP += result.gains.HP;
+      }
+    }
+
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
     }
     maybeAddStartingVulnerary(unit);
     return unit;
   } else {
-    // Act2 pool has base class names
+    // Act2 pool has base class names — cap at BASE_CLASS_LEVEL_CAP
     const classData = classes.find(c => c.name === recruitEntry.className);
     if (!classData) return null;
 
-    const recruitDef = { className: classData.name, name: recruitEntry.name, level: targetLevel };
+    const cappedLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+    const recruitDef = { className: classData.name, name: recruitEntry.name, level: cappedLevel };
     const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
     addClassInnates(unit, classData.name);
     if (metaEffects?.lethalArmoryTier) {
