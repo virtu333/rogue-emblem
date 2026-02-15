@@ -1730,7 +1730,9 @@ export class NodeMapScene extends Phaser.Scene {
       const stat = stats[i];
       const statCount = getStatForgeCount(weapon, stat.key);
       const atStatCap = statCount >= FORGE_STAT_CAP;
-      const cost = getForgeCost(weapon, stat.key);
+      const baseCost = getForgeCost(weapon, stat.key);
+      const discount = this.runManager?.getForgeCostDiscount?.() || 0;
+      const cost = Math.max(1, Math.floor(baseCost * (1 - discount)));
       const affordable = cost > 0 && this.runManager.gold >= cost;
       const by = btnStartY + i * btnH;
       const color = atStatCap ? '#666666' : (affordable ? '#e0e0e0' : '#666666');
@@ -1747,7 +1749,7 @@ export class NodeMapScene extends Phaser.Scene {
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor(color));
         btn.on('pointerdown', () => {
-          const result = applyForge(weapon, stat.key);
+          const result = applyForge(weapon, stat.key, discount);
           if (result.success) {
             this.runManager.spendGold(result.cost);
             this.shopForgesUsed++;

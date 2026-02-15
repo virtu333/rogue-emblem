@@ -73,12 +73,14 @@ export function getForgeCost(weapon, stat) {
  * Apply one forge level to a weapon, mutating it in place.
  * @param {object} weapon
  * @param {'might'|'crit'|'hit'|'weight'} stat - which stat to boost
+ * @param {number} [discountRatio=0] - fraction discount (0–1), e.g. 0.2 = 20% off
  * @returns {{ success: boolean, cost?: number }}
  */
-export function applyForge(weapon, stat) {
+export function applyForge(weapon, stat, discountRatio = 0) {
   if (!canForgeStat(weapon, stat)) return { success: false };
-  const cost = getForgeCost(weapon, stat);
-  if (cost < 0) return { success: false };
+  const baseCost = getForgeCost(weapon, stat);
+  if (baseCost < 0) return { success: false };
+  const cost = discountRatio > 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
 
   const level = weapon._forgeLevel || 0;
 

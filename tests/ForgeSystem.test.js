@@ -307,6 +307,31 @@ describe('ForgeSystem', () => {
       const result = applyForge(wpn, 'might');
       expect(result.cost).toBe(FORGE_COSTS.might[0]);
     });
+
+    it('applies discount when discountRatio is provided', () => {
+      const wpn = makeWeapon({ price: 500 });
+      const baseCost = FORGE_COSTS.might[0];
+      const result = applyForge(wpn, 'might', 0.2);
+      const expected = Math.floor(baseCost * 0.8);
+      expect(result.cost).toBe(expected);
+      expect(wpn.price).toBe(500 + expected);
+    });
+
+    it('discountRatio 0 behaves identically to no-arg call', () => {
+      const wpn1 = makeWeapon({ price: 500 });
+      const wpn2 = makeWeapon({ price: 500 });
+      const r1 = applyForge(wpn1, 'might');
+      const r2 = applyForge(wpn2, 'might', 0);
+      expect(r1.cost).toBe(r2.cost);
+      expect(wpn1.price).toBe(wpn2.price);
+    });
+
+    it('discount floors cost to 1 (never free)', () => {
+      const wpn = makeWeapon({ price: 500 });
+      const result = applyForge(wpn, 'might', 1.0);
+      expect(result.cost).toBe(1);
+      expect(wpn.price).toBe(501);
+    });
   });
 
   describe('getForgeDisplayInfo', () => {

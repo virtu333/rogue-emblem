@@ -56,6 +56,19 @@ describe('BattleScene Dance XP', () => {
     expect(finishUnitAction).toHaveBeenCalledWith(dancer);
   });
 
+  it('executeDance still calls finishUnitAction if awardScaledXP rejects', async () => {
+    const ctx = makeSceneCtx();
+    ctx.awardScaledXP = vi.fn(async () => { throw new Error('popup failed'); });
+    ctx.finishUnitAction = vi.fn();
+
+    const dancer = { col: 1, row: 1 };
+    const ally = { col: 1, row: 2, hasMoved: true, hasActed: true };
+
+    await BattleScene.prototype.executeDance.call(ctx, dancer, { ally }).catch(() => {});
+
+    expect(ctx.finishUnitAction).toHaveBeenCalledWith(dancer);
+  });
+
   it('awardScaledXP applies difficulty multiplier and floors XP', async () => {
     const ctx = makeSceneCtx({ xpMultiplier: 0.5 });
     const unit = { tier: 'base', level: 1, xp: 0 };

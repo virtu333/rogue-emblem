@@ -137,6 +137,10 @@ export class RunManager {
       allGrowthsDelta: 0,
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
+      xpMultiplierDelta: 0,
+      forgeCostDiscount: 0,
+      recruitLevelBonus: 0,
+      terrainCombatBonuses: [],
     };
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
@@ -219,6 +223,10 @@ export class RunManager {
       allGrowthsDelta: 0,
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
+      xpMultiplierDelta: 0,
+      forgeCostDiscount: 0,
+      recruitLevelBonus: 0,
+      terrainCombatBonuses: [],
     };
     this.battleConfigsByNodeId = {};
     this.metaUnlockedWeaponArts = [];
@@ -697,6 +705,108 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'starting_consumable_all') {
+      const itemName = String(effect.params.name || '').trim();
+      const consumables = Array.isArray(this.gameData?.consumables) ? this.gameData.consumables : [];
+      const template = consumables.find(c => c.name === itemName);
+      if (!template) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'consumable_not_found',
+          requestedName: itemName,
+        });
+        return;
+      }
+      let granted = 0;
+      for (const unit of this.roster) {
+        if (addToConsumables(unit, template)) granted++;
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        itemName,
+        grantedCount: granted,
+        rosterSize: this.roster.length,
+      });
+      return;
+    }
+
+    if (effect.type === 'starting_forge_lords') {
+      const stat = String(effect.params.stat || '').trim();
+      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
+      if (!stat || count <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_starting_forge_lords_params',
+        });
+        return;
+      }
+      const forgedWeapons = [];
+      for (const unit of this.roster) {
+        if (!unit.isLord || !unit.weapon) continue;
+        for (let i = 0; i < count; i++) {
+          const result = applyForge(unit.weapon, stat);
+          if (result.success) {
+            forgedWeapons.push({ unit: unit.name, weapon: unit.weapon.name, stat });
+          }
+        }
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        stat,
+        requestedCount: count,
+        forgedWeapons,
+      });
+      return;
+    }
+
+    if (effect.type === 'xp_multiplier_delta') {
+      this.blessingRuntimeModifiers.xpMultiplierDelta += value;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: value,
+        total: this.blessingRuntimeModifiers.xpMultiplierDelta,
+      });
+      return;
+    }
+
+    if (effect.type === 'forge_cost_discount') {
+      this.blessingRuntimeModifiers.forgeCostDiscount += value;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: value,
+        total: this.blessingRuntimeModifiers.forgeCostDiscount,
+      });
+      return;
+    }
+
+    if (effect.type === 'recruit_level_bonus') {
+      this.blessingRuntimeModifiers.recruitLevelBonus += Math.trunc(value);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: Math.trunc(value),
+        total: this.blessingRuntimeModifiers.recruitLevelBonus,
+      });
+      return;
+    }
+
+    if (effect.type === 'terrain_combat_bonus') {
+      const terrains = Array.isArray(effect.params.terrains) ? effect.params.terrains.filter(t => typeof t === 'string') : [];
+      const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
+      const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
+      if (terrains.length === 0 || (avoidBonus === 0 && defBonus === 0)) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_terrain_combat_bonus_params',
+        });
+        return;
+      }
+      if (!Array.isArray(this.blessingRuntimeModifiers.terrainCombatBonuses)) {
+        this.blessingRuntimeModifiers.terrainCombatBonuses = [];
+      }
+      this.blessingRuntimeModifiers.terrainCombatBonuses.push({ terrains, avoidBonus, defBonus });
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        terrains,
+        avoidBonus,
+        defBonus,
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
   }
 
@@ -721,6 +831,24 @@ export class RunManager {
 
   getShopItemCountDelta() {
     return Math.trunc(this.blessingRuntimeModifiers?.shopItemCountDelta || 0);
+  }
+
+  getXpMultiplierDelta() {
+    return this.blessingRuntimeModifiers?.xpMultiplierDelta || 0;
+  }
+
+  getForgeCostDiscount() {
+    return this.blessingRuntimeModifiers?.forgeCostDiscount || 0;
+  }
+
+  getRecruitLevelBonus() {
+    return Math.trunc(this.blessingRuntimeModifiers?.recruitLevelBonus || 0);
+  }
+
+  getTerrainCombatBonuses() {
+    return Array.isArray(this.blessingRuntimeModifiers?.terrainCombatBonuses)
+      ? this.blessingRuntimeModifiers.terrainCombatBonuses
+      : [];
   }
 
   _buildBlessingAllGrowthBonus() {
@@ -1694,6 +1822,10 @@ export class RunManager {
         allGrowthsDelta: 0,
         disablePersonalSkillsUntilAct: null,
         blockedPersonalSkillsByUnit: {},
+        xpMultiplierDelta: 0,
+        forgeCostDiscount: 0,
+        recruitLevelBonus: 0,
+        terrainCombatBonuses: [],
       },
       runSeed: this.runSeed,
       rngSeed: this.rngSeed,
@@ -1987,6 +2119,10 @@ export class RunManager {
       allGrowthsDelta: 0,
       disablePersonalSkillsUntilAct: null,
       blockedPersonalSkillsByUnit: {},
+      xpMultiplierDelta: 0,
+      forgeCostDiscount: 0,
+      recruitLevelBonus: 0,
+      terrainCombatBonuses: [],
     };
     if (!rm.blessingRuntimeModifiers.actHitBonusByAct || typeof rm.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
       rm.blessingRuntimeModifiers.actHitBonusByAct = {};
@@ -1999,6 +2135,12 @@ export class RunManager {
     rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(rm.blessingRuntimeModifiers.allGrowthsDelta || 0);
     if (!rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
       rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
+    }
+    rm.blessingRuntimeModifiers.xpMultiplierDelta = Number(rm.blessingRuntimeModifiers.xpMultiplierDelta) || 0;
+    rm.blessingRuntimeModifiers.forgeCostDiscount = Number(rm.blessingRuntimeModifiers.forgeCostDiscount) || 0;
+    rm.blessingRuntimeModifiers.recruitLevelBonus = Math.trunc(Number(rm.blessingRuntimeModifiers.recruitLevelBonus) || 0);
+    if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
+      rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
     }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.rngSeed = Number.isFinite(saved.rngSeed)

@@ -79,7 +79,8 @@
           "type": "battle_gold_multiplier_delta",
           "params": { "value": -0.1 }
         }
-      ]
+      ],
+      "excludes": ["nomad_pact"]
     },
     {
       "id": "scholar_vow",
@@ -155,6 +156,132 @@
           "type": "shop_item_count_delta",
           "params": { "value": -1 }
         }
+      ],
+      "excludes": ["frugal_smith"]
+    },
+    {
+      "id": "swift_instinct",
+      "name": "Swift Instinct",
+      "tier": 1,
+      "description": "Lords gain +1 SPD at run start.",
+      "weight": 1.0,
+      "boons": [
+        {
+          "type": "lord_stat_bonus",
+          "params": { "stat": "SPD", "value": 1 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "field_medic",
+      "name": "Field Medic",
+      "tier": 1,
+      "description": "All units start with a Vulnerary.",
+      "weight": 1.0,
+      "boons": [
+        {
+          "type": "starting_consumable_all",
+          "params": { "name": "Vulnerary" }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "rally_cry",
+      "name": "Rally Cry",
+      "tier": 2,
+      "description": "+2 STR to all units in Act 1, but -10% battle gold.",
+      "weight": 0.9,
+      "boons": [
+        {
+          "type": "act_stat_delta_all_units",
+          "params": { "act": "act1", "stat": "STR", "value": 2 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": -0.1 }
+        }
+      ]
+    },
+    {
+      "id": "war_veteran",
+      "name": "War Veteran",
+      "tier": 2,
+      "description": "+15% XP gain from combat, but start with -100 gold.",
+      "weight": 0.85,
+      "boons": [
+        {
+          "type": "xp_multiplier_delta",
+          "params": { "value": 0.15 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "gold_delta",
+          "params": { "value": -100 }
+        }
+      ]
+    },
+    {
+      "id": "frugal_smith",
+      "name": "Frugal Smith",
+      "tier": 2,
+      "description": "Forge costs reduced by 20%, but -1 shop item.",
+      "weight": 0.85,
+      "boons": [
+        {
+          "type": "forge_cost_discount",
+          "params": { "value": 0.20 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "shop_item_count_delta",
+          "params": { "value": -1 }
+        }
+      ],
+      "excludes": ["merchant_bane"]
+    },
+    {
+      "id": "nomad_pact",
+      "name": "Nomad's Pact",
+      "tier": 3,
+      "description": "Recruited units join +1 level higher, but deploy limit -1.",
+      "weight": 0.6,
+      "boons": [
+        {
+          "type": "recruit_level_bonus",
+          "params": { "value": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "deploy_cap_delta",
+          "params": { "value": -1 }
+        }
+      ],
+      "excludes": ["scout_blessing"]
+    },
+    {
+      "id": "terrain_mastery",
+      "name": "Terrain Mastery",
+      "tier": 3,
+      "description": "+5 avoid and +1 DEF on Forest/Fort tiles, but lords lose -2 LCK.",
+      "weight": 0.6,
+      "boons": [
+        {
+          "type": "terrain_combat_bonus",
+          "params": { "terrains": ["Forest", "Fort"], "avoidBonus": 5, "defBonus": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "lord_stat_bonus",
+          "params": { "stat": "LCK", "value": -2 }
+        }
       ]
     },
     {
@@ -173,6 +300,25 @@
         {
           "type": "disable_personal_skills_until_act",
           "params": { "act": "act3" }
+        }
+      ]
+    },
+    {
+      "id": "blood_forge",
+      "name": "Blood Forge",
+      "tier": 4,
+      "description": "Free +1 Might forge on each lord's weapon, but -2 DEF all units in Act 1.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "starting_forge_lords",
+          "params": { "stat": "might", "count": 1 }
+        }
+      ],
+      "costs": [
+        {
+          "type": "act_stat_delta_all_units",
+          "params": { "act": "act1", "stat": "DEF", "value": -2 }
         }
       ]
     }

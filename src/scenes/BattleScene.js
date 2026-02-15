@@ -69,7 +69,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
@@ -352,10 +352,11 @@ export class BattleScene extends Phaser.Scene {
       // Spawn NPC for recruit battles
       if (bc.npcSpawn) {
         const npcSpawn = bc.npcSpawn;
-        // Scale recruit to lord's level (lord level or lord level - 1)
+        // Scale recruit to lord's level (lord level or lord level - 1) + blessing bonus
         const lord = this.playerUnits.find(u => u.isLord);
         if (lord) {
-          npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0));
+          const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
+          npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus);
         }
         const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
         if (npcClassData) {
@@ -2981,6 +2982,7 @@ export class BattleScene extends Phaser.Scene {
     reason = 'unknown movement failure',
     error = null,
     rollbackTo = null,
+    rollbackMovementSpent,
   } = {}) {
     const prefix = `[${context}]`;
     if (error) {
@@ -2998,6 +3000,8 @@ export class BattleScene extends Phaser.Scene {
       unit.col = rollbackTo.col;
       unit.row = rollbackTo.row;
       unit.hasMoved = false;
+      if (typeof rollbackMovementSpent === 'undefined') delete unit._movementSpent;
+      else unit._movementSpent = rollbackMovementSpent;
       this.preMoveLoc = null;
       this.cantoRange = null;
       this.selectedUnit = unit;
@@ -3098,12 +3102,8 @@ export class BattleScene extends Phaser.Scene {
     const moveCostEndIndex = Number.isInteger(effective.pathEndIndex)
       ? effective.pathEndIndex
       : (path.length - 1);
-    unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex);
-
-    this.battleState = 'UNIT_MOVING';
-    this.preMoveLoc = { col: unit.col, row: unit.row };
-    this._preFogSnapshot = this.grid.snapshotFogState();
-    const rollbackLoc = { ...this.preMoveLoc };
+    const rollbackLoc = { col: unit.col, row: unit.row };
+    const rollbackMovementSpent = unit._movementSpent;
 
     // Animate step-by-step along path
     const targets = unit.label
@@ -3120,6 +3120,7 @@ export class BattleScene extends Phaser.Scene {
         reason,
         error,
         rollbackTo: rollbackLoc,
+        rollbackMovementSpent,
       });
     };
 
@@ -3168,6 +3169,12 @@ export class BattleScene extends Phaser.Scene {
     };
 
     try {
+      this.battleState = 'UNIT_MOVING';
+      this.preMoveLoc = { ...rollbackLoc };
+      this._preFogSnapshot = null;
+      this._preFogSnapshot = this.grid.snapshotFogState();
+      unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex);
+
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
 
@@ -3684,10 +3691,12 @@ export class BattleScene extends Phaser.Scene {
     target.ally.hasActed = false;
     this.undimUnit(target.ally);
 
-    await this.awardScaledXP(unit, XP_BASE_DANCE);
-
-    // Dancer ends turn
-    this.finishUnitAction(unit);
+    try {
+      await this.awardScaledXP(unit, XP_BASE_DANCE);
+    } finally {
+      // Dancer ends turn
+      this.finishUnitAction(unit);
+    }
   }
 
   startShoveTargetSelection(unit) {
@@ -3782,7 +3791,17 @@ export class BattleScene extends Phaser.Scene {
     const path = this.grid.findPath(
       unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction
     );
-    if (!path || path.length < 2) return;
+    if (!path || path.length < 2) {
+      console.warn('[handleCantoClick] findPath returned null/short path for canto destination', {
+        from: { col: unit.col, row: unit.row },
+        to: { col: gp.col, row: gp.row },
+      });
+      this._recoverFromMovementFault(unit, {
+        context: 'handleCantoClick',
+        reason: 'findPath returned null/short path for canto destination',
+      });
+      return;
+    }
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
     const destCol = gp.col;
@@ -4402,7 +4421,11 @@ export class BattleScene extends Phaser.Scene {
       if (combatWpn) equipWeapon(healer, combatWpn);
     }
 
-    this.finishUnitAction(healer);
+    try {
+      await this.awardScaledXP(healer, XP_BASE_HEAL);
+    } finally {
+      this.finishUnitAction(healer);
+    }
   }
 
   async executeHealAll(healer, targets) {
@@ -4425,7 +4448,11 @@ export class BattleScene extends Phaser.Scene {
       if (combatWpn) equipWeapon(healer, combatWpn);
     }
 
-    this.finishUnitAction(healer);
+    try {
+      await this.awardScaledXP(healer, XP_BASE_HEAL);
+    } finally {
+      this.finishUnitAction(healer);
+    }
   }
 
   animateHeal(target, healAmount) {
@@ -4999,6 +5026,23 @@ export class BattleScene extends Phaser.Scene {
     const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
+
+    // Blessing terrain combat bonuses
+    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
+    if (terrainBonuses.length > 0) {
+      const applyTerrainBonus = (mods, unit, terrain) => {
+        if (!terrain?.name || unit?.faction !== 'player') return;
+        for (const bonus of terrainBonuses) {
+          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
+            mods.avoidBonus += bonus.avoidBonus || 0;
+            mods.defBonus += bonus.defBonus || 0;
+          }
+        }
+      };
+      applyTerrainBonus(atkMods, attacker, atkTerrain);
+      applyTerrainBonus(defMods, defender, defTerrain);
+    }
+
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
 
     return {
@@ -6079,7 +6123,8 @@ export class BattleScene extends Phaser.Scene {
 
   async awardScaledXP(playerUnit, baseXp) {
     const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier) ? this.battleParams.xpMultiplier : 1;
-    const xp = Math.max(1, Math.floor(baseXp * xpMultiplier));
+    const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
+    const xp = Math.max(1, Math.floor(baseXp * (xpMultiplier + blessingXpDelta)));
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);

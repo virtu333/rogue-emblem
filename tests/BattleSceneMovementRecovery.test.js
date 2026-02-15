@@ -130,6 +130,7 @@ describe('BattleScene movement recovery', () => {
 
   it('rolls back normal move even if updateUnitPosition throws during finalize and rollback', () => {
     const { scene, unit } = makeScene();
+    unit._movementSpent = 3;
     scene.updateUnitPosition = vi.fn(() => {
       throw new Error('graphic destroyed');
     });
@@ -141,6 +142,7 @@ describe('BattleScene movement recovery', () => {
     expect(scene.selectedUnit).toBe(unit);
     expect(unit.col).toBe(1);
     expect(unit.row).toBe(1);
+    expect(unit._movementSpent).toBe(3);
     expect(scene.grid.restoreFogState).toHaveBeenCalledTimes(1);
     expect(scene.selectUnit).toHaveBeenCalledWith(unit);
   });
@@ -194,6 +196,66 @@ describe('BattleScene movement recovery', () => {
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
     expect(unit.col).toBe(2);
     expect(unit.row).toBe(1);
+  });
+
+  it('deselects safely when moveUnit findPath is null/short', () => {
+    const { scene, unit } = makeScene();
+    scene.grid.findPath = vi.fn(() => null);
+
+    BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+
+    expect(scene.deselectUnit).toHaveBeenCalledTimes(1);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+  });
+
+  it('deselects safely when effective path is null/short', () => {
+    const { scene, unit } = makeScene();
+    const blocker = makeUnit({ col: 2, row: 1, faction: 'enemy', currentHP: 10 });
+    scene.enemyUnits = [blocker];
+    scene.grid.terrainData = [
+      { name: 'Plains', moveCost: { Infantry: 1 } },
+      { name: 'Ice', moveCost: { Infantry: 1 } },
+    ];
+    scene.grid.mapLayout[1][2] = 1;
+
+    BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+
+    expect(scene.deselectUnit).toHaveBeenCalledTimes(1);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+  });
+
+  it('recovers if fog snapshot throws after entering UNIT_MOVING', () => {
+    const { scene, unit } = makeScene();
+    unit._movementSpent = 2;
+    scene.grid.snapshotFogState = vi.fn(() => {
+      throw new Error('snapshot failed');
+    });
+
+    BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+
+    expect(scene.battleState).toBe('UNIT_SELECTED');
+    expect(scene.selectedUnit).toBe(unit);
+    expect(unit.col).toBe(1);
+    expect(unit.row).toBe(1);
+    expect(unit._movementSpent).toBe(2);
+  });
+
+  it('recovers Canto flow when canto pathfinding returns null/short path', () => {
+    const { scene, unit } = makeScene();
+    scene.battleState = 'CANTO_MOVING';
+    scene.cantoRange = new Map([['2,1', 1]]);
+    unit.hasActed = true;
+    scene.grid.findPath = vi.fn(() => null);
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
   });
 
   it('filters dead and removing units out of buildUnitPositionMap', () => {
