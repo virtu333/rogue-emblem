@@ -40,6 +40,18 @@ const EXTRA_STARTER_TIER_LABELS = {
   3: 'Archer/Knight/Cavalier',
   4: 'Archer/Knight/Cavalier/Paladin',
 };
+const LOOT_CATEGORY_LABELS = {
+  weapon: 'Weapons',
+  healing: 'Healing',
+  statBooster: 'Stat Booster',
+  promotion: 'Promotion',
+  skillScroll: 'Skill Scroll',
+  weaponArtScroll: 'Weapon Art',
+  legendaryWeapon: 'Legendary',
+  accessory: 'Accessory',
+  forge: 'Forge',
+  gold: 'Gold',
+};
 
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
@@ -506,6 +518,10 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
     if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
+    if (effect.lootCategoryWeightBonuses !== undefined) {
+      const display = this._formatLootCategoryBonuses(effect.lootCategoryWeightBonuses);
+      if (display) return display;
+    }
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
@@ -553,7 +569,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   _getActionDesc(upgrade) {
-    const effect = upgrade.effects[0];
+    const effect = upgrade?.effects ? upgrade.effects[0] : (upgrade || {});
     const weaponArtUnlockText = this._getWeaponArtUnlockText(effect);
     if (effect.recruitGrowth !== undefined) return `${effect.recruitGrowth} growth rate`;
     if (effect.lordGrowth !== undefined) return `${effect.lordGrowth} growth rate`;
@@ -562,7 +578,12 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.goldBonus !== undefined) return 'Starting gold bonus';
     if (effect.battleGoldMultiplier !== undefined) return 'Battle gold bonus';
     if (effect.extraVulnerary !== undefined) return 'Starting Vulnerary';
+    if (effect.lootCategoryWeightBonuses !== undefined) {
+      const desc = this._getLootCategoryBonusesDesc(effect.lootCategoryWeightBonuses);
+      if (desc) return desc;
+    }
     if (effect.lootWeaponQualityBonus !== undefined) return 'Higher chance for upgraded weapons';
+    if (effect.lootWeaponWeightBonus !== undefined) return 'Higher chance for upgraded weapons';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';
@@ -600,6 +621,33 @@ export class HomeBaseScene extends Phaser.Scene {
     if (ids.size === 1) return 'Unlocks 1 weapon art';
     if (ids.size > 1) return `Unlocks ${ids.size} weapon arts`;
     return null;
+  }
+
+  _formatLootCategoryBonuses(weightBonuses) {
+    if (!weightBonuses || typeof weightBonuses !== 'object') return null;
+    const entries = Object.entries(weightBonuses)
+      .filter(([, value]) => Number(value) !== 0)
+      .map(([key, value]) => `${LOOT_CATEGORY_LABELS[key] || key} ${Number(value) > 0 ? '+' : ''}${Number(value)}`);
+    return entries.length > 0 ? entries.join(', ') : null;
+  }
+
+  _getLootCategoryBonusesDesc(weightBonuses) {
+    if (!weightBonuses || typeof weightBonuses !== 'object') return null;
+    const up = [];
+    const down = [];
+    for (const [key, rawValue] of Object.entries(weightBonuses)) {
+      const value = Number(rawValue);
+      if (Number.isNaN(value) || value === 0) continue;
+      const label = LOOT_CATEGORY_LABELS[key] || key;
+      if (value > 0) up.push(label);
+      else down.push(label);
+    }
+
+    if (up.length === 0 && down.length === 0) return 'Adjusts drop table weights';
+    const parts = [];
+    if (up.length) parts.push(`more ${up.join(' & ')}`);
+    if (down.length) parts.push(`less ${down.join(' & ')}`);
+    return `Drop table: ${parts.join('; ')}`;
   }
 
   // --- Skills tab custom layout ---

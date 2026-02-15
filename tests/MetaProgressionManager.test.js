@@ -300,9 +300,10 @@ describe('MetaProgressionManager', () => {
     expect(effects.battleGoldMultiplier).toBe(0.2);
     expect(effects.extraVulnerary).toBe(1);
     expect(effects.lootWeaponQualityBonus).toBe(10);
+    expect(effects.lootCategoryWeightBonuses.weapon).toBe(10);
   });
 
-  it('maps legacy lootWeaponWeightBonus into lootWeaponQualityBonus', () => {
+  it('maps legacy lootWeaponWeightBonus into lootWeaponQualityBonus and weapon loot table bonus', () => {
     const legacyUpgrades = [
       {
         id: 'legacy_loot_quality',
@@ -317,6 +318,20 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.legacy_loot_quality = 1;
     const effects = meta.getActiveEffects();
     expect(effects.lootWeaponQualityBonus).toBe(15);
+    expect(effects.lootCategoryWeightBonuses.weapon).toBe(15);
+  });
+
+  it('normalizes explicit lootCategoryWeightBonuses as additive map modifiers', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.studied_training = 1;
+    meta.purchasedUpgrades.trinket_collector = 1;
+    const effects = meta.getActiveEffects();
+    expect(effects.lootCategoryWeightBonuses.skillScroll).toBe(1);
+    expect(effects.lootCategoryWeightBonuses.weaponArtScroll).toBe(1);
+    expect(effects.lootCategoryWeightBonuses.accessory).toBe(2);
+    expect(effects.lootCategoryWeightBonuses.healing).toBe(-2);
+    expect(effects.lootCategoryWeightBonuses.statBooster).toBe(-2);
+    expect(effects.lootCategoryWeightBonuses.gold).toBe(-2);
   });
 
   it('getActiveEffects returns capacity effects', () => {
@@ -361,6 +376,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.recruitStartingVulnerary).toBe(0);
     expect(effects.extraStartingUnitTier).toBe(0);
     expect(effects.lethalArmoryTier).toBe(0);
+    expect(effects.lootCategoryWeightBonuses).toEqual({});
   });
 
   it('starts with 0 runsCompleted', () => {
@@ -447,7 +463,7 @@ describe('MetaProgressionManager', () => {
   });
 
   it('has 52 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(52);
+    expect(upgradesData.length).toBe(54);
   });
 
   it('has correct category distribution', () => {
@@ -457,7 +473,7 @@ describe('MetaProgressionManager', () => {
     }
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
-    expect(byCategory.economy).toBe(4);
+    expect(byCategory.economy).toBe(6);
     expect(byCategory.capacity).toBe(10);
     expect(byCategory.starting_equipment).toBe(7);
     expect(byCategory.starting_skills).toBe(9);
