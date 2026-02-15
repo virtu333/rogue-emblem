@@ -18,12 +18,14 @@ import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForg
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
+import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { MUSIC, getMusicKey, pickTrack } from '../utils/musicConfig.js';
 import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { formatAccessoryDetail } from '../utils/accessoryText.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -128,6 +130,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.settingsOverlay = null;
     this.rosterOverlay = null;
+    this.dialogueOverlay = new DialogueOverlay(this);
+    this._storyDialogueActive = false;
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
@@ -145,16 +149,11 @@ export class NodeMapScene extends Phaser.Scene {
     this.input.enabled = false;
     void this.finalizeSceneReady();
 
-    // Tutorial hint for node map
     const hints = this.registry.get('hints');
-    if (hints?.shouldShow('nodemap_intro')) {
-      showImportantHint(this, 'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.');
-    }
-
-    // HP persistence hint — show once after first battle return
-    if (hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1) {
-      showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
-    }
+    this._pendingNodeMapHints = {
+      showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
+      showHpPersist: Boolean(hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1),
+    };
 
   }
 
@@ -167,9 +166,11 @@ export class NodeMapScene extends Phaser.Scene {
 
     this._onEsc = (event) => {
       if (event?.repeat) return;
+      if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
       this.requestCancel();
     };
     this._onPointerDown = (pointer) => {
+      if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);
     };
@@ -201,6 +202,10 @@ export class NodeMapScene extends Phaser.Scene {
   _onSceneShutdown() {
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
+    if (this.dialogueOverlay) {
+      this.dialogueOverlay.destroy();
+      this.dialogueOverlay = null;
+    }
     this._unbindInputHandlers();
     if (this.isMobileInput && this._mobileHandlers) {
       const ge = this.game.events;
@@ -218,11 +223,49 @@ export class NodeMapScene extends Phaser.Scene {
       await this.ensureAudioUnlocked();
     } catch (_) {}
     if (this.sys?.isActive?.() === false) return;
-    this.isSceneReady = true;
     if (this.input) this.input.enabled = true;
+
+    if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
+      const entries = this.gameData?.dialogue?.actTransitions?.runStart;
+      if (Array.isArray(entries) && entries.length > 0 && this.dialogueOverlay) {
+        this._storyDialogueActive = true;
+        this.runManager.markDialogueShown('runStart');
+        this.persistRunSave();
+        try {
+          await this.dialogueOverlay.showSequence(entries);
+        } finally {
+          this._storyDialogueActive = false;
+        }
+      }
+    }
+    if (this.sys?.isActive?.() === false) return;
+
+    await this._showPendingNodeMapHints();
+    if (this.sys?.isActive?.() === false) return;
+
+    this.isSceneReady = true;
+  }
+
+  async _showPendingNodeMapHints() {
+    const pending = this._pendingNodeMapHints;
+    this._pendingNodeMapHints = null;
+    if (!pending) return;
+    if (pending.showIntro) {
+      this._storyDialogueActive = true;
+      try {
+        await showImportantHint(this, 'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.');
+      } finally {
+        this._storyDialogueActive = false;
+      }
+      if (this.sys?.isActive?.() === false) return;
+    }
+    if (pending.showHpPersist) {
+      void showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
+    }
   }
 
   onPointerUp(pointer) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     this._touchScrollDrag = null;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
@@ -239,6 +282,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerDown(pointer) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     if (!pointer || pointer.pointerType !== 'touch') return;
 
     if (this.unitPickerState) {
@@ -266,6 +310,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerMove(pointer) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     if (!pointer || pointer.pointerType !== 'touch') return;
     const drag = this._touchScrollDrag;
     if (!drag) return;
@@ -297,6 +342,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onWheel(pointer, deltaX, deltaY) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
     if (this.unitPickerState) {
       const step = Math.sign(deltaY || 0) * UNIT_PICKER_SCROLL_STEP;
       if (!step) return;
@@ -342,6 +388,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   canRequestCancel({ allowPause = true } = {}) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.forgePicker) return true;
     if (this.unitPicker || this.unitPickerState) return true;
@@ -355,6 +402,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   requestCancel({ allowPause = true } = {}) {
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return true;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
@@ -1191,6 +1239,7 @@ export class NodeMapScene extends Phaser.Scene {
   drawActiveTabContent() {
     // Clear previous tab content
     this._hideForgeTooltip();
+    this._hideShopItemTooltip();
     if (this.shopContentGroup) this.shopContentGroup.forEach(o => o.destroy());
     this.shopContentGroup = [];
 
@@ -1223,10 +1272,16 @@ export class NodeMapScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '12px', color,
       }).setDepth(OVERLAY_CONTENT_DEPTH);
 
+      text.setInteractive({ useHandCursor: affordable });
+      text.on('pointerover', () => {
+        text.setColor('#ffdd44');
+        this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
+      });
+      text.on('pointerout', () => {
+        text.setColor(color);
+        this._hideShopItemTooltip();
+      });
       if (affordable) {
-        text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
-        text.on('pointerout', () => text.setColor(color));
         text.on('pointerdown', () => this.onBuyItem(entry));
       }
 
@@ -1517,6 +1572,100 @@ export class NodeMapScene extends Phaser.Scene {
     }).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopContentGroup.push(hint);
     this.shopOverlay.push(hint);
+  }
+
+  _getShopItemDetailText(entry) {
+    const item = entry?.item || {};
+    const entryType = entry?.type || item.type;
+
+    if (entryType === 'accessory' || item.type === 'Accessory') {
+      return formatAccessoryDetail(item, { fallback: 'Accessory' }) || 'Accessory';
+    }
+
+    if (entryType === 'consumable' || item.type === 'Consumable') {
+      if (item.effect === 'heal') {
+        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
+        return `Heals ${Number(item.value) || 0} HP (${uses} use${uses === 1 ? '' : 's'})`;
+      }
+      if (item.effect === 'healFull') {
+        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
+        return `Fully heals HP (${uses} use${uses === 1 ? '' : 's'})`;
+      }
+      if (item.effect === 'statBoost') {
+        const stat = item.stat || 'STAT';
+        const value = Number(item.value) || 0;
+        return `Permanently +${value} ${stat}`;
+      }
+      if (item.effect === 'promote') return 'Use at Lv 10+ to promote a unit';
+      return item.special || 'Consumable';
+    }
+
+    if (entryType === 'scroll' || item.type === 'Scroll') {
+      return item.special || 'Teaches a skill';
+    }
+
+    if (item.type === 'Whetstone') {
+      if (item.forgeStat === 'choice') return 'Forge: choose a stat boost';
+      if (item.forgeStat === 'might') return 'Forge: +1 Mt';
+      if (item.forgeStat === 'crit') return 'Forge: +5 Crit';
+      if (item.forgeStat === 'hit') return 'Forge: +5 Hit';
+      if (item.forgeStat === 'weight') return 'Forge: -1 Wt';
+      return 'Forge item';
+    }
+
+    const mt = Number.isFinite(Number(item.might)) ? Number(item.might) : 0;
+    const hit = Number.isFinite(Number(item.hit)) ? Number(item.hit) : 0;
+    const crt = Number.isFinite(Number(item.crit)) ? Number(item.crit) : 0;
+    const wt = Number.isFinite(Number(item.weight)) ? Number(item.weight) : 0;
+    const rng = item.range ?? '1';
+
+    const lines = [
+      `Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`,
+      `Wt: ${wt}   Rng: ${rng}`,
+    ];
+    if (item.special) lines.push(`Special: ${item.special}`);
+    return lines.join('\n');
+  }
+
+  _showShopItemTooltip(entry, anchorX, anchorY) {
+    this._hideShopItemTooltip();
+    const detail = this._getShopItemDetailText(entry);
+    const lines = String(detail || '').split('\n').filter(Boolean);
+    if (lines.length <= 0) return;
+    this.shopItemTooltip = [];
+
+    const lineH = 14;
+    const padX = 8;
+    const padY = 6;
+    const maxLineChars = lines.reduce((max, line) => Math.max(max, line.length), 0);
+    const boxW = Phaser.Math.Clamp(maxLineChars * 6 + padX * 2, 150, 320);
+    const boxH = lines.length * lineH + padY * 2;
+
+    let tx = anchorX;
+    let ty = anchorY;
+    if (tx + boxW > 635) tx = anchorX - boxW - 20;
+    if (ty + boxH > 475) ty = 475 - boxH;
+    if (tx < 5) tx = 5;
+    if (ty < 5) ty = 5;
+
+    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(310).setStrokeStyle(1, 0x336666);
+    this.shopItemTooltip.push(bg);
+
+    const detailText = this.add.text(tx + padX, ty + padY, lines.join('\n'), {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#e0e0e0',
+      lineSpacing: 4,
+    }).setDepth(311);
+    this.shopItemTooltip.push(detailText);
+  }
+
+  _hideShopItemTooltip() {
+    if (this.shopItemTooltip) {
+      this.shopItemTooltip.forEach((o) => o.destroy());
+      this.shopItemTooltip = null;
+    }
   }
 
   showForgeStatPicker(weapon) {
@@ -1824,6 +1973,7 @@ export class NodeMapScene extends Phaser.Scene {
   closeShopOverlay() {
     this.closeForgeStatPicker();
     this._hideForgeTooltip();
+    this._hideShopItemTooltip();
     if (this.shopOverlay) {
       this.shopOverlay.forEach(o => o.destroy());
       this.shopOverlay = null;
