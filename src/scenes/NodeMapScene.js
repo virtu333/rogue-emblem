@@ -1249,7 +1249,7 @@ export class NodeMapScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_gold');
       this.refreshShop();
-      this.showShopBanner(`Got ${entry.item.name}!`, '#88ff88');
+      this.showShopBanner(`Got ${entry.item.name}! Added to Scroll Pool.`, '#88ff88');
       return;
     }
 
@@ -1263,7 +1263,7 @@ export class NodeMapScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_gold');
       this.refreshShop();
-      this.showShopBanner(`Got ${entry.item.name}!`, '#88ff88');
+      this.showShopBanner(`Got ${entry.item.name}! Added to Accessory Pool.`, '#88ff88');
       return;
     }
 

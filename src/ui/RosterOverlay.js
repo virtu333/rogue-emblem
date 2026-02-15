@@ -21,6 +21,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { formatAccessoryDetail } from '../utils/accessoryText.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -40,6 +41,7 @@ const DEPTH_BG = 700;
 const DEPTH_PANEL = 701;
 const DEPTH_TEXT = 702;
 const DEPTH_PICKER = 750;
+const ACCESSORY_PICKER_MAX_ROWS = 8;
 
 const LIST_X = 20;
 const LIST_WIDTH = 160;
@@ -642,17 +644,27 @@ export class RosterOverlay {
     y += 4;
     this._text(x, y, '\u2500\u2500 Accessory \u2500\u2500', '#888888', '10px');
     y += 14;
+    const teamAccessories = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
     if (unit.accessory) {
       const acc = unit.accessory;
       this._text(x + 8, y, acc.name, '#cc88ff', '9px');
       this._actionBtn(x + 280, y, '[Unequip]', () => {
         const old = unequipAccessory(unit);
-        if (old) this.runManager.accessories.push(old);
+        if (old) {
+          if (!Array.isArray(this.runManager.accessories)) this.runManager.accessories = [];
+          this.runManager.accessories.push(old);
+        }
         this.refresh();
       });
+      if (teamAccessories.length > 0) {
+        this._actionBtn(x + 350, y, '[Swap]', () => this._showAccessoryPicker(unit));
+      }
       y += 13;
     } else {
       this._text(x + 8, y, '(none)', '#888888', '10px');
+      if (teamAccessories.length > 0) {
+        this._actionBtn(x + 280, y, '[Equip]', () => this._showAccessoryPicker(unit));
+      }
       y += 14;
     }
 
@@ -1209,6 +1221,143 @@ export class RosterOverlay {
     const sourceLabel = this._weaponArtSourceLabel(source);
     const message = `This weapon art will be overwritten. (${sourceLabel})`;
     this._showConfirmPicker('Confirm Overwrite', message, onConfirm);
+  }
+
+  _showAccessoryPicker(unit) {
+    if (!unit) return;
+    if (!Array.isArray(this.runManager.accessories)) this.runManager.accessories = [];
+    if (this.runManager.accessories.length <= 0) {
+      this._showBanner('No accessories available.', '#ff8888');
+      return;
+    }
+
+    const cx = 320;
+    const itemH = 24;
+    const titleH = 34;
+    const pad = 12;
+    const navRows = 2;
+    let page = 0;
+
+    const drawPage = () => {
+      this._destroyTrade();
+      const accessories = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+      if (accessories.length <= 0) {
+        this._showBanner('No accessories available.', '#ff8888');
+        return;
+      }
+
+      const totalPages = Math.max(1, Math.ceil(accessories.length / ACCESSORY_PICKER_MAX_ROWS));
+      const visibleRows = Math.max(1, Math.min(accessories.length, ACCESSORY_PICKER_MAX_ROWS));
+      const totalH = titleH + visibleRows * itemH + navRows * itemH + pad;
+      const topY = 240 - totalH / 2;
+      page = this._clamp(page, 0, totalPages - 1);
+      const start = page * ACCESSORY_PICKER_MAX_ROWS;
+      const pageItems = accessories.slice(start, start + ACCESSORY_PICKER_MAX_ROWS);
+
+      const pickerBg = this.scene.add.rectangle(cx, 240, 460, totalH, 0x222222, 0.95)
+        .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+      this.tradeObjects.push(pickerBg);
+
+      const pickerTitle = this.scene.add.text(cx, topY + pad, 'Equip Accessory:', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      this.tradeObjects.push(pickerTitle);
+
+      const subTitle = this.scene.add.text(cx, topY + pad + 14, `${unit.name} (${accessories.length} in pool)`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#999999',
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      this.tradeObjects.push(subTitle);
+
+      pageItems.forEach((acc, i) => {
+        const y = topY + titleH + i * itemH + pad;
+        const detail = formatAccessoryDetail(acc);
+        const label = detail ? `${acc.name} - ${detail}` : acc.name;
+        const btn = this.scene.add.text(cx, y, label, {
+          fontFamily: 'monospace', fontSize: '10px', color: '#cc88ff',
+          backgroundColor: '#444444', padding: { x: 10, y: 3 },
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+
+        const selectedIndex = start + i;
+        btn.on('pointerover', () => btn.setColor('#ffdd44'));
+        btn.on('pointerout', () => btn.setColor('#cc88ff'));
+        btn.on('pointerdown', () => {
+          const pool = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+          if (selectedIndex < 0 || selectedIndex >= pool.length) {
+            this._showBanner('Accessory list changed. Please try again.', '#ff8888');
+            drawPage();
+            return;
+          }
+
+          const [selected] = pool.splice(selectedIndex, 1);
+          if (!selected) {
+            this._showBanner('Accessory not available.', '#ff8888');
+            drawPage();
+            return;
+          }
+
+          const old = equipAccessory(unit, selected);
+          if (old) pool.push(old);
+          const audio = this.scene.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          this._destroyTrade();
+          this._showBanner(`${unit.name} equipped ${selected.name}!`, '#cc88ff');
+          this.refresh();
+        });
+        this.tradeObjects.push(btn);
+      });
+
+      const navY = topY + titleH + visibleRows * itemH + pad;
+      const pageLabel = this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      this.tradeObjects.push(pageLabel);
+
+      if (totalPages > 1) {
+        const prevColor = page > 0 ? '#e0e0e0' : '#666666';
+        const prevBtn = this.scene.add.text(cx - 100, navY, 'Prev', {
+          fontFamily: 'monospace', fontSize: '11px', color: prevColor,
+          backgroundColor: '#333333', padding: { x: 8, y: 3 },
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        this.tradeObjects.push(prevBtn);
+        if (page > 0) {
+          prevBtn.setInteractive({ useHandCursor: true });
+          prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
+          prevBtn.on('pointerout', () => prevBtn.setColor('#e0e0e0'));
+          prevBtn.on('pointerdown', () => {
+            page--;
+            drawPage();
+          });
+        }
+
+        const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
+        const nextBtn = this.scene.add.text(cx + 100, navY, 'Next', {
+          fontFamily: 'monospace', fontSize: '11px', color: nextColor,
+          backgroundColor: '#333333', padding: { x: 8, y: 3 },
+        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        this.tradeObjects.push(nextBtn);
+        if (page < totalPages - 1) {
+          nextBtn.setInteractive({ useHandCursor: true });
+          nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
+          nextBtn.on('pointerout', () => nextBtn.setColor('#e0e0e0'));
+          nextBtn.on('pointerdown', () => {
+            page++;
+            drawPage();
+          });
+        }
+      }
+
+      const cancelY = navY + itemH;
+      const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+        backgroundColor: '#333333', padding: { x: 10, y: 3 },
+      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
+      cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
+      cancelBtn.on('pointerdown', () => this._destroyTrade());
+      this.tradeObjects.push(cancelBtn);
+    };
+
+    drawPage();
   }
 
   _showScrollPicker(unit) {

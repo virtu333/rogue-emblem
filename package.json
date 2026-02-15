@@ -37,6 +37,7 @@
     "fuzz:nightly": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode reporting --timeout-rate-threshold 5 --use-default-scenario-budgets",
     "fuzz:nightly:strict": "node tests/agents/fuzz-runner.js --seeds 150 --all-scenarios --mode strict --use-default-scenario-budgets",
     "test:e2e": "npx playwright test",
+    "test:e2e:smoke": "npx playwright test tests/e2e/boot.spec.js tests/e2e/scene-transitions.spec.js tests/e2e/accessory-ui.spec.js",
     "test:e2e:headed": "npx playwright test --headed"
   },
   "dependencies": {
