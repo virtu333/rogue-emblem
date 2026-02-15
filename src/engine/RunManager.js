@@ -5,7 +5,7 @@ import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
-  RECRUIT_SKILL_POOL, GOLD_BATTLE_REWARD_MULTIPLIER,
+  RECRUIT_SKILL_POOL, GOLD_BATTLE_REWARD_MULTIPLIER, GOLD_BATTLE_BONUS, NODE_GOLD_MULTIPLIER,
 } from '../utils/constants.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
@@ -22,7 +22,7 @@ import {
   grantLethalArmoryWeapon,
 } from './UnitManager.js';
 import { applyForge } from './ForgeSystem.js';
-import { calculateBattleGold, generateRandomLegendary } from './LootSystem.js';
+import { generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
 import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
@@ -1252,8 +1252,9 @@ export class RunManager {
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
+   * @param {{ completionGoldOverride?: number }} [options]
    */
-  completeBattle(survivingUnits, nodeId, goldEarned = 0) {
+  completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
     this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map(u => u.name));
@@ -1269,7 +1270,12 @@ export class RunManager {
     this.completedBattles++;
     const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
     this.markNodeComplete(nodeId);
-    const baseGold = calculateBattleGold(goldEarned, node?.type);
+    const nodeMultiplier = (node?.type && NODE_GOLD_MULTIPLIER[node.type]) || 1.0;
+    const completionGold = Number.isFinite(options?.completionGoldOverride)
+      ? Math.max(0, Math.floor(options.completionGoldOverride))
+      : GOLD_BATTLE_BONUS;
+    const killSubtotal = Math.floor(goldEarned * nodeMultiplier);
+    const baseGold = Math.floor((killSubtotal + completionGold) * GOLD_BATTLE_REWARD_MULTIPLIER);
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);

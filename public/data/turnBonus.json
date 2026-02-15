@@ -23,5 +23,13 @@
     "act3": 450,
     "act4": 525,
     "finalBoss": 600
+  },
+  "latePressure": {
+    "startOverPar": 5,
+    "stepTurns": 2,
+    "xpMultipliers": [1.0, 0.7, 0.5, 0.35, 0.2, 0.1],
+    "goldMultipliers": [1.0, 0.8, 0.6, 0.4, 0.25, 0.1],
+    "bossEnrageTurn": 12,
+    "bossEnrageOverPar": 5
   }
 }

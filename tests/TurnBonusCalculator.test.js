@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePar, getRating, calculateBonusGold } from '../src/engine/TurnBonusCalculator.js';
+import {
+  calculatePar,
+  getRating,
+  calculateBonusGold,
+  getLatePressureState,
+  isBossEnrageActive,
+} from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
 import { GOLD_PAR_BONUS_MULTIPLIER } from '../src/utils/constants.js';
 
@@ -194,6 +200,60 @@ describe('TurnBonusCalculator', () => {
       const result = getRating(1, 20, config);
       expect(result.rating).toBe('S');
       expect(result.bonusMultiplier).toBe(1.0);
+    });
+  });
+
+  describe('late pressure', () => {
+    it('does not activate at par + 5', () => {
+      const pressure = getLatePressureState(15, 10, config);
+      expect(pressure.active).toBe(false);
+      expect(pressure.xpMultiplier).toBe(1.0);
+      expect(pressure.goldMultiplier).toBe(1.0);
+    });
+
+    it('activates at par + 6 with first penalty step', () => {
+      const pressure = getLatePressureState(16, 10, config);
+      expect(pressure.active).toBe(true);
+      expect(pressure.step).toBe(1);
+      expect(pressure.xpMultiplier).toBe(0.7);
+      expect(pressure.goldMultiplier).toBe(0.8);
+    });
+
+    it('advances one step every 2 turns over the start threshold', () => {
+      const step1 = getLatePressureState(17, 10, config);
+      const step2 = getLatePressureState(18, 10, config);
+      expect(step1.step).toBe(1);
+      expect(step1.xpMultiplier).toBe(0.7);
+      expect(step2.step).toBe(2);
+      expect(step2.xpMultiplier).toBe(0.5);
+      expect(step2.goldMultiplier).toBe(0.6);
+    });
+
+    it('clamps to configured floor multipliers', () => {
+      const pressure = getLatePressureState(80, 10, config);
+      expect(pressure.xpMultiplier).toBe(0.1);
+      expect(pressure.goldMultiplier).toBe(0.1);
+    });
+
+    it('stays neutral when par is unavailable', () => {
+      const pressure = getLatePressureState(20, null, config);
+      expect(pressure.active).toBe(false);
+      expect(pressure.xpMultiplier).toBe(1.0);
+      expect(pressure.goldMultiplier).toBe(1.0);
+    });
+  });
+
+  describe('boss enrage timing', () => {
+    it('uses min(absolute turn, par + offset) when par is present', () => {
+      expect(isBossEnrageActive(7, 3, config)).toBe(false); // min(12, 8)
+      expect(isBossEnrageActive(8, 3, config)).toBe(true);
+      expect(isBossEnrageActive(11, 10, config)).toBe(false); // min(12, 15)
+      expect(isBossEnrageActive(12, 10, config)).toBe(true);
+    });
+
+    it('falls back to absolute enrage turn when par is unavailable', () => {
+      expect(isBossEnrageActive(11, null, config)).toBe(false);
+      expect(isBossEnrageActive(12, null, config)).toBe(true);
     });
   });
 

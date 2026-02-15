@@ -145,6 +145,28 @@ describe('AIController', () => {
       expect(decision.path).toBeNull();
       expect(decision.target).toBeNull();
     });
+
+    it('boss can chase off-throne on seize when aggressive mode is enabled', () => {
+      const thronePos = { col: 8, row: 4 };
+      const moveTiles = [
+        { col: 7, row: 4 }, { col: 6, row: 4 }, { col: 5, row: 4 },
+        { col: 8, row: 3 }, { col: 8, row: 5 },
+      ];
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {}, { objective: 'seize', thronePos });
+      ai.setAggressiveMode(true);
+
+      const boss = makeEnemy({ col: 8, row: 4, isBoss: true });
+      const player = makePlayer({ col: 0, row: 4 }); // far and off-throne direction
+
+      const decision = ai._decideAction(boss, [boss], [player], []);
+      expect(decision.reason).not.toBe('boss_hold_throne');
+      expect(decision.path).not.toBeNull();
+      if (decision.path && decision.path.length >= 2) {
+        const dest = decision.path[decision.path.length - 1];
+        expect(dest.col).toBeLessThan(8);
+      }
+    });
   });
 
   describe('Guard AI (C2)', () => {

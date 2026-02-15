@@ -317,6 +317,32 @@ describe('BattleScene loot meta wiring', () => {
     expect(textCalls.some((call) => call[2] === '500G')).toBe(true);
   });
 
+  it('scales loot gold card display and claim by late-pressure multiplier', () => {
+    const textCalls = [];
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'gold',
+        goldAmount: 500,
+      },
+    ]);
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.finalizeLootPick = vi.fn();
+    scene._victoryPressureState = { active: true, xpMultiplier: 0.5, goldMultiplier: 0.6 };
+    scene.add.text = (...args) => {
+      textCalls.push(args);
+      return makeDisplayObject();
+    };
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const lootCard = scene._lootCards?.[0]?.bg;
+    expect(lootCard).toBeTruthy();
+    lootCard.handlers.pointerdown();
+
+    expect(scene.runManager.addGold).toHaveBeenCalledWith(300);
+    expect(textCalls.some((call) => call[2] === '300G')).toBe(true);
+  });
+
   it('applies loot multiplier exactly once to skip-loot payout', () => {
     const rectangles = [];
     const textCalls = [];

@@ -76,7 +76,7 @@ import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHa
 import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
 import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
-import { calculatePar, getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
+import { calculatePar, getRating, calculateBonusGold, getLatePressureState, isBossEnrageActive } from '../engine/TurnBonusCalculator.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
@@ -269,6 +269,9 @@ export class BattleScene extends Phaser.Scene {
 
       // Gold tracking for loot system
       this.goldEarned = 0;
+      this._latePressureWarningShown = false;
+      this._completionGoldAward = null;
+      this._victoryPressureState = null;
       this.initializeAntiTurtleState();
       this.aiPhaseStatsHistory = [];
       this.lastEnemyPhaseAiStats = null;
@@ -1488,6 +1491,7 @@ export class BattleScene extends Phaser.Scene {
     this.antiTurtleState = structuredClone(this.visionSnapshot.antiTurtleState || {
       noProgressTurns: 0,
       aggressiveMode: false,
+      turnEnrageActive: false,
       bestEnemyCount: this.enemyUnits.length,
       bestLordThroneDistance: this.getBestLordThroneDistance(),
     });
@@ -1521,10 +1525,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.turnCounterText && this.turnPar !== null) {
       const rating = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
-      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})`);
+      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
+      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`);
       this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
     } else if (this.turnCounterText) {
-      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber}`);
+      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
+      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber}${pressureSuffix}`);
       this.turnCounterText.setColor('#e0e0e0');
     }
     this.updateVisionHud();
@@ -1699,6 +1705,7 @@ export class BattleScene extends Phaser.Scene {
     this.antiTurtleState = {
       noProgressTurns: 0,
       aggressiveMode: false,
+      turnEnrageActive: false,
       bestEnemyCount: this.enemyUnits.length,
       bestLordThroneDistance: this.getBestLordThroneDistance(),
     };
@@ -1712,7 +1719,28 @@ export class BattleScene extends Phaser.Scene {
     return Math.min(...lords.map(u => gridDistance(u.col, u.row, throne.col, throne.row)));
   }
 
-  updateAntiTurtlePressure() {
+  getCurrentTurnNumber(turnOverride = null) {
+    if (Number.isFinite(turnOverride)) return Math.max(0, Math.trunc(turnOverride));
+    return Math.max(0, Math.trunc(Number(this.turnManager?.turnNumber) || 0));
+  }
+
+  getTurnPressureState(turnOverride = null) {
+    const turn = this.getCurrentTurnNumber(turnOverride);
+    return getLatePressureState(turn, this.turnPar, this.turnBonusConfig);
+  }
+
+  formatPressureMultiplier(value) {
+    const safe = Number.isFinite(value) ? value : 1;
+    return `x${safe.toFixed(2)}`;
+  }
+
+  getTurnPressureSummary(turnOverride = null) {
+    const pressure = this.getTurnPressureState(turnOverride);
+    if (!pressure.active) return '';
+    return ` | Pressure: XP ${this.formatPressureMultiplier(pressure.xpMultiplier)} Gold ${this.formatPressureMultiplier(pressure.goldMultiplier)}`;
+  }
+
+  updateAntiTurtlePressure(turnOverride = null) {
     if (!this.antiTurtleState) return;
     const enemyCount = this.enemyUnits.length;
     const lordThroneDist = this.getBestLordThroneDistance();
@@ -1728,8 +1756,12 @@ export class BattleScene extends Phaser.Scene {
       this.antiTurtleState.noProgressTurns++;
     }
 
-    const shouldAggro = this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS;
+    const currentTurn = this.getCurrentTurnNumber(turnOverride);
+    const hasLivingBoss = this.enemyUnits.some(u => u?.isBoss && u.currentHP > 0);
+    const turnEnrageActive = hasLivingBoss && isBossEnrageActive(currentTurn, this.turnPar, this.turnBonusConfig);
+    const shouldAggro = this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS || turnEnrageActive;
     this.antiTurtleState.aggressiveMode = shouldAggro;
+    this.antiTurtleState.turnEnrageActive = turnEnrageActive;
     this.aiController?.setAggressiveMode?.(shouldAggro);
   }
 
@@ -5529,6 +5561,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'COMBAT_RESOLVING';
     this.grid.clearAttackHighlights();
     this.resetFortHealStreak(attacker);
+    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
 
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -5583,7 +5616,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (attacker.faction === 'player' && !result.attackerDied) {
-      await this.awardXP(attacker, defender, result.defenderDied);
+      const damageDealt = Math.max(0, defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)));
+      await this.awardXP(attacker, defender, result.defenderDied, damageDealt, defenderHpAtStart);
     }
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
@@ -5824,10 +5858,19 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
-  async awardXP(playerUnit, opponent, opponentDied) {
-    const baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+  async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
+    let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
+    if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
+      const safeDamage = Math.max(0, Math.trunc(damageDealt));
+      const safeStartHp = Math.max(1, Math.trunc(defenderHpAtStart));
+      if (safeDamage <= 0) return;
+      const damageRatio = Math.min(1, safeDamage / safeStartHp);
+      baseXp = Math.floor(baseXp * damageRatio);
+      if (baseXp <= 0) return;
+    }
     const rewardMultiplier = this.getEnemyXpMultiplier(opponent);
-    const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier);
+    const pressureXpMultiplier = this.getTurnPressureState().xpMultiplier;
+    const adjustedBaseXp = Math.floor(baseXp * rewardMultiplier * pressureXpMultiplier);
     if (adjustedBaseXp <= 0) return;
     await this.awardScaledXP(playerUnit, adjustedBaseXp);
   }
@@ -5908,7 +5951,8 @@ export class BattleScene extends Phaser.Scene {
       // Track gold earned from enemy kills
       if (this.runManager) {
         const rewardMultiplier = this.getEnemyRewardMultiplier(unit);
-        const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * rewardMultiplier));
+        const pressureGoldMultiplier = this.getTurnPressureState().goldMultiplier;
+        const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * rewardMultiplier * pressureGoldMultiplier));
         this.goldEarned += adjustedGold;
       }
     }
@@ -5972,11 +6016,18 @@ export class BattleScene extends Phaser.Scene {
       if (this.turnCounterText && this.turnPar !== null) {
         const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
         const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
-        this.turnCounterText.setText(`Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})`);
+        const pressureSuffix = this.getTurnPressureSummary(turn);
+        this.turnCounterText.setText(`Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`);
         this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
       } else if (this.turnCounterText) {
-        this.turnCounterText.setText(`Turn: ${turn}`);
+        const pressureSuffix = this.getTurnPressureSummary(turn);
+        this.turnCounterText.setText(`Turn: ${turn}${pressureSuffix}`);
         this.turnCounterText.setColor('#e0e0e0');
+      }
+      const latePressure = this.getTurnPressureState(turn);
+      if (latePressure.active && !this._latePressureWarningShown) {
+        this._latePressureWarningShown = true;
+        showMinorHint(this, 'Taking too long reduces rewards.');
       }
 
       // Update fog of war at start of player phase
@@ -6047,7 +6098,7 @@ export class BattleScene extends Phaser.Scene {
       } // end else (non-tutorial hints)
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
-      this.updateAntiTurtlePressure();
+      this.updateAntiTurtlePressure(turn);
       this.grid.tickTemporaryTerrains?.();
       for (const u of this.enemyUnits) {
         resetWeaponArtTurnUsage(u, { turnNumber: turn });
@@ -6352,6 +6403,7 @@ export class BattleScene extends Phaser.Scene {
 
   async executeEnemyCombat(enemy, target) {
     this.resetFortHealStreak(enemy);
+    const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
     const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
     const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
     const defTerrain = this.grid.getTerrainAt(target.col, target.row);
@@ -6404,7 +6456,8 @@ export class BattleScene extends Phaser.Scene {
 
     // Award XP to player defender if they survived
     if (target.faction === 'player' && !result.defenderDied) {
-      await this.awardXP(target, enemy, result.attackerDied);
+      const counterDamage = Math.max(0, enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)));
+      await this.awardXP(target, enemy, result.attackerDied, counterDamage, enemyHpAtStart);
     }
 
     if (result.defenderDied) await this.removeUnit(target);
@@ -6599,7 +6652,13 @@ export class BattleScene extends Phaser.Scene {
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
       const surviving = this.playerUnits.map(u => serializeUnit(u));
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
-      this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned);
+      const turnPressure = this.getTurnPressureState();
+      const completionGoldAward = Math.max(0, Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier));
+      this._victoryPressureState = turnPressure;
+      this._completionGoldAward = completionGoldAward;
+      this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned, {
+        completionGoldOverride: completionGoldAward,
+      });
       this.time.delayedCall(1500, async () => {
         if (!this.scene?.isActive?.()) return;
         try {
@@ -6927,23 +6986,35 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(title);
 
+    const turnPressure = this._victoryPressureState || this.getTurnPressureState();
+    const pressureGoldMultiplier = Number.isFinite(turnPressure?.goldMultiplier)
+      ? turnPressure.goldMultiplier
+      : 1;
+    const completionGold = Number.isFinite(this._completionGoldAward)
+      ? this._completionGoldAward
+      : Math.max(0, Math.floor(GOLD_BATTLE_BONUS * pressureGoldMultiplier));
+
     // Calculate and award turn bonus gold
     let turnBonusGold = 0;
     let turnRating = null;
     if (this.turnPar != null && this.turnBonusConfig) {
       const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       turnRating = result.rating;
-      turnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
+      const rawTurnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
+      turnBonusGold = Math.max(0, Math.floor(rawTurnBonusGold * pressureGoldMultiplier));
       if (turnBonusGold > 0) {
         this.runManager.addGold(turnBonusGold);
       }
     }
-    const totalGold = this.goldEarned + GOLD_BATTLE_BONUS + turnBonusGold;
+    const totalGold = this.goldEarned + completionGold + turnBonusGold;
 
     // Gold summary with breakdown
-    const goldLines = [`Battle: ${this.goldEarned}G`, `Completion: ${GOLD_BATTLE_BONUS}G`];
+    const goldLines = [`Battle: ${this.goldEarned}G`, `Completion: ${completionGold}G`];
     if (turnBonusGold > 0) {
       goldLines.push(`Turn ${turnRating}: +${turnBonusGold}G`);
+    }
+    if (turnPressure.active) {
+      goldLines.push(`Late pressure: Gold ${this.formatPressureMultiplier(pressureGoldMultiplier)}`);
     }
     goldLines.push(`Total: ${totalGold}G  |  Vault: ${this.runManager.gold}G`);
 
@@ -7032,7 +7103,7 @@ export class BattleScene extends Phaser.Scene {
       lootGroup.push(icon);
 
       if (choice.type === 'gold') {
-        const scaledGoldAmount = choice.goldAmount || 0;
+        const scaledGoldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier));
         // Gold choice
         const goldLabel = this.add.text(cx, cardY - 2, `${scaledGoldAmount}G`, {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',

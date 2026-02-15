@@ -321,6 +321,26 @@ describe('RunManager', () => {
       const expectedGain = Math.floor(expectedBase * GOLD_BATTLE_REWARD_MULTIPLIER);
       expect(rm.gold - startGold).toBe(expectedGain);
     });
+
+    it('respects completionGoldOverride in completeBattle options', () => {
+      const control = new RunManager(gameData);
+      const overridden = new RunManager(gameData);
+      control.startRun();
+      overridden.startRun();
+
+      const controlNode = control.nodeMap.nodes.find(n => n.id === control.nodeMap.startNodeId);
+      const overriddenNode = overridden.nodeMap.nodes.find(n => n.id === overridden.nodeMap.startNodeId);
+      const controlStartGold = control.gold;
+      const overriddenStartGold = overridden.gold;
+
+      control.completeBattle(control.getRoster(), controlNode.id, 0);
+      overridden.completeBattle(overridden.getRoster(), overriddenNode.id, 0, { completionGoldOverride: 0 });
+
+      const controlGain = control.gold - controlStartGold;
+      const overriddenGain = overridden.gold - overriddenStartGold;
+      expect(controlGain).toBeGreaterThan(0);
+      expect(overriddenGain).toBe(0);
+    });
   });
 
   describe('rest', () => {

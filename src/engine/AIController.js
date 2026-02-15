@@ -140,7 +140,7 @@ export class AIController {
     }
 
     // --- Boss throne clamping ---
-    const isBossOnSeize = enemy.isBoss && this.objective === 'seize' && this.thronePos;
+    const isBossOnSeize = enemy.isBoss && this.objective === 'seize' && this.thronePos && !this.aggressiveMode;
     if (isBossOnSeize) {
       // Only consider tiles within 1 manhattan tile of throne
       candidates = candidates.filter(t =>
