@@ -226,4 +226,59 @@ describe('BattleScene loot meta wiring', () => {
     expect(unit.stats.STR).toBe(10);
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
   });
+
+  it('renders category-aware detail text for weapons, accessories, and promotion loot', () => {
+    const textCalls = [];
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'weapon',
+        item: {
+          name: 'Iron Sword',
+          type: 'Sword',
+          might: 5,
+          hit: 95,
+          crit: 0,
+          weight: 3,
+          range: '1',
+          price: 500,
+        },
+      },
+      {
+        type: 'accessory',
+        item: {
+          name: 'Nullify Ring',
+          type: 'Accessory',
+          effects: { STR: 2 },
+          combatEffects: { negateEffectiveness: true },
+          price: 2500,
+        },
+      },
+      {
+        type: 'promotion',
+        item: {
+          name: 'Master Seal',
+          type: 'Consumable',
+          effect: 'promote',
+          uses: 1,
+          price: 2500,
+        },
+      },
+    ]);
+    const scene = makeScene({
+      lootWeaponQualityBonus: 0,
+    });
+    scene.add.text = (...args) => {
+      textCalls.push(args);
+      return makeDisplayObject();
+    };
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const labels = textCalls.map((call) => call[2]).filter((text) => typeof text === 'string');
+    expect(labels.some((text) => text.includes('5Mt 95Hit 0Crt'))).toBe(true);
+    expect(labels.some((text) => text.includes('3Wt Rng1'))).toBe(true);
+    expect(labels.some((text) => text.includes('+2 STR'))).toBe(true);
+    expect(labels.some((text) => text.includes('Negate effectiveness'))).toBe(true);
+    expect(labels.some((text) => text.includes('Promote Lv 10+ unit'))).toBe(true);
+  });
 });

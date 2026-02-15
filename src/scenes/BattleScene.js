@@ -90,6 +90,7 @@ import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { buildTutorialBattleConfig as _buildTutorialBattleConfig, buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { retryBooleanAction } from '../utils/retry.js';
+import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -6679,38 +6680,48 @@ export class BattleScene extends Phaser.Scene {
       recruitGroup.push(sep);
       yOff += 12;
 
-      // Key stats
-      const statColor = { HP: '#88ff88', STR: '#ff8888', MAG: '#aa88ff', SPD: '#ffff88', DEF: '#88bbff', RES: '#cc88ff' };
-      const useMag = (u.stats.MAG || 0) > (u.stats.STR || 0);
-      const displayStats = ['HP', useMag ? 'MAG' : 'STR', 'SPD', 'DEF'];
-      for (const stat of displayStats) {
-        const val = u.stats[stat] || 0;
-        const line = this.add.text(cx, yOff, `${stat}: ${val}`, {
-          fontFamily: 'monospace', fontSize: '9px', color: statColor[stat] || '#cccccc',
-        }).setOrigin(0.5).setDepth(702);
-        recruitGroup.push(line);
-        yOff += 12;
-      }
-      yOff += 4;
+      // Core comparison stats
+      const useMag = (u.stats?.MAG || 0) > (u.stats?.STR || 0);
+      const atkStat = useMag ? 'MAG' : 'STR';
+      const hp = Number(u.stats?.HP || 0);
+      const atk = Number(u.stats?.[atkStat] || 0);
+      const spd = Number(u.stats?.SPD || 0);
+      const def = Number(u.stats?.DEF || 0);
+      const res = Number(u.stats?.RES || 0);
+      const mov = Number(u.mov ?? u.stats?.MOV ?? 0);
 
-      // Weapon proficiencies
+      const coreA = this.add.text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
+        fontFamily: 'monospace', fontSize: '8px', color: '#cccccc',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(coreA);
+      yOff += 11;
+
+      const coreB = this.add.text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
+        fontFamily: 'monospace', fontSize: '8px', color: '#88bbff',
+      }).setOrigin(0.5).setDepth(702);
+      recruitGroup.push(coreB);
+      yOff += 13;
+
+      // Weapon proficiency signal (trimmed preview so card width stays readable)
       if (u.proficiencies && u.proficiencies.length > 0) {
-        const profStr = u.proficiencies.map(p => {
-          const short = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tome', Light: 'Lgt', Staff: 'Stf' };
-          return `${short[p.type] || p.type}(${p.rank[0]})`;
-        }).join(' ');
-        const prof = this.add.text(cx, yOff, profStr, {
-          fontFamily: 'monospace', fontSize: '7px', color: '#888888',
+        const profShort = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tom', Light: 'Lgt', Staff: 'Stf' };
+        const profEntries = u.proficiencies.map((p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`);
+        const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
+        const prof = this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
+          fontFamily: 'monospace', fontSize: '7px', color: '#aaaaaa',
+          wordWrap: { width: cardW - 10 }, align: 'center',
         }).setOrigin(0.5).setDepth(702);
         recruitGroup.push(prof);
         yOff += 12;
       }
 
-      // Personal skill for lords
-      if (c.isLord && u.skills && u.skills.length > 0) {
-        const skillName = u.skills[0];
-        const sk = this.add.text(cx, yOff, skillName, {
-          fontFamily: 'monospace', fontSize: '7px', color: '#ffdd44',
+      // Notable personal/class skill (if present)
+      const notableSkill = Array.isArray(u.skills)
+        ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
+        : null;
+      if (notableSkill) {
+        const sk = this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
+          fontFamily: 'monospace', fontSize: '7px', color: c.isLord ? '#ffdd44' : '#aaccff',
           wordWrap: { width: cardW - 10 }, align: 'center',
         }).setOrigin(0.5).setDepth(702);
         recruitGroup.push(sk);
@@ -6972,16 +6983,11 @@ export class BattleScene extends Phaser.Scene {
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(priceLabel);
 
-        // Detail line (weapon might/range, consumable uses, stat boost, or accessory effects)
-        let detail = '';
-        let detailColor = '#999999';
-        if (item.might !== undefined) detail = `Mt:${item.might} Hit:${item.hit}`;
-        else if (item.type === 'Accessory') detail = this.getAccessoryDetailText(item);
-        else if (item.effect === 'statBoost') { detail = `+${item.value} ${item.stat}`; detailColor = '#88ff88'; }
-        else if (item.uses !== undefined) detail = `Uses: ${item.uses}`;
-        if (detail) {
-          const detailLabel = this.add.text(cx, cardY + 52, detail, {
-            fontFamily: 'monospace', fontSize: '8px', color: detailColor,
+        // Category-aware detail text for decision quality.
+        const detailInfo = this.getLootCardDetailLines(choice, item);
+        if (detailInfo.lines.length > 0) {
+          const detailLabel = this.add.text(cx, cardY + 52, detailInfo.lines.join('\n'), {
+            fontFamily: 'monospace', fontSize: '8px', color: detailInfo.color,
             wordWrap: { width: cardW - 10 }, align: 'center',
           }).setOrigin(0.5, 0).setDepth(702);
           lootGroup.push(detailLabel);
@@ -7060,30 +7066,76 @@ export class BattleScene extends Phaser.Scene {
     this.lootGroup = lootGroup;
   }
 
+  getLootCardDetailLines(choice, item) {
+    if (!item) return { lines: [], color: '#999999' };
+
+    const asNum = (value, fallback = 0) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+    const usesLine = item.uses !== undefined
+      ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`
+      : '';
+    const type = choice?.type;
+
+    if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
+      const range = item.range == null ? '1' : String(item.range);
+      return {
+        lines: [
+          `${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`,
+          `${asNum(item.weight)}Wt Rng${range}`,
+        ],
+        color: '#88bbff',
+      };
+    }
+
+    if (item.type === 'Accessory' || type === 'accessory') {
+      const detail = this.getAccessoryDetailText(item);
+      return { lines: detail ? detail.split('\n') : ['Equip for passive bonus'], color: '#cc88ff' };
+    }
+
+    if (item.type === 'Scroll' || type === 'skillScroll' || type === 'weaponArtScroll') {
+      const typeHint = Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0
+        ? `For ${item.allowedWeaponTypes.join('/')}`
+        : '';
+      if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
+        return { lines: ['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], color: '#ffaa55' };
+      }
+      const special = typeof item.special === 'string' && item.special.trim().length > 0
+        ? item.special.trim()
+        : 'Teaches a skill';
+      return { lines: [special], color: '#ffaa55' };
+    }
+
+    if (item.effect === 'statBoost' || type === 'statBooster') {
+      const stat = item.stat || 'Stat';
+      return { lines: [`Permanent +${asNum(item.value)} ${stat}`], color: '#88ff88' };
+    }
+
+    if (item.effect === 'promote' || type === 'promotion') {
+      return { lines: ['Promote Lv 10+ unit'], color: '#ffaa55' };
+    }
+
+    if (item.effect === 'healFull') {
+      return { lines: ['Restore HP to full', ...(usesLine ? [usesLine] : [])], color: '#88ff88' };
+    }
+
+    if (item.effect === 'heal' || type === 'healing') {
+      const amount = asNum(item.value);
+      return { lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])], color: '#88ff88' };
+    }
+
+    if (usesLine) return { lines: [usesLine], color: '#999999' };
+    return { lines: [], color: '#999999' };
+  }
+
   /** Format accessory effects for loot card display. */
   getAccessoryDetailText(item) {
-    const parts = [];
-    // Stat effects
-    if (item.effects) {
-      const stats = Object.entries(item.effects);
-      if (stats.length > 0) {
-        const grouped = stats.map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`);
-        parts.push(grouped.join('/'));
-      }
-    }
-    // Combat effects
-    if (item.combatEffects) {
-      const desc = {
-        'Wrath Band': '+15 Crit <50% HP',
-        'Counter Seal': 'Block double attacks',
-        'Pursuit Ring': 'Double at +3 SPD',
-        'Nullify Ring': 'Negate effectiveness',
-        'Life Ring': '+3 Atk/+2 Def >75% HP',
-        'Forest Charm': '+10 Avo/+2 Def (forest)',
-      };
-      parts.push(desc[item.name] || 'Combat effect');
-    }
-    return parts.join('\n');
+    return formatAccessoryDetail(item, {
+      separator: '\n',
+      statSeparator: '/',
+      fallback: 'Equip for passive bonus',
+    });
   }
 
   /** Simple text wrapping helper. */
