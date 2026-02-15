@@ -4,6 +4,7 @@
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData } from './lib/SimUnitFactory.js';
 import { printTable, toCSV, parseArgs, printRecommendations, printHeader, percentiles, meanStd } from './lib/TableFormatter.js';
+import { getMetaEffects } from './lib/economyMeta.js';
 import { calculateKillGold, calculateBattleGold, generateLootChoices, generateShopInventory } from '../src/engine/LootSystem.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import {
@@ -25,14 +26,6 @@ if (opts.help) {
 
 const data = getData();
 const issues = [];
-
-// Meta-progression effects by level
-function getMetaEffects(level) {
-  if (level === 0) return { goldBonus: 0, battleGoldMultiplier: 0, lootWeaponWeightBonus: 0 };
-  if (level === 1) return { goldBonus: 100, battleGoldMultiplier: 0.2, lootWeaponWeightBonus: 0 };
-  if (level === 2) return { goldBonus: 200, battleGoldMultiplier: 0.4, lootWeaponWeightBonus: 10 };
-  return { goldBonus: 300, battleGoldMultiplier: 0.4, lootWeaponWeightBonus: 20 }; // max
-}
 
 // Deploy+offset enemy count formula
 function getEnemyCount(act, row, isBoss) {
@@ -60,7 +53,7 @@ function getEnemyLevel(act) {
 
 /** Simulate a full run's economy. Returns { goldByCheckpoint, canPromoteByMidAct2, totalGold, ... } */
 function simulateRunEconomy(strategy, metaLevel) {
-  const meta = getMetaEffects(metaLevel);
+  const meta = getMetaEffects(metaLevel, data.metaUpgrades);
   let gold = STARTING_GOLD + meta.goldBonus;
   const checkpoints = {}; // act → gold
   let totalBattleGold = 0;
@@ -107,7 +100,8 @@ function simulateRunEconomy(strategy, metaLevel) {
 
         // Loot decision
         if (!isBoss) {
-          const lootChoices = generateLootChoices(act, data.lootTables, data.weapons, data.consumables, 3, meta.lootWeaponWeightBonus);
+          const lootWeaponQualityBonus = meta.lootWeaponQualityBonus || 0;
+          const lootChoices = generateLootChoices(act, data.lootTables, data.weapons, data.consumables, 3, lootWeaponQualityBonus);
 
           if (strategy === 'save-for-seal') {
             // Always take gold from loot if available, otherwise skip
