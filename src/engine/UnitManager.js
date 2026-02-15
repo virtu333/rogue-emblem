@@ -445,6 +445,105 @@ export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses
   return unit;
 }
 
+const LETHAL_ARMORY_WEAPONS = {
+  Sword: {
+    steel: 'Steel Sword',
+    killer: 'Killing Edge',
+    silver: 'Silver Sword',
+  },
+  Lance: {
+    steel: 'Steel Lance',
+    killer: 'Killer Lance',
+    silver: 'Silver Lance',
+  },
+  Axe: {
+    steel: 'Steel Axe',
+    killer: 'Killer Axe',
+    silver: 'Silver Axe',
+  },
+  Bow: {
+    steel: 'Steel Bow',
+    killer: 'Killer Bow',
+    silver: 'Silver Bow',
+  },
+  Tome: {
+    steel: 'Elfire',
+    killer: null,
+    silver: 'Bolganone',
+  },
+  Light: {
+    steel: 'Shine',
+    killer: null,
+    silver: 'Aura',
+  },
+};
+
+function isStaffOnlyProficiencyList(proficiencies) {
+  if (!Array.isArray(proficiencies) || proficiencies.length === 0) return true;
+  const nonStaffTypes = proficiencies
+    .map((p) => p?.type)
+    .filter((type) => type && type !== 'Staff');
+  return nonStaffTypes.length === 0;
+}
+
+function selectLethalArmoryType(proficiencies) {
+  const types = Array.from(new Set((proficiencies || [])
+    .map((p) => p?.type)
+    .filter((type) => type && type !== 'Staff')));
+  if (types.length === 0) return null;
+  return types[Math.floor(Math.random() * types.length)] || null;
+}
+
+function pickLethalArmoryWeapon(allWeapons, weaponType, lethalArmoryTier) {
+  const byType = LETHAL_ARMORY_WEAPONS[weaponType];
+  if (!byType) return null;
+
+  const roll = Math.random();
+  const tier = Math.max(1, Math.min(3, Math.trunc(Number(lethalArmoryTier) || 0)));
+  const pickByName = (name) => {
+    if (!name) return null;
+    return allWeapons?.find((weapon) => weapon?.name === name) || null;
+  };
+
+  // Tier 1: always Steel.
+  if (tier === 1) return pickByName(byType.steel);
+
+  // Tier 2: 75% Steel, 25% Killer, with Killer fallback to Steel.
+  if (tier === 2) {
+    if (roll < 0.75) return pickByName(byType.steel);
+    return pickByName(byType.killer) || pickByName(byType.steel);
+  }
+
+  // Tier 3: 50% Steel, 25% Killer (fallback to Silver then Steel), 25% Silver (fallback to Steel).
+  if (roll < 0.5) return pickByName(byType.steel);
+  if (roll < 0.75) {
+    return pickByName(byType.killer) || pickByName(byType.silver) || pickByName(byType.steel);
+  }
+  return pickByName(byType.silver) || pickByName(byType.steel);
+}
+
+// Grant one additional recruit-only weapon from Lethal Armory. Returns true when granted.
+export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) {
+  const tier = Math.max(0, Math.trunc(Number(lethalArmoryTier) || 0));
+  if (!unit || tier <= 0) return false;
+  if (unit.isLord) return false;
+  if (!Array.isArray(unit.inventory) || !Array.isArray(unit.proficiencies)) return false;
+  if (isStaffOnlyProficiencyList(unit.proficiencies)) return false;
+
+  const weaponType = selectLethalArmoryType(unit.proficiencies);
+  if (!weaponType) return false;
+
+  const weapon = pickLethalArmoryWeapon(allWeapons, weaponType, tier);
+  if (!weapon) return false;
+
+  if (!addToInventory(unit, weapon)) return false;
+  const grantedWeapon = unit.inventory[unit.inventory.length - 1];
+  if (canEquip(unit, grantedWeapon)) {
+    unit.weapon = grantedWeapon;
+  }
+  return true;
+}
+
 // --- Leveling ---
 
 /**
