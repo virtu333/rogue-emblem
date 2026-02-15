@@ -359,6 +359,52 @@ describe('ForgeSystem', () => {
     });
   });
 
+  describe('shop forge flow (integration)', () => {
+    it('display cost matches charged cost when discount applied', () => {
+      // Simulates the exact NodeMapScene forge path:
+      // 1. Compute display cost (what player sees on button)
+      // 2. Call applyForge with same discount
+      // 3. Verify result.cost === display cost
+      const wpn = makeWeapon({ price: 500 });
+      const discount = 0.20; // frugal_smith blessing
+
+      // Step 1: Display cost (NodeMapScene line ~1735)
+      const baseCost = getForgeCost(wpn, 'might');
+      const displayCost = Math.max(1, Math.floor(baseCost * (1 - discount)));
+
+      // Step 2: Apply forge with discount (NodeMapScene line ~1752)
+      const result = applyForge(wpn, 'might', discount);
+
+      // Step 3: What spendGold receives must match what player saw
+      expect(result.cost).toBe(displayCost);
+    });
+
+    it('display cost matches charged cost with zero discount', () => {
+      const wpn = makeWeapon({ price: 500 });
+      const discount = 0;
+
+      const baseCost = getForgeCost(wpn, 'might');
+      const displayCost = discount > 0
+        ? Math.max(1, Math.floor(baseCost * (1 - discount)))
+        : baseCost;
+
+      const result = applyForge(wpn, 'might', discount);
+      expect(result.cost).toBe(displayCost);
+    });
+
+    it('display/charge parity holds across multiple forge levels', () => {
+      const wpn = makeWeapon({ price: 500 });
+      const discount = 0.20;
+
+      for (let i = 0; i < FORGE_STAT_CAP; i++) {
+        const baseCost = getForgeCost(wpn, 'might');
+        const displayCost = Math.max(1, Math.floor(baseCost * (1 - discount)));
+        const result = applyForge(wpn, 'might', discount);
+        expect(result.cost).toBe(displayCost);
+      }
+    });
+  });
+
   describe('serialization roundtrip', () => {
     it('forge data survives JSON stringify/parse', () => {
       const wpn = makeWeapon({ name: 'Iron Bow', might: 4, crit: 0, hit: 85, weight: 4 });
