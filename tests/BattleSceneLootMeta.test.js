@@ -102,4 +102,43 @@ describe('BattleScene loot meta wiring', () => {
     const args = generateLootChoicesMock.mock.calls[0];
     expect(args[5]).toBe(0);
   });
+
+  it('falls back to legacy lootWeaponWeightBonus when quality field is absent', () => {
+    const scene = makeScene({
+      lootWeaponWeightBonus: 12,
+      lootCategoryWeightBonuses: { weapon: 2 },
+    });
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    expect(generateLootChoicesMock).toHaveBeenCalledTimes(1);
+    const args = generateLootChoicesMock.mock.calls[0];
+    expect(args[5]).toBe(12);
+  });
+
+  it('maps split loot categories to display icon/color buckets', () => {
+    const textCalls = [];
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'healing',
+        item: { id: 'potion', name: 'Potion', description: 'Heals HP.' },
+      },
+    ]);
+    const scene = makeScene({
+      lootWeaponQualityBonus: 0,
+    });
+    scene.add.text = (...args) => {
+      textCalls.push(args);
+      return makeDisplayObject();
+    };
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const iconCalls = textCalls.filter((call) => call[3]?.fontSize === '28px');
+    const iconTexts = iconCalls.map((call) => call[2]);
+    expect(iconTexts).toContain('H');
+    expect(iconTexts).not.toContain('?');
+    const healingIcon = iconCalls.find((call) => call[2] === 'H');
+    expect(healingIcon[3].color).toBe('#88ff88');
+  });
 });

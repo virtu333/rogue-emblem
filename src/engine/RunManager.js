@@ -48,6 +48,11 @@ function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   return [...fallback.filter((actId) => KNOWN_ACT_IDS.has(actId))];
 }
 
+export function getActTransitionKey(fromAct, toAct) {
+  if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
+  return `${fromAct}_to_${toAct}`;
+}
+
 
 function getConvoyBucket(item) {
   if (!item || typeof item !== 'object') return null;
@@ -140,6 +145,7 @@ export class RunManager {
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
+    this.shownDialogueKeys = [];
   }
 
   _isValidSerializedUnit(unit) {
@@ -162,6 +168,15 @@ export class RunManager {
 
   get currentActConfig() {
     return ACT_CONFIG[this.currentAct];
+  }
+
+  hasShownDialogue(key) {
+    return typeof key === 'string' && this.shownDialogueKeys.includes(key);
+  }
+
+  markDialogueShown(key) {
+    if (typeof key !== 'string' || !key) return;
+    if (!this.shownDialogueKeys.includes(key)) this.shownDialogueKeys.push(key);
   }
 
   /** Initialize a new run: create starting roster + first act node map. */
@@ -202,6 +217,7 @@ export class RunManager {
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
+    this.shownDialogueKeys = [];
     this._syncMetaWeaponArtUnlocks();
     this._syncActWeaponArtUnlocksForCurrentAct();
     this.blessingHistory = [];
@@ -1572,6 +1588,7 @@ export class RunManager {
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
       unlockedWeaponArts: this.unlockedWeaponArts || [],
+      shownDialogueKeys: this.shownDialogueKeys || [],
     };
   }
 
@@ -1800,6 +1817,24 @@ export class RunManager {
   /** Restore a RunManager from saved data. */
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
+    if (
+      rm.metaEffects
+      && rm.metaEffects.lootWeaponQualityBonus === undefined
+      && rm.metaEffects.lootWeaponWeightBonus !== undefined
+    ) {
+      const legacyLootBonus = Number(rm.metaEffects.lootWeaponWeightBonus);
+      if (Number.isFinite(legacyLootBonus)) {
+        rm.metaEffects.lootWeaponQualityBonus = legacyLootBonus;
+        const existingCategoryBonuses =
+          rm.metaEffects.lootCategoryWeightBonuses && typeof rm.metaEffects.lootCategoryWeightBonuses === 'object'
+            ? rm.metaEffects.lootCategoryWeightBonuses
+            : {};
+        const currentWeaponBonus = Number(existingCategoryBonuses.weapon);
+        existingCategoryBonuses.weapon =
+          (Number.isFinite(currentWeaponBonus) ? currentWeaponBonus : 0) + legacyLootBonus;
+        rm.metaEffects.lootCategoryWeightBonuses = existingCategoryBonuses;
+      }
+    }
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
     rm.roster = Array.isArray(saved.roster) ? saved.roster.filter(u => rm._isValidSerializedUnit(u)) : [];
@@ -1893,6 +1928,18 @@ export class RunManager {
       : [];
     if (!Array.isArray(saved.actUnlockedWeaponArts) && Array.isArray(saved.unlockedWeaponArts)) {
       rm.actUnlockedWeaponArts = rm._normalizeUnlockedWeaponArtIds(saved.unlockedWeaponArts);
+    }
+    rm.shownDialogueKeys = Array.isArray(saved.shownDialogueKeys)
+      ? [...new Set(saved.shownDialogueKeys.filter((key) => typeof key === 'string' && key))]
+      : [];
+    if (!Array.isArray(saved.shownDialogueKeys)) {
+      const isInProgress = Boolean(
+        saved.currentNodeId
+        || Number(saved.completedBattles || 0) > 0
+        || Number(saved.actIndex || 0) > 0
+        || (typeof saved.status === 'string' && saved.status !== 'active')
+      );
+      if (isInProgress) rm.markDialogueShown('runStart');
     }
     rm._syncMetaWeaponArtUnlocks();
     rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
