@@ -890,7 +890,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const canRefundAnything = this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;
 
     if (this.refundMode) {
-      const cancelRefundBtn = this.add.text(cx - 260, btnY, '[ Cancel Refund ]', {
+      const cancelRefundBtn = this.add.text(cx - 180, btnY, '[ Cancel Refund ]', {
         fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
         backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -902,7 +902,7 @@ export class HomeBaseScene extends Phaser.Scene {
       });
     } else {
       const refundColor = canRefundAnything ? '#cc8844' : '#555555';
-      const refundBtn = this.add.text(cx - 260, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
+      const refundBtn = this.add.text(cx - 180, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
         fontFamily: 'monospace', fontSize: '14px', color: refundColor,
         backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
       }).setOrigin(0.5);
@@ -918,7 +918,7 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // Begin Run button
-    const beginBtn = this.add.text(cx - 80, btnY, '[ Begin Run ]', {
+    const beginBtn = this.add.text(cx, btnY, '[ Begin Run ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -930,7 +930,7 @@ export class HomeBaseScene extends Phaser.Scene {
     });
 
     // Back to Title button
-    const backBtn = this.add.text(cx + 120, btnY, '[ Back to Title ]', {
+    const backBtn = this.add.text(cx + 200, btnY, '[ Back to Title ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
