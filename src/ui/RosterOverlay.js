@@ -642,9 +642,10 @@ export class RosterOverlay {
 
     // Accessory
     y += 4;
-    this._text(x, y, '\u2500\u2500 Accessory \u2500\u2500', '#888888', '10px');
-    y += 14;
     const teamAccessories = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+    const accPoolLabel = teamAccessories.length > 0 ? ` (${teamAccessories.length} in pool)` : '';
+    this._text(x, y, `\u2500\u2500 Accessory${accPoolLabel} \u2500\u2500`, '#888888', '10px');
+    y += 14;
     if (unit.accessory) {
       const acc = unit.accessory;
       this._text(x + 8, y, acc.name, '#cc88ff', '9px');

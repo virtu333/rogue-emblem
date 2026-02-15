@@ -73,7 +73,7 @@ import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, 
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
-import { serializeUnit, clearSavedRun } from '../engine/RunManager.js';
+import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
 import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { calculatePar, getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
@@ -117,6 +117,9 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
   'invalid_unlock_act_config',
   'invalid_input',
 ]);
+const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
+const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
+const POST_LOOT_TRANSITION_RECHECK_MS = 250;
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -154,6 +157,13 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialBlockingPromptActive = false;
     this._tutorialEdricGuide = null;
     this._tutorialFortGuide = null;
+    this._storyDialogueActive = false;
+    this._bossName = null;
+    this._postLootTransitionStarted = false;
+    this._postLootTransitionCompleted = false;
+    this._postLootTransitionStartedAt = 0;
+    this._postLootTransitionTimer = null;
+    this._transitionAfterBattlePromise = null;
   }
 
   create() {
@@ -177,7 +187,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  beginBattle(deployedRoster) {
+  async beginBattle(deployedRoster) {
     try {
       const startupFlags = this.registry.get('startupFlags');
       this.isMobileInput = Boolean(startupFlags?.isMobile);
@@ -225,6 +235,11 @@ export class BattleScene extends Phaser.Scene {
         this.cancelTouchInspectHold();
         this._hideMenuTooltip();
         this._restoreBattleRng();
+        this._clearPostLootTransitionFallback();
+        if (this.dialogueOverlay) {
+          this.dialogueOverlay.destroy();
+          this.dialogueOverlay = null;
+        }
         if (this.isMobileInput && this._mobileHandlers) {
           const ge = this.game.events;
           for (const [action, handler] of Object.entries(this._mobileHandlers)) {
@@ -316,6 +331,9 @@ export class BattleScene extends Phaser.Scene {
       for (const spawn of bc.enemySpawns) {
         this.addEnemyFromSpawn(spawn);
       }
+      this._bossName = this._resolveBossDialogueName(
+        this.enemyUnits.find((unit) => unit.isBoss)?.name || null
+      );
 
       // Spawn NPC for recruit battles
       if (bc.npcSpawn) {
@@ -531,23 +549,28 @@ export class BattleScene extends Phaser.Scene {
       // Input handlers
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
       this.input.on('pointerdown', (pointer) => {
+        if (this.isStoryInputLocked()) return;
         this._touchTapDown = { x: pointer.x, y: pointer.y };
         this.startTouchInspectHold(pointer);
         if (pointer.rightButtonDown()) this.onRightClick(pointer);
       });
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
       this.input.keyboard.on('keydown-V', () => {
+        if (this.isStoryInputLocked()) return;
         if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
           this.openUnitDetailOverlay();
         }
       });
       this.input.keyboard.on('keydown-E', () => {
+        if (this.isStoryInputLocked()) return;
         this.forceEndTurn();
       });
       this.input.keyboard.on('keydown-ESC', () => {
+        if (this.isStoryInputLocked()) return;
         this.requestCancel();
       });
       this.input.keyboard.on('keydown-R', () => {
+        if (this.isStoryInputLocked()) return;
         // Manual turn rewind prompt
         this.requestVisionRewind();
         // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
@@ -561,12 +584,15 @@ export class BattleScene extends Phaser.Scene {
         this.refreshEndTurnControl();
       });
       this.input.keyboard.on('keydown-O', () => {
+        if (this.isStoryInputLocked()) return;
         this._onRosterClick();
       });
       this.input.keyboard.on('keydown-D', () => {
+        if (this.isStoryInputLocked()) return;
         this._onDangerClick();
       });
       this.input.keyboard.on('keydown-W', () => {
+        if (this.isStoryInputLocked()) return;
         if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
           this.grid.clearHighlights();
           this.cantoRange = null;
@@ -579,10 +605,12 @@ export class BattleScene extends Phaser.Scene {
       });
 
       this.input.keyboard.on('keydown-LEFT', () => {
+        if (this.isStoryInputLocked()) return;
         if (this.unitDetailOverlay?.visible) return;
         this._cycleForecastWeapon(-1);
       });
       this.input.keyboard.on('keydown-RIGHT', () => {
+        if (this.isStoryInputLocked()) return;
         if (this.unitDetailOverlay?.visible) return;
         this._cycleForecastWeapon(1);
       });
@@ -591,8 +619,12 @@ export class BattleScene extends Phaser.Scene {
       if (this.isMobileInput) {
         const ge = this.game.events;
         this._mobileHandlers = {
-          cancel: () => this.requestCancel({ allowPause: false }),
+          cancel: () => {
+            if (this.isStoryInputLocked()) return;
+            this.requestCancel({ allowPause: false });
+          },
           menu: () => {
+            if (this.isStoryInputLocked()) return;
             if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
               this.grid.clearHighlights();
               this.cantoRange = null;
@@ -606,19 +638,38 @@ export class BattleScene extends Phaser.Scene {
               this.requestCancel();
             }
           },
-          danger: () => this._onDangerClick(),
+          danger: () => {
+            if (this.isStoryInputLocked()) return;
+            this._onDangerClick();
+          },
           roster: () => {
+            if (this.isStoryInputLocked()) return;
             if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
               if (this.lootRosterVisible) this.hideLootRoster(); else this.showLootRoster();
             } else {
               this._onRosterClick();
             }
           },
-          objective: () => this.requestVisionRewind(),
-          inspect: () => this.toggleInspectMode(),
-          endTurn: () => this.forceEndTurn(),
-          prevWeapon: () => this._cycleForecastWeapon(-1),
-          nextWeapon: () => this._cycleForecastWeapon(1),
+          objective: () => {
+            if (this.isStoryInputLocked()) return;
+            this.requestVisionRewind();
+          },
+          inspect: () => {
+            if (this.isStoryInputLocked()) return;
+            this.toggleInspectMode();
+          },
+          endTurn: () => {
+            if (this.isStoryInputLocked()) return;
+            this.forceEndTurn();
+          },
+          prevWeapon: () => {
+            if (this.isStoryInputLocked()) return;
+            this._cycleForecastWeapon(-1);
+          },
+          nextWeapon: () => {
+            if (this.isStoryInputLocked()) return;
+            this._cycleForecastWeapon(1);
+          },
         };
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
           ge.on(`mobile:${action}`, handler);
@@ -692,6 +743,17 @@ export class BattleScene extends Phaser.Scene {
         });
       }
 
+      if (this.isBoss && this._bossName && this.runManager) {
+        const bossName = this._resolveBossDialogueName(this._bossName);
+        const dialogueKey = `boss_pre_${bossName}`;
+        const entries = this.gameData?.dialogue?.bossEncounters?.[bossName]?.preBattle;
+        try {
+          await this._showStoryDialogueOnce(dialogueKey, entries);
+        } catch (err) {
+          console.warn('[BattleScene] boss pre-battle dialogue failed:', err);
+        }
+      }
+
       // Start the battle
       this.turnManager.startBattle();
       this.refreshEndTurnControl();
@@ -728,6 +790,71 @@ export class BattleScene extends Phaser.Scene {
       h = Math.imul(h, 16777619);
     }
     return h >>> 0;
+  }
+
+  isStoryInputLocked() {
+    return Boolean(this._storyDialogueActive || this.dialogueOverlay?.visible);
+  }
+
+  _resolveBossDialogueName(name) {
+    if (typeof name !== 'string') return null;
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    if (trimmed === 'Dark Champion') return 'The Lieutenant';
+    return trimmed;
+  }
+
+  async _showStorySequence(entries) {
+    if (!Array.isArray(entries) || entries.length <= 0 || !this.dialogueOverlay) return;
+    this._storyDialogueActive = true;
+    try {
+      await this.dialogueOverlay.showSequence(entries);
+    } finally {
+      this._storyDialogueActive = false;
+      this.refreshEndTurnControl();
+    }
+  }
+
+  async _showStoryDialogueOnce(dialogueKey, entries) {
+    if (!this.runManager || typeof dialogueKey !== 'string' || !dialogueKey) return;
+    if (this.runManager.hasShownDialogue(dialogueKey)) return;
+    if (!Array.isArray(entries) || entries.length <= 0) return;
+    this.runManager.markDialogueShown(dialogueKey);
+    await this._showStorySequence(entries);
+  }
+
+  _clearPostLootTransitionFallback() {
+    if (this._postLootTransitionTimer) {
+      clearTimeout(this._postLootTransitionTimer);
+      this._postLootTransitionTimer = null;
+    }
+  }
+
+  _startPostLootTransition() {
+    if (this._postLootTransitionStarted) return;
+    this._postLootTransitionStarted = true;
+    this._postLootTransitionCompleted = false;
+    this._postLootTransitionStartedAt = Date.now();
+
+    const maybeForceFallback = () => {
+      if (this._postLootTransitionCompleted) return;
+      const elapsed = Date.now() - this._postLootTransitionStartedAt;
+      if (this.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
+        this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_RECHECK_MS);
+        return;
+      }
+      this.forceTransitionAfterBattle();
+    };
+
+    this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_TIMEOUT_MS);
+    this._transitionAfterBattlePromise = Promise.resolve(this.transitionAfterBattle())
+      .catch((err) => {
+        console.warn('[BattleScene] transitionAfterBattle rejected:', err);
+      })
+      .finally(() => {
+        this._postLootTransitionCompleted = true;
+        this._clearPostLootTransitionFallback();
+      });
   }
 
   buildTutorialBattleConfig() {
@@ -1423,6 +1550,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   requestVisionRewind({ force = false } = {}) {
+    if (this.isStoryInputLocked()) return false;
     if (!force && !this.canUseVisionNow()) return false;
     if (!this.visionSnapshot) return false;
     const remaining = this.getVisionChargesRemaining();
@@ -1970,6 +2098,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Pointer / click handling ---
 
   onPointerMove(pointer) {
+    if (this.isStoryInputLocked()) return;
     this.updateTouchInspectHold(pointer);
     if (this.battleState === 'BATTLE_END') {
       if (this.cursorHighlight) this.cursorHighlight.setVisible(false);
@@ -2127,6 +2256,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   toggleInspectMode() {
+    if (this.isStoryInputLocked()) return;
     if (!this.isMobileInput) return;
     this.inspectMode = !this.inspectMode;
     if (!this.inspectMode) this.clearInspectionVisuals();
@@ -2166,6 +2296,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onClick(pointer, clickPos = null) {
+    if (this.isStoryInputLocked()) return;
     if (pointer.rightButtonDown()) return; // handled separately
     if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
     if (this.battleState === 'ENEMY_PHASE' ||
@@ -2234,6 +2365,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onRightClick(pointer) {
+    if (this.isStoryInputLocked()) return;
     if (this.battleState === 'BATTLE_END') return;
     // Right-click cancels active selection states (like ESC)
     if (this.requestCancel({ allowPause: false })) {
@@ -2285,6 +2417,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   canRequestCancel({ allowPause = true } = {}) {
+    if (this.isStoryInputLocked()) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
     if (this.unitDetailOverlay?.visible) return true;
@@ -2298,6 +2431,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   requestCancel({ allowPause = true } = {}) {
+    if (this.isStoryInputLocked()) return true;
     if (this._isTutorialStrictGateActive()) {
       if (this.battleState !== 'TUTORIAL_HINT') {
         void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
@@ -2420,6 +2554,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   canForceEndTurn() {
+    if (this.isStoryInputLocked()) return false;
     const playerInputStates = [
       'PLAYER_IDLE',
       'UNIT_SELECTED',
@@ -2445,6 +2580,10 @@ export class BattleScene extends Phaser.Scene {
 
   _emitMobileContext() {
     if (!this.isMobileInput) return;
+    if (this.isStoryInputLocked()) {
+      this.game.events.emit('mobile:setContext', { context: 'none' });
+      return;
+    }
     const s = this.battleState;
     let ctx = 'none';
     if (s === 'PLAYER_IDLE' || s === 'UNIT_SELECTED') ctx = 'battle_idle';
@@ -2506,6 +2645,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _onDangerClick() {
+    if (this.isStoryInputLocked()) return;
     if (this.battleState === 'PLAYER_IDLE' || this.battleState === 'UNIT_SELECTED') {
       if (this.dangerZoneStale || !this.dangerZoneCache) {
         this.dangerZoneCache = this.calculateDangerZone();
@@ -2516,6 +2656,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _onRosterClick() {
+    if (this.isStoryInputLocked()) return;
     const rosterStates = ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU',
       'SHOWING_FORECAST', 'SELECTING_TARGET', 'SELECTING_HEAL_TARGET'];
     if (!rosterStates.includes(this.battleState) || !this.playerUnits
@@ -2547,6 +2688,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   forceEndTurn() {
+    if (this.isStoryInputLocked()) return;
     if (this._isTutorialStrictGateActive()) {
       if (this.battleState !== 'TUTORIAL_HINT') {
         void this._showTutorialBlockingInstruction('Finish the tutorial movement step first.');
@@ -3821,6 +3963,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
+    if (this.isStoryInputLocked()) return;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
 
     // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
@@ -4834,6 +4977,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Combat ---
 
   _cycleForecastWeapon(direction) {
+    if (this.isStoryInputLocked()) return;
     if (this.battleState !== 'SHOWING_FORECAST' || !this.selectedUnit) return;
     const validWeapons = this._forecastValidWeapons;
     if (!validWeapons || validWeapons.length < 2) return;
@@ -6295,7 +6439,18 @@ export class BattleScene extends Phaser.Scene {
       const surviving = this.playerUnits.map(u => serializeUnit(u));
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
       this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned);
-      this.time.delayedCall(1500, () => {
+      this.time.delayedCall(1500, async () => {
+        try {
+          if (this.isBoss && this._bossName && this.runManager) {
+            const bossName = this._resolveBossDialogueName(this._bossName);
+            const dialogueKey = `boss_defeat_${bossName}`;
+            const entries = this.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat;
+            await this._showStoryDialogueOnce(dialogueKey, entries);
+          }
+        } catch (err) {
+          console.warn('[BattleScene] boss defeat dialogue failed:', err);
+        }
+
         if (this.isBoss && !this.runManager.isRunComplete()) {
           this.showBossRecruitScreen();
         } else {
@@ -6311,7 +6466,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Transition to the next scene after loot selection. */
-  transitionAfterBattle() {
+  async transitionAfterBattle() {
     if (this.isTransitioningOut) return;
     this.isTransitioningOut = true;
     try {
@@ -6319,20 +6474,29 @@ export class BattleScene extends Phaser.Scene {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
           this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-          void transitionToScene(this, 'RunComplete', {
+          await transitionToScene(this, 'RunComplete', {
             gameData: this.gameData,
             runManager: this.runManager,
             result: 'victory',
           }, { reason: TRANSITION_REASONS.VICTORY });
         } else {
+          const fromAct = this.runManager.currentAct;
           this.runManager.advanceAct();
-          void transitionToScene(this, 'NodeMap', {
+          const toAct = this.runManager.currentAct;
+          const transKey = getActTransitionKey(fromAct, toAct);
+          const entries = this.gameData?.dialogue?.actTransitions?.[transKey];
+          try {
+            await this._showStoryDialogueOnce(transKey, entries);
+          } catch (err) {
+            console.warn('[BattleScene] act transition dialogue failed:', err);
+          }
+          await transitionToScene(this, 'NodeMap', {
             gameData: this.gameData,
             runManager: this.runManager,
           }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
         }
       } else {
-        void transitionToScene(this, 'NodeMap', {
+        await transitionToScene(this, 'NodeMap', {
           gameData: this.gameData,
           runManager: this.runManager,
         }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
@@ -6349,6 +6513,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   forceTransitionAfterBattle() {
+    this._postLootTransitionCompleted = true;
+    this._clearPostLootTransitionFallback();
     try {
       if (this.runManager?.isRunComplete?.()) {
         this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
@@ -6792,6 +6958,7 @@ export class BattleScene extends Phaser.Scene {
             // Path 2: Accessories go to team pool (existing code)
             if (!this.runManager.accessories) this.runManager.accessories = [];
             this.runManager.accessories.push({ ...item });
+            this.showLootStatus(`Added ${item.name} to Accessory Pool.`, '#88ff88');
             this.finalizeLootPick(lootGroup, cardIdx);
           } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
             // Path 3a: Stat boosters -> immediate apply via unit picker
@@ -7499,11 +7666,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
       this.lootGroup = null;
-      this.transitionAfterBattle();
-      setTimeout(() => {
-        const stillInBattle = this.scene?.isActive?.('Battle');
-        if (stillInBattle) this.forceTransitionAfterBattle();
-      }, 100);
+      this._startPostLootTransition();
     } catch (err) {
       this._lootResolving = false;
       this._lootCleanedUp = false;

@@ -144,6 +144,38 @@ describe('BattleScene loot meta wiring', () => {
     expect(healingIcon[3].color).toBe('#88ff88');
   });
 
+  it('shows accessory pool feedback when accessory loot is selected', () => {
+    generateLootChoicesMock.mockReturnValue([
+      {
+        type: 'accessory',
+        item: {
+          name: 'Goddess Icon',
+          type: 'Accessory',
+          effects: { LCK: 5 },
+          price: 1000,
+        },
+      },
+    ]);
+    const scene = makeScene({
+      lootWeaponQualityBonus: 0,
+    });
+    scene.showLootStatus = vi.fn();
+    scene.finalizeLootPick = vi.fn();
+
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const lootCard = scene._lootCards?.[0]?.bg;
+    expect(lootCard).toBeTruthy();
+    expect(typeof lootCard.handlers.pointerdown).toBe('function');
+
+    lootCard.handlers.pointerdown();
+
+    expect(scene.runManager.accessories).toHaveLength(1);
+    expect(scene.runManager.accessories[0].name).toBe('Goddess Icon');
+    expect(scene.showLootStatus).toHaveBeenCalledWith('Added Goddess Icon to Accessory Pool.', '#88ff88');
+    expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
+  });
+
   it('routes stat-booster loot through unit picker and applies boost on selection', () => {
     const rectangles = [];
     generateLootChoicesMock.mockReturnValue([
