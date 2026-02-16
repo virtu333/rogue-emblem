@@ -82,6 +82,15 @@ function setupScene() {
   scene._isTutorialStrictGateActive = () => false;
   scene.inspectionPanel = null;
   scene.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn() };
+  scene.showPhaseBanner = vi.fn();
+  scene.dangerZone = { hide: vi.fn() };
+  scene.undimUnit = vi.fn();
+  scene.captureVisionSnapshot = vi.fn();
+  scene.updateVisionHud = vi.fn();
+  scene.refreshEndTurnControl = vi.fn();
+  scene.getTurnPressureState = vi.fn(() => ({ active: false, xpMultiplier: 1, goldMultiplier: 1 }));
+  scene.registry = { get: vi.fn(() => null) };
+  scene.time = { delayedCall: vi.fn() };
 
   return { scene, unit, snapshotSpy, restoreSpy, updateFogSpy };
 }
@@ -174,3 +183,60 @@ describe('BattleScene fog snapshot lifecycle', () => {
     expect(scene._preFogSnapshot).toBeNull();
   });
 });
+
+describe('BattleScene _movementSpent reset', () => {
+  it('undoMove resets _movementSpent to zero', () => {
+    const { scene, unit } = setupScene();
+
+    unit._movementSpent = 4;
+    scene.preMoveLoc = { col: 1, row: 1 };
+    unit.col = 3;
+    unit.row = 3;
+
+    BattleScene.prototype.undoMove.call(scene, unit);
+
+    expect(unit._movementSpent).toBe(0);
+  });
+
+  it('Canto uses full MOV after undoMove + stay-in-place', () => {
+    const { scene, unit } = setupScene();
+
+    unit.skills = ['canto'];
+    unit.stats = { ...unit.stats, MOV: 7 };
+    unit.faction = 'player';
+    scene.startCantoMove = vi.fn();
+
+    // Simulate: moved 4 tiles, then undid move
+    scene.preMoveLoc = { col: 1, row: 1 };
+    unit._movementSpent = 4;
+    unit.col = 3;
+    unit.row = 3;
+    BattleScene.prototype.undoMove.call(scene, unit);
+
+    // Stay-in-place action path after undo.
+    BattleScene.prototype.handleSelectedClick.call(scene, { col: 1, row: 1 });
+    BattleScene.prototype.finishUnitAction.call(scene, unit);
+
+    expect(scene.startCantoMove).toHaveBeenCalledWith(unit, 7);
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+  });
+
+  it('onPhaseChange resets _movementSpent for player units', () => {
+    const { scene } = setupScene();
+    const mockUnit = {
+      hasMoved: true, hasActed: true, _movementSpent: 5,
+      _gambitUsedThisTurn: true, skills: [],
+      graphic: { clearTint: vi.fn() },
+    };
+    scene.playerUnits = [mockUnit];
+    scene.grid.fogEnabled = false;
+
+    BattleScene.prototype.onPhaseChange.call(scene, 'player', 2);
+
+    expect(mockUnit._movementSpent).toBe(0);
+    expect(mockUnit.hasMoved).toBe(false);
+    expect(mockUnit.hasActed).toBe(false);
+    expect(mockUnit._gambitUsedThisTurn).toBe(false);
+  });
+});
+

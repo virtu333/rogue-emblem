@@ -361,7 +361,7 @@ describe('LootSystem', () => {
     it('classifies scroll shop entries as scroll type', () => {
       const customTables = {
         act2: {
-          weapons: ['Precise Cut Scroll'],
+          weapons: ['Windsweep Scroll'],
           healing: ['Vulnerary'],
           statBooster: [],
           promotion: [],
@@ -375,7 +375,7 @@ describe('LootSystem', () => {
         },
       };
       const inv = generateShopInventory('act2', customTables, gameData.weapons, gameData.consumables, gameData.accessories);
-      const scrollEntry = inv.find((entry) => entry.item.name === 'Precise Cut Scroll');
+      const scrollEntry = inv.find((entry) => entry.item.name === 'Windsweep Scroll');
       expect(scrollEntry).toBeTruthy();
       expect(scrollEntry.type).toBe('scroll');
     });
@@ -383,7 +383,7 @@ describe('LootSystem', () => {
     it('respects roster weapon type filter for shop scroll pools', () => {
       const customTables = {
         act2: {
-          weapons: ['Precise Cut Scroll'],
+          weapons: ['Windsweep Scroll'],
           healing: ['Vulnerary'],
           statBooster: [],
           promotion: [],
@@ -400,7 +400,7 @@ describe('LootSystem', () => {
         proficiencies: [{ type: 'Axe', rank: 'Prof' }],
       }];
       const inv = generateShopInventory('act2', customTables, gameData.weapons, gameData.consumables, gameData.accessories, roster);
-      expect(inv.some((entry) => entry.item.name === 'Precise Cut Scroll')).toBe(false);
+      expect(inv.some((entry) => entry.item.name === 'Windsweep Scroll')).toBe(false);
     });
 
     it('no Legend-tier items in shop', () => {
@@ -444,13 +444,13 @@ describe('LootSystem', () => {
         gameData.accessories,
         null,
         {
-          unlockedWeaponArtIds: ['sword_precise_cut'],
+          unlockedWeaponArtIds: ['sword_wrath_strike'],
           weaponArtCatalog: gameData.weaponArts.arts,
         }
       );
       const steelSword = inv.find((entry) => entry.item.name === 'Steel Sword')?.item;
       expect(steelSword).toBeTruthy();
-      expect(steelSword.weaponArtId).toBe('sword_precise_cut');
+      expect(steelSword.weaponArtId).toBe('sword_wrath_strike');
       expect(steelSword.weaponArtSource).toBe('meta_innate');
     });
 
@@ -646,7 +646,7 @@ describe('LootSystem', () => {
     it('act2/act3 weapon-art split pools include advanced weapon-art scrolls', () => {
       const act2Rare = gameData.lootTables.act2.weaponArtScroll;
       const act3Rare = gameData.lootTables.act3.weaponArtScroll;
-      const expected = ['Comet Edge Scroll', 'Vaulting Thrust Scroll', 'Rending Cleave Scroll', "Hunter's Focus Scroll"];
+      const expected = ['Knightkneeler Scroll', 'Vengeance Scroll', 'Encloser Scroll', 'Seraphim Scroll'];
       for (const name of expected) {
         expect(act2Rare).toContain(name);
         expect(act3Rare).toContain(name);
@@ -834,13 +834,13 @@ describe('LootSystem', () => {
         null,
         false,
         {
-          unlockedWeaponArtIds: ['sword_precise_cut'],
+          unlockedWeaponArtIds: ['sword_wrath_strike'],
           weaponArtCatalog: gameData.weaponArts.arts,
         }
       );
       const steelSword = choices.find((choice) => choice.item?.name === 'Steel Sword')?.item;
       expect(steelSword).toBeTruthy();
-      expect(steelSword.weaponArtId).toBe('sword_precise_cut');
+      expect(steelSword.weaponArtId).toBe('sword_wrath_strike');
       expect(steelSword.weaponArtSource).toBe('meta_innate');
     });
 

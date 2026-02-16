@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
-import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY, REFUND_FEE } from '../utils/constants.js';
+import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY, REFUND_FEE, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
@@ -1003,7 +1003,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   drawBottomButtons() {
     const cx = this.cameras.main.centerX;
-    const btnY = 440;
+    const btnY = SAFE_BOTTOM_Y;
 
     // Refund button — label is currency-neutral; per-row buttons show V/S
     const canRefundAnything = this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;

@@ -382,7 +382,7 @@ describe('Random legendary in loot', () => {
   it('can appear in act3 loot choices', () => {
     const legend = generateRandomLegendary(data.weapons);
     let found = false;
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 500; i++) {
       const choices = generateLootChoices(
         'act3', data.lootTables, data.weapons, data.consumables,
         3, 0, data.accessories, data.whetstones, null, false, legend

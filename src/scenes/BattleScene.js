@@ -4357,6 +4357,7 @@ export class BattleScene extends Phaser.Scene {
     unit.col = col;
     unit.row = row;
     unit.hasMoved = false;
+    unit._movementSpent = 0;
     this.updateUnitPosition(unit);
     if (this.grid.fogEnabled && unit.faction === 'player') {
       this.grid.restoreFogState(this._preFogSnapshot);
@@ -4781,15 +4782,8 @@ export class BattleScene extends Phaser.Scene {
         const attackTiles = this.attackTargets.map(e => ({ col: e.col, row: e.row }));
         this.grid.showAttackRange(attackTiles);
         this.battleState = 'SELECTING_TARGET';
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight, clickOnPointerUp: true });
+      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
 
-      text.on('pointerdown', (pointer) => {
-        this._showWeaponDetailTooltip(wpn, menuRect, itemY);
-        if (pointer.pointerType === 'touch' && this._weaponPreviewedItem !== wpn) {
-          text._suppressNextClick = true;
-        }
-        this._weaponPreviewedItem = wpn;
-      });
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, itemY);
       });
@@ -4858,15 +4852,8 @@ export class BattleScene extends Phaser.Scene {
       }, defaultColor, () => {
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight, clickOnPointerUp: true });
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
 
-      text.on('pointerdown', (pointer) => {
-        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
-        if (pointer.pointerType === 'touch' && this._weaponPreviewedItem !== wpn) {
-          text._suppressNextClick = true;
-        }
-        this._weaponPreviewedItem = wpn;
-      });
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, text.y);
       });
@@ -6420,6 +6407,7 @@ export class BattleScene extends Phaser.Scene {
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
+        u._movementSpent = 0;
         u._gambitUsedThisTurn = false;
         resetWeaponArtTurnUsage(u, { turnNumber: turn });
         this.undimUnit(u);

@@ -36,7 +36,6 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
-    _suppressNextClick: false,
     setDepth() { return this; },
     setStrokeStyle() { return this; },
     setColor() { return this; },
@@ -115,7 +114,7 @@ describe('BattleScene equip menu text', () => {
     const nonEquippedLabel = labels.find((label) => label.includes('Steel Sword'));
     expect(equippedLabel).toBeTruthy();
     expect(nonEquippedLabel).toBeTruthy();
-    // Equipped weapon has ▶ marker
+    // Equipped weapon has marker
     expect(equippedLabel.startsWith('\u25b6')).toBe(true);
     expect(nonEquippedLabel.startsWith('  ')).toBe(true);
 
@@ -125,7 +124,7 @@ describe('BattleScene equip menu text', () => {
     );
   });
 
-  it('passes clickOnPointerUp: true to equip buttons', () => {
+  it('does not pass clickOnPointerUp to equip buttons', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
@@ -133,7 +132,7 @@ describe('BattleScene equip menu text', () => {
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
     for (const call of scene._makeMenuTextButton.mock.calls) {
-      expect(call[6]?.clickOnPointerUp).toBe(true);
+      expect(call[6]?.clickOnPointerUp).toBeFalsy();
     }
   });
 });
@@ -142,24 +141,12 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
   function makeSceneWithHandlerCapture() {
     const scene = makeBaseScene();
     const textObjects = [];
-    const onClickCallbacks = [];
-    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick, options = {}) => {
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick) => {
       const obj = makeHandlerCapturingObject({ label, y: _y });
-      const onClickSpy = vi.fn();
-      if (options.clickOnPointerUp) {
-        obj.on('pointerup', () => {
-          if (obj._suppressNextClick) {
-            obj._suppressNextClick = false;
-            return;
-          }
-          onClickSpy();
-        });
-      }
-      onClickCallbacks.push(onClickSpy);
       textObjects.push(obj);
       return obj;
     });
-    return { scene, textObjects, onClickCallbacks };
+    return { scene, textObjects };
   }
 
   it('pointerover shows tooltip, mouse pointerout hides it', () => {
@@ -191,50 +178,26 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
     expect(scene._hideWeaponDetailTooltip).not.toHaveBeenCalled();
   });
 
-  it('touch first tap on non-previewed weapon suppresses selection', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+  it('equip rows do not register pointerdown tooltip handlers', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
     const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
-    // Tap secondary (not previewed — equipped was auto-previewed)
-    const downHandlers = textObjects[1].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[1]._suppressNextClick).toBe(true);
-
-    const upHandlers = textObjects[1].handlers.pointerup;
-    upHandlers[upHandlers.length - 1]();
-    expect(onClickCallbacks[1]).not.toHaveBeenCalled();
+    // No row-level pointerdown handlers should exist on equip text objects
+    for (const obj of textObjects) {
+      expect(obj.handlers.pointerdown).toBeUndefined();
+    }
   });
 
-  it('touch second tap on previewed weapon confirms selection', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+  it('pointerup after equip menu open does not trigger selection', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
     const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
-    // First tap — suppressed
-    const downHandlers = textObjects[1].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    const upHandlers = textObjects[1].handlers.pointerup;
-    upHandlers[upHandlers.length - 1]();
-
-    // Second tap — confirmed
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[1]._suppressNextClick).toBe(false);
-    upHandlers[upHandlers.length - 1]();
-    expect(onClickCallbacks[1]).toHaveBeenCalled();
-  });
-
-  it('touch tap on auto-previewed equipped weapon confirms immediately', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
-    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
-    BattleScene.prototype.showEquipMenu.call(scene, unit);
-
-    const downHandlers = textObjects[0].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[0]._suppressNextClick).toBe(false);
-    const upHandlers = textObjects[0].handlers.pointerup;
-    upHandlers[upHandlers.length - 1]();
-    expect(onClickCallbacks[0]).toHaveBeenCalled();
+    // Since buttons use pointerdown mode, a stray pointerup should not trigger anything
+    for (const obj of textObjects) {
+      expect(obj.handlers.pointerup).toBeUndefined();
+    }
   });
 });
 
@@ -245,7 +208,7 @@ describe('equip menu overflow', () => {
 
   function makeOverflowScene() {
     const scene = makeBaseScene();
-    // Shrink camera height to force overflow (4 items × 20px = 80px content vs ~50px view)
+    // Shrink camera height to force overflow (4 items x 20px = 80px content vs ~50px view)
     scene.cameras.main.height = 80;
     const textObjects = [];
     scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick, _opts) => {

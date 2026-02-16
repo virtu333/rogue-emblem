@@ -108,7 +108,7 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Panel
     const panelW = Math.min(600, w - 40);
-    const panelH = Math.min(440, h - 40);
+    const panelH = Math.min(410, h - 60);
     const panelTop = (h - panelH) / 2;
     const panelBottom = panelTop + panelH;
     this.add.rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96)
@@ -231,7 +231,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     });
 
     // Bottom buttons
-    const bottomY = panelBottom - 18;
+    const bottomY = panelBottom - 30;
     const confirmBtn = this.add.text(cx - 80, bottomY, '[ Confirm ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
       backgroundColor: '#000000aa', padding: { x: 14, y: 8 },

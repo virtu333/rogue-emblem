@@ -35,7 +35,6 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
-    _suppressNextClick: false,
     setDepth() { return this; },
     setStrokeStyle() { return this; },
     setColor() { return this; },
@@ -133,7 +132,7 @@ describe('BattleScene attack weapon picker text', () => {
     );
   });
 
-  it('passes clickOnPointerUp: true to weapon buttons', () => {
+  it('does not pass clickOnPointerUp to weapon buttons', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
@@ -142,7 +141,7 @@ describe('BattleScene attack weapon picker text', () => {
     BattleScene.prototype.showWeaponPicker.call(scene, unit, []);
 
     for (const call of scene._makeMenuTextButton.mock.calls) {
-      expect(call[6]?.clickOnPointerUp).toBe(true);
+      expect(call[6]?.clickOnPointerUp).toBeFalsy();
     }
   });
 });
@@ -155,25 +154,12 @@ describe('BattleScene attack picker tooltip lifecycle', () => {
   function makeSceneWithHandlerCapture() {
     const scene = makeBaseScene();
     const textObjects = [];
-    const onClickCallbacks = [];
-    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick, options = {}) => {
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick) => {
       const obj = makeHandlerCapturingObject({ label });
-      const onClickSpy = vi.fn();
-      // Simulate clickOnPointerUp suppress behavior
-      if (options.clickOnPointerUp) {
-        obj.on('pointerup', () => {
-          if (obj._suppressNextClick) {
-            obj._suppressNextClick = false;
-            return;
-          }
-          onClickSpy();
-        });
-      }
-      onClickCallbacks.push(onClickSpy);
       textObjects.push(obj);
       return obj;
     });
-    return { scene, textObjects, onClickCallbacks };
+    return { scene, textObjects };
   }
 
   it('pointerover shows tooltip, pointerout hides it (mouse)', () => {
@@ -210,58 +196,28 @@ describe('BattleScene attack picker tooltip lifecycle', () => {
     expect(scene._hideWeaponDetailTooltip).not.toHaveBeenCalled();
   });
 
-  it('touch first tap on non-previewed weapon suppresses selection', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+  it('weapon rows do not register pointerdown tooltip handlers', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
     getCombatWeaponsMock.mockReturnValue([equipped, secondary]);
     const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
     BattleScene.prototype.showWeaponPicker.call(scene, unit, []);
 
-    // Auto-show set _weaponPreviewedItem = equipped
-    // Tap on secondary (non-previewed)
-    const downHandlers = textObjects[1].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[1]._suppressNextClick).toBe(true);
-
-    // pointerup should NOT invoke onClick
-    const onClickSpy = vi.fn();
-    // Use the simulated pointerup from our mock
-    const upHandlers = textObjects[1].handlers.pointerup;
-    upHandlers[upHandlers.length - 1]();
-    // The onClick from _makeMenuTextButton was NOT called because _suppressNextClick was true
-    expect(onClickCallbacks[1]).not.toHaveBeenCalled();
+    // No row-level pointerdown handlers should exist on weapon text objects
+    for (const obj of textObjects) {
+      expect(obj.handlers.pointerdown).toBeUndefined();
+    }
   });
 
-  it('touch second tap on previewed weapon confirms selection', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+  it('pointerup after weapon picker open does not trigger selection', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
     getCombatWeaponsMock.mockReturnValue([equipped, secondary]);
     const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
     BattleScene.prototype.showWeaponPicker.call(scene, unit, []);
 
-    // First tap on secondary — suppressed
-    const downHandlers = textObjects[1].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    const upHandlers = textObjects[1].handlers.pointerup;
-    upHandlers[upHandlers.length - 1](); // suppressed, clears flag
-
-    // Second tap on secondary — _weaponPreviewedItem is now secondary
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[1]._suppressNextClick).toBe(false);
-    upHandlers[upHandlers.length - 1](); // should invoke onClick
-    expect(onClickCallbacks[1]).toHaveBeenCalled();
-  });
-
-  it('touch tap on equipped weapon (auto-previewed) confirms immediately', () => {
-    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
-    getCombatWeaponsMock.mockReturnValue([equipped, secondary]);
-    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
-    BattleScene.prototype.showWeaponPicker.call(scene, unit, []);
-
-    // Equipped weapon was auto-previewed, so tap should confirm
-    const downHandlers = textObjects[0].handlers.pointerdown;
-    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
-    expect(textObjects[0]._suppressNextClick).toBe(false);
-    const upHandlers = textObjects[0].handlers.pointerup;
-    upHandlers[upHandlers.length - 1]();
-    expect(onClickCallbacks[0]).toHaveBeenCalled();
+    // Since buttons use pointerdown mode, a stray pointerup should not trigger anything
+    // Weapon rows should have no pointerup handlers registered by showWeaponPicker
+    for (const obj of textObjects) {
+      expect(obj.handlers.pointerup).toBeUndefined();
+    }
   });
 });

@@ -127,6 +127,8 @@
     "weight": 8,
     "range": "1",
     "special": "Attacks twice consecutively",
+    "weaponArtIds": ["legend_phantom_rush"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -153,6 +155,8 @@
     "weight": 6,
     "range": "1",
     "special": "Attacks twice consecutively",
+    "weaponArtIds": ["legend_gemini_tempest"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -231,6 +235,8 @@
     "weight": 11,
     "range": "1",
     "special": "Attacks twice consecutively",
+    "weaponArtIds": ["legend_piercing_charge"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -244,6 +250,8 @@
     "weight": 8,
     "range": "1-2",
     "special": "",
+    "weaponArtIds": ["legend_doom_thrust"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -257,6 +265,8 @@
     "weight": 9,
     "range": "1",
     "special": "+5 STR when counterattacking",
+    "weaponArtIds": ["legend_blood_lance"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -361,6 +371,8 @@
     "weight": 13,
     "range": "1",
     "special": "Attacks twice consecutively",
+    "weaponArtIds": ["legend_galeforce_assault"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -374,6 +386,8 @@
     "weight": 20,
     "range": "1",
     "special": "+5 DEF, +5 RES when equipped",
+    "weaponArtIds": ["legend_cataclysm"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -387,6 +401,8 @@
     "weight": 10,
     "range": "1",
     "special": "Ignores weapon triangle disadvantage",
+    "weaponArtIds": ["legend_annihilate"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -465,6 +481,8 @@
     "weight": 9,
     "range": "2",
     "special": "Attacks twice consecutively",
+    "weaponArtIds": ["legend_barrage"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -478,6 +496,8 @@
     "weight": 7,
     "range": "2-3",
     "special": "Extended range",
+    "weaponArtIds": ["legend_starfall_volley"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -530,6 +550,8 @@
     "weight": 5,
     "range": "1-2",
     "special": "Effective vs Flying (3x)",
+    "weaponArtIds": ["legend_tempest"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -545,6 +567,8 @@
     "uses": 1,
     "perBattleUses": true,
     "special": "Siege magic",
+    "weaponArtIds": ["legend_cataclysm_bolt"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -597,6 +621,8 @@
     "weight": 4,
     "range": "1-2",
     "special": "Effective vs dark enemies",
+    "weaponArtIds": ["legend_divine_flare"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -792,6 +818,8 @@
     "weight": 6,
     "range": "1-2",
     "special": "+5 DEF when equipped",
+    "weaponArtIds": ["legend_storm_blade"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -805,6 +833,8 @@
     "weight": 5,
     "range": "1",
     "special": "Drains HP equal to damage dealt",
+    "weaponArtIds": ["legend_life_drain"],
+    "weaponArtSources": ["innate"],
     "price": 0
   },
   {
@@ -1031,124 +1061,246 @@
     "price": 2500
   },
   {
-    "name": "Precise Cut Scroll",
+    "name": "Windsweep Scroll",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Precise Cut (Weapon Art)",
-    "teachesWeaponArtId": "sword_precise_cut",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Windsweep (Weapon Art)",
+    "teachesWeaponArtId": "sword_windsweep",
     "allowedWeaponTypes": ["Sword"],
-    "price": 2600
+    "price": 2000
   },
   {
-    "name": "Piercing Drive Scroll",
+    "name": "Lunge Scroll",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Piercing Drive (Weapon Art)",
-    "teachesWeaponArtId": "lance_piercing_drive",
-    "allowedWeaponTypes": ["Lance"],
-    "price": 2600
-  },
-  {
-    "name": "Wild Swing Scroll",
-    "type": "Scroll",
-    "tier": "Rare",
-    "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Wild Swing (Weapon Art)",
-    "teachesWeaponArtId": "axe_wild_swing",
-    "allowedWeaponTypes": ["Axe"],
-    "price": 2600
-  },
-  {
-    "name": "Longshot Scroll",
-    "type": "Scroll",
-    "tier": "Rare",
-    "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Longshot (Weapon Art)",
-    "teachesWeaponArtId": "bow_longshot",
-    "allowedWeaponTypes": ["Bow"],
-    "price": 2600
-  },
-  {
-    "name": "Comet Edge Scroll",
-    "type": "Scroll",
-    "tier": "Rare",
-    "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Comet Edge (Weapon Art)",
-    "teachesWeaponArtId": "sword_comet_edge",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Lunge (Weapon Art)",
+    "teachesWeaponArtId": "sword_lunge",
     "allowedWeaponTypes": ["Sword"],
-    "price": 3000
+    "price": 2000
   },
   {
-    "name": "Vaulting Thrust Scroll",
+    "name": "Grounder Scroll",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Vaulting Thrust (Weapon Art)",
-    "teachesWeaponArtId": "lance_vaulting_thrust",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Grounder (Weapon Art)",
+    "teachesWeaponArtId": "sword_grounder",
+    "allowedWeaponTypes": ["Sword"],
+    "price": 2000
+  },
+  {
+    "name": "Hexblade Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Hexblade (Weapon Art)",
+    "teachesWeaponArtId": "sword_hexblade",
+    "allowedWeaponTypes": ["Sword"],
+    "price": 2000
+  },
+  {
+    "name": "Dragonhaze Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Dragonhaze (Weapon Art)",
+    "teachesWeaponArtId": "sword_dragonhaze",
+    "allowedWeaponTypes": ["Sword"],
+    "price": 2500
+  },
+  {
+    "name": "Knightkneeler Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Knightkneeler (Weapon Art)",
+    "teachesWeaponArtId": "lance_knightkneeler",
     "allowedWeaponTypes": ["Lance"],
-    "price": 3000
+    "price": 2000
   },
   {
-    "name": "Rending Cleave Scroll",
+    "name": "Vengeance Scroll",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Rending Cleave (Weapon Art)",
-    "teachesWeaponArtId": "axe_rending_cleave",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Vengeance (Weapon Art)",
+    "teachesWeaponArtId": "lance_vengeance",
+    "allowedWeaponTypes": ["Lance"],
+    "price": 2000
+  },
+  {
+    "name": "Longearche Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Longearche (Weapon Art)",
+    "teachesWeaponArtId": "lance_longearche",
+    "allowedWeaponTypes": ["Lance"],
+    "price": 2500
+  },
+  {
+    "name": "Glowing Ember Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Glowing Ember (Weapon Art)",
+    "teachesWeaponArtId": "lance_glowing_ember",
+    "allowedWeaponTypes": ["Lance"],
+    "price": 2500
+  },
+  {
+    "name": "Helm Splitter Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Helm Splitter (Weapon Art)",
+    "teachesWeaponArtId": "axe_helm_splitter",
     "allowedWeaponTypes": ["Axe"],
-    "price": 3000
+    "price": 1500
   },
   {
-    "name": "Hunter's Focus Scroll",
+    "name": "Wild Abandon Scroll",
     "type": "Scroll",
     "tier": "Rare",
     "rankRequired": "Prof",
-    "might": 0,
-    "hit": 0,
-    "crit": 0,
-    "weight": 0,
-    "range": "0",
-    "special": "Teaches Hunter's Focus (Weapon Art)",
-    "teachesWeaponArtId": "bow_hunters_focus",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Wild Abandon (Weapon Art)",
+    "teachesWeaponArtId": "axe_wild_abandon",
+    "allowedWeaponTypes": ["Axe"],
+    "price": 1500
+  },
+  {
+    "name": "Rushing Blow Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Rushing Blow (Weapon Art)",
+    "teachesWeaponArtId": "axe_rushing_blow",
+    "allowedWeaponTypes": ["Axe"],
+    "price": 2000
+  },
+  {
+    "name": "Armored Strike Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Armored Strike (Weapon Art)",
+    "teachesWeaponArtId": "axe_armored_strike",
+    "allowedWeaponTypes": ["Axe"],
+    "price": 2500
+  },
+  {
+    "name": "Encloser Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Encloser (Weapon Art)",
+    "teachesWeaponArtId": "bow_encloser",
     "allowedWeaponTypes": ["Bow"],
-    "price": 3000
+    "price": 2000
+  },
+  {
+    "name": "Ward Arrow Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Ward Arrow (Weapon Art)",
+    "teachesWeaponArtId": "bow_ward_arrow",
+    "allowedWeaponTypes": ["Bow"],
+    "price": 2000
+  },
+  {
+    "name": "Deadeye Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Deadeye (Weapon Art)",
+    "teachesWeaponArtId": "bow_deadeye",
+    "allowedWeaponTypes": ["Bow"],
+    "price": 2500
+  },
+  {
+    "name": "Hunter's Volley Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Hunter's Volley (Weapon Art)",
+    "teachesWeaponArtId": "bow_hunters_volley",
+    "allowedWeaponTypes": ["Bow"],
+    "price": 2500
+  },
+  {
+    "name": "Burning Quake Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Burning Quake (Weapon Art)",
+    "teachesWeaponArtId": "magic_burning_quake",
+    "allowedWeaponTypes": ["Tome"],
+    "price": 2500
+  },
+  {
+    "name": "Nosferatu Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Nosferatu (Weapon Art)",
+    "teachesWeaponArtId": "magic_nosferatu",
+    "allowedWeaponTypes": ["Tome", "Light"],
+    "price": 2500
+  },
+  {
+    "name": "Silence Strike Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Silence Strike (Weapon Art)",
+    "teachesWeaponArtId": "magic_silence_strike",
+    "allowedWeaponTypes": ["Tome", "Light"],
+    "price": 2500
+  },
+  {
+    "name": "Healing Light Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Healing Light (Weapon Art)",
+    "teachesWeaponArtId": "magic_healing_light",
+    "allowedWeaponTypes": ["Tome", "Light"],
+    "price": 2000
+  },
+  {
+    "name": "Seraphim Scroll",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0, "hit": 0, "crit": 0, "weight": 0, "range": "0",
+    "special": "Teaches Seraphim (Weapon Art)",
+    "teachesWeaponArtId": "magic_seraphim",
+    "allowedWeaponTypes": ["Tome", "Light"],
+    "price": 2000
   },
   {
     "name": "Sunder Sword",

@@ -31,7 +31,7 @@ import { normalizeWeaponArtBinding, getWeaponArtBindings, getWeaponArtAllowedTyp
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
-const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel']);
+const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const KNOWN_ACT_IDS = new Set(Object.keys(ACT_CONFIG));
 const EXTRA_STARTER_CLASS_POOLS = {
@@ -901,6 +901,7 @@ export class RunManager {
       weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
       ironArms: Boolean(this.metaEffects?.ironArms),
       steelArms: Boolean(this.metaEffects?.steelArms),
+      enableSilver: true,
     };
   }
 
@@ -920,10 +921,11 @@ export class RunManager {
     return null;
   }
 
-  _buildWeaponArtSpawnPools({ includeIron = false, includeSteel = false } = {}) {
+  _buildWeaponArtSpawnPools({ includeIron = false, includeSteel = false, includeSilver = false } = {}) {
     const enabledTiers = new Set();
     if (includeIron) enabledTiers.add('Iron');
     if (includeSteel) enabledTiers.add('Steel');
+    if (includeSilver) enabledTiers.add('Silver');
     if (enabledTiers.size <= 0) return null;
 
     const catalog = this.gameData?.weaponArts?.arts;
@@ -932,6 +934,7 @@ export class RunManager {
     const poolsByTier = new Map();
     for (const art of catalog) {
       if (!art?.id) continue;
+      if (art.legacy === true) continue;
       if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
       const weaponTypes = getWeaponArtAllowedTypes(art)
         .filter((weaponType) => WEAPON_ART_SPAWN_WEAPON_TYPES.has(weaponType));
@@ -970,7 +973,7 @@ export class RunManager {
     const includeSteel = Boolean(this.metaEffects?.steelArms);
     const addExtraArt = Boolean(this.metaEffects?.artAdept);
 
-    const poolsByTier = this._buildWeaponArtSpawnPools({ includeIron, includeSteel });
+    const poolsByTier = this._buildWeaponArtSpawnPools({ includeIron, includeSteel, includeSilver: true });
     if (!poolsByTier) return;
 
     const rollFromPool = (pool) => {

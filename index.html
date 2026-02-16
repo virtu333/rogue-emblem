@@ -13,6 +13,7 @@
       background: #0a0c1e;
       display: flex; justify-content: center; align-items: center;
       min-height: 100vh;
+      min-height: 100dvh;
       font-family: monospace;
       overflow: hidden;
     }
@@ -148,7 +149,9 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
+      height: 100dvh;
       width: 100vw;
+      touch-action: manipulation;
     }
     .mobile-panel {
       display: none;
@@ -213,6 +216,20 @@
     @media (pointer: coarse) and (orientation: portrait) {
       .mobile-panel { display: none !important; }
       #rotate-prompt { display: flex !important; }
+    }
+    /* Landscape mobile: contain canvas, keep panels above */
+    @media (pointer: coarse) and (orientation: landscape) {
+      #game-container {
+        flex: 1 1 0%;
+        min-width: 0;
+        position: relative;
+        overflow: hidden;
+      }
+      .mobile-panel {
+        position: relative;
+        z-index: 10;
+        flex-shrink: 0;
+      }
     }
 
     #rotate-prompt {

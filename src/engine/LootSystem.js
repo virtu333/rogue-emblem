@@ -9,7 +9,7 @@ import {
 } from '../utils/constants.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
-const META_INNATE_TIERS = new Set(['Iron', 'Steel']);
+const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const META_INNATE_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
 const LOOT_WEAPON_TIER_UPGRADE_ORDER = ['Iron', 'Steel', 'Silver', 'Legend'];
 const LOOT_WEAPON_TIER_INDEX = new Map(LOOT_WEAPON_TIER_UPGRADE_ORDER.map((tier, idx) => [tier, idx]));
@@ -224,6 +224,7 @@ function resolveSpawnTierFromArt(art) {
 
 function isPlayerEligibleSpawnArt(art) {
   if (!art?.id) return false;
+  if (art.legacy === true) return false;
   if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) return false;
   if (Array.isArray(art.allowedFactions) && art.allowedFactions.length > 0) {
     const factions = new Set(art.allowedFactions.map((f) => String(f).toLowerCase()));

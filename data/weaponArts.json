@@ -1,11 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "mvp": {
     "wave": "4-foundation",
     "costModel": "hp",
     "notes": [
       "MVP uses HP cost only; no durability/stamina costs yet.",
-      "Player-only command flow lands in a follow-up scene update."
+      "Player-only command flow lands in a follow-up scene update.",
+      "Deferred mechanics (multiHit, postCombatMove, drainPercent, etc.) use placeholder stat bonuses until Tier 2+ implementation."
     ]
   },
   "arts": [
@@ -13,6 +14,8 @@
       "id": "sword_precise_cut",
       "name": "Precise Cut",
       "weaponType": "Sword",
+      "tierAffinity": "Iron",
+      "legacy": true,
       "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 2,
@@ -23,84 +26,82 @@
       "combatMods": {
         "hitBonus": 20,
         "critBonus": 5,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Precise Cut"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Precise Cut" }]
       }
     },
     {
-      "id": "lance_piercing_drive",
-      "name": "Piercing Drive",
-      "weaponType": "Lance",
+      "id": "sword_wrath_strike",
+      "name": "Wrath Strike",
+      "weaponType": "Sword",
+      "tierAffinity": "Iron",
       "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 3,
-      "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A committed thrust with extra stopping power.",
+      "description": "A forceful sword art that boosts might and hit.",
       "combatMods": {
-        "atkBonus": 4,
+        "atkBonus": 5,
         "hitBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Piercing Drive"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Wrath Strike" }]
       }
     },
     {
-      "id": "axe_wild_swing",
-      "name": "Wild Swing",
-      "weaponType": "Axe",
+      "id": "sword_dueling_blade",
+      "name": "Dueling Blade",
+      "weaponType": "Sword",
+      "tierAffinity": "Iron",
       "unlockAct": "act1",
       "requiredRank": "Prof",
-      "hpCost": 3,
-      "perTurnLimit": 1,
-      "perMapLimit": 2,
+      "hpCost": 4,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A brutal swing with high damage but shaky aim.",
+      "description": "A measured stance that sharply improves avoid.",
       "combatMods": {
-        "atkBonus": 6,
-        "hitBonus": -15,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Wild Swing"
-          }
-        ]
+        "avoidBonus": 30,
+        "activated": [{ "id": "weapon_art", "name": "Dueling Blade" }]
       }
     },
     {
-      "id": "bow_longshot",
-      "name": "Longshot",
-      "weaponType": "Bow",
+      "id": "sword_grounder",
+      "name": "Grounder",
+      "weaponType": "Sword",
+      "tierAffinity": "Iron",
       "unlockAct": "act1",
       "requiredRank": "Prof",
       "hpCost": 3,
-      "perTurnLimit": 1,
-      "perMapLimit": 2,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A focused ranged shot that improves hit and crit.",
+      "description": "A grounded slash with effectiveness against fliers.",
       "combatMods": {
-        "hitBonus": 12,
-        "critBonus": 8,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Longshot"
-          }
-        ]
+        "effectiveness": { "moveTypes": ["flying"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Grounder" }]
+      }
+    },
+    {
+      "id": "sword_advancing_strike",
+      "name": "Advancing Strike",
+      "weaponType": "Sword",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A lunging strike that lets you advance 1 tile after combat. (Placeholder: +3 Atk, +10 Hit until postCombatMove lands.)",
+      "_deferredMechanic": "postCombatMove",
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Advancing Strike" }]
       }
     },
     {
       "id": "sword_comet_edge",
       "name": "Comet Edge",
       "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Mast",
       "hpCost": 4,
@@ -112,18 +113,237 @@
         "atkBonus": 3,
         "hitBonus": 10,
         "critBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Comet Edge"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Comet Edge" }]
+      }
+    },
+    {
+      "id": "sword_windsweep",
+      "name": "Windsweep",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A fast cut that prevents enemy counterattacks.",
+      "combatMods": {
+        "preventCounter": true,
+        "activated": [{ "id": "weapon_art", "name": "Windsweep" }]
+      }
+    },
+    {
+      "id": "sword_hexblade",
+      "name": "Hexblade",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A cursed edge that targets resistance instead of defense.",
+      "combatMods": {
+        "targetsRES": true,
+        "activated": [{ "id": "weapon_art", "name": "Hexblade" }]
+      }
+    },
+    {
+      "id": "sword_lunge",
+      "name": "Lunge",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A thrusting strike that swaps position with the target after combat. (Placeholder: +4 Atk, +5 Hit until postCombatMove lands.)",
+      "_deferredMechanic": "postCombatMove(swap)",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Lunge" }]
+      }
+    },
+    {
+      "id": "sword_seal_speed",
+      "name": "Seal Speed",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A disabling cut that reduces the target's SPD by 4 after combat. (Placeholder: +3 Spd, +5 Hit until afterCombatDebuff lands.)",
+      "_deferredMechanic": "afterCombatDebuff(SPD-4)",
+      "combatMods": {
+        "spdBonus": 3,
+        "hitBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Seal Speed" }]
+      }
+    },
+    {
+      "id": "sword_poison_strike",
+      "name": "Poison Strike",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 5,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A venomous slash that deals 5 poison damage after combat. (Placeholder: +5 Atk until afterCombatDamage lands.)",
+      "_deferredMechanic": "afterCombatDamage(5)",
+      "combatMods": {
+        "atkBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Poison Strike" }]
+      }
+    },
+    {
+      "id": "sword_finesse_blade",
+      "name": "Finesse Blade",
+      "weaponType": "Sword",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A precise cut that scales with skill.",
+      "combatMods": {
+        "statScaling": { "stat": "SKL", "divisor": 2 },
+        "activated": [{ "id": "weapon_art", "name": "Finesse Blade" }]
+      }
+    },
+    {
+      "id": "sword_shadow_gambit",
+      "name": "Shadow Gambit",
+      "weaponType": "Sword",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A silver-tier feint that ignores terrain avoid.",
+      "combatMods": {
+        "critBonus": 10,
+        "ignoreTerrainAvoid": true,
+        "activated": [{ "id": "weapon_art", "name": "Shadow Gambit" }]
+      }
+    },
+    {
+      "id": "sword_dragonhaze",
+      "name": "Dragonhaze",
+      "weaponType": "Sword",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A blinding flourish that scales with speed.",
+      "combatMods": {
+        "statScaling": { "stat": "SPD", "divisor": 2 },
+        "activated": [{ "id": "weapon_art", "name": "Dragonhaze" }]
+      }
+    },
+    {
+      "id": "sword_astra_strike",
+      "name": "Astra Strike",
+      "weaponType": "Sword",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A flurry of 3 strikes at 50% damage each. (Placeholder: +5 Atk, +10 Hit, +10 Crit until multiHit lands.)",
+      "_deferredMechanic": "multiHit(3x50%)",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "critBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Astra Strike" }]
+      }
+    },
+    {
+      "id": "lance_piercing_drive",
+      "name": "Piercing Drive",
+      "weaponType": "Lance",
+      "tierAffinity": "Iron",
+      "legacy": true,
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perTurnLimit": 1,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A committed thrust with extra stopping power.",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Piercing Drive" }]
+      }
+    },
+    {
+      "id": "lance_tempest_lance",
+      "name": "Tempest Lance",
+      "weaponType": "Lance",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A surging thrust with extra attack power.",
+      "combatMods": {
+        "atkBonus": 8,
+        "activated": [{ "id": "weapon_art", "name": "Tempest Lance" }]
+      }
+    },
+    {
+      "id": "lance_countering_strike",
+      "name": "Countering Strike",
+      "weaponType": "Lance",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A guarded lance technique that hardens defense.",
+      "combatMods": {
+        "defBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Countering Strike" }]
+      }
+    },
+    {
+      "id": "lance_hit_and_run",
+      "name": "Hit and Run",
+      "weaponType": "Lance",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A quick jab that lets you retreat 1 tile after combat. (Placeholder: +10 Avoid, +5 Hit until postCombatMove lands.)",
+      "_deferredMechanic": "postCombatMove(retreat)",
+      "combatMods": {
+        "avoidBonus": 10,
+        "hitBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Hit and Run" }]
       }
     },
     {
       "id": "lance_vaulting_thrust",
       "name": "Vaulting Thrust",
       "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Mast",
       "hpCost": 4,
@@ -134,18 +354,185 @@
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 5,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Vaulting Thrust"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Vaulting Thrust" }]
+      }
+    },
+    {
+      "id": "lance_knightkneeler",
+      "name": "Knightkneeler",
+      "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A punishing thrust effective against cavalry.",
+      "combatMods": {
+        "effectiveness": { "moveTypes": ["cavalry"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Knightkneeler" }]
+      }
+    },
+    {
+      "id": "lance_vengeance",
+      "name": "Vengeance",
+      "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A retaliatory thrust adding damage based on missing HP.",
+      "combatMods": {
+        "vengeance": true,
+        "activated": [{ "id": "weapon_art", "name": "Vengeance" }]
+      }
+    },
+    {
+      "id": "lance_shatter_slash",
+      "name": "Shatter Slash",
+      "weaponType": "Lance",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A crushing thrust that reduces the target's DEF by 3 after combat. (Placeholder: +3 Atk, +5 Hit until afterCombatDebuff lands.)",
+      "_deferredMechanic": "afterCombatDebuff(DEF-3)",
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Shatter Slash" }]
+      }
+    },
+    {
+      "id": "lance_glowing_ember",
+      "name": "Glowing Ember",
+      "weaponType": "Lance",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A burning lance technique that scales with defense and grants avoid.",
+      "combatMods": {
+        "statScaling": { "stat": "DEF", "divisor": 2 },
+        "avoidBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Glowing Ember" }]
+      }
+    },
+    {
+      "id": "lance_longearche",
+      "name": "Longearche",
+      "weaponType": "Lance",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A stance that overrides range to exactly 2 tiles.",
+      "combatMods": {
+        "rangeOverride": 2,
+        "activated": [{ "id": "weapon_art", "name": "Longearche" }]
+      }
+    },
+    {
+      "id": "lance_overrun",
+      "name": "Overrun",
+      "weaponType": "Lance",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A devastating charge that pushes the target back 1 tile. (Placeholder: +4 Atk, +10 Hit until postCombatMove lands.)",
+      "_deferredMechanic": "postCombatMove(push)",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Overrun" }]
+      }
+    },
+    {
+      "id": "axe_wild_swing",
+      "name": "Wild Swing",
+      "weaponType": "Axe",
+      "tierAffinity": "Iron",
+      "legacy": true,
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A brutal swing with high damage but shaky aim.",
+      "combatMods": {
+        "atkBonus": 6,
+        "hitBonus": -15,
+        "activated": [{ "id": "weapon_art", "name": "Wild Swing" }]
+      }
+    },
+    {
+      "id": "axe_smash",
+      "name": "Smash",
+      "weaponType": "Axe",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A reckless swing with massive hit and crit spikes.",
+      "combatMods": {
+        "hitBonus": 20,
+        "critBonus": 20,
+        "activated": [{ "id": "weapon_art", "name": "Smash" }]
+      }
+    },
+    {
+      "id": "axe_gamble",
+      "name": "Gamble",
+      "weaponType": "Axe",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A high-risk strike trading accuracy for power.",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": -30,
+        "activated": [{ "id": "weapon_art", "name": "Gamble" }]
+      }
+    },
+    {
+      "id": "axe_helm_splitter",
+      "name": "Helm Splitter",
+      "weaponType": "Axe",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 4,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A heavy overhead strike effective against armored units.",
+      "combatMods": {
+        "effectiveness": { "moveTypes": ["armored"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Helm Splitter" }]
       }
     },
     {
       "id": "axe_rending_cleave",
       "name": "Rending Cleave",
       "weaponType": "Axe",
+      "tierAffinity": "Steel",
+      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Mast",
       "hpCost": 4,
@@ -157,18 +544,190 @@
         "atkBonus": 7,
         "hitBonus": -10,
         "critBonus": 5,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Rending Cleave"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Rending Cleave" }]
+      }
+    },
+    {
+      "id": "axe_diamond_axe",
+      "name": "Diamond Axe",
+      "weaponType": "Axe",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 8,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A crushing blow with huge power but reduced accuracy.",
+      "combatMods": {
+        "atkBonus": 14,
+        "hitBonus": -20,
+        "activated": [{ "id": "weapon_art", "name": "Diamond Axe" }]
+      }
+    },
+    {
+      "id": "axe_wild_abandon",
+      "name": "Wild Abandon",
+      "weaponType": "Axe",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A feral strike with immense risk-reward profile.",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": -30,
+        "critBonus": 30,
+        "activated": [{ "id": "weapon_art", "name": "Wild Abandon" }]
+      }
+    },
+    {
+      "id": "axe_rushing_blow",
+      "name": "Rushing Blow",
+      "weaponType": "Axe",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A charging strike that passes through the target's position. (Placeholder: +4 Atk, +10 Hit until postCombatMove lands.)",
+      "_deferredMechanic": "postCombatMove(through)",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Rushing Blow" }]
+      }
+    },
+    {
+      "id": "axe_war_cry",
+      "name": "War Cry",
+      "weaponType": "Axe",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A battle cry that boosts adjacent allies' STR by 3 after combat. (Placeholder: +3 Atk, +10 Hit until allyBuff lands.)",
+      "_deferredMechanic": "allyBuff(+3 STR)",
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "War Cry" }]
+      }
+    },
+    {
+      "id": "axe_armored_strike",
+      "name": "Armored Strike",
+      "weaponType": "Axe",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A fortified blow that scales with defense.",
+      "combatMods": {
+        "statScaling": { "stat": "DEF", "divisor": 2 },
+        "activated": [{ "id": "weapon_art", "name": "Armored Strike" }]
+      }
+    },
+    {
+      "id": "axe_pavise_strike",
+      "name": "Pavise Strike",
+      "weaponType": "Axe",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A guarded strike: -3 Mt, but halves incoming physical damage.",
+      "combatMods": {
+        "atkBonus": -3,
+        "halfPhysicalDamage": true,
+        "activated": [{ "id": "weapon_art", "name": "Pavise Strike" }]
+      }
+    },
+    {
+      "id": "axe_rallying_blow",
+      "name": "Rallying Blow",
+      "weaponType": "Axe",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A rallying strike that boosts adjacent allies' STR by 3 and Crit by 10 after combat. (Placeholder: +3 Atk, +10 Hit, +10 Crit until allyBuff lands.)",
+      "_deferredMechanic": "allyBuff(+3 STR, +10 Crit)",
+      "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "critBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Rallying Blow" }]
+      }
+    },
+    {
+      "id": "bow_longshot",
+      "name": "Longshot",
+      "weaponType": "Bow",
+      "tierAffinity": "Iron",
+      "legacy": true,
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A focused ranged shot that improves hit and crit.",
+      "combatMods": {
+        "hitBonus": 12,
+        "critBonus": 8,
+        "activated": [{ "id": "weapon_art", "name": "Longshot" }]
+      }
+    },
+    {
+      "id": "bow_curved_shot",
+      "name": "Curved Shot",
+      "weaponType": "Bow",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "An arcing shot with longer reach and improved accuracy.",
+      "combatMods": {
+        "rangeBonus": 1,
+        "hitBonus": 30,
+        "activated": [{ "id": "weapon_art", "name": "Curved Shot" }]
+      }
+    },
+    {
+      "id": "bow_heavy_draw",
+      "name": "Heavy Draw",
+      "weaponType": "Bow",
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 5,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A heavy draw that adds significant might.",
+      "combatMods": {
+        "atkBonus": 8,
+        "activated": [{ "id": "weapon_art", "name": "Heavy Draw" }]
       }
     },
     {
       "id": "bow_hunters_focus",
       "name": "Hunter's Focus",
       "weaponType": "Bow",
+      "tierAffinity": "Steel",
+      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Mast",
       "hpCost": 4,
@@ -180,617 +739,104 @@
         "hitBonus": 18,
         "critBonus": 10,
         "spdBonus": 2,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Hunter's Focus"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Hunter's Focus" }]
       }
     },
     {
-      "id": "legend_gemini_tempest",
-      "name": "Gemini Tempest",
-      "weaponType": "Sword",
-      "unlockAct": "act3",
+      "id": "bow_encloser",
+      "name": "Encloser",
+      "weaponType": "Bow",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
       "requiredRank": "Mast",
-      "hpCost": 5,
-      "perTurnLimit": 1,
+      "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A legendary multi-hit cut tuned for Gemini.",
-      "allowedFactions": [
-        "player"
-      ],
-      "legendaryWeaponIds": [
-        "Gemini"
-      ],
+      "description": "A pinning shot that roots the target in place for 1 turn. (Placeholder: +15 Hit, +2 Atk until inflictStatus lands.)",
+      "_deferredMechanic": "inflictStatus(Root)",
       "combatMods": {
-        "atkBonus": 5,
         "hitBonus": 15,
-        "critBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Gemini Tempest"
-          }
-        ]
+        "atkBonus": 2,
+        "activated": [{ "id": "weapon_art", "name": "Encloser" }]
       }
     },
     {
-      "id": "legend_starfall_volley",
-      "name": "Starfall Volley",
+      "id": "bow_ward_arrow",
+      "name": "Ward Arrow",
       "weaponType": "Bow",
-      "unlockAct": "act3",
-      "requiredRank": "Mast",
-      "hpCost": 5,
-      "perTurnLimit": 1,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A legendary burst shot bound to Starfall.",
-      "allowedFactions": [
-        "player"
-      ],
-      "legendaryWeaponIds": [
-        "Starfall"
-      ],
-      "combatMods": {
-        "hitBonus": 20,
-        "critBonus": 15,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Starfall Volley"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_wrath_strike",
-      "name": "Wrath Strike",
-      "weaponType": "Sword",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A forceful sword art that boosts might and hit.",
-      "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Wrath Strike"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_dueling_blade",
-      "name": "Dueling Blade",
-      "weaponType": "Sword",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 4,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A measured stance that sharply improves avoid.",
-      "combatMods": {
-        "avoidBonus": 30,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Dueling Blade"
-          }
-        ]
-      }
-    },
-    {
-      "id": "lance_tempest_lance",
-      "name": "Tempest Lance",
-      "weaponType": "Lance",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A surging thrust with extra attack power.",
-      "combatMods": {
-        "atkBonus": 8,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Tempest Lance"
-          }
-        ]
-      }
-    },
-    {
-      "id": "lance_countering_strike",
-      "name": "Countering Strike",
-      "weaponType": "Lance",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 4,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A guarded lance technique that hardens defense.",
-      "combatMods": {
-        "defBonus": 5,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Countering Strike"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_smash",
-      "name": "Smash",
-      "weaponType": "Axe",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A reckless swing with massive hit and crit spikes.",
-      "combatMods": {
-        "hitBonus": 20,
-        "critBonus": 20,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Smash"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_gamble",
-      "name": "Gamble",
-      "weaponType": "Axe",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 4,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A high-risk strike trading accuracy for power.",
-      "combatMods": {
-        "atkBonus": 10,
-        "hitBonus": -30,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Gamble"
-          }
-        ]
-      }
-    },
-    {
-      "id": "bow_heavy_draw",
-      "name": "Heavy Draw",
-      "weaponType": "Bow",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 5,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A heavy draw that adds significant might.",
-      "combatMods": {
-        "atkBonus": 8,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Heavy Draw"
-          }
-        ]
-      }
-    },
-    {
-      "id": "magic_focused_bolt",
-      "name": "Focused Bolt",
-      "weaponType": "Tome",
-      "allowedTypes": [
-        "Tome",
-        "Light"
-      ],
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A focused cast that boosts magical might and hit.",
-      "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Focused Bolt"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_diamond_axe",
-      "name": "Diamond Axe",
-      "weaponType": "Axe",
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 8,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A crushing blow with huge power but reduced accuracy.",
-      "combatMods": {
-        "atkBonus": 14,
-        "hitBonus": -20,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Diamond Axe"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_wild_abandon",
-      "name": "Wild Abandon",
-      "weaponType": "Axe",
+      "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Mast",
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A feral strike with immense risk-reward profile.",
+      "description": "A warding shot that silences the target's magic for 1 turn. (Placeholder: +15 Hit, +2 Atk until inflictStatus lands.)",
+      "_deferredMechanic": "inflictStatus(Silence)",
       "combatMods": {
-        "atkBonus": 10,
-        "hitBonus": -30,
-        "critBonus": 30,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Wild Abandon"
-          }
-        ]
+        "hitBonus": 15,
+        "atkBonus": 2,
+        "activated": [{ "id": "weapon_art", "name": "Ward Arrow" }]
       }
     },
     {
-      "id": "sword_shadow_gambit",
-      "name": "Shadow Gambit",
-      "weaponType": "Sword",
-      "unlockAct": "act3",
-      "requiredRank": "Mast",
-      "hpCost": 10,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A silver-tier feint that ignores terrain avoid.",
-      "combatMods": {
-        "critBonus": 10,
-        "ignoreTerrainAvoid": true,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Shadow Gambit"
-          }
-        ]
-      }
-    },
-    {
-      "id": "magic_purifying_light",
-      "name": "Purifying Light",
-      "weaponType": "Tome",
-      "allowedTypes": [
-        "Tome",
-        "Light"
-      ],
+      "id": "bow_break_shot",
+      "name": "Break Shot",
+      "weaponType": "Bow",
+      "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Mast",
-      "hpCost": 6,
+      "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A sanctified blast with elevated magical force.",
+      "description": "A piercing shot that reduces the target's DEF by 3 after combat. (Placeholder: +3 Atk, +10 Hit until afterCombatDebuff lands.)",
+      "_deferredMechanic": "afterCombatDebuff(DEF-3)",
       "combatMods": {
-        "atkBonus": 5,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Purifying Light"
-          }
-        ]
+        "atkBonus": 3,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Break Shot" }]
       }
     },
     {
-      "id": "sword_finesse_blade",
-      "name": "Finesse Blade",
-      "weaponType": "Sword",
-      "unlockAct": "act3",
+      "id": "bow_waning_shot",
+      "name": "Waning Shot",
+      "weaponType": "Bow",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
       "requiredRank": "Mast",
-      "hpCost": 10,
+      "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A precise cut that scales with skill.",
+      "description": "A debilitating shot that reduces the target's STR by 3 after combat. (Placeholder: +10 Avoid, +10 Hit until afterCombatDebuff lands.)",
+      "_deferredMechanic": "afterCombatDebuff(STR-3)",
       "combatMods": {
-        "statScaling": {
-          "stat": "SKL",
-          "divisor": 2
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Finesse Blade"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_dragonhaze",
-      "name": "Dragonhaze",
-      "weaponType": "Sword",
-      "unlockAct": "act3",
-      "requiredRank": "Mast",
-      "hpCost": 10,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A blinding flourish that scales with speed.",
-      "combatMods": {
-        "statScaling": {
-          "stat": "SPD",
-          "divisor": 2
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Dragonhaze"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_armored_strike",
-      "name": "Armored Strike",
-      "weaponType": "Axe",
-      "unlockAct": "act3",
-      "requiredRank": "Mast",
-      "hpCost": 10,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A fortified blow that scales with defense.",
-      "combatMods": {
-        "statScaling": {
-          "stat": "DEF",
-          "divisor": 2
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Armored Strike"
-          }
-        ]
-      }
-    },
-    {
-      "id": "lance_glowing_ember",
-      "name": "Glowing Ember",
-      "weaponType": "Lance",
-      "unlockAct": "act3",
-      "requiredRank": "Mast",
-      "hpCost": 10,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A burning lance technique that scales with defense and grants avoid.",
-      "combatMods": {
-        "statScaling": {
-          "stat": "DEF",
-          "divisor": 2
-        },
         "avoidBonus": 10,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Glowing Ember"
-          }
-        ]
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Waning Shot" }]
       }
     },
     {
-      "id": "magic_resonance",
-      "name": "Resonance",
-      "weaponType": "Tome",
-      "allowedTypes": [
-        "Tome",
-        "Light"
-      ],
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 5,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A resonant cast that scales with magic.",
-      "combatMods": {
-        "statScaling": {
-          "stat": "MAG",
-          "divisor": 3
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Resonance"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_grounder",
-      "name": "Grounder",
-      "weaponType": "Sword",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A grounded slash with effectiveness against fliers.",
-      "combatMods": {
-        "effectiveness": {
-          "moveTypes": [
-            "flying"
-          ],
-          "multiplier": 3
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Grounder"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_windsweep",
-      "name": "Windsweep",
-      "weaponType": "Sword",
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 6,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A fast cut that prevents enemy counterattacks.",
-      "combatMods": {
-        "preventCounter": true,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Windsweep"
-          }
-        ]
-      }
-    },
-    {
-      "id": "sword_hexblade",
-      "name": "Hexblade",
-      "weaponType": "Sword",
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 6,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A cursed edge that targets resistance instead of defense.",
-      "combatMods": {
-        "targetsRES": true,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Hexblade"
-          }
-        ]
-      }
-    },
-    {
-      "id": "lance_knightkneeler",
-      "name": "Knightkneeler",
-      "weaponType": "Lance",
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 6,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A punishing thrust effective against cavalry.",
-      "combatMods": {
-        "effectiveness": {
-          "moveTypes": [
-            "cavalry"
-          ],
-          "multiplier": 3
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Knightkneeler"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_helm_splitter",
-      "name": "Helm Splitter",
-      "weaponType": "Axe",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 4,
-      "perMapLimit": 3,
-      "targeting": "normal_attack",
-      "description": "A heavy overhead strike effective against armored units.",
-      "combatMods": {
-        "effectiveness": {
-          "moveTypes": [
-            "armored"
-          ],
-          "multiplier": 3
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Helm Splitter"
-          }
-        ]
-      }
-    },
-    {
-      "id": "magic_seraphim",
-      "name": "Seraphim",
-      "weaponType": "Tome",
-      "allowedTypes": [
-        "Tome",
-        "Light"
-      ],
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 6,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "Sacred magic highly effective against armored foes.",
-      "combatMods": {
-        "targetsRES": true,
-        "effectiveness": {
-          "moveTypes": [
-            "armored"
-          ],
-          "multiplier": 3
-        },
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Seraphim"
-          }
-        ]
-      }
-    },
-    {
-      "id": "bow_curved_shot",
-      "name": "Curved Shot",
+      "id": "bow_seal_magic",
+      "name": "Seal Magic",
       "weaponType": "Bow",
-      "unlockAct": "act1",
-      "requiredRank": "Prof",
-      "hpCost": 3,
-      "perMapLimit": 3,
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 5,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "An arcing shot with longer reach and improved accuracy.",
+      "description": "A disruptive shot that reduces the target's MAG by 4 after combat. (Placeholder: +15 Hit, +2 Atk until afterCombatDebuff lands.)",
+      "_deferredMechanic": "afterCombatDebuff(MAG-4)",
       "combatMods": {
-        "rangeBonus": 1,
-        "hitBonus": 30,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Curved Shot"
-          }
-        ]
+        "hitBonus": 15,
+        "atkBonus": 2,
+        "activated": [{ "id": "weapon_art", "name": "Seal Magic" }]
       }
     },
     {
       "id": "bow_deadeye",
       "name": "Deadeye",
       "weaponType": "Bow",
+      "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Mast",
       "hpCost": 10,
@@ -800,42 +846,141 @@
       "combatMods": {
         "rangeBonus": 3,
         "hitBonus": -20,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Deadeye"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Deadeye" }]
       }
     },
     {
-      "id": "lance_longearche",
-      "name": "Longearche",
-      "weaponType": "Lance",
+      "id": "bow_all_or_nothing",
+      "name": "All or Nothing",
+      "weaponType": "Bow",
+      "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 8,
+      "hpCost": 11,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A stance that overrides range to exactly 2 tiles.",
+      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss. (Placeholder: +12 Atk, -20 Hit until special mechanic lands.)",
+      "_deferredMechanic": "special(2x on hit/5 self-dmg on miss)",
       "combatMods": {
-        "rangeOverride": 2,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Longearche"
-          }
-        ]
+        "atkBonus": 12,
+        "hitBonus": -20,
+        "activated": [{ "id": "weapon_art", "name": "All or Nothing" }]
+      }
+    },
+    {
+      "id": "bow_hunters_volley",
+      "name": "Hunter's Volley",
+      "weaponType": "Bow",
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 12,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A rapid volley of 2 strikes at 80% damage each. (Placeholder: +8 Atk, +10 Hit, +5 Crit until multiHit lands.)",
+      "_deferredMechanic": "multiHit(2x80%)",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "critBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Hunter's Volley" }]
+      }
+    },
+    {
+      "id": "magic_focused_bolt",
+      "name": "Focused Bolt",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 3,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A focused cast that boosts magical might and hit.",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Focused Bolt" }]
+      }
+    },
+    {
+      "id": "magic_resonance",
+      "name": "Resonance",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Iron",
+      "unlockAct": "act1",
+      "requiredRank": "Prof",
+      "hpCost": 5,
+      "perMapLimit": 3,
+      "targeting": "normal_attack",
+      "description": "A resonant cast that scales with magic.",
+      "combatMods": {
+        "statScaling": { "stat": "MAG", "divisor": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Resonance" }]
+      }
+    },
+    {
+      "id": "magic_purifying_light",
+      "name": "Purifying Light",
+      "weaponType": "Tome",
+      "allowedTypes": ["Light"],
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A sanctified blast with elevated magical force.",
+      "combatMods": {
+        "atkBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Purifying Light" }]
+      }
+    },
+    {
+      "id": "magic_seraphim",
+      "name": "Seraphim",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Sacred magic highly effective against armored foes.",
+      "combatMods": {
+        "targetsRES": true,
+        "effectiveness": { "moveTypes": ["armored"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Seraphim" }]
+      }
+    },
+    {
+      "id": "magic_healing_light",
+      "name": "Healing Light",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Mast",
+      "hpCost": 7,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A radiant strike that heals 30% of damage dealt. (Placeholder: +4 Atk, +10 Hit until drainPercent lands.)",
+      "_deferredMechanic": "drainPercent(0.3)",
+      "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Healing Light" }]
       }
     },
     {
       "id": "magic_mire",
       "name": "Mire",
       "weaponType": "Tome",
-      "allowedTypes": [
-        "Tome",
-        "Light"
-      ],
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Mast",
       "hpCost": 8,
@@ -845,53 +990,405 @@
       "combatMods": {
         "rangeBonus": 2,
         "hitBonus": -15,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Mire"
-          }
-        ]
+        "activated": [{ "id": "weapon_art", "name": "Mire" }]
       }
     },
     {
-      "id": "lance_vengeance",
-      "name": "Vengeance",
-      "weaponType": "Lance",
-      "unlockAct": "act2",
-      "requiredRank": "Mast",
-      "hpCost": 6,
-      "perMapLimit": 2,
-      "targeting": "normal_attack",
-      "description": "A retaliatory thrust adding damage based on missing HP.",
-      "combatMods": {
-        "vengeance": true,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Vengeance"
-          }
-        ]
-      }
-    },
-    {
-      "id": "axe_pavise_strike",
-      "name": "Pavise Strike",
-      "weaponType": "Axe",
+      "id": "magic_burning_quake",
+      "name": "Burning Quake",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome"],
+      "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Mast",
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A guarded strike: -3 Mt, but halves incoming physical damage.",
+      "description": "An erupting blast that deals 50% splash damage to adjacent enemies. (Placeholder: +8 Atk, +5 Hit until aoeSplash lands.)",
+      "_deferredMechanic": "aoeSplash(adjacent 50%)",
       "combatMods": {
-        "atkBonus": -3,
-        "halfPhysicalDamage": true,
-        "activated": [
-          {
-            "id": "weapon_art",
-            "name": "Pavise Strike"
-          }
-        ]
+        "atkBonus": 8,
+        "hitBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Burning Quake" }]
+      }
+    },
+    {
+      "id": "magic_radiant_burst",
+      "name": "Radiant Burst",
+      "weaponType": "Tome",
+      "allowedTypes": ["Light"],
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A holy burst that deals 75% splash to 1 adjacent enemy. (Placeholder: +6 Atk, +10 Hit until aoeSplash lands.)",
+      "_deferredMechanic": "aoeSplash(1 adj 75%)",
+      "combatMods": {
+        "atkBonus": 6,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Radiant Burst" }]
+      }
+    },
+    {
+      "id": "magic_silence_strike",
+      "name": "Silence Strike",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 12,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A disruptive blast that shuts down the target's abilities for 2 turns. (Placeholder: +5 Atk, +10 Hit, +10 Crit until inflictStatus lands.)",
+      "_deferredMechanic": "inflictStatus(full shutdown 2T)",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "critBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Silence Strike" }]
+      }
+    },
+    {
+      "id": "magic_nosferatu",
+      "name": "Nosferatu",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome", "Light"],
+      "tierAffinity": "Silver",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 10,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A dark incantation that heals 100% of damage dealt. (Placeholder: +6 Atk, +10 Hit until drainPercent lands.)",
+      "_deferredMechanic": "drainPercent(1.0)",
+      "combatMods": {
+        "atkBonus": 6,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Nosferatu" }]
+      }
+    },
+    {
+      "id": "legend_gemini_tempest",
+      "name": "Gemini Tempest",
+      "weaponType": "Sword",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 5,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A legendary multi-hit cut tuned for Gemini.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Gemini"],
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 15,
+        "critBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Gemini Tempest" }]
+      }
+    },
+    {
+      "id": "legend_starfall_volley",
+      "name": "Starfall Volley",
+      "weaponType": "Bow",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 5,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "A legendary burst shot bound to Starfall.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Starfall"],
+      "combatMods": {
+        "hitBonus": 20,
+        "critBonus": 15,
+        "activated": [{ "id": "weapon_art", "name": "Starfall Volley" }]
+      }
+    },
+    {
+      "id": "legend_phantom_rush",
+      "name": "Phantom Rush",
+      "weaponType": "Sword",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 15,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A spectral multi-strike bound to Brave Sword. Hits 3 times then teleports user back, but sets HP to 5.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Brave Sword"],
+      "_deferredMechanic": "multiHit, postCombatMove, setHpTo5",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "critBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Phantom Rush" }]
+      }
+    },
+    {
+      "id": "legend_piercing_charge",
+      "name": "Piercing Charge",
+      "weaponType": "Lance",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A charging lance strike bound to Brave Lance. Hits twice and pierces through.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Brave Lance"],
+      "_deferredMechanic": "multiHit, pierceThrough",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Piercing Charge" }]
+      }
+    },
+    {
+      "id": "legend_galeforce_assault",
+      "name": "Galeforce Assault",
+      "weaponType": "Axe",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 18,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A devastating assault bound to Brave Axe. Hits 3 times, buffs allies, grants move, but sets HP to 5.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Brave Axe"],
+      "_deferredMechanic": "multiHit, postCombatMove, allyBuff, setHpTo5",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": 5,
+        "critBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Galeforce Assault" }]
+      }
+    },
+    {
+      "id": "legend_barrage",
+      "name": "Barrage",
+      "weaponType": "Bow",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A rain of arrows bound to Brave Bow. Hits twice and splashes adjacent enemies.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Brave Bow"],
+      "_deferredMechanic": "multiHit, aoeSplash",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Barrage" }]
+      }
+    },
+    {
+      "id": "legend_storm_blade",
+      "name": "Storm Blade",
+      "weaponType": "Sword",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A sweeping blade tempest bound to Ragnarok. Prevents counter, boosts defense, hits twice, then retreats.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Ragnarok"],
+      "_deferredMechanic": "multiHit, postCombatMove(retreat)",
+      "combatMods": {
+        "preventCounter": true,
+        "defBonus": 5,
+        "atkBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Storm Blade" }]
+      }
+    },
+    {
+      "id": "legend_life_drain",
+      "name": "Life Drain",
+      "weaponType": "Sword",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 12,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A soul-rending strike bound to Soulreaver. Drains 150% of damage dealt as HP.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Soulreaver"],
+      "_deferredMechanic": "drainPercent(1.5)",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Life Drain" }]
+      }
+    },
+    {
+      "id": "legend_doom_thrust",
+      "name": "Doom Thrust",
+      "weaponType": "Lance",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A cursed thrust bound to Doomblade. Pierces through and pushes the target back.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Doomblade"],
+      "_deferredMechanic": "pierceThrough, postCombatMove(push)",
+      "combatMods": {
+        "atkBonus": 8,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Doom Thrust" }]
+      }
+    },
+    {
+      "id": "legend_blood_lance",
+      "name": "Blood Lance",
+      "weaponType": "Lance",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 15,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A blood-fueled lance strike bound to Gae Bolg. Vengeance damage plus cavalry effectiveness, and buffs adjacent allies' STR.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Gae Bolg"],
+      "_deferredMechanic": "allyBuff(+5 STR)",
+      "combatMods": {
+        "vengeance": true,
+        "effectiveness": { "moveTypes": ["cavalry"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Blood Lance" }]
+      }
+    },
+    {
+      "id": "legend_cataclysm",
+      "name": "Cataclysm",
+      "weaponType": "Axe",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 15,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "An earth-shattering strike bound to Stormbreaker. Massive power with defensive buffs and AoE splash.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Stormbreaker"],
+      "_deferredMechanic": "aoeSplash(2-tile fixed dmg)",
+      "combatMods": {
+        "atkBonus": 20,
+        "defBonus": 5,
+        "resBonus": 5,
+        "activated": [{ "id": "weapon_art", "name": "Cataclysm" }]
+      }
+    },
+    {
+      "id": "legend_annihilate",
+      "name": "Annihilate",
+      "weaponType": "Axe",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A devastating strike bound to Ruin. Massive power at cost of accuracy, ignores weapon triangle.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Ruin"],
+      "_deferredMechanic": "ignoreWeaponTriangle, killBuff",
+      "combatMods": {
+        "atkBonus": 14,
+        "hitBonus": -20,
+        "activated": [{ "id": "weapon_art", "name": "Annihilate" }]
+      }
+    },
+    {
+      "id": "legend_tempest",
+      "name": "Tempest",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome"],
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 12,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A howling wind bound to Excalibur. Flying effectiveness plus AoE splash.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Excalibur"],
+      "_deferredMechanic": "aoeSplash",
+      "combatMods": {
+        "atkBonus": 5,
+        "effectiveness": { "moveTypes": ["flying"], "multiplier": 3 },
+        "activated": [{ "id": "weapon_art", "name": "Tempest" }]
+      }
+    },
+    {
+      "id": "legend_cataclysm_bolt",
+      "name": "Cataclysm Bolt",
+      "weaponType": "Tome",
+      "allowedTypes": ["Tome"],
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 12,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A devastating thunderbolt bound to Bolting. Splashes 2-tile radius.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Bolting"],
+      "_deferredMechanic": "aoeSplash(2-tile)",
+      "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Cataclysm Bolt" }]
+      }
+    },
+    {
+      "id": "legend_divine_flare",
+      "name": "Divine Flare",
+      "weaponType": "Tome",
+      "allowedTypes": ["Light"],
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 14,
+      "perTurnLimit": 1,
+      "perMapLimit": 1,
+      "targeting": "normal_attack",
+      "description": "A divine blast bound to Luce. Ignores RES and is effective against dark enemies.",
+      "allowedFactions": ["player"],
+      "legendaryWeaponIds": ["Luce"],
+      "_deferredMechanic": "ignoreRES, effective vs dark",
+      "combatMods": {
+        "atkBonus": 10,
+        "hitBonus": 10,
+        "activated": [{ "id": "weapon_art", "name": "Divine Flare" }]
       }
     }
   ]

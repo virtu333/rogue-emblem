@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
-import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST } from '../utils/constants.js';
+import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
   addToInventory,
@@ -36,7 +36,7 @@ const MAP_TOP = 60;
 const MAP_BOTTOM = 400;
 const MAP_LEFT = 80;
 const MAP_RIGHT = 560;
-const ROSTER_Y = 440;
+const ROSTER_Y = SAFE_BOTTOM_Y;
 const NODE_SIZE = 24;
 
 // Colors
@@ -68,7 +68,7 @@ const SHOP_SCROLL_STEP = 24;
 const UNIT_PICKER_SCROLL_STEP = 30;
 
 const OVERLAY_PANEL_W = 560;
-const OVERLAY_PANEL_H = 440;
+const OVERLAY_PANEL_H = 425; // overlay panel height (px) — independent of button safety margin
 const OVERLAY_PANEL_DEPTH = 301;
 const OVERLAY_CONTENT_DEPTH = 302;
 
@@ -1092,7 +1092,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     // Leave button
-    const leaveBtn = this.add.text(320, 440, '[ Leave Church ]', {
+    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
@@ -1248,7 +1248,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawActiveTabContent();
 
     // Leave button
-    const leaveBtn = this.add.text(320, 440, '[ Leave Village ]', {
+    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Village ]', {
       fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });

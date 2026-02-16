@@ -260,6 +260,7 @@ export function getWeaponArtCombatMods(art) {
     spdBonus: toFiniteNumber(mods.spdBonus, 0),
     avoidBonus: toFiniteNumber(mods.avoidBonus, 0),
     defBonus: toFiniteNumber(mods.defBonus, 0),
+    resBonus: toFiniteNumber(mods.resBonus, 0),
     statScaling: normalizeStatScaling(mods.statScaling),
     preventCounter: Boolean(mods.preventCounter),
     targetsRES: Boolean(mods.targetsRES),
@@ -291,8 +292,10 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     }
   }
   if (Array.isArray(config.legendaryIds) && config.legendaryIds.length > 0) {
-    const weaponToken = toNonEmptyString(weapon?.id) || toNonEmptyString(weapon?.name);
-    if (!weaponToken || !config.legendaryIds.includes(weaponToken)) {
+    const tokens = [weapon?._baseName, weapon?.id, weapon?.name]
+      .map(t => toNonEmptyString(t))
+      .filter(Boolean);
+    if (tokens.length === 0 || !tokens.some(t => config.legendaryIds.includes(t))) {
       return { ok: false, reason: 'legendary_weapon_required' };
     }
   }

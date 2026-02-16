@@ -17,6 +17,12 @@ export const WEAPON_TRIANGLE = {
   }
 };
 
+// Max y-coordinate for bottom-anchored interactive elements in the 640×480 game canvas.
+// 480 - 55 = 425. The 55px margin keeps buttons reachable on iOS Safari landscape
+// where the toolbar/home indicator can overlap the bottom of the viewport.
+// Applied globally (desktop + mobile) since it has no visual impact on desktop.
+export const SAFE_BOTTOM_Y = 425;
+
 // Double attack threshold
 export const DOUBLE_ATTACK_SPD_THRESHOLD = 5;
 
