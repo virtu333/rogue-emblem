@@ -10,23 +10,23 @@ import { markStartup } from '../src/utils/startupTelemetry.js';
 // ---- Mock deps used by TransitionRecoveryPrompt ----
 vi.mock('../src/utils/SceneRouter.js', () => ({
   TRANSITION_REASONS: {
-    SAVE_EXIT: 'SAVE_EXIT',
-    ABANDON_RUN: 'ABANDON_RUN',
-    BACK: 'BACK',
-    VICTORY: 'VICTORY',
-    DEFEAT: 'DEFEAT',
-    RETRY: 'RETRY',
+    SAVE_EXIT: 'save_exit',
+    ABANDON_RUN: 'abandon_run',
+    BACK: 'back',
+    VICTORY: 'victory',
+    DEFEAT: 'defeat',
+    RETRY: 'retry',
   },
   transitionToScene: vi.fn().mockResolvedValue(true),
 }));
 vi.mock('../src/utils/sceneLoader.js', () => ({
   TRANSITION_REASONS: {
-    SAVE_EXIT: 'SAVE_EXIT',
-    ABANDON_RUN: 'ABANDON_RUN',
-    BACK: 'BACK',
-    VICTORY: 'VICTORY',
-    DEFEAT: 'DEFEAT',
-    RETRY: 'RETRY',
+    SAVE_EXIT: 'save_exit',
+    ABANDON_RUN: 'abandon_run',
+    BACK: 'back',
+    VICTORY: 'victory',
+    DEFEAT: 'defeat',
+    RETRY: 'retry',
   },
   normalizeTransitionReason: vi.fn((r) => r),
   resetTransitionLocks: vi.fn(),
@@ -440,7 +440,7 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
       handler();
 
       expect(markStartup).toHaveBeenCalledWith('pause_transition_reload', {
-        scene: 'Battle', reason: 'SAVE_EXIT',
+        scene: 'Battle', reason: TRANSITION_REASONS.SAVE_EXIT,
       });
       expect(globalThis.location.reload).toHaveBeenCalled();
     } finally {
@@ -449,10 +449,10 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
   });
 });
 
-// ---- Tests: Scene wrapper arg wiring (runtime extraction from source) ----
+// ---- Tests: Scene wrapper arg wiring (runtime) ----
 
 describe('Scene recovery wrapper arg wiring', () => {
-  function extractMethodBody(source, methodName) {
+  function extractMethod(source, methodName) {
     const rx = new RegExp(`\\b${methodName}\\s*\\([^)]*\\)\\s*\\{`);
     const match = rx.exec(source);
     if (!match) return null;
@@ -466,25 +466,46 @@ describe('Scene recovery wrapper arg wiring', () => {
     return source.slice(match.index, i);
   }
 
-  it('BattleScene.showPauseTransitionRecovery passes correct args', () => {
-    const src = readFileSync(path.resolve('src/scenes/BattleScene.js'), 'utf8');
-    const body = extractMethodBody(src, 'showPauseTransitionRecovery');
-    expect(body).not.toBeNull();
-    expect(body).toContain("guardKey: 'pauseTransitionRecovery'");
-    expect(body).toContain("overlayKey: 'pauseOverlay'");
-    expect(body).toContain("sceneName: 'Battle'");
-    expect(body).toContain('showTransitionRecoveryPrompt(this');
-    expect(body).toContain('titleData:');
+  function loadWrapperMethod(filePath, methodName, promptSpy) {
+    const src = readFileSync(path.resolve(filePath), 'utf8');
+    const methodSrc = extractMethod(src, methodName);
+    expect(methodSrc).not.toBeNull();
+    return Function(
+      'showTransitionRecoveryPrompt',
+      'TRANSITION_REASONS',
+      `return ({ ${methodSrc} }).${methodName};`,
+    )(promptSpy, TRANSITION_REASONS);
+  }
+
+  it('BattleScene.showPauseTransitionRecovery forwards correct helper args', () => {
+    const promptSpy = vi.fn();
+    const scene = { gameData: { runId: 'battle' } };
+    const method = loadWrapperMethod('src/scenes/BattleScene.js', 'showPauseTransitionRecovery', promptSpy);
+
+    method.call(scene, TRANSITION_REASONS.ABANDON_RUN);
+
+    expect(promptSpy).toHaveBeenCalledWith(scene, {
+      reason: TRANSITION_REASONS.ABANDON_RUN,
+      sceneName: 'Battle',
+      guardKey: 'pauseTransitionRecovery',
+      overlayKey: 'pauseOverlay',
+      titleData: { gameData: scene.gameData },
+    });
   });
 
-  it('NodeMapScene.showNodeMapTransitionRecovery passes correct args', () => {
-    const src = readFileSync(path.resolve('src/scenes/NodeMapScene.js'), 'utf8');
-    const body = extractMethodBody(src, 'showNodeMapTransitionRecovery');
-    expect(body).not.toBeNull();
-    expect(body).toContain("guardKey: 'nodeMapTransitionRecovery'");
-    expect(body).toContain("overlayKey: 'pauseOverlay'");
-    expect(body).toContain("sceneName: 'NodeMap'");
-    expect(body).toContain('showTransitionRecoveryPrompt(this');
-    expect(body).toContain('titleData:');
+  it('NodeMapScene.showNodeMapTransitionRecovery forwards correct helper args', () => {
+    const promptSpy = vi.fn();
+    const scene = { gameData: { runId: 'node' } };
+    const method = loadWrapperMethod('src/scenes/NodeMapScene.js', 'showNodeMapTransitionRecovery', promptSpy);
+
+    method.call(scene, TRANSITION_REASONS.SAVE_EXIT);
+
+    expect(promptSpy).toHaveBeenCalledWith(scene, {
+      reason: TRANSITION_REASONS.SAVE_EXIT,
+      sceneName: 'NodeMap',
+      guardKey: 'nodeMapTransitionRecovery',
+      overlayKey: 'pauseOverlay',
+      titleData: { gameData: scene.gameData },
+    });
   });
 });
