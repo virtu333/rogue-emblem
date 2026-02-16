@@ -75,15 +75,33 @@ function hasInlineReason(callSource) {
   return /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource);
 }
 
+const ALLOWED_BYPASS_COUNT = {
+  'BattleScene.js': 2, // nuclear fallback in showDefeatTransitionRecovery
+};
+
 describe('SceneRouter integration matrix', () => {
   it('scene files do not call scene.start/sleep/wake/restart directly', () => {
-    const directLifecycleCall = /\.scene\.(start|sleep|wake|restart)\s*\(/;
+    const directLifecycleCall = /\.scene\.(start|sleep|wake|restart)\s*\(/g;
+    const bypassMarker = '// scene-router-bypass';
     for (const file of SCENE_FILES) {
       const src = getSceneSource(file);
-      expect(
-        directLifecycleCall.test(src),
-        `${file} still uses direct scene lifecycle call`,
-      ).toBe(false);
+      const matches = [...src.matchAll(directLifecycleCall)];
+      let bypassedCount = 0;
+      let unbypassedCount = 0;
+      for (const m of matches) {
+        const lineStart = src.lastIndexOf('\n', m.index) + 1;
+        const lineEnd = src.indexOf('\n', m.index);
+        const line = src.slice(lineStart, lineEnd === -1 ? src.length : lineEnd);
+        if (line.includes(bypassMarker)) {
+          bypassedCount++;
+        } else {
+          unbypassedCount++;
+        }
+      }
+      const allowed = ALLOWED_BYPASS_COUNT[file] || 0;
+
+      expect(unbypassedCount, `${file} has unbypassed direct scene lifecycle call`).toBe(0);
+      expect(bypassedCount, `${file} has ${bypassedCount} bypasses but expected ${allowed}`).toBe(allowed);
     }
   });
 

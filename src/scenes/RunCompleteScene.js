@@ -48,11 +48,17 @@ export class RunCompleteScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const dialogueEntries = this._getRunCompleteDialogue();
-    if (dialogueEntries) {
-      const overlay = new DialogueOverlay(this);
-      await overlay.showSequence(dialogueEntries);
-      overlay.destroy();
+    let overlay;
+    try {
+      const dialogueEntries = this._getRunCompleteDialogue();
+      if (dialogueEntries) {
+        overlay = new DialogueOverlay(this);
+        await overlay.showSequence(dialogueEntries);
+      }
+    } catch (err) {
+      console.warn('[RunCompleteScene] Dialogue failed, continuing:', err);
+    } finally {
+      if (overlay) overlay.destroy();
     }
 
     // Calculate and award currencies

@@ -90,6 +90,7 @@ import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { buildTutorialBattleConfig as _buildTutorialBattleConfig, buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { retryBooleanAction } from '../utils/retry.js';
+import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -4027,6 +4028,56 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  _showWeaponDetailTooltip(wpn, menuRect, itemY) {
+    if (!wpn) return;
+    this._hideWeaponDetailTooltip();
+    const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
+    const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
+    const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
+    const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
+    const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
+    const lines = [];
+    if (wpn.type) lines.push(wpn.type);
+    lines.push(`${might}Mt ${hit}Hit ${crit}Crt`);
+    lines.push(`${weight}Wt Rng${range}`);
+    if (wpn.special) {
+      const specialLines = this._formatSpecialLinesForUi(wpn.special, 28, 2);
+      lines.push(...specialLines);
+    }
+    const body = lines.join('\n');
+    const padding = 6;
+    const maxWidth = 160;
+    const txt = this.add.text(0, 0, body, {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#e0e0e0',
+      wordWrap: { width: maxWidth - (padding * 2) },
+    }).setDepth(450);
+    const bg = this.add.rectangle(
+      0, 0,
+      txt.width + (padding * 2),
+      txt.height + (padding * 2),
+      0x222222, 0.95
+    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(449);
+    const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
+    txt.setPosition(padding, padding);
+    let x = menuRect.x + menuRect.width + 4;
+    let y = itemY - (bg.height / 2);
+    if (x + bg.width > this.cameras.main.width - 4) x = menuRect.x - bg.width - 4;
+    if (x < 4) x = 4;
+    if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
+    if (y < 4) y = 4;
+    box.setPosition(x, y);
+    this._weaponDetailTooltip = box;
+  }
+
+  _hideWeaponDetailTooltip() {
+    if (this._weaponDetailTooltip) {
+      this._weaponDetailTooltip.destroy();
+      this._weaponDetailTooltip = null;
+    }
+  }
+
   _showWeaponArtTooltip(anchorText, art) {
     if (!anchorText || !art) return;
     this._hideMenuTooltip();
@@ -4242,6 +4293,8 @@ export class BattleScene extends Phaser.Scene {
 
   hideActionMenu() {
     this._hideMenuTooltip();
+    this._hideWeaponDetailTooltip();
+    this._weaponPreviewedItem = null;
     if (this._actionMenuWheelHandler && this.input?.off) {
       this.input.off('wheel', this._actionMenuWheelHandler);
       this._actionMenuWheelHandler = null;
@@ -4647,22 +4700,24 @@ export class BattleScene extends Phaser.Scene {
 
   showWeaponPicker(unit, attackTargets) {
     this.hideActionMenu();
+    this._weaponPreviewedItem = null;
     this.inEquipMenu = true;
     this.battleState = 'UNIT_ACTION_MENU';
 
     const combatWeapons = getCombatWeapons(unit);
     const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuWidth = 130;
     const menuX = (unit.col < this.grid.cols - 3)
       ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 210;
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
 
-    const menuWidth = 210;
-    const itemHeight = 36;
+    const itemHeight = 20;
     const menuHeight = combatWeapons.length * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
+    const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
 
     const bg = this.add.rectangle(
       menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
@@ -4674,13 +4729,7 @@ export class BattleScene extends Phaser.Scene {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
-      const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
-      const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
-      const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
-      const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
-      const rng = range.includes('-') ? `Rng${range}` : `Rng ${range}`;
-      const label = `${marker}${wpn?.name || 'Weapon'}\n   ${might}Mt ${hit}Hit ${crit}Crt ${weight}Wt ${rng}`;
+      const label = `${marker}${wpn?.name || 'Weapon'}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
@@ -4692,68 +4741,67 @@ export class BattleScene extends Phaser.Scene {
         this._clearSelectedWeaponArtIfInvalid(unit);
         this.inEquipMenu = false;
         this.hideActionMenu();
-        // Now enter target selection with chosen weapon
-        // Recalculate attack targets since weapon range may differ
         this.attackTargets = this.findAttackTargets(unit);
         const attackTiles = this.attackTargets.map(e => ({ col: e.col, row: e.row }));
         this.grid.showAttackRange(attackTiles);
         this.battleState = 'SELECTING_TARGET';
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
+      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight, clickOnPointerUp: true });
+
+      text.on('pointerdown', (pointer) => {
+        this._showWeaponDetailTooltip(wpn, menuRect, itemY);
+        if (pointer.pointerType === 'touch' && this._weaponPreviewedItem !== wpn) {
+          text._suppressNextClick = true;
+        }
+        this._weaponPreviewedItem = wpn;
+      });
+      text.on('pointerover', () => {
+        this._showWeaponDetailTooltip(wpn, menuRect, itemY);
+      });
+      text.on('pointerout', (pointer) => {
+        if (!pointer || pointer.pointerType !== 'touch') {
+          this._hideWeaponDetailTooltip();
+        }
+      });
 
       this.actionMenu.push(text);
     });
+
+    // Auto-show tooltip for equipped weapon
+    const equippedWpn = combatWeapons.find(w => w === unit.weapon) || combatWeapons[0];
+    if (equippedWpn) {
+      const eqIdx = combatWeapons.indexOf(equippedWpn);
+      const autoY = menuPos.y + 6 + eqIdx * itemHeight + itemHeight / 2;
+      this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
+      this._weaponPreviewedItem = equippedWpn;
+    }
   }
 
   // --- Equip sub-menu ---
 
   showEquipMenu(unit) {
     this.hideActionMenu();
+    this._weaponPreviewedItem = null;
     this.inEquipMenu = true;
     this.battleState = 'UNIT_ACTION_MENU';
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const menuWidth = 130;
     const menuX = (unit.col < this.grid.cols - 3)
       ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 100;
+      : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
 
-    // Scrolls no longer in inventory (moved to team pool), so no need to filter them
     const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
-    const menuWidth = 110;
+    const itemHeight = 20;
     const menuPadding = 8;
-    const baseItemHeight = 40; // 3 lines: name + 2 stat lines
-    const extraLineHeight = 10;
-    const maxSpecialLines = 2;
-    const specialWrapChars = Math.max(10, Math.floor((menuWidth - 10) / 5));
-    const rowMeta = equippable.map((wpn) => {
-      const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const might = Number.isFinite(Number(wpn?.might)) ? Number(wpn.might) : 0;
-      const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
-      const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
-      const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
-      const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
-      const typeLine = wpn?.type || '';
-      const statsLineA = `${might}Mt ${hit}Hit ${crit}Crt`;
-      const statsLineB = `${weight}Wt Rng${range}`;
-      const specialLines = this._formatSpecialLinesForUi(wpn?.special, specialWrapChars, maxSpecialLines);
-      const label = [
-        `${marker}${wpn?.name || 'Weapon'}`,
-        ...(typeLine ? [`  ${typeLine}`] : []),
-        statsLineA,
-        statsLineB,
-        ...specialLines,
-      ].join('\n');
-      const lineCount = 3 + (typeLine ? 1 : 0) + specialLines.length;
-      const rowHeight = baseItemHeight + Math.max(0, lineCount - 3) * extraLineHeight;
-      return { wpn, label, rowHeight };
-    });
-    const contentHeight = rowMeta.reduce((sum, row) => sum + row.rowHeight, 0);
+    const contentHeight = equippable.length * itemHeight;
     const fullMenuHeight = contentHeight + menuPadding;
-    const maxMenuHeight = Math.max(baseItemHeight + menuPadding, this.cameras.main.height - 8);
+    const maxMenuHeight = Math.max(itemHeight + menuPadding, this.cameras.main.height - 8);
     const menuHeight = Math.min(fullMenuHeight, maxMenuHeight);
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
+    const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
 
     const bg = this.add.rectangle(
       menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
@@ -4762,28 +4810,44 @@ export class BattleScene extends Phaser.Scene {
     this.actionMenu.push(bg);
 
     const rows = [];
-    let cumY = 0;
-    rowMeta.forEach((row) => {
-      const thisHeight = row.rowHeight;
-      const itemY = menuPos.y + 4 + cumY + thisHeight / 2;
-      cumY += thisHeight;
+    equippable.forEach((wpn, i) => {
+      const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + menuWidth / 2;
-      const wpn = row.wpn;
+      const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
+      const label = `${marker}${wpn?.name || 'Weapon'}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this._makeMenuTextButton(itemX, itemY, row.label, {
+      const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '9px', color: defaultColor, lineSpacing: 1,
       }, defaultColor, () => {
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
-      }, { hitWidth: menuWidth - 10, hitHeight: thisHeight });
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight, clickOnPointerUp: true });
 
-      rows.push({ text, baseY: itemY, rowHeight: thisHeight });
+      text.on('pointerdown', (pointer) => {
+        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
+        if (pointer.pointerType === 'touch' && this._weaponPreviewedItem !== wpn) {
+          text._suppressNextClick = true;
+        }
+        this._weaponPreviewedItem = wpn;
+      });
+      text.on('pointerover', () => {
+        this._showWeaponDetailTooltip(wpn, menuRect, text.y);
+      });
+      text.on('pointerout', (pointer) => {
+        if (!pointer || pointer.pointerType !== 'touch') {
+          this._hideWeaponDetailTooltip();
+        }
+      });
+
+      rows.push({ text, baseY: itemY, rowHeight: itemHeight });
       this.actionMenu.push(text);
     });
 
     const viewHeight = menuHeight - menuPadding;
+    let hasOverflow = false;
     if (contentHeight > viewHeight && rows.length > 0 && this.input?.on) {
+      hasOverflow = true;
       const topY = menuPos.y + 4;
       const bottomY = menuPos.y + menuHeight - 4;
       const minScroll = viewHeight - contentHeight;
@@ -4812,6 +4876,17 @@ export class BattleScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '8px', color: '#777777',
       }).setOrigin(0.5, 1).setDepth(401);
       this.actionMenu.push(hint);
+    }
+
+    // Auto-show tooltip for equipped weapon (skip if overflowing — equipped row may be off-screen)
+    if (!hasOverflow) {
+      const equippedWpn = equippable.find(w => w === unit.weapon) || equippable[0];
+      if (equippedWpn) {
+        const eqIdx = equippable.indexOf(equippedWpn);
+        const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
+        this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
+        this._weaponPreviewedItem = equippedWpn;
+      }
     }
   }
 
@@ -8397,6 +8472,9 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.failRun();
       this.time.delayedCall(2000, async () => {
         if (!this.scene?.isActive?.()) return;
+        // Clear any stale transition locks — the 2s delay gives legitimate
+        // in-flight transitions plenty of time to finish.
+        resetTransitionLocks(this);
         const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
         if (!transitioned && this.scene?.isActive?.()) this.showDefeatTransitionRecovery();
       });
@@ -8410,15 +8488,23 @@ export class BattleScene extends Phaser.Scene {
 
   async transitionToRunCompleteWithRetry(result = 'defeat') {
     return retryBooleanAction(
-      () => transitionToScene(this, 'RunComplete', {
-        gameData: this.gameData,
-        runManager: this.runManager,
-        result,
-      }, { reason: TRANSITION_REASONS.DEFEAT }),
+      (attempt) => {
+        const ok = transitionToScene(this, 'RunComplete', {
+          gameData: this.gameData,
+          runManager: this.runManager,
+          result,
+        }, { reason: TRANSITION_REASONS.DEFEAT });
+        return ok.then((success) => {
+          if (!success) {
+            console.warn('[BattleScene] defeat transition attempt failed', { attempt, result });
+          }
+          return success;
+        });
+      },
       {
-        attempts: 3,
-        initialDelayMs: 150,
-        delayMultiplier: 1.8,
+        attempts: 4,
+        initialDelayMs: 300,
+        delayMultiplier: 2.0,
         wait: (ms) => new Promise((resolve) => {
           if (this.time?.delayedCall) this.time.delayedCall(ms, resolve);
           else setTimeout(resolve, ms);
@@ -8462,10 +8548,21 @@ export class BattleScene extends Phaser.Scene {
     retryBtn.on('pointerdown', async () => {
       retryBtn.disableInteractive();
       retryBtn.setText('[ Retrying... ]');
+      resetTransitionLocks(this);
       const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
       if (!transitioned) {
-        retryBtn.setText('[ Retry ]');
-        retryBtn.setInteractive({ useHandCursor: true });
+        // Nuclear fallback — bypass startSceneLazy entirely
+        try {
+          this.scene.start('RunComplete', { // scene-router-bypass
+            gameData: this.gameData,
+            runManager: this.runManager,
+            result: 'defeat',
+          });
+        } catch (err) {
+          console.error('[BattleScene] direct RunComplete fallback failed:', err);
+          retryBtn.setText('[ Retry ]');
+          retryBtn.setInteractive({ useHandCursor: true });
+        }
       }
     });
     group.push(retryBtn);
@@ -8477,12 +8574,23 @@ export class BattleScene extends Phaser.Scene {
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
     titleBtn.on('pointerdown', () => {
+      titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
       clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.DEFEAT });
+      resetTransitionLocks(this);
+      transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.DEFEAT })
+        .then((ok) => {
+          if (!ok) {
+            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
+            catch (err) {
+              console.error('[BattleScene] direct Title fallback failed:', err);
+              titleBtn.setInteractive({ useHandCursor: true });
+            }
+          }
+        });
     });
     group.push(titleBtn);
 

@@ -461,13 +461,14 @@ describe('BattleScene loot meta wiring', () => {
     }
   });
 
-  it('sizes equip-menu rows from wrapped special lines and registers scroll for overflow', () => {
+  it('equip menu uses compact name-only labels with fixed row height', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
     scene.grid = {
       cols: 10,
       gridToPixel: () => ({ x: 64, y: 64 }),
     };
-    scene.cameras.main.height = 120;
+    scene._showWeaponDetailTooltip = vi.fn();
+    scene._hideWeaponDetailTooltip = vi.fn();
     scene.add.rectangle = (...args) => makeDisplayObject({ args });
     scene.add.text = (...args) => makeDisplayObject({ args });
 
@@ -483,7 +484,7 @@ describe('BattleScene loot meta wiring', () => {
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       inventory: [
         { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', might: 5, hit: 95, crit: 0, weight: 3, range: '1' },
-        { name: 'Steel Sword', type: 'Sword', rankRequired: 'Prof', might: 8, hit: 80, crit: 0, weight: 7, range: '1', special: 'Long special line one with many words to wrap\nLong special line two with more words to wrap\nLong special line three to truncate' },
+        { name: 'Steel Sword', type: 'Sword', rankRequired: 'Prof', might: 8, hit: 80, crit: 0, weight: 7, range: '1', special: 'Long special text' },
         { name: 'Slim Sword', type: 'Sword', rankRequired: 'Prof', might: 4, hit: 100, crit: 5, weight: 2, range: '1' },
         { name: 'Killing Edge', type: 'Sword', rankRequired: 'Prof', might: 9, hit: 75, crit: 30, weight: 9, range: '1' },
       ],
@@ -493,11 +494,17 @@ describe('BattleScene loot meta wiring', () => {
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
     expect(rowCalls).toHaveLength(4);
-    expect(rowCalls[0].options.hitHeight).toBe(50);
-    expect(rowCalls[1].options.hitHeight).toBe(70);
-    const specialLines = rowCalls[1].label.split('\n').slice(4);
-    expect(specialLines).toHaveLength(2);
-    expect(specialLines[1].endsWith('...')).toBe(true);
-    expect(scene.input.on).toHaveBeenCalledWith('wheel', expect.any(Function));
+    // All rows use fixed height (20px) with clickOnPointerUp
+    for (const row of rowCalls) {
+      expect(row.options.hitHeight).toBe(20);
+      expect(row.options.clickOnPointerUp).toBe(true);
+      // Labels are name-only (no stat lines)
+      expect(row.label.split('\n')).toHaveLength(1);
+    }
+    // Equipped marker present on first weapon
+    expect(rowCalls[0].label).toContain('\u25b6');
+    expect(rowCalls[1].label).toContain('Steel Sword');
+    // Auto-show tooltip fires
+    expect(scene._showWeaponDetailTooltip).toHaveBeenCalled();
   });
 });

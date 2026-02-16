@@ -204,7 +204,11 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
   }
 }
 
-export function __resetSceneLoaderForTests() {
+export function resetTransitionLocks(scene) {
   globalStartSceneInFlight = false;
   globalSceneStartCooldownUntil = 0;
+  if (scene) scene.__startSceneLazyInFlight = false;
 }
+
+// Backward-compat alias for existing tests
+export const __resetSceneLoaderForTests = resetTransitionLocks;

@@ -7,6 +7,7 @@ const { canEquipMock } = vi.hoisted(() => ({
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
+    Math: { Clamp: (val, min, max) => Math.max(min, Math.min(max, val)) },
   },
 }));
 
@@ -25,45 +26,74 @@ function makeDisplayObject(seed = {}) {
     ...seed,
     setDepth() { return this; },
     setStrokeStyle() { return this; },
+    setColor() { return this; },
+    on: vi.fn().mockReturnThis(),
     destroy() {},
   };
 }
 
+function makeHandlerCapturingObject(seed = {}) {
+  const handlers = {};
+  return {
+    ...seed,
+    _suppressNextClick: false,
+    setDepth() { return this; },
+    setStrokeStyle() { return this; },
+    setColor() { return this; },
+    setOrigin() { return this; },
+    setInteractive() { return this; },
+    on(event, cb) {
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(cb);
+      return this;
+    },
+    handlers,
+    destroy() {},
+  };
+}
+
+const equipped = {
+  name: 'Iron Sword',
+  type: 'Sword',
+  might: 5,
+  hit: 90,
+  crit: 0,
+  weight: 5,
+  range: '1',
+};
+const secondary = {
+  name: 'Steel Sword',
+  type: 'Sword',
+};
+
+function makeBaseScene() {
+  const scene = new BattleScene();
+  scene.hideActionMenu = vi.fn();
+  scene.showActionMenu = vi.fn();
+  scene._showWeaponDetailTooltip = vi.fn();
+  scene._hideWeaponDetailTooltip = vi.fn();
+  scene.cameras = {
+    main: { centerX: 320, centerY: 240, width: 640, height: 480 },
+  };
+  scene.input = { on: vi.fn(), off: vi.fn() };
+  scene.grid = {
+    cols: 10,
+    gridToPixel: () => ({ x: 64, y: 64 }),
+  };
+  scene.add = {
+    rectangle: () => makeDisplayObject(),
+  };
+  scene._clampMenuPosition = (x, y) => ({ x, y });
+  return scene;
+}
+
 describe('BattleScene equip menu text', () => {
-  it('shows weapon stat summary and exactly one equipped marker', () => {
-    const scene = new BattleScene();
-    scene.hideActionMenu = vi.fn();
-    scene.showActionMenu = vi.fn();
-    scene.cameras = {
-      main: { centerX: 320, centerY: 240, width: 640, height: 480 },
-    };
-    scene.input = { on: vi.fn(), off: vi.fn() };
-    scene.grid = {
-      cols: 10,
-      gridToPixel: () => ({ x: 64, y: 64 }),
-    };
-    scene.add = {
-      rectangle: () => makeDisplayObject(),
-    };
-    scene._clampMenuPosition = (x, y) => ({ x, y });
+  it('shows compact name-only labels with equipped marker', () => {
+    const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
-    const equipped = {
-      name: 'Iron Sword',
-      type: 'Sword',
-      might: 5,
-      hit: 90,
-      crit: 0,
-      weight: 5,
-      range: '1',
-    };
-    const secondary = {
-      name: 'Steel Sword',
-      type: 'Sword',
-    };
     const unit = {
-      col: 1,
-      row: 1,
+      col: 1, row: 1,
       weapon: equipped,
       inventory: [equipped, secondary],
     };
@@ -73,17 +103,11 @@ describe('BattleScene equip menu text', () => {
     const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
     expect(labels).toHaveLength(2);
 
+    // Labels are single-line name-only
     for (const label of labels) {
-      const lines = label.split('\n');
-      expect(lines).toHaveLength(4);
-      expect(lines[1]).toContain('Sword');
-      expect(lines[2]).toContain('Mt');
-      expect(lines[2]).toContain('Hit');
-      expect(lines[2]).toContain('Crt');
-      expect(lines[3]).toContain('Wt');
-      expect(lines[3]).toContain('Rng');
-      expect(lines[2].length).toBeLessThanOrEqual(20);
-      expect(lines[3].length).toBeLessThanOrEqual(16);
+      expect(label.split('\n')).toHaveLength(1);
+      expect(label).not.toContain('Mt');
+      expect(label).not.toContain('Hit');
       expect(label).not.toContain('undefined');
     }
 
@@ -91,7 +115,194 @@ describe('BattleScene equip menu text', () => {
     const nonEquippedLabel = labels.find((label) => label.includes('Steel Sword'));
     expect(equippedLabel).toBeTruthy();
     expect(nonEquippedLabel).toBeTruthy();
-    expect(equippedLabel.startsWith('  ')).toBe(false);
+    // Equipped weapon has ▶ marker
+    expect(equippedLabel.startsWith('\u25b6')).toBe(true);
     expect(nonEquippedLabel.startsWith('  ')).toBe(true);
+
+    // Auto-show tooltip fires for equipped weapon
+    expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
+      equipped, expect.any(Object), expect.any(Number),
+    );
+  });
+
+  it('passes clickOnPointerUp: true to equip buttons', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    for (const call of scene._makeMenuTextButton.mock.calls) {
+      expect(call[6]?.clickOnPointerUp).toBe(true);
+    }
+  });
+});
+
+describe('BattleScene equip menu tooltip lifecycle', () => {
+  function makeSceneWithHandlerCapture() {
+    const scene = makeBaseScene();
+    const textObjects = [];
+    const onClickCallbacks = [];
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick, options = {}) => {
+      const obj = makeHandlerCapturingObject({ label, y: _y });
+      const onClickSpy = vi.fn();
+      if (options.clickOnPointerUp) {
+        obj.on('pointerup', () => {
+          if (obj._suppressNextClick) {
+            obj._suppressNextClick = false;
+            return;
+          }
+          onClickSpy();
+        });
+      }
+      onClickCallbacks.push(onClickSpy);
+      textObjects.push(obj);
+      return obj;
+    });
+    return { scene, textObjects, onClickCallbacks };
+  }
+
+  it('pointerover shows tooltip, mouse pointerout hides it', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    scene._showWeaponDetailTooltip.mockClear();
+
+    const overHandlers = textObjects[1].handlers.pointerover;
+    overHandlers[overHandlers.length - 1]();
+    expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
+      secondary, expect.any(Object), expect.any(Number),
+    );
+
+    const outHandlers = textObjects[1].handlers.pointerout;
+    outHandlers[outHandlers.length - 1]({ pointerType: 'mouse' });
+    expect(scene._hideWeaponDetailTooltip).toHaveBeenCalled();
+  });
+
+  it('touch pointerout does NOT hide tooltip', () => {
+    const { scene, textObjects } = makeSceneWithHandlerCapture();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    scene._hideWeaponDetailTooltip.mockClear();
+    const outHandlers = textObjects[0].handlers.pointerout;
+    outHandlers[outHandlers.length - 1]({ pointerType: 'touch' });
+    expect(scene._hideWeaponDetailTooltip).not.toHaveBeenCalled();
+  });
+
+  it('touch first tap on non-previewed weapon suppresses selection', () => {
+    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    // Tap secondary (not previewed — equipped was auto-previewed)
+    const downHandlers = textObjects[1].handlers.pointerdown;
+    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
+    expect(textObjects[1]._suppressNextClick).toBe(true);
+
+    const upHandlers = textObjects[1].handlers.pointerup;
+    upHandlers[upHandlers.length - 1]();
+    expect(onClickCallbacks[1]).not.toHaveBeenCalled();
+  });
+
+  it('touch second tap on previewed weapon confirms selection', () => {
+    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    // First tap — suppressed
+    const downHandlers = textObjects[1].handlers.pointerdown;
+    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
+    const upHandlers = textObjects[1].handlers.pointerup;
+    upHandlers[upHandlers.length - 1]();
+
+    // Second tap — confirmed
+    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
+    expect(textObjects[1]._suppressNextClick).toBe(false);
+    upHandlers[upHandlers.length - 1]();
+    expect(onClickCallbacks[1]).toHaveBeenCalled();
+  });
+
+  it('touch tap on auto-previewed equipped weapon confirms immediately', () => {
+    const { scene, textObjects, onClickCallbacks } = makeSceneWithHandlerCapture();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: [equipped, secondary] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    const downHandlers = textObjects[0].handlers.pointerdown;
+    downHandlers[downHandlers.length - 1]({ pointerType: 'touch' });
+    expect(textObjects[0]._suppressNextClick).toBe(false);
+    const upHandlers = textObjects[0].handlers.pointerup;
+    upHandlers[upHandlers.length - 1]();
+    expect(onClickCallbacks[0]).toHaveBeenCalled();
+  });
+});
+
+describe('equip menu overflow', () => {
+  const wpn3 = { name: 'Silver Sword', type: 'Sword' };
+  const wpn4 = { name: 'Killing Edge', type: 'Sword' };
+  const overflowWeapons = [equipped, secondary, wpn3, wpn4];
+
+  function makeOverflowScene() {
+    const scene = makeBaseScene();
+    // Shrink camera height to force overflow (4 items × 20px = 80px content vs ~50px view)
+    scene.cameras.main.height = 80;
+    const textObjects = [];
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick, _opts) => {
+      const obj = makeHandlerCapturingObject({ label, y: _y });
+      obj.setVisible = vi.fn();
+      obj.input = { enabled: true };
+      textObjects.push(obj);
+      return obj;
+    });
+    scene.add.text = vi.fn(() => {
+      const t = makeDisplayObject();
+      t.setOrigin = vi.fn().mockReturnThis();
+      return t;
+    });
+    return { scene, textObjects };
+  }
+
+  it('registers scroll handler when content overflows', () => {
+    const { scene } = makeOverflowScene();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: overflowWeapons };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    expect(scene.input.on).toHaveBeenCalledWith('wheel', expect.any(Function));
+  });
+
+  it('skips auto-preview when overflowing', () => {
+    const { scene } = makeOverflowScene();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: overflowWeapons };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    expect(scene._showWeaponDetailTooltip).not.toHaveBeenCalled();
+    expect(scene._weaponPreviewedItem).toBeNull();
+  });
+
+  it('tooltip uses live text.y after scroll', () => {
+    const { scene, textObjects } = makeOverflowScene();
+    const unit = { col: 1, row: 1, weapon: equipped, inventory: overflowWeapons };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    // Get the wheel handler and simulate a scroll
+    const wheelCall = scene.input.on.mock.calls.find(c => c[0] === 'wheel');
+    const wheelHandler = wheelCall[1];
+    scene.inEquipMenu = true;
+    scene.battleState = 'UNIT_ACTION_MENU';
+    wheelHandler(null, null, 0, 100); // scroll down
+
+    // text.y should have been updated by applyScroll
+    const firstText = textObjects[0];
+    const updatedY = firstText.y;
+
+    // Now trigger pointerover — should pass live text.y, not the original itemY
+    scene._showWeaponDetailTooltip.mockClear();
+    const overHandlers = firstText.handlers.pointerover;
+    overHandlers[overHandlers.length - 1]();
+
+    expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
+      equipped, expect.any(Object), updatedY,
+    );
   });
 });
