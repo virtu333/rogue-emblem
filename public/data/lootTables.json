@@ -1,6 +1,6 @@
 {
   "act1": {
-    "weapons": ["Hand Axe", "Javelin", "Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Horseslayer", "Armorslayer", "Lancereaver", "Swordreaver", "Axereaver", "Wind Sword"],
+    "weapons": ["Hand Axe", "Javelin", "Steel Sword", "Steel Lance", "Steel Axe", "Steel Bow", "Elfire", "Shine", "Mend", "Horseslayer", "Armorslayer", "Lancereaver", "Swordreaver", "Axereaver", "Wind Sword", "Shortbow"],
     "healing": ["Vulnerary", "Vulnerary", "Vulnerary", "Vulnerary"],
     "statBooster": [],
     "promotion": ["Master Seal"],
@@ -24,7 +24,7 @@
     "goldRange": [360, 600]
   },
   "act2": {
-    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Hammer", "Spear", "Killer Lance", "Physic", "Bolganone", "Aura"],
+    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Hammer", "Spear", "Killer Lance", "Physic", "Bolganone", "Aura", "Recurve Bow"],
     "healing": ["Vulnerary", "Elixir"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe"],
     "promotion": ["Master Seal"],
@@ -54,7 +54,7 @@
     "promotion": ["Master Seal"],
     "skillScroll": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll"],
     "weaponArtScroll": ["Precise Cut Scroll", "Piercing Drive Scroll", "Wild Swing Scroll", "Longshot Scroll", "Comet Edge Scroll", "Vaulting Thrust Scroll", "Rending Cleave Scroll", "Hunter's Focus Scroll"],
-    "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin"],
+    "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin", "Doublebow"],
     "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": {

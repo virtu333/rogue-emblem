@@ -48,11 +48,11 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 72 weapons (0 legendary)",
+            "text": "Prof: 74 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 16 weapons (16 legendary)",
+            "text": "Mast: 17 weapons (17 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,17 +137,17 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 72,
+        "totalWeapons": 74,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 16,
-        "legendaryWeapons": 16
+        "totalWeapons": 17,
+        "legendaryWeapons": 17
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 16
+    "legendaryCount": 17
   },
   "legendaryWeapons": [
     {
@@ -177,6 +177,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "rankRequired": "Mast",
       "range": "2",
       "special": "Attacks twice consecutively"
+    },
+    {
+      "name": "Doublebow",
+      "type": "Bow",
+      "rankRequired": "Mast",
+      "range": "1-2",
+      "special": "+4 STR, +4 SPD if no adjacent allies"
     },
     {
       "name": "Starfall",

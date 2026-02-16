@@ -215,6 +215,34 @@ export function getWeaponStatBonuses(weapon) {
   return bonuses;
 }
 
+/**
+ * Evaluate position-dependent weapon bonuses
+ * (e.g. Doublebow: "+4 STR, +4 SPD if no adjacent allies").
+ * Returns { atkBonus, spdBonus } to merge into combat mods.
+ */
+export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
+  const result = { atkBonus: 0, spdBonus: 0 };
+  const special = weapon?.special;
+  if (!special || !special.toLowerCase().includes('if no adjacent allies')) return result;
+
+  const hasAdjacentAlly = allAllies.some(a =>
+    a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1
+  );
+  if (hasAdjacentAlly) return result;
+
+  const ifIdx = special.toLowerCase().indexOf('if');
+  const bonusPart = special.slice(0, ifIdx);
+  const regex = /\+(\d+)\s+(STR|SPD|DEF|RES|SKL|MAG|LCK)/gi;
+  let match;
+  while ((match = regex.exec(bonusPart)) !== null) {
+    const stat = match[2].toUpperCase();
+    const value = parseInt(match[1], 10);
+    if (stat === 'STR') result.atkBonus += value;
+    if (stat === 'SPD') result.spdBonus += value;
+  }
+  return result;
+}
+
 /** True if weapon uses MAG stat for damage (tomes, light magic, or magic swords). */
 export function usesMagic(weapon) {
   return isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false);

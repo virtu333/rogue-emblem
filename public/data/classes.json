@@ -587,9 +587,9 @@
       "MOV": 0
     },
     "moveType": "Infantry",
-    "weaponProficiencies": "Swords (M)",
-    "roleChange": "Lethality chance, enhanced stealth",
-    "description": "An elite killer — chance to instantly slay on hit, unmatched speed and skill."
+    "weaponProficiencies": "Swords (M), Bows (P)",
+    "roleChange": "Lethality chance, gains Bows",
+    "description": "An elite killer — chance to instantly slay on hit, gains bows for ranged options."
   },
   {
     "name": "Bard",
@@ -752,7 +752,7 @@
       "MOV": 4
     },
     "moveType": "Infantry",
-    "weaponProficiencies": "Swords (P)",
+    "weaponProficiencies": "Swords (P), Bows (P)",
     "role": "Tanky melee, Resolve at low HP",
     "description": "A rugged frontliner — tough and hits hard, grows fiercer when wounded.",
     "growthRanges": {
@@ -853,7 +853,7 @@
       "MOV": 0
     },
     "moveType": "Infantry",
-    "weaponProficiencies": "Swords (M), Axes (P)",
+    "weaponProficiencies": "Swords (M), Axes (P), Bows (P)",
     "roleChange": "Gains Axes, heavy armor",
     "description": "A shield-bearing titan — gains axes, extreme STR and DEF, an unstoppable advance."
   },

@@ -1201,5 +1201,44 @@
     "range": "2",
     "special": "Halves target DEF",
     "price": 0
+  },
+  {
+    "name": "Shortbow",
+    "type": "Bow",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 75,
+    "crit": 0,
+    "weight": 5,
+    "range": "1-2",
+    "special": "Close-range bow, lower stats",
+    "price": 1200
+  },
+  {
+    "name": "Recurve Bow",
+    "type": "Bow",
+    "tier": "Silver",
+    "rankRequired": "Prof",
+    "might": 8,
+    "hit": 70,
+    "crit": 0,
+    "weight": 7,
+    "range": "1-2",
+    "special": "Close-range bow, lower stats",
+    "price": 2200
+  },
+  {
+    "name": "Doublebow",
+    "type": "Bow",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 11,
+    "hit": 85,
+    "crit": 5,
+    "weight": 6,
+    "range": "1-2",
+    "special": "+4 STR, +4 SPD if no adjacent allies",
+    "price": 0
   }
 ]

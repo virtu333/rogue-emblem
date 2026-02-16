@@ -2,7 +2,7 @@
 // Skills are identified by ID strings stored on unit.skills[].
 // All functions take skillsData (from skills.json) for metadata lookup.
 
-import { gridDistance } from './Combat.js';
+import { gridDistance, getConditionalWeaponBonuses } from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 
 // --- Helpers ---
@@ -50,6 +50,11 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     // Affix specific fields
     immuneToDisplacement: false,
   };
+
+  // Conditional weapon bonuses — independent of skillsData
+  const wpnCond = getConditionalWeaponBonuses(unit.weapon, unit, allAllies);
+  mods.atkBonus += wpnCond.atkBonus;
+  mods.spdBonus += wpnCond.spdBonus;
 
   if (!skillsData) return mods;
 

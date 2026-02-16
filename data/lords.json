@@ -98,7 +98,7 @@
       "MOV": 4
     },
     "moveType": "Infantry",
-    "weapon": "Swords (P)",
+    "weapon": "Swords (P), Bows (P)",
     "personalSkill": "Resolve: +4 STR/DEF when below 50% HP",
     "personalGrowths": {
       "HP": 20,
