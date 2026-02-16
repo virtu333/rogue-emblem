@@ -272,6 +272,31 @@ describe('BossRecruitSystem', () => {
       expect(lordCand.unit.skills.length).toBeGreaterThan(0);
     });
 
+    it('lordRecruitChanceBonus increases effective lord chance', () => {
+      // Math.random returns 0.40 — above 0.35 base, below 0.35+0.16=0.51
+      let callCount = 0;
+      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return 0.40;  // lord chance check — would fail at base 0.35
+        return 0.5;
+      });
+      const metaEffects = { lordRecruitChanceBonus: 0.16 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, metaEffects);
+      expect(candidates.some(c => c.isLord)).toBe(true);
+    });
+
+    it('no lord bonus when lordRecruitChanceBonus is absent', () => {
+      // Same random value 0.40 — should NOT trigger lord at base 0.35
+      let callCount = 0;
+      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return 0.40;
+        return 0.5;
+      });
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
+      expect(candidates.every(c => !c.isLord)).toBe(true);
+    });
+
     it('no lord when both already in roster', () => {
       const roster = [
         ...makeBaseRoster(),

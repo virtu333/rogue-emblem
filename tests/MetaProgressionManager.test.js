@@ -463,7 +463,7 @@ describe('MetaProgressionManager', () => {
   });
 
   it('has 52 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(54);
+    expect(upgradesData.length).toBe(55);
   });
 
   it('has correct category distribution', () => {
@@ -473,7 +473,7 @@ describe('MetaProgressionManager', () => {
     }
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(10);
-    expect(byCategory.economy).toBe(6);
+    expect(byCategory.economy).toBe(7);
     expect(byCategory.capacity).toBe(10);
     expect(byCategory.starting_equipment).toBe(7);
     expect(byCategory.starting_skills).toBe(9);
@@ -510,6 +510,19 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.recruit_skill = 1;
     const effects = meta.getActiveEffects();
     expect(effects.recruitRandomSkill).toBe(true);
+  });
+
+  it('getActiveEffects returns lordRecruitChanceBonus for heros_call', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.heros_call = 2;
+    const effects = meta.getActiveEffects();
+    expect(effects.lordRecruitChanceBonus).toBe(0.16);
+  });
+
+  it('getActiveEffects returns 0 lordRecruitChanceBonus when unpurchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const effects = meta.getActiveEffects();
+    expect(effects.lordRecruitChanceBonus).toBe(0);
   });
 
   // --- Skill assignment methods ---

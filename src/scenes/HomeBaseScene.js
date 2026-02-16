@@ -573,6 +573,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const display = this._formatLootCategoryBonuses(effect.lootCategoryWeightBonuses);
       if (display) return display;
     }
+    if (effect.lordRecruitChanceBonus !== undefined) return `+${Math.round(effect.lordRecruitChanceBonus * 100)}%`;
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
@@ -635,6 +636,7 @@ export class HomeBaseScene extends Phaser.Scene {
     }
     if (effect.lootWeaponQualityBonus !== undefined) return 'Higher chance for upgraded weapons';
     if (effect.lootWeaponWeightBonus !== undefined) return 'Higher chance for upgraded weapons';
+    if (effect.lordRecruitChanceBonus !== undefined) return 'Lord recruit probability';
     if (effect.deployBonus !== undefined) return 'Deploy slots';
     if (effect.rosterCapBonus !== undefined) return 'Max roster size';
     if (effect.recruitStartingVulnerary !== undefined) return 'Recruits start with Vulnerary';

@@ -65,6 +65,14 @@ describe('HomeBaseScene upgrade description helpers', () => {
     expect(scene._formatEffectValue({ lethalArmoryTier: 3 })).toBe('Tier 3');
   });
 
+  it('describes heros_call lord recruit chance bonus', () => {
+    const scene = new HomeBaseScene();
+    expect(scene._getActionDesc({ effects: [{ lordRecruitChanceBonus: 0.08 }] })).toBe('Lord recruit probability');
+    expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.08 })).toBe('+8%');
+    expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.16 })).toBe('+16%');
+    expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.24 })).toBe('+24%');
+  });
+
   it('formats and describes recruit field supplies upgrade', () => {
     const scene = new HomeBaseScene();
 

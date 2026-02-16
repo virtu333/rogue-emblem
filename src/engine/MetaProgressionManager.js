@@ -368,6 +368,7 @@ export class MetaProgressionManager {
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
    *            goldBonus, battleGoldMultiplier, extraVulnerary, lootWeaponQualityBonus, lootCategoryWeightBonuses,
+   *            lordRecruitChanceBonus,
    *            deployBonus, rosterCapBonus, visionChargesBonus, recruitRandomSkill, recruitStartingVulnerary, extraStartingUnitTier,
    *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenalTier,
@@ -385,6 +386,7 @@ export class MetaProgressionManager {
       extraVulnerary: 0,
       lootCategoryWeightBonuses: {},
       lootWeaponQualityBonus: 0,
+      lordRecruitChanceBonus: 0,
       deployBonus: 0,
       rosterCapBonus: 0,
       visionChargesBonus: 0,
@@ -451,6 +453,7 @@ export class MetaProgressionManager {
             normalizeLootCategoryWeight(effects.lootCategoryWeightBonuses.weapon) + bonus;
         }
       }
+      if (effect.lordRecruitChanceBonus !== undefined) effects.lordRecruitChanceBonus = effect.lordRecruitChanceBonus;
       if (effect.deployBonus !== undefined) effects.deployBonus = effect.deployBonus;
       if (effect.rosterCapBonus !== undefined) effects.rosterCapBonus = effect.rosterCapBonus;
       if (effect.visionChargesBonus !== undefined) effects.visionChargesBonus = effect.visionChargesBonus;

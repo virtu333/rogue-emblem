@@ -206,7 +206,9 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
 
   // Lord slot determination
   const availLords = getAvailableLords(roster, lords, fallenUnits);
-  const lordSlot = availLords.length > 0 && Math.random() < BOSS_RECRUIT_LORD_CHANCE;
+  const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
+  const effectiveLordChance = Math.min(1, Math.max(0, BOSS_RECRUIT_LORD_CHANCE + lordChanceBonus));
+  const lordSlot = availLords.length > 0 && Math.random() < effectiveLordChance;
   const chosenLord = lordSlot ? availLords[Math.floor(Math.random() * availLords.length)] : null;
   const takenNames = new Set(
     (roster || [])

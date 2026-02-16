@@ -933,6 +933,20 @@
     ]
   },
   {
+    "id": "heros_call",
+    "name": "Hero's Call",
+    "description": "+8% lord recruit chance per tier",
+    "category": "economy",
+    "maxLevel": 3,
+    "costs": [150, 300, 500],
+    "requires": { "milestones": ["beatAct1"] },
+    "effects": [
+      { "lordRecruitChanceBonus": 0.08 },
+      { "lordRecruitChanceBonus": 0.16 },
+      { "lordRecruitChanceBonus": 0.24 }
+    ]
+  },
+  {
     "id": "deploy_limit",
     "name": "Tactical Advantage",
     "description": "+1 deploy slot in all acts",

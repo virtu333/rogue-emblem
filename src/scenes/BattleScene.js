@@ -371,11 +371,13 @@ export class BattleScene extends Phaser.Scene {
         const fallenForLordCheck = this.runManager?.fallenUnits || [];
         const availLords = getAvailableLords(rosterForLordCheck, this.gameData.lords || [], fallenForLordCheck);
 
-        if (availLords.length > 0 && Math.random() < RECRUIT_NODE_LORD_CHANCE) {
+        const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
+        const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
+        const effectiveLordChance = Math.min(1, Math.max(0, RECRUIT_NODE_LORD_CHANCE + lordChanceBonus));
+        if (availLords.length > 0 && Math.random() < effectiveLordChance) {
           const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
           const lordClassData = this.gameData.classes.find(c => c.name === lordDef.class);
           if (lordClassData) {
-            const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
             const npc = createBossLordUnit(lordDef, lordClassData, this.gameData.weapons, npcSpawn.level, metaEffects);
             npc.faction = 'npc';
             npc.col = npcSpawn.col;
