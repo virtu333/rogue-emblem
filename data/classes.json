@@ -40,11 +40,11 @@
     "tier": "base",
     "baseStats": {
       "HP": 22,
-      "STR": 7,
+      "STR": 8,
       "MAG": 0,
       "SKL": 4,
       "SPD": 2,
-      "DEF": 10,
+      "DEF": 11,
       "RES": 1,
       "LCK": 3,
       "MOV": 3
@@ -54,13 +54,13 @@
     "role": "Slow tank, very high DEF",
     "description": "An armored wall — absorbs punishment, but too slow to chase anyone down.",
     "growthRanges": {
-      "HP": "75-90",
-      "STR": "45-60",
+      "HP": "80-95",
+      "STR": "50-65",
       "MAG": "0-10",
       "SKL": "25-40",
       "SPD": "10-20",
-      "DEF": "50-65",
-      "RES": "10-20",
+      "DEF": "55-70",
+      "RES": "15-25",
       "LCK": "20-30"
     },
     "promotesTo": "General",
@@ -456,7 +456,7 @@
       "SKL": 1,
       "SPD": 1,
       "DEF": 3,
-      "RES": 2,
+      "RES": 6,
       "LCK": 0,
       "MOV": 0
     },
