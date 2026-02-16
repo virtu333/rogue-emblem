@@ -25,7 +25,11 @@ import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { markStartup } from '../utils/startupTelemetry.js';
+import { reportAsyncError } from '../utils/errorReporter.js';
+import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -131,6 +135,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.pauseOverlay = null;
     this.settingsOverlay = null;
     this.rosterOverlay = null;
+    this.nodeMapTransitionRecovery = null;
     this.dialogueOverlay = new DialogueOverlay(this);
     this._storyDialogueActive = false;
     this._touchTapDown = null;
@@ -456,23 +461,63 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.pauseOverlay?.visible) return;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => { this.pauseOverlay = null; },
-      onSaveAndExit: () => {
-        // Run is already auto-saved on NodeMap entry. Just navigate.
-        const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(this, 0);
-        void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
+      onSaveAndExit: async () => {
+        try {
+          // Run is already auto-saved on NodeMap entry. Just navigate.
+          const audio = this.registry.get('audio');
+          if (audio) audio.stopMusic(this, 0);
+          markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
+          const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
+          if (!ok) {
+            markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
+            resetTransitionLocks(this);
+            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
+            catch (err) {
+              markStartup('pause_transition_double_failure', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
+              this.showNodeMapTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
+            }
+          }
+        } catch (err) {
+          reportAsyncError('NodeMap-pause-save-exit', err);
+          this.showNodeMapTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
+        }
       },
-      onAbandon: () => {
-        const cloud = this.registry.get('cloud');
-        const slot = this.registry.get('activeSlot');
-        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
-        this.runManager.failRun();
-        const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(this, 0);
-        void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
+      onAbandon: async () => {
+        try {
+          const cloud = this.registry.get('cloud');
+          const slot = this.registry.get('activeSlot');
+          clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+          this.runManager.failRun();
+          const audio = this.registry.get('audio');
+          if (audio) audio.stopMusic(this, 0);
+          markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
+          const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
+          if (!ok) {
+            markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
+            resetTransitionLocks(this);
+            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
+            catch (err) {
+              markStartup('pause_transition_double_failure', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
+              this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+            }
+          }
+        } catch (err) {
+          reportAsyncError('NodeMap-pause-abandon', err);
+          this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+        }
       },
     });
     this.pauseOverlay.show();
+  }
+
+  showNodeMapTransitionRecovery(reason = TRANSITION_REASONS.SAVE_EXIT) {
+    showTransitionRecoveryPrompt(this, {
+      reason,
+      sceneName: 'NodeMap',
+      guardKey: 'nodeMapTransitionRecovery',
+      overlayKey: 'pauseOverlay',
+      titleData: { gameData: this.gameData },
+    });
   }
 
   drawMap() {

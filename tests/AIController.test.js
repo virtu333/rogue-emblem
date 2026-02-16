@@ -590,6 +590,44 @@ describe('AIController', () => {
     });
   });
 
+  describe('Occupancy filtering', () => {
+    it('dead unit (currentHP 0) does not block enemy movement', () => {
+      const moveTiles = [{ col: 4, row: 5 }];
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      const enemy = makeEnemy({ col: 5, row: 5 });
+      const deadPlayer = makePlayer({ col: 4, row: 5, currentHP: 0 });
+      const livePlayer = makePlayer({ col: 3, row: 5 });
+
+      const decision = ai._decideAction(enemy, [enemy], [deadPlayer, livePlayer], []);
+      // Enemy should be able to move to (4,5) since the dead player doesn't block
+      expect(decision.path).toBeDefined();
+      expect(decision.path.length).toBeGreaterThanOrEqual(2);
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest.col).toBe(4);
+      expect(dest.row).toBe(5);
+    });
+
+    it('removing unit (_removing true) does not block enemy movement', () => {
+      const moveTiles = [{ col: 4, row: 5 }];
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      const enemy = makeEnemy({ col: 5, row: 5 });
+      const removingPlayer = makePlayer({ col: 4, row: 5, _removing: true });
+      const livePlayer = makePlayer({ col: 3, row: 5 });
+
+      const decision = ai._decideAction(enemy, [enemy], [removingPlayer, livePlayer], []);
+      // Enemy should be able to move to (4,5) since the removing player doesn't block
+      expect(decision.path).toBeDefined();
+      expect(decision.path.length).toBeGreaterThanOrEqual(2);
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest.col).toBe(4);
+      expect(dest.row).toBe(5);
+    });
+  });
+
   describe('Constructor options', () => {
     it('defaults to rout with no thronePos', () => {
       const ai = new AIController(createMockGrid(), {});

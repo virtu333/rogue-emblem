@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 1118 tests in suite on `main` baseline (Feb 13, 2026). Deployed to Netlify with Supabase auth + cloud saves. 41 meta upgrades across 6 categories, 52 weapons, 21 skills, 18 accessories, 29 classes, 38 music tracks, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, dual currency meta, FE GBA-style combat forecast. Wave 2 map generation enhancements are merged on `main`; Wave 6 blessings core + telemetry integration is on `main`; Wave 8 Part A difficulty foundation is now shipped on `main` (data contract, deterministic wiring, UX flow, unlock gating); Wave 3B Convoy MVP core flow is shipped on `main`; Wave 4 Weapon Arts foundation and act/meta progression are on `main`, with 3c polish wrap-up hardening landed (run-start integration coverage + deterministic enemy-proc test seam + playtest checklist). For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 1621 tests across 102 files on `main` baseline (Feb 15, 2026). Deployed to Netlify with Supabase auth + cloud saves. 54 meta upgrades across 6 categories, 88 weapons, 35 skills (7 trigger types), 17 accessories, 32 classes (16 base + 16 promoted incl. Wyvern), 12 terrain types, 12 map templates (6 rout + 6 seize), 39 weapon arts, 12 enemy affixes, 18 blessings, 10 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -18,11 +18,12 @@ Organized by impact and logical sequencing:
 6a. ~~**Wave 1 Stabilization Gate**~~ - Audio overlap, scene-transition spam, save/cloud correctness
 6b. ~~**Wave 2 Low-Risk Content**~~ - Enemy affixes, recruit naming/dialogue scaffold
 6c. ~~**Wave 3B Convoy MVP + Wave 3A Wyvern Foundation**~~ - Convoy 5+5 slots, Wyvern classes, enemy/recruit pools
-6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - 39 of 67 arts, stat-scaling, magic catalog, tactical-depth arts
+6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - 39 arts shipped (Sword 11, Lance 8, Axe 9, Bow 6, Tome 5), stat-scaling, magic catalog, tactical-depth arts
 6e. ~~**Scene-Router + transition hardening**~~ - SceneRouter, SceneGuard, cleanup audits, leak-gate e2e
+7. ~~**Act 4 Hard-Mode Acceleration**~~ - All 4 phases shipped (contract alignment, terrain hazards, Act 4 progression, reinforcement system). See `docs/act4-hardmode-rollout-plan.md`.
 
 ### Now (Current Sprint)
-7. **Act 4 Hard-Mode Acceleration** - Contract alignment -> terrain hazards + tilesets -> Act 4 progression -> reinforcement system. Phase-gated rollout: `docs/act4-hardmode-rollout-plan.md`. GDD vision docs: `docs/gdd/`.
+_Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part B+), or content tuning._
 
 ### Next (1-3 Months)
 9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency. Natural follow-on after Act 4 extends the run length.
@@ -45,15 +46,15 @@ Organized by impact and logical sequencing:
 
 ---
 
-## Parallel Workstreams (Feb 11, 2026)
+## Parallel Workstreams (Feb 15, 2026)
 
 Work is intentionally split across parallel agents. Roadmap source of truth remains this file plus merged code on `main`.
 
-1. **Blessings stabilization stream** - Validate contract behavior end-to-end (selection, persistence, telemetry, deterministic application order), then land follow-up balancing and UX polish.
-2. **Harness/regression stream** - Keep deterministic harness and replay compatibility stable while blessings and map/difficulty-adjacent changes merge.
-3. **Difficulty follow-up stream** - Tune Part A values/UX based on playtest data while keeping Lunatic and future content decoupled.
+1. ~~**Blessings stabilization stream**~~ [complete] Contract validated end-to-end; telemetry + act hit bonus integration landed.
+2. ~~**Harness/regression stream**~~ [complete] Deterministic harness stable through all Wave 2-4 + Act 4 merges.
+3. ~~**Difficulty follow-up stream**~~ [complete for Part A] Normal/Hard shipped with unlock gating. Lunatic rollout deferred to Part B+.
 4. **Integration cadence** - Small PRs, frequent rebase on `main`, no cross-stream contract breaks (harness/Wave 2 surfaces treated as external).
-5. **Economy rebalance stream (active, separate agent plan)** - `C:\Users\davec\.claude\plans\velvet-napping-spark.md` covers turn bonus payout correction, kill-gold tuning, church promote pricing, and late-game forge sink expansion.
+5. ~~**Economy rebalance stream**~~ [complete] Turn bonus payout correction, kill-gold tuning, church promote pricing, and late-game forge sink expansion landed.
 
 ---
 
@@ -100,7 +101,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline in current state: 1118 tests on Feb 13, 2026.
+- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline: 1621 tests across 102 files on Feb 15, 2026.
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
 - [x] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).
@@ -138,21 +139,23 @@ QA evidence (Feb 12, 2026):
 - **Wave 3B (Convoy MVP):** core convoy model + persistence, overflow routing, node/deploy access UI, and defensive transaction hardening are now on `main`. Remaining follow-up is cap tuning + incremental UX polish.
 - **Wave 3A (Wyvern Foundation, Reclass Deferred):** Wyvern classes, enemy pool/recruit integration, and loot table compatibility are on `main`; class-state hardening for promotion/save-load paths is also landed (moveType/proficiency normalization + legal weapon relink). Remaining work is movement/pathing QA polish and sprite finalization. Defer Second Seal/Reclass.
   - TEMP: Wyvern Rider/Lord battle sprites currently use split blue/red placeholder art. Replace with finalized class-specific sprite set in Wave 3A polish.
-- **Wave 4 (Weapon Arts):** data contract + combat/menu flow + forecast parity + act/meta unlock progression are on `main`; Home Base informational Arts tab was intentionally removed to reduce UI clutter; acquisition/meta surfaces and enemy/legendary integrations are in, with initial balance tuning and guardrail tests now landed. Legacy `Arcane Etching` (`weapon_art_infusion`) has been replaced by `iron_arms` + `steel_arms` + `art_adept` (legacy key retained only for migration compatibility). Difficulty-aware enemy art usage frequency tuning and 3c polish wrap-up hardening are on `main`; **Phase 1 catalog expansion is complete** (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`, and normal follow-up suppression while a weapon art is active). **Phase 2 tactical-depth implementation is complete in code/data/tests** (effectiveness/no-counter/range modifiers and 12 additional arts), but phase gate is currently blocked in this sandbox on `npm run test:e2e` due Playwright `spawn EPERM` worker-process restrictions.
+- **Wave 4 (Weapon Arts):** Complete on `main`. 39 weapon arts shipped (Sword 11, Lance 8, Axe 9, Bow 6, Tome 5). Data contract + combat/menu flow + forecast parity + act/meta unlock progression. Home Base informational Arts tab was intentionally removed to reduce UI clutter. Difficulty-aware enemy art usage frequency tuning and polish wrap-up hardening landed. Phase 1 catalog expansion (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`) and Phase 2 tactical-depth implementation (effectiveness/no-counter/range modifiers, 12 additional arts) both shipped.
 - **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `docs/references/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
 ---
 
-## NOW: Act 4 Hard-Mode Acceleration
+## DONE: Act 4 Hard-Mode Acceleration
+
+All phases complete on `main` as of Feb 15, 2026.
 
 - **Rollout plan:** `docs/act4-hardmode-rollout-plan.md` (4 phases, phase-gated)
 - **GDD vision docs:** `docs/gdd/` (ported from GDDExpansion, with implementation status headers)
 - **Spec:** `docs/specs/difficulty_spec.md` §8 (Act 4 Hard+ Only)
-- Phase 1 (Contract Alignment): READY — doc alignment complete
-- Phase 2 (Terrain Hazards + Tilesets): shipped on `main`
-- Phase 3 (Act 4 Progression): shipped on `main`
-- Phase 4 (Reinforcement System): shipped on `main` (reinforcement + hybrid boss-arena slices complete; follow-on tuning tracked in normal balance passes)
+- Phase 1 (Contract Alignment): ✅ shipped
+- Phase 2 (Terrain Hazards + Tilesets): ✅ shipped
+- Phase 3 (Act 4 Progression): ✅ shipped
+- Phase 4 (Reinforcement System): ✅ shipped (reinforcement + hybrid boss-arena slices complete; follow-on tuning tracked in normal balance passes)
 
 ### Wave 7: Additional Map Objectives (Deferred)
 **Priority:** Medium - Adds battle variety
@@ -315,8 +318,8 @@ QA evidence (Feb 12, 2026):
 7. ~~**Wave 1.5 Reliability Hardening**~~ [done] SceneRouter + transition leak + crash traceability
 8. ~~**Wave 2 Low-Risk Content**~~ [done] Enemy affixes + recruit naming scaffold
 9. ~~**Wave 3B**~~ [done] Convoy MVP -> ~~**Wave 3A**~~ [done] Wyvern foundation (reclass deferred)
-10. ~~**Wave 4**~~ [done] Weapon Arts phases 1-2 (39 of 67 arts, stat-scaling, magic catalog, tactical-depth)
-11. **Act 4 Hard-Mode Acceleration** — Phase 1/2/3 shipped; Phase 4 reinforcement + hybrid boss-arena slices shipped. See `docs/act4-hardmode-rollout-plan.md`
+10. ~~**Wave 4**~~ [done] Weapon Arts phases 1-2 (39 arts shipped, stat-scaling, magic catalog, tactical-depth)
+11. ~~**Act 4 Hard-Mode Acceleration**~~ [done] All 4 phases shipped on `main` (Feb 15, 2026). See `docs/act4-hardmode-rollout-plan.md`
 12. **Dynamic Recruit Nodes** — Roster-aware recruit frequency (after Act 4)
 13. **Difficulty Follow-up (Part B+)** -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion
 

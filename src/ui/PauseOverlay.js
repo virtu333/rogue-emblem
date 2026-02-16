@@ -102,13 +102,17 @@ export class PauseOverlay {
       this._addButton(cx, btnY, 'Save & Return to Title', () => {
         if (this.onSaveAndExitWarning) {
           this._showConfirm(this.onSaveAndExitWarning, () => {
-            this.hide();
-            this.onSaveAndExit();
+            this.hideForTransition();
+            Promise.resolve().then(() => this.onSaveAndExit()).catch((err) => {
+              console.error('[PauseOverlay] onSaveAndExit rejected:', err);
+            });
           }, '#88ccff');
           return;
         }
-        this.hide();
-        this.onSaveAndExit();
+        this.hideForTransition();
+        Promise.resolve().then(() => this.onSaveAndExit()).catch((err) => {
+          console.error('[PauseOverlay] onSaveAndExit rejected:', err);
+        });
       }, '#88ccff');
       btnY += 40;
     }
@@ -117,8 +121,12 @@ export class PauseOverlay {
     if (this.onAbandon) {
       this._addButton(cx, btnY, 'Abandon Run', () => {
         this._showConfirm('Abandon this run?\nProgress will be lost.', () => {
-          this.hide();
-          if (this.onAbandon) this.onAbandon();
+          this.hideForTransition();
+          if (this.onAbandon) {
+            Promise.resolve().then(() => this.onAbandon()).catch((err) => {
+              console.error('[PauseOverlay] onAbandon rejected:', err);
+            });
+          }
         }, '#cc5555');
       }, '#cc5555');
     }
@@ -182,5 +190,16 @@ export class PauseOverlay {
     this.objects = [];
     this.visible = false;
     if (this.onResume) this.onResume();
+  }
+
+  /** Like hide(), but skips onResume — used before destructive transitions (Save & Exit, Abandon). */
+  hideForTransition() {
+    if (this.helpOverlay?.visible) this.helpOverlay.hide();
+    if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
+    if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
+    this._hideConfirm();
+    for (const obj of this.objects) obj.destroy();
+    this.objects = [];
+    this.visible = false;
   }
 }

@@ -92,6 +92,9 @@ import { buildTutorialBattleConfig as _buildTutorialBattleConfig, buildTutorialR
 import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { markStartup } from '../utils/startupTelemetry.js';
+import { reportAsyncError } from '../utils/errorReporter.js';
+import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -175,6 +178,7 @@ export class BattleScene extends Phaser.Scene {
     this._postLootTransitionTimer = null;
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
+    this.pauseTransitionRecovery = null;
   }
 
   create() {
@@ -2807,25 +2811,57 @@ export class BattleScene extends Phaser.Scene {
   showPauseMenu() {
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
-    const abandonCb = this.runManager ? () => {
-      const cloud = this.registry.get('cloud');
-      const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
-      this.clearBattleScopedDeltas(this.playerUnits);
-      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-      this.runManager.failRun();
-      this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
+    const abandonCb = this.runManager ? async () => {
+      try {
+        const cloud = this.registry.get('cloud');
+        const slot = this.registry.get('activeSlot');
+        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+        this.clearBattleScopedDeltas(this.playerUnits);
+        this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+        this.runManager.failRun();
+        this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
+        const audio = this.registry.get('audio');
+        if (audio) audio.stopMusic(this, 0);
+        markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'ABANDON_RUN' });
+        const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
+        if (!ok) {
+          markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
+          resetTransitionLocks(this);
+          try {
+            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+          } catch (err) {
+            markStartup('pause_transition_double_failure', { scene: 'Battle', reason: 'ABANDON_RUN' });
+            this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+          }
+        }
+      } catch (err) {
+        reportAsyncError('Battle-pause-abandon', err);
+        this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+      }
     } : null;
-    const saveExitCb = this.runManager ? () => {
-      // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
-      this.clearBattleScopedDeltas(this.playerUnits);
-      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
+    const saveExitCb = this.runManager ? async () => {
+      try {
+        // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
+        this.clearBattleScopedDeltas(this.playerUnits);
+        this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+        const audio = this.registry.get('audio');
+        if (audio) audio.stopMusic(this, 0);
+        markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'SAVE_EXIT' });
+        const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
+        if (!ok) {
+          markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
+          resetTransitionLocks(this);
+          try {
+            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+          } catch (err) {
+            markStartup('pause_transition_double_failure', { scene: 'Battle', reason: 'SAVE_EXIT' });
+            this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
+          }
+        }
+      } catch (err) {
+        reportAsyncError('Battle-pause-save-exit', err);
+        this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
+      }
     } : null;
     const campaignMapData = this.runManager?.nodeMap ? {
       nodeMap: this.runManager.nodeMap,
@@ -8595,6 +8631,16 @@ export class BattleScene extends Phaser.Scene {
     group.push(titleBtn);
 
     this.defeatRecoveryPrompt = group;
+  }
+
+  showPauseTransitionRecovery(reason = TRANSITION_REASONS.SAVE_EXIT) {
+    showTransitionRecoveryPrompt(this, {
+      reason,
+      sceneName: 'Battle',
+      guardKey: 'pauseTransitionRecovery',
+      overlayKey: 'pauseOverlay',
+      titleData: { gameData: this.gameData },
+    });
   }
 }
 

@@ -122,6 +122,7 @@ export class AIController {
     const unitPositions = new Map();
     for (const u of [...allEnemies, ...playerUnits, ...(npcUnits || [])]) {
       if (u === enemy) continue;
+      if (!u || u._removing || u.currentHP <= 0) continue;
       unitPositions.set(`${u.col},${u.row}`, { faction: u.faction });
     }
 
@@ -175,6 +176,7 @@ export class AIController {
       if (!enemy.weapon) break;
 
       for (const target of attackableUnits) {
+        if (!target || target.currentHP <= 0 || target._removing) continue;
         const dist = gridDistance(candidate.finalTile.col, candidate.finalTile.row, target.col, target.row);
         if (!isInRange(enemy.weapon, dist)) continue;
 

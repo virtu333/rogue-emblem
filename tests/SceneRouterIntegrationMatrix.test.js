@@ -72,11 +72,17 @@ function extractCalls(source, fnName) {
 }
 
 function hasInlineReason(callSource) {
-  return /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource);
+  // Primary: explicit TRANSITION_REASONS.X in call arguments
+  // Secondary: shorthand { reason } pass-through — currently no scene file uses this
+  // (only TransitionRecoveryPrompt.js in src/ui/ does, which isn't scanned).
+  // Kept as safety net for future refactors that pass reason through helper params.
+  return /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource)
+    || /,\s*\{\s*reason\s*\}\s*\)/s.test(callSource);
 }
 
 const ALLOWED_BYPASS_COUNT = {
-  'BattleScene.js': 2, // nuclear fallback in showDefeatTransitionRecovery
+  'BattleScene.js': 4, // 2 defeat recovery + 2 pause abandon/save-exit fallback
+  'NodeMapScene.js': 2, // save-exit + abandon callback fallback
 };
 
 describe('SceneRouter integration matrix', () => {
