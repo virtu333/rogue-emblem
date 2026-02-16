@@ -131,6 +131,7 @@ function normalizeCombatMods(mods) {
     vantage: Boolean(mods.vantage),
     quickRiposte: Boolean(mods.quickRiposte),
     desperation: Boolean(mods.desperation),
+    preventEnemyDouble: Boolean(mods.preventEnemyDouble),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -163,6 +164,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     vantage: base.vantage || extra.vantage,
     quickRiposte: base.quickRiposte || extra.quickRiposte,
     desperation: base.desperation || extra.desperation,
+    preventEnemyDouble: base.preventEnemyDouble || extra.preventEnemyDouble,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -638,8 +640,8 @@ export function getCombatForecast(
   // Doubling with accessory + skill + weight modifiers
   const fAtkPursuit = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const fDefPursuit = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
-  const fAtkPrevent = attacker.accessory?.combatEffects?.preventEnemyDouble || false;
-  const fDefPrevent = defender.accessory?.combatEffects?.preventEnemyDouble || false;
+  const fAtkPrevent = attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
+  const fDefPrevent = defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
   const atkSpdBonus = atkMods?.spdBonus || 0;
   const defSpdBonus = defMods?.spdBonus || 0;
 
@@ -758,6 +760,13 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   let reflectDamage = 0;
   let warpRange = 0;
   const skillActivations = [];
+  // Append activations by id, deduplicating
+  function mergeActivations(activated) {
+    if (!activated?.length) return;
+    for (const act of activated) {
+      if (!skillActivations.some(a => a.id === act.id)) skillActivations.push(act);
+    }
+  }
 
   // Per-strike skill effects (only on hit)
   if (strikeSkills?.rollStrikeSkills) {
@@ -768,36 +777,37 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
     if (skillResult.aetherLuna) aetherLuna = true;
     if (skillResult.lethal) {
       finalDmg = targetHP; // instant kill
-      skillActivations.push(...skillResult.activated);
     } else if (skillResult.modifiedDamage !== finalDmg) {
       finalDmg = skillResult.modifiedDamage;
-      skillActivations.push(...skillResult.activated);
     }
     if (skillResult.heal > 0) {
       heal = skillResult.heal;
-      // Only add Sol activation if not already in list
-      if (!skillActivations.some(a => a.id === 'sol')) {
-        skillActivations.push(...skillResult.activated);
-      }
     }
     if (skillResult.extraStrike) {
       extraStrike = true;
     }
+    if (skillResult.divineCharge) {
+      // Store on the strike context for post-combat processing
+      if (!strikeSkills._divineChargeData) strikeSkills._divineChargeData = skillResult.divineCharge;
+    }
+    // Always surface all on-attack skill activations
+    mergeActivations(skillResult.activated);
   }
 
-  // On-defend skills (Pavise, Aegis, Miracle)
-  if (strikeSkills?.rollDefenseSkills && finalDmg > 0) {
+  // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
+  if (strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
       strikeSkills.target, finalDmg, isPhysicalAtk, strikeSkills.skillsData
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
-      skillActivations.push(...defResult.activated);
     }
-    if (defResult.miracleTriggered) {
-      skillActivations.push(...defResult.activated.filter(a => a.id === 'miracle' && !skillActivations.some(s => s.id === 'miracle')));
+    if (defResult.debuffAttacker) {
+      if (!strikeSkills._debuffAttackerData) strikeSkills._debuffAttackerData = defResult.debuffAttacker;
     }
+    // Always surface all on-defend skill activations
+    mergeActivations(defResult.activated);
   }
 
   // On-defend affixes (Shielded, Teleporter, Thorns)
@@ -807,16 +817,15 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
-      skillActivations.push(...defResult.activated);
     }
     if (defResult.reflectDamage > 0) {
       reflectDamage = defResult.reflectDamage;
-      skillActivations.push(...defResult.activated.filter(a => a.id === 'thorns' && !skillActivations.some(s => s.id === 'thorns')));
     }
     if (defResult.warpRange > 0) {
       warpRange = defResult.warpRange;
-      skillActivations.push(...defResult.activated.filter(a => a.id === 'teleporter' && !skillActivations.some(s => s.id === 'teleporter')));
     }
+    // Always surface all on-defend affix activations
+    mergeActivations(defResult.activated);
   }
 
   // Drain HP (Runesword: heal equal to damage dealt)
@@ -903,8 +912,8 @@ export function resolveCombat(
   // Doubling: apply accessory + skill + weight modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const defPursuitReduction = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
-  const atkPreventDouble = attacker.accessory?.combatEffects?.preventEnemyDouble || false;
-  const defPreventDouble = defender.accessory?.combatEffects?.preventEnemyDouble || false;
+  const atkPreventDouble = attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
+  const defPreventDouble = defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
   const rAtkSpdBonus = atkMods?.spdBonus || 0;
   const rDefSpdBonus = defMods?.spdBonus || 0;
 
@@ -1099,6 +1108,36 @@ export function resolveCombat(
     }
   }
 
+  // Post-combat: Intimidate debuff — _debuffAttackerData debuffs the striker of that context
+  const debuffEvents = [];
+  if (atkStrikeSkills?._debuffAttackerData && atkHP > 0) {
+    debuffEvents.push({ target: 'attacker', debuffs: atkStrikeSkills._debuffAttackerData });
+  }
+  if (defStrikeSkills?._debuffAttackerData && defHP > 0) {
+    debuffEvents.push({ target: 'defender', debuffs: defStrikeSkills._debuffAttackerData });
+  }
+
+  // Post-combat: Divine Charge heal — collect from both sides
+  const divineChargeHeals = [];
+  if (atkStrikeSkills?._divineChargeData && atkHP > 0) {
+    const totalDmg = events.reduce((sum, e) => {
+      if (e.type === 'strike' && e.attacker === attacker.name && !e.miss) return sum + e.damage;
+      return sum;
+    }, 0);
+    if (totalDmg > 0) {
+      divineChargeHeals.push({ ...atkStrikeSkills._divineChargeData, damageDealt: totalDmg, side: 'attacker' });
+    }
+  }
+  if (defStrikeSkills?._divineChargeData && defHP > 0) {
+    const totalDmg = events.reduce((sum, e) => {
+      if (e.type === 'strike' && e.attacker === defender.name && !e.miss) return sum + e.damage;
+      return sum;
+    }, 0);
+    if (totalDmg > 0) {
+      divineChargeHeals.push({ ...defStrikeSkills._divineChargeData, damageDealt: totalDmg, side: 'defender' });
+    }
+  }
+
   return {
     events,
     attackerHP: atkHP,
@@ -1106,6 +1145,9 @@ export function resolveCombat(
     attackerDied: atkHP <= 0,
     defenderDied: defHP <= 0,
     poisonEffects,
+    debuffEvents,
+    divineChargeHeals,
+    divineChargeHeal: divineChargeHeals[0] ?? null,
     // Backward compat: expose first poison entry as flat fields
     poisonDamage: poisonEffects.length > 0 ? poisonEffects[0].damage : 0,
     poisonTarget: poisonEffects.length > 0 ? poisonEffects[0].target : null,

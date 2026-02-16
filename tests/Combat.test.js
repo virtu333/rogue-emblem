@@ -1137,3 +1137,180 @@ describe('resBonus reduces magic damage in forecast and resolution', () => {
     expect(resStrike.damage).toBe(baseStrike.damage - 3);
   });
 });
+
+// --- Regression tests for Findings 1-5 ---
+
+describe('Intimidate debuff target mapping', () => {
+  // Helper: build skillCtx that wires real rollStrikeSkills/rollDefenseSkills
+  function makeSkillCtx(atkSkills, defSkills, skillsData) {
+    const { rollStrikeSkills, rollDefenseSkills } = require('../src/engine/SkillSystem.js');
+    return {
+      atkMods: null,
+      defMods: null,
+      rollStrikeSkills,
+      rollDefenseSkills,
+      skillsData,
+    };
+  }
+
+  it('defender with Intimidate debuffs the attacker (initiator hit path)', () => {
+    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
+    const skillCtx = makeSkillCtx([], ['intimidate'], data.skills);
+
+    // Force all rolls to hit + trigger intimidate (activation: always → 100%)
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    // Intimidate should debuff the ATTACKER, not the defender
+    expect(result.debuffEvents.length).toBeGreaterThan(0);
+    const atkDebuff = result.debuffEvents.find(d => d.target === 'attacker');
+    expect(atkDebuff).toBeTruthy();
+    expect(atkDebuff.debuffs).toHaveProperty('STR');
+  });
+
+  it('attacker with Intimidate debuffs the defender on counter path', () => {
+    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
+    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const skillCtx = makeSkillCtx(['intimidate'], [], data.skills);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    // Intimidate should debuff the DEFENDER (counter-striker), not the attacker
+    const defDebuff = result.debuffEvents.find(d => d.target === 'defender');
+    expect(defDebuff).toBeTruthy();
+    expect(defDebuff.debuffs).toHaveProperty('STR');
+  });
+});
+
+describe('Activation surfacing for trigger-only skills', () => {
+  function makeSkillCtx(skillsData) {
+    const { rollStrikeSkills, rollDefenseSkills } = require('../src/engine/SkillSystem.js');
+    return {
+      atkMods: null,
+      defMods: null,
+      rollStrikeSkills,
+      rollDefenseSkills,
+      skillsData,
+    };
+  }
+
+  it('intimidate appears in strike skillActivations', () => {
+    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
+    const skillCtx = makeSkillCtx(data.skills);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss);
+    expect(strikeEvent.skillActivations.some(a => a.id === 'intimidate')).toBe(true);
+  });
+
+  it('divine_charge appears in strike skillActivations on proc', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 99, SPD: 15, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: ['divine_charge'],
+    });
+    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const skillCtx = makeSkillCtx(data.skills);
+
+    // SKL 99 → activation chance 99%. Roll 0.0 triggers it.
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss && e.attacker === 'Atk');
+    expect(strikeEvent.skillActivations.some(a => a.id === 'divine_charge')).toBe(true);
+  });
+
+  it('cancel appears in skillActivations when triggered', () => {
+    // Attacker SPD 15 doubles defender SPD 10 (15 >= 10+5). Cancel activation = SPD% = 10%.
+    // High LCK zeroes crit rate. Math.random = 0.0 → 0 < 10 → cancel fires.
+    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 50 }, currentHP: 30, skills: [] });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 50 },
+      currentHP: 30,
+      skills: ['cancel'],
+    });
+    const skillCtx = makeSkillCtx(data.skills);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss);
+    expect(strikeEvent.skillActivations.some(a => a.id === 'cancel')).toBe(true);
+  });
+});
+
+describe('Divine Charge defender proc and dual proc', () => {
+  function makeSkillCtx(skillsData) {
+    const { rollStrikeSkills, rollDefenseSkills } = require('../src/engine/SkillSystem.js');
+    return {
+      atkMods: null,
+      defMods: null,
+      rollStrikeSkills,
+      rollDefenseSkills,
+      skillsData,
+    };
+  }
+
+  it('defender with divine_charge gets heal payload on counter', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: [],
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 99, SPD: 15, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: ['divine_charge'],
+    });
+    const skillCtx = makeSkillCtx(data.skills);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    // Defender counters and procs divine_charge
+    const defHeal = result.divineChargeHeals.find(h => h.side === 'defender');
+    expect(defHeal).toBeTruthy();
+    expect(defHeal.damageDealt).toBeGreaterThan(0);
+  });
+
+  it('both sides can proc divine_charge (dual proc)', () => {
+    // High LCK zeroes crit rate so nobody one-shots. Both alive → both proc.
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 99, SPD: 12, DEF: 5, RES: 3, LCK: 99 },
+      currentHP: 30,
+      skills: ['divine_charge'],
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 99, SPD: 12, DEF: 5, RES: 3, LCK: 99 },
+      currentHP: 30,
+      skills: ['divine_charge'],
+    });
+    const skillCtx = makeSkillCtx(data.skills);
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    // Both should have entries
+    expect(result.divineChargeHeals.length).toBe(2);
+    expect(result.divineChargeHeals.some(h => h.side === 'attacker')).toBe(true);
+    expect(result.divineChargeHeals.some(h => h.side === 'defender')).toBe(true);
+  });
+});

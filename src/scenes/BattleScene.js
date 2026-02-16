@@ -6048,6 +6048,43 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // Apply intimidate debuffs
+    if (result.debuffEvents?.length > 0) {
+      for (const de of result.debuffEvents) {
+        const debuffTarget = de.target === 'attacker' ? attacker : defender;
+        if (debuffTarget.currentHP <= 0) continue;
+        for (const [stat, val] of Object.entries(de.debuffs)) {
+          this.applyBattleDebuff(debuffTarget, stat, val);
+        }
+        const pos = this.grid.gridToPixel(debuffTarget.col, debuffTarget.row);
+        this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
+      }
+    }
+
+    // Apply divine charge heals
+    if (result.divineChargeHeals?.length > 0) {
+      for (const dc of result.divineChargeHeals) {
+        const caster = dc.side === 'attacker' ? attacker : defender;
+        if (caster.currentHP <= 0) continue;
+        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
+        if (healAmount <= 0) continue;
+        const allies = this.getDivineChargeAllies(caster)
+          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
+        if (allies.length === 0) continue;
+        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+        const healTarget = allies[0];
+        const prevHP = healTarget.currentHP;
+        healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
+        const actualHeal = healTarget.currentHP - prevHP;
+        this.updateHPBar(healTarget);
+        if (actualHeal > 0) {
+          const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
+          this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
+        }
+      }
+    }
+
     if (attacker.faction === 'player' && !result.attackerDied) {
       const damageDealt = Math.max(0, defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)));
       await this.awardXP(attacker, defender, result.defenderDied, damageDealt, defenderHpAtStart);
@@ -6892,6 +6929,43 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // Apply intimidate debuffs
+    if (result.debuffEvents?.length > 0) {
+      for (const de of result.debuffEvents) {
+        const debuffTarget = de.target === 'attacker' ? enemy : target;
+        if (debuffTarget.currentHP <= 0) continue;
+        for (const [stat, val] of Object.entries(de.debuffs)) {
+          this.applyBattleDebuff(debuffTarget, stat, val);
+        }
+        const pos = this.grid.gridToPixel(debuffTarget.col, debuffTarget.row);
+        this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
+      }
+    }
+
+    // Apply divine charge heals
+    if (result.divineChargeHeals?.length > 0) {
+      for (const dc of result.divineChargeHeals) {
+        const caster = dc.side === 'attacker' ? enemy : target;
+        if (caster.currentHP <= 0) continue;
+        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
+        if (healAmount <= 0) continue;
+        const allies = this.getDivineChargeAllies(caster)
+          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
+        if (allies.length === 0) continue;
+        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+        const healTarget = allies[0];
+        const prevHP = healTarget.currentHP;
+        healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
+        const actualHeal = healTarget.currentHP - prevHP;
+        this.updateHPBar(healTarget);
+        if (actualHeal > 0) {
+          const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
+          this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
+        }
+      }
+    }
+
     // Award XP to player defender if they survived
     if (target.faction === 'player' && !result.defenderDied) {
       const counterDamage = Math.max(0, enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)));
@@ -6960,6 +7034,13 @@ export class BattleScene extends Phaser.Scene {
         yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
       });
     }
+  }
+
+  /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
+  getDivineChargeAllies(caster) {
+    if (caster.faction === 'enemy') return this.enemyUnits;
+    if (caster.faction === 'npc') return [...this.playerUnits, ...(this.npcUnits || [])];
+    return this.playerUnits;
   }
 
   // --- Win/lose ---

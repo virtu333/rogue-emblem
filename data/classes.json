@@ -876,5 +876,155 @@
     "weaponProficiencies": "Light (M), Staves (P)",
     "roleChange": "Gains Staves, healing",
     "description": "A divine oracle — gains staves for healing alongside mastered light magic."
+  },
+  {
+    "name": "Chevalier",
+    "tier": "base",
+    "baseStats": {
+      "HP": 21,
+      "STR": 7,
+      "MAG": 1,
+      "SKL": 6,
+      "SPD": 7,
+      "DEF": 6,
+      "RES": 2,
+      "LCK": 3,
+      "MOV": 5
+    },
+    "moveType": "Cavalry",
+    "weaponProficiencies": "Lances (P)",
+    "role": "Mounted lancer, charge bonus",
+    "description": "A charging knight — hits harder the farther he rides, great reach on open ground.",
+    "growthRanges": {
+      "HP": "60-75",
+      "STR": "40-55",
+      "MAG": "5-15",
+      "SKL": "35-50",
+      "SPD": "40-55",
+      "DEF": "30-45",
+      "RES": "10-20",
+      "LCK": "20-30"
+    },
+    "promotesTo": "Holy Knight"
+  },
+  {
+    "name": "Holy Knight",
+    "tier": "promoted",
+    "promotesFrom": "Chevalier",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 5,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 2,
+      "RES": 3,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "moveType": "Cavalry",
+    "weaponProficiencies": "Lances (M), Staves (P)",
+    "roleChange": "Gains Staves, +MOV, mixed offense",
+    "description": "A holy cavalier — gains staves and a surge of MAG, rides to heal or strike."
+  },
+  {
+    "name": "Sky Lancer",
+    "tier": "base",
+    "baseStats": {
+      "HP": 18,
+      "STR": 5,
+      "MAG": 3,
+      "SKL": 7,
+      "SPD": 8,
+      "DEF": 4,
+      "RES": 6,
+      "LCK": 5,
+      "MOV": 5
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Lances (P)",
+    "role": "Flying skirmisher, solo evasion",
+    "description": "A lone sky lancer — faster and more evasive when away from allies, bow-weak.",
+    "growthRanges": {
+      "HP": "50-65",
+      "STR": "30-45",
+      "MAG": "15-25",
+      "SKL": "45-60",
+      "SPD": "50-65",
+      "DEF": "20-30",
+      "RES": "25-40",
+      "LCK": "35-50"
+    },
+    "promotesTo": "Seraph Knight"
+  },
+  {
+    "name": "Seraph Knight",
+    "tier": "promoted",
+    "promotesFrom": "Sky Lancer",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 3,
+      "SKL": 1,
+      "SPD": 2,
+      "DEF": 1,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Lances (M), Light (P)",
+    "roleChange": "Gains Light magic, +MOV",
+    "description": "A radiant sky knight — gains light magic for mixed damage and flies farther."
+  },
+  {
+    "name": "Sentinel",
+    "tier": "base",
+    "baseStats": {
+      "HP": 25,
+      "STR": 9,
+      "MAG": 0,
+      "SKL": 5,
+      "SPD": 5,
+      "DEF": 9,
+      "RES": 2,
+      "LCK": 4,
+      "MOV": 4
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Axes (P)",
+    "role": "Heavy tank, debuffs attackers",
+    "description": "An immovable sentinel — punishes anyone who dares attack, enormous bulk.",
+    "growthRanges": {
+      "HP": "75-90",
+      "STR": "45-60",
+      "MAG": "0-10",
+      "SKL": "25-40",
+      "SPD": "20-35",
+      "DEF": "50-65",
+      "RES": "10-25",
+      "LCK": "20-30"
+    },
+    "promotesTo": "Champion"
+  },
+  {
+    "name": "Champion",
+    "tier": "promoted",
+    "promotesFrom": "Sentinel",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 3,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 2,
+      "DEF": 3,
+      "RES": 4,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Axes (M), Lances (P)",
+    "roleChange": "Gains Lances, +MOV, massive bulk",
+    "description": "A peerless champion — gains lances, unstoppable in close quarters with immense staying power."
   }
 ]

@@ -5,6 +5,13 @@ import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
 
+// Compute expected recruitable lord names from data (excluding starting lords Edric/Sera)
+const STARTING_LORDS = new Set(['Edric', 'Sera']);
+const RECRUITABLE_LORD_NAMES = gameData.lords
+  .map(l => l.name)
+  .filter(n => !STARTING_LORDS.has(n))
+  .sort();
+
 // Minimal roster with Edric + Sera at level 8
 function makeBaseRoster() {
   return [
@@ -33,25 +40,24 @@ describe('BossRecruitSystem', () => {
   });
 
   describe('getAvailableLords', () => {
-    it('returns Kira and Voss when neither is in roster', () => {
+    it('returns all recruitable lords when none are in roster', () => {
       const lords = getAvailableLords(makeBaseRoster(), gameData.lords);
-      const names = lords.map(l => l.name);
-      expect(names).toContain('Kira');
-      expect(names).toContain('Voss');
-      expect(names).toHaveLength(2);
+      const names = lords.map(l => l.name).sort();
+      expect(names).toEqual(RECRUITABLE_LORD_NAMES);
     });
 
-    it('excludes Kira when she is in roster', () => {
+    it('excludes a lord when she is in roster', () => {
       const roster = [...makeBaseRoster(), { name: 'Kira', className: 'Tactician', isLord: true, level: 5 }];
       const lords = getAvailableLords(roster, gameData.lords);
-      expect(lords.map(l => l.name)).toEqual(['Voss']);
+      const names = lords.map(l => l.name);
+      expect(names).not.toContain('Kira');
+      expect(names).toHaveLength(RECRUITABLE_LORD_NAMES.length - 1);
     });
 
-    it('returns empty when both Kira and Voss are in roster', () => {
+    it('returns empty when all recruitable lords are in roster', () => {
       const roster = [
         ...makeBaseRoster(),
-        { name: 'Kira', className: 'Tactician', isLord: true, level: 5 },
-        { name: 'Voss', className: 'Ranger', isLord: true, level: 5 },
+        ...RECRUITABLE_LORD_NAMES.map(n => ({ name: n, className: 'Lord', isLord: true, level: 5 })),
       ];
       expect(getAvailableLords(roster, gameData.lords)).toHaveLength(0);
     });
@@ -257,7 +263,7 @@ describe('BossRecruitSystem', () => {
       const lordCand = candidates.find(c => c.isLord);
       expect(lordCand).toBeTruthy();
       expect(lordCand.unit.isLord).toBe(true);
-      expect(['Kira', 'Voss']).toContain(lordCand.displayName);
+      expect(RECRUITABLE_LORD_NAMES).toContain(lordCand.displayName);
     });
 
     it('lord candidate has personal skill', () => {
@@ -297,11 +303,10 @@ describe('BossRecruitSystem', () => {
       expect(candidates.every(c => !c.isLord)).toBe(true);
     });
 
-    it('no lord when both already in roster', () => {
+    it('no lord when all recruitable lords already in roster', () => {
       const roster = [
         ...makeBaseRoster(),
-        { name: 'Kira', className: 'Tactician', isLord: true, level: 5 },
-        { name: 'Voss', className: 'Ranger', isLord: true, level: 5 },
+        ...RECRUITABLE_LORD_NAMES.map(n => ({ name: n, className: 'Lord', isLord: true, level: 5 })),
       ];
       // Force low RNG that would trigger lord
       let callCount = 0;

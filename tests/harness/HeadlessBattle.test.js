@@ -868,6 +868,38 @@ describe('Fixture roster building', () => {
   });
 });
 
+describe('NPC Divine Charge routing', () => {
+  const gd = loadGameData();
+
+  it('_getDivineChargeAllies routes NPC to player+npc pool, not enemies', () => {
+    const battle = new HeadlessBattle(gd, { act: 'act1', objective: 'rout' });
+    const playerUnit = { name: 'Player1', faction: 'player', currentHP: 20, stats: { HP: 30 }, col: 0, row: 0 };
+    const npcUnit = { name: 'NpcRowan', faction: 'npc', currentHP: 15, stats: { HP: 25 }, col: 1, row: 0 };
+    const enemyUnit = { name: 'Enemy1', faction: 'enemy', currentHP: 20, stats: { HP: 25 }, col: 3, row: 0 };
+    battle.playerUnits = [playerUnit];
+    battle.npcUnits = [npcUnit];
+    battle.enemyUnits = [enemyUnit];
+
+    // NPC caster: should get player + npc pool
+    const npcAllies = battle._getDivineChargeAllies(npcUnit);
+    expect(npcAllies).toContain(playerUnit);
+    expect(npcAllies).toContain(npcUnit);
+    expect(npcAllies).not.toContain(enemyUnit);
+
+    // Player caster: should get only player pool
+    const playerAllies = battle._getDivineChargeAllies(playerUnit);
+    expect(playerAllies).toContain(playerUnit);
+    expect(playerAllies).not.toContain(npcUnit);
+    expect(playerAllies).not.toContain(enemyUnit);
+
+    // Enemy caster: should get only enemy pool
+    const enemyAllies = battle._getDivineChargeAllies(enemyUnit);
+    expect(enemyAllies).toContain(enemyUnit);
+    expect(enemyAllies).not.toContain(playerUnit);
+    expect(enemyAllies).not.toContain(npcUnit);
+  });
+});
+
 describe('ScenarioRunner RNG safety', () => {
   it('restores Math.random on agent error', async () => {
     const origRandom = Math.random;

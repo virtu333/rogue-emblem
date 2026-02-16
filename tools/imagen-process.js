@@ -66,13 +66,16 @@ async function processAsset(catName, category, asset) {
 
     removeWhiteBg(raw);
 
+    // Use nearest-neighbor for pixel art sprites to preserve hard edges
+    const kernel = catName === 'map_sprites' ? 'nearest' : 'lanczos3';
+
     await sharp(raw, { raw: { width, height, channels: 4 } })
       .trim()
-      .resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .resize(size, size, { fit: 'contain', kernel, background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(outputPath);
 
-    console.log(`  [${asset.name}] → ${size}x${size}, transparent bg`);
+    console.log(`  [${asset.name}] → ${size}x${size}, transparent bg (${kernel})`);
   } else {
     // Portraits: just resize to target with cover crop
     await sharp(inputPath)

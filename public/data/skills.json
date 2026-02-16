@@ -267,7 +267,9 @@
     "trigger": "passive",
     "classInnate": [
       "Paladin",
-      "Falcon Knight"
+      "Falcon Knight",
+      "Holy Knight",
+      "Seraph Knight"
     ]
   },
   {
@@ -308,6 +310,71 @@
     "description": "SKL%: negate RES and drain HP equal to damage",
     "trigger": "on-attack",
     "activation": "SKL",
+    "personal": true
+  },
+  {
+    "id": "ride_down",
+    "name": "Ride Down",
+    "description": "+3 ATK when initiating after moving 3+ movement cost",
+    "trigger": "on-combat-start",
+    "condition": "moved_3_plus_initiating",
+    "effects": {
+      "atkBonus": 3
+    },
+    "personal": true
+  },
+  {
+    "id": "skyward",
+    "name": "Skyward",
+    "description": "+15 Avoid when not adjacent to any ally",
+    "trigger": "passive",
+    "condition": "no_adjacent_ally",
+    "effects": {
+      "avoidBonus": 15
+    },
+    "personal": true
+  },
+  {
+    "id": "intimidate",
+    "name": "Intimidate",
+    "description": "Attackers suffer -1 STR, -2 MAG, -1 SPD after combat",
+    "trigger": "on-defend",
+    "activation": "always",
+    "effects": {
+      "debuffAttacker": { "STR": -1, "MAG": -2, "SPD": -1 }
+    },
+    "personal": true
+  },
+  {
+    "id": "divine_charge",
+    "name": "Divine Charge",
+    "description": "SKL%: after hitting, heal lowest-HP ally within 3 tiles for 50% of damage",
+    "trigger": "on-attack",
+    "activation": "SKL",
+    "effects": {
+      "healLowestAlly": { "range": 3, "percent": 50 }
+    },
+    "personal": true
+  },
+  {
+    "id": "seraph_strike",
+    "name": "Seraph Strike",
+    "description": "SKL%: strike targets the lower of DEF or RES",
+    "trigger": "on-attack",
+    "activation": "SKL",
+    "effects": {
+      "targetLowerDefense": true
+    },
+    "personal": true
+  },
+  {
+    "id": "unyielding",
+    "name": "Unyielding",
+    "description": "Enemies cannot double-attack this unit",
+    "trigger": "passive",
+    "effects": {
+      "preventEnemyDouble": true
+    },
     "personal": true
   }
 ]

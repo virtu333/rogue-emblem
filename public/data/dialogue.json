@@ -17,7 +17,10 @@
     "Sage": ["The old magic is failing. Perhaps your seer can show us a better path.", "Knowledge is a weapon. I'm well-armed."],
     "Assassin": ["I don't do speeches. Just tell me who dies.", "Silence is my specialty."],
     "Sniper": ["One shot. One kill. That's the only math that matters.", "I see the target. That's enough."],
-    "Bishop": ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."]
+    "Bishop": ["The light fades, but it hasn't gone. Not yet.", "Healing and faith. I bring both."],
+    "Chevalier": ["My lance rides where honor demands. Lead, and I follow.", "A knight without a charge is nothing. Give me one."],
+    "Sky Lancer": ["The wind answers to no one. Neither do I.", "From up here, I see everything. Point me at the real threat."],
+    "Sentinel": ["I don't move. I don't flinch. Come at me.", "They'll break against me like waves on stone."]
   },
   "actTransitions": {
     "runStart": [

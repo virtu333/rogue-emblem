@@ -2,7 +2,7 @@
 // Skills are identified by ID strings stored on unit.skills[].
 // All functions take skillsData (from skills.json) for metadata lookup.
 
-import { gridDistance, getConditionalWeaponBonuses } from './Combat.js';
+import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 
 // --- Helpers ---
@@ -22,6 +22,7 @@ function getActivationChance(unit, activation) {
     case 'LCK_QUARTER':  return Math.floor(unit.stats.LCK / 4);
     case 'SPD':          return unit.stats.SPD;
     case 'LCK':          return unit.stats.LCK;
+    case 'always':       return 100;
     default:             return 0;
   }
 }
@@ -46,6 +47,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     vantage: false,
     desperation: false,
     quickRiposte: false,
+    preventEnemyDouble: false,
     activated: [],  // [{id, name}] for UI display
     // Affix specific fields
     immuneToDisplacement: false,
@@ -84,13 +86,21 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
 
     // Passive stat bonuses
     if (skill.trigger === 'passive' && skill.effects) {
-      if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
-      if (skill.effects.atkBonus) mods.atkBonus += skill.effects.atkBonus;
-      if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
-      if (skill.effects.resBonus) mods.resBonus += skill.effects.resBonus;
-      if (skill.effects.hitBonus) mods.hitBonus += skill.effects.hitBonus;
-      if (skill.effects.avoidBonus) mods.avoidBonus += skill.effects.avoidBonus;
-      if (skill.effects.ignoreTerrainAvoid) mods.ignoreTerrainAvoid = true;
+      // Check passive conditions
+      let passiveCondMet = true;
+      if (skill.condition === 'no_adjacent_ally') {
+        passiveCondMet = !allAllies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+      }
+      if (passiveCondMet) {
+        if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
+        if (skill.effects.atkBonus) mods.atkBonus += skill.effects.atkBonus;
+        if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
+        if (skill.effects.resBonus) mods.resBonus += skill.effects.resBonus;
+        if (skill.effects.hitBonus) mods.hitBonus += skill.effects.hitBonus;
+        if (skill.effects.avoidBonus) mods.avoidBonus += skill.effects.avoidBonus;
+        if (skill.effects.ignoreTerrainAvoid) mods.ignoreTerrainAvoid = true;
+        if (skill.effects.preventEnemyDouble) mods.preventEnemyDouble = true;
+      }
     }
 
     // On-combat-start conditional skills
@@ -103,6 +113,9 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       if (skill.condition === 'initiating') condMet = isInitiating;
       if (skill.condition === 'above50_defending') {
         condMet = !isInitiating && unit.currentHP > Math.floor(unit.stats.HP / 2);
+      }
+      if (skill.condition === 'moved_3_plus_initiating') {
+        condMet = isInitiating && (unit._movementSpent || 0) >= 3;
       }
       if (condMet) {
         if (skill.id === 'resolve' && skill.effects) {
@@ -273,6 +286,22 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         result.commandersGambit = true;
         result.activated.push({ id: 'commanders_gambit', name: "Commander's Gambit" });
         break;
+
+      case 'divine_charge':
+        result.divineCharge = { percent: skill.effects?.healLowestAlly?.percent || 50, range: skill.effects?.healLowestAlly?.range || 3 };
+        result.activated.push({ id: 'divine_charge', name: 'Divine Charge' });
+        break;
+
+      case 'seraph_strike': {
+        const defStat = Number(target.stats?.DEF) || 0;
+        const resStat = Number(target.stats?.RES) || 0;
+        const lowerDef = Math.min(defStat, resStat);
+        const normalDef = usesMagic(attacker.weapon) ? resStat : defStat;
+        const defBonus = Math.max(0, normalDef - lowerDef);
+        result.modifiedDamage = normalDamage + defBonus;
+        result.activated.push({ id: 'seraph_strike', name: 'Seraph Strike' });
+        break;
+      }
     }
   }
 
@@ -332,6 +361,11 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
         defender._miracleUsed = true;
         result.activated.push({ id: 'miracle', name: 'Miracle' });
       }
+    }
+
+    if (skill.id === 'intimidate' && skill.effects?.debuffAttacker) {
+      result.debuffAttacker = skill.effects.debuffAttacker;
+      result.activated.push({ id: 'intimidate', name: 'Intimidate' });
     }
   }
 

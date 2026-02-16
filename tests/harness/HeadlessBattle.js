@@ -955,6 +955,33 @@ export class HeadlessBattle {
       }
     }
 
+    // Apply intimidate debuffs
+    if (result.debuffEvents?.length > 0) {
+      for (const de of result.debuffEvents) {
+        const debuffTarget = de.target === 'attacker' ? attacker : defender;
+        if (debuffTarget.currentHP <= 0) continue;
+        for (const [stat, val] of Object.entries(de.debuffs)) {
+          this.applyBattleDebuff(debuffTarget, stat, val);
+        }
+      }
+    }
+
+    // Apply divine charge heals
+    if (result.divineChargeHeals?.length > 0) {
+      for (const dc of result.divineChargeHeals) {
+        const caster = dc.side === 'attacker' ? attacker : defender;
+        if (caster.currentHP <= 0) continue;
+        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
+        if (healAmount <= 0) continue;
+        const allies = this._getDivineChargeAllies(caster)
+          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
+        if (allies.length === 0) continue;
+        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+        allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
+      }
+    }
+
     // Award XP to player attacker
     if (attacker.faction === 'player' && !result.attackerDied) {
       const baseXp = calculateCombatXP(attacker, defender, result.defenderDied);
@@ -1090,6 +1117,13 @@ export class HeadlessBattle {
     }
   }
 
+  /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
+  _getDivineChargeAllies(caster) {
+    if (caster.faction === 'enemy') return this.enemyUnits;
+    if (caster.faction === 'npc') return [...this.playerUnits, ...(this.npcUnits || [])];
+    return this.playerUnits;
+  }
+
   _checkBattleEnd() {
     const edricAlive = this.playerUnits.some(u => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {
@@ -1198,6 +1232,33 @@ export class HeadlessBattle {
       for (const pe of result.poisonEffects) {
         const target = pe.target === 'defender' ? defender : attacker;
         target.currentHP = Math.max(1, target.currentHP - pe.damage);
+      }
+    }
+
+    // Apply intimidate debuffs
+    if (result.debuffEvents?.length > 0) {
+      for (const de of result.debuffEvents) {
+        const debuffTarget = de.target === 'attacker' ? attacker : defender;
+        if (debuffTarget.currentHP <= 0) continue;
+        for (const [stat, val] of Object.entries(de.debuffs)) {
+          this.applyBattleDebuff(debuffTarget, stat, val);
+        }
+      }
+    }
+
+    // Apply divine charge heals
+    if (result.divineChargeHeals?.length > 0) {
+      for (const dc of result.divineChargeHeals) {
+        const caster = dc.side === 'attacker' ? attacker : defender;
+        if (caster.currentHP <= 0) continue;
+        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
+        if (healAmount <= 0) continue;
+        const allies = this._getDivineChargeAllies(caster)
+          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
+        if (allies.length === 0) continue;
+        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+        allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
       }
     }
 

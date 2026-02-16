@@ -104,6 +104,7 @@ export class BootScene extends Phaser.Scene {
       'sage', 'sniper', 'swordmaster', 'tactician', 'thief', 'wyvern_rider',
       'wyvern_lord',
       'vanguard', 'warrior',
+      'chevalier', 'holy_knight', 'sky_lancer', 'seraph_knight', 'sentinel', 'champion',
     ];
     for (const name of characterSprites) {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
@@ -144,6 +145,7 @@ export class BootScene extends Phaser.Scene {
       'generic_wyvern_rider', 'generic_wyvern_lord',
       'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
       'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_the_lieutenant',
+      'lord_rowan', 'lord_astrid', 'lord_cael',
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');
