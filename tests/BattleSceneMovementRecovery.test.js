@@ -210,6 +210,22 @@ describe('BattleScene movement recovery', () => {
     expect(scene.time.delayedCall).not.toHaveBeenCalled();
   });
 
+  it('deselects safely when moveUnit findPath throws before UNIT_MOVING', () => {
+    const { scene, unit } = makeScene();
+    unit._movementSpent = 4;
+    scene.grid.findPath = vi.fn(() => {
+      throw new Error('path init boom');
+    });
+
+    BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+
+    expect(scene.deselectUnit).toHaveBeenCalledTimes(1);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(unit._movementSpent).toBe(4);
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+  });
+
   it('deselects safely when effective path is null/short', () => {
     const { scene, unit } = makeScene();
     const blocker = makeUnit({ col: 2, row: 1, faction: 'enemy', currentHP: 10 });
@@ -225,6 +241,22 @@ describe('BattleScene movement recovery', () => {
     expect(scene.deselectUnit).toHaveBeenCalledTimes(1);
     expect(scene.battleState).toBe('PLAYER_IDLE');
     expect(scene.selectedUnit).toBeNull();
+    expect(scene.time.delayedCall).not.toHaveBeenCalled();
+  });
+
+  it('deselects safely when effective path setup throws before UNIT_MOVING', () => {
+    const { scene, unit } = makeScene();
+    unit._movementSpent = 5;
+    scene.buildOccupiedSet = vi.fn(() => {
+      throw new Error('occupied set boom');
+    });
+
+    BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
+
+    expect(scene.deselectUnit).toHaveBeenCalledTimes(1);
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(unit._movementSpent).toBe(5);
     expect(scene.time.delayedCall).not.toHaveBeenCalled();
   });
 
@@ -244,7 +276,7 @@ describe('BattleScene movement recovery', () => {
     expect(unit._movementSpent).toBe(2);
   });
 
-  it('recovers Canto flow when canto pathfinding returns null/short path', () => {
+  it('keeps Canto active when canto pathfinding returns null/short path', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
     scene.cantoRange = new Map([['2,1', 1]]);
@@ -253,6 +285,47 @@ describe('BattleScene movement recovery', () => {
 
     BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
 
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.selectedUnit).toBe(unit);
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+    expect(scene.grid.clearHighlights).not.toHaveBeenCalled();
+  });
+
+  it('retries once for canto pre-init throw, then fails closed on repeated throw', () => {
+    const { scene, unit } = makeScene();
+    scene.battleState = 'CANTO_MOVING';
+    scene.cantoRange = new Map([['2,1', 1]]);
+    unit.hasActed = true;
+    scene.grid.findPath = vi.fn(() => {
+      throw new Error('canto pre-init boom');
+    });
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.selectedUnit).toBe(unit);
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+    expect(scene.grid.clearHighlights).not.toHaveBeenCalled();
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+    expect(scene.battleState).toBe('PLAYER_IDLE');
+    expect(scene.selectedUnit).toBeNull();
+    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
+  });
+
+  it('still allows click-own-tile canto skip after a retryable pre-init throw', () => {
+    const { scene, unit } = makeScene();
+    scene.battleState = 'CANTO_MOVING';
+    scene.cantoRange = new Map([['2,1', 1]]);
+    unit.hasActed = true;
+    scene.grid.findPath = vi.fn(() => {
+      throw new Error('canto pre-init boom');
+    });
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: unit.col, row: unit.row });
     expect(scene.battleState).toBe('PLAYER_IDLE');
     expect(scene.selectedUnit).toBeNull();
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);

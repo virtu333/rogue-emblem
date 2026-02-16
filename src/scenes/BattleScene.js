@@ -2595,6 +2595,7 @@ export class BattleScene extends Phaser.Scene {
       // Skip Canto -- end unit's turn
       this.grid.clearHighlights();
       this.cantoRange = null;
+      this._resetCantoPreInitFaultTracking();
       const cantoUnit = this.selectedUnit;
       this.dimUnit(cantoUnit);
       this.selectedUnit = null;
@@ -2985,6 +2986,7 @@ export class BattleScene extends Phaser.Scene {
     rollbackMovementSpent,
   } = {}) {
     const prefix = `[${context}]`;
+    if (context === 'handleCantoClick') this._resetCantoPreInitFaultTracking();
     if (error) {
       console.error(`${prefix} ${reason}`, error);
     } else {
@@ -3063,35 +3065,78 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  _resetCantoPreInitFaultTracking() {
+    this._cantoPreInitFaultUnit = null;
+    this._cantoPreInitFaultCount = 0;
+  }
+
+  _recordCantoPreInitFault(unit) {
+    if (this._cantoPreInitFaultUnit !== unit) {
+      this._cantoPreInitFaultUnit = unit;
+      this._cantoPreInitFaultCount = 1;
+      return this._cantoPreInitFaultCount;
+    }
+    this._cantoPreInitFaultCount = (this._cantoPreInitFaultCount || 0) + 1;
+    return this._cantoPreInitFaultCount;
+  }
+
   moveUnit(unit, toCol, toRow) {
-    const path = this.grid.findPath(
-      unit.col, unit.row, toCol, toRow, unit.moveType,
-      this.unitPositions, unit.faction
-    );
+    const from = { col: unit.col, row: unit.row };
+    const to = { col: toCol, row: toRow };
+    let path;
+    try {
+      path = this.grid.findPath(
+        unit.col, unit.row, toCol, toRow, unit.moveType,
+        this.unitPositions, unit.faction
+      );
+    } catch (err) {
+      console.error('[moveUnit] Error during path initialization', {
+        unit: unit?.name || unit?.id || '<unknown>',
+        from,
+        to,
+        battleState: this.battleState,
+        stack: err?.stack || null,
+      });
+      this.deselectUnit();
+      return;
+    }
     if (!path || path.length < 2) {
       console.warn('[moveUnit] findPath returned null/short path for tile in movementRange', {
-        from: { col: unit.col, row: unit.row },
-        to: { col: toCol, row: toRow },
+        from,
+        to,
       });
       this.deselectUnit();
       return;
     }
 
-    const occupied = this.buildOccupiedSet(unit);
-    const effective = computeEffectivePath(
-      path,
-      this.grid.mapLayout,
-      this.grid.terrainData,
-      this.grid.cols,
-      this.grid.rows,
-      unit.moveType,
-      occupied,
-    );
+    let effective;
+    try {
+      const occupied = this.buildOccupiedSet(unit);
+      effective = computeEffectivePath(
+        path,
+        this.grid.mapLayout,
+        this.grid.terrainData,
+        this.grid.cols,
+        this.grid.rows,
+        unit.moveType,
+        occupied,
+      );
+    } catch (err) {
+      console.error('[moveUnit] Error during effective path initialization', {
+        unit: unit?.name || unit?.id || '<unknown>',
+        from,
+        to,
+        battleState: this.battleState,
+        stack: err?.stack || null,
+      });
+      this.deselectUnit();
+      return;
+    }
     const finalPath = effective.effectivePath;
     if (!finalPath || finalPath.length < 2) {
       console.warn('[moveUnit] effectivePath returned null/short path', {
-        from: { col: unit.col, row: unit.row },
-        to: { col: toCol, row: toRow },
+        from,
+        to,
       });
       this.deselectUnit();
       return;
@@ -3716,6 +3761,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   startCantoMove(unit, remainingMov) {
+    this._resetCantoPreInitFaultTracking();
     this.battleState = 'CANTO_MOVING';
     const positions = this.buildUnitPositionMap(unit.faction);
     const moveRange = this.grid.getMovementRange(
@@ -3777,6 +3823,7 @@ export class BattleScene extends Phaser.Scene {
     if (gp.col === unit.col && gp.row === unit.row) {
       this.grid.clearHighlights();
       this.cantoRange = null;
+      this._resetCantoPreInitFaultTracking();
       this.dimUnit(unit);
       this.selectedUnit = null;
       this.battleState = 'PLAYER_IDLE';
@@ -3786,19 +3833,47 @@ export class BattleScene extends Phaser.Scene {
     const key = `${gp.col},${gp.row}`;
     if (!this.cantoRange?.has(key)) return;
     // Animate Canto movement
-    this.grid.clearHighlights();
-    const positions = this.buildUnitPositionMap(unit.faction);
-    const path = this.grid.findPath(
-      unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction
-    );
+    const from = { col: unit.col, row: unit.row };
+    const to = { col: gp.col, row: gp.row };
+    let path;
+    try {
+      const positions = this.buildUnitPositionMap(unit.faction);
+      path = this.grid.findPath(
+        unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction
+      );
+    } catch (err) {
+      const retryCount = this._recordCantoPreInitFault(unit);
+      console.error('[handleCantoClick] Error during canto path initialization', {
+        unit: unit?.name || unit?.id || '<unknown>',
+        from,
+        to,
+        battleState: this.battleState,
+        retryCount,
+        stack: err?.stack || null,
+      });
+      if (retryCount >= 2) {
+        console.error('[handleCantoClick] Failing closed after repeated canto path initialization errors', {
+          unit: unit?.name || unit?.id || '<unknown>',
+          from,
+          to,
+          battleState: this.battleState,
+          retryCount,
+        });
+        this._recoverFromMovementFault(unit, {
+          context: 'handleCantoClick',
+          reason: 'Repeated canto path initialization errors',
+          error: err,
+        });
+      }
+      return;
+    }
+    this._resetCantoPreInitFaultTracking();
     if (!path || path.length < 2) {
       console.warn('[handleCantoClick] findPath returned null/short path for canto destination', {
-        from: { col: unit.col, row: unit.row },
-        to: { col: gp.col, row: gp.row },
-      });
-      this._recoverFromMovementFault(unit, {
-        context: 'handleCantoClick',
-        reason: 'findPath returned null/short path for canto destination',
+        unit: unit?.name || unit?.id || '<unknown>',
+        from,
+        to,
+        battleState: this.battleState,
       });
       return;
     }
@@ -3829,6 +3904,7 @@ export class BattleScene extends Phaser.Scene {
           this.updateEnemyVisibility();
         }
         this.cantoRange = null;
+        this._resetCantoPreInitFaultTracking();
         this.dimUnit(unit);
         this.selectedUnit = null;
         this.battleState = 'PLAYER_IDLE';
@@ -3863,6 +3939,7 @@ export class BattleScene extends Phaser.Scene {
       }
     };
     try {
+      this.grid.clearHighlights();
       const fallbackMs = Math.max(500, path.length * 140);
       this.time.delayedCall(fallbackMs, () => {
         if (!finalizeTriggered && !recoveryTriggered && this.scene?.isActive?.()) {
