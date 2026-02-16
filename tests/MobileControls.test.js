@@ -255,6 +255,48 @@ describe('MobileControls context stack', () => {
     events.emit('mobile:popContext');
     expect(controls._currentContext).toBe('battle_idle');
   });
+
+  it('battle_player_idle includes inspect action on right panel', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_player_idle' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action))
+      .toEqual(['danger', 'roster', 'objective', 'inspect', 'endTurn']);
+  });
+
+  it('battle_unit_selected excludes inspect action on right panel', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_unit_selected' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action))
+      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+  });
+
+  it('objective button label is Vision', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_player_idle' });
+
+    const objectiveButton = rightPanel.children.find((c) => c.dataset.action === 'objective');
+    expect(objectiveButton.children[1]?.textContent).toBe('Vision');
+  });
 });
 
 describe('Overlay show/hide idempotency', () => {

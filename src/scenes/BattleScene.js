@@ -2520,6 +2520,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.visionDialog) return true;
     if (this.unitDetailOverlay?.visible) return true;
     if (this.inspectionPanel?.visible) return true;
+    if (this.isMobileInput && this.inspectMode) return true;
     if (this.pauseOverlay?.visible) return true;
     if (this.lootRosterVisible) return true;
     if (this.battleState === 'BATTLE_END' && this.lootGroup) return true;
@@ -2549,17 +2550,28 @@ export class BattleScene extends Phaser.Scene {
     if (this.unitDetailOverlay?.visible) {
       this.unitDetailOverlay.hide();
     } else if (this.inspectionPanel?.visible) {
+      if (this.isMobileInput) this.inspectMode = false;
       this.clearInspectionVisuals();
     } else if (this.pauseOverlay?.visible) {
       this.pauseOverlay.hide();
     } else if (this.lootRosterVisible) {
       this.hideLootRoster();
+    } else if (!allowPause && this.isMobileInput && this.inspectMode) {
+      this.inspectMode = false;
+      this.clearInspectionVisuals();
+      return true;
     } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
       this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
       this.lootSettingsOverlay.show();
     } else if (this.isCancelableBattleState()) {
       this.handleCancel();
     } else if (allowPause && this.battleState === 'PLAYER_IDLE') {
+      if (this.isMobileInput && this.inspectMode) {
+        this.inspectMode = false;
+        if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+        this.grid?.clearHighlights?.();
+        this.grid?.clearAttackHighlights?.();
+      }
       this.showPauseMenu();
     }
     this.refreshEndTurnControl();
@@ -2685,7 +2697,8 @@ export class BattleScene extends Phaser.Scene {
     }
     const s = this.battleState;
     let ctx = 'none';
-    if (s === 'PLAYER_IDLE' || s === 'UNIT_SELECTED') ctx = 'battle_idle';
+    if (s === 'PLAYER_IDLE') ctx = 'battle_player_idle';
+    else if (s === 'UNIT_SELECTED') ctx = 'battle_unit_selected';
     else if (s === 'UNIT_MOVED' || s === 'UNIT_ACTION_MENU' || s === 'SELECTING_TARGET'
       || s === 'SELECTING_HEAL_TARGET' || s === 'SELECTING_SHOVE_TARGET'
       || s === 'SELECTING_PULL_TARGET' || s === 'SELECTING_TRADE_TARGET'
@@ -6466,6 +6479,12 @@ export class BattleScene extends Phaser.Scene {
   // --- Phase management ---
 
   onPhaseChange(phase, turn) {
+    if (this.isMobileInput) {
+      this.inspectMode = false;
+      if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
+      this.grid?.clearHighlights?.();
+      this.grid?.clearAttackHighlights?.();
+    }
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this.dangerZone.hide();

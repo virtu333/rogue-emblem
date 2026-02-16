@@ -4,7 +4,7 @@
 const BUTTON_DEFS = {
   danger:     { icon: '\u26A0',  label: 'Danger' },
   roster:     { icon: '\uD83D\uDCCB', label: 'Roster' },
-  objective:  { icon: '\u2139',  label: 'Info' },
+  objective:  { icon: '\u2139',  label: 'Vision' },
   endTurn:    { icon: '\u23ED',  label: 'End Turn' },
   inspect:    { icon: '\uD83D\uDC41', label: 'Inspect' },
   prevWeapon: { icon: '\u25C0',  label: 'Prev Wpn' },
@@ -14,8 +14,10 @@ const BUTTON_DEFS = {
 };
 
 const CONTEXTS = {
+  battle_player_idle: ['danger', 'roster', 'objective', 'inspect', 'endTurn'],
+  battle_unit_selected: ['danger', 'roster', 'objective', 'endTurn'],
   battle_idle:     ['danger', 'roster', 'objective', 'endTurn'],
-  battle_selected: ['danger', 'inspect'],
+  battle_selected: ['danger'],
   battle_forecast: ['prevWeapon', 'nextWeapon'],
   battle_end:      ['roster'],
   nodemap:         ['roster'],
