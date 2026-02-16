@@ -7402,15 +7402,14 @@ export class BattleScene extends Phaser.Scene {
       const classData = this.gameData.classes?.find(cl => cl.name === u.className);
       const descText = classData?.description || '';
       if (descText) {
-        const desc = applyTextResolution(this.add.text(cx, yOff, descText, {
+        const desc = this.add.text(cx, yOff, descText, {
           fontFamily: 'monospace', fontSize: '8px', color: '#ccaa77',
           wordWrap: { width: cardW - 14 }, align: 'center',
-        }).setOrigin(0.5, 0).setDepth(702));
+        }).setOrigin(0.5, 0).setDepth(702);
         // Clamp to 2 lines max to prevent card overflow
         const maxDescH = 22;
         if (desc.height > maxDescH) {
-          const res = TEXT_RESOLUTION;
-          desc.setCrop(0, 0, desc.width * res, maxDescH * res);
+          desc.setCrop(0, 0, desc.width, maxDescH);
         }
         recruitGroup.push(desc);
         yOff += Math.min(desc.height, maxDescH) + 8;
@@ -7443,10 +7442,10 @@ export class BattleScene extends Phaser.Scene {
         const profShort = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tom', Light: 'Lgt', Staff: 'Stf' };
         const profEntries = u.proficiencies.map((p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`);
         const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
-        const prof = applyTextResolution(this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
+        const prof = this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
           fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
           wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702));
+        }).setOrigin(0.5).setDepth(702);
         recruitGroup.push(prof);
         yOff += 13;
       }
@@ -7456,10 +7455,10 @@ export class BattleScene extends Phaser.Scene {
         ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
         : null;
       if (notableSkill) {
-        const sk = applyTextResolution(this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
+        const sk = this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
           fontFamily: 'monospace', fontSize: '8px', color: c.isLord ? '#ffdd44' : '#aaccff',
           wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702));
+        }).setOrigin(0.5).setDepth(702);
         recruitGroup.push(sk);
       }
 
