@@ -70,7 +70,7 @@ import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
 import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER, RECRUIT_NODE_LORD_CHANCE } from '../utils/constants.js';
-import { getHPBarColor } from '../utils/uiStyles.js';
+import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
 import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
@@ -7320,21 +7320,21 @@ export class BattleScene extends Phaser.Scene {
     recruitGroup.push(overlay);
 
     // Title
-    const title = this.add.text(cam.centerX, 28, 'BOSS RECRUIT', {
+    const title = applyTextResolution(this.add.text(cam.centerX, 28, 'BOSS RECRUIT', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(701);
+    }).setOrigin(0.5).setDepth(701));
     recruitGroup.push(title);
 
-    const subtitle = this.add.text(cam.centerX, 54, 'Choose a warrior to join your cause', {
+    const subtitle = applyTextResolution(this.add.text(cam.centerX, 54, 'Choose a warrior to join your cause', {
       fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(701);
+    }).setOrigin(0.5).setDepth(701));
     recruitGroup.push(subtitle);
 
     // Card layout: candidates + skip
     const cardCount = candidates.length + 1;
-    const cardW = 130;
-    const cardH = 200;
-    const gap = 14;
+    const cardW = 150;
+    const cardH = 220;
+    const gap = 12;
     const totalW = cardCount * cardW + (cardCount - 1) * gap;
     const startX = cam.centerX - totalW / 2 + cardW / 2;
     const cardY = cam.centerY + 20;
@@ -7363,38 +7363,38 @@ export class BattleScene extends Phaser.Scene {
 
       // Lord tag
       if (c.isLord) {
-        const tag = this.add.text(cx, yOff, '[LORD]', {
+        const tag = applyTextResolution(this.add.text(cx, yOff, '[LORD]', {
           fontFamily: 'monospace', fontSize: '9px', color: '#ffdd44', fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(702);
+        }).setOrigin(0.5).setDepth(702));
         recruitGroup.push(tag);
         yOff += 14;
       }
 
       // Name
-      const name = this.add.text(cx, yOff, c.displayName, {
+      const name = applyTextResolution(this.add.text(cx, yOff, c.displayName, {
         fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(702);
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(name);
       yOff += 16;
 
       // Class
-      const cls = this.add.text(cx, yOff, u.className, {
+      const cls = applyTextResolution(this.add.text(cx, yOff, u.className, {
         fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
-      }).setOrigin(0.5).setDepth(702);
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(cls);
       yOff += 14;
 
       // Level
-      const lvl = this.add.text(cx, yOff, `Lv ${u.level}`, {
+      const lvl = applyTextResolution(this.add.text(cx, yOff, `Lv ${u.level}`, {
         fontFamily: 'monospace', fontSize: '10px', color: '#66ddff',
-      }).setOrigin(0.5).setDepth(702);
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(lvl);
       yOff += 16;
 
       // Separator
-      const sep = this.add.text(cx, yOff, '-----------------', {
+      const sep = applyTextResolution(this.add.text(cx, yOff, '-----------------', {
         fontFamily: 'monospace', fontSize: '8px', color: '#555555',
-      }).setOrigin(0.5).setDepth(702);
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(sep);
       yOff += 12;
 
@@ -7402,12 +7402,18 @@ export class BattleScene extends Phaser.Scene {
       const classData = this.gameData.classes?.find(cl => cl.name === u.className);
       const descText = classData?.description || '';
       if (descText) {
-        const desc = this.add.text(cx, yOff, descText, {
-          fontFamily: 'monospace', fontSize: '7px', color: '#ccaa77',
+        const desc = applyTextResolution(this.add.text(cx, yOff, descText, {
+          fontFamily: 'monospace', fontSize: '8px', color: '#ccaa77',
           wordWrap: { width: cardW - 14 }, align: 'center',
-        }).setOrigin(0.5, 0).setDepth(702);
+        }).setOrigin(0.5, 0).setDepth(702));
+        // Clamp to 2 lines max to prevent card overflow
+        const maxDescH = 22;
+        if (desc.height > maxDescH) {
+          const res = TEXT_RESOLUTION;
+          desc.setCrop(0, 0, desc.width * res, maxDescH * res);
+        }
         recruitGroup.push(desc);
-        yOff += desc.height + 6;
+        yOff += Math.min(desc.height, maxDescH) + 8;
       }
 
       // Core comparison stats
@@ -7420,29 +7426,29 @@ export class BattleScene extends Phaser.Scene {
       const res = Number(u.stats?.RES || 0);
       const mov = Number(u.mov ?? u.stats?.MOV ?? 0);
 
-      const coreA = this.add.text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
-        fontFamily: 'monospace', fontSize: '8px', color: '#cccccc',
-      }).setOrigin(0.5).setDepth(702);
+      const coreA = applyTextResolution(this.add.text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(coreA);
-      yOff += 11;
+      yOff += 12;
 
-      const coreB = this.add.text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
-        fontFamily: 'monospace', fontSize: '8px', color: '#88bbff',
-      }).setOrigin(0.5).setDepth(702);
+      const coreB = applyTextResolution(this.add.text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#88bbff',
+      }).setOrigin(0.5).setDepth(702));
       recruitGroup.push(coreB);
-      yOff += 13;
+      yOff += 14;
 
       // Weapon proficiency signal (trimmed preview so card width stays readable)
       if (u.proficiencies && u.proficiencies.length > 0) {
         const profShort = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tom', Light: 'Lgt', Staff: 'Stf' };
         const profEntries = u.proficiencies.map((p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`);
         const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
-        const prof = this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
-          fontFamily: 'monospace', fontSize: '7px', color: '#aaaaaa',
+        const prof = applyTextResolution(this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
+          fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
           wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        }).setOrigin(0.5).setDepth(702));
         recruitGroup.push(prof);
-        yOff += 12;
+        yOff += 13;
       }
 
       // Notable personal/class skill (if present)
@@ -7450,10 +7456,10 @@ export class BattleScene extends Phaser.Scene {
         ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
         : null;
       if (notableSkill) {
-        const sk = this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
-          fontFamily: 'monospace', fontSize: '7px', color: c.isLord ? '#ffdd44' : '#aaccff',
+        const sk = applyTextResolution(this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
+          fontFamily: 'monospace', fontSize: '8px', color: c.isLord ? '#ffdd44' : '#aaccff',
           wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        }).setOrigin(0.5).setDepth(702));
         recruitGroup.push(sk);
       }
 
@@ -7475,19 +7481,19 @@ export class BattleScene extends Phaser.Scene {
       .setStrokeStyle(2, 0x666666).setDepth(701).setInteractive({ useHandCursor: true });
     recruitGroup.push(skipCard);
 
-    const skipIcon = this.add.text(skipX, cardY - 30, '>', {
+    const skipIcon = applyTextResolution(this.add.text(skipX, cardY - 30, '>', {
       fontFamily: 'monospace', fontSize: '28px', color: '#888888', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(702);
+    }).setOrigin(0.5).setDepth(702));
     recruitGroup.push(skipIcon);
 
-    const skipLabel = this.add.text(skipX, cardY + 10, 'SKIP', {
+    const skipLabel = applyTextResolution(this.add.text(skipX, cardY + 10, 'SKIP', {
       fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(702);
+    }).setOrigin(0.5).setDepth(702));
     recruitGroup.push(skipLabel);
 
-    const skipDesc = this.add.text(skipX, cardY + 35, 'Continue\nto Loot', {
+    const skipDesc = applyTextResolution(this.add.text(skipX, cardY + 35, 'Continue\nto Loot', {
       fontFamily: 'monospace', fontSize: '9px', color: '#777777', align: 'center',
-    }).setOrigin(0.5).setDepth(702);
+    }).setOrigin(0.5).setDepth(702));
     recruitGroup.push(skipDesc);
 
     skipCard.on('pointerdown', () => {
@@ -7498,14 +7504,14 @@ export class BattleScene extends Phaser.Scene {
     skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, 0x666666));
 
     // Footer hints
-    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
+    const inst = applyTextResolution(this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
       fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-    }).setOrigin(0.5).setDepth(701);
+    }).setOrigin(0.5).setDepth(701));
     recruitGroup.push(inst);
 
-    const hintText = this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
+    const hintText = applyTextResolution(this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
       fontFamily: 'monospace', fontSize: '9px', color: '#666666',
-    }).setOrigin(0.5).setDepth(701);
+    }).setOrigin(0.5).setDepth(701));
     recruitGroup.push(hintText);
 
     // Store for R key / cleanup
@@ -7701,9 +7707,9 @@ export class BattleScene extends Phaser.Scene {
           item.forgeStat === 'might' ? '+1 Might' :
           item.forgeStat === 'crit' ? '+5 Crit' :
           item.forgeStat === 'hit' ? '+5 Hit' : '-1 Weight';
-        const detailLabel = this.add.text(cx, cardY + 35, detail, {
+        const detailLabel = applyTextResolution(this.add.text(cx, cardY + 35, detail, {
           fontFamily: 'monospace', fontSize: '9px', color: '#cc8844',
-        }).setOrigin(0.5).setDepth(702);
+        }).setOrigin(0.5).setDepth(702));
         lootGroup.push(detailLabel);
 
         card.on('pointerdown', () => {
@@ -7729,10 +7735,10 @@ export class BattleScene extends Phaser.Scene {
         // Category-aware detail text for decision quality.
         const detailInfo = this.getLootCardDetailLines(choice, item, cardW);
         if (detailInfo.lines.length > 0) {
-          const detailLabel = this.add.text(cx, cardY + 46, detailInfo.lines.join('\n'), {
-            fontFamily: 'monospace', fontSize: '8px', color: detailInfo.color,
+          const detailLabel = applyTextResolution(this.add.text(cx, cardY + 46, detailInfo.lines.join('\n'), {
+            fontFamily: 'monospace', fontSize: '9px', color: detailInfo.color,
             align: 'center',
-          }).setOrigin(0.5, 0).setDepth(702);
+          }).setOrigin(0.5, 0).setDepth(702));
           lootGroup.push(detailLabel);
         }
 
