@@ -284,6 +284,19 @@ describe('MobileControls context stack', () => {
       .toEqual(['danger', 'roster', 'objective', 'endTurn']);
   });
 
+  it('battle_selected keeps inspect hidden', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_selected' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger']);
+  });
+
   it('objective button label is Vision', () => {
     const events = createMockEvents();
     const { documentMock, rightPanel } = createMockMobileDom();

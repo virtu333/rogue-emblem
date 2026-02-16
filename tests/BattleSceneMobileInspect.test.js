@@ -132,6 +132,23 @@ describe('BattleScene mobile inspect cancel behavior', () => {
     expect(scene.clearInspectionVisuals).toHaveBeenCalledTimes(1);
   });
 
+  it('allowPause:true opens pause and clears mobile inspect in one press', () => {
+    const scene = createCancelScene({
+      inspectionPanel: { visible: true, hide: vi.fn() },
+      grid: { clearHighlights: vi.fn(), clearAttackHighlights: vi.fn() },
+    });
+
+    const handled = BattleScene.prototype.requestCancel.call(scene, { allowPause: true });
+
+    expect(handled).toBe(true);
+    expect(scene.showPauseMenu).toHaveBeenCalledTimes(1);
+    expect(scene.inspectMode).toBe(false);
+    expect(scene.inspectionPanel.hide).toHaveBeenCalledTimes(1);
+    expect(scene.grid.clearHighlights).toHaveBeenCalledTimes(1);
+    expect(scene.grid.clearAttackHighlights).toHaveBeenCalledTimes(1);
+    expect(scene.clearInspectionVisuals).not.toHaveBeenCalled();
+  });
+
   it('vision dialog still has cancel priority over inspect-mode exit', () => {
     const scene = createCancelScene({
       visionDialog: { visible: true },

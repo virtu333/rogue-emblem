@@ -2549,7 +2549,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.unitDetailOverlay?.visible) {
       this.unitDetailOverlay.hide();
-    } else if (this.inspectionPanel?.visible) {
+    } else if (this.inspectionPanel?.visible && !(this.isMobileInput && allowPause && this.battleState === 'PLAYER_IDLE')) {
       if (this.isMobileInput) this.inspectMode = false;
       this.clearInspectionVisuals();
     } else if (this.pauseOverlay?.visible) {
@@ -2566,7 +2566,7 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.isCancelableBattleState()) {
       this.handleCancel();
     } else if (allowPause && this.battleState === 'PLAYER_IDLE') {
-      if (this.isMobileInput && this.inspectMode) {
+      if (this.isMobileInput && (this.inspectMode || this.inspectionPanel?.visible)) {
         this.inspectMode = false;
         if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
         this.grid?.clearHighlights?.();
