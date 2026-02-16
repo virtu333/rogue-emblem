@@ -7305,7 +7305,7 @@ export class BattleScene extends Phaser.Scene {
     // Render cards: loot choices + 1 skip (dynamic sizing for 4 or 5 cards)
     const totalCards = choices.length + 1;
     const cardW = totalCards <= 4 ? 120 : 100;
-    const cardH = 160;
+    const cardH = 180;
     const gap = totalCards <= 4 ? 16 : 12;
     const totalW = totalCards * cardW + (totalCards - 1) * gap;
     const startX = cam.centerX - totalW / 2 + cardW / 2;
