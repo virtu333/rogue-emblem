@@ -157,6 +157,8 @@ export class HeadlessBattle {
     }
 
     // Spawn NPC for recruit battles
+    // Note: Headless harness does not roll for lord NPCs at recruit nodes.
+    // Lord recruit behavior is tested via unit tests in RecruitNodeLord.test.js.
     if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
       const lord = this.playerUnits.find(u => u.isLord);

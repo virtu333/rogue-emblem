@@ -229,7 +229,7 @@ describe('BossRecruitSystem', () => {
 
   describe('lord slot', () => {
     it('includes a lord when RNG is below threshold', () => {
-      // Math.random called: first for lord chance (0.05 < 0.12), then for lord pick, then for shuffles
+      // Math.random called: first for lord chance (0.05 < 0.35), then for lord pick, then for shuffles
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;

@@ -102,15 +102,19 @@ function pickUniqueRecruitNameForClass(recruitEntry, recruits, takenNames) {
 }
 
 /**
- * Get lords (Kira/Voss) not already in the roster.
+ * Get lords (Kira/Voss) not already in the roster or fallen.
  * @param {Array} roster - serialized roster units
  * @param {Array} lordsData - lords.json array
+ * @param {Array} [fallenUnits=[]] - units that died during the run
  * @returns {Array} available lord definitions
  */
-export function getAvailableLords(roster, lordsData) {
+export function getAvailableLords(roster, lordsData, fallenUnits = []) {
   const startingLords = new Set(['Edric', 'Sera']);
-  const rosterNames = new Set(roster.map(u => u.name));
-  return lordsData.filter(l => !startingLords.has(l.name) && !rosterNames.has(l.name));
+  const takenNames = new Set([
+    ...roster.map(u => u.name),
+    ...fallenUnits.map(u => u.name),
+  ]);
+  return lordsData.filter(l => !startingLords.has(l.name) && !takenNames.has(l.name));
 }
 
 /**
@@ -164,7 +168,7 @@ export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, 
  * @param {Object|null} metaEffects - meta-progression effects
  * @returns {Array|null} 3 candidate objects or null for final boss
  */
-export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffects) {
+export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffects, fallenUnits = []) {
   const actId = resolveActId(actRef);
 
   // Final boss — run ends, no recruit event
@@ -201,7 +205,7 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   }
 
   // Lord slot determination
-  const availLords = getAvailableLords(roster, lords);
+  const availLords = getAvailableLords(roster, lords, fallenUnits);
   const lordSlot = availLords.length > 0 && Math.random() < BOSS_RECRUIT_LORD_CHANCE;
   const chosenLord = lordSlot ? availLords[Math.floor(Math.random() * availLords.length)] : null;
   const takenNames = new Set(

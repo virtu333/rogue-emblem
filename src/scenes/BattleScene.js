@@ -69,7 +69,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER, RECRUIT_NODE_LORD_CHANCE } from '../utils/constants.js';
 import { getHPBarColor } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
@@ -82,7 +82,7 @@ import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
-import { generateBossRecruitCandidates } from '../engine/BossRecruitSystem.js';
+import { generateBossRecruitCandidates, getAvailableLords, createBossLordUnit } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
@@ -207,6 +207,7 @@ export class BattleScene extends Phaser.Scene {
       const startupFlags = this.registry.get('startupFlags');
       this.isMobileInput = Boolean(startupFlags?.isMobile);
       this.inspectMode = false;
+      this._playerDeathsThisBattle = 0;
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
@@ -363,49 +364,73 @@ export class BattleScene extends Phaser.Scene {
           const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
           npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus);
         }
-        const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
-        if (npcClassData) {
-          const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
-          const recruitGrowthBonuses = this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
-          const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
-            ? RECRUIT_SKILL_POOL : null;
 
-          let npc;
-          if (npcClassData.tier === 'promoted') {
-            // Promoted recruit: create from base class, then promote
-            const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
-            if (baseClassData) {
-              const baseDef = { ...npcSpawn, className: baseClassData.name };
-              npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-              for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+        // Lord roll: chance to spawn a lord (Kira/Voss) instead of a regular recruit
+        let spawnedLord = false;
+        const rosterForLordCheck = this.runManager?.roster || [];
+        const fallenForLordCheck = this.runManager?.fallenUnits || [];
+        const availLords = getAvailableLords(rosterForLordCheck, this.gameData.lords || [], fallenForLordCheck);
+
+        if (availLords.length > 0 && Math.random() < RECRUIT_NODE_LORD_CHANCE) {
+          const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
+          const lordClassData = this.gameData.classes.find(c => c.name === lordDef.class);
+          if (lordClassData) {
+            const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
+            const npc = createBossLordUnit(lordDef, lordClassData, this.gameData.weapons, npcSpawn.level, metaEffects);
+            npc.faction = 'npc';
+            npc.col = npcSpawn.col;
+            npc.row = npcSpawn.row;
+            this.npcUnits.push(npc);
+            this.addUnitGraphic(npc);
+            spawnedLord = true;
+          }
+        }
+
+        if (!spawnedLord) {
+          const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+          if (npcClassData) {
+            const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
+            const recruitGrowthBonuses = this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
+            const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
+              ? RECRUIT_SKILL_POOL : null;
+
+            let npc;
+            if (npcClassData.tier === 'promoted') {
+              // Promoted recruit: create from base class, then promote
+              const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
+              if (baseClassData) {
+                const baseDef = { ...npcSpawn, className: baseClassData.name };
+                npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+                for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+                  if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                }
+                promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+              } else {
+                // Safety fallback: create from promoted class directly rather than aborting battle load.
+                npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+                console.warn('Promoted recruit missing base class mapping:', npcClassData.name, npcClassData.promotesFrom);
+              }
+            } else {
+              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+              // Assign base-class innate skills (e.g. Dancer gets 'dance')
+              for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
                 if (!npc.skills.includes(sid)) npc.skills.push(sid);
               }
-              promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
-            } else {
-              // Safety fallback: create from promoted class directly rather than aborting battle load.
-              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-              console.warn('Promoted recruit missing base class mapping:', npcClassData.name, npcClassData.promotesFrom);
             }
-          } else {
-            npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
-            // Assign base-class innate skills (e.g. Dancer gets 'dance')
-            for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
-              if (!npc.skills.includes(sid)) npc.skills.push(sid);
+
+            if (this.runManager?.metaEffects?.lethalArmoryTier) {
+              grantLethalArmoryWeapon(npc, this.gameData.weapons, this.runManager.metaEffects.lethalArmoryTier);
             }
-          }
+            if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
+              const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+              if (vulnerary) addToConsumables(npc, vulnerary);
+            }
 
-          if (this.runManager?.metaEffects?.lethalArmoryTier) {
-            grantLethalArmoryWeapon(npc, this.gameData.weapons, this.runManager.metaEffects.lethalArmoryTier);
+            npc.col = npcSpawn.col;
+            npc.row = npcSpawn.row;
+            this.npcUnits.push(npc);
+            this.addUnitGraphic(npc);
           }
-          if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
-            const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
-            if (vulnerary) addToConsumables(npc, vulnerary);
-          }
-
-          npc.col = npcSpawn.col;
-          npc.row = npcSpawn.row;
-          this.npcUnits.push(npc);
-          this.addUnitGraphic(npc);
         }
       }
 
@@ -4231,7 +4256,8 @@ export class BattleScene extends Phaser.Scene {
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
       const rosterCapBonus = this.runManager?.metaEffects?.rosterCapBonus || 0;
-      if (talkTarget && this.playerUnits.length < ROSTER_CAP + rosterCapBonus) {
+      const fullRosterCount = (this.runManager?.roster?.length ?? this.playerUnits.length) - (this._playerDeathsThisBattle || 0);
+      if (talkTarget && fullRosterCount < ROSTER_CAP + rosterCapBonus) {
         items.push('Talk');
       }
     }
@@ -6347,7 +6373,10 @@ export class BattleScene extends Phaser.Scene {
     // Splice in-place so TurnManager's reference stays valid
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
-      if (idx !== -1) this.playerUnits.splice(idx, 1);
+      if (idx !== -1) {
+        this.playerUnits.splice(idx, 1);
+        this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
+      }
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);
       if (idx !== -1) this.npcUnits.splice(idx, 1);
@@ -7170,7 +7199,8 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.currentAct,
       this.runManager.roster,
       this.gameData,
-      this.runManager.getEffectiveMetaEffects()
+      this.runManager.getEffectiveMetaEffects(),
+      this.runManager?.fallenUnits || []
     );
     // Fallback to loot if no candidates generated
     if (!candidates || candidates.length === 0) {
