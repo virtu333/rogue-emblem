@@ -24,7 +24,7 @@ export const MUSIC = {
     act1: 'music_boss_act1',
     act2: 'music_boss_act2',
     act3: 'music_boss_act3',
-    act4: 'music_boss_act3',
+    act4: ['music_boss_act3', 'music_boss_final_2', 'music_boss_final_3'],
     finalBoss: ['music_boss_final', 'music_boss_final_2', 'music_boss_final_3', 'music_boss_final_4', 'music_boss_final_5'],
   },
 
