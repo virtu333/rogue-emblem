@@ -252,6 +252,14 @@ export function createUnit(classData, level, allWeapons, options = {}) {
     hpBar: null,
   };
 
+  // Secondary throwable for melee classes
+  const SECONDARY_THROWABLE = { Knight: 'Javelin', Fighter: 'Hand Axe' };
+  const secondaryName = SECONDARY_THROWABLE[classData.name];
+  if (secondaryName) {
+    const secondary = allWeapons.find(w => w.name === secondaryName);
+    if (secondary) addToInventory(unit, secondary);
+  }
+
   // Auto-level to target level
   for (let i = 1; i < level; i++) {
     const gains = levelUp(unit);
