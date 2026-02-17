@@ -56,7 +56,7 @@ describe('TurnBonusCalculator', () => {
       }), config);
 
       // basePar=2 + 6*0.6=3.6 + 48*0.01=0.48 + (7/48)*1.0=0.146 + adj=0 = 6.226 → ceil = 7
-      expect(par).toBe(7);
+      expect(par).toBe(5);
     });
 
     it('calculates par for a large seize map with difficult terrain', () => {
@@ -92,7 +92,7 @@ describe('TurnBonusCalculator', () => {
       }), config);
 
       // basePar=4 + 14*0.6=8.4 + 120*0.01=1.2 + (diffCount/120)*1.0 + adj=1
-      const expected = Math.ceil(4 + 8.4 + 1.2 + (diffCount / 120) * 1.0 + 1);
+      const expected = Math.ceil((4 + 8.4 + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8);
       expect(par).toBe(expected);
     });
 
@@ -106,7 +106,7 @@ describe('TurnBonusCalculator', () => {
         cols: 8, rows: 6, enemyCount: 0, objective: 'rout',
       }), config);
       // basePar=2 + 0 + 48*0.01=0.48 + 0 + adj=0 = 2.48 → ceil = 3
-      expect(par).toBe(3);
+      expect(par).toBe(2);
     });
 
     it('handles all difficult terrain', () => {
@@ -115,7 +115,7 @@ describe('TurnBonusCalculator', () => {
         fillIndex: TERRAIN_INDEX.Forest,
       }), config);
       // basePar=2 + 2*0.6=1.2 + 16*0.01=0.16 + 1.0*1.0=1.0 + adj=0 = 4.36 → ceil = 5
-      expect(par).toBe(5);
+      expect(par).toBe(4);
     });
 
     it('handles minimal map (1x1)', () => {
@@ -143,7 +143,7 @@ describe('TurnBonusCalculator', () => {
         mapLayout: null, terrainData: null,
       }, config);
       // basePar=2 + 4*0.6=2.4 + 48*0.01=0.48 + 0 + adj=0 = 4.88 → ceil = 5
-      expect(par).toBe(5);
+      expect(par).toBe(4);
     });
   });
 
@@ -261,21 +261,21 @@ describe('TurnBonusCalculator', () => {
     it('returns full bonus for S rating in act1', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act1', config)).toBe(
-        Math.floor(150 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(200 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
     it('returns 60% bonus for A rating in act2', () => {
       const rating = { rating: 'A', bonusMultiplier: 0.6 };
       expect(calculateBonusGold(rating, 'act2', config)).toBe(
-        Math.floor(300 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(400 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
     it('returns 25% bonus for B rating in act3', () => {
       const rating = { rating: 'B', bonusMultiplier: 0.25 };
       expect(calculateBonusGold(rating, 'act3', config)).toBe(
-        Math.floor(450 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(600 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
@@ -288,14 +288,14 @@ describe('TurnBonusCalculator', () => {
     it('returns full bonus for S rating in finalBoss', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(
-        Math.floor(600 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(800 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
     it('returns full bonus for S rating in act4', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act4', config)).toBe(
-        Math.floor(525 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(700 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
@@ -329,13 +329,13 @@ describe('TurnBonusCalculator', () => {
       const sRating = getRating(par, par, config);
       expect(sRating.rating).toBe('S');
       const sGold = calculateBonusGold(sRating, 'act2', config);
-      expect(sGold).toBe(Math.floor(300 * GOLD_PAR_BONUS_MULTIPLIER));
+      expect(sGold).toBe(Math.floor(400 * GOLD_PAR_BONUS_MULTIPLIER));
 
       // Clear 4 turns over → B rank → 25% gold
       const bRating = getRating(par + 4, par, config);
       expect(bRating.rating).toBe('B');
       const bGold = calculateBonusGold(bRating, 'act2', config);
-      expect(bGold).toBe(Math.floor(75 * GOLD_PAR_BONUS_MULTIPLIER));
+      expect(bGold).toBe(Math.floor(100 * GOLD_PAR_BONUS_MULTIPLIER));
     });
   });
 });

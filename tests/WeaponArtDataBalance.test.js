@@ -25,7 +25,7 @@ describe('weapon arts data guards', () => {
     expect(longshot.combatMods?.hitBonus ?? 0).toBeLessThanOrEqual(12);
     expect(longshot.combatMods?.critBonus ?? 0).toBeLessThanOrEqual(8);
 
-    // Legendary arts should carry meaningful HP risk.
+    // Legendary arts should carry meaningful HP risk and remain Mast-gated.
     const legendaryArts = arts.filter((art) => Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0);
     expect(legendaryArts.length).toBeGreaterThan(0);
     for (const art of legendaryArts) {
@@ -34,15 +34,30 @@ describe('weapon arts data guards', () => {
       expect(art.perMapLimit).toBeLessThanOrEqual(2);
     }
 
-    // Non-legendary Mast arts should still carry meaningful cost/limit guardrails.
-    const advancedArts = arts.filter((art) =>
+    // Non-legendary arts should now be Prof-gated.
+    const nonLegendaryArts = arts.filter((art) =>
+      !Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0
+    );
+    expect(nonLegendaryArts.length).toBeGreaterThan(0);
+    for (const art of nonLegendaryArts) {
+      expect(art.requiredRank).toBe('Prof');
+    }
+
+    // All Mast arts are legendary-only and distribution remains stable.
+    const mastArts = arts.filter((art) => art?.requiredRank === 'Mast');
+    expect(mastArts.length).toBe(15);
+    for (const art of mastArts) {
+      expect(Array.isArray(art?.legendaryWeaponIds)).toBe(true);
+      expect(art.legendaryWeaponIds.length).toBeGreaterThan(0);
+    }
+
+    const profArts = arts.filter((art) => art?.requiredRank === 'Prof');
+    expect(profArts.length).toBe(60);
+
+    const nonLegendaryMastArts = arts.filter((art) =>
       art?.requiredRank === 'Mast'
       && (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0)
     );
-    expect(advancedArts.length).toBeGreaterThan(0);
-    for (const art of advancedArts) {
-      expect(art.hpCost).toBeGreaterThanOrEqual(4);
-      expect(art.perMapLimit).toBeLessThanOrEqual(2);
-    }
+    expect(nonLegendaryMastArts.length).toBe(0);
   });
 });

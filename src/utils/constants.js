@@ -128,7 +128,7 @@ export const ROSTER_CAP = 12;
 export const STARTING_GOLD = 200;
 export const GOLD_PER_KILL_BASE = 28;
 export const GOLD_PER_LEVEL_BONUS = 8;
-export const GOLD_BATTLE_BONUS = 120;
+export const GOLD_BATTLE_BONUS = 80;
 export const GOLD_BOSS_BONUS = 300;
 export const GOLD_BATTLE_REWARD_MULTIPLIER = 2.0;
 // Shared loot multiplier: applied in LootSystem gold generation and BattleScene skip-loot payout.

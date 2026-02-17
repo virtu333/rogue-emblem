@@ -37,7 +37,7 @@ export function calculatePar(mapParams, config) {
   const difficultRatio = area > 0 ? difficultCount / area : 0;
   const terrainPenalty = difficultRatio * config.terrainMultiplier;
 
-  return Math.ceil(basePar + enemyPenalty + areaPenalty + terrainPenalty + adjustment);
+  return Math.ceil((basePar + enemyPenalty + areaPenalty + terrainPenalty + adjustment) * 0.8);
 }
 
 /**

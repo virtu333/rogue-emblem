@@ -1,8 +1,13 @@
 {
   "enemyWeight": 0.6,
   "areaPenaltyPerTile": 0.01,
-  "terrainMultiplier": 1.0,
-  "difficultTerrainTypes": ["Forest", "Mountain", "Water", "Sand"],
+  "terrainMultiplier": 1,
+  "difficultTerrainTypes": [
+    "Forest",
+    "Mountain",
+    "Water",
+    "Sand"
+  ],
   "objectiveBasePar": {
     "rout": 2,
     "seize": 4
@@ -12,23 +17,53 @@
     "seize": 1
   },
   "brackets": [
-    { "rating": "S", "threshold": 0, "bonusMultiplier": 1.0 },
-    { "rating": "A", "threshold": 3, "bonusMultiplier": 0.6 },
-    { "rating": "B", "threshold": 6, "bonusMultiplier": 0.25 },
-    { "rating": "C", "threshold": 999, "bonusMultiplier": 0.0 }
+    {
+      "rating": "S",
+      "threshold": 0,
+      "bonusMultiplier": 1
+    },
+    {
+      "rating": "A",
+      "threshold": 3,
+      "bonusMultiplier": 0.6
+    },
+    {
+      "rating": "B",
+      "threshold": 6,
+      "bonusMultiplier": 0.25
+    },
+    {
+      "rating": "C",
+      "threshold": 999,
+      "bonusMultiplier": 0
+    }
   ],
   "baseBonusGold": {
-    "act1": 150,
-    "act2": 300,
-    "act3": 450,
-    "act4": 525,
-    "finalBoss": 600
+    "act1": 200,
+    "act2": 400,
+    "act3": 600,
+    "act4": 700,
+    "finalBoss": 800
   },
   "latePressure": {
     "startOverPar": 5,
     "stepTurns": 2,
-    "xpMultipliers": [1.0, 0.7, 0.5, 0.35, 0.2, 0.1],
-    "goldMultipliers": [1.0, 0.8, 0.6, 0.4, 0.25, 0.1],
+    "xpMultipliers": [
+      1,
+      0.7,
+      0.5,
+      0.35,
+      0.2,
+      0.1
+    ],
+    "goldMultipliers": [
+      1,
+      0.8,
+      0.6,
+      0.4,
+      0.25,
+      0.1
+    ],
     "bossEnrageTurn": 12,
     "bossEnrageOverPar": 5
   }

@@ -17,14 +17,14 @@
     "weapon": "Swords (P)",
     "personalSkill": "Charisma: Allies within 2 tiles +10 Hit, +5 Avoid",
     "personalGrowths": {
-      "HP": 5,
-      "STR": 3,
-      "MAG": 3,
-      "SKL": 3,
-      "SPD": 3,
-      "DEF": 3,
-      "RES": 3,
-      "LCK": 3
+      "HP": 3,
+      "STR": 2,
+      "MAG": 2,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 2
     },
     "promotedClass": "Great Lord",
     "promotionBonuses": {
@@ -39,7 +39,10 @@
       "MOV": 1
     },
     "promotionWeapons": "Lances (P)",
-    "personalSkillL20": { "skillId": "commanders_gambit", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "commanders_gambit",
+      "level": 20
+    }
   },
   {
     "name": "Kira",
@@ -60,13 +63,13 @@
     "personalSkill": "Foresight: +1 range on Tome attacks",
     "personalGrowths": {
       "HP": 0,
-      "STR": 5,
-      "MAG": 5,
-      "SKL": 3,
-      "SPD": 3,
-      "DEF": 5,
-      "RES": 5,
-      "LCK": 3
+      "STR": 3,
+      "MAG": 3,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 3,
+      "RES": 3,
+      "LCK": 2
     },
     "promotedClass": "Grandmaster",
     "promotionBonuses": {
@@ -81,7 +84,10 @@
       "MOV": 0
     },
     "promotionWeapons": "Swords (P)",
-    "personalSkillL20": { "skillId": "tactical_advantage", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "tactical_advantage",
+      "level": 20
+    }
   },
   {
     "name": "Voss",
@@ -101,14 +107,14 @@
     "weapon": "Swords (P), Bows (P)",
     "personalSkill": "Resolve: +4 STR/DEF when below 50% HP",
     "personalGrowths": {
-      "HP": 3,
-      "STR": 5,
+      "HP": 2,
+      "STR": 3,
       "MAG": 0,
-      "SKL": 5,
-      "SPD": 5,
-      "DEF": 3,
-      "RES": 15,
-      "LCK": 5
+      "SKL": 3,
+      "SPD": 3,
+      "DEF": 2,
+      "RES": 8,
+      "LCK": 3
     },
     "promotedClass": "Vanguard",
     "promotionBonuses": {
@@ -122,8 +128,11 @@
       "LCK": 0,
       "MOV": 0
     },
-    "promotionWeapons": "Axes (P)",
-    "personalSkillL20": { "skillId": "aether", "level": 20 }
+    "promotionWeapons": "Swords (M), Axes (P), Bows (P)",
+    "personalSkillL20": {
+      "skillId": "aether",
+      "level": 20
+    }
   },
   {
     "name": "Sera",
@@ -143,14 +152,14 @@
     "weapon": "Light (P)",
     "personalSkill": "Renewal Aura: Adjacent allies heal 5 HP/turn",
     "personalGrowths": {
-      "HP": 10,
-      "STR": 3,
-      "MAG": 5,
-      "SKL": 3,
-      "SPD": 4,
-      "DEF": 3,
-      "RES": 13,
-      "LCK": 8
+      "HP": 5,
+      "STR": 2,
+      "MAG": 3,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 2,
+      "RES": 7,
+      "LCK": 4
     },
     "promotedClass": "Light Priestess",
     "promotionBonuses": {
@@ -165,7 +174,10 @@
       "MOV": 0
     },
     "promotionWeapons": "Staves (P)",
-    "personalSkillL20": { "skillId": "flare", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "flare",
+      "level": 20
+    }
   },
   {
     "name": "Rowan",
@@ -185,14 +197,14 @@
     "weapon": "Lances (P)",
     "personalSkill": "Ride Down: +3 ATK when initiating after moving 3+ cost",
     "personalGrowths": {
-      "HP": 3,
-      "STR": 5,
-      "MAG": 3,
-      "SKL": 5,
-      "SPD": 5,
-      "DEF": 5,
-      "RES": 3,
-      "LCK": 3
+      "HP": 2,
+      "STR": 3,
+      "MAG": 2,
+      "SKL": 3,
+      "SPD": 3,
+      "DEF": 3,
+      "RES": 2,
+      "LCK": 2
     },
     "promotedClass": "Holy Knight",
     "promotionBonuses": {
@@ -207,7 +219,10 @@
       "MOV": 1
     },
     "promotionWeapons": "Staves (P)",
-    "personalSkillL20": { "skillId": "divine_charge", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "divine_charge",
+      "level": 20
+    }
   },
   {
     "name": "Astrid",
@@ -227,14 +242,14 @@
     "weapon": "Lances (P)",
     "personalSkill": "Skyward: +15 Avoid when not adjacent to any ally",
     "personalGrowths": {
-      "HP": 3,
-      "STR": 3,
-      "MAG": 3,
-      "SKL": 5,
-      "SPD": 5,
-      "DEF": 5,
-      "RES": 3,
-      "LCK": 5
+      "HP": 2,
+      "STR": 2,
+      "MAG": 2,
+      "SKL": 3,
+      "SPD": 3,
+      "DEF": 3,
+      "RES": 2,
+      "LCK": 3
     },
     "promotedClass": "Seraph Knight",
     "promotionBonuses": {
@@ -249,7 +264,10 @@
       "MOV": 1
     },
     "promotionWeapons": "Light (P)",
-    "personalSkillL20": { "skillId": "seraph_strike", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "seraph_strike",
+      "level": 20
+    }
   },
   {
     "name": "Cael",
@@ -269,14 +287,14 @@
     "weapon": "Axes (P)",
     "personalSkill": "Intimidate: Enemies that attack Cael suffer -1 STR, -2 MAG, -1 SPD after combat",
     "personalGrowths": {
-      "HP": 3,
-      "STR": 3,
+      "HP": 2,
+      "STR": 2,
       "MAG": 0,
-      "SKL": 3,
-      "SPD": 10,
-      "DEF": 3,
-      "RES": 10,
-      "LCK": 2
+      "SKL": 2,
+      "SPD": 5,
+      "DEF": 2,
+      "RES": 5,
+      "LCK": 1
     },
     "promotedClass": "Champion",
     "promotionBonuses": {
@@ -291,6 +309,9 @@
       "MOV": 1
     },
     "promotionWeapons": "Lances (P)",
-    "personalSkillL20": { "skillId": "unyielding", "level": 20 }
+    "personalSkillL20": {
+      "skillId": "unyielding",
+      "level": 20
+    }
   }
 ]
