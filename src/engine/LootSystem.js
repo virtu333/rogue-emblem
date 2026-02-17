@@ -830,7 +830,9 @@ export function generateShopInventory(
 ) {
   const table = lootTables[actId] || lootTables.act3;
   const { pools } = buildLootTablesFromAct(table, allWeapons, consumables);
-  const itemCount = SHOP_ITEM_COUNT.min + Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
+  const bonusItems = Math.trunc(generateOptions?.itemCountBonus || 0);
+  const baseCount = SHOP_ITEM_COUNT.min + Math.floor(Math.random() * (SHOP_ITEM_COUNT.max - SHOP_ITEM_COUNT.min + 1));
+  const itemCount = Math.max(1, baseCount + bonusItems);
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
 
   const inventory = [];

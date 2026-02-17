@@ -84,6 +84,7 @@ function createBlessingRuntimeModifiers() {
     blockedPersonalSkillsByUnit: {},
     xpMultiplierDelta: 0,
     forgeCostDiscount: 0,
+    shopPriceDiscount: 0,
     recruitLevelBonus: 0,
     terrainCombatBonuses: [],
   };
@@ -1246,6 +1247,16 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'shop_price_discount') {
+      const delta = Number(value) || 0;
+      this.blessingRuntimeModifiers.shopPriceDiscount += delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.shopPriceDiscount,
+      });
+      return;
+    }
+
     if (effect.type === 'recruit_level_bonus') {
       this.blessingRuntimeModifiers.recruitLevelBonus += Math.trunc(value);
       this._recordBlessingEvent('run_start', blessingId, effect, {
@@ -1310,6 +1321,10 @@ export class RunManager {
 
   getForgeCostDiscount() {
     return this.blessingRuntimeModifiers?.forgeCostDiscount || 0;
+  }
+
+  getShopPriceDiscount() {
+    return this.blessingRuntimeModifiers?.shopPriceDiscount || 0;
   }
 
   getRecruitLevelBonus() {
@@ -2662,6 +2677,7 @@ export class RunManager {
     }
     rm.blessingRuntimeModifiers.xpMultiplierDelta = Number(rm.blessingRuntimeModifiers.xpMultiplierDelta) || 0;
     rm.blessingRuntimeModifiers.forgeCostDiscount = Number(rm.blessingRuntimeModifiers.forgeCostDiscount) || 0;
+    rm.blessingRuntimeModifiers.shopPriceDiscount = Number(rm.blessingRuntimeModifiers.shopPriceDiscount) || 0;
     rm.blessingRuntimeModifiers.recruitLevelBonus = Math.trunc(Number(rm.blessingRuntimeModifiers.recruitLevelBonus) || 0);
     if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
       rm.blessingRuntimeModifiers.terrainCombatBonuses = [];

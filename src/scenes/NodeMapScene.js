@@ -1277,23 +1277,22 @@ export class NodeMapScene extends Phaser.Scene {
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
 
     const rm = this.runManager;
+    const shopItemDelta = rm.getShopItemCountDelta();
     let shopItems = generateShopInventory(
       rm.currentAct, this.gameData.lootTables,
       this.gameData.weapons, this.gameData.consumables,
       this.gameData.accessories, rm.roster,
-      rm.getWeaponArtSpawnConfig()
+      rm.getWeaponArtSpawnConfig(),
+      { itemCountBonus: shopItemDelta }
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
-    const shopItemDelta = rm.getShopItemCountDelta();
-    if (shopItemDelta < 0 && shopItems.length > 0) {
-      const trimmedCount = Math.max(1, shopItems.length + shopItemDelta);
-      shopItems = shopItems.slice(0, trimmedCount);
-    }
     this.showShopOverlay(node, shopItems);
   }
 
   applyDifficultyShopPricing(items) {
-    const multiplier = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
+    const diffMult = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
+    const blessingDiscount = this.runManager?.getShopPriceDiscount?.() || 0;
+    const multiplier = Math.max(0.1, diffMult * (1 - blessingDiscount));
     if (!Array.isArray(items)) return [];
     return items.map((entry) => ({
       ...entry,

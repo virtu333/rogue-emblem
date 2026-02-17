@@ -946,5 +946,20 @@ describe('LootSystem', () => {
         expect(hasWeapon).toBe(true);
       }
     });
+
+    it('positive itemCountBonus increases inventory size', () => {
+      for (let i = 0; i < 20; i++) {
+        const inv = generateShopInventory('act1', gameData.lootTables, gameData.weapons, gameData.consumables, null, null, null, { itemCountBonus: 3 });
+        expect(inv.length).toBeGreaterThanOrEqual(SHOP_ITEM_COUNT.min + 3);
+        expect(inv.length).toBeLessThanOrEqual(SHOP_ITEM_COUNT.max + 3);
+      }
+    });
+
+    it('negative itemCountBonus reduces inventory (min 1)', () => {
+      for (let i = 0; i < 20; i++) {
+        const inv = generateShopInventory('act1', gameData.lootTables, gameData.weapons, gameData.consumables, null, null, null, { itemCountBonus: -100 });
+        expect(inv.length).toBeGreaterThanOrEqual(1);
+      }
+    });
   });
 });

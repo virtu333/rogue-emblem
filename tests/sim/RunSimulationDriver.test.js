@@ -38,4 +38,20 @@ describe('RunSimulationDriver', () => {
       restoreMathRandom();
     }
   });
+
+  it('applies difficulty and blessing shop pricing in simulation', () => {
+    const gameData = loadGameData();
+    const driver = new RunSimulationDriver(gameData);
+    driver.runManager = {
+      getDifficultyModifier: (key, fallback) => (key === 'shopPriceMultiplier' ? 1.15 : fallback),
+      getShopPriceDiscount: () => 0.15,
+    };
+
+    const priced = driver._applyShopPricing([
+      { item: { name: 'Iron Sword' }, type: 'weapon', price: 100 },
+    ]);
+
+    expect(priced).toHaveLength(1);
+    expect(priced[0].price).toBe(97);
+  });
 });

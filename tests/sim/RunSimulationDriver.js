@@ -245,24 +245,21 @@ export class RunSimulationDriver {
     }
 
     const roster = this.runManager.roster;
-    const inventory = generateShopInventory(
+    const shopItemDelta = this.runManager.getShopItemCountDelta();
+    const inventory = this._applyShopPricing(generateShopInventory(
       this.runManager.currentAct,
       this.gameData.lootTables,
       this.gameData.weapons,
       this.gameData.consumables,
       this.gameData.accessories,
-      roster
-    );
-
-    // Apply blessing shop count delta after inventory generation.
-    const delta = this.runManager.getShopItemCountDelta();
-    const adjusted = delta >= 0
-      ? inventory
-      : inventory.slice(0, Math.max(0, inventory.length + delta));
+      roster,
+      null,
+      { itemCountBonus: shopItemDelta }
+    ));
 
     let purchases = 0;
     let spent = 0;
-    const picks = chooseShopPurchases(this.runManager, adjusted);
+    const picks = chooseShopPurchases(this.runManager, inventory);
     for (const entry of picks) {
       if (!Number.isFinite(entry?.price) || entry.price <= 0) {
         this.metrics.invalidShopEntries++;
@@ -297,7 +294,18 @@ export class RunSimulationDriver {
 
     this.metrics.shopGoldSpent += spent;
     this.runManager.markNodeComplete(node.id);
-    return { result: 'shop_done', purchases, spent, offered: adjusted.length };
+    return { result: 'shop_done', purchases, spent, offered: inventory.length };
+  }
+
+  _applyShopPricing(items) {
+    const diffMult = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
+    const blessingDiscount = this.runManager?.getShopPriceDiscount?.() || 0;
+    const multiplier = Math.max(0.1, diffMult * (1 - blessingDiscount));
+    if (!Array.isArray(items)) return [];
+    return items.map((entry) => ({
+      ...entry,
+      price: Math.max(1, Math.floor((entry?.price || 0) * multiplier)),
+    }));
   }
 
   _runChurchNode(node) {

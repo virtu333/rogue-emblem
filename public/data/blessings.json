@@ -175,12 +175,16 @@
       "id": "pilgrim_coin",
       "name": "Pilgrim Coin",
       "tier": 3,
-      "description": "Villages offer +1 item.",
+      "description": "Shops stock +1 item at 15% discount.",
       "weight": 0.6,
       "boons": [
         {
           "type": "shop_item_count_delta",
           "params": { "value": 1 }
+        },
+        {
+          "type": "shop_price_discount",
+          "params": { "value": 0.15 }
         }
       ],
       "costs": []

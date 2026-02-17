@@ -136,6 +136,58 @@ describe('NodeMapScene Slice 4', () => {
     generateShopInventoryMock.mockReset();
   });
 
+  it('handleShop passes blessing item delta into shop generation and prices inventory', () => {
+    const generated = [makeShopEntry('Iron Sword', 'weapon', 100)];
+    const priced = [makeShopEntry('Iron Sword', 'weapon', 90)];
+    generateShopInventoryMock.mockReturnValueOnce(generated);
+    const node = { id: 'shop-1' };
+
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => false),
+        currentAct: 'act1',
+        roster: [],
+        getWeaponArtSpawnConfig: vi.fn(() => null),
+        getShopItemCountDelta: vi.fn(() => 1),
+      },
+      gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+      registry: { get: vi.fn(() => null) },
+      applyDifficultyShopPricing: vi.fn(() => priced),
+      showShopOverlay: vi.fn(),
+    };
+
+    NodeMapScene.prototype.handleShop.call(scene, node);
+
+    expect(generateShopInventoryMock).toHaveBeenCalledWith(
+      'act1',
+      scene.gameData.lootTables,
+      scene.gameData.weapons,
+      scene.gameData.consumables,
+      scene.gameData.accessories,
+      scene.runManager.roster,
+      null,
+      { itemCountBonus: 1 }
+    );
+    expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, priced);
+  });
+
+  it('applyDifficultyShopPricing combines difficulty multiplier with blessing discount', () => {
+    const scene = {
+      runManager: {
+        getDifficultyModifier: vi.fn((key, fallback) => (key === 'shopPriceMultiplier' ? 1.15 : fallback)),
+        getShopPriceDiscount: vi.fn(() => 0.15),
+      },
+    };
+
+    const priced = NodeMapScene.prototype.applyDifficultyShopPricing.call(scene, [
+      { item: { name: 'Iron Sword' }, type: 'weapon', price: 100 },
+    ]);
+
+    expect(priced).toHaveLength(1);
+    expect(priced[0].price).toBe(97);
+  });
+
   it('blocks opening roster while shop/church overlay is active', () => {
     const withShopOverlay = {
       rosterOverlay: null,

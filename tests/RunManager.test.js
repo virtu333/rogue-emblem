@@ -2028,6 +2028,19 @@ describe('blessing run-start effect application', () => {
     expect(rm.getShopItemCountDelta()).toBe(1);
   });
 
+  it('shop_price_discount blessing stores and retrieves via getShopPriceDiscount', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = ['pilgrim_coin'];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.getShopPriceDiscount()).toBeCloseTo(0.15);
+    expect(rm.getShopItemCountDelta()).toBe(1);
+  });
+
   it('all_growths_delta blessing applies to roster growths and recruit growth accessor', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
