@@ -6,6 +6,43 @@ import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS, FORGE_STAT_CAP } from '../
 // Item types that cannot be forged
 const EXCLUDED_TYPES = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory', 'Whetstone']);
 
+function applyStatBonus(weapon, stat, bonus) {
+  if (stat === 'might') {
+    weapon.might += bonus;
+  } else if (stat === 'crit') {
+    weapon.crit += bonus;
+  } else if (stat === 'hit') {
+    weapon.hit += bonus;
+  } else if (stat === 'weight') {
+    weapon.weight = Math.max(0, weapon.weight + bonus); // bonus is negative for weight
+  }
+}
+
+function removeStatBonus(weapon, stat, bonus) {
+  if (stat === 'might') {
+    weapon.might -= bonus;
+  } else if (stat === 'crit') {
+    weapon.crit -= bonus;
+  } else if (stat === 'hit') {
+    weapon.hit -= bonus;
+  } else if (stat === 'weight') {
+    weapon.weight = Math.max(0, weapon.weight - bonus); // bonus is negative for weight
+  }
+}
+
+function getLegacyDeforgeStat(weapon) {
+  const order = ['weight', 'hit', 'crit', 'might'];
+  const bonuses = weapon?._forgeBonuses;
+  for (const stat of order) {
+    const bonus = FORGE_BONUSES[stat];
+    const current = Number(bonuses?.[stat] || 0);
+    if (!Number.isFinite(current) || current === 0) continue;
+    const steps = Math.abs(current / bonus);
+    if (steps > 0) return stat;
+  }
+  return null;
+}
+
 /**
  * Check whether a weapon can be forged (has room for at least one more forge).
  * @param {object} weapon
@@ -80,34 +117,74 @@ export function applyForge(weapon, stat, discountRatio = 0) {
   if (!canForgeStat(weapon, stat)) return { success: false };
   const baseCost = getForgeCost(weapon, stat);
   if (baseCost < 0) return { success: false };
-  const cost = discountRatio > 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
+  const cost = discountRatio !== 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
 
   const level = weapon._forgeLevel || 0;
 
   // Initialize forge metadata on first forge
   if (!weapon._baseName) weapon._baseName = weapon.name;
   if (!weapon._forgeBonuses) weapon._forgeBonuses = { might: 0, crit: 0, hit: 0, weight: 0 };
+  if (!Array.isArray(weapon._forgeHistory)) weapon._forgeHistory = [];
 
   // Apply stat bonus
   const bonus = FORGE_BONUSES[stat];
   weapon._forgeBonuses[stat] += bonus;
-
-  if (stat === 'might') {
-    weapon.might += bonus;
-  } else if (stat === 'crit') {
-    weapon.crit += bonus;
-  } else if (stat === 'hit') {
-    weapon.hit += bonus;
-  } else if (stat === 'weight') {
-    weapon.weight = Math.max(0, weapon.weight + bonus); // bonus is negative for weight
-  }
+  applyStatBonus(weapon, stat, bonus);
 
   // Update forge level, name, price
   weapon._forgeLevel = level + 1;
   weapon.name = `${weapon._baseName} +${weapon._forgeLevel}`;
   weapon.price = (weapon.price || 0) + cost;
+  weapon._forgeHistory.push({ stat, cost });
 
   return { success: true, cost };
+}
+
+/**
+ * Remove one forge level from a weapon, mutating it in place.
+ * Reverses exact last forge when history exists, otherwise uses safe legacy fallback.
+ * @param {object} weapon
+ * @returns {{ success: boolean, refundedCost?: number, stat?: string }}
+ */
+export function deforgeWeapon(weapon) {
+  if (!weapon || !isForged(weapon)) return { success: false };
+  if (!weapon._forgeBonuses) {
+    weapon._forgeBonuses = { might: 0, crit: 0, hit: 0, weight: 0 };
+  }
+
+  let step = null;
+  if (Array.isArray(weapon._forgeHistory) && weapon._forgeHistory.length > 0) {
+    step = weapon._forgeHistory.pop();
+  } else {
+    const legacyStat = getLegacyDeforgeStat(weapon);
+    if (!legacyStat) return { success: false };
+    const refundCost = FORGE_COSTS[legacyStat]?.[Math.max(0, getStatForgeCount(weapon, legacyStat) - 1)] || 0;
+    step = { stat: legacyStat, cost: refundCost };
+    if (!Array.isArray(weapon._forgeHistory)) weapon._forgeHistory = [];
+  }
+
+  const stat = step?.stat;
+  if (!stat || !FORGE_BONUSES[stat]) return { success: false };
+  const bonus = FORGE_BONUSES[stat];
+  weapon._forgeBonuses[stat] -= bonus;
+  removeStatBonus(weapon, stat, bonus);
+
+  const nextLevel = Math.max(0, (weapon._forgeLevel || 0) - 1);
+  weapon._forgeLevel = nextLevel;
+  weapon.price = Math.max(0, (weapon.price || 0) - Math.max(0, Math.trunc(Number(step.cost) || 0)));
+
+  if (nextLevel <= 0) {
+    weapon.name = weapon._baseName || weapon.name;
+    delete weapon._forgeLevel;
+    delete weapon._baseName;
+    delete weapon._forgeBonuses;
+    delete weapon._forgeHistory;
+  } else {
+    const baseName = weapon._baseName || weapon.name;
+    weapon.name = `${baseName} +${nextLevel}`;
+  }
+
+  return { success: true, refundedCost: Math.max(0, Math.trunc(Number(step.cost) || 0)), stat };
 }
 
 /**

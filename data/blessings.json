@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "blessings": [
     {
       "id": "steady_hands",
@@ -19,7 +19,7 @@
       "id": "coin_of_fate",
       "name": "Coin of Fate",
       "tier": 1,
-      "description": "+15% gold during run.",
+      "description": "+15% battle gold during run.",
       "weight": 1.0,
       "boons": [
         {
@@ -42,122 +42,6 @@
         }
       ],
       "costs": []
-    },
-    {
-      "id": "iron_oath",
-      "name": "Iron Oath",
-      "tier": 2,
-      "description": "+2 DEF to lords, but -10% battle gold.",
-      "weight": 0.9,
-      "boons": [
-        {
-          "type": "lord_stat_bonus",
-          "params": { "stat": "DEF", "value": 2 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": -0.1 }
-        }
-      ]
-    },
-    {
-      "id": "scout_blessing",
-      "name": "Scout Blessing",
-      "tier": 2,
-      "description": "Deploy +1 unit, but -10% gold during run.",
-      "weight": 0.9,
-      "boons": [
-        {
-          "type": "deploy_cap_delta",
-          "params": { "value": 1 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": -0.1 }
-        }
-      ],
-      "excludes": ["nomad_pact"]
-    },
-    {
-      "id": "scholar_vow",
-      "name": "Scholar's Vow",
-      "tier": 2,
-      "description": "All growths +10%, but -10% gold during run.",
-      "weight": 0.85,
-      "boons": [
-        {
-          "type": "all_growths_delta",
-          "params": { "value": 10 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": -0.1 }
-        }
-      ]
-    },
-    {
-      "id": "arsenal_pact",
-      "name": "Arsenal Pact",
-      "tier": 3,
-      "description": "Start with a silver weapon, but -1 DEF all units in Act 1.",
-      "weight": 0.65,
-      "boons": [
-        {
-          "type": "starting_weapon_tier",
-          "params": { "tier": "Silver", "count": 1 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "act_stat_delta_all_units",
-          "params": { "act": "act1", "stat": "DEF", "value": -1 }
-        }
-      ]
-    },
-    {
-      "id": "pilgrim_coin",
-      "name": "Pilgrim Coin",
-      "tier": 3,
-      "description": "Villages offer +1 item, but your units suffer -5 Hit in Act 1.",
-      "weight": 0.6,
-      "boons": [
-        {
-          "type": "shop_item_count_delta",
-          "params": { "value": 1 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "act_hit_bonus",
-          "params": { "act": "act1", "value": -5 }
-        }
-      ]
-    },
-    {
-      "id": "merchant_bane",
-      "name": "Merchant Bane",
-      "tier": 3,
-      "description": "+15% battle gold, but all village inventories have -1 item.",
-      "weight": 0.65,
-      "boons": [
-        {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": 0.15 }
-        }
-      ],
-      "costs": [
-        {
-          "type": "shop_item_count_delta",
-          "params": { "value": -1 }
-        }
-      ],
-      "excludes": ["frugal_smith"]
     },
     {
       "id": "swift_instinct",
@@ -188,10 +72,53 @@
       "costs": []
     },
     {
+      "id": "iron_oath",
+      "name": "Iron Oath",
+      "tier": 2,
+      "description": "+2 DEF to lords.",
+      "weight": 0.9,
+      "boons": [
+        {
+          "type": "lord_stat_bonus",
+          "params": { "stat": "DEF", "value": 2 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "scout_blessing",
+      "name": "Scout Blessing",
+      "tier": 2,
+      "description": "Deploy +1 unit.",
+      "weight": 0.9,
+      "boons": [
+        {
+          "type": "deploy_cap_delta",
+          "params": { "value": 1 }
+        }
+      ],
+      "costs": [],
+      "excludes": ["nomad_pact"]
+    },
+    {
+      "id": "scholar_vow",
+      "name": "Scholar's Vow",
+      "tier": 2,
+      "description": "All growths +10%.",
+      "weight": 0.85,
+      "boons": [
+        {
+          "type": "all_growths_delta",
+          "params": { "value": 10 }
+        }
+      ],
+      "costs": []
+    },
+    {
       "id": "rally_cry",
       "name": "Rally Cry",
       "tier": 2,
-      "description": "+2 STR to all units in Act 1, but -10% battle gold.",
+      "description": "+2 STR to all units in Act 1.",
       "weight": 0.9,
       "boons": [
         {
@@ -199,18 +126,13 @@
           "params": { "act": "act1", "stat": "STR", "value": 2 }
         }
       ],
-      "costs": [
-        {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": -0.1 }
-        }
-      ]
+      "costs": []
     },
     {
       "id": "war_veteran",
       "name": "War Veteran",
       "tier": 2,
-      "description": "+15% XP gain from combat, but start with -100 gold.",
+      "description": "+15% XP gain from combat.",
       "weight": 0.85,
       "boons": [
         {
@@ -218,38 +140,71 @@
           "params": { "value": 0.15 }
         }
       ],
-      "costs": [
-        {
-          "type": "gold_delta",
-          "params": { "value": -100 }
-        }
-      ]
+      "costs": []
     },
     {
       "id": "frugal_smith",
       "name": "Frugal Smith",
       "tier": 2,
-      "description": "Forge costs reduced by 20%, but -1 shop item.",
+      "description": "Forge costs reduced by 20%.",
       "weight": 0.85,
       "boons": [
         {
-          "type": "forge_cost_discount",
-          "params": { "value": 0.20 }
+          "type": "forge_cost_multiplier",
+          "params": { "value": -0.20 }
         }
       ],
-      "costs": [
+      "costs": [],
+      "excludes": ["merchant_bane"]
+    },
+    {
+      "id": "arsenal_pact",
+      "name": "Arsenal Pact",
+      "tier": 3,
+      "description": "Start with a silver weapon.",
+      "weight": 0.65,
+      "boons": [
+        {
+          "type": "starting_weapon_tier",
+          "params": { "tier": "Silver", "count": 1 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "pilgrim_coin",
+      "name": "Pilgrim Coin",
+      "tier": 3,
+      "description": "Villages offer +1 item.",
+      "weight": 0.6,
+      "boons": [
         {
           "type": "shop_item_count_delta",
-          "params": { "value": -1 }
+          "params": { "value": 1 }
         }
       ],
-      "excludes": ["merchant_bane"]
+      "costs": []
+    },
+    {
+      "id": "merchant_bane",
+      "name": "Merchant Bane",
+      "tier": 3,
+      "description": "+15% battle gold.",
+      "weight": 0.65,
+      "boons": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": { "value": 0.15 }
+        }
+      ],
+      "costs": [],
+      "excludes": ["frugal_smith"]
     },
     {
       "id": "nomad_pact",
       "name": "Nomad's Pact",
       "tier": 3,
-      "description": "Recruited units join +1 level higher, but deploy limit -1.",
+      "description": "Recruited units join +1 level higher.",
       "weight": 0.6,
       "boons": [
         {
@@ -257,19 +212,14 @@
           "params": { "value": 1 }
         }
       ],
-      "costs": [
-        {
-          "type": "deploy_cap_delta",
-          "params": { "value": -1 }
-        }
-      ],
+      "costs": [],
       "excludes": ["scout_blessing"]
     },
     {
       "id": "terrain_mastery",
       "name": "Terrain Mastery",
       "tier": 3,
-      "description": "+5 avoid and +1 DEF on Forest/Fort tiles, but lords lose -2 LCK.",
+      "description": "+5 avoid and +1 DEF on Forest/Fort tiles.",
       "weight": 0.6,
       "boons": [
         {
@@ -277,18 +227,27 @@
           "params": { "terrains": ["Forest", "Fort"], "avoidBonus": 5, "defBonus": 1 }
         }
       ],
-      "costs": [
+      "costs": []
+    },
+    {
+      "id": "quartermaster_cache",
+      "name": "Quartermaster Cache",
+      "tier": 3,
+      "description": "Lords gain +1 Vulnerary at run start.",
+      "weight": 0.55,
+      "boons": [
         {
-          "type": "lord_stat_bonus",
-          "params": { "stat": "LCK", "value": -2 }
+          "type": "extra_vulnerary",
+          "params": { "value": 1 }
         }
-      ]
+      ],
+      "costs": []
     },
     {
       "id": "forbidden_tome",
       "name": "Forbidden Tome",
       "tier": 4,
-      "description": "All growths +15%, but personal skills disabled until Act 3.",
+      "description": "All growths +15%.",
       "weight": 0.2,
       "boons": [
         {
@@ -296,31 +255,193 @@
           "params": { "value": 15 }
         }
       ],
-      "costs": [
-        {
-          "type": "disable_personal_skills_until_act",
-          "params": { "act": "act3" }
-        }
-      ]
+      "costs": []
     },
     {
       "id": "blood_forge",
       "name": "Blood Forge",
       "tier": 4,
-      "description": "Free +1 Might forge on each lord's weapon, but -2 DEF all units in Act 1.",
+      "description": "All lord weapons gain +1 forge level.",
       "weight": 0.2,
       "boons": [
         {
-          "type": "starting_forge_lords",
-          "params": { "stat": "might", "count": 1 }
+          "type": "starting_weapon_forge_delta",
+          "params": { "value": 1 }
         }
       ],
-      "costs": [
+      "costs": []
+    },
+    {
+      "id": "war_tutelage",
+      "name": "War Tutelage",
+      "tier": 4,
+      "description": "Each lord learns one random skill at run start.",
+      "weight": 0.2,
+      "boons": [
         {
-          "type": "act_stat_delta_all_units",
-          "params": { "act": "act1", "stat": "DEF", "value": -2 }
+          "type": "starting_random_skill",
+          "params": { "count": 1, "scope": "lords" }
         }
-      ]
+      ],
+      "costs": []
+    },
+    {
+      "id": "armory_stash",
+      "name": "Armory Stash",
+      "tier": 4,
+      "description": "Gain 2 random whetstones at run start.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "starting_whetstones",
+          "params": { "count": 2 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "scroll_archive",
+      "name": "Scroll Archive",
+      "tier": 4,
+      "description": "Gain 1 random weapon-art scroll at run start.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "starting_scroll",
+          "params": { "count": 1 }
+        }
+      ],
+      "costs": []
+    },
+    {
+      "id": "focused_curriculum",
+      "name": "Focused Curriculum",
+      "tier": 4,
+      "description": "Lords gain +12% SPD and SKL growths.",
+      "weight": 0.2,
+      "boons": [
+        {
+          "type": "targeted_growths_delta",
+          "params": { "stats": ["SPD", "SKL"], "value": 12, "scope": "lords" }
+        }
+      ],
+      "costs": []
     }
-  ]
+  ],
+  "costPools": {
+    "2": [
+      {
+        "label": "-15% battle gold",
+        "effects": [
+          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.15 } }
+        ]
+      },
+      {
+        "label": "Lose 100 gold at run start",
+        "effects": [
+          { "type": "gold_delta", "params": { "value": -100 } }
+        ]
+      },
+      {
+        "label": "Deploy -1 unit",
+        "effects": [
+          { "type": "deploy_cap_delta", "params": { "value": -1 } }
+        ]
+      },
+      {
+        "label": "Villages offer -1 item",
+        "effects": [
+          { "type": "shop_item_count_delta", "params": { "value": -1 } }
+        ]
+      },
+      {
+        "label": "-10% XP gain from combat",
+        "effects": [
+          { "type": "xp_multiplier_delta", "params": { "value": -0.10 } }
+        ]
+      },
+      {
+        "label": "+20% forge costs",
+        "effects": [
+          { "type": "forge_cost_multiplier", "params": { "value": 0.20 } }
+        ]
+      }
+    ],
+    "3": [
+      {
+        "label": "-20% battle gold",
+        "effects": [
+          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.20 } }
+        ]
+      },
+      {
+        "label": "Lose 150 gold at run start",
+        "effects": [
+          { "type": "gold_delta", "params": { "value": -150 } }
+        ]
+      },
+      {
+        "label": "-1 DEF to all units in Act 1",
+        "effects": [
+          { "type": "act_stat_delta_all_units", "params": { "act": "act1", "stat": "DEF", "value": -1 } }
+        ]
+      },
+      {
+        "label": "-5 Hit for all units in Act 1",
+        "effects": [
+          { "type": "act_hit_bonus", "params": { "act": "act1", "value": -5 } }
+        ]
+      },
+      {
+        "label": "All growths -2%",
+        "effects": [
+          { "type": "all_growths_delta", "params": { "value": -2 } }
+        ]
+      },
+      {
+        "label": "Recruits join -1 level",
+        "effects": [
+          { "type": "recruit_level_bonus", "params": { "value": -1 } }
+        ]
+      }
+    ],
+    "4": [
+      {
+        "label": "-30% battle gold",
+        "effects": [
+          { "type": "battle_gold_multiplier_delta", "params": { "value": -0.30 } }
+        ]
+      },
+      {
+        "label": "Lose 250 gold at run start",
+        "effects": [
+          { "type": "gold_delta", "params": { "value": -250 } }
+        ]
+      },
+      {
+        "label": "-2 DEF to all units in Act 1",
+        "effects": [
+          { "type": "act_stat_delta_all_units", "params": { "act": "act1", "stat": "DEF", "value": -2 } }
+        ]
+      },
+      {
+        "label": "Personal skills disabled until Act 3",
+        "effects": [
+          { "type": "disable_personal_skills_until_act", "params": { "act": "act3" } }
+        ]
+      },
+      {
+        "label": "+35% forge costs",
+        "effects": [
+          { "type": "forge_cost_multiplier", "params": { "value": 0.35 } }
+        ]
+      },
+      {
+        "label": "Deforge lord weapons by 1",
+        "effects": [
+          { "type": "starting_weapon_forge_delta", "params": { "value": -1 } }
+        ]
+      }
+    ]
+  }
 }

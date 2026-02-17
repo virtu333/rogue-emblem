@@ -71,4 +71,17 @@ describe('blessingAnalytics', () => {
     expect(iron.avgActReached).toBe(3);
     expect(iron.avgBattles).toBe(7);
   });
+
+  it('accepts activeBlessings in object-entry format', () => {
+    recordBlessingRunOutcome({
+      activeBlessings: [{ id: 'iron_oath', rolledCost: null }],
+      result: 'defeat',
+      actIndex: 1,
+      completedBattles: 3,
+    });
+
+    const snapshot = loadBlessingAnalytics();
+    expect(snapshot.blessings.iron_oath.runs).toBe(1);
+    expect(snapshot.blessings.iron_oath.losses).toBe(1);
+  });
 });

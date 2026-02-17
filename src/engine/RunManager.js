@@ -21,10 +21,15 @@ import {
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
 } from './UnitManager.js';
-import { applyForge } from './ForgeSystem.js';
+import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
 import { getRunKey, getActiveSlot } from './SlotManager.js';
-import { buildBlessingIndex, createSeededRng, selectBlessingOptionsWithTelemetry } from './BlessingEngine.js';
+import {
+  buildBlessingIndex,
+  createSeededRng,
+  rollCostForBlessing,
+  selectBlessingOptionsWithTelemetry,
+} from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
 import { normalizeWeaponArtBinding, getWeaponArtBindings, getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
@@ -59,6 +64,75 @@ function getConvoyBucket(item) {
   if (item.type === 'Consumable') return 'consumables';
   if (CONVOY_WEAPON_TYPES.has(item.type)) return 'weapons';
   return null;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function createBlessingRuntimeModifiers() {
+  return {
+    battleGoldMultiplierDelta: 0,
+    deployCapDelta: 0,
+    actHitBonusByAct: {},
+    actStatDeltaAllUnits: [],
+    skipFirstShop: false,
+    shopItemCountDelta: 0,
+    allGrowthsDelta: 0,
+    targetedGrowthsDeltas: [],
+    disablePersonalSkillsUntilAct: null,
+    blockedPersonalSkillsByUnit: {},
+    xpMultiplierDelta: 0,
+    forgeCostDiscount: 0,
+    recruitLevelBonus: 0,
+    terrainCombatBonuses: [],
+  };
+}
+
+function hashStringToUint32(input) {
+  const text = String(input ?? '');
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function getBlessingEntryId(entry) {
+  if (typeof entry === 'string') {
+    const id = entry.trim();
+    return id.length > 0 ? id : null;
+  }
+  if (!isPlainObject(entry) || typeof entry.id !== 'string') return null;
+  const id = entry.id.trim();
+  return id.length > 0 ? id : null;
+}
+
+function normalizeBlessingCostEntry(costEntry) {
+  if (!isPlainObject(costEntry)) return null;
+  const label = typeof costEntry.label === 'string' ? costEntry.label.trim() : '';
+  if (!label) return null;
+  if (!Array.isArray(costEntry.effects) || costEntry.effects.length <= 0) return null;
+  const effects = [];
+  for (const effect of costEntry.effects) {
+    if (!isPlainObject(effect)) continue;
+    const type = typeof effect.type === 'string' ? effect.type.trim() : '';
+    if (!type) continue;
+    if (!isPlainObject(effect.params)) continue;
+    effects.push({ type, params: { ...effect.params } });
+  }
+  if (effects.length <= 0) return null;
+  return { label, effects };
+}
+
+function createActiveBlessingEntry(id, rolledCost = null) {
+  const blessingId = typeof id === 'string' ? id.trim() : '';
+  if (!blessingId) return null;
+  return {
+    id: blessingId,
+    rolledCost: normalizeBlessingCostEntry(rolledCost),
+  };
 }
 
 /** After JSON round-trip, re-link unit.weapon to matching inventory reference.
@@ -127,21 +201,7 @@ export class RunManager {
     this.activeBlessings = [];
     this.blessingHistory = [];
     this.blessingSelectionTelemetry = null;
-    this.blessingRuntimeModifiers = {
-      battleGoldMultiplierDelta: 0,
-      deployCapDelta: 0,
-      actHitBonusByAct: {},
-      actStatDeltaAllUnits: [],
-      skipFirstShop: false,
-      shopItemCountDelta: 0,
-      allGrowthsDelta: 0,
-      disablePersonalSkillsUntilAct: null,
-      blockedPersonalSkillsByUnit: {},
-      xpMultiplierDelta: 0,
-      forgeCostDiscount: 0,
-      recruitLevelBonus: 0,
-      terrainCombatBonuses: [],
-    };
+    this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this._runStartBlessingsApplied = false;
     this.runSeed = null;
     this.rngSeed = null;
@@ -213,21 +273,7 @@ export class RunManager {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
     });
     this.currentNodeId = null;
-    this.blessingRuntimeModifiers = {
-      battleGoldMultiplierDelta: 0,
-      deployCapDelta: 0,
-      actHitBonusByAct: {},
-      actStatDeltaAllUnits: [],
-      skipFirstShop: false,
-      shopItemCountDelta: 0,
-      allGrowthsDelta: 0,
-      disablePersonalSkillsUntilAct: null,
-      blockedPersonalSkillsByUnit: {},
-      xpMultiplierDelta: 0,
-      forgeCostDiscount: 0,
-      recruitLevelBonus: 0,
-      terrainCombatBonuses: [],
-    };
+    this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -257,7 +303,9 @@ export class RunManager {
         seed: blessingSeed ?? this.runSeed,
         candidatePoolIds: [],
         offeredIds: [],
+        offeredBlessings: [],
         chosenIds: [],
+        chosenBlessings: [],
         rejectionReasons: [{ blessingId: null, reason: 'missing_catalog' }],
       };
       return;
@@ -271,13 +319,19 @@ export class RunManager {
       { count: blessingOptionCount, forceTier1: true, allowTier4: true }
     );
 
-    const chosenIds = autoSelectBlessing ? selected.slice(0, 1).map(b => b.id) : [];
-    this.activeBlessings = chosenIds;
+    const offeredBlessings = selected.map((blessing) => structuredClone(blessing));
+    const chosenBlessings = autoSelectBlessing
+      ? offeredBlessings.slice(0, 1).map((blessing) => this._buildActiveBlessingEntryFromOffer(blessing)).filter(Boolean)
+      : [];
+    const chosenIds = chosenBlessings.map((entry) => entry.id);
+    this.activeBlessings = chosenBlessings;
     this.blessingSelectionTelemetry = {
       seed: resolvedSeed,
       candidatePoolIds: telemetry.candidatePoolIds,
-      offeredIds: telemetry.chosenIds,
+      offeredIds: offeredBlessings.map((blessing) => blessing.id),
+      offeredBlessings,
       chosenIds,
+      chosenBlessings,
       rejectionReasons: telemetry.rejectionReasons,
       options: telemetry.options,
     };
@@ -288,18 +342,39 @@ export class RunManager {
   }
 
   getBlessingOptions() {
+    const offeredBlessings = this.blessingSelectionTelemetry?.offeredBlessings;
+    if (Array.isArray(offeredBlessings)) {
+      return offeredBlessings
+        .map((blessing, index) => this._resolveBlessingOfferForSelection(blessing, index, 'telemetry'))
+        .filter(Boolean);
+    }
+
     const offeredIds = this.blessingSelectionTelemetry?.offeredIds || [];
     const catalog = this.gameData?.blessings;
     if (!catalog || !Array.isArray(catalog.blessings)) return [];
     const index = buildBlessingIndex(catalog);
-    return offeredIds.map((id) => index.get(id)).filter(Boolean);
+    return offeredIds
+      .map((id) => index.get(id))
+      .filter(Boolean)
+      .map((blessing, offerIndex) => this._resolveBlessingOfferForSelection(blessing, offerIndex, 'legacy_ids'))
+      .filter(Boolean);
   }
 
   chooseBlessing(blessingId = null) {
-    const offeredIds = this.blessingSelectionTelemetry?.offeredIds || [];
+    const offeredBlessings = this.getBlessingOptions();
+    const offeredIds = offeredBlessings.map((blessing) => blessing.id);
     if (blessingId !== null && !offeredIds.includes(blessingId)) return false;
-    const chosenIds = blessingId ? [blessingId] : [];
-    this.activeBlessings = chosenIds;
+
+    const selectedIndex = blessingId
+      ? offeredBlessings.findIndex((blessing) => blessing.id === blessingId)
+      : -1;
+    const selectedBlessing = selectedIndex >= 0 ? offeredBlessings[selectedIndex] : null;
+    const chosenBlessings = selectedBlessing
+      ? [this._buildActiveBlessingEntryFromOffer(selectedBlessing, selectedIndex)].filter(Boolean)
+      : [];
+    const chosenIds = chosenBlessings.map((entry) => entry.id);
+    this.activeBlessings = chosenBlessings;
+
     this.blessingHistory.push({
       timestamp: Date.now(),
       stage: 'run_start',
@@ -314,6 +389,7 @@ export class RunManager {
     });
     if (this.blessingSelectionTelemetry) {
       this.blessingSelectionTelemetry.chosenIds = chosenIds;
+      this.blessingSelectionTelemetry.chosenBlessings = chosenBlessings.map((entry) => structuredClone(entry));
     }
     if (chosenIds.length === 0) {
       this._runStartBlessingsApplied = true;
@@ -337,18 +413,32 @@ export class RunManager {
     }
 
     const blessingIndex = buildBlessingIndex(catalog);
-    for (const blessingId of this.activeBlessings) {
+    for (const activeBlessing of this.activeBlessings) {
+      const blessingId = getBlessingEntryId(activeBlessing);
+      if (!blessingId) continue;
       const blessing = blessingIndex.get(blessingId);
       if (!blessing) {
         this._recordBlessingEvent('run_start', blessingId, null, { reason: 'unknown_blessing_id' });
         continue;
       }
-      const effects = [...(blessing.boons || []), ...(blessing.costs || [])];
+      const rolledCost = normalizeBlessingCostEntry(activeBlessing?.rolledCost);
+      const costEffects = rolledCost?.effects?.length ? rolledCost.effects : (blessing.costs || []);
+      const effects = [...(blessing.boons || []), ...costEffects];
       for (const effect of effects) {
         this._applySingleRunStartBlessingEffect(blessingId, effect);
       }
     }
     this._runStartBlessingsApplied = true;
+  }
+
+  getActiveBlessingIds() {
+    const ids = [];
+    for (const entry of this.activeBlessings || []) {
+      const id = getBlessingEntryId(entry);
+      if (!id || ids.includes(id)) continue;
+      ids.push(id);
+    }
+    return ids;
   }
 
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
@@ -397,6 +487,77 @@ export class RunManager {
         unit.growths[stat] = (unit.growths[stat] || 0) + value;
       }
     }
+  }
+
+  _applyTargetedGrowthDeltaToUnits(units, stats, value) {
+    if (!Array.isArray(units) || !Array.isArray(stats) || !Number.isFinite(value) || value === 0) return;
+    for (const unit of units) {
+      if (!unit.growths) unit.growths = {};
+      for (const stat of stats) {
+        unit.growths[stat] = (unit.growths[stat] || 0) + value;
+      }
+    }
+  }
+
+  _createBlessingRng(blessingId, contextKey = '') {
+    const baseSeed = Number.isFinite(this.runSeed) ? Number(this.runSeed) : 0;
+    const seed = hashStringToUint32(`${baseSeed}|${blessingId || 'none'}|${contextKey}`);
+    return createSeededRng(seed);
+  }
+
+  _rollCostForBlessingWithSeed(blessing, blessingId, contextKey = 'run_start') {
+    if (!blessing || blessing.tier < 2) return null;
+    const pool = this.gameData?.blessings?.costPools?.[String(blessing.tier)];
+    if (!Array.isArray(pool) || pool.length <= 0) return null;
+    const rand = this._createBlessingRng(blessingId, `cost_roll:${contextKey}`);
+    return rollCostForBlessing(pool, blessing, rand);
+  }
+
+  _resolveBlessingOfferForSelection(blessing, offerIndex = 0, contextKey = 'selection') {
+    const blessingId = typeof blessing?.id === 'string' ? blessing.id.trim() : '';
+    if (!blessingId) return null;
+    const catalogBlessing = this.gameData?.blessings?.blessings?.find((entry) => entry.id === blessingId) || null;
+    const resolved = catalogBlessing
+      ? { ...structuredClone(catalogBlessing), ...structuredClone(blessing), id: blessingId }
+      : { ...structuredClone(blessing), id: blessingId };
+    resolved.rolledCost = normalizeBlessingCostEntry(blessing?.rolledCost);
+    const needsV2Cost = resolved.tier >= 2 && !resolved.rolledCost && Array.isArray(resolved.costs) && resolved.costs.length === 0;
+    if (needsV2Cost) {
+      resolved.rolledCost = this._rollCostForBlessingWithSeed(resolved, blessingId, `${contextKey}:${offerIndex}`);
+    }
+    return resolved;
+  }
+
+  _buildActiveBlessingEntryFromOffer(blessing, offerIndex = 0) {
+    const resolved = this._resolveBlessingOfferForSelection(blessing, offerIndex, 'choose');
+    if (!resolved?.id) return null;
+    return createActiveBlessingEntry(resolved.id, resolved.rolledCost || null);
+  }
+
+  _normalizeActiveBlessingsForLoad(entries = []) {
+    if (!Array.isArray(entries)) return [];
+    const catalog = this.gameData?.blessings;
+    const blessingIndex = catalog?.blessings?.length ? buildBlessingIndex(catalog) : new Map();
+    const normalized = [];
+
+    entries.forEach((entry, index) => {
+      const id = getBlessingEntryId(entry);
+      if (!id) return;
+      const blessing = blessingIndex.get(id);
+      if (!blessing) {
+        normalized.push(createActiveBlessingEntry(id, null));
+        return;
+      }
+
+      let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost);
+      const needsV2Cost = blessing.tier >= 2 && !rolledCost && Array.isArray(blessing.costs) && blessing.costs.length === 0;
+      if (needsV2Cost) {
+        rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`);
+      }
+      normalized.push(createActiveBlessingEntry(id, rolledCost));
+    });
+
+    return normalized.filter(Boolean);
   }
 
   _suppressPersonalSkillsForCurrentRosterIfNeeded() {
@@ -464,6 +625,40 @@ export class RunManager {
     );
   }
 
+  _resolveBlessingUnitScope(scope = 'all') {
+    if (scope === 'lords') return this.roster.filter((unit) => unit.isLord);
+    if (scope === 'recruits') return this.roster.filter((unit) => !unit.isLord);
+    return this.roster;
+  }
+
+  _pickDeterministicBlessingItem(items, blessingId, contextKey) {
+    if (!Array.isArray(items) || items.length <= 0) return null;
+    const rng = this._createBlessingRng(blessingId, contextKey);
+    return items[Math.floor(rng() * items.length)] || null;
+  }
+
+  _isScrollValidForCurrentLords(scroll, artById) {
+    const lords = this.roster.filter((unit) => unit.isLord);
+    if (lords.length <= 0) return false;
+
+    const explicitAllowed = Array.isArray(scroll?.allowedWeaponTypes)
+      ? scroll.allowedWeaponTypes.filter((type) => typeof type === 'string' && type.trim())
+      : [];
+    let allowedTypes = explicitAllowed;
+    if (allowedTypes.length <= 0 && typeof scroll?.teachesWeaponArtId === 'string') {
+      const art = artById.get(scroll.teachesWeaponArtId);
+      if (art) {
+        allowedTypes = getWeaponArtAllowedTypes(art);
+      }
+    }
+    if (allowedTypes.length <= 0) return true;
+
+    return lords.some((unit) => {
+      const profs = Array.isArray(unit.proficiencies) ? unit.proficiencies : [];
+      return profs.some((prof) => allowedTypes.includes(prof.type));
+    });
+  }
+
   _applySingleRunStartBlessingEffect(blessingId, effect) {
     if (!effect || !effect.type || !effect.params) return;
     const value = Number(effect.params.value || 0);
@@ -472,9 +667,7 @@ export class RunManager {
     if (effect.type === 'run_start_max_hp_bonus') {
       if (value === 0) return;
       const scope = effect.params.scope || 'all';
-      const targetUnits = scope === 'lords'
-        ? this.roster.filter(unit => unit.isLord)
-        : this.roster;
+      const targetUnits = this._resolveBlessingUnitScope(scope);
       this._applyStatDeltaToUnits(targetUnits, 'HP', value);
       this._recordBlessingEvent('run_start', blessingId, effect, { appliedValue: value, scope });
       return;
@@ -682,6 +875,35 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'targeted_growths_delta') {
+      const delta = Math.trunc(value);
+      const scope = typeof effect.params.scope === 'string' ? effect.params.scope.trim().toLowerCase() : 'all';
+      const stats = [...new Set((Array.isArray(effect.params.stats) ? effect.params.stats : [])
+        .filter((stat) => typeof stat === 'string')
+        .map((stat) => stat.trim())
+        .filter((stat) => XP_STAT_NAMES.includes(stat)))];
+      if (delta === 0 || stats.length <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_targeted_growths_delta_params',
+        });
+        return;
+      }
+      if (!Array.isArray(this.blessingRuntimeModifiers.targetedGrowthsDeltas)) {
+        this.blessingRuntimeModifiers.targetedGrowthsDeltas = [];
+      }
+      this.blessingRuntimeModifiers.targetedGrowthsDeltas.push({ stats, value: delta, scope });
+      const units = this._resolveBlessingUnitScope(scope);
+      this._applyTargetedGrowthDeltaToUnits(units, stats, delta);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        stats,
+        scope,
+        appliedValue: delta,
+        appliedUnits: units.map((unit) => unit.name),
+      });
+      return;
+    }
+
     if (effect.type === 'disable_personal_skills_until_act') {
       const targetAct = String(effect.params.act || '').trim();
       const targetIndex = this.actSequence.indexOf(targetAct);
@@ -729,30 +951,257 @@ export class RunManager {
       return;
     }
 
-    if (effect.type === 'starting_forge_lords') {
-      const stat = String(effect.params.stat || '').trim();
-      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
-      if (!stat || count <= 0) {
+    if (effect.type === 'extra_vulnerary') {
+      const configuredCount = effect.params.count ?? effect.params.value ?? value;
+      const count = Math.max(0, Math.trunc(Number(configuredCount || 0)));
+      if (count <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
-          reason: 'invalid_starting_forge_lords_params',
+          reason: 'invalid_extra_vulnerary_params',
         });
         return;
       }
-      const forgedWeapons = [];
-      for (const unit of this.roster) {
-        if (!unit.isLord || !unit.weapon) continue;
+      const consumables = Array.isArray(this.gameData?.consumables) ? this.gameData.consumables : [];
+      const vulnerary = consumables.find((item) => item?.name === 'Vulnerary' && item.type === 'Consumable');
+      if (!vulnerary) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'missing_vulnerary_template',
+        });
+        return;
+      }
+      let grantedToUnits = 0;
+      let grantedToConvoy = 0;
+      let overflow = 0;
+      const lords = this.roster.filter((unit) => unit.isLord);
+      for (const unit of lords) {
         for (let i = 0; i < count; i++) {
-          const result = applyForge(unit.weapon, stat);
-          if (result.success) {
-            forgedWeapons.push({ unit: unit.name, weapon: unit.weapon.name, stat });
+          if (addToConsumables(unit, vulnerary)) {
+            grantedToUnits++;
+            continue;
+          }
+          if (this.addToConvoy(vulnerary)) {
+            grantedToConvoy++;
+          } else {
+            overflow++;
           }
         }
       }
       this._recordBlessingEvent('run_start', blessingId, effect, {
-        stat,
         requestedCount: count,
-        forgedWeapons,
+        lordCount: lords.length,
+        grantedToUnits,
+        grantedToConvoy,
+        overflow,
+      });
+      return;
+    }
+
+    if (effect.type === 'starting_random_skill') {
+      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
+      const scope = typeof effect.params.scope === 'string' ? effect.params.scope.trim().toLowerCase() : 'lords';
+      if (count <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_starting_random_skill_count',
+        });
+        return;
+      }
+
+      const validSkills = new Set((this.gameData?.skills || []).map((skill) => skill?.id).filter(Boolean));
+      const skillPool = RECRUIT_SKILL_POOL.filter((skillId) => validSkills.has(skillId));
+      if (skillPool.length <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'empty_starting_random_skill_pool',
+        });
+        return;
+      }
+
+      const targets = this._resolveBlessingUnitScope(scope);
+      const grantedByUnit = {};
+      for (const unit of targets) {
+        if (!Array.isArray(unit.skills)) unit.skills = [];
+        for (let i = 0; i < count; i++) {
+          if (unit.skills.length >= MAX_SKILLS) break;
+          const candidates = skillPool.filter((skillId) => !unit.skills.includes(skillId));
+          if (candidates.length <= 0) break;
+          const picked = this._pickDeterministicBlessingItem(candidates, blessingId, `starting_random_skill:${unit.name}:${i}`);
+          if (!picked) break;
+          unit.skills.push(picked);
+          if (!grantedByUnit[unit.name]) grantedByUnit[unit.name] = [];
+          grantedByUnit[unit.name].push(picked);
+        }
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        scope,
+        requestedCount: count,
+        grantedByUnit,
+      });
+      return;
+    }
+
+    if (effect.type === 'starting_whetstones') {
+      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
+      if (count <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_starting_whetstones_count',
+        });
+        return;
+      }
+      const whetstones = Array.isArray(this.gameData?.whetstones) ? this.gameData.whetstones : [];
+      if (whetstones.length <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'missing_whetstone_catalog',
+        });
+        return;
+      }
+
+      const applied = [];
+      const forgeStats = ['might', 'crit', 'hit', 'weight'];
+      for (let rollIndex = 0; rollIndex < count; rollIndex++) {
+        const options = [];
+        for (const unit of this.roster) {
+          if (!unit.isLord) continue;
+          const weapons = [];
+          for (const weapon of (unit.inventory || [])) {
+            if (!weapon || ['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(weapon.type)) continue;
+            if (!weapons.includes(weapon)) weapons.push(weapon);
+          }
+          if (unit.weapon && !['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(unit.weapon.type) && !weapons.includes(unit.weapon)) {
+            weapons.push(unit.weapon);
+          }
+
+          for (const weapon of weapons) {
+            if (!canForge(weapon)) continue;
+            for (const whetstone of whetstones) {
+              if (whetstone?.forgeStat === 'choice') {
+                for (const stat of forgeStats) {
+                  if (canForgeStat(weapon, stat)) {
+                    options.push({ unit, weapon, whetstone, stat });
+                  }
+                }
+                continue;
+              }
+              if (canForgeStat(weapon, whetstone?.forgeStat)) {
+                options.push({ unit, weapon, whetstone, stat: whetstone.forgeStat });
+              }
+            }
+          }
+        }
+
+        if (options.length <= 0) break;
+        const choice = this._pickDeterministicBlessingItem(options, blessingId, `starting_whetstones:${rollIndex}`);
+        if (!choice) break;
+        const result = applyForge(choice.weapon, choice.stat);
+        if (!result.success) continue;
+        applied.push({
+          unit: choice.unit.name,
+          weapon: choice.weapon.name,
+          whetstone: choice.whetstone?.name || 'Unknown Whetstone',
+          stat: choice.stat,
+        });
+      }
+
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        requestedCount: count,
+        appliedCount: applied.length,
+        applied,
+      });
+      return;
+    }
+
+    if (effect.type === 'starting_scroll') {
+      const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
+      if (count <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'invalid_starting_scroll_count',
+        });
+        return;
+      }
+
+      const allScrolls = (this.gameData?.weapons || [])
+        .filter((item) => item?.type === 'Scroll' && typeof item.teachesWeaponArtId === 'string');
+      if (allScrolls.length <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'missing_scroll_catalog',
+        });
+        return;
+      }
+      const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
+      const validScrolls = allScrolls.filter((scroll) => this._isScrollValidForCurrentLords(scroll, artById));
+      if (validScrolls.length <= 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'no_valid_scroll_for_roster',
+        });
+        return;
+      }
+      if (!Array.isArray(this.scrolls)) this.scrolls = [];
+      const granted = [];
+      for (let i = 0; i < count; i++) {
+        const picked = this._pickDeterministicBlessingItem(validScrolls, blessingId, `starting_scroll:${i}`);
+        if (!picked) break;
+        this.scrolls.push(structuredClone(picked));
+        granted.push(picked.name);
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        requestedCount: count,
+        grantedCount: granted.length,
+        granted,
+      });
+      return;
+    }
+
+    if (effect.type === 'starting_forge_lords' || effect.type === 'starting_weapon_forge_delta') {
+      const forgeStat = String(effect.params.stat || 'might').trim().toLowerCase();
+      const resolvedForgeStat = ['might', 'crit', 'hit', 'weight'].includes(forgeStat) ? forgeStat : 'might';
+      const requestedDelta = effect.type === 'starting_forge_lords'
+        ? Math.max(0, Math.trunc(Number(effect.params.count ?? 1)))
+        : Math.trunc(value);
+      if (!Number.isFinite(requestedDelta) || requestedDelta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_starting_weapon_forge_delta',
+        });
+        return;
+      }
+      const changedWeapons = [];
+      const steps = Math.abs(requestedDelta);
+      for (const unit of this.roster) {
+        if (!unit.isLord) continue;
+        const candidates = [];
+        for (const weapon of (unit.inventory || [])) {
+          if (!weapon || ['Staff', 'Consumable', 'Scroll'].includes(weapon.type)) continue;
+          if (!candidates.includes(weapon)) candidates.push(weapon);
+        }
+        if (unit.weapon && !['Staff', 'Consumable', 'Scroll'].includes(unit.weapon.type) && !candidates.includes(unit.weapon)) {
+          candidates.push(unit.weapon);
+        }
+        for (const weapon of candidates) {
+          for (let i = 0; i < steps; i++) {
+            if (requestedDelta > 0) {
+              const targetStat = resolvedForgeStat;
+              if (!canForgeStat(weapon, targetStat)) break;
+              const result = applyForge(weapon, targetStat);
+              if (!result.success) break;
+              changedWeapons.push({ unit: unit.name, weapon: weapon.name, stat: targetStat, direction: 'forge' });
+            } else {
+              const result = deforgeWeapon(weapon);
+              if (!result.success) break;
+              changedWeapons.push({ unit: unit.name, weapon: weapon.name, stat: result.stat || null, direction: 'deforge' });
+            }
+          }
+        }
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        requestedDelta,
+        forgeStat: resolvedForgeStat,
+        changedWeapons,
       });
       return;
     }
@@ -766,10 +1215,11 @@ export class RunManager {
       return;
     }
 
-    if (effect.type === 'forge_cost_discount') {
-      this.blessingRuntimeModifiers.forgeCostDiscount += value;
+    if (effect.type === 'forge_cost_discount' || effect.type === 'forge_cost_multiplier') {
+      const discountDelta = effect.type === 'forge_cost_multiplier' ? -value : value;
+      this.blessingRuntimeModifiers.forgeCostDiscount += discountDelta;
       this._recordBlessingEvent('run_start', blessingId, effect, {
-        appliedValue: value,
+        appliedValue: discountDelta,
         total: this.blessingRuntimeModifiers.forgeCostDiscount,
       });
       return;
@@ -859,6 +1309,21 @@ export class RunManager {
     return bonus;
   }
 
+  _buildBlessingTargetedGrowthBonus(scope = 'all') {
+    const entries = this.blessingRuntimeModifiers?.targetedGrowthsDeltas;
+    if (!Array.isArray(entries) || entries.length <= 0) return null;
+    const bonus = {};
+    const allowScope = new Set(scope === 'lords' ? ['all', 'lords'] : ['all', 'recruits']);
+    for (const entry of entries) {
+      if (!entry || !allowScope.has(entry.scope || 'all')) continue;
+      for (const stat of entry.stats || []) {
+        if (!XP_STAT_NAMES.includes(stat)) continue;
+        bonus[stat] = (bonus[stat] || 0) + Math.trunc(entry.value || 0);
+      }
+    }
+    return Object.keys(bonus).length > 0 ? bonus : null;
+  }
+
   _mergeGrowthBonuses(baseBonuses, blessingBonuses) {
     const merged = {};
     for (const stat of XP_STAT_NAMES) {
@@ -869,12 +1334,18 @@ export class RunManager {
   }
 
   getEffectiveRecruitGrowthBonuses() {
-    const blessingBonuses = this._buildBlessingAllGrowthBonus();
+    const blessingBonuses = this._mergeGrowthBonuses(
+      this._buildBlessingAllGrowthBonus(),
+      this._buildBlessingTargetedGrowthBonus('recruits')
+    );
     return this._mergeGrowthBonuses(this.metaEffects?.growthBonuses || null, blessingBonuses);
   }
 
   getEffectiveLordGrowthBonuses() {
-    const blessingBonuses = this._buildBlessingAllGrowthBonus();
+    const blessingBonuses = this._mergeGrowthBonuses(
+      this._buildBlessingAllGrowthBonus(),
+      this._buildBlessingTargetedGrowthBonus('lords')
+    );
     return this._mergeGrowthBonuses(this.metaEffects?.lordGrowthBonuses || null, blessingBonuses);
   }
 
@@ -1812,24 +2283,16 @@ export class RunManager {
       scrolls: this.scrolls,
       convoy: this.convoy,
       randomLegendary: this.randomLegendary || null,
-      activeBlessings: this.activeBlessings || [],
+      activeBlessings: (this.activeBlessings || [])
+        .map((entry) => {
+          const id = getBlessingEntryId(entry);
+          if (!id) return null;
+          return createActiveBlessingEntry(id, entry?.rolledCost || null);
+        })
+        .filter(Boolean),
       blessingHistory: this.blessingHistory || [],
       blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
-      blessingRuntimeModifiers: this.blessingRuntimeModifiers || {
-        battleGoldMultiplierDelta: 0,
-        deployCapDelta: 0,
-        actHitBonusByAct: {},
-        actStatDeltaAllUnits: [],
-        skipFirstShop: false,
-        shopItemCountDelta: 0,
-        allGrowthsDelta: 0,
-        disablePersonalSkillsUntilAct: null,
-        blockedPersonalSkillsByUnit: {},
-        xpMultiplierDelta: 0,
-        forgeCostDiscount: 0,
-        recruitLevelBonus: 0,
-        terrainCombatBonuses: [],
-      },
+      blessingRuntimeModifiers: this.blessingRuntimeModifiers || createBlessingRuntimeModifiers(),
       runSeed: this.runSeed,
       rngSeed: this.rngSeed,
       visionChargesRemaining: this.visionChargesRemaining,
@@ -2103,7 +2566,7 @@ export class RunManager {
     rm.scrolls = saved.scrolls || [];
     rm.convoy = saved.convoy || { weapons: [], consumables: [] };
     rm.randomLegendary = saved.randomLegendary || null;
-    rm.activeBlessings = saved.activeBlessings || [];
+    const rawActiveBlessings = Array.isArray(saved.activeBlessings) ? saved.activeBlessings : [];
     rm.blessingHistory = saved.blessingHistory || [];
     rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
     if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
@@ -2112,21 +2575,41 @@ export class RunManager {
         : [];
       rm.blessingSelectionTelemetry.chosenIds = [];
     }
-    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || {
-      battleGoldMultiplierDelta: 0,
-      deployCapDelta: 0,
-      actHitBonusByAct: {},
-      actStatDeltaAllUnits: [],
-      skipFirstShop: false,
-      shopItemCountDelta: 0,
-      allGrowthsDelta: 0,
-      disablePersonalSkillsUntilAct: null,
-      blockedPersonalSkillsByUnit: {},
-      xpMultiplierDelta: 0,
-      forgeCostDiscount: 0,
-      recruitLevelBonus: 0,
-      terrainCombatBonuses: [],
-    };
+    if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)) {
+      const catalog = gameData?.blessings;
+      if (catalog?.blessings?.length && Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
+        const index = buildBlessingIndex(catalog);
+        rm.blessingSelectionTelemetry.offeredBlessings = rm.blessingSelectionTelemetry.offeredIds
+          .map((id) => index.get(id))
+          .filter(Boolean)
+          .map((blessing) => ({ ...structuredClone(blessing), rolledCost: null }));
+      } else {
+        rm.blessingSelectionTelemetry.offeredBlessings = [];
+      }
+    }
+    if (rm.blessingSelectionTelemetry && Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)) {
+      rm.blessingSelectionTelemetry.offeredBlessings = rm.blessingSelectionTelemetry.offeredBlessings
+        .filter((blessing) => isPlainObject(blessing) && typeof blessing.id === 'string')
+        .map((blessing) => ({
+          ...structuredClone(blessing),
+          rolledCost: normalizeBlessingCostEntry(blessing.rolledCost),
+        }));
+    }
+    if (rm.blessingSelectionTelemetry) {
+      const rawChosenBlessings = Array.isArray(rm.blessingSelectionTelemetry.chosenBlessings)
+        ? rm.blessingSelectionTelemetry.chosenBlessings
+        : (Array.isArray(rm.blessingSelectionTelemetry.chosenIds)
+          ? rm.blessingSelectionTelemetry.chosenIds
+          : []);
+      rm.blessingSelectionTelemetry.chosenBlessings = rawChosenBlessings
+        .map((entry) => {
+          const id = getBlessingEntryId(entry);
+          if (!id) return null;
+          return createActiveBlessingEntry(id, entry?.rolledCost || null);
+        })
+        .filter(Boolean);
+    }
+    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || createBlessingRuntimeModifiers();
     if (!rm.blessingRuntimeModifiers.actHitBonusByAct || typeof rm.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
       rm.blessingRuntimeModifiers.actHitBonusByAct = {};
     }
@@ -2136,6 +2619,23 @@ export class RunManager {
     rm.blessingRuntimeModifiers.skipFirstShop = Boolean(rm.blessingRuntimeModifiers.skipFirstShop);
     rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(rm.blessingRuntimeModifiers.shopItemCountDelta || 0);
     rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(rm.blessingRuntimeModifiers.allGrowthsDelta || 0);
+    if (!Array.isArray(rm.blessingRuntimeModifiers.targetedGrowthsDeltas)) {
+      rm.blessingRuntimeModifiers.targetedGrowthsDeltas = [];
+    } else {
+      rm.blessingRuntimeModifiers.targetedGrowthsDeltas = rm.blessingRuntimeModifiers.targetedGrowthsDeltas
+        .map((entry) => {
+          if (!isPlainObject(entry)) return null;
+          const stats = [...new Set((Array.isArray(entry.stats) ? entry.stats : [])
+            .filter((stat) => typeof stat === 'string')
+            .map((stat) => stat.trim())
+            .filter((stat) => XP_STAT_NAMES.includes(stat)))];
+          const delta = Math.trunc(Number(entry.value) || 0);
+          if (stats.length <= 0 || delta === 0) return null;
+          const scope = typeof entry.scope === 'string' ? entry.scope : 'all';
+          return { stats, value: delta, scope };
+        })
+        .filter(Boolean);
+    }
     if (!rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
       rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
     }
@@ -2149,6 +2649,7 @@ export class RunManager {
     rm.rngSeed = Number.isFinite(saved.rngSeed)
       ? Number(saved.rngSeed) >>> 0
       : (Number.isFinite(rm.runSeed) ? (Number(rm.runSeed) >>> 0) : null);
+    rm.activeBlessings = rm._normalizeActiveBlessingsForLoad(rawActiveBlessings);
     const legacyVisionBonus = Math.max(0, Math.trunc(rm.metaEffects?.visionChargesBonus || 0));
     const defaultVisionCharges = Math.min(3, 1 + legacyVisionBonus);
     rm.visionChargesRemaining = Number.isFinite(saved.visionChargesRemaining)

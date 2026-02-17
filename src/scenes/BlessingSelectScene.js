@@ -174,17 +174,26 @@ export class BlessingSelectScene extends Phaser.Scene {
 
       // Description
       const descWrapWidth = Math.max(150, cardW - 38 - 80);
+      const hasCostLine = typeof blessing?.rolledCost?.label === 'string' && blessing.rolledCost.label.trim().length > 0;
       const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
         fontFamily: 'monospace', fontSize: '10px', color: '#aeb8dc',
         wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
       });
       // Truncate if too tall
       let guard = 0;
-      while (desc.height > Math.max(18, cardH - 34) && desc.text.length > 8 && guard < 40) {
+      const maxDescHeight = hasCostLine ? Math.max(12, cardH - 48) : Math.max(18, cardH - 34);
+      while (desc.height > maxDescHeight && desc.text.length > 8 && guard < 40) {
         const next = `${desc.text.slice(0, -4).trimEnd()}...`;
         if (next === desc.text) break;
         desc.setText(next);
         guard++;
+      }
+      if (hasCostLine) {
+        this.add.text(nameX, row1Y + cardH - 34, `Cost: ${blessing.rolledCost.label}`, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#c8a27b',
+        });
       }
 
       // Select button

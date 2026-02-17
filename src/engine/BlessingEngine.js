@@ -1,11 +1,12 @@
 // BlessingEngine.js - Wave 6 blessing validation and deterministic option selection.
 // Pure functions, no scene dependency.
 
-export const BLESSINGS_CONTRACT_VERSION = 1;
+export const BLESSINGS_CONTRACT_VERSION = 2;
 const VALID_TIERS = new Set([1, 2, 3, 4]);
-const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings'];
+const REQUIRED_TOP_LEVEL_KEYS = ['version', 'blessings', 'costPools'];
 const REQUIRED_BLESSING_KEYS = ['id', 'name', 'tier', 'description', 'boons', 'costs'];
 const REQUIRED_EFFECT_KEYS = ['type', 'params'];
+const REQUIRED_COST_POOL_KEYS = ['2', '3', '4'];
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -50,6 +51,9 @@ export function validateBlessingsConfig(config, options = {}) {
     return { valid: false, errors, warnings };
   }
   if (config.blessings.length === 0) errors.push('blessings must contain at least one entry');
+  if (!isObject(config.costPools)) {
+    errors.push('costPools must be an object');
+  }
 
   if (typeof config.version !== 'number') {
     errors.push('version must be a number');
@@ -94,6 +98,13 @@ export function validateBlessingsConfig(config, options = {}) {
     }
     if (!Array.isArray(blessing.costs)) {
       errors.push(`${path}.costs must be an array`);
+    } else {
+      if (blessing.tier === 1 && blessing.costs.length !== 0) {
+        errors.push(`${path}.costs must be empty for tier 1`);
+      }
+      if (blessing.tier >= 2 && blessing.costs.length !== 0) {
+        errors.push(`${path}.costs must be empty for tier ${blessing.tier}; use costPools`);
+      }
     }
 
     for (const effectKey of ['boons', 'costs']) {
@@ -120,6 +131,46 @@ export function validateBlessingsConfig(config, options = {}) {
 
   if (!hasTier1) {
     errors.push('at least one tier-1 blessing is required');
+  }
+
+  if (isObject(config.costPools)) {
+    for (const tierKey of REQUIRED_COST_POOL_KEYS) {
+      const pool = config.costPools[tierKey];
+      if (!Array.isArray(pool) || pool.length === 0) {
+        errors.push(`costPools.${tierKey} must be a non-empty array`);
+        continue;
+      }
+      pool.forEach((entry, entryIdx) => {
+        const entryPath = `costPools.${tierKey}[${entryIdx}]`;
+        if (!isObject(entry)) {
+          errors.push(`${entryPath} must be an object`);
+          return;
+        }
+        if (typeof entry.label !== 'string' || entry.label.trim() === '') {
+          errors.push(`${entryPath}.label must be a non-empty string`);
+        }
+        if (!Array.isArray(entry.effects) || entry.effects.length === 0) {
+          errors.push(`${entryPath}.effects must be a non-empty array`);
+          return;
+        }
+        entry.effects.forEach((effect, effectIdx) => {
+          const effectPath = `${entryPath}.effects[${effectIdx}]`;
+          if (!isObject(effect)) {
+            errors.push(`${effectPath} must be an object`);
+            return;
+          }
+          for (const key of REQUIRED_EFFECT_KEYS) {
+            if (!(key in effect)) errors.push(`${effectPath} missing required key: ${key}`);
+          }
+          if (typeof effect.type !== 'string' || effect.type.trim() === '') {
+            errors.push(`${effectPath}.type must be a non-empty string`);
+          }
+          if (!isObject(effect.params)) {
+            errors.push(`${effectPath}.params must be an object`);
+          }
+        });
+      });
+    }
   }
 
   return { valid: errors.length === 0, errors, warnings };
@@ -162,6 +213,32 @@ function pickWeighted(items, rand) {
     if (roll <= 0) return item;
   }
   return items[items.length - 1];
+}
+
+/**
+ * Roll one runtime cost entry for a blessing from a tier pool.
+ * Cost entries sharing an effect type with the boon are excluded when possible.
+ * @param {object[]} costPool
+ * @param {object} blessing
+ * @param {() => number} rand
+ * @returns {{label: string, effects: object[]} | null}
+ */
+export function rollCostForBlessing(costPool, blessing, rand) {
+  if (!Array.isArray(costPool) || costPool.length === 0) return null;
+  if (typeof rand !== 'function') {
+    throw new Error('rollCostForBlessing requires an RNG function argument');
+  }
+  const boonTypes = new Set((Array.isArray(blessing?.boons) ? blessing.boons : [])
+    .map((effect) => effect?.type)
+    .filter(Boolean));
+  const nonConflicting = costPool.filter((entry) => {
+    const effects = Array.isArray(entry?.effects) ? entry.effects : [];
+    return !effects.some((effect) => boonTypes.has(effect?.type));
+  });
+  const eligible = nonConflicting.length > 0 ? nonConflicting : costPool;
+  const picked = eligible[Math.floor(rand() * eligible.length)];
+  if (!picked) return null;
+  return cloneDeep(picked);
 }
 
 /**
@@ -238,8 +315,19 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
     selectedIds.add(next.id);
   }
 
+  const selectedWithCosts = selected.map((blessing) => {
+    const copy = cloneDeep(blessing);
+    if (copy.tier >= 2) {
+      const tierPool = valid.costPools?.[String(copy.tier)];
+      copy.rolledCost = rollCostForBlessing(tierPool, copy, rand);
+    } else {
+      copy.rolledCost = null;
+    }
+    return copy;
+  });
+
   return {
-    selected: selected.map(cloneDeep),
+    selected: selectedWithCosts,
     telemetry: {
       candidatePoolIds: pool.map(b => b.id),
       chosenIds: selected.map(b => b.id),

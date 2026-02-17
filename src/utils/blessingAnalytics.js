@@ -43,6 +43,16 @@ function ensureBlessingStats(snapshot, blessingId) {
   return snapshot.blessings[blessingId];
 }
 
+function extractBlessingId(entry) {
+  if (typeof entry === 'string') {
+    const id = entry.trim();
+    return id.length > 0 ? id : null;
+  }
+  if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string') return null;
+  const id = entry.id.trim();
+  return id.length > 0 ? id : null;
+}
+
 export function loadBlessingAnalytics() {
   const storage = getStorage();
   if (!storage) return createEmptySnapshot();
@@ -100,7 +110,9 @@ export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {
 export function recordBlessingRunOutcome({ activeBlessings = [], result = 'defeat', actIndex = 0, completedBattles = 0 } = {}) {
   const snapshot = loadBlessingAnalytics();
   const now = Date.now();
-  const blessingIds = [...new Set((Array.isArray(activeBlessings) ? activeBlessings : []).filter(id => typeof id === 'string' && id.length > 0))];
+  const blessingIds = [...new Set((Array.isArray(activeBlessings) ? activeBlessings : [])
+    .map(extractBlessingId)
+    .filter(Boolean))];
   const isVictory = result === 'victory';
   const safeActReached = Math.max(1, Math.trunc(Number(actIndex) + 1) || 1);
   const safeBattles = Math.max(0, Math.trunc(Number(completedBattles) || 0));
@@ -142,4 +154,3 @@ export function getBlessingAnalyticsSummary() {
     perBlessing,
   };
 }
-

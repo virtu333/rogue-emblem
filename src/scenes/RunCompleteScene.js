@@ -65,7 +65,7 @@ export class RunCompleteScene extends Phaser.Scene {
     const rm = this.runManager;
     const actReached = rm.actIndex + 1;
     recordBlessingRunOutcome({
-      activeBlessings: rm.activeBlessings || [],
+      activeBlessings: rm.getActiveBlessingIds ? rm.getActiveBlessingIds() : (rm.activeBlessings || []),
       result: this.result,
       actIndex: rm.actIndex,
       completedBattles: rm.completedBattles,

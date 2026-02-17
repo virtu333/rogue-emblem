@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { canForge, canForgeStat, isForged, getForgeCost, applyForge, getForgeDisplayInfo, getStatForgeCount } from '../src/engine/ForgeSystem.js';
+import {
+  canForge,
+  canForgeStat,
+  isForged,
+  getForgeCost,
+  applyForge,
+  deforgeWeapon,
+  getForgeDisplayInfo,
+  getStatForgeCount,
+} from '../src/engine/ForgeSystem.js';
 import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS, FORGE_STAT_CAP } from '../src/utils/constants.js';
 
 function makeWeapon(overrides = {}) {
@@ -331,6 +340,63 @@ describe('ForgeSystem', () => {
       const result = applyForge(wpn, 'might', 1.0);
       expect(result.cost).toBe(1);
       expect(wpn.price).toBe(501);
+    });
+
+    it('negative discountRatio applies surcharge', () => {
+      const wpn = makeWeapon({ price: 500 });
+      const baseCost = FORGE_COSTS.might[0];
+      const result = applyForge(wpn, 'might', -0.2);
+      expect(result.cost).toBe(Math.floor(baseCost * 1.2));
+      expect(wpn.price).toBe(500 + Math.floor(baseCost * 1.2));
+    });
+  });
+
+  describe('deforgeWeapon', () => {
+    it('reverses last forge exactly using history', () => {
+      const wpn = makeWeapon({ name: 'Iron Sword', might: 5, price: 500 });
+      const first = applyForge(wpn, 'might', 0.2);
+      const second = applyForge(wpn, 'crit', 0.2);
+      expect(wpn._forgeLevel).toBe(2);
+      expect(wpn.name).toBe('Iron Sword +2');
+
+      const removed = deforgeWeapon(wpn);
+      expect(removed.success).toBe(true);
+      expect(removed.stat).toBe('crit');
+      expect(wpn._forgeLevel).toBe(1);
+      expect(wpn.name).toBe('Iron Sword +1');
+      expect(wpn.crit).toBe(0);
+      expect(wpn.price).toBe(500 + first.cost);
+    });
+
+    it('removes forge metadata and restores base name at level 0', () => {
+      const wpn = makeWeapon({ name: 'Steel Lance', might: 7, price: 700 });
+      const applied = applyForge(wpn, 'might');
+      expect(wpn._forgeLevel).toBe(1);
+      const removed = deforgeWeapon(wpn);
+      expect(removed.success).toBe(true);
+      expect(wpn._forgeLevel).toBeUndefined();
+      expect(wpn._forgeBonuses).toBeUndefined();
+      expect(wpn._forgeHistory).toBeUndefined();
+      expect(wpn.name).toBe('Steel Lance');
+      expect(wpn.price).toBe(700);
+      expect(applied.cost).toBeGreaterThan(0);
+    });
+
+    it('supports legacy forged weapons without _forgeHistory', () => {
+      const wpn = makeWeapon({
+        name: 'Iron Axe +1',
+        _baseName: 'Iron Axe',
+        _forgeLevel: 1,
+        _forgeBonuses: { might: 1, crit: 0, hit: 0, weight: 0 },
+        might: 9,
+        price: 900,
+      });
+      const removed = deforgeWeapon(wpn);
+      expect(removed.success).toBe(true);
+      expect(wpn.name).toBe('Iron Axe');
+      expect(wpn._forgeLevel).toBeUndefined();
+      expect(wpn.might).toBe(8);
+      expect(wpn.price).toBeLessThanOrEqual(900);
     });
   });
 

@@ -701,7 +701,7 @@ describe('RunManager', () => {
       rm.activeBlessings = ['blessed_vigor'];
       const json = rm.toJSON();
       const restored = RunManager.fromJSON(json, gameData);
-      expect(restored.activeBlessings).toEqual(['blessed_vigor']);
+      expect(restored.activeBlessings).toEqual([{ id: 'blessed_vigor', rolledCost: null }]);
     });
 
     it('round-trips difficulty selection through save/load', () => {
@@ -1815,7 +1815,7 @@ describe('blessing run-start effect application', () => {
     expect(offered.length).toBeGreaterThan(0);
     const selected = offered[0];
     expect(rm.chooseBlessing(selected)).toBe(true);
-    expect(rm.activeBlessings).toEqual([selected]);
+    expect(rm.activeBlessings).toEqual([{ id: selected, rolledCost: null }]);
     expect(rm.blessingSelectionTelemetry.chosenIds).toEqual([selected]);
     expect(rm.blessingHistory.some(e => e.eventType === 'selection' && e.blessingId === selected)).toBe(true);
   });
@@ -1854,7 +1854,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseMultiplier = rm.getBattleGoldMultiplier();
-    rm.activeBlessings = ['scout_blessing'];
+    rm.activeBlessings = [{
+      id: 'scout_blessing',
+      rolledCost: {
+        label: '-10% battle gold',
+        effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+      },
+    }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
@@ -1865,7 +1871,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseMultiplier = rm.getBattleGoldMultiplier();
-    rm.activeBlessings = ['scholar_vow'];
+    rm.activeBlessings = [{
+      id: 'scholar_vow',
+      rolledCost: {
+        label: '-10% battle gold',
+        effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+      },
+    }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
@@ -1963,7 +1975,13 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = ['merchant_bane'];
+    rm.activeBlessings = [{
+      id: 'merchant_bane',
+      rolledCost: {
+        label: 'Villages offer -1 item',
+        effects: [{ type: 'shop_item_count_delta', params: { value: -1 } }],
+      },
+    }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
@@ -2039,7 +2057,13 @@ describe('blessing run-start effect application', () => {
     const baseDefs = rm.roster.map(u => u.stats.DEF);
     const silverBefore = rm.roster.reduce((sum, u) => sum + u.inventory.filter(w => w.tier === 'Silver').length, 0);
 
-    rm.activeBlessings = ['arsenal_pact'];
+    rm.activeBlessings = [{
+      id: 'arsenal_pact',
+      rolledCost: {
+        label: '-1 DEF to all units in Act 1',
+        effects: [{ type: 'act_stat_delta_all_units', params: { act: 'act1', stat: 'DEF', value: -1 } }],
+      },
+    }];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
@@ -2083,6 +2107,28 @@ describe('blessing run-start effect application', () => {
     expect(restored.blessingSelectionTelemetry.chosenIds).toEqual([]);
   });
 
+  it('chooseBlessing assigns deterministic rolledCost for offeredIds-only telemetry migration', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ runSeed: 4242, blessingSeed: 17, autoSelectBlessing: false });
+    const json = rm.toJSON();
+    json.blessingSelectionTelemetry = {
+      seed: 17,
+      candidatePoolIds: ['scout_blessing'],
+      offeredIds: ['scout_blessing'],
+      chosenIds: [],
+      rejectionReasons: [],
+      options: { count: 1, forceTier1: false, allowTier4: true },
+    };
+
+    const restoredA = RunManager.fromJSON(json, gameData);
+    const restoredB = RunManager.fromJSON(json, gameData);
+    expect(restoredA.chooseBlessing('scout_blessing')).toBe(true);
+    expect(restoredB.chooseBlessing('scout_blessing')).toBe(true);
+    expect(restoredA.activeBlessings[0].rolledCost).toBeTruthy();
+    expect(restoredA.activeBlessings[0].rolledCost).toEqual(restoredB.activeBlessings[0].rolledCost);
+  });
+
   it('fromJSON normalizes legacy skill names to canonical ids', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
@@ -2102,6 +2148,36 @@ describe('blessing run-start effect application', () => {
     delete json.blessingRuntimeModifiers.actHitBonusByAct;
     const restored = RunManager.fromJSON(json, gameData);
     expect(restored.blessingRuntimeModifiers.actHitBonusByAct).toEqual({});
+  });
+
+  it('fromJSON migrates legacy string activeBlessings to object entries with deterministic rolled costs', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ runSeed: 4242 });
+    const json = rm.toJSON();
+    json.activeBlessings = ['scout_blessing'];
+
+    const restoredA = RunManager.fromJSON(json, gameData);
+    const restoredB = RunManager.fromJSON(json, gameData);
+    expect(restoredA.activeBlessings[0].id).toBe('scout_blessing');
+    expect(restoredA.activeBlessings[0].rolledCost).toBeTruthy();
+    expect(restoredA.activeBlessings[0].rolledCost).toEqual(restoredB.activeBlessings[0].rolledCost);
+  });
+
+  it('forge_cost_multiplier maps to forgeCostDiscount sign convention', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.activeBlessings = [{
+      id: 'scout_blessing',
+      rolledCost: {
+        label: '+25% forge costs',
+        effects: [{ type: 'forge_cost_multiplier', params: { value: 0.25 } }],
+      },
+    }];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+    expect(rm.getForgeCostDiscount()).toBeCloseTo(-0.25, 5);
   });
 
   it('unknown blessing IDs remain inert and do not crash application', () => {
