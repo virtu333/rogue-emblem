@@ -4,25 +4,43 @@
 import { SettingsOverlay } from './SettingsOverlay.js';
 import { HelpOverlay } from './HelpOverlay.js';
 import { CampaignMapOverlay } from './CampaignMapOverlay.js';
+import { CompendiumOverlay } from './CompendiumOverlay.js';
 
 export class PauseOverlay {
   /**
    * @param {Phaser.Scene} scene
    * @param {{ onResume: Function, onSaveAndExit?: Function, onAbandon?: Function, onSaveAndExitWarning?: string }} callbacks
    */
-  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData }) {
+  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData, gameData }) {
     this.scene = scene;
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
     this.onSaveAndExitWarning = onSaveAndExitWarning || null;
     this.onAbandon = onAbandon;
     this.campaignMapData = campaignMapData || null;
+    this.gameData = gameData || null;
     this.objects = [];
     this.visible = false;
     this.settingsOverlay = null;
     this.helpOverlay = null;
     this.campaignMapOverlay = null;
+    this.compendiumOverlay = null;
     this.confirmObjects = [];
+  }
+
+  /** Returns true if any child overlay (Help, Settings, Compendium, CampaignMap) is open. */
+  hasActiveSubOverlay() {
+    return !!(this.helpOverlay?.visible || this.settingsOverlay?.visible
+      || this.campaignMapOverlay?.visible || this.compendiumOverlay?.visible);
+  }
+
+  /** Closes any active sub-overlay. Returns true if one was closed. */
+  closeActiveSubOverlay() {
+    if (this.compendiumOverlay?.visible) { this.compendiumOverlay.hide(); return true; }
+    if (this.helpOverlay?.visible) { this.helpOverlay.hide(); return true; }
+    if (this.settingsOverlay?.visible) { this.settingsOverlay.hide(); return true; }
+    if (this.campaignMapOverlay?.visible) { this.campaignMapOverlay.hide(); return true; }
+    return false;
   }
 
   show() {
@@ -30,6 +48,7 @@ export class PauseOverlay {
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
     if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
+    if (this.compendiumOverlay?.visible) this.compendiumOverlay.hide();
     this._hideConfirm();
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
@@ -40,6 +59,7 @@ export class PauseOverlay {
 
     // Count buttons to size panel
     let buttonCount = 3; // Resume + Settings + Help always
+    if (this.gameData) buttonCount++; // Compendium
     if (this.campaignMapData) buttonCount++;
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
@@ -71,6 +91,7 @@ export class PauseOverlay {
     // Settings
     this._addButton(cx, btnY, 'Settings', () => {
       if (this.settingsOverlay?.visible) return;
+      this._hideConfirm();
       this.settingsOverlay = new SettingsOverlay(this.scene, null);
       this.settingsOverlay.show();
     });
@@ -79,15 +100,28 @@ export class PauseOverlay {
     // More Info
     this._addButton(cx, btnY, 'More Info', () => {
       if (this.helpOverlay?.visible) return;
+      this._hideConfirm();
       this.helpOverlay = new HelpOverlay(this.scene, () => { this.helpOverlay = null; });
       this.helpOverlay.show();
     });
     btnY += 40;
 
+    // Compendium (only when gameData available)
+    if (this.gameData) {
+      this._addButton(cx, btnY, 'Compendium', () => {
+        if (this.compendiumOverlay?.visible) return;
+        this._hideConfirm(); // auto-dismiss any active confirm modal
+        this.compendiumOverlay = new CompendiumOverlay(this.scene, this.gameData, () => { this.compendiumOverlay = null; });
+        this.compendiumOverlay.show();
+      });
+      btnY += 40;
+    }
+
     // Campaign Map (only when run data available)
     if (this.campaignMapData) {
       this._addButton(cx, btnY, 'Campaign Map', () => {
         if (this.campaignMapOverlay?.visible) return;
+        this._hideConfirm();
         this.campaignMapOverlay = new CampaignMapOverlay(this.scene, {
           ...this.campaignMapData,
           onClose: () => { this.campaignMapOverlay = null; },
@@ -149,7 +183,7 @@ export class PauseOverlay {
     const cy = this.scene.cameras.main.centerY;
 
     const bg = this.scene.add.rectangle(cx, cy, 320, 120, 0x1a1a2e, 1)
-      .setDepth(850).setStrokeStyle(2, 0xcc5555);
+      .setDepth(850).setStrokeStyle(2, 0xcc5555).setInteractive();
     this.confirmObjects.push(bg);
 
     const msg = this.scene.add.text(cx, cy - 30, message, {
@@ -182,6 +216,7 @@ export class PauseOverlay {
   }
 
   hide() {
+    if (this.compendiumOverlay?.visible) this.compendiumOverlay.hide();
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
     if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();
@@ -194,6 +229,7 @@ export class PauseOverlay {
 
   /** Like hide(), but skips onResume — used before destructive transitions (Save & Exit, Abandon). */
   hideForTransition() {
+    if (this.compendiumOverlay?.visible) this.compendiumOverlay.hide();
     if (this.helpOverlay?.visible) this.helpOverlay.hide();
     if (this.settingsOverlay?.visible) this.settingsOverlay.hide();
     if (this.campaignMapOverlay?.visible) this.campaignMapOverlay.hide();

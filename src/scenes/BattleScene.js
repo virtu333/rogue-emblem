@@ -2606,6 +2606,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (!this.mobileCameraEnabled) return;
 
+    // Keep extra touch pointer allocation battle-scoped so other scenes are unaffected.
     if (typeof this.input?.addPointer === 'function' && !this.input.pointer2) {
       this.input.addPointer(1);
     }
@@ -2680,7 +2681,7 @@ export class BattleScene extends Phaser.Scene {
   _isAutoPinCandidate(obj) {
     if (!obj || typeof obj.depth !== 'number') return false;
     if (obj._forceWorldCamera === true) return false;
-    if (obj.depth >= 600) return true;
+    if (obj.depth >= 500) return true;
     if (obj.depth >= 100 && obj.depth <= 200) {
       return obj === this.infoText
         || obj === this.objectiveText
@@ -2784,7 +2785,16 @@ export class BattleScene extends Phaser.Scene {
     if (this.rosterOverlay?.visible) return false;
     if (this.lootSettingsOverlay || this.lootRosterVisible) return false;
 
-    const allowedStates = new Set(['PLAYER_IDLE', 'UNIT_SELECTED', 'CANTO_MOVING']);
+    const allowedStates = new Set([
+      'PLAYER_IDLE',
+      'UNIT_SELECTED',
+      'SELECTING_TARGET',
+      'SHOWING_FORECAST',
+      'ENEMY_PHASE',
+      'COMBAT_RESOLVING',
+      'HEAL_RESOLVING',
+      'CANTO_MOVING',
+    ]);
     return allowedStates.has(this.battleState);
   }
 
