@@ -39,6 +39,7 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
+import { INVENTORY_MAX } from '../src/utils/constants.js';
 
 function makeUnit(overrides = {}) {
   return {
@@ -424,6 +425,84 @@ describe('BattleScene trade cancel flow', () => {
     expect(scene.showActionMenu).toHaveBeenCalledWith(unitA);
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
     expect(scene.tradeMutatedThisSession).toBe(true);
+  });
+});
+
+describe('BattleScene trade weapon gating', () => {
+  it('allows trading an equipped last weapon between one-weapon units', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const elfire = { name: 'Elfire', type: 'Tome', rankRequired: 'Prof', range: '1-2', might: 8, hit: 85, crit: 0, weight: 6 };
+    const fire = { name: 'Fire', type: 'Tome', rankRequired: 'Prof', range: '1-2', might: 5, hit: 90, crit: 0, weight: 4 };
+    const unitA = makeUnit({
+      name: 'Iris',
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      inventory: [elfire],
+      weapon: elfire,
+      consumables: [],
+    });
+    const unitB = makeUnit({
+      name: 'Mora',
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      inventory: [fire],
+      weapon: fire,
+      consumables: [],
+    });
+
+    scene.preMoveLoc = { col: 2, row: 2 };
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    const elfireRow = texts.find((obj) => obj.text === 'Elfire');
+    expect(elfireRow).toBeTruthy();
+    expect(elfireRow.handlers.pointerdown).toBeTruthy();
+
+    elfireRow.trigger('pointerdown');
+
+    expect(unitA.inventory).toHaveLength(0);
+    expect(unitA.weapon).toBeNull();
+    expect(unitB.inventory.map((item) => item.name)).toEqual(expect.arrayContaining(['Fire', 'Elfire']));
+    expect(scene.tradeMutatedThisSession).toBe(true);
+    expect(scene.preMoveLoc).toBeNull();
+  });
+
+  it('keeps weapon rows disabled when recipient inventory is full', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', range: '1', might: 5, hit: 90, crit: 0, weight: 5 };
+    const filler = Array.from({ length: INVENTORY_MAX }, (_v, idx) => ({
+      name: `Filler ${idx + 1}`,
+      type: 'Axe',
+      rankRequired: 'Prof',
+      range: '1',
+      might: 5,
+      hit: 80,
+      crit: 0,
+      weight: 8,
+    }));
+    const unitA = makeUnit({
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+      consumables: [],
+    });
+    const unitB = makeUnit({
+      name: 'Bran',
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      inventory: filler,
+      weapon: filler[0],
+      consumables: [],
+    });
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    const swordRow = texts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Iron Sword'));
+    expect(swordRow).toBeTruthy();
+    expect(swordRow.style?.color).toBe('#666666');
+    expect(swordRow.handlers.pointerdown).toBeUndefined();
+
+    swordRow.trigger('pointerdown');
+    expect(unitA.inventory).toHaveLength(1);
+    expect(unitB.inventory).toHaveLength(INVENTORY_MAX);
   });
 });
 

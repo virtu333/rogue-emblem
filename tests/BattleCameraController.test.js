@@ -28,12 +28,29 @@ function createTouchPointer(id, x, y, manager, isDown = true) {
     x,
     y,
     isDown,
+    wasTouch: true,
     pointerType: 'touch',
     manager,
   };
 }
 
 describe('BattleCameraController touch cleanup', () => {
+  it('accepts touch pointers flagged via wasTouch when pointerType is missing', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera);
+    const manager = { pointers: [] };
+    const p1 = { id: 1, x: 100, y: 100, isDown: true, wasTouch: true, manager };
+    const p2 = { id: 2, x: 140, y: 100, isDown: true, wasTouch: true, manager };
+
+    manager.pointers = [p1, p2];
+    const first = controller.handlePointerDown(p1, true);
+    const second = controller.handlePointerDown(p2, true);
+
+    expect(first.consumed).toBe(false);
+    expect(second.consumed).toBe(true);
+    expect(second.beganGesture).toBe(true);
+  });
+
   it('prunes stale touch ids before handling a new touch', () => {
     const camera = createCamera();
     const controller = new BattleCameraController(camera);

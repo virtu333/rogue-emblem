@@ -243,6 +243,38 @@ describe('convoy scene/UI flows', () => {
     expect(rm.getConvoyCounts().consumables).toBe(1);
   });
 
+  it('keeps roster [Store] locked for a unit last combat weapon', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const unit = rm.roster[0];
+    const profType = unit.proficiencies?.[0]?.type || 'Sword';
+    const baseWeapon = gameData.weapons.find(w => w.type === profType && w.rankRequired === 'Prof')
+      || gameData.weapons.find(w => w.type === profType)
+      || gameData.weapons.find(w => w.type === 'Sword');
+    const weapon = structuredClone(baseWeapon);
+    unit.inventory = [weapon];
+    unit.weapon = weapon;
+    unit.consumables = [];
+    unit.skills = unit.skills || [];
+    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+      lords: gameData.lords || [],
+      classes: gameData.classes || [],
+      skills: gameData.skills || [],
+      accessories: gameData.accessories || [],
+    });
+    const actions = [];
+    overlay._actionBtn = (x, y, label, onClick) => {
+      actions.push({ label, onClick });
+      return makeDisplayObject();
+    };
+
+    overlay._activeTab = 'gear';
+    overlay.drawUnitDetails();
+
+    const storeAction = actions.find(a => a.label === '[Store]');
+    expect(storeAction).toBeUndefined();
+  });
+
   it('applies a weapon-art scroll to an eligible weapon and consumes the scroll', () => {
     const rm = new RunManager(gameData);
     rm.startRun();

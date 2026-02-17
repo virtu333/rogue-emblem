@@ -103,6 +103,7 @@ describe('BattleScene mobile camera gesture policy', () => {
   it('suppresses tap flow when a second touch is active, even if gesture input is disallowed', () => {
     const cancelTouchInspectHold = vi.fn();
     const scene = {
+      _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: {
         handlePointerDown: vi.fn(() => ({ consumed: false, beganGesture: false, touchCount: 2 })),
       },
@@ -111,11 +112,18 @@ describe('BattleScene mobile camera gesture policy', () => {
       _touchHoldTriggered: true,
     };
 
-    const consumed = BattleScene.prototype._handleCameraGesturePointerDown.call(scene, { pointerType: 'touch' });
+    const consumed = BattleScene.prototype._handleCameraGesturePointerDown.call(scene, { wasTouch: true });
 
     expect(consumed).toBe(true);
     expect(cancelTouchInspectHold).toHaveBeenCalledTimes(1);
     expect(scene._touchHoldTriggered).toBe(false);
+  });
+
+  it('recognizes touch pointers through Phaser wasTouch metadata', () => {
+    const scene = {};
+    expect(BattleScene.prototype._isTouchPointer.call(scene, { wasTouch: true })).toBe(true);
+    expect(BattleScene.prototype._isTouchPointer.call(scene, { event: { pointerType: 'touch' } })).toBe(true);
+    expect(BattleScene.prototype._isTouchPointer.call(scene, { pointerType: 'mouse' })).toBe(false);
   });
 
   it('blocks gestures while story or tutorial gate is active', () => {
@@ -136,6 +144,7 @@ describe('BattleScene camera touch interruption cleanup', () => {
     const onClick = vi.fn();
     const handlePointerUp = vi.fn(() => false);
     const scene = {
+      _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: { clearTouches: vi.fn(() => true) },
       _cameraGestureTapSuppressed: false,
       _touchTapDown: { x: 10, y: 20 },
@@ -148,7 +157,7 @@ describe('BattleScene camera touch interruption cleanup', () => {
     };
 
     BattleScene.prototype.onPointerUp.call(scene, {
-      pointerType: 'touch',
+      wasTouch: true,
       wasCanceled: true,
       rightButtonDown: () => false,
       button: 0,

@@ -1871,8 +1871,7 @@ export class RosterOverlay {
             segments.push({ text: ` (${rem}/${max})`, color: rowColor });
           }
 
-          const locked = isLastCombatWeapon(unit, item);
-          if (!locked && otherUnit.inventory.length < INVENTORY_MAX) {
+          if (otherUnit.inventory.length < INVENTORY_MAX) {
             const interactiveSegments = [...segments, { text: '  \u25b6', color: '#e0e0e0' }];
             const row = this._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
             const hit = this.scene.add.rectangle(

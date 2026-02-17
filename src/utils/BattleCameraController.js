@@ -19,6 +19,13 @@ function midpoint(a, b) {
   };
 }
 
+function isTouchPointer(pointer) {
+  if (!pointer || typeof pointer !== 'object') return false;
+  if (pointer.wasTouch === true) return true;
+  const type = pointer.pointerType ?? pointer.event?.pointerType;
+  return typeof type === 'string' && type.toLowerCase() === 'touch';
+}
+
 export class BattleCameraController {
   constructor(camera, options = {}) {
     this.camera = camera;
@@ -69,7 +76,7 @@ export class BattleCameraController {
     if (!Array.isArray(pointers) || pointers.length <= 0) return;
     const activeTouchIds = new Set();
     for (const ref of pointers) {
-      if (!ref || ref.pointerType !== 'touch' || !ref.isDown) continue;
+      if (!isTouchPointer(ref) || !ref.isDown) continue;
       activeTouchIds.add(ref.id);
     }
     for (const id of [...this._touches.keys()]) {
@@ -134,7 +141,7 @@ export class BattleCameraController {
   }
 
   handlePointerDown(pointer, allowed = true) {
-    if (pointer?.pointerType !== 'touch') return { consumed: false, beganGesture: false, touchCount: this._touches.size };
+    if (!isTouchPointer(pointer)) return { consumed: false, beganGesture: false, touchCount: this._touches.size };
     this.pruneInactiveTouches(pointer);
     if (this._gestureActive && this._touches.size < 2) this._endGesture();
     this._touches.set(pointer.id, { x: pointer.x, y: pointer.y });
@@ -149,7 +156,7 @@ export class BattleCameraController {
   }
 
   handlePointerMove(pointer, allowed = true) {
-    if (pointer?.pointerType !== 'touch') return { consumed: false };
+    if (!isTouchPointer(pointer)) return { consumed: false };
     this.pruneInactiveTouches(pointer);
     if (this._touches.has(pointer.id)) {
       this._touches.set(pointer.id, { x: pointer.x, y: pointer.y });
@@ -188,7 +195,7 @@ export class BattleCameraController {
   }
 
   handlePointerUp(pointer) {
-    if (pointer?.pointerType !== 'touch') return { consumed: false, endedGesture: false };
+    if (!isTouchPointer(pointer)) return { consumed: false, endedGesture: false };
     this._touches.delete(pointer.id);
     this.pruneInactiveTouches(pointer);
     if (!this._gestureActive) return { consumed: false, endedGesture: false };

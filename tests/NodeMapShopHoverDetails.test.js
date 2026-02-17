@@ -45,6 +45,30 @@ function makeBuyListScene({ gold, entry }) {
   return { scene, createdTexts };
 }
 
+function makeSellListScene({ unit }) {
+  const createdTexts = [];
+  const scene = {
+    runManager: {
+      roster: [unit],
+      addGold: vi.fn(),
+    },
+    shopScrollOffsets: { buy: 0, sell: 0, forge: 0 },
+    shopContentGroup: [],
+    shopOverlay: [],
+    registry: { get: () => null },
+    refreshShop: vi.fn(),
+    showShopBanner: vi.fn(),
+    add: {
+      text: (x, y, text, style) => {
+        const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
+        createdTexts.push(obj);
+        return obj;
+      },
+    },
+  };
+  return { scene, createdTexts };
+}
+
 describe('NodeMap shop hover details', () => {
   it('supports hover details on unaffordable buy rows while keeping purchase disabled', () => {
     const entry = {
@@ -90,6 +114,25 @@ describe('NodeMap shop hover details', () => {
 
     row.handlers.pointerdown();
     expect(scene.onBuyItem).toHaveBeenCalledWith(entry);
+  });
+
+  it('keeps last-weapon sell rows disabled with the last-weapon marker', () => {
+    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', price: 500, range: '1' };
+    const unit = {
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [sword],
+      weapon: sword,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'));
+    expect(row).toBeTruthy();
+    expect(row.text).toContain('(last weapon)');
+    expect(row._interactive).toBeUndefined();
+    expect(row.handlers.pointerdown).toBeUndefined();
   });
 
   it('formats detail text for accessory and weapon shop entries', () => {
@@ -191,4 +234,3 @@ describe('NodeMap shop hover details', () => {
     expect(scene.drawRerollButton).toHaveBeenCalledTimes(1);
   });
 });
-

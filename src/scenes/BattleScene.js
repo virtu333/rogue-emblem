@@ -39,7 +39,6 @@ import {
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
-  isLastCombatWeapon,
   hasProficiency,
   canEquip,
   applyStatBoost,
@@ -2352,9 +2351,16 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Pointer / click handling ---
 
+  _isTouchPointer(pointer) {
+    if (!pointer || typeof pointer !== 'object') return false;
+    if (pointer.wasTouch === true) return true;
+    const type = pointer.pointerType ?? pointer.event?.pointerType;
+    return typeof type === 'string' && type.toLowerCase() === 'touch';
+  }
+
   onPointerMove(pointer) {
     if (this.isStoryInputLocked()) return;
-    if (pointer?.pointerType === 'touch' && this._handleCameraGesturePointerMove(pointer)) {
+    if (this._isTouchPointer(pointer) && this._handleCameraGesturePointerMove(pointer)) {
       this._cameraGestureTapSuppressed = true;
       this.cancelTouchInspectHold();
       return;
@@ -2366,7 +2372,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateTopLeftHudLayout();
       return;
     }
-    if (pointer?.pointerType === 'touch') return;
+    if (this._isTouchPointer(pointer)) return;
     const gp = this._pointerToGrid(pointer);
     if (!gp) {
       this.cursorHighlight.setVisible(false);
@@ -2437,7 +2443,7 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerDown(pointer) {
     if (this.isStoryInputLocked()) return;
-    if (pointer?.pointerType === 'touch') {
+    if (this._isTouchPointer(pointer)) {
       this._battleCamera?.pruneInactiveTouches?.(pointer);
       if (!this._battleCamera?.hasActiveTouches?.()) {
         this._cameraGestureTapSuppressed = false;
@@ -2455,7 +2461,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   startTouchInspectHold(pointer) {
-    if (pointer?.pointerType !== 'touch') return;
+    if (!this._isTouchPointer(pointer)) return;
     this.cancelTouchInspectHold();
     this._touchHoldTriggered = false;
     this._touchHoldStart = { x: pointer.x, y: pointer.y, id: pointer.id };
@@ -2472,7 +2478,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateTouchInspectHold(pointer) {
-    if (pointer?.pointerType !== 'touch') return;
+    if (!this._isTouchPointer(pointer)) return;
     if (!this._touchHoldTimer || !this._touchHoldStart) return;
     if (pointer.id !== this._touchHoldStart.id) return;
     const dx = pointer.x - this._touchHoldStart.x;
@@ -2799,7 +2805,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _handleCameraGesturePointerDown(pointer) {
-    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
     const result = this._battleCamera.handlePointerDown(pointer, this.isCameraGestureAllowed());
     if (result?.beganGesture || result?.touchCount >= 2) {
       this.cancelTouchInspectHold();
@@ -2809,13 +2815,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _handleCameraGesturePointerMove(pointer) {
-    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
     const result = this._battleCamera.handlePointerMove(pointer, this.isCameraGestureAllowed());
     return Boolean(result?.consumed);
   }
 
   _handleCameraGesturePointerUp(pointer) {
-    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
     const result = this._battleCamera.handlePointerUp(pointer);
     if (result?.endedGesture) this._syncMobileResetViewButton();
     return Boolean(result?.consumed);
@@ -4143,16 +4149,16 @@ export class BattleScene extends Phaser.Scene {
     const drawItems = (unit, x, otherUnit) => {
       // Weapons
       (unit.inventory || []).forEach((item, i) => {
-        const locked = isLastCombatWeapon(unit, item);
+        const hasCapacity = (otherUnit.inventory?.length || 0) < INVENTORY_MAX;
         const noProf = !hasProficiency(otherUnit, item);
-        const suffix = locked ? '' : (noProf ? ' (no prof)' : '');
-        const color = locked ? '#666666' : (noProf ? '#cc8844' : '#e0e0e0');
+        const suffix = noProf ? ' (no prof)' : '';
+        const color = hasCapacity ? (noProf ? '#cc8844' : '#e0e0e0') : '#666666';
         const btn = this.add.text(x, yOffset + i * 20, item.name + suffix, {
           fontFamily: 'monospace', fontSize: '11px', color,
           backgroundColor: '#222222', padding: { x: 6, y: 2 },
         }).setOrigin(0.5).setDepth(401);
 
-        if (!locked) {
+        if (hasCapacity) {
           btn.setInteractive({ useHandCursor: true });
           btn.on('pointerover', () => btn.setColor('#ffdd44'));
           btn.on('pointerout', () => btn.setColor(color));
@@ -4971,7 +4977,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    if (pointer?.pointerType === 'touch') {
+    if (this._isTouchPointer(pointer)) {
       const wasTouchCanceled = Boolean(pointer.wasCanceled || pointer?.event?.type === 'touchcancel');
       if (wasTouchCanceled) {
         const hadTouches = Boolean(this._battleCamera?.clearTouches?.());
@@ -4997,7 +5003,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.cancelTouchInspectHold();
     let clickPos = null;
-    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+    if (this._isTouchPointer(pointer) && this._touchTapDown) {
       if (this._touchHoldTriggered) {
         this._touchHoldTriggered = false;
         this._touchTapDown = null;
@@ -5351,7 +5357,7 @@ export class BattleScene extends Phaser.Scene {
         this._showWeaponDetailTooltip(wpn, menuRect, itemY);
       });
       text.on('pointerout', (pointer) => {
-        if (!pointer || pointer.pointerType !== 'touch') {
+        if (!this._isTouchPointer(pointer)) {
           this._hideWeaponDetailTooltip();
         }
       });
@@ -5433,7 +5439,7 @@ export class BattleScene extends Phaser.Scene {
         this._showWeaponDetailTooltip(wpn, menuRect, text.y);
       });
       text.on('pointerout', (pointer) => {
-        if (!pointer || pointer.pointerType !== 'touch') {
+        if (!this._isTouchPointer(pointer)) {
           this._hideWeaponDetailTooltip();
         }
       });
