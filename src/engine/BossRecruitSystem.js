@@ -121,7 +121,7 @@ export function getAvailableLords(roster, lordsData, fallenUnits = []) {
  * Create a lord unit for boss recruit, leveled to targetLevel.
  * Gets lord meta bonuses but NOT starting equipment meta upgrades.
  */
-export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, metaEffects) {
+export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, metaEffects, recruitContext = null) {
   const unit = createLordUnit(lordDef, classData, allWeapons);
 
   // Apply lord meta growth bonuses BEFORE leveling
@@ -141,6 +141,38 @@ export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, 
         unit.stats[stat] += result.gains[stat];
       }
       unit.currentHP += result.gains.HP;
+    }
+  }
+
+  // Optional boss-recruit promotion path (act2+); default callers remain base-tier.
+  const shouldPromote = Boolean(recruitContext?.promoteLord);
+  if (shouldPromote) {
+    const promotedClassData = Array.isArray(recruitContext?.classes)
+      ? recruitContext.classes.find(c => c.name === lordDef?.promotedClass)
+      : null;
+    const promotionBonuses = lordDef?.promotionBonuses || promotedClassData?.promotionBonuses;
+
+    // Missing promotion metadata should gracefully fall back to base-tier.
+    if (promotedClassData && promotionBonuses) {
+      promoteUnit(
+        unit,
+        promotedClassData,
+        promotionBonuses,
+        Array.isArray(recruitContext?.skills) ? recruitContext.skills : []
+      );
+
+      // Match regular recruit promoted leveling: target effective level beyond base cap.
+      const promotedLevels = Math.max(0, targetLevel - BASE_CLASS_LEVEL_CAP - 1);
+      for (let i = 0; i < promotedLevels; i++) {
+        const result = levelUp(unit);
+        if (result) {
+          unit.level = result.newLevel;
+          for (const stat of XP_STAT_NAMES) {
+            unit.stats[stat] += result.gains[stat];
+          }
+          unit.currentHP += result.gains.HP;
+        }
+      }
     }
   }
 
@@ -253,7 +285,11 @@ export function generateBossRecruitCandidates(actRef, roster, gameData, metaEffe
   if (chosenLord) {
     const lordClassData = classes.find(c => c.name === chosenLord.class);
     if (lordClassData) {
-      const unit = createBossLordUnit(chosenLord, lordClassData, weapons, targetLevel, metaEffects);
+      const unit = createBossLordUnit(chosenLord, lordClassData, weapons, targetLevel, metaEffects, {
+        promoteLord: usePromoted,
+        classes,
+        skills,
+      });
       unit.name = chosenLord.name || unit.name;
       takenNames.add(unit.name);
       const lordCandidate = {
