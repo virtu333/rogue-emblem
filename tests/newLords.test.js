@@ -74,6 +74,14 @@ describe('New Lords — Data Integrity', () => {
     }
   });
 
+  it('all lord promotions grant +1 MOV', () => {
+    const promotableLords = gameData.lords.filter((lord) => lord.promotedClass && lord.promotionBonuses);
+    expect(promotableLords.length).toBeGreaterThan(0);
+    for (const lord of promotableLords) {
+      expect(lord.promotionBonuses.MOV).toBe(1);
+    }
+  });
+
   it('Rowan moveType is Cavalry', () => {
     const lord = gameData.lords.find(l => l.name === 'Rowan');
     expect(lord.moveType).toBe('Cavalry');

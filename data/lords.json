@@ -81,7 +81,7 @@
       "DEF": 2,
       "RES": 2,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "promotionWeapons": "Swords (P)",
     "personalSkillL20": {
@@ -126,7 +126,7 @@
       "DEF": 3,
       "RES": 2,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "promotionWeapons": "Swords (M), Axes (P), Bows (P)",
     "personalSkillL20": {
@@ -171,7 +171,7 @@
       "DEF": 3,
       "RES": 3,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "promotionWeapons": "Staves (P)",
     "personalSkillL20": {
