@@ -8,6 +8,7 @@ import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
 import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
 import { reportAsyncError } from './utils/errorReporter.js';
+import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -18,14 +19,53 @@ const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 const startupFlags = getStartupFlags();
 const CLOUD_SYNC_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 1200 : 1500;
 const BOOT_WATCHDOG_TIMEOUT_MS = startupFlags.mobileSafeBoot ? 30000 : 22000;
+const STARTUP_VIEWPORT_GUARD_TIMEOUT_MS = Math.max(
+  BOOT_WATCHDOG_TIMEOUT_MS,
+  startupFlags.mobileSafeBoot ? 18000 : 14000,
+);
 const startupQuery = new URLSearchParams(globalThis?.location?.search || '');
 const devStartupRequested = startupQuery.has('qaStep') || startupQuery.has('devScene');
 
 initStartupTelemetry({
   isMobile: startupFlags.isMobile,
+  isIOSSafari: startupFlags.isIOSSafari,
   mobileSafeBoot: startupFlags.mobileSafeBoot,
   reducedPreload: startupFlags.reducedPreload,
+  startupViewportGuard: startupFlags.startupViewportGuard,
 });
+
+const startupViewportGuard = createStartupViewportGuard({
+  enabled: startupFlags.startupViewportGuard,
+  timeoutMs: STARTUP_VIEWPORT_GUARD_TIMEOUT_MS,
+  mark: markStartup,
+  gameGetter: () => window[GAME_INSTANCE_KEY],
+});
+let startupActivationWindowOpen = true;
+
+function hasGameBootStarted() {
+  return !!(window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]);
+}
+
+function closeStartupActivationWindow() {
+  startupActivationWindowOpen = false;
+}
+
+function activateStartupViewportGuard(reason) {
+  const gameBootStarted = hasGameBootStarted();
+  if (!startupActivationWindowOpen || gameBootStarted) {
+    markStartup('startup_viewport_guard_activate_skipped', {
+      reason,
+      startupWindowOpen: startupActivationWindowOpen,
+      gameBootStarted,
+    });
+    return false;
+  }
+  return startupViewportGuard.activate(reason);
+}
+
+function shouldIgnoreLateSessionRestore() {
+  return !startupActivationWindowOpen || hasGameBootStarted();
+}
 
 function installDevDiagnostics() {
   const host = globalThis?.location?.hostname;
@@ -185,15 +225,18 @@ function installStartupErrorHooks() {
 function installBootWatchdog() {
   const monitor = window.setInterval(() => {
     if (!hasReachedStartupTarget()) return;
+    startupViewportGuard.stop('startup_target_reached');
     hideBootRecoveryOverlay();
     window.clearInterval(monitor);
   }, 1000);
 
   window.setTimeout(() => {
     if (hasReachedStartupTarget()) {
+      startupViewportGuard.stop('startup_target_reached');
       window.clearInterval(monitor);
       return;
     }
+    startupViewportGuard.stop('boot_watchdog_timeout');
     markStartup('boot_watchdog_timeout', { timeoutMs: BOOT_WATCHDOG_TIMEOUT_MS });
     const timeoutMessage = devStartupRequested
       ? 'The game did not reach the requested startup scene in time. Try reload or safe mode.'
@@ -230,7 +273,11 @@ async function startCloudPull(userId, mode) {
 }
 
 function bootGame(user) {
-  if (window[GAME_BOOT_FLAG] || window[GAME_INSTANCE_KEY]) return;
+  if (hasGameBootStarted()) return false;
+  // Ensure the guard is active at boot time even if a long pre-boot gate
+  // outlived a prior activation window.
+  activateStartupViewportGuard('boot_game_preflight');
+  closeStartupActivationWindow();
   window[GAME_BOOT_FLAG] = true;
   markStartup('phaser_boot_start', { hasUser: !!user });
   installBootWatchdog();
@@ -243,6 +290,7 @@ function bootGame(user) {
   }
 
   // Stop auth screen animation + music before Phaser takes over
+  startupViewportGuard.beforeBootGame();
   if (window.stopAuthScreen) window.stopAuthScreen();
 
   // Remove auth listeners to prevent stale handlers from re-triggering
@@ -276,10 +324,12 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  startupViewportGuard.reconcileNow('phaser_boot_complete');
   if (startupFlags.isMobile) {
     new MobileControls(window[GAME_INSTANCE_KEY]).show();
   }
   markStartup('phaser_boot_complete');
+  return true;
 }
 
 // --- Auth UI ---
@@ -304,12 +354,25 @@ if (!supabase) {
   // Check existing session
   getSession().then(async (session) => {
     if (session) {
+      if (shouldIgnoreLateSessionRestore()) {
+        markStartup('session_restore_ignored_after_boot');
+        return;
+      }
+      activateStartupViewportGuard('session_restore');
       try {
         await startCloudPull(session.user.id, 'session');
       } catch (_) {
         markStartup('cloud_sync_gate_fallback', { mode: 'session' });
       }
-      bootGame(session.user);
+      if (shouldIgnoreLateSessionRestore()) {
+        markStartup('session_restore_ignored_after_boot');
+        return;
+      }
+      const didBoot = bootGame(session.user);
+      if (!didBoot) {
+        markStartup('session_restore_ignored_after_boot');
+        return;
+      }
       fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
         reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
       });
@@ -332,12 +395,14 @@ authToggle.addEventListener('click', () => {
 
 function handleSkip() {
   unlockAudio();
+  activateStartupViewportGuard('offline_skip');
   bootGame(null);
 }
 
 async function handleSubmit(e) {
   e.preventDefault();
   unlockAudio();
+  activateStartupViewportGuard(isRegisterMode ? 'register_submit' : 'login_submit');
   authError.textContent = '';
   authSubmit.disabled = true;
   authSubmit.textContent = 'Loading...';
@@ -359,11 +424,14 @@ async function handleSubmit(e) {
     } catch (_) {
       markStartup('cloud_sync_gate_fallback', { mode: 'login' });
     }
-    bootGame(user);
-    fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
-      reportAsyncError('cloud_sync_background_login', err, { mode: 'login' });
-    });
+    const didBoot = bootGame(user);
+    if (didBoot) {
+      fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
+        reportAsyncError('cloud_sync_background_login', err, { mode: 'login' });
+      });
+    }
   } catch (err) {
+    startupViewportGuard.stop('auth_submit_error');
     authError.textContent = err.message || 'Authentication failed';
     authSubmit.disabled = false;
     authSubmit.textContent = isRegisterMode ? 'Register' : 'Log In';

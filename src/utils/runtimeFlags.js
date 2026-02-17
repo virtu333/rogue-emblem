@@ -6,10 +6,37 @@ function isMobileUserAgent(ua) {
   return /android|iphone|ipad|ipod|mobile|windows phone/i.test(ua);
 }
 
+function isIOSRuntime(ua, maxTouchPoints = 0) {
+  if (!ua || typeof ua !== 'string') return false;
+  if (/iphone|ipad|ipod/i.test(ua)) return true;
+  return /macintosh/i.test(ua) && maxTouchPoints > 1;
+}
+
+function isSafariUserAgent(ua) {
+  if (!ua || typeof ua !== 'string') return false;
+  if (!/safari/i.test(ua)) return false;
+  return !/crios|fxios|edgios|opios|chrome|chromium|android/i.test(ua);
+}
+
+function isStandaloneDisplayMode() {
+  const navigatorRef = globalThis?.navigator || {};
+  const standaloneNavigator = navigatorRef.standalone === true;
+  const standaloneMedia = !!globalThis?.matchMedia?.('(display-mode: standalone)')?.matches;
+  return standaloneNavigator || standaloneMedia;
+}
+
 export function detectMobileRuntime() {
   const ua = globalThis?.navigator?.userAgent || '';
   const coarsePointer = !!globalThis?.matchMedia?.('(pointer: coarse)').matches;
   return coarsePointer || isMobileUserAgent(ua);
+}
+
+export function detectIOSSafariRuntime() {
+  const navigatorRef = globalThis?.navigator || {};
+  const ua = navigatorRef.userAgent || '';
+  const maxTouchPoints = Number(navigatorRef.maxTouchPoints || 0);
+  if (isStandaloneDisplayMode()) return false;
+  return isIOSRuntime(ua, maxTouchPoints) && isSafariUserAgent(ua);
 }
 
 function readFlagOverrides() {
@@ -36,18 +63,27 @@ function getBoolOverride(overrides, keys, fallback) {
 
 export function resolveStartupFlags() {
   const isMobile = detectMobileRuntime();
+  const isIOSSafari = detectIOSSafariRuntime();
   const overrides = readFlagOverrides();
   const mobileCameraEnabled = getBoolOverride(
     overrides,
     ['mobileCameraEnabled', 'MOBILE_CAMERA_ENABLED'],
     isMobile,
   );
+  const startupViewportGuard = getBoolOverride(
+    overrides,
+    ['startupViewportGuard', 'STARTUP_VIEWPORT_GUARD'],
+    isIOSSafari,
+  );
   return {
     isMobile,
+    isIOSSafari,
     mobileSafeBoot: asBool(overrides.mobileSafeBoot, isMobile),
     reducedPreload: asBool(overrides.reducedPreload, isMobile),
     mobileCameraEnabled,
     MOBILE_CAMERA_ENABLED: mobileCameraEnabled,
+    startupViewportGuard,
+    STARTUP_VIEWPORT_GUARD: startupViewportGuard,
   };
 }
 
