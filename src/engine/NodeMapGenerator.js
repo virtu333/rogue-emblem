@@ -26,11 +26,12 @@ const ACT_LEVEL_SCALING = {
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
  * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize)
- * @param {{ fogChanceBonus?: number }} [options]
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean }} [options]
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
+  const halfFogChance = options.halfFogChance === true;
   const { rows } = actConfig;
 
   // Special case: finalBoss is a single boss node
@@ -117,7 +118,10 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
           const fogChance = (template && template.fogChance !== undefined)
             ? template.fogChance
             : (FOG_CHANCE_BY_ACT[actId] || 0);
-          const adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
+          let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
+          if (halfFogChance) {
+            adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
+          }
           const fogRoll = Math.random();
           if (fogRoll < adjustedFogChance) {
             node.fogEnabled = true;

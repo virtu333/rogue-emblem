@@ -293,6 +293,7 @@ export class RunManager {
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+      halfFogChance: this.difficultyId === 'normal',
     });
     this.currentNodeId = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
@@ -2081,6 +2082,7 @@ export class RunManager {
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+      halfFogChance: this.difficultyId === 'normal',
     });
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     this.currentNodeId = null;

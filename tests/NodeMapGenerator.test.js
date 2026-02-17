@@ -747,4 +747,19 @@ describe('Template-driven fog', () => {
       randomSpy.mockRestore();
     }
   });
+
+  it('supports halfFogChance with floor rounding', () => {
+    const noFogField = { rout: [{ id: 'test_no_fog', zones: [], features: [] }], seize: [] };
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.12);
+    try {
+      const base = generateNodeMap('act2', ACT_CONFIG.act2, noFogField);
+      const halved = generateNodeMap('act2', ACT_CONFIG.act2, noFogField, { halfFogChance: true });
+      const baseFogged = base.nodes.filter(n => n.type === NODE_TYPES.BATTLE && n.fogEnabled).length;
+      const halvedFogged = halved.nodes.filter(n => n.type === NODE_TYPES.BATTLE && n.fogEnabled).length;
+      expect(baseFogged).toBeGreaterThan(0);
+      expect(halvedFogged).toBe(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
 });
