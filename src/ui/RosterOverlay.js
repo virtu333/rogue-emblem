@@ -1608,8 +1608,109 @@ export class RosterOverlay {
   // --- Trade ---
 
   _destroyTrade() {
+    if (this._tradeDetailObjects) {
+      for (const obj of this._tradeDetailObjects) obj.destroy();
+      this._tradeDetailObjects = [];
+    }
     for (const obj of this.tradeObjects) obj.destroy();
     this.tradeObjects = [];
+  }
+
+  /**
+   * Draw or clear the trade detail pane content.
+   * @param {object|null} item - weapon/consumable to show, or null to show hint
+   * @param {object} [ownerUnit] - unit that owns the item
+   * @param {object} [recipientUnit] - unit that would receive the item
+   */
+  _drawTradeDetailPane(item, ownerUnit, recipientUnit) {
+    // Clear previous detail content
+    if (this._tradeDetailObjects) {
+      for (const obj of this._tradeDetailObjects) obj.destroy();
+    }
+    this._tradeDetailObjects = [];
+    const paneY = this._tradeDetailPaneY;
+    if (paneY == null) return;
+
+    const paneX = DETAIL_X + 20;
+    const depth = DEPTH_PICKER + 2;
+    const addText = (x, y, str, color = '#e0e0e0', fontSize = '10px') => {
+      const t = this.scene.add.text(x, y, str, {
+        fontFamily: 'monospace', fontSize, color,
+      }).setDepth(depth);
+      this._tradeDetailObjects.push(t);
+      return t;
+    };
+
+    if (!item) {
+      addText(DETAIL_X + DETAIL_WIDTH / 2 - 60, paneY + 20, 'Hover item for details', '#666666');
+      return;
+    }
+
+    // --- Consumable detail ---
+    if (item.type === 'Consumable') {
+      addText(paneX, paneY + 6, `${item.name} (${item.uses} use${item.uses !== 1 ? 's' : ''})`, '#88ff88', '11px');
+      const effectLabel = item.effect === 'heal' ? `Heal ${item.value} HP`
+        : item.effect === 'healFull' ? 'Heal to full HP'
+        : item.effect === 'promote' ? 'Promote to advanced class'
+        : item.effect === 'statBoost' ? `+${item.value} stat boost`
+        : item.effect || '';
+      addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
+      if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');
+      return;
+    }
+
+    // --- Weapon/Staff detail ---
+    const line1Y = paneY + 4;
+    const line2Y = paneY + 18;
+    const line3Y = paneY + 32;
+
+    // Line 1: Type + full name
+    const baseName = this._getWeaponBaseName(item);
+    const forgeLevel = this._getWeaponForgeLevel(item);
+    const fullName = forgeLevel > 0 ? `${baseName} +${forgeLevel}` : baseName;
+    const typeLabel = item.type || '';
+    addText(paneX, line1Y, `${typeLabel}:`, '#aaaaaa');
+    addText(paneX + typeLabel.length * 6 + 12, line1Y, fullName, this._getWeaponNameColor(item, '#e0e0e0'), '11px');
+
+    // Line 2: Stats
+    if (item.type === 'Staff') {
+      const rem = ownerUnit ? getStaffRemainingUses(item, ownerUnit) : '?';
+      const max = ownerUnit ? getStaffMaxUses(item, ownerUnit) : '?';
+      const healBase = item.healBase != null ? `Heal: MAG+${item.healBase}` : '';
+      addText(paneX, line2Y, `${healBase}  Uses: ${rem}/${max}`, '#bbbbbb');
+      if (item.range) {
+        const rng = parseRange(item.range);
+        const rngStr = rng.min === rng.max ? `${rng.max}` : `${rng.min}-${rng.max}`;
+        addText(paneX + 240, line2Y, `Rng ${rngStr}`, '#bbbbbb');
+      }
+    } else if (item.might !== undefined) {
+      const rng = parseRange(item.range);
+      const rngStr = rng.min === rng.max ? `${rng.max}` : `${rng.min}-${rng.max}`;
+      let cx = paneX;
+      const stats = [
+        ['Mt', item.might, 'might'],
+        ['Hit', item.hit, 'hit'],
+        ['Crit', item.crit, 'crit'],
+        ['Wt', item.weight, 'weight'],
+      ];
+      for (const [label, val, key] of stats) {
+        const color = this._getForgeStatColor(item, key, '#bbbbbb');
+        addText(cx, line2Y, `${label}${val}`, color);
+        cx += (`${label}${val}`).length * 6 + 10;
+      }
+      addText(cx, line2Y, `Rng ${rngStr}`, '#bbbbbb');
+    }
+
+    // Line 3: Special / proficiency warning
+    const parts = [];
+    if (item.special) parts.push(item.special);
+    if (recipientUnit && !hasProficiency(recipientUnit, item)) {
+      parts.push(`\u26a0 ${recipientUnit.name} cannot equip`);
+    }
+    if (parts.length > 0) {
+      const specialColor = recipientUnit && !hasProficiency(recipientUnit, item) ? '#cc8844' : '#aaaaaa';
+      addText(paneX, line3Y, parts.join('  |  '), specialColor);
+    }
   }
 
   _showTradePicker(sourceUnit) {
@@ -1718,11 +1819,17 @@ export class RosterOverlay {
     const rightX = DETAIL_X + 230;
     let y = 55;
 
-    // Trade overlay bg
+    // Detail pane dimensions
+    const DETAIL_PANE_H = 56;
+
+    // Trade overlay bg (extra height for detail pane)
     const tradeBg = this.scene.add.rectangle(
-      DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 430, 0x1a1a2e, 0.98
+      DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 480, 0x1a1a2e, 0.98
     ).setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(tradeBg);
+
+    // Init detail pane tracking
+    this._tradeDetailObjects = [];
 
     this._tradeText(leftX + 80, y, 'Trade Items', '#ffdd44', '14px');
     y += 22;
@@ -1752,30 +1859,16 @@ export class RosterOverlay {
           const forgeSuffixSegments = ownerUsable
             ? this._getWeaponForgeSuffixSegments(item)
             : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: rowColor }));
+          const nameColor = noProf ? '#cc8844' : baseNameColor;
           const segments = [
             { text: marker, color: rowColor },
-            { text: this._getWeaponBaseName(item), color: baseNameColor },
+            { text: this._getWeaponBaseName(item), color: nameColor },
             ...forgeSuffixSegments,
           ];
           if (item.type === 'Staff') {
             const rem = getStaffRemainingUses(item, unit);
             const max = getStaffMaxUses(item, unit);
             segments.push({ text: ` (${rem}/${max})`, color: rowColor });
-          } else if (item.might !== undefined) {
-            const rng = parseRange(item.range);
-            const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-            segments.push({ text: ' ', color: rowColor });
-            segments.push({ text: `Mt${item.might}`, color: ownerUsable ? this._getForgeStatColor(item, 'might', rowColor) : rowColor });
-            segments.push({ text: ' ', color: rowColor });
-            segments.push({ text: `Ht${item.hit}`, color: ownerUsable ? this._getForgeStatColor(item, 'hit', rowColor) : rowColor });
-            segments.push({ text: ' ', color: rowColor });
-            segments.push({ text: `Cr${item.crit}`, color: ownerUsable ? this._getForgeStatColor(item, 'crit', rowColor) : rowColor });
-            segments.push({ text: ' ', color: rowColor });
-            segments.push({ text: `Wt${item.weight}`, color: ownerUsable ? this._getForgeStatColor(item, 'weight', rowColor) : rowColor });
-            segments.push({ text: ` ${rngStr}`, color: rowColor });
-          }
-          if (noProf) {
-            segments.push({ text: ' (no prof)', color: '#cc8844' });
           }
 
           const locked = isLastCombatWeapon(unit, item);
@@ -1788,8 +1881,14 @@ export class RosterOverlay {
             const restore = () => {
               row.texts.forEach((t, idx) => t.setColor(interactiveSegments[idx]?.color || '#e0e0e0'));
             };
-            hit.on('pointerover', () => row.texts.forEach((t) => t.setColor('#ffdd44')));
-            hit.on('pointerout', restore);
+            hit.on('pointerover', () => {
+              row.texts.forEach((t) => t.setColor('#ffdd44'));
+              this._drawTradeDetailPane(item, unit, otherUnit);
+            });
+            hit.on('pointerout', () => {
+              restore();
+              this._drawTradeDetailPane(null);
+            });
             hit.on('pointerdown', () => {
               removeFromInventory(unit, item);
               addToInventory(otherUnit, item);
@@ -1816,8 +1915,14 @@ export class RosterOverlay {
             const btn = this.scene.add.text(xPos, sy, label + '  \u25b6', {
               fontFamily: 'monospace', fontSize: '10px', color,
             }).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
-            btn.on('pointerover', () => btn.setColor('#ffdd44'));
-            btn.on('pointerout', () => btn.setColor(color));
+            btn.on('pointerover', () => {
+              btn.setColor('#ffdd44');
+              this._drawTradeDetailPane(item, unit, otherUnit);
+            });
+            btn.on('pointerout', () => {
+              btn.setColor(color);
+              this._drawTradeDetailPane(null);
+            });
             btn.on('pointerdown', () => {
               const idx = unit.consumables.indexOf(item);
               if (idx !== -1) unit.consumables.splice(idx, 1);
@@ -1838,11 +1943,24 @@ export class RosterOverlay {
 
     const leftEnd = drawSide(unitA, unitB, leftX, y);
     const rightEnd = drawSide(unitB, unitA, rightX, y);
-    const endY = Math.max(leftEnd, rightEnd) + 16;
+    const detailPaneY = Math.max(leftEnd, rightEnd) + 10;
 
-    // Done button
+    // Detail pane background (persistent area at bottom of item lists)
+    const detailPaneBg = this.scene.add.rectangle(
+      DETAIL_X + DETAIL_WIDTH / 2, detailPaneY + DETAIL_PANE_H / 2,
+      DETAIL_WIDTH - 20, DETAIL_PANE_H, 0x111122, 0.95
+    ).setDepth(DEPTH_PICKER + 1).setStrokeStyle(1, 0x555566);
+    this.tradeObjects.push(detailPaneBg);
+    this._tradeDetailPaneBg = detailPaneBg;
+    this._tradeDetailPaneY = detailPaneY;
+
+    // Default hint text
+    this._drawTradeDetailPane(null);
+
+    // Done button (below detail pane)
+    const doneY = detailPaneY + DETAIL_PANE_H + 12;
     const doneBtn = this.scene.add.text(
-      DETAIL_X + DETAIL_WIDTH / 2, endY, '[ Done ]', {
+      DETAIL_X + DETAIL_WIDTH / 2, doneY, '[ Done ]', {
       fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
       backgroundColor: '#333333', padding: { x: 16, y: 4 },
     }).setOrigin(0.5).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
@@ -1853,6 +1971,11 @@ export class RosterOverlay {
       this.refresh();
     });
     this.tradeObjects.push(doneBtn);
+
+    // Resize bg to fit all content
+    const totalH = (doneY + 28) - (55 - 15); // from top padding to below Done
+    tradeBg.setSize(DETAIL_WIDTH, totalH);
+    tradeBg.setPosition(DETAIL_X + DETAIL_WIDTH / 2, 55 - 15 + totalH / 2);
   }
 
   // --- Helpers ---
