@@ -508,3 +508,149 @@ describe('BattleScene loot meta wiring', () => {
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalled();
   });
 });
+
+describe('Loot card hover tooltip lifecycle', () => {
+  beforeEach(() => {
+    generateLootChoicesMock.mockReset();
+  });
+
+  function makeTooltipScene() {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    const delayedCalls = [];
+    scene.time.delayedCall = vi.fn((delay, cb) => {
+      const timer = { delay, cb, removed: false, remove() { this.removed = true; } };
+      delayedCalls.push(timer);
+      return timer;
+    });
+    scene.finalizeLootPick = vi.fn();
+    scene.cleanupLootScreen = vi.fn();
+    scene.showLootStatus = vi.fn();
+    return { scene, delayedCalls };
+  }
+
+  it('wires pointerover/pointerout on item cards', () => {
+    generateLootChoicesMock.mockReturnValue([
+      { type: 'weapon', item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 3, range: '1', price: 500 } },
+    ]);
+    const { scene } = makeTooltipScene();
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const card = scene._lootCards?.[0]?.bg;
+    expect(card).toBeTruthy();
+    expect(typeof card.handlers.pointerover).toBe('function');
+    expect(typeof card.handlers.pointerout).toBe('function');
+  });
+
+  it('wires pointerover/pointerout on forge cards', () => {
+    generateLootChoicesMock.mockReturnValue([
+      { type: 'forge', item: { name: 'Silver Whetstone', type: 'Whetstone', forgeStat: 'choice', price: 0 } },
+    ]);
+    const { scene } = makeTooltipScene();
+    scene.showForgeLootPicker = vi.fn();
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const card = scene._lootCards?.[0]?.bg;
+    expect(typeof card.handlers.pointerover).toBe('function');
+    expect(typeof card.handlers.pointerout).toBe('function');
+  });
+
+  it('pointerdown on item card calls _hideLootTooltip before action', () => {
+    generateLootChoicesMock.mockReturnValue([
+      { type: 'accessory', item: { name: 'Power Ring', type: 'Accessory', effects: { STR: 2 }, price: 800 } },
+    ]);
+    const { scene } = makeTooltipScene();
+    const hideOrder = [];
+    scene._hideLootTooltip = vi.fn(() => hideOrder.push('hide'));
+    scene.finalizeLootPick = vi.fn(() => hideOrder.push('finalize'));
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    scene._lootCards[0].bg.handlers.pointerdown();
+    expect(hideOrder[0]).toBe('hide');
+  });
+
+  it('pointerout cancels pending tooltip timer', () => {
+    generateLootChoicesMock.mockReturnValue([
+      { type: 'weapon', item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 3, range: '1', price: 500 } },
+    ]);
+    const { scene, delayedCalls } = makeTooltipScene();
+    BattleScene.prototype.showLootScreen.call(scene);
+
+    const card = scene._lootCards[0].bg;
+    card.handlers.pointerover();
+    expect(delayedCalls).toHaveLength(1);
+    expect(scene._lootTooltipTimer).toBe(delayedCalls[0]);
+
+    card.handlers.pointerout();
+    expect(delayedCalls[0].removed).toBe(true);
+    expect(scene._lootTooltipTimer).toBeNull();
+  });
+
+  it('cleanupLootScreen clears tooltip even before the guard', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    const mockTooltip = { destroy: vi.fn() };
+    scene._lootTooltip = mockTooltip;
+    scene._lootCleanedUp = true; // simulate re-entry
+
+    BattleScene.prototype.cleanupLootScreen.call(scene);
+
+    expect(mockTooltip.destroy).toHaveBeenCalled();
+    expect(scene._lootTooltip).toBeNull();
+  });
+
+  it('finalizeLootPick clears tooltip', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    const mockTooltip = { destroy: vi.fn() };
+    scene._lootTooltip = mockTooltip;
+    scene._lootResolving = false;
+    scene.isElite = false;
+    scene.scheduleLootCleanup = vi.fn();
+
+    BattleScene.prototype.finalizeLootPick.call(scene, [], 0);
+
+    expect(mockTooltip.destroy).toHaveBeenCalled();
+  });
+
+  it('_getLootTooltipText returns null for gold choices', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    const result = BattleScene.prototype._getLootTooltipText.call(scene, { type: 'gold' }, null);
+    expect(result).toBeNull();
+  });
+
+  it('_getLootTooltipText returns weapon art details with shared summarizer', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.gameData.weaponArts = {
+      arts: [{
+        id: 'heavy-blade',
+        name: 'Heavy Blade',
+        weaponType: 'Sword',
+        hpCost: 5,
+        requiredRank: 'Prof',
+        perTurnLimit: 1,
+        perMapLimit: 3,
+        description: 'A powerful overhead strike.',
+        combatMods: { atkBonus: 8, hitBonus: -10 },
+      }],
+    };
+    const item = { teachesWeaponArtId: 'heavy-blade', type: 'Scroll', name: 'Heavy Blade Scroll' };
+    const result = BattleScene.prototype._getLootTooltipText.call(scene, { type: 'weaponArtScroll' }, item);
+
+    expect(result).toContain('Heavy Blade');
+    expect(result).toContain('HP Cost: 5');
+    expect(result).toContain('Sword');
+    expect(result).toContain('1/turn');
+    expect(result).toContain('A powerful overhead strike.');
+    expect(result).toContain('Mt +8');
+    expect(result).toContain('Hit -10');
+  });
+
+  it('_getLootTooltipText returns skill scroll details', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.gameData.skills = [{ id: 'vantage', name: 'Vantage', description: 'Strike first when below 50% HP.', trigger: 'on-combat-start' }];
+    const item = { type: 'Scroll', skillId: 'vantage', name: 'Vantage Scroll', special: 'Teaches Vantage' };
+    const result = BattleScene.prototype._getLootTooltipText.call(scene, { type: 'skillScroll' }, item);
+
+    expect(result).toContain('Vantage Scroll');
+    expect(result).toContain('Strike first when below 50% HP.');
+    expect(result).toContain('on-combat-start');
+  });
+});

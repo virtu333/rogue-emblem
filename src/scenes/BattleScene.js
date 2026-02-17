@@ -106,6 +106,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
 
 function dimColor(color, factor = 0.3) {
   const r = Math.floor(((color >> 16) & 0xff) * factor);
@@ -641,6 +642,7 @@ export class BattleScene extends Phaser.Scene {
           if (this.lootRosterVisible) {
             this.hideLootRoster();
           } else {
+            this._hideLootTooltip();
             this.showLootRoster();
           }
         }
@@ -708,6 +710,7 @@ export class BattleScene extends Phaser.Scene {
           roster: () => {
             if (this.isStoryInputLocked()) return;
             if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+              this._hideLootTooltip();
               if (this.lootRosterVisible) this.hideLootRoster(); else this.showLootRoster();
             } else {
               this._onRosterClick();
@@ -2663,6 +2666,7 @@ export class BattleScene extends Phaser.Scene {
       this.clearInspectionVisuals();
       return true;
     } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
+      this._hideLootTooltip();
       this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
       this.lootSettingsOverlay.show();
     } else if (this.isCancelableBattleState()) {
@@ -8130,6 +8134,7 @@ export class BattleScene extends Phaser.Scene {
         lootGroup.push(typeLabel);
 
         card.on('pointerdown', () => {
+          this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
           this.runManager.addGold(scaledGoldAmount);
@@ -8163,10 +8168,19 @@ export class BattleScene extends Phaser.Scene {
         lootGroup.push(detailLabel);
 
         card.on('pointerdown', () => {
+          this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
           this.showForgeLootPicker(item, lootGroup, cardIdx);
         });
+        card.on('pointerover', () => {
+          this._clearLootTooltipTimer();
+          this._lootTooltipTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+            this._lootTooltipTimer = null;
+            this._showLootTooltip(choice, item, cx, cardY, cardH);
+          });
+        });
+        card.on('pointerout', () => this._hideLootTooltip());
       } else {
         // Item choice (weapon, consumable, rare, accessory)
         const item = choice.item;
@@ -8193,6 +8207,7 @@ export class BattleScene extends Phaser.Scene {
         }
 
         card.on('pointerdown', () => {
+          this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
 
@@ -8218,6 +8233,14 @@ export class BattleScene extends Phaser.Scene {
             this.showLootUnitPicker(item, lootGroup, cardIdx);
           }
         });
+        card.on('pointerover', () => {
+          this._clearLootTooltipTimer();
+          this._lootTooltipTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+            this._lootTooltipTimer = null;
+            this._showLootTooltip(choice, item, cx, cardY, cardH);
+          });
+        });
+        card.on('pointerout', () => this._hideLootTooltip());
       }
     }
 
@@ -8243,6 +8266,7 @@ export class BattleScene extends Phaser.Scene {
     lootGroup.push(skipDesc);
 
     skipCard.on('pointerdown', () => {
+      this._hideLootTooltip();
       const audio = this.registry.get('audio');
       if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
       this.runManager.addGold(skipGold);
@@ -8344,6 +8368,147 @@ export class BattleScene extends Phaser.Scene {
       fallback: 'Equip for passive bonus',
     });
   }
+
+  // ── Loot card hover tooltip ────────────────────────────────────
+
+  _getLootTooltipText(choice, item) {
+    if (!item) return null;
+    const type = choice?.type;
+    const asNum = (v, fb = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
+
+    // Weapons (non-scroll)
+    if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
+      const lines = [];
+      if (item.type) lines.push(item.type);
+      const range = item.range == null ? '1' : String(item.range);
+      lines.push(`Mt ${asNum(item.might)}  Hit ${asNum(item.hit)}  Crit ${asNum(item.crit)}`);
+      lines.push(`Wt ${asNum(item.weight)}  Range ${range}  ${item.rankRequired || 'Prof'}`);
+      if (item.special) lines.push('', item.special);
+      return lines.join('\n');
+    }
+
+    // Weapon art scrolls
+    if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
+      const artId = item.teachesWeaponArtId;
+      const art = artId && this.gameData?.weaponArts?.arts?.find(a => a.id === artId);
+      const lines = [];
+      if (art) {
+        lines.push(art.name || artId);
+        const meta = [];
+        if (art.weaponType) meta.push(art.weaponType);
+        if (art.hpCost) meta.push(`HP Cost: ${art.hpCost}`);
+        if (art.requiredRank) meta.push(art.requiredRank);
+        if (meta.length) lines.push(meta.join('  |  '));
+        const limits = [];
+        if (art.perTurnLimit) limits.push(`${art.perTurnLimit}/turn`);
+        if (art.perMapLimit) limits.push(`${art.perMapLimit}/map`);
+        if (limits.length) lines.push(limits.join('  '));
+        if (art.description) lines.push('', art.description);
+        const summary = summarizeWeaponArtEffect(art);
+        if (summary && summary !== 'No combat modifier' && summary !== art.description) {
+          lines.push('', summary);
+        }
+      } else {
+        lines.push('Teaches Weapon Art');
+        if (artId) lines.push(artId);
+      }
+      return lines.join('\n');
+    }
+
+    // Skill scrolls
+    if (item.type === 'Scroll' || type === 'skillScroll') {
+      const skillDef = item.skillId && this.gameData?.skills?.find(s => s.id === item.skillId);
+      const lines = [];
+      lines.push(item.name || 'Skill Scroll');
+      if (skillDef) {
+        if (skillDef.description) lines.push('', skillDef.description);
+        if (skillDef.trigger) lines.push(`Trigger: ${skillDef.trigger}`);
+        if (skillDef.activation) lines.push(`Activation: ${skillDef.activation}`);
+      } else if (item.special) {
+        lines.push('', item.special);
+      }
+      return lines.join('\n');
+    }
+
+    // Accessories
+    if (item.type === 'Accessory' || type === 'accessory') {
+      return formatAccessoryDetail(item, { separator: '\n', statSeparator: ', ', fallback: 'Equip for passive bonus' });
+    }
+
+    // Consumables
+    if (item.type === 'Consumable') {
+      const lines = [item.name || 'Consumable'];
+      if (item.effect === 'heal') lines.push(`Restores ${asNum(item.value)} HP`);
+      else if (item.effect === 'healFull') lines.push('Restores HP to full');
+      else if (item.effect === 'promote') lines.push('Promotes a Lv 10+ unit');
+      else if (item.effect === 'statBoost') lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
+      if (item.uses !== undefined) lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
+      return lines.join('\n');
+    }
+
+    // Whetstones
+    if (item.type === 'Whetstone' || type === 'forge') {
+      const lines = [item.name || 'Whetstone'];
+      if (item.forgeStat === 'choice') lines.push('Choose which stat to forge');
+      else if (item.forgeStat === 'might') lines.push('+1 Might to a weapon');
+      else if (item.forgeStat === 'crit') lines.push('+5 Crit to a weapon');
+      else if (item.forgeStat === 'hit') lines.push('+5 Hit to a weapon');
+      else if (item.forgeStat === 'weight') lines.push('-1 Weight on a weapon');
+      lines.push(`Max ${FORGE_MAX_LEVEL} forges, ${FORGE_STAT_CAP}/stat`);
+      return lines.join('\n');
+    }
+
+    return null;
+  }
+
+  _showLootTooltip(choice, item, cx, cardY, cardH) {
+    this._hideLootTooltip();
+    const text = this._getLootTooltipText(choice, item);
+    if (!text) return;
+
+    const padX = 8;
+    const padY = 6;
+    const maxTextW = 224;
+    const cam = this.cameras.main;
+
+    const detailText = this.add.text(0, 0, text, {
+      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0',
+      lineSpacing: 3, wordWrap: { width: maxTextW },
+    }).setDepth(761);
+
+    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 120, 240);
+    const boxH = detailText.height + padY * 2;
+
+    // Position above card with 6px gap, clamped to viewport
+    let tx = cx - boxW / 2;
+    let ty = cardY - cardH / 2 - boxH - 6;
+    if (tx + boxW > cam.width - 5) tx = cam.width - 5 - boxW;
+    if (tx < 5) tx = 5;
+    if (ty < 5) ty = cardY + cardH / 2 + 6; // flip below if no room above
+
+    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(760).setStrokeStyle(1, 0x336666);
+    detailText.setPosition(tx + padX, ty + padY);
+
+    this._lootTooltip = this.add.container(0, 0, [bg, detailText]).setDepth(760);
+  }
+
+  _hideLootTooltip() {
+    this._clearLootTooltipTimer();
+    if (this._lootTooltip) {
+      this._lootTooltip.destroy();
+      this._lootTooltip = null;
+    }
+  }
+
+  _clearLootTooltipTimer() {
+    if (this._lootTooltipTimer) {
+      this._lootTooltipTimer.remove(false);
+      this._lootTooltipTimer = null;
+    }
+  }
+
+  // ── End loot tooltip ──────────────────────────────────────────
 
   /** Simple text wrapping helper. */
   wrapText(text, maxChars) {
@@ -8965,6 +9130,7 @@ export class BattleScene extends Phaser.Scene {
    * Non-elite: immediate cleanup. Elite: gray out card, decrement, cleanup at 0.
    */
   finalizeLootPick(lootGroup, cardIndex) {
+    this._hideLootTooltip();
     if (this._lootResolving) return;
     if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
       // Non-elite or last pick -- clean up immediately
@@ -8997,6 +9163,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Clean up loot screen and transition. */
   cleanupLootScreen(lootGroup) {
+    this._hideLootTooltip();
     if (this._lootCleanedUp) return;
     this._lootCleanedUp = true;
     this.hideLootRoster();
