@@ -933,7 +933,8 @@ export class RosterOverlay {
     }
 
     const audio = this.scene.registry.get('audio');
-    if (audio) audio.playSFX('sfx_level_up');
+    if (typeof this.scene.sound?.stopByKey === 'function') this.scene.sound.stopByKey('sfx_levelup');
+    if (audio) audio.playSFX('sfx_levelup');
     this._showBanner(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
     this.refresh();
   }

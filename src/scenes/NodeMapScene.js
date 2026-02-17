@@ -211,6 +211,7 @@ export class NodeMapScene extends Phaser.Scene {
   _onSceneShutdown() {
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
+    if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
       this.dialogueOverlay = null;
@@ -1160,6 +1161,7 @@ export class NodeMapScene extends Phaser.Scene {
 
             promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
 
+            if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_levelup');
             this.showChurchMessage(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
@@ -1191,6 +1193,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   leaveChurchNode() {
     if (!this.churchOverlay) return;
+    if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
     const node = this._churchNode;
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
