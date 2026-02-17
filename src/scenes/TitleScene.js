@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { HowToPlayOverlay } from '../ui/HowToPlayOverlay.js';
 import { HelpOverlay } from '../ui/HelpOverlay.js';
+import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { signOut } from '../cloud/supabaseClient.js';
 import { pushMeta } from '../cloud/CloudSync.js';
@@ -665,13 +666,20 @@ export class TitleScene extends Phaser.Scene {
       }
     } catch (_) {}
 
-    createMenuButton(this, cx, menuY, 'SETTINGS', () => {
-      if (this.settingsOverlay?.visible) return;
-      this.settingsOverlay = new SettingsOverlay(this, null);
-      this.settingsOverlay.show();
+    createMenuButton(this, cx, menuY, 'COMPENDIUM', () => {
+      if (this.compendiumOverlay?.visible) return;
+      this.compendiumOverlay = new CompendiumOverlay(this, this.gameData, () => { this.compendiumOverlay = null; });
+      this.compendiumOverlay.show();
     }, btnDelay + delayIdx * 150);
     menuY += btnGap;
     delayIdx++;
+
+    // Settings — small button in top-left corner
+    createMenuButton(this, 78, 30, 'SETTINGS', () => {
+      if (this.settingsOverlay?.visible) return;
+      this.settingsOverlay = new SettingsOverlay(this, null);
+      this.settingsOverlay.show();
+    }, btnDelay, { width: 130, height: 28, fontSize: '8px', letterSpacing: 1 });
 
     const cloud = this.registry.get('cloud');
     if (cloud) {
@@ -725,6 +733,7 @@ export class TitleScene extends Phaser.Scene {
     if (overlay?.visible && typeof overlay.hide === 'function') overlay.hide();
     this[key] = null;
   }
+
   _drawBackground(time) {
     if (!this.bgCtx) return;
     const ctx = this.bgCtx;

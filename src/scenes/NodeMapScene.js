@@ -802,6 +802,7 @@ export class NodeMapScene extends Phaser.Scene {
   _openRoster() {
     if (this.rosterOverlay?.visible) return;
     if (this.shopOverlay || this.churchOverlay) return;
+    if (this.pauseOverlay?.visible || this.settingsOverlay?.visible) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
         this.rosterOverlay = null;
