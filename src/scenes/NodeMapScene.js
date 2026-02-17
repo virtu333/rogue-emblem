@@ -174,6 +174,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._unbindInputHandlers();
 
     this._onEsc = (event) => {
+      if (event?.defaultPrevented) return;
       if (event?.repeat) return;
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
       this.requestCancel();
@@ -488,7 +489,9 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     if (this.pauseOverlay?.visible) {
-      this.pauseOverlay.hide();
+      if (!this.pauseOverlay.closeActiveSubOverlay()) {
+        this.pauseOverlay.hide();
+      }
       return true;
     }
     if (this.rosterOverlay?.visible) {
@@ -575,6 +578,7 @@ export class NodeMapScene extends Phaser.Scene {
           this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
         }
       },
+      gameData: this.gameData,
     });
     this.pauseOverlay.show();
   }

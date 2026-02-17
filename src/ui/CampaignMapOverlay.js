@@ -250,7 +250,9 @@ export class CampaignMapOverlay {
     }
   }
 
-  _close() {
+  _close(_key, event) {
+    if (event?.preventDefault) event.preventDefault();
+    if (event?.stopPropagation) event.stopPropagation();
     this.hide();
   }
 

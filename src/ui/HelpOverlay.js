@@ -80,7 +80,9 @@ export class HelpOverlay {
     }
   }
 
-  _onEsc() {
+  _onEsc(_key, event) {
+    if (event?.preventDefault) event.preventDefault();
+    if (event?.stopPropagation) event.stopPropagation();
     if (this.searchInputActive) {
       this.searchInputActive = false;
       this._draw();

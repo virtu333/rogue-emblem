@@ -659,7 +659,8 @@ export class BattleScene extends Phaser.Scene {
         if (this.isStoryInputLocked()) return;
         this.forceEndTurn();
       });
-      this.input.keyboard.on('keydown-ESC', () => {
+      this.input.keyboard.on('keydown-ESC', (event) => {
+        if (event?.defaultPrevented) return;
         if (this.isStoryInputLocked()) return;
         this.requestCancel();
       });
@@ -3015,7 +3016,9 @@ export class BattleScene extends Phaser.Scene {
       if (this.isMobileInput) this.inspectMode = false;
       this.clearInspectionVisuals();
     } else if (this.pauseOverlay?.visible) {
-      this.pauseOverlay.hide();
+      if (!this.pauseOverlay.closeActiveSubOverlay()) {
+        this.pauseOverlay.hide();
+      }
     } else if (this.lootRosterVisible) {
       this.hideLootRoster();
     } else if (!allowPause && this.isMobileInput && this.inspectMode) {
@@ -3383,6 +3386,7 @@ export class BattleScene extends Phaser.Scene {
       onSaveAndExitWarning: 'Battle Progress Will Be Lost',
       onAbandon: abandonCb,
       campaignMapData,
+      gameData: this.gameData,
     });
     this.pauseOverlay.show();
     this.refreshEndTurnControl();
