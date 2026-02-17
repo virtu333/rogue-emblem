@@ -106,6 +106,41 @@ describe('Weapon triangle', () => {
     expect(bonus.hit).toBeGreaterThan(0);
   });
 
+  it('non-reaver gets disadvantage vs opponent Lancereaver', () => {
+    const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    // Lance normally beats Sword → reaver on defender flips to disadvantage for lance
+    const bonus = getWeaponTriangleBonus(ironLance, lancereaver);
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+
+  it('non-reaver gets disadvantage vs opponent Swordreaver', () => {
+    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
+    // Axe normally beats Lance → reaver on defender flips to disadvantage for axe
+    const bonus = getWeaponTriangleBonus(ironAxe, swordreaver);
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+
+  it('non-reaver gets disadvantage vs opponent Axereaver', () => {
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const axereaver = data.weapons.find(w => w.name === 'Axereaver');
+    // Sword normally beats Axe → reaver on defender flips to disadvantage for sword
+    const bonus = getWeaponTriangleBonus(ironSword, axereaver);
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+
+
+  it('non-reaver gets advantage vs opponent Lancereaver when normally disadvantaged', () => {
+    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const bonus = getWeaponTriangleBonus(ironAxe, lancereaver);
+    expect(bonus.hit).toBe(10);
+    expect(bonus.damage).toBe(1);
+  });
   it('same weapon type = no bonus', () => {
     const s1 = data.weapons.find(w => w.name === 'Iron Sword');
     const s2 = data.weapons.find(w => w.name === 'Steel Sword');
@@ -1140,6 +1175,8 @@ describe('Combat mod merging', () => {
         hitBonus: 10,
         ignoreTerrainAvoid: false,
         rangeBonus: 1,
+        drainPercent: 0.2,
+        multiHit: { count: 2, damageMultiplier: 0.8 },
         activated: [{ id: 'a', name: 'A' }],
       },
       {
@@ -1154,6 +1191,8 @@ describe('Combat mod merging', () => {
         rangeOverride: 2,
         halfPhysicalDamage: true,
         vengeance: true,
+        drainPercent: 0.3,
+        multiHit: { count: 3, damageMultiplier: 0.5 },
         activated: [{ id: 'b', name: 'B' }],
       }
     );
@@ -1169,6 +1208,8 @@ describe('Combat mod merging', () => {
     expect(merged.rangeOverride).toEqual({ min: 2, max: 2 });
     expect(merged.halfPhysicalDamage).toBe(true);
     expect(merged.vengeance).toBe(true);
+    expect(merged.multiHit).toEqual({ count: 3, damageMultiplier: 0.5 });
+    expect(merged.drainPercent).toBe(0.3);
     expect(merged.activated.length).toBe(2);
   });
 

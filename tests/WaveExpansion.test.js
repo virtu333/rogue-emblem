@@ -90,6 +90,77 @@ describe('Reaver weapons', () => {
   });
 });
 
+describe('Reaver opponent reversal', () => {
+  it('Lancereaver attacker gets disadvantage vs Iron Axe (normal advantage flipped)', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    // Sword normally beats Axe → reaver flips to disadvantage
+    const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Prof');
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+
+  it('Swordreaver attacker gets disadvantage vs Iron Sword (normal advantage flipped)', () => {
+    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    // Lance normally beats Sword → reaver flips to disadvantage
+    const bonus = getWeaponTriangleBonus(swordreaver, ironSword, 'Prof');
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+
+  it('Lancereaver vs Iron Sword is neutral (same effective type)', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const bonus = getWeaponTriangleBonus(lancereaver, ironSword, 'Prof');
+    expect(bonus.hit).toBe(0);
+    expect(bonus.damage).toBe(0);
+  });
+
+  it('Lancereaver vs Iron Bow is neutral (non-triangle type)', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironBow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bonus = getWeaponTriangleBonus(lancereaver, ironBow, 'Prof');
+    expect(bonus.hit).toBe(0);
+    expect(bonus.damage).toBe(0);
+  });
+
+  it('Axereaver vs Iron Axe is neutral (same type)', () => {
+    const axereaver = data.weapons.find(w => w.name === 'Axereaver');
+    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const bonus = getWeaponTriangleBonus(axereaver, ironAxe, 'Prof');
+    expect(bonus.hit).toBe(0);
+    expect(bonus.damage).toBe(0);
+  });
+
+  it('Lancereaver vs Iron Lance at Mastery gets mastery advantage', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
+    const bonus = getWeaponTriangleBonus(lancereaver, ironLance, 'Mast');
+    expect(bonus.hit).toBe(15);
+    expect(bonus.damage).toBe(2);
+  });
+
+  it('Lancereaver vs Iron Axe at Mastery gets mastery disadvantage', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Mast');
+    expect(bonus.hit).toBe(-5);
+    expect(bonus.damage).toBe(-1);
+  });
+
+  it('double-reaver cancels out (Lancereaver vs Swordreaver = normal triangle)', () => {
+    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
+    // Both are reavers → XOR=false → normal triangle applies
+    // Lancereaver is Sword type, Swordreaver is Lance type
+    // Sword vs Lance = disadvantage for Sword
+    const bonus = getWeaponTriangleBonus(lancereaver, swordreaver, 'Prof');
+    expect(bonus.hit).toBe(-10);
+    expect(bonus.damage).toBe(-1);
+  });
+});
+
 describe('Triangle ignore', () => {
   it('Ruin clamps negative triangle to 0', () => {
     const ruin = data.weapons.find(w => w.name === 'Ruin');
