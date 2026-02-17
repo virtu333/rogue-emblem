@@ -71,6 +71,10 @@ function makeUiCameraScene() {
     on: vi.fn(),
     off: vi.fn(),
   };
+  scene.input = {
+    addPointer: vi.fn(),
+    pointer2: null,
+  };
   scene._syncPinnedUiCameraFilters = vi.fn();
   return { scene, uiCamera };
 }
@@ -81,9 +85,11 @@ describe('BattleScene mobile camera UI pinning', () => {
 
     const worldHint = { depth: 1000, _forceWorldCamera: true };
     const uiObject = { depth: 1000 };
+    const lowDepthOverlay = { depth: 500 };
 
     expect(BattleScene.prototype._isAutoPinCandidate.call(scene, worldHint)).toBe(false);
     expect(BattleScene.prototype._isAutoPinCandidate.call(scene, uiObject)).toBe(true);
+    expect(BattleScene.prototype._isAutoPinCandidate.call(scene, lowDepthOverlay)).toBe(true);
   });
 
   it('pins reinforcement banner to screen camera', () => {
@@ -102,6 +108,63 @@ describe('BattleScene mobile camera UI pinning', () => {
     const { scene, banner } = makeBannerScene();
     BattleScene.prototype.showPhaseBanner.call(scene, 'player', 2);
     expect(scene._pinToScreen).toHaveBeenCalledWith(banner);
+  });
+});
+
+describe('BattleScene mobile camera pointer provisioning', () => {
+  it('does not initialize mobile camera plumbing when mobile camera is disabled', () => {
+    const { scene } = makeUiCameraScene();
+    scene.mobileCameraEnabled = false;
+    scene._setBattleCanvasTouchAction = vi.fn();
+    scene._syncMobileResetViewButton = vi.fn();
+
+    BattleScene.prototype._setupBattleCameraSystem.call(scene);
+
+    expect(scene.input.addPointer).not.toHaveBeenCalled();
+    expect(scene.cameras.add).not.toHaveBeenCalled();
+    expect(scene._battleCamera).toBeNull();
+  });
+
+  it('requests pointer2 during battle camera setup when missing', () => {
+    const { scene } = makeUiCameraScene();
+    scene._setBattleCanvasTouchAction = vi.fn();
+    scene._syncMobileResetViewButton = vi.fn();
+
+    BattleScene.prototype._setupBattleCameraSystem.call(scene);
+
+    expect(scene.input.addPointer).toHaveBeenCalledWith(1);
+  });
+
+  it('does not request pointer2 when already provisioned', () => {
+    const { scene } = makeUiCameraScene();
+    scene.input.pointer2 = {};
+    scene._setBattleCanvasTouchAction = vi.fn();
+    scene._syncMobileResetViewButton = vi.fn();
+
+    BattleScene.prototype._setupBattleCameraSystem.call(scene);
+
+    expect(scene.input.addPointer).not.toHaveBeenCalled();
+  });
+});
+
+describe('BattleScene UI camera filter assignment', () => {
+  it('routes depth-500 overlays to the pinned UI set', () => {
+    const scene = new BattleScene();
+    scene._uiCamera = { id: 2 };
+    scene.cameras = { main: { id: 1 } };
+    const overlay = { depth: 500, cameraFilter: 0 };
+    const worldObj = { depth: 10, cameraFilter: 0 };
+    scene.children = { list: [overlay, worldObj] };
+    scene._pinnedUiObjects = new Set();
+
+    BattleScene.prototype._syncPinnedUiCameraFilters.call(scene);
+
+    expect(scene._pinnedUiObjects.has(overlay)).toBe(true);
+    expect(scene._pinnedUiObjects.has(worldObj)).toBe(false);
+    expect((overlay.cameraFilter & scene.cameras.main.id) !== 0).toBe(true);
+    expect((overlay.cameraFilter & scene._uiCamera.id) !== 0).toBe(false);
+    expect((worldObj.cameraFilter & scene._uiCamera.id) !== 0).toBe(true);
+    expect((worldObj.cameraFilter & scene.cameras.main.id) !== 0).toBe(false);
   });
 });
 

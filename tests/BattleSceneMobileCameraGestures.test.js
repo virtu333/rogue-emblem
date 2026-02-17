@@ -43,12 +43,39 @@ function makeUiObject() {
 }
 
 describe('BattleScene mobile camera gesture policy', () => {
-  it('allows gestures only in approved states when no overlays are active', () => {
-    const scene = makeGesturePolicyScene({ battleState: 'PLAYER_IDLE' });
-    expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(true);
+  it('allows gestures across active gameplay states when no overlays are active', () => {
+    const scene = makeGesturePolicyScene();
+    const allowedStates = [
+      'PLAYER_IDLE',
+      'UNIT_SELECTED',
+      'SELECTING_TARGET',
+      'SHOWING_FORECAST',
+      'ENEMY_PHASE',
+      'COMBAT_RESOLVING',
+      'HEAL_RESOLVING',
+      'CANTO_MOVING',
+    ];
 
-    scene.battleState = 'UNIT_ACTION_MENU';
-    expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
+    for (const state of allowedStates) {
+      scene.battleState = state;
+      expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(true);
+    }
+  });
+
+  it('blocks gestures in modal or non-gesture battle states', () => {
+    const scene = makeGesturePolicyScene();
+    const blockedStates = [
+      'UNIT_ACTION_MENU',
+      'SELECTING_HEAL_TARGET',
+      'DEPLOY_SELECTION',
+      'PAUSED',
+      'BATTLE_END',
+    ];
+
+    for (const state of blockedStates) {
+      scene.battleState = state;
+      expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
+    }
   });
 
   it('blocks gestures while roster-like overlays are visible', () => {
@@ -56,6 +83,21 @@ describe('BattleScene mobile camera gesture policy', () => {
       rosterOverlay: { visible: true },
     });
     expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
+  });
+
+  it('blocks gestures while modal overlays are visible', () => {
+    const blockedOverlayScenarios = [
+      { pauseOverlay: { visible: true } },
+      { unitDetailOverlay: { visible: true } },
+      { visionDialog: {} },
+      { lootSettingsOverlay: true },
+      { lootRosterVisible: true },
+    ];
+
+    for (const overrides of blockedOverlayScenarios) {
+      const scene = makeGesturePolicyScene(overrides);
+      expect(BattleScene.prototype.isCameraGestureAllowed.call(scene)).toBe(false);
+    }
   });
 
   it('suppresses tap flow when a second touch is active, even if gesture input is disallowed', () => {
@@ -74,6 +116,18 @@ describe('BattleScene mobile camera gesture policy', () => {
     expect(consumed).toBe(true);
     expect(cancelTouchInspectHold).toHaveBeenCalledTimes(1);
     expect(scene._touchHoldTriggered).toBe(false);
+  });
+
+  it('blocks gestures while story or tutorial gate is active', () => {
+    const storyLocked = makeGesturePolicyScene({
+      isStoryInputLocked: () => true,
+    });
+    expect(BattleScene.prototype.isCameraGestureAllowed.call(storyLocked)).toBe(false);
+
+    const tutorialLocked = makeGesturePolicyScene({
+      _isTutorialStrictGateActive: () => true,
+    });
+    expect(BattleScene.prototype.isCameraGestureAllowed.call(tutorialLocked)).toBe(false);
   });
 });
 
