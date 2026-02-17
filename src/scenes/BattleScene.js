@@ -4708,6 +4708,93 @@ export class BattleScene extends Phaser.Scene {
     text.on('pointerup', () => this._clearMenuTooltipTimer('_menuTooltipPressTimer'));
   }
 
+  _showBossRecruitClassTooltip(anchorText, description) {
+    if (!anchorText || typeof description !== 'string') return;
+    const body = description.trim();
+    if (!body) return;
+    this._hideMenuTooltip();
+    const anchorDepth = Number(anchorText?.depth);
+    const tooltipDepth = Number.isFinite(anchorDepth)
+      ? Math.max(703, anchorDepth + 1)
+      : 703;
+    const padding = 8;
+    const maxWidth = 220;
+    const txt = this.add.text(0, 0, body, {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#e0e0e0',
+      wordWrap: { width: maxWidth - (padding * 2) },
+    }).setDepth(tooltipDepth);
+    const bg = this.add.rectangle(
+      0, 0,
+      txt.width + (padding * 2),
+      txt.height + (padding * 2),
+      0x222222, 0.95
+    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(tooltipDepth);
+    const box = this.add.container(0, 0, [bg, txt]).setDepth(tooltipDepth);
+    txt.setPosition(padding, padding);
+
+    const b = anchorText.getBounds();
+    let x = b.right + 8;
+    let y = b.top - 4;
+    if (x + bg.width > this.cameras.main.width - 4) x = b.left - bg.width - 8;
+    if (x < 4) x = 4;
+    if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
+    if (y < 4) y = 4;
+    box.setPosition(x, y);
+    this._pinToScreen(box);
+    this._menuTooltip = box;
+  }
+
+  _wireBossRecruitClassTooltip(text, description, onTap) {
+    if (!text || typeof description !== 'string' || !description.trim()) return;
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerover', () => {
+      this._clearMenuTooltipTimer('_menuTooltipHoverTimer');
+      this._menuTooltipHoverTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
+        this._menuTooltipHoverTimer = null;
+        this._showBossRecruitClassTooltip(text, description);
+      });
+    });
+    text.on('pointerout', () => {
+      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      text._bossRecruitPressed = null;
+      this._hideMenuTooltip();
+    });
+    text.on('pointerdown', (pointer) => {
+      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      text._bossRecruitPressed = {
+        id: pointer?.id,
+        x: pointer?.x ?? 0,
+        y: pointer?.y ?? 0,
+        longPressShown: false,
+      };
+      this._menuTooltipPressTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
+        this._menuTooltipPressTimer = null;
+        if (!text._bossRecruitPressed) return;
+        text._bossRecruitPressed.longPressShown = true;
+        this._showBossRecruitClassTooltip(text, description);
+      });
+    });
+    text.on('pointermove', (pointer) => {
+      const pressed = text._bossRecruitPressed;
+      if (!pressed || !this._menuTooltipPressTimer) return;
+      if (pressed.id !== pointer?.id) return;
+      const dx = (pointer?.x ?? 0) - pressed.x;
+      const dy = (pointer?.y ?? 0) - pressed.y;
+      if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
+        this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      }
+    });
+    text.on('pointerup', () => {
+      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      const longPressShown = !!text._bossRecruitPressed?.longPressShown;
+      text._bossRecruitPressed = null;
+      if (longPressShown) return;
+      if (typeof onTap === 'function') onTap();
+    });
+  }
+
   _isReducedEffects() {
     const settings = this.registry.get('settings');
     return !!settings?.getReducedEffects?.();
@@ -8260,6 +8347,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show boss recruit selection: pick 1 of 3 recruits or skip, then proceed to loot. */
   showBossRecruitScreen() {
+    this._hideMenuTooltip();
     const candidates = generateBossRecruitCandidates(
       this.runManager.currentAct,
       this.runManager.roster,
@@ -8304,6 +8392,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Helper to clean up and proceed to loot
     const cleanupAndLoot = () => {
+      this._hideMenuTooltip();
       this.hideLootRoster();
       for (const obj of recruitGroup) obj.destroy();
       this.lootGroup = null;
@@ -8347,6 +8436,9 @@ export class BattleScene extends Phaser.Scene {
       recruitGroup.push(cls);
       yOff += 14;
 
+      const classData = this.gameData.classes?.find(cl => cl.name === u.className);
+      const descText = classData?.description || '';
+
       // Level
       const lvl = applyTextResolution(this.add.text(cx, yOff, `Lv ${u.level}`, {
         fontFamily: 'monospace', fontSize: '10px', color: '#66ddff',
@@ -8361,22 +8453,16 @@ export class BattleScene extends Phaser.Scene {
       recruitGroup.push(sep);
       yOff += 12;
 
-      // Class description
-      const classData = this.gameData.classes?.find(cl => cl.name === u.className);
-      const descText = classData?.description || '';
-      if (descText) {
-        const desc = this.add.text(cx, yOff, descText, {
-          fontFamily: 'monospace', fontSize: '8px', color: '#ccaa77',
-          wordWrap: { width: cardW - 14 }, align: 'center',
-        }).setOrigin(0.5, 0).setDepth(702);
-        // Clamp to 2 lines max to prevent card overflow
-        const maxDescH = 22;
-        if (desc.height > maxDescH) {
-          desc.setCrop(0, 0, desc.width, maxDescH);
-        }
-        recruitGroup.push(desc);
-        yOff += Math.min(desc.height, maxDescH) + 8;
-      }
+      let selected = false;
+      const selectRecruit = () => {
+        if (selected) return;
+        selected = true;
+        if (audio) audio.playSFX('sfx_confirm');
+        this.runManager.roster.push(c.unit);
+        cleanupAndLoot();
+      };
+      this._wireBossRecruitClassTooltip(name, descText, selectRecruit);
+      this._wireBossRecruitClassTooltip(cls, descText, selectRecruit);
 
       // Core comparison stats
       const useMag = (u.stats?.MAG || 0) > (u.stats?.STR || 0);
@@ -8426,11 +8512,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Click handler
-      card.on('pointerdown', () => {
-        if (audio) audio.playSFX('sfx_confirm');
-        this.runManager.roster.push(c.unit);
-        cleanupAndLoot();
-      });
+      card.on('pointerdown', selectRecruit);
 
       // Hover effect
       card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
