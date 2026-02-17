@@ -62,7 +62,7 @@ These systems are live in the current build. The original GDD (`docs/emblem_rogu
 
 | System | Design Doc | Status |
 |--------|-----------|--------|
-| **Weapon Arts** | `docs/gdd/gdd_combat_expansion.md` | Phases 1-2 shipped (39 of 67 arts). Stat-scaling, magic catalog, tactical-depth arts on `main`. Remaining: legendary signature arts, polish pass. |
+| **Weapon Arts** | `docs/gdd/gdd_combat_expansion.md` | Tiers 1-4 mechanics shipped for 60 arts; runtime catalog is 75 total with 15 deferred-placeholder mechanics still queued (Tier 2 legendary follow-up, Tier 3, Tier 5, bespoke). |
 | **Convoy** | `docs/gdd/gdd_economy_convoy.md` | MVP shipped (5+5 split slots, unlimited accessories). Economy tuning ongoing. |
 | **Wyvern Rider/Lord** | `docs/gdd/gdd_units_reclassing.md` | Classes shipped. Stun + Intimidate skills. Enemy/recruit pool integration done. |
 | **Difficulty Foundation** | `docs/gdd/gdd_difficulty_narrative_v2.md` | Normal/Hard selector shipped. Act 4 content next. Lunatic/Secret Act deferred. |

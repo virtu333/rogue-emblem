@@ -1,10 +1,10 @@
 # Combat Expansion Design — Weapon Arts & Status Staves (v3 FINAL)
 
 > **Ported from:** `References/GDDExpansion/` (Feb 13, 2026)
-> **Implementation status:** Weapon Arts phases 1-2 shipped (39 of 67 arts in code). Stat-scaling arts, magic catalog, tactical-depth arts (effectiveness/no-counter/range modifiers), combat flags, and act/meta progression are on `main`. Status staves remain future scope — deferred until after Act 4 stabilizes.
+> **Implementation status (updated Feb 17, 2026):** Weapon Arts Tier 4 (`multiHit`, `drainPercent`) is now shipped. Runtime catalog has 75 arts in `data/weaponArts.json`, with 60 arts fully implemented and 15 entries still using `_deferredMechanic` placeholders (Tier 2 legendary follow-up, Tier 3, Tier 5, bespoke). Status staves remain future scope.
 
 **Date:** February 11, 2026
-**Status:** Design complete — partially implemented (weapon arts phases 1-2 shipped, status staves deferred)
+**Status:** Design complete; implementation in progress (60 arts fully implemented, deferred mechanics expansion planned)
 **Dependencies:** Forging system, scroll system, loot tables, meta-progression, skill system
 **Source Research:** Serenes Forest — Echoes: SoV, Three Houses, Engage combat arts/skills
 
@@ -635,6 +635,7 @@ Effective chance = `enemyStatusStaffChance × statusStaffActGating[act]`.
 **Total standard arts:** 52
 **Legendary signature arts:** 15 (4 Brave + 11 other)
 **Grand total:** 67 weapon arts
+> Note (Feb 16, 2026): The 67 total above is this v3 design catalog snapshot. Runtime data currently contains 75 arts due to post-v3 expansion entries, including deferred-placeholder mechanics.
 
 ### Appendix B: Resolved Design Decisions
 
