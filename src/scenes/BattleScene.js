@@ -135,6 +135,16 @@ const HIDDEN_WEAPON_ART_REASONS = new Set([
   'invalid_unlock_act_config',
   'invalid_input',
 ]);
+const TIER5_BUFF_CORE_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
+const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
+  HIT: 'hitBonus',
+  CRIT: 'critBonus',
+  AVOID: 'avoidBonus',
+  ATK: 'atkBonus',
+  DEF_BONUS: 'defBonus',
+  RES_BONUS: 'resBonus',
+  SPD_BONUS: 'spdBonus',
+};
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
 const POST_LOOT_TRANSITION_RECHECK_MS = 250;
@@ -5347,6 +5357,22 @@ export class BattleScene extends Phaser.Scene {
     const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
+    const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
+    const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
+    atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
+    atkMods.critBonus += atkTimedBuffMods.critBonus || 0;
+    atkMods.avoidBonus += atkTimedBuffMods.avoidBonus || 0;
+    atkMods.atkBonus += atkTimedBuffMods.atkBonus || 0;
+    atkMods.defBonus += atkTimedBuffMods.defBonus || 0;
+    atkMods.resBonus += atkTimedBuffMods.resBonus || 0;
+    atkMods.spdBonus += atkTimedBuffMods.spdBonus || 0;
+    defMods.hitBonus += defTimedBuffMods.hitBonus || 0;
+    defMods.critBonus += defTimedBuffMods.critBonus || 0;
+    defMods.avoidBonus += defTimedBuffMods.avoidBonus || 0;
+    defMods.atkBonus += defTimedBuffMods.atkBonus || 0;
+    defMods.defBonus += defTimedBuffMods.defBonus || 0;
+    defMods.resBonus += defTimedBuffMods.resBonus || 0;
+    defMods.spdBonus += defTimedBuffMods.spdBonus || 0;
 
     // Blessing terrain combat bonuses
     const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
@@ -6319,6 +6345,12 @@ export class BattleScene extends Phaser.Scene {
         case 'tier2_move':
           await this._applyTier2MoveStep(sourceUnit, targetUnit, step);
           break;
+        case 'tier5_aoe_splash':
+          await this._applyTier5AoeSplashStep(step, sourceUnit, targetUnit);
+          break;
+        case 'tier5_ally_buff':
+          await this._applyTier5AllyBuffStep(step, sourceUnit);
+          break;
         default:
           break;
       }
@@ -6370,6 +6402,257 @@ export class BattleScene extends Phaser.Scene {
       this.updateUnitPosition(unit);
     }
     this._refreshPostCombatMovementState(movedUnits);
+  }
+
+  _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
+    if (!sourceUnit || !primaryTarget) return [];
+    const radius = Math.max(0, Math.trunc(Number(step?.radius) || 0));
+    if (radius <= 0) return [];
+    const candidates = this._getTier5HostileUnitsFor(sourceUnit)
+      .filter((unit) => unit && unit !== primaryTarget && unit.currentHP > 0)
+      .filter((unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius);
+    const maxTargets = Math.max(0, Math.trunc(Number(step?.maxTargets) || 0));
+    if (maxTargets === 1) {
+      candidates.sort((a, b) => {
+        const aHpPct = (Number(a.currentHP) || 0) / Math.max(1, Number(a.stats?.HP) || 1);
+        const bHpPct = (Number(b.currentHP) || 0) / Math.max(1, Number(b.stats?.HP) || 1);
+        if (aHpPct !== bHpPct) return aHpPct - bHpPct;
+        if (a.row !== b.row) return a.row - b.row;
+        if (a.col !== b.col) return a.col - b.col;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+      return candidates.slice(0, 1);
+    }
+    candidates.sort((a, b) => {
+      if (a.row !== b.row) return a.row - b.row;
+      if (a.col !== b.col) return a.col - b.col;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+    return maxTargets > 0 ? candidates.slice(0, maxTargets) : candidates;
+  }
+
+  _getTier5HostileUnitsFor(sourceUnit) {
+    if (!sourceUnit) return [];
+    if (sourceUnit.faction === 'enemy') return this.playerUnits || [];
+    return this.enemyUnits || [];
+  }
+
+  _getTier5SplashDamage(step) {
+    const damageKind = String(step?.damageKind || '').toLowerCase();
+    if (damageKind === 'fixed') {
+      return Math.max(0, Math.trunc(Number(step?.fixedDamage) || 0));
+    }
+    let multiplier = Number(step?.damageMultiplier) || 0;
+    if (multiplier > 1) multiplier /= 100;
+    const basisDamage = Math.max(0, Math.trunc(Number(step?.basisDamage) || 0));
+    return Math.max(0, Math.floor(basisDamage * Math.max(0, multiplier)));
+  }
+
+  async _applyTier5AoeSplashStep(step, sourceUnit, primaryTarget) {
+    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+    if (!primaryTarget) return;
+    const targets = this._collectTier5SplashTargets(step, sourceUnit, primaryTarget);
+    if (targets.length <= 0) return;
+    const splashDamage = this._getTier5SplashDamage(step);
+    if (splashDamage <= 0) return;
+    for (const target of targets) {
+      if (!target || target.currentHP <= 0) continue;
+      const hpFloor = step?.nonLethal ? 1 : 0;
+      const prevHP = target.currentHP;
+      target.currentHP = Math.max(hpFloor, target.currentHP - splashDamage);
+      const actualDamage = prevHP - target.currentHP;
+      if (actualDamage <= 0) continue;
+      this.updateHPBar(target);
+      const pos = this.grid.gridToPixel(target.col, target.row);
+      this.showMinorHintAt(pos.x, pos.y, `Splash -${actualDamage}`, '#ff9966');
+      if (target.currentHP <= 0) {
+        await this.removeUnit(target);
+      }
+    }
+  }
+
+  _applyTier5TimedBuffEntry(unit, entry) {
+    if (!unit) return;
+    if (!Array.isArray(unit._battleTimedWeaponArtBuffs)) unit._battleTimedWeaponArtBuffs = [];
+    const key = String(entry?.key || '');
+    if (key) {
+      const existing = unit._battleTimedWeaponArtBuffs.find((buff) => buff?.key === key);
+      if (existing) {
+        existing.stats = { ...(entry.stats || {}) };
+        existing.expiryPhase = entry.expiryPhase;
+        existing.expiryTurn = entry.expiryTurn;
+        existing.artId = entry.artId || null;
+        existing.sourceName = entry.sourceName || null;
+        existing.sourceFaction = entry.sourceFaction || null;
+        this._recomputeTimedWeaponArtBuffState(unit);
+        return;
+      }
+    }
+    unit._battleTimedWeaponArtBuffs.push({
+      key: key || null,
+      artId: entry?.artId || null,
+      sourceName: entry?.sourceName || null,
+      sourceFaction: entry?.sourceFaction || null,
+      expiryPhase: entry?.expiryPhase || null,
+      expiryTurn: Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1)),
+      stats: { ...(entry?.stats || {}) },
+    });
+    this._recomputeTimedWeaponArtBuffState(unit);
+  }
+
+  _recomputeTimedWeaponArtBuffState(unit) {
+    if (!unit) return;
+    const buffs = Array.isArray(unit._battleTimedWeaponArtBuffs)
+      ? unit._battleTimedWeaponArtBuffs.filter((entry) => entry && entry.stats && typeof entry.stats === 'object')
+      : [];
+    unit._battleTimedWeaponArtBuffs = buffs;
+
+    const strongestByStat = {};
+    for (const entry of buffs) {
+      for (const [rawStat, rawValue] of Object.entries(entry.stats || {})) {
+        const stat = String(rawStat || '').trim().toUpperCase();
+        if (!stat) continue;
+        const value = Math.trunc(Number(rawValue) || 0);
+        if (value === 0) continue;
+        const prev = strongestByStat[stat];
+        if (!Number.isFinite(prev) || value > prev) strongestByStat[stat] = value;
+      }
+    }
+
+    const prevApplied = unit._battleTimedWeaponArtAppliedStats || {};
+    const nextApplied = {};
+    const allCoreStats = new Set([
+      ...Object.keys(prevApplied),
+      ...Object.keys(strongestByStat).filter((stat) => TIER5_BUFF_CORE_STATS.has(stat)),
+    ]);
+
+    for (const stat of allCoreStats) {
+      const prevValue = Math.trunc(Number(prevApplied[stat]) || 0);
+      const nextValue = TIER5_BUFF_CORE_STATS.has(stat)
+        ? Math.trunc(Number(strongestByStat[stat]) || 0)
+        : 0;
+      const delta = nextValue - prevValue;
+      if (delta !== 0) {
+        unit.stats[stat] = (unit.stats[stat] || 0) + delta;
+        if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat] || 1);
+        else unit.stats[stat] = Math.max(0, unit.stats[stat] || 0);
+        if (stat === 'MOV') unit.mov = unit.stats.MOV;
+      }
+      if (nextValue !== 0) nextApplied[stat] = nextValue;
+    }
+
+    const combatMods = {};
+    for (const [stat, value] of Object.entries(strongestByStat)) {
+      const modKey = TIER5_BUFF_COMBAT_MOD_BY_STAT[stat];
+      if (!modKey) continue;
+      const normalized = Math.trunc(Number(value) || 0);
+      if (normalized === 0) continue;
+      const prev = combatMods[modKey] || 0;
+      if (normalized > prev) combatMods[modKey] = normalized;
+    }
+
+    if (Object.keys(nextApplied).length > 0) unit._battleTimedWeaponArtAppliedStats = nextApplied;
+    else delete unit._battleTimedWeaponArtAppliedStats;
+
+    if (Object.keys(combatMods).length > 0) unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
+    else delete unit._battleTimedWeaponArtAppliedCombatMods;
+
+    if (unit._battleTimedWeaponArtBuffs.length <= 0) {
+      delete unit._battleTimedWeaponArtBuffs;
+    }
+  }
+
+  _resolveTier5BuffExpiry(sourceUnit, durationPhases = 1) {
+    const phase = sourceUnit?.faction === 'enemy' ? 'enemy' : 'player';
+    const currentTurn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
+    const duration = Math.max(1, Math.trunc(Number(durationPhases) || 1));
+    return {
+      expiryPhase: phase,
+      expiryTurn: currentTurn + duration,
+    };
+  }
+
+  async _applyTier5AllyBuffStep(step, sourceUnit) {
+    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+    const range = Math.max(0, Math.trunc(Number(step?.range) || 0));
+    if (range <= 0) return;
+    const rawStats = step?.stats;
+    if (!rawStats || typeof rawStats !== 'object') return;
+    const stats = {};
+    for (const [rawStat, rawValue] of Object.entries(rawStats)) {
+      const stat = String(rawStat || '').trim().toUpperCase();
+      if (!stat) continue;
+      const value = Math.trunc(Number(rawValue) || 0);
+      if (value === 0) continue;
+      stats[stat] = value;
+    }
+    if (Object.keys(stats).length <= 0) return;
+
+    const includeSelf = step?.includeSelf === true;
+    const allies = this.getDivineChargeAllies(sourceUnit)
+      .filter((ally) => ally && ally.currentHP > 0)
+      .filter((ally) => includeSelf || ally !== sourceUnit)
+      .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
+    if (allies.length <= 0) return;
+
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(sourceUnit, step?.durationPhases);
+    const keyRoot = `${String(step?.artId || 'tier5_buff')}::${String(sourceUnit.name || '')}`;
+    for (const ally of allies) {
+      this._applyTier5TimedBuffEntry(ally, {
+        key: `${keyRoot}::${String(ally.name || '')}`,
+        artId: step?.artId || null,
+        sourceName: sourceUnit.name || null,
+        sourceFaction: sourceUnit.faction || null,
+        expiryPhase,
+        expiryTurn,
+        stats,
+      });
+      const pos = this.grid.gridToPixel(ally.col, ally.row);
+      this.showMinorHintAt(pos.x, pos.y, 'Buffed!', '#66ff99');
+    }
+  }
+
+  _expireTimedWeaponArtBuffs(phase, turn) {
+    const normalizedPhase = phase === 'enemy' ? 'enemy' : 'player';
+    const normalizedTurn = Math.max(1, Math.trunc(Number(turn) || 1));
+    const units = [...(this.playerUnits || []), ...(this.enemyUnits || []), ...(this.npcUnits || [])];
+    for (const unit of units) {
+      if (!Array.isArray(unit?._battleTimedWeaponArtBuffs) || unit._battleTimedWeaponArtBuffs.length <= 0) continue;
+      const previousCount = unit._battleTimedWeaponArtBuffs.length;
+      unit._battleTimedWeaponArtBuffs = unit._battleTimedWeaponArtBuffs.filter((entry) => {
+        const expiryPhase = entry?.expiryPhase === 'enemy' ? 'enemy' : 'player';
+        const expiryTurn = Math.max(1, Math.trunc(Number(entry?.expiryTurn) || 1));
+        const expiresNow = expiryPhase === normalizedPhase && normalizedTurn >= expiryTurn;
+        return !expiresNow;
+      });
+      if (unit._battleTimedWeaponArtBuffs.length !== previousCount) {
+        this._recomputeTimedWeaponArtBuffState(unit);
+      }
+    }
+  }
+
+  _getTimedWeaponArtCombatBuffMods(unit) {
+    const mods = unit?._battleTimedWeaponArtAppliedCombatMods;
+    if (!mods || typeof mods !== 'object') {
+      return {
+        hitBonus: 0,
+        critBonus: 0,
+        avoidBonus: 0,
+        atkBonus: 0,
+        defBonus: 0,
+        resBonus: 0,
+        spdBonus: 0,
+      };
+    }
+    return {
+      hitBonus: Math.trunc(Number(mods.hitBonus) || 0),
+      critBonus: Math.trunc(Number(mods.critBonus) || 0),
+      avoidBonus: Math.trunc(Number(mods.avoidBonus) || 0),
+      atkBonus: Math.trunc(Number(mods.atkBonus) || 0),
+      defBonus: Math.trunc(Number(mods.defBonus) || 0),
+      resBonus: Math.trunc(Number(mods.resBonus) || 0),
+      spdBonus: Math.trunc(Number(mods.spdBonus) || 0),
+    };
   }
 
   _refreshPostCombatMovementState(movedUnits) {
@@ -6693,6 +6976,9 @@ export class BattleScene extends Phaser.Scene {
     this.showPhaseBanner(phase, turn);
     this.dangerZoneStale = true;
     this.dangerZone.hide();
+    if (typeof this._expireTimedWeaponArtBuffs === 'function') {
+      this._expireTimedWeaponArtBuffs(phase, turn);
+    }
 
     if (phase === 'player') {
       // Reset player units for new turn

@@ -856,11 +856,18 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A battle cry that boosts adjacent allies' STR by 3 after combat. (Placeholder: +3 Atk, +10 Hit until allyBuff lands.)",
-      "_deferredMechanic": "allyBuff(+3 STR)",
+      "description": "A battle cry that boosts nearby allies' STR by 3 after combat.",
+      "effects": {
+        "allyBuff": {
+          "range": 2,
+          "durationPhases": 1,
+          "stats": {
+            "STR": 3
+          },
+          "includeSelf": false
+        }
+      },
       "combatMods": {
-        "atkBonus": 3,
-        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -925,12 +932,19 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A rallying strike that boosts adjacent allies' STR by 3 and Crit by 10 after combat. (Placeholder: +3 Atk, +10 Hit, +10 Crit until allyBuff lands.)",
-      "_deferredMechanic": "allyBuff(+3 STR, +10 Crit)",
+      "description": "A rallying strike that boosts nearby allies' STR by 3 and Crit by 10 after combat.",
+      "effects": {
+        "allyBuff": {
+          "range": 2,
+          "durationPhases": 1,
+          "stats": {
+            "STR": 3,
+            "CRIT": 10
+          },
+          "includeSelf": false
+        }
+      },
       "combatMods": {
-        "atkBonus": 3,
-        "hitBonus": 10,
-        "critBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1411,11 +1425,17 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "An erupting blast that deals 50% splash damage to adjacent enemies. (Placeholder: +8 Atk, +5 Hit until aoeSplash lands.)",
-      "_deferredMechanic": "aoeSplash(adjacent 50%)",
+      "description": "An erupting blast that deals 50% splash damage to nearby enemies.",
+      "effects": {
+        "aoeSplash": {
+          "radius": 1,
+          "damageKind": "scaled",
+          "damageMultiplier": 0.5,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
-        "atkBonus": 8,
-        "hitBonus": 5,
         "activated": [
           {
             "id": "weapon_art",
@@ -1437,11 +1457,18 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A holy burst that deals 75% splash to 1 adjacent enemy. (Placeholder: +6 Atk, +10 Hit until aoeSplash lands.)",
-      "_deferredMechanic": "aoeSplash(1 adj 75%)",
+      "description": "A holy burst that deals 75% splash to 1 nearby enemy.",
+      "effects": {
+        "aoeSplash": {
+          "radius": 1,
+          "maxTargets": 1,
+          "damageKind": "scaled",
+          "damageMultiplier": 0.75,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
-        "atkBonus": 6,
-        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1644,6 +1671,16 @@
         "Brave Axe"
       ],
       "_deferredMechanic": "multiHit, postCombatMove, allyBuff, setHpTo5",
+      "effects": {
+        "allyBuff": {
+          "range": 2,
+          "durationPhases": 1,
+          "stats": {
+            "STR": 3
+          },
+          "includeSelf": false
+        }
+      },
       "combatMods": {
         "atkBonus": 10,
         "hitBonus": 5,
@@ -1675,6 +1712,15 @@
         "Brave Bow"
       ],
       "_deferredMechanic": "multiHit, aoeSplash",
+      "effects": {
+        "aoeSplash": {
+          "radius": 1,
+          "damageKind": "scaled",
+          "damageMultiplier": 0.5,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
         "atkBonus": 8,
         "hitBonus": 10,
@@ -1796,6 +1842,16 @@
         "Gae Bolg"
       ],
       "_deferredMechanic": "allyBuff(+5 STR)",
+      "effects": {
+        "allyBuff": {
+          "range": 2,
+          "durationPhases": 1,
+          "stats": {
+            "STR": 5
+          },
+          "includeSelf": false
+        }
+      },
       "combatMods": {
         "vengeance": true,
         "effectiveness": {
@@ -1831,6 +1887,15 @@
         "Stormbreaker"
       ],
       "_deferredMechanic": "aoeSplash(2-tile fixed dmg)",
+      "effects": {
+        "aoeSplash": {
+          "radius": 2,
+          "damageKind": "fixed",
+          "fixedDamage": 5,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
         "atkBonus": 20,
         "defBonus": 5,
@@ -1895,6 +1960,15 @@
         "Excalibur"
       ],
       "_deferredMechanic": "aoeSplash",
+      "effects": {
+        "aoeSplash": {
+          "radius": 1,
+          "damageKind": "scaled",
+          "damageMultiplier": 0.75,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
         "atkBonus": 5,
         "effectiveness": {
@@ -1933,6 +2007,15 @@
         "Bolting"
       ],
       "_deferredMechanic": "aoeSplash(2-tile)",
+      "effects": {
+        "aoeSplash": {
+          "radius": 2,
+          "damageKind": "scaled",
+          "damageMultiplier": 0.5,
+          "basis": "first_landed_strike",
+          "nonLethal": false
+        }
+      },
       "combatMods": {
         "atkBonus": 5,
         "hitBonus": 10,

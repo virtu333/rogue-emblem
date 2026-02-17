@@ -1,4 +1,4 @@
-import { getWeaponArtTier2Effects } from './WeaponArtSystem.js';
+import { getWeaponArtTier2Effects, getWeaponArtTier5Effects } from './WeaponArtSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = ['afterCombatDamage', 'afterCombatDebuff', 'postCombatMove'];
@@ -27,6 +27,21 @@ export function didCombatSideLandHit(events, side, attacker = null, defender = n
     }
     return fallbackName !== null && event.attacker === fallbackName;
   });
+}
+
+export function getFirstLandedStrikeDamage(events, side, attacker = null, defender = null) {
+  if (!Array.isArray(events)) return 0;
+  const fallbackName = getFallbackNameForSide(side, attacker, defender);
+  for (const event of events) {
+    if (event?.type !== 'strike' || event?.miss) continue;
+    if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
+      if (event.attackerSide !== side) continue;
+    } else if (fallbackName === null || event.attacker !== fallbackName) {
+      continue;
+    }
+    return Math.max(0, Math.trunc(Number(event.damage) || 0));
+  }
+  return 0;
 }
 
 export function getPostCombatPipelineSteps({
@@ -115,6 +130,44 @@ export function getPostCombatPipelineSteps({
           distance: effect.distance,
         });
       }
+    }
+  }
+
+  for (const side of SIDE_ORDER) {
+    if (!hitBySide[side]) continue;
+    const art = artsBySide[side];
+    const tier5Effects = getWeaponArtTier5Effects(art);
+    if (tier5Effects.aoeSplash) {
+      const splash = tier5Effects.aoeSplash;
+      const basisDamage = splash.basis === 'first_landed_strike'
+        ? getFirstLandedStrikeDamage(result?.events, side, attacker, defender)
+        : 0;
+      steps.push({
+        type: 'tier5_aoe_splash',
+        sourceSide: side,
+        targetSide: getOpposingSide(side),
+        artId: art?.id || null,
+        radius: splash.radius,
+        maxTargets: splash.maxTargets,
+        damageKind: splash.damageKind,
+        damageMultiplier: splash.damageMultiplier,
+        fixedDamage: splash.fixedDamage,
+        nonLethal: splash.nonLethal === true,
+        basis: splash.basis,
+        basisDamage,
+      });
+    }
+    if (tier5Effects.allyBuff) {
+      const buff = tier5Effects.allyBuff;
+      steps.push({
+        type: 'tier5_ally_buff',
+        sourceSide: side,
+        artId: art?.id || null,
+        range: buff.range,
+        durationPhases: buff.durationPhases,
+        stats: { ...buff.stats },
+        includeSelf: buff.includeSelf === true,
+      });
     }
   }
 

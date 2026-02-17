@@ -163,12 +163,33 @@ function parsePersonalSkillId(personalSkillStr) {
  */
 export function serializeUnit(unit) {
   const data = { ...unit };
+  if (unit?.stats && typeof unit.stats === 'object') {
+    data.stats = { ...unit.stats };
+  }
   for (const key of PHASER_FIELDS) data[key] = null;
   data.hasMoved = false;
   data.hasActed = false;
   data._miracleUsed = false;
+  const timedBuffStats = unit?._battleTimedWeaponArtAppliedStats;
+  if (timedBuffStats && data.stats && typeof data.stats === 'object') {
+    for (const [rawStat, rawValue] of Object.entries(timedBuffStats)) {
+      const stat = typeof rawStat === 'string' ? rawStat.trim().toUpperCase() : '';
+      if (!stat) continue;
+      const value = Math.trunc(Number(rawValue) || 0);
+      if (value === 0) continue;
+      data.stats[stat] = (data.stats[stat] || 0) - value;
+      if (stat === 'MOV') data.stats[stat] = Math.max(1, data.stats[stat] || 1);
+      else data.stats[stat] = Math.max(0, data.stats[stat] || 0);
+    }
+    if (Object.prototype.hasOwnProperty.call(data.stats, 'MOV')) {
+      data.mov = data.stats.MOV;
+    }
+  }
   delete data._battleDeltas;
   delete data._battleWeaponArtUsage;
+  delete data._battleTimedWeaponArtBuffs;
+  delete data._battleTimedWeaponArtAppliedStats;
+  delete data._battleTimedWeaponArtAppliedCombatMods;
   return data;
 }
 

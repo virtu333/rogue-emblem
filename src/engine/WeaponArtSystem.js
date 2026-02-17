@@ -147,6 +147,7 @@ function normalizeRangeOverride(value) {
 
 const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
+const VALID_TIER5_SPLASH_BASIS = new Set(['first_landed_strike']);
 
 function normalizeTier2Target(value) {
   const token = toNonEmptyString(value)?.toLowerCase();
@@ -191,6 +192,67 @@ function normalizeTier2MoveEffect(effect) {
   return { mode, distance };
 }
 
+export function normalizeTier5AoeSplashEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const radius = Math.max(1, Math.trunc(toFiniteNumber(effect.radius, 0)));
+  if (radius <= 0) return null;
+
+  const rawMaxTargets = Math.trunc(toFiniteNumber(effect.maxTargets, 0));
+  const maxTargets = rawMaxTargets > 0 ? rawMaxTargets : null;
+  const basisToken = toNonEmptyString(effect.basis)?.toLowerCase() || 'first_landed_strike';
+  const basis = VALID_TIER5_SPLASH_BASIS.has(basisToken) ? basisToken : 'first_landed_strike';
+
+  let damageKind = toNonEmptyString(effect.damageKind)?.toLowerCase() || null;
+  const fixedDamage = Math.max(0, Math.trunc(toFiniteNumber(effect.fixedDamage, 0)));
+  let damageMultiplier = toFiniteNumber(effect.damageMultiplier, 0);
+  if (damageMultiplier > 1) damageMultiplier /= 100;
+
+  if (!damageKind) {
+    if (fixedDamage > 0) damageKind = 'fixed';
+    else damageKind = 'scaled';
+  }
+  if (damageKind === 'multiplier') damageKind = 'scaled';
+  if (damageKind !== 'fixed' && damageKind !== 'scaled') return null;
+  if (damageKind === 'fixed' && fixedDamage <= 0) return null;
+  if (damageKind === 'scaled' && !(damageMultiplier > 0)) return null;
+
+  return {
+    radius,
+    maxTargets,
+    damageKind,
+    damageMultiplier: damageKind === 'scaled' ? damageMultiplier : null,
+    fixedDamage: damageKind === 'fixed' ? fixedDamage : null,
+    nonLethal: effect.nonLethal === true,
+    basis,
+  };
+}
+
+export function normalizeTier5AllyBuffEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const range = Math.max(1, Math.trunc(toFiniteNumber(effect.range, 0)));
+  if (range <= 0) return null;
+  const durationPhases = Math.max(1, Math.trunc(toFiniteNumber(effect.durationPhases, 1)));
+
+  const rawStats = effect.stats;
+  if (!rawStats || typeof rawStats !== 'object' || Array.isArray(rawStats)) return null;
+  const stats = {};
+  for (const [rawStat, rawValue] of Object.entries(rawStats)) {
+    const stat = toNonEmptyString(rawStat)?.toUpperCase();
+    if (!stat) continue;
+    const value = Math.trunc(toFiniteNumber(rawValue, 0));
+    if (value === 0) continue;
+    stats[stat] = value;
+  }
+  if (Object.keys(stats).length <= 0) return null;
+
+  return {
+    range,
+    durationPhases,
+    stats,
+    includeSelf: effect.includeSelf === true,
+  };
+}
+
 export function getWeaponArtTier2Effects(art) {
   const out = {
     afterCombatDamage: [],
@@ -220,6 +282,13 @@ export function getWeaponArtTier2Effects(art) {
   }
 
   return out;
+}
+
+export function getWeaponArtTier5Effects(art) {
+  return {
+    aoeSplash: normalizeTier5AoeSplashEffect(art?.effects?.aoeSplash),
+    allyBuff: normalizeTier5AllyBuffEffect(art?.effects?.allyBuff),
+  };
 }
 
 export function getWeaponArtAllowedTypes(art) {
@@ -456,5 +525,4 @@ export function resetWeaponArtTurnUsage(unit, context = {}) {
   usage.turn = {};
   usage.turnKey = getTurnKey(context);
 }
-
 

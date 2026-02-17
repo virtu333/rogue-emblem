@@ -214,6 +214,33 @@ describe('RunManager', () => {
       expect(serialized._battleDeltas).toBeUndefined();
     });
 
+    it('strips Tier 5 timed weapon-art buff runtime state', () => {
+      const unit = {
+        name: 'Test',
+        stats: { HP: 20, STR: 12, MOV: 6 },
+        mov: 6,
+        _battleTimedWeaponArtBuffs: [
+          {
+            key: 'axe_war_cry::Edric::Test',
+            stats: { STR: 3, CRIT: 10 },
+            expiryPhase: 'player',
+            expiryTurn: 2,
+          },
+        ],
+        _battleTimedWeaponArtAppliedStats: { STR: 3, MOV: 1 },
+        _battleTimedWeaponArtAppliedCombatMods: { critBonus: 10 },
+      };
+      const serialized = serializeUnit(unit);
+      expect(serialized._battleTimedWeaponArtBuffs).toBeUndefined();
+      expect(serialized._battleTimedWeaponArtAppliedStats).toBeUndefined();
+      expect(serialized._battleTimedWeaponArtAppliedCombatMods).toBeUndefined();
+      expect(serialized.stats.STR).toBe(9);
+      expect(serialized.stats.MOV).toBe(5);
+      expect(serialized.mov).toBe(5);
+      expect(unit.stats.STR).toBe(12);
+      expect(unit.stats.MOV).toBe(6);
+    });
+
     it('resets per-battle flags', () => {
       const unit = { name: 'Test', hasMoved: true, hasActed: true, graphic: null, label: null, hpBar: null };
       const serialized = serializeUnit(unit);
