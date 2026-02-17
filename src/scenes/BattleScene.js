@@ -2429,13 +2429,16 @@ export class BattleScene extends Phaser.Scene {
     const terrain = this.grid.getTerrainAt(unit.col, unit.row);
     this.inspectionPanel.show(unit, terrain, this.gameData);
 
-    if (this.battleState === 'PLAYER_IDLE' && unit.faction !== 'player') {
+    if (this.battleState === 'PLAYER_IDLE') {
+      const isPlayer = unit.faction === 'player';
+      const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
+      const moveAlpha = isPlayer ? 0.4 : 0.35;
       const positions = this.buildUnitPositionMap(unit.faction);
       const mov = unit.mov ?? unit.stats?.MOV ?? 0;
       const moveRange = this.grid.getMovementRange(
         unit.col, unit.row, mov, unit.moveType, positions, unit.faction
       );
-      this.grid.showMovementRange(moveRange, unit.col, unit.row, 0xcc3333, 0.35);
+      this.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
 
       if (unit.weapon) {
         const attackTiles = new Set();
