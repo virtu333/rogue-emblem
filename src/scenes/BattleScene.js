@@ -3779,11 +3779,13 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({
       targets: allyTargets, x: allyPos.x, y: allyPos.y, duration: 120, ease: 'Quad.easeInOut',
       onComplete: () => {
+        const allyWasActed = target.ally.hasActed;
         unit.col = allyOldCol; unit.row = allyOldRow;
         target.ally.col = unitOldCol; target.ally.row = unitOldRow;
         this.updateUnitPosition(unit);
         this.updateUnitPosition(target.ally);
         this.finishUnitAction(unit);
+        if (allyWasActed) this.dimUnit(target.ally);
       },
     });
   }
