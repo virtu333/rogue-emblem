@@ -461,14 +461,13 @@ export class TitleScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
+      this._cleanupTitleOverlaysForShutdown();
       // NOTE: Do NOT remove textures here — shutdown fires BEFORE Phaser
       // destroys display objects. Removing textures while Images still
       // reference them crashes the scene transition silently.
       // Stale textures are cleaned up in create() on re-entry instead.
       this.bgCtx = null;
       this.bgTexture = null;
-      this.howToPlayOverlay = null;
-      this.helpOverlay = null;
     });
 
     // --- Animated background ---
@@ -714,6 +713,18 @@ export class TitleScene extends Phaser.Scene {
     });
   }
 
+  _cleanupTitleOverlaysForShutdown() {
+    this._hideTitleOverlay('settingsOverlay');
+    this._hideTitleOverlay('howToPlayOverlay');
+    this._hideTitleOverlay('helpOverlay');
+    this._hideTitleOverlay('compendiumOverlay');
+  }
+
+  _hideTitleOverlay(key) {
+    const overlay = this[key];
+    if (overlay?.visible && typeof overlay.hide === 'function') overlay.hide();
+    this[key] = null;
+  }
   _drawBackground(time) {
     if (!this.bgCtx) return;
     const ctx = this.bgCtx;
