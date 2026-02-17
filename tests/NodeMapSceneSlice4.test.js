@@ -136,6 +136,24 @@ describe('NodeMapScene Slice 4', () => {
     generateShopInventoryMock.mockReset();
   });
 
+  it('blocks opening roster while shop/church overlay is active', () => {
+    const withShopOverlay = {
+      rosterOverlay: null,
+      shopOverlay: [makeDisplayObject()],
+      churchOverlay: null,
+    };
+    const withChurchOverlay = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: [makeDisplayObject()],
+    };
+
+    expect(() => NodeMapScene.prototype._openRoster.call(withShopOverlay)).not.toThrow();
+    expect(() => NodeMapScene.prototype._openRoster.call(withChurchOverlay)).not.toThrow();
+    expect(withShopOverlay.rosterOverlay).toBeNull();
+    expect(withChurchOverlay.rosterOverlay).toBeNull();
+  });
+
   it('requestCancel restores hidden shop overlay before leaving', () => {
     const shopObj = makeDisplayObject().setInteractive({ useHandCursor: true });
     shopObj.visible = false;

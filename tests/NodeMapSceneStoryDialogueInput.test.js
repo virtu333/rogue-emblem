@@ -121,5 +121,49 @@ describe('NodeMap story-dialogue node click queue', () => {
     expect(onNodeClick).toHaveBeenCalledTimes(1);
     expect(onNodeClick).toHaveBeenCalledWith(node);
   });
-});
 
+  it('finalizeSceneReady recovers input/readiness when scene becomes inactive', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => false },
+      input: { enabled: false },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _consumePendingNodeSelection: vi.fn(() => false),
+      isSceneReady: false,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(scene.input.enabled).toBe(true);
+    expect(scene._showPendingNodeMapHints).not.toHaveBeenCalled();
+    expect(scene.isSceneReady).toBe(true);
+    expect(scene._consumePendingNodeSelection).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints'
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('finalizeSceneReady still enables readiness when optional flow throws', async () => {
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {
+        throw new Error('hint failure');
+      }),
+      _consumePendingNodeSelection: vi.fn(() => false),
+      isSceneReady: false,
+    };
+
+    await expect(NodeMapScene.prototype.finalizeSceneReady.call(scene)).resolves.toBeUndefined();
+
+    expect(scene.input.enabled).toBe(true);
+    expect(scene.isSceneReady).toBe(true);
+    expect(scene._consumePendingNodeSelection).toHaveBeenCalledTimes(1);
+  });
+});

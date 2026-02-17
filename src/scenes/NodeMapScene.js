@@ -233,29 +233,38 @@ export class NodeMapScene extends Phaser.Scene {
       // Give audio a short unlock window before we accept battle-node interactions.
       await this.ensureAudioUnlocked();
     } catch (_) {}
-    if (this.sys?.isActive?.() === false) return;
     if (this.input) this.input.enabled = true;
 
-    if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
-      const entries = this.gameData?.dialogue?.actTransitions?.runStart;
-      if (Array.isArray(entries) && entries.length > 0 && this.dialogueOverlay) {
-        this._storyDialogueActive = true;
-        this.runManager.markDialogueShown('runStart');
-        this.persistRunSave();
-        try {
-          await this.dialogueOverlay.showSequence(entries);
-        } finally {
-          this._storyDialogueActive = false;
+    try {
+      if (this.sys?.isActive?.() !== false) {
+        if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
+          const entries = this.gameData?.dialogue?.actTransitions?.runStart;
+          if (Array.isArray(entries) && entries.length > 0 && this.dialogueOverlay) {
+            this._storyDialogueActive = true;
+            this.runManager.markDialogueShown('runStart');
+            this.persistRunSave();
+            try {
+              await this.dialogueOverlay.showSequence(entries);
+            } finally {
+              this._storyDialogueActive = false;
+            }
+          }
         }
+
+        if (this.sys?.isActive?.() !== false) {
+          await this._showPendingNodeMapHints();
+        } else {
+          console.warn('[NodeMapScene] Scene inactive after dialogue - skipping hints');
+        }
+      } else {
+        console.warn('[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints');
       }
+    } catch (err) {
+      reportAsyncError('NodeMap-finalize-ready', err);
+    } finally {
+      this.isSceneReady = true;
+      this._consumePendingNodeSelection();
     }
-    if (this.sys?.isActive?.() === false) return;
-
-    await this._showPendingNodeMapHints();
-    if (this.sys?.isActive?.() === false) return;
-
-    this.isSceneReady = true;
-    this._consumePendingNodeSelection();
   }
 
   async _showPendingNodeMapHints() {
@@ -788,13 +797,16 @@ export class NodeMapScene extends Phaser.Scene {
 
   _openRoster() {
     if (this.rosterOverlay?.visible) return;
+    if (this.shopOverlay || this.churchOverlay) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
         this.rosterOverlay = null;
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
         saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
-        this.drawMap();
+        if (!this.shopOverlay && !this.churchOverlay) {
+          this.drawMap();
+        }
       },
     });
     this.rosterOverlay.show();
