@@ -88,11 +88,13 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A lunging strike that lets you advance 1 tile after combat. (Placeholder: +3 Atk, +10 Hit until postCombatMove lands.)",
-      "_deferredMechanic": "postCombatMove",
+      "description": "A lunging strike that lets you advance 1 tile after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "move", "mode": "advance", "distance": 1 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 3,
-        "hitBonus": 10,
         "activated": [{ "id": "weapon_art", "name": "Advancing Strike" }]
       }
     },
@@ -158,11 +160,13 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A thrusting strike that swaps position with the target after combat. (Placeholder: +4 Atk, +5 Hit until postCombatMove lands.)",
-      "_deferredMechanic": "postCombatMove(swap)",
+      "description": "A thrusting strike that swaps position with the target after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "move", "mode": "swap", "distance": 1 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 4,
-        "hitBonus": 5,
         "activated": [{ "id": "weapon_art", "name": "Lunge" }]
       }
     },
@@ -176,11 +180,13 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A disabling cut that reduces the target's SPD by 4 after combat. (Placeholder: +3 Spd, +5 Hit until afterCombatDebuff lands.)",
-      "_deferredMechanic": "afterCombatDebuff(SPD-4)",
+      "description": "A disabling cut that reduces the target's SPD by 4 after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "debuff", "target": "defender", "stat": "SPD", "amount": -4 }
+        ]
+      },
       "combatMods": {
-        "spdBonus": 3,
-        "hitBonus": 5,
         "activated": [{ "id": "weapon_art", "name": "Seal Speed" }]
       }
     },
@@ -194,10 +200,13 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A venomous slash that deals 5 poison damage after combat. (Placeholder: +5 Atk until afterCombatDamage lands.)",
-      "_deferredMechanic": "afterCombatDamage(5)",
+      "description": "A venomous slash that deals 5 poison damage after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "damage", "target": "defender", "amount": 5, "nonLethal": true }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 5,
         "activated": [{ "id": "weapon_art", "name": "Poison Strike" }]
       }
     },
@@ -330,11 +339,13 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A quick jab that lets you retreat 1 tile after combat. (Placeholder: +10 Avoid, +5 Hit until postCombatMove lands.)",
-      "_deferredMechanic": "postCombatMove(retreat)",
+      "description": "A quick jab that lets you retreat 1 tile after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "move", "mode": "retreat", "distance": 1 }
+        ]
+      },
       "combatMods": {
-        "avoidBonus": 10,
-        "hitBonus": 5,
         "activated": [{ "id": "weapon_art", "name": "Hit and Run" }]
       }
     },
@@ -399,11 +410,13 @@
       "hpCost": 6,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A crushing thrust that reduces the target's DEF by 3 after combat. (Placeholder: +3 Atk, +5 Hit until afterCombatDebuff lands.)",
-      "_deferredMechanic": "afterCombatDebuff(DEF-3)",
+      "description": "A crushing thrust that reduces the target's DEF by 3 after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "debuff", "target": "defender", "stat": "DEF", "amount": -3 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 3,
-        "hitBonus": 5,
         "activated": [{ "id": "weapon_art", "name": "Shatter Slash" }]
       }
     },
@@ -450,11 +463,13 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A devastating charge that pushes the target back 1 tile. (Placeholder: +4 Atk, +10 Hit until postCombatMove lands.)",
-      "_deferredMechanic": "postCombatMove(push)",
+      "description": "A devastating charge that pushes the target back 1 tile.",
+      "effects": {
+        "afterCombat": [
+          { "type": "move", "mode": "push", "distance": 1 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 4,
-        "hitBonus": 10,
         "activated": [{ "id": "weapon_art", "name": "Overrun" }]
       }
     },
@@ -592,11 +607,13 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A charging strike that passes through the target's position. (Placeholder: +4 Atk, +10 Hit until postCombatMove lands.)",
-      "_deferredMechanic": "postCombatMove(through)",
+      "description": "A charging strike that passes through the target's position.",
+      "effects": {
+        "afterCombat": [
+          { "type": "move", "mode": "through", "distance": 1 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 4,
-        "hitBonus": 10,
         "activated": [{ "id": "weapon_art", "name": "Rushing Blow" }]
       }
     },
@@ -788,11 +805,13 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A piercing shot that reduces the target's DEF by 3 after combat. (Placeholder: +3 Atk, +10 Hit until afterCombatDebuff lands.)",
-      "_deferredMechanic": "afterCombatDebuff(DEF-3)",
+      "description": "A piercing shot that reduces the target's DEF by 3 after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "debuff", "target": "defender", "stat": "DEF", "amount": -3 }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 3,
-        "hitBonus": 10,
         "activated": [{ "id": "weapon_art", "name": "Break Shot" }]
       }
     },
@@ -806,11 +825,13 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A debilitating shot that reduces the target's STR by 3 after combat. (Placeholder: +10 Avoid, +10 Hit until afterCombatDebuff lands.)",
-      "_deferredMechanic": "afterCombatDebuff(STR-3)",
+      "description": "A debilitating shot that reduces the target's STR by 3 after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "debuff", "target": "defender", "stat": "STR", "amount": -3 }
+        ]
+      },
       "combatMods": {
-        "avoidBonus": 10,
-        "hitBonus": 10,
         "activated": [{ "id": "weapon_art", "name": "Waning Shot" }]
       }
     },
@@ -824,11 +845,13 @@
       "hpCost": 5,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A disruptive shot that reduces the target's MAG by 4 after combat. (Placeholder: +15 Hit, +2 Atk until afterCombatDebuff lands.)",
-      "_deferredMechanic": "afterCombatDebuff(MAG-4)",
+      "description": "A disruptive shot that reduces the target's MAG by 4 after combat.",
+      "effects": {
+        "afterCombat": [
+          { "type": "debuff", "target": "defender", "stat": "MAG", "amount": -4 }
+        ]
+      },
       "combatMods": {
-        "hitBonus": 15,
-        "atkBonus": 2,
         "activated": [{ "id": "weapon_art", "name": "Seal Magic" }]
       }
     },

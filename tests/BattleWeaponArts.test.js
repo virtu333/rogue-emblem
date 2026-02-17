@@ -7,6 +7,8 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { HeadlessBattle } from './harness/HeadlessBattle.js';
+import { loadGameData } from './testData.js';
 
 function makeArt(overrides = {}) {
   return {
@@ -905,6 +907,249 @@ describe('BattleScene weapon art helpers', () => {
     expect(enemy._battleWeaponArtUsage?.map?.[art.id]).toBe(1);
     expect(enemy._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
     expect(scene.buildSkillCtx).toHaveBeenCalledWith(enemy, target, expect.objectContaining({ id: art.id }));
+  });
+
+  it('applies Tier 2 debuff steps with scene/headless parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'sword_seal_speed');
+    const sceneAttacker = {
+      name: 'Edric',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Bandit',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 24, STR: 9, MAG: 0, SKL: 6, SPD: 10, DEF: 6, RES: 2, LCK: 3, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneDefender.stats.SPD).toBe(headlessDefender.stats.SPD);
+    expect(sceneDefender.currentHP).toBe(headlessDefender.currentHP);
+  });
+
+  it('applies Tier 2 push movement with scene/headless parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'lance_overrun');
+    const sceneAttacker = {
+      name: 'Knight',
+      faction: 'enemy',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 6, DEF: 8, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Edric',
+      faction: 'player',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneDefender];
+    scene.enemyUnits = [sceneAttacker];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessDefender];
+    headless.enemyUnits = [headlessAttacker];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneDefender.col).toBe(headlessDefender.col);
+    expect(sceneDefender.row).toBe(headlessDefender.row);
+    expect(sceneAttacker.col).toBe(headlessAttacker.col);
+    expect(sceneAttacker.row).toBe(headlessAttacker.row);
+  });
+
+  it('applies lethal Tier 2 advance movement with scene/headless parity before removal', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'sword_advancing_strike');
+    const sceneAttacker = {
+      name: 'Edric',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Bandit',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 0,
+      stats: { HP: 24, STR: 9, MAG: 0, SKL: 6, SPD: 10, DEF: 6, RES: 2, LCK: 3, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneAttacker.col).toBe(3);
+    expect(sceneAttacker.row).toBe(2);
+    expect(sceneAttacker.col).toBe(headlessAttacker.col);
+    expect(sceneAttacker.row).toBe(headlessAttacker.row);
   });
 });
 

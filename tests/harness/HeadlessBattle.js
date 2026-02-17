@@ -48,6 +48,19 @@ import {
   getTurnStartAffixes,
   rollDefenseAffixes,
 } from '../../src/engine/AffixSystem.js';
+import {
+  applyWeaponArtCost,
+  canUseWeaponArt,
+  getWeaponArtCombatMods,
+  getWeaponArtIds,
+  isWeaponArtCompatibleWithWeapon,
+  recordWeaponArtUse,
+} from '../../src/engine/WeaponArtSystem.js';
+import {
+  didCombatSideLandHit,
+  getPostCombatPipelineSteps,
+  resolvePostCombatMove,
+} from '../../src/engine/WeaponArtPostCombat.js';
 import { calculateKillGold } from '../../src/engine/LootSystem.js';
 import {
   BOSS_STAT_BONUS,
@@ -68,6 +81,18 @@ export const HEADLESS_STATES = {
 
 // MVP explicitly disables Canto
 export const CANTO_DISABLED = true;
+
+const HIDDEN_WEAPON_ART_REASONS = new Set([
+  'legendary_weapon_required',
+  'owner_scope_mismatch',
+  'faction_mismatch',
+  'wrong_weapon_type',
+  'invalid_owner_scope_config',
+  'invalid_faction_config',
+  'invalid_legendary_weapon_ids_config',
+  'invalid_unlock_act_config',
+  'invalid_input',
+]);
 
 export class HeadlessBattle {
   constructor(gameData, battleParams, roster = null) {
@@ -93,6 +118,7 @@ export class HeadlessBattle {
     this.preMoveLoc = null;
     this.attackTargets = [];
     this.healTargets = [];
+    this._selectedWeaponArt = null;
     this.aiPhaseStatsHistory = [];
     this.lastEnemyPhaseAiStats = null;
     this.currentEnemyPhaseAiStats = null;
@@ -124,6 +150,7 @@ export class HeadlessBattle {
     this.npcUnits = [];
     this.goldEarned = 0;
     this.result = null;
+    this._selectedWeaponArt = null;
     this.aiPhaseStatsHistory = [];
     this.lastEnemyPhaseAiStats = null;
     this.currentEnemyPhaseAiStats = null;
@@ -398,6 +425,7 @@ export class HeadlessBattle {
         this.selectedUnit = null;
         this.movementRange = null;
         this.preMoveLoc = null;
+        this._clearSelectedWeaponArt();
         this.battleState = HEADLESS_STATES.PLAYER_IDLE;
         break;
       case HEADLESS_STATES.UNIT_ACTION_MENU:
@@ -816,9 +844,17 @@ export class HeadlessBattle {
     }
   }
 
-  _applyOnAttackAffixes(attacker, defender, events) {
+  _applyOnAttackAffixes(attacker, defender, events, sourceSide = null) {
     if (!attacker || !defender || defender.currentHP <= 0) return;
-    const didLandHit = events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+    const inferredSide = sourceSide || null;
+    const didLandHit = inferredSide
+      ? didCombatSideLandHit(
+        events,
+        inferredSide,
+        inferredSide === 'attacker' ? attacker : defender,
+        inferredSide === 'attacker' ? defender : attacker
+      )
+      : events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
     if (!didLandHit || !attacker.affixes?.length) return;
     const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
@@ -904,7 +940,203 @@ export class HeadlessBattle {
     }
   }
 
-  _buildSkillCtx(attacker, defender) {
+  selectWeaponArt(artId, weapon = null) {
+    if (!this.selectedUnit) throw new Error('No selected unit for weapon art selection');
+    this._setSelectedWeaponArt(this.selectedUnit, artId, weapon);
+  }
+
+  _getWeaponArtCatalog() {
+    return this.gameData?.weaponArts?.arts || [];
+  }
+
+  _collectWeaponBoundArts(weapon) {
+    if (!weapon) return [];
+    const allArts = this._getWeaponArtCatalog();
+    if (allArts.length <= 0) return [];
+    const byId = new Map();
+
+    for (const boundId of getWeaponArtIds(weapon)) {
+      const boundArt = allArts.find((art) => art?.id === boundId);
+      if (boundArt?.id) byId.set(boundArt.id, boundArt);
+    }
+
+    const weaponToken = weapon?.id || weapon?.name || null;
+    if (weaponToken) {
+      for (const art of allArts) {
+        if (!art?.id) continue;
+        if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
+          byId.set(art.id, art);
+        }
+      }
+    }
+
+    return [...byId.values()];
+  }
+
+  _getAvailableWeaponArtEntriesForUnit(unit) {
+    if (!unit) return [];
+    const inventory = Array.isArray(unit.inventory) && unit.inventory.length > 0
+      ? unit.inventory
+      : (unit.weapon ? [unit.weapon] : []);
+    const entries = [];
+    for (const weapon of inventory) {
+      if (!weapon || !weapon.type || isStaff(weapon)) continue;
+      for (const art of this._collectWeaponBoundArts(weapon)) {
+        if (!art || !isWeaponArtCompatibleWithWeapon(art, weapon)) continue;
+        entries.push({ weapon, art });
+      }
+    }
+    return entries;
+  }
+
+  _setSelectedWeaponArt(unit, artId = null, weapon = null) {
+    if (!unit || !artId) {
+      this._selectedWeaponArt = null;
+      return;
+    }
+    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    const activeWeapon = weapon || unit.weapon || null;
+    const weaponIndex = activeWeapon ? inventory.indexOf(activeWeapon) : -1;
+    this._selectedWeaponArt = {
+      unitName: unit.name,
+      artId,
+      weaponIndex,
+    };
+  }
+
+  _clearSelectedWeaponArt() {
+    this._selectedWeaponArt = null;
+  }
+
+  _resolveSelectedWeaponArtEntry(unit) {
+    const selected = this._selectedWeaponArt;
+    if (!unit || !selected || selected.unitName !== unit.name) return null;
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
+    if (entries.length <= 0) return null;
+
+    if (Number.isInteger(selected.weaponIndex)
+      && selected.weaponIndex >= 0
+      && Array.isArray(unit.inventory)
+      && selected.weaponIndex < unit.inventory.length) {
+      const selectedWeapon = unit.inventory[selected.weaponIndex];
+      const strict = entries.find((entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon);
+      if (strict) return strict;
+    }
+
+    return entries.find((entry) => entry.art.id === selected.artId) || null;
+  }
+
+  _getSelectedWeaponArtForUnit(unit, context = {}) {
+    const selectedEntry = this._resolveSelectedWeaponArtEntry(unit);
+    if (!selectedEntry) return null;
+
+    const { weapon, art } = selectedEntry;
+    const valid = canUseWeaponArt(unit, weapon, art, {
+      turnNumber: this.turnManager?.turnNumber,
+      isInitiating: true,
+      ...context,
+    });
+    if (!valid.ok) return null;
+
+    if (unit.weapon !== weapon) {
+      equipWeapon(unit, weapon);
+    }
+    return art;
+  }
+
+  _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
+    if (!unit) return [];
+    const restrictToWeapon = Boolean(options?.restrictToWeapon && weapon);
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit)
+      .filter((entry) => !restrictToWeapon || entry.weapon === weapon);
+
+    return entries.map(({ weapon: sourceWeapon, art }) => {
+      const check = canUseWeaponArt(unit, sourceWeapon, art, {
+        turnNumber: this.turnManager?.turnNumber,
+        isInitiating: true,
+        actorFaction: unit.faction,
+        ...context,
+      });
+      return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
+    }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
+  }
+
+  _scoreEnemyWeaponArt(art) {
+    const mods = getWeaponArtCombatMods(art);
+    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const effectivenessScore = mods.effectiveness?.multiplier > 1
+      ? (mods.effectiveness.multiplier - 1) * 4
+      : 0;
+    const rangeOverrideScore = mods.rangeOverride
+      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
+      : 0;
+    return (
+      (mods.atkBonus * 3)
+      + (mods.hitBonus * 0.35)
+      + (mods.critBonus * 0.25)
+      + (mods.spdBonus * 0.5)
+      + (mods.avoidBonus * 0.15)
+      + (mods.defBonus * 0.1)
+      + effectivenessScore
+      + ((mods.rangeBonus || 0) * 1.2)
+      + rangeOverrideScore
+      + (mods.preventCounter ? 3.5 : 0)
+      + (mods.targetsRES ? 2.5 : 0)
+      + (mods.halfPhysicalDamage ? 2.5 : 0)
+      + (mods.vengeance ? 4 : 0)
+      - (hpCost * 0.75)
+    );
+  }
+
+  _getEnemyWeaponArtDifficultyId() {
+    return this.battleParams?.difficultyId || null;
+  }
+
+  _getEnemyWeaponArtTuning() {
+    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
+    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
+    const difficultyId = String(rawDifficulty).toLowerCase();
+    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
+    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
+    return { minScore: 0.75, useChance: 0.9 };
+  }
+
+  _rollEnemyWeaponArtChance() {
+    const roll = typeof this._enemyWeaponArtRandom === 'function'
+      ? Number(this._enemyWeaponArtRandom())
+      : Math.random();
+    if (!Number.isFinite(roll)) return 1;
+    return Math.min(1, Math.max(0, roll));
+  }
+
+  _selectEnemyWeaponArt(unit, target) {
+    if (!unit?.weapon) return null;
+    const tuning = this._getEnemyWeaponArtTuning();
+    const choices = this._getWeaponArtChoices(unit, unit.weapon, {
+      isAI: true,
+      isInitiating: true,
+      actorFaction: unit.faction,
+      targetFaction: target?.faction,
+    }).filter((entry) => entry.canUse);
+    if (choices.length <= 0) return null;
+    const scored = choices
+      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
+      .filter((entry) => entry.score >= tuning.minScore);
+    if (scored.length <= 0) return null;
+    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aCost = Math.max(0, Number(a.art?.hpCost) || 0);
+      const bCost = Math.max(0, Number(b.art?.hpCost) || 0);
+      if (aCost !== bCost) return aCost - bCost;
+      const aId = String(a.art?.id || '');
+      const bId = String(b.art?.id || '');
+      return aId.localeCompare(bId);
+    });
+    return scored[0].art;
+  }
+
+  _buildSkillCtx(attacker, defender, weaponArt = null) {
     const skills = this.gameData.skills;
     const getAllies = (u) => {
       if (u.faction === 'player') return this.playerUnits;
@@ -919,22 +1151,126 @@ export class HeadlessBattle {
 
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
+    const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
 
     return {
       atkMods: getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true),
       defMods: getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false),
+      atkWeaponArtMods,
       rollStrikeSkills,
       rollDefenseSkills,
+      rollDefenseAffixes,
+      getAttackAffixes,
       checkAstra,
+      affixData: this.gameData.affixes,
       skillsData: skills,
     };
+  }
+
+  _applyResolvedCombatPostEffects({
+    attacker,
+    defender,
+    result,
+    attackerWeaponArt = null,
+    defenderWeaponArt = null,
+  }) {
+    const steps = getPostCombatPipelineSteps({
+      attacker,
+      defender,
+      result,
+      attackerWeaponArt,
+      defenderWeaponArt,
+    });
+    for (const step of steps) {
+      const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
+      const targetUnit = step.targetSide
+        ? (step.targetSide === 'attacker' ? attacker : defender)
+        : (step.sourceSide === 'defender' ? attacker : defender);
+      switch (step.type) {
+        case 'affix':
+          this._applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
+          break;
+        case 'poison':
+          // resolveCombat already applies poison to HP totals; headless has no poison VFX.
+          break;
+        case 'debuff':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          for (const [stat, val] of Object.entries(step.debuffs || {})) {
+            this.applyBattleDebuff(targetUnit, stat, val);
+          }
+          break;
+        case 'divine_charge':
+          this._applyDivineChargeHealStep(step, attacker, defender);
+          break;
+        case 'tier2_damage':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          targetUnit.currentHP = Math.max(step.nonLethal ? 1 : 0, targetUnit.currentHP - step.amount);
+          break;
+        case 'tier2_debuff':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          this.applyBattleDebuff(targetUnit, step.stat, step.amount);
+          break;
+        case 'tier2_move':
+          this._applyTier2MoveStep(sourceUnit, targetUnit, step);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  _applyDivineChargeHealStep(step, attacker, defender) {
+    const caster = step.side === 'defender' ? defender : attacker;
+    if (!caster || caster.currentHP <= 0) return;
+    const healAmount = Math.floor(step.damageDealt * step.percent / 100);
+    if (healAmount <= 0) return;
+    const allies = this._getDivineChargeAllies(caster)
+      .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+        && gridDistance(caster.col, caster.row, u.col, u.row) <= step.range);
+    if (allies.length === 0) return;
+    allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+    allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
+  }
+
+  _applyTier2MoveStep(sourceUnit, targetUnit, step) {
+    if (!sourceUnit) return;
+    const moveResult = resolvePostCombatMove({
+      sourceUnit,
+      targetUnit,
+      mode: step.mode,
+      distance: step.distance,
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
+      getUnitAt: (col, row) => this.getUnitAt(col, row),
+    });
+    if (!moveResult.ok) return;
+    const movedUnits = [];
+    for (const assignment of moveResult.assignments) {
+      assignment.unit.col = assignment.col;
+      assignment.unit.row = assignment.row;
+      movedUnits.push(assignment.unit);
+    }
+    this._refreshPostCombatMovementState(movedUnits);
+  }
+
+  _refreshPostCombatMovementState(movedUnits) {
+    if (!Array.isArray(movedUnits) || movedUnits.length <= 0) return;
+    this._refreshFogVisibility();
   }
 
   _executeCombat(attacker, defender) {
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
-    const skillCtx = this._buildSkillCtx(attacker, defender);
+    const selectedArt = attacker.faction === 'player'
+      ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
+      : null;
+    if (selectedArt) {
+      applyWeaponArtCost(attacker, selectedArt);
+      recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+    }
+    const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
       attacker, attacker.weapon,
@@ -943,48 +1279,19 @@ export class HeadlessBattle {
       skillCtx
     );
 
-    // Apply HP
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
-    // Apply poison
-    if (result.poisonEffects?.length > 0) {
-      for (const pe of result.poisonEffects) {
-        const target = pe.target === 'defender' ? defender : attacker;
-        target.currentHP = Math.max(1, target.currentHP - pe.damage);
-      }
-    }
+    this._applyResolvedCombatPostEffects({
+      attacker,
+      defender,
+      result,
+      attackerWeaponArt: selectedArt,
+      defenderWeaponArt: null,
+    });
 
-    // Apply intimidate debuffs
-    if (result.debuffEvents?.length > 0) {
-      for (const de of result.debuffEvents) {
-        const debuffTarget = de.target === 'attacker' ? attacker : defender;
-        if (debuffTarget.currentHP <= 0) continue;
-        for (const [stat, val] of Object.entries(de.debuffs)) {
-          this.applyBattleDebuff(debuffTarget, stat, val);
-        }
-      }
-    }
-
-    // Apply divine charge heals
-    if (result.divineChargeHeals?.length > 0) {
-      for (const dc of result.divineChargeHeals) {
-        const caster = dc.side === 'attacker' ? attacker : defender;
-        if (caster.currentHP <= 0) continue;
-        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
-        if (healAmount <= 0) continue;
-        const allies = this._getDivineChargeAllies(caster)
-          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
-        if (allies.length === 0) continue;
-        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
-        allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
-      }
-    }
-
-    // Award XP to player attacker
-    if (attacker.faction === 'player' && !result.attackerDied) {
-      const baseXp = calculateCombatXP(attacker, defender, result.defenderDied);
+    if (attacker.faction === 'player' && attacker.currentHP > 0) {
+      const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
       const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(defender));
       if (xp > 0) {
         gainExperience(attacker, xp);
@@ -992,24 +1299,19 @@ export class HeadlessBattle {
       }
     }
 
-    // Remove dead units
-    if (result.defenderDied) this._removeUnit(defender);
-    if (result.attackerDied) this._removeUnit(attacker);
+    if (defender.currentHP <= 0) this._removeUnit(defender);
+    if (attacker.currentHP <= 0) this._removeUnit(attacker);
 
-    this._applyOnAttackAffixes(attacker, defender, result.events);
-    this._applyOnAttackAffixes(defender, attacker, result.events);
-
-    // Check battle end
     if (this._checkBattleEnd()) return;
 
-    if (result.attackerDied) {
+    if (attacker.currentHP <= 0) {
       this.selectedUnit = null;
+      this._clearSelectedWeaponArt();
       this.attackTargets = [];
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
       return;
     }
 
-    // Commander's Gambit
     if (!attacker._gambitUsedThisTurn) {
       const gambitTriggered = result.events?.some(e =>
         e.skillActivations?.some(s => s.id === 'commanders_gambit')
@@ -1029,6 +1331,7 @@ export class HeadlessBattle {
           u._movementSpent = 0;
         }
         this.selectedUnit = null;
+        this._clearSelectedWeaponArt();
         this.attackTargets = [];
         this.battleState = HEADLESS_STATES.PLAYER_IDLE;
         return;
@@ -1093,6 +1396,7 @@ export class HeadlessBattle {
   _finishUnitAction(unit) {
     this.attackTargets = [];
     this.healTargets = [];
+    this._clearSelectedWeaponArt();
 
     // Canto disabled in MVP
     unit.hasActed = true;
@@ -1216,7 +1520,12 @@ export class HeadlessBattle {
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
-    const skillCtx = this._buildSkillCtx(attacker, defender);
+    const selectedArt = this._selectEnemyWeaponArt(attacker, defender);
+    if (selectedArt) {
+      applyWeaponArtCost(attacker, selectedArt);
+      recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+    }
+    const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
       attacker, attacker.weapon,
@@ -1228,43 +1537,17 @@ export class HeadlessBattle {
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
-    if (result.poisonEffects?.length > 0) {
-      for (const pe of result.poisonEffects) {
-        const target = pe.target === 'defender' ? defender : attacker;
-        target.currentHP = Math.max(1, target.currentHP - pe.damage);
-      }
-    }
-
-    // Apply intimidate debuffs
-    if (result.debuffEvents?.length > 0) {
-      for (const de of result.debuffEvents) {
-        const debuffTarget = de.target === 'attacker' ? attacker : defender;
-        if (debuffTarget.currentHP <= 0) continue;
-        for (const [stat, val] of Object.entries(de.debuffs)) {
-          this.applyBattleDebuff(debuffTarget, stat, val);
-        }
-      }
-    }
-
-    // Apply divine charge heals
-    if (result.divineChargeHeals?.length > 0) {
-      for (const dc of result.divineChargeHeals) {
-        const caster = dc.side === 'attacker' ? attacker : defender;
-        if (caster.currentHP <= 0) continue;
-        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
-        if (healAmount <= 0) continue;
-        const allies = this._getDivineChargeAllies(caster)
-          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
-        if (allies.length === 0) continue;
-        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
-        allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
-      }
-    }
+    this._applyResolvedCombatPostEffects({
+      attacker,
+      defender,
+      result,
+      attackerWeaponArt: selectedArt,
+      defenderWeaponArt: null,
+    });
 
     // Award XP to player defender
-    if (defender.faction === 'player' && !result.defenderDied) {
-      const baseXp = calculateCombatXP(defender, attacker, result.attackerDied);
+    if (defender.faction === 'player' && defender.currentHP > 0) {
+      const baseXp = calculateCombatXP(defender, attacker, attacker.currentHP <= 0);
       const xp = Math.floor(baseXp * this._getEnemyXpMultiplier(attacker));
       if (xp > 0) {
         gainExperience(defender, xp);
@@ -1272,11 +1555,8 @@ export class HeadlessBattle {
       }
     }
 
-    if (result.defenderDied) this._removeUnit(defender);
-    if (result.attackerDied) this._removeUnit(attacker);
-
-    this._applyOnAttackAffixes(attacker, defender, result.events);
-    this._applyOnAttackAffixes(defender, attacker, result.events);
+    if (defender.currentHP <= 0) this._removeUnit(defender);
+    if (attacker.currentHP <= 0) this._removeUnit(attacker);
 
     this._checkBattleEnd();
   }

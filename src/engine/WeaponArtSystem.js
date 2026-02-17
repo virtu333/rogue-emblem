@@ -145,6 +145,83 @@ function normalizeRangeOverride(value) {
   return { min, max };
 }
 
+const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
+const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
+
+function normalizeTier2Target(value) {
+  const token = toNonEmptyString(value)?.toLowerCase();
+  if (!token || token === 'defender' || token === 'target') return 'defender';
+  if (token === 'attacker' || token === 'self') return 'attacker';
+  return null;
+}
+
+function normalizeTier2DamageEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const amount = Math.max(0, Math.trunc(toFiniteNumber(effect.amount, 0)));
+  if (amount <= 0) return null;
+  const target = normalizeTier2Target(effect.target);
+  if (!target) return null;
+  return {
+    target,
+    amount,
+    nonLethal: effect.nonLethal !== false,
+  };
+}
+
+function normalizeTier2DebuffEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const target = normalizeTier2Target(effect.target);
+  if (!target) return null;
+  const stat = toNonEmptyString(effect.stat)?.toUpperCase();
+  if (!stat || !VALID_TIER2_DEBUFF_STATS.has(stat)) return null;
+  const rawAmount = Math.trunc(toFiniteNumber(effect.amount, 0));
+  if (rawAmount === 0) return null;
+  return {
+    target,
+    stat,
+    amount: rawAmount < 0 ? rawAmount : -Math.abs(rawAmount),
+  };
+}
+
+function normalizeTier2MoveEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const mode = toNonEmptyString(effect.mode)?.toLowerCase();
+  if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
+  const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
+  return { mode, distance };
+}
+
+export function getWeaponArtTier2Effects(art) {
+  const out = {
+    afterCombatDamage: [],
+    afterCombatDebuff: [],
+    postCombatMove: [],
+  };
+
+  const afterCombatEffects = Array.isArray(art?.effects?.afterCombat)
+    ? art.effects.afterCombat
+    : [];
+  for (const effect of afterCombatEffects) {
+    const type = toNonEmptyString(effect?.type)?.toLowerCase();
+    if (type === 'damage') {
+      const normalized = normalizeTier2DamageEffect(effect);
+      if (normalized) out.afterCombatDamage.push(normalized);
+      continue;
+    }
+    if (type === 'debuff') {
+      const normalized = normalizeTier2DebuffEffect(effect);
+      if (normalized) out.afterCombatDebuff.push(normalized);
+      continue;
+    }
+    if (type === 'move') {
+      const normalized = normalizeTier2MoveEffect(effect);
+      if (normalized) out.postCombatMove.push(normalized);
+    }
+  }
+
+  return out;
+}
+
 export function getWeaponArtAllowedTypes(art) {
   const allowedTypes = normalizeStringList(art?.allowedTypes);
   if (allowedTypes === undefined) return [];
@@ -379,6 +456,5 @@ export function resetWeaponArtTurnUsage(unit, context = {}) {
   usage.turn = {};
   usage.turnKey = getTurnKey(context);
 }
-
 
 

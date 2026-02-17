@@ -745,10 +745,34 @@ export function getCombatForecast(
  * strikeSkills (optional): { striker, target, rollStrikeSkills, skillsData }
  *   — for per-hit effects like Sol, Luna, Lethality.
  */
-function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, strikeSkills, weaponSpecial) {
+function rollStrike(
+  strikerName,
+  targetName,
+  hit,
+  damage,
+  critRate,
+  targetHP,
+  strikeSkills,
+  weaponSpecial,
+  strikeSides = null
+) {
+  const attackerSide = strikeSides?.attackerSide || null;
+  const targetSide = strikeSides?.targetSide || null;
   const hitRoll = Math.random() * 100;
   if (hitRoll >= hit) {
-    return { type: 'strike', attacker: strikerName, target: targetName, miss: true, damage: 0, isCrit: false, targetHPAfter: targetHP, skillActivations: [], extraStrike: false };
+    return {
+      type: 'strike',
+      attacker: strikerName,
+      target: targetName,
+      attackerSide,
+      targetSide,
+      miss: true,
+      damage: 0,
+      isCrit: false,
+      targetHPAfter: targetHP,
+      skillActivations: [],
+      extraStrike: false,
+    };
   }
 
   const isCrit = Math.random() * 100 < critRate;
@@ -836,6 +860,7 @@ function rollStrike(strikerName, targetName, hit, damage, critRate, targetHP, st
   const hpAfter = Math.max(0, targetHP - finalDmg);
   return {
     type: 'strike', attacker: strikerName, target: targetName,
+    attackerSide, targetSide,
     miss: false, damage: finalDmg, isCrit, targetHPAfter: hpAfter,
     heal, skillActivations, extraStrike, aetherLuna, commandersGambit,
     reflectDamage, warpRange,
@@ -989,9 +1014,21 @@ export function resolveCombat(
 
   // Execute N strikes from one combatant against the other
   function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
+    const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
+    const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
-      const evt = rollStrike(aName, tName, hit, dmg, crit, targetHP, strikeSkills, weaponSpecial);
+      const evt = rollStrike(
+        aName,
+        tName,
+        hit,
+        dmg,
+        crit,
+        targetHP,
+        strikeSkills,
+        weaponSpecial,
+        { attackerSide, targetSide }
+      );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
         // Sol/Drain heal: striker heals HP
@@ -1028,7 +1065,17 @@ export function resolveCombat(
         // Aether Luna: bonus strike at 1.5x damage
         const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
-        const bonusEvt = rollStrike(aName, tName, hit, bonusDmg, crit, bonusTargetHP, null, weaponSpecial);
+        const bonusEvt = rollStrike(
+          aName,
+          tName,
+          hit,
+          bonusDmg,
+          crit,
+          bonusTargetHP,
+          null,
+          weaponSpecial,
+          { attackerSide, targetSide }
+        );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
@@ -1121,7 +1168,16 @@ export function resolveCombat(
   const divineChargeHeals = [];
   if (atkStrikeSkills?._divineChargeData && atkHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
-      if (e.type === 'strike' && e.attacker === attacker.name && !e.miss) return sum + e.damage;
+      if (
+        e.type === 'strike'
+        && !e.miss
+        && (
+          e.attackerSide === 'attacker'
+          || (e.attackerSide == null && e.attacker === attacker.name)
+        )
+      ) {
+        return sum + e.damage;
+      }
       return sum;
     }, 0);
     if (totalDmg > 0) {
@@ -1130,7 +1186,16 @@ export function resolveCombat(
   }
   if (defStrikeSkills?._divineChargeData && defHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
-      if (e.type === 'strike' && e.attacker === defender.name && !e.miss) return sum + e.damage;
+      if (
+        e.type === 'strike'
+        && !e.miss
+        && (
+          e.attackerSide === 'defender'
+          || (e.attackerSide == null && e.attacker === defender.name)
+        )
+      ) {
+        return sum + e.damage;
+      }
       return sum;
     }, 0);
     if (totalDmg > 0) {

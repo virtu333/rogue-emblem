@@ -64,6 +64,11 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
+import {
+  didCombatSideLandHit,
+  getPostCombatPipelineSteps,
+  resolvePostCombatMove,
+} from '../engine/WeaponArtPostCombat.js';
 import { LevelUpPopup } from '../ui/LevelUpPopup.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
@@ -6051,56 +6056,17 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(attacker);
     this.updateHPBar(defender);
 
-    await this.applyOnAttackAffixes(attacker, defender, result.events);
-    await this.applyOnAttackAffixes(defender, attacker, result.events);
+    await this._applyResolvedCombatPostEffects({
+      attacker,
+      defender,
+      result,
+      attackerWeaponArt: selectedArt,
+      defenderWeaponArt: null,
+    });
 
-    if (result.poisonEffects?.length > 0) {
-      for (const pe of result.poisonEffects) {
-        const poisonUnit = pe.target === 'defender' ? defender : attacker;
-        await this.showPoisonDamage(poisonUnit, pe.damage);
-      }
-    }
-
-    // Apply intimidate debuffs
-    if (result.debuffEvents?.length > 0) {
-      for (const de of result.debuffEvents) {
-        const debuffTarget = de.target === 'attacker' ? attacker : defender;
-        if (debuffTarget.currentHP <= 0) continue;
-        for (const [stat, val] of Object.entries(de.debuffs)) {
-          this.applyBattleDebuff(debuffTarget, stat, val);
-        }
-        const pos = this.grid.gridToPixel(debuffTarget.col, debuffTarget.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
-      }
-    }
-
-    // Apply divine charge heals
-    if (result.divineChargeHeals?.length > 0) {
-      for (const dc of result.divineChargeHeals) {
-        const caster = dc.side === 'attacker' ? attacker : defender;
-        if (caster.currentHP <= 0) continue;
-        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
-        if (healAmount <= 0) continue;
-        const allies = this.getDivineChargeAllies(caster)
-          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
-        if (allies.length === 0) continue;
-        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
-        const healTarget = allies[0];
-        const prevHP = healTarget.currentHP;
-        healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
-        const actualHeal = healTarget.currentHP - prevHP;
-        this.updateHPBar(healTarget);
-        if (actualHeal > 0) {
-          const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
-          this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
-        }
-      }
-    }
-
-    if (attacker.faction === 'player' && !result.attackerDied) {
+    if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(0, defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)));
-      await this.awardXP(attacker, defender, result.defenderDied, damageDealt, defenderHpAtStart);
+      await this.awardXP(attacker, defender, defender.currentHP <= 0, damageDealt, defenderHpAtStart);
     }
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
@@ -6111,16 +6077,16 @@ export class BattleScene extends Phaser.Scene {
       this.battleState = 'COMBAT_RESOLVING';
     }
 
-    if (result.defenderDied) {
+    if (defender.currentHP <= 0) {
       await this.removeUnit(defender);
     }
-    if (result.attackerDied) {
+    if (attacker.currentHP <= 0) {
       await this.removeUnit(attacker);
     }
 
     if (this.checkBattleEnd()) return;
 
-    if (result.attackerDied) {
+    if (attacker.currentHP <= 0) {
       this.selectedUnit = null;
       this._clearSelectedWeaponArt();
       this.battleState = 'PLAYER_IDLE';
@@ -6160,9 +6126,17 @@ export class BattleScene extends Phaser.Scene {
     this.finishUnitAction(attacker);
   }
 
-  async applyOnAttackAffixes(attacker, defender, events) {
+  async applyOnAttackAffixes(attacker, defender, events, sourceSide = null) {
     if (!attacker || !defender || defender.currentHP <= 0) return;
-    const didLandHit = events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+    const inferredSide = sourceSide || null;
+    const didLandHit = inferredSide
+      ? didCombatSideLandHit(
+        events,
+        inferredSide,
+        inferredSide === 'attacker' ? attacker : defender,
+        inferredSide === 'attacker' ? defender : attacker
+      )
+      : events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
     if (!didLandHit || !attacker.affixes?.length) return;
     const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
@@ -6179,10 +6153,141 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  async _applyResolvedCombatPostEffects({
+    attacker,
+    defender,
+    result,
+    attackerWeaponArt = null,
+    defenderWeaponArt = null,
+  }) {
+    const steps = getPostCombatPipelineSteps({
+      attacker,
+      defender,
+      result,
+      attackerWeaponArt,
+      defenderWeaponArt,
+    });
+
+    for (const step of steps) {
+      const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
+      const targetUnit = step.targetSide
+        ? (step.targetSide === 'attacker' ? attacker : defender)
+        : (step.sourceSide === 'defender' ? attacker : defender);
+      switch (step.type) {
+        case 'affix':
+          await this.applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
+          break;
+        case 'poison':
+          if (targetUnit && targetUnit.currentHP > 0) {
+            await this.showPoisonDamage(targetUnit, step.damage);
+          }
+          break;
+        case 'debuff':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          for (const [stat, val] of Object.entries(step.debuffs || {})) {
+            this.applyBattleDebuff(targetUnit, stat, val);
+          }
+          {
+            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
+            this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
+          }
+          break;
+        case 'divine_charge':
+          await this._applyDivineChargeHealStep(step, attacker, defender);
+          break;
+        case 'tier2_damage':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          {
+            const hpFloor = step.nonLethal ? 1 : 0;
+            const prevHP = targetUnit.currentHP;
+            targetUnit.currentHP = Math.max(hpFloor, targetUnit.currentHP - step.amount);
+            const actualDamage = prevHP - targetUnit.currentHP;
+            if (actualDamage > 0) {
+              this.updateHPBar(targetUnit);
+              await this.showPoisonDamage(targetUnit, actualDamage);
+            }
+          }
+          break;
+        case 'tier2_debuff':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          this.applyBattleDebuff(targetUnit, step.stat, step.amount);
+          {
+            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
+            this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(step.amount)} ${step.stat}`, '#ff8888');
+          }
+          break;
+        case 'tier2_move':
+          await this._applyTier2MoveStep(sourceUnit, targetUnit, step);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  async _applyDivineChargeHealStep(step, attacker, defender) {
+    const caster = step.side === 'defender' ? defender : attacker;
+    if (!caster || caster.currentHP <= 0) return;
+    const healAmount = Math.floor(step.damageDealt * step.percent / 100);
+    if (healAmount <= 0) return;
+    const allies = this.getDivineChargeAllies(caster)
+      .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
+        && gridDistance(caster.col, caster.row, u.col, u.row) <= step.range);
+    if (allies.length === 0) return;
+    allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+    const healTarget = allies[0];
+    const prevHP = healTarget.currentHP;
+    healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
+    const actualHeal = healTarget.currentHP - prevHP;
+    this.updateHPBar(healTarget);
+    if (actualHeal > 0) {
+      const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
+      this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
+    }
+  }
+
+  async _applyTier2MoveStep(sourceUnit, targetUnit, step) {
+    if (!sourceUnit) return;
+    const moveResult = resolvePostCombatMove({
+      sourceUnit,
+      targetUnit,
+      mode: step.mode,
+      distance: step.distance,
+      cols: this.grid.cols,
+      rows: this.grid.rows,
+      getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
+      getUnitAt: (col, row) => this.getUnitAt(col, row),
+    });
+    if (!moveResult.ok) return;
+
+    const movedUnits = [];
+    for (const assignment of moveResult.assignments) {
+      assignment.unit.col = assignment.col;
+      assignment.unit.row = assignment.row;
+      movedUnits.push(assignment.unit);
+    }
+    for (const unit of movedUnits) {
+      this.updateUnitPosition(unit);
+    }
+    this._refreshPostCombatMovementState(movedUnits);
+  }
+
+  _refreshPostCombatMovementState(movedUnits) {
+    if (!Array.isArray(movedUnits) || movedUnits.length <= 0) return;
+    this.dangerZoneStale = true;
+    if (this.grid.fogEnabled) {
+      this.grid.updateFogOfWar(this.playerUnits);
+      this.updateEnemyVisibility();
+    }
+  }
+
   async animateStrike(event, attacker, defender) {
     const reduced = this._isReducedEffects();
-    const striker = event.attacker === attacker.name ? attacker : defender;
-    const target = event.attacker === attacker.name ? defender : attacker;
+    const strikerIsAttacker = (event.attackerSide === 'attacker' || event.attackerSide === 'defender')
+      ? event.attackerSide === 'attacker'
+      : event.attacker === attacker.name;
+    const striker = strikerIsAttacker ? attacker : defender;
+    const target = strikerIsAttacker ? defender : attacker;
 
     if (event.skillActivations?.length) {
       const names = event.skillActivations.map(s => s.name).join(', ');
@@ -6937,62 +7042,22 @@ export class BattleScene extends Phaser.Scene {
     this.updateHPBar(enemy);
     this.updateHPBar(target);
 
-    await this.applyOnAttackAffixes(enemy, target, result.events);
-    await this.applyOnAttackAffixes(target, enemy, result.events);
-
-    // Show poison damage if applicable
-    if (result.poisonEffects?.length > 0) {
-      for (const pe of result.poisonEffects) {
-        const poisonUnit = pe.target === 'defender' ? target : enemy;
-        await this.showPoisonDamage(poisonUnit, pe.damage);
-      }
-    }
-
-    // Apply intimidate debuffs
-    if (result.debuffEvents?.length > 0) {
-      for (const de of result.debuffEvents) {
-        const debuffTarget = de.target === 'attacker' ? enemy : target;
-        if (debuffTarget.currentHP <= 0) continue;
-        for (const [stat, val] of Object.entries(de.debuffs)) {
-          this.applyBattleDebuff(debuffTarget, stat, val);
-        }
-        const pos = this.grid.gridToPixel(debuffTarget.col, debuffTarget.row);
-        this.showMinorHintAt(pos.x, pos.y, 'Intimidated!', '#ff6600');
-      }
-    }
-
-    // Apply divine charge heals
-    if (result.divineChargeHeals?.length > 0) {
-      for (const dc of result.divineChargeHeals) {
-        const caster = dc.side === 'attacker' ? enemy : target;
-        if (caster.currentHP <= 0) continue;
-        const healAmount = Math.floor(dc.damageDealt * dc.percent / 100);
-        if (healAmount <= 0) continue;
-        const allies = this.getDivineChargeAllies(caster)
-          .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-            && gridDistance(caster.col, caster.row, u.col, u.row) <= dc.range);
-        if (allies.length === 0) continue;
-        allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
-        const healTarget = allies[0];
-        const prevHP = healTarget.currentHP;
-        healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
-        const actualHeal = healTarget.currentHP - prevHP;
-        this.updateHPBar(healTarget);
-        if (actualHeal > 0) {
-          const pos = this.grid.gridToPixel(healTarget.col, healTarget.row);
-          this.showMinorHintAt(pos.x, pos.y, `+${actualHeal} HP`, '#00ff00');
-        }
-      }
-    }
+    await this._applyResolvedCombatPostEffects({
+      attacker: enemy,
+      defender: target,
+      result,
+      attackerWeaponArt: selectedArt,
+      defenderWeaponArt: null,
+    });
 
     // Award XP to player defender if they survived
-    if (target.faction === 'player' && !result.defenderDied) {
+    if (target.faction === 'player' && target.currentHP > 0) {
       const counterDamage = Math.max(0, enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)));
-      await this.awardXP(target, enemy, result.attackerDied, counterDamage, enemyHpAtStart);
+      await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
     }
 
-    if (result.defenderDied) await this.removeUnit(target);
-    if (result.attackerDied) await this.removeUnit(enemy);
+    if (target.currentHP <= 0) await this.removeUnit(target);
+    if (enemy.currentHP <= 0) await this.removeUnit(enemy);
     this.checkBattleEnd();
   }
 

@@ -1,5 +1,23 @@
 # Weapon Arts Expansion Status
 
+## Current Snapshot (2026-02-16)
+
+Status: IN PROGRESS (Tier 2 standard post-combat effects implemented; Tier 2 legendary + Tier 3-5 deferred)
+
+- Runtime catalog in `data/weaponArts.json`: **75** total arts.
+- Fully implemented mechanics: **50** arts (no `_deferredMechanic` placeholder).
+- Deferred-placeholder mechanics: **25** arts.
+- Deferred tier counts:
+  - Tier 2 (`postCombatMove`, `afterCombatDebuff`, `afterCombatDamage`): 4 (0 standard, 4 legendary)
+  - Tier 3 (`inflictStatus`): 3 (3 standard, 0 legendary)
+  - Tier 4 (`multiHit`, `drainPercent`): 10 (4 standard, 6 legendary)
+  - Tier 5 (`aoeSplash`, `allyBuff`): 10 (4 standard, 6 legendary)
+- Current implementation plan: `docs/reports/weapon_arts_next_mechanics_plan_2026-02-16.md`
+
+## Historical Phase Logs (2026-02-13 checkpoint)
+
+The sections below are preserved as historical delivery logs for the original 39-art Phase 1-2 rollout.
+
 ## Phase 1
 
 Status: READY
