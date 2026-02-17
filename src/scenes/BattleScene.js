@@ -1649,6 +1649,7 @@ export class BattleScene extends Phaser.Scene {
       0xa8f2ff,
       0
     ).setDepth(950);
+    this._pinToScreen(flash);
     this.tweens.add({
       targets: flash,
       alpha: 0.22,
@@ -1757,6 +1758,7 @@ export class BattleScene extends Phaser.Scene {
     makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, '#e0e0e0', () => {
       this.cancelVisionDialog();
     });
+    this._pinToScreen(group);
 
     this.visionDialog = {
       group,
@@ -2129,6 +2131,7 @@ export class BattleScene extends Phaser.Scene {
     deployGroup.push(rosterText);
 
     updateCounter();
+    this._pinToScreen(deployGroup);
 
     // Tutorial hint for deploy screen
     const hints = this.registry.get('hints');
@@ -2777,6 +2780,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.isStoryInputLocked()) return false;
     if (this._isTutorialStrictGateActive()) return false;
     if (this.pauseOverlay?.visible || this.unitDetailOverlay?.visible || this.visionDialog) return false;
+    if (this.rosterOverlay?.visible) return false;
     if (this.lootSettingsOverlay || this.lootRosterVisible) return false;
 
     const allowedStates = new Set(['PLAYER_IDLE', 'UNIT_SELECTED', 'CANTO_MOVING']);
@@ -2786,11 +2790,11 @@ export class BattleScene extends Phaser.Scene {
   _handleCameraGesturePointerDown(pointer) {
     if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
     const result = this._battleCamera.handlePointerDown(pointer, this.isCameraGestureAllowed());
-    if (result?.beganGesture) {
+    if (result?.beganGesture || result?.touchCount >= 2) {
       this.cancelTouchInspectHold();
       this._touchHoldTriggered = false;
     }
-    return Boolean(result?.consumed);
+    return Boolean(result?.consumed || result?.touchCount >= 2);
   }
 
   _handleCameraGesturePointerMove(pointer) {
@@ -4954,6 +4958,15 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (pointer?.pointerType === 'touch') {
+      const wasTouchCanceled = Boolean(pointer.wasCanceled || pointer?.event?.type === 'touchcancel');
+      if (wasTouchCanceled) {
+        const hadTouches = Boolean(this._battleCamera?.clearTouches?.());
+        this._cameraGestureTapSuppressed = true;
+        this.cancelTouchInspectHold();
+        this._touchTapDown = null;
+        if (hadTouches) this._syncMobileResetViewButton();
+        return;
+      }
       if (this._handleCameraGesturePointerUp(pointer)) {
         this._cameraGestureTapSuppressed = true;
         this.cancelTouchInspectHold();
@@ -6740,8 +6753,14 @@ export class BattleScene extends Phaser.Scene {
             this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(step.amount)} ${step.stat}`, '#ff8888');
           }
           break;
+        case 'tier2_pierce':
+          await this._applyTier2PierceStep(step, sourceUnit, targetUnit);
+          break;
         case 'tier2_move':
           await this._applyTier2MoveStep(sourceUnit, targetUnit, step);
+          break;
+        case 'tier2_set_hp':
+          this._applyTier2SetHpStep(step, sourceUnit, targetUnit);
           break;
         case 'tier5_aoe_splash':
           await this._applyTier5AoeSplashStep(step, sourceUnit, targetUnit);
@@ -6800,6 +6819,67 @@ export class BattleScene extends Phaser.Scene {
       this.updateUnitPosition(unit);
     }
     this._refreshPostCombatMovementState(movedUnits);
+  }
+
+  _resolveTier2PierceTarget(sourceUnit, primaryTarget) {
+    if (!sourceUnit || !primaryTarget) return null;
+    const dc = primaryTarget.col - sourceUnit.col;
+    const dr = primaryTarget.row - sourceUnit.row;
+    if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
+    const secondaryCol = primaryTarget.col + dc;
+    const secondaryRow = primaryTarget.row + dr;
+    if (
+      secondaryCol < 0
+      || secondaryCol >= this.grid.cols
+      || secondaryRow < 0
+      || secondaryRow >= this.grid.rows
+    ) {
+      return null;
+    }
+    const candidate = this.getUnitAt(secondaryCol, secondaryRow);
+    if (!candidate || candidate.currentHP <= 0) return null;
+    if (!this._getTier5HostileUnitsFor(sourceUnit).includes(candidate)) return null;
+    return candidate;
+  }
+
+  async _applyTier2PierceStep(step, sourceUnit, primaryTarget) {
+    if (!sourceUnit) return;
+    if (!primaryTarget) return;
+    const strikeDamages = Array.isArray(step?.damages) ? step.damages : [];
+    if (strikeDamages.length <= 0) return;
+    const target = this._resolveTier2PierceTarget(sourceUnit, primaryTarget);
+    if (!target) return;
+
+    for (const rawDamage of strikeDamages) {
+      if (target.currentHP <= 0) break;
+      const damage = Math.max(0, Math.trunc(Number(rawDamage) || 0));
+      if (damage <= 0) continue;
+      const prevHP = target.currentHP;
+      target.currentHP = Math.max(0, target.currentHP - damage);
+      const actualDamage = prevHP - target.currentHP;
+      if (actualDamage <= 0) continue;
+      this.updateHPBar(target);
+      const pos = this.grid.gridToPixel(target.col, target.row);
+      this.showMinorHintAt(pos.x, pos.y, `Pierce -${actualDamage}`, '#ff7777');
+      if (target.currentHP <= 0) {
+        await this.removeUnit(target);
+        break;
+      }
+    }
+  }
+
+  _applyTier2SetHpStep(step, sourceUnit, targetUnit) {
+    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+    if (!targetUnit || targetUnit.currentHP <= 0) return;
+    const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
+    if (value <= 0) return;
+    const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));
+    const nextHp = Math.min(maxHp, value);
+    if (targetUnit.currentHP === nextHp) return;
+    targetUnit.currentHP = nextHp;
+    this.updateHPBar(targetUnit);
+    const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
+    this.showMinorHintAt(pos.x, pos.y, `HP -> ${nextHp}`, '#ffaa66');
   }
 
   _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
@@ -8021,7 +8101,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'BATTLE_END';
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, this, 0);
-    this.add.text(
+    const victoryBanner = this.add.text(
       this.cameras.main.centerX, this.cameras.main.centerY,
       'VICTORY!',
       {
@@ -8029,6 +8109,7 @@ export class BattleScene extends Phaser.Scene {
         backgroundColor: '#000000dd', padding: { x: 24, y: 12 },
       }
     ).setOrigin(0.5).setDepth(600);
+    this._pinToScreen(victoryBanner);
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
@@ -8366,6 +8447,8 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(701));
     recruitGroup.push(hintText);
 
+    this._pinToScreen(recruitGroup);
+
     // Store for R key / cleanup
     this.lootGroup = recruitGroup;
   }
@@ -8684,6 +8767,7 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(701);
     lootGroup.push(hintText);
 
+    this._pinToScreen(lootGroup);
     this.lootGroup = lootGroup;
   }
 
@@ -8889,6 +8973,7 @@ export class BattleScene extends Phaser.Scene {
     detailText.setPosition(tx + padX, ty + padY);
 
     this._lootTooltip = this.add.container(0, 0, [bg, detailText]).setDepth(760);
+    this._pinToScreen(this._lootTooltip);
   }
 
   _hideLootTooltip() {
@@ -9511,6 +9596,7 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '9px', color: '#888888',
     }).setOrigin(0.5).setDepth(751);
     this.lootRosterGroup.push(hint);
+    this._pinToScreen(this.lootRosterGroup);
   }
 
   /** Hide loot roster viewer. */
@@ -9610,6 +9696,7 @@ export class BattleScene extends Phaser.Scene {
       backgroundColor: '#000000cc',
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(799);
+    this._pinToScreen(status);
     this.time.delayedCall(1500, () => {
       if (status && status.active) status.destroy();
     });
@@ -9627,7 +9714,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, this, 0);
-    this.add.text(
+    const defeatBanner = this.add.text(
       this.cameras.main.centerX, this.cameras.main.centerY,
       'DEFEAT',
       {
@@ -9635,6 +9722,7 @@ export class BattleScene extends Phaser.Scene {
         backgroundColor: '#000000dd', padding: { x: 24, y: 12 },
       }
     ).setOrigin(0.5).setDepth(600);
+    this._pinToScreen(defeatBanner);
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
@@ -9771,6 +9859,7 @@ export class BattleScene extends Phaser.Scene {
     });
     group.push(titleBtn);
 
+    this._pinToScreen(group);
     this.defeatRecoveryPrompt = group;
   }
 

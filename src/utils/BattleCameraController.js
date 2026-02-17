@@ -51,6 +51,10 @@ export class BattleCameraController {
     return this._touches.size > 0;
   }
 
+  getTouchCount() {
+    return this._touches.size;
+  }
+
   clearTouches() {
     const hadTouches = this._touches.size > 0;
     this._touches.clear();
@@ -130,17 +134,18 @@ export class BattleCameraController {
   }
 
   handlePointerDown(pointer, allowed = true) {
-    if (pointer?.pointerType !== 'touch') return { consumed: false, beganGesture: false };
+    if (pointer?.pointerType !== 'touch') return { consumed: false, beganGesture: false, touchCount: this._touches.size };
     this.pruneInactiveTouches(pointer);
     if (this._gestureActive && this._touches.size < 2) this._endGesture();
     this._touches.set(pointer.id, { x: pointer.x, y: pointer.y });
-    if (!allowed) return { consumed: false, beganGesture: false };
+    const touchCount = this._touches.size;
+    if (!allowed) return { consumed: false, beganGesture: false, touchCount };
 
     if (this._touches.size >= 2) {
       this._beginGesture();
-      return { consumed: true, beganGesture: true };
+      return { consumed: true, beganGesture: true, touchCount };
     }
-    return { consumed: false, beganGesture: false };
+    return { consumed: false, beganGesture: false, touchCount };
   }
 
   handlePointerMove(pointer, allowed = true) {

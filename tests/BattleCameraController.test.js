@@ -76,3 +76,52 @@ describe('BattleCameraController touch cleanup', () => {
     expect(afterClear.endedGesture).toBe(false);
   });
 });
+
+describe('BattleCameraController clamp and pinch behavior', () => {
+  it('centers small maps and clamps large-map scroll bounds', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => ({ left: 0, top: 0, width: 320, height: 240 }),
+    });
+
+    controller.resetView();
+    expect(camera.zoom).toBe(1);
+    expect(camera.scrollX).toBe(-160);
+    expect(camera.scrollY).toBe(-120);
+
+    camera.zoom = 3;
+    camera.scrollX = -50;
+    camera.scrollY = 500;
+    controller.clampToBounds();
+
+    expect(camera.scrollX).toBe(0);
+    expect(camera.scrollY).toBe(80);
+  });
+
+  it('supports pinch-out reset back to default zoom/scroll', () => {
+    const camera = createCamera();
+    const controller = new BattleCameraController(camera, {
+      getBounds: () => ({ left: 0, top: 0, width: 1280, height: 960 }),
+      resetPinchScaleThreshold: 0.95,
+    });
+    const manager = { pointers: [] };
+    const p1 = createTouchPointer(1, 100, 100, manager, true);
+    const p2 = createTouchPointer(2, 200, 100, manager, true);
+
+    manager.pointers = [p1, p2];
+    controller.handlePointerDown(p1, true);
+    const started = controller.handlePointerDown(p2, true);
+    expect(started.beganGesture).toBe(true);
+
+    p1.x = 120;
+    p2.x = 180;
+    const moved = controller.handlePointerMove(p1, true);
+    expect(moved.consumed).toBe(true);
+
+    const ended = controller.handlePointerUp(p1);
+    expect(ended.endedGesture).toBe(true);
+    expect(camera.zoom).toBe(1);
+    expect(camera.scrollX).toBe(0);
+    expect(camera.scrollY).toBe(0);
+  });
+});
