@@ -454,6 +454,14 @@ export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses
     if (!unit.skills.includes(skill)) unit.skills.push(skill);
   }
 
+  // Give Archer/Sniper recruits a Longbow for tactical range advantage.
+  // Keep this scoped to dedicated bow classes (not all classes with Bow proficiency).
+  const isArcherTypeRecruit = classData.name === 'Archer' || classData.name === 'Sniper';
+  if (isArcherTypeRecruit) {
+    const longbow = allWeapons.find(w => w.name === 'Longbow');
+    if (longbow) addToInventory(unit, longbow);
+  }
+
   return unit;
 }
 

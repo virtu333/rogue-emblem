@@ -634,6 +634,55 @@ describe('createRecruitUnit', () => {
     );
     expect(unit.skills.length).toBe(0);
   });
+
+  describe('Longbow secondary weapon for archer/sniper recruits', () => {
+    const archerClass = data.classes.find(c => c.name === 'Archer');
+    const sniperClass = { ...archerClass, name: 'Sniper' };
+    const assassinClass = {
+      ...archerClass,
+      name: 'Assassin',
+      weaponProficiencies: 'Swords (M), Bows (P)',
+    };
+
+    it('gives Archer recruit a Longbow as secondary weapon', () => {
+      const unit = createRecruitUnit({ className: 'Archer', name: 'Wil', level: 3 }, archerClass, data.weapons);
+      const longbow = unit.inventory.find(w => w.name === 'Longbow');
+      expect(longbow).toBeDefined();
+      expect(longbow.range).toBe('2-3');
+    });
+
+    it('Archer recruit has exactly 2 weapons (primary + Longbow)', () => {
+      const unit = createRecruitUnit({ className: 'Archer', name: 'Wil', level: 3 }, archerClass, data.weapons);
+      expect(unit.inventory.length).toBe(2);
+      expect(unit.inventory[0].name).toContain('Bow');
+      expect(unit.inventory[1].name).toBe('Longbow');
+    });
+
+    it('high-level Archer still gets Longbow alongside Silver Bow', () => {
+      const unit = createRecruitUnit({ className: 'Archer', name: 'Shinon', level: 14 }, archerClass, data.weapons);
+      expect(unit.inventory.length).toBe(2);
+      expect(unit.inventory[0].tier).toBe('Silver');
+      expect(unit.inventory[1].name).toBe('Longbow');
+    });
+
+    it('gives Sniper recruit a Longbow as secondary weapon', () => {
+      const unit = createRecruitUnit({ className: 'Sniper', name: 'Faye', level: 8 }, sniperClass, data.weapons);
+      const longbow = unit.inventory.find(w => w.name === 'Longbow');
+      expect(longbow).toBeDefined();
+    });
+
+    it('does NOT give Longbow to non-archer bow class', () => {
+      const unit = createRecruitUnit({ className: 'Assassin', name: 'Shade', level: 8 }, assassinClass, data.weapons);
+      const longbow = unit.inventory.find(w => w.name === 'Longbow');
+      expect(longbow).toBeUndefined();
+    });
+
+    it('does NOT give Longbow to non-bow class', () => {
+      const unit = createRecruitUnit({ className: 'Fighter', name: 'Galvin', level: 3 }, fighterClass, data.weapons);
+      const longbow = unit.inventory.find(w => w.name === 'Longbow');
+      expect(longbow).toBeUndefined();
+    });
+  });
 });
 
 describe('applyStatBoost', () => {
