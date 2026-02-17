@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { canEquipMock } = vi.hoisted(() => ({
+const { canEquipMock, hasProficiencyMock } = vi.hoisted(() => ({
   canEquipMock: vi.fn(() => true),
+  hasProficiencyMock: vi.fn(() => true),
 }));
 
 vi.mock('phaser', () => ({
@@ -16,10 +17,18 @@ vi.mock('../src/engine/UnitManager.js', async () => {
   return {
     ...actual,
     canEquip: canEquipMock,
+    hasProficiency: hasProficiencyMock,
   };
 });
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+
+beforeEach(() => {
+  canEquipMock.mockReset();
+  canEquipMock.mockImplementation(() => true);
+  hasProficiencyMock.mockReset();
+  hasProficiencyMock.mockImplementation(() => true);
+});
 
 function makeDisplayObject(seed = {}) {
   return {
@@ -71,6 +80,26 @@ function makeBaseScene() {
   scene.showActionMenu = vi.fn();
   scene._showWeaponDetailTooltip = vi.fn();
   scene._hideWeaponDetailTooltip = vi.fn();
+  scene.findAttackTargets = vi.fn(() => []);
+  scene.findHealTargets = vi.fn(() => []);
+  scene.getActiveHealStaff = vi.fn(() => null);
+  scene._getWeaponArtChoices = vi.fn(() => []);
+  scene._getSelectedWeaponArtForUnit = vi.fn(() => null);
+  scene.getPromotionConsumable = vi.fn(() => null);
+  scene.findShoveTargets = vi.fn(() => []);
+  scene.findPullTargets = vi.fn(() => []);
+  scene.findTradeTargets = vi.fn(() => []);
+  scene.findSwapTargets = vi.fn(() => []);
+  scene.findDanceTargets = vi.fn(() => []);
+  scene.findBreakTargets = vi.fn(() => []);
+  scene.registry = { get: vi.fn(() => null) };
+  scene.npcUnits = [];
+  scene.enemyUnits = [];
+  scene.playerUnits = [];
+  scene.runManager = null;
+  scene.battleConfig = { objective: 'rout' };
+  scene.gameData = { classes: [], lords: [] };
+  scene._playerDeathsThisBattle = 0;
   scene.cameras = {
     main: { centerX: 320, centerY: 240, width: 640, height: 480 },
   };
@@ -134,6 +163,100 @@ describe('BattleScene equip menu text', () => {
     for (const call of scene._makeMenuTextButton.mock.calls) {
       expect(call[6]?.clickOnPointerUp).toBeFalsy();
     }
+  });
+
+  it('shows Equip in action menu with one equippable and one non-proficient weapon', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    const noProfWeapon = { name: 'Iron Axe', type: 'Axe' };
+    canEquipMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+    hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: equipped,
+      inventory: [equipped, noProfWeapon],
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).toContain('Equip');
+  });
+
+  it('non-proficient rows render gray with (no prof) suffix', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    const noProfWeapon = { name: 'Iron Axe', type: 'Axe' };
+    canEquipMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+    hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: equipped,
+      inventory: [equipped, noProfWeapon],
+    };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].includes('Iron Axe'));
+    expect(noProfCall).toBeTruthy();
+    expect(noProfCall[2]).toContain('(no prof)');
+    expect(noProfCall[3].color).toBe('#888888');
+  });
+
+  it('non-proficient row click does not equip or change weapon', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    const noProfWeapon = { name: 'Iron Axe', type: 'Axe' };
+    canEquipMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+    hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: equipped,
+      inventory: [equipped, noProfWeapon],
+    };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].includes('Iron Axe'));
+    const onClick = noProfCall[5];
+    onClick();
+
+    expect(unit.weapon).toBe(equipped);
+    expect(scene.showActionMenu).not.toHaveBeenCalled();
+  });
+
+  it('tooltip handlers still fire for non-proficient rows', () => {
+    const scene = makeBaseScene();
+    const textObjects = [];
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, _onClick) => {
+      const obj = makeHandlerCapturingObject({ label, y: _y });
+      textObjects.push(obj);
+      return obj;
+    });
+    const noProfWeapon = { name: 'Iron Axe', type: 'Axe' };
+    canEquipMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+    hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: equipped,
+      inventory: [equipped, noProfWeapon],
+    };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    const noProfText = textObjects.find((obj) => obj.label.includes('Iron Axe'));
+    scene._showWeaponDetailTooltip.mockClear();
+    const overHandlers = noProfText.handlers.pointerover;
+    overHandlers[overHandlers.length - 1]();
+
+    expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
+      noProfWeapon, expect.any(Object), expect.any(Number),
+    );
   });
 });
 

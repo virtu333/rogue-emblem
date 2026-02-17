@@ -1,5 +1,10 @@
 // BattleSceneFogSnapshot.test.js - Integration tests for fog snapshot lifecycle in BattleScene
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { transitionToSceneMock, rosterOverlayInstances } = vi.hoisted(() => ({
+  transitionToSceneMock: vi.fn(async () => true),
+  rosterOverlayInstances: [],
+}));
 
 vi.mock('phaser', () => ({
   default: {
@@ -7,7 +12,33 @@ vi.mock('phaser', () => ({
   },
 }));
 
+vi.mock('../src/utils/SceneRouter.js', async () => {
+  const actual = await vi.importActual('../src/utils/SceneRouter.js');
+  return {
+    ...actual,
+    transitionToScene: transitionToSceneMock,
+  };
+});
+
+vi.mock('../src/ui/RosterOverlay.js', () => ({
+  RosterOverlay: class {
+    constructor(scene, runManager, gameData, options = {}) {
+      this.scene = scene;
+      this.runManager = runManager;
+      this.gameData = gameData;
+      this.options = options;
+      this.visible = false;
+      rosterOverlayInstances.push(this);
+    }
+
+    show() {
+      this.visible = true;
+    }
+  },
+}));
+
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 
 function makeUnit(overrides = {}) {
   return {
@@ -93,6 +124,69 @@ function setupScene() {
   scene.time = { delayedCall: vi.fn() };
 
   return { scene, unit, snapshotSpy, restoreSpy, updateFogSpy };
+}
+
+beforeEach(() => {
+  transitionToSceneMock.mockReset();
+  transitionToSceneMock.mockResolvedValue(true);
+  rosterOverlayInstances.length = 0;
+});
+
+function makeUiObject(seed = {}) {
+  const handlers = {};
+  return {
+    ...seed,
+    handlers,
+    destroyed: false,
+    setDepth() { return this; },
+    setInteractive() { return this; },
+    setOrigin() { return this; },
+    setStrokeStyle() { return this; },
+    setColor(color) {
+      this.color = color;
+      return this;
+    },
+    setText(text) {
+      this.text = text;
+      return this;
+    },
+    setFillStyle() { return this; },
+    on(event, cb) {
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(cb);
+      return this;
+    },
+    trigger(event, ...args) {
+      for (const cb of handlers[event] || []) cb(...args);
+    },
+    destroy: vi.fn(function destroy() {
+      this.destroyed = true;
+    }),
+  };
+}
+
+function attachUiHarness(scene) {
+  const rectangles = [];
+  const texts = [];
+
+  scene.cameras = {
+    main: { centerX: 320, centerY: 240, width: 640, height: 480 },
+  };
+  scene.scene = { isActive: vi.fn(() => true) };
+  scene.add = {
+    rectangle: vi.fn((x, y, width, height, color, alpha) => {
+      const obj = makeUiObject({ kind: 'rectangle', x, y, width, height, color, alpha });
+      rectangles.push(obj);
+      return obj;
+    }),
+    text: vi.fn((x, y, text, style) => {
+      const obj = makeUiObject({ kind: 'text', x, y, text, style });
+      texts.push(obj);
+      return obj;
+    }),
+  };
+
+  return { rectangles, texts };
 }
 
 describe('BattleScene fog snapshot lifecycle', () => {
@@ -237,6 +331,243 @@ describe('BattleScene _movementSpent reset', () => {
     expect(mockUnit.hasMoved).toBe(false);
     expect(mockUnit.hasActed).toBe(false);
     expect(mockUnit._gambitUsedThisTurn).toBe(false);
+  });
+});
+
+describe('BattleScene trade cancel flow', () => {
+  it('TRADING cancel returns to action menu even when trade mutated', () => {
+    const { scene, unit } = setupScene();
+    scene.battleState = 'TRADING';
+    scene.selectedUnit = unit;
+    scene.tradeMutatedThisSession = true;
+    scene.showActionMenu = vi.fn(() => {
+      // Mirror BattleScene.showActionMenu side effect.
+      scene.tradeMutatedThisSession = false;
+    });
+    scene.finishUnitAction = vi.fn();
+
+    BattleScene.prototype.handleCancel.call(scene);
+
+    expect(scene.cleanupTradeUI).toHaveBeenCalled();
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.tradeMutatedThisSession).toBe(true);
+  });
+
+  it('UNIT_ACTION_MENU cancel with mutated trade reopens action menu (no undo, no finish)', () => {
+    const { scene, unit } = setupScene();
+    scene.battleState = 'UNIT_ACTION_MENU';
+    scene.selectedUnit = unit;
+    scene.inEquipMenu = false;
+    scene.tradeMutatedThisSession = true;
+    scene.showActionMenu = vi.fn(() => {
+      // Mirror BattleScene.showActionMenu side effect.
+      scene.tradeMutatedThisSession = false;
+    });
+    scene.undoMove = vi.fn();
+    scene.finishUnitAction = vi.fn();
+
+    BattleScene.prototype.handleCancel.call(scene);
+
+    expect(scene.hideActionMenu).toHaveBeenCalled();
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unit);
+    expect(scene.undoMove).not.toHaveBeenCalled();
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.tradeMutatedThisSession).toBe(true);
+  });
+
+  it('UNIT_ACTION_MENU cancel without mutation still undoes move', () => {
+    const { scene, unit } = setupScene();
+    scene.battleState = 'UNIT_ACTION_MENU';
+    scene.selectedUnit = unit;
+    scene.inEquipMenu = false;
+    scene.tradeMutatedThisSession = false;
+    scene.undoMove = vi.fn();
+    scene.finishUnitAction = vi.fn();
+
+    BattleScene.prototype.handleCancel.call(scene);
+
+    expect(scene.hideActionMenu).toHaveBeenCalled();
+    expect(scene.undoMove).toHaveBeenCalledWith(unit);
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.showActionMenu).not.toHaveBeenCalled();
+  });
+
+  it('trade Done returns to action menu and preserves mutation lock', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const unitA = makeUnit({
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [{ name: 'Iron Sword', type: 'Sword', rank: 'Prof', range: '1' }],
+      consumables: [],
+    });
+    const unitB = makeUnit({
+      name: 'Sera',
+      proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+      inventory: [{ name: 'Iron Axe', type: 'Axe', rank: 'Prof', range: '1' }],
+      consumables: [],
+    });
+    scene.selectedUnit = unitA;
+    scene.tradeMutatedThisSession = true;
+    scene.showActionMenu = vi.fn(() => {
+      scene.tradeMutatedThisSession = false;
+    });
+    scene.finishUnitAction = vi.fn();
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    const doneBtn = texts.find((obj) => obj.text === '[ Done ]');
+    expect(doneBtn).toBeTruthy();
+
+    doneBtn.trigger('pointerdown');
+
+    expect(scene.showActionMenu).toHaveBeenCalledWith(unitA);
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.tradeMutatedThisSession).toBe(true);
+  });
+});
+
+describe('BattleScene deploy controls', () => {
+  function makeRosterUnit(name) {
+    return {
+      name,
+      level: 1,
+      className: 'Fighter',
+      currentHP: 18,
+      stats: { HP: 18 },
+    };
+  }
+
+  it('deploy BACK transitions to NodeMap with BACK reason', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    scene.runManager = { getRoster: vi.fn(() => []) };
+    scene.gameData = { classes: [], lords: [] };
+    const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      roster,
+      { min: 1, max: 2 },
+      vi.fn(),
+    );
+
+    const backText = texts.find((obj) => obj.text === 'BACK');
+    expect(backText).toBeTruthy();
+    backText.trigger('pointerdown');
+
+    expect(transitionToSceneMock).toHaveBeenCalledWith(
+      scene,
+      'NodeMap',
+      {
+        gameData: scene.gameData,
+        runManager: scene.runManager,
+      },
+      { reason: TRANSITION_REASONS.BACK },
+    );
+  });
+
+  it('deploy BACK is a safe no-op when runManager is missing', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    scene.runManager = null;
+    scene.gameData = { classes: [], lords: [] };
+    const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      roster,
+      { min: 1, max: 2 },
+      vi.fn(),
+    );
+
+    const backText = texts.find((obj) => obj.text === 'BACK');
+    expect(backText).toBeTruthy();
+    expect(() => backText.trigger('pointerdown')).not.toThrow();
+    expect(transitionToSceneMock).not.toHaveBeenCalled();
+    expect(backText.destroyed).toBe(false);
+  });
+
+  it('deploy BACK keeps overlay open when transition fails and closes on retry success', async () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    scene.runManager = { getRoster: vi.fn(() => []) };
+    scene.gameData = { classes: [], lords: [] };
+    const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
+    transitionToSceneMock.mockResolvedValueOnce(false);
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      roster,
+      { min: 1, max: 2 },
+      vi.fn(),
+    );
+
+    const backText = texts.find((obj) => obj.text === 'BACK');
+    expect(backText).toBeTruthy();
+
+    backText.trigger('pointerdown');
+    await Promise.resolve();
+
+    expect(transitionToSceneMock).toHaveBeenCalledTimes(1);
+    expect(backText.destroyed).toBe(false);
+
+    backText.trigger('pointerdown');
+    await Promise.resolve();
+
+    expect(transitionToSceneMock).toHaveBeenCalledTimes(2);
+    expect(backText.destroyed).toBe(true);
+  });
+
+  it('deploy ROSTER close reopens deploy and restores selected names', () => {
+    const { scene } = setupScene();
+    const { rectangles, texts } = attachUiHarness(scene);
+    const initialRoster = [
+      makeRosterUnit('Edric'),
+      makeRosterUnit('Sera'),
+      makeRosterUnit('Brom'),
+    ];
+    const refreshedRoster = [
+      makeRosterUnit('Edric'),
+      makeRosterUnit('Brom'),
+      makeRosterUnit('Sera'),
+    ];
+    scene.runManager = { getRoster: vi.fn(() => refreshedRoster) };
+    scene.gameData = { classes: [], lords: [] };
+    const onConfirm = vi.fn();
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      initialRoster,
+      { min: 1, max: 3 },
+      onConfirm,
+    );
+
+    // Select "Sera" on the first deploy overlay.
+    const seraRowBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 400 && obj.y === 134);
+    expect(seraRowBg).toBeTruthy();
+    seraRowBg.trigger('pointerdown');
+
+    const rosterText = texts.find((obj) => obj.text === 'ROSTER');
+    expect(rosterText).toBeTruthy();
+    rosterText.trigger('pointerdown');
+    expect(rosterOverlayInstances).toHaveLength(1);
+
+    // Simulate closing RosterOverlay to trigger deploy reopen with refreshed roster.
+    rosterOverlayInstances[0].options.onClose();
+
+    // Confirm the reopened deploy list; selection should still include Sera by name.
+    const activeConfirm = rectangles
+      .filter((obj) => obj.kind === 'rectangle' && obj.width === 120 && !obj.destroyed)
+      .at(-1);
+    expect(activeConfirm).toBeTruthy();
+    activeConfirm.trigger('pointerdown');
+
+    expect(scene.runManager.getRoster).toHaveBeenCalled();
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const selectedNames = onConfirm.mock.calls[0][0].map((unit) => unit.name);
+    expect(selectedNames).toContain('Edric');
+    expect(selectedNames).toContain('Sera');
   });
 });
 

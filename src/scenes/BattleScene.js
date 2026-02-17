@@ -54,7 +54,7 @@ import {
   getWeaponRangeBonus,
 } from '../engine/SkillSystem.js';
 import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes, getWarpCandidates } from '../engine/AffixSystem.js';
-import { shouldCommitTradeExit, shouldAllowUndoMove } from '../engine/TradeFlow.js';
+import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import {
   getWeaponArtCombatMods,
   canUseWeaponArt,
@@ -90,6 +90,7 @@ import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { generateBossRecruitCandidates, getAvailableLords, createBossLordUnit } from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
+import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
@@ -1850,10 +1851,11 @@ export class BattleScene extends Phaser.Scene {
 
   // --- Deploy selection screen ---
 
-  showDeployScreen(roster, limits, onConfirm) {
+  showDeployScreen(roster, limits, onConfirm, initialSelectedNames = null) {
     this.battleState = 'DEPLOY_SELECTION';
     const cam = this.cameras.main;
     const deployGroup = [];
+    let deployOverlayClosed = false;
 
     // Dark overlay
     const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
@@ -1871,13 +1873,46 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(701);
     deployGroup.push(subtitle);
 
+    const cleanupDeployOverlay = () => {
+      if (deployOverlayClosed) return;
+      deployOverlayClosed = true;
+      for (const obj of deployGroup) {
+        try {
+          obj.destroy();
+        } catch {
+          // Ignore teardown failures from already-destroyed display objects.
+        }
+      }
+      deployGroup.length = 0;
+    };
+
     // Track selections
     const selected = new Set();
     const rowObjects = [];
 
+    const serializeSelectedUnitNames = () => {
+      const names = new Set();
+      for (const idx of selected) {
+        const name = roster[idx]?.name;
+        if (typeof name === 'string' && name.length > 0) names.add(name);
+      }
+      return names;
+    };
+
+    const restoreSelectedUnitNames = (selectedNames) => {
+      if (!(selectedNames instanceof Set) || selectedNames.size <= 0) return;
+      for (let i = 0; i < roster.length; i++) {
+        if (selected.size >= limits.max) break;
+        const unitName = roster[i]?.name;
+        if (!unitName || unitName === 'Edric') continue;
+        if (selectedNames.has(unitName)) selected.add(i);
+      }
+    };
+
     // Auto-select Edric (locked)
     const edricIdx = roster.findIndex(u => u.name === 'Edric');
     if (edricIdx !== -1) selected.add(edricIdx);
+    restoreSelectedUnitNames(initialSelectedNames);
 
     // Counter text
     const counterText = this.add.text(cam.centerX, 74, '', {
@@ -1978,11 +2013,63 @@ export class BattleScene extends Phaser.Scene {
       // Build selectedRoster in original roster order
       const selectedRoster = roster.filter((_, idx) => selected.has(idx));
 
-      // Destroy overlay
-      for (const obj of deployGroup) obj.destroy();
+      cleanupDeployOverlay();
 
       onConfirm(selectedRoster);
     });
+
+    const backText = this.add.text(cam.centerX, confirmY + 22, 'BACK', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+    }).setOrigin(0.5).setDepth(702).setInteractive({ useHandCursor: true });
+    backText.on('pointerover', () => backText.setColor('#ffdd44'));
+    backText.on('pointerout', () => backText.setColor('#aaaaaa'));
+    backText.on('pointerdown', async () => {
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_cancel');
+      if (!this.runManager) {
+        console.warn('[BattleScene] Deploy BACK ignored: missing runManager for NodeMap transition.');
+        return;
+      }
+      try {
+        const transitioned = await transitionToScene(this, 'NodeMap', {
+          gameData: this.gameData,
+          runManager: this.runManager,
+        }, { reason: TRANSITION_REASONS.BACK });
+        if (!transitioned) {
+          console.warn('[BattleScene] Deploy BACK transition to NodeMap failed.');
+          return;
+        }
+        cleanupDeployOverlay();
+      } catch (err) {
+        console.error('[BattleScene] Deploy BACK transition error:', err);
+      }
+    });
+    deployGroup.push(backText);
+
+    const rosterText = this.add.text(cam.centerX, confirmY + 38, 'ROSTER', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#88ccff',
+    }).setOrigin(0.5).setDepth(702).setInteractive({ useHandCursor: true });
+    rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
+    rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
+    rosterText.on('pointerdown', () => {
+      if (!this.runManager || !this.gameData) return;
+      if (this.rosterOverlay?.visible) return;
+      const audio = this.registry.get('audio');
+      if (audio) audio.playSFX('sfx_confirm');
+      const selectedNames = serializeSelectedUnitNames();
+      cleanupDeployOverlay();
+      this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
+        onClose: () => {
+          this.rosterOverlay = null;
+          if (!this.scene?.isActive?.()) return;
+          const refreshedRoster = this.runManager?.getRoster?.() || roster;
+          this.roster = refreshedRoster;
+          this.showDeployScreen(refreshedRoster, limits, onConfirm, selectedNames);
+        },
+      });
+      this.rosterOverlay.show();
+    });
+    deployGroup.push(rosterText);
 
     updateCounter();
 
@@ -2635,11 +2722,9 @@ export class BattleScene extends Phaser.Scene {
       this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'TRADING') {
       this.cleanupTradeUI();
-      if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
-        this.finishUnitAction(this.selectedUnit, { skipCanto: true });
-      } else {
-        this.showActionMenu(this.selectedUnit);
-      }
+      const tradeMutated = this.tradeMutatedThisSession;
+      this.showActionMenu(this.selectedUnit);
+      this.tradeMutatedThisSession = tradeMutated;
     } else if (this.battleState === 'CANTO_MOVING') {
       // Skip Canto -- end unit's turn
       this.grid.clearHighlights();
@@ -2656,8 +2741,10 @@ export class BattleScene extends Phaser.Scene {
         this.showActionMenu(this.selectedUnit);
       } else {
         this.hideActionMenu();
-        if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
-          this.finishUnitAction(this.selectedUnit, { skipCanto: true });
+        if (this.tradeMutatedThisSession) {
+          const tradeMutated = this.tradeMutatedThisSession;
+          this.showActionMenu(this.selectedUnit);
+          this.tradeMutatedThisSession = tradeMutated;
         } else {
           this._clearSelectedWeaponArt();
           this.undoMove(this.selectedUnit);
@@ -3739,11 +3826,9 @@ export class BattleScene extends Phaser.Scene {
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
     doneBtn.on('pointerdown', () => {
       this.cleanupTradeUI();
-      if (shouldCommitTradeExit(this.tradeMutatedThisSession)) {
-        this.finishUnitAction(unitA, { skipCanto: true });
-      } else {
-        this.showActionMenu(unitA);
-      }
+      const tradeMutated = this.tradeMutatedThisSession;
+      this.showActionMenu(unitA);
+      this.tradeMutatedThisSession = tradeMutated;
     });
     this.tradeUIObjects.push(doneBtn);
   }
@@ -4253,10 +4338,12 @@ export class BattleScene extends Phaser.Scene {
       const max = getStaffMaxUses(staff, unit);
       items.push(`Heal (${rem}/${max})`);
     }
-    const equippableItems = unit.inventory.filter(item =>
-      item.type !== 'Consumable' && canEquip(unit, item)
+    const equipMenuItems = unit.inventory.filter(item =>
+      item.type !== 'Consumable'
+      && item.type !== 'Scroll'
+      && (canEquip(unit, item) || !hasProficiency(unit, item))
     );
-    if (equippableItems.length >= 2) items.push('Equip');
+    if (equipMenuItems.length >= 2) items.push('Equip');
     if (canPromote(unit)
       && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
       && this.getPromotionConsumable(unit)) items.push('Promote');
@@ -4871,10 +4958,14 @@ export class BattleScene extends Phaser.Scene {
 
     this.actionMenu = [];
 
-    const equippable = unit.inventory.filter(item => item.type !== 'Consumable' && canEquip(unit, item));
+    const displayWeapons = unit.inventory.filter(item =>
+      item.type !== 'Consumable'
+      && item.type !== 'Scroll'
+      && (canEquip(unit, item) || !hasProficiency(unit, item))
+    );
     const itemHeight = 20;
     const menuPadding = 8;
-    const contentHeight = equippable.length * itemHeight;
+    const contentHeight = displayWeapons.length * itemHeight;
     const fullMenuHeight = contentHeight + menuPadding;
     const maxMenuHeight = Math.max(itemHeight + menuPadding, this.cameras.main.height - 8);
     const menuHeight = Math.min(fullMenuHeight, maxMenuHeight);
@@ -4888,19 +4979,26 @@ export class BattleScene extends Phaser.Scene {
     this.actionMenu.push(bg);
 
     const rows = [];
-    equippable.forEach((wpn, i) => {
+    displayWeapons.forEach((wpn, i) => {
       const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + menuWidth / 2;
+      const isNonProficient = !hasProficiency(unit, wpn);
+      const canEquipNow = canEquip(unit, wpn);
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const label = `${marker}${wpn?.name || 'Weapon'}`;
-      const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
+      const label = `${marker}${wpn?.name || 'Weapon'}${isNonProficient ? ' (no prof)' : ''}`;
+      const defaultColor = isNonProficient ? '#888888' : (wpn === unit.weapon ? '#ffdd44' : '#e0e0e0');
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
         fontFamily: 'monospace', fontSize: '9px', color: defaultColor, lineSpacing: 1,
       }, defaultColor, () => {
+        if (!canEquipNow) return;
         equipWeapon(unit, wpn);
         this.showActionMenu(unit);
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+      }, {
+        hitWidth: menuWidth - 10,
+        hitHeight: itemHeight,
+        hoverColor: isNonProficient ? '#999999' : '#ffdd44',
+      });
 
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, text.y);
@@ -4951,9 +5049,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Auto-show tooltip for equipped weapon (skip if overflowing — equipped row may be off-screen)
     if (!hasOverflow) {
-      const equippedWpn = equippable.find(w => w === unit.weapon) || equippable[0];
+      const equippedWpn = displayWeapons.find(w => w === unit.weapon) || displayWeapons[0];
       if (equippedWpn) {
-        const eqIdx = equippable.indexOf(equippedWpn);
+        const eqIdx = displayWeapons.indexOf(equippedWpn);
         const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
         this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
         this._weaponPreviewedItem = equippedWpn;
