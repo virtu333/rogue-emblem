@@ -4175,10 +4175,17 @@ export class BattleScene extends Phaser.Scene {
     text.on('pointerover', () => text.setColor(hoverColor));
     text.on('pointerout', () => text.setColor(defaultColor));
     if (clickOnPointerUp) {
+      text._armedPointerUpClick = false;
       text.on('pointerdown', () => {
         this._uiClickBlocked = true;
+        text._armedPointerUpClick = true;
+      });
+      text.on('pointerout', () => {
+        text._armedPointerUpClick = false;
       });
       text.on('pointerup', () => {
+        if (!text._armedPointerUpClick) return;
+        text._armedPointerUpClick = false;
         if (text._suppressNextClick) {
           text._suppressNextClick = false;
           return;
