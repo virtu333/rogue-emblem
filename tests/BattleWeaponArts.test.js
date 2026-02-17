@@ -1151,5 +1151,559 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAttacker.col).toBe(headlessAttacker.col);
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
   });
+
+  it('applies Tier 2 pierce_through mirrored strike damage with scene/headless parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
+    const sceneAttacker = {
+      name: 'Sigurd',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 24,
+      stats: { HP: 24, STR: 12, MAG: 0, SKL: 10, SPD: 10, DEF: 8, RES: 5, LCK: 6, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const sceneBehind = {
+      name: 'Behind',
+      faction: 'enemy',
+      col: 4,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+    };
+    const result = {
+      events: [
+        { type: 'strike', attackerSide: 'attacker', miss: false, damage: 7 },
+        { type: 'strike', attackerSide: 'attacker', miss: false, damage: 4 },
+      ],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+    const headlessBehind = structuredClone(sceneBehind);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender, sceneBehind];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender, headlessBehind];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneBehind.currentHP).toBe(9);
+    expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
+  });
+
+  it('does not apply tier2_pierce on miss-only sequences', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
+    const sceneAttacker = {
+      name: 'Sigurd',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 24,
+      stats: { HP: 24, STR: 12, MAG: 0, SKL: 10, SPD: 10, DEF: 8, RES: 5, LCK: 6, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const sceneBehind = {
+      name: 'Behind',
+      faction: 'enemy',
+      col: 4,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: true, damage: 99 }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+    const headlessBehind = structuredClone(sceneBehind);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender, sceneBehind];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender, headlessBehind];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneBehind.currentHP).toBe(20);
+    expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
+  });
+
+  it('applies tier2_pierce even when the source unit is dead after combat', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_piercing_charge');
+    const sceneAttacker = {
+      name: 'Sigurd',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 0,
+      stats: { HP: 24, STR: 12, MAG: 0, SKL: 10, SPD: 10, DEF: 8, RES: 5, LCK: 6, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const sceneBehind = {
+      name: 'Behind',
+      faction: 'enemy',
+      col: 4,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 6 }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+    const headlessBehind = structuredClone(sceneBehind);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender, sceneBehind];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender, headlessBehind];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneBehind.currentHP).toBe(14);
+    expect(sceneBehind.currentHP).toBe(headlessBehind.currentHP);
+  });
+
+  it('applies Doom Thrust pierce-before-push ordering with scene/headless parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_doom_thrust');
+    const sceneAttacker = {
+      name: 'Doom User',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 22,
+      stats: { HP: 22, STR: 12, MAG: 0, SKL: 9, SPD: 8, DEF: 7, RES: 4, LCK: 5, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const sceneBehind = {
+      name: 'Behind',
+      faction: 'enemy',
+      col: 4,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 5,
+      stats: { HP: 5, STR: 7, MAG: 0, SKL: 5, SPD: 6, DEF: 5, RES: 2, LCK: 2, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 6 }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+    const headlessBehind = structuredClone(sceneBehind);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender, sceneBehind];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    scene.removeUnit = vi.fn(async (unit) => {
+      const list = unit.faction === 'enemy' ? scene.enemyUnits : scene.playerUnits;
+      const idx = list.indexOf(unit);
+      if (idx >= 0) list.splice(idx, 1);
+    });
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender, headlessBehind];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(scene.enemyUnits.some((unit) => unit.name === 'Behind')).toBe(false);
+    expect(headless.enemyUnits.some((unit) => unit.name === 'Behind')).toBe(false);
+    expect(sceneDefender.col).toBe(4);
+    expect(sceneDefender.row).toBe(2);
+    expect(sceneDefender.col).toBe(headlessDefender.col);
+    expect(sceneDefender.row).toBe(headlessDefender.row);
+  });
+
+  it('applies Phantom Rush retreat plus set-to-5 with scene/headless parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_phantom_rush');
+    const sceneAttacker = {
+      name: 'Phantom User',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 14,
+      stats: { HP: 24, STR: 12, MAG: 0, SKL: 9, SPD: 10, DEF: 7, RES: 4, LCK: 5, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 8 }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessDefender = structuredClone(sceneDefender);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.playerUnits = [sceneAttacker];
+    scene.enemyUnits = [sceneDefender];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => [];
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.playerUnits = [headlessAttacker];
+    headless.enemyUnits = [headlessDefender];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneAttacker.col).toBe(1);
+    expect(sceneAttacker.row).toBe(2);
+    expect(sceneAttacker.currentHP).toBe(5);
+    expect(sceneAttacker.col).toBe(headlessAttacker.col);
+    expect(sceneAttacker.row).toBe(headlessAttacker.row);
+    expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
+  });
+
+  it('applies Galeforce Assault advance + set-to-5 while preserving ally buff parity', async () => {
+    const gameData = loadGameData();
+    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'legend_galeforce_assault');
+    const sceneAttacker = {
+      name: 'Galeforce User',
+      faction: 'player',
+      col: 2,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 18,
+      stats: { HP: 24, STR: 12, MAG: 0, SKL: 9, SPD: 10, DEF: 7, RES: 4, LCK: 5, MOV: 5 },
+    };
+    const sceneAlly = {
+      name: 'Ally',
+      faction: 'player',
+      col: 2,
+      row: 1,
+      moveType: 'Infantry',
+      currentHP: 20,
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 6, RES: 3, LCK: 4, MOV: 5 },
+    };
+    const sceneDefender = {
+      name: 'Front',
+      faction: 'enemy',
+      col: 3,
+      row: 2,
+      moveType: 'Infantry',
+      currentHP: 0,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 8, DEF: 6, RES: 3, LCK: 3, MOV: 5 },
+    };
+    const result = {
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 9 }],
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+    };
+    const headlessAttacker = structuredClone(sceneAttacker);
+    const headlessAlly = structuredClone(sceneAlly);
+    const headlessDefender = structuredClone(sceneDefender);
+
+    const scene = new BattleScene();
+    scene.gameData = gameData;
+    scene.turnManager = { turnNumber: 1 };
+    scene.playerUnits = [sceneAttacker, sceneAlly];
+    scene.enemyUnits = [sceneDefender];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      gridToPixel: () => ({ x: 0, y: 0 }),
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    scene.showMinorHintAt = vi.fn();
+    scene.showPoisonDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene.updateUnitPosition = vi.fn();
+    scene.updateEnemyVisibility = vi.fn();
+    scene.getDivineChargeAllies = () => scene.playerUnits;
+    await BattleScene.prototype._applyResolvedCombatPostEffects.call(scene, {
+      attacker: sceneAttacker,
+      defender: sceneDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    const headless = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout' });
+    headless.turnManager = { turnNumber: 1 };
+    headless.playerUnits = [headlessAttacker, headlessAlly];
+    headless.enemyUnits = [headlessDefender];
+    headless.npcUnits = [];
+    headless.grid = {
+      cols: 8,
+      rows: 8,
+      fogEnabled: false,
+      getMoveCost: () => 1,
+      updateFogOfWar() {},
+    };
+    HeadlessBattle.prototype._applyResolvedCombatPostEffects.call(headless, {
+      attacker: headlessAttacker,
+      defender: headlessDefender,
+      result,
+      attackerWeaponArt: art,
+      defenderWeaponArt: null,
+    });
+
+    expect(sceneAttacker.col).toBe(3);
+    expect(sceneAttacker.row).toBe(2);
+    expect(sceneAttacker.currentHP).toBe(5);
+    expect(sceneAlly.stats.STR).toBe(13);
+    expect(sceneAttacker.col).toBe(headlessAttacker.col);
+    expect(sceneAttacker.row).toBe(headlessAttacker.row);
+    expect(sceneAttacker.currentHP).toBe(headlessAttacker.currentHP);
+    expect(sceneAlly.stats.STR).toBe(headlessAlly.stats.STR);
+  });
 });
 

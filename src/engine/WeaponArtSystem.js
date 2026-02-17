@@ -145,6 +145,20 @@ function normalizeRangeOverride(value) {
   return { min, max };
 }
 
+function normalizeMultiHit(value) {
+  if (!value || typeof value !== 'object') return null;
+  const count = Math.trunc(toFiniteNumber(value.count, 0));
+  if (count < 2) return null;
+  const damageMultiplier = toFiniteNumber(value.damageMultiplier, 1);
+  if (damageMultiplier <= 0 || damageMultiplier > 1) return null;
+  return { count, damageMultiplier };
+}
+
+function normalizeDrainPercent(value) {
+  const n = toFiniteNumber(value, 0);
+  return n > 0 ? n : null;
+}
+
 const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_TIER5_SPLASH_BASIS = new Set(['first_landed_strike']);
@@ -190,6 +204,25 @@ function normalizeTier2MoveEffect(effect) {
   if (!mode || !VALID_TIER2_MOVE_MODES.has(mode)) return null;
   const distance = Math.max(1, Math.trunc(toFiniteNumber(effect.distance, 1)));
   return { mode, distance };
+}
+
+function normalizeTier2PierceEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const target = normalizeTier2Target(effect.target);
+  if (!target) return null;
+  const rawMaxTargets = Math.trunc(toFiniteNumber(effect.maxTargets, 1));
+  if (rawMaxTargets <= 0) return null;
+  // Tier 2 pierce currently supports exactly one unit behind the primary target.
+  return { target, maxTargets: 1 };
+}
+
+function normalizeTier2SetHpEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const target = normalizeTier2Target(effect.target);
+  if (!target) return null;
+  const value = Math.trunc(toFiniteNumber(effect.value, 0));
+  if (value <= 0) return null;
+  return { target, value };
 }
 
 export function normalizeTier5AoeSplashEffect(effect) {
@@ -257,7 +290,9 @@ export function getWeaponArtTier2Effects(art) {
   const out = {
     afterCombatDamage: [],
     afterCombatDebuff: [],
+    pierceThrough: [],
     postCombatMove: [],
+    setHp: [],
   };
 
   const afterCombatEffects = Array.isArray(art?.effects?.afterCombat)
@@ -278,6 +313,16 @@ export function getWeaponArtTier2Effects(art) {
     if (type === 'move') {
       const normalized = normalizeTier2MoveEffect(effect);
       if (normalized) out.postCombatMove.push(normalized);
+      continue;
+    }
+    if (type === 'pierce_through') {
+      const normalized = normalizeTier2PierceEffect(effect);
+      if (normalized) out.pierceThrough.push(normalized);
+      continue;
+    }
+    if (type === 'set_hp') {
+      const normalized = normalizeTier2SetHpEffect(effect);
+      if (normalized) out.setHp.push(normalized);
     }
   }
 
@@ -417,6 +462,8 @@ export function getWeaponArtCombatMods(art) {
     vengeance: Boolean(mods.vengeance),
     weaponArt: true,
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
+    multiHit: normalizeMultiHit(mods.multiHit),
+    drainPercent: normalizeDrainPercent(mods.drainPercent),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -525,4 +572,3 @@ export function resetWeaponArtTurnUsage(unit, context = {}) {
   usage.turn = {};
   usage.turnKey = getTurnKey(context);
 }
-

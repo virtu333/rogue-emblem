@@ -1239,8 +1239,14 @@ export class HeadlessBattle {
           if (!targetUnit || targetUnit.currentHP <= 0) break;
           this.applyBattleDebuff(targetUnit, step.stat, step.amount);
           break;
+        case 'tier2_pierce':
+          this._applyTier2PierceStep(step, sourceUnit, targetUnit);
+          break;
         case 'tier2_move':
           this._applyTier2MoveStep(sourceUnit, targetUnit, step);
+          break;
+        case 'tier2_set_hp':
+          this._applyTier2SetHpStep(step, sourceUnit, targetUnit);
           break;
         case 'tier5_aoe_splash':
           this._applyTier5AoeSplashStep(step, sourceUnit, targetUnit);
@@ -1287,6 +1293,56 @@ export class HeadlessBattle {
       movedUnits.push(assignment.unit);
     }
     this._refreshPostCombatMovementState(movedUnits);
+  }
+
+  _resolveTier2PierceTarget(sourceUnit, primaryTarget) {
+    if (!sourceUnit || !primaryTarget) return null;
+    const dc = primaryTarget.col - sourceUnit.col;
+    const dr = primaryTarget.row - sourceUnit.row;
+    if (Math.abs(dc) + Math.abs(dr) !== 1) return null;
+    const secondaryCol = primaryTarget.col + dc;
+    const secondaryRow = primaryTarget.row + dr;
+    if (
+      secondaryCol < 0
+      || secondaryCol >= this.grid.cols
+      || secondaryRow < 0
+      || secondaryRow >= this.grid.rows
+    ) {
+      return null;
+    }
+    const candidate = this.getUnitAt(secondaryCol, secondaryRow);
+    if (!candidate || candidate.currentHP <= 0) return null;
+    if (!this._getTier5HostileUnitsFor(sourceUnit).includes(candidate)) return null;
+    return candidate;
+  }
+
+  _applyTier2PierceStep(step, sourceUnit, primaryTarget) {
+    if (!sourceUnit) return;
+    if (!primaryTarget) return;
+    const strikeDamages = Array.isArray(step?.damages) ? step.damages : [];
+    if (strikeDamages.length <= 0) return;
+    const target = this._resolveTier2PierceTarget(sourceUnit, primaryTarget);
+    if (!target) return;
+
+    for (const rawDamage of strikeDamages) {
+      if (target.currentHP <= 0) break;
+      const damage = Math.max(0, Math.trunc(Number(rawDamage) || 0));
+      if (damage <= 0) continue;
+      target.currentHP = Math.max(0, target.currentHP - damage);
+      if (target.currentHP <= 0) {
+        this._removeUnit(target);
+        break;
+      }
+    }
+  }
+
+  _applyTier2SetHpStep(step, sourceUnit, targetUnit) {
+    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+    if (!targetUnit || targetUnit.currentHP <= 0) return;
+    const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
+    if (value <= 0) return;
+    const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));
+    targetUnit.currentHP = Math.min(maxHp, value);
   }
 
   _collectTier5SplashTargets(step, sourceUnit, primaryTarget) {
