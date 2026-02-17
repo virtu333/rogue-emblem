@@ -193,17 +193,43 @@ describe('NodeMapScene Slice 4', () => {
       rosterOverlay: null,
       shopOverlay: [makeDisplayObject()],
       churchOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
     };
     const withChurchOverlay = {
       rosterOverlay: null,
       shopOverlay: null,
       churchOverlay: [makeDisplayObject()],
+      pauseOverlay: null,
+      settingsOverlay: null,
     };
 
     expect(() => NodeMapScene.prototype._openRoster.call(withShopOverlay)).not.toThrow();
     expect(() => NodeMapScene.prototype._openRoster.call(withChurchOverlay)).not.toThrow();
     expect(withShopOverlay.rosterOverlay).toBeNull();
     expect(withChurchOverlay.rosterOverlay).toBeNull();
+  });
+
+  it('blocks opening roster while pause or settings overlay is visible', () => {
+    const withPause = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: null,
+      pauseOverlay: { visible: true },
+      settingsOverlay: null,
+    };
+    const withSettings = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: { visible: true },
+    };
+
+    expect(() => NodeMapScene.prototype._openRoster.call(withPause)).not.toThrow();
+    expect(() => NodeMapScene.prototype._openRoster.call(withSettings)).not.toThrow();
+    expect(withPause.rosterOverlay).toBeNull();
+    expect(withSettings.rosterOverlay).toBeNull();
   });
 
   it('requestCancel restores hidden shop overlay before leaving', () => {
