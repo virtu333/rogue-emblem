@@ -4719,7 +4719,7 @@ export class BattleScene extends Phaser.Scene {
     this.tradeMutatedThisSession = false;
     this.battleState = 'UNIT_ACTION_MENU';
 
-    const attackTargets = this.findAttackTargets(unit);
+    const normalAttackTargets = this.findAttackTargets(unit);
     const healTargets = this.findHealTargets(unit);
     const activeHealStaff = this.getActiveHealStaff(unit);
 
@@ -4733,9 +4733,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Build dynamic item list
     const items = [];
-    if (attackTargets.length > 0) items.push('Attack');
+    if (normalAttackTargets.length > 0) items.push('Attack');
     const artWeapon = (unit.weapon && !isStaff(unit.weapon)) ? unit.weapon : getCombatWeapons(unit)[0];
-    if (attackTargets.length > 0 && this._getWeaponArtChoices(unit, artWeapon).length > 0) {
+    if (this._hasUsableWeaponArtTargets(unit, artWeapon, { isInitiating: true })) {
       const activeArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
       items.push(activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art');
     }
@@ -5976,6 +5976,15 @@ export class BattleScene extends Phaser.Scene {
       });
       return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
     }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
+  }
+
+  _hasUsableWeaponArtTargets(unit, weapon = null, context = {}) {
+    const usableChoices = this._getWeaponArtChoices(unit, weapon, context)
+      .filter((entry) => entry.canUse);
+    return usableChoices.some(({ weapon: sourceWeapon, art }) => {
+      const targets = this.findAttackTargets(unit, { weapon: sourceWeapon, weaponArt: art });
+      return targets.length > 0;
+    });
   }
 
   _scoreEnemyWeaponArt(art) {

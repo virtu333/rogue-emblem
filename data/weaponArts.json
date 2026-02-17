@@ -613,9 +613,12 @@
       "hpCost": 8,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A stance that overrides range to exactly 2 tiles.",
+      "description": "A stance that extends attack range to 1-2 tiles.",
       "combatMods": {
-        "rangeOverride": 2,
+        "rangeOverride": {
+          "min": 1,
+          "max": 2
+        },
         "activated": [
           {
             "id": "weapon_art",

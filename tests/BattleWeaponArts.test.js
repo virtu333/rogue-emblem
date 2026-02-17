@@ -35,6 +35,44 @@ function makeUnit(overrides = {}) {
   };
 }
 
+function setupActionMenuHarness(scene) {
+  const labels = [];
+  scene._makeMenuTextButton = vi.fn((_x, _y, label) => {
+    labels.push(label);
+    return {
+      label,
+      setColor() { return this; },
+      on() { return this; },
+      setOrigin() { return this; },
+      setDepth() { return this; },
+      setInteractive() { return this; },
+    };
+  });
+  scene._pinToScreen = vi.fn();
+  scene.hideActionMenu = vi.fn(() => {
+    scene.actionMenu = [];
+    scene.inEquipMenu = false;
+  });
+  scene._clampMenuPosition = vi.fn((x, y) => ({ x, y }));
+  scene.add = {
+    rectangle: vi.fn(() => ({
+      setDepth() { return this; },
+      setStrokeStyle() { return this; },
+    })),
+  };
+  scene.findHealTargets = vi.fn(() => []);
+  scene.getActiveHealStaff = vi.fn(() => null);
+  scene.findShoveTargets = vi.fn(() => []);
+  scene.findPullTargets = vi.fn(() => []);
+  scene.findTradeTargets = vi.fn(() => []);
+  scene.findSwapTargets = vi.fn(() => []);
+  scene.findDanceTargets = vi.fn(() => []);
+  scene.findBreakTargets = vi.fn(() => []);
+  scene.npcUnits = [];
+  scene.battleConfig = {};
+  return labels;
+}
+
 describe('BattleScene weapon art helpers', () => {
   it('returns full weapon art catalog without unlock gating', () => {
     const scene = new BattleScene();
@@ -156,16 +194,16 @@ describe('BattleScene weapon art helpers', () => {
     expect(artTargets[0].name).toBe('Enemy');
   });
 
-  it('rangeOverride enforces exact attack range for selected art', () => {
+  it('rangeOverride numeric value enforces exact attack range for selected art', () => {
     const scene = new BattleScene();
     const art = makeArt({
-      id: 'lance_longearche',
-      name: 'Longearche',
+      id: 'lance_exact_reach',
+      name: 'Exact Reach',
       weaponType: 'Lance',
       requiredRank: 'Mast',
       combatMods: {
         rangeOverride: 2,
-        activated: [{ id: 'weapon_art', name: 'Longearche' }],
+        activated: [{ id: 'weapon_art', name: 'Exact Reach' }],
       },
     });
     const lance = {
@@ -201,6 +239,158 @@ describe('BattleScene weapon art helpers', () => {
     const selectedArt = scene._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
     const artTargets = scene.findAttackTargets(unit, { weapon: lance, weaponArt: selectedArt });
     expect(artTargets.map((t) => t.name)).toEqual(['AtTwo']);
+  });
+
+  it('Longearche supports 1-2 range targeting when selected', () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'lance_longearche',
+      name: 'Longearche',
+      weaponType: 'Lance',
+      requiredRank: 'Mast',
+      combatMods: {
+        rangeOverride: { min: 1, max: 2 },
+        activated: [{ id: 'weapon_art', name: 'Longearche' }],
+      },
+    });
+    const lance = {
+      id: 'iron_lance',
+      name: 'Iron Lance',
+      type: 'Lance',
+      range: '1',
+      rankRequired: 'Mast',
+      might: 7,
+      hit: 85,
+      crit: 0,
+      weight: 8,
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    };
+    const unit = makeUnit({
+      faction: 'player',
+      col: 0,
+      row: 0,
+      weapon: lance,
+      inventory: [lance],
+      proficiencies: [{ type: 'Lance', rank: 'Mast' }],
+    });
+    const adjacent = makeUnit({ name: 'Adjacent', faction: 'enemy', col: 0, row: 1 });
+    const atTwo = makeUnit({ name: 'AtTwo', faction: 'enemy', col: 0, row: 2 });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [art] }, skills: [] };
+    scene.grid = { fogEnabled: false };
+    scene.enemyUnits = [adjacent, atTwo];
+    scene.playerUnits = [unit];
+
+    scene._setSelectedWeaponArt(unit, art.id, lance);
+    const selectedArt = scene._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
+    const artTargets = scene.findAttackTargets(unit, { weapon: lance, weaponArt: selectedArt });
+    expect(artTargets.map((t) => t.name)).toEqual(['Adjacent', 'AtTwo']);
+  });
+
+  it('showActionMenu shows Weapon Art when only art-modified range can target', () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'bow_curved_shot',
+      name: 'Curved Shot',
+      weaponType: 'Bow',
+      combatMods: {
+        rangeBonus: 1,
+        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+      },
+    });
+    const bow = {
+      id: 'iron_bow',
+      name: 'Iron Bow',
+      type: 'Bow',
+      range: '2',
+      rankRequired: 'Prof',
+      might: 6,
+      hit: 85,
+      crit: 0,
+      weight: 5,
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    };
+    const unit = makeUnit({
+      faction: 'player',
+      col: 0,
+      row: 0,
+      weapon: bow,
+      inventory: [bow],
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+      skills: [],
+      consumables: [],
+    });
+    const enemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 0, row: 3 });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [art] }, skills: [], classes: [], lords: [] };
+    scene.grid = {
+      fogEnabled: false,
+      cols: 10,
+      gridToPixel: vi.fn(() => ({ x: 120, y: 120 })),
+    };
+    scene.enemyUnits = [enemy];
+    scene.playerUnits = [unit];
+    const labels = setupActionMenuHarness(scene);
+
+    scene.showActionMenu(unit);
+
+    expect(labels).toContain('Weapon Art');
+    expect(labels).not.toContain('Attack');
+  });
+
+  it('showActionMenu hides Weapon Art when no art has valid targets', () => {
+    const scene = new BattleScene();
+    const art = makeArt({
+      id: 'bow_curved_shot',
+      name: 'Curved Shot',
+      weaponType: 'Bow',
+      combatMods: {
+        rangeBonus: 1,
+        activated: [{ id: 'weapon_art', name: 'Curved Shot' }],
+      },
+    });
+    const bow = {
+      id: 'iron_bow',
+      name: 'Iron Bow',
+      type: 'Bow',
+      range: '2',
+      rankRequired: 'Prof',
+      might: 6,
+      hit: 85,
+      crit: 0,
+      weight: 5,
+      weaponArtIds: [art.id],
+      weaponArtSources: ['scroll'],
+    };
+    const unit = makeUnit({
+      faction: 'player',
+      col: 0,
+      row: 0,
+      weapon: bow,
+      inventory: [bow],
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+      skills: [],
+      consumables: [],
+    });
+    const enemy = makeUnit({ name: 'Enemy', faction: 'enemy', col: 0, row: 4 });
+    scene.turnManager = { turnNumber: 1 };
+    scene.gameData = { weaponArts: { arts: [art] }, skills: [], classes: [], lords: [] };
+    scene.grid = {
+      fogEnabled: false,
+      cols: 10,
+      gridToPixel: vi.fn(() => ({ x: 120, y: 120 })),
+    };
+    scene.enemyUnits = [enemy];
+    scene.playerUnits = [unit];
+    const labels = setupActionMenuHarness(scene);
+
+    scene.showActionMenu(unit);
+
+    expect(labels).not.toContain('Weapon Art');
+    expect(labels).not.toContain('Attack');
+    expect(labels).toContain('Wait');
   });
 
   it('resolves selected art to the exact inventory weapon instance when duplicates exist', () => {
