@@ -697,10 +697,10 @@
     "description": "A born leader — inspires nearby allies with Charisma and grows into a great warrior.",
     "growthRanges": {
       "HP": "50-65",
-      "STR": "35-50",
+      "STR": "38-50",
       "MAG": "10-20",
       "SKL": "40-55",
-      "SPD": "40-55",
+      "SPD": "43-55",
       "DEF": "25-35",
       "RES": "15-25",
       "LCK": "35-50"
@@ -730,8 +730,8 @@
       "STR": "15-25",
       "MAG": "40-55",
       "SKL": "30-45",
-      "SPD": "35-50",
-      "DEF": "15-25",
+      "SPD": "38-50",
+      "DEF": "17-25",
       "RES": "30-45",
       "LCK": "25-35"
     },
@@ -757,12 +757,12 @@
     "description": "A rugged frontliner — tough and hits hard, grows fiercer when wounded.",
     "growthRanges": {
       "HP": "55-70",
-      "STR": "40-55",
+      "STR": "42-55",
       "MAG": "0-10",
       "SKL": "30-45",
-      "SPD": "25-40",
+      "SPD": "32-40",
       "DEF": "35-50",
-      "RES": "10-20",
+      "RES": "12-20",
       "LCK": "15-25"
     },
     "promotesTo": "Vanguard"
@@ -788,10 +788,10 @@
     "growthRanges": {
       "HP": "40-55",
       "STR": "5-15",
-      "MAG": "35-50",
+      "MAG": "42-50",
       "SKL": "25-40",
-      "SPD": "25-40",
-      "DEF": "15-25",
+      "SPD": "33-40",
+      "DEF": "18-25",
       "RES": "40-55",
       "LCK": "35-50"
     },
@@ -902,7 +902,7 @@
       "SKL": "35-50",
       "SPD": "40-55",
       "DEF": "30-45",
-      "RES": "10-20",
+      "RES": "18-20",
       "LCK": "20-30"
     },
     "promotesTo": "Holy Knight"
@@ -947,11 +947,11 @@
     "description": "A lone sky lancer — faster and more evasive when away from allies, bow-weak.",
     "growthRanges": {
       "HP": "50-65",
-      "STR": "30-45",
+      "STR": "33-45",
       "MAG": "15-25",
       "SKL": "45-60",
       "SPD": "50-65",
-      "DEF": "20-30",
+      "DEF": "27-30",
       "RES": "25-40",
       "LCK": "35-50"
     },
@@ -999,10 +999,10 @@
       "HP": "75-90",
       "STR": "45-60",
       "MAG": "0-10",
-      "SKL": "25-40",
-      "SPD": "20-35",
+      "SKL": "33-40",
+      "SPD": "25-35",
       "DEF": "50-65",
-      "RES": "10-25",
+      "RES": "20-25",
       "LCK": "20-30"
     },
     "promotesTo": "Champion"
