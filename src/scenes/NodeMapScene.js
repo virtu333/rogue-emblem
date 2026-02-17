@@ -141,6 +141,9 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
+    this._shopViewingMap = false;
+    this._churchViewingMap = false;
+    this._shopOriginalSlotCount = 0;
 
     // Debug overlay (dev-only)
     if (this.isDevToolsEnabled()) {
@@ -305,7 +308,7 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.shopOverlay || !this.activeShopTab) return;
+    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
     if (this.forgePicker || this.unitPicker) return;
     if ((this.shopScrollMax || 0) <= 0) return;
     if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
@@ -336,7 +339,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     if (drag.type === 'shop') {
-      if (!this.shopOverlay || this.forgePicker || this.unitPicker) return;
+      if (!this.shopOverlay || this._shopViewingMap || this.forgePicker || this.unitPicker) return;
       if (!this.activeShopTab || drag.tab !== this.activeShopTab) return;
       const max = this.shopScrollMax || 0;
       if (max <= 0) return;
@@ -363,7 +366,7 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.shopOverlay || !this.activeShopTab) return;
+    if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
     if (this.forgePicker || this.unitPicker) return;
     if (!pointer) return;
     if (pointer.y < SHOP_LIST_TOP_Y || pointer.y > SHOP_LIST_BOTTOM_Y) return;
@@ -409,6 +412,52 @@ export class NodeMapScene extends Phaser.Scene {
     return false;
   }
 
+  _setOverlayVisibility(overlay, visible) {
+    if (!Array.isArray(overlay)) return;
+    for (const obj of overlay) {
+      if (!obj || obj._destroyed || obj.destroyed) continue;
+      try {
+        if (typeof obj.setVisible === 'function') {
+          obj.setVisible(visible);
+        } else {
+          obj.visible = visible;
+        }
+      } catch (_) {}
+      try {
+        if (obj.input && typeof obj.input === 'object') {
+          obj.input.enabled = visible;
+        }
+      } catch (_) {}
+    }
+  }
+
+  _setShopOverlayVisibility(visible) {
+    this._setOverlayVisibility(this.shopOverlay, visible);
+    this._setOverlayVisibility(this.shopContentGroup, visible);
+    this._setOverlayVisibility(this.shopTabObjects, visible);
+    this._setOverlayVisibility(this.unitPicker, visible);
+    this._setOverlayVisibility(this.forgePicker, visible);
+  }
+
+  _setChurchOverlayVisibility(visible) {
+    this._setOverlayVisibility(this.churchOverlay, visible);
+  }
+
+  _enterShopMapView() {
+    if (!this.shopOverlay || this._shopViewingMap) return;
+    this._touchScrollDrag = null;
+    this._hideForgeTooltip();
+    this._hideShopItemTooltip();
+    this._setShopOverlayVisibility(false);
+    this._shopViewingMap = true;
+  }
+
+  _enterChurchMapView() {
+    if (!this.churchOverlay || this._churchViewingMap) return;
+    this._setChurchOverlayVisibility(false);
+    this._churchViewingMap = true;
+  }
+
   requestCancel({ allowPause = true } = {}) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return true;
     if (!this.canRequestCancel({ allowPause })) return false;
@@ -437,10 +486,20 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     if (this.shopOverlay) {
+      if (this._shopViewingMap) {
+        this._setShopOverlayVisibility(true);
+        this._shopViewingMap = false;
+        return true;
+      }
       this.leaveShopNode();
       return true;
     }
     if (this.churchOverlay) {
+      if (this._churchViewingMap) {
+        this._setChurchOverlayVisibility(true);
+        this._churchViewingMap = false;
+        return true;
+      }
       this.leaveChurchNode();
       return true;
     }
@@ -741,14 +800,22 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawRoster() {
-    const roster = this.runManager.roster;
+    const roster = this.runManager.roster || [];
+    const lordNames = new Set((this.gameData?.lords || []).map((lord) => lord?.name).filter(Boolean));
+    const isLordUnit = (unit) => Boolean(unit?.isLord || (unit?.name && lordNames.has(unit.name)));
+    const lords = roster.filter((unit) => isLordUnit(unit));
+    const showingLords = lords.length > 0;
+    const shownUnits = showingLords ? lords : roster.slice(0, 4);
+    const hiddenCount = showingLords
+      ? Math.max(0, roster.length - lords.length)
+      : Math.max(0, roster.length - shownUnits.length);
     const startX = 40;
     const maxWidth = 560; // 640 - 40 margin on each side
-    const spacing = Math.min(300, Math.floor(maxWidth / Math.max(roster.length, 1)));
+    const spacing = Math.min(300, Math.floor(maxWidth / Math.max(shownUnits.length, 1)));
     const compact = spacing < 160;
 
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
+    for (let i = 0; i < shownUnits.length; i++) {
+      const unit = shownUnits[i];
       if (!unit || !unit.stats) continue;
       const x = startX + i * spacing;
 
@@ -765,7 +832,8 @@ export class NodeMapScene extends Phaser.Scene {
       const barHeight = 8;
       const barX = x;
       const barY = ROSTER_Y + 18;
-      const ratio = unit.currentHP / unit.stats.HP;
+      const maxHp = Math.max(1, Number(unit.stats.HP) || 1);
+      const ratio = Phaser.Math.Clamp((Number(unit.currentHP) || 0) / maxHp, 0, 1);
 
       this.add.rectangle(barX + barWidth / 2, barY + barHeight / 2, barWidth, barHeight, 0x333333);
       const fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xcccc44 : 0xcc4444;
@@ -776,10 +844,17 @@ export class NodeMapScene extends Phaser.Scene {
 
       // HP text (only if enough space)
       if (spacing >= 80) {
-        this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${unit.stats.HP}`, {
+        this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
           fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
         });
       }
+    }
+
+    if (hiddenCount > 0) {
+      const anchorX = Phaser.Math.Clamp(startX + (shownUnits.length * spacing), 120, 560);
+      this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+      });
     }
   }
 
@@ -934,6 +1009,7 @@ export class NodeMapScene extends Phaser.Scene {
   showChurchOverlay(node) {
     this.churchOverlay = [];
     this._churchNode = node;
+    this._churchViewingMap = false;
 
     // Tutorial hint for church
     const hints = this.registry.get('hints');
@@ -963,6 +1039,15 @@ export class NodeMapScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(this.churchGoldText);
+
+    const viewMapBtn = this.add.text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
+      backgroundColor: '#223344', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
+    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
+    viewMapBtn.on('pointerdown', () => this._enterChurchMapView());
+    this.churchOverlay.push(viewMapBtn);
 
     const rm = this.runManager;
     let yOffset = 110;
@@ -1162,6 +1247,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
     this.churchGoldText = null;
     this._churchNode = null;
+    this._churchViewingMap = false;
   }
 
   handleShop(node) {
@@ -1207,6 +1293,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopForgesUsed = 0;
     this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollMax = 0;
+    this._shopViewingMap = false;
 
     // Tutorial hint for shop
     const hints = this.registry.get('hints');
@@ -1237,7 +1324,17 @@ export class NodeMapScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(this.shopGoldText);
 
+    const viewMapBtn = this.add.text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
+      backgroundColor: '#223344', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
+    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
+    viewMapBtn.on('pointerdown', () => this._enterShopMapView());
+    this.shopOverlay.push(viewMapBtn);
+
     this.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
+    this._shopOriginalSlotCount = this.shopBuyItems.length;
     this._shopNode = node;
     this.shopRerollCount = this.shopRerollCount || 0;
 
@@ -1910,14 +2007,65 @@ export class NodeMapScene extends Phaser.Scene {
       rerollBtn.on('pointerdown', () => {
         this.runManager.spendGold(cost);
         this.shopRerollCount++;
-        const newItems = generateShopInventory(
-          this.runManager.currentAct, this.gameData.lootTables,
-          this.gameData.weapons, this.gameData.consumables,
-          this.gameData.accessories, this.runManager.roster,
-          this.runManager.getWeaponArtSpawnConfig()
-        );
-        const pricedItems = this.applyDifficultyShopPricing(newItems);
-        this.shopBuyItems = pricedItems.map((entry, i) => ({ ...entry, index: i }));
+        const targetCount = Math.max(0, Number(this._shopOriginalSlotCount) || this.shopBuyItems.length || 0);
+        const currentItems = Array.isArray(this.shopBuyItems) ? this.shopBuyItems.slice() : [];
+        const hasPurchasedAny = currentItems.length < targetCount;
+        const baseItems = hasPurchasedAny ? currentItems : [];
+        const itemKey = (entry) => `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
+        const generatePricedItems = () => {
+          const generated = generateShopInventory(
+            this.runManager.currentAct, this.gameData.lootTables,
+            this.gameData.weapons, this.gameData.consumables,
+            this.gameData.accessories, this.runManager.roster,
+            this.runManager.getWeaponArtSpawnConfig()
+          );
+          const priced = this.applyDifficultyShopPricing(generated);
+          return Array.isArray(priced) ? priced : [];
+        };
+
+        const fillToTarget = (items, preferUnique, fallbackSeedItems = []) => {
+          const result = items.slice(0, targetCount);
+          const deferred = [];
+          const seen = new Set(result.map((entry) => itemKey(entry)).filter(Boolean));
+          const uniquePasses = Math.max(4, targetCount * 4);
+          for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
+            const batch = generatePricedItems();
+            for (const entry of batch) {
+              if (result.length >= targetCount) break;
+              const key = itemKey(entry);
+              if (preferUnique && key && seen.has(key)) {
+                deferred.push(entry);
+                continue;
+              }
+              result.push(entry);
+              if (key) seen.add(key);
+            }
+          }
+          while (result.length < targetCount && deferred.length > 0) {
+            result.push(deferred.shift());
+          }
+          const fallbackPasses = Math.max(4, targetCount * 4);
+          for (let pass = 0; result.length < targetCount && pass < fallbackPasses; pass++) {
+            const batch = generatePricedItems();
+            for (const entry of batch) {
+              if (result.length >= targetCount) break;
+              result.push(entry);
+            }
+          }
+          if (result.length < targetCount) {
+            const seedSource = result.length > 0 ? result : fallbackSeedItems;
+            if (seedSource.length > 0) {
+              const seed = seedSource[0];
+              while (result.length < targetCount) {
+                result.push({ ...seed, item: seed?.item ? { ...seed.item } : seed.item });
+              }
+            }
+          }
+          return result.slice(0, targetCount);
+        };
+
+        const nextItems = fillToTarget(baseItems, hasPurchasedAny, currentItems);
+        this.shopBuyItems = nextItems.map((entry, i) => ({ ...entry, index: i }));
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         this.refreshShop();
@@ -2067,6 +2215,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.unitPicker) {
       this.closeUnitPicker();
     }
+    this._shopViewingMap = false;
+    this._shopOriginalSlotCount = 0;
     this._shopNode = null;
   }
 
