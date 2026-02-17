@@ -923,9 +923,9 @@
       "MOV": 1
     },
     "moveType": "Cavalry",
-    "weaponProficiencies": "Lances (M), Staves (P)",
-    "roleChange": "Gains Staves, +MOV, mixed offense",
-    "description": "A holy cavalier — gains staves and a surge of MAG, rides to heal or strike."
+    "weaponProficiencies": "Lances (M), Staves (P), Light (P)",
+    "roleChange": "Gains Staves/Light, +MOV, mixed offense",
+    "description": "A holy cavalier — gains staves, Light magic, and a surge of MAG, rides to heal or strike."
   },
   {
     "name": "Sky Lancer",

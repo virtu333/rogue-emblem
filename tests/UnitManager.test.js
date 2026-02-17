@@ -190,6 +190,21 @@ describe('canPromote', () => {
     expect(unit.proficiencies.every((p) => p.rank === 'Mast')).toBe(true);
   });
 
+  it('Chevalier promotion to Holy Knight gains Light proficiency', () => {
+    const holyKnight = data.classes.find(c => c.name === 'Holy Knight');
+    const chevalier = data.classes.find(c => c.name === 'Chevalier');
+    const unit = createEnemyUnit(chevalier, 10, data.weapons);
+
+    promoteUnit(unit, holyKnight, holyKnight.promotionBonuses, data.skills);
+
+    expect(unit.className).toBe('Holy Knight');
+    expect(unit.proficiencies).toEqual(expect.arrayContaining([
+      { type: 'Lance', rank: 'Mast' },
+      { type: 'Staff', rank: 'Mast' },
+      { type: 'Light', rank: 'Mast' },
+    ]));
+  });
+
   it('promoted units can equip Mast-rank legendaries for their proficiencies', () => {
     const general = data.classes.find(c => c.name === 'General');
     const knight = data.classes.find(c => c.name === 'Knight');
