@@ -398,6 +398,7 @@ export class HelpOverlay {
   }
 
   hide() {
+    const wasVisible = this.visible;
     const game = this.scene?.game;
     if (game?.events) {
       if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
@@ -420,6 +421,6 @@ export class HelpOverlay {
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     this.visible = false;
-    if (this.onClose) this.onClose();
+    if (wasVisible && this.onClose) this.onClose();
   }
 }
