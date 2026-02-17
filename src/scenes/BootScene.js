@@ -96,7 +96,7 @@ export class BootScene extends Phaser.Scene {
 
     // Character sprites (34) - keyed by filename
     const characterSprites = [
-      'edric', 'archer', 'assassin', 'bishop', 'bishop_alt',
+      'lordedric', 'greatlordedric', 'archer', 'assassin', 'bishop', 'bishop_alt',
       'cavalier', 'cleric', 'cleric_alt', 'dancer', 'falcon_knight',
       'fighter', 'general', 'grandmaster', 'great_lord', 'hero',
       'knight', 'light_priestess', 'light_sage', 'lord', 'mage',
