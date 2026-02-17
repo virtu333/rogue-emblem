@@ -98,9 +98,10 @@ describe('Tier 1 Weapon Arts Expansion', () => {
         const mods = getWeaponArtCombatMods(art);
         const hasBonus = mods.atkBonus !== 0 || mods.hitBonus !== 0 || mods.critBonus !== 0
           || mods.spdBonus !== 0 || mods.avoidBonus !== 0 || mods.defBonus !== 0 || mods.resBonus !== 0;
+        const hasTier4 = Boolean(mods.multiHit) || (mods.drainPercent || 0) > 0;
         const hasStructuredTier2 = Array.isArray(art?.effects?.afterCombat) && art.effects.afterCombat.length > 0;
         const hasStructuredTier5 = Boolean(art?.effects?.aoeSplash || art?.effects?.allyBuff);
-        expect(hasBonus || hasStructuredTier2 || hasStructuredTier5).toBe(true);
+        expect(hasBonus || hasTier4 || hasStructuredTier2 || hasStructuredTier5).toBe(true);
       }
     });
   });

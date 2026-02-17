@@ -77,6 +77,54 @@ describe('WeaponArtSystem', () => {
     expect(mods.vengeance).toBe(true);
   });
 
+  it('normalizes multiHit in combat mods', () => {
+    const mods = getWeaponArtCombatMods(makeArt({
+      combatMods: {
+        multiHit: { count: 3, damageMultiplier: 0.5 },
+      },
+    }));
+    expect(mods.multiHit).toEqual({ count: 3, damageMultiplier: 0.5 });
+  });
+
+  it('normalizes drainPercent in combat mods', () => {
+    const mods = getWeaponArtCombatMods(makeArt({
+      combatMods: {
+        drainPercent: 0.3,
+      },
+    }));
+    expect(mods.drainPercent).toBe(0.3);
+  });
+
+  it('rejects invalid multiHit values in combat mods', () => {
+    const countTooLow = getWeaponArtCombatMods(makeArt({
+      combatMods: { multiHit: { count: 1, damageMultiplier: 0.5 } },
+    }));
+    const zeroMultiplier = getWeaponArtCombatMods(makeArt({
+      combatMods: { multiHit: { count: 3, damageMultiplier: 0 } },
+    }));
+    const nonObject = getWeaponArtCombatMods(makeArt({
+      combatMods: { multiHit: 3 },
+    }));
+    expect(countTooLow.multiHit).toBeNull();
+    expect(zeroMultiplier.multiHit).toBeNull();
+    expect(nonObject.multiHit).toBeNull();
+  });
+
+  it('rejects invalid drainPercent values in combat mods', () => {
+    const zero = getWeaponArtCombatMods(makeArt({
+      combatMods: { drainPercent: 0 },
+    }));
+    const negative = getWeaponArtCombatMods(makeArt({
+      combatMods: { drainPercent: -0.3 },
+    }));
+    const nan = getWeaponArtCombatMods(makeArt({
+      combatMods: { drainPercent: Number.NaN },
+    }));
+    expect(zero.drainPercent).toBeNull();
+    expect(negative.drainPercent).toBeNull();
+    expect(nan.drainPercent).toBeNull();
+  });
+
   it('rejects weapon arts for wrong weapon type', () => {
     const unit = makeUnit();
     const weapon = { type: 'Lance' };

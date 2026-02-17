@@ -1,7 +1,13 @@
 import { getWeaponArtTier2Effects, getWeaponArtTier5Effects } from './WeaponArtSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
-const TIER2_EFFECT_ORDER = ['afterCombatDamage', 'afterCombatDebuff', 'postCombatMove'];
+const TIER2_EFFECT_ORDER = [
+  'afterCombatDamage',
+  'afterCombatDebuff',
+  'pierceThrough',
+  'postCombatMove',
+  'setHp',
+];
 const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
 
 function getOpposingSide(side) {
@@ -42,6 +48,22 @@ export function getFirstLandedStrikeDamage(events, side, attacker = null, defend
     return Math.max(0, Math.trunc(Number(event.damage) || 0));
   }
   return 0;
+}
+
+export function getLandedStrikeDamages(events, side, attacker = null, defender = null) {
+  if (!Array.isArray(events)) return [];
+  const fallbackName = getFallbackNameForSide(side, attacker, defender);
+  const out = [];
+  for (const event of events) {
+    if (event?.type !== 'strike' || event?.miss) continue;
+    if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
+      if (event.attackerSide !== side) continue;
+    } else if (fallbackName === null || event.attacker !== fallbackName) {
+      continue;
+    }
+    out.push(Math.max(0, Math.trunc(Number(event.damage) || 0)));
+  }
+  return out;
 }
 
 export function getPostCombatPipelineSteps({
@@ -99,8 +121,13 @@ export function getPostCombatPipelineSteps({
 
   for (const effectType of TIER2_EFFECT_ORDER) {
     for (const side of SIDE_ORDER) {
-      if (!hitBySide[side]) continue;
-      const effects = getWeaponArtTier2Effects(artsBySide[side])[effectType];
+      const hitGated = effectType !== 'setHp';
+      if (hitGated && !hitBySide[side]) continue;
+      const effects = getWeaponArtTier2Effects(artsBySide[side])[effectType] || [];
+      if (effects.length <= 0) continue;
+      const landedDamages = effectType === 'pierceThrough'
+        ? getLandedStrikeDamages(result?.events, side, attacker, defender)
+        : null;
       for (const effect of effects) {
         if (effectType === 'afterCombatDamage') {
           steps.push({
@@ -122,12 +149,31 @@ export function getPostCombatPipelineSteps({
           });
           continue;
         }
+        if (effectType === 'pierceThrough') {
+          steps.push({
+            type: 'tier2_pierce',
+            sourceSide: side,
+            targetSide: resolveRelativeTargetSide(side, effect.target),
+            maxTargets: effect.maxTargets,
+            damages: [...(landedDamages || [])],
+          });
+          continue;
+        }
+        if (effectType === 'postCombatMove') {
+          steps.push({
+            type: 'tier2_move',
+            sourceSide: side,
+            targetSide: getOpposingSide(side),
+            mode: effect.mode,
+            distance: effect.distance,
+          });
+          continue;
+        }
         steps.push({
-          type: 'tier2_move',
+          type: 'tier2_set_hp',
           sourceSide: side,
-          targetSide: getOpposingSide(side),
-          mode: effect.mode,
-          distance: effect.distance,
+          targetSide: resolveRelativeTargetSide(side, effect.target),
+          value: effect.value,
         });
       }
     }

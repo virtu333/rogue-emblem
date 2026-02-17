@@ -62,7 +62,8 @@ describe('RunManager', () => {
         const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, lethalArmoryTier: 2 });
         rmMeta.startRun();
         const extra = rmMeta.roster[2];
-        expect(extra.inventory.length).toBe(2);
+        // Archer recruit gets: base bow + Longbow (recruit perk) + Lethal Armory weapon = 3
+        expect(extra.inventory.length).toBe(3);
         expect(extra.weapon).toBe(extra.inventory[extra.inventory.length - 1]);
         expect(extra.weapon.type).toBe('Bow');
       } finally {

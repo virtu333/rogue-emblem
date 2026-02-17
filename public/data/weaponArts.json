@@ -368,12 +368,12 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A flurry of 3 strikes at 50% damage each. (Placeholder: +5 Atk, +10 Hit, +10 Crit until multiHit lands.)",
-      "_deferredMechanic": "multiHit(3x50%)",
+      "description": "A flurry of 3 strikes at 50% damage each.",
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 10,
-        "critBonus": 10,
+        "multiHit": {
+          "count": 3,
+          "damageMultiplier": 0.5
+        },
         "activated": [
           {
             "id": "weapon_art",
@@ -1236,12 +1236,12 @@
       "hpCost": 12,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A rapid volley of 2 strikes at 80% damage each. (Placeholder: +8 Atk, +10 Hit, +5 Crit until multiHit lands.)",
-      "_deferredMechanic": "multiHit(2x80%)",
+      "description": "A rapid volley of 2 strikes at 80% damage each.",
       "combatMods": {
-        "atkBonus": 8,
-        "hitBonus": 10,
-        "critBonus": 5,
+        "multiHit": {
+          "count": 2,
+          "damageMultiplier": 0.8
+        },
         "activated": [
           {
             "id": "weapon_art",
@@ -1373,11 +1373,9 @@
       "hpCost": 7,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A radiant strike that heals 30% of damage dealt. (Placeholder: +4 Atk, +10 Hit until drainPercent lands.)",
-      "_deferredMechanic": "drainPercent(0.3)",
+      "description": "A radiant strike that heals 30% of damage dealt.",
       "combatMods": {
-        "atkBonus": 4,
-        "hitBonus": 10,
+        "drainPercent": 0.3,
         "activated": [
           {
             "id": "weapon_art",
@@ -1519,11 +1517,9 @@
       "hpCost": 10,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A dark incantation that heals 100% of damage dealt. (Placeholder: +6 Atk, +10 Hit until drainPercent lands.)",
-      "_deferredMechanic": "drainPercent(1.0)",
+      "description": "A dark incantation that heals 100% of damage dealt.",
       "combatMods": {
-        "atkBonus": 6,
-        "hitBonus": 10,
+        "drainPercent": 1,
         "activated": [
           {
             "id": "weapon_art",
@@ -1609,8 +1605,25 @@
       "legendaryWeaponIds": [
         "Brave Sword"
       ],
-      "_deferredMechanic": "multiHit, postCombatMove, setHpTo5",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "move",
+            "mode": "retreat",
+            "distance": 1
+          },
+          {
+            "type": "set_hp",
+            "target": "attacker",
+            "value": 5
+          }
+        ]
+      },
       "combatMods": {
+        "multiHit": {
+          "count": 3,
+          "damageMultiplier": 0.5
+        },
         "atkBonus": 8,
         "hitBonus": 10,
         "critBonus": 10,
@@ -1640,8 +1653,20 @@
       "legendaryWeaponIds": [
         "Brave Lance"
       ],
-      "_deferredMechanic": "multiHit, pierceThrough",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "pierce_through",
+            "target": "defender",
+            "maxTargets": 1
+          }
+        ]
+      },
       "combatMods": {
+        "multiHit": {
+          "count": 2,
+          "damageMultiplier": 0.8
+        },
         "atkBonus": 8,
         "hitBonus": 10,
         "activated": [
@@ -1670,8 +1695,19 @@
       "legendaryWeaponIds": [
         "Brave Axe"
       ],
-      "_deferredMechanic": "multiHit, postCombatMove, allyBuff, setHpTo5",
       "effects": {
+        "afterCombat": [
+          {
+            "type": "move",
+            "mode": "advance",
+            "distance": 1
+          },
+          {
+            "type": "set_hp",
+            "target": "attacker",
+            "value": 5
+          }
+        ],
         "allyBuff": {
           "range": 2,
           "durationPhases": 1,
@@ -1682,6 +1718,10 @@
         }
       },
       "combatMods": {
+        "multiHit": {
+          "count": 3,
+          "damageMultiplier": 0.5
+        },
         "atkBonus": 10,
         "hitBonus": 5,
         "critBonus": 5,
@@ -1711,7 +1751,6 @@
       "legendaryWeaponIds": [
         "Brave Bow"
       ],
-      "_deferredMechanic": "multiHit, aoeSplash",
       "effects": {
         "aoeSplash": {
           "radius": 1,
@@ -1722,6 +1761,10 @@
         }
       },
       "combatMods": {
+        "multiHit": {
+          "count": 2,
+          "damageMultiplier": 0.8
+        },
         "atkBonus": 8,
         "hitBonus": 10,
         "activated": [
@@ -1750,8 +1793,20 @@
       "legendaryWeaponIds": [
         "Ragnarok"
       ],
-      "_deferredMechanic": "multiHit, postCombatMove(retreat)",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "move",
+            "mode": "retreat",
+            "distance": 1
+          }
+        ]
+      },
       "combatMods": {
+        "multiHit": {
+          "count": 2,
+          "damageMultiplier": 0.8
+        },
         "preventCounter": true,
         "defBonus": 5,
         "atkBonus": 5,
@@ -1781,8 +1836,8 @@
       "legendaryWeaponIds": [
         "Soulreaver"
       ],
-      "_deferredMechanic": "drainPercent(1.5)",
       "combatMods": {
+        "drainPercent": 1.5,
         "atkBonus": 8,
         "hitBonus": 10,
         "activated": [
@@ -1811,7 +1866,20 @@
       "legendaryWeaponIds": [
         "Doomblade"
       ],
-      "_deferredMechanic": "pierceThrough, postCombatMove(push)",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "pierce_through",
+            "target": "defender",
+            "maxTargets": 1
+          },
+          {
+            "type": "move",
+            "mode": "push",
+            "distance": 1
+          }
+        ]
+      },
       "combatMods": {
         "atkBonus": 8,
         "hitBonus": 10,
