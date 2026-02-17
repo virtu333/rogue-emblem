@@ -438,7 +438,7 @@
       "DEF": 1,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
@@ -458,7 +458,7 @@
       "DEF": 3,
       "RES": 6,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Armored",
     "weaponProficiencies": "Lances (M), Axes (P)",
@@ -478,7 +478,7 @@
       "DEF": 2,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
@@ -524,7 +524,7 @@
       "DEF": 1,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
@@ -544,7 +544,7 @@
       "DEF": 1,
       "RES": 2,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P)",
@@ -564,7 +564,7 @@
       "DEF": 1,
       "RES": 3,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Light (P)",
@@ -584,7 +584,7 @@
       "DEF": 1,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
@@ -604,7 +604,7 @@
       "DEF": 2,
       "RES": 3,
       "LCK": 1,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Staves (P)",
@@ -624,7 +624,7 @@
       "DEF": 1,
       "RES": 2,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Swords (P)",
@@ -644,7 +644,7 @@
       "DEF": 3,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
@@ -664,7 +664,7 @@
       "DEF": 2,
       "RES": 1,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
@@ -830,7 +830,7 @@
       "DEF": 1,
       "RES": 2,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Swords (P)",
@@ -850,7 +850,7 @@
       "DEF": 3,
       "RES": 0,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P), Bows (P)",
@@ -870,7 +870,7 @@
       "DEF": 1,
       "RES": 3,
       "LCK": 0,
-      "MOV": 0
+      "MOV": 1
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Light (M), Staves (P)",
