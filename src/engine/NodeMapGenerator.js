@@ -38,7 +38,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     const node = {
       id: `${actId}_0_0`,
       row: 0,
-      col: 0,
+      col: CENTER_COL,
       type: NODE_TYPES.BOSS,
       edges: [],
       battleParams: { act: actId, objective: 'seize', battleSeed: rollBattleSeed() },
