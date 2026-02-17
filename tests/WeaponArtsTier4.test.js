@@ -68,23 +68,23 @@ describe('Tier 4 weapon art data + parsing', () => {
     }
   });
 
-  it('adds multiHit to compound legendary arts while preserving remaining deferred markers', () => {
+  it('keeps compound legendary multiHit arts fully structured without deferred markers', () => {
     const expected = {
       legend_phantom_rush: {
         multiHit: { count: 3, damageMultiplier: 0.5 },
-        deferred: 'postCombatMove, setHpTo5',
+        deferred: null,
         atkBonus: 8,
         hitBonus: 10,
       },
       legend_piercing_charge: {
         multiHit: { count: 2, damageMultiplier: 0.8 },
-        deferred: 'pierceThrough',
+        deferred: null,
         atkBonus: 8,
         hitBonus: 10,
       },
       legend_galeforce_assault: {
         multiHit: { count: 3, damageMultiplier: 0.5 },
-        deferred: 'postCombatMove, setHpTo5',
+        deferred: null,
         atkBonus: 10,
         hitBonus: 5,
       },
@@ -96,7 +96,7 @@ describe('Tier 4 weapon art data + parsing', () => {
       },
       legend_storm_blade: {
         multiHit: { count: 2, damageMultiplier: 0.8 },
-        deferred: 'postCombatMove(retreat)',
+        deferred: null,
         atkBonus: 5,
         hitBonus: 0,
       },
@@ -413,6 +413,46 @@ describe('Tier 4 drainPercent combat resolution', () => {
     expect(rollStrikeSkills).toHaveBeenCalled();
     expect(strike.heal).toBe(expectedHeal);
     expect(strike.heal).not.toBe(2);
+  });
+
+  it('caps highest-heal-wins at target HP when skill heal is oversized', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      currentHP: 8,
+      stats: { HP: 40, STR: 18, MAG: 0, SKL: 8, SPD: 10, DEF: 6, RES: 3, LCK: 5 },
+      weapon: data.weapons.find((w) => w.name === 'Soulreaver'),
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      weapon: null,
+      currentHP: 5,
+      stats: { HP: 60, STR: 8, MAG: 0, SKL: 8, SPD: 8, DEF: 3, RES: 2, LCK: 5 },
+    });
+    const rollStrikeSkills = vi.fn((striker, normalDamage) => ({
+      modifiedDamage: normalDamage,
+      heal: 12,
+      lethal: false,
+      extraStrike: false,
+      activated: [],
+    }));
+
+    const result = withHitNoCrit(() => resolveCombat(
+      attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
+      {
+        atkWeaponArtMods: {
+          drainPercent: 0.3,
+          activated: [{ id: 'weapon_art', name: 'Life Drain' }],
+        },
+        rollStrikeSkills,
+        skillsData: [],
+      }
+    ));
+
+    const strike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name);
+    expect(rollStrikeSkills).toHaveBeenCalled();
+    expect(strike.heal).toBe(defender.currentHP);
+    expect(strike.heal).not.toBe(12);
   });
 });
 

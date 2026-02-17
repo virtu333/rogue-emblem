@@ -892,6 +892,7 @@ function rollStrike(
       heal = Math.max(heal, Math.min(Math.floor(finalDmg * drainPercent), targetHP));
     }
   }
+  heal = Math.min(heal, targetHP);
 
   const hpAfter = Math.max(0, targetHP - finalDmg);
   return {
