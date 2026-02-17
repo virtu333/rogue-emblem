@@ -310,6 +310,25 @@ describe('MobileControls context stack', () => {
     const objectiveButton = rightPanel.children.find((c) => c.dataset.action === 'objective');
     expect(objectiveButton.children[1]?.textContent).toBe('Vision');
   });
+
+  it('re-renders right panel when button visibility toggles within same context', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+
+    events.emit('mobile:setButtonVisible', { action: 'danger', visible: false });
+    events.emit('mobile:setContext', { context: 'battle_idle' });
+    expect(rightPanel.children.map((c) => c.dataset.action))
+      .toEqual(['roster', 'objective', 'endTurn']);
+
+    events.emit('mobile:setButtonVisible', { action: 'danger', visible: true });
+    expect(rightPanel.children.map((c) => c.dataset.action))
+      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+  });
 });
 
 describe('Overlay show/hide idempotency', () => {

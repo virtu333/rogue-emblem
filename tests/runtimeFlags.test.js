@@ -28,6 +28,8 @@ describe('runtimeFlags', () => {
       isMobile: false,
       mobileSafeBoot: false,
       reducedPreload: false,
+      mobileCameraEnabled: false,
+      MOBILE_CAMERA_ENABLED: false,
     });
   });
 
@@ -38,6 +40,8 @@ describe('runtimeFlags', () => {
       isMobile: true,
       mobileSafeBoot: true,
       reducedPreload: true,
+      mobileCameraEnabled: true,
+      MOBILE_CAMERA_ENABLED: true,
     });
   });
 
@@ -45,12 +49,15 @@ describe('runtimeFlags', () => {
     globalThis.localStorage.getItem.mockReturnValue(JSON.stringify({
       mobileSafeBoot: false,
       reducedPreload: true,
+      mobileCameraEnabled: false,
     }));
     globalThis.navigator.userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)';
     expect(resolveStartupFlags()).toEqual({
       isMobile: true,
       mobileSafeBoot: false,
       reducedPreload: true,
+      mobileCameraEnabled: false,
+      MOBILE_CAMERA_ENABLED: false,
     });
   });
 

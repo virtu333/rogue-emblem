@@ -38,6 +38,9 @@ export class MobileControls {
     this._isVisible = false;
     this._rightButtons = [];
     this._leftPanelCleanups = [];
+    this._leftButtons = new Map();
+    this._buttonVisibility = new Map();
+    this._buttonVisibility.set('resetView', false);
 
     this._leftPanel = document.getElementById('mobile-left-panel');
     this._rightPanel = document.getElementById('mobile-right-panel');
@@ -67,10 +70,23 @@ export class MobileControls {
       this._currentContext = this._resolveCurrentContext();
       this._renderRightPanel();
     };
+    this._onSetButtonVisible = (data) => {
+      const action = typeof data?.action === 'string' ? data.action : '';
+      if (!action) return;
+      const wasVisible = this._isButtonVisible(action);
+      const nextVisible = data?.visible !== false;
+      this._buttonVisibility.set(action, nextVisible);
+      this._applyButtonVisibility(action);
+      if (wasVisible !== nextVisible) {
+        this._lastRenderedContext = null;
+        this._renderRightPanel();
+      }
+    };
 
     game.events.on('mobile:setContext', this._onSetContext);
     game.events.on('mobile:pushContext', this._onPushContext);
     game.events.on('mobile:popContext', this._onPopContext);
+    game.events.on('mobile:setButtonVisible', this._onSetButtonVisible);
 
     // Rotate prompt — request fullscreen + landscape lock on tap
     if (this._rotatePrompt) {
@@ -103,10 +119,12 @@ export class MobileControls {
     for (const btn of buttons) {
       const action = btn.dataset.action;
       if (!action) continue;
+      this._leftButtons.set(action, btn);
       const unlisten = this._addTouchHandler(btn, () => {
         this.game.events.emit(`mobile:${action}`);
       });
       this._leftPanelCleanups.push(unlisten);
+      this._applyButtonVisibility(action);
     }
   }
 
@@ -127,6 +145,7 @@ export class MobileControls {
     for (const action of actions) {
       const def = BUTTON_DEFS[action];
       if (!def) continue;
+      if (!this._isButtonVisible(action)) continue;
       const btn = this._createButton(def, action);
       this._rightPanel.appendChild(btn);
       this._rightButtons.push({ el: btn, action });
@@ -149,6 +168,21 @@ export class MobileControls {
     const shouldShow = this._isVisible && this._currentContext !== 'none';
     if (this._leftPanel) this._leftPanel.style.display = shouldShow ? 'flex' : 'none';
     if (this._rightPanel) this._rightPanel.style.display = shouldShow ? 'flex' : 'none';
+  }
+
+  _isButtonVisible(action) {
+    return this._buttonVisibility.get(action) !== false;
+  }
+
+  _applyButtonVisibility(action) {
+    const visible = this._isButtonVisible(action);
+    const leftBtn = this._leftButtons.get(action);
+    if (leftBtn) leftBtn.style.display = visible ? '' : 'none';
+    for (const ref of this._rightButtons) {
+      if (ref.action === action && ref.el) {
+        ref.el.style.display = visible ? '' : 'none';
+      }
+    }
   }
 
   _createButton(def, action) {
@@ -225,9 +259,11 @@ export class MobileControls {
       this.game.events.off('mobile:setContext', this._onSetContext);
       this.game.events.off('mobile:pushContext', this._onPushContext);
       this.game.events.off('mobile:popContext', this._onPopContext);
+      this.game.events.off('mobile:setButtonVisible', this._onSetButtonVisible);
     }
     for (const unlisten of this._leftPanelCleanups) unlisten();
     this._leftPanelCleanups = [];
+    this._leftButtons.clear();
     if (this._rotatePrompt && this._onRotateTap) {
       this._rotatePrompt.removeEventListener('click', this._onRotateTap);
     }

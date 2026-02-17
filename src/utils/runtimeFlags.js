@@ -27,13 +27,27 @@ function asBool(value, fallback) {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function getBoolOverride(overrides, keys, fallback) {
+  for (const key of keys) {
+    if (typeof overrides?.[key] === 'boolean') return overrides[key];
+  }
+  return fallback;
+}
+
 export function resolveStartupFlags() {
   const isMobile = detectMobileRuntime();
   const overrides = readFlagOverrides();
+  const mobileCameraEnabled = getBoolOverride(
+    overrides,
+    ['mobileCameraEnabled', 'MOBILE_CAMERA_ENABLED'],
+    isMobile,
+  );
   return {
     isMobile,
     mobileSafeBoot: asBool(overrides.mobileSafeBoot, isMobile),
     reducedPreload: asBool(overrides.reducedPreload, isMobile),
+    mobileCameraEnabled,
+    MOBILE_CAMERA_ENABLED: mobileCameraEnabled,
   };
 }
 

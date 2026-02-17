@@ -101,6 +101,7 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
+import { BattleCameraController } from '../utils/BattleCameraController.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -174,6 +175,15 @@ export class BattleScene extends Phaser.Scene {
     this.visionBaseSeed = null;
     this._battleRandomRestore = null;
     this.isMobileInput = false;
+    this.mobileCameraEnabled = false;
+    this._battleCamera = null;
+    this._cameraGestureTapSuppressed = false;
+    this._uiCamera = null;
+    this._pinnedUiObjects = new Set();
+    this._cameraFilterDirty = false;
+    this._lastChildrenCount = -1;
+    this._displayListDirtyHandler = null;
+    this._battleCanvasTouchActionPrev = null;
     this.inspectMode = false;
     this._touchHoldTimer = null;
     this._touchHoldStart = null;
@@ -223,6 +233,14 @@ export class BattleScene extends Phaser.Scene {
     try {
       const startupFlags = this.registry.get('startupFlags');
       this.isMobileInput = Boolean(startupFlags?.isMobile);
+      const mobileCameraFlag = (typeof startupFlags?.MOBILE_CAMERA_ENABLED === 'boolean')
+        ? startupFlags.MOBILE_CAMERA_ENABLED
+        : startupFlags?.mobileCameraEnabled;
+      this.mobileCameraEnabled = Boolean(
+        typeof mobileCameraFlag === 'boolean'
+          ? mobileCameraFlag
+          : this.isMobileInput,
+      );
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
 
@@ -280,6 +298,7 @@ export class BattleScene extends Phaser.Scene {
             ge.off(`mobile:${action}`, handler);
           }
         }
+        this._teardownBattleCameraSystem();
       });
 
       // Unit arrays
@@ -498,6 +517,9 @@ export class BattleScene extends Phaser.Scene {
       this._touchHoldTimer = null;
       this._touchHoldStart = null;
       this._touchHoldTriggered = false;
+      this._cameraGestureTapSuppressed = false;
+
+      this._setupBattleCameraSystem();
 
       // Turn manager
       this.turnManager = new TurnManager({
@@ -581,6 +603,17 @@ export class BattleScene extends Phaser.Scene {
         if (this.inspectButton) this.inspectButton.setVisible(false);
         this.instructionText2.setVisible(false);
       }
+      this._pinToScreen([
+        this.infoText,
+        this.objectiveText,
+        this.turnCounterText,
+        this.dangerButton,
+        this.rosterButton,
+        this.endTurnButton,
+        this.cancelButton,
+        this.inspectButton,
+        this.instructionText2,
+      ]);
 
       // Tutorial skip button (bottom-right)
       if (this.battleParams.tutorialMode) {
@@ -594,6 +627,7 @@ export class BattleScene extends Phaser.Scene {
         skipBtn.on('pointerdown', () => {
           this._handleTutorialSkipRequested();
         });
+        this._pinToScreen(skipBtn);
       }
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
@@ -612,13 +646,9 @@ export class BattleScene extends Phaser.Scene {
 
       // Input handlers
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
-      this.input.on('pointerdown', (pointer) => {
-        if (this.isStoryInputLocked()) return;
-        this._touchTapDown = { x: pointer.x, y: pointer.y };
-        this.startTouchInspectHold(pointer);
-        if (pointer.rightButtonDown()) this.onRightClick(pointer);
-      });
+      this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
+      this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
       this.input.keyboard.on('keydown-V', () => {
         if (this.isStoryInputLocked()) return;
         if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
@@ -736,6 +766,10 @@ export class BattleScene extends Phaser.Scene {
             if (this.isStoryInputLocked()) return;
             this._cycleForecastWeapon(1);
           },
+          resetView: () => {
+            if (this.isStoryInputLocked()) return;
+            this.resetBattleCameraView();
+          },
         };
         for (const [action, handler] of Object.entries(this._mobileHandlers)) {
           ge.on(`mobile:${action}`, handler);
@@ -783,10 +817,11 @@ export class BattleScene extends Phaser.Scene {
 
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
-        this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
+        const fogLabel = this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
           fontFamily: 'monospace', fontSize: '10px', color: '#ffaa44',
           backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
         }).setDepth(100);
+        this._pinToScreen(fogLabel);
 
         const hints = this.registry.get('hints');
         if (hints?.shouldShow('battle_fog')) {
@@ -798,7 +833,15 @@ export class BattleScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff',
         backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
       }).setOrigin(0, 0).setDepth(100);
+      this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
+
+      if (this.mobileCameraEnabled) {
+        const hints = this.registry.get('hints');
+        if (hints?.shouldShow('battle_mobile_camera')) {
+          showMinorHint(this, 'Use two fingers to pan and pinch to zoom. Pinch out or tap Reset to restore view.');
+        }
+      }
 
       // Debug overlay (dev-only)
       if (this.isDevToolsEnabled()) {
@@ -1416,6 +1459,7 @@ export class BattleScene extends Phaser.Scene {
         padding: { x: 10, y: 5 },
       }
     ).setOrigin(0.5).setDepth(520).setAlpha(0);
+    this._pinToScreen(banner);
     this.tweens.add({
       targets: banner,
       alpha: 1,
@@ -2104,8 +2148,12 @@ export class BattleScene extends Phaser.Scene {
       }
       return defaultEnemySpriteKey;
     }
-    // Lords: try personal name first (Edric has unique sprite), fall back to class
+    // Lords: Edric has tier-specific sprites; others use name-based lookup
     if (unit.isLord) {
+      if (unit.name === 'Edric') {
+        const edricKey = unit.tier === 'promoted' ? 'greatlordedric' : 'lordedric';
+        if (this.textures.exists(edricKey)) return edricKey;
+      }
       const lordKey = unit.name.toLowerCase();
       if (this.textures.exists(lordKey)) return lordKey;
     }
@@ -2302,6 +2350,11 @@ export class BattleScene extends Phaser.Scene {
 
   onPointerMove(pointer) {
     if (this.isStoryInputLocked()) return;
+    if (pointer?.pointerType === 'touch' && this._handleCameraGesturePointerMove(pointer)) {
+      this._cameraGestureTapSuppressed = true;
+      this.cancelTouchInspectHold();
+      return;
+    }
     this.updateTouchInspectHold(pointer);
     if (this.battleState === 'BATTLE_END') {
       if (this.cursorHighlight) this.cursorHighlight.setVisible(false);
@@ -2310,7 +2363,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (pointer?.pointerType === 'touch') return;
-    const gp = this.grid.pixelToGrid(pointer.x, pointer.y);
+    const gp = this._pointerToGrid(pointer);
     if (!gp) {
       this.cursorHighlight.setVisible(false);
       this.infoText.setText('');
@@ -2378,6 +2431,25 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  onPointerDown(pointer) {
+    if (this.isStoryInputLocked()) return;
+    if (pointer?.pointerType === 'touch') {
+      this._battleCamera?.pruneInactiveTouches?.(pointer);
+      if (!this._battleCamera?.hasActiveTouches?.()) {
+        this._cameraGestureTapSuppressed = false;
+      }
+      if (this._handleCameraGesturePointerDown(pointer)) {
+        this._cameraGestureTapSuppressed = true;
+        this.cancelTouchInspectHold();
+        this._touchTapDown = null;
+        return;
+      }
+    }
+    this._touchTapDown = { x: pointer.x, y: pointer.y };
+    this.startTouchInspectHold(pointer);
+    if (pointer?.rightButtonDown && pointer.rightButtonDown()) this.onRightClick(pointer);
+  }
+
   startTouchInspectHold(pointer) {
     if (pointer?.pointerType !== 'touch') return;
     this.cancelTouchInspectHold();
@@ -2388,7 +2460,8 @@ export class BattleScene extends Phaser.Scene {
       this._touchHoldTimer = null;
       if (!start) return;
       if (this.unitDetailOverlay?.visible || this.pauseOverlay?.visible || this.lootSettingsOverlay) return;
-      if (this._showInspectionAtPixel(start.x, start.y)) {
+      const world = this._screenToWorld(start.x, start.y);
+      if (world && this._showInspectionAtPixel(world.x, world.y)) {
         this._touchHoldTriggered = true;
       }
     });
@@ -2428,6 +2501,7 @@ export class BattleScene extends Phaser.Scene {
     if (!unit) return false;
     const terrain = this.grid.getTerrainAt(unit.col, unit.row);
     this.inspectionPanel.show(unit, terrain, this.gameData);
+    if (typeof this._pinToScreen === 'function') this._pinToScreen(this.inspectionPanel?.objects);
 
     if (this.battleState === 'PLAYER_IDLE') {
       const isPlayer = unit.faction === 'player';
@@ -2501,9 +2575,277 @@ export class BattleScene extends Phaser.Scene {
     this.updateTopLeftHudLayout();
   }
 
+  update() {
+    if (!this._uiCamera) return;
+    const childCount = this.children?.list?.length || 0;
+    if (!this._cameraFilterDirty && childCount === this._lastChildrenCount) return;
+    this._syncPinnedUiCameraFilters();
+  }
+
+  _getBattleMapBounds() {
+    if (!this.grid) return null;
+    return {
+      left: this.grid.offsetX,
+      top: this.grid.offsetY,
+      width: this.grid.cols * TILE_SIZE,
+      height: this.grid.rows * TILE_SIZE,
+    };
+  }
+
+  _setupBattleCameraSystem() {
+    this._battleCamera?.destroy?.();
+    this._battleCamera = null;
+    this._cameraGestureTapSuppressed = false;
+    this._pinnedUiObjects = new Set();
+    this._cameraFilterDirty = false;
+    this._lastChildrenCount = -1;
+
+    if (!this.mobileCameraEnabled) return;
+
+    if (typeof this.input?.addPointer === 'function' && !this.input.pointer2) {
+      this.input.addPointer(1);
+    }
+
+    this._setupUiCamera();
+    this._battleCamera = new BattleCameraController(this.cameras.main, {
+      minZoom: 1,
+      maxZoom: 3,
+      getBounds: () => this._getBattleMapBounds(),
+      onViewChanged: () => {
+        this._syncMobileResetViewButton();
+      },
+    });
+    this._battleCamera.resetView();
+    this._setBattleCanvasTouchAction(true);
+    this._syncMobileResetViewButton();
+  }
+
+  _teardownBattleCameraSystem() {
+    this._setBattleCanvasTouchAction(false);
+
+    if (this._battleCamera) {
+      this._battleCamera.destroy();
+      this._battleCamera = null;
+    }
+    this._cameraGestureTapSuppressed = false;
+
+    if (this._uiCamera && this.cameras?.remove) {
+      this.cameras.remove(this._uiCamera);
+    }
+    if (this._displayListDirtyHandler && this.events) {
+      this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, this._displayListDirtyHandler);
+      this.events.off(Phaser.Scenes.Events.REMOVED_FROM_SCENE, this._displayListDirtyHandler);
+      this._displayListDirtyHandler = null;
+    }
+    this._uiCamera = null;
+    this._pinnedUiObjects = new Set();
+    this._cameraFilterDirty = false;
+    this._lastChildrenCount = -1;
+
+    const cam = this.cameras?.main;
+    if (cam) {
+      cam.setZoom(1);
+      cam.setScroll(0, 0);
+    }
+
+    if (this.isMobileInput && this.game?.events) {
+      this.game.events.emit('mobile:setButtonVisible', { action: 'resetView', visible: false });
+    }
+  }
+
+  _setupUiCamera() {
+    if (!this.mobileCameraEnabled) return;
+    if (this._uiCamera) return;
+    const worldCam = this.cameras.main;
+    this._uiCamera = this.cameras.add(0, 0, worldCam.width, worldCam.height);
+    if (typeof this._uiCamera.setRoundPixels === 'function') {
+      this._uiCamera.setRoundPixels(worldCam.roundPixels);
+    }
+    if (!this._displayListDirtyHandler && this.events) {
+      this._displayListDirtyHandler = () => {
+        this._cameraFilterDirty = true;
+      };
+      this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, this._displayListDirtyHandler);
+      this.events.on(Phaser.Scenes.Events.REMOVED_FROM_SCENE, this._displayListDirtyHandler);
+    }
+    this._cameraFilterDirty = true;
+    this._lastChildrenCount = -1;
+    this._syncPinnedUiCameraFilters();
+  }
+
+  _isAutoPinCandidate(obj) {
+    if (!obj || typeof obj.depth !== 'number') return false;
+    if (obj._forceWorldCamera === true) return false;
+    if (obj.depth >= 600) return true;
+    if (obj.depth >= 100 && obj.depth <= 200) {
+      return obj === this.infoText
+        || obj === this.objectiveText
+        || obj === this.turnCounterText
+        || obj === this.visionHudText
+        || obj === this.instructionText2
+        || obj === this.inspectButton
+        || obj === this.dangerButton
+        || obj === this.rosterButton
+        || obj === this.endTurnButton
+        || obj === this.cancelButton
+        || obj === this.inspectionPanel?.objects?.[0]
+        || obj === this.inspectionPanel?.objects?.[1]
+        || obj === this.inspectionPanel?.objects?.[2];
+    }
+    return false;
+  }
+
+  _syncPinnedUiCameraFilters() {
+    if (!this._uiCamera) return;
+    const list = this.children?.list || [];
+    const uiCameraId = this._uiCamera.id;
+    const worldCameraId = this.cameras?.main?.id;
+    if (!uiCameraId || !worldCameraId) return;
+
+    const livePinned = new Set();
+    for (const obj of list) {
+      if (!obj || typeof obj !== 'object') continue;
+      const autoPin = this._isAutoPinCandidate(obj);
+      const pinned = this._pinnedUiObjects.has(obj) || autoPin;
+      if (pinned) {
+        livePinned.add(obj);
+        obj.cameraFilter = ((obj.cameraFilter || 0) | worldCameraId) & ~uiCameraId;
+      } else {
+        obj.cameraFilter = ((obj.cameraFilter || 0) | uiCameraId) & ~worldCameraId;
+      }
+    }
+    this._pinnedUiObjects = livePinned;
+    this._cameraFilterDirty = false;
+    this._lastChildrenCount = list.length;
+  }
+
+  _walkDisplayObjectTree(objOrArray, visitor) {
+    if (!objOrArray) return;
+    if (Array.isArray(objOrArray)) {
+      for (const obj of objOrArray) this._walkDisplayObjectTree(obj, visitor);
+      return;
+    }
+    visitor(objOrArray);
+    if (Array.isArray(objOrArray.list)) {
+      for (const child of objOrArray.list) this._walkDisplayObjectTree(child, visitor);
+    }
+  }
+
+  _pinToScreen(objOrArray) {
+    if (!objOrArray || !this._uiCamera) return objOrArray;
+    this._walkDisplayObjectTree(objOrArray, (obj) => {
+      if (!obj || typeof obj !== 'object') return;
+      if (typeof obj.setScrollFactor === 'function') obj.setScrollFactor(0);
+      this._pinnedUiObjects.add(obj);
+    });
+    this._syncPinnedUiCameraFilters();
+    return objOrArray;
+  }
+
+  _setBattleCanvasTouchAction(enabled) {
+    if (!this.mobileCameraEnabled) return;
+    const canvas = this.game?.canvas;
+    if (!canvas?.style) return;
+    if (enabled) {
+      if (this._battleCanvasTouchActionPrev == null) {
+        this._battleCanvasTouchActionPrev = canvas.style.touchAction ?? '';
+      }
+      canvas.style.touchAction = 'none';
+      return;
+    }
+    if (this._battleCanvasTouchActionPrev != null) {
+      canvas.style.touchAction = this._battleCanvasTouchActionPrev;
+      this._battleCanvasTouchActionPrev = null;
+    }
+  }
+
+  _syncMobileResetViewButton() {
+    if (!this.isMobileInput || !this.game?.events) return;
+    const visible = Boolean(this.mobileCameraEnabled && this._battleCamera && this._battleCamera.getZoom() > 1.001);
+    this.game.events.emit('mobile:setButtonVisible', { action: 'resetView', visible });
+  }
+
+  resetBattleCameraView() {
+    if (!this.mobileCameraEnabled || !this._battleCamera) return false;
+    this._battleCamera.resetView();
+    this._syncMobileResetViewButton();
+    return true;
+  }
+
+  isCameraGestureAllowed() {
+    if (!this.mobileCameraEnabled || !this._battleCamera) return false;
+    if (this.isStoryInputLocked()) return false;
+    if (this._isTutorialStrictGateActive()) return false;
+    if (this.pauseOverlay?.visible || this.unitDetailOverlay?.visible || this.visionDialog) return false;
+    if (this.lootSettingsOverlay || this.lootRosterVisible) return false;
+
+    const allowedStates = new Set(['PLAYER_IDLE', 'UNIT_SELECTED', 'CANTO_MOVING']);
+    return allowedStates.has(this.battleState);
+  }
+
+  _handleCameraGesturePointerDown(pointer) {
+    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    const result = this._battleCamera.handlePointerDown(pointer, this.isCameraGestureAllowed());
+    if (result?.beganGesture) {
+      this.cancelTouchInspectHold();
+      this._touchHoldTriggered = false;
+    }
+    return Boolean(result?.consumed);
+  }
+
+  _handleCameraGesturePointerMove(pointer) {
+    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    const result = this._battleCamera.handlePointerMove(pointer, this.isCameraGestureAllowed());
+    return Boolean(result?.consumed);
+  }
+
+  _handleCameraGesturePointerUp(pointer) {
+    if (!this._battleCamera || pointer?.pointerType !== 'touch') return false;
+    const result = this._battleCamera.handlePointerUp(pointer);
+    if (result?.endedGesture) this._syncMobileResetViewButton();
+    return Boolean(result?.consumed);
+  }
+
+  _screenToWorld(x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    if (this._battleCamera) return this._battleCamera.screenToWorld(x, y);
+    const cam = this.cameras?.main;
+    if (!cam) return null;
+    if (typeof cam.getWorldPoint === 'function') {
+      return cam.getWorldPoint(x, y);
+    }
+    const zoom = Number(cam.zoom) || 1;
+    return {
+      x: (Number(cam.scrollX) || 0) + ((x - (cam.x || 0)) / zoom),
+      y: (Number(cam.scrollY) || 0) + ((y - (cam.y || 0)) / zoom),
+    };
+  }
+
+  _worldToScreen(x, y) {
+    if (this._battleCamera) return this._battleCamera.worldToScreen(x, y);
+    const cam = this.cameras?.main;
+    if (!cam) return null;
+    const zoom = Number(cam.zoom) || 1;
+    return {
+      x: ((x - (Number(cam.scrollX) || 0)) * zoom) + (cam.x || 0),
+      y: ((y - (Number(cam.scrollY) || 0)) * zoom) + (cam.y || 0),
+    };
+  }
+
+  _pointerToWorld(pointer) {
+    if (!pointer) return null;
+    return this._screenToWorld(pointer.x, pointer.y);
+  }
+
+  _pointerToGrid(pointer) {
+    const world = this._pointerToWorld(pointer);
+    if (!world || !this.grid) return null;
+    return this.grid.pixelToGrid(world.x, world.y);
+  }
+
   onClick(pointer, clickPos = null) {
     if (this.isStoryInputLocked()) return;
-    if (pointer.rightButtonDown()) return; // handled separately
+    if (pointer?.rightButtonDown && pointer.rightButtonDown()) return; // handled separately
     if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
     if (this.battleState === 'ENEMY_PHASE' ||
         this.battleState === 'BATTLE_END' ||
@@ -2514,8 +2856,12 @@ export class BattleScene extends Phaser.Scene {
         this.battleState === 'TUTORIAL_HINT' ||
         this.battleState === 'PAUSED') return;
 
-    const px = clickPos?.x ?? pointer.x;
-    const py = clickPos?.y ?? pointer.y;
+    const screenX = clickPos?.x ?? pointer?.x;
+    const screenY = clickPos?.y ?? pointer?.y;
+    const world = this._screenToWorld(screenX, screenY);
+    if (!world) return;
+    const px = world.x;
+    const py = world.y;
     if (this.isMobileInput && this.inspectMode) {
       if (this.handleInspectModeTap(pointer, px, py)) return;
     }
@@ -2583,7 +2929,8 @@ export class BattleScene extends Phaser.Scene {
       this.clearInspectionVisuals();
       return;
     }
-    if (pointer && this._showInspectionAtPixel(pointer.x, pointer.y)) return;
+    const world = this._pointerToWorld(pointer);
+    if (world && this._showInspectionAtPixel(world.x, world.y)) return;
     this.refreshEndTurnControl();
   }
 
@@ -2594,6 +2941,9 @@ export class BattleScene extends Phaser.Scene {
       hit = this.input.hitTestPointer(pointer) || [];
     } else if (this.input.manager?.hitTest) {
       hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
+      if (this._uiCamera) {
+        hit = hit.concat(this.input.manager.hitTest(pointer, this.children.list, this._uiCamera) || []);
+      }
     }
     return Array.isArray(hit) && hit.some(obj =>
       obj
@@ -2822,6 +3172,7 @@ export class BattleScene extends Phaser.Scene {
   refreshEndTurnControl() {
     if (this.isMobileInput) {
       this._emitMobileContext();
+      if (typeof this._syncMobileResetViewButton === 'function') this._syncMobileResetViewButton();
       return; // Skip in-canvas button management on mobile
     }
     if (this.inspectButton) {
@@ -3848,6 +4199,7 @@ export class BattleScene extends Phaser.Scene {
       this.tradeMutatedThisSession = tradeMutated;
     });
     this.tradeUIObjects.push(doneBtn);
+    this._pinToScreen(this.tradeUIObjects);
   }
 
   cleanupTradeUI() {
@@ -4146,9 +4498,14 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const maxX = cam.width - menuWidth - pad;
     const maxY = cam.height - menuHeight - pad;
+    const screenPos = (typeof this._worldToScreen === 'function')
+      ? (this._worldToScreen(preferredX, preferredY) || { x: preferredX, y: preferredY })
+      : { x: preferredX, y: preferredY };
+    const clampedScreenX = Math.max(pad, Math.min(screenPos.x, maxX));
+    const clampedScreenY = Math.max(pad, Math.min(screenPos.y, maxY));
     return {
-      x: Math.max(pad, Math.min(preferredX, maxX)),
-      y: Math.max(pad, Math.min(preferredY, maxY)),
+      x: clampedScreenX,
+      y: clampedScreenY,
     };
   }
 
@@ -4260,6 +4617,7 @@ export class BattleScene extends Phaser.Scene {
     if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
     if (y < 4) y = 4;
     box.setPosition(x, y);
+    this._pinToScreen(box);
     this._weaponDetailTooltip = box;
   }
 
@@ -4301,6 +4659,7 @@ export class BattleScene extends Phaser.Scene {
     if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
     if (y < 4) y = 4;
     box.setPosition(x, y);
+    this._pinToScreen(box);
     this._menuTooltip = box;
   }
 
@@ -4484,6 +4843,7 @@ export class BattleScene extends Phaser.Scene {
 
       this.actionMenu.push(text);
     });
+    this._pinToScreen(this.actionMenu);
   }
 
   hideActionMenu() {
@@ -4591,6 +4951,21 @@ export class BattleScene extends Phaser.Scene {
     if (this._uiClickBlocked) {
       this._uiClickBlocked = false;
       return;
+    }
+
+    if (pointer?.pointerType === 'touch') {
+      if (this._handleCameraGesturePointerUp(pointer)) {
+        this._cameraGestureTapSuppressed = true;
+        this.cancelTouchInspectHold();
+        this._touchTapDown = null;
+        return;
+      }
+      if (this._cameraGestureTapSuppressed) {
+        if (!this._battleCamera?.hasActiveTouches?.()) this._cameraGestureTapSuppressed = false;
+        this.cancelTouchInspectHold();
+        this._touchTapDown = null;
+        return;
+      }
     }
 
     this.cancelTouchInspectHold();
@@ -4717,6 +5092,7 @@ export class BattleScene extends Phaser.Scene {
 
       this.actionMenu.push(text);
     });
+    this._pinToScreen(this.actionMenu);
   }
 
   handleHealTargetClick(gp) {
@@ -4892,6 +5268,7 @@ export class BattleScene extends Phaser.Scene {
 
       this.actionMenu.push(text);
     });
+    this._pinToScreen(this.actionMenu);
   }
 
   showWeaponPicker(unit, attackTargets) {
@@ -4963,6 +5340,7 @@ export class BattleScene extends Phaser.Scene {
       this._showWeaponDetailTooltip(equippedWpn, menuRect, autoY);
       this._weaponPreviewedItem = equippedWpn;
     }
+    this._pinToScreen(this.actionMenu);
   }
 
   // --- Equip sub-menu ---
@@ -5081,6 +5459,7 @@ export class BattleScene extends Phaser.Scene {
         this._weaponPreviewedItem = equippedWpn;
       }
     }
+    this._pinToScreen(this.actionMenu);
   }
 
   /** DEPRECATED: Scrolls now handled in team pool via RosterOverlay. */
@@ -5172,6 +5551,7 @@ export class BattleScene extends Phaser.Scene {
       this.showActionMenu(unit);
     }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
     this.actionMenu.push(backText);
+    this._pinToScreen(this.actionMenu);
   }
 
   async useConsumable(unit, item) {
@@ -5211,6 +5591,7 @@ export class BattleScene extends Phaser.Scene {
           backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
         }
       ).setOrigin(0.5).setAlpha(0).setDepth(500);
+      this._pinToScreen(banner);
 
       this.tweens.add({
         targets: banner, alpha: 1, duration: 300,
@@ -5230,6 +5611,7 @@ export class BattleScene extends Phaser.Scene {
           backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
         }
       ).setOrigin(0.5).setAlpha(0).setDepth(500);
+      this._pinToScreen(banner);
 
       this.tweens.add({
         targets: banner, alpha: 1, duration: 200,
@@ -5339,6 +5721,7 @@ export class BattleScene extends Phaser.Scene {
           backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
         }
       ).setOrigin(0.5).setAlpha(0).setDepth(500);
+      this._pinToScreen(banner);
 
       this.tweens.add({
         targets: banner, alpha: 1, duration: 300,
@@ -6128,6 +6511,7 @@ export class BattleScene extends Phaser.Scene {
       wordWrap: { width: hintWrapW, useAdvancedWrap: false },
     }).setOrigin(0, 0.5).setDepth(depth + 1);
     this.forecastObjects.push(hint);
+    this._pinToScreen(this.forecastObjects);
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 4) {
       this.tutorialStep = 5;
@@ -6801,6 +7185,7 @@ export class BattleScene extends Phaser.Scene {
           backgroundColor: '#000000cc', padding: { x: 10, y: 4 },
         }
       ).setOrigin(0.5).setDepth(500).setAlpha(0);
+      this._pinToScreen(text);
 
       this.tweens.add({
         targets: text, alpha: 1, duration: 150,
@@ -7195,6 +7580,7 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '11px', color,
       backgroundColor: '#000000cc', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setDepth(1000);
+    text._forceWorldCamera = true;
 
     this.tweens.add({
       targets: text,
@@ -7480,6 +7866,7 @@ export class BattleScene extends Phaser.Scene {
         backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
       }
     ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    this._pinToScreen(banner);
 
     if (this._isReducedEffects()) {
       banner.setAlpha(1);
@@ -7503,6 +7890,7 @@ export class BattleScene extends Phaser.Scene {
         align: 'center',
       }
     ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    this._pinToScreen(banner);
 
     this.tweens.add({
       targets: banner, alpha: 1, duration: 400,

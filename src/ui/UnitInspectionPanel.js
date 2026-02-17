@@ -21,18 +21,27 @@ export class UnitInspectionPanel {
     this._terrain = terrain;
     this._gameData = gameData;
 
-    // Position tooltip near the unit's grid tile, clamped to screen
-    const pixelX = unit.col * TILE_SIZE + TILE_SIZE / 2;
-    const pixelY = unit.row * TILE_SIZE;
+    // Position tooltip near the unit's tile in screen space, clamped to viewport.
+    const worldPos = this.scene?.grid?.gridToPixel
+      ? this.scene.grid.gridToPixel(unit.col, unit.row)
+      : { x: unit.col * TILE_SIZE + TILE_SIZE / 2, y: unit.row * TILE_SIZE + TILE_SIZE / 2 };
+    const screenPos = this.scene?._worldToScreen
+      ? this.scene._worldToScreen(worldPos.x, worldPos.y)
+      : worldPos;
+    const cam = this.scene?.cameras?.main;
+    const viewW = cam?.width || 640;
+    const viewH = cam?.height || 480;
+    const pixelX = screenPos?.x ?? worldPos.x;
+    const pixelY = screenPos?.y ?? worldPos.y;
     const tooltipW = 120;
     const tooltipH = 34;
 
     let tx = pixelX + TILE_SIZE / 2 + 4; // right of unit
-    let ty = pixelY - 4;
+    let ty = pixelY - (TILE_SIZE / 2) - 4;
 
     // Clamp to screen edges (640x480)
-    if (tx + tooltipW > 636) tx = pixelX - tooltipW - 4;
-    if (ty + tooltipH > 476) ty = 476 - tooltipH;
+    if (tx + tooltipW > viewW - 4) tx = pixelX - tooltipW - 4;
+    if (ty + tooltipH > viewH - 4) ty = viewH - tooltipH - 4;
     if (ty < 4) ty = 4;
     if (tx < 4) tx = 4;
 
@@ -56,6 +65,8 @@ export class UnitInspectionPanel {
       fontFamily: 'monospace', fontSize: '9px', color: UI_COLORS.gray,
     }).setDepth(151);
     this.objects.push(hintText);
+
+    this.scene?._pinToScreen?.(this.objects);
   }
 
   hide() {
