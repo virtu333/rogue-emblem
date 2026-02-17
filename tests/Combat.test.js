@@ -544,6 +544,115 @@ describe('Combat resolution', () => {
     }
   });
 
+  it('applies defender desperation by reordering follow-ups to A1,D1,D2,A2', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 20, DEF: 25, RES: 25, LCK: 30 },
+      currentHP: 80,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 25, RES: 25, LCK: 30 },
+      currentHP: 80,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } }
+      );
+      const strikeOrder = result.events
+        .filter((e) => e.type === 'strike')
+        .map((e) => e.attacker);
+      expect(strikeOrder.slice(0, 4)).toEqual([attacker.name, defender.name, defender.name, attacker.name]);
+      expect(result.events).toContainEqual({ type: 'skill', name: 'Desperation', unit: defender.name });
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('keeps attacker desperation precedence when both sides have desperation', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 20, DEF: 25, RES: 25, LCK: 30 },
+      currentHP: 80,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 25, RES: 25, LCK: 30 },
+      currentHP: 80,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkMods: { desperation: true }, defMods: { quickRiposte: true, desperation: true } }
+      );
+      const strikeOrder = result.events
+        .filter((e) => e.type === 'strike')
+        .map((e) => e.attacker);
+      expect(strikeOrder.slice(0, 4)).toEqual([attacker.name, attacker.name, defender.name, defender.name]);
+      const desperationEvents = result.events.filter((e) => e.type === 'skill' && e.name === 'Desperation');
+      expect(desperationEvents.length).toBe(1);
+      expect(desperationEvents[0].unit).toBe(attacker.name);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('does not emit defender desperation event if defender dies on first hit', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 99, MAG: 0, SKL: 0, SPD: 20, DEF: 5, RES: 5, LCK: 30 },
+      currentHP: 30,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 10, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 0, RES: 0, LCK: 0 },
+      currentHP: 10,
+      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } }
+      );
+      const defenderDesperationEvents = result.events.filter(
+        (e) => e.type === 'skill' && e.name === 'Desperation' && e.unit === defender.name
+      );
+      expect(defenderDesperationEvents.length).toBe(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it('applies preventCounter in combat resolution', () => {
     const attacker = makeUnit({
       stats: { ...makeUnit().stats, STR: 12, SPD: 8 },

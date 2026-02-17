@@ -1113,6 +1113,7 @@ export function resolveCombat(
   // Determine phase order — Vantage, Desperation modify order
   const defenderVantage = defCanCounter && (defMods?.vantage || false);
   const attackerDesperation = atkMods?.desperation || false;
+  const defenderDesperation = defCanCounter && (defMods?.desperation || false);
 
   if (defenderVantage) {
     // Vantage: defender strikes first
@@ -1130,6 +1131,17 @@ export function resolveCombat(
       strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     }
     if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+  } else if (defenderDesperation && defDoubles) {
+    // Defender-side Desperation: defender follow-up occurs before attacker follow-up
+    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (atkHP > 0 && defHP > 0) {
+      events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
+      if (defCanCounter) {
+        strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+      }
+      if (!cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    }
+    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
   } else {
     // Normal order
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
