@@ -52,6 +52,20 @@ function normalizeCombatRangeOverride(value) {
   return { min, max };
 }
 
+function normalizeCombatMultiHit(value) {
+  if (!value || typeof value !== 'object') return null;
+  const count = Math.trunc(Number(value.count) || 0);
+  if (count < 2) return null;
+  const damageMultiplier = Number(value.damageMultiplier);
+  if (!Number.isFinite(damageMultiplier) || damageMultiplier <= 0 || damageMultiplier > 1) return null;
+  return { count, damageMultiplier };
+}
+
+function normalizeCombatDrainPercent(value) {
+  const n = Number(value);
+  return (Number.isFinite(n) && n > 0) ? n : null;
+}
+
 function mergeCombatEffectiveness(baseValue, extraValue) {
   const base = normalizeCombatEffectiveness(baseValue);
   const extra = normalizeCombatEffectiveness(extraValue);
@@ -132,6 +146,8 @@ function normalizeCombatMods(mods) {
     quickRiposte: Boolean(mods.quickRiposte),
     desperation: Boolean(mods.desperation),
     preventEnemyDouble: Boolean(mods.preventEnemyDouble),
+    multiHit: normalizeCombatMultiHit(mods.multiHit),
+    drainPercent: normalizeCombatDrainPercent(mods.drainPercent),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -165,6 +181,8 @@ export function mergeCombatMods(baseMods, extraMods) {
     quickRiposte: base.quickRiposte || extra.quickRiposte,
     desperation: base.desperation || extra.desperation,
     preventEnemyDouble: base.preventEnemyDouble || extra.preventEnemyDouble,
+    multiHit: extra.multiHit || base.multiHit,
+    drainPercent: Math.max(base.drainPercent || 0, extra.drainPercent || 0) || null,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -434,6 +452,8 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
 
   const mastery = weaponRank === 'Mast';
   const atkReaver = attackerWeapon.special?.includes('Reverses weapon triangle') ?? false;
+  const defReaver = defenderWeapon.special?.includes('Reverses weapon triangle') ?? false;
+  const shouldReverse = atkReaver !== defReaver;  // XOR: one reaver reverses, two cancel out
 
   let result = { hit: 0, damage: 0 };
 
@@ -452,7 +472,7 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
   }
 
   // Reaver: swap advantage ↔ disadvantage
-  if (atkReaver && (result.hit !== 0 || result.damage !== 0)) {
+  if (shouldReverse && (result.hit !== 0 || result.damage !== 0)) {
     if (result.hit < 0) {
       // Was disadvantage → become advantage
       result = mastery
@@ -595,16 +615,20 @@ export function getCombatForecast(
       attacker: {
         name: attacker.name, hp: attacker.currentHP ?? attacker.stats.HP,
         damage: 0, hit: 0, crit: 0, doubles: false, brave: false, attackCount: 0, skills: [],
+        multiHit: null, drainPercent: 0,
       },
       defender: {
         name: defender.name, hp: defender.currentHP ?? defender.stats.HP,
         canCounter: false, damage: 0, hit: 0, crit: 0, doubles: false, brave: false, attackCount: 0, skills: [],
+        multiHit: null, drainPercent: 0,
       },
     };
   }
 
   const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
   const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
+  const atkMultiHit = atkMods?.multiHit || null;
+  const defMultiHit = defMods?.multiHit || null;
 
   const atkTriangle = defWeapon
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
@@ -630,6 +654,7 @@ export function getCombatForecast(
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   atkDmg = Math.max(0, atkDmg);
+  if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
   let atkHit = calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
     + (atkMods?.hitBonus || 0) - (defMods?.avoidBonus || 0);
   atkHit = Math.max(0, Math.min(100, atkHit));
@@ -653,7 +678,8 @@ export function getCombatForecast(
     atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
   );
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
-  const atkCount = (atkBrave ? 2 : 1) * (atkDoubles ? 2 : 1);
+  const atkBaseCount = atkMultiHit ? atkMultiHit.count : (atkBrave ? 2 : 1);
+  const atkCount = atkBaseCount * (atkDoubles ? 2 : 1);
 
   const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
   const combatSkillState = { adeptUsed: new Set() };
@@ -673,6 +699,7 @@ export function getCombatForecast(
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     defDmg = Math.max(0, defDmg);
+    if (defMultiHit) defDmg = Math.max(1, Math.floor(defDmg * defMultiHit.damageMultiplier));
     defHit = calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
       + (defMods?.hitBonus || 0) - (atkMods?.avoidBonus || 0);
     defHit = Math.max(0, Math.min(100, defHit));
@@ -685,7 +712,8 @@ export function getCombatForecast(
       defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
     ));
     defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
-    defCount = (defBrave ? 2 : 1) * (defDoubles ? 2 : 1);
+    const defBaseCount = defMultiHit ? defMultiHit.count : (defBrave ? 2 : 1);
+    defCount = defBaseCount * (defDoubles ? 2 : 1);
   }
 
   // Collect activated skills for UI display
@@ -711,6 +739,7 @@ export function getCombatForecast(
       damage: atkDmg, hit: atkHit, crit: atkCrit,
       as: atkEffectiveSpd,
       doubles: atkDoubles, brave: atkBrave, attackCount: atkCount,
+      multiHit: atkMultiHit, drainPercent: atkMods?.drainPercent || 0,
       skills: atkActivated,
       warnings: atkWarnings,
     },
@@ -720,6 +749,7 @@ export function getCombatForecast(
       damage: defDmg, hit: defHit, crit: defCrit,
       as: defEffectiveSpd,
       doubles: defDoubles, brave: defBrave, attackCount: defCount,
+      multiHit: defMultiHit, drainPercent: defMods?.drainPercent || 0,
       skills: defActivated,
       warnings: defWarnings,
     },
@@ -754,7 +784,8 @@ function rollStrike(
   targetHP,
   strikeSkills,
   weaponSpecial,
-  strikeSides = null
+  strikeSides = null,
+  drainPercent = 0
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -852,9 +883,14 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
-  // Drain HP (Runesword: heal equal to damage dealt)
-  if (weaponSpecial?.includes('Drains HP') && finalDmg > 0) {
-    heal = Math.min(finalDmg, targetHP); // Can't drain more than target has
+  // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
+  if (finalDmg > 0) {
+    if (weaponSpecial?.includes('Drains HP')) {
+      heal = Math.max(heal, Math.min(finalDmg, targetHP));
+    }
+    if (drainPercent > 0) {
+      heal = Math.max(heal, Math.min(Math.floor(finalDmg * drainPercent), targetHP));
+    }
   }
 
   const hpAfter = Math.max(0, targetHP - finalDmg);
@@ -1016,6 +1052,7 @@ export function resolveCombat(
   function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
+    const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
       const evt = rollStrike(
@@ -1027,7 +1064,8 @@ export function resolveCombat(
         targetHP,
         strikeSkills,
         weaponSpecial,
-        { attackerSide, targetSide }
+        { attackerSide, targetSide },
+        drainPct
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
@@ -1074,7 +1112,8 @@ export function resolveCombat(
           bonusTargetHP,
           null,
           weaponSpecial,
-          { attackerSide, targetSide }
+          { attackerSide, targetSide },
+          drainPct
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
@@ -1095,11 +1134,15 @@ export function resolveCombat(
     }
   }
 
-  // Check Astra for attacker (replaces normal strike count with 5 at half dmg)
+  // Resolve strike count/damage overrides: art multiHit first, then Astra fallback.
   function strikePhase(aName, tName, hit, dmg, crit, isAtkDef, braveCount, strikeSkills, unit, weapon) {
     let count = braveCount;
     let phaseDmg = dmg;
-    if (skillCtx?.checkAstra) {
+    const artMultiHit = (isAtkDef ? atkMods : defMods)?.multiHit;
+    if (artMultiHit) {
+      count = artMultiHit.count;
+      phaseDmg = Math.max(1, Math.floor(dmg * artMultiHit.damageMultiplier));
+    } else if (skillCtx?.checkAstra) {
       const astra = skillCtx.checkAstra(unit, skillCtx.skillsData);
       if (astra.triggered) {
         count = astra.strikeCount;
