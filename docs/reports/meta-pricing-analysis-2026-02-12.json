@@ -1,41 +1,41 @@
 {
-  "generatedAt": "2026-02-12T02:36:25.924Z",
+  "generatedAt": "2026-02-18T14:33:44.454Z",
   "source": "data/metaUpgrades.json",
   "baseline": {
-    "upgradeCount": 43,
-    "tierCount": 118,
-    "totalCost": 50350,
+    "upgradeCount": 56,
+    "tierCount": 138,
+    "totalCost": 33734,
     "byCurrency": {
-      "valor": 25850,
-      "supply": 24500
+      "valor": 13711,
+      "supply": 20023
     },
     "byCategory": {
-      "recruit_stats": 16950,
-      "lord_bonuses": 18750,
-      "economy": 2700,
-      "capacity": 4850,
-      "starting_equipment": 4900,
-      "starting_skills": 2200
+      "recruit_stats": 7673,
+      "lord_bonuses": 8336,
+      "economy": 3225,
+      "capacity": 9125,
+      "starting_equipment": 3850,
+      "starting_skills": 1525
     },
     "distribution": {
-      "min": 75,
-      "median": 300,
-      "p75": 550,
-      "p90": 1000,
-      "max": 1600
+      "min": 35,
+      "median": 175,
+      "p75": 300,
+      "p90": 550,
+      "max": 1500
     },
     "fullVictoryRunsToMaxAll": {
       "normal": {
-        "valor": 49,
-        "supply": 47
-      },
-      "hard": {
-        "valor": 40,
+        "valor": 26,
         "supply": 38
       },
-      "lunatic": {
-        "valor": 33,
+      "hard": {
+        "valor": 21,
         "supply": 31
+      },
+      "lunatic": {
+        "valor": 18,
+        "supply": 26
       }
     }
   },
@@ -51,175 +51,175 @@
         "starting_skills": 0.85
       },
       "summary": {
-        "upgradeCount": 43,
-        "tierCount": 118,
-        "totalCost": 38775,
+        "upgradeCount": 56,
+        "tierCount": 138,
+        "totalCost": 26725,
         "byCurrency": {
-          "valor": 19925,
-          "supply": 18850
+          "valor": 10725,
+          "supply": 16000
         },
         "byCategory": {
-          "recruit_stats": 12825,
-          "lord_bonuses": 14150,
-          "economy": 2150,
-          "capacity": 3875,
-          "starting_equipment": 3875,
-          "starting_skills": 1900
+          "recruit_stats": 6025,
+          "lord_bonuses": 6375,
+          "economy": 2650,
+          "capacity": 7325,
+          "starting_equipment": 3050,
+          "starting_skills": 1300
         },
         "distribution": {
           "min": 50,
-          "median": 225,
-          "p75": 425,
-          "p90": 800,
+          "median": 125,
+          "p75": 250,
+          "p90": 425,
           "max": 1200
         },
         "fullVictoryRunsToMaxAll": {
           "normal": {
-            "valor": 38,
-            "supply": 36
+            "valor": 21,
+            "supply": 31
           },
           "hard": {
-            "valor": 31,
-            "supply": 29
+            "valor": 17,
+            "supply": 25
           },
           "lunatic": {
-            "valor": 26,
-            "supply": 24
+            "valor": 14,
+            "supply": 21
           }
         }
       },
       "deltas": {
-        "totalCostPct": 77,
-        "valorPct": 77.1,
-        "supplyPct": 76.9
+        "totalCostPct": 79.2,
+        "valorPct": 78.2,
+        "supplyPct": 79.9
       },
       "sampleChanges": [
         {
           "id": "recruit_hp_growth",
           "before": [
-            75,
-            100,
-            150,
-            225,
-            350
+            35,
+            35,
+            53,
+            70,
+            105
           ],
           "after": [
             50,
-            75,
-            125,
-            175,
-            275
+            50,
+            50,
+            50,
+            75
           ]
         },
         {
           "id": "recruit_str_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             50,
+            50,
+            50,
             100,
-            125,
-            200,
-            325
+            150
           ]
         },
         {
           "id": "recruit_def_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             50,
+            50,
+            50,
             100,
-            125,
-            200,
-            325
+            150
           ]
         },
         {
           "id": "recruit_spd_growth",
           "before": [
-            75,
+            50,
+            50,
+            100,
             125,
-            200,
-            300,
-            450
+            200
           ],
           "after": [
             50,
+            50,
+            75,
             100,
-            150,
-            225,
-            350
+            150
           ]
         },
         {
           "id": "recruit_skl_growth",
           "before": [
+            50,
+            50,
             75,
             100,
-            150,
-            225,
-            350
+            150
           ],
           "after": [
             50,
+            50,
+            50,
             75,
-            125,
-            175,
-            275
+            125
           ]
         },
         {
           "id": "recruit_res_growth",
           "before": [
-            75,
+            50,
+            50,
+            50,
             100,
-            125,
-            200,
-            300
+            125
           ],
           "after": [
             50,
+            50,
+            50,
             75,
-            100,
-            150,
-            225
+            100
           ]
         },
         {
           "id": "recruit_hp_flat",
           "before": [
-            200,
-            500,
-            1000
+            100,
+            225,
+            450
           ],
           "after": [
-            150,
-            375,
-            750
+            75,
+            175,
+            350
           ]
         },
         {
           "id": "recruit_str_flat",
           "before": [
-            250,
-            600,
-            1200
+            125,
+            275,
+            550
           ],
           "after": [
+            100,
             200,
-            450,
-            900
+            425
           ]
         }
       ]
@@ -235,175 +235,175 @@
         "starting_skills": 0.7
       },
       "summary": {
-        "upgradeCount": 43,
-        "tierCount": 118,
-        "totalCost": 31050,
+        "upgradeCount": 56,
+        "tierCount": 138,
+        "totalCost": 21800,
         "byCurrency": {
-          "valor": 15900,
-          "supply": 15150
+          "valor": 8800,
+          "supply": 13000
         },
         "byCategory": {
-          "recruit_stats": 10200,
-          "lord_bonuses": 11175,
-          "economy": 1775,
-          "capacity": 3175,
-          "starting_equipment": 3175,
-          "starting_skills": 1550
+          "recruit_stats": 4900,
+          "lord_bonuses": 5125,
+          "economy": 2175,
+          "capacity": 5925,
+          "starting_equipment": 2550,
+          "starting_skills": 1125
         },
         "distribution": {
           "min": 50,
-          "median": 175,
-          "p75": 325,
-          "p90": 650,
+          "median": 100,
+          "p75": 200,
+          "p90": 325,
           "max": 975
         },
         "fullVictoryRunsToMaxAll": {
           "normal": {
-            "valor": 30,
-            "supply": 29
+            "valor": 17,
+            "supply": 25
           },
           "hard": {
-            "valor": 25,
-            "supply": 23
+            "valor": 14,
+            "supply": 20
           },
           "lunatic": {
-            "valor": 20,
-            "supply": 20
+            "valor": 12,
+            "supply": 17
           }
         }
       },
       "deltas": {
-        "totalCostPct": 61.7,
-        "valorPct": 61.5,
-        "supplyPct": 61.8
+        "totalCostPct": 64.6,
+        "valorPct": 64.2,
+        "supplyPct": 64.9
       },
       "sampleChanges": [
         {
           "id": "recruit_hp_growth",
           "before": [
-            75,
-            100,
-            150,
-            225,
-            350
+            35,
+            35,
+            53,
+            70,
+            105
           ],
           "after": [
             50,
             50,
-            100,
-            125,
-            200
+            50,
+            50,
+            75
           ]
         },
         {
           "id": "recruit_str_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             50,
+            50,
+            50,
             75,
-            100,
-            175,
-            250
+            125
           ]
         },
         {
           "id": "recruit_def_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             50,
+            50,
+            50,
             75,
-            100,
-            175,
-            250
+            125
           ]
         },
         {
           "id": "recruit_spd_growth",
           "before": [
-            75,
-            125,
-            200,
-            300,
-            450
-          ],
-          "after": [
-            50,
-            75,
-            125,
-            175,
-            275
-          ]
-        },
-        {
-          "id": "recruit_skl_growth",
-          "before": [
-            75,
-            100,
-            150,
-            225,
-            350
-          ],
-          "after": [
             50,
             50,
             100,
             125,
             200
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            75,
+            125
+          ]
+        },
+        {
+          "id": "recruit_skl_growth",
+          "before": [
+            50,
+            50,
+            75,
+            100,
+            150
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            100
           ]
         },
         {
           "id": "recruit_res_growth",
           "before": [
-            75,
+            50,
+            50,
+            50,
             100,
-            125,
-            200,
-            300
+            125
           ],
           "after": [
             50,
             50,
-            75,
-            125,
-            175
+            50,
+            50,
+            75
           ]
         },
         {
           "id": "recruit_hp_flat",
           "before": [
-            200,
-            500,
-            1000
+            100,
+            225,
+            450
           ],
           "after": [
+            50,
             125,
-            300,
-            600
+            275
           ]
         },
         {
           "id": "recruit_str_flat",
           "before": [
-            250,
-            600,
-            1200
+            125,
+            275,
+            550
           ],
           "after": [
-            150,
-            350,
-            725
+            75,
+            175,
+            325
           ]
         }
       ]
@@ -419,175 +419,175 @@
         "starting_skills": 0.55
       },
       "summary": {
-        "upgradeCount": 43,
-        "tierCount": 118,
-        "totalCost": 23775,
+        "upgradeCount": 56,
+        "tierCount": 138,
+        "totalCost": 16875,
         "byCurrency": {
-          "valor": 12200,
-          "supply": 11575
+          "valor": 6725,
+          "supply": 10150
         },
         "byCategory": {
-          "recruit_stats": 7800,
-          "lord_bonuses": 8500,
-          "economy": 1350,
-          "capacity": 2425,
-          "starting_equipment": 2450,
-          "starting_skills": 1250
+          "recruit_stats": 3925,
+          "lord_bonuses": 3975,
+          "economy": 1650,
+          "capacity": 4575,
+          "starting_equipment": 1950,
+          "starting_skills": 800
         },
         "distribution": {
           "min": 50,
-          "median": 125,
-          "p75": 250,
-          "p90": 500,
+          "median": 75,
+          "p75": 150,
+          "p90": 250,
           "max": 750
         },
         "fullVictoryRunsToMaxAll": {
           "normal": {
-            "valor": 24,
-            "supply": 22
+            "valor": 13,
+            "supply": 20
           },
           "hard": {
-            "valor": 19,
-            "supply": 18
+            "valor": 11,
+            "supply": 16
           },
           "lunatic": {
-            "valor": 16,
-            "supply": 15
+            "valor": 9,
+            "supply": 13
           }
         }
       },
       "deltas": {
-        "totalCostPct": 47.2,
-        "valorPct": 47.2,
-        "supplyPct": 47.2
+        "totalCostPct": 50,
+        "valorPct": 49,
+        "supplyPct": 50.7
       },
       "sampleChanges": [
         {
           "id": "recruit_hp_growth",
           "before": [
-            75,
-            100,
-            150,
-            225,
-            350
+            35,
+            35,
+            53,
+            70,
+            105
           ],
           "after": [
             50,
             50,
-            75,
-            100,
-            150
+            50,
+            50,
+            50
           ]
         },
         {
           "id": "recruit_str_growth",
           "before": [
-            75,
-            125,
-            175,
-            275,
-            425
-          ],
-          "after": [
             50,
             50,
             75,
             125,
             200
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            100
           ]
         },
         {
           "id": "recruit_def_growth",
           "before": [
-            75,
-            125,
-            175,
-            275,
-            425
-          ],
-          "after": [
             50,
             50,
             75,
             125,
             200
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            100
           ]
         },
         {
           "id": "recruit_spd_growth",
           "before": [
-            75,
-            125,
-            200,
-            300,
-            450
-          ],
-          "after": [
             50,
             50,
             100,
             125,
             200
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            100
           ]
         },
         {
           "id": "recruit_skl_growth",
           "before": [
-            75,
-            100,
-            150,
-            225,
-            350
-          ],
-          "after": [
             50,
             50,
             75,
             100,
             150
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            75
           ]
         },
         {
           "id": "recruit_res_growth",
           "before": [
-            75,
-            100,
-            125,
-            200,
-            300
-          ],
-          "after": [
             50,
             50,
             50,
             100,
             125
+          ],
+          "after": [
+            50,
+            50,
+            50,
+            50,
+            50
           ]
         },
         {
           "id": "recruit_hp_flat",
           "before": [
-            200,
-            500,
-            1000
-          ],
-          "after": [
             100,
             225,
             450
+          ],
+          "after": [
+            50,
+            100,
+            200
           ]
         },
         {
           "id": "recruit_str_flat",
           "before": [
-            250,
-            600,
-            1200
-          ],
-          "after": [
             125,
             275,
             550
+          ],
+          "after": [
+            50,
+            125,
+            250
           ]
         }
       ]
@@ -603,175 +603,175 @@
         "starting_skills": 0.4
       },
       "summary": {
-        "upgradeCount": 43,
-        "tierCount": 118,
-        "totalCost": 16000,
+        "upgradeCount": 56,
+        "tierCount": 138,
+        "totalCost": 11450,
         "byCurrency": {
-          "valor": 8300,
-          "supply": 7700
+          "valor": 4650,
+          "supply": 6800
         },
         "byCategory": {
-          "recruit_stats": 5075,
-          "lord_bonuses": 5650,
-          "economy": 925,
-          "capacity": 1700,
-          "starting_equipment": 1750,
-          "starting_skills": 900
+          "recruit_stats": 2500,
+          "lord_bonuses": 2675,
+          "economy": 1075,
+          "capacity": 3225,
+          "starting_equipment": 1350,
+          "starting_skills": 625
         },
         "distribution": {
           "min": 25,
-          "median": 100,
-          "p75": 175,
-          "p90": 325,
+          "median": 50,
+          "p75": 100,
+          "p90": 175,
           "max": 525
         },
         "fullVictoryRunsToMaxAll": {
           "normal": {
-            "valor": 16,
-            "supply": 15
+            "valor": 9,
+            "supply": 13
           },
           "hard": {
-            "valor": 13,
-            "supply": 12
+            "valor": 8,
+            "supply": 11
           },
           "lunatic": {
-            "valor": 11,
-            "supply": 10
+            "valor": 6,
+            "supply": 9
           }
         }
       },
       "deltas": {
-        "totalCostPct": 31.8,
-        "valorPct": 32.1,
-        "supplyPct": 31.4
+        "totalCostPct": 33.9,
+        "valorPct": 33.9,
+        "supplyPct": 34
       },
       "sampleChanges": [
         {
           "id": "recruit_hp_growth",
           "before": [
-            75,
-            100,
-            150,
-            225,
-            350
+            35,
+            35,
+            53,
+            70,
+            105
           ],
           "after": [
             25,
             25,
-            50,
-            75,
-            100
+            25,
+            25,
+            25
           ]
         },
         {
           "id": "recruit_str_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             25,
+            25,
+            25,
             50,
-            50,
-            75,
-            125
+            50
           ]
         },
         {
           "id": "recruit_def_growth",
           "before": [
+            50,
+            50,
             75,
             125,
-            175,
-            275,
-            425
+            200
           ],
           "after": [
             25,
+            25,
+            25,
             50,
-            50,
-            75,
-            125
+            50
           ]
         },
         {
           "id": "recruit_spd_growth",
           "before": [
-            75,
-            125,
-            200,
-            300,
-            450
-          ],
-          "after": [
-            25,
             50,
             50,
             100,
-            125
+            125,
+            200
+          ],
+          "after": [
+            25,
+            25,
+            25,
+            50,
+            50
           ]
         },
         {
           "id": "recruit_skl_growth",
           "before": [
+            50,
+            50,
             75,
             100,
-            150,
-            225,
-            350
+            150
           ],
           "after": [
             25,
             25,
-            50,
-            75,
-            100
+            25,
+            25,
+            50
           ]
         },
         {
           "id": "recruit_res_growth",
           "before": [
-            75,
+            50,
+            50,
+            50,
             100,
-            125,
-            200,
-            300
+            125
           ],
           "after": [
             25,
             25,
-            50,
-            50,
-            100
+            25,
+            25,
+            50
           ]
         },
         {
           "id": "recruit_hp_flat",
           "before": [
-            200,
-            500,
-            1000
+            100,
+            225,
+            450
           ],
           "after": [
-            50,
-            150,
-            300
+            25,
+            75,
+            125
           ]
         },
         {
           "id": "recruit_str_flat",
           "before": [
-            250,
-            600,
-            1200
+            125,
+            275,
+            550
           ],
           "after": [
+            50,
             75,
-            175,
-            350
+            175
           ]
         }
       ]

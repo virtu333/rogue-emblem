@@ -8,9 +8,9 @@
     "costs": [
       50,
       50,
-      100,
-      125,
-      200
+      50,
+      50,
+      75
     ],
     "effects": [
       {
@@ -43,10 +43,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      50,
       75,
-      100,
-      175,
-      250
+      125
     ],
     "effects": [
       {
@@ -79,10 +79,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      50,
       75,
-      100,
-      175,
-      250
+      125
     ],
     "effects": [
       {
@@ -115,10 +115,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      50,
       75,
-      125,
-      175,
-      275
+      125
     ],
     "effects": [
       {
@@ -152,9 +152,9 @@
     "costs": [
       50,
       50,
-      100,
-      125,
-      200
+      50,
+      50,
+      100
     ],
     "effects": [
       {
@@ -188,9 +188,9 @@
     "costs": [
       50,
       50,
-      75,
-      125,
-      175
+      50,
+      50,
+      75
     ],
     "effects": [
       {
@@ -222,9 +222,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
+      50,
       125,
-      300,
-      600
+      275
     ],
     "requires": {
       "upgrades": [
@@ -256,9 +256,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      150,
-      350,
-      725
+      75,
+      175,
+      325
     ],
     "requires": {
       "upgrades": [
@@ -290,9 +290,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      150,
-      350,
-      725
+      75,
+      175,
+      325
     ],
     "requires": {
       "upgrades": [
@@ -324,9 +324,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      150,
-      400,
-      850
+      75,
+      175,
+      375
     ],
     "requires": {
       "upgrades": [
@@ -358,9 +358,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
+      50,
       125,
-      275,
-      550
+      250
     ],
     "requires": {
       "upgrades": [
@@ -392,9 +392,9 @@
     "category": "recruit_stats",
     "maxLevel": 3,
     "costs": [
-      125,
-      250,
-      475
+      50,
+      100,
+      200
     ],
     "requires": {
       "upgrades": [
@@ -427,10 +427,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      100,
-      125,
-      175,
-      275
+      50,
+      50,
+      50,
+      75
     ],
     "effects": [
       {
@@ -463,10 +463,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      75,
       100,
-      150,
-      225,
-      325
+      150
     ],
     "effects": [
       {
@@ -499,10 +499,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      75,
       100,
-      150,
-      225,
-      325
+      150
     ],
     "effects": [
       {
@@ -535,10 +535,10 @@
     "maxLevel": 5,
     "costs": [
       50,
+      50,
+      75,
       100,
-      175,
-      250,
-      350
+      175
     ],
     "effects": [
       {
@@ -571,10 +571,10 @@
     "maxLevel": 5,
     "costs": [
       50,
-      100,
-      125,
-      175,
-      275
+      50,
+      50,
+      75,
+      125
     ],
     "effects": [
       {
@@ -606,9 +606,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
+      75,
       175,
-      400,
-      775
+      350
     ],
     "requires": {
       "upgrades": [
@@ -643,9 +643,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      175,
-      425,
-      900
+      75,
+      200,
+      400
     ],
     "requires": {
       "upgrades": [
@@ -680,9 +680,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      175,
-      425,
-      900
+      75,
+      200,
+      400
     ],
     "requires": {
       "upgrades": [
@@ -717,9 +717,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
-      175,
-      450,
-      950
+      75,
+      200,
+      425
     ],
     "requires": {
       "upgrades": [
@@ -754,9 +754,9 @@
     "category": "lord_bonuses",
     "maxLevel": 3,
     "costs": [
+      75,
       175,
-      350,
-      650
+      300
     ],
     "requires": {
       "upgrades": [
@@ -784,23 +784,23 @@
   {
     "id": "starting_gold",
     "name": "War Chest",
-    "description": "+100 starting gold per level",
+    "description": "+500 starting gold per level",
     "category": "economy",
     "maxLevel": 3,
     "costs": [
+      50,
       100,
-      200,
-      325
+      200
     ],
     "effects": [
       {
-        "goldBonus": 100
+        "goldBonus": 500
       },
       {
-        "goldBonus": 200
+        "goldBonus": 1000
       },
       {
-        "goldBonus": 300
+        "goldBonus": 1500
       }
     ]
   },
@@ -811,8 +811,8 @@
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      125,
-      300
+      75,
+      150
     ],
     "effects": [
       {
@@ -830,7 +830,7 @@
     "category": "economy",
     "maxLevel": 1,
     "costs": [
-      125
+      75
     ],
     "effects": [
       {
@@ -841,12 +841,12 @@
   {
     "id": "loot_quality",
     "name": "Lucky Finds",
-    "description": "Better weapon drops from loot",
+    "description": "Higher chance for upgraded weapon drops",
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      200,
-      400
+      100,
+      200
     ],
     "requires": {
       "milestones": [
@@ -855,10 +855,108 @@
     },
     "effects": [
       {
-        "lootWeaponWeightBonus": 10
+        "lootWeaponQualityBonus": 10
       },
       {
-        "lootWeaponWeightBonus": 20
+        "lootWeaponQualityBonus": 20
+      }
+    ]
+  },
+  {
+    "id": "studied_training",
+    "name": "Studied Training",
+    "description": "Increases art scroll quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      100,
+      200
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 1,
+          "weaponArtScroll": 1,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "skillScroll": 2,
+          "weaponArtScroll": 2,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
+    "id": "trinket_collector",
+    "name": "Trinket Collector",
+    "description": "Increases accessory quality and diversity",
+    "category": "economy",
+    "maxLevel": 2,
+    "costs": [
+      100,
+      200
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 2,
+          "healing": -1,
+          "statBooster": -1,
+          "gold": -1
+        }
+      },
+      {
+        "lootCategoryWeightBonuses": {
+          "accessory": 4,
+          "healing": -2,
+          "statBooster": -2,
+          "gold": -2
+        }
+      }
+    ]
+  },
+  {
+    "id": "heros_call",
+    "name": "Hero's Call",
+    "description": "+8% lord recruit chance per tier",
+    "category": "economy",
+    "maxLevel": 3,
+    "costs": [
+      100,
+      200,
+      325
+    ],
+    "requires": {
+      "milestones": [
+        "beatAct1"
+      ]
+    },
+    "effects": [
+      {
+        "lordRecruitChanceBonus": 0.08
+      },
+      {
+        "lordRecruitChanceBonus": 0.16
+      },
+      {
+        "lordRecruitChanceBonus": 0.24
       }
     ]
   },
@@ -869,7 +967,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      650
+      325
     ],
     "requires": {
       "milestones": [
@@ -889,7 +987,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      400
+      200
     ],
     "requires": {
       "milestones": [
@@ -909,7 +1007,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      500
+      250
     ],
     "effects": [
       {
@@ -924,7 +1022,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      975
+      500
     ],
     "requires": {
       "upgrades": [
@@ -947,11 +1045,122 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      650
+      325
     ],
     "effects": [
       {
         "recruitRandomSkill": true
+      }
+    ]
+  },
+  {
+    "id": "recruit_field_supplies",
+    "name": "Field Supplies II",
+    "description": "Recruits start with a Vulnerary",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      200
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "starting_vulnerary",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "recruitStartingVulnerary": 1
+      }
+    ]
+  },
+  {
+    "id": "extra_starting_unit_pool",
+    "name": "Vanguard Cadre",
+    "description": "Start with 1 extra random unit from an expanding class pool",
+    "category": "capacity",
+    "maxLevel": 4,
+    "costs": [
+      250,
+      450,
+      650,
+      975
+    ],
+    "effects": [
+      {
+        "extraStartingUnitTier": 1
+      },
+      {
+        "extraStartingUnitTier": 2
+      },
+      {
+        "extraStartingUnitTier": 3
+      },
+      {
+        "extraStartingUnitTier": 4
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory",
+    "name": "Lethal Armory",
+    "description": "Recruits can gain one extra Steel weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      325
+    ],
+    "effects": [
+      {
+        "lethalArmoryTier": 1
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory_killer",
+    "name": "Lethal Armory II",
+    "description": "Recruits can also have a 25% chance at a Killer weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      575
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lethal_armory",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "lethalArmoryTier": 2
+      }
+    ]
+  },
+  {
+    "id": "lethal_armory_silver",
+    "name": "Lethal Armory III",
+    "description": "Recruits can also have a 25% chance at a Silver weapon",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [
+      900
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lethal_armory_killer",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "lethalArmoryTier": 3
       }
     ]
   },
@@ -962,9 +1171,9 @@
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
+      75,
       125,
-      250,
-      450
+      225
     ],
     "effects": [
       {
@@ -981,15 +1190,91 @@
   {
     "id": "weapon_tier",
     "name": "Deadly Arsenal",
-    "description": "Lords start with a random Silver, Killer, Brave, or Legendary weapon",
+    "description": "Edric's Steel Sword is replaced with Rapier",
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      975
+      175
     ],
     "effects": [
       {
-        "deadlyArsenal": 1
+        "deadlyArsenalTier": 1
+      }
+    ]
+  },
+  {
+    "id": "weapon_tier_silver",
+    "name": "Deadly Arsenal II",
+    "description": "Edric also starts with a Silver Sword (auto-equipped)",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      325
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "weapon_tier",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "deadlyArsenalTier": 2
+      }
+    ]
+  },
+  {
+    "id": "iron_arms",
+    "name": "Iron Arms",
+    "description": "Iron weapons can spawn with 1 random type-appropriate weapon art",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      250
+    ],
+    "effects": [
+      {
+        "ironArms": 1
+      }
+    ]
+  },
+  {
+    "id": "steel_arms",
+    "name": "Steel Arms",
+    "description": "Steel weapons can spawn with 1 random type-appropriate weapon art",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      525
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "iron_arms",
+          "level": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "steelArms": 1
+      }
+    ]
+  },
+  {
+    "id": "art_adept",
+    "name": "Art Adept",
+    "description": "One lord starting weapon gains 1 additional random weapon art",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [
+      150
+    ],
+    "effects": [
+      {
+        "artAdept": 1
       }
     ]
   },
@@ -1000,9 +1285,9 @@
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
-      125,
-      300,
-      500
+      75,
+      150,
+      250
     ],
     "effects": [
       {
@@ -1023,8 +1308,8 @@
     "category": "starting_equipment",
     "maxLevel": 2,
     "costs": [
-      125,
-      325
+      75,
+      175
     ],
     "effects": [
       {
@@ -1036,13 +1321,28 @@
     ]
   },
   {
+    "id": "starting_reclass_seal",
+    "name": "Reclassification Papers",
+    "description": "Start each run with 1 Infantry Seal in convoy",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      125
+    ],
+    "effects": [
+      {
+        "startingReclassSeal": 1
+      }
+    ]
+  },
+  {
     "id": "unlock_sol",
     "name": "Sol",
     "description": "SKL% chance to heal damage dealt",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      150
     ],
     "effects": [
       {
@@ -1057,7 +1357,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      125
     ],
     "effects": [
       {
@@ -1072,7 +1372,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      250
+      150
     ],
     "effects": [
       {
@@ -1087,7 +1387,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      125
     ],
     "effects": [
       {
@@ -1102,7 +1402,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      125
     ],
     "effects": [
       {
@@ -1117,7 +1417,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      250
+      150
     ],
     "effects": [
       {
@@ -1132,7 +1432,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      75
     ],
     "effects": [
       {
@@ -1143,11 +1443,11 @@
   {
     "id": "unlock_guard",
     "name": "Guard",
-    "description": "LCK/4% chance to negate damage",
+    "description": "Unlocks Guard (+3 DEF/RES when adjacent to an ally)",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      150
+      75
     ],
     "effects": [
       {
