@@ -2124,7 +2124,8 @@ export class RunManager {
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
-    const baseGold = calculateBattleGold(goldEarned, node?.type, completionGold);
+    const effectiveNodeType = node?.isAmbush ? 'battle' : node?.type;
+    const baseGold = calculateBattleGold(goldEarned, effectiveNodeType, completionGold);
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);

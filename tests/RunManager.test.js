@@ -471,6 +471,21 @@ describe('RunManager', () => {
       expect(rm.getAmbushPendingNode()?.id).toBe(node.id);
     });
 
+    it('uses battle gold multiplier path for ambush battles on shop nodes', () => {
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      node.type = 'shop';
+      node.isAmbush = true;
+      node.ambushCleared = false;
+
+      const killGold = 100;
+      const startGold = rm.gold;
+      const applied = rm.completeBattle(rm.getRoster(), node.id, killGold);
+
+      expect(applied).toBe(true);
+      expect(rm.gold - startGold).toBe(calculateBattleGold(killGold, NODE_TYPES.BATTLE));
+    });
+
     it('is a full no-op for invalid node ids', () => {
       rm.startRun();
       const stateBefore = {
