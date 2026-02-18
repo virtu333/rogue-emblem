@@ -31,6 +31,7 @@ describe('fullrun-runner helpers', () => {
       '--max-avg-shop-spent', '6500',
       '--min-promotion-by-act2-rate', '10',
       '--max-promotion-by-act2-rate', '50',
+      '--min-avg-ambush-battles', '0.5',
     ]);
     expect(opts.minAvgGold).toBe(4000);
     expect(opts.maxAvgGold).toBe(6500);
@@ -38,6 +39,7 @@ describe('fullrun-runner helpers', () => {
     expect(opts.maxAvgShopSpent).toBe(6500);
     expect(opts.minPromotionByAct2Rate).toBe(10);
     expect(opts.maxPromotionByAct2Rate).toBe(50);
+    expect(opts.minAvgAmbushBattles).toBe(0.5);
   });
 
   it('evaluates metric threshold breaches', () => {
@@ -55,6 +57,7 @@ describe('fullrun-runner helpers', () => {
       totalUnitsLost: 10,
       promotionsByAct2Runs: 1,
       totalInvalidShopEntries: 12,
+      totalAmbushBattles: 0,
     });
 
     const breaches = evaluateThresholdBreaches(summary, {
@@ -74,6 +77,7 @@ describe('fullrun-runner helpers', () => {
       minPromotionByAct2Rate: 20,
       maxPromotionByAct2Rate: 5,
       maxAvgInvalidShopEntries: 0.1,
+      minAvgAmbushBattles: 1,
     });
 
     expect(breaches.length).toBeGreaterThanOrEqual(5);
@@ -83,5 +87,6 @@ describe('fullrun-runner helpers', () => {
     expect(breaches.some((line) => line.includes('avg_shop_spent'))).toBe(true);
     expect(breaches.some((line) => line.includes('promotion_by_act2_rate_pct'))).toBe(true);
     expect(breaches.some((line) => line.includes('avg_invalid_shop_entries'))).toBe(true);
+    expect(breaches.some((line) => line.includes('avg_ambush_battles'))).toBe(true);
   });
 });

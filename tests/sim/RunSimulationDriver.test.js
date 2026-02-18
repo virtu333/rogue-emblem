@@ -95,6 +95,63 @@ describe('RunSimulationDriver', () => {
     expect(driver._runBattleNode).toHaveBeenCalledWith(node);
     expect(driver.runManager.markNodeComplete).toHaveBeenCalledWith(node.id);
     expect(driver.runManager.clearAmbushPendingNode).toHaveBeenCalledWith(node.id);
+    expect(driver.metrics.ambushBattles).toBe(1);
     expect(result.result).toBe('shop_done');
+  });
+
+  it('returns defeat immediately when ambush battle is lost on a shop node', async () => {
+    const gameData = loadGameData();
+    const driver = new RunSimulationDriver(gameData);
+    driver.runManager = {
+      consumeSkipFirstShop: () => false,
+      getShopItemCountDelta: () => 0,
+      currentAct: 'act1',
+      roster: [],
+      gold: 0,
+      markNodeComplete: vi.fn(),
+      clearAmbushPendingNode: vi.fn(),
+      spendGold: vi.fn(() => false),
+      addGold: vi.fn(),
+    };
+    driver._runBattleNode = vi.fn(async () => ({ result: 'defeat' }));
+    driver._applyShopPricing = vi.fn(() => []);
+
+    const node = { id: 'shop_ambush_defeat_1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const result = await driver._runShopNode(node);
+
+    expect(driver._runBattleNode).toHaveBeenCalledWith(node);
+    expect(driver._applyShopPricing).not.toHaveBeenCalled();
+    expect(driver.runManager.markNodeComplete).not.toHaveBeenCalled();
+    expect(driver.runManager.clearAmbushPendingNode).not.toHaveBeenCalled();
+    expect(driver.metrics.ambushBattles).toBe(1);
+    expect(result.result).toBe('defeat');
+  });
+
+  it('returns timeout immediately when ambush battle times out on a shop node', async () => {
+    const gameData = loadGameData();
+    const driver = new RunSimulationDriver(gameData);
+    driver.runManager = {
+      consumeSkipFirstShop: () => false,
+      getShopItemCountDelta: () => 0,
+      currentAct: 'act1',
+      roster: [],
+      gold: 0,
+      markNodeComplete: vi.fn(),
+      clearAmbushPendingNode: vi.fn(),
+      spendGold: vi.fn(() => false),
+      addGold: vi.fn(),
+    };
+    driver._runBattleNode = vi.fn(async () => ({ result: 'timeout' }));
+    driver._applyShopPricing = vi.fn(() => []);
+
+    const node = { id: 'shop_ambush_timeout_1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const result = await driver._runShopNode(node);
+
+    expect(driver._runBattleNode).toHaveBeenCalledWith(node);
+    expect(driver._applyShopPricing).not.toHaveBeenCalled();
+    expect(driver.runManager.markNodeComplete).not.toHaveBeenCalled();
+    expect(driver.runManager.clearAmbushPendingNode).not.toHaveBeenCalled();
+    expect(driver.metrics.ambushBattles).toBe(1);
+    expect(result.result).toBe('timeout');
   });
 });

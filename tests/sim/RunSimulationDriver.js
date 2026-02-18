@@ -50,6 +50,7 @@ export class RunSimulationDriver {
       timeouts: 0,
       actsAdvanced: 0,
       shopNodes: 0,
+      ambushBattles: 0,
       churchNodes: 0,
       recruitsGained: 0,
       unitsLost: 0,
@@ -240,6 +241,7 @@ export class RunSimulationDriver {
     this.metrics.shopNodes++;
 
     if (node?.isAmbush === true && node?.ambushCleared !== true) {
+      this.metrics.ambushBattles++;
       const ambushResult = await this._runBattleNode(node);
       if (ambushResult.result === 'defeat' || ambushResult.result === 'timeout') {
         return ambushResult;

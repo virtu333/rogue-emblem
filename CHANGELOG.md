@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Village Ambush + Coverage Hardening (Feb 18, 2026)
+- **Village ambush flow**: Shop nodes can become ambush encounters by difficulty (Normal 10%, Hard 20%, Lunatic 25%). Players must win a rout battle before the shop opens, then receive a 20% ambush discount that applies to item prices, rerolls, and forge costs, stacking multiplicatively with blessing discounts.
+- **Ambush deterministic fullrun slice**: Added a Hard-difficulty invincible PR slice on seeds 301-312 to continuously gate battle-first ambush shop flow and economy invariants.
+- **Ambush edge-case test coverage**: Added simulation defeat/timeout abort coverage for ambush shop battles, plus generator assertions for intermediate ambush probability and ambush battleParams row/level scaling composition.
+
 ### Act 4 + Narrative + Systems Hardening (Feb 15, 2026)
 - **Act 4 hard-mode progression shipped**: Added runtime progression support for Act 4 with new templates, terrain hazards, and slide-aware AI behavior.
 - **Reinforcement system expanded and hardened**: Added contract validation, scripted boss-map waves, deterministic turn jitter, and parity/state fixes with focused regressions.

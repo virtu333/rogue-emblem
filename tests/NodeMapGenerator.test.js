@@ -593,6 +593,69 @@ describe('Village ambush post-pass', () => {
     }
     expect(sawShop).toBe(true);
   });
+
+  it('applies intermediate ambush chance near expected rate at villageAmbushChance=0.5', () => {
+    let totalShops = 0;
+    let ambushShops = 0;
+    for (let i = 0; i < 200; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, { villageAmbushChance: 0.5 });
+      const shops = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP);
+      totalShops += shops.length;
+      ambushShops += shops.filter((node) => node.isAmbush === true).length;
+    }
+    expect(totalShops).toBeGreaterThan(0);
+    const ambushRate = ambushShops / totalShops;
+    expect(ambushRate).toBeGreaterThan(0.35);
+    expect(ambushRate).toBeLessThan(0.65);
+  });
+
+  it('sets ambush battleParams.row equal to node row', () => {
+    let sawAmbush = false;
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, { villageAmbushChance: 1 });
+      const ambushNodes = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP && node.isAmbush === true);
+      if (ambushNodes.length <= 0) continue;
+      sawAmbush = true;
+      for (const node of ambushNodes) {
+        expect(node.battleParams?.row).toBe(node.row);
+      }
+    }
+    expect(sawAmbush).toBe(true);
+  });
+
+  it('applies act1 ambush levelRange scaling by row and leaves act2 ambush levelRange unset', () => {
+    const expectedAct1LevelRangeByRow = {
+      0: [1, 1],
+      1: [1, 2],
+      2: [1, 3],
+      default: [2, 3],
+    };
+
+    let sawAct1Ambush = false;
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act1', ACT_CONFIG.act1, gameData.mapTemplates, { villageAmbushChance: 1 });
+      const ambushNodes = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP && node.isAmbush === true);
+      if (ambushNodes.length <= 0) continue;
+      sawAct1Ambush = true;
+      for (const node of ambushNodes) {
+        const expected = expectedAct1LevelRangeByRow[node.row] || expectedAct1LevelRangeByRow.default;
+        expect(node.battleParams?.levelRange).toEqual(expected);
+      }
+    }
+    expect(sawAct1Ambush).toBe(true);
+
+    let sawAct2Ambush = false;
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, { villageAmbushChance: 1 });
+      const ambushNodes = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP && node.isAmbush === true);
+      if (ambushNodes.length <= 0) continue;
+      sawAct2Ambush = true;
+      for (const node of ambushNodes) {
+        expect(node.battleParams?.levelRange).toBeUndefined();
+      }
+    }
+    expect(sawAct2Ambush).toBe(true);
+  });
 });
 
 describe('Template-driven fog', () => {

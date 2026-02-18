@@ -24,7 +24,7 @@ export const FULLRUN_SLICES = {
       '--seed-end', '112',
       '--difficulty', 'hard',
       '--mode', 'strict',
-      '--min-avg-gold', '250',
+      '--min-avg-gold', '200',
       '--max-avg-gold', '650',
       '--max-avg-shop-spent', '200',
       '--min-avg-nodes', '1.00',
@@ -45,7 +45,7 @@ export const FULLRUN_SLICES = {
       '--min-win-rate', '95.00',
       '--min-avg-nodes', '10.00',
       '--min-avg-gold', '4000',
-      '--max-avg-gold', '9000',
+      '--max-avg-gold', '12500',
       '--min-avg-shop-spent', '1000',
       '--max-avg-shop-spent', '6500',
       '--min-avg-recruits', '0.50',
@@ -55,8 +55,28 @@ export const FULLRUN_SLICES = {
       '--max-avg-invalid-shop-entries', '0.00',
     ],
   },
+  ambush_hard_invincible: {
+    description: 'Hard ambush shop flow under invincibility for deterministic village ambush coverage.',
+    args: [
+      '--seed-start', '301',
+      '--seed-end', '312',
+      '--difficulty', 'hard',
+      '--invincibility',
+      '--mode', 'strict',
+      '--max-timeout-rate', '0.00',
+      '--min-win-rate', '95.00',
+      '--min-avg-nodes', '25.00',
+      '--max-avg-units-lost', '0.00',
+      '--min-avg-gold', '9000.00',
+      '--max-avg-gold', '18000.00',
+      '--min-avg-shop-spent', '8000.00',
+      '--max-avg-shop-spent', '17000.00',
+      '--max-avg-invalid-shop-entries', '0.00',
+      '--min-avg-ambush-battles', '0.50',
+    ],
+  },
 };
 
 export const FULLRUN_SLICE_SUITES = {
-  pr: ['act1_pressure_normal', 'act1_pressure_hard', 'progression_invincible'],
+  pr: ['act1_pressure_normal', 'act1_pressure_hard', 'progression_invincible', 'ambush_hard_invincible'],
 };

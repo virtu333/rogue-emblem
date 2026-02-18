@@ -49,6 +49,7 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     minPromotionByAct2Rate: null,
     maxPromotionByAct2Rate: null,
     maxAvgInvalidShopEntries: null,
+    minAvgAmbushBattles: null,
     writeArtifactsOnFailure: true,
   };
 
@@ -80,6 +81,7 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     else if (arg === '--min-promotion-by-act2-rate' && args[i + 1]) opts.minPromotionByAct2Rate = parseOptionalNumber(args[++i], '--min-promotion-by-act2-rate');
     else if (arg === '--max-promotion-by-act2-rate' && args[i + 1]) opts.maxPromotionByAct2Rate = parseOptionalNumber(args[++i], '--max-promotion-by-act2-rate');
     else if (arg === '--max-avg-invalid-shop-entries' && args[i + 1]) opts.maxAvgInvalidShopEntries = parseOptionalNumber(args[++i], '--max-avg-invalid-shop-entries');
+    else if (arg === '--min-avg-ambush-battles' && args[i + 1]) opts.minAvgAmbushBattles = parseOptionalNumber(args[++i], '--min-avg-ambush-battles');
     else if (arg === '--no-artifacts') opts.writeArtifactsOnFailure = false;
   }
 
@@ -162,6 +164,7 @@ export function computeSummary(totals) {
     avgUnitsLost: runs > 0 ? totals.totalUnitsLost / runs : 0,
     promotionByAct2Rate: runs > 0 ? ((totals.promotionsByAct2Runs || 0) / runs) * 100 : 0,
     avgInvalidShopEntries: runs > 0 ? (totals.totalInvalidShopEntries || 0) / runs : 0,
+    avgAmbushBattles: runs > 0 ? (totals.totalAmbushBattles || 0) / runs : 0,
   };
 }
 
@@ -182,6 +185,7 @@ export function evaluateThresholdBreaches(summary, opts) {
     ['minPromotionByAct2Rate', 'promotion_by_act2_rate_pct', 'min', summary.promotionByAct2Rate],
     ['maxPromotionByAct2Rate', 'promotion_by_act2_rate_pct', 'max', summary.promotionByAct2Rate],
     ['maxAvgInvalidShopEntries', 'avg_invalid_shop_entries', 'max', summary.avgInvalidShopEntries],
+    ['minAvgAmbushBattles', 'avg_ambush_battles', 'min', summary.avgAmbushBattles],
   ];
 
   for (const [optKey, metricName, kind, metricValue] of limits) {
@@ -227,6 +231,7 @@ export async function runBatch(opts, gameDataOverride = null) {
     totalUnitsLost: 0,
     promotionsByAct2Runs: 0,
     totalInvalidShopEntries: 0,
+    totalAmbushBattles: 0,
   };
   const failures = [];
 
@@ -247,6 +252,7 @@ export async function runBatch(opts, gameDataOverride = null) {
     totals.totalRecruits += replay.metrics.recruitsGained;
     totals.totalUnitsLost += replay.metrics.unitsLost;
     totals.totalInvalidShopEntries += replay.metrics.invalidShopEntries || 0;
+    totals.totalAmbushBattles += replay.metrics.ambushBattles || 0;
 
     const promotedByAct2 = Array.isArray(replay.trace) && replay.trace.some((event) =>
       event?.nodeType === 'church'
@@ -290,7 +296,7 @@ export async function runBatch(opts, gameDataOverride = null) {
     `avg_turns=${summary.avgTurns.toFixed(2)} avg_gold=${summary.avgGold.toFixed(0)} avg_shop_spent=${summary.avgShopSpent.toFixed(0)} avg_recruits=${summary.avgRecruits.toFixed(2)} avg_units_lost=${summary.avgUnitsLost.toFixed(2)}`
   );
   console.log(
-    `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)}`
+    `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)} avg_ambush_battles=${summary.avgAmbushBattles.toFixed(2)}`
   );
 
   const thresholdBreaches = evaluateThresholdBreaches(summary, opts);
