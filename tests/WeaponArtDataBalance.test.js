@@ -28,10 +28,15 @@ describe('weapon arts data guards', () => {
     // Legendary arts should carry meaningful HP risk and remain Mast-gated.
     const legendaryArts = arts.filter((art) => Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0);
     expect(legendaryArts.length).toBeGreaterThan(0);
+    const lightLegendaryIds = ['legend_gemini_tempest', 'legend_starfall_volley'];
     for (const art of legendaryArts) {
       expect(art.requiredRank).toBe('Mast');
       expect(art.hpCost).toBeGreaterThanOrEqual(5);
-      expect(art.perMapLimit).toBeLessThanOrEqual(2);
+      if (lightLegendaryIds.includes(art.id)) {
+        expect(art.perMapLimit).toBeLessThanOrEqual(3);
+      } else {
+        expect(art.perMapLimit).toBeLessThanOrEqual(2);
+      }
     }
 
     // Non-legendary arts should now be Prof-gated.

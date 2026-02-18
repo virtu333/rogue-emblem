@@ -102,7 +102,7 @@ describe('Tier 5 weapon art data + parsing', () => {
     }
   });
 
-  it('standard Tier 5 arts no longer rely on placeholder combat bonuses', () => {
+  it('standard Tier 5 arts have balance-pass combat bonuses (no crit)', () => {
     const ids = [
       'axe_war_cry',
       'axe_rallying_blow',
@@ -111,8 +111,6 @@ describe('Tier 5 weapon art data + parsing', () => {
     ];
     for (const id of ids) {
       const combatMods = artById.get(id)?.combatMods || {};
-      expect(combatMods.atkBonus || 0).toBe(0);
-      expect(combatMods.hitBonus || 0).toBe(0);
       expect(combatMods.critBonus || 0).toBe(0);
     }
   });

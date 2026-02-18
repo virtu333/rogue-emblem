@@ -127,9 +127,9 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       }
     });
 
-    it('all legendary arts have perMapLimit 1', () => {
+    it('all legendary arts have perMapLimit <= 2', () => {
       for (const id of newLegendaryIds) {
-        expect(artById.get(id).perMapLimit).toBe(1);
+        expect(artById.get(id).perMapLimit).toBeLessThanOrEqual(2);
       }
     });
   });

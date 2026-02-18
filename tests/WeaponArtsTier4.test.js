@@ -40,8 +40,8 @@ function withHitNoCrit(run) {
 describe('Tier 4 weapon art data + parsing', () => {
   it('activates standard multiHit and drain arts with real combat mods', () => {
     const multiHitExpected = {
-      sword_astra_strike: { count: 3, damageMultiplier: 0.5 },
-      bow_hunters_volley: { count: 2, damageMultiplier: 0.8 },
+      sword_astra_strike: { count: 3, damageMultiplier: 0.6 },
+      bow_hunters_volley: { count: 2, damageMultiplier: 0.9 },
     };
     for (const [id, expected] of Object.entries(multiHitExpected)) {
       const art = artById.get(id);
@@ -50,7 +50,7 @@ describe('Tier 4 weapon art data + parsing', () => {
       const mods = getWeaponArtCombatMods(art);
       expect(mods.multiHit).toEqual(expected);
       expect(mods.atkBonus).toBe(0);
-      expect(mods.hitBonus).toBe(0);
+      expect(mods.hitBonus).toBe(10);
       expect(mods.critBonus).toBe(0);
     }
 
@@ -71,25 +71,25 @@ describe('Tier 4 weapon art data + parsing', () => {
   it('keeps compound legendary multiHit arts fully structured without deferred markers', () => {
     const expected = {
       legend_phantom_rush: {
-        multiHit: { count: 3, damageMultiplier: 0.5 },
+        multiHit: { count: 3, damageMultiplier: 0.6 },
         deferred: null,
         atkBonus: 8,
         hitBonus: 10,
       },
       legend_piercing_charge: {
-        multiHit: { count: 2, damageMultiplier: 0.8 },
+        multiHit: { count: 2, damageMultiplier: 0.9 },
         deferred: null,
         atkBonus: 8,
         hitBonus: 10,
       },
       legend_galeforce_assault: {
-        multiHit: { count: 3, damageMultiplier: 0.5 },
+        multiHit: { count: 3, damageMultiplier: 0.6 },
         deferred: null,
         atkBonus: 10,
-        hitBonus: 5,
+        hitBonus: 15,
       },
       legend_barrage: {
-        multiHit: { count: 2, damageMultiplier: 0.8 },
+        multiHit: { count: 2, damageMultiplier: 0.9 },
         deferred: null,
         atkBonus: 8,
         hitBonus: 10,
@@ -98,7 +98,7 @@ describe('Tier 4 weapon art data + parsing', () => {
         multiHit: { count: 2, damageMultiplier: 0.8 },
         deferred: null,
         atkBonus: 5,
-        hitBonus: 0,
+        hitBonus: 10,
       },
     };
 
@@ -146,13 +146,13 @@ describe('Tier 4 multiHit combat resolution', () => {
       stats: { HP: 40, STR: 8, MAG: 0, SKL: 8, SPD: 8, DEF: 4, RES: 2, LCK: 5 },
     });
     const baseForecast = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, null, null);
-    const expectedDamage = Math.max(1, Math.floor(baseForecast.attacker.damage * 0.5));
+    const expectedDamage = Math.max(1, Math.floor(baseForecast.attacker.damage * 0.6));
 
     const result = withHitNoCrit(() => resolveCombat(
       attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
       {
         atkWeaponArtMods: {
-          multiHit: { count: 3, damageMultiplier: 0.5 },
+          multiHit: { count: 3, damageMultiplier: 0.6 },
           activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
         },
       }
@@ -178,7 +178,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
       {
         atkWeaponArtMods: {
-          multiHit: { count: 3, damageMultiplier: 0.5 },
+          multiHit: { count: 3, damageMultiplier: 0.6 },
           activated: [{ id: 'weapon_art', name: 'Phantom Rush' }],
         },
       }
@@ -203,7 +203,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
       {
         atkWeaponArtMods: {
-          multiHit: { count: 3, damageMultiplier: 0.5 },
+          multiHit: { count: 3, damageMultiplier: 0.6 },
           activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
         },
         checkAstra,
@@ -228,7 +228,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
       {
         atkWeaponArtMods: {
-          multiHit: { count: 2, damageMultiplier: 0.8 },
+          multiHit: { count: 2, damageMultiplier: 0.9 },
           activated: [{ id: 'weapon_art', name: 'Hunter\'s Volley' }],
         },
       }
@@ -252,7 +252,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
       {
         atkWeaponArtMods: {
-          multiHit: { count: 3, damageMultiplier: 0.5 },
+          multiHit: { count: 3, damageMultiplier: 0.6 },
           activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
         },
       }
@@ -470,15 +470,15 @@ describe('Tier 4 forecast parity', () => {
     const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, null, null);
     const forecast = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
       atkWeaponArtMods: {
-        multiHit: { count: 2, damageMultiplier: 0.8 },
+        multiHit: { count: 2, damageMultiplier: 0.9 },
         drainPercent: 0.3,
         activated: [{ id: 'weapon_art', name: 'Hunter\'s Volley' }],
       },
     });
 
     expect(forecast.attacker.attackCount).toBe(2);
-    expect(forecast.attacker.damage).toBe(Math.max(1, Math.floor(base.attacker.damage * 0.8)));
-    expect(forecast.attacker.multiHit).toEqual({ count: 2, damageMultiplier: 0.8 });
+    expect(forecast.attacker.damage).toBe(Math.max(1, Math.floor(base.attacker.damage * 0.9)));
+    expect(forecast.attacker.multiHit).toEqual({ count: 2, damageMultiplier: 0.9 });
     expect(forecast.attacker.drainPercent).toBe(0.3);
   });
 });

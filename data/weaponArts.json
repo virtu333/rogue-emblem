@@ -170,6 +170,7 @@
       "description": "A fast cut that prevents enemy counterattacks.",
       "combatMods": {
         "preventCounter": true,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -191,6 +192,8 @@
       "description": "A cursed edge that targets resistance instead of defense.",
       "combatMods": {
         "targetsRES": true,
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -220,6 +223,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -250,6 +255,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -280,6 +287,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -295,15 +304,17 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A precise cut that scales with skill.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "statScaling": {
           "stat": "SKL",
           "divisor": 2
         },
+        "hitBonus": 15,
         "activated": [
           {
             "id": "weapon_art",
@@ -319,12 +330,14 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 6,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A silver-tier feint that ignores terrain avoid.",
+      "allowedFactions": ["player"],
       "combatMods": {
-        "critBonus": 10,
+        "critBonus": 20,
+        "hitBonus": 15,
         "ignoreTerrainAvoid": true,
         "activated": [
           {
@@ -341,15 +354,17 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A blinding flourish that scales with speed.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "statScaling": {
           "stat": "SPD",
           "divisor": 2
         },
+        "hitBonus": 15,
         "activated": [
           {
             "id": "weapon_art",
@@ -365,15 +380,17 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A flurry of 3 strikes at 50% damage each.",
+      "description": "A flurry of 3 strikes at 60% damage each.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "multiHit": {
           "count": 3,
-          "damageMultiplier": 0.5
+          "damageMultiplier": 0.6
         },
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -519,6 +536,7 @@
           ],
           "multiplier": 3
         },
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -540,6 +558,7 @@
       "description": "A retaliatory thrust adding damage based on missing HP.",
       "combatMods": {
         "vengeance": true,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -570,6 +589,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -585,16 +606,18 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A burning lance technique that scales with defense and grants avoid.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "statScaling": {
           "stat": "DEF",
           "divisor": 2
         },
-        "avoidBonus": 10,
+        "hitBonus": 10,
+        "avoidBonus": 15,
         "activated": [
           {
             "id": "weapon_art",
@@ -610,15 +633,18 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 8,
-      "perMapLimit": 2,
+      "hpCost": 5,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A stance that extends attack range to 1-2 tiles.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "rangeOverride": {
           "min": 1,
           "max": 2
         },
+        "hitBonus": 10,
+        "atkBonus": 3,
         "activated": [
           {
             "id": "weapon_art",
@@ -634,10 +660,11 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 6,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A devastating charge that pushes the target back 1 tile.",
+      "allowedFactions": ["player"],
       "effects": {
         "afterCombat": [
           {
@@ -648,6 +675,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -841,6 +870,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -871,6 +902,8 @@
         }
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -886,15 +919,17 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A fortified blow that scales with defense.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "statScaling": {
           "stat": "DEF",
           "divisor": 2
         },
+        "hitBonus": 20,
         "activated": [
           {
             "id": "weapon_art",
@@ -910,12 +945,14 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 6,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A guarded strike: -3 Mt, but halves incoming physical damage.",
+      "description": "A guarded strike that halves incoming physical damage.",
+      "allowedFactions": ["player"],
       "combatMods": {
-        "atkBonus": -3,
+        "atkBonus": 0,
+        "hitBonus": 15,
         "halfPhysicalDamage": true,
         "activated": [
           {
@@ -932,10 +969,11 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 6,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A rallying strike that boosts nearby allies' STR by 3 and Crit by 10 after combat.",
+      "allowedFactions": ["player"],
       "effects": {
         "allyBuff": {
           "range": 2,
@@ -948,6 +986,8 @@
         }
       },
       "combatMods": {
+        "atkBonus": 4,
+        "hitBonus": 15,
         "activated": [
           {
             "id": "weapon_art",
@@ -1116,6 +1156,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1146,6 +1188,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1176,6 +1220,8 @@
         ]
       },
       "combatMods": {
+        "atkBonus": 3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1191,13 +1237,15 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "An extreme-range shot that sacrifices some hit rate.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "rangeBonus": 3,
-        "hitBonus": -20,
+        "atkBonus": 5,
+        "hitBonus": -10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1213,14 +1261,15 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 11,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss. (Placeholder: +12 Atk, -20 Hit until special mechanic lands.)",
+      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss. (Placeholder: +15 Atk, -10 Hit until special mechanic lands.)",
+      "allowedFactions": ["player"],
       "_deferredMechanic": "special(2x on hit/5 self-dmg on miss)",
       "combatMods": {
-        "atkBonus": 12,
-        "hitBonus": -20,
+        "atkBonus": 15,
+        "hitBonus": -10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1236,15 +1285,17 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 12,
-      "perMapLimit": 2,
+      "hpCost": 8,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A rapid volley of 2 strikes at 80% damage each.",
+      "description": "A rapid volley of 2 strikes at 90% damage each.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "multiHit": {
           "count": 2,
-          "damageMultiplier": 0.8
+          "damageMultiplier": 0.9
         },
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1323,6 +1374,7 @@
       "description": "A sanctified blast with elevated magical force.",
       "combatMods": {
         "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1348,6 +1400,7 @@
       "description": "Sacred magic highly effective against armored foes.",
       "combatMods": {
         "targetsRES": true,
+        "hitBonus": 10,
         "effectiveness": {
           "moveTypes": [
             "armored"
@@ -1379,6 +1432,7 @@
       "description": "A radiant strike that heals 30% of damage dealt.",
       "combatMods": {
         "drainPercent": 0.3,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1398,13 +1452,15 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 8,
-      "perMapLimit": 2,
+      "hpCost": 5,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A distant mire cast with reduced hit chance.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "rangeBonus": 2,
-        "hitBonus": -15,
+        "atkBonus": 3,
+        "hitBonus": -5,
         "activated": [
           {
             "id": "weapon_art",
@@ -1423,20 +1479,22 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "An erupting blast that deals 50% splash damage to nearby enemies.",
+      "description": "An erupting blast that deals 60% splash damage to nearby enemies.",
+      "allowedFactions": ["player"],
       "effects": {
         "aoeSplash": {
           "radius": 1,
           "damageKind": "scaled",
-          "damageMultiplier": 0.5,
+          "damageMultiplier": 0.6,
           "basis": "first_landed_strike",
           "nonLethal": false
         }
       },
       "combatMods": {
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1455,10 +1513,11 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 7,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A holy burst that deals 75% splash to 1 nearby enemy.",
+      "allowedFactions": ["player"],
       "effects": {
         "aoeSplash": {
           "radius": 1,
@@ -1470,6 +1529,7 @@
         }
       },
       "combatMods": {
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1489,13 +1549,14 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 12,
-      "perMapLimit": 2,
+      "hpCost": 8,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A disruptive blast that shuts down the target's abilities for 2 turns. (Placeholder: +5 Atk, +10 Hit, +10 Crit until inflictStatus lands.)",
+      "description": "A disruptive blast that shuts down the target's abilities for 2 turns. (Placeholder: +8 Atk, +10 Hit, +10 Crit until inflictStatus lands.)",
+      "allowedFactions": ["player"],
       "_deferredMechanic": "inflictStatus(full shutdown 2T)",
       "combatMods": {
-        "atkBonus": 5,
+        "atkBonus": 8,
         "hitBonus": 10,
         "critBonus": 10,
         "activated": [
@@ -1517,12 +1578,15 @@
       "tierAffinity": "Silver",
       "unlockAct": "act3",
       "requiredRank": "Prof",
-      "hpCost": 10,
-      "perMapLimit": 2,
+      "hpCost": 8,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A dark incantation that heals 100% of damage dealt.",
+      "allowedFactions": ["player"],
       "combatMods": {
         "drainPercent": 1,
+        "hitBonus": 10,
+        "atkBonus": 3,
         "activated": [
           {
             "id": "weapon_art",
@@ -1540,7 +1604,7 @@
       "requiredRank": "Mast",
       "hpCost": 5,
       "perTurnLimit": 1,
-      "perMapLimit": 2,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A legendary multi-hit cut tuned for Gemini.",
       "allowedFactions": [
@@ -1550,7 +1614,7 @@
         "Gemini"
       ],
       "combatMods": {
-        "atkBonus": 5,
+        "atkBonus": 7,
         "hitBonus": 15,
         "critBonus": 10,
         "activated": [
@@ -1570,7 +1634,7 @@
       "requiredRank": "Mast",
       "hpCost": 5,
       "perTurnLimit": 1,
-      "perMapLimit": 2,
+      "perMapLimit": 3,
       "targeting": "normal_attack",
       "description": "A legendary burst shot bound to Starfall.",
       "allowedFactions": [
@@ -1580,6 +1644,7 @@
         "Starfall"
       ],
       "combatMods": {
+        "atkBonus": 5,
         "hitBonus": 20,
         "critBonus": 15,
         "activated": [
@@ -1597,9 +1662,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 15,
+      "hpCost": 5,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A spectral multi-strike bound to Brave Sword. Hits 3 times then teleports user back, but sets HP to 5.",
       "allowedFactions": [
@@ -1625,7 +1690,7 @@
       "combatMods": {
         "multiHit": {
           "count": 3,
-          "damageMultiplier": 0.5
+          "damageMultiplier": 0.6
         },
         "atkBonus": 8,
         "hitBonus": 10,
@@ -1645,9 +1710,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A charging lance strike bound to Brave Lance. Hits twice and pierces through.",
       "allowedFactions": [
@@ -1668,7 +1733,7 @@
       "combatMods": {
         "multiHit": {
           "count": 2,
-          "damageMultiplier": 0.8
+          "damageMultiplier": 0.9
         },
         "atkBonus": 8,
         "hitBonus": 10,
@@ -1687,9 +1752,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 18,
+      "hpCost": 5,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A devastating assault bound to Brave Axe. Hits 3 times, buffs allies, grants move, but sets HP to 5.",
       "allowedFactions": [
@@ -1723,10 +1788,10 @@
       "combatMods": {
         "multiHit": {
           "count": 3,
-          "damageMultiplier": 0.5
+          "damageMultiplier": 0.6
         },
         "atkBonus": 10,
-        "hitBonus": 5,
+        "hitBonus": 15,
         "critBonus": 5,
         "activated": [
           {
@@ -1743,9 +1808,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A rain of arrows bound to Brave Bow. Hits twice and splashes adjacent enemies.",
       "allowedFactions": [
@@ -1766,7 +1831,7 @@
       "combatMods": {
         "multiHit": {
           "count": 2,
-          "damageMultiplier": 0.8
+          "damageMultiplier": 0.9
         },
         "atkBonus": 8,
         "hitBonus": 10,
@@ -1785,9 +1850,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A sweeping blade tempest bound to Ragnarok. Prevents counter, boosts defense, hits twice, then retreats.",
       "allowedFactions": [
@@ -1813,6 +1878,7 @@
         "preventCounter": true,
         "defBonus": 5,
         "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1828,9 +1894,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 12,
+      "hpCost": 7,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A soul-rending strike bound to Soulreaver. Drains 150% of damage dealt as HP.",
       "allowedFactions": [
@@ -1858,9 +1924,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A cursed thrust bound to Doomblade. Pierces through and pushes the target back.",
       "allowedFactions": [
@@ -1885,7 +1951,7 @@
       },
       "combatMods": {
         "atkBonus": 8,
-        "hitBonus": 10,
+        "hitBonus": 15,
         "activated": [
           {
             "id": "weapon_art",
@@ -1901,9 +1967,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 15,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A blood-fueled lance strike bound to Gae Bolg. Vengeance damage plus cavalry effectiveness, and buffs adjacent allies' STR.",
       "allowedFactions": [
@@ -1925,6 +1991,7 @@
       },
       "combatMods": {
         "vengeance": true,
+        "hitBonus": 10,
         "effectiveness": {
           "moveTypes": [
             "cavalry"
@@ -1946,9 +2013,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 15,
+      "hpCost": 9,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "An earth-shattering strike bound to Stormbreaker. Massive power with defensive buffs and AoE splash.",
       "allowedFactions": [
@@ -1969,6 +2036,7 @@
       },
       "combatMods": {
         "atkBonus": 20,
+        "hitBonus": 10,
         "defBonus": 5,
         "resBonus": 5,
         "activated": [
@@ -1986,9 +2054,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 9,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A devastating strike bound to Ruin. Massive power at cost of accuracy, ignores weapon triangle.",
       "allowedFactions": [
@@ -1999,8 +2067,8 @@
       ],
       "_deferredMechanic": "ignoreWeaponTriangle, killBuff",
       "combatMods": {
-        "atkBonus": 14,
-        "hitBonus": -20,
+        "atkBonus": 16,
+        "hitBonus": -10,
         "activated": [
           {
             "id": "weapon_art",
@@ -2019,9 +2087,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 12,
+      "hpCost": 7,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A howling wind bound to Excalibur. Flying effectiveness plus AoE splash.",
       "allowedFactions": [
@@ -2042,6 +2110,7 @@
       },
       "combatMods": {
         "atkBonus": 5,
+        "hitBonus": 10,
         "effectiveness": {
           "moveTypes": [
             "flying"
@@ -2066,9 +2135,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 12,
+      "hpCost": 7,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A devastating thunderbolt bound to Bolting. Splashes 2-tile radius.",
       "allowedFactions": [
@@ -2108,9 +2177,9 @@
       "tierAffinity": "Legendary",
       "unlockAct": "act3",
       "requiredRank": "Mast",
-      "hpCost": 14,
+      "hpCost": 8,
       "perTurnLimit": 1,
-      "perMapLimit": 1,
+      "perMapLimit": 2,
       "targeting": "normal_attack",
       "description": "A divine blast bound to Luce. Ignores RES and is effective against dark enemies.",
       "allowedFactions": [
