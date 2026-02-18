@@ -202,6 +202,69 @@ describe('BattleScene camera touch interruption cleanup', () => {
     expect(scene._uiClickBlocked).toBe(false);
     expect(onClick).toHaveBeenCalledTimes(0);
   });
+
+  it('suppresses tap when pointerup is UI-blocked and gesture release is consumed', () => {
+    const onClick = vi.fn();
+    const handlePointerUp = vi.fn(() => true);
+    const scene = {
+      _isTouchPointer: BattleScene.prototype._isTouchPointer,
+      _battleCamera: { clearTouches: vi.fn(() => false), hasActiveTouches: vi.fn(() => false) },
+      _cameraGestureTapSuppressed: false,
+      _touchTapDown: { x: 10, y: 20 },
+      cancelTouchInspectHold: vi.fn(),
+      _syncMobileResetViewButton: vi.fn(),
+      _handleCameraGesturePointerUp: handlePointerUp,
+      isStoryInputLocked: () => false,
+      _uiClickBlocked: true,
+      onClick,
+    };
+
+    BattleScene.prototype.onPointerUp.call(scene, {
+      wasTouch: true,
+      rightButtonDown: () => false,
+      button: 0,
+      x: 10,
+      y: 20,
+    });
+
+    expect(handlePointerUp).toHaveBeenCalledTimes(1);
+    expect(scene._cameraGestureTapSuppressed).toBe(true);
+    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(scene._touchTapDown).toBeNull();
+    expect(scene._uiClickBlocked).toBe(false);
+    expect(onClick).toHaveBeenCalledTimes(0);
+  });
+
+  it('still releases touch gesture tracking when story input lock is active', () => {
+    const onClick = vi.fn();
+    const handlePointerUp = vi.fn(() => true);
+    const scene = {
+      _isTouchPointer: BattleScene.prototype._isTouchPointer,
+      _battleCamera: { clearTouches: vi.fn(() => false), hasActiveTouches: vi.fn(() => false) },
+      _cameraGestureTapSuppressed: false,
+      _touchTapDown: { x: 10, y: 20 },
+      cancelTouchInspectHold: vi.fn(),
+      _syncMobileResetViewButton: vi.fn(),
+      _handleCameraGesturePointerUp: handlePointerUp,
+      isStoryInputLocked: () => true,
+      _uiClickBlocked: false,
+      onClick,
+    };
+
+    BattleScene.prototype.onPointerUp.call(scene, {
+      wasTouch: true,
+      rightButtonDown: () => false,
+      button: 0,
+      x: 10,
+      y: 20,
+    });
+
+    expect(handlePointerUp).toHaveBeenCalledTimes(1);
+    expect(scene._cameraGestureTapSuppressed).toBe(true);
+    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(scene._touchTapDown).toBeNull();
+    expect(onClick).toHaveBeenCalledTimes(0);
+  });
 });
 
 describe('BattleScene mobile camera modal pinning', () => {

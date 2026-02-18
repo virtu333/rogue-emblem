@@ -5054,7 +5054,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
-    if (this.isStoryInputLocked()) return;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
     const uiClickBlocked = Boolean(this._uiClickBlocked);
     if (uiClickBlocked) this._uiClickBlocked = false;
@@ -5083,6 +5082,12 @@ export class BattleScene extends Phaser.Scene {
         this._touchTapDown = null;
         return;
       }
+    }
+
+    if (this.isStoryInputLocked()) {
+      this.cancelTouchInspectHold();
+      this._touchTapDown = null;
+      return;
     }
 
     if (uiClickBlocked) {
