@@ -111,6 +111,18 @@ export function generateBattle(params, deps) {
     ensureBridges(mapLayout, cols, rows, terrain, template.minBridges);
   }
 
+  ensureCavalryAdvanceGuarantees({
+    mapLayout,
+    cols,
+    rows,
+    terrainData: terrain,
+    playerSpawns,
+    enemySpawns,
+    npcSpawn,
+    objective,
+    thronePos,
+  });
+
   const reinforcementConfig = cloneReinforcementConfig(template);
   const hybridConfig = cloneHybridConfig(template, resolvedHybridAnchors);
 
@@ -283,6 +295,7 @@ function applyPhaseOverrideToLayout(mapLayout, override, resolvedAnchors, terrai
 
 // Max forts per map (Throne excluded — placed by features, not random gen)
 const MAX_FORTS = 4;
+const CAVALRY_CARVE_MAX_CONVERSIONS = 16;
 
 function generateTerrain(template, cols, rows, terrainData) {
   // Initialize with Plain
@@ -946,33 +959,70 @@ function ensureReachability(mapLayout, cols, rows, terrainData, playerSpawn, ene
 }
 
 function bfs(mapLayout, cols, rows, terrainData, start, moveType) {
+  if (!start) return new Set();
+  return bfsFromSources(mapLayout, cols, rows, terrainData, [start], moveType);
+}
+
+function bfsFromSources(mapLayout, cols, rows, terrainData, sources, moveType) {
   const visited = new Set();
-  const queue = [start];
-  visited.add(`${start.col},${start.row}`);
+  const queue = [];
+
+  for (const source of sources || []) {
+    if (!source) continue;
+    if (source.col < 0 || source.col >= cols || source.row < 0 || source.row >= rows) continue;
+    if (!isPassable(terrainData, mapLayout[source.row][source.col], moveType)) continue;
+    const key = `${source.col},${source.row}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    queue.push({ col: source.col, row: source.row });
+  }
 
   while (queue.length > 0) {
     const { col, row } = queue.shift();
-    const neighbors = [
-      { col: col - 1, row }, { col: col + 1, row },
-      { col, row: row - 1 }, { col, row: row + 1 },
-    ];
-    for (const n of neighbors) {
-      if (n.col < 0 || n.col >= cols || n.row < 0 || n.row >= rows) continue;
-      const key = `${n.col},${n.row}`;
+    const neighbors = getCardinalNeighbors(col, row, cols, rows);
+    for (const neighbor of neighbors) {
+      const key = `${neighbor.col},${neighbor.row}`;
       if (visited.has(key)) continue;
-      if (!isPassable(terrainData, mapLayout[n.row][n.col], moveType)) continue;
+      if (!isPassable(terrainData, mapLayout[neighbor.row][neighbor.col], moveType)) continue;
       visited.add(key);
-      queue.push(n);
+      queue.push(neighbor);
     }
   }
   return visited;
 }
 
 function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable) {
+  carvePathForMoveType(
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    start,
+    target,
+    reachable,
+    'Infantry',
+    cols + rows
+  );
+}
+
+function carvePathForMoveType(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  start,
+  target,
+  reachable,
+  moveType,
+  maxConversions
+) {
+  if (!start || !target || maxConversions <= 0) return 0;
+
   // Simple A*-like greedy carve: step from target toward start,
   // converting impassable tiles to Plain or Bridge (over water)
   let cur = { col: target.col, row: target.row };
   const maxSteps = cols + rows; // safety limit
+  let conversions = 0;
 
   for (let i = 0; i < maxSteps; i++) {
     const key = `${cur.col},${cur.row}`;
@@ -980,12 +1030,18 @@ function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable)
 
     // Make current tile passable
     const tIdx = mapLayout[cur.row][cur.col];
-    if (!isPassable(terrainData, tIdx, 'Infantry')) {
+    if (!isPassable(terrainData, tIdx, moveType)) {
+      if (conversions >= maxConversions) break;
       if (tIdx === TERRAIN.Water) {
         mapLayout[cur.row][cur.col] = TERRAIN.Bridge;
       } else {
         mapLayout[cur.row][cur.col] = TERRAIN.Plain;
       }
+      conversions++;
+    }
+
+    if (cur.col === start.col && cur.row === start.row) {
+      break;
     }
 
     // Step toward start (prefer axis with larger distance)
@@ -997,6 +1053,224 @@ function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable)
       cur = { col: cur.col, row: cur.row + dr };
     }
   }
+
+  return conversions;
+}
+
+function ensureCavalryAdvanceGuarantees({
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  playerSpawns,
+  enemySpawns,
+  npcSpawn,
+  objective,
+  thronePos,
+}) {
+  const cavalrySources = getCavalrySources(mapLayout, terrainData, playerSpawns);
+  if (cavalrySources.length === 0) return;
+
+  const occupied = buildOccupiedSet(playerSpawns, enemySpawns, npcSpawn);
+  const engagementCandidates = collectUnoccupiedAdjacentTiles(enemySpawns, cols, rows, occupied);
+  // Engagement and throne pressure each get their own carve budget so one goal
+  // cannot starve the other on seize maps.
+  ensureCavalryCanReachCandidates(
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    cavalrySources,
+    engagementCandidates
+  );
+
+  if (objective !== 'seize' || !thronePos) return;
+  // Seize pressure should still apply when throne-adjacent tiles are currently occupied.
+  // Occupied neighbors can represent current defenders, and cavalry should be able to
+  // advance to contest those positions even if they are not free landing tiles yet.
+  const thronePressureCandidates = collectAdjacentTiles([thronePos], cols, rows);
+  ensureCavalryCanReachCandidates(
+    mapLayout,
+    cols,
+    rows,
+    terrainData,
+    cavalrySources,
+    thronePressureCandidates
+  );
+}
+
+function ensureCavalryCanReachCandidates(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  sources,
+  candidates
+) {
+  if (!Array.isArray(sources) || sources.length === 0) return;
+  if (!Array.isArray(candidates) || candidates.length === 0) return;
+
+  let reachable = bfsFromSources(mapLayout, cols, rows, terrainData, sources, 'Cavalry');
+  if (hasReachableCandidate(reachable, candidates)) return;
+
+  let remainingConversions = CAVALRY_CARVE_MAX_CONVERSIONS;
+  while (remainingConversions > 0) {
+    const rankedTarget = pickBestCavalryTarget(
+      mapLayout,
+      terrainData,
+      sources,
+      candidates
+    );
+    if (!rankedTarget) break;
+
+    const conversions = carvePathForMoveType(
+      mapLayout,
+      cols,
+      rows,
+      terrainData,
+      rankedTarget.source,
+      rankedTarget.target,
+      reachable,
+      'Cavalry',
+      remainingConversions
+    );
+    if (conversions <= 0) break;
+
+    remainingConversions -= conversions;
+    reachable = bfsFromSources(mapLayout, cols, rows, terrainData, sources, 'Cavalry');
+    if (hasReachableCandidate(reachable, candidates)) break;
+  }
+}
+
+function getCavalrySources(mapLayout, terrainData, playerSpawns) {
+  const passableSources = (playerSpawns || []).filter((spawn) =>
+    isPassable(terrainData, mapLayout[spawn.row][spawn.col], 'Cavalry')
+  );
+  if (passableSources.length > 0) {
+    return passableSources;
+  }
+
+  const fallback = [...(playerSpawns || [])].sort(compareTilesByRowCol)[0];
+  if (!fallback) return [];
+
+  const tileIndex = mapLayout[fallback.row][fallback.col];
+  if (!isPassable(terrainData, tileIndex, 'Cavalry')) {
+    mapLayout[fallback.row][fallback.col] = tileIndex === TERRAIN.Water
+      ? TERRAIN.Bridge
+      : TERRAIN.Plain;
+  }
+  return [fallback];
+}
+
+function buildOccupiedSet(playerSpawns, enemySpawns, npcSpawn) {
+  const occupied = new Set();
+  for (const spawn of playerSpawns || []) {
+    occupied.add(`${spawn.col},${spawn.row}`);
+  }
+  for (const spawn of enemySpawns || []) {
+    occupied.add(`${spawn.col},${spawn.row}`);
+  }
+  if (npcSpawn) {
+    occupied.add(`${npcSpawn.col},${npcSpawn.row}`);
+  }
+  return occupied;
+}
+
+function collectUnoccupiedAdjacentTiles(origins, cols, rows, occupied) {
+  const allAdjacentTiles = collectAdjacentTiles(origins, cols, rows);
+  if (!occupied) return allAdjacentTiles;
+
+  return allAdjacentTiles.filter((tile) => !occupied.has(`${tile.col},${tile.row}`));
+}
+
+function collectAdjacentTiles(origins, cols, rows) {
+  const tiles = [];
+  const seen = new Set();
+
+  for (const origin of origins || []) {
+    if (!origin) continue;
+    const neighbors = getCardinalNeighbors(origin.col, origin.row, cols, rows);
+    for (const tile of neighbors) {
+      const key = `${tile.col},${tile.row}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      tiles.push(tile);
+    }
+  }
+
+  return tiles;
+}
+
+function hasReachableCandidate(reachable, candidates) {
+  return candidates.some((tile) => reachable.has(`${tile.col},${tile.row}`));
+}
+
+function pickBestCavalryTarget(mapLayout, terrainData, sources, candidates) {
+  const ranked = [];
+  for (const candidate of candidates) {
+    const nearestSource = pickNearestSource(candidate, sources);
+    if (!nearestSource) continue;
+    ranked.push({
+      source: nearestSource,
+      target: candidate,
+      distance: manhattanDistance(nearestSource, candidate),
+      passableRank: isPassable(terrainData, mapLayout[candidate.row][candidate.col], 'Cavalry') ? 0 : 1,
+    });
+  }
+
+  ranked.sort(compareTargetRanks);
+  return ranked[0] || null;
+}
+
+function pickNearestSource(target, sources) {
+  let best = null;
+  for (const source of sources || []) {
+    if (!source) continue;
+    if (!best) {
+      best = source;
+      continue;
+    }
+    const distance = manhattanDistance(source, target);
+    const bestDistance = manhattanDistance(best, target);
+    if (distance < bestDistance) {
+      best = source;
+      continue;
+    }
+    if (distance === bestDistance && compareTilesByRowCol(source, best) < 0) {
+      best = source;
+    }
+  }
+  return best;
+}
+
+function compareTargetRanks(a, b) {
+  if (a.passableRank !== b.passableRank) return a.passableRank - b.passableRank;
+  if (a.distance !== b.distance) return a.distance - b.distance;
+  return compareTilesByRowCol(a.target, b.target);
+}
+
+function compareTilesByRowCol(a, b) {
+  if (a.row !== b.row) return a.row - b.row;
+  return a.col - b.col;
+}
+
+function manhattanDistance(a, b) {
+  return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
+}
+
+function getCardinalNeighbors(col, row, cols, rows) {
+  const neighbors = [];
+  const candidates = [
+    { col: col - 1, row },
+    { col: col + 1, row },
+    { col, row: row - 1 },
+    { col, row: row + 1 },
+  ];
+  for (const neighbor of candidates) {
+    if (neighbor.col < 0 || neighbor.col >= cols || neighbor.row < 0 || neighbor.row >= rows) continue;
+    neighbors.push(neighbor);
+  }
+  return neighbors;
 }
 
 // --- Bridge enforcement for river templates ---
@@ -1317,4 +1591,5 @@ export {
   resolveHybridAnchors,
   applyHybridArenaOverlay,
   applyPhaseOverrideToLayout,
+  CAVALRY_CARVE_MAX_CONVERSIONS,
 };

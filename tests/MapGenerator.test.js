@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { generateBattle, scoreSpawnTile, resolveClassWeight } from '../src/engine/MapGenerator.js';
+import {
+  generateBattle,
+  scoreSpawnTile,
+  resolveClassWeight,
+  CAVALRY_CARVE_MAX_CONVERSIONS,
+} from '../src/engine/MapGenerator.js';
 import { TERRAIN, DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
@@ -174,6 +179,190 @@ describe('MapGenerator', () => {
           `Throne at (${tp.col},${tp.row}) unreachable on iteration ${i}`
         ).toBe(true);
       }
+    });
+  });
+
+  describe('cavalry advance guarantees', () => {
+    function makeCavalryStressDeps() {
+      const stressTemplate = {
+        id: 'cavalry_stress_test',
+        name: 'Cavalry Stress Test',
+        fogChance: 0,
+        acts: ['act1'],
+        zones: [
+          {
+            rect: [0, 0, 1, 1],
+            terrain: { Mountain: 100 },
+            priority: 0,
+          },
+          {
+            rect: [0, 0, 0.3, 1],
+            terrain: { Mountain: 100 },
+            priority: 1,
+            role: 'playerSpawn',
+          },
+          {
+            rect: [0.7, 0, 1, 1],
+            terrain: { Plain: 100 },
+            priority: 2,
+            role: 'enemySpawn',
+          },
+        ],
+        features: [],
+        anchors: [],
+      };
+
+      return {
+        ...data,
+        mapSizes: [
+          {
+            phase: 'Act 1 (Test)',
+            mapSize: '10x8',
+            tiles: 80,
+            deployLimit: '3-4',
+          },
+        ],
+        mapTemplates: {
+          ...data.mapTemplates,
+          rout: [stressTemplate],
+        },
+      };
+    }
+
+    it('guarantees cavalry can reach an unoccupied enemy-adjacent tile on chokepoint', () => {
+      const config = withSeed(18, () =>
+        generateBattle({
+          act: 'act2',
+          objective: 'rout',
+          templateId: 'chokepoint',
+          deployCount: 4,
+          row: 0,
+        }, data)
+      );
+
+      const candidates = collectUnoccupiedAdjacentEnemyTiles(config);
+      expect(candidates.length).toBeGreaterThan(0);
+      expect(cavalryCanReachAnyTiles(config, candidates)).toBe(true);
+    });
+
+    it('guarantees cavalry can reach a throne-adjacent tile on hilltop_fortress', () => {
+      const config = withSeed(36, () =>
+        generateBattle({
+          act: 'act4',
+          objective: 'seize',
+          templateId: 'hilltop_fortress',
+          deployCount: 6,
+          row: 1,
+        }, data)
+      );
+
+      const candidates = collectThroneAdjacentTiles(config, true);
+      expect(candidates.length).toBeGreaterThan(0);
+      expect(cavalryCanReachAnyTiles(config, candidates)).toBe(true);
+    });
+
+    it('still enforces throne pressure when all unoccupied throne-adjacent tiles are exhausted', () => {
+      const config = withSeed(488, () =>
+        generateBattle({
+          act: 'act3',
+          objective: 'seize',
+          templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID,
+          deployCount: 6,
+          row: 1,
+        }, data)
+      );
+
+      const unoccupiedCandidates = collectThroneAdjacentTiles(config, false);
+      expect(unoccupiedCandidates.length).toBe(0);
+
+      const throneCandidates = collectThroneAdjacentTiles(config, true);
+      expect(throneCandidates.length).toBeGreaterThan(0);
+      expect(cavalryCanReachAnyTiles(config, throneCandidates)).toBe(true);
+    });
+
+    it('converts at least one player spawn to cavalry-passable when all spawns start on Mountain', () => {
+      const deps = makeCavalryStressDeps();
+      const config = withSeed(7, () =>
+        generateBattle({
+          act: 'act1',
+          objective: 'rout',
+          templateId: 'cavalry_stress_test',
+          deployCount: 2,
+          row: 0,
+        }, deps)
+      );
+
+      const cavalryPassableSpawns = config.playerSpawns.filter((spawn) =>
+        isPassableForMoveType(data.terrain, config.mapLayout[spawn.row][spawn.col], 'Cavalry')
+      );
+      expect(cavalryPassableSpawns.length).toBeGreaterThan(0);
+
+      const candidates = collectUnoccupiedAdjacentEnemyTiles(config);
+      expect(candidates.length).toBeGreaterThan(0);
+      expect(cavalryCanReachAnyTiles(config, candidates)).toBe(true);
+    });
+
+    it('keeps deterministic output for cavalry tie-break + carve behavior', () => {
+      const params = {
+        act: 'act2',
+        objective: 'rout',
+        templateId: 'chokepoint',
+        deployCount: 4,
+        row: 0,
+      };
+
+      const config1 = withSeed(43, () => generateBattle(params, data));
+      const config2 = withSeed(43, () => generateBattle(params, data));
+
+      expect(config1.mapLayout).toEqual(config2.mapLayout);
+      expect(config1.playerSpawns).toEqual(config2.playerSpawns);
+      expect(config1.enemySpawns).toEqual(config2.enemySpawns);
+    });
+
+    it('keeps cavalry carve footprint bounded on the mountain stress template', () => {
+      const deps = makeCavalryStressDeps();
+      const config = withSeed(11, () =>
+        generateBattle({
+          act: 'act1',
+          objective: 'rout',
+          templateId: 'cavalry_stress_test',
+          deployCount: 2,
+          row: 0,
+        }, deps)
+      );
+
+      const nonMountainCount = countTerrainWhere(config, (terrainName) => terrainName !== 'Mountain');
+      const enemyZoneStartCol = Math.floor(config.cols * 0.7);
+      const baselineNonMountain = (config.cols - enemyZoneStartCol) * config.rows;
+      expect(nonMountainCount).toBeLessThanOrEqual(
+        baselineNonMountain + CAVALRY_CARVE_MAX_CONVERSIONS + 1
+      );
+    });
+
+    it('passes a lightweight seeded sweep for known cavalry-challenging templates', () => {
+      const scenarios = [
+        { act: 'act2', objective: 'rout', templateId: 'chokepoint', deployCount: 4, row: 0, checkThrone: false },
+        { act: 'act4', objective: 'seize', templateId: 'hilltop_fortress', deployCount: 6, row: 1, checkThrone: true },
+        { act: 'act4', objective: 'seize', templateId: 'eruption_point', deployCount: 6, row: 1, checkThrone: true },
+      ];
+
+      scenarios.forEach((scenario, scenarioIndex) => {
+        for (let seed = 1; seed <= 5; seed++) {
+          const config = withSeed(1000 + scenarioIndex * 100 + seed, () =>
+            generateBattle(scenario, data)
+          );
+
+          const engagementCandidates = collectUnoccupiedAdjacentEnemyTiles(config);
+          expect(engagementCandidates.length).toBeGreaterThan(0);
+          expect(cavalryCanReachAnyTiles(config, engagementCandidates)).toBe(true);
+
+          if (scenario.checkThrone) {
+            const throneCandidates = collectThroneAdjacentTiles(config, true);
+            expect(throneCandidates.length).toBeGreaterThan(0);
+            expect(cavalryCanReachAnyTiles(config, throneCandidates)).toBe(true);
+          }
+        }
+      });
     });
   });
 
@@ -864,25 +1053,111 @@ describe('MapGenerator', () => {
   });
 });
 
-// Local BFS helper for reachability tests
-function bfs(mapLayout, cols, rows, terrainData, start) {
+// Local BFS helpers for reachability tests
+function bfs(mapLayout, cols, rows, terrainData, start, moveType = 'Infantry') {
+  return bfsFromSources(mapLayout, cols, rows, terrainData, [start], moveType);
+}
+
+function bfsFromSources(mapLayout, cols, rows, terrainData, sources, moveType = 'Infantry') {
   const visited = new Set();
-  const queue = [start];
-  visited.add(`${start.col},${start.row}`);
+  const queue = [];
+
+  for (const source of sources || []) {
+    if (!source) continue;
+    const terrainIndex = mapLayout[source.row]?.[source.col];
+    if (!isPassableForMoveType(terrainData, terrainIndex, moveType)) continue;
+    const key = `${source.col},${source.row}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    queue.push({ col: source.col, row: source.row });
+  }
+
   while (queue.length > 0) {
     const { col, row } = queue.shift();
-    for (const [dc, dr] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+    for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const nc = col + dc, nr = row + dr;
       if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
       const key = `${nc},${nr}`;
       if (visited.has(key)) continue;
-      const t = terrainData[mapLayout[nr][nc]];
-      if (!t || t.moveCost.Infantry === '--') continue;
+      if (!isPassableForMoveType(terrainData, mapLayout[nr][nc], moveType)) continue;
       visited.add(key);
       queue.push({ col: nc, row: nr });
     }
   }
   return visited;
+}
+
+function isPassableForMoveType(terrainData, terrainIndex, moveType) {
+  const terrain = terrainData[terrainIndex];
+  if (!terrain) return false;
+  const cost = terrain.moveCost?.[moveType];
+  return cost !== '--' && !Number.isNaN(parseInt(cost, 10));
+}
+
+function buildOccupiedSpawnSet(config) {
+  const occupied = new Set();
+  config.playerSpawns.forEach((spawn) => occupied.add(`${spawn.col},${spawn.row}`));
+  config.enemySpawns.forEach((spawn) => occupied.add(`${spawn.col},${spawn.row}`));
+  if (config.npcSpawn) occupied.add(`${config.npcSpawn.col},${config.npcSpawn.row}`);
+  return occupied;
+}
+
+function collectUnoccupiedAdjacentEnemyTiles(config) {
+  const occupied = buildOccupiedSpawnSet(config);
+  const seen = new Set();
+  const tiles = [];
+  for (const enemy of config.enemySpawns) {
+    for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const col = enemy.col + dc;
+      const row = enemy.row + dr;
+      if (col < 0 || col >= config.cols || row < 0 || row >= config.rows) continue;
+      const key = `${col},${row}`;
+      if (occupied.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      tiles.push({ col, row });
+    }
+  }
+  return tiles;
+}
+
+function collectThroneAdjacentTiles(config, includeOccupied = false) {
+  if (!config.thronePos) return [];
+  const occupied = includeOccupied ? null : buildOccupiedSpawnSet(config);
+  const tiles = [];
+  const seen = new Set();
+  for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    const col = config.thronePos.col + dc;
+    const row = config.thronePos.row + dr;
+    if (col < 0 || col >= config.cols || row < 0 || row >= config.rows) continue;
+    const key = `${col},${row}`;
+    if ((occupied && occupied.has(key)) || seen.has(key)) continue;
+    seen.add(key);
+    tiles.push({ col, row });
+  }
+  return tiles;
+}
+
+function cavalryCanReachAnyTiles(config, tiles) {
+  const reachable = bfsFromSources(
+    config.mapLayout,
+    config.cols,
+    config.rows,
+    data.terrain,
+    config.playerSpawns,
+    'Cavalry'
+  );
+  return tiles.some((tile) => reachable.has(`${tile.col},${tile.row}`));
+}
+
+function countTerrainWhere(config, predicate) {
+  let count = 0;
+  for (let row = 0; row < config.rows; row++) {
+    for (let col = 0; col < config.cols; col++) {
+      const terrainName = data.terrain[config.mapLayout[row][col]]?.name;
+      if (predicate(terrainName, col, row)) count++;
+    }
+  }
+  return count;
 }
 
 describe('enemy sunder weapon assignment', () => {
