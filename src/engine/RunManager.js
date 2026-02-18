@@ -218,7 +218,7 @@ export class RunManager {
     this.nodeMap = null;
     this.currentNodeId = null;    // last completed node (null = start of act)
     this.completedBattles = 0;
-    this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
+    this.gold = STARTING_GOLD;
     this.accessories = [];  // team accessory pool (unequipped accessories)
     this.scrolls = [];      // team scroll pool (skill teaching items)
     this.convoy = { weapons: [], consumables: [] };
@@ -265,6 +265,11 @@ export class RunManager {
     return ACT_CONFIG[this.currentAct];
   }
 
+  getBaseVisionCharges() {
+    const visionBonus = Math.trunc(this.metaEffects?.visionChargesBonus || 0);
+    return Math.max(1, 1 + visionBonus);
+  }
+
   hasShownDialogue(key) {
     return typeof key === 'string' && this.shownDialogueKeys.includes(key);
   }
@@ -289,8 +294,7 @@ export class RunManager {
       this.runSeed = Number(initialSeed);
     }
     this.rngSeed = this.runSeed >>> 0;
-    const visionBonus = Math.max(0, Math.trunc(this.metaEffects?.visionChargesBonus || 0));
-    this.visionChargesRemaining = Math.min(3, 1 + visionBonus);
+    this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
@@ -1301,6 +1305,11 @@ export class RunManager {
     return Math.max(0, 1 + metaDelta + blessingDelta);
   }
 
+  getGoldGainMultiplier() {
+    const metaDelta = this.metaEffects?.goldGainMultiplier || 0;
+    return Math.max(0, 1 + metaDelta);
+  }
+
   getDeployBonus() {
     const metaDelta = this.metaEffects?.deployBonus || 0;
     const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
@@ -1821,6 +1830,12 @@ export class RunManager {
       if (acc) equipAccessory(edricUnit, structuredClone(acc));
     }
 
+    // Starting reclass seal from meta upgrade
+    if (me?.startingReclassSeal) {
+      const reclassSeal = this.gameData?.consumables?.find(c => c.name === 'Infantry Seal');
+      if (reclassSeal) this.addToConvoy(reclassSeal);
+    }
+
     // Starting skills from meta skill assignments
     const skillAssignments = me?.startingSkills || {};
     for (const unit of [edricUnit, seraUnit]) {
@@ -1930,6 +1945,16 @@ export class RunManager {
 
   addGold(amount) {
     this.gold += amount;
+  }
+
+  awardGold(amount, options = {}) {
+    const normalizedAmount = Math.trunc(Number(amount) || 0);
+    if (normalizedAmount <= 0) return 0;
+    const applyMetaMultiplier = options.applyMetaMultiplier !== false;
+    const multiplier = applyMetaMultiplier ? this.getGoldGainMultiplier() : 1;
+    const awarded = Math.max(0, Math.floor((normalizedAmount * multiplier) + 1e-6));
+    this.addGold(awarded);
+    return awarded;
   }
 
   getConvoyCapacities() {
@@ -2061,8 +2086,12 @@ export class RunManager {
    * @param {string} nodeId - the node that was just completed
    * @param {number} goldEarned - accumulated kill gold from battle
    * @param {{ completionGoldOverride?: number }} [options]
+   * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
+    const node = this.nodeMap?.nodes?.find(n => n.id === nodeId);
+    if (!node || node.completed) return false;
+
     this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
     const survivingNames = new Set(survivingUnits.map(u => u.name));
@@ -2078,8 +2107,6 @@ export class RunManager {
     this.roster = survivingUnits.map(u => serializeUnit(u));
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.completedBattles++;
-    const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
-    this.markNodeComplete(nodeId);
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -2088,7 +2115,19 @@ export class RunManager {
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
     const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
-    this.addGold(finalGold);
+    this.awardGold(finalGold);
+
+    const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
+    const isRewardAct = this.nodeMap?.actId === 'act2' || this.nodeMap?.actId === 'act3' || this.nodeMap?.actId === 'act4';
+    if (isRewardBossNode && isRewardAct) {
+      const currentVision = Number.isFinite(this.visionChargesRemaining)
+        ? Math.max(0, Math.trunc(this.visionChargesRemaining))
+        : 0;
+      this.visionChargesRemaining = currentVision + 1;
+    }
+
+    this.markNodeComplete(nodeId);
+    return true;
   }
 
   /**
@@ -2751,8 +2790,7 @@ export class RunManager {
       ? Number(saved.rngSeed) >>> 0
       : (Number.isFinite(rm.runSeed) ? (Number(rm.runSeed) >>> 0) : null);
     rm.activeBlessings = rm._normalizeActiveBlessingsForLoad(rawActiveBlessings);
-    const legacyVisionBonus = Math.max(0, Math.trunc(rm.metaEffects?.visionChargesBonus || 0));
-    const defaultVisionCharges = Math.min(3, 1 + legacyVisionBonus);
+    const defaultVisionCharges = rm.getBaseVisionCharges();
     rm.visionChargesRemaining = Number.isFinite(saved.visionChargesRemaining)
       ? Math.max(0, Math.trunc(saved.visionChargesRemaining))
       : defaultVisionCharges;

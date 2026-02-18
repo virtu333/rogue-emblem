@@ -43,6 +43,9 @@ import {
   canEquip,
   applyStatBoost,
   getClassInnateSkills,
+  canReclass,
+  getReclassTargets,
+  reclassUnit,
 } from '../engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -1217,8 +1220,10 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.rngSeed = baseSeed;
       this.visionBaseSeed = baseSeed;
       if (!Number.isFinite(this.runManager.visionChargesRemaining)) {
-        const visionBonus = Math.max(0, Math.trunc(this.runManager?.metaEffects?.visionChargesBonus || 0));
-        this.runManager.visionChargesRemaining = Math.min(3, 1 + visionBonus);
+        const getBaseVisionCharges = this.runManager.getBaseVisionCharges;
+        this.runManager.visionChargesRemaining = typeof getBaseVisionCharges === 'function'
+          ? getBaseVisionCharges.call(this.runManager)
+          : 1;
       }
       if (!Number.isFinite(this.runManager.visionCount)) this.runManager.visionCount = 0;
     } else {
@@ -4976,6 +4981,12 @@ export class BattleScene extends Phaser.Scene {
     if (canPromote(unit)
       && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
       && this.getPromotionConsumable(unit)) items.push('Promote');
+    if (canReclass(unit) && this.getReclassConsumable(unit)) {
+      const seal = this.getReclassConsumable(unit);
+      if (getReclassTargets(unit, this.gameData.classes, seal.subEffect).length > 0) {
+        items.push('Reclass');
+      }
+    }
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
@@ -5064,6 +5075,9 @@ export class BattleScene extends Phaser.Scene {
         } else if (label === 'Promote') {
           this.hideActionMenu();
           this.executePromotion(unit, this.getPromotionConsumable(unit));
+        } else if (label === 'Reclass') {
+          this.hideActionMenu();
+          this.showReclassClassPicker(unit, this.getReclassConsumable(unit));
         } else if (label === 'Item') {
           this.showItemMenu(unit);
         } else if (label === 'Talk') {
@@ -5111,6 +5125,11 @@ export class BattleScene extends Phaser.Scene {
   getPromotionConsumable(unit) {
     if (!unit?.consumables?.length) return null;
     return unit.consumables.find(item => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null;
+  }
+
+  getReclassConsumable(unit) {
+    if (!unit?.consumables?.length) return null;
+    return unit.consumables.find(item => item?.effect === 'reclass' && (item.uses ?? 0) > 0) || null;
   }
 
   undoMove(unit) {
@@ -5781,10 +5800,13 @@ export class BattleScene extends Phaser.Scene {
       // Check usability
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
       const isPromote = item.effect === 'promote';
+      const isReclass = item.effect === 'reclass';
       const canUsePromote = canPromote(unit)
         && Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
         && this.getPromotionConsumable(unit) === item;
-      const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canUsePromote);
+      const canUseReclass = canReclass(unit)
+        && getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
+      const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canUsePromote) && !(isReclass && !canUseReclass);
 
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
@@ -5838,6 +5860,9 @@ export class BattleScene extends Phaser.Scene {
     } else if (item.effect === 'promote') {
       const didPromote = await this.executePromotion(unit, item);
       if (!didPromote) return;
+      return;
+    } else if (item.effect === 'reclass') {
+      this.showReclassClassPicker(unit, item);
       return;
     }
 
@@ -5996,6 +6021,108 @@ export class BattleScene extends Phaser.Scene {
         onComplete: () => { banner.destroy(); resolve(); },
       });
     });
+  }
+
+  // --- Reclass ---
+
+  showReclassClassPicker(unit, sealItem) {
+    if (!sealItem || !canReclass(unit)) {
+      this.showBriefBanner('Cannot reclass this unit.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return;
+    }
+    const targets = getReclassTargets(unit, this.gameData.classes, sealItem.subEffect);
+    if (targets.length === 0) {
+      this.showBriefBanner('No valid reclass targets.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return;
+    }
+
+    this.battleState = 'RECLASS_PICKER';
+    this.hideActionMenu();
+
+    const menuWidth = 200;
+    const itemHeight = 24;
+    const menuHeight = targets.length * itemHeight + itemHeight + 8; // +1 for Back row
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    const menuPos = this._clampMenuPosition(cx - menuWidth / 2, cy - menuHeight / 2, menuWidth, menuHeight);
+
+    this.actionMenu = [];
+
+    const bg = this.add.rectangle(
+      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
+      menuWidth, menuHeight, 0x000000, 0.9
+    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    this.actionMenu.push(bg);
+
+    targets.forEach((cls, i) => {
+      const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
+      const ix = menuPos.x + menuWidth / 2;
+      const text = this._makeMenuTextButton(ix, iy, cls.name, {
+        fontFamily: 'monospace', fontSize: '11px', color: '#88ff88',
+      }, '#88ff88', () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        this.executeReclass(unit, sealItem, cls);
+      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+      this.actionMenu.push(text);
+    });
+
+    // Back button
+    const backY = menuPos.y + 4 + targets.length * itemHeight + itemHeight / 2;
+    const backText = this._makeMenuTextButton(menuPos.x + menuWidth / 2, backY, 'Back', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+    }, '#aaaaaa', () => {
+      this.hideActionMenu();
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+    }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+    this.actionMenu.push(backText);
+    this._pinToScreen(this.actionMenu);
+  }
+
+  async executeReclass(unit, sealItem, newClassData) {
+    this.hideActionMenu();
+    this.battleState = 'COMBAT_RESOLVING'; // block input
+
+    const oldClassData = this.gameData.classes.find(c => c.name === unit.className);
+    if (!oldClassData) {
+      await this.showBriefBanner('Reclass data missing.', '#ff8888');
+      this.battleState = 'UNIT_ACTION_MENU';
+      this.showActionMenu(unit);
+      return;
+    }
+
+    // Track old proficiency types to detect new ones
+    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+
+    reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
+
+    // Refresh sprite
+    this.removeUnitGraphic(unit);
+    this.addUnitGraphic(unit);
+
+    // Grant Iron weapons for newly gained proficiency types
+    for (const prof of unit.proficiencies) {
+      if (oldTypes.has(prof.type)) continue;
+      const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === 'Iron');
+      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+        addToInventory(unit, newWeapon);
+      }
+    }
+
+    this.updateHPBar(unit);
+
+    await this.showBriefBanner(`${unit.name} reclassed to ${newClassData.name}!`, '#88ffff');
+
+    // Consume seal
+    sealItem.uses = (sealItem.uses ?? 1) - 1;
+    if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
+
+    this.finishUnitAction(unit);
   }
 
   // --- Skill context builder ---
@@ -8377,11 +8504,19 @@ export class BattleScene extends Phaser.Scene {
       const completionGoldAward = Math.max(0, Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier));
       this._victoryPressureState = turnPressure;
       this._completionGoldAward = completionGoldAward;
-      this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned, {
+      const completionApplied = this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned, {
         completionGoldOverride: completionGoldAward,
       });
       this.time.delayedCall(1500, async () => {
         if (!this.scene?.isActive?.()) return;
+        if (!completionApplied) {
+          console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
+          await transitionToScene(this, 'NodeMap', {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
+          return;
+        }
         try {
           if (this.isBoss && this._bossName && this.runManager) {
             const bossName = this._resolveBossDialogueName(this._bossName);
@@ -8729,6 +8864,19 @@ export class BattleScene extends Phaser.Scene {
     const completionGold = Number.isFinite(this._completionGoldAward)
       ? this._completionGoldAward
       : Math.max(0, Math.floor(GOLD_BATTLE_BONUS * pressureGoldMultiplier));
+    const previewAwardedGold = (amount) => {
+      const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
+      if (normalized <= 0) return 0;
+      if (typeof this.runManager?.getGoldGainMultiplier === 'function') {
+        return Math.max(0, Math.floor((normalized * this.runManager.getGoldGainMultiplier()) + 1e-6));
+      }
+      return normalized;
+    };
+    const awardGoldNow = (amount) => {
+      if (typeof this.runManager?.awardGold === 'function') return this.runManager.awardGold(amount);
+      if (typeof this.runManager?.addGold === 'function') this.runManager.addGold(amount);
+      return Math.max(0, Math.trunc(Number(amount) || 0));
+    };
 
     // Calculate and award turn bonus gold
     let turnBonusGold = 0;
@@ -8737,9 +8885,10 @@ export class BattleScene extends Phaser.Scene {
       const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       turnRating = result.rating;
       const rawTurnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
-      turnBonusGold = Math.max(0, Math.floor(rawTurnBonusGold * pressureGoldMultiplier));
-      if (turnBonusGold > 0) {
-        this.runManager.addGold(turnBonusGold);
+      const scaledTurnBonusGold = Math.max(0, Math.floor(rawTurnBonusGold * pressureGoldMultiplier));
+      turnBonusGold = previewAwardedGold(scaledTurnBonusGold);
+      if (scaledTurnBonusGold > 0) {
+        awardGoldNow(scaledTurnBonusGold);
       }
     }
     const totalGold = this.goldEarned + completionGold + turnBonusGold;
@@ -8840,8 +8989,9 @@ export class BattleScene extends Phaser.Scene {
 
       if (choice.type === 'gold') {
         const scaledGoldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier));
+        const displayedGoldAmount = previewAwardedGold(scaledGoldAmount);
         // Gold choice
-        const goldLabel = this.add.text(cx, cardY - 2, `${scaledGoldAmount}G`, {
+        const goldLabel = this.add.text(cx, cardY - 2, `${displayedGoldAmount}G`, {
           fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
         }).setOrigin(0.5).setDepth(702);
         lootGroup.push(goldLabel);
@@ -8862,7 +9012,7 @@ export class BattleScene extends Phaser.Scene {
           this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
-          this.runManager.addGold(scaledGoldAmount);
+          awardGoldNow(scaledGoldAmount);
           // Distribute team XP to entire roster
           if (choice.xpAmount && this.runManager.roster) {
             for (const unit of this.runManager.roster) {
@@ -8980,7 +9130,8 @@ export class BattleScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(702);
     lootGroup.push(skipIcon);
 
-    const skipLabel = this.add.text(skipX, cardY + 5, `+${skipGold}G`, {
+    const displayedSkipGold = previewAwardedGold(skipGold);
+    const skipLabel = this.add.text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
     }).setOrigin(0.5).setDepth(702);
     lootGroup.push(skipLabel);
@@ -8994,7 +9145,7 @@ export class BattleScene extends Phaser.Scene {
       this._hideLootTooltip();
       const audio = this.registry.get('audio');
       if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
-      this.runManager.addGold(skipGold);
+      awardGoldNow(skipGold);
       this.cleanupLootScreen(lootGroup);
     });
 
@@ -9071,6 +9222,11 @@ export class BattleScene extends Phaser.Scene {
 
     if (item.effect === 'promote' || type === 'promotion') {
       return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffaa55' };
+    }
+
+    if (item.effect === 'reclass') {
+      const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
+      return { lines: wrapDetailLines([`Reclass to a ${label} class`], 2), color: '#88ffff' };
     }
 
     if (item.effect === 'healFull') {
@@ -9167,6 +9323,7 @@ export class BattleScene extends Phaser.Scene {
       if (item.effect === 'heal') lines.push(`Restores ${asNum(item.value)} HP`);
       else if (item.effect === 'healFull') lines.push('Restores HP to full');
       else if (item.effect === 'promote') lines.push('Promotes a Lv 10+ unit');
+      else if (item.effect === 'reclass') lines.push(`Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`);
       else if (item.effect === 'statBoost') lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
       if (item.uses !== undefined) lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
       return lines.join('\n');

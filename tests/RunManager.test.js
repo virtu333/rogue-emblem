@@ -163,11 +163,11 @@ describe('RunManager', () => {
     });
 
     it('initializes vision charges and rng seed from meta effects', () => {
-      const metaEffects = { visionChargesBonus: 2 };
+      const metaEffects = { visionChargesBonus: 5 };
       const rmWithMeta = new RunManager(gameData, metaEffects);
       rmWithMeta.startRun({ runSeed: 1337 });
       expect(rmWithMeta.rngSeed).toBe(1337);
-      expect(rmWithMeta.visionChargesRemaining).toBe(3);
+      expect(rmWithMeta.visionChargesRemaining).toBe(6);
       expect(rmWithMeta.visionCount).toBe(0);
     });
 
@@ -325,6 +325,29 @@ describe('RunManager', () => {
     });
   });
 
+  describe('gold gain methods', () => {
+    it('addGold bypasses gold gain multiplier', () => {
+      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
+      const startGold = rmMeta.gold;
+      rmMeta.addGold(100);
+      expect(rmMeta.gold - startGold).toBe(100);
+    });
+
+    it('awardGold applies gold gain multiplier by default', () => {
+      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
+      const startGold = rmMeta.gold;
+      rmMeta.awardGold(100);
+      expect(rmMeta.gold - startGold).toBe(116);
+    });
+
+    it('awardGold can bypass gold gain multiplier when requested', () => {
+      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
+      const startGold = rmMeta.gold;
+      rmMeta.awardGold(100, { applyMetaMultiplier: false });
+      expect(rmMeta.gold - startGold).toBe(100);
+    });
+  });
+
   describe('completeBattle', () => {
     it('updates roster with surviving units', () => {
       rm.startRun();
@@ -361,6 +384,17 @@ describe('RunManager', () => {
 
       const expectedGain = calculateBattleGold(100, startNode?.type);
       expect(rm.gold - startGold).toBe(expectedGain);
+    });
+
+    it('applies gold gain multiplier to earned battle rewards', () => {
+      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.12 });
+      rmMeta.startRun();
+      const startNode = rmMeta.nodeMap.nodes.find(n => n.id === rmMeta.nodeMap.startNodeId);
+      const startGold = rmMeta.gold;
+      rmMeta.completeBattle(rmMeta.getRoster(), startNode.id, 100);
+
+      const baseGain = calculateBattleGold(100, startNode?.type);
+      expect(rmMeta.gold - startGold).toBe(Math.floor(baseGain * 1.12));
     });
 
     it('applies elite, meta, and difficulty multipliers exactly once each', () => {
@@ -404,6 +438,188 @@ describe('RunManager', () => {
       const overriddenGain = overridden.gold - overriddenStartGold;
       expect(controlGain).toBeGreaterThan(0);
       expect(overriddenGain).toBe(0);
+    });
+
+    it('is a full no-op for invalid node ids', () => {
+      rm.startRun();
+      const stateBefore = {
+        currentNodeId: rm.currentNodeId,
+        roster: structuredClone(rm.roster),
+        fallenUnits: structuredClone(rm.fallenUnits),
+        convoy: structuredClone(rm.convoy),
+        accessories: structuredClone(rm.accessories),
+        completedBattles: rm.completedBattles,
+        gold: rm.gold,
+        visionChargesRemaining: rm.visionChargesRemaining,
+      };
+
+      const applied = rm.completeBattle(rm.getRoster(), 'invalid-node-id', 999);
+
+      expect(applied).toBe(false);
+      expect(rm.currentNodeId).toBe(stateBefore.currentNodeId);
+      expect(rm.roster).toEqual(stateBefore.roster);
+      expect(rm.fallenUnits).toEqual(stateBefore.fallenUnits);
+      expect(rm.convoy).toEqual(stateBefore.convoy);
+      expect(rm.accessories).toEqual(stateBefore.accessories);
+      expect(rm.completedBattles).toBe(stateBefore.completedBattles);
+      expect(rm.gold).toBe(stateBefore.gold);
+      expect(rm.visionChargesRemaining).toBe(stateBefore.visionChargesRemaining);
+    });
+
+    it('is a full no-op when completeBattle is called twice for the same node', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const firstApplied = rm.completeBattle(rm.getRoster(), startNode.id, 100);
+
+      const stateBeforeSecondCall = {
+        currentNodeId: rm.currentNodeId,
+        roster: structuredClone(rm.roster),
+        fallenUnits: structuredClone(rm.fallenUnits),
+        convoy: structuredClone(rm.convoy),
+        accessories: structuredClone(rm.accessories),
+        completedBattles: rm.completedBattles,
+        gold: rm.gold,
+        visionChargesRemaining: rm.visionChargesRemaining,
+      };
+      const alteredSurvivors = rm.getRoster();
+      alteredSurvivors[0].xp = (alteredSurvivors[0].xp || 0) + 50;
+
+      const secondApplied = rm.completeBattle(alteredSurvivors, startNode.id, 999);
+
+      expect(firstApplied).toBe(true);
+      expect(secondApplied).toBe(false);
+      expect(rm.currentNodeId).toBe(stateBeforeSecondCall.currentNodeId);
+      expect(rm.roster).toEqual(stateBeforeSecondCall.roster);
+      expect(rm.fallenUnits).toEqual(stateBeforeSecondCall.fallenUnits);
+      expect(rm.convoy).toEqual(stateBeforeSecondCall.convoy);
+      expect(rm.accessories).toEqual(stateBeforeSecondCall.accessories);
+      expect(rm.completedBattles).toBe(stateBeforeSecondCall.completedBattles);
+      expect(rm.gold).toBe(stateBeforeSecondCall.gold);
+      expect(rm.visionChargesRemaining).toBe(stateBeforeSecondCall.visionChargesRemaining);
+    });
+
+    it('grants +1 vision on first completion of an act2 boss node', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.nodeMap.actId = 'act2';
+      rm.nodeMap.bossNodeId = startNode.id;
+      startNode.type = 'boss';
+      const initialVision = rm.visionChargesRemaining;
+
+      rm.completeBattle(rm.getRoster(), startNode.id, 0);
+
+      expect(rm.visionChargesRemaining).toBe(initialVision + 1);
+    });
+
+    it('grants +1 vision on first completion of an act3 boss node', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.nodeMap.actId = 'act3';
+      rm.nodeMap.bossNodeId = startNode.id;
+      startNode.type = 'boss';
+      const initialVision = rm.visionChargesRemaining;
+
+      rm.completeBattle(rm.getRoster(), startNode.id, 0);
+
+      expect(rm.visionChargesRemaining).toBe(initialVision + 1);
+    });
+
+    it('grants +1 vision on first completion of an act4 boss node', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.nodeMap.actId = 'act4';
+      rm.nodeMap.bossNodeId = startNode.id;
+      startNode.type = 'boss';
+      const initialVision = rm.visionChargesRemaining;
+
+      rm.completeBattle(rm.getRoster(), startNode.id, 0);
+
+      expect(rm.visionChargesRemaining).toBe(initialVision + 1);
+    });
+
+    it('does not grant vision for non-boss nodes, act1, or finalBoss', () => {
+      const nonBossType = new RunManager(gameData);
+      nonBossType.startRun();
+      const nonBossTypeNode = nonBossType.nodeMap.nodes.find(n => n.id === nonBossType.nodeMap.startNodeId);
+      nonBossType.nodeMap.actId = 'act2';
+      nonBossType.nodeMap.bossNodeId = nonBossTypeNode.id;
+      nonBossTypeNode.type = 'battle';
+      const nonBossTypeInitialVision = nonBossType.visionChargesRemaining;
+      nonBossType.completeBattle(nonBossType.getRoster(), nonBossTypeNode.id, 0);
+      expect(nonBossType.visionChargesRemaining).toBe(nonBossTypeInitialVision);
+
+      const nonBossId = new RunManager(gameData);
+      nonBossId.startRun();
+      const nonBossIdNode = nonBossId.nodeMap.nodes.find(n => n.id === nonBossId.nodeMap.startNodeId);
+      nonBossId.nodeMap.actId = 'act2';
+      nonBossId.nodeMap.bossNodeId = 'different-node-id';
+      nonBossIdNode.type = 'boss';
+      const nonBossIdInitialVision = nonBossId.visionChargesRemaining;
+      nonBossId.completeBattle(nonBossId.getRoster(), nonBossIdNode.id, 0);
+      expect(nonBossId.visionChargesRemaining).toBe(nonBossIdInitialVision);
+
+      const nonTargetAct = new RunManager(gameData);
+      nonTargetAct.startRun();
+      const nonTargetActNode = nonTargetAct.nodeMap.nodes.find(n => n.id === nonTargetAct.nodeMap.startNodeId);
+      nonTargetAct.nodeMap.actId = 'act1';
+      nonTargetAct.nodeMap.bossNodeId = nonTargetActNode.id;
+      nonTargetActNode.type = 'boss';
+      const nonTargetActInitialVision = nonTargetAct.visionChargesRemaining;
+      nonTargetAct.completeBattle(nonTargetAct.getRoster(), nonTargetActNode.id, 0);
+      expect(nonTargetAct.visionChargesRemaining).toBe(nonTargetActInitialVision);
+
+      const finalBossAct = new RunManager(gameData);
+      finalBossAct.startRun();
+      const finalBossActNode = finalBossAct.nodeMap.nodes.find(n => n.id === finalBossAct.nodeMap.startNodeId);
+      finalBossAct.nodeMap.actId = 'finalBoss';
+      finalBossAct.nodeMap.bossNodeId = finalBossActNode.id;
+      finalBossActNode.type = 'boss';
+      const finalBossInitialVision = finalBossAct.visionChargesRemaining;
+      finalBossAct.completeBattle(finalBossAct.getRoster(), finalBossActNode.id, 0);
+      expect(finalBossAct.visionChargesRemaining).toBe(finalBossInitialVision);
+    });
+
+    it('does not grant vision more than once for the same boss completion', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.nodeMap.actId = 'act2';
+      rm.nodeMap.bossNodeId = startNode.id;
+      startNode.type = 'boss';
+      const initialVision = rm.visionChargesRemaining;
+
+      rm.completeBattle(rm.getRoster(), startNode.id, 0);
+      rm.completeBattle(rm.getRoster(), startNode.id, 0);
+
+      expect(rm.visionChargesRemaining).toBe(initialVision + 1);
+    });
+
+    it('uses nodeMap.actId as authoritative when act index and node map drift', () => {
+      const mapAuthoritative = new RunManager(gameData);
+      mapAuthoritative.startRun();
+      const mapAuthoritativeNode = mapAuthoritative.nodeMap.nodes.find(
+        n => n.id === mapAuthoritative.nodeMap.startNodeId
+      );
+      mapAuthoritative.actIndex = 0; // currentAct = act1
+      mapAuthoritative.nodeMap.actId = 'act2';
+      mapAuthoritative.nodeMap.bossNodeId = mapAuthoritativeNode.id;
+      mapAuthoritativeNode.type = 'boss';
+      const mapAuthoritativeInitialVision = mapAuthoritative.visionChargesRemaining;
+      mapAuthoritative.completeBattle(mapAuthoritative.getRoster(), mapAuthoritativeNode.id, 0);
+      expect(mapAuthoritative.visionChargesRemaining).toBe(mapAuthoritativeInitialVision + 1);
+
+      const currentActWouldReward = new RunManager(gameData);
+      currentActWouldReward.startRun();
+      const currentActWouldRewardNode = currentActWouldReward.nodeMap.nodes.find(
+        n => n.id === currentActWouldReward.nodeMap.startNodeId
+      );
+      const act3Index = currentActWouldReward.actSequence.indexOf('act3');
+      currentActWouldReward.actIndex = act3Index >= 0 ? act3Index : 0;
+      currentActWouldReward.nodeMap.actId = 'act1';
+      currentActWouldReward.nodeMap.bossNodeId = currentActWouldRewardNode.id;
+      currentActWouldRewardNode.type = 'boss';
+      const currentActWouldRewardInitialVision = currentActWouldReward.visionChargesRemaining;
+      currentActWouldReward.completeBattle(currentActWouldReward.getRoster(), currentActWouldRewardNode.id, 0);
+      expect(currentActWouldReward.visionChargesRemaining).toBe(currentActWouldRewardInitialVision);
     });
   });
 
@@ -786,6 +1002,24 @@ describe('RunManager', () => {
       expect(restored.rngSeed).toBe(424242);
       expect(restored.visionChargesRemaining).toBe(2);
       expect(restored.visionCount).toBe(1);
+    });
+
+    it('preserves vision charges above 3 through save/load', () => {
+      rm.startRun({ runSeed: 321 });
+      rm.visionChargesRemaining = 7;
+      const json = rm.toJSON();
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.visionChargesRemaining).toBe(7);
+    });
+
+    it('uses getBaseVisionCharges fallback when saved vision charges are missing', () => {
+      const rmWithMeta = new RunManager(gameData, { visionChargesBonus: 5 });
+      rmWithMeta.startRun();
+      const json = rmWithMeta.toJSON();
+      delete json.visionChargesRemaining;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.visionChargesRemaining).toBe(restored.getBaseVisionCharges());
+      expect(restored.visionChargesRemaining).toBe(6);
     });
 
     it('migrates old saves without difficulty fields to normal defaults', () => {
@@ -1209,6 +1443,7 @@ describe('Fallen unit tracking and revival', () => {
   it('fallenUnits tracks units lost in battle', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     // Add a third unit to the roster
     const recruit = { name: 'TestRecruit', stats: { HP: 25 }, currentHP: 25, level: 1, className: 'Myrmidon' };
@@ -1216,7 +1451,7 @@ describe('Fallen unit tracking and revival', () => {
 
     // Simulate battle: 2 units survive, 1 falls
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.fallenUnits.length).toBe(1);
     expect(rm.fallenUnits[0].name).toBe('TestRecruit');
@@ -1225,6 +1460,7 @@ describe('Fallen unit tracking and revival', () => {
   it('completeBattle transfers fallen weapons/consumables to convoy and accessory to team pool', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
     const weaponA = gameData.weapons.find(w => w.type === profType) || gameData.weapons.find(w => w.type === 'Sword');
@@ -1243,7 +1479,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(fallen);
 
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 2, consumables: 1 });
     expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
@@ -1259,6 +1495,7 @@ describe('Fallen unit tracking and revival', () => {
   it('keeps fallen weapon/consumable on fallen unit when convoy buckets are full', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
     const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
@@ -1276,7 +1513,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(fallen);
 
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual(caps);
     expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
@@ -1293,6 +1530,7 @@ describe('Fallen unit tracking and revival', () => {
   it('transfers available buckets and keeps only blocked bucket items on fallen unit', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
     const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
@@ -1309,7 +1547,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(fallen);
 
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 1 });
     expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
@@ -1325,6 +1563,7 @@ describe('Fallen unit tracking and revival', () => {
   it('does not double-transfer equipped weapon when it matches inventory by value only', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
     const weapon = gameData.weapons.find(w => w.type === profType)
@@ -1340,7 +1579,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(fallen);
 
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 0 });
     const stored = rm.fallenUnits.find(u => u.name === 'ValueMatchFallen');
@@ -1352,6 +1591,7 @@ describe('Fallen unit tracking and revival', () => {
   it('keeps equipped weapon on fallen unit when convoy is full and weapon is missing from inventory', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
+    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
     const weapon = gameData.weapons.find(w => w.type === profType)
@@ -1369,7 +1609,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.roster.push(fallen);
 
     const survivors = [rm.roster[0], rm.roster[1]];
-    rm.completeBattle(survivors, 'node1', 100);
+    rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 0 });
     const stored = rm.fallenUnits.find(u => u.name === 'LegacyMissingEquippedFallen');
