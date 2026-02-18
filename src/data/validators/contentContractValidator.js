@@ -144,7 +144,10 @@ function validateConsumables(contract, consumables, issues) {
 function validateExpectedTotals(contract, accessories, consumables, issues) {
   const expectedTotals = contract?.expectedTotals || {};
 
-  if (Number.isInteger(expectedTotals.accessories)) {
+  const hasAccessoriesTotal = Object.prototype.hasOwnProperty.call(expectedTotals, 'accessories');
+  if (hasAccessoriesTotal && !Number.isInteger(expectedTotals.accessories)) {
+    issues.push('tests/fixtures/pr1_content_contract.json: expectedTotals.accessories must be an integer');
+  } else if (Number.isInteger(expectedTotals.accessories)) {
     const actualAccessories = ensureArray(accessories).length;
     if (actualAccessories !== expectedTotals.accessories) {
       issues.push(
@@ -153,7 +156,10 @@ function validateExpectedTotals(contract, accessories, consumables, issues) {
     }
   }
 
-  if (Number.isInteger(expectedTotals.consumables)) {
+  const hasConsumablesTotal = Object.prototype.hasOwnProperty.call(expectedTotals, 'consumables');
+  if (hasConsumablesTotal && !Number.isInteger(expectedTotals.consumables)) {
+    issues.push('tests/fixtures/pr1_content_contract.json: expectedTotals.consumables must be an integer');
+  } else if (Number.isInteger(expectedTotals.consumables)) {
     const actualConsumables = ensureArray(consumables).length;
     if (actualConsumables !== expectedTotals.consumables) {
       issues.push(

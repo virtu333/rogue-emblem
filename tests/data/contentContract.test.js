@@ -164,4 +164,29 @@ describe('PR1 content contract', () => {
     expect(result.issues.some((issue) => issue.includes('data/accessories.json total count expected'))).toBe(true);
     expect(result.issues.some((issue) => issue.includes('data/consumables.json total count expected'))).toBe(true);
   });
+
+  it('fails when expectedTotals types are invalid', () => {
+    const workspace = makeTempValidatorWorkspace();
+    const contract = readJson('tests/fixtures/pr1_content_contract.json');
+    const accessories = readJson('data/accessories.json');
+    const consumables = readJson('data/consumables.json');
+    const lootTables = readJson('data/lootTables.json');
+
+    contract.expectedTotals.accessories = '29';
+    contract.expectedTotals.consumables = '13';
+
+    writeJson(workspace.contractPath, contract);
+    writeJson(workspace.accessoriesPath, accessories);
+    writeJson(workspace.consumablesPath, consumables);
+    writeJson(workspace.lootTablesPath, lootTables);
+
+    const result = validateContentContract(workspace);
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(
+      'tests/fixtures/pr1_content_contract.json: expectedTotals.accessories must be an integer',
+    );
+    expect(result.issues).toContain(
+      'tests/fixtures/pr1_content_contract.json: expectedTotals.consumables must be an integer',
+    );
+  });
 });
