@@ -10,6 +10,7 @@
     "build:reference": "node tools/buildReferenceContent.js",
     "check:reference": "node tools/buildReferenceContent.js --check",
     "check:data-parity": "node tools/checkDataParity.js",
+    "check:content": "node tools/checkContentIntegrity.js",
     "sync-data": "node tools/syncData.js",
     "sync-assets": "node tools/syncAssets.js",
     "imagen:generate": "node tools/imagen-pipeline/generate.js",

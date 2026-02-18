@@ -1,0 +1,178 @@
+{
+  "id": "pr1-accessories-delphi-swiftsoles-v1",
+  "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
+  "accessories": [
+    {
+      "name": "Delphi Shield",
+      "type": "Accessory",
+      "effects": {
+        "DEF": 1,
+        "RES": 1
+      },
+      "combatEffects": {
+        "negateFlierWeakness": true
+      },
+      "price": 2500
+    },
+    {
+      "name": "Blood Gem",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "weaponArtCostReduction": 5
+      },
+      "price": 2500
+    },
+    {
+      "name": "Recoil Guard",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "weaponArtDefBuff": true,
+        "buffDEF": 3,
+        "buffRES": 3
+      },
+      "price": 2000
+    },
+    {
+      "name": "Phoenix Brooch",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "phoenixBrooch": true,
+        "phoenixHeal": 10,
+        "phoenixThreshold": 0.25
+      },
+      "price": 2500
+    },
+    {
+      "name": "Soothing Stone",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "turnStartHealPercent": 20
+      },
+      "price": 2000
+    },
+    {
+      "name": "Vampire's Bloodshard",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "perHitHeal": 2
+      },
+      "price": 2000
+    },
+    {
+      "name": "Vanguard Crest",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "atkBonus": 4,
+        "condition": "no_ally_within_2"
+      },
+      "price": 2000
+    },
+    {
+      "name": "Diamond Medallion",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "defBonus": 3,
+        "resBonus": 3,
+        "condition": "enemies_nearby_2plus"
+      },
+      "price": 2000
+    },
+    {
+      "name": "Hunter's Cloak",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "hitBonus": 20,
+        "critBonus": 10,
+        "condition": "on_forest_or_mountain"
+      },
+      "price": 1500
+    },
+    {
+      "name": "Moontide Amulet",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "moontide": true
+      },
+      "price": 1500
+    },
+    {
+      "name": "Bounty Hunter's Mark",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "goldPerKill": 500
+      },
+      "price": 2000
+    },
+    {
+      "name": "Duelist's Glove",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "hitBonus": 10,
+        "avoidBonus": 10,
+        "critBonus": 5,
+        "condition": "isolated_duel"
+      },
+      "price": 2500
+    },
+    {
+      "name": "Gambler's Coin",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "gamblerCoin": true
+      },
+      "price": 1500
+    }
+  ],
+  "consumables": [
+    {
+      "name": "Swiftsoles",
+      "type": "Consumable",
+      "effect": "statBoost",
+      "stat": "MOV",
+      "value": 1,
+      "uses": 1,
+      "price": 3000
+    }
+  ],
+  "lootDistribution": {
+    "accessoriesByAct": {
+      "act1": [
+        "Hunter's Cloak",
+        "Soothing Stone",
+        "Gambler's Coin"
+      ],
+      "act2": [
+        "Vanguard Crest",
+        "Diamond Medallion",
+        "Moontide Amulet",
+        "Bounty Hunter's Mark",
+        "Vampire's Bloodshard"
+      ],
+      "act3": [
+        "Blood Gem",
+        "Recoil Guard",
+        "Phoenix Brooch",
+        "Duelist's Glove"
+      ]
+    },
+    "swiftsolesStatBoosterActs": [
+      "act2",
+      "act3"
+    ],
+    "swiftsolesExcludedStatBoosterActs": [
+      "act1"
+    ]
+  }
+}
