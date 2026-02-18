@@ -85,5 +85,23 @@
     "value": 5,
     "uses": 1,
     "price": 2500
+  },
+  {
+    "name": "Infantry Seal",
+    "type": "Consumable",
+    "effect": "reclass",
+    "subEffect": "infantry",
+    "value": 0,
+    "uses": 1,
+    "price": 2000
+  },
+  {
+    "name": "Mounted Seal",
+    "type": "Consumable",
+    "effect": "reclass",
+    "subEffect": "mounted",
+    "value": 0,
+    "uses": 1,
+    "price": 2500
   }
 ]

@@ -7,6 +7,7 @@ import {
   equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
   canPromote, promoteUnit, equipAccessory, unequipAccessory, resolvePromotionTargetClass,
   addToConsumables, removeFromConsumables, learnSkill,
+  canReclass, getReclassTargets, reclassUnit,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
@@ -892,6 +893,10 @@ export class RosterOverlay {
           if (canPromote(unit) && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
+        } else if (item.effect === 'reclass') {
+          if (canReclass(unit) && getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0) {
+            this._actionBtn(btnX, y, '[Use]', () => this._showReclassClassPicker(unit, item));
+          }
         }
         if (this.runManager.canAddToConvoy(item)) {
           this._actionBtn(storeX, y, '[Store]', () => {
@@ -1188,6 +1193,67 @@ export class RosterOverlay {
     if (typeof this.scene.sound?.stopByKey === 'function') this.scene.sound.stopByKey('sfx_levelup');
     if (audio) audio.playSFX('sfx_levelup');
     this._showBanner(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
+    this.refresh();
+  }
+
+  _showReclassClassPicker(unit, sealItem) {
+    const targets = getReclassTargets(unit, this.gameData.classes, sealItem.subEffect);
+    if (targets.length === 0) {
+      this._showBanner('No valid reclass targets.', '#ff8888');
+      return;
+    }
+
+    // Clear current detail pane and draw a class picker list
+    this._destroyDetails();
+    const x = DETAIL_X + 12;
+    let y = 50;
+    this._text(x, y, 'Choose a class:', '#88ffff', '10px');
+    y += 16;
+
+    for (const cls of targets) {
+      const desc = cls.description || cls.roleChange || cls.role || '';
+      this._text(x + 8, y, cls.name, '#e0e0e0', '10px');
+      this._actionBtn(x + 150, y, '[Select]', () => this._useReclass(unit, sealItem, cls));
+      y += 13;
+      if (desc) {
+        this._text(x + 12, y, desc, '#888888', '8px');
+        y += 11;
+      }
+    }
+
+    // Back button
+    y += 8;
+    this._actionBtn(x + 8, y, '[Back]', () => this.refresh());
+  }
+
+  _useReclass(unit, sealItem, newClassData) {
+    const oldClassData = this.gameData.classes.find(c => c.name === unit.className);
+    if (!oldClassData) {
+      this._showBanner('Reclass data missing.', '#ff8888');
+      return;
+    }
+
+    // Track old proficiency types to detect new ones
+    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+
+    reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
+
+    // Grant Iron weapons for newly gained proficiency types
+    for (const prof of unit.proficiencies) {
+      if (oldTypes.has(prof.type)) continue;
+      const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === 'Iron');
+      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+        addToInventory(unit, newWeapon);
+      }
+    }
+
+    // Consume seal
+    sealItem.uses = (sealItem.uses ?? 1) - 1;
+    if (sealItem.uses <= 0) removeFromConsumables(unit, sealItem);
+
+    const audio = this.scene.registry.get('audio');
+    if (audio) audio.playSFX('sfx_confirm');
+    this._showBanner(`${unit.name} reclassed to ${newClassData.name}!`, '#88ffff');
     this.refresh();
   }
 
@@ -1905,6 +1971,7 @@ export class RosterOverlay {
         : item.effect === 'healFull' ? 'Heal to full HP'
         : item.effect === 'promote' ? 'Promote to advanced class'
         : item.effect === 'statBoost' ? `+${item.value} stat boost`
+        : item.effect === 'reclass' ? `Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`
         : item.effect || '';
       addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
       if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');

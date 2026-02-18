@@ -373,6 +373,7 @@ export class MetaProgressionManager {
    *            lethalArmoryTier,
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
+   *            startingReclassSeal,
    *            startingSkills, metaUnlockedWeaponArts }
    */
   getActiveEffects(options = {}) {
@@ -401,6 +402,7 @@ export class MetaProgressionManager {
       artAdept: 0,
       startingAccessoryTier: 0,
       startingStaffTier: 0,
+      startingReclassSeal: 0,
       startingSkills: this.getSkillAssignments(),
       metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
     };
@@ -476,6 +478,7 @@ export class MetaProgressionManager {
       if (effect.artAdept !== undefined) effects.artAdept = Math.max(effects.artAdept, Number(effect.artAdept) || 0);
       if (effect.startingAccessoryTier !== undefined) effects.startingAccessoryTier = effect.startingAccessoryTier;
       if (effect.startingStaffTier !== undefined) effects.startingStaffTier = effect.startingStaffTier;
+      if (effect.startingReclassSeal !== undefined) effects.startingReclassSeal = effect.startingReclassSeal;
     }
 
     return effects;

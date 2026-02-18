@@ -797,6 +797,118 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   }
 }
 
+// --- Reclass ---
+
+// Classes excluded from reclass targets (lord-exclusive + Dancer/Bard line).
+const RECLASS_EXCLUDED_CLASSES = new Set([
+  'Lord', 'Great Lord', 'Tactician', 'Grandmaster',
+  'Ranger', 'Vanguard', 'Light Sage', 'Light Priestess',
+  'Chevalier', 'Holy Knight', 'Sky Lancer', 'Seraph Knight',
+  'Sentinel', 'Champion', 'Dancer', 'Bard',
+]);
+
+// Seal subEffect → allowed moveTypes.
+const RECLASS_SEAL_MOVE_TYPES = {
+  infantry: new Set(['Infantry', 'Armored']),
+  mounted: new Set(['Cavalry', 'Flying']),
+};
+
+/** Check if a unit can reclass at all (not lord, not Dancer/Bard). */
+export function canReclass(unit) {
+  if (!unit) return false;
+  if (unit.isLord) return false;
+  if (RECLASS_EXCLUDED_CLASSES.has(unit.className)) return false;
+  return true;
+}
+
+/**
+ * Get valid reclass target classes for a unit given a seal subEffect.
+ * Returns array of class data objects from classesData.
+ * Filters: same tier, matching moveType for seal, excludes current class, excludes lord/Dancer/Bard.
+ */
+export function getReclassTargets(unit, classesData, sealSubEffect) {
+  if (!canReclass(unit) || !classesData || !sealSubEffect) return [];
+  const allowedMoves = RECLASS_SEAL_MOVE_TYPES[sealSubEffect];
+  if (!allowedMoves) return [];
+  return classesData.filter(c =>
+    c.tier === unit.tier &&
+    allowedMoves.has(c.moveType) &&
+    c.name !== unit.className &&
+    !RECLASS_EXCLUDED_CLASSES.has(c.name)
+  );
+}
+
+/**
+ * Reclass a unit into a new class. Mutates unit in-place.
+ * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
+ * Re-rolls growths from new class. Level/XP preserved.
+ * Conservative skill handling: adds new class innates, does NOT remove old ones.
+ */
+export function reclassUnit(unit, newClassData, oldClassData, classesData, skillsData) {
+  if (!unit || !newClassData || !oldClassData) return;
+
+  const oldMaxHP = unit.stats.HP;
+
+  // --- Stat delta ---
+  // For promoted classes that don't have baseStats, we need the promotesFrom base class baseStats.
+  // But all classes in classes.json have baseStats (promoted classes have their OWN base stats
+  // which include promotion bonuses baked in for enemies). For reclass delta, we use the class's
+  // own baseStats directly.
+  const oldBase = oldClassData.baseStats || {};
+  const newBase = newClassData.baseStats || {};
+
+  for (const stat of [...XP_STAT_NAMES, 'MOV']) {
+    const delta = (newBase[stat] || 0) - (oldBase[stat] || 0);
+    unit.stats[stat] = Math.max(1, (unit.stats[stat] || 0) + delta);
+  }
+
+  // Preserve HP ratio
+  const newMaxHP = unit.stats.HP;
+  if (oldMaxHP > 0 && newMaxHP > 0) {
+    unit.currentHP = Math.max(1, Math.min(newMaxHP, Math.ceil(unit.currentHP * newMaxHP / oldMaxHP)));
+  } else {
+    unit.currentHP = Math.max(1, newMaxHP);
+  }
+
+  // --- Growths re-roll ---
+  // For promoted targets without growthRanges, look up the promotesFrom base class.
+  let growthSource = newClassData;
+  if (!newClassData.growthRanges && newClassData.promotesFrom) {
+    growthSource = classesData?.find(c => c.name === newClassData.promotesFrom) || newClassData;
+  }
+  if (growthSource.growthRanges) {
+    const newGrowths = rollGrowthRates(growthSource.growthRanges);
+    // For lords: add personalGrowths on top (but lords can't reclass, so this is a safety net)
+    if (unit.personalGrowths) {
+      for (const stat of XP_STAT_NAMES) {
+        newGrowths[stat] = (newGrowths[stat] || 0) + (unit.personalGrowths[stat] || 0);
+      }
+    }
+    unit.growths = newGrowths;
+  }
+
+  // --- Class identity ---
+  unit.className = newClassData.name;
+  normalizeUnitClassState(unit, newClassData);
+  unit.mov = unit.stats.MOV;
+
+  // --- Weapon validity ---
+  if (unit.weapon && !canEquip(unit, unit.weapon)) {
+    unit.weapon = getCombatWeapons(unit)[0] || null;
+  }
+
+  // --- Skills (conservative: add new innates, don't remove old) ---
+  const newInnateSkills = getClassInnateSkills(newClassData.name, skillsData);
+  for (const sid of newInnateSkills) {
+    learnSkill(unit, sid); // respects MAX_SKILLS cap + dedup
+  }
+
+  // --- Check learnable skills at current level ---
+  if (classesData) {
+    checkLevelUpSkills(unit, classesData);
+  }
+}
+
 // --- Weapon helpers ---
 
 /** Check if a unit can equip a weapon based on proficiency + rank. Scrolls cannot be equipped. */

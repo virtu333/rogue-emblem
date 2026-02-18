@@ -1307,6 +1307,21 @@
     ]
   },
   {
+    "id": "starting_reclass_seal",
+    "name": "Reclassification Papers",
+    "description": "Start each run with 1 Infantry Seal in convoy",
+    "category": "starting_equipment",
+    "maxLevel": 1,
+    "costs": [
+      200
+    ],
+    "effects": [
+      {
+        "startingReclassSeal": 1
+      }
+    ]
+  },
+  {
     "id": "unlock_sol",
     "name": "Sol",
     "description": "SKL% chance to heal damage dealt",

@@ -462,8 +462,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 52 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(55);
+  it('has 56 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(56);
   });
 
   it('has correct category distribution', () => {
@@ -475,7 +475,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.lord_bonuses).toBe(10);
     expect(byCategory.economy).toBe(7);
     expect(byCategory.capacity).toBe(10);
-    expect(byCategory.starting_equipment).toBe(7);
+    expect(byCategory.starting_equipment).toBe(8);
     expect(byCategory.starting_skills).toBe(9);
   });
 
