@@ -151,7 +151,6 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
 
   if (runRes.status === 'fulfilled') {
     applyRunSlots(runRes.value);
-    clearAuthExpiredStatusOnSuccess();
   } else {
     console.warn('CloudSync fetch run_saves:', runRes.reason);
     reportCloudFailure('cloud_fetch_table', runRes.reason, { table: TABLES.run });
@@ -159,7 +158,6 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
 
   if (metaRes.status === 'fulfilled') {
     applyMetaSlots(metaRes.value);
-    clearAuthExpiredStatusOnSuccess();
   } else {
     console.warn('CloudSync fetch meta_progression:', metaRes.reason);
     reportCloudFailure('cloud_fetch_table', metaRes.reason, { table: TABLES.meta });
@@ -167,13 +165,16 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
 
   if (settingsRes.status === 'fulfilled') {
     applySettings(settingsRes.value);
-    clearAuthExpiredStatusOnSuccess();
   } else {
     console.warn('CloudSync fetch user_settings:', settingsRes.reason);
     reportCloudFailure('cloud_fetch_table', settingsRes.reason, { table: TABLES.settings });
   }
 
   const rejected = [runRes, metaRes, settingsRes].filter(r => r.status === 'rejected');
+  const hasAuthExpiryFailure = rejected.some((r) => isAuthExpiryError(r.reason));
+  if (!hasAuthExpiryFailure && rejected.length === 0) {
+    clearAuthExpiredStatusOnSuccess();
+  }
   const timeoutFailures = rejected.filter((r) => r.reason?.message === 'timeout').length;
   markStartup('cloud_sync_complete', {
     rejectedCount: rejected.length,

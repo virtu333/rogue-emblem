@@ -211,6 +211,21 @@ describe('CloudSync auth-expiry status', () => {
     expect(status.mode).toBe('ok');
     expect(status.message).toBe('');
   });
+
+  it('keeps auth-expired status when a fetch cycle has mixed auth failure and success', async () => {
+    const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
+    mocked.fromMock.mockImplementation((table) => {
+      if (table === 'run_saves') return makeTableApi({ selectError: authError });
+      return makeTableApi({ data: null });
+    });
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(true);
+    expect(status.mode).toBe('auth_expired');
+    expect(status.message).toContain('local saves only');
+  });
 });
 
 describe('CloudSync merge helpers', () => {
