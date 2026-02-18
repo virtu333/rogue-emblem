@@ -7,7 +7,8 @@ import {
   isBossEnrageActive,
 } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
-import { GOLD_PAR_BONUS_MULTIPLIER } from '../src/utils/constants.js';
+import { GOLD_PAR_BONUS_MULTIPLIER, GOLD_BATTLE_REWARD_MULTIPLIER } from '../src/utils/constants.js';
+import { calculateKillGold, calculateBattleGold } from '../src/engine/LootSystem.js';
 
 const gameData = loadGameData();
 const config = gameData.turnBonus;
@@ -275,7 +276,7 @@ describe('TurnBonusCalculator', () => {
     it('returns 25% bonus for B rating in act3', () => {
       const rating = { rating: 'B', bonusMultiplier: 0.25 };
       expect(calculateBonusGold(rating, 'act3', config)).toBe(
-        Math.floor(600 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(700 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
@@ -288,14 +289,14 @@ describe('TurnBonusCalculator', () => {
     it('returns full bonus for S rating in finalBoss', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(
-        Math.floor(800 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(1200 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
     it('returns full bonus for S rating in act4', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act4', config)).toBe(
-        Math.floor(700 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(1000 * GOLD_PAR_BONUS_MULTIPLIER)
       );
     });
 
@@ -337,5 +338,46 @@ describe('TurnBonusCalculator', () => {
       const bGold = calculateBonusGold(bRating, 'act2', config);
       expect(bGold).toBe(Math.floor(100 * GOLD_PAR_BONUS_MULTIPLIER));
     });
+  });
+
+  describe('payout matrix: par bonus as share of total battle gold', () => {
+    // Deterministic validation that par bonuses represent ~50% of S-rank gold
+    // and that S-rank earns meaningfully more than C-rank.
+    const scenarios = [
+      { act: 'act1', enemies: 6, level: 2 },
+      { act: 'act2', enemies: 8, level: 6 },
+      { act: 'act3', enemies: 10, level: 10 },
+      { act: 'act4', enemies: 12, level: 14 },
+      { act: 'finalBoss', enemies: 15, level: 18 },
+    ];
+
+    for (const { act, enemies, level } of scenarios) {
+      it(`${act}: S-rank par bonus is 40-60% of total and S/C ratio >= 1.7×`, () => {
+        // Compute kill gold for N enemies at given level
+        let killGold = 0;
+        for (let i = 0; i < enemies; i++) {
+          killGold += calculateKillGold({ level, isBoss: false });
+        }
+        const baseGold = calculateBattleGold(killGold, 'battle');
+
+        // S-rank par bonus
+        const sRating = { rating: 'S', bonusMultiplier: 1.0 };
+        const sParBonus = calculateBonusGold(sRating, act, config);
+        const sTotal = baseGold + sParBonus;
+
+        // C-rank: no par bonus
+        const cTotal = baseGold;
+
+        const parShare = sParBonus / sTotal;
+        const scRatio = sTotal / cTotal;
+
+        // Par bonus should be 40-60% of S-rank total
+        expect(parShare).toBeGreaterThanOrEqual(0.40);
+        expect(parShare).toBeLessThanOrEqual(0.60);
+
+        // S-rank should earn at least 1.7× what C-rank earns
+        expect(scRatio).toBeGreaterThanOrEqual(1.7);
+      });
+    }
   });
 });

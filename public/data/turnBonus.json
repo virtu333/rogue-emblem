@@ -41,9 +41,9 @@
   "baseBonusGold": {
     "act1": 200,
     "act2": 400,
-    "act3": 600,
-    "act4": 700,
-    "finalBoss": 800
+    "act3": 700,
+    "act4": 1000,
+    "finalBoss": 1200
   },
   "latePressure": {
     "startOverPar": 5,
