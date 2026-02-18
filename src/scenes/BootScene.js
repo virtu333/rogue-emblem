@@ -105,6 +105,8 @@ export class BootScene extends Phaser.Scene {
       'wyvern_lord',
       'vanguard', 'warrior',
       'chevalier', 'holy_knight', 'sky_lancer', 'seraph_knight', 'sentinel', 'champion',
+      'duelist', 'great_knight', 'berserker', 'dark_knight', 'bow_knight',
+      'warlock', 'battle_monk', 'trickster', 'hunter',
     ];
     for (const name of characterSprites) {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
@@ -118,6 +120,8 @@ export class BootScene extends Phaser.Scene {
       'sage', 'sniper', 'swordmaster', 'thief', 'warrior', 'warrior_alt',
       'wyvern_priest', 'wyvern_rider', 'wyvern_lord', 'zombie', 'zombie_brute',
       'emperor',
+      'duelist', 'great_knight', 'berserker', 'dark_knight', 'bow_knight',
+      'warlock', 'battle_monk', 'trickster', 'hunter',
     ];
     for (const name of enemySprites) {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
@@ -146,6 +150,9 @@ export class BootScene extends Phaser.Scene {
       'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
       'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_the_lieutenant',
       'lord_rowan', 'lord_astrid', 'lord_cael',
+      'generic_duelist', 'generic_great_knight', 'generic_berserker',
+      'generic_dark_knight', 'generic_bow_knight', 'generic_warlock',
+      'generic_battle_monk', 'generic_trickster', 'generic_hunter',
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');
