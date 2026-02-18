@@ -23,12 +23,18 @@ export class SlotPickerScene extends Phaser.Scene {
     const cx = this.cameras.main.centerX;
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
+    this._onEsc = () => this.requestCancel();
 
     this.add.text(cx, 40, 'SELECT SAVE SLOT', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ffdd44', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.input.keyboard.on('keydown-ESC', () => this.requestCancel());
+    this.events.once('shutdown', () => {
+      this.input?.keyboard?.off?.('keydown-ESC', this._onEsc);
+      this._onEsc = null;
+    });
+
+    this.input.keyboard.on('keydown-ESC', this._onEsc);
     this.input.on('pointerdown', (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
     });

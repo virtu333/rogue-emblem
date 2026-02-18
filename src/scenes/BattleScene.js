@@ -209,9 +209,18 @@ export class BattleScene extends Phaser.Scene {
     this._transitionAfterBattlePromise = null;
     this._levelUpSfxKey = null;
     this.pauseTransitionRecovery = null;
+    this._sceneShutdownCleanupRegistered = false;
+    this._sceneShutdownCleanedUp = false;
+    this._gameplayKeyHandlers = null;
+    this._devToggleKey = null;
+    this._onDevToggleKeyDown = null;
+    this._mobileHandlers = null;
+    this._lootCleanupTimeout = null;
   }
 
   create() {
+    this._registerSceneShutdownCleanup();
+
     // Determine deploy limits for this act (+ meta upgrade bonus)
     const act = this.battleParams.act || 'act1';
     const baseLimits = DEPLOY_LIMITS[act] || DEPLOY_LIMITS.act1;
@@ -230,6 +239,166 @@ export class BattleScene extends Phaser.Scene {
         this.beginBattle(selectedRoster);
       });
     }
+  }
+
+  _registerSceneShutdownCleanup() {
+    if (this._sceneShutdownCleanupRegistered) return;
+    this._sceneShutdownCleanupRegistered = true;
+    this.events.once('shutdown', () => this._runSceneShutdownCleanup());
+  }
+
+  _runSceneShutdownCleanup() {
+    if (this._sceneShutdownCleanedUp) return;
+    this._sceneShutdownCleanedUp = true;
+
+    const audio = this.registry.get('audio');
+    if (audio) audio.releaseMusic(this, 0);
+
+    this._stopLevelUpSfx();
+    this._clearTutorialGuideHighlights();
+    this.cancelTouchInspectHold();
+    this._hideMenuTooltip();
+    this._restoreBattleRng();
+    this._clearPostLootTransitionFallback();
+    if (this._lootCleanupTimeout) {
+      clearTimeout(this._lootCleanupTimeout);
+      this._lootCleanupTimeout = null;
+    }
+    this._unbindGameplayKeyboardHandlers();
+
+    if (this.dialogueOverlay) {
+      this.dialogueOverlay.destroy();
+      this.dialogueOverlay = null;
+    }
+
+    if (this._mobileHandlers) {
+      const ge = this.game?.events;
+      if (ge?.off) {
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          ge.off(`mobile:${action}`, handler);
+        }
+      }
+      this._mobileHandlers = null;
+    }
+
+    this._teardownBattleCameraSystem();
+  }
+
+  _bindGameplayKeyboardHandlers() {
+    const keyboard = this.input?.keyboard;
+    if (!keyboard?.on) return;
+
+    this._unbindGameplayKeyboardHandlers();
+
+    this._gameplayKeyHandlers = {
+      viewUnit: () => {
+        if (this.isStoryInputLocked()) return;
+        if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
+          this.openUnitDetailOverlay();
+        }
+      },
+      forceEndTurn: () => {
+        if (this.isStoryInputLocked()) return;
+        this.forceEndTurn();
+      },
+      cancel: (event) => {
+        if (event?.defaultPrevented) return;
+        if (this.isStoryInputLocked()) return;
+        this.requestCancel();
+      },
+      rewindAndLootRoster: () => {
+        if (this.isStoryInputLocked()) return;
+        this.requestVisionRewind();
+        // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
+        if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
+          if (this.lootRosterVisible) {
+            this.hideLootRoster();
+          } else {
+            this._hideLootTooltip();
+            this.showLootRoster();
+          }
+        }
+        this.refreshEndTurnControl();
+      },
+      roster: () => {
+        if (this.isStoryInputLocked()) return;
+        this._onRosterClick();
+      },
+      danger: () => {
+        if (this.isStoryInputLocked()) return;
+        this._onDangerClick();
+      },
+      wait: () => {
+        if (this.isStoryInputLocked()) return;
+        if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
+          this.grid.clearHighlights();
+          this.cantoRange = null;
+          const unit = this.selectedUnit;
+          this.dimUnit(unit);
+          this.selectedUnit = null;
+          this.battleState = 'PLAYER_IDLE';
+          this.turnManager.unitActed(unit);
+        }
+      },
+      previousForecastWeapon: () => {
+        if (this.isStoryInputLocked()) return;
+        if (this.unitDetailOverlay?.visible) return;
+        this._cycleForecastWeapon(-1);
+      },
+      nextForecastWeapon: () => {
+        if (this.isStoryInputLocked()) return;
+        if (this.unitDetailOverlay?.visible) return;
+        this._cycleForecastWeapon(1);
+      },
+    };
+
+    keyboard.on('keydown-V', this._gameplayKeyHandlers.viewUnit);
+    keyboard.on('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
+    keyboard.on('keydown-ESC', this._gameplayKeyHandlers.cancel);
+    keyboard.on('keydown-R', this._gameplayKeyHandlers.rewindAndLootRoster);
+    keyboard.on('keydown-O', this._gameplayKeyHandlers.roster);
+    keyboard.on('keydown-D', this._gameplayKeyHandlers.danger);
+    keyboard.on('keydown-W', this._gameplayKeyHandlers.wait);
+    keyboard.on('keydown-LEFT', this._gameplayKeyHandlers.previousForecastWeapon);
+    keyboard.on('keydown-RIGHT', this._gameplayKeyHandlers.nextForecastWeapon);
+  }
+
+  _unbindGameplayKeyboardHandlers() {
+    const keyboard = this.input?.keyboard;
+    if (keyboard?.off && this._gameplayKeyHandlers) {
+      keyboard.off('keydown-V', this._gameplayKeyHandlers.viewUnit);
+      keyboard.off('keydown-E', this._gameplayKeyHandlers.forceEndTurn);
+      keyboard.off('keydown-ESC', this._gameplayKeyHandlers.cancel);
+      keyboard.off('keydown-R', this._gameplayKeyHandlers.rewindAndLootRoster);
+      keyboard.off('keydown-O', this._gameplayKeyHandlers.roster);
+      keyboard.off('keydown-D', this._gameplayKeyHandlers.danger);
+      keyboard.off('keydown-W', this._gameplayKeyHandlers.wait);
+      keyboard.off('keydown-LEFT', this._gameplayKeyHandlers.previousForecastWeapon);
+      keyboard.off('keydown-RIGHT', this._gameplayKeyHandlers.nextForecastWeapon);
+    }
+    this._gameplayKeyHandlers = null;
+
+    if (this._devToggleKey?.off && this._onDevToggleKeyDown) {
+      this._devToggleKey.off('down', this._onDevToggleKeyDown);
+    }
+    this._devToggleKey = null;
+    this._onDevToggleKeyDown = null;
+  }
+
+  _bindDevToggleKey() {
+    const key = this.input?.keyboard?.addKey?.(192);
+    if (!key?.on) return;
+
+    if (this._devToggleKey?.off && this._onDevToggleKeyDown) {
+      this._devToggleKey.off('down', this._onDevToggleKeyDown);
+    }
+
+    this._devToggleKey = key;
+    this._onDevToggleKeyDown = () => {
+      if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
+      this.debugOverlay.toggle();
+    };
+    this._devToggleKey.on('down', this._onDevToggleKeyDown);
   }
 
   async beginBattle(deployedRoster) {
@@ -280,29 +449,6 @@ export class BattleScene extends Phaser.Scene {
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
       this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled, bc.biome || null);
-
-      // Ensure music is stopped when scene shuts down
-      this.events.once('shutdown', () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.releaseMusic(this, 0);
-        this._stopLevelUpSfx();
-        this._clearTutorialGuideHighlights();
-        this.cancelTouchInspectHold();
-        this._hideMenuTooltip();
-        this._restoreBattleRng();
-        this._clearPostLootTransitionFallback();
-        if (this.dialogueOverlay) {
-          this.dialogueOverlay.destroy();
-          this.dialogueOverlay = null;
-        }
-        if (this.isMobileInput && this._mobileHandlers) {
-          const ge = this.game.events;
-          for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-            ge.off(`mobile:${action}`, handler);
-          }
-        }
-        this._teardownBattleCameraSystem();
-      });
 
       // Unit arrays
       this.playerUnits = [];
@@ -652,67 +798,7 @@ export class BattleScene extends Phaser.Scene {
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
       this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
-      this.input.keyboard.on('keydown-V', () => {
-        if (this.isStoryInputLocked()) return;
-        if (this.inspectionPanel.visible && this.inspectionPanel._unit) {
-          this.openUnitDetailOverlay();
-        }
-      });
-      this.input.keyboard.on('keydown-E', () => {
-        if (this.isStoryInputLocked()) return;
-        this.forceEndTurn();
-      });
-      this.input.keyboard.on('keydown-ESC', (event) => {
-        if (event?.defaultPrevented) return;
-        if (this.isStoryInputLocked()) return;
-        this.requestCancel();
-      });
-      this.input.keyboard.on('keydown-R', () => {
-        if (this.isStoryInputLocked()) return;
-        // Manual turn rewind prompt
-        this.requestVisionRewind();
-        // Loot roster toggle during BATTLE_END (click button shouldn't trigger this)
-        if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
-          if (this.lootRosterVisible) {
-            this.hideLootRoster();
-          } else {
-            this._hideLootTooltip();
-            this.showLootRoster();
-          }
-        }
-        this.refreshEndTurnControl();
-      });
-      this.input.keyboard.on('keydown-O', () => {
-        if (this.isStoryInputLocked()) return;
-        this._onRosterClick();
-      });
-      this.input.keyboard.on('keydown-D', () => {
-        if (this.isStoryInputLocked()) return;
-        this._onDangerClick();
-      });
-      this.input.keyboard.on('keydown-W', () => {
-        if (this.isStoryInputLocked()) return;
-        if (this.battleState === 'CANTO_MOVING' && this.selectedUnit) {
-          this.grid.clearHighlights();
-          this.cantoRange = null;
-          const unit = this.selectedUnit;
-          this.dimUnit(unit);
-          this.selectedUnit = null;
-          this.battleState = 'PLAYER_IDLE';
-          this.turnManager.unitActed(unit);
-        }
-      });
-
-      this.input.keyboard.on('keydown-LEFT', () => {
-        if (this.isStoryInputLocked()) return;
-        if (this.unitDetailOverlay?.visible) return;
-        this._cycleForecastWeapon(-1);
-      });
-      this.input.keyboard.on('keydown-RIGHT', () => {
-        if (this.isStoryInputLocked()) return;
-        if (this.unitDetailOverlay?.visible) return;
-        this._cycleForecastWeapon(1);
-      });
+      this._bindGameplayKeyboardHandlers();
 
       // Mobile virtual control listeners
       if (this.isMobileInput) {
@@ -850,10 +936,7 @@ export class BattleScene extends Phaser.Scene {
       // Debug overlay (dev-only)
       if (this.isDevToolsEnabled()) {
         this.debugOverlay = new DebugOverlay(this);
-        this.input.keyboard.addKey(192).on('down', () => {
-          if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
-          this.debugOverlay.toggle();
-        });
+        this._bindDevToggleKey();
       }
 
       if (this.isBoss && this._bossName && this.runManager) {
@@ -9809,10 +9892,12 @@ export class BattleScene extends Phaser.Scene {
     this._lootCleanupScheduled = true;
     const runCleanup = () => {
       this._lootCleanupScheduled = false;
+      this._lootCleanupTimeout = null;
+      if (this._sceneShutdownCleanedUp) return;
       if (!this._lootCleanedUp) this.cleanupLootScreen(lootGroup);
     };
     Promise.resolve().then(runCleanup);
-    setTimeout(runCleanup, 0);
+    this._lootCleanupTimeout = setTimeout(runCleanup, 0);
   }
 
   showLootStatus(message, color = '#ff8888') {

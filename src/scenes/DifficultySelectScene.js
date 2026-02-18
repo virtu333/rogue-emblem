@@ -18,7 +18,23 @@ export class DifficultySelectScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
 
+    this._onKeyLeft = () => this._navigate(-1);
+    this._onKeyRight = () => this._navigate(1);
+    this._onKeyEnter = () => this._confirm();
+    this._onKeyEsc = () => this._back();
+
     this.events.once('shutdown', () => {
+      const keyboard = this.input?.keyboard;
+      if (keyboard?.off) {
+        keyboard.off('keydown-LEFT', this._onKeyLeft);
+        keyboard.off('keydown-RIGHT', this._onKeyRight);
+        keyboard.off('keydown-ENTER', this._onKeyEnter);
+        keyboard.off('keydown-ESC', this._onKeyEsc);
+      }
+      this._onKeyLeft = null;
+      this._onKeyRight = null;
+      this._onKeyEnter = null;
+      this._onKeyEsc = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
     });
@@ -27,10 +43,10 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.selectedIndex = 0;
     this.modes = this._buildModes();
 
-    this.input.keyboard.on('keydown-LEFT', () => this._navigate(-1));
-    this.input.keyboard.on('keydown-RIGHT', () => this._navigate(1));
-    this.input.keyboard.on('keydown-ENTER', () => this._confirm());
-    this.input.keyboard.on('keydown-ESC', () => this._back());
+    this.input.keyboard.on('keydown-LEFT', this._onKeyLeft);
+    this.input.keyboard.on('keydown-RIGHT', this._onKeyRight);
+    this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
+    this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
 
     this._draw();
   }

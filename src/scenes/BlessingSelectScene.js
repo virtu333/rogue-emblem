@@ -28,7 +28,23 @@ export class BlessingSelectScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
 
+    this._onKeyUp = () => this._navigate(-1);
+    this._onKeyDown = () => this._navigate(1);
+    this._onKeyEnter = () => this._confirm();
+    this._onKeyEsc = () => this._back();
+
     this.events.once('shutdown', () => {
+      const keyboard = this.input?.keyboard;
+      if (keyboard?.off) {
+        keyboard.off('keydown-UP', this._onKeyUp);
+        keyboard.off('keydown-DOWN', this._onKeyDown);
+        keyboard.off('keydown-ENTER', this._onKeyEnter);
+        keyboard.off('keydown-ESC', this._onKeyEsc);
+      }
+      this._onKeyUp = null;
+      this._onKeyDown = null;
+      this._onKeyEnter = null;
+      this._onKeyEsc = null;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
     });
@@ -44,10 +60,10 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
     this.selectedIndex = 0;
 
-    this.input.keyboard.on('keydown-UP', () => this._navigate(-1));
-    this.input.keyboard.on('keydown-DOWN', () => this._navigate(1));
-    this.input.keyboard.on('keydown-ENTER', () => this._confirm());
-    this.input.keyboard.on('keydown-ESC', () => this._back());
+    this.input.keyboard.on('keydown-UP', this._onKeyUp);
+    this.input.keyboard.on('keydown-DOWN', this._onKeyDown);
+    this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
+    this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
 
     this._draw();
   }
