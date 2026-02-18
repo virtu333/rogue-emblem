@@ -59,11 +59,19 @@ function applyRunSlots(runData) {
   const runSlots = migrateCloudData(runData);
   for (let i = 1; i <= MAX_SLOTS; i++) {
     const key = getRunKey(i);
-    if (runSlots[String(i)]) {
-      localStorage.setItem(key, JSON.stringify(runSlots[String(i)]));
-    } else {
-      localStorage.removeItem(key);
+    const cloudSlot = runSlots[String(i)];
+    if (cloudSlot == null) continue;
+
+    const localState = readLocalJSONWithState(key);
+    if (localState.parseError) continue;
+
+    if (!localState.exists) {
+      localStorage.setItem(key, JSON.stringify(cloudSlot));
+      continue;
     }
+
+    const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot);
+    if (!shouldKeepLocal) localStorage.setItem(key, JSON.stringify(cloudSlot));
   }
 }
 
@@ -230,17 +238,34 @@ export function __resetCloudSyncQueuesForTests() {
 }
 
 function readLocalJSON(key) {
+  const localState = readLocalJSONWithState(key);
+  if (localState.parseError) return null;
+  return localState.value;
+}
+
+function readLocalJSONWithState(key) {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    if (raw === null) return { exists: false, value: null, parseError: false };
+    return { exists: true, value: JSON.parse(raw), parseError: false };
   } catch (_) {
-    return null;
+    return { exists: true, value: null, parseError: true };
   }
 }
 
 function getSavedAt(slotData) {
   const ts = slotData?.savedAt;
   return Number.isFinite(ts) ? ts : null;
+}
+
+// Prefer local run data whenever cloud is not strictly newer.
+// If timestamps are missing on either side, keep local (loss-averse).
+export function shouldPreferLocalRun(localSlot, cloudSlot) {
+  if (!localSlot || !cloudSlot) return false;
+  const localTs = getSavedAt(localSlot);
+  const cloudTs = getSavedAt(cloudSlot);
+  if (!Number.isFinite(localTs) || !Number.isFinite(cloudTs)) return true;
+  return localTs >= cloudTs;
 }
 
 // Prefer local meta when it has a newer timestamp than cloud.

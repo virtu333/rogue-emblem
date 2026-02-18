@@ -2789,7 +2789,10 @@ function resolveRunKey(slotNumber) {
 }
 
 export function saveRun(runManager, onSave, slotNumber) {
-  const json = runManager.toJSON();
+  const json = {
+    ...runManager.toJSON(),
+    savedAt: Date.now(),
+  };
   const key = resolveRunKey(slotNumber);
   try {
     localStorage.setItem(key, JSON.stringify(json));

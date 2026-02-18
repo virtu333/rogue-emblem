@@ -879,6 +879,20 @@ describe('RunManager', () => {
       expect(store['emblem_rogue_run_save']).toBeTruthy();
     });
 
+    it('saveRun writes a numeric savedAt timestamp', () => {
+      rm.startRun();
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1234567890);
+      try {
+        saveRun(rm);
+      } finally {
+        nowSpy.mockRestore();
+      }
+
+      const saved = JSON.parse(store['emblem_rogue_run_save']);
+      expect(saved.savedAt).toBe(1234567890);
+      expect(Number.isFinite(saved.savedAt)).toBe(true);
+    });
+
     it('hasSavedRun returns true after save', () => {
       rm.startRun();
       saveRun(rm);
@@ -901,6 +915,17 @@ describe('RunManager', () => {
 
     it('loadRun returns null when no save exists', () => {
       expect(loadRun(gameData)).toBeNull();
+    });
+
+    it('loadRun supports legacy saves without savedAt', () => {
+      rm.startRun();
+      const legacy = rm.toJSON();
+      delete legacy.savedAt;
+      store['emblem_rogue_run_save'] = JSON.stringify(legacy);
+
+      const restored = loadRun(gameData);
+      expect(restored).not.toBeNull();
+      expect(restored.roster[0].name).toBe('Edric');
     });
 
     it('clearSavedRun removes the save', () => {
