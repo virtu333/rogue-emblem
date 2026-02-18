@@ -7,7 +7,7 @@ import {
   isBossEnrageActive,
 } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
-import { GOLD_PAR_BONUS_MULTIPLIER, GOLD_BATTLE_REWARD_MULTIPLIER } from '../src/utils/constants.js';
+import { GOLD_PAR_BONUS_MULTIPLIER } from '../src/utils/constants.js';
 import { calculateKillGold, calculateBattleGold } from '../src/engine/LootSystem.js';
 
 const gameData = loadGameData();
