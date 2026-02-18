@@ -55,7 +55,7 @@
       "Cavalry": "1",
       "Flying": "1"
     },
-    "avoidBonus": "30",
+    "avoidBonus": "15",
     "defBonus": "3",
     "special": "Heals 10% HP/turn. Boss/Seize tile"
   },

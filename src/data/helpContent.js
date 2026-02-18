@@ -102,7 +102,7 @@ const STATIC_HELP_TABS = [
           { text: 'Forest      +20  +1   Slows cavalry' },
           { text: 'Mountain    +30  +2   Infantry only' },
           { text: 'Fort        +20  +2   Heals 10% HP/turn' },
-          { text: 'Throne      +30  +3   Heals 20% HP/turn' },
+          { text: 'Throne      +15  +3   Heals 20% HP/turn' },
           { text: 'River       +10   0   Slows most units' },
           { text: 'Wall         --   --  Impassable' },
           { text: '' },
