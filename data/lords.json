@@ -150,7 +150,7 @@
     },
     "moveType": "Infantry",
     "weapon": "Light (P)",
-    "personalSkill": "Renewal Aura: Adjacent allies heal 5 HP/turn",
+    "personalSkill": "Renewal Aura: Adjacent allies heal 3 HP/turn",
     "personalGrowths": {
       "HP": 5,
       "STR": 2,

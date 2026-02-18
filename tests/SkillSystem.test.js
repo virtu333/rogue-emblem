@@ -34,7 +34,7 @@ describe('SkillSystem turn-start effects', () => {
         expect.objectContaining({
           type: 'heal',
           target: ally,
-          amount: 5,
+          amount: 3,
           sourceUnit: sera,
         }),
       ])

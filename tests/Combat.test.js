@@ -1107,6 +1107,15 @@ describe('Staff data integrity', () => {
     expect(physic.rangeBonuses).toBeDefined();
     expect(physic.rangeBonuses.length).toBe(2);
   });
+
+  it('Mend/Physic/Recover have updated balance patch prices', () => {
+    const mend = data.weapons.find(w => w.name === 'Mend');
+    const physic = data.weapons.find(w => w.name === 'Physic');
+    const recover = data.weapons.find(w => w.name === 'Recover');
+    expect(mend.price).toBe(1500);
+    expect(physic.price).toBe(4000);
+    expect(recover.price).toBe(4000);
+  });
 });
 describe('Weight mechanic', () => {
   it('calculateEffectiveWeight returns 0 for no weapon', () => {

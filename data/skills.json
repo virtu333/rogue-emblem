@@ -36,11 +36,11 @@
   {
     "id": "renewal_aura",
     "name": "Renewal Aura",
-    "description": "Adjacent allies heal 5 HP at start of turn",
+    "description": "Adjacent allies heal 3 HP at start of turn",
     "trigger": "on-turn-start",
     "range": 1,
     "effects": {
-      "healAllies": 5
+      "healAllies": 3
     },
     "personal": true
   },
