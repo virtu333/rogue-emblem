@@ -566,6 +566,68 @@ describe('BattleScene weapon art helpers', () => {
     expect(attacker.currentHP).toBe(10);
   });
 
+  it('applies Phoenix heal in forecast context after art cost and restores trigger state', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 6 });
+    const attacker = makeUnit({
+      currentHP: 12,
+      stats: { HP: 24, DEF: 5, RES: 3 },
+      accessory: {
+        name: 'Phoenix Brooch',
+        combatEffects: { phoenixBrooch: true },
+      },
+    });
+    const defender = makeUnit({ name: 'Enemy' });
+    const seenHP = [];
+    scene.buildSkillCtx = vi.fn((a) => {
+      seenHP.push(a.currentHP);
+      return { atkMods: {}, defMods: {} };
+    });
+
+    scene._buildForecastSkillCtx(attacker, defender, art);
+
+    expect(seenHP[0]).toBe(16);
+    expect(attacker.currentHP).toBe(12);
+    expect(attacker._phoenixBroochUsed).toBeUndefined();
+  });
+
+  it('applies Recoil Guard buff in forecast context and restores timed buff state', () => {
+    const scene = new BattleScene();
+    scene.turnManager = { turnNumber: 3, currentPhase: 'player' };
+    const art = makeArt({ hpCost: 3 });
+    const attacker = makeUnit({
+      faction: 'player',
+      name: 'Edric',
+      currentHP: 20,
+      mov: 5,
+      stats: { HP: 24, DEF: 5, RES: 2, MOV: 5 },
+      accessory: {
+        combatEffects: {
+          recoilGuard: { stats: { DEF: 3, RES: 2 } },
+        },
+      },
+    });
+    const defender = makeUnit({ name: 'Enemy' });
+    const seenDef = [];
+    const seenRes = [];
+    scene.buildSkillCtx = vi.fn((a) => {
+      seenDef.push(a.stats.DEF);
+      seenRes.push(a.stats.RES);
+      return { atkMods: {}, defMods: {} };
+    });
+
+    scene._buildForecastSkillCtx(attacker, defender, art);
+
+    expect(seenDef[0]).toBe(8);
+    expect(seenRes[0]).toBe(4);
+    expect(attacker.stats.DEF).toBe(5);
+    expect(attacker.stats.RES).toBe(2);
+    expect(attacker.mov).toBe(5);
+    expect(attacker._battleTimedWeaponArtBuffs).toBeUndefined();
+    expect(attacker._battleTimedWeaponArtAppliedStats).toBeUndefined();
+    expect(attacker._battleTimedWeaponArtAppliedCombatMods).toBeUndefined();
+  });
+
   it('does not consume HP or usage when forecast is canceled', () => {
     const scene = new BattleScene();
     const art = makeArt();
