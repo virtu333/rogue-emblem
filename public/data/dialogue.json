@@ -229,6 +229,38 @@
           "line": "It's... receding. Going back to sleep. We did it. It's over."
         }
       ]
+    },
+    "Dark Rider": {
+      "preBattle": [
+        {
+          "speaker": "Dark Rider",
+          "portrait": "portrait_boss_dark_rider",
+          "line": "The shadows ride with me. You cannot outrun the dark."
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Dark Rider",
+          "portrait": "portrait_boss_dark_rider",
+          "line": "The darkness... will find another rider..."
+        }
+      ]
+    },
+    "Berserker King": {
+      "preBattle": [
+        {
+          "speaker": "Berserker King",
+          "portrait": "portrait_boss_berserker_king",
+          "line": "Blood and iron! I'll crush you with my bare hands if I have to!"
+        }
+      ],
+      "defeat": [
+        {
+          "speaker": "Berserker King",
+          "portrait": "portrait_boss_berserker_king",
+          "line": "Hah... finally... a fight worth dying for..."
+        }
+      ]
     }
   },
   "runComplete": {

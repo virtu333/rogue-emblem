@@ -376,7 +376,8 @@ export class RunSimulationDriver {
       promotionBonuses = lordDef.promotionBonuses || {};
     } else {
       const classDef = classes.find(c => c.name === target.className);
-      promotedClassName = classDef?.promotesTo || null;
+      const promotesTo = classDef?.promotesTo;
+      promotedClassName = Array.isArray(promotesTo) ? promotesTo[0] : (promotesTo || null);
       const promotedDef = classes.find(c => c.name === promotedClassName);
       promotionBonuses = promotedDef?.promotionBonuses || {};
     }

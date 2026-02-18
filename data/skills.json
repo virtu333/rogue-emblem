@@ -95,10 +95,11 @@
   {
     "id": "sure_shot",
     "name": "Sure Shot",
-    "description": "Ignore enemy terrain avoid bonus",
+    "description": "Ignore enemy terrain avoid bonus, +10 Crit",
     "trigger": "passive",
     "effects": {
-      "ignoreTerrainAvoid": true
+      "ignoreTerrainAvoid": true,
+      "critBonus": 10
     },
     "classInnate": "Sniper"
   },
@@ -239,7 +240,8 @@
     "condition": "initiating",
     "effects": {
       "spdBonus": 6
-    }
+    },
+    "classInnate": "Trickster"
   },
   {
     "id": "shove",
@@ -269,7 +271,8 @@
       "Paladin",
       "Falcon Knight",
       "Holy Knight",
-      "Seraph Knight"
+      "Seraph Knight",
+      "Great Knight"
     ]
   },
   {
@@ -306,7 +309,8 @@
     "range": 2,
     "effects": {
       "hitBonus": -10
-    }
+    },
+    "classInnate": "Wyvern Lord"
   },
   {
     "id": "aether",
@@ -388,5 +392,96 @@
       "preventEnemyDouble": true
     },
     "personal": true
+  },
+  {
+    "id": "duelist_stance",
+    "name": "Duelist Stance",
+    "description": "+10 Avoid, +1 DEF, +1 RES when defending",
+    "trigger": "on-combat-start",
+    "condition": "defending",
+    "effects": {
+      "avoidBonus": 10,
+      "defBonus": 1,
+      "resBonus": 1
+    },
+    "classInnate": "Duelist"
+  },
+  {
+    "id": "armored_blow",
+    "name": "Armored Blow",
+    "description": "+4 DEF when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "defBonus": 4
+    },
+    "classInnate": "Great Knight"
+  },
+  {
+    "id": "fury",
+    "name": "Fury",
+    "description": "Crit rate scales with missing HP (up to +30)",
+    "trigger": "passive",
+    "effects": {
+      "critScalesWithMissingHP": true,
+      "critScaleMax": 30
+    },
+    "classInnate": "Berserker"
+  },
+  {
+    "id": "fiendish_blow",
+    "name": "Fiendish Blow",
+    "description": "+4 ATK when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "atkBonus": 4
+    },
+    "classInnate": "Dark Knight"
+  },
+  {
+    "id": "skirmisher",
+    "name": "Skirmisher",
+    "description": "+10 Hit, +5 Avoid when initiating combat",
+    "trigger": "on-combat-start",
+    "condition": "initiating",
+    "effects": {
+      "hitBonus": 10,
+      "avoidBonus": 5
+    },
+    "classInnate": "Bow Knight"
+  },
+  {
+    "id": "drain",
+    "name": "Drain",
+    "description": "Heal 25% of damage dealt on every hit",
+    "trigger": "on-attack",
+    "activation": "always",
+    "effects": {
+      "drainPercent": 25
+    },
+    "classInnate": "Warlock"
+  },
+  {
+    "id": "fortify_aura",
+    "name": "Fortify Aura",
+    "description": "Adjacent allies gain +2 DEF, +2 RES",
+    "trigger": "passive-aura",
+    "range": 1,
+    "effects": {
+      "defBonus": 2,
+      "resBonus": 2
+    },
+    "classInnate": "Battle Monk"
+  },
+  {
+    "id": "pathfinder",
+    "name": "Pathfinder",
+    "description": "Terrain movement costs reduced by 1 (minimum 1)",
+    "trigger": "passive",
+    "effects": {
+      "terrainCostReduction": 1
+    },
+    "classInnate": "Hunter"
   }
 ]

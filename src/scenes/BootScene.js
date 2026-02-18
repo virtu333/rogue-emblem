@@ -149,6 +149,7 @@ export class BootScene extends Phaser.Scene {
       'generic_wyvern_rider', 'generic_wyvern_lord',
       'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
       'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_the_lieutenant',
+      'boss_dark_rider', 'boss_berserker_king', 'boss_the_emperor',
       'lord_rowan', 'lord_astrid', 'lord_cael',
       'generic_duelist', 'generic_great_knight', 'generic_berserker',
       'generic_dark_knight', 'generic_bow_knight', 'generic_warlock',

@@ -750,17 +750,35 @@ export function isPromotionClassBlocked(className) {
 }
 
 /**
- * Resolve a unit's promotion target class.
- * Returns class data for valid targets, or null when unavailable/blocked.
+ * Resolve all promotion target classes for a unit.
+ * Returns array of class data objects, or null when unavailable/blocked.
+ * Lords always have a single target. Recruitable base classes may have 2.
  */
-export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
+export function resolvePromotionTargets(unit, classesData, lordsData = []) {
   if (!canPromote(unit)) return null;
   const lordData = lordsData.find(l => l.name === unit.name);
-  const targetClassName = lordData
-    ? lordData.promotedClass
-    : classesData.find(c => c.name === unit.className)?.promotesTo;
-  if (!targetClassName || isPromotionClassBlocked(targetClassName)) return null;
-  return classesData.find(c => c.name === targetClassName) || null;
+  if (lordData) {
+    const cls = classesData.find(c => c.name === lordData.promotedClass);
+    return cls ? [cls] : null;
+  }
+  const baseClass = classesData.find(c => c.name === unit.className);
+  if (!baseClass?.promotesTo) return null;
+  const targets = Array.isArray(baseClass.promotesTo)
+    ? baseClass.promotesTo
+    : [baseClass.promotesTo];
+  const resolved = targets
+    .filter(name => !isPromotionClassBlocked(name))
+    .map(name => classesData.find(c => c.name === name))
+    .filter(Boolean);
+  return resolved.length > 0 ? resolved : null;
+}
+
+/**
+ * Resolve a unit's first promotion target class (backward-compat wrapper).
+ * Returns class data for the first valid target, or null when unavailable/blocked.
+ */
+export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
+  return resolvePromotionTargets(unit, classesData, lordsData)?.[0] ?? null;
 }
 
 /**
@@ -776,6 +794,15 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   }
   unit.currentHP += promotionBonuses.HP || 0;
   unit.mov = unit.stats.MOV;
+
+  // Apply growth bonuses from promoted class
+  if (promotedClassData.growthBonuses && unit.growths) {
+    for (const [stat, bonus] of Object.entries(promotedClassData.growthBonuses)) {
+      if (stat in unit.growths) {
+        unit.growths[stat] += bonus;
+      }
+    }
+  }
 
   // Update class info
   unit.className = promotedClassData.name;

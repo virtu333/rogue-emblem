@@ -34,6 +34,7 @@ import {
   getCombatWeapons,
   canPromote,
   promoteUnit,
+  resolvePromotionTargets,
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
   checkLevelUpSkills,
@@ -54,6 +55,7 @@ import {
   checkAstra,
   getTurnStartEffects,
   getWeaponRangeBonus,
+  getTerrainCostReduction,
   checkPhoenixBrooch,
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
@@ -2576,11 +2578,16 @@ export class BattleScene extends Phaser.Scene {
     return occupied;
   }
 
-  calculatePathMovementCost(path, moveType, endStepIndex = path.length - 1) {
+  /** Get terrain cost reduction for a unit from passive skills (e.g. Pathfinder). */
+  _getCostModifier(unit) {
+    return getTerrainCostReduction(unit, this.gameData?.skills);
+  }
+
+  calculatePathMovementCost(path, moveType, endStepIndex = path.length - 1, costModifier = 0) {
     if (!Array.isArray(path) || path.length < 2) return 0;
     let cost = 0;
     for (let i = 1; i <= endStepIndex && i < path.length; i++) {
-      const stepCost = this.grid.getMoveCost(path[i].col, path[i].row, moveType);
+      const stepCost = this.grid.getMoveCost(path[i].col, path[i].row, moveType, costModifier);
       if (!Number.isFinite(stepCost)) break;
       cost += stepCost;
     }
@@ -2655,7 +2662,8 @@ export class BattleScene extends Phaser.Scene {
         const path = this.grid.findPath(
           this.selectedUnit.col, this.selectedUnit.row,
           gp.col, gp.row, this.selectedUnit.moveType,
-          this.unitPositions, this.selectedUnit.faction
+          this.unitPositions, this.selectedUnit.faction,
+          this._getCostModifier(this.selectedUnit)
         );
         if (path) {
           const occupied = this.buildOccupiedSet(this.selectedUnit);
@@ -2758,7 +2766,8 @@ export class BattleScene extends Phaser.Scene {
       const positions = this.buildUnitPositionMap(unit.faction);
       const mov = unit.mov ?? unit.stats?.MOV ?? 0;
       const moveRange = this.grid.getMovementRange(
-        unit.col, unit.row, mov, unit.moveType, positions, unit.faction
+        unit.col, unit.row, mov, unit.moveType, positions, unit.faction,
+        this._getCostModifier(unit)
       );
       this.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
 
@@ -3751,7 +3760,8 @@ export class BattleScene extends Phaser.Scene {
 
     this.unitPositions = this.buildUnitPositionMap(unit.faction);
     this.movementRange = this.grid.getMovementRange(
-      unit.col, unit.row, unit.mov, unit.moveType, this.unitPositions, unit.faction
+      unit.col, unit.row, unit.mov, unit.moveType, this.unitPositions, unit.faction,
+      this._getCostModifier(unit)
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
 
@@ -3890,7 +3900,8 @@ export class BattleScene extends Phaser.Scene {
     try {
       path = this.grid.findPath(
         unit.col, unit.row, toCol, toRow, unit.moveType,
-        this.unitPositions, unit.faction
+        this.unitPositions, unit.faction,
+        this._getCostModifier(unit)
       );
     } catch (err) {
       console.error('[moveUnit] Error during path initialization', {
@@ -4021,7 +4032,7 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = { ...rollbackLoc };
       this._preFogSnapshot = null;
       this._preFogSnapshot = this.grid.snapshotFogState();
-      unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex);
+      unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex, this._getCostModifier(unit));
 
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -4589,7 +4600,8 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'CANTO_MOVING';
     const positions = this.buildUnitPositionMap(unit.faction);
     const moveRange = this.grid.getMovementRange(
-      unit.col, unit.row, remainingMov, unit.moveType, positions, unit.faction
+      unit.col, unit.row, remainingMov, unit.moveType, positions, unit.faction,
+      this._getCostModifier(unit)
     );
     this.grid.showMovementRange(moveRange, unit.col, unit.row, 0x44aaff, 0.3);
     this.cantoRange = moveRange;
@@ -4663,7 +4675,8 @@ export class BattleScene extends Phaser.Scene {
     try {
       const positions = this.buildUnitPositionMap(unit.faction);
       path = this.grid.findPath(
-        unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction
+        unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction,
+        this._getCostModifier(unit)
       );
     } catch (err) {
       const retryCount = this._recordCantoPreInitFault(unit);
@@ -6060,15 +6073,33 @@ export class BattleScene extends Phaser.Scene {
       return false;
     }
 
-    // Find promotion data
+    // Find promotion targets
     const lordData = this.gameData.lords.find(l => l.name === unit.name);
-    const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
-    if (!promotedClassData) {
+    const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
+    if (!targets?.length) {
       await this.showBriefBanner('Promotion to that class is currently unavailable.', '#ff8888');
       this.battleState = 'UNIT_ACTION_MENU';
       this.showActionMenu(unit);
       return false;
     }
+
+    let promotedClassData;
+    if (targets.length === 1) {
+      promotedClassData = targets[0];
+    } else {
+      this.battleState = 'COMBAT_RESOLVING'; // block gameplay hotkeys while chooser is open
+      // Show promotion choice panel
+      const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
+      const panel = new PromotionChoicePanel(this, unit, targets, this.gameData.skills);
+      promotedClassData = await panel.show();
+      if (!promotedClassData) {
+        // Cancelled — return to action menu
+        this.battleState = 'UNIT_ACTION_MENU';
+        this.showActionMenu(unit);
+        return false;
+      }
+    }
+
     this.battleState = 'COMBAT_RESOLVING'; // block input during promotion
 
     let promotionBonuses, promotionWeapons;
@@ -6128,7 +6159,7 @@ export class BattleScene extends Phaser.Scene {
     // Show stat gains as a level-up style popup
     const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
     delete gains.gains.MOV; // MOV isn't shown in level-up popup
-    const popup = new LevelUpPopup(this, unit, gains, true);
+    const popup = new LevelUpPopup(this, unit, gains, true, [], promotedClassData.growthBonuses || null);
     await popup.show();
 
     // Consume Master Seal on successful promotion
@@ -8747,7 +8778,8 @@ export class BattleScene extends Phaser.Scene {
       const positions = this.buildUnitPositionMap(enemy.faction);
       const moveRange = this.grid.getMovementRange(
         enemy.col, enemy.row, enemy.mov || enemy.stats.MOV,
-        enemy.moveType, positions, enemy.faction
+        enemy.moveType, positions, enemy.faction,
+        this._getCostModifier(enemy)
       );
       for (const [key] of moveRange) {
         const [mc, mr] = key.split(',').map(Number);

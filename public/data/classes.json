@@ -27,7 +27,7 @@
       "RES": "15-25",
       "LCK": "35-50"
     },
-    "promotesTo": "Swordmaster",
+    "promotesTo": ["Swordmaster", "Duelist"],
     "learnableSkills": [
       {
         "skillId": "vantage",
@@ -63,7 +63,7 @@
       "RES": "15-25",
       "LCK": "20-30"
     },
-    "promotesTo": "General",
+    "promotesTo": ["General", "Great Knight"],
     "learnableSkills": [
       {
         "skillId": "guard",
@@ -99,7 +99,7 @@
       "RES": "5-15",
       "LCK": "15-25"
     },
-    "promotesTo": "Warrior",
+    "promotesTo": ["Warrior", "Berserker"],
     "learnableSkills": [
       {
         "skillId": "wrath",
@@ -135,7 +135,7 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": "Paladin",
+    "promotesTo": ["Paladin", "Dark Knight"],
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -171,7 +171,7 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": "Sniper",
+    "promotesTo": ["Sniper", "Bow Knight"],
     "learnableSkills": [
       {
         "skillId": "adept",
@@ -207,7 +207,7 @@
       "RES": "40-55",
       "LCK": "20-30"
     },
-    "promotesTo": "Sage",
+    "promotesTo": ["Sage", "Warlock"],
     "learnableSkills": [
       {
         "skillId": "luna",
@@ -243,7 +243,7 @@
       "RES": "50-65",
       "LCK": "40-55"
     },
-    "promotesTo": "Bishop",
+    "promotesTo": ["Bishop", "Battle Monk"],
     "learnableSkills": [
       {
         "skillId": "miracle",
@@ -279,7 +279,7 @@
       "RES": "15-25",
       "LCK": "50-65"
     },
-    "promotesTo": "Assassin",
+    "promotesTo": ["Assassin", "Trickster"],
     "learnableSkills": [
       {
         "skillId": "luna",
@@ -345,7 +345,7 @@
       "RES": "40-55",
       "LCK": "35-50"
     },
-    "promotesTo": "Falcon Knight",
+    "promotesTo": ["Falcon Knight", "Wyvern Lord"],
     "learnableSkills": [
       {
         "skillId": "sol",
@@ -381,7 +381,7 @@
       "RES": "10-20",
       "LCK": "20-30"
     },
-    "promotesTo": "Wyvern Lord",
+    "promotesTo": ["Wyvern Lord", "Falcon Knight"],
     "learnableSkills": [
       {
         "skillId": "guard",
@@ -417,7 +417,7 @@
       "RES": "15-25",
       "LCK": "30-40"
     },
-    "promotesTo": "Hero",
+    "promotesTo": ["Hero", "Hunter"],
     "learnableSkills": [
       {
         "skillId": "astra",
@@ -440,6 +440,9 @@
       "LCK": 0,
       "MOV": 1
     },
+    "growthBonuses": {
+      "SPD": 5
+    },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M)",
     "roleChange": "+15 Crit innate",
@@ -460,6 +463,10 @@
       "LCK": 0,
       "MOV": 1
     },
+    "growthBonuses": {
+      "DEF": 10,
+      "HP": 5
+    },
     "moveType": "Armored",
     "weaponProficiencies": "Lances (M), Axes (P)",
     "roleChange": "Gains Axes, even tankier",
@@ -479,6 +486,9 @@
       "RES": 1,
       "LCK": 0,
       "MOV": 1
+    },
+    "growthBonuses": {
+      "STR": 5
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Axes (M), Bows (P)",
@@ -526,6 +536,9 @@
       "LCK": 0,
       "MOV": 1
     },
+    "growthBonuses": {
+      "SKL": 10
+    },
     "moveType": "Infantry",
     "weaponProficiencies": "Bows (M)",
     "roleChange": "Sure Shot: ignores terrain avoid",
@@ -545,6 +558,9 @@
       "RES": 2,
       "LCK": 0,
       "MOV": 1
+    },
+    "growthBonuses": {
+      "MAG": 5
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Tomes (M), Staves (P)",
@@ -566,6 +582,9 @@
       "LCK": 0,
       "MOV": 1
     },
+    "growthBonuses": {
+      "RES": 5
+    },
     "moveType": "Infantry",
     "weaponProficiencies": "Staves (M), Light (P)",
     "roleChange": "Gains Light magic offense",
@@ -585,6 +604,9 @@
       "RES": 1,
       "LCK": 0,
       "MOV": 1
+    },
+    "growthBonuses": {
+      "SPD": 5
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Bows (P)",
@@ -648,14 +670,8 @@
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
-    "roleChange": "Gains Axes, heavy flying bruiser",
-    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air.",
-    "learnableSkills": [
-      {
-        "skillId": "draconic_aura",
-        "level": 10
-      }
-    ]
+    "roleChange": "Gains Axes, heavy flying bruiser, Draconic Aura innate",
+    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air."
   },
   {
     "name": "Hero",
@@ -671,6 +687,9 @@
       "RES": 1,
       "LCK": 0,
       "MOV": 1
+    },
+    "growthBonuses": {
+      "STR": 5
     },
     "moveType": "Infantry",
     "weaponProficiencies": "Swords (M), Axes (P)",
@@ -1032,5 +1051,218 @@
     "weaponProficiencies": "Axes (M), Lances (P)",
     "roleChange": "Gains Lances, +MOV, massive bulk",
     "description": "A peerless champion — gains lances, unstoppable in close quarters with immense staying power."
+  },
+  {
+    "name": "Duelist",
+    "tier": "promoted",
+    "promotesFrom": "Myrmidon",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 1,
+      "MAG": 0,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "SPD": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M), Lances (P)",
+    "roleChange": "Gains Lances, Duelist Stance innate",
+    "description": "A fencing prodigy — gains lances and excels at counter-attacks with Duelist Stance."
+  },
+  {
+    "name": "Great Knight",
+    "tier": "promoted",
+    "promotesFrom": "Knight",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 3,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 2,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 2
+    },
+    "growthBonuses": {
+      "DEF": 5,
+      "STR": 5
+    },
+    "moveType": "Cavalry",
+    "weaponProficiencies": "Lances (M), Axes (P), Swords (P)",
+    "roleChange": "Gains Axes/Swords, Cavalry, Canto, Armored Blow innate",
+    "description": "A mounted fortress — trades pure defense for mobility and Canto after acting."
+  },
+  {
+    "name": "Berserker",
+    "tier": "promoted",
+    "promotesFrom": "Fighter",
+    "promotionBonuses": {
+      "HP": 5,
+      "STR": 4,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 2,
+      "DEF": 1,
+      "RES": 0,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "STR": 10,
+      "HP": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Axes (M)",
+    "roleChange": "Fury innate, highest raw damage",
+    "description": "An unhinged berserker — crit rate scales with missing HP, devastating glass cannon."
+  },
+  {
+    "name": "Dark Knight",
+    "tier": "promoted",
+    "promotesFrom": "Cavalier",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 1,
+      "MAG": 3,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "MAG": 10
+    },
+    "moveType": "Cavalry",
+    "weaponProficiencies": "Lances (M), Tomes (P)",
+    "roleChange": "Gains Tomes, Fiendish Blow innate, mixed offense",
+    "description": "A dark cavalier — gains tome magic for mixed offense, Fiendish Blow on initiation."
+  },
+  {
+    "name": "Bow Knight",
+    "tier": "promoted",
+    "promotesFrom": "Archer",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 0,
+      "SKL": 1,
+      "SPD": 2,
+      "DEF": 1,
+      "RES": 1,
+      "LCK": 0,
+      "MOV": 2
+    },
+    "growthBonuses": {
+      "SPD": 5,
+      "SKL": 5
+    },
+    "moveType": "Cavalry",
+    "weaponProficiencies": "Bows (M), Swords (P)",
+    "roleChange": "Gains Swords, Cavalry, Skirmisher innate",
+    "description": "A mounted archer — gains swords, cavalry mobility, and Skirmisher on initiation."
+  },
+  {
+    "name": "Warlock",
+    "tier": "promoted",
+    "promotesFrom": "Mage",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 0,
+      "MAG": 4,
+      "SKL": 1,
+      "SPD": 0,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "MAG": 10,
+      "HP": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Tomes (M)",
+    "roleChange": "Drain innate, sustained mage",
+    "description": "A dark sorcerer — heals 25% of damage dealt on every hit, outlasts in prolonged fights."
+  },
+  {
+    "name": "Battle Monk",
+    "tier": "promoted",
+    "promotesFrom": "Cleric",
+    "promotionBonuses": {
+      "HP": 4,
+      "STR": 2,
+      "MAG": 2,
+      "SKL": 1,
+      "SPD": 1,
+      "DEF": 2,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "DEF": 5,
+      "RES": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Staves (M), Axes (P)",
+    "roleChange": "Gains Axes, Fortify Aura innate, frontline healer",
+    "description": "A warrior healer — gains axes for offense and bolsters adjacent allies with Fortify Aura."
+  },
+  {
+    "name": "Trickster",
+    "tier": "promoted",
+    "promotesFrom": "Thief",
+    "promotionBonuses": {
+      "HP": 2,
+      "STR": 1,
+      "MAG": 2,
+      "SKL": 2,
+      "SPD": 3,
+      "DEF": 1,
+      "RES": 2,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "SPD": 10
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M), Staves (P)",
+    "roleChange": "Gains Staves, Darting Blow innate, fast utility",
+    "description": "A cunning rogue — gains staves for support and Darting Blow for blinding speed on offense."
+  },
+  {
+    "name": "Hunter",
+    "tier": "promoted",
+    "promotesFrom": "Mercenary",
+    "promotionBonuses": {
+      "HP": 3,
+      "STR": 2,
+      "MAG": 0,
+      "SKL": 2,
+      "SPD": 2,
+      "DEF": 1,
+      "RES": 1,
+      "LCK": 0,
+      "MOV": 1
+    },
+    "growthBonuses": {
+      "SKL": 5,
+      "SPD": 5
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M), Bows (P)",
+    "roleChange": "Gains Bows, Pathfinder innate, terrain master",
+    "description": "A wilderness tracker — gains bows, moves through terrain cheaply with Pathfinder."
   }
 ]

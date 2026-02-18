@@ -5,7 +5,8 @@ import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX 
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
   equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
-  canPromote, promoteUnit, equipAccessory, unequipAccessory, resolvePromotionTargetClass,
+  canPromote, promoteUnit, equipAccessory, unequipAccessory,
+  resolvePromotionTargets, resolvePromotionTargetClass,
   addToConsumables, removeFromConsumables, learnSkill,
   canReclass, getReclassTargets, reclassUnit,
 } from '../engine/UnitManager.js';
@@ -1140,16 +1141,26 @@ export class RosterOverlay {
     this.refresh();
   }
 
-  _usePromote(unit, item) {
-    // Find promotion data
+  async _usePromote(unit, item) {
+    // Find promotion targets
     const lordData = this.gameData.lords.find(l => l.name === unit.name);
-    const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
-    if (!promotedClassData) {
+    const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
+    if (!targets?.length) {
       this._showBanner('Promotion to that class is currently unavailable.', '#ff8888');
       return;
     }
-    let promotionBonuses;
 
+    let promotedClassData;
+    if (targets.length === 1) {
+      promotedClassData = targets[0];
+    } else {
+      const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
+      const panel = new PromotionChoicePanel(this.scene, unit, targets, this.gameData.skills);
+      promotedClassData = await panel.show();
+      if (!promotedClassData) return; // cancelled
+    }
+
+    let promotionBonuses;
     if (lordData) {
       promotionBonuses = lordData.promotionBonuses;
     } else {

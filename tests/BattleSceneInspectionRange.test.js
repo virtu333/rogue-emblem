@@ -40,6 +40,7 @@ function createInspectionScene(battleState, units = []) {
     buildUnitPositionMap: vi.fn(() => new Map()),
     refreshEndTurnControl: vi.fn(),
     _showInspectionAtPixel: BattleScene.prototype._showInspectionAtPixel,
+    _getCostModifier: () => 0,
   };
 }
 

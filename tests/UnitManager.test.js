@@ -338,15 +338,17 @@ describe('checkLevelUpSkills class thresholds', () => {
   });
 
   it('promoted class learns own class skill at promoted level 10', () => {
+    // Wyvern Lord's draconic_aura is now classInnate (gained on promotion, not learnableSkills).
+    // Use General which still has learnableSkills (guard at level 8).
     const unit = {
-      className: 'Wyvern Lord',
+      className: 'General',
       tier: 'promoted',
       level: 10,
       skills: [],
     };
     const learned = checkLevelUpSkills(unit, data.classes);
-    expect(learned).toContain('draconic_aura');
-    expect(unit.skills).toContain('draconic_aura');
+    expect(learned).toContain('guard');
+    expect(unit.skills).toContain('guard');
   });
 });
 

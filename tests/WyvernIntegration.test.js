@@ -27,7 +27,7 @@ describe('Wyvern integration (no reclass)', () => {
     expect(rider).toBeTruthy();
     expect(lord).toBeTruthy();
     expect(rider.tier).toBe('base');
-    expect(rider.promotesTo).toBe('Wyvern Lord');
+    expect(rider.promotesTo).toEqual(['Wyvern Lord', 'Falcon Knight']);
     expect(rider.moveType).toBe('Flying');
     expect(rider.weaponProficiencies).toContain('Lances');
 

@@ -538,7 +538,8 @@ export class CompendiumOverlay {
 
     const bs = item.baseStats || {};
     const statLine = `HP:${bs.HP ?? '-'} STR:${bs.STR ?? '-'} MAG:${bs.MAG ?? '-'} SKL:${bs.SKL ?? '-'} SPD:${bs.SPD ?? '-'} DEF:${bs.DEF ?? '-'} RES:${bs.RES ?? '-'} MOV:${bs.MOV ?? '-'}`;
-    const link = item.promotesTo ? `\u2192 ${item.promotesTo}` : (item.promotesFrom ? `\u2190 ${item.promotesFrom}` : '');
+    const promotesToDisplay = Array.isArray(item.promotesTo) ? item.promotesTo.join(' / ') : item.promotesTo;
+    const link = promotesToDisplay ? `\u2192 ${promotesToDisplay}` : (item.promotesFrom ? `\u2190 ${item.promotesFrom}` : '');
     this._text(left + 25, y + 14, statLine, '#aaaaaa');
     if (link) this._text(rightX, y + 14, link, '#888888', 1);
   }

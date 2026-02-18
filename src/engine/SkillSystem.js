@@ -207,6 +207,11 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
         passiveCondMet = !allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
       }
       if (passiveCondMet) {
+        if (skill.effects.critScalesWithMissingHP) {
+          const maxCrit = skill.effects.critScaleMax || 30;
+          const missingRatio = 1 - (unit.currentHP / unit.stats.HP);
+          mods.critBonus += Math.min(maxCrit, Math.floor(missingRatio * maxCrit));
+        }
         if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
         if (skill.effects.atkBonus) mods.atkBonus += skill.effects.atkBonus;
         if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
@@ -226,6 +231,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
         condMet = allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
       }
       if (skill.condition === 'initiating') condMet = isInitiating;
+      if (skill.condition === 'defending') condMet = !isInitiating;
       if (skill.condition === 'above50_defending') {
         condMet = !isInitiating && unit.currentHP > Math.floor(unit.stats.HP / 2);
       }
@@ -406,6 +412,13 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         const defBonus = Math.max(0, normalDef - lowerDef);
         result.modifiedDamage = normalDamage + defBonus;
         result.activated.push({ id: 'seraph_strike', name: 'Seraph Strike' });
+        break;
+      }
+
+      case 'drain': {
+        const percent = skill.effects?.drainPercent || 25;
+        result.heal = Math.max(1, Math.floor(normalDamage * percent / 100));
+        result.activated.push({ id: 'drain', name: 'Drain' });
         break;
       }
     }
@@ -696,5 +709,15 @@ export function getWeaponRangeBonus(unit, weapon, skillsData) {
     }
   }
   return bonus;
+}
+
+/** Get terrain cost reduction from unit's passive skills (e.g. Pathfinder). */
+export function getTerrainCostReduction(unit, skillsData) {
+  if (!skillsData || !unit?.skills) return 0;
+  for (const skillId of unit.skills) {
+    const skill = getSkill(skillId, skillsData);
+    if (skill?.effects?.terrainCostReduction) return skill.effects.terrainCostReduction;
+  }
+  return 0;
 }
 

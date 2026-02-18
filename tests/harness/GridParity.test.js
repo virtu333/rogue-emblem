@@ -117,6 +117,68 @@ describe('GridParity', () => {
     }
   });
 
+  it('getMoveCost with costModifier reduces terrain cost (minimum 1)', () => {
+    const { headless, production, bc } = createGridPair();
+    // Find a Forest tile (cost 2 for Infantry)
+    let forestPos = null;
+    for (let r = 0; r < bc.rows && !forestPos; r++) {
+      for (let c = 0; c < bc.cols && !forestPos; c++) {
+        if (headless.getTerrainAt(c, r)?.name === 'Forest') forestPos = { col: c, row: r };
+      }
+    }
+    if (forestPos) {
+      const hCost0 = headless.getMoveCost(forestPos.col, forestPos.row, 'Infantry', 0);
+      const pCost0 = production.getMoveCost(forestPos.col, forestPos.row, 'Infantry', 0);
+      expect(hCost0).toBe(pCost0);
+      expect(hCost0).toBe(2);
+
+      const hCost1 = headless.getMoveCost(forestPos.col, forestPos.row, 'Infantry', 1);
+      const pCost1 = production.getMoveCost(forestPos.col, forestPos.row, 'Infantry', 1);
+      expect(hCost1).toBe(pCost1);
+      expect(hCost1).toBe(1); // 2 - 1 = 1
+    }
+  });
+
+  it('getMoveCost with costModifier never goes below 1', () => {
+    const { headless, production, bc } = createGridPair();
+    // Plains cost 1 — costModifier=1 should still be 1 (not 0)
+    const plainPos = bc.playerSpawns[0];
+    if (plainPos) {
+      const hCost = headless.getMoveCost(plainPos.col, plainPos.row, 'Infantry', 1);
+      const pCost = production.getMoveCost(plainPos.col, plainPos.row, 'Infantry', 1);
+      expect(hCost).toBe(pCost);
+      expect(hCost).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('getMovementRange with costModifier matches between grids', () => {
+    const { headless, production, bc } = createGridPair();
+    const pos = bc.playerSpawns[0];
+    if (pos) {
+      const hRange = headless.getMovementRange(pos.col, pos.row, 5, 'Infantry', new Map(), null, 1);
+      const pRange = production.getMovementRange(pos.col, pos.row, 5, 'Infantry', new Map(), null, 1);
+      const hKeys = new Set(hRange.keys());
+      const pKeys = new Set(pRange.keys());
+      expect(hKeys).toEqual(pKeys);
+    }
+  });
+
+  it('findPath with costModifier matches between grids', () => {
+    const { headless, production, bc } = createGridPair();
+    if (bc.playerSpawns.length >= 1 && bc.enemySpawns.length >= 1) {
+      const start = bc.playerSpawns[0];
+      const goal = bc.enemySpawns[0];
+      const hPath = headless.findPath(start.col, start.row, goal.col, goal.row, 'Infantry', new Map(), null, 1);
+      const pPath = production.findPath(start.col, start.row, goal.col, goal.row, 'Infantry', new Map(), null, 1);
+      if (hPath === null) {
+        expect(pPath).toBeNull();
+      } else {
+        expect(pPath).not.toBeNull();
+        expect(hPath.length).toBe(pPath.length);
+      }
+    }
+  });
+
   it('getAttackRange matches for sample weapon', () => {
     const { headless, production, bc } = createGridPair();
     const weapon = { range: '1-2' };

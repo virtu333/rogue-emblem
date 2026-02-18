@@ -8,6 +8,7 @@ import {
   isInRange,
 } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
+import { getTerrainCostReduction } from './SkillSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
@@ -126,9 +127,10 @@ export class AIController {
       unitPositions.set(`${u.col},${u.row}`, { faction: u.faction });
     }
 
+    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const moveRange = this.grid.getMovementRange(
       enemy.col, enemy.row, enemy.mov, enemy.moveType,
-      unitPositions, enemy.faction
+      unitPositions, enemy.faction, costMod
     );
 
     // Add current position to candidates
@@ -344,9 +346,10 @@ export class AIController {
 
     let bestPath = null;
     for (const tile of approachTiles) {
+      const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
       const path = this.grid.findPath(
         enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
-        unitPositions, enemy.faction
+        unitPositions, enemy.faction, costMod
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -370,7 +373,8 @@ export class AIController {
     const tiles = this.grid.getAttackRange(target.col, target.row, enemy.weapon) || [];
     const passable = [];
     for (const tile of tiles) {
-      if (this.grid.getMoveCost(tile.col, tile.row, enemy.moveType) === Infinity) continue;
+      const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+      if (this.grid.getMoveCost(tile.col, tile.row, enemy.moveType, costMod) === Infinity) continue;
       passable.push(tile);
     }
     return passable;
@@ -416,7 +420,8 @@ export class AIController {
         const row = target.row + dr;
         if (this.grid.cols !== undefined && (col < 0 || col >= this.grid.cols)) continue;
         if (this.grid.rows !== undefined && (row < 0 || row >= this.grid.rows)) continue;
-        if (this.grid.getMoveCost(col, row, enemy.moveType) === Infinity) continue;
+        const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+        if (this.grid.getMoveCost(col, row, enemy.moveType, costMod) === Infinity) continue;
         tiles.push({ col, row });
       }
     }
@@ -424,11 +429,12 @@ export class AIController {
   }
 
   _findShortestPathToTiles(enemy, tiles, unitPositions) {
+    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     let bestPath = null;
     for (const tile of tiles) {
       const path = this.grid.findPath(
         enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
-        unitPositions, enemy.faction
+        unitPositions, enemy.faction, costMod
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -485,9 +491,10 @@ export class AIController {
 
   _buildPath(enemy, destTile, unitPositions) {
     if (destTile.col === enemy.col && destTile.row === enemy.row) return null;
+    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const path = this.grid.findPath(
       enemy.col, enemy.row, destTile.col, destTile.row, enemy.moveType,
-      unitPositions, enemy.faction
+      unitPositions, enemy.faction, costMod
     );
     return path;
   }

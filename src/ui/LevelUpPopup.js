@@ -11,13 +11,15 @@ export class LevelUpPopup {
    * @param {object} levelUpResult - { gains: {HP:1,...}, newLevel: 3 }
    * @param {boolean} isPromotion - if true, shows "PROMOTION" title instead of level-up
    * @param {string[]} learnedSkills - names of skills learned this level-up
+   * @param {object} [growthBonuses] - optional {stat: bonus%} from promoted class
    */
-  constructor(scene, unit, levelUpResult, isPromotion = false, learnedSkills = []) {
+  constructor(scene, unit, levelUpResult, isPromotion = false, learnedSkills = [], growthBonuses = null) {
     this.scene = scene;
     this.unit = unit;
     this.levelUpResult = levelUpResult;
     this.isPromotion = isPromotion;
     this.learnedSkills = learnedSkills;
+    this.growthBonuses = growthBonuses;
     this.objects = [];
   }
 
@@ -49,11 +51,20 @@ export class LevelUpPopup {
         }
       }
 
+      // Growth bonus lines (promotion only)
+      const growthLines = [];
+      if (this.growthBonuses) {
+        for (const [stat, val] of Object.entries(this.growthBonuses)) {
+          growthLines.push(`  +${val}% ${stat} Growth`);
+        }
+      }
+
       // Panel dimensions
       const lineHeight = 18;
       const panelWidth = 200;
       const skillLineCount = this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0;
-      const panelHeight = (statLines.length + 4 + skillLineCount) * lineHeight + 16;
+      const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
+      const panelHeight = (statLines.length + 4 + skillLineCount + growthLineCount) * lineHeight + 16;
 
       // Dim background
       const dimBg = this.scene.add.rectangle(
@@ -90,6 +101,18 @@ export class LevelUpPopup {
         }).setOrigin(0, 0).setDepth(902);
         this.objects.push(text);
         y += lineHeight;
+      }
+
+      // Growth bonuses (promotion only)
+      if (growthLines.length > 0) {
+        y += 4;
+        for (const gl of growthLines) {
+          const growthText = this.scene.add.text(cx - panelWidth / 2 + 12, y, gl, {
+            fontFamily: 'monospace', fontSize: '12px', color: '#88ffff',
+          }).setOrigin(0, 0).setDepth(902);
+          this.objects.push(growthText);
+          y += lineHeight;
+        }
       }
 
       // Learned skills

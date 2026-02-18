@@ -27,16 +27,17 @@ export class HeadlessGrid {
     return this.terrainData[this.mapLayout[row][col]];
   }
 
-  getMoveCost(col, row, moveType) {
+  getMoveCost(col, row, moveType, costModifier = 0) {
     const terrain = this.getTerrainAt(col, row);
     if (!terrain) return Infinity;
     const cost = terrain.moveCost[moveType];
     if (cost === '--') return Infinity;
-    return parseInt(cost, 10);
+    const baseCost = parseInt(cost, 10);
+    return costModifier ? Math.max(1, baseCost - costModifier) : baseCost;
   }
 
   // Dijkstra flood-fill: all tiles reachable within `mov` movement points.
-  getMovementRange(startCol, startRow, mov, moveType, unitPositions = null, moverFaction = null) {
+  getMovementRange(startCol, startRow, mov, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
     const reachable = new Map();
     const queue = [{ col: startCol, row: startRow, cost: 0 }];
     reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
@@ -50,7 +51,7 @@ export class HeadlessGrid {
         const nr = current.row + dr;
         if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
 
-        const moveCost = this.getMoveCost(nc, nr, moveType);
+        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
         if (moveCost === Infinity) continue;
 
         const key = `${nc},${nr}`;
@@ -85,7 +86,7 @@ export class HeadlessGrid {
   }
 
   // A* pathfinding — returns array of {col, row} or null.
-  findPath(startCol, startRow, goalCol, goalRow, moveType, unitPositions = null, moverFaction = null) {
+  findPath(startCol, startRow, goalCol, goalRow, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
     const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
 
     const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
@@ -114,7 +115,7 @@ export class HeadlessGrid {
         const nr = current.row + dr;
         if (nc < 0 || nc >= this.cols || nr < 0 || nr >= this.rows) continue;
 
-        const moveCost = this.getMoveCost(nc, nr, moveType);
+        const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
         if (moveCost === Infinity) continue;
 
         const nKey = `${nc},${nr}`;
