@@ -45,7 +45,11 @@ afterEach(() => {
 describe('PR1 content contract', () => {
   it('matches canonical accessories, swiftsoles, and loot distribution', () => {
     const result = validateContentContract();
+    const accessories = readJson('data/accessories.json');
+    const consumables = readJson('data/consumables.json');
     expect(result.ok, result.issues.join('\n')).toBe(true);
+    expect(result.summary.accessories).toBe(accessories.length);
+    expect(result.summary.consumables).toBe(consumables.length);
   });
 
   it('fails on duplicate accessory names in source data', () => {
@@ -133,5 +137,31 @@ describe('PR1 content contract', () => {
     expect(result.ok).toBe(false);
     expect(result.issues.some((issue) => issue.includes('act1.accessories references unknown accessory "Unknown Accessory"'))).toBe(true);
     expect(result.issues.some((issue) => issue.includes('act1.healing references unknown consumable "Unknown Consumable"'))).toBe(true);
+  });
+
+  it('fails when source totals drift from expected totals', () => {
+    const workspace = makeTempValidatorWorkspace();
+    const contract = readJson('tests/fixtures/pr1_content_contract.json');
+    const accessories = readJson('data/accessories.json');
+    const consumables = readJson('data/consumables.json');
+    const lootTables = readJson('data/lootTables.json');
+
+    const extraAccessory = structuredClone(accessories[0]);
+    extraAccessory.name = `${extraAccessory.name} (count drift)`;
+    accessories.push(extraAccessory);
+
+    const extraConsumable = structuredClone(consumables[0]);
+    extraConsumable.name = `${extraConsumable.name} (count drift)`;
+    consumables.push(extraConsumable);
+
+    writeJson(workspace.contractPath, contract);
+    writeJson(workspace.accessoriesPath, accessories);
+    writeJson(workspace.consumablesPath, consumables);
+    writeJson(workspace.lootTablesPath, lootTables);
+
+    const result = validateContentContract(workspace);
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((issue) => issue.includes('data/accessories.json total count expected'))).toBe(true);
+    expect(result.issues.some((issue) => issue.includes('data/consumables.json total count expected'))).toBe(true);
   });
 });

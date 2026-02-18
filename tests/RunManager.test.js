@@ -2324,6 +2324,16 @@ describe('blessing run-start effect application', () => {
       expect(params.reinforcementTurnOffset).toBe(gameData.difficulty.modes.hard.reinforcementTurnOffset);
     });
 
+    it('getBattleParams forwards recruit guardian chance modifier', () => {
+      const gameData = loadGameData();
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      rm.difficultyModifiers.recruitGuardianChance = 0.35;
+      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const params = rm.getBattleParams(node);
+      expect(params.recruitGuardianChance).toBe(0.35);
+    });
+
     it('getBattleParams forwards usedRecruitNames tracker', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);

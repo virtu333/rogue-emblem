@@ -1913,6 +1913,10 @@ export class RunManager {
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
+    battleParams.recruitGuardianChance = this.getDifficultyModifier(
+      'recruitGuardianChance',
+      Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
+    );
     battleParams.difficultyId = this.difficultyId || 'normal';
     this._repairDuplicateRosterNames();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};

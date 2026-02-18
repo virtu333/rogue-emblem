@@ -1,6 +1,10 @@
 {
   "id": "pr1-accessories-delphi-swiftsoles-v1",
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
+  "expectedTotals": {
+    "accessories": 29,
+    "consumables": 13
+  },
   "accessories": [
     {
       "name": "Delphi Shield",

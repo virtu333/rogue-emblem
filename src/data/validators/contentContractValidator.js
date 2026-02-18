@@ -141,6 +141,28 @@ function validateConsumables(contract, consumables, issues) {
   }
 }
 
+function validateExpectedTotals(contract, accessories, consumables, issues) {
+  const expectedTotals = contract?.expectedTotals || {};
+
+  if (Number.isInteger(expectedTotals.accessories)) {
+    const actualAccessories = ensureArray(accessories).length;
+    if (actualAccessories !== expectedTotals.accessories) {
+      issues.push(
+        `data/accessories.json total count expected ${expectedTotals.accessories}, found ${actualAccessories}`,
+      );
+    }
+  }
+
+  if (Number.isInteger(expectedTotals.consumables)) {
+    const actualConsumables = ensureArray(consumables).length;
+    if (actualConsumables !== expectedTotals.consumables) {
+      issues.push(
+        `data/consumables.json total count expected ${expectedTotals.consumables}, found ${actualConsumables}`,
+      );
+    }
+  }
+}
+
 function validateLootDistribution(contract, lootTables, issues) {
   const distribution = contract.lootDistribution || {};
   const accessoriesByAct = distribution.accessoriesByAct || {};
@@ -300,12 +322,13 @@ export function validateContentContract(options = {}) {
     const consumables = readJson(consumablesPath);
     const lootTables = readJson(lootTablesPath);
 
-    summary.accessories = ensureArray(contract.accessories).length;
-    summary.consumables = ensureArray(contract.consumables).length;
+    summary.accessories = ensureArray(accessories).length;
+    summary.consumables = ensureArray(consumables).length;
     summary.acts = Object.keys(contract.lootDistribution?.accessoriesByAct || {}).length;
 
     validateAccessories(contract, accessories, issues);
     validateConsumables(contract, consumables, issues);
+    validateExpectedTotals(contract, accessories, consumables, issues);
     validateLootDistribution(contract, lootTables, issues);
     validateLootReferenceIntegrity(accessories, consumables, lootTables, issues);
     validateAccessoryTextCoverage(accessories, issues);
