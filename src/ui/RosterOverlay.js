@@ -54,6 +54,10 @@ const PANEL_TOP = 44;
 const PANEL_BOTTOM = 462;
 const PANEL_HEIGHT = PANEL_BOTTOM - PANEL_TOP;
 const PANEL_CENTER_Y = (PANEL_TOP + PANEL_BOTTOM) / 2;
+const LIST_START_Y = 50;
+const LIST_ENTRY_HEIGHT = 42;
+const LIST_EDGE_PADDING = 6;
+const LIST_SCROLL_STEP = 24;
 
 export class RosterOverlay {
   /**
@@ -75,9 +79,15 @@ export class RosterOverlay {
     // New state
     this.selection = { kind: 'unit', index: 0 };
     this._activeTab = 'stats'; // 'stats' | 'gear'
+    this._rosterScrollOffset = 0;
+    this._rosterScrollMax = 0;
+    this._lastDrawnRosterCount = 0;
+    this._lastDrawnRosterSignature = '';
     this._convoyScrollOffset = 0;
     this._convoyScrollMax = 0;
     this._targetUnitIndex = 0; // for convoy withdraw default
+    this._rosterDragStart = null;
+    this._convoyDragStart = null;
 
     this._skillTooltip = null;
     this._weaponTooltip = null;
@@ -128,6 +138,8 @@ export class RosterOverlay {
     if (!this.visible) return;
     this._clearTooltipTimers();
     this._unregisterListeners();
+    this._rosterDragStart = null;
+    this._convoyDragStart = null;
     this._destroyDetails();
     this._destroyTrade();
     for (const obj of this.objects) obj.destroy();
@@ -164,15 +176,19 @@ export class RosterOverlay {
     if (kb) kb.on('keydown', this._keyHandler);
 
     this._wheelHandler = (pointer, gameObjects, deltaX, deltaY) => {
-      if (!this.visible || this.selection.kind !== 'convoy') return;
-      if (pointer.x < DETAIL_X) return; // Only scroll in detail panel
+      if (!this.visible) return;
+      if (this._tryScrollRosterList(pointer, deltaY)) return;
+      if (this.selection.kind !== 'convoy') return;
+      if (!pointer || pointer.x < DETAIL_X) return; // Only scroll in detail panel
 
       const step = Math.sign(deltaY) * 20;
-      this._convoyScrollOffset = this._clamp(
+      const nextOffset = this._clamp(
         this._convoyScrollOffset + step,
         0,
         this._convoyScrollMax
       );
+      if (nextOffset === this._convoyScrollOffset) return;
+      this._convoyScrollOffset = nextOffset;
       this.drawUnitDetails();
     };
     if (input?.on) {
@@ -180,24 +196,47 @@ export class RosterOverlay {
     }
 
     // Touch/Drag handlers
-    this._dragStart = null;
     this._pointerDownHandler = (pointer) => {
-      if (!this.visible || this.selection.kind !== 'convoy') return;
-      if (pointer.x < DETAIL_X) return;
-      this._dragStart = { y: pointer.y, offset: this._convoyScrollOffset };
+      if (!this.visible) return;
+
+      if (this._canDragRosterList(pointer)) {
+        this._rosterDragStart = { id: pointer?.id, y: pointer.y, offset: this._rosterScrollOffset };
+        return;
+      }
+
+      if (this.selection.kind !== 'convoy') return;
+      if (!pointer || pointer.x < DETAIL_X) return;
+      this._convoyDragStart = { id: pointer?.id, y: pointer.y, offset: this._convoyScrollOffset };
     };
     this._pointerMoveHandler = (pointer) => {
-      if (!this._dragStart || !pointer.isDown) return;
-      const dy = this._dragStart.y - pointer.y;
-      this._convoyScrollOffset = this._clamp(
-        this._dragStart.offset + dy,
+      if (this._rosterDragStart && pointer?.isDown && this._isDragPointerMatch(this._rosterDragStart, pointer)) {
+        const dy = this._rosterDragStart.y - pointer.y;
+        const nextOffset = this._clamp(
+          this._rosterDragStart.offset + dy,
+          0,
+          this._rosterScrollMax
+        );
+        if (nextOffset !== this._rosterScrollOffset) {
+          this._rosterScrollOffset = nextOffset;
+          this.drawUnitList();
+        }
+        return;
+      }
+
+      if (!this._convoyDragStart || !pointer?.isDown || !this._isDragPointerMatch(this._convoyDragStart, pointer)) return;
+      const dy = this._convoyDragStart.y - pointer.y;
+      const nextOffset = this._clamp(
+        this._convoyDragStart.offset + dy,
         0,
         this._convoyScrollMax
       );
+      if (nextOffset === this._convoyScrollOffset) return;
+      this._convoyScrollOffset = nextOffset;
       this.drawUnitDetails();
     };
     this._pointerUpHandler = () => {
-      this._dragStart = null;
+      this._rosterDragStart = null;
+      this._convoyDragStart = null;
     };
 
     if (input?.on) {
@@ -240,10 +279,13 @@ export class RosterOverlay {
       const rosterCount = this.runManager.roster.length;
       if (rosterCount <= 0) {
         this.selection = { kind: 'convoy' };
+        this._rosterScrollOffset = 0;
+        this._rosterScrollMax = 0;
       } else {
         const clamped = this._clamp(index, 0, rosterCount - 1);
         this.selection = { kind: 'unit', index: clamped };
         this._targetUnitIndex = clamped;
+        this._ensureSelectedUnitVisible(clamped);
       }
     } else {
       this.selection = { kind: 'convoy' };
@@ -255,7 +297,133 @@ export class RosterOverlay {
 
   // --- Left panel: unit list ---
 
+  _getLeftListLayout() {
+    const convoyTop = PANEL_BOTTOM - LIST_EDGE_PADDING - LIST_ENTRY_HEIGHT;
+    const unitViewportTop = LIST_START_Y;
+    const unitViewportBottom = convoyTop;
+    return {
+      listLeft: LIST_X,
+      listRight: LIST_X + LIST_WIDTH,
+      startY: LIST_START_Y,
+      entryH: LIST_ENTRY_HEIGHT,
+      convoyTop,
+      convoyCenterY: convoyTop + (LIST_ENTRY_HEIGHT / 2),
+      unitViewportTop,
+      unitViewportBottom,
+      unitViewportHeight: Math.max(0, unitViewportBottom - unitViewportTop),
+    };
+  }
+
+  _isPointerInBounds(pointer, left, right, top, bottom) {
+    if (!pointer) return false;
+    return pointer.x >= left && pointer.x <= right && pointer.y >= top && pointer.y <= bottom;
+  }
+
+  _updateRosterScrollBounds(layout = this._getLeftListLayout()) {
+    const rosterCount = Array.isArray(this.runManager?.roster) ? this.runManager.roster.length : 0;
+    const totalUnitHeight = rosterCount * layout.entryH;
+    this._rosterScrollMax = Math.max(0, totalUnitHeight - layout.unitViewportHeight);
+    this._rosterScrollOffset = this._clamp(this._rosterScrollOffset, 0, this._rosterScrollMax);
+  }
+
+  _ensureSelectedUnitVisible(index) {
+    const rosterCount = Array.isArray(this.runManager?.roster) ? this.runManager.roster.length : 0;
+    if (!Number.isInteger(index) || index < 0 || index >= rosterCount) return;
+    const layout = this._getLeftListLayout();
+    this._updateRosterScrollBounds(layout);
+    const rowTop = index * layout.entryH;
+    const rowBottom = rowTop + layout.entryH;
+    const viewTop = this._rosterScrollOffset;
+    const viewBottom = viewTop + layout.unitViewportHeight;
+    let nextOffset = this._rosterScrollOffset;
+    if (rowTop < viewTop) {
+      nextOffset = rowTop;
+    } else if (rowBottom > viewBottom) {
+      nextOffset = rowBottom - layout.unitViewportHeight;
+    }
+    this._rosterScrollOffset = this._clamp(nextOffset, 0, this._rosterScrollMax);
+  }
+
+  _syncLeftListSelectionState({ ensureVisible = false } = {}) {
+    const roster = Array.isArray(this.runManager?.roster) ? this.runManager.roster : [];
+    const rosterCount = roster.length;
+
+    if (rosterCount <= 0) {
+      this.selection = { kind: 'convoy' };
+      this._targetUnitIndex = 0;
+      this._rosterScrollOffset = 0;
+      this._rosterScrollMax = 0;
+      return;
+    }
+
+    if (this.selection.kind === 'unit') {
+      const clampedIndex = this._clamp(this.selection.index, 0, rosterCount - 1);
+      if (clampedIndex !== this.selection.index) {
+        this.selection = { kind: 'unit', index: clampedIndex };
+      }
+      this._targetUnitIndex = clampedIndex;
+    }
+
+    this._updateRosterScrollBounds();
+    if (ensureVisible && this.selection.kind === 'unit') {
+      this._ensureSelectedUnitVisible(this.selection.index);
+    }
+  }
+
+  _tryScrollRosterList(pointer, deltaY) {
+    const layout = this._getLeftListLayout();
+    this._updateRosterScrollBounds(layout);
+    if (this._rosterScrollMax <= 0) return false;
+    const inListBounds = this._isPointerInBounds(
+      pointer,
+      layout.listLeft,
+      layout.listRight,
+      PANEL_TOP,
+      PANEL_BOTTOM
+    );
+    if (!inListBounds) return false;
+    const step = Math.sign(deltaY || 0) * LIST_SCROLL_STEP;
+    if (!step) return false;
+    const nextOffset = this._clamp(this._rosterScrollOffset + step, 0, this._rosterScrollMax);
+    if (nextOffset === this._rosterScrollOffset) return true;
+    this._rosterScrollOffset = nextOffset;
+    this.drawUnitList();
+    return true;
+  }
+
+  _canDragRosterList(pointer) {
+    const layout = this._getLeftListLayout();
+    this._updateRosterScrollBounds(layout);
+    if (this._rosterScrollMax <= 0) return false;
+    return this._isPointerInBounds(
+      pointer,
+      layout.listLeft,
+      layout.listRight,
+      layout.unitViewportTop,
+      layout.unitViewportBottom
+    );
+  }
+
+  _isDragPointerMatch(dragState, pointer) {
+    if (!dragState || !pointer) return false;
+    if (!Number.isInteger(dragState.id) || !Number.isInteger(pointer.id)) return true;
+    return dragState.id === pointer.id;
+  }
+
+  _getRosterListSignature(roster = this.runManager?.roster) {
+    const list = Array.isArray(roster) ? roster : [];
+    return list.map((unit, index) => {
+      const name = unit?.name ?? '';
+      const level = unit?.level ?? '';
+      const hp = unit?.currentHP ?? '';
+      const maxHp = unit?.stats?.HP ?? '';
+      return `${index}:${name}|${level}|${hp}|${maxHp}`;
+    }).join(';');
+  }
+
   drawUnitList() {
+    this._syncLeftListSelectionState();
+
     // Remove old list objects (tagged)
     this.objects = this.objects.filter(o => {
       if (o._rosterList) { o.destroy(); return false; }
@@ -263,8 +431,12 @@ export class RosterOverlay {
     });
 
     const roster = this.runManager.roster;
-    const startY = 50;
-    const entryH = 42;
+    this._lastDrawnRosterCount = Array.isArray(roster) ? roster.length : 0;
+    this._lastDrawnRosterSignature = this._getRosterListSignature(roster);
+    const layout = this._getLeftListLayout();
+    const startY = layout.startY;
+    const entryH = layout.entryH;
+    this._updateRosterScrollBounds(layout);
 
     // List background
     const listBg = this.scene.add.rectangle(
@@ -276,23 +448,36 @@ export class RosterOverlay {
     // 1. Draw units
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
-      const y = startY + i * entryH;
+      const y = startY + i * entryH - this._rosterScrollOffset;
+      const rowBottom = y + entryH;
+      const visibleTop = Math.max(y, layout.unitViewportTop);
+      const visibleBottom = Math.min(rowBottom, layout.unitViewportBottom);
+      const visibleHeight = visibleBottom - visibleTop;
+      if (visibleHeight <= 0) continue;
       const isSelected = this.selection.kind === 'unit' && this.selection.index === i;
 
       // Hit area
       const hitZone = this.scene.add.rectangle(
-        LIST_X + LIST_WIDTH / 2, y + entryH / 2, LIST_WIDTH - 4, entryH - 2,
+        LIST_X + LIST_WIDTH / 2,
+        visibleTop + visibleHeight / 2,
+        LIST_WIDTH - 4,
+        Math.max(2, visibleHeight - 2),
         isSelected ? 0x333355 : 0x000000, isSelected ? 1 : 0
       ).setDepth(DEPTH_PANEL + 1).setInteractive({ useHandCursor: true });
       hitZone._rosterList = true;
 
       // Name
       const nameColor = isSelected ? '#ffdd44' : '#e0e0e0';
-      const nameText = this.scene.add.text(LIST_X + 8, y + 4,
-        `${unit.name}  Lv${unit.level}`, {
-        fontFamily: 'monospace', fontSize: '11px', color: nameColor,
-      }).setDepth(DEPTH_TEXT);
-      nameText._rosterList = true;
+      let nameText = null;
+      const nameY = y + 4;
+      const NAME_LINE_HEIGHT = 12;
+      if (nameY >= layout.unitViewportTop && (nameY + NAME_LINE_HEIGHT) <= layout.unitViewportBottom) {
+        nameText = this.scene.add.text(LIST_X + 8, nameY,
+          `${unit.name}  Lv${unit.level}`, {
+          fontFamily: 'monospace', fontSize: '11px', color: nameColor,
+        }).setDepth(DEPTH_TEXT);
+        nameText._rosterList = true;
+      }
 
       // HP bar
       const barW = LIST_WIDTH - 50;
@@ -300,35 +485,67 @@ export class RosterOverlay {
       const barX = LIST_X + 10;
       const barY = y + 22;
       const ratio = unit.currentHP / unit.stats.HP;
+      const clippedBarTop = Math.max(barY, layout.unitViewportTop);
+      const clippedBarBottom = Math.min(barY + barH, layout.unitViewportBottom);
+      const clippedBarHeight = clippedBarBottom - clippedBarTop;
+      let barBg = null;
+      let barFill = null;
+      if (clippedBarHeight > 0) {
+        const clippedBarCenterY = clippedBarTop + (clippedBarHeight / 2);
+        barBg = this.scene.add.rectangle(barX + barW / 2, clippedBarCenterY, barW, clippedBarHeight, 0x333333)
+          .setDepth(DEPTH_TEXT);
+        barBg._rosterList = true;
+        barFill = this.scene.add.rectangle(
+          barX + (barW * ratio) / 2, clippedBarCenterY,
+          barW * ratio, clippedBarHeight, getHPBarColor(ratio)
+        ).setDepth(DEPTH_TEXT);
+        barFill._rosterList = true;
+      }
 
-      const barBg = this.scene.add.rectangle(barX + barW / 2, barY + barH / 2, barW, barH, 0x333333)
-        .setDepth(DEPTH_TEXT);
-      barBg._rosterList = true;
-      const barFill = this.scene.add.rectangle(
-        barX + (barW * ratio) / 2, barY + barH / 2,
-        barW * ratio, barH, getHPBarColor(ratio)
-      ).setDepth(DEPTH_TEXT);
-      barFill._rosterList = true;
-
-      const hpText = this.scene.add.text(LIST_X + LIST_WIDTH - 6, barY - 3,
-        `${unit.currentHP}/${unit.stats.HP}`, {
-        fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
-      }).setOrigin(1, 0).setDepth(DEPTH_TEXT);
-      hpText._rosterList = true;
+      let hpText = null;
+      const hpY = barY - 3;
+      const HP_LINE_HEIGHT = 8;
+      if (hpY >= layout.unitViewportTop && (hpY + HP_LINE_HEIGHT) <= layout.unitViewportBottom) {
+        hpText = this.scene.add.text(LIST_X + LIST_WIDTH - 6, hpY,
+          `${unit.currentHP}/${unit.stats.HP}`, {
+          fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
+        }).setOrigin(1, 0).setDepth(DEPTH_TEXT);
+        hpText._rosterList = true;
+      }
 
       hitZone.on('pointerdown', () => this.select('unit', i));
       hitZone.on('pointerover', () => {
-        if (!isSelected) nameText.setColor('#ffdd44');
+        if (!isSelected && nameText) nameText.setColor('#ffdd44');
       });
       hitZone.on('pointerout', () => {
-        if (!isSelected) nameText.setColor('#e0e0e0');
+        if (!isSelected && nameText) nameText.setColor('#e0e0e0');
       });
 
-      this.objects.push(hitZone, nameText, barBg, barFill, hpText);
+      this.objects.push(hitZone);
+      if (nameText) this.objects.push(nameText);
+      if (barBg) this.objects.push(barBg);
+      if (barFill) this.objects.push(barFill);
+      if (hpText) this.objects.push(hpText);
     }
 
-    // 2. Draw Convoy entry
-    const convoyY = startY + roster.length * entryH;
+    // 2. Draw viewport overflow indicators
+    if (this._rosterScrollOffset > 0) {
+      const upIndicator = this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportTop + 1, '\u25b2', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+      }).setDepth(DEPTH_TEXT);
+      upIndicator._rosterList = true;
+      this.objects.push(upIndicator);
+    }
+    if (this._rosterScrollOffset < this._rosterScrollMax) {
+      const downIndicator = this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportBottom - 12, '\u25bc', {
+        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+      }).setDepth(DEPTH_TEXT);
+      downIndicator._rosterList = true;
+      this.objects.push(downIndicator);
+    }
+
+    // 3. Draw Convoy entry (always fixed at bottom)
+    const convoyY = layout.convoyTop;
     const isConvoySelected = this.selection.kind === 'convoy';
     const convoyHitZone = this.scene.add.rectangle(
       LIST_X + LIST_WIDTH / 2, convoyY + entryH / 2, LIST_WIDTH - 4, entryH - 2,
@@ -351,6 +568,12 @@ export class RosterOverlay {
     });
 
     this.objects.push(convoyHitZone, convoyText);
+
+    const divider = this.scene.add.rectangle(
+      LIST_X + LIST_WIDTH / 2, layout.convoyTop, LIST_WIDTH - 4, 1, 0x444444
+    ).setDepth(DEPTH_TEXT);
+    divider._rosterList = true;
+    this.objects.push(divider);
   }
 
   // --- Right panel: unit details ---
@@ -364,6 +587,25 @@ export class RosterOverlay {
   }
 
   drawUnitDetails() {
+    const prevKind = this.selection.kind;
+    const prevIndex = this.selection.index;
+    const prevRosterOffset = this._rosterScrollOffset;
+    const prevRosterMax = this._rosterScrollMax;
+    const prevDrawnRosterCount = this._lastDrawnRosterCount;
+    const prevDrawnRosterSignature = this._lastDrawnRosterSignature;
+    this._syncLeftListSelectionState();
+    const rosterCount = Array.isArray(this.runManager?.roster) ? this.runManager.roster.length : 0;
+    const rosterSignature = this._getRosterListSignature();
+    const leftListStateChanged =
+      prevKind !== this.selection.kind ||
+      prevIndex !== this.selection.index ||
+      prevRosterOffset !== this._rosterScrollOffset ||
+      prevRosterMax !== this._rosterScrollMax ||
+      prevDrawnRosterCount !== rosterCount ||
+      prevDrawnRosterSignature !== rosterSignature;
+    if (leftListStateChanged) {
+      this.drawUnitList();
+    }
     this._destroyDetails();
     this._destroyTrade();
 

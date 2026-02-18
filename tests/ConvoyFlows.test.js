@@ -14,30 +14,54 @@ vi.mock('phaser', () => ({
 let NodeMapScene;
 const gameData = loadGameData();
 
-function makeDisplayObject() {
+function makeDisplayObject(seed = {}) {
   return {
+    ...seed,
+    handlers: {},
     setDepth() { return this; },
     setStrokeStyle() { return this; },
-    setInteractive() { return this; },
+    setInteractive() { this._interactive = true; return this; },
     setOrigin() { return this; },
     setDisplaySize() { return this; },
     setColor() { return this; },
-    on() { return this; },
-    destroy() {},
+    setY(y) { this.y = y; return this; },
+    setPosition(x, y) { this.x = x; this.y = y; return this; },
+    setSize(width, height) { this.width = width; this.height = height; return this; },
+    on(event, cb) { this.handlers[event] = cb; return this; },
+    destroy() { this._destroyed = true; },
   };
 }
 
 function makeRosterSceneStub() {
   return {
     add: {
-      rectangle: () => makeDisplayObject(),
-      text: () => makeDisplayObject(),
-      image: () => makeDisplayObject(),
+      rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ kind: 'rectangle', x, y, width, height, color, alpha }),
+      text: (x, y, text, style) => makeDisplayObject({ kind: 'text', x, y, text, style, height: 20 }),
+      image: (x, y, key) => makeDisplayObject({ kind: 'image', x, y, key }),
     },
     textures: {
       exists: () => false,
     },
   };
+}
+
+function seedRoster(rm, count) {
+  if (count <= 0) {
+    rm.roster = [];
+    return;
+  }
+  const template = structuredClone(rm.roster[0]);
+  rm.roster = Array.from({ length: count }, (_, i) => {
+    const unit = structuredClone(template);
+    unit.name = `Unit${i + 1}`;
+    unit.level = Number.isFinite(unit.level) ? unit.level : 1;
+    unit.stats = unit.stats || { HP: 20 };
+    unit.currentHP = Number.isFinite(unit.currentHP) ? unit.currentHP : unit.stats.HP;
+    unit.inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    unit.consumables = Array.isArray(unit.consumables) ? unit.consumables : [];
+    unit.skills = Array.isArray(unit.skills) ? unit.skills : [];
+    return unit;
+  });
 }
 
 beforeAll(async () => {
@@ -616,6 +640,38 @@ describe('convoy scene/UI flows', () => {
 
     expect(() => overlay.show()).not.toThrow();
     expect(() => overlay.hide()).not.toThrow();
+  });
+
+  it('keeps convoy entry visible and selectable for roster sizes 0 through 14', () => {
+    for (let size = 0; size <= 14; size++) {
+      const rm = new RunManager(gameData);
+      rm.startRun();
+      seedRoster(rm, size);
+
+      const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
+        lords: gameData.lords || [],
+        classes: gameData.classes || [],
+        skills: gameData.skills || [],
+        accessories: gameData.accessories || [],
+      });
+
+      overlay.drawUnitList();
+      const clickableRows = overlay.objects.filter((obj) =>
+        obj?._rosterList && obj?._interactive && obj.handlers?.pointerdown
+      );
+      expect(clickableRows.length).toBeGreaterThan(0);
+
+      const convoyRow = clickableRows.reduce((best, row) => (!best || row.y > best.y ? row : best), null);
+      expect(convoyRow).toBeTruthy();
+      expect(convoyRow.y - (convoyRow.height / 2)).toBeGreaterThanOrEqual(50);
+      expect(convoyRow.y + (convoyRow.height / 2)).toBeLessThanOrEqual(462);
+
+      const convoyText = overlay.objects.find((obj) => obj?._rosterList && obj.text === 'Convoy Management');
+      expect(convoyText).toBeTruthy();
+
+      convoyRow.handlers.pointerdown();
+      expect(overlay.selection.kind).toBe('convoy');
+    }
   });
 
   it('shows weapon-art unlock banner after act transition', () => {

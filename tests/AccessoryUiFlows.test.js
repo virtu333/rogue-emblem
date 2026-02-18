@@ -90,6 +90,21 @@ function makeOverlay(activeTab = 'gear') {
   return { overlay, rm, scene };
 }
 
+function seedRoster(rm, count) {
+  const template = structuredClone(rm.roster[0]);
+  rm.roster = Array.from({ length: count }, (_, i) => {
+    const unit = structuredClone(template);
+    unit.name = `Unit${i + 1}`;
+    unit.level = Number.isFinite(unit.level) ? unit.level : 1;
+    unit.stats = unit.stats || { HP: 20 };
+    unit.currentHP = Number.isFinite(unit.currentHP) ? unit.currentHP : unit.stats.HP;
+    unit.inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
+    unit.consumables = Array.isArray(unit.consumables) ? unit.consumables : [];
+    unit.skills = Array.isArray(unit.skills) ? unit.skills : [];
+    return unit;
+  });
+}
+
 beforeAll(async () => {
   ({ NodeMapScene } = await import('../src/scenes/NodeMapScene.js'));
 });
@@ -182,6 +197,24 @@ describe('accessory UI flows', () => {
     expect(unit.accessory?.name).toBe('Goddess Icon');
     expect(rm.accessories.some((a) => a.name === 'Old Charm')).toBe(true);
     expect(rm.accessories.some((a) => a.name === 'Goddess Icon')).toBe(false);
+  });
+
+  it('preserves roster left-panel scroll while switching detail tabs', () => {
+    const { overlay, rm } = makeOverlay('gear');
+    seedRoster(rm, 14);
+
+    overlay.show();
+    overlay.select('unit', 13);
+    expect(overlay._rosterScrollOffset).toBeGreaterThan(0);
+    const scrollOffsetBefore = overlay._rosterScrollOffset;
+
+    overlay._activeTab = 'stats';
+    overlay.drawUnitDetails();
+    overlay._activeTab = 'gear';
+    overlay.drawUnitDetails();
+
+    expect(overlay.selection).toEqual({ kind: 'unit', index: 13 });
+    expect(overlay._rosterScrollOffset).toBe(scrollOffsetBefore);
   });
 
   it('shows correct pool banner for scroll purchases', () => {
