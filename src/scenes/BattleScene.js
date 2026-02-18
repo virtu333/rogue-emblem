@@ -6730,12 +6730,63 @@ export class BattleScene extends Phaser.Scene {
 
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
     if (!weaponArt) return this.buildSkillCtx(attacker, defender, null);
+    const hadPhoenixFlag = Object.prototype.hasOwnProperty.call(attacker, '_phoenixBroochUsed');
+    const hadTimedBuffs = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtBuffs');
+    const hadTimedAppliedStats = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtAppliedStats');
+    const hadTimedAppliedCombatMods = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtAppliedCombatMods');
+    const hadMov = Object.prototype.hasOwnProperty.call(attacker, 'mov');
+
     const originalHP = attacker.currentHP;
+    const originalPhoenixFlag = attacker._phoenixBroochUsed;
+    const originalMov = attacker.mov;
+    const originalStats = attacker?.stats && typeof attacker.stats === 'object'
+      ? { ...attacker.stats }
+      : null;
+    const originalTimedBuffs = Array.isArray(attacker._battleTimedWeaponArtBuffs)
+      ? attacker._battleTimedWeaponArtBuffs.map((entry) => ({
+        ...(entry || {}),
+        stats: { ...(entry?.stats || {}) },
+      }))
+      : attacker._battleTimedWeaponArtBuffs;
+    const originalTimedAppliedStats = attacker._battleTimedWeaponArtAppliedStats
+      ? { ...attacker._battleTimedWeaponArtAppliedStats }
+      : attacker._battleTimedWeaponArtAppliedStats;
+    const originalTimedAppliedCombatMods = attacker._battleTimedWeaponArtAppliedCombatMods
+      ? { ...attacker._battleTimedWeaponArtAppliedCombatMods }
+      : attacker._battleTimedWeaponArtAppliedCombatMods;
+
     attacker.currentHP = this._getWeaponArtHpAfterCost(attacker, weaponArt);
+    this._applyRecoilGuardAfterArtUse(attacker, weaponArt);
+    checkPhoenixBrooch(attacker);
     try {
       return this.buildSkillCtx(attacker, defender, weaponArt);
     } finally {
       attacker.currentHP = originalHP;
+      if (originalStats && attacker?.stats && typeof attacker.stats === 'object') {
+        for (const key of Object.keys(attacker.stats)) {
+          if (!Object.prototype.hasOwnProperty.call(originalStats, key)) {
+            delete attacker.stats[key];
+          }
+        }
+        Object.assign(attacker.stats, originalStats);
+      } else if (originalStats) {
+        attacker.stats = { ...originalStats };
+      }
+
+      if (hadMov) attacker.mov = originalMov;
+      else delete attacker.mov;
+
+      if (hadPhoenixFlag) attacker._phoenixBroochUsed = originalPhoenixFlag;
+      else delete attacker._phoenixBroochUsed;
+
+      if (hadTimedBuffs) attacker._battleTimedWeaponArtBuffs = originalTimedBuffs;
+      else delete attacker._battleTimedWeaponArtBuffs;
+
+      if (hadTimedAppliedStats) attacker._battleTimedWeaponArtAppliedStats = originalTimedAppliedStats;
+      else delete attacker._battleTimedWeaponArtAppliedStats;
+
+      if (hadTimedAppliedCombatMods) attacker._battleTimedWeaponArtAppliedCombatMods = originalTimedAppliedCombatMods;
+      else delete attacker._battleTimedWeaponArtAppliedCombatMods;
     }
   }
 
