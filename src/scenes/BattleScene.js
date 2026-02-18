@@ -4254,13 +4254,28 @@ export class BattleScene extends Phaser.Scene {
     const rightName = this.add.text(480, 60, unitB.name, {
       fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
     }).setOrigin(0.5).setDepth(401);
-    this.tradeUIObjects.push(leftName, rightName);
+    const leftCounts = this.add.text(
+      160,
+      76,
+      `Inventory ${(unitA.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitA.consumables || []).length}/${CONSUMABLE_MAX}`,
+      { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' }
+    ).setOrigin(0.5).setDepth(401);
+    const rightCounts = this.add.text(
+      480,
+      76,
+      `Inventory ${(unitB.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitB.consumables || []).length}/${CONSUMABLE_MAX}`,
+      { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' }
+    ).setOrigin(0.5).setDepth(401);
+    this.tradeUIObjects.push(leftName, rightName, leftCounts, rightCounts);
 
     // Two-column item lists (weapons + consumables)
     let yOffset = 90;
     const drawItems = (unit, x, otherUnit) => {
+      const inventory = unit.inventory || [];
+      const consumables = unit.consumables || [];
+
       // Weapons
-      (unit.inventory || []).forEach((item, i) => {
+      inventory.forEach((item, i) => {
         const hasCapacity = (otherUnit.inventory?.length || 0) < INVENTORY_MAX;
         const noProf = !hasProficiency(otherUnit, item);
         const suffix = noProf ? ' (no prof)' : '';
@@ -4291,17 +4306,21 @@ export class BattleScene extends Phaser.Scene {
       });
 
       // Consumables (below weapons)
-      const consumableOffset = (unit.inventory?.length || 0) * 20;
-      (unit.consumables || []).forEach((item, i) => {
-        const btn = this.add.text(x, yOffset + consumableOffset + i * 20, item.name, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#88ccff',
+      const consumableOffset = inventory.length * 20;
+      consumables.forEach((item, i) => {
+        const hasCapacity = (otherUnit.consumables?.length || 0) < CONSUMABLE_MAX;
+        const color = hasCapacity ? '#88ccff' : '#666666';
+        const suffix = hasCapacity ? '' : ' (consumables full)';
+        const btn = this.add.text(x, yOffset + consumableOffset + i * 20, `${item.name}${suffix}`, {
+          fontFamily: 'monospace', fontSize: '11px', color,
           backgroundColor: '#222222', padding: { x: 6, y: 2 },
-        }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+        }).setOrigin(0.5).setDepth(401);
 
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor('#88ccff'));
-        btn.on('pointerdown', () => {
-          if ((otherUnit.consumables?.length || 0) < CONSUMABLE_MAX) {
+        if (hasCapacity) {
+          btn.setInteractive({ useHandCursor: true });
+          btn.on('pointerover', () => btn.setColor('#ffdd44'));
+          btn.on('pointerout', () => btn.setColor(color));
+          btn.on('pointerdown', () => {
             const idx = unit.consumables.indexOf(item);
             if (idx !== -1) unit.consumables.splice(idx, 1);
             if (!otherUnit.consumables) otherUnit.consumables = [];
@@ -4312,8 +4331,8 @@ export class BattleScene extends Phaser.Scene {
             }
             this.cleanupTradeUI();
             this.showBattleTradeUI(unitA, unitB);
-          }
-        });
+          });
+        }
         this.tradeUIObjects.push(btn);
       });
     };

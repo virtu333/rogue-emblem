@@ -39,7 +39,7 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
-import { INVENTORY_MAX } from '../src/utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
 
 function makeUnit(overrides = {}) {
   return {
@@ -503,6 +503,36 @@ describe('BattleScene trade weapon gating', () => {
     swordRow.trigger('pointerdown');
     expect(unitA.inventory).toHaveLength(1);
     expect(unitB.inventory).toHaveLength(INVENTORY_MAX);
+  });
+
+  it('shows labeled capacities and disables consumable rows when recipient consumables are full', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uses: 3, price: 300 };
+    const unitA = makeUnit({
+      name: 'Iris',
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      inventory: [],
+      consumables: [vulnerary],
+      weapon: null,
+    });
+    const unitB = makeUnit({
+      name: 'Mora',
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      inventory: [],
+      consumables: Array.from({ length: CONSUMABLE_MAX }, (_v, idx) => ({ name: `Item ${idx + 1}`, type: 'Consumable', uses: 1 })),
+      weapon: null,
+    });
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+
+    expect(texts.some((obj) => obj.text === `Inventory 0/${INVENTORY_MAX} | Consumables 1/${CONSUMABLE_MAX}`)).toBe(true);
+    expect(texts.some((obj) => obj.text === `Inventory 0/${INVENTORY_MAX} | Consumables ${CONSUMABLE_MAX}/${CONSUMABLE_MAX}`)).toBe(true);
+
+    const consumableRow = texts.find((obj) => obj.text === 'Vulnerary (consumables full)');
+    expect(consumableRow).toBeTruthy();
+    expect(consumableRow.style?.color).toBe('#666666');
+    expect(consumableRow.handlers.pointerdown).toBeUndefined();
   });
 });
 

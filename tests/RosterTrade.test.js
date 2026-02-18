@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RosterOverlay } from '../src/ui/RosterOverlay.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { INVENTORY_MAX } from '../src/utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 vi.mock('phaser', () => ({
@@ -173,5 +173,60 @@ describe('Roster trade weapon gating', () => {
     overlay._drawGearTab(40, 60, unit);
 
     expect(scene.created.texts.some((obj) => obj.text === '*')).toBe(true);
+  });
+});
+
+describe('Roster trade copy', () => {
+  it('shows labeled capacities in trade picker rows', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const sword = makeWeapon('Iron Sword', 'Sword');
+    const axe = makeWeapon('Iron Axe', 'Axe');
+    const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
+    const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [axe], weapon: axe });
+    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitB.consumables = [{ name: 'Elixir', type: 'Consumable', uses: 1 }];
+    rm.roster = [unitA, unitB];
+    overlay.selection = { type: 'unit', index: 0 };
+
+    overlay._showTradePicker(unitA);
+
+    const expectedLabel = `${unitB.name} (Inventory 1/${INVENTORY_MAX} | Consumables 1/${CONSUMABLE_MAX})`;
+    expect(scene.created.texts.some((obj) => obj.text === expectedLabel)).toBe(true);
+  });
+
+  it('shows labeled capacities in trade headers with null-safe counts', () => {
+    const { overlay, scene } = makeOverlay();
+    const sword = makeWeapon('Iron Sword', 'Sword');
+    const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
+    const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [], weapon: null });
+    unitA.consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    unitB.inventory = undefined;
+    unitB.consumables = undefined;
+
+    expect(() => overlay._showTradeScreen(unitA, unitB)).not.toThrow();
+
+    const leftHeader = `${unitA.name} (Inventory 1/${INVENTORY_MAX} | Consumables 1/${CONSUMABLE_MAX})`;
+    const rightHeader = `${unitB.name} (Inventory 0/${INVENTORY_MAX} | Consumables 0/${CONSUMABLE_MAX})`;
+    expect(scene.created.texts.some((obj) => obj.text === leftHeader)).toBe(true);
+    expect(scene.created.texts.some((obj) => obj.text === rightHeader)).toBe(true);
+  });
+
+  it('truncates long names in trade picker rows while preserving capacity labels', () => {
+    const { overlay, rm, scene } = makeOverlay();
+    const sword = makeWeapon('Iron Sword', 'Sword');
+    const axe = makeWeapon('Iron Axe', 'Axe');
+    const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
+    const longName = 'VeryLongCompanionNameForTradePicker';
+    const unitB = makeUnit({ name: longName, type: 'Axe', inventory: [axe], weapon: axe });
+    rm.roster = [unitA, unitB];
+    overlay.selection = { type: 'unit', index: 0 };
+
+    overlay._showTradePicker(unitA);
+
+    const row = scene.created.texts.find((obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'));
+    expect(row).toBeTruthy();
+    expect(row.text).toContain(`Inventory 1/${INVENTORY_MAX} | Consumables 0/${CONSUMABLE_MAX}`);
+    expect(row.text).toContain('...');
+    expect(row.text.includes(`${longName} (`)).toBe(false);
   });
 });

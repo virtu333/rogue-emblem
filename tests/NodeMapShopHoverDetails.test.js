@@ -16,6 +16,7 @@ function makeDisplayObject(seed = {}) {
     setDepth() { return this; },
     setStrokeStyle() { return this; },
     setInteractive(opts) { this._interactive = opts; return this; },
+    setOrigin() { return this; },
     setColor(color) { this._color = color; return this; },
     setPosition(x, y) { this.x = x; this.y = y; return this; },
     on(event, cb) { this.handlers[event] = cb; return this; },
@@ -215,6 +216,183 @@ describe('NodeMap shop hover details', () => {
     const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'));
     expect(row).toBeTruthy();
     expect(row.text).toContain('Iron Sword *');
+  });
+
+  it('renders sellable consumables and sells them on click', () => {
+    const vulnerary = { name: 'Vulnerary', type: 'Consumable', price: 150, uses: 3 };
+    const unit = {
+      name: 'Iris',
+      proficiencies: [],
+      inventory: [],
+      consumables: [vulnerary],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Vulnerary'));
+    expect(row).toBeTruthy();
+    expect(row._interactive).toEqual({ useHandCursor: true });
+    expect(row.handlers.pointerdown).toBeTypeOf('function');
+
+    row.handlers.pointerdown();
+    expect(scene.runManager.addGold).toHaveBeenCalledWith(expect.any(Number));
+    expect(unit.consumables).toHaveLength(0);
+    expect(scene.refreshShop).toHaveBeenCalledTimes(1);
+    expect(scene.showShopBanner).toHaveBeenCalledWith(expect.stringContaining('Sold Vulnerary for '), '#ffdd44');
+  });
+
+  it('omits unsellable consumables from sell rows', () => {
+    const unit = {
+      name: 'Iris',
+      proficiencies: [],
+      inventory: [],
+      consumables: [{ name: 'Free Tonic', type: 'Consumable', price: 0, uses: 1 }],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    expect(createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Free Tonic'))).toBe(false);
+  });
+
+  it('sell scroll range counts only renderable sell rows', () => {
+    const unit = {
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: Array.from({ length: 20 }, (_v, idx) => ({
+        name: `Rusty ${idx + 1}`,
+        type: 'Sword',
+        range: '1',
+        rankRequired: 'Prof',
+        price: 0,
+      })),
+      consumables: [],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({ unit });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    expect(scene.shopScrollMax).toBe(0);
+    expect(createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Rusty'))).toBe(false);
+  });
+
+  it('unit picker only shows no prof for proficiency-relevant items', () => {
+    const createdTexts = [];
+    const makePickerScene = () => ({
+      runManager: {
+        roster: [{
+          name: 'Mora',
+          inventory: [],
+          consumables: [],
+          proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+        }],
+      },
+      unitPicker: null,
+      add: {
+        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        text: (x, y, text, style) => {
+          const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
+          createdTexts.push(obj);
+          return obj;
+        },
+      },
+      closeUnitPicker: NodeMapScene.prototype.closeUnitPicker,
+    });
+
+    const scene = makePickerScene();
+    scene.unitPickerState = {
+      callback: vi.fn(),
+      profCheckItem: null,
+      itemTypeContext: 'consumable',
+      offset: 0,
+      maxOffset: 0,
+      viewportTop: 120,
+      viewportBottom: 400,
+    };
+    NodeMapScene.prototype.renderUnitPicker.call(scene);
+
+    const consumableRow = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('));
+    expect(consumableRow).toBeTruthy();
+    expect(consumableRow.text).toContain('Inventory 0/5 | Consumables 0/3');
+    expect(consumableRow.text).not.toContain('no prof');
+
+    createdTexts.length = 0;
+    scene.unitPickerState = {
+      callback: vi.fn(),
+      profCheckItem: { name: 'Iron Sword', type: 'Sword' },
+      itemTypeContext: 'inventory',
+      offset: 0,
+      maxOffset: 0,
+      viewportTop: 120,
+      viewportBottom: 400,
+    };
+    NodeMapScene.prototype.renderUnitPicker.call(scene);
+
+    const weaponRow = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('));
+    expect(weaponRow).toBeTruthy();
+    expect(weaponRow.text).toContain('no prof');
+  });
+
+  it('unit picker truncates long unit names while keeping capacity labels', () => {
+    const createdTexts = [];
+    const scene = {
+      runManager: {
+        roster: [{
+          name: 'ExtremelyLongUnitNameForOverflow',
+          inventory: [],
+          consumables: [],
+          proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        }],
+      },
+      unitPicker: null,
+      add: {
+        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        text: (x, y, text, style) => {
+          const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
+          createdTexts.push(obj);
+          return obj;
+        },
+      },
+      closeUnitPicker: NodeMapScene.prototype.closeUnitPicker,
+    };
+
+    scene.unitPickerState = {
+      callback: vi.fn(),
+      profCheckItem: null,
+      itemTypeContext: 'consumable',
+      offset: 0,
+      maxOffset: 0,
+      viewportTop: 120,
+      viewportBottom: 400,
+    };
+
+    NodeMapScene.prototype.renderUnitPicker.call(scene);
+
+    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'));
+    expect(row).toBeTruthy();
+    expect(row.text).toContain('Inventory 0/5 | Consumables 0/3');
+    expect(row.text).toContain('...');
+    expect(row.text.includes('ExtremelyLongUnitNameForOverflow (')).toBe(false);
+  });
+
+  it('showUnitPicker keeps backward compatibility for legacy item arg', () => {
+    const renderUnitPicker = vi.fn();
+    const itemForProfCheck = { name: 'Iron Sword', type: 'Sword' };
+    const scene = {
+      runManager: { roster: [] },
+      closeUnitPicker: vi.fn(),
+      renderUnitPicker,
+    };
+
+    NodeMapScene.prototype.showUnitPicker.call(scene, vi.fn(), itemForProfCheck);
+
+    expect(scene.unitPickerState.profCheckItem).toBe(itemForProfCheck);
+    expect(scene.unitPickerState.itemTypeContext).toBeNull();
+    expect(renderUnitPicker).toHaveBeenCalledTimes(1);
   });
 
   it('adds * marker for forge rows when weapon has bound weapon art', () => {

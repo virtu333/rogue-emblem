@@ -73,6 +73,7 @@ describe('convoy scene/UI flows', () => {
     const audio = { playSFX: vi.fn() };
     const unit = { name: 'Iris', inventory: [], consumables: new Array(CONSUMABLE_MAX).fill({}) };
     const entry = { price: 120, item: { name: 'Vulnerary', type: 'Consumable', uses: 3 } };
+    const showUnitPicker = vi.fn((onPick) => onPick(0));
     const rm = {
       gold: 999,
       roster: [unit],
@@ -82,7 +83,7 @@ describe('convoy scene/UI flows', () => {
     const ctx = {
       runManager: rm,
       shopBuyItems: [entry],
-      showUnitPicker: (onPick) => onPick(0),
+      showUnitPicker,
       registry: { get: () => audio },
       refreshShop: vi.fn(),
       showShopBanner: vi.fn(),
@@ -92,6 +93,7 @@ describe('convoy scene/UI flows', () => {
 
     expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
     expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(showUnitPicker).toHaveBeenCalledWith(expect.any(Function), { itemTypeContext: 'consumable' });
     expect(ctx.shopBuyItems).toHaveLength(0);
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Vulnerary sent to convoy.', '#88ccff');
   });
@@ -128,6 +130,7 @@ describe('convoy scene/UI flows', () => {
     const audio = { playSFX: vi.fn() };
     const unit = { name: 'Kane', inventory: new Array(INVENTORY_MAX).fill({}), consumables: [] };
     const entry = { price: 200, item: { name: 'Iron Sword', type: 'Sword' } };
+    const showUnitPicker = vi.fn((onPick) => onPick(0));
     const rm = {
       gold: 999,
       roster: [unit],
@@ -137,7 +140,7 @@ describe('convoy scene/UI flows', () => {
     const ctx = {
       runManager: rm,
       shopBuyItems: [entry],
-      showUnitPicker: (onPick) => onPick(0),
+      showUnitPicker,
       registry: { get: () => audio },
       refreshShop: vi.fn(),
       showShopBanner: vi.fn(),
@@ -147,6 +150,10 @@ describe('convoy scene/UI flows', () => {
 
     expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
     expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
+    expect(showUnitPicker).toHaveBeenCalledWith(
+      expect.any(Function),
+      { profCheckItem: entry.item, itemTypeContext: 'inventory' }
+    );
     expect(ctx.shopBuyItems).toHaveLength(0);
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Iron Sword sent to convoy.', '#88ccff');
   });

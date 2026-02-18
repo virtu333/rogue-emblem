@@ -23,6 +23,13 @@ const PROF_TO_TYPE = {
   Bows: 'Bow', Tomes: 'Tome', Light: 'Light', Staves: 'Staff',
 };
 
+// Weapon/staff item types that participate in proficiency checks.
+export const PROFICIENCY_RELEVANT_ITEM_TYPES = new Set(Object.values(PROF_TO_TYPE));
+
+export function isProficiencyRelevantItemType(type) {
+  return PROFICIENCY_RELEVANT_ITEM_TYPES.has(type);
+}
+
 // Map rank abbreviation → full name
 const RANK_ABBREV = { P: 'Prof', M: 'Mast' };
 

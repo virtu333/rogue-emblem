@@ -7,8 +7,10 @@ import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
   addToInventory,
   removeFromInventory,
+  removeFromConsumables,
   isLastCombatWeapon,
   hasProficiency,
+  isProficiencyRelevantItemType,
   addToConsumables,
   canPromote,
   promoteUnit,
@@ -79,6 +81,16 @@ function getWeaponArtCatalogForScene(scene) {
     return scene._getWeaponArtCatalog();
   }
   return scene?.gameData?.weaponArts?.arts || [];
+}
+
+function isProficiencyCheckRelevant(item) {
+  return isProficiencyRelevantItemType(item?.type);
+}
+
+function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
+  const safeName = String(name || '');
+  if (!Number.isInteger(maxChars) || maxChars < 4 || safeName.length <= maxChars) return safeName;
+  return `${safeName.slice(0, maxChars - 3)}...`;
 }
 
 function beginSceneLifecycle(scene) {
@@ -1807,7 +1819,7 @@ export class NodeMapScene extends Phaser.Scene {
         if (audio) audio.playSFX('sfx_gold');
         this.refreshShop();
         this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-      });
+      }, { itemTypeContext: 'consumable' });
       return;
     }
 
@@ -1840,49 +1852,59 @@ export class NodeMapScene extends Phaser.Scene {
       if (audio) audio.playSFX('sfx_gold');
       this.refreshShop();
       this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-    }, entry.item);
+    }, { profCheckItem: entry.item, itemTypeContext: 'inventory' });
   }
 
   drawShopSellList() {
     const startY = 105;
     const lineH = 22;
     const rm = this.runManager;
-    let row = 0;
-    let rowTotal = 0;
+    const rowModel = [];
     for (const unit of rm.roster) {
-      rowTotal += 1;
-      rowTotal += unit.inventory.length;
+      rowModel.push({ kind: 'unit', unit });
+      const inventory = unit.inventory || [];
+      const consumables = unit.consumables || [];
+      for (const item of inventory) {
+        const sellPrice = getSellPrice(item);
+        if (sellPrice <= 0) continue;
+        rowModel.push({ kind: 'inventory', unit, item, sellPrice });
+      }
+      for (const item of consumables) {
+        const sellPrice = getSellPrice(item);
+        if (sellPrice <= 0) continue;
+        rowModel.push({ kind: 'consumable', unit, item, sellPrice });
+      }
     }
+    const rowTotal = rowModel.length;
     this.shopScrollMax = Math.max(0, (rowTotal * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollOffsets.sell = Phaser.Math.Clamp(this.shopScrollOffsets.sell || 0, 0, this.shopScrollMax);
     const offset = this.shopScrollOffsets.sell;
 
-    for (let u = 0; u < rm.roster.length; u++) {
-      const unit = rm.roster[u];
-      const nameY = startY + row * lineH - offset;
-      if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
-        const nameText = this.add.text(60, nameY, `${unit.name}:`, {
+    for (let row = 0; row < rowModel.length; row++) {
+      const rowData = rowModel[row];
+      const y = startY + row * lineH - offset;
+      if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) continue;
+
+      if (rowData.kind === 'unit') {
+        const nameText = this.add.text(60, y, `${rowData.unit.name}:`, {
           fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
         }).setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(nameText);
         this.shopOverlay.push(nameText);
+        continue;
       }
-      row++;
 
-      for (let w = 0; w < unit.inventory.length; w++) {
-        const wpn = unit.inventory[w];
-        const sellPrice = getSellPrice(wpn);
-        const y = startY + row * lineH - offset;
-        if (sellPrice <= 0) { row++; continue; }
-        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) { row++; continue; }
-
-        const locked = isLastCombatWeapon(unit, wpn);
-        const equipped = wpn === unit.weapon ? '\u25b6' : ' ';
-        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const wpnColor = locked ? '#666666' : (isForged(wpn) ? '#44ff88' : '#e0e0e0');
+      if (rowData.kind === 'inventory') {
+        const item = rowData.item;
+        const sellPrice = rowData.sellPrice;
+        const unit = rowData.unit;
+        const locked = isLastCombatWeapon(unit, item);
+        const equipped = item === unit.weapon ? '\u25b6' : ' ';
+        const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
+        const wpnColor = locked ? '#666666' : (isForged(item) ? '#44ff88' : '#e0e0e0');
         const text = this.add.text(70, y,
-          `${equipped}${wpn.name}${marker}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
+          `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
         }).setDepth(OVERLAY_CONTENT_DEPTH);
 
@@ -1892,18 +1914,41 @@ export class NodeMapScene extends Phaser.Scene {
           text.on('pointerout', () => text.setColor(wpnColor));
           text.on('pointerdown', () => {
             rm.addGold(sellPrice);
-            removeFromInventory(unit, wpn);
+            removeFromInventory(unit, item);
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_gold');
             this.refreshShop();
-            this.showShopBanner(`Sold ${wpn.name} for ${sellPrice}G`, '#ffdd44');
+            this.showShopBanner(`Sold ${item.name} for ${sellPrice}G`, '#ffdd44');
           });
         }
 
         this.shopContentGroup.push(text);
         this.shopOverlay.push(text);
-        row++;
+        continue;
       }
+
+      const item = rowData.item;
+      const sellPrice = rowData.sellPrice;
+      const unit = rowData.unit;
+      const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
+      const baseColor = '#88ff88';
+      const text = this.add.text(70, y, ` ${item.name}${usesText}  +${sellPrice}G`, {
+        fontFamily: 'monospace', fontSize: '11px', color: baseColor,
+      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      text.setInteractive({ useHandCursor: true });
+      text.on('pointerover', () => text.setColor('#ffdd44'));
+      text.on('pointerout', () => text.setColor(baseColor));
+      text.on('pointerdown', () => {
+        rm.addGold(sellPrice);
+        removeFromConsumables(unit, item);
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_gold');
+        this.refreshShop();
+        this.showShopBanner(`Sold ${item.name} for ${sellPrice}G`, '#ffdd44');
+      });
+
+      this.shopContentGroup.push(text);
+      this.shopOverlay.push(text);
     }
   }
 
@@ -2363,17 +2408,27 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
-  showUnitPicker(callback, itemForProfCheck) {
+  showUnitPicker(callback, pickerOptionsOrItem) {
     this.closeUnitPicker();
 
     const rm = this.runManager;
     const viewportHeight = 280;
     const contentHeight = rm.roster.length * 30;
     const maxOffset = Math.max(0, contentHeight - viewportHeight);
+    const pickerOptions = (
+      pickerOptionsOrItem
+      && typeof pickerOptionsOrItem === 'object'
+      && ('profCheckItem' in pickerOptionsOrItem || 'itemTypeContext' in pickerOptionsOrItem)
+    )
+      ? pickerOptionsOrItem
+      : { profCheckItem: pickerOptionsOrItem, itemTypeContext: null };
+    const profCheckItem = pickerOptions?.profCheckItem || null;
+    const itemTypeContext = pickerOptions?.itemTypeContext || null;
 
     this.unitPickerState = {
       callback,
-      itemForProfCheck,
+      profCheckItem,
+      itemTypeContext,
       offset: 0,
       maxOffset,
       viewportTop: 120,
@@ -2391,7 +2446,7 @@ export class NodeMapScene extends Phaser.Scene {
     const state = this.unitPickerState;
     const cx = 320;
     const panelY = 260;
-    const panelW = 280;
+    const panelW = 360;
     const panelH = 360;
     const listTop = state.viewportTop;
     const listBottom = state.viewportBottom;
@@ -2413,8 +2468,20 @@ export class NodeMapScene extends Phaser.Scene {
     rm.roster.forEach((unit, i) => {
       const y = listTop + i * 30 - offset + 15;
       if (y < listTop - 15 || y > listBottom + 15) return;
-      const noProf = state.itemForProfCheck && !hasProficiency(unit, state.itemForProfCheck);
-      const label = `${unit.name} (${unit.inventory.length}/${INVENTORY_MAX})${noProf ? ' no prof' : ''}`;
+      const profCheckItem = state.profCheckItem || null;
+      const shouldCheckProficiency = isProficiencyCheckRelevant(profCheckItem);
+      const noProf = shouldCheckProficiency && !hasProficiency(unit, profCheckItem);
+      const inventoryCount = (unit.inventory || []).length;
+      const consumableCount = (unit.consumables || []).length;
+      const inventoryFull = inventoryCount >= INVENTORY_MAX;
+      const consumablesFull = consumableCount >= CONSUMABLE_MAX;
+      const fullSuffix = state.itemTypeContext === 'consumable'
+        ? (consumablesFull ? ' consumables full' : '')
+        : (state.itemTypeContext === 'inventory'
+          ? (inventoryFull ? ' inventory full' : '')
+          : '');
+      const displayName = truncateUnitNameForCapacityLabel(unit.name, 16);
+      const label = `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
       const color = noProf ? '#cc8844' : '#e0e0e0';
       const btn = this.add.text(cx, y, label, {
         fontFamily: 'monospace', fontSize: '13px', color,

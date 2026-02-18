@@ -59,6 +59,21 @@ const LIST_ENTRY_HEIGHT = 42;
 const LIST_EDGE_PADDING = 6;
 const LIST_SCROLL_STEP = 24;
 
+function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
+  const safeName = String(name || '');
+  if (!Number.isInteger(maxChars) || maxChars < 4 || safeName.length <= maxChars) return safeName;
+  return `${safeName.slice(0, maxChars - 3)}...`;
+}
+
+function formatUnitCapacityLabel(unit, maxNameChars = null) {
+  const inventoryCount = (unit?.inventory || []).length;
+  const consumableCount = (unit?.consumables || []).length;
+  const name = maxNameChars == null
+    ? String(unit?.name || '')
+    : truncateUnitNameForCapacityLabel(unit?.name, maxNameChars);
+  return `${name} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})`;
+}
+
 export class RosterOverlay {
   /**
    * @param {Phaser.Scene} scene
@@ -1963,7 +1978,7 @@ export class RosterOverlay {
     const cy = 240;
     const topY = cy - totalH / 2;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
+    const pickerBg = this.scene.add.rectangle(cx, cy, 360, totalH, 0x222222, 0.95)
       .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(pickerBg);
 
@@ -1974,8 +1989,11 @@ export class RosterOverlay {
 
     targets.forEach((unit, i) => {
       const y = topY + titleH + i * itemH + pad;
-      const consumableCount = (unit.consumables || []).length;
-      const btn = this.scene.add.text(cx, y, `${unit.name} (${unit.inventory.length}/${INVENTORY_MAX} | ${consumableCount}/${CONSUMABLE_MAX})`, {
+      const btn = this.scene.add.text(
+        cx,
+        y,
+        formatUnitCapacityLabel(unit, 18),
+        {
         fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
         backgroundColor: '#444444', padding: { x: 12, y: 3 },
       }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
@@ -2072,22 +2090,22 @@ export class RosterOverlay {
     y += 22;
 
     // Column headers
-    const aConsCount = (unitA.consumables || []).length;
-    const bConsCount = (unitB.consumables || []).length;
-    this._tradeText(leftX, y, `${unitA.name} (${unitA.inventory.length}/${INVENTORY_MAX} | ${aConsCount}/${CONSUMABLE_MAX})`, '#e0e0e0', '11px');
-    this._tradeText(rightX, y, `${unitB.name} (${unitB.inventory.length}/${INVENTORY_MAX} | ${bConsCount}/${CONSUMABLE_MAX})`, '#e0e0e0', '11px');
+    this._tradeText(leftX, y, formatUnitCapacityLabel(unitA, 11), '#e0e0e0', '11px');
+    this._tradeText(rightX, y, formatUnitCapacityLabel(unitB, 11), '#e0e0e0', '11px');
     y += 18;
 
     // Left side items (unitA) → click to give to unitB
     const drawSide = (unit, otherUnit, xPos, startY) => {
       let sy = startY;
+      const inventory = unit.inventory || [];
+      const otherInventory = otherUnit.inventory || [];
 
       // Inventory
-      if (unit.inventory.length === 0) {
+      if (inventory.length === 0) {
         this._tradeText(xPos, sy, '(empty)', '#888888', '10px');
         sy += 14;
       } else {
-        for (const item of [...unit.inventory]) {
+        for (const item of [...inventory]) {
           const marker = item === unit.weapon ? '\u25b6 ' : '  ';
           const noProf = !hasProficiency(otherUnit, item);
           const ownerUsable = canEquip(unit, item);
@@ -2111,7 +2129,7 @@ export class RosterOverlay {
             segments.push({ text: ` (${rem}/${max})`, color: rowColor });
           }
 
-          if (otherUnit.inventory.length < INVENTORY_MAX) {
+          if (otherInventory.length < INVENTORY_MAX) {
             const interactiveSegments = [...segments, { text: '  \u25b6', color: '#e0e0e0' }];
             const row = this._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
             const hit = this.scene.add.rectangle(
