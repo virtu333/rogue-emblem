@@ -5056,14 +5056,11 @@ export class BattleScene extends Phaser.Scene {
   onPointerUp(pointer) {
     if (this.isStoryInputLocked()) return;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
+    const uiClickBlocked = Boolean(this._uiClickBlocked);
+    if (uiClickBlocked) this._uiClickBlocked = false;
 
     // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
     // to prevent 'bleed-through' clicks to the map.
-    if (this._uiClickBlocked) {
-      this._uiClickBlocked = false;
-      return;
-    }
-
     if (this._isTouchPointer(pointer)) {
       const wasTouchCanceled = Boolean(pointer.wasCanceled || pointer?.event?.type === 'touchcancel');
       if (wasTouchCanceled) {
@@ -5086,6 +5083,12 @@ export class BattleScene extends Phaser.Scene {
         this._touchTapDown = null;
         return;
       }
+    }
+
+    if (uiClickBlocked) {
+      this.cancelTouchInspectHold();
+      this._touchTapDown = null;
+      return;
     }
 
     this.cancelTouchInspectHold();
