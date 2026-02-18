@@ -42,6 +42,9 @@ import {
   checkAstra,
   getTurnStartEffects,
   getWeaponRangeBonus,
+  checkPhoenixBrooch,
+  resolveGamblerDelta,
+  applyAccessoryPhaseCombatMods,
 } from '../../src/engine/SkillSystem.js';
 import {
   getAttackAffixes,
@@ -51,6 +54,7 @@ import {
 import {
   applyWeaponArtCost,
   canUseWeaponArt,
+  getEffectiveWeaponArtHpCost,
   getWeaponArtCombatMods,
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
@@ -61,7 +65,8 @@ import {
   getPostCombatPipelineSteps,
   resolvePostCombatMove,
 } from '../../src/engine/WeaponArtPostCombat.js';
-import { calculateKillGold } from '../../src/engine/LootSystem.js';
+import { calculateKillReward } from '../../src/engine/LootSystem.js';
+import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
 import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
@@ -137,6 +142,8 @@ export class HeadlessBattle {
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
+    this._combatRollSession = null;
+    this.runManager = null;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -149,6 +156,8 @@ export class HeadlessBattle {
       recruits: this.gameData.recruits,
       classes: this.gameData.classes,
       weapons: this.gameData.weapons,
+      affixes: this.gameData.affixes,
+      difficulty: this.gameData.difficulty,
     });
     this.battleConfig = bc;
 
@@ -169,6 +178,7 @@ export class HeadlessBattle {
     this.lastReinforcementSchedule = null;
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
+    this._combatRollSession = null;
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -179,6 +189,7 @@ export class HeadlessBattle {
         unit.hasMoved = false;
         unit.hasActed = false;
         unit._miracleUsed = false;
+        unit._phoenixBroochUsed = false;
         unit._gambitUsedThisTurn = false;
         for (const w of (unit.inventory || [])) {
           if (w.perBattleUses) w._usesSpent = 0;
@@ -225,9 +236,14 @@ export class HeadlessBattle {
         if (npc) {
           npc.col = npcSpawn.col;
           npc.row = npcSpawn.row;
+          npc._phoenixBroochUsed = false;
           this.npcUnits.push(npc);
         }
       }
+    }
+
+    for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      unit._phoenixBroochUsed = false;
     }
 
     // Initialize turn system
@@ -820,6 +836,7 @@ export class HeadlessBattle {
   }
 
   _onPhaseChange(phase, turn) {
+    this._clearCombatRollSession();
     this._expireTimedWeaponArtBuffs(phase, turn);
     if (phase === 'player') {
       for (const u of this.playerUnits) {
@@ -869,6 +886,18 @@ export class HeadlessBattle {
         effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
       }
       // Note: spawn_terrain is not fully simulated in HeadlessBattle MVP for now
+    }
+  }
+
+  _processTerrainDamage(units) {
+    for (const unit of [...(units || [])]) {
+      if (!unit || unit.currentHP <= 0) continue;
+      const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
+      if (!isLavaCrackTerrainIndex(terrainIdx)) continue;
+      const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP);
+      if (appliedDamage <= 0) continue;
+      unit.currentHP = nextHP;
+      this._checkPhoenixBrooch(unit);
     }
   }
 
@@ -1089,9 +1118,94 @@ export class HeadlessBattle {
     }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
-  _scoreEnemyWeaponArt(art) {
+  _getCombatRollSessionKey(attacker, defender) {
+    const phase = this.turnManager?.currentPhase || 'player';
+    const turn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
+    return `${phase}:${turn}:${String(attacker?.name || '')}:${String(defender?.name || '')}:${attacker?.col},${attacker?.row}:${defender?.col},${defender?.row}`;
+  }
+
+  _ensureCombatRollSession(attacker, defender) {
+    if (!attacker || !defender) return null;
+    const key = this._getCombatRollSessionKey(attacker, defender);
+    const existing = this._combatRollSession;
+    if (existing && existing.key === key && existing.attacker === attacker && existing.defender === defender) {
+      return existing;
+    }
+    const next = {
+      key,
+      attacker,
+      defender,
+      gamblerAtkDeltaByUnit: new Map(),
+    };
+    this._combatRollSession = next;
+    return next;
+  }
+
+  _clearCombatRollSession() {
+    this._combatRollSession = null;
+  }
+
+  _getGamblerAtkDelta(unit, session = null) {
+    return resolveGamblerDelta(unit, session || this._combatRollSession, Math.random);
+  }
+
+  _applyAccessoryPhaseCombatMods(unit, mods, session = null) {
+    applyAccessoryPhaseCombatMods(unit, mods, {
+      turnNumber: this.turnManager?.turnNumber,
+      rollSession: session || this._combatRollSession,
+      rng: Math.random,
+    });
+  }
+
+  _applyRecoilGuardAfterArtUse(unit, art) {
+    if (!unit || !art) return;
+    const combatEffects = unit.accessory?.combatEffects || {};
+    const recoilGuard = combatEffects.recoilGuard;
+    const hasRecoilGuard = Boolean(recoilGuard) || Boolean(combatEffects.weaponArtDefBuff);
+    if (!hasRecoilGuard) return;
+    const rawStats = recoilGuard?.stats && typeof recoilGuard.stats === 'object'
+      ? recoilGuard.stats
+      : {
+        DEF: Number.isFinite(Number(combatEffects?.buffDEF)) ? Number(combatEffects.buffDEF) : 3,
+        RES: Number.isFinite(Number(combatEffects?.buffRES)) ? Number(combatEffects.buffRES) : 3,
+      };
+    const stats = {};
+    for (const [rawStat, rawValue] of Object.entries(rawStats)) {
+      const stat = String(rawStat || '').trim().toUpperCase();
+      if (!stat) continue;
+      const value = Math.trunc(Number(rawValue) || 0);
+      if (value === 0) continue;
+      stats[stat] = value;
+    }
+    if (Object.keys(stats).length <= 0) return;
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(unit, 1);
+    this._applyTier5TimedBuffEntry(unit, {
+      key: `recoil_guard::${String(unit.name || '')}`,
+      artId: art.id || null,
+      sourceName: unit.name || null,
+      sourceFaction: unit.faction || null,
+      expiryPhase,
+      expiryTurn,
+      stats,
+    });
+  }
+
+  _checkPhoenixBrooch(unit) {
+    if (!unit || unit.currentHP <= 0) return false;
+    return Boolean(checkPhoenixBrooch(unit).triggered);
+  }
+
+  _applyKillRewards(defeatedUnit, killer = null) {
+    if (defeatedUnit?.faction !== 'enemy') return;
+    this.goldEarned += calculateKillReward(defeatedUnit, killer, {
+      rewardMultiplier: this._getEnemyRewardMultiplier(defeatedUnit),
+      pressureGoldMultiplier: this.getTurnPressureState?.()?.goldMultiplier,
+    });
+  }
+
+  _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
-    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const hpCost = getEffectiveWeaponArtHpCost(unit, art);
     const effectivenessScore = mods.effectiveness?.multiplier > 1
       ? (mods.effectiveness.multiplier - 1) * 4
       : 0;
@@ -1148,14 +1262,14 @@ export class HeadlessBattle {
     }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
     const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
+      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
       .filter((entry) => entry.score >= tuning.minScore);
     if (scored.length <= 0) return null;
     if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      const aCost = Math.max(0, Number(a.art?.hpCost) || 0);
-      const bCost = Math.max(0, Number(b.art?.hpCost) || 0);
+      const aCost = getEffectiveWeaponArtHpCost(unit, a.art);
+      const bCost = getEffectiveWeaponArtHpCost(unit, b.art);
       if (aCost !== bCost) return aCost - bCost;
       const aId = String(a.art?.id || '');
       const bId = String(b.art?.id || '');
@@ -1165,6 +1279,7 @@ export class HeadlessBattle {
   }
 
   _buildSkillCtx(attacker, defender, weaponArt = null) {
+    const rollSession = this._ensureCombatRollSession(attacker, defender);
     const skills = this.gameData.skills;
     const getAllies = (u) => {
       if (u.faction === 'player') return this.playerUnits;
@@ -1180,8 +1295,11 @@ export class HeadlessBattle {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
-    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true);
-    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false);
+    const affixes = this.gameData.affixes;
+    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true, affixes);
+    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
+    atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
+    defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
     const defTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(defender);
     atkMods.hitBonus += atkTimedBuffMods.hitBonus || 0;
@@ -1198,6 +1316,23 @@ export class HeadlessBattle {
     defMods.defBonus += defTimedBuffMods.defBonus || 0;
     defMods.resBonus += defTimedBuffMods.resBonus || 0;
     defMods.spdBonus += defTimedBuffMods.spdBonus || 0;
+    this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
+    this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
+
+    const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
+    if (terrainBonuses.length > 0) {
+      const applyTerrainBonus = (mods, unit, terrain) => {
+        if (!terrain?.name || unit?.faction !== 'player') return;
+        for (const bonus of terrainBonuses) {
+          if (Array.isArray(bonus.terrains) && bonus.terrains.includes(terrain.name)) {
+            mods.avoidBonus += bonus.avoidBonus || 0;
+            mods.defBonus += bonus.defBonus || 0;
+          }
+        }
+      };
+      applyTerrainBonus(atkMods, attacker, atkTerrain);
+      applyTerrainBonus(defMods, defender, defTerrain);
+    }
 
     return {
       atkMods,
@@ -1208,7 +1343,7 @@ export class HeadlessBattle {
       rollDefenseAffixes,
       getAttackAffixes,
       checkAstra,
-      affixData: this.gameData.affixes,
+      affixData: affixes,
       skillsData: skills,
     };
   }
@@ -1347,7 +1482,7 @@ export class HeadlessBattle {
       if (damage <= 0) continue;
       target.currentHP = Math.max(0, target.currentHP - damage);
       if (target.currentHP <= 0) {
-        this._removeUnit(target);
+        this._removeUnit(target, { killer: sourceUnit });
         break;
       }
     }
@@ -1417,7 +1552,7 @@ export class HeadlessBattle {
       if (!target || target.currentHP <= 0) continue;
       const hpFloor = step?.nonLethal ? 1 : 0;
       target.currentHP = Math.max(hpFloor, target.currentHP - splashDamage);
-      if (target.currentHP <= 0) this._removeUnit(target);
+      if (target.currentHP <= 0) this._removeUnit(target, { killer: sourceUnit });
     }
   }
 
@@ -1612,12 +1747,15 @@ export class HeadlessBattle {
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
+    this._ensureCombatRollSession(attacker, defender);
     const selectedArt = attacker.faction === 'player'
       ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
       : null;
     if (selectedArt) {
       applyWeaponArtCost(attacker, selectedArt);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+      this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
+      this._checkPhoenixBrooch(attacker);
     }
     const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
@@ -1638,6 +1776,8 @@ export class HeadlessBattle {
       attackerWeaponArt: selectedArt,
       defenderWeaponArt: null,
     });
+    this._checkPhoenixBrooch(attacker);
+    this._checkPhoenixBrooch(defender);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const baseXp = calculateCombatXP(attacker, defender, defender.currentHP <= 0);
@@ -1648,16 +1788,20 @@ export class HeadlessBattle {
       }
     }
 
-    if (defender.currentHP <= 0) this._removeUnit(defender);
-    if (attacker.currentHP <= 0) this._removeUnit(attacker);
+    if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
+    if (attacker.currentHP <= 0) this._removeUnit(attacker, { killer: defender });
 
-    if (this._checkBattleEnd()) return;
+    if (this._checkBattleEnd()) {
+      this._clearCombatRollSession();
+      return;
+    }
 
     if (attacker.currentHP <= 0) {
       this.selectedUnit = null;
       this._clearSelectedWeaponArt();
       this.attackTargets = [];
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+      this._clearCombatRollSession();
       return;
     }
 
@@ -1683,6 +1827,7 @@ export class HeadlessBattle {
         this._clearSelectedWeaponArt();
         this.attackTargets = [];
         this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+        this._clearCombatRollSession();
         return;
       }
     }
@@ -1743,6 +1888,7 @@ export class HeadlessBattle {
   }
 
   _finishUnitAction(unit) {
+    this._clearCombatRollSession();
     this.attackTargets = [];
     this.healTargets = [];
     this._clearSelectedWeaponArt();
@@ -1755,7 +1901,8 @@ export class HeadlessBattle {
     this.turnManager.unitActed(unit);
   }
 
-  _removeUnit(unit) {
+  _removeUnit(unit, options = {}) {
+    const killer = options?.killer || null;
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
       if (idx !== -1) this.playerUnits.splice(idx, 1);
@@ -1765,8 +1912,7 @@ export class HeadlessBattle {
     } else {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
-      const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * this._getEnemyRewardMultiplier(unit)));
-      this.goldEarned += adjustedGold;
+      this._applyKillRewards(unit, killer);
     }
   }
 
@@ -1791,6 +1937,7 @@ export class HeadlessBattle {
   }
 
   async _processEnemyPhase() {
+    this._processTerrainDamage(this.playerUnits);
     this._processTurnStartEffects(this.enemyUnits);
     this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
     this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
@@ -1824,6 +1971,7 @@ export class HeadlessBattle {
     }
 
     if (this.battleState !== HEADLESS_STATES.BATTLE_END) {
+      this._processTerrainDamage(this.enemyUnits);
       this.turnManager.endEnemyPhase();
     }
   }
@@ -1869,10 +2017,13 @@ export class HeadlessBattle {
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
+    this._ensureCombatRollSession(attacker, defender);
     const selectedArt = this._selectEnemyWeaponArt(attacker, defender);
     if (selectedArt) {
       applyWeaponArtCost(attacker, selectedArt);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+      this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
+      this._checkPhoenixBrooch(attacker);
     }
     const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
@@ -1893,6 +2044,8 @@ export class HeadlessBattle {
       attackerWeaponArt: selectedArt,
       defenderWeaponArt: null,
     });
+    this._checkPhoenixBrooch(attacker);
+    this._checkPhoenixBrooch(defender);
 
     // Award XP to player defender
     if (defender.faction === 'player' && defender.currentHP > 0) {
@@ -1904,10 +2057,11 @@ export class HeadlessBattle {
       }
     }
 
-    if (defender.currentHP <= 0) this._removeUnit(defender);
-    if (attacker.currentHP <= 0) this._removeUnit(attacker);
+    if (defender.currentHP <= 0) this._removeUnit(defender, { killer: attacker });
+    if (attacker.currentHP <= 0) this._removeUnit(attacker, { killer: defender });
 
     this._checkBattleEnd();
+    this._clearCombatRollSession();
   }
 
   applyBattleDebuff(unit, stat, value) {

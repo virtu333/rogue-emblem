@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import {
-  calculateKillGold, calculateBattleGold, calculateSkipLootBonus,
+  calculateKillGold, calculateKillReward, calculateBattleGold, calculateSkipLootBonus,
   getSellPrice, generateLootChoices, generateShopInventory,
 } from '../src/engine/LootSystem.js';
 import {
@@ -34,6 +34,28 @@ describe('LootSystem', () => {
       const normal = calculateKillGold({ level: 5 });
       const boss = calculateKillGold({ level: 5, isBoss: true });
       expect(boss).toBe(normal + GOLD_BOSS_BONUS);
+    });
+  });
+
+  describe('calculateKillReward', () => {
+    it('applies reward and pressure multipliers to base kill gold', () => {
+      const enemy = { faction: 'enemy', level: 4, isBoss: false };
+      const reward = calculateKillReward(enemy, null, { rewardMultiplier: 1.5, pressureGoldMultiplier: 2 });
+      expect(reward).toBe(Math.floor(calculateKillGold(enemy) * 1.5 * 2));
+    });
+
+    it('adds flat bounty without applying multipliers to bounty bonus', () => {
+      const enemy = { faction: 'enemy', level: 3, isBoss: false };
+      const killer = { accessory: { combatEffects: { goldPerKill: 500 } } };
+      const reward = calculateKillReward(enemy, killer, { rewardMultiplier: 2, pressureGoldMultiplier: 3 });
+      expect(reward).toBe(Math.floor(calculateKillGold(enemy) * 2 * 3) + 500);
+    });
+
+    it('supports legacy bounty alias and ignores non-enemy targets', () => {
+      const enemy = { faction: 'enemy', level: 2, isBoss: false };
+      const killer = { accessory: { combatEffects: { bountyGoldOnKill: 250 } } };
+      expect(calculateKillReward(enemy, killer)).toBe(calculateKillGold(enemy) + 250);
+      expect(calculateKillReward({ faction: 'player', level: 2 }, killer)).toBe(0);
     });
   });
 

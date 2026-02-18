@@ -46,6 +46,100 @@ function applyAuraEffects(mods, effects) {
   mods.critBonus += effects.critBonus || 0;
 }
 
+function isLivingOnMap(unit) {
+  if (!unit || unit.currentHP <= 0) return false;
+  return Number.isFinite(Number(unit.col)) && Number.isFinite(Number(unit.row));
+}
+
+export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random) {
+  const combatEffects = unit?.accessory?.combatEffects;
+  const gambler = combatEffects?.gambler || (combatEffects?.gamblerCoin ? {} : null);
+  if (!gambler) return 0;
+
+  if (rollSession?.gamblerAtkDeltaByUnit instanceof Map && rollSession.gamblerAtkDeltaByUnit.has(unit)) {
+    return rollSession.gamblerAtkDeltaByUnit.get(unit);
+  }
+
+  const winChance = Math.min(1, Math.max(0, Number(gambler.winChance) || 0.5));
+  const winAtkBonus = Math.trunc(Number(gambler.winAtkBonus) || 5);
+  const rawLossPenalty = Number(gambler.lossAtkPenalty);
+  const lossAtkPenalty = Number.isFinite(rawLossPenalty)
+    ? (rawLossPenalty > 0 ? -Math.abs(rawLossPenalty) : Math.trunc(rawLossPenalty))
+    : -3;
+  const roller = typeof rng === 'function' ? rng : Math.random;
+  const delta = roller() < winChance ? winAtkBonus : lossAtkPenalty;
+
+  if (rollSession?.gamblerAtkDeltaByUnit instanceof Map) {
+    rollSession.gamblerAtkDeltaByUnit.set(unit, delta);
+  }
+  return delta;
+}
+
+export function applyAccessoryPhaseCombatMods(unit, mods, options = {}) {
+  if (!unit || !mods) return mods;
+  const combatEffects = unit.accessory?.combatEffects;
+  if (!combatEffects) return mods;
+
+  if (!Number.isFinite(Number(mods.atkBonus))) mods.atkBonus = 0;
+  if (!Number.isFinite(Number(mods.defBonus))) mods.defBonus = 0;
+
+  const turn = Math.max(1, Math.trunc(Number(options.turnNumber) || 1));
+  if (combatEffects.moontide) {
+    const moontideConfig = typeof combatEffects.moontide === 'object' ? combatEffects.moontide : {};
+    const oddAtkBonus = Math.trunc(Number(moontideConfig.oddAtkBonus) || 2);
+    const evenDefBonus = Math.trunc(Number(moontideConfig.evenDefBonus) || 2);
+    if (turn % 2 === 1) mods.atkBonus += oddAtkBonus;
+    else mods.defBonus += evenDefBonus;
+  }
+
+  if (combatEffects.gambler || combatEffects.gamblerCoin) {
+    mods.atkBonus += resolveGamblerDelta(unit, options.rollSession || null, options.rng);
+  }
+  return mods;
+}
+
+function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, terrain) {
+  if (!condition) return true;
+  if (condition === 'below50') return isBelow50(unit);
+  if (condition === 'above75') return unit.currentHP > Math.floor(unit.stats.HP * 0.75);
+  if (condition === 'on_forest') return terrain?.name === 'Forest';
+  if (condition === 'adjacent_ally') {
+    return allies.some((ally) =>
+      ally !== unit
+      && isLivingOnMap(ally)
+      && gridDistance(unit.col, unit.row, ally.col, ally.row) === 1
+    );
+  }
+  if (condition === 'no_ally_within_2') {
+    return !allies.some((ally) =>
+      ally !== unit
+      && isLivingOnMap(ally)
+      && gridDistance(unit.col, unit.row, ally.col, ally.row) <= 2
+    );
+  }
+  if (condition === 'enemies_nearby_2plus') {
+    const nearby = enemies.filter((enemy) =>
+      enemy !== unit
+      && isLivingOnMap(enemy)
+      && gridDistance(unit.col, unit.row, enemy.col, enemy.row) <= 2
+    ).length;
+    return nearby >= 2;
+  }
+  if (condition === 'on_forest_or_mountain') {
+    return terrain?.name === 'Forest' || terrain?.name === 'Mountain';
+  }
+  if (condition === 'isolated_duel') {
+    if (!isLivingOnMap(unit) || !isLivingOnMap(opponent)) return false;
+    const others = [...(allies || []), ...(enemies || [])]
+      .filter((candidate) => candidate && candidate !== unit && candidate !== opponent && isLivingOnMap(candidate));
+    return !others.some((candidate) =>
+      gridDistance(unit.col, unit.row, candidate.col, candidate.row) <= 2
+      || gridDistance(opponent.col, opponent.row, candidate.col, candidate.row) <= 2
+    );
+  }
+  return true;
+}
+
 // --- Static combat modifiers ---
 
 /**
@@ -215,13 +309,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
   // Accessory combat effects
   const ce = unit.accessory?.combatEffects;
   if (ce) {
-    let condMet = true;
-    if (ce.condition === 'below50') condMet = isBelow50(unit);
-    else if (ce.condition === 'above75') condMet = unit.currentHP > Math.floor(unit.stats.HP * 0.75);
-    else if (ce.condition === 'on_forest') condMet = terrain?.name === 'Forest';
-    else if (ce.condition === 'adjacent_ally') condMet = allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
-
-    if (condMet) {
+    if (isAccessoryConditionMet(ce.condition, unit, opponent, allies, enemies, terrain)) {
       if (ce.critBonus) mods.critBonus += ce.critBonus;
       if (ce.atkBonus) mods.atkBonus += ce.atkBonus;
       if (ce.defBonus) mods.defBonus += ce.defBonus;
@@ -436,54 +524,156 @@ export function checkAstra(attacker, skillsData) {
 export function getTurnStartEffects(units, skillsData) {
   const effects = [];
 
-  if (!skillsData) return effects;
+  const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
 
   for (const unit of units) {
-    if (!unit.skills) continue;
+    if (Array.isArray(unit.skills)) {
+      for (const skillId of unit.skills) {
+        const skill = getSkill(skillId, resolvedSkillsData);
+        if (!skill || skill.trigger !== 'on-turn-start') continue;
 
-    for (const skillId of unit.skills) {
-      const skill = getSkill(skillId, skillsData);
-      if (!skill || skill.trigger !== 'on-turn-start') continue;
-
-      // Renewal: self-heal 10% max HP
-      if (skill.id === 'renewal') {
-        const healPercent = skill.effects?.healSelf || 10;
-        const healAmount = Math.max(1, Math.floor(unit.stats.HP * healPercent / 100));
-        if (unit.currentHP < unit.stats.HP) {
-          const actualHeal = Math.min(healAmount, unit.stats.HP - unit.currentHP);
-          effects.push({
-            type: 'heal',
-            target: unit,
-            amount: actualHeal,
-            source: skill.name,
-            sourceUnit: unit,
-          });
-        }
-      }
-
-      if (skill.id === 'renewal_aura') {
-        const healAmount = skill.effects?.healAllies || 0;
-        if (healAmount <= 0) continue;
-
-        for (const ally of units) {
-          if (ally === unit) continue;
-          const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
-          if (dist <= (skill.range || 1) && ally.currentHP < ally.stats.HP) {
-            const actualHeal = Math.min(healAmount, ally.stats.HP - ally.currentHP);
+        // Renewal: self-heal 10% max HP
+        if (skill.id === 'renewal') {
+          const healPercent = skill.effects?.healSelf || 10;
+          const healAmount = Math.max(1, Math.floor(unit.stats.HP * healPercent / 100));
+          if (unit.currentHP < unit.stats.HP) {
+            const actualHeal = Math.min(healAmount, unit.stats.HP - unit.currentHP);
             effects.push({
               type: 'heal',
-              target: ally,
+              target: unit,
               amount: actualHeal,
               source: skill.name,
               sourceUnit: unit,
             });
           }
         }
+
+        if (skill.id === 'renewal_aura') {
+          const healAmount = skill.effects?.healAllies || 0;
+          if (healAmount <= 0) continue;
+
+          for (const ally of units) {
+            if (ally === unit) continue;
+            const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
+            if (dist <= (skill.range || 1) && ally.currentHP < ally.stats.HP) {
+              const actualHeal = Math.min(healAmount, ally.stats.HP - ally.currentHP);
+              effects.push({
+                type: 'heal',
+                target: ally,
+                amount: actualHeal,
+                source: skill.name,
+                sourceUnit: unit,
+              });
+            }
+          }
+        }
       }
+    }
+
+    const accessory = unit.accessory;
+    const turnStart = accessory?.turnStartEffects;
+    const combatEffects = accessory?.combatEffects;
+    const hasSoothingStone = accessory?.name === 'Soothing Stone'
+      || Number.isFinite(Number(turnStart?.healSelfFlat))
+      || Number.isFinite(Number(turnStart?.healSelfPercent))
+      || Number.isFinite(Number(turnStart?.turnStartHealPercent))
+      || Number.isFinite(Number(combatEffects?.turnStartHealFlat))
+      || Number.isFinite(Number(combatEffects?.turnStartHealPercent));
+    if (!hasSoothingStone) continue;
+    if (unit.currentHP >= unit.stats.HP) continue;
+
+    const healPercent = Number.isFinite(Number(turnStart?.healSelfPercent))
+      ? Number(turnStart.healSelfPercent)
+      : Number.isFinite(Number(turnStart?.turnStartHealPercent))
+        ? Number(turnStart.turnStartHealPercent)
+        : Number.isFinite(Number(combatEffects?.turnStartHealPercent))
+          ? Number(combatEffects.turnStartHealPercent)
+          : 20;
+    const healFlatRaw = Number.isFinite(Number(turnStart?.healSelfFlat))
+      ? Number(turnStart.healSelfFlat)
+      : Number.isFinite(Number(combatEffects?.turnStartHealFlat))
+        ? Number(combatEffects.turnStartHealFlat)
+        : 0;
+    const healFlat = Math.max(0, Math.trunc(healFlatRaw || 0));
+    const percentComponent = healPercent <= 1
+      ? Math.floor(unit.stats.HP * Math.max(0, healPercent))
+      : Math.floor(unit.stats.HP * Math.max(0, healPercent) / 100);
+    const healAmount = Math.max(1, healFlat + percentComponent);
+    const actualHeal = Math.min(healAmount, unit.stats.HP - unit.currentHP);
+    if (actualHeal > 0) {
+      effects.push({
+        type: 'heal',
+        target: unit,
+        amount: actualHeal,
+        source: accessory?.name || 'Accessory',
+        sourceUnit: unit,
+      });
     }
   }
 
   return effects;
+}
+
+export function checkPhoenixBrooch(unit) {
+  if (!unit || unit.currentHP <= 0) return { triggered: false, amount: 0 };
+  const combatEffects = unit.accessory?.combatEffects;
+  const hasPhoenixBrooch = unit.accessory?.name === 'Phoenix Brooch' || Boolean(combatEffects?.phoenixBrooch);
+  if (!hasPhoenixBrooch) return { triggered: false, amount: 0 };
+  if (unit._phoenixBroochUsed) return { triggered: false, amount: 0 };
+
+  const phoenixConfig = (combatEffects?.phoenixBrooch && typeof combatEffects.phoenixBrooch === 'object')
+    ? combatEffects.phoenixBrooch
+    : {};
+  const maxHp = Math.max(1, Number(unit.stats?.HP) || 1);
+  const thresholdPercent = Number.isFinite(Number(phoenixConfig.thresholdPercent))
+    ? Math.max(0, Number(phoenixConfig.thresholdPercent))
+    : Number.isFinite(Number(combatEffects?.phoenixThreshold))
+      ? Math.max(0, Number(combatEffects.phoenixThreshold))
+      : 0.25;
+  const thresholdHp = Number.isFinite(Number(phoenixConfig.thresholdHp))
+    ? Math.max(1, Math.trunc(Number(phoenixConfig.thresholdHp)))
+    : Number.isFinite(Number(combatEffects?.phoenixThresholdHp))
+      ? Math.max(1, Math.trunc(Number(combatEffects.phoenixThresholdHp)))
+      : Math.max(1, Math.floor(maxHp * thresholdPercent));
+  if (unit.currentHP > thresholdHp) return { triggered: false, amount: 0 };
+
+  const hasExplicitHealPercent = Number.isFinite(Number(phoenixConfig.healPercent))
+    || Number.isFinite(Number(combatEffects?.phoenixHealPercent));
+  const hasExplicitHealFlat = Number.isFinite(Number(phoenixConfig.healFlat))
+    || Number.isFinite(Number(combatEffects?.phoenixHeal));
+  const healPercentRaw = hasExplicitHealPercent
+    ? Math.max(
+      0,
+      Number.isFinite(Number(phoenixConfig.healPercent))
+        ? Number(phoenixConfig.healPercent)
+        : Number(combatEffects?.phoenixHealPercent)
+    )
+    : 0;
+  const healFlat = hasExplicitHealFlat
+    ? Math.max(
+      0,
+      Math.trunc(
+        Number.isFinite(Number(phoenixConfig.healFlat))
+          ? Number(phoenixConfig.healFlat)
+          : Number(combatEffects?.phoenixHeal)
+      )
+    )
+    : (hasExplicitHealPercent ? 0 : 10);
+  const percentHeal = healPercentRaw <= 1
+    ? Math.floor(maxHp * healPercentRaw)
+    : Math.floor(maxHp * healPercentRaw / 100);
+  const rawHeal = Math.max(1, percentHeal + healFlat);
+  const nextHp = Math.min(maxHp, unit.currentHP + rawHeal);
+  const amount = nextHp - unit.currentHP;
+  if (amount <= 0) return { triggered: false, amount: 0 };
+
+  unit.currentHP = nextHp;
+  unit._phoenixBroochUsed = true;
+  return {
+    triggered: true,
+    amount,
+    source: unit.accessory?.name || 'Phoenix Brooch',
+  };
 }
 
 // --- Foresight range check ---

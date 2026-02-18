@@ -172,6 +172,7 @@ export function serializeUnit(unit) {
   data.hasMoved = false;
   data.hasActed = false;
   data._miracleUsed = false;
+  data._phoenixBroochUsed = false;
   const timedBuffStats = unit?._battleTimedWeaponArtAppliedStats;
   if (timedBuffStats && data.stats && typeof data.stats === 'object') {
     for (const [rawStat, rawValue] of Object.entries(timedBuffStats)) {
@@ -1912,6 +1913,7 @@ export class RunManager {
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
+    battleParams.recruitGuardianChance = this.getDifficultyModifier('recruitGuardianChance', 0);
     battleParams.difficultyId = this.difficultyId || 'normal';
     this._repairDuplicateRosterNames();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};

@@ -9,6 +9,7 @@ vi.mock('phaser', () => ({
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { loadGameData } from './testData.js';
+import { calculateKillGold } from '../src/engine/LootSystem.js';
 
 function makeArt(overrides = {}) {
   return {
@@ -487,6 +488,65 @@ describe('BattleScene weapon art helpers', () => {
     expect(text).toContain('HP-3 (18->15)');
     expect(text).toContain('Turn 1/2');
     expect(text).toContain('Map 1/4');
+  });
+
+  it('renders reduced HP cost in status preview when Blood Gem applies', () => {
+    const scene = new BattleScene();
+    const art = makeArt({ hpCost: 3, perTurnLimit: 1, perMapLimit: 2 });
+    const unit = makeUnit({
+      currentHP: 18,
+      accessory: { combatEffects: { weaponArtHpCostReduction: 5 } },
+      _battleWeaponArtUsage: {
+        map: { [art.id]: 0 },
+        turn: { [art.id]: 0 },
+        turnKey: '3',
+      },
+    });
+    scene.turnManager = { turnNumber: 3 };
+
+    const text = scene._getWeaponArtStatusLine(unit, art, { canUse: true, reason: null });
+    expect(text).toContain('HP-1 (base 3) (18->17)');
+  });
+
+  it('caches gambler roll per combat session for deterministic forecast/resolve usage', () => {
+    const scene = new BattleScene();
+    scene.turnManager = { turnNumber: 5, currentPhase: 'player' };
+    const attacker = makeUnit({
+      name: 'Attacker',
+      col: 0,
+      row: 0,
+      accessory: {
+        combatEffects: {
+          gambler: { winChance: 0.5, winAtkBonus: 5, lossAtkPenalty: 3 },
+        },
+      },
+    });
+    const defender = makeUnit({ name: 'Defender', col: 1, row: 0 });
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    try {
+      const session = scene._ensureCombatRollSession(attacker, defender);
+      const first = scene._getGamblerAtkDelta(attacker, session);
+      const second = scene._getGamblerAtkDelta(attacker, session);
+      expect(first).toBe(-3);
+      expect(second).toBe(-3);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('applies bounty bonus as flat +500g without multipliers', () => {
+    const scene = new BattleScene();
+    scene.runManager = {};
+    scene.goldEarned = 0;
+    scene.getEnemyRewardMultiplier = vi.fn(() => 1.5);
+    scene.getTurnPressureState = vi.fn(() => ({ goldMultiplier: 2 }));
+    const enemy = { faction: 'enemy', level: 4, isBoss: false };
+    const killer = { accessory: { combatEffects: { bountyGoldOnKill: 500 } } };
+
+    scene._applyKillRewards(enemy, killer);
+
+    const expected = Math.floor(calculateKillGold(enemy) * 1.5 * 2) + 500;
+    expect(scene.goldEarned).toBe(expected);
   });
 
   it('builds forecast skill context using temporary post-cost HP and restores HP', () => {

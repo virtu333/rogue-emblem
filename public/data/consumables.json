@@ -87,6 +87,15 @@
     "price": 2500
   },
   {
+    "name": "Swiftsoles",
+    "type": "Consumable",
+    "effect": "statBoost",
+    "stat": "MOV",
+    "value": 1,
+    "uses": 1,
+    "price": 3000
+  },
+  {
     "name": "Infantry Seal",
     "type": "Consumable",
     "effect": "reclass",

@@ -41,6 +41,31 @@ export function calculateKillGold(enemy) {
 }
 
 /**
+ * Calculate attributed kill reward, including flat accessory bounty bonus.
+ * @param {{ faction?: string, level: number, isBoss?: boolean }} enemy
+ * @param {{ accessory?: { combatEffects?: object } } | null} killer
+ * @param {{ rewardMultiplier?: number, pressureGoldMultiplier?: number }} [options]
+ * @returns {number}
+ */
+export function calculateKillReward(enemy, killer = null, options = {}) {
+  if (!enemy || enemy.faction !== 'enemy') return 0;
+  const rewardMultiplier = Number.isFinite(Number(options.rewardMultiplier))
+    ? Math.max(0, Number(options.rewardMultiplier))
+    : 1;
+  const pressureGoldMultiplier = Number.isFinite(Number(options.pressureGoldMultiplier))
+    ? Math.max(0, Number(options.pressureGoldMultiplier))
+    : 1;
+  const adjustedGold = Math.max(0, Math.floor(calculateKillGold(enemy) * rewardMultiplier * pressureGoldMultiplier));
+
+  const combatEffects = killer?.accessory?.combatEffects || null;
+  const bountyRaw = Number.isFinite(Number(combatEffects?.goldPerKill))
+    ? Number(combatEffects.goldPerKill)
+    : Number(combatEffects?.bountyGoldOnKill);
+  const bountyBonus = Math.max(0, Math.trunc(bountyRaw || 0));
+  return adjustedGold + bountyBonus;
+}
+
+/**
  * Calculate total battle gold (sum of kill gold + completion bonus).
  * @param {number} killGold - accumulated gold from individual kills
  * @param {string} [nodeType] - node type for gold multiplier (battle/recruit/boss)

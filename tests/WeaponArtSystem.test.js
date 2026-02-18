@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getWeaponArtCombatMods,
   canUseWeaponArt,
+  getEffectiveWeaponArtHpCost,
   recordWeaponArtUse,
   applyWeaponArtCost,
   resetWeaponArtTurnUsage,
@@ -166,6 +167,34 @@ describe('WeaponArtSystem', () => {
     const result = canUseWeaponArt(unit, weapon, makeArt({ hpCost: 2 }));
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('insufficient_hp');
+  });
+
+  it('computes effective HP cost with Blood Gem reduction and floor of 1', () => {
+    const unit = makeUnit({
+      accessory: { combatEffects: { weaponArtHpCostReduction: 5 } },
+    });
+    expect(getEffectiveWeaponArtHpCost(unit, makeArt({ hpCost: 8 }))).toBe(3);
+    expect(getEffectiveWeaponArtHpCost(unit, makeArt({ hpCost: 1 }))).toBe(1);
+  });
+
+  it('uses effective HP cost for legality, AI floor checks, and application', () => {
+    const unit = makeUnit({
+      currentHP: 2,
+      stats: { ...makeUnit().stats, HP: 8 },
+      accessory: { combatEffects: { weaponArtHpCostReduction: 5 } },
+    });
+    const weapon = { type: 'Sword' };
+    const art = makeArt({ hpCost: 2, aiMinHpAfterCostPercent: 0.25 });
+
+    const legal = canUseWeaponArt(unit, weapon, art);
+    expect(legal.ok).toBe(true);
+
+    const aiLegal = canUseWeaponArt(unit, weapon, art, { isAI: true });
+    expect(aiLegal.ok).toBe(false);
+    expect(aiLegal.reason).toBe('ai_hp_floor');
+
+    applyWeaponArtCost(unit, art);
+    expect(unit.currentHP).toBe(1);
   });
 
   it('tracks per-turn and per-map limits', () => {
