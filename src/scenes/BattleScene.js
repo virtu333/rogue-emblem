@@ -100,6 +100,7 @@ import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
+import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -302,9 +303,11 @@ export class BattleScene extends Phaser.Scene {
         this.forceEndTurn();
       },
       cancel: (event) => {
-        if (event?.defaultPrevented) return;
+        if (event?.repeat) return;
+        if (isEscConsumed(this, event)) return;
         if (this.isStoryInputLocked()) return;
-        this.requestCancel();
+        const handled = this.requestCancel();
+        if (handled) consumeEscEvent(this, event);
       },
       rewindAndLootRoster: () => {
         if (this.isStoryInputLocked()) return;

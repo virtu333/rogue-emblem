@@ -95,4 +95,18 @@ describe('HelpOverlay search', () => {
     expect(overlay.activeTabIndex).toBe(nextTab);
     expect(overlay.currentPage).toBe(0);
   });
+
+  it('ESC in search mode exits search only and keeps overlay open', () => {
+    const overlay = new HelpOverlay(makeScene(), vi.fn());
+    overlay.show();
+    overlay.searchInputActive = true;
+    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+
+    overlay._onEsc(null, event);
+
+    expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+    expect(overlay.searchInputActive).toBe(false);
+    expect(overlay.visible).toBe(true);
+  });
 });

@@ -2,6 +2,7 @@
 // 8 tabs with paginated content. Depth 860-862.
 
 import { HELP_TABS } from '../data/helpContent.js';
+import { consumeEscEvent } from '../utils/escPriority.js';
 
 const DEPTH_BG = 860;
 const DEPTH_PANEL = 861;
@@ -81,8 +82,7 @@ export class HelpOverlay {
   }
 
   _onEsc(_key, event) {
-    if (event?.preventDefault) event.preventDefault();
-    if (event?.stopPropagation) event.stopPropagation();
+    if (!consumeEscEvent(this.scene, event)) return;
     if (this.searchInputActive) {
       this.searchInputActive = false;
       this._draw();

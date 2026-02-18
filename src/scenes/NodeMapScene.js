@@ -31,6 +31,7 @@ import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
+import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -182,10 +183,11 @@ export class NodeMapScene extends Phaser.Scene {
     this._unbindInputHandlers();
 
     this._onEsc = (event) => {
-      if (event?.defaultPrevented) return;
       if (event?.repeat) return;
+      if (isEscConsumed(this, event)) return;
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-      this.requestCancel();
+      const handled = this.requestCancel();
+      if (handled) consumeEscEvent(this, event);
     };
     this._onPointerDown = (pointer) => {
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;

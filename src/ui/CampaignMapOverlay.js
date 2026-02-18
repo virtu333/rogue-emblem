@@ -2,6 +2,7 @@
 // Depth range 830-832 (between PauseOverlay 800 and confirm dialog 850).
 
 import { ACT_CONFIG, NODE_TYPES } from '../utils/constants.js';
+import { consumeEscEvent } from '../utils/escPriority.js';
 
 const DEPTH_BG = 830;
 const DEPTH_PANEL = 831;
@@ -90,7 +91,7 @@ export class CampaignMapOverlay {
     this._draw();
 
     this.escKey = this.scene.input.keyboard.addKey('ESC');
-    this.escKey.on('down', this._close, this);
+    this.escKey.on('down', this._onEsc, this);
   }
 
   _draw() {
@@ -129,7 +130,7 @@ export class CampaignMapOverlay {
     }).setOrigin(0.5, 0).setDepth(DEPTH_UI).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor('#ff8888'));
     closeBtn.on('pointerout', () => closeBtn.setColor('#cc5555'));
-    closeBtn.on('pointerdown', () => this._close());
+    closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
     if (nodes.length === 0) return;
@@ -250,15 +251,14 @@ export class CampaignMapOverlay {
     }
   }
 
-  _close(_key, event) {
-    if (event?.preventDefault) event.preventDefault();
-    if (event?.stopPropagation) event.stopPropagation();
+  _onEsc(_key, event) {
+    if (!consumeEscEvent(this.scene, event)) return;
     this.hide();
   }
 
   hide() {
     if (this.escKey) {
-      this.escKey.off('down', this._close, this);
+      this.escKey.off('down', this._onEsc, this);
       this.escKey = null;
     }
     for (const obj of this.objects) obj.destroy();

@@ -2,6 +2,7 @@
 // 4 sequential pages. Depth 500-502.
 
 import { HOW_TO_PLAY_PAGES } from '../data/helpContent.js';
+import { consumeEscEvent } from '../utils/escPriority.js';
 
 const DEPTH_BG = 500;
 const DEPTH_PANEL = 501;
@@ -45,7 +46,10 @@ export class HowToPlayOverlay {
     }
   }
 
-  _onEsc() { this.hide(); }
+  _onEsc(_key, event) {
+    if (!consumeEscEvent(this.scene, event)) return;
+    this.hide();
+  }
 
   _onLeft() {
     if (this.currentPage > 0) { this.currentPage--; this._draw(); }

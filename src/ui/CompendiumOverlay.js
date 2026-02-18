@@ -1,6 +1,8 @@
 // CompendiumOverlay — Encyclopedia data browser for game content
 // 9 tabs with sub-filters, pagination, and search. Depth 870-872.
 
+import { consumeEscEvent } from '../utils/escPriority.js';
+
 const DEPTH_BG = 870;
 const DEPTH_PANEL = 871;
 const DEPTH_UI = 872;
@@ -108,8 +110,7 @@ export class CompendiumOverlay {
   }
 
   _onEsc(_key, event) {
-    if (event?.preventDefault) event.preventDefault();
-    if (event?.stopPropagation) event.stopPropagation();
+    if (!consumeEscEvent(this.scene, event)) return;
     if (this.searchInputActive) {
       this.searchInputActive = false;
       this._draw();
