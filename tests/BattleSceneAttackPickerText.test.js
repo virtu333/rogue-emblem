@@ -144,6 +144,25 @@ describe('BattleScene attack weapon picker text', () => {
       expect(call[6]?.clickOnPointerUp).toBeFalsy();
     }
   });
+
+  it('appends * marker when a weapon has bound weapon art', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.gameData = {
+      weaponArts: {
+        arts: [{ id: 'sword_art', name: 'Sword Art' }],
+      },
+    };
+    const artBound = { ...equipped, weaponArtId: 'sword_art' };
+    getCombatWeaponsMock.mockReturnValue([artBound, secondary]);
+    const unit = { col: 1, row: 1, weapon: artBound, inventory: [artBound, secondary] };
+
+    BattleScene.prototype.showWeaponPicker.call(scene, unit, []);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels.find((label) => label.includes('Iron Sword'))).toContain('*');
+    expect(labels.find((label) => label.includes('Steel Sword'))).not.toContain('*');
+  });
 });
 
 describe('BattleScene attack picker tooltip lifecycle', () => {

@@ -165,6 +165,24 @@ describe('BattleScene equip menu text', () => {
     }
   });
 
+  it('appends * marker when a weapon has bound weapon art', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.gameData = {
+      weaponArts: {
+        arts: [{ id: 'sword_art', name: 'Sword Art' }],
+      },
+    };
+    const artBound = { ...equipped, weaponArtId: 'sword_art' };
+    const unit = { col: 1, row: 1, weapon: artBound, inventory: [artBound, secondary] };
+
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels.find((label) => label.includes('Iron Sword'))).toContain('*');
+    expect(labels.find((label) => label.includes('Steel Sword'))).not.toContain('*');
+  });
+
   it('shows Equip in action menu with one equippable and one non-proficient weapon', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
@@ -390,5 +408,49 @@ describe('equip menu overflow', () => {
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
       equipped, expect.any(Object), updatedY,
     );
+  });
+});
+
+describe('BattleScene weapon detail tooltip', () => {
+  it('includes weapon art summary lines when weapon has a bound art', () => {
+    const scene = new BattleScene();
+    let tooltipText = '';
+    scene.add = {
+      text: (_x, _y, text) => {
+        tooltipText = String(text);
+        return {
+          width: 140,
+          height: 48,
+          setDepth() { return this; },
+          setPosition() { return this; },
+        };
+      },
+      rectangle: () => ({
+        width: 152,
+        height: 60,
+        setOrigin() { return this; },
+        setStrokeStyle() { return this; },
+        setDepth() { return this; },
+      }),
+      container: () => ({
+        setDepth() { return this; },
+        setPosition() { return this; },
+        destroy() {},
+      }),
+    };
+    scene.cameras = { main: { width: 640, height: 480 } };
+    scene._pinToScreen = vi.fn();
+    scene._formatSpecialLinesForUi = BattleScene.prototype._formatSpecialLinesForUi;
+    scene._hideWeaponDetailTooltip = BattleScene.prototype._hideWeaponDetailTooltip;
+    scene._getWeaponArtCatalog = () => [{ id: 'sword_art', name: 'Sword Art', combatMods: { hitBonus: 10 } }];
+
+    BattleScene.prototype._showWeaponDetailTooltip.call(
+      scene,
+      { ...equipped, weaponArtId: 'sword_art' },
+      { x: 20, y: 20, width: 100, height: 80 },
+      50
+    );
+
+    expect(tooltipText).toContain('Art: Sword Art - Hit +10');
   });
 });

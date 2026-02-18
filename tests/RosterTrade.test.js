@@ -152,4 +152,26 @@ describe('Roster trade weapon gating', () => {
     expect(unitA.inventory).toHaveLength(1);
     expect(unitB.inventory).toHaveLength(INVENTORY_MAX);
   });
+
+  it('shows * marker for trade rows when a weapon has bound art', () => {
+    const { overlay, scene } = makeOverlay();
+    const sword = { ...makeWeapon('Iron Sword', 'Sword'), weaponArtId: 'sword_precise_cut' };
+    const axe = makeWeapon('Iron Axe', 'Axe');
+    const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
+    const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: [axe], weapon: axe });
+
+    overlay._showTradeScreen(unitA, unitB);
+
+    expect(scene.created.texts.some((obj) => obj.text === '*')).toBe(true);
+  });
+
+  it('shows * marker for roster gear rows when a weapon has bound art', () => {
+    const { overlay, scene } = makeOverlay();
+    const sword = { ...makeWeapon('Iron Sword', 'Sword'), weaponArtId: 'sword_precise_cut' };
+    const unit = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
+
+    overlay._drawGearTab(40, 60, unit);
+
+    expect(scene.created.texts.some((obj) => obj.text === '*')).toBe(true);
+  });
 });

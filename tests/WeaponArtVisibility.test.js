@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   buildWeaponArtVisibilityRows,
   formatWeaponArtActLabel,
+  getWeaponArtTooltipLines,
+  hasWeaponArt,
+  resolveWeaponArtIds,
   resolveWeaponArtStatus,
   summarizeWeaponArtEffect,
 } from '../src/ui/WeaponArtVisibility.js';
@@ -103,5 +106,45 @@ describe('WeaponArt visibility helpers', () => {
     expect(row.status).toBe('Meta Unlocked');
     expect(row.statusDetail).toBe('Also Act 2');
     expect(row.statusSource).toBe('Meta');
+  });
+
+  it('resolveWeaponArtIds supports explicit, legacy, and legendary bindings', () => {
+    const arts = [
+      makeArt({ id: 'explicit_art', name: 'Explicit Art' }),
+      makeArt({ id: 'legacy_art', name: 'Legacy Art' }),
+      makeArt({ id: 'legend_art', name: 'Legend Art', legendaryWeaponIds: ['Gemini'] }),
+    ];
+
+    expect(resolveWeaponArtIds(
+      { name: 'Iron Sword', weaponArtIds: ['explicit_art'] },
+      arts
+    )).toEqual(['explicit_art']);
+    expect(resolveWeaponArtIds(
+      { name: 'Iron Sword', weaponArtId: 'legacy_art' },
+      arts
+    )).toEqual(['legacy_art']);
+    expect(resolveWeaponArtIds(
+      { name: 'Gemini' },
+      arts
+    )).toEqual(['legend_art']);
+  });
+
+  it('resolveWeaponArtIds fails closed for unresolved IDs when catalog is provided', () => {
+    const arts = [makeArt({ id: 'known_art', name: 'Known Art' })];
+    const weapon = { name: 'Iron Sword', weaponArtIds: ['missing_art'] };
+    expect(resolveWeaponArtIds(weapon, arts)).toEqual([]);
+    expect(hasWeaponArt(weapon, arts)).toBe(false);
+  });
+
+  it('getWeaponArtTooltipLines returns formatted art summary lines', () => {
+    const arts = [
+      makeArt({
+        id: 'curved',
+        name: 'Curved Shot',
+        combatMods: { rangeBonus: 1, hitBonus: 15 },
+      }),
+    ];
+    const lines = getWeaponArtTooltipLines({ name: 'Short Bow', weaponArtId: 'curved' }, arts);
+    expect(lines).toEqual(['Art: Curved Shot - Hit +15, Range +1']);
   });
 });

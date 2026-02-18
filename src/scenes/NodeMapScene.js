@@ -30,6 +30,7 @@ import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
+import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -66,6 +67,13 @@ const SHOP_LIST_TOP_Y = 105;
 const SHOP_LIST_BOTTOM_Y = 390;
 const SHOP_SCROLL_STEP = 24;
 const UNIT_PICKER_SCROLL_STEP = 30;
+
+function getWeaponArtCatalogForScene(scene) {
+  if (scene && typeof scene._getWeaponArtCatalog === 'function') {
+    return scene._getWeaponArtCatalog();
+  }
+  return scene?.gameData?.weaponArts?.arts || [];
+}
 
 const OVERLAY_PANEL_W = 560;
 const OVERLAY_PANEL_H = 425; // overlay panel height (px) — independent of button safety margin
@@ -1445,6 +1453,10 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawShopScrollHint();
   }
 
+  _getWeaponArtCatalog() {
+    return this.gameData?.weaponArts?.arts || [];
+  }
+
   drawShopBuyList() {
     const startY = 105;
     const lineH = 24;
@@ -1458,7 +1470,8 @@ export class NodeMapScene extends Phaser.Scene {
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
       const affordable = this.runManager.gold >= entry.price;
       const color = affordable ? '#e0e0e0' : '#666666';
-      const text = this.add.text(60, y, `${entry.item.name}  ${entry.price}G`, {
+      const marker = hasWeaponArt(entry?.item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
+      const text = this.add.text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
         fontFamily: 'monospace', fontSize: '12px', color,
       }).setDepth(OVERLAY_CONTENT_DEPTH);
 
@@ -1615,9 +1628,10 @@ export class NodeMapScene extends Phaser.Scene {
 
         const locked = isLastCombatWeapon(unit, wpn);
         const equipped = wpn === unit.weapon ? '\u25b6' : ' ';
+        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
         const wpnColor = locked ? '#666666' : (isForged(wpn) ? '#44ff88' : '#e0e0e0');
         const text = this.add.text(70, y,
-          `${equipped}${wpn.name}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
+          `${equipped}${wpn.name}${marker}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
         }).setDepth(OVERLAY_CONTENT_DEPTH);
 
@@ -1691,7 +1705,8 @@ export class NodeMapScene extends Phaser.Scene {
         const y = startY + row * lineH - offset;
         const level = wpn._forgeLevel || 0;
         const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
-        const label = `  ${wpn.name}  [${level}/${FORGE_MAX_LEVEL}]`;
+        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
+        const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
         if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
           row++;
           continue;
@@ -1811,12 +1826,14 @@ export class NodeMapScene extends Phaser.Scene {
     const crt = Number.isFinite(Number(item.crit)) ? Number(item.crit) : 0;
     const wt = Number.isFinite(Number(item.weight)) ? Number(item.weight) : 0;
     const rng = item.range ?? '1';
+    const artCatalog = getWeaponArtCatalogForScene(this);
 
     const lines = [];
     if (item.type) lines.push(item.type);
     lines.push(`Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`);
     lines.push(`Wt: ${wt}   Rng: ${rng}`);
     if (item.special) lines.push(`Special: ${item.special}`);
+    lines.push(...getWeaponArtTooltipLines(item, artCatalog));
     return lines.join('\n');
   }
 
@@ -1956,14 +1973,27 @@ export class NodeMapScene extends Phaser.Scene {
     const wtCount = getStatForgeCount(wpn, 'weight');
     const line3 = `Forge: Mt(${mtCount}/${FORGE_STAT_CAP}) Cr(${crCount}/${FORGE_STAT_CAP}) Ht(${htCount}/${FORGE_STAT_CAP}) Wt(${wtCount}/${FORGE_STAT_CAP})`;
 
-    const lines = [line1, line2, line3];
-    if (wpn.special) lines.push(`Special: ${wpn.special}`);
+    const lineDefs = [
+      { text: line1, color: '#e0e0e0' },
+      { text: line2, color: '#e0e0e0' },
+      { text: line3, color: '#ff8844' },
+    ];
+    if (wpn.special) lineDefs.push({ text: `Special: ${wpn.special}`, color: '#88ccff' });
+    const artLines = getWeaponArtTooltipLines(wpn, getWeaponArtCatalogForScene(this));
+    for (const line of artLines) lineDefs.push({ text: line, color: '#ffcc88' });
 
-    const lineH = 14;
     const padX = 8;
     const padY = 6;
-    const boxW = 220;
-    const boxH = lines.length * lineH + padY * 2;
+    const maxTextW = 320;
+    const lineSpacing = 3;
+    const detailLines = lineDefs.map(({ text, color }) => this.add.text(0, 0, text, {
+      fontFamily: 'monospace', fontSize: '9px', color, wordWrap: { width: maxTextW },
+    }).setDepth(311));
+    const textW = detailLines.reduce((max, lineObj) => Math.max(max, lineObj.width || 0), 0);
+    const textH = detailLines.reduce((sum, lineObj) => sum + (lineObj.height || 0), 0)
+      + Math.max(0, detailLines.length - 1) * lineSpacing;
+    const boxW = Phaser.Math.Clamp(textW + padX * 2, 220, 340);
+    const boxH = textH + padY * 2;
 
     // Clamp to canvas (640x480)
     let tx = anchorX;
@@ -1976,22 +2006,11 @@ export class NodeMapScene extends Phaser.Scene {
     const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
       .setDepth(310).setStrokeStyle(1, 0x4466aa);
     this.forgeTooltip.push(bg);
-
-    const statsText = this.add.text(tx + padX, ty + padY, line1 + '\n' + line2, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0', lineSpacing: 4,
-    }).setDepth(311);
-    this.forgeTooltip.push(statsText);
-
-    const forgeText = this.add.text(tx + padX, ty + padY + lineH * 2, line3, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#ff8844',
-    }).setDepth(311);
-    this.forgeTooltip.push(forgeText);
-
-    if (wpn.special) {
-      const specialText = this.add.text(tx + padX, ty + padY + lineH * 3, `Special: ${wpn.special}`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#88ccff',
-      }).setDepth(311);
-      this.forgeTooltip.push(specialText);
+    let lineY = ty + padY;
+    for (const lineObj of detailLines) {
+      lineObj.setPosition(tx + padX, lineY);
+      this.forgeTooltip.push(lineObj);
+      lineY += (lineObj.height || 0) + lineSpacing;
     }
   }
 

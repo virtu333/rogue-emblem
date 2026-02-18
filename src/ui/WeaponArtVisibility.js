@@ -1,3 +1,5 @@
+import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+
 const WEAPON_ART_ACT_ID_RE = /^act(\d+)$/i;
 
 function toNumber(value, fallback = 0) {
@@ -5,11 +7,89 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function toNonEmptyString(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getWeaponMatchTokens(weapon) {
+  if (!weapon || typeof weapon !== 'object') return [];
+  const tokens = [];
+  const pushToken = (value) => {
+    const token = toNonEmptyString(value);
+    if (!token || tokens.includes(token)) return;
+    tokens.push(token);
+  };
+  pushToken(weapon.id);
+  pushToken(weapon.name);
+  pushToken(weapon._baseName);
+  return tokens;
+}
+
+function getCatalogById(artsCatalog) {
+  const byId = new Map();
+  const catalog = Array.isArray(artsCatalog) ? artsCatalog : [];
+  for (const art of catalog) {
+    const id = toNonEmptyString(art?.id);
+    if (!id || byId.has(id)) continue;
+    byId.set(id, art);
+  }
+  return byId;
+}
+
 export function formatWeaponArtActLabel(actId) {
   if (!actId) return 'Act 1';
   const match = String(actId).match(WEAPON_ART_ACT_ID_RE);
   if (match) return `Act ${match[1]}`;
   return String(actId);
+}
+
+export function resolveWeaponArtIds(weapon, artsCatalog = []) {
+  if (!weapon || typeof weapon !== 'object') return [];
+  const byId = getCatalogById(artsCatalog);
+  const enforceCatalog = byId.size > 0;
+  const ids = [];
+  const seen = new Set();
+  const pushId = (value) => {
+    const id = toNonEmptyString(value);
+    if (!id || seen.has(id)) return;
+    if (enforceCatalog && !byId.has(id)) return;
+    seen.add(id);
+    ids.push(id);
+  };
+
+  for (const id of getWeaponArtIds(weapon)) pushId(id);
+
+  if (byId.size > 0) {
+    const tokens = getWeaponMatchTokens(weapon);
+    if (tokens.length > 0) {
+      for (const art of byId.values()) {
+        if (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length <= 0) continue;
+        if (art.legendaryWeaponIds.some((legendaryId) => tokens.includes(legendaryId))) {
+          pushId(art.id);
+        }
+      }
+    }
+  }
+
+  return ids;
+}
+
+export function hasWeaponArt(weapon, artsCatalog = []) {
+  return resolveWeaponArtIds(weapon, artsCatalog).length > 0;
+}
+
+export function getWeaponArtTooltipLines(weapon, artsCatalog = []) {
+  const byId = getCatalogById(artsCatalog);
+  if (byId.size <= 0) return [];
+  const lines = [];
+  for (const id of resolveWeaponArtIds(weapon, artsCatalog)) {
+    const art = byId.get(id);
+    if (!art?.name) continue;
+    lines.push(`Art: ${art.name} - ${summarizeWeaponArtEffect(art)}`);
+  }
+  return lines;
 }
 
 export function summarizeWeaponArtEffect(art) {

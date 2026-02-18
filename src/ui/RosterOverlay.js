@@ -22,6 +22,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { hasWeaponArt, getWeaponArtTooltipLines, resolveWeaponArtIds } from './WeaponArtVisibility.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -549,6 +550,8 @@ export class RosterOverlay {
         const forgeSuffixSegments = usableNow
           ? this._getWeaponForgeSuffixSegments(item)
           : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: lineColor }));
+        const hasArt = hasWeaponArt(item, this.gameData?.weaponArts?.arts || []);
+        const artMarkerSegments = hasArt ? [{ text: '*', color: lineColor }] : [];
         if (item.type === 'Staff') {
           const rem = getStaffRemainingUses(item, unit);
           const max = getStaffMaxUses(item, unit);
@@ -558,6 +561,7 @@ export class RosterOverlay {
             { text: marker, color: lineColor },
             { text: this._getWeaponBaseName(item), color: nameColor },
             ...forgeSuffixSegments,
+            ...artMarkerSegments,
             { text: ` (${rem}/${max}) ${rngStr}`, color: lineColor },
           ], '9px');
           tooltipAnchor = line.anchor;
@@ -568,6 +572,7 @@ export class RosterOverlay {
             { text: marker, color: lineColor },
             { text: this._getWeaponBaseName(item), color: nameColor },
             ...forgeSuffixSegments,
+            ...artMarkerSegments,
             { text: ' ', color: lineColor },
             { text: `Mt${item.might}`, color: usableNow ? this._getForgeStatColor(item, 'might', lineColor) : lineColor },
             { text: ' ', color: lineColor },
@@ -583,6 +588,7 @@ export class RosterOverlay {
           const line = this._textSegments(x, y, [
             { text: marker, color: lineColor },
             { text: item.name || '', color: nameColor },
+            ...artMarkerSegments,
           ], '9px');
           tooltipAnchor = line.anchor;
         }
@@ -726,21 +732,10 @@ export class RosterOverlay {
     if (!weapon) return [];
     const allArts = this.gameData?.weaponArts?.arts || [];
     if (allArts.length <= 0) return [];
-    const byId = new Map();
-    for (const boundId of getWeaponArtIds(weapon)) {
-      const boundArt = allArts.find((art) => art?.id === boundId);
-      if (boundArt?.id) byId.set(boundArt.id, boundArt);
-    }
-    const weaponToken = weapon?.id || weapon?.name || null;
-    if (weaponToken) {
-      for (const art of allArts) {
-        if (!art?.id) continue;
-        if (Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
-          byId.set(art.id, art);
-        }
-      }
-    }
-    return [...byId.values()];
+    const byId = new Map(allArts.filter((art) => art?.id).map((art) => [art.id, art]));
+    return resolveWeaponArtIds(weapon, allArts)
+      .map((id) => byId.get(id))
+      .filter(Boolean);
   }
 
   _getInspectableWeaponArtChoices(unit, weapon) {
@@ -1865,6 +1860,9 @@ export class RosterOverlay {
             { text: this._getWeaponBaseName(item), color: nameColor },
             ...forgeSuffixSegments,
           ];
+          if (hasWeaponArt(item, this.gameData?.weaponArts?.arts || [])) {
+            segments.push({ text: '*', color: rowColor });
+          }
           if (item.type === 'Staff') {
             const rem = getStaffRemainingUses(item, unit);
             const max = getStaffMaxUses(item, unit);
@@ -2204,14 +2202,7 @@ export class RosterOverlay {
     const lines = [];
     if (weapon.type) lines.push(weapon.type);
     if (weapon.special) lines.push(`Special: ${weapon.special}`);
-    const boundArts = this._collectWeaponBoundArts(weapon);
-    if (boundArts.length > 0) {
-      for (const art of boundArts) {
-        if (!art?.name) continue;
-        const detail = art.description ? ` - ${art.description}` : '';
-        lines.push(`Weapon Art: ${art.name}${detail}`);
-      }
-    }
+    lines.push(...getWeaponArtTooltipLines(weapon, this.gameData?.weaponArts?.arts || []));
     if (lines.length <= 0) return;
     const body = lines.join('\n');
 

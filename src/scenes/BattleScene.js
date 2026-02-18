@@ -60,7 +60,6 @@ import {
   recordWeaponArtUse,
   applyWeaponArtCost,
   resetWeaponArtTurnUsage,
-  getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import {
@@ -106,7 +105,12 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
-import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
+import {
+  summarizeWeaponArtEffect,
+  hasWeaponArt,
+  getWeaponArtTooltipLines,
+  resolveWeaponArtIds,
+} from '../ui/WeaponArtVisibility.js';
 
 function dimColor(color, factor = 0.3) {
   const r = Math.floor(((color >> 16) & 0xff) * factor);
@@ -437,18 +441,18 @@ export class BattleScene extends Phaser.Scene {
               const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
               if (baseClassData) {
                 const baseDef = { ...npcSpawn, className: baseClassData.name };
-                npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+                npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
                   if (!npc.skills.includes(sid)) npc.skills.push(sid);
                 }
                 promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
               } else {
                 // Safety fallback: create from promoted class directly rather than aborting battle load.
-                npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+                npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
                 console.warn('Promoted recruit missing base class mapping:', npcClassData.name, npcClassData.promotesFrom);
               }
             } else {
-              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool);
+              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
               // Assign base-class innate skills (e.g. Dancer gets 'dance')
               for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
                 if (!npc.skills.includes(sid)) npc.skills.push(sid);
@@ -4617,6 +4621,7 @@ export class BattleScene extends Phaser.Scene {
       const specialLines = this._formatSpecialLinesForUi(wpn.special, 28, 2);
       lines.push(...specialLines);
     }
+    lines.push(...getWeaponArtTooltipLines(wpn, this._getWeaponArtCatalog()));
     const body = lines.join('\n');
     const padding = 6;
     const maxWidth = 160;
@@ -5430,7 +5435,8 @@ export class BattleScene extends Phaser.Scene {
       const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + 8;
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const label = `${marker}${wpn?.name || 'Weapon'}`;
+      const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
+      const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
@@ -5515,7 +5521,8 @@ export class BattleScene extends Phaser.Scene {
       const isNonProficient = !hasProficiency(unit, wpn);
       const canEquipNow = canEquip(unit, wpn);
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
-      const label = `${marker}${wpn?.name || 'Weapon'}${isNonProficient ? ' (no prof)' : ''}`;
+      const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
+      const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`;
       const defaultColor = isNonProficient ? '#888888' : (wpn === unit.weapon ? '#ffdd44' : '#e0e0e0');
 
       const text = this._makeMenuTextButton(itemX, itemY, label, {
@@ -5937,26 +5944,12 @@ export class BattleScene extends Phaser.Scene {
 
   _collectWeaponBoundArts(weapon) {
     if (!weapon) return [];
-    const allArts = this.gameData?.weaponArts?.arts || [];
+    const allArts = this._getWeaponArtCatalog();
     if (allArts.length <= 0) return [];
-    const byId = new Map();
-
-    for (const boundId of getWeaponArtIds(weapon)) {
-      const boundArt = allArts.find((art) => art?.id === boundId);
-      if (boundArt?.id) byId.set(boundArt.id, boundArt);
-    }
-
-    const weaponToken = weapon?.id || weapon?.name || null;
-    if (weaponToken) {
-      for (const art of allArts) {
-        if (!art?.id) continue;
-        if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.includes(weaponToken)) {
-          byId.set(art.id, art);
-        }
-      }
-    }
-
-    return [...byId.values()];
+    const byId = new Map(allArts.filter((art) => art?.id).map((art) => [art.id, art]));
+    return resolveWeaponArtIds(weapon, allArts)
+      .map((id) => byId.get(id))
+      .filter(Boolean);
   }
 
   _getAvailableWeaponArtEntriesForUnit(unit) {
