@@ -678,5 +678,67 @@ describe('BattleScene deploy controls', () => {
     expect(selectedNames).toContain('Edric');
     expect(selectedNames).toContain('Sera');
   });
+
+  it('keeps deploy controls visible and allows scrolling when roster exceeds viewport', () => {
+    const { scene } = setupScene();
+    const { rectangles, texts } = attachUiHarness(scene);
+    const roster = [
+      makeRosterUnit('Edric'),
+      ...Array.from({ length: 12 }, (_v, idx) => makeRosterUnit(`Unit${idx + 1}`)),
+    ];
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      roster,
+      { min: 6, max: 6 },
+      vi.fn(),
+    );
+
+    const confirmBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32);
+    expect(confirmBg).toBeTruthy();
+    expect(confirmBg.y).toBe(426);
+    expect(confirmBg.y).toBeLessThan(scene.cameras.main.height);
+
+    const lastRow = texts.find((obj) => obj.text.includes('Unit12'));
+    expect(lastRow).toBeTruthy();
+    expect(lastRow.visible).toBe(false);
+    const ninthVisibleRow = texts.find((obj) => obj.text.includes('Unit8'));
+    expect(ninthVisibleRow).toBeTruthy();
+    expect(ninthVisibleRow.visible).toBe(true);
+
+    const scrollDown = texts.find((obj) => obj.text === 'v');
+    expect(scrollDown).toBeTruthy();
+    for (let i = 0; i < 12; i++) scrollDown.trigger('pointerdown');
+
+    expect(lastRow.visible).toBe(true);
+  });
+
+  it('detaches deploy wheel listener when overlay closes', () => {
+    const { scene } = setupScene();
+    const { rectangles } = attachUiHarness(scene);
+    scene.input = { on: vi.fn(), off: vi.fn() };
+    const roster = [
+      makeRosterUnit('Edric'),
+      ...Array.from({ length: 12 }, (_v, idx) => makeRosterUnit(`Unit${idx + 1}`)),
+    ];
+
+    BattleScene.prototype.showDeployScreen.call(
+      scene,
+      roster,
+      { min: 1, max: 6 },
+      vi.fn(),
+    );
+
+    expect(scene.input.on).toHaveBeenCalledTimes(1);
+    const [eventName, wheelHandler] = scene.input.on.mock.calls[0];
+    expect(eventName).toBe('wheel');
+    expect(typeof wheelHandler).toBe('function');
+
+    const confirmBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32);
+    expect(confirmBg).toBeTruthy();
+    confirmBg.trigger('pointerdown');
+
+    expect(scene.input.off).toHaveBeenCalledWith('wheel', wheelHandler);
+  });
 });
 

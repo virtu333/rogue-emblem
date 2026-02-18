@@ -2032,6 +2032,7 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const deployGroup = [];
     let deployOverlayClosed = false;
+    let detachDeployInputHandlers = null;
 
     // Dark overlay
     const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
@@ -2052,6 +2053,14 @@ export class BattleScene extends Phaser.Scene {
     const cleanupDeployOverlay = () => {
       if (deployOverlayClosed) return;
       deployOverlayClosed = true;
+      if (typeof detachDeployInputHandlers === 'function') {
+        try {
+          detachDeployInputHandlers();
+        } catch {
+          // Ignore handler teardown failures during overlay close.
+        }
+        detachDeployInputHandlers = null;
+      }
       for (const obj of deployGroup) {
         try {
           obj.destroy();
@@ -2065,6 +2074,7 @@ export class BattleScene extends Phaser.Scene {
     // Track selections
     const selected = new Set();
     const rowObjects = [];
+    let scrollOffset = 0;
 
     const serializeSelectedUnitNames = () => {
       const names = new Set();
@@ -2107,6 +2117,15 @@ export class BattleScene extends Phaser.Scene {
     const rowHeight = 34;
     const startY = 100;
     const listWidth = 400;
+    const confirmY = cam.height - 54;
+    const listBottomY = confirmY - 28;
+    const maxVisibleRows = Math.max(1, Math.floor((listBottomY - startY) / rowHeight) + 1);
+    const maxScrollOffset = Math.max(0, roster.length - maxVisibleRows);
+    const canScrollRows = maxScrollOffset > 0;
+    const listLeft = cam.centerX - listWidth / 2;
+    const listRight = cam.centerX + listWidth / 2;
+    const rowTopBound = startY - rowHeight / 2;
+    const rowBottomBound = listBottomY + rowHeight / 2;
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
@@ -2135,8 +2154,9 @@ export class BattleScene extends Phaser.Scene {
       deployGroup.push(infoText);
 
       // Lock label for Edric
+      let lockLabel = null;
       if (isEdric) {
-        const lockLabel = this.add.text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
+        lockLabel = this.add.text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
           fontFamily: 'monospace', fontSize: '9px', color: '#ffaa44',
         }).setOrigin(1, 0.5).setDepth(702);
         deployGroup.push(lockLabel);
@@ -2149,7 +2169,15 @@ export class BattleScene extends Phaser.Scene {
         infoText.setColor(isSel ? '#ffffff' : '#999999');
       };
 
-      rowObjects.push({ index: i, updateRow });
+      rowObjects.push({
+        index: i,
+        isEdric,
+        rowBg,
+        checkText,
+        infoText,
+        lockLabel,
+        updateRow,
+      });
 
       // Click handler (skip Edric -- always locked)
       if (!isEdric) {
@@ -2170,8 +2198,89 @@ export class BattleScene extends Phaser.Scene {
       updateRow();
     }
 
-    // Confirm button
-    const confirmY = startY + roster.length * rowHeight + 20;
+    const setVisibleSafe = (obj, visible) => {
+      if (!obj) return;
+      if (typeof obj.setVisible === 'function') {
+        obj.setVisible(visible);
+      } else {
+        obj.visible = visible;
+      }
+    };
+
+    const setRowInteractive = (rowObj, visible) => {
+      if (!rowObj || rowObj.isEdric) return;
+      if (visible) {
+        if (typeof rowObj.rowBg.setInteractive === 'function') {
+          rowObj.rowBg.setInteractive({ useHandCursor: true });
+        }
+        return;
+      }
+      if (typeof rowObj.rowBg.disableInteractive === 'function') rowObj.rowBg.disableInteractive();
+    };
+
+    const applyRowLayout = () => {
+      for (const rowObj of rowObjects) {
+        const visibleIdx = rowObj.index - scrollOffset;
+        const visible = visibleIdx >= 0 && visibleIdx < maxVisibleRows;
+        const rowY = startY + visibleIdx * rowHeight;
+        rowObj.rowBg.y = rowY;
+        rowObj.checkText.y = rowY;
+        rowObj.infoText.y = rowY;
+        if (rowObj.lockLabel) rowObj.lockLabel.y = rowY;
+        setVisibleSafe(rowObj.rowBg, visible);
+        setVisibleSafe(rowObj.checkText, visible);
+        setVisibleSafe(rowObj.infoText, visible);
+        if (rowObj.lockLabel) setVisibleSafe(rowObj.lockLabel, visible);
+        setRowInteractive(rowObj, visible);
+      }
+    };
+
+    const scrollX = cam.centerX + listWidth / 2 + 26;
+    const scrollUp = this.add.text(scrollX, startY, '^', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#88ccff',
+    }).setOrigin(0.5).setDepth(702);
+    const scrollDown = this.add.text(scrollX, listBottomY, 'v', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#88ccff',
+    }).setOrigin(0.5).setDepth(702);
+    deployGroup.push(scrollUp);
+    deployGroup.push(scrollDown);
+
+    const updateScrollControls = () => {
+      const upEnabled = canScrollRows && scrollOffset > 0;
+      const downEnabled = canScrollRows && scrollOffset < maxScrollOffset;
+      setVisibleSafe(scrollUp, canScrollRows);
+      setVisibleSafe(scrollDown, canScrollRows);
+      scrollUp.setColor(upEnabled ? '#88ccff' : '#555577');
+      scrollDown.setColor(downEnabled ? '#88ccff' : '#555577');
+    };
+
+    const setScrollOffset = (nextOffset) => {
+      const clamped = Math.max(0, Math.min(maxScrollOffset, nextOffset));
+      if (clamped === scrollOffset) return;
+      scrollOffset = clamped;
+      applyRowLayout();
+      updateScrollControls();
+    };
+
+    if (canScrollRows) {
+      scrollUp.setInteractive({ useHandCursor: true });
+      scrollDown.setInteractive({ useHandCursor: true });
+      scrollUp.on('pointerdown', () => setScrollOffset(scrollOffset - 1));
+      scrollDown.on('pointerdown', () => setScrollOffset(scrollOffset + 1));
+
+      if (this.input?.on && this.input?.off) {
+        const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
+          if (deployOverlayClosed || !pointer || !deltaY) return;
+          if (pointer.x < listLeft || pointer.x > listRight) return;
+          if (pointer.y < rowTopBound || pointer.y > rowBottomBound) return;
+          setScrollOffset(scrollOffset + (deltaY > 0 ? 1 : -1));
+        };
+        this.input.on('wheel', wheelHandler);
+        detachDeployInputHandlers = () => this.input.off('wheel', wheelHandler);
+      }
+    }
+
+    // Confirm button (anchored near bottom so long rosters do not push controls off-screen)
     const confirmBg = this.add.rectangle(cam.centerX, confirmY, 120, 32, 0x225522, 1)
       .setStrokeStyle(2, 0x44aa44).setDepth(701).setInteractive({ useHandCursor: true });
     deployGroup.push(confirmBg);
@@ -2247,6 +2356,8 @@ export class BattleScene extends Phaser.Scene {
     });
     deployGroup.push(rosterText);
 
+    applyRowLayout();
+    updateScrollControls();
     updateCounter();
     this._pinToScreen(deployGroup);
 
