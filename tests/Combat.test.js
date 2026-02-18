@@ -503,7 +503,7 @@ describe('Combat resolution', () => {
 
   it('returns poisonEffects array with both entries when both sides have poison', () => {
     const veninEdge = data.weapons.find(w => w.name === 'Venin Blade');
-    if (!veninEdge) return; // skip if weapon not in data
+    expect(veninEdge).toBeTruthy();
     // Both combatants have Venin Blade — both survive so both poisons apply
     const attacker = makeUnit({
       stats: { HP: 50, STR: 5, MAG: 0, SKL: 10, SPD: 10, DEF: 20, RES: 20, LCK: 5 },
@@ -533,7 +533,7 @@ describe('Combat resolution', () => {
 
   it('applies poison when attacking with Venin Bow', () => {
     const veninBow = data.weapons.find((weapon) => weapon.name === 'Venin Bow');
-    if (!veninBow) return;
+    expect(veninBow).toBeTruthy();
 
     const attacker = makeUnit({
       stats: { HP: 40, STR: 9, MAG: 0, SKL: 12, SPD: 12, DEF: 18, RES: 8, LCK: 5 },
