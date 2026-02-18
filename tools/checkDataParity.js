@@ -37,7 +37,7 @@ function failWithReport(reportLines) {
   for (const line of reportLines) {
     console.error(`  - ${line}`);
   }
-  console.error('Run `npm run sync-data` to regenerate `public/data/*` from `data/*`.');
+  console.error('Run `npm run sync-data` to regenerate and prune `public/data/*` from `data/*`.');
   process.exit(1);
 }
 

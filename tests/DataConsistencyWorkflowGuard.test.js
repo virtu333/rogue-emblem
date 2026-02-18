@@ -53,7 +53,7 @@ describe('data consistency workflow guards', () => {
     const lootTables = readJson('data/lootTables.json');
     const enemyOnlyWeapons = ['Venin Bow', 'Sunder Sword', 'Sunder Lance', 'Sunder Axe', 'Sunder Bow'];
 
-    for (const act of ['act1', 'act2', 'act3']) {
+    for (const act of ['act1', 'act2', 'act3', 'finalBoss']) {
       const table = lootTables[act] || {};
       const standardWeapons = Array.isArray(table.weapons) ? table.weapons : [];
       const legendaryWeapons = Array.isArray(table.legendaryWeapon) ? table.legendaryWeapon : [];
