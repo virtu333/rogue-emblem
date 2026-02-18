@@ -1977,6 +1977,64 @@ export class RunManager {
     return true;
   }
 
+  /**
+   * Move eligible fallen-unit items into team storage.
+   * Weapons/staves + consumables route to convoy if capacity allows.
+   * Accessories route to the team accessory pool.
+   * Items that cannot be transferred remain on the fallen unit.
+   */
+  _transferFallenUnitItems(fallenUnit) {
+    if (!fallenUnit || typeof fallenUnit !== 'object') return;
+    this._sanitizeUnitPools();
+    if (!Array.isArray(this.accessories)) this.accessories = [];
+
+    const inventory = Array.isArray(fallenUnit.inventory) ? fallenUnit.inventory : [];
+    const consumables = Array.isArray(fallenUnit.consumables) ? fallenUnit.consumables : [];
+
+    // Handle corrupted legacy data where equipped weapon is absent from inventory
+    // or represented by a deep-equal-but-different object reference.
+    const equipped = fallenUnit.weapon;
+    if (equipped) {
+      let equippedInInventory = inventory.includes(equipped);
+      if (!equippedInInventory && inventory.length > 0) {
+        const equippedStr = JSON.stringify(equipped);
+        const equivalent = inventory.find((item) => JSON.stringify(item) === equippedStr);
+        if (equivalent) {
+          fallenUnit.weapon = equivalent;
+          equippedInInventory = true;
+        }
+      }
+
+      if (!equippedInInventory) {
+        if (this.addToConvoy(equipped)) {
+          fallenUnit.weapon = null;
+        } else {
+          // Keep blocked equipped item recoverable on revive.
+          inventory.push(equipped);
+        }
+      }
+    }
+
+    const keptInventory = [];
+    for (const item of inventory) {
+      if (!this.addToConvoy(item)) keptInventory.push(item);
+    }
+    fallenUnit.inventory = keptInventory;
+
+    const keptConsumables = [];
+    for (const item of consumables) {
+      if (!this.addToConvoy(item)) keptConsumables.push(item);
+    }
+    fallenUnit.consumables = keptConsumables;
+
+    if (fallenUnit.accessory) {
+      this.accessories.push(structuredClone(fallenUnit.accessory));
+      fallenUnit.accessory = null;
+    }
+
+    relinkWeapon(fallenUnit);
+  }
+
   takeFromConvoy(type, index) {
     this._sanitizeUnitPools();
     if (!Number.isInteger(index) || index < 0) return null;
@@ -2011,7 +2069,9 @@ export class RunManager {
     const newlyFallen = this.roster.filter(u => !survivingNames.has(u.name));
     for (const fallen of newlyFallen) {
       if (!this.fallenUnits.find(f => f.name === fallen.name)) {
-        this.fallenUnits.push(serializeUnit(fallen));
+        const serializedFallen = serializeUnit(fallen);
+        this._transferFallenUnitItems(serializedFallen);
+        this.fallenUnits.push(serializedFallen);
       }
     }
 

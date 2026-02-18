@@ -1222,6 +1222,163 @@ describe('Fallen unit tracking and revival', () => {
     expect(rm.fallenUnits[0].name).toBe('TestRecruit');
   });
 
+  it('completeBattle transfers fallen weapons/consumables to convoy and accessory to team pool', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
+    const weaponA = gameData.weapons.find(w => w.type === profType) || gameData.weapons.find(w => w.type === 'Sword');
+    const weaponB = gameData.weapons.find(w => w.type === profType && w.name !== weaponA?.name)
+      || gameData.weapons.find(w => w.type === 'Sword' && w.name !== weaponA?.name)
+      || weaponA;
+    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const accessory = gameData.accessories[0];
+
+    const fallen = structuredClone(rm.roster[0]);
+    fallen.name = 'FallenRecruit';
+    fallen.inventory = [structuredClone(weaponA), structuredClone(weaponB)];
+    fallen.weapon = fallen.inventory[0];
+    fallen.consumables = [structuredClone(vuln)];
+    fallen.accessory = structuredClone(accessory);
+    rm.roster.push(fallen);
+
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.getConvoyCounts()).toEqual({ weapons: 2, consumables: 1 });
+    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+
+    const stored = rm.fallenUnits.find(u => u.name === 'FallenRecruit');
+    expect(stored).toBeTruthy();
+    expect(stored.inventory).toEqual([]);
+    expect(stored.consumables).toEqual([]);
+    expect(stored.weapon).toBeNull();
+    expect(stored.accessory).toBeNull();
+  });
+
+  it('keeps fallen weapon/consumable on fallen unit when convoy buckets are full', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
+    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const caps = rm.getConvoyCapacities();
+    for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
+    for (let i = 0; i < caps.consumables; i++) rm.addToConvoy(vuln);
+
+    const accessory = gameData.accessories[0];
+    const fallen = structuredClone(rm.roster[0]);
+    fallen.name = 'ConvoyFullFallen';
+    fallen.inventory = [structuredClone(sword)];
+    fallen.weapon = fallen.inventory[0];
+    fallen.consumables = [structuredClone(vuln)];
+    fallen.accessory = structuredClone(accessory);
+    rm.roster.push(fallen);
+
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.getConvoyCounts()).toEqual(caps);
+    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+
+    const stored = rm.fallenUnits.find(u => u.name === 'ConvoyFullFallen');
+    expect(stored).toBeTruthy();
+    expect(stored.inventory).toHaveLength(1);
+    expect(stored.inventory[0].name).toBe(sword.name);
+    expect(stored.consumables).toHaveLength(1);
+    expect(stored.consumables[0].name).toBe(vuln.name);
+    expect(stored.accessory).toBeNull();
+  });
+
+  it('transfers available buckets and keeps only blocked bucket items on fallen unit', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
+    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const caps = rm.getConvoyCapacities();
+    for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
+
+    const accessory = gameData.accessories[0];
+    const fallen = structuredClone(rm.roster[0]);
+    fallen.name = 'PartialTransferFallen';
+    fallen.inventory = [structuredClone(sword)];
+    fallen.weapon = fallen.inventory[0];
+    fallen.consumables = [structuredClone(vuln)];
+    fallen.accessory = structuredClone(accessory);
+    rm.roster.push(fallen);
+
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 1 });
+    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+
+    const stored = rm.fallenUnits.find(u => u.name === 'PartialTransferFallen');
+    expect(stored).toBeTruthy();
+    expect(stored.inventory).toHaveLength(1);
+    expect(stored.inventory[0].name).toBe(sword.name);
+    expect(stored.consumables).toEqual([]);
+    expect(stored.accessory).toBeNull();
+  });
+
+  it('does not double-transfer equipped weapon when it matches inventory by value only', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
+    const weapon = gameData.weapons.find(w => w.type === profType)
+      || gameData.weapons.find(w => w.type === 'Sword')
+      || gameData.weapons[0];
+
+    const fallen = structuredClone(rm.roster[0]);
+    fallen.name = 'ValueMatchFallen';
+    fallen.inventory = [structuredClone(weapon)];
+    fallen.weapon = structuredClone(weapon); // distinct object, same content
+    fallen.consumables = [];
+    fallen.accessory = null;
+    rm.roster.push(fallen);
+
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 0 });
+    const stored = rm.fallenUnits.find(u => u.name === 'ValueMatchFallen');
+    expect(stored).toBeTruthy();
+    expect(stored.inventory).toEqual([]);
+    expect(stored.weapon).toBeNull();
+  });
+
+  it('keeps equipped weapon on fallen unit when convoy is full and weapon is missing from inventory', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
+    const weapon = gameData.weapons.find(w => w.type === profType)
+      || gameData.weapons.find(w => w.type === 'Sword')
+      || gameData.weapons[0];
+    const caps = rm.getConvoyCapacities();
+    for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(weapon);
+
+    const fallen = structuredClone(rm.roster[0]);
+    fallen.name = 'LegacyMissingEquippedFallen';
+    fallen.inventory = [];
+    fallen.weapon = structuredClone(weapon);
+    fallen.consumables = [];
+    fallen.accessory = null;
+    rm.roster.push(fallen);
+
+    const survivors = [rm.roster[0], rm.roster[1]];
+    rm.completeBattle(survivors, 'node1', 100);
+
+    expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 0 });
+    const stored = rm.fallenUnits.find(u => u.name === 'LegacyMissingEquippedFallen');
+    expect(stored).toBeTruthy();
+    expect(stored.inventory).toHaveLength(1);
+    expect(stored.inventory[0].name).toBe(weapon.name);
+    expect(stored.weapon).toBe(stored.inventory[0]);
+  });
+
   it('reviveFallenUnit restores unit to roster at 1 HP', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
