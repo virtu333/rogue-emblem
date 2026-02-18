@@ -76,6 +76,54 @@ function getWeaponArtCatalogForScene(scene) {
   return scene?.gameData?.weaponArts?.arts || [];
 }
 
+function beginSceneLifecycle(scene) {
+  const nextGeneration = (Number.isInteger(scene?._sceneLifecycleGeneration)
+    ? scene._sceneLifecycleGeneration
+    : 0) + 1;
+  scene._sceneLifecycleGeneration = nextGeneration;
+  scene._sceneShuttingDown = false;
+  scene._sceneShutdownCleanedUp = false;
+  scene._sceneTimers = new Set();
+  return nextGeneration;
+}
+
+function isSceneLifecycleActive(scene, generation = scene?._sceneLifecycleGeneration) {
+  if (!scene || scene._sceneShuttingDown) return false;
+  const currentGeneration = Number.isInteger(scene._sceneLifecycleGeneration)
+    ? scene._sceneLifecycleGeneration
+    : null;
+  if (Number.isInteger(generation) && Number.isInteger(currentGeneration) && generation !== currentGeneration) {
+    return false;
+  }
+  return true;
+}
+
+function trackSceneTimer(scene, timer) {
+  if (!timer) return null;
+  if (!scene._sceneTimers || typeof scene._sceneTimers.add !== 'function') {
+    scene._sceneTimers = new Set();
+  }
+  scene._sceneTimers.add(timer);
+  return timer;
+}
+
+function clearTrackedSceneTimer(scene, timer) {
+  if (!timer) return;
+  if (scene?._sceneTimers && typeof scene._sceneTimers.delete === 'function') {
+    scene._sceneTimers.delete(timer);
+  }
+  try {
+    timer.remove?.();
+  } catch (_) {}
+}
+
+function clearAllSceneTimers(scene) {
+  if (!scene?._sceneTimers || typeof scene._sceneTimers.values !== 'function') return;
+  for (const timer of Array.from(scene._sceneTimers.values())) {
+    clearTrackedSceneTimer(scene, timer);
+  }
+}
+
 const OVERLAY_PANEL_W = 560;
 const OVERLAY_PANEL_H = 425; // overlay panel height (px) — independent of button safety margin
 const OVERLAY_PANEL_DEPTH = 301;
@@ -129,6 +177,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   create() {
+    const lifecycleGeneration = beginSceneLifecycle(this);
+
     const audio = this.registry.get('audio');
     if (audio) {
       // Fire and forget; scene readiness gate below prevents early-click races.
@@ -157,15 +207,12 @@ export class NodeMapScene extends Phaser.Scene {
     // Debug overlay (dev-only)
     if (this.isDevToolsEnabled()) {
       this.debugOverlay = new DebugOverlay(this);
-      this.input.keyboard.addKey(192).on('down', () => {
-        if (this.shopOverlay || this.rosterOverlay?.visible) return;
-        this.debugOverlay.toggle();
-      });
+      this._bindDebugToggleHandler();
     }
 
     this.drawMap();
     this.input.enabled = false;
-    void this.finalizeSceneReady();
+    void this.finalizeSceneReady(lifecycleGeneration);
 
     const hints = this.registry.get('hints');
     this._pendingNodeMapHints = {
@@ -207,10 +254,33 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  _bindDebugToggleHandler() {
+    if (!this.isDevToolsEnabled()) return;
+    const keyboard = this.input?.keyboard;
+    if (!keyboard?.addKey) return;
+
+    this._unbindDebugToggleHandler();
+    this._debugToggleKey = keyboard.addKey(192);
+    this._onDebugToggle = () => {
+      if (this.shopOverlay || this.rosterOverlay?.visible) return;
+      this.debugOverlay?.toggle?.();
+    };
+    if (this._debugToggleKey?.on) this._debugToggleKey.on('down', this._onDebugToggle);
+  }
+
+  _unbindDebugToggleHandler() {
+    if (this._debugToggleKey?.off && this._onDebugToggle) {
+      this._debugToggleKey.off('down', this._onDebugToggle);
+    }
+    this._debugToggleKey = null;
+    this._onDebugToggle = null;
+  }
+
   _unbindInputHandlers() {
     const input = this.input;
     const keyboard = input?.keyboard;
     if (keyboard?.off && this._onEsc) keyboard.off('keydown-ESC', this._onEsc);
+    this._unbindDebugToggleHandler?.();
     if (input?.off) {
       if (this._onPointerDown) input.off('pointerdown', this._onPointerDown);
       if (this._onPointerMove) input.off('pointermove', this._onPointerMove);
@@ -220,9 +290,48 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   _onSceneShutdown() {
+    if (this._sceneShutdownCleanedUp) return;
+    this._sceneShutdownCleanedUp = true;
+    this._sceneShuttingDown = true;
+
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
     if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
+    clearAllSceneTimers(this);
+    this._pendingNodeMapHints = null;
+    this._storyDialogueActive = false;
+
+    this._churchMessageTimer = null;
+    this._transientMessageTimer = null;
+
+    if (this.pauseOverlay?.visible) this.pauseOverlay.hide?.();
+    this.pauseOverlay = null;
+    if (this.settingsOverlay?.visible) this.settingsOverlay.hide?.();
+    this.settingsOverlay = null;
+    if (this.rosterOverlay?.visible) this.rosterOverlay.hide?.();
+    this.rosterOverlay = null;
+    if (this.debugOverlay?.visible) this.debugOverlay.hide?.();
+    this.debugOverlay = null;
+
+    if (this.shopOverlay && typeof this.closeShopOverlay === 'function') {
+      this.closeShopOverlay();
+    }
+    if (this.churchOverlay && typeof this.closeChurchOverlay === 'function') {
+      this.closeChurchOverlay();
+    }
+    if (this.transientMessage) {
+      this.transientMessage.destroy();
+      this.transientMessage = null;
+    }
+    if (this.churchMessage) {
+      this.churchMessage.destroy();
+      this.churchMessage = null;
+    }
+    if (this.nodeTooltip) {
+      this.nodeTooltip.destroy();
+      this.nodeTooltip = null;
+    }
+
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
       this.dialogueOverlay = null;
@@ -239,46 +348,61 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
-  async finalizeSceneReady() {
+  async finalizeSceneReady(lifecycleGeneration = this._sceneLifecycleGeneration) {
     try {
       // Give audio a short unlock window before we accept battle-node interactions.
       await this.ensureAudioUnlocked();
     } catch (_) {}
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
     if (this.input) this.input.enabled = true;
 
     try {
       if (this.sys?.isActive?.() !== false) {
         if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
           const entries = this.gameData?.dialogue?.actTransitions?.runStart;
-          if (Array.isArray(entries) && entries.length > 0 && this.dialogueOverlay) {
+          if (
+            Array.isArray(entries)
+            && entries.length > 0
+            && this.dialogueOverlay
+            && isSceneLifecycleActive(this, lifecycleGeneration)
+          ) {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
             this.persistRunSave();
             try {
               await this.dialogueOverlay.showSequence(entries);
             } finally {
-              this._storyDialogueActive = false;
+              if (isSceneLifecycleActive(this, lifecycleGeneration)) {
+                this._storyDialogueActive = false;
+              }
             }
           }
         }
 
-        if (this.sys?.isActive?.() !== false) {
-          await this._showPendingNodeMapHints();
+        if (this.sys?.isActive?.() !== false && isSceneLifecycleActive(this, lifecycleGeneration)) {
+          await this._showPendingNodeMapHints(lifecycleGeneration);
         } else {
-          console.warn('[NodeMapScene] Scene inactive after dialogue - skipping hints');
+          if (!this._sceneShuttingDown) {
+            console.warn('[NodeMapScene] Scene inactive after dialogue - skipping hints');
+          }
         }
       } else {
-        console.warn('[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints');
+        if (!this._sceneShuttingDown) {
+          console.warn('[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints');
+        }
       }
     } catch (err) {
       reportAsyncError('NodeMap-finalize-ready', err);
     } finally {
-      this.isSceneReady = true;
-      this._consumePendingNodeSelection();
+      if (isSceneLifecycleActive(this, lifecycleGeneration)) {
+        this.isSceneReady = true;
+        this._consumePendingNodeSelection();
+      }
     }
   }
 
-  async _showPendingNodeMapHints() {
+  async _showPendingNodeMapHints(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
     const pending = this._pendingNodeMapHints;
     this._pendingNodeMapHints = null;
     if (!pending) return;
@@ -287,11 +411,13 @@ export class NodeMapScene extends Phaser.Scene {
       try {
         await showImportantHint(this, 'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.');
       } finally {
-        this._storyDialogueActive = false;
+        if (isSceneLifecycleActive(this, lifecycleGeneration)) {
+          this._storyDialogueActive = false;
+        }
       }
-      if (this.sys?.isActive?.() === false) return;
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
     }
-    if (pending.showHpPersist) {
+    if (pending.showHpPersist && isSceneLifecycleActive(this, lifecycleGeneration)) {
       void showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
   }
@@ -947,7 +1073,7 @@ export class NodeMapScene extends Phaser.Scene {
       this.isTransitioning = true;
       this.isSceneReady = false;
       if (this.input) this.input.enabled = false;
-      void this.handleBattle(node);
+      void this.handleBattle(node, this._sceneLifecycleGeneration);
     }
   }
 
@@ -969,10 +1095,11 @@ export class NodeMapScene extends Phaser.Scene {
     return true;
   }
 
-  async handleBattle(node) {
+  async handleBattle(node, lifecycleGeneration = this._sceneLifecycleGeneration) {
     if (!this.battleLaunchInFlight) return;
     try {
       await this.ensureAudioUnlocked();
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
 
@@ -988,6 +1115,7 @@ export class NodeMapScene extends Phaser.Scene {
         isBoss: node.type === NODE_TYPES.BOSS,
         isElite: battleParams?.isElite || false,
       }, { reason: TRANSITION_REASONS.ENTER_BATTLE });
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (transitioned === false) {
         this.battleLaunchInFlight = false;
         this.isTransitioning = false;
@@ -996,6 +1124,7 @@ export class NodeMapScene extends Phaser.Scene {
         if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       }
     } catch (err) {
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       console.error('[NodeMapScene] Failed to start battle scene:', err);
       const audio = this.registry.get('audio');
       this.battleLaunchInFlight = false;
@@ -1012,18 +1141,25 @@ export class NodeMapScene extends Phaser.Scene {
     if (!sound?.locked) return;
     await new Promise((resolve) => {
       let settled = false;
+      let unlockHandler = null;
+      let timeoutEvent = null;
       const finish = () => {
         if (settled) return;
         settled = true;
+        if (unlockHandler && typeof sound.off === 'function') {
+          sound.off('unlocked', unlockHandler);
+        }
+        clearTrackedSceneTimer(this, timeoutEvent);
         resolve();
       };
       if (typeof sound.once === 'function') {
-        sound.once('unlocked', finish);
+        unlockHandler = finish;
+        sound.once('unlocked', unlockHandler);
       }
       try {
         if (typeof sound.unlock === 'function') sound.unlock();
       } catch (_) {}
-      this.time.delayedCall(timeoutMs, finish);
+      timeoutEvent = trackSceneTimer(this, this.time?.delayedCall?.(timeoutMs, finish));
     });
   }
 
@@ -1233,32 +1369,38 @@ export class NodeMapScene extends Phaser.Scene {
 
   showChurchMessage(text, color) {
     if (this.churchMessage) this.churchMessage.destroy();
+    clearTrackedSceneTimer(this, this._churchMessageTimer);
+    this._churchMessageTimer = null;
     this.churchMessage = this.add.text(320, 95, text, {
       fontFamily: 'monospace', fontSize: '12px', color,
       backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(302);
     this.churchOverlay.push(this.churchMessage);
 
-    this.time.delayedCall(2000, () => {
+    this._churchMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2000, () => {
+      this._churchMessageTimer = null;
       if (this.churchMessage) {
         this.churchMessage.destroy();
         this.churchMessage = null;
       }
-    });
+    }));
   }
 
   showTransientMessage(text, color = '#ff6666') {
     if (this.transientMessage) this.transientMessage.destroy();
+    clearTrackedSceneTimer(this, this._transientMessageTimer);
+    this._transientMessageTimer = null;
     this.transientMessage = this.add.text(this.cameras.main.centerX, 96, text, {
       fontFamily: 'monospace', fontSize: '12px', color,
       backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(400);
-    this.time.delayedCall(2200, () => {
+    this._transientMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2200, () => {
+      this._transientMessageTimer = null;
       if (this.transientMessage) {
         this.transientMessage.destroy();
         this.transientMessage = null;
       }
-    });
+    }));
   }
 
   refreshChurchOverlay(node) {
@@ -1267,6 +1409,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   closeChurchOverlay() {
+    clearTrackedSceneTimer(this, this._churchMessageTimer);
+    this._churchMessageTimer = null;
     if (this.churchOverlay) {
       this.churchOverlay.forEach(o => o.destroy());
       this.churchOverlay = null;

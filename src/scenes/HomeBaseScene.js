@@ -67,6 +67,54 @@ const GROWTH_HINT = 'Growth = % chance to gain +1 at each level-up.';
 const FLAT_HINT_RECRUIT = 'Recruits start with this bonus at recruitment.';
 const FLAT_HINT_LORD = 'Lords begin each run with this bonus.';
 
+function beginSceneLifecycle(scene) {
+  const nextGeneration = (Number.isInteger(scene?._sceneLifecycleGeneration)
+    ? scene._sceneLifecycleGeneration
+    : 0) + 1;
+  scene._sceneLifecycleGeneration = nextGeneration;
+  scene._sceneShuttingDown = false;
+  scene._sceneShutdownCleanedUp = false;
+  scene._sceneTimers = new Set();
+  return nextGeneration;
+}
+
+function isSceneLifecycleActive(scene, generation = scene?._sceneLifecycleGeneration) {
+  if (!scene || scene._sceneShuttingDown) return false;
+  const currentGeneration = Number.isInteger(scene._sceneLifecycleGeneration)
+    ? scene._sceneLifecycleGeneration
+    : null;
+  if (Number.isInteger(generation) && Number.isInteger(currentGeneration) && generation !== currentGeneration) {
+    return false;
+  }
+  return scene.sys?.isActive?.() !== false;
+}
+
+function trackSceneTimer(scene, timer) {
+  if (!timer) return null;
+  if (!scene._sceneTimers || typeof scene._sceneTimers.add !== 'function') {
+    scene._sceneTimers = new Set();
+  }
+  scene._sceneTimers.add(timer);
+  return timer;
+}
+
+function clearTrackedSceneTimer(scene, timer) {
+  if (!timer) return;
+  if (scene?._sceneTimers && typeof scene._sceneTimers.delete === 'function') {
+    scene._sceneTimers.delete(timer);
+  }
+  try {
+    timer.remove?.();
+  } catch (_) {}
+}
+
+function clearAllSceneTimers(scene) {
+  if (!scene?._sceneTimers || typeof scene._sceneTimers.values !== 'function') return;
+  for (const timer of Array.from(scene._sceneTimers.values())) {
+    clearTrackedSceneTimer(scene, timer);
+  }
+}
+
 export class HomeBaseScene extends Phaser.Scene {
   constructor() {
     super('HomeBase');
@@ -79,30 +127,12 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   create() {
+    const lifecycleGeneration = beginSceneLifecycle(this);
+
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
 
-    this.events.once('shutdown', () => {
-      this.refundMode = false;
-      this._hideRefundConfirm();
-      this.input.keyboard.off('keydown-ESC', this._onEsc);
-      this.input.off('pointerdown', this._onPointerDown);
-      this.input.off('pointermove', this._onPointerMove);
-      this.input.off('pointerup', this._onPointerUp);
-      this.input.off('wheel', this._onWheelHandler);
-      if (this.isMobileInput) {
-        const ge = this.game?.events;
-        if (ge && this._mobileHandlers) {
-          for (const [action, handler] of Object.entries(this._mobileHandlers)) {
-            ge.off(`mobile:${action}`, handler);
-          }
-        }
-        if (ge) ge.emit('mobile:setContext', { context: 'none', resetStack: true });
-        this._mobileHandlers = null;
-      }
-      const audio = this.registry.get('audio');
-      if (audio) audio.releaseMusic(this, 0);
-    });
+    this.events.once('shutdown', () => HomeBaseScene.prototype._onSceneShutdown.call(this));
 
     this.meta = this.registry.get('meta');
     this.activeTab = 'recruit_stats';
@@ -150,15 +180,69 @@ export class HomeBaseScene extends Phaser.Scene {
     // Tutorial hints for home base
     const hints = this.registry.get('hints');
     if (hints) {
-      (async () => {
-        if (hints.shouldShow('homebase_intro')) {
-          await showImportantHint(this, 'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.');
-        }
-        if (hints.shouldShow('homebase_begin')) {
-          showMinorHint(this, 'Click Begin Run when ready.');
-        }
-      })();
+      void HomeBaseScene.prototype._runStartupHints.call(this, hints, lifecycleGeneration);
     }
+  }
+
+  _onSceneShutdown() {
+    if (this._sceneShutdownCleanedUp) return;
+    this._sceneShutdownCleanedUp = true;
+    this._sceneShuttingDown = true;
+    this.isTransitioning = false;
+
+    clearAllSceneTimers(this);
+    this._transientMessageTimer = null;
+
+    this.refundMode = false;
+    this._hideRefundConfirm?.();
+    this._hideUpgradeTooltip?.();
+    this._destroySkillPicker?.();
+
+    if (this._prereqTooltip) {
+      this._prereqTooltip.destroy();
+      this._prereqTooltip = null;
+    }
+    if (this._tierTooltip) {
+      this._tierTooltip.destroy();
+      this._tierTooltip = null;
+    }
+    if (this.transientMessage) {
+      this.transientMessage.destroy();
+      this.transientMessage = null;
+    }
+
+    this.input?.keyboard?.off?.('keydown-ESC', this._onEsc);
+    this.input?.off?.('pointerdown', this._onPointerDown);
+    this.input?.off?.('pointermove', this._onPointerMove);
+    this.input?.off?.('pointerup', this._onPointerUp);
+    this.input?.off?.('wheel', this._onWheelHandler);
+
+    if (this.isMobileInput) {
+      const ge = this.game?.events;
+      if (ge && this._mobileHandlers) {
+        for (const [action, handler] of Object.entries(this._mobileHandlers)) {
+          ge.off(`mobile:${action}`, handler);
+        }
+      }
+      if (ge) ge.emit('mobile:setContext', { context: 'none', resetStack: true });
+      this._mobileHandlers = null;
+    }
+
+    const audio = this.registry.get('audio');
+    if (audio) audio.releaseMusic(this, 0);
+  }
+
+  async _runStartupHints(hints, lifecycleGeneration = this._sceneLifecycleGeneration) {
+    try {
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      if (hints.shouldShow('homebase_intro')) {
+        await showImportantHint(this, 'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.');
+      }
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      if (hints.shouldShow('homebase_begin')) {
+        void showMinorHint(this, 'Click Begin Run when ready.');
+      }
+    } catch (_) {}
   }
 
   drawUI() {
@@ -1068,12 +1152,16 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   async runTransition(action) {
+    const lifecycleGeneration = this._sceneLifecycleGeneration;
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
     if (this.isTransitioning) return false;
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
     try {
       await this.ensureAudioUnlocked();
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
       const transitioned = await action();
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
       if (transitioned) {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_confirm');
@@ -1086,6 +1174,7 @@ export class HomeBaseScene extends Phaser.Scene {
       if (audio) audio.playSFX('sfx_cancel');
       return false;
     } catch (err) {
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
       console.error('[HomeBaseScene] transition failed:', err);
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
@@ -1104,33 +1193,43 @@ export class HomeBaseScene extends Phaser.Scene {
     if (!sound?.locked) return;
     await new Promise((resolve) => {
       let settled = false;
+      let unlockHandler = null;
+      let timeoutEvent = null;
       const finish = () => {
         if (settled) return;
         settled = true;
+        if (unlockHandler && typeof sound.off === 'function') {
+          sound.off('unlocked', unlockHandler);
+        }
+        clearTrackedSceneTimer(this, timeoutEvent);
         resolve();
       };
       if (typeof sound.once === 'function') {
-        sound.once('unlocked', finish);
+        unlockHandler = finish;
+        sound.once('unlocked', unlockHandler);
       }
       try {
         if (typeof sound.unlock === 'function') sound.unlock();
       } catch (_) {}
-      this.time.delayedCall(timeoutMs, finish);
+      timeoutEvent = trackSceneTimer(this, this.time?.delayedCall?.(timeoutMs, finish));
     });
   }
 
   showTransientMessage(text, color = '#ff8888') {
     if (this.transientMessage) this.transientMessage.destroy();
+    clearTrackedSceneTimer(this, this._transientMessageTimer);
+    this._transientMessageTimer = null;
     this.transientMessage = this.add.text(this.cameras.main.centerX, 414, text, {
       fontFamily: 'monospace', fontSize: '11px', color,
       backgroundColor: '#000000cc', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(950);
-    this.time.delayedCall(2200, () => {
+    this._transientMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2200, () => {
+      this._transientMessageTimer = null;
       if (this.transientMessage) {
         this.transientMessage.destroy();
         this.transientMessage = null;
       }
-    });
+    }));
   }
 
   onWheel(pointer, deltaX, deltaY) {
@@ -1364,6 +1463,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   requestCancel({ allowExit = true } = {}) {
+    if (this._sceneShuttingDown) return true;
     if (!this.canRequestCancel({ allowExit })) return false;
     if (this.confirmOverlayObjects.length > 0) {
       this._hideRefundConfirm();
