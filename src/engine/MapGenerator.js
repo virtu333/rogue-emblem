@@ -109,6 +109,40 @@ export function generateBattle(params, deps) {
     }
   }
 
+  // 7b. Recruit guardian elite for Hard/Lunatic
+  if (npcSpawn && params.recruitGuardianChance > 0 && Math.random() < params.recruitGuardianChance) {
+    const guardianPool = enemies.recruitGuardians?.[act];
+    if (guardianPool?.length > 0 && enemySpawns.length < densityCap) {
+      const guardianDef = guardianPool[Math.floor(Math.random() * guardianPool.length)];
+      const guardianMoveType = classes?.find(c => c.name === guardianDef.className)?.moveType || 'Infantry';
+      const occupied = new Set([
+        ...playerSpawns.map(s => `${s.col},${s.row}`),
+        ...enemySpawns.map(s => `${s.col},${s.row}`),
+        `${npcSpawn.col},${npcSpawn.row}`,
+      ]);
+      const guardianPos = findAdjacentPassableTile(
+        mapLayout,
+        cols,
+        rows,
+        terrain,
+        npcSpawn,
+        occupied,
+        guardianMoveType
+      );
+      if (guardianPos) {
+        enemySpawns.push({
+          className: guardianDef.className,
+          level: guardianDef.level,
+          col: guardianPos.col,
+          row: guardianPos.row,
+          isRecruitGuardian: true,
+          name: guardianDef.name,
+          guardianClampPos: { col: npcSpawn.col, row: npcSpawn.row },
+        });
+      }
+    }
+  }
+
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC
   const reachTargets = [...enemySpawns];
   if (npcSpawn) reachTargets.push(npcSpawn);
@@ -1619,6 +1653,31 @@ function isPassable(terrainData, terrainIndex, moveType) {
   return cost !== '--' && !isNaN(parseInt(cost));
 }
 
+/**
+ * Find an adjacent passable tile near an anchor, searching manhattan distance 1 then 2.
+ * Uses the provided moveType to validate terrain passability.
+ * Returns { col, row } or null if none found.
+ */
+function findAdjacentPassableTile(mapLayout, cols, rows, terrainData, anchor, occupied, moveType = 'Infantry') {
+  const deltas = [
+    // Distance 1
+    [0, -1], [0, 1], [-1, 0], [1, 0],
+    // Distance 2
+    [-1, -1], [-1, 1], [1, -1], [1, 1],
+    [0, -2], [0, 2], [-2, 0], [2, 0],
+  ];
+  for (const [dc, dr] of deltas) {
+    const c = anchor.col + dc;
+    const r = anchor.row + dr;
+    if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+    if (occupied.has(`${c},${r}`)) continue;
+    if (isPassable(terrainData, mapLayout[r][c], moveType)) {
+      return { col: c, row: r };
+    }
+  }
+  return null;
+}
+
 function shuffleArray(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -1633,5 +1692,6 @@ export {
   resolveHybridAnchors,
   applyHybridArenaOverlay,
   applyPhaseOverrideToLayout,
+  findAdjacentPassableTile,
   CAVALRY_CARVE_MAX_CONVERSIONS,
 };
