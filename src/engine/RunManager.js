@@ -5,8 +5,9 @@ import {
   ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
   STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
   ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
-  RECRUIT_SKILL_POOL, GOLD_BATTLE_REWARD_MULTIPLIER, GOLD_BATTLE_BONUS, NODE_GOLD_MULTIPLIER,
+  RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
+import { calculateBattleGold } from './LootSystem.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
@@ -2018,16 +2019,14 @@ export class RunManager {
     this.completedBattles++;
     const node = this.nodeMap?.nodes.find(n => n.id === nodeId);
     this.markNodeComplete(nodeId);
-    const nodeMultiplier = (node?.type && NODE_GOLD_MULTIPLIER[node.type]) || 1.0;
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
-      : GOLD_BATTLE_BONUS;
-    const killSubtotal = Math.floor(goldEarned * nodeMultiplier);
-    const baseGold = Math.floor((killSubtotal + completionGold) * GOLD_BATTLE_REWARD_MULTIPLIER);
+      : undefined;
+    const baseGold = calculateBattleGold(goldEarned, node?.type, completionGold);
     const eliteMult = node?.battleParams?.isElite ? ELITE_GOLD_MULTIPLIER : 1;
     const goldMult = this.getBattleGoldMultiplier();
     const difficultyGoldMult = this.getDifficultyModifier('goldMultiplier', 1);
-    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult * GOLD_BATTLE_REWARD_MULTIPLIER);
+    const finalGold = Math.floor(baseGold * eliteMult * goldMult * difficultyGoldMult);
     this.addGold(finalGold);
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RunManager, serializeUnit, saveRun, loadRun, hasSavedRun, clearSavedRun } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
-import { NODE_TYPES, GOLD_BATTLE_REWARD_MULTIPLIER } from '../src/utils/constants.js';
+import { NODE_TYPES, ELITE_GOLD_MULTIPLIER } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
 
 // Mock localStorage
@@ -339,15 +339,37 @@ describe('RunManager', () => {
       expect(startNode.completed).toBe(true);
     });
 
-    it('applies global battle gold multiplier', () => {
+    it('applies battle reward multiplier exactly once', () => {
       rm.startRun();
       const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
       const startGold = rm.gold;
       rm.completeBattle(rm.getRoster(), startNode.id, 100);
 
-      const expectedBase = calculateBattleGold(100, startNode?.type);
-      const expectedGain = Math.floor(expectedBase * GOLD_BATTLE_REWARD_MULTIPLIER);
+      const expectedGain = calculateBattleGold(100, startNode?.type);
       expect(rm.gold - startGold).toBe(expectedGain);
+    });
+
+    it('applies elite, meta, and difficulty multipliers exactly once each', () => {
+      // Set up RunManager with non-1 multipliers
+      const metaEffects = { battleGoldMultiplier: 0.2 }; // getBattleGoldMultiplier() → 1.2
+      const rmMeta = new RunManager(gameData, metaEffects);
+      rmMeta.startRun();
+      rmMeta.difficultyModifiers = { ...rmMeta.difficultyModifiers, goldMultiplier: 0.9 };
+
+      // Mark first node as elite
+      const node = rmMeta.nodeMap.nodes.find(n => n.id === rmMeta.nodeMap.startNodeId);
+      if (!node.battleParams) node.battleParams = {};
+      node.battleParams.isElite = true;
+
+      const startGold = rmMeta.gold;
+      const killGold = 200;
+      rmMeta.completeBattle(rmMeta.getRoster(), node.id, killGold);
+
+      const baseGold = calculateBattleGold(killGold, node.type);
+      const expectedGain = Math.floor(baseGold * ELITE_GOLD_MULTIPLIER * 1.2 * 0.9);
+      expect(rmMeta.gold - startGold).toBe(expectedGain);
+      // Guard: if GOLD_BATTLE_REWARD_MULTIPLIER were applied twice, this would be strictly larger
+      expect(expectedGain).toBeGreaterThan(0);
     });
 
     it('respects completionGoldOverride in completeBattle options', () => {

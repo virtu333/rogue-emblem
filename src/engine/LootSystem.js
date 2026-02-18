@@ -44,11 +44,13 @@ export function calculateKillGold(enemy) {
  * Calculate total battle gold (sum of kill gold + completion bonus).
  * @param {number} killGold - accumulated gold from individual kills
  * @param {string} [nodeType] - node type for gold multiplier (battle/recruit/boss)
+ * @param {number} [completionGoldOverride] - override default completion bonus (used by late-pressure system)
  * @returns {number}
  */
-export function calculateBattleGold(killGold, nodeType) {
+export function calculateBattleGold(killGold, nodeType, completionGoldOverride) {
   const multiplier = (nodeType && NODE_GOLD_MULTIPLIER[nodeType]) || 1.0;
-  return Math.floor((Math.floor(killGold * multiplier) + GOLD_BATTLE_BONUS) * GOLD_BATTLE_REWARD_MULTIPLIER);
+  const completionGold = Number.isFinite(completionGoldOverride) ? completionGoldOverride : GOLD_BATTLE_BONUS;
+  return Math.floor((Math.floor(killGold * multiplier) + completionGold) * GOLD_BATTLE_REWARD_MULTIPLIER);
 }
 
 /**
