@@ -4981,12 +4981,8 @@ export class BattleScene extends Phaser.Scene {
     if (canPromote(unit)
       && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
       && this.getPromotionConsumable(unit)) items.push('Promote');
-    if (canReclass(unit) && this.getReclassConsumable(unit)) {
-      const seal = this.getReclassConsumable(unit);
-      if (getReclassTargets(unit, this.gameData.classes, seal.subEffect).length > 0) {
-        items.push('Reclass');
-      }
-    }
+    const usableReclassSeals = this.getUsableReclassConsumables(unit);
+    if (usableReclassSeals.length === 1) items.push('Reclass');
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
@@ -5077,7 +5073,9 @@ export class BattleScene extends Phaser.Scene {
           this.executePromotion(unit, this.getPromotionConsumable(unit));
         } else if (label === 'Reclass') {
           this.hideActionMenu();
-          this.showReclassClassPicker(unit, this.getReclassConsumable(unit));
+          const [soleSeal] = this.getUsableReclassConsumables(unit);
+          if (soleSeal) this.showReclassClassPicker(unit, soleSeal);
+          else this.showActionMenu(unit);
         } else if (label === 'Item') {
           this.showItemMenu(unit);
         } else if (label === 'Talk') {
@@ -5130,6 +5128,18 @@ export class BattleScene extends Phaser.Scene {
   getReclassConsumable(unit) {
     if (!unit?.consumables?.length) return null;
     return unit.consumables.find(item => item?.effect === 'reclass' && (item.uses ?? 0) > 0) || null;
+  }
+
+  getReclassConsumables(unit) {
+    if (!unit?.consumables?.length) return [];
+    return unit.consumables.filter(item => item?.effect === 'reclass' && (item.uses ?? 0) > 0);
+  }
+
+  getUsableReclassConsumables(unit) {
+    if (!canReclass(unit)) return [];
+    return this.getReclassConsumables(unit).filter((seal) =>
+      getReclassTargets(unit, this.gameData.classes, seal.subEffect).length > 0
+    );
   }
 
   undoMove(unit) {
@@ -8504,9 +8514,14 @@ export class BattleScene extends Phaser.Scene {
       const completionGoldAward = Math.max(0, Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier));
       this._victoryPressureState = turnPressure;
       this._completionGoldAward = completionGoldAward;
+      const vaultGoldBeforeCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
       const completionApplied = this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned, {
         completionGoldOverride: completionGoldAward,
       });
+      const vaultGoldAfterCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
+      this._battleCompletionAwardedGold = completionApplied
+        ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
+        : 0;
       this.time.delayedCall(1500, async () => {
         if (!this.scene?.isActive?.()) return;
         if (!completionApplied) {
@@ -8864,12 +8879,11 @@ export class BattleScene extends Phaser.Scene {
     const completionGold = Number.isFinite(this._completionGoldAward)
       ? this._completionGoldAward
       : Math.max(0, Math.floor(GOLD_BATTLE_BONUS * pressureGoldMultiplier));
+    const battleCompletionGold = Number.isFinite(this._battleCompletionAwardedGold)
+      ? Math.max(0, Math.trunc(this._battleCompletionAwardedGold))
+      : (this.goldEarned + completionGold);
     const previewAwardedGold = (amount) => {
       const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
-      if (normalized <= 0) return 0;
-      if (typeof this.runManager?.getGoldGainMultiplier === 'function') {
-        return Math.max(0, Math.floor((normalized * this.runManager.getGoldGainMultiplier()) + 1e-6));
-      }
       return normalized;
     };
     const awardGoldNow = (amount) => {
@@ -8886,22 +8900,22 @@ export class BattleScene extends Phaser.Scene {
       turnRating = result.rating;
       const rawTurnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
       const scaledTurnBonusGold = Math.max(0, Math.floor(rawTurnBonusGold * pressureGoldMultiplier));
-      turnBonusGold = previewAwardedGold(scaledTurnBonusGold);
       if (scaledTurnBonusGold > 0) {
-        awardGoldNow(scaledTurnBonusGold);
+        turnBonusGold = awardGoldNow(scaledTurnBonusGold);
       }
     }
     const totalGold = this.goldEarned + completionGold + turnBonusGold;
+    const displayedTotalGold = battleCompletionGold + turnBonusGold;
 
     // Gold summary with breakdown
-    const goldLines = [`Battle: ${this.goldEarned}G`, `Completion: ${completionGold}G`];
+    const goldLines = [`Battle+Completion: ${battleCompletionGold}G`];
     if (turnBonusGold > 0) {
       goldLines.push(`Turn ${turnRating}: +${turnBonusGold}G`);
     }
     if (turnPressure.active) {
       goldLines.push(`Late pressure: Gold ${this.formatPressureMultiplier(pressureGoldMultiplier)}`);
     }
-    goldLines.push(`Total: ${totalGold}G  |  Vault: ${this.runManager.gold}G`);
+    goldLines.push(`Total: ${displayedTotalGold}G  |  Vault: ${this.runManager.gold}G`);
 
     const goldText = this.add.text(cam.centerX, 58, goldLines.join('  |  '), {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaffaa',

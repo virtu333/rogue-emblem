@@ -204,6 +204,74 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toContain('Equip');
   });
 
+  it('hides top-level Reclass when multiple reclass seals are usable', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.gameData = {
+      classes: [
+        { name: 'Myrmidon', tier: 'base', moveType: 'Infantry' },
+        { name: 'Knight', tier: 'base', moveType: 'Armored' },
+        { name: 'Cavalier', tier: 'base', moveType: 'Cavalry' },
+      ],
+      lords: [],
+    };
+
+    const unit = {
+      col: 1, row: 1,
+      className: 'Myrmidon',
+      tier: 'base',
+      weapon: equipped,
+      inventory: [equipped],
+      consumables: [
+        { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', subEffect: 'infantry', uses: 1 },
+        { name: 'Mounted Seal', type: 'Consumable', effect: 'reclass', subEffect: 'mounted', uses: 1 },
+      ],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).not.toContain('Reclass');
+    expect(labels).toContain('Item');
+  });
+
+  it('shows top-level Reclass only for a single usable seal and routes to that seal', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.showReclassClassPicker = vi.fn();
+    scene.gameData = {
+      classes: [
+        { name: 'Myrmidon', tier: 'base', moveType: 'Infantry' },
+        { name: 'Knight', tier: 'base', moveType: 'Armored' },
+      ],
+      lords: [],
+    };
+
+    const infantrySeal = { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', subEffect: 'infantry', uses: 1 };
+    const mountedSeal = { name: 'Mounted Seal', type: 'Consumable', effect: 'reclass', subEffect: 'mounted', uses: 1 };
+    const unit = {
+      col: 1, row: 1,
+      className: 'Myrmidon',
+      tier: 'base',
+      weapon: equipped,
+      inventory: [equipped],
+      consumables: [infantrySeal, mountedSeal],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).toContain('Reclass');
+
+    const reclassCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2] === 'Reclass');
+    expect(reclassCall).toBeTruthy();
+    reclassCall[5]();
+
+    expect(scene.showReclassClassPicker).toHaveBeenCalledWith(unit, infantrySeal);
+  });
+
   it('shows Heal when only a non-equipped staff has targets', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
