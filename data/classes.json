@@ -329,7 +329,7 @@
       "DEF": 4,
       "RES": 6,
       "LCK": 5,
-      "MOV": 5
+      "MOV": 4
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
@@ -365,7 +365,7 @@
       "DEF": 7,
       "RES": 2,
       "LCK": 3,
-      "MOV": 5
+      "MOV": 4
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",
@@ -939,7 +939,7 @@
       "DEF": 4,
       "RES": 6,
       "LCK": 5,
-      "MOV": 5
+      "MOV": 4
     },
     "moveType": "Flying",
     "weaponProficiencies": "Lances (P)",

@@ -25,6 +25,26 @@ describe('Chunk E balance and rules guards', () => {
     expect(unit.stats.MOV).toBe(6);
   });
 
+  it('flying unit movement is reduced by one while keeping +1 promotion movement', () => {
+    const pegasus = data.classes.find((cls) => cls.name === 'Pegasus Knight');
+    const wyvern = data.classes.find((cls) => cls.name === 'Wyvern Rider');
+    const skyLancer = data.classes.find((cls) => cls.name === 'Sky Lancer');
+    const falcon = data.classes.find((cls) => cls.name === 'Falcon Knight');
+    expect(pegasus).toBeTruthy();
+    expect(wyvern).toBeTruthy();
+    expect(skyLancer).toBeTruthy();
+    expect(falcon).toBeTruthy();
+
+    expect(pegasus.baseStats.MOV).toBe(4);
+    expect(wyvern.baseStats.MOV).toBe(4);
+    expect(skyLancer.baseStats.MOV).toBe(4);
+
+    const unit = createUnit(pegasus, 1, data.weapons);
+    expect(unit.stats.MOV).toBe(4);
+    promoteUnit(unit, falcon, falcon.promotionBonuses, data.skills);
+    expect(unit.stats.MOV).toBe(5);
+  });
+
   it('edric growth pipeline is class roll plus personal growths', () => {
     const edric = data.lords.find((lord) => lord.name === 'Edric');
     const edricClass = data.classes.find((cls) => cls.name === edric.class);
