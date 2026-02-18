@@ -14,7 +14,7 @@ import {
   addToConsumables,
   canPromote,
   promoteUnit,
-  resolvePromotionTargetClass,
+  resolvePromotionTargets,
 } from '../engine/UnitManager.js';
 import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
@@ -195,6 +195,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   create() {
     const lifecycleGeneration = beginSceneLifecycle(this);
+    this._promotionChoicePanelOpen = 0;
 
     const audio = this.registry.get('audio');
     if (audio) {
@@ -251,6 +252,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (event?.repeat) return;
       if (isEscConsumed(this, event)) return;
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
+      if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return;
       const handled = this.requestCancel();
       if (handled) consumeEscEvent(this, event);
     };
@@ -318,6 +320,7 @@ export class NodeMapScene extends Phaser.Scene {
     clearAllSceneTimers(this);
     this._pendingNodeMapHints = null;
     this._storyDialogueActive = false;
+    this._promotionChoicePanelOpen = 0;
 
     this._churchMessageTimer = null;
     this._transientMessageTimer = null;
@@ -747,6 +750,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   requestCancel({ allowPause = true } = {}) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return true;
+    if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return false;
     if (!this.canRequestCancel({ allowPause })) return false;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) {
       this.debugOverlay.hide();
@@ -1508,40 +1512,61 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setColor('#e0e0e0');
           unitBtn.setBackgroundColor('#222222');
         });
-        unitBtn.on('pointerdown', () => {
-          if (rm.spendGold(CHURCH_PROMOTE_COST)) {
-            const lordData = this.gameData.lords.find(l => l.name === unit.name);
-            const promotedClassData = resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords);
-            if (!promotedClassData) {
-              rm.gold += CHURCH_PROMOTE_COST;
-              const audio = this.registry.get('audio');
-              if (audio) audio.playSFX('sfx_cancel');
-              this.showChurchMessage('Promotion unavailable for this unit.', '#ff4444');
-              return;
-            }
-
-            const promotionBonuses = lordData?.promotionBonuses || promotedClassData.promotionBonuses;
-            if (!promotionBonuses) {
-              rm.gold += CHURCH_PROMOTE_COST;
-              const audio = this.registry.get('audio');
-              if (audio) audio.playSFX('sfx_cancel');
-              this.showChurchMessage('Promotion data missing.', '#ff4444');
-              return;
-            }
-
-            promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
-
-            if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_levelup');
-            this.showChurchMessage(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
-            this.churchGoldText.setText(`Gold: ${rm.gold}G`);
-            this.refreshChurchOverlay(node);
-          } else {
+        unitBtn.on('pointerdown', async () => {
+          if (rm.gold < CHURCH_PROMOTE_COST) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_cancel');
             this.showChurchMessage('Not enough gold!', '#ff4444');
+            return;
           }
+
+          const lordData = this.gameData.lords.find(l => l.name === unit.name);
+          const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
+          if (!targets?.length) {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_cancel');
+            this.showChurchMessage('Promotion unavailable for this unit.', '#ff4444');
+            return;
+          }
+
+          // Choose class first, THEN charge gold (cancel must not spend)
+          let promotedClassData;
+          if (targets.length === 1) {
+            promotedClassData = targets[0];
+          } else {
+            const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
+            const panel = new PromotionChoicePanel(this, unit, targets, this.gameData.skills);
+            promotedClassData = await panel.show();
+            if (!promotedClassData) {
+              // Cancelled — no gold spent
+              return;
+            }
+          }
+
+          const promotionBonuses = lordData?.promotionBonuses || promotedClassData.promotionBonuses;
+          if (!promotionBonuses) {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_cancel');
+            this.showChurchMessage('Promotion data missing.', '#ff4444');
+            return;
+          }
+
+          // Charge gold only after successful selection
+          if (!rm.spendGold(CHURCH_PROMOTE_COST)) {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_cancel');
+            this.showChurchMessage('Not enough gold!', '#ff4444');
+            return;
+          }
+
+          promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+
+          if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_levelup');
+          this.showChurchMessage(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
+          this.churchGoldText.setText(`Gold: ${rm.gold}G`);
+          this.refreshChurchOverlay(node);
         });
         this.churchContentGroup.push(unitBtn);
       }

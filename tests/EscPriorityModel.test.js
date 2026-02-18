@@ -10,6 +10,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 import { HowToPlayOverlay } from '../src/ui/HowToPlayOverlay.js';
+import { PromotionChoicePanel } from '../src/ui/PromotionChoicePanel.js';
 import { consumeEscEvent } from '../src/utils/escPriority.js';
 
 function makeDisplayObject(extra = {}) {
@@ -27,6 +28,7 @@ function makeDisplayObject(extra = {}) {
     setColor(color) { this.style.color = color; return this; },
     setAlpha() { return this; },
     on(event, handler) { this.handlers[event] = handler; return this; },
+    once(event, handler) { this.handlers[event] = handler; return this; },
     destroy: vi.fn(),
     ...extra,
   };
@@ -34,7 +36,7 @@ function makeDisplayObject(extra = {}) {
 
 function makeOverlayScene() {
   return {
-    cameras: { main: { centerX: 320, centerY: 240 } },
+    cameras: { main: { centerX: 320, centerY: 240, width: 640, height: 480 } },
     add: {
       rectangle: (_x, _y, _w, _h, _color, _alpha) => makeDisplayObject(),
       text: (_x, _y, text, style = {}) => makeDisplayObject({ text, style: { ...style } }),
@@ -77,9 +79,13 @@ function makeEscEvent() {
   };
 }
 
-function createNodeMapEscScene() {
+function createNodeMapEscScene(keyboardOverride = null) {
+  const overlay = makeOverlayScene();
   const scene = {
-    ...makeOverlayScene(),
+    ...overlay,
+    input: keyboardOverride
+      ? { ...overlay.input, keyboard: keyboardOverride }
+      : overlay.input,
     _storyDialogueActive: false,
     dialogueOverlay: { visible: false },
     isDevToolsEnabled: () => false,
@@ -128,9 +134,9 @@ function createEmitter() {
       if (handlers.size === 0) listeners.delete(eventName);
       return this;
     },
-    emit(eventName, payload) {
+    emit(eventName, ...args) {
       for (const handler of Array.from(listeners.get(eventName) || [])) {
-        handler(payload);
+        handler(...args);
       }
     },
   };
@@ -357,5 +363,148 @@ describe('ESC priority model', () => {
     expect(ownEsc.preventDefault).toHaveBeenCalledTimes(1);
     expect(ownEsc.stopPropagation).toHaveBeenCalledTimes(1);
     expect(overlay.visible).toBe(false);
+  });
+
+  it('PromotionChoicePanel ESC respects consumed-event contract', async () => {
+    const overlayScene = makeOverlayScene();
+    const keyboard = createBattleKeyboardEmitter();
+    const scene = {
+      ...overlayScene,
+      input: {
+        ...overlayScene.input,
+        keyboard,
+      },
+    };
+
+    const unit = {
+      name: 'Test Unit',
+      className: 'Myrmidon',
+      moveType: 'infantry',
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 8, SPD: 10, LCK: 5, DEF: 6, RES: 3, MOV: 5 },
+    };
+    const targets = [
+      {
+        name: 'Swordmaster',
+        promotionBonuses: { STR: 1, SKL: 2, SPD: 2 },
+        weaponProficiencies: 'Sword',
+        moveType: 'infantry',
+      },
+      {
+        name: 'Duelist',
+        promotionBonuses: { STR: 2, SPD: 1, RES: 1 },
+        weaponProficiencies: 'Sword,Lance',
+        moveType: 'infantry',
+      },
+    ];
+    const skills = [
+      { id: 'crit_plus_15', name: 'Crit +15', description: 'Gain +15 crit.', classInnate: 'Swordmaster' },
+      { id: 'duelist_stance', name: 'Duelist Stance', description: 'Defending grants avoid and defenses.', classInnate: 'Duelist' },
+    ];
+
+    const panel = new PromotionChoicePanel(scene, unit, targets, skills);
+    const resultPromise = panel.show();
+
+    const consumedEsc = makeEscEvent();
+    consumeEscEvent(scene, consumedEsc);
+    keyboard.emit('keydown-ESC', consumedEsc);
+    expect(panel.objects.length).toBeGreaterThan(0);
+
+    await Promise.resolve();
+
+    const ownEsc = makeEscEvent();
+    keyboard.emit('keydown-ESC', ownEsc);
+    await expect(resultPromise).resolves.toBeNull();
+    expect(ownEsc.preventDefault).toHaveBeenCalledTimes(1);
+    expect(ownEsc.stopPropagation).toHaveBeenCalledTimes(1);
+  });
+
+  it('NodeMap ESC does not bubble cancel while PromotionChoicePanel is open', async () => {
+    const keyboard = createBattleKeyboardEmitter();
+    const scene = createNodeMapEscScene(keyboard);
+    scene.churchOverlay = [makeDisplayObject()];
+    scene.requestCancel = vi.fn(() => true);
+
+    const unit = {
+      name: 'Test Unit',
+      className: 'Knight',
+      moveType: 'infantry',
+      stats: { HP: 24, STR: 9, MAG: 0, SKL: 6, SPD: 5, LCK: 4, DEF: 10, RES: 2, MOV: 4 },
+    };
+    const targets = [
+      {
+        name: 'General',
+        promotionBonuses: { HP: 3, DEF: 2, STR: 1 },
+        weaponProficiencies: 'Lance,Axe',
+        moveType: 'infantry',
+      },
+      {
+        name: 'Great Knight',
+        promotionBonuses: { HP: 2, STR: 2, MOV: 1 },
+        weaponProficiencies: 'Lance,Axe,Sword',
+        moveType: 'cavalry',
+      },
+    ];
+    const skills = [
+      { id: 'pavise', name: 'Pavise', description: 'Halve physical damage sometimes.', classInnate: 'General' },
+      { id: 'armored_blow', name: 'Armored Blow', description: 'Initiating grants +4 DEF.', classInnate: 'Great Knight' },
+    ];
+
+    const panel = new PromotionChoicePanel(scene, unit, targets, skills);
+    const resultPromise = panel.show();
+
+    const esc = makeEscEvent();
+    keyboard.emit('keydown-ESC', esc);
+
+    await expect(resultPromise).resolves.toBeNull();
+    expect(scene.requestCancel).toHaveBeenCalledTimes(0);
+    expect(esc.preventDefault).toHaveBeenCalledTimes(1);
+    expect(esc.stopPropagation).toHaveBeenCalledTimes(1);
+    expect(scene._promotionChoicePanelOpen).toBe(0);
+  });
+
+  it('NodeMap requestCancel is a no-op while PromotionChoicePanel is open', () => {
+    const scene = createNodeMapEscScene();
+    scene.churchOverlay = [makeDisplayObject()];
+    scene._promotionChoicePanelOpen = 1;
+
+    const handledWhileOpen = NodeMapScene.prototype.requestCancel.call(scene, { allowPause: false });
+    expect(handledWhileOpen).toBe(false);
+    expect(scene.leaveChurchNode).not.toHaveBeenCalled();
+
+    scene._promotionChoicePanelOpen = 0;
+    const handledAfterClose = NodeMapScene.prototype.requestCancel.call(scene, { allowPause: false });
+    expect(handledAfterClose).toBe(true);
+    expect(scene.leaveChurchNode).toHaveBeenCalledTimes(1);
+  });
+
+  it('NodeMap shutdown clears PromotionChoicePanel open counter', () => {
+    const scene = {
+      _sceneShutdownCleanedUp: false,
+      _sceneShuttingDown: false,
+      _promotionChoicePanelOpen: 2,
+      registry: { get: vi.fn(() => null) },
+      sound: null,
+      _sceneTimers: new Set(),
+      _pendingNodeMapHints: { showIntro: true },
+      _storyDialogueActive: true,
+      _churchMessageTimer: null,
+      _transientMessageTimer: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      rosterOverlay: null,
+      debugOverlay: null,
+      shopOverlay: null,
+      churchOverlay: null,
+      transientMessage: null,
+      churchMessage: null,
+      nodeTooltip: null,
+      dialogueOverlay: null,
+      _pendingNodeSelection: null,
+      _unbindInputHandlers: vi.fn(),
+      isMobileInput: false,
+    };
+
+    NodeMapScene.prototype._onSceneShutdown.call(scene);
+    expect(scene._promotionChoicePanelOpen).toBe(0);
   });
 });
