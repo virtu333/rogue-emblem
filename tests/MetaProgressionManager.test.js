@@ -297,7 +297,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.loot_quality = 1;
     const effects = meta.getActiveEffects();
     expect(effects.goldBonus).toBe(1000);
-    expect(effects.battleGoldMultiplier).toBe(0.2);
+    expect(effects.battleGoldMultiplier).toBe(0.1);
     expect(effects.extraVulnerary).toBe(1);
     expect(effects.lootWeaponQualityBonus).toBe(10);
     expect(effects.lootCategoryWeightBonuses.weapon).toBe(10);
@@ -346,7 +346,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.lethal_armory_silver = 1;
     const effects = meta.getActiveEffects();
     expect(effects.deployBonus).toBe(1);
-    expect(effects.rosterCapBonus).toBe(2);
+    expect(effects.rosterCapBonus).toBe(3);
     expect(effects.visionChargesBonus).toBe(1);
     expect(effects.recruitStartingVulnerary).toBe(1);
     expect(effects.extraStartingUnitTier).toBe(3);

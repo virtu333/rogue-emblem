@@ -807,19 +807,19 @@
   {
     "id": "battle_gold",
     "name": "Plunder",
-    "description": "+20% battle gold per level",
+    "description": "+10% battle gold per level",
     "category": "economy",
     "maxLevel": 2,
     "costs": [
-      100,
-      225
+      125,
+      325
     ],
     "effects": [
       {
-        "battleGoldMultiplier": 0.2
+        "battleGoldMultiplier": 0.1
       },
       {
-        "battleGoldMultiplier": 0.4
+        "battleGoldMultiplier": 0.2
       }
     ]
   },
@@ -969,11 +969,11 @@
   {
     "id": "roster_cap",
     "name": "Expanded Ranks",
-    "description": "+2 max roster size",
+    "description": "+3 max roster size",
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      300
+      175
     ],
     "requires": {
       "milestones": [
@@ -982,7 +982,7 @@
     },
     "effects": [
       {
-        "rosterCapBonus": 2
+        "rosterCapBonus": 3
       }
     ]
   },
@@ -993,7 +993,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      375
+      200
     ],
     "effects": [
       {
@@ -1008,7 +1008,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      750
+      350
     ],
     "requires": {
       "upgrades": [
@@ -1046,7 +1046,7 @@
     "category": "capacity",
     "maxLevel": 1,
     "costs": [
-      300
+      375
     ],
     "requires": {
       "upgrades": [
@@ -1157,9 +1157,9 @@
     "category": "starting_equipment",
     "maxLevel": 3,
     "costs": [
-      100,
-      200,
-      350
+      150,
+      325,
+      550
     ],
     "effects": [
       {
@@ -1195,7 +1195,7 @@
     "category": "starting_equipment",
     "maxLevel": 1,
     "costs": [
-      500
+      600
     ],
     "requires": {
       "upgrades": [
@@ -1272,8 +1272,8 @@
     "maxLevel": 3,
     "costs": [
       100,
-      225,
-      375
+      300,
+      500
     ],
     "effects": [
       {

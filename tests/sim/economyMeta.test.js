@@ -12,7 +12,7 @@ const baseMetaUpgrades = [
     id: 'battle_gold',
     category: 'economy',
     maxLevel: 2,
-    effects: [{ battleGoldMultiplier: 0.2 }, { battleGoldMultiplier: 0.4 }],
+    effects: [{ battleGoldMultiplier: 0.1 }, { battleGoldMultiplier: 0.2 }],
   },
   {
     id: 'loot_quality',
@@ -66,7 +66,7 @@ describe('economyMeta.getMetaEffects', () => {
     expect(META_TIER_PURCHASES[1]).toEqual({ starting_gold: 1, battle_gold: 1 });
     expect(getMetaEffects(1, baseMetaUpgrades)).toEqual({
       goldBonus: 500,
-      battleGoldMultiplier: 0.2,
+      battleGoldMultiplier: 0.1,
       lootWeaponQualityBonus: 0,
       lootCategoryWeightBonuses: {},
     });
@@ -76,7 +76,7 @@ describe('economyMeta.getMetaEffects', () => {
     expect(META_TIER_PURCHASES[2]).toEqual({ starting_gold: 2, battle_gold: 2, loot_quality: 1 });
     expect(getMetaEffects(2, baseMetaUpgrades)).toEqual({
       goldBonus: 1000,
-      battleGoldMultiplier: 0.4,
+      battleGoldMultiplier: 0.2,
       lootWeaponQualityBonus: 10,
       lootCategoryWeightBonuses: { weapon: 10 },
     });
@@ -85,7 +85,7 @@ describe('economyMeta.getMetaEffects', () => {
   it('uses all-maxed fallback at tier 3+', () => {
     expect(getMetaEffects(3, baseMetaUpgrades)).toEqual({
       goldBonus: 1500,
-      battleGoldMultiplier: 0.4,
+      battleGoldMultiplier: 0.2,
       lootWeaponQualityBonus: 20,
       lootCategoryWeightBonuses: {
         weapon: 20,
@@ -97,7 +97,7 @@ describe('economyMeta.getMetaEffects', () => {
     });
     expect(getMetaEffects(4, baseMetaUpgrades)).toEqual({
       goldBonus: 1500,
-      battleGoldMultiplier: 0.4,
+      battleGoldMultiplier: 0.2,
       lootWeaponQualityBonus: 20,
       lootCategoryWeightBonuses: {
         weapon: 20,
