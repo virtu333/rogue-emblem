@@ -372,8 +372,8 @@
     "role": "Flying bruiser, bow-weak",
     "description": "A flying juggernaut — tough and strong in the air, but magic cuts deep.",
     "growthRanges": {
-      "HP": "65-80",
-      "STR": "45-60",
+      "HP": "60-70",
+      "STR": "40-55",
       "MAG": "0-10",
       "SKL": "30-45",
       "SPD": "30-45",
@@ -637,11 +637,11 @@
     "promotesFrom": "Wyvern Rider",
     "promotionBonuses": {
       "HP": 4,
-      "STR": 3,
+      "STR": 2,
       "MAG": 0,
       "SKL": 1,
       "SPD": 1,
-      "DEF": 3,
+      "DEF": 2,
       "RES": 1,
       "LCK": 0,
       "MOV": 1
