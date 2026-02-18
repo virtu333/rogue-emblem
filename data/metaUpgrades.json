@@ -564,6 +564,42 @@
     ]
   },
   {
+    "id": "lord_skl_growth",
+    "name": "Lord Precision",
+    "description": "+5% SKL growth per tier",
+    "category": "lord_bonuses",
+    "maxLevel": 5,
+    "costs": [
+      50,
+      75,
+      100,
+      125,
+      200
+    ],
+    "effects": [
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 5
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 10
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 15
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 20
+      },
+      {
+        "lordGrowth": "SKL",
+        "growthValue": 25
+      }
+    ]
+  },
+  {
     "id": "lord_res_growth",
     "name": "Lord Wisdom",
     "description": "+5% RES growth per tier",
@@ -743,6 +779,40 @@
       },
       {
         "lordStat": "SPD",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "id": "lord_skl_flat",
+    "name": "Lord Technique",
+    "description": "+SKL for lords",
+    "category": "lord_bonuses",
+    "maxLevel": 3,
+    "costs": [
+      125,
+      275,
+      500
+    ],
+    "requires": {
+      "upgrades": [
+        {
+          "id": "lord_skl_growth",
+          "level": 3
+        }
+      ]
+    },
+    "effects": [
+      {
+        "lordStat": "SKL",
+        "value": 1
+      },
+      {
+        "lordStat": "SKL",
+        "value": 3
+      },
+      {
+        "lordStat": "SKL",
         "value": 5
       }
     ]

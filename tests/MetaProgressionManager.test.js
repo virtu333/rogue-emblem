@@ -271,21 +271,25 @@ describe('MetaProgressionManager', () => {
     expect(effects.lordStatBonuses.DEF).toBe(1);
   });
 
-  it('getActiveEffects supports lord SPD and RES growth upgrades', () => {
+  it('getActiveEffects supports lord SPD, SKL, and RES growth upgrades', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.lord_spd_growth = 3;
+    meta.purchasedUpgrades.lord_skl_growth = 2;
     meta.purchasedUpgrades.lord_res_growth = 2;
     const effects = meta.getActiveEffects();
     expect(effects.lordGrowthBonuses.SPD).toBe(15);
+    expect(effects.lordGrowthBonuses.SKL).toBe(10);
     expect(effects.lordGrowthBonuses.RES).toBe(10);
   });
 
-  it('getActiveEffects supports lord SPD and RES flat upgrades', () => {
+  it('getActiveEffects supports lord SPD, SKL, and RES flat upgrades', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.lord_spd_flat = 2;
+    meta.purchasedUpgrades.lord_skl_flat = 3;
     meta.purchasedUpgrades.lord_res_flat = 3;
     const effects = meta.getActiveEffects();
     expect(effects.lordStatBonuses.SPD).toBe(3);
+    expect(effects.lordStatBonuses.SKL).toBe(5);
     expect(effects.lordStatBonuses.RES).toBe(5);
   });
 
@@ -462,8 +466,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 56 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(56);
+  it('has 58 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(58);
   });
 
   it('has correct category distribution', () => {
@@ -472,7 +476,7 @@ describe('MetaProgressionManager', () => {
       byCategory[u.category] = (byCategory[u.category] || 0) + 1;
     }
     expect(byCategory.recruit_stats).toBe(12);
-    expect(byCategory.lord_bonuses).toBe(10);
+    expect(byCategory.lord_bonuses).toBe(12);
     expect(byCategory.economy).toBe(7);
     expect(byCategory.capacity).toBe(10);
     expect(byCategory.starting_equipment).toBe(8);
@@ -899,6 +903,15 @@ describe('MetaProgressionManager', () => {
     // lord_res_flat requires lord_res_growth level 3 but no milestone
     meta.purchasedUpgrades.lord_res_growth = 3;
     expect(meta.meetsPrerequisites('lord_res_flat')).toBe(true);
+  });
+
+  it('lord_skl_flat has no milestone requirement (only upgrade prereq)', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.meetsPrerequisites('lord_skl_flat')).toBe(false);
+    meta.purchasedUpgrades.lord_skl_growth = 2;
+    expect(meta.meetsPrerequisites('lord_skl_flat')).toBe(false);
+    meta.purchasedUpgrades.lord_skl_growth = 3;
+    expect(meta.meetsPrerequisites('lord_skl_flat')).toBe(true);
   });
 
   it('deploy_limit requires beatAct2 milestone', () => {
