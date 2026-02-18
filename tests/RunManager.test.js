@@ -325,26 +325,53 @@ describe('RunManager', () => {
     });
   });
 
-  describe('gold gain methods', () => {
-    it('addGold bypasses gold gain multiplier', () => {
-      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
+  describe('ambush pending state', () => {
+    it('getAmbushPendingNode resolves pending node id from the current map', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.pendingAmbushNodeId = startNode.id;
+
+      expect(rm.getAmbushPendingNode()).toBe(startNode);
+    });
+
+    it('clearAmbushPendingNode only clears when id matches (or id is omitted)', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.pendingAmbushNodeId = startNode.id;
+
+      expect(rm.clearAmbushPendingNode('different-node')).toBe(false);
+      expect(rm.pendingAmbushNodeId).toBe(startNode.id);
+
+      expect(rm.clearAmbushPendingNode(startNode.id)).toBe(true);
+      expect(rm.pendingAmbushNodeId).toBeNull();
+
+      rm.pendingAmbushNodeId = startNode.id;
+      expect(rm.clearAmbushPendingNode()).toBe(true);
+      expect(rm.pendingAmbushNodeId).toBeNull();
+    });
+  });
+
+  describe('gold methods', () => {
+    it('applies meta goldBonus to starting gold', () => {
+      const baseline = new RunManager(gameData);
+      const rmMeta = new RunManager(gameData, { goldBonus: 750 });
+      expect(rmMeta.gold - baseline.gold).toBe(750);
+    });
+
+    it('addGold and awardGold add flat amounts', () => {
+      const rmMeta = new RunManager(gameData);
       const startGold = rmMeta.gold;
       rmMeta.addGold(100);
-      expect(rmMeta.gold - startGold).toBe(100);
+      rmMeta.awardGold(40);
+      expect(rmMeta.gold - startGold).toBe(140);
     });
 
-    it('awardGold applies gold gain multiplier by default', () => {
-      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
+    it('awardGold ignores non-positive values', () => {
+      const rmMeta = new RunManager(gameData);
       const startGold = rmMeta.gold;
-      rmMeta.awardGold(100);
-      expect(rmMeta.gold - startGold).toBe(116);
-    });
-
-    it('awardGold can bypass gold gain multiplier when requested', () => {
-      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.16 });
-      const startGold = rmMeta.gold;
-      rmMeta.awardGold(100, { applyMetaMultiplier: false });
-      expect(rmMeta.gold - startGold).toBe(100);
+      expect(rmMeta.awardGold(0)).toBe(0);
+      expect(rmMeta.awardGold(-12)).toBe(0);
+      expect(rmMeta.gold).toBe(startGold);
     });
   });
 
@@ -384,17 +411,6 @@ describe('RunManager', () => {
 
       const expectedGain = calculateBattleGold(100, startNode?.type);
       expect(rm.gold - startGold).toBe(expectedGain);
-    });
-
-    it('applies gold gain multiplier to earned battle rewards', () => {
-      const rmMeta = new RunManager(gameData, { goldGainMultiplier: 0.12 });
-      rmMeta.startRun();
-      const startNode = rmMeta.nodeMap.nodes.find(n => n.id === rmMeta.nodeMap.startNodeId);
-      const startGold = rmMeta.gold;
-      rmMeta.completeBattle(rmMeta.getRoster(), startNode.id, 100);
-
-      const baseGain = calculateBattleGold(100, startNode?.type);
-      expect(rmMeta.gold - startGold).toBe(Math.floor(baseGain * 1.12));
     });
 
     it('applies elite, meta, and difficulty multipliers exactly once each', () => {
@@ -1405,6 +1421,15 @@ describe('RunManager', () => {
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
       expect(sera.inventory.some(w => w.name === 'Recover')).toBe(true);
+    });
+
+    it('startingReclassSeal adds one Infantry Seal to convoy at run start', () => {
+      const rmMeta = new RunManager(gameData, { startingReclassSeal: 1 });
+      rmMeta.startRun();
+      const seals = rmMeta.convoy.consumables.filter((item) => item.name === 'Infantry Seal');
+      expect(seals).toHaveLength(1);
+      expect(seals[0].effect).toBe('reclass');
+      expect(seals[0].subEffect).toBe('infantry');
     });
 
     it('forge does not apply to staves', () => {

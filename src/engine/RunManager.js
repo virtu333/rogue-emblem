@@ -218,7 +218,7 @@ export class RunManager {
     this.nodeMap = null;
     this.currentNodeId = null;    // last completed node (null = start of act)
     this.completedBattles = 0;
-    this.gold = STARTING_GOLD;
+    this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = [];  // team accessory pool (unequipped accessories)
     this.scrolls = [];      // team scroll pool (skill teaching items)
     this.convoy = { weapons: [], consumables: [] };
@@ -1307,11 +1307,6 @@ export class RunManager {
     return Math.max(0, 1 + metaDelta + blessingDelta);
   }
 
-  getGoldGainMultiplier() {
-    const metaDelta = this.metaEffects?.goldGainMultiplier || 0;
-    return Math.max(0, 1 + metaDelta);
-  }
-
   getDeployBonus() {
     const metaDelta = this.metaEffects?.deployBonus || 0;
     const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
@@ -1969,14 +1964,11 @@ export class RunManager {
     this.gold += amount;
   }
 
-  awardGold(amount, options = {}) {
+  awardGold(amount) {
     const normalizedAmount = Math.trunc(Number(amount) || 0);
     if (normalizedAmount <= 0) return 0;
-    const applyMetaMultiplier = options.applyMetaMultiplier !== false;
-    const multiplier = applyMetaMultiplier ? this.getGoldGainMultiplier() : 1;
-    const awarded = Math.max(0, Math.floor((normalizedAmount * multiplier) + 1e-6));
-    this.addGold(awarded);
-    return awarded;
+    this.addGold(normalizedAmount);
+    return normalizedAmount;
   }
 
   getConvoyCapacities() {

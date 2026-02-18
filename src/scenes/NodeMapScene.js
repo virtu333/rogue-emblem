@@ -1919,6 +1919,10 @@ export class NodeMapScene extends Phaser.Scene {
     const startY = 105;
     const lineH = 22;
     const rm = this.runManager;
+    const previewAwardedSellGold = (amount) => {
+      const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
+      return normalized;
+    };
     const rowModel = [];
     for (const unit of rm.roster) {
       rowModel.push({ kind: 'unit', unit });
@@ -1963,8 +1967,9 @@ export class NodeMapScene extends Phaser.Scene {
         const equipped = item === unit.weapon ? '\u25b6' : ' ';
         const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
         const wpnColor = locked ? '#666666' : (isForged(item) ? '#44ff88' : '#e0e0e0');
+        const awardedSellPrice = previewAwardedSellGold(sellPrice);
         const text = this.add.text(70, y,
-          `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + sellPrice + 'G'}`, {
+          `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + awardedSellPrice + 'G'}`, {
           fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
         }).setDepth(OVERLAY_CONTENT_DEPTH);
 
@@ -1973,12 +1978,13 @@ export class NodeMapScene extends Phaser.Scene {
           text.on('pointerover', () => text.setColor('#ffdd44'));
           text.on('pointerout', () => text.setColor(wpnColor));
           text.on('pointerdown', () => {
-            rm.addGold(sellPrice);
+            if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
+            else rm.addGold(sellPrice);
             removeFromInventory(unit, item);
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_gold');
             this.refreshShop();
-            this.showShopBanner(`Sold ${item.name} for ${sellPrice}G`, '#ffdd44');
+            this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
           });
         }
 
@@ -1989,22 +1995,24 @@ export class NodeMapScene extends Phaser.Scene {
 
       const item = rowData.item;
       const sellPrice = rowData.sellPrice;
+      const awardedSellPrice = previewAwardedSellGold(sellPrice);
       const unit = rowData.unit;
       const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
       const baseColor = '#88ff88';
-      const text = this.add.text(70, y, ` ${item.name}${usesText}  +${sellPrice}G`, {
+      const text = this.add.text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
         fontFamily: 'monospace', fontSize: '11px', color: baseColor,
       }).setDepth(OVERLAY_CONTENT_DEPTH);
       text.setInteractive({ useHandCursor: true });
       text.on('pointerover', () => text.setColor('#ffdd44'));
       text.on('pointerout', () => text.setColor(baseColor));
       text.on('pointerdown', () => {
-        rm.addGold(sellPrice);
+        if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
+        else rm.addGold(sellPrice);
         removeFromConsumables(unit, item);
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         this.refreshShop();
-        this.showShopBanner(`Sold ${item.name} for ${sellPrice}G`, '#ffdd44');
+        this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
       });
 
       this.shopContentGroup.push(text);
@@ -2158,6 +2166,10 @@ export class NodeMapScene extends Phaser.Scene {
         return `Permanently +${value} ${stat}`;
       }
       if (item.effect === 'promote') return 'Use at Lv 10+ to promote a unit';
+      if (item.effect === 'reclass') {
+        const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
+        return `Reclass a unit to a ${label} class`;
+      }
       return item.special || 'Consumable';
     }
 
