@@ -63,7 +63,11 @@ function applyRunSlots(runData) {
     if (cloudSlot == null) continue;
 
     const localState = readLocalJSONWithState(key);
-    if (localState.parseError) continue;
+    if (localState.parseError) {
+      // Corrupted local JSON is not recoverable; heal from cloud when available.
+      localStorage.setItem(key, JSON.stringify(cloudSlot));
+      continue;
+    }
 
     if (!localState.exists) {
       localStorage.setItem(key, JSON.stringify(cloudSlot));

@@ -150,6 +150,17 @@ describe('CloudSync run merge guard', () => {
 
     expect(JSON.parse(store[key])).toEqual(cloud);
   });
+
+  it('heals malformed local run slot from cloud data', async () => {
+    const key = getRunKey(1);
+    const cloud = { marker: 'cloud', savedAt: 200 };
+    localStorage.setItem(key, '{not-json');
+    mockCloudBootstrap({ runData: { '1': cloud } });
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    expect(JSON.parse(store[key])).toEqual(cloud);
+  });
 });
 
 describe('CloudSync merge helpers', () => {
