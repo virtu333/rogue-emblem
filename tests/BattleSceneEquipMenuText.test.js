@@ -204,6 +204,65 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toContain('Equip');
   });
 
+  it('shows Heal when only a non-equipped staff has targets', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+
+    const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
+    const physic = { name: 'Physic', type: 'Staff', uses: 1, _usesSpent: 0 };
+    const ally = { name: 'Ally' };
+
+    scene.getUsableStaves = vi.fn(() => [heal, physic]);
+    scene.findHealTargets = vi.fn((_unit, staffOverride) => (staffOverride === physic ? [ally] : []));
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: heal,
+      inventory: [heal, physic],
+      stats: { MAG: 18 },
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels.some((label) => label.startsWith('Heal ('))).toBe(true);
+    expect(scene.findHealTargets).toHaveBeenCalledWith(unit, heal);
+    expect(scene.findHealTargets).toHaveBeenCalledWith(unit, physic);
+  });
+
+  it('heal action auto-selects the only staff that has targets', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.showStaffPicker = vi.fn();
+    scene.startHealTargetSelection = vi.fn();
+
+    const heal = { name: 'Heal', type: 'Staff', uses: 3, _usesSpent: 0 };
+    const physic = { name: 'Physic', type: 'Staff', uses: 1, _usesSpent: 0 };
+    const ally = { name: 'Ally' };
+
+    scene.getUsableStaves = vi.fn(() => [heal, physic]);
+    scene.findHealTargets = vi.fn((_unit, staffOverride) => (staffOverride === physic ? [ally] : []));
+
+    const unit = {
+      col: 1, row: 1,
+      weapon: heal,
+      inventory: [heal, physic],
+      stats: { MAG: 18 },
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+    const healCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].startsWith('Heal ('));
+    expect(healCall).toBeTruthy();
+    healCall[5]();
+
+    expect(scene.showStaffPicker).not.toHaveBeenCalled();
+    expect(scene.startHealTargetSelection).toHaveBeenCalledWith(unit, [ally], physic);
+  });
+
   it('non-proficient rows render gray with (no prof) suffix', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));

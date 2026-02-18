@@ -4914,8 +4914,11 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'UNIT_ACTION_MENU';
 
     const normalAttackTargets = this.findAttackTargets(unit);
-    const healTargets = this.findHealTargets(unit);
-    const activeHealStaff = this.getActiveHealStaff(unit);
+    const usableStaves = this.getUsableStaves(unit);
+    const healOptions = usableStaves
+      .map(staff => ({ staff, targets: this.findHealTargets(unit, staff) }))
+      .filter(option => option.targets.length > 0);
+    const preferredHealOption = healOptions.find(option => option.staff === unit.weapon) || healOptions[0] || null;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuX = (unit.col < this.grid.cols - 3)
@@ -4933,8 +4936,8 @@ export class BattleScene extends Phaser.Scene {
       const activeArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
       items.push(activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art');
     }
-    if (healTargets.length > 0) {
-      const staff = activeHealStaff;
+    if (preferredHealOption) {
+      const staff = preferredHealOption.staff;
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
       items.push(`Heal (${rem}/${max})`);
@@ -5023,11 +5026,13 @@ export class BattleScene extends Phaser.Scene {
           this.showWeaponArtPicker(unit);
         } else if (label.startsWith('Heal')) {
           this.hideActionMenu();
-          const usableStaves = this.getUsableStaves(unit);
-          if (usableStaves.length >= 2) {
-            this.showStaffPicker(unit, usableStaves);
+          if (healOptions.length >= 2) {
+            this.showStaffPicker(unit, healOptions.map(option => option.staff));
+          } else if (healOptions.length === 1) {
+            const option = healOptions[0];
+            this.startHealTargetSelection(unit, option.targets, option.staff);
           } else {
-            this.startHealTargetSelection(unit, healTargets, usableStaves[0] || null);
+            this.showActionMenu(unit);
           }
         } else if (label === 'Equip') {
           this.showEquipMenu(unit);
