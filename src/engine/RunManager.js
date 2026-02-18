@@ -236,6 +236,7 @@ export class RunManager {
     this.difficultyId = 'normal';
     this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
     this.actSequence = [...ACT_SEQUENCE];
+    this.pendingAmbushNodeId = null;
     this.endRunRewards = null;
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
@@ -302,6 +303,7 @@ export class RunManager {
       halfFogChance: this.difficultyId === 'normal',
     });
     this.currentNodeId = null;
+    this.pendingAmbushNodeId = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
     this.metaUnlockedWeaponArts = [];
@@ -1920,6 +1922,26 @@ export class RunManager {
     return battleParams;
   }
 
+  getAmbushPendingNode() {
+    const pendingNodeId = typeof this.pendingAmbushNodeId === 'string'
+      ? this.pendingAmbushNodeId
+      : null;
+    if (!pendingNodeId) return null;
+    if (!Array.isArray(this.nodeMap?.nodes)) return null;
+    return this.nodeMap.nodes.find((node) => node?.id === pendingNodeId) || null;
+  }
+
+  clearAmbushPendingNode(nodeId = null) {
+    if (!this.pendingAmbushNodeId) return false;
+    if (nodeId === null || nodeId === undefined) {
+      this.pendingAmbushNodeId = null;
+      return true;
+    }
+    if (this.pendingAmbushNodeId !== nodeId) return false;
+    this.pendingAmbushNodeId = null;
+    return true;
+  }
+
   getLockedBattleConfig(nodeId) {
     const cfg = this.battleConfigsByNodeId?.[nodeId];
     return cfg ? structuredClone(cfg) : null;
@@ -2126,6 +2148,10 @@ export class RunManager {
       this.visionChargesRemaining = currentVision + 1;
     }
 
+    if (node?.isAmbush && node.ambushCleared !== true) {
+      node.ambushCleared = true;
+      this.pendingAmbushNodeId = nodeId;
+    }
     this.markNodeComplete(nodeId);
     return true;
   }
@@ -2187,6 +2213,7 @@ export class RunManager {
     });
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     this.currentNodeId = null;
+    this.pendingAmbushNodeId = null;
     return unlockedNow;
   }
 
@@ -2441,6 +2468,7 @@ export class RunManager {
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
+      pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       endRunRewards: this.endRunRewards || null,
       metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
@@ -2826,6 +2854,9 @@ export class RunManager {
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }
+    rm.pendingAmbushNodeId = typeof saved.pendingAmbushNodeId === 'string'
+      ? saved.pendingAmbushNodeId
+      : null;
     rm.endRunRewards = saved.endRunRewards || null;
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)

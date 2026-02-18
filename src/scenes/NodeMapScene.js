@@ -413,7 +413,10 @@ export class NodeMapScene extends Phaser.Scene {
     } finally {
       if (isSceneLifecycleActive(this, lifecycleGeneration)) {
         this.isSceneReady = true;
-        this._consumePendingNodeSelection();
+        const consumedPendingSelection = this._consumePendingNodeSelection?.() === true;
+        if (!consumedPendingSelection) {
+          this._maybeOpenPendingAmbushShop?.(lifecycleGeneration);
+        }
       }
     }
   }
@@ -437,6 +440,51 @@ export class NodeMapScene extends Phaser.Scene {
     if (pending.showHpPersist && isSceneLifecycleActive(this, lifecycleGeneration)) {
       void showMinorHint(this, 'HP carries between battles. Visit Rest or Church nodes to heal.');
     }
+  }
+
+  _maybeOpenPendingAmbushShop(lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
+    if (this.sys?.isActive?.() === false) return false;
+    if (!this.isSceneReady) return false;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
+    if (this.isTransitioning || this.battleLaunchInFlight) return false;
+    if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible || this.settingsOverlay?.visible) {
+      return false;
+    }
+
+    const pendingNode = this.runManager?.getAmbushPendingNode?.();
+    if (!pendingNode?.id) return false;
+
+    const node = this.runManager?.nodeMap?.nodes?.find((entry) => entry?.id === pendingNode.id);
+    if (!node || node.type !== NODE_TYPES.SHOP) return false;
+
+    const currentNodeId = this.runManager?.currentNodeId;
+    if (!currentNodeId || currentNodeId !== node.id) return false;
+
+    if (typeof this.handleShop !== 'function') return false;
+    this.handleShop(node, { ambushDiscount: true, pendingAmbush: true });
+    return true;
+  }
+
+  _isPendingAmbushNode(node) {
+    const nodeId = node?.id;
+    if (!nodeId) return false;
+    const pendingNodeId = this.runManager?.getAmbushPendingNode?.()?.id;
+    return Boolean(pendingNodeId && pendingNodeId === nodeId);
+  }
+
+  _clearPendingAmbushForNode(node) {
+    const nodeId = node?.id;
+    if (!nodeId) return false;
+    const pendingNodeId = this.runManager?.getAmbushPendingNode?.()?.id;
+    if (!pendingNodeId || pendingNodeId !== nodeId) return false;
+    if (typeof this.runManager?.clearAmbushPendingNode === 'function') {
+      return this.runManager.clearAmbushPendingNode(nodeId);
+    }
+    if (typeof this.runManager?.clearPendingAmbushNode === 'function') {
+      return this.runManager.clearPendingAmbushNode(nodeId);
+    }
+    return false;
   }
 
   onPointerUp(pointer) {
@@ -1121,7 +1169,11 @@ export class NodeMapScene extends Phaser.Scene {
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
     } else if (node.type === NODE_TYPES.SHOP) {
-      this.handleShop(node);
+      const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
+      this.handleShop(node, {
+        ambushDiscount: Boolean(node?.isAmbush),
+        pendingAmbush,
+      });
     } else {
       // Immediately lock node interactions before any async work begins.
       this.battleLaunchInFlight = true;
@@ -1541,10 +1593,13 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchScrollDrag = null;
   }
 
-  handleShop(node) {
+  handleShop(node, options = {}) {
+    const ambushDiscount = options?.ambushDiscount === true;
+    const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
     if (this.runManager.consumeSkipFirstShop()) {
       showMinorHint(this, 'Blessing effect: first shop skipped.');
       this.runManager.markNodeComplete(node.id);
+      if (pendingAmbush) this._clearPendingAmbushForNode?.(node);
       this.checkActComplete();
       return;
     }
@@ -1562,6 +1617,10 @@ export class NodeMapScene extends Phaser.Scene {
       { itemCountBonus: shopItemDelta }
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
+    if (ambushDiscount || pendingAmbush) {
+      this.showShopOverlay(node, shopItems, { ambushDiscount, pendingAmbush });
+      return;
+    }
     this.showShopOverlay(node, shopItems);
   }
 
@@ -1576,7 +1635,7 @@ export class NodeMapScene extends Phaser.Scene {
     }));
   }
 
-  showShopOverlay(node, shopItems) {
+  showShopOverlay(node, shopItems, options = {}) {
     this.shopOverlay = [];
     this.shopContentGroup = [];
     this.activeShopTab = 'buy';
@@ -1655,6 +1714,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopRerollCount = 0;
     this.closeShopOverlay();
     if (node) {
+      this._clearPendingAmbushForNode?.(node);
       this.runManager.markNodeComplete(node.id);
       this.checkActComplete();
     }

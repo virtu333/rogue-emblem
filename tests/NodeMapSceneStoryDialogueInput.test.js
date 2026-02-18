@@ -10,6 +10,8 @@ vi.mock('phaser', () => ({
 }));
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import { loadGameData } from './testData.js';
 
 describe('NodeMap story-dialogue node click queue', () => {
   it('queues node click intent while story dialogue is active', () => {
@@ -165,5 +167,196 @@ describe('NodeMap story-dialogue node click queue', () => {
     expect(scene.input.enabled).toBe(true);
     expect(scene.isSceneReady).toBe(true);
     expect(scene._consumePendingNodeSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('finalizeSceneReady replays queued click before pending ambush auto-open', async () => {
+    const queuedNode = { id: 'n1', type: 'battle' };
+    const pendingShopNode = { id: 'shop1', type: 'shop' };
+    const onNodeClick = vi.fn();
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        getAvailableNodes: () => [queuedNode, pendingShopNode],
+        nodeMap: { nodes: [queuedNode, pendingShopNode] },
+        getAmbushPendingNode: vi.fn(() => pendingShopNode),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: { nodeId: queuedNode.id },
+      _consumePendingNodeSelection: NodeMapScene.prototype._consumePendingNodeSelection,
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      onNodeClick,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(onNodeClick).toHaveBeenCalledTimes(1);
+    expect(onNodeClick).toHaveBeenCalledWith(queuedNode);
+    expect(handleShop).not.toHaveBeenCalled();
+  });
+
+  it('finalizeSceneReady auto-opens pending ambush shop when scene is idle', async () => {
+    const pendingShopNode = { id: 'shop1', type: 'shop' };
+    const nextNode = { id: 'n2', type: 'battle' };
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        currentNodeId: pendingShopNode.id,
+        getAvailableNodes: () => [nextNode],
+        nodeMap: { nodes: [pendingShopNode, nextNode] },
+        getAmbushPendingNode: vi.fn(() => pendingShopNode),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).toHaveBeenCalledTimes(1);
+    expect(handleShop).toHaveBeenCalledWith(pendingShopNode, { ambushDiscount: true, pendingAmbush: true });
+  });
+
+  it('finalizeSceneReady auto-opens pending ambush shop from real completeBattle producer state', async () => {
+    const rm = new RunManager(loadGameData());
+    rm.startRun();
+    rm.hasShownDialogue = vi.fn(() => true);
+
+    const ambushShopNode = rm.nodeMap.nodes.find((node) => node.id === rm.nodeMap.startNodeId);
+    ambushShopNode.type = 'shop';
+    ambushShopNode.isAmbush = true;
+    ambushShopNode.ambushCleared = false;
+
+    const applied = rm.completeBattle(rm.getRoster(), ambushShopNode.id, 0);
+    expect(applied).toBe(true);
+    expect(rm.getAmbushPendingNode()?.id).toBe(ambushShopNode.id);
+    expect(rm.currentNodeId).toBe(ambushShopNode.id);
+
+    const handleShop = vi.fn();
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: rm,
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).toHaveBeenCalledTimes(1);
+    expect(handleShop).toHaveBeenCalledWith(ambushShopNode, { ambushDiscount: true, pendingAmbush: true });
+  });
+
+  it('finalizeSceneReady does not auto-open stale pending ambush when current node differs', async () => {
+    const pendingShopNode = { id: 'shop1', type: 'shop' };
+    const handleShop = vi.fn();
+
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+        currentNodeId: 'other-node',
+        getAvailableNodes: () => [],
+        nodeMap: { nodes: [pendingShopNode] },
+        getAmbushPendingNode: vi.fn(() => pendingShopNode),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      handleShop,
+    };
+
+    await NodeMapScene.prototype.finalizeSceneReady.call(scene);
+
+    expect(handleShop).not.toHaveBeenCalled();
+  });
+
+  it('finalizeSceneReady tolerates runManager stubs without ambush helpers', async () => {
+    const handleShop = vi.fn();
+    const scene = {
+      ensureAudioUnlocked: vi.fn(async () => {}),
+      sys: { isActive: () => true },
+      input: { enabled: false },
+      runManager: {
+        hasShownDialogue: vi.fn(() => true),
+      },
+      _showPendingNodeMapHints: vi.fn(async () => {}),
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      isSceneReady: false,
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _pendingNodeSelection: null,
+      _consumePendingNodeSelection: vi.fn(() => false),
+      _maybeOpenPendingAmbushShop: NodeMapScene.prototype._maybeOpenPendingAmbushShop,
+      handleShop,
+    };
+
+    await expect(NodeMapScene.prototype.finalizeSceneReady.call(scene)).resolves.toBeUndefined();
+    expect(handleShop).not.toHaveBeenCalled();
   });
 });

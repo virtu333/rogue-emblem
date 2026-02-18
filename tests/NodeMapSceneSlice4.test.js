@@ -4,6 +4,11 @@ const { generateShopInventoryMock } = vi.hoisted(() => ({
   generateShopInventoryMock: vi.fn(),
 }));
 
+const { showImportantHintMock, showMinorHintMock } = vi.hoisted(() => ({
+  showImportantHintMock: vi.fn(async () => {}),
+  showMinorHintMock: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
@@ -16,6 +21,11 @@ vi.mock('phaser', () => ({
 vi.mock('../src/engine/LootSystem.js', () => ({
   generateShopInventory: generateShopInventoryMock,
   getSellPrice: vi.fn(() => 0),
+}));
+
+vi.mock('../src/ui/HintDisplay.js', () => ({
+  showImportantHint: showImportantHintMock,
+  showMinorHint: showMinorHintMock,
 }));
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
@@ -134,6 +144,8 @@ function makeRosterUnit(name, { isLord = false, level = 1 } = {}) {
 describe('NodeMapScene Slice 4', () => {
   beforeEach(() => {
     generateShopInventoryMock.mockReset();
+    showImportantHintMock.mockReset();
+    showMinorHintMock.mockReset();
   });
 
   it('handleShop passes blessing item delta into shop generation and prices inventory', () => {
@@ -635,5 +647,126 @@ describe('NodeMapScene Slice 4', () => {
     expect(scrollObj.visible).toBe(true);
     expect(scrollObj.input.enabled).toBe(true);
     expect(scene.leaveChurchNode).not.toHaveBeenCalled();
+  });
+
+  it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {
+    const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: {
+        getAmbushPendingNode: vi.fn(() => ({ id: 'shop-2' })),
+      },
+      handleShop: vi.fn(),
+      _isPendingAmbushNode: NodeMapScene.prototype._isPendingAmbushNode,
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.handleShop).toHaveBeenCalledWith(node, { ambushDiscount: true, pendingAmbush: false });
+  });
+
+  it('onNodeClick sets pendingAmbush true when clicked shop matches pending node', () => {
+    const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: false };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: {
+        getAmbushPendingNode: vi.fn(() => ({ id: 'shop-1' })),
+      },
+      handleShop: vi.fn(),
+      _isPendingAmbushNode: NodeMapScene.prototype._isPendingAmbushNode,
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.handleShop).toHaveBeenCalledWith(node, { ambushDiscount: false, pendingAmbush: true });
+  });
+
+  it('handleShop skip path clears pending ambush only when node matches pending id', () => {
+    const clearAmbushPendingNode = vi.fn();
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => true),
+        markNodeComplete: vi.fn(),
+        getAmbushPendingNode: vi.fn(() => ({ id: 'shop-1' })),
+        clearAmbushPendingNode,
+      },
+      checkActComplete: vi.fn(),
+      _isPendingAmbushNode: NodeMapScene.prototype._isPendingAmbushNode,
+      _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
+    };
+
+    NodeMapScene.prototype.handleShop.call(scene, { id: 'shop-1' }, { ambushDiscount: true, pendingAmbush: true });
+    expect(clearAmbushPendingNode).toHaveBeenCalledWith('shop-1');
+    expect(scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
+    expect(scene.checkActComplete).toHaveBeenCalledTimes(1);
+
+    clearAmbushPendingNode.mockClear();
+    scene.runManager.getAmbushPendingNode.mockReturnValueOnce({ id: 'shop-2' });
+    NodeMapScene.prototype.handleShop.call(scene, { id: 'shop-1' }, { ambushDiscount: true, pendingAmbush: false });
+    expect(clearAmbushPendingNode).not.toHaveBeenCalled();
+    expect(scene.runManager.markNodeComplete).toHaveBeenCalledTimes(2);
+    expect(scene.checkActComplete).toHaveBeenCalledTimes(2);
+  });
+
+  it('clearPendingAmbushNode alias is used when canonical clearAmbushPendingNode is absent', () => {
+    const clearPendingAmbushNode = vi.fn(() => true);
+    const scene = {
+      runManager: {
+        getAmbushPendingNode: vi.fn(() => ({ id: 'shop-1' })),
+        clearPendingAmbushNode,
+      },
+      _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
+    };
+
+    const cleared = NodeMapScene.prototype._clearPendingAmbushForNode.call(scene, { id: 'shop-1' });
+
+    expect(cleared).toBe(true);
+    expect(clearPendingAmbushNode).toHaveBeenCalledWith('shop-1');
+  });
+
+  it('leaveShopNode clears pending ambush only when leaving the pending node', () => {
+    const createScene = (pendingNodeId) => {
+      const clearAmbushPendingNode = vi.fn();
+      const scene = {
+        shopOverlay: [makeDisplayObject()],
+        _shopNode: { id: 'shop-1' },
+        registry: { get: vi.fn(() => null) },
+        closeShopOverlay: vi.fn(() => {
+          scene.shopOverlay = null;
+          scene._shopNode = null;
+        }),
+        runManager: {
+          currentAct: 'act1',
+          markNodeComplete: vi.fn(),
+          getAmbushPendingNode: vi.fn(() => ({ id: pendingNodeId })),
+          clearAmbushPendingNode,
+        },
+        checkActComplete: vi.fn(),
+        _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
+      };
+      return { scene, clearAmbushPendingNode };
+    };
+
+    const matched = createScene('shop-1');
+    NodeMapScene.prototype.leaveShopNode.call(matched.scene);
+    expect(matched.clearAmbushPendingNode).toHaveBeenCalledWith('shop-1');
+    expect(matched.scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
+
+    const mismatched = createScene('shop-2');
+    NodeMapScene.prototype.leaveShopNode.call(mismatched.scene);
+    expect(mismatched.clearAmbushPendingNode).not.toHaveBeenCalled();
+    expect(mismatched.scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
   });
 });

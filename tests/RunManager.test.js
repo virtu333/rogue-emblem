@@ -440,6 +440,21 @@ describe('RunManager', () => {
       expect(overriddenGain).toBe(0);
     });
 
+    it('sets pending ambush state when an ambush battle is completed', () => {
+      rm.startRun();
+      const node = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      node.type = 'shop';
+      node.isAmbush = true;
+      node.ambushCleared = false;
+
+      const applied = rm.completeBattle(rm.getRoster(), node.id, 0);
+
+      expect(applied).toBe(true);
+      expect(node.ambushCleared).toBe(true);
+      expect(rm.pendingAmbushNodeId).toBe(node.id);
+      expect(rm.getAmbushPendingNode()?.id).toBe(node.id);
+    });
+
     it('is a full no-op for invalid node ids', () => {
       rm.startRun();
       const stateBefore = {
@@ -1002,6 +1017,18 @@ describe('RunManager', () => {
       expect(restored.rngSeed).toBe(424242);
       expect(restored.visionChargesRemaining).toBe(2);
       expect(restored.visionCount).toBe(1);
+    });
+
+    it('round-trips pendingAmbushNodeId through save/load', () => {
+      rm.startRun({ runSeed: 999 });
+      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      rm.pendingAmbushNodeId = startNode.id;
+
+      const json = rm.toJSON();
+      const restored = RunManager.fromJSON(json, gameData);
+
+      expect(restored.pendingAmbushNodeId).toBe(startNode.id);
+      expect(restored.getAmbushPendingNode()?.id).toBe(startNode.id);
     });
 
     it('preserves vision charges above 3 through save/load', () => {
