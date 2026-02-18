@@ -257,6 +257,16 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
   if (grantedSkill && !skillIds.includes(grantedSkill)) skillIds.push(grantedSkill);
   if (skillIds.length === 0) return result;
 
+  // Resolve one offensive proc per strike with explicit precedence.
+  const offensiveProcPriority = {
+    aether: 0,
+    flare: 1,
+    luna: 2,
+    sol: 3,
+  };
+  let selectedOffensiveProcId = null;
+  let selectedOffensiveProcPriority = Number.POSITIVE_INFINITY;
+
   for (const skillId of skillIds) {
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-attack') continue;
@@ -265,48 +275,29 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     const roll = Math.random() * 100;
     if (roll >= chance) continue;
 
+    const procPriority = offensiveProcPriority[skill.id];
+    if (procPriority !== undefined) {
+      if (procPriority < selectedOffensiveProcPriority) {
+        selectedOffensiveProcPriority = procPriority;
+        selectedOffensiveProcId = skill.id;
+      }
+      continue;
+    }
+
     switch (skill.id) {
-      case 'sol':
-        // Heal damage dealt
-        result.heal = normalDamage;
-        result.activated.push({ id: 'sol', name: 'Sol' });
-        break;
-
-      case 'luna':
-        // Halve enemy DEF/RES — recalculate damage as if def halved
-        // We approximate by adding half the effective defense to damage
-        result.modifiedDamage = Math.floor(normalDamage * 1.5);
-        result.activated.push({ id: 'luna', name: 'Luna' });
-        break;
-
       case 'lethality':
         result.lethal = true;
         result.activated.push({ id: 'lethality', name: 'Lethality' });
         break;
 
-    case 'adept':
-      if (combatState?.adeptUsed?.has?.(attacker)) break;
-      if (combatState) {
-        if (!combatState.adeptUsed) combatState.adeptUsed = new Set();
-        combatState.adeptUsed.add(attacker);
-      }
-      result.extraStrike = true;
-      result.activated.push({ id: 'adept', name: 'Adept' });
-      break;
-
-      case 'aether':
-        // Sol then Luna: first hit heals, then an extra hit at 1.5x damage
-        result.heal = normalDamage;
+      case 'adept':
+        if (combatState?.adeptUsed?.has?.(attacker)) break;
+        if (combatState) {
+          if (!combatState.adeptUsed) combatState.adeptUsed = new Set();
+          combatState.adeptUsed.add(attacker);
+        }
         result.extraStrike = true;
-        result.aetherLuna = true; // flag for the bonus strike to use Luna damage
-        result.activated.push({ id: 'aether', name: 'Aether' });
-        break;
-
-      case 'flare':
-        // Negate RES: add target's RES to damage, then drain
-        result.modifiedDamage = normalDamage + (target.stats?.RES || 0);
-        result.heal = result.modifiedDamage;
-        result.activated.push({ id: 'flare', name: 'Flare' });
+        result.activated.push({ id: 'adept', name: 'Adept' });
         break;
 
       case 'commanders_gambit':
@@ -330,6 +321,23 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         break;
       }
     }
+  }
+
+  if (selectedOffensiveProcId === 'aether') {
+    result.heal = normalDamage;
+    result.extraStrike = true;
+    result.aetherLuna = true;
+    result.activated.push({ id: 'aether', name: 'Aether' });
+  } else if (selectedOffensiveProcId === 'flare') {
+    result.modifiedDamage = normalDamage + (target.stats?.RES || 0);
+    result.heal = result.modifiedDamage;
+    result.activated.push({ id: 'flare', name: 'Flare' });
+  } else if (selectedOffensiveProcId === 'luna') {
+    result.modifiedDamage = Math.floor(normalDamage * 1.5);
+    result.activated.push({ id: 'luna', name: 'Luna' });
+  } else if (selectedOffensiveProcId === 'sol') {
+    result.heal = normalDamage;
+    result.activated.push({ id: 'sol', name: 'Sol' });
   }
 
   return result;
@@ -499,3 +507,4 @@ export function getWeaponRangeBonus(unit, weapon, skillsData) {
   }
   return bonus;
 }
+

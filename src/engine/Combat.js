@@ -1064,9 +1064,9 @@ export function resolveCombat(
     combatState: combatSkillState,
   } : null;
 
-  // Track Cancel follow-up negation
-  let cancelledAtkFollowUp = false;
-  let cancelledDefFollowUp = false;
+  // Track Cancel follow-up negation by side.
+  let attackerFollowUpCancelled = false;
+  let defenderFollowUpCancelled = false;
 
   // Execute N strikes from one combatant against the other
   function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
@@ -1108,12 +1108,12 @@ export function resolveCombat(
         strikeSkills.isFirstHit = false;
       }
 
-      // Check Cancel on defend (negates opponent's follow-up)
+      // Check Cancel on defend (negates the striker side's follow-up).
       if (!evt.miss && evt.skillActivations) {
         for (const sa of evt.skillActivations) {
           if (sa.id === 'cancel') {
-            if (isAttackingDefender) cancelledAtkFollowUp = true; // defender cancelled attacker's follow-up
-            else cancelledDefFollowUp = true; // attacker cancelled defender's follow-up
+            if (isAttackingDefender) attackerFollowUpCancelled = true;
+            else defenderFollowUpCancelled = true;
           }
         }
       }
@@ -1183,17 +1183,17 @@ export function resolveCombat(
     events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
     strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
-    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
   } else if (attackerDesperation && atkDoubles) {
     // Desperation: all attacker hits before defender responds
     events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (!cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (!attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
     if (defCanCounter) {
       strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     }
-    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
   } else if (defenderDesperation && defDoubles) {
     // Defender-side Desperation: defender follow-up occurs before attacker follow-up
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
@@ -1202,17 +1202,17 @@ export function resolveCombat(
       if (defCanCounter) {
         strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
       }
-      if (!cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+      if (!defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     }
-    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
   } else {
     // Normal order
     strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
     if (defCanCounter) {
       strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
     }
-    if (atkDoubles && !cancelledAtkFollowUp) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles && !cancelledDefFollowUp) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
   }
 
   // Post-combat: Poison damage (both sides can apply independently)

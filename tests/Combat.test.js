@@ -1523,3 +1523,150 @@ describe('Divine Charge defender proc and dual proc', () => {
     expect(result.divineChargeHeals.some(h => h.side === 'defender')).toBe(true);
   });
 });
+
+describe('Proc precedence and Cancel follow-up ownership', () => {
+  function makeSkillCtx(skillsData, atkMods = {}, defMods = {}) {
+    const { rollStrikeSkills, rollDefenseSkills } = require('../src/engine/SkillSystem.js');
+    return {
+      atkMods: { ...atkMods },
+      defMods: { ...defMods },
+      rollStrikeSkills,
+      rollDefenseSkills,
+      skillsData,
+    };
+  }
+
+  it('resolves only Aether when Aether/Flare/Luna/Sol all proc on the same strike', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      skills: ['sol', 'luna', 'flare', 'aether'],
+      stats: { HP: 100, STR: 20, MAG: 0, SKL: 100, SPD: 10, DEF: 10, RES: 10, LCK: 99 },
+      currentHP: 100,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 120, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 20, RES: 12, LCK: 99 },
+      currentHP: 120,
+    });
+    const skillCtx = makeSkillCtx(data.skills, { hitBonus: 1000 });
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    const procIds = firstStrike.skillActivations
+      .map((a) => a.id)
+      .filter((id) => ['aether', 'flare', 'luna', 'sol'].includes(id));
+    expect(procIds).toEqual(['aether']);
+    expect(firstStrike.extraStrike).toBe(true);
+    expect(firstStrike.aetherLuna).toBe(true);
+  });
+
+  it('resolves Flare over Luna/Sol when Aether is absent', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      skills: ['sol', 'luna', 'flare'],
+      stats: { HP: 100, STR: 20, MAG: 0, SKL: 100, SPD: 10, DEF: 10, RES: 10, LCK: 99 },
+      currentHP: 100,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 120, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 20, RES: 12, LCK: 99 },
+      currentHP: 120,
+    });
+    const skillCtx = makeSkillCtx(data.skills, { hitBonus: 1000 });
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    const procIds = firstStrike.skillActivations
+      .map((a) => a.id)
+      .filter((id) => ['aether', 'flare', 'luna', 'sol'].includes(id));
+    expect(procIds).toEqual(['flare']);
+    expect(firstStrike.extraStrike).toBe(false);
+  });
+
+  it('allows Cancel to suppress attacker follow-up in Desperation order', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 80, STR: 8, MAG: 0, SKL: 10, SPD: 20, DEF: 10, RES: 8, LCK: 99 },
+      currentHP: 80,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      skills: ['cancel'],
+      stats: { HP: 80, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 10, RES: 8, LCK: 99 },
+      currentHP: 80,
+    });
+    const skillCtx = makeSkillCtx(data.skills, { desperation: true, hitBonus: 1000 });
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
+    expect(strikeOrder).toEqual([attacker.name, defender.name]);
+    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    expect(firstStrike.skillActivations.some((a) => a.id === 'cancel')).toBe(true);
+  });
+
+  it('under Vantage, attacker-side Cancel suppresses defender follow-up only', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      skills: ['cancel'],
+      stats: { HP: 120, STR: 5, MAG: 0, SKL: 10, SPD: 20, DEF: 25, RES: 10, LCK: 99 },
+      currentHP: 120,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      stats: { HP: 120, STR: 5, MAG: 0, SKL: 10, SPD: 15, DEF: 25, RES: 10, LCK: 99 },
+      currentHP: 120,
+    });
+    const skillCtx = makeSkillCtx(
+      data.skills,
+      { hitBonus: 1000 },
+      { vantage: true, quickRiposte: true, hitBonus: 1000 }
+    );
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
+    expect(strikeOrder).toEqual([defender.name, attacker.name, attacker.name]);
+  });
+
+  it('under Vantage, defender-side Cancel suppresses attacker follow-up only', () => {
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 120, STR: 5, MAG: 0, SKL: 10, SPD: 20, DEF: 25, RES: 10, LCK: 99 },
+      currentHP: 120,
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      faction: 'enemy',
+      skills: ['cancel'],
+      stats: { HP: 120, STR: 5, MAG: 0, SKL: 10, SPD: 15, DEF: 25, RES: 10, LCK: 99 },
+      currentHP: 120,
+    });
+    const skillCtx = makeSkillCtx(
+      data.skills,
+      { hitBonus: 1000 },
+      { vantage: true, quickRiposte: true, hitBonus: 1000 }
+    );
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    vi.restoreAllMocks();
+
+    const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
+    expect(strikeOrder).toEqual([defender.name, attacker.name, defender.name]);
+  });
+});
