@@ -24,7 +24,9 @@ vi.mock('../src/utils/errorReporter.js', () => ({ reportAsyncError: mocked.repor
 vi.mock('../src/utils/startupTelemetry.js', () => ({ markStartup: mocked.markStartup }));
 
 import {
+  __resetCloudSyncStatusForTests,
   fetchAllToLocalStorage,
+  getCloudSyncStatus,
   shouldPreferLocalMeta,
   shouldPreferLocalRun,
 } from '../src/cloud/CloudSync.js';
@@ -64,6 +66,7 @@ describe('CloudSync run merge guard', () => {
     mocked.fromMock.mockReset();
     mocked.reportAsyncError.mockReset();
     mocked.markStartup.mockReset();
+    __resetCloudSyncStatusForTests();
   });
 
   it('does not delete local run slot when cloud slot is missing', async () => {
@@ -160,6 +163,53 @@ describe('CloudSync run merge guard', () => {
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
     expect(JSON.parse(store[key])).toEqual(cloud);
+  });
+});
+
+describe('CloudSync auth-expiry status', () => {
+  beforeEach(() => {
+    mocked.fromMock.mockReset();
+    mocked.reportAsyncError.mockReset();
+    mocked.markStartup.mockReset();
+    __resetCloudSyncStatusForTests();
+  });
+
+  it('marks shared cloud status when fetch hits auth expiry', async () => {
+    const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
+    mocked.fromMock.mockImplementation(() => makeTableApi({ selectError: authError }));
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(true);
+    expect(status.mode).toBe('auth_expired');
+    expect(status.message).toContain('local saves only');
+    expect(mocked.reportAsyncError).toHaveBeenCalledWith(
+      'cloud_fetch_table',
+      authError,
+      expect.objectContaining({ authExpired: true }),
+    );
+  });
+
+  it('clears shared cloud status after a successful fetch', async () => {
+    const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
+    let failAuth = true;
+    mocked.fromMock.mockImplementation(() => (
+      failAuth
+        ? makeTableApi({ selectError: authError })
+        : makeTableApi({ data: null })
+    ));
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(getCloudSyncStatus().authExpired).toBe(true);
+
+    failAuth = false;
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(false);
+    expect(status.mode).toBe('ok');
+    expect(status.message).toBe('');
   });
 });
 

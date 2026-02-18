@@ -463,6 +463,10 @@ export class TitleScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
       this._cleanupTitleOverlaysForShutdown();
+      if (this.cloudSyncStatusText) {
+        this.cloudSyncStatusText.destroy();
+        this.cloudSyncStatusText = null;
+      }
       // NOTE: Do NOT remove textures here — shutdown fires BEFORE Phaser
       // destroys display objects. Removing textures while Images still
       // reference them crashes the scene transition silently.
@@ -698,6 +702,7 @@ export class TitleScene extends Phaser.Scene {
         fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.6)',
       }).setOrigin(1, 0.5).setDepth(30);
     }
+    this._refreshCloudSyncStatusNotice();
 
     // --- Footer ---
     this.add.text(12, H - 16, 'v0.1.0', {
@@ -734,6 +739,24 @@ export class TitleScene extends Phaser.Scene {
     this[key] = null;
   }
 
+  _refreshCloudSyncStatusNotice() {
+    const cloud = this.registry.get('cloud');
+    const showNotice = !!cloud?.syncStatus?.authExpired;
+    if (showNotice && !this.cloudSyncStatusText) {
+      this.cloudSyncStatusText = this.add.text(
+        W - 12,
+        46,
+        'Cloud unavailable - local saves only (re-auth required)',
+        { fontFamily: FONT, fontSize: '6px', color: '#ff9a6a' },
+      ).setOrigin(1, 0.5).setDepth(30);
+      return;
+    }
+    if (!showNotice && this.cloudSyncStatusText) {
+      this.cloudSyncStatusText.destroy();
+      this.cloudSyncStatusText = null;
+    }
+  }
+
   _drawBackground(time) {
     if (!this.bgCtx) return;
     const ctx = this.bgCtx;
@@ -755,6 +778,7 @@ export class TitleScene extends Phaser.Scene {
 
   update(time) {
     this._drawBackground(time);
+    this._refreshCloudSyncStatusNotice();
   }
 
   async handleNewGame() {

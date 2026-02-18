@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
 import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js';
-import { fetchAllToLocalStorage } from './cloud/CloudSync.js';
+import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
 import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
@@ -286,6 +286,7 @@ function bootGame(user) {
     cloudState = {
       userId: user.id,
       displayName: user.user_metadata?.display_name || 'Player',
+      syncStatus: getCloudSyncStatus(),
     };
   }
 
