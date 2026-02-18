@@ -1,32 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 
-function readJson(path) {
-  return JSON.parse(readFileSync(path, 'utf8'));
+function listJsonFiles(dir) {
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.json'))
+    .sort();
+}
+
+function normalizeJson(value) {
+  if (Array.isArray(value)) return value.map((entry) => normalizeJson(entry));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      out[key] = normalizeJson(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
+function readAndNormalizeJson(path) {
+  const parsed = JSON.parse(readFileSync(path, 'utf8'));
+  return normalizeJson(parsed);
 }
 
 describe('data/public parity guards', () => {
-  it('keeps weapons JSON in sync', () => {
-    const source = readJson('data/weapons.json');
-    const publicCopy = readJson('public/data/weapons.json');
-    expect(publicCopy).toEqual(source);
+  it('keeps JSON mirror file coverage in sync', () => {
+    const sourceFiles = listJsonFiles('data');
+    const publicFiles = listJsonFiles('public/data');
+    expect(publicFiles).toEqual(sourceFiles);
   });
 
-  it('keeps loot tables JSON in sync', () => {
-    const source = readJson('data/lootTables.json');
-    const publicCopy = readJson('public/data/lootTables.json');
-    expect(publicCopy).toEqual(source);
-  });
-
-  it('keeps terrain JSON in sync', () => {
-    const source = readJson('data/terrain.json');
-    const publicCopy = readJson('public/data/terrain.json');
-    expect(publicCopy).toEqual(source);
-  });
-
-  it('keeps map templates JSON in sync', () => {
-    const source = readJson('data/mapTemplates.json');
-    const publicCopy = readJson('public/data/mapTemplates.json');
-    expect(publicCopy).toEqual(source);
+  it('keeps every mirrored JSON file content-equal after normalization', () => {
+    const sourceFiles = listJsonFiles('data');
+    for (const file of sourceFiles) {
+      const source = readAndNormalizeJson(`data/${file}`);
+      const publicCopy = readAndNormalizeJson(`public/data/${file}`);
+      expect(publicCopy).toEqual(source);
+    }
   });
 });

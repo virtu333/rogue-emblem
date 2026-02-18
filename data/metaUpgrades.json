@@ -1414,7 +1414,7 @@
   {
     "id": "unlock_guard",
     "name": "Guard",
-    "description": "LCK/4% chance to negate damage",
+    "description": "Unlocks Guard (+3 DEF/RES when adjacent to an ally)",
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [

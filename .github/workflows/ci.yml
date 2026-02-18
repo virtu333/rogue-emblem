@@ -16,6 +16,7 @@ jobs:
           node-version: 18
           cache: npm
       - run: npm ci
+      - run: npm run check:data-parity
       - run: npm run check:reference
       - run: npm run build
       - run: npm run test:unit

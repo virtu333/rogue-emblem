@@ -67,6 +67,24 @@ npm test
 Harness/sim entry points are available in `package.json` scripts.
 See `docs/testing_matrix.md` for recommended lanes and commands.
 
+## Data workflow
+
+- `data/*.json` is the source of truth.
+- `public/data/*.json` is a generated mirror for runtime loading.
+- After editing data files, run:
+
+```bash
+npm run sync-data
+```
+
+- CI parity gate:
+
+```bash
+npm run check:data-parity
+```
+
+- Enemy-only intent (not in standard loot pools): `Venin Bow`, `Sunder Sword`, `Sunder Lance`, `Sunder Axe`, `Sunder Bow`.
+
 ## Asset policy
 
 - Runtime assets are currently tracked in this repository.

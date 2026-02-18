@@ -1636,12 +1636,13 @@
       "perTurnLimit": 1,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A legendary burst shot bound to Starfall.",
+      "description": "A legendary burst shot bound to Starfall and Doublebow.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
-        "Starfall"
+        "Starfall",
+        "Doublebow"
       ],
       "combatMods": {
         "atkBonus": 5,

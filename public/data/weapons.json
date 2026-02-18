@@ -1404,6 +1404,8 @@
     "weight": 6,
     "range": "1-2",
     "special": "+4 STR, +4 SPD if no adjacent allies",
+    "weaponArtIds": ["legend_starfall_volley"],
+    "weaponArtSources": ["innate"],
     "price": 0
   }
 ]

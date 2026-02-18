@@ -176,8 +176,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     const legendaryWeapons = gameData.weapons.filter(w => w.tier === 'Legend' && w.type !== 'Staff');
     const boundWeapons = legendaryWeapons.filter(w => Array.isArray(w.weaponArtIds) && w.weaponArtIds.length > 0);
 
-    it('all 15 legendary weapons have bound arts', () => {
-      expect(boundWeapons.length).toBe(15);
+    it('all non-staff legendary weapons except Fortify have bound arts', () => {
+      expect(boundWeapons.length).toBe(16);
     });
 
     it('all bound art IDs exist in the catalog', () => {
@@ -208,10 +208,10 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(stormbreaker.weaponArtIds).toContain('legend_cataclysm');
     });
 
-    it('Doublebow and Fortify have no bound art', () => {
+    it('Doublebow is bound while Fortify remains unbound', () => {
       const doublebow = gameData.weapons.find(w => w.name === 'Doublebow');
       const fortify = gameData.weapons.find(w => w.name === 'Fortify');
-      expect(doublebow.weaponArtIds).toBeUndefined();
+      expect(doublebow.weaponArtIds).toContain('legend_starfall_volley');
       expect(fortify.weaponArtIds).toBeUndefined();
     });
   });

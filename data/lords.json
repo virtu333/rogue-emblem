@@ -164,11 +164,11 @@
     "promotedClass": "Light Priestess",
     "promotionBonuses": {
       "HP": 3,
-      "STR": 2,
+      "STR": 0,
       "MAG": 2,
       "SKL": 1,
       "SPD": 1,
-      "DEF": 3,
+      "DEF": 1,
       "RES": 3,
       "LCK": 0,
       "MOV": 1
