@@ -744,7 +744,7 @@ describe('applyStatBoost', () => {
     expect(unit.currentHP).toBe(oldCurrent + 5);
   });
 
-  it('works for all 7 stat types', () => {
+  it('works for all 8 stat types including MOV', () => {
     const boosters = [
       { stat: 'STR', value: 2 },
       { stat: 'MAG', value: 2 },
@@ -753,6 +753,7 @@ describe('applyStatBoost', () => {
       { stat: 'DEF', value: 2 },
       { stat: 'RES', value: 2 },
       { stat: 'HP', value: 5 },
+      { stat: 'MOV', value: 1 },
     ];
     const myrmidon = data.classes.find(c => c.name === 'Myrmidon');
     const unit = createEnemyUnit(myrmidon, 1, data.weapons);
@@ -767,6 +768,8 @@ describe('applyStatBoost', () => {
     expect(unit.stats.DEF).toBe(before.DEF + 2);
     expect(unit.stats.RES).toBe(before.RES + 2);
     expect(unit.stats.HP).toBe(before.HP + 5);
+    expect(unit.stats.MOV).toBe(before.MOV + 1);
+    expect(unit.mov).toBe(before.MOV + 1);
   });
 
   it('does not change currentHP for non-HP stats', () => {

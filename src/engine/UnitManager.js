@@ -1062,9 +1062,25 @@ export function equipAccessory(unit, accessory) {
 
 /** Apply a stat booster consumable to a unit (permanent +value to stat). */
 export function applyStatBoost(unit, item) {
-  unit.stats[item.stat] += item.value;
-  if (item.stat === 'HP') {
-    unit.currentHP += item.value;
+  if (!unit || !item) return;
+  const stat = String(item.stat || '').trim().toUpperCase();
+  const value = Math.trunc(Number(item.value) || 0);
+  if (!stat || value === 0) return;
+  if (!unit.stats || typeof unit.stats !== 'object') unit.stats = {};
+
+  if (stat === 'MOV') {
+    const baseMov = Number.isFinite(Number(unit.stats.MOV))
+      ? Number(unit.stats.MOV)
+      : Math.max(1, Number(unit.mov) || 1);
+    const nextMov = Math.max(1, baseMov + value);
+    unit.stats.MOV = nextMov;
+    unit.mov = nextMov;
+    return;
+  }
+
+  unit.stats[stat] = (Number(unit.stats[stat]) || 0) + value;
+  if (stat === 'HP') {
+    unit.currentHP = (Number(unit.currentHP) || 0) + value;
   }
 }
 

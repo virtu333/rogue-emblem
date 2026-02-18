@@ -280,6 +280,21 @@ describe('Effectiveness', () => {
     });
     expect(getEffectivenessMultiplier(bow, flier)).toBe(1);
   });
+
+  it('negateFlierWeakness only blocks bow-vs-flier effectiveness', () => {
+    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const flier = makeUnit({
+      moveType: 'Flying',
+      accessory: { combatEffects: { negateFlierWeakness: true } },
+    });
+    const armored = makeUnit({
+      moveType: 'Armored',
+      accessory: { combatEffects: { negateFlierWeakness: true } },
+    });
+    const hammer = data.weapons.find(w => w.name === 'Hammer');
+    expect(getEffectivenessMultiplier(bow, flier)).toBe(1);
+    expect(getEffectivenessMultiplier(hammer, armored)).toBe(3);
+  });
 });
 
 describe('Combat forecast', () => {
@@ -555,6 +570,36 @@ describe('Combat resolution', () => {
       expect(result.poisonEffects.length).toBe(2);
       expect(result.poisonEffects.find(p => p.target === 'defender')).toBeTruthy();
       expect(result.poisonEffects.find(p => p.target === 'attacker')).toBeTruthy();
+    }
+  });
+
+  it('adds bloodshard per-hit heal after drain cap and keeps bonus on lethal hit', () => {
+    const attacker = makeUnit({
+      currentHP: 10,
+      stats: { ...makeUnit().stats, HP: 20, STR: 20, SPD: 8 },
+      weapon: {
+        ...data.weapons.find(w => w.name === 'Iron Sword'),
+        might: 10,
+        special: 'Drains HP equal to damage dealt',
+      },
+      accessory: { combatEffects: { perHitHeal: 2 } },
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      currentHP: 1,
+      stats: { ...makeUnit().stats, HP: 20, DEF: 0, SPD: 12 },
+      weapon: null,
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const firstStrike = result.events.find((event) => event.type === 'strike' && event.attacker === attacker.name);
+      expect(firstStrike?.heal).toBe(3);
+      expect(result.attackerHP).toBe(13);
+    } finally {
+      randomSpy.mockRestore();
     }
   });
 

@@ -21,6 +21,11 @@ function makeUnit() {
 }
 
 describe('Accessories', () => {
+  it('data includes 29 accessories and 13 consumables after PR1 additions', () => {
+    expect(gameData.accessories.length).toBe(29);
+    expect(gameData.consumables.length).toBe(13);
+  });
+
   describe('equipAccessory / unequipAccessory', () => {
     it('applies stat bonuses on equip', () => {
       const unit = makeUnit();
@@ -46,10 +51,10 @@ describe('Accessories', () => {
     it('roundtrip equip+unequip restores original stats', () => {
       const unit = makeUnit();
       const origStats = { ...unit.stats };
-      const delphi = { name: 'Delphi Shield', type: 'Accessory', effects: { DEF: 3, RES: 3 }, price: 2500 };
+      const delphi = { name: 'Delphi Shield', type: 'Accessory', effects: { DEF: 1, RES: 1 }, combatEffects: { negateFlierWeakness: true }, price: 2500 };
       equipAccessory(unit, delphi);
-      expect(unit.stats.DEF).toBe(origStats.DEF + 3);
-      expect(unit.stats.RES).toBe(origStats.RES + 3);
+      expect(unit.stats.DEF).toBe(origStats.DEF + 1);
+      expect(unit.stats.RES).toBe(origStats.RES + 1);
       unequipAccessory(unit);
       expect(unit.stats.DEF).toBe(origStats.DEF);
       expect(unit.stats.RES).toBe(origStats.RES);

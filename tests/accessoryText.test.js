@@ -33,6 +33,32 @@ describe('accessory text helpers', () => {
     expect(formatAccessoryCombatEffect(accessory)).toBe('+2 Atk/+1 Def/+15 Avo >75% HP');
   });
 
+  it('renders crit with other bonuses without masking later effects', () => {
+    const accessory = { combatEffects: { critBonus: 10, atkBonus: 3, condition: 'isolated_duel' } };
+    expect(formatAccessoryCombatEffect(accessory)).toBe('+10 Crit/+3 Atk isolated duel');
+  });
+
+  it('supports new accessory condition and effect labels', () => {
+    const accessory = {
+      combatEffects: {
+        weaponArtHpCostReduction: 5,
+        perHitHeal: 2,
+        condition: 'on_forest_or_mountain',
+      },
+    };
+    expect(formatAccessoryCombatEffect(accessory)).toBe('Art HP Cost -5/Heal +2/hit (forest/mountain)');
+  });
+
+  it('formats turn-start accessory effects for Soothing Stone-style items', () => {
+    const accessory = {
+      turnStartEffects: {
+        healSelfPercent: 20,
+      },
+    };
+    expect(formatAccessoryCombatEffect(accessory)).toBe('Turn start heal 20% HP');
+    expect(formatAccessoryDetail(accessory)).toBe('Turn start heal 20% HP');
+  });
+
   it('falls back to generic combat text for unknown combat effects', () => {
     const accessory = { combatEffects: { mysteryFlag: true } };
     expect(formatAccessoryCombatEffect(accessory)).toBe('Combat effect');

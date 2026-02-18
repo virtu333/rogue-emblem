@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getTurnStartEffects } from '../src/engine/SkillSystem.js';
+import {
+  applyAccessoryPhaseCombatMods,
+  checkPhoenixBrooch,
+  getSkillCombatMods,
+  getTurnStartEffects,
+  resolveGamblerDelta,
+} from '../src/engine/SkillSystem.js';
 import { loadGameData } from './testData.js';
 
 describe('SkillSystem turn-start effects', () => {
@@ -33,5 +39,183 @@ describe('SkillSystem turn-start effects', () => {
         }),
       ])
     );
+  });
+
+  it('supports Soothing Stone accessory heal at turn start', () => {
+    const unit = {
+      name: 'Edric',
+      col: 2,
+      row: 2,
+      skills: [],
+      stats: { HP: 30 },
+      currentHP: 20,
+      accessory: {
+        name: 'Soothing Stone',
+        turnStartEffects: { healSelfPercent: 20 },
+      },
+    };
+
+    const effects = getTurnStartEffects([unit], []);
+    expect(effects).toEqual([
+      expect.objectContaining({
+        type: 'heal',
+        target: unit,
+        amount: 6,
+        source: 'Soothing Stone',
+      }),
+    ]);
+  });
+});
+
+describe('SkillSystem accessory combat conditions', () => {
+  const baseUnit = {
+    name: 'Hero',
+    col: 4,
+    row: 4,
+    currentHP: 20,
+    stats: { HP: 20, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+    weapon: null,
+    skills: [],
+  };
+  const opponent = {
+    name: 'Enemy',
+    col: 5,
+    row: 4,
+    currentHP: 20,
+    stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 6, DEF: 5, RES: 3, LCK: 2 },
+    weapon: null,
+    skills: [],
+  };
+
+  it('no_ally_within_2 requires no living ally within Manhattan range 2', () => {
+    const unit = {
+      ...baseUnit,
+      accessory: { combatEffects: { atkBonus: 3, condition: 'no_ally_within_2' } },
+    };
+    const allyFar = { ...baseUnit, name: 'AllyFar', col: 8, row: 8, currentHP: 12 };
+    const allyNear = { ...baseUnit, name: 'AllyNear', col: 5, row: 5, currentHP: 12 };
+
+    const farMods = getSkillCombatMods(unit, opponent, [unit, allyFar], [opponent], [], { name: 'Plain' }, true);
+    const nearMods = getSkillCombatMods(unit, opponent, [unit, allyNear], [opponent], [], { name: 'Plain' }, true);
+
+    expect(farMods.atkBonus).toBe(3);
+    expect(nearMods.atkBonus).toBe(0);
+  });
+
+  it('enemies_nearby_2plus and on_forest_or_mountain use explicit formulas', () => {
+    const unit = {
+      ...baseUnit,
+      accessory: { combatEffects: { atkBonus: 2, defBonus: 2, condition: 'enemies_nearby_2plus' } },
+    };
+    const enemyA = { ...opponent, name: 'A', col: 5, row: 4, currentHP: 10 };
+    const enemyB = { ...opponent, name: 'B', col: 4, row: 6, currentHP: 10 };
+    const oneEnemy = getSkillCombatMods(unit, opponent, [unit], [enemyA], [], { name: 'Plain' }, true);
+    const twoEnemies = getSkillCombatMods(unit, opponent, [unit], [enemyA, enemyB], [], { name: 'Plain' }, true);
+
+    expect(oneEnemy.atkBonus).toBe(0);
+    expect(twoEnemies.atkBonus).toBe(2);
+    expect(twoEnemies.defBonus).toBe(2);
+
+    const terrainUnit = {
+      ...baseUnit,
+      accessory: { combatEffects: { avoidBonus: 12, condition: 'on_forest_or_mountain' } },
+    };
+    const forestMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Forest' }, true);
+    const mountainMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Mountain' }, true);
+    const plainMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Plain' }, true);
+    expect(forestMods.avoidBonus).toBe(12);
+    expect(mountainMods.avoidBonus).toBe(12);
+    expect(plainMods.avoidBonus).toBe(0);
+  });
+
+  it('isolated_duel fails when a third living unit is within range 2 of either combatant', () => {
+    const unit = {
+      ...baseUnit,
+      accessory: { combatEffects: { atkBonus: 3, condition: 'isolated_duel' } },
+    };
+    const thirdUnitNearDefender = { ...baseUnit, name: 'Third', col: 6, row: 4, currentHP: 10 };
+    const isolated = getSkillCombatMods(unit, opponent, [unit], [opponent], [], { name: 'Plain' }, true);
+    const crowded = getSkillCombatMods(unit, opponent, [unit], [opponent, thirdUnitNearDefender], [], { name: 'Plain' }, true);
+    expect(isolated.atkBonus).toBe(3);
+    expect(crowded.atkBonus).toBe(0);
+  });
+});
+
+describe('SkillSystem checkPhoenixBrooch', () => {
+  it('triggers once per map when under threshold and never on lethal state', () => {
+    const unit = {
+      name: 'Edric',
+      stats: { HP: 20 },
+      currentHP: 4,
+      accessory: {
+        name: 'Phoenix Brooch',
+        combatEffects: {
+          phoenixBrooch: {
+            thresholdPercent: 0.25,
+            healFlat: 10,
+          },
+        },
+      },
+    };
+
+    const first = checkPhoenixBrooch(unit);
+    expect(first.triggered).toBe(true);
+    expect(unit.currentHP).toBe(14);
+    expect(unit._phoenixBroochUsed).toBe(true);
+
+    const second = checkPhoenixBrooch(unit);
+    expect(second.triggered).toBe(false);
+
+    unit._phoenixBroochUsed = false;
+    unit.currentHP = 0;
+    const lethal = checkPhoenixBrooch(unit);
+    expect(lethal.triggered).toBe(false);
+  });
+});
+
+describe('SkillSystem accessory phase helpers', () => {
+  it('resolveGamblerDelta caches per-unit roll in provided session', () => {
+    const unit = {
+      name: 'Edric',
+      accessory: {
+        combatEffects: {
+          gambler: {
+            winChance: 0.5,
+            winAtkBonus: 5,
+            lossAtkPenalty: 3,
+          },
+        },
+      },
+    };
+    const session = { gamblerAtkDeltaByUnit: new Map() };
+
+    const first = resolveGamblerDelta(unit, session, () => 0.9);
+    const second = resolveGamblerDelta(unit, session, () => 0.1);
+
+    expect(first).toBe(-3);
+    expect(second).toBe(-3);
+  });
+
+  it('applyAccessoryPhaseCombatMods applies Moontide and Gambler aliases', () => {
+    const unit = {
+      name: 'Sera',
+      accessory: {
+        combatEffects: {
+          moontide: true,
+          gamblerCoin: true,
+        },
+      },
+    };
+    const session = { gamblerAtkDeltaByUnit: new Map() };
+    const mods = { atkBonus: 0, defBonus: 0 };
+
+    applyAccessoryPhaseCombatMods(unit, mods, {
+      turnNumber: 2,
+      rollSession: session,
+      rng: () => 0.0,
+    });
+
+    expect(mods.atkBonus).toBe(5);
+    expect(mods.defBonus).toBe(2);
   });
 });

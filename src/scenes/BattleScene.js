@@ -54,6 +54,9 @@ import {
   checkAstra,
   getTurnStartEffects,
   getWeaponRangeBonus,
+  checkPhoenixBrooch,
+  resolveGamblerDelta,
+  applyAccessoryPhaseCombatMods,
 } from '../engine/SkillSystem.js';
 import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes, getWarpCandidates } from '../engine/AffixSystem.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
@@ -62,6 +65,7 @@ import {
   canUseWeaponArt,
   recordWeaponArtUse,
   applyWeaponArtCost,
+  getEffectiveWeaponArtHpCost,
   resetWeaponArtTurnUsage,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
@@ -80,7 +84,7 @@ import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/ui
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
 import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
-import { calculateKillGold, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
+import { calculateKillReward, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
 import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
 import { calculatePar, getRating, calculateBonusGold, getLatePressureState, isBossEnrageActive } from '../engine/TurnBonusCalculator.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
@@ -633,6 +637,10 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
+      for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+        unit._phoenixBroochUsed = false;
+      }
+
       // Throne marker for Seize objective
       if (bc.objective === 'seize' && bc.thronePos) {
         const tp = this.grid.gridToPixel(bc.thronePos.col, bc.thronePos.row);
@@ -668,6 +676,7 @@ export class BattleScene extends Phaser.Scene {
       this.forecastTarget = null;
       this.forecastObjects = null;
       this._forecastWeaponArt = null;
+      this._forecastGamblerLine = null;
       this.actionMenu = null;
       this.inEquipMenu = false;
       this.tradeMutatedThisSession = false;
@@ -679,6 +688,7 @@ export class BattleScene extends Phaser.Scene {
       this._touchHoldStart = null;
       this._touchHoldTriggered = false;
       this._cameraGestureTapSuppressed = false;
+      this._combatRollSession = null;
 
       this._setupBattleCameraSystem();
 
@@ -3305,6 +3315,7 @@ export class BattleScene extends Phaser.Scene {
     if (audio) audio.playSFX('sfx_cancel');
     if (this.battleState === 'SHOWING_FORECAST') {
       this.hideForecast();
+      this._clearCombatRollSession();
       this.battleState = 'SELECTING_TARGET';
     } else if (this.battleState === 'SELECTING_TARGET') {
       this.grid.clearAttackHighlights();
@@ -3525,6 +3536,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Collapse active selection/menu states before ending phase.
     this.hideForecast();
+    this._clearCombatRollSession();
     this.hideActionMenu();
     this.cleanupTradeUI();
     this.inEquipMenu = false;
@@ -3728,6 +3740,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     this.inspectionPanel.hide();
     this.dangerZone.hide();
+    this._clearCombatRollSession();
     this._clearSelectedWeaponArt();
     this.selectedUnit = unit;
     this.battleState = 'UNIT_SELECTED';
@@ -3759,6 +3772,7 @@ export class BattleScene extends Phaser.Scene {
       this.selectedUnit.graphic.clearTint();
     }
     this.selectedUnit = null;
+    this._clearCombatRollSession();
     this._clearSelectedWeaponArt();
     this.movementRange = null;
     this.unitPositions = null;
@@ -4108,6 +4122,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   finishUnitAction(unit, { skipCanto = false } = {}) {
+    this._clearCombatRollSession();
     this.hideActionMenu();
     this.grid.clearAttackHighlights();
     this.attackTargets = [];
@@ -6246,9 +6261,114 @@ export class BattleScene extends Phaser.Scene {
     this.finishUnitAction(unit);
   }
 
+  _getCombatRollSessionKey(attacker, defender) {
+    const phase = this.turnManager?.currentPhase || 'player';
+    const turn = Math.max(1, Math.trunc(Number(this.turnManager?.turnNumber) || 1));
+    return `${phase}:${turn}:${String(attacker?.name || '')}:${String(defender?.name || '')}:${attacker?.col},${attacker?.row}:${defender?.col},${defender?.row}`;
+  }
+
+  _ensureCombatRollSession(attacker, defender) {
+    if (!attacker || !defender) return null;
+    const key = this._getCombatRollSessionKey(attacker, defender);
+    const existing = this._combatRollSession;
+    if (existing && existing.key === key && existing.attacker === attacker && existing.defender === defender) {
+      return existing;
+    }
+    const next = {
+      key,
+      attacker,
+      defender,
+      gamblerAtkDeltaByUnit: new Map(),
+    };
+    this._combatRollSession = next;
+    return next;
+  }
+
+  _clearCombatRollSession() {
+    this._combatRollSession = null;
+    this._forecastGamblerLine = null;
+  }
+
+  _getGamblerAtkDelta(unit, session = null) {
+    return resolveGamblerDelta(unit, session || this._combatRollSession, Math.random);
+  }
+
+  _applyAccessoryPhaseCombatMods(unit, mods, session = null) {
+    applyAccessoryPhaseCombatMods(unit, mods, {
+      turnNumber: this.turnManager?.turnNumber,
+      rollSession: session || this._combatRollSession,
+      rng: Math.random,
+    });
+  }
+
+  _resolveWeaponArtCostValues(unit, art) {
+    const baseCost = Math.max(0, Number(art?.hpCost) || 0);
+    const effectiveCost = getEffectiveWeaponArtHpCost(unit, art);
+    return { baseCost, effectiveCost };
+  }
+
+  _formatWeaponArtCostLabel(unit, art) {
+    const { baseCost, effectiveCost } = this._resolveWeaponArtCostValues(unit, art);
+    if (baseCost > 0 && effectiveCost !== baseCost) return `${effectiveCost} (base ${baseCost})`;
+    return `${effectiveCost}`;
+  }
+
+  _applyRecoilGuardAfterArtUse(unit, art) {
+    if (!unit || !art) return;
+    const combatEffects = unit.accessory?.combatEffects || {};
+    const recoilGuard = combatEffects.recoilGuard;
+    const hasRecoilGuard = Boolean(recoilGuard) || Boolean(combatEffects.weaponArtDefBuff);
+    if (!hasRecoilGuard) return;
+    const rawStats = recoilGuard?.stats && typeof recoilGuard.stats === 'object'
+      ? recoilGuard.stats
+      : {
+        DEF: Number.isFinite(Number(combatEffects?.buffDEF)) ? Number(combatEffects.buffDEF) : 3,
+        RES: Number.isFinite(Number(combatEffects?.buffRES)) ? Number(combatEffects.buffRES) : 3,
+      };
+    const stats = {};
+    for (const [rawStat, rawValue] of Object.entries(rawStats)) {
+      const stat = String(rawStat || '').trim().toUpperCase();
+      if (!stat) continue;
+      const value = Math.trunc(Number(rawValue) || 0);
+      if (value === 0) continue;
+      stats[stat] = value;
+    }
+    if (Object.keys(stats).length <= 0) return;
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(unit, 1);
+    this._applyTier5TimedBuffEntry(unit, {
+      key: `recoil_guard::${String(unit.name || '')}`,
+      artId: art.id || null,
+      sourceName: unit.name || null,
+      sourceFaction: unit.faction || null,
+      expiryPhase,
+      expiryTurn,
+      stats,
+    });
+  }
+
+  async _checkPhoenixBrooch(unit) {
+    if (!unit || unit.currentHP <= 0) return false;
+    const result = checkPhoenixBrooch(unit);
+    if (!result?.triggered) return false;
+    this.updateHPBar(unit);
+    if (typeof this.animateHeal === 'function') {
+      await this.animateHeal(unit, result.amount);
+    }
+    return true;
+  }
+
+  _applyKillRewards(defeatedUnit, killer = null) {
+    if (!this.runManager || defeatedUnit?.faction !== 'enemy') return;
+    this.goldEarned += calculateKillReward(defeatedUnit, killer, {
+      rewardMultiplier: this.getEnemyRewardMultiplier(defeatedUnit),
+      pressureGoldMultiplier: this.getTurnPressureState().goldMultiplier,
+    });
+  }
+
   // --- Skill context builder ---
 
   buildSkillCtx(attacker, defender, weaponArt = null) {
+    const rollSession = this._ensureCombatRollSession(attacker, defender);
     const skills = this.gameData.skills;
     const getAllies = (unit) => {
       if (unit.faction === 'player') return this.playerUnits;
@@ -6285,6 +6405,8 @@ export class BattleScene extends Phaser.Scene {
     defMods.defBonus += defTimedBuffMods.defBonus || 0;
     defMods.resBonus += defTimedBuffMods.resBonus || 0;
     defMods.spdBonus += defTimedBuffMods.spdBonus || 0;
+    this._applyAccessoryPhaseCombatMods(attacker, atkMods, rollSession);
+    this._applyAccessoryPhaseCombatMods(defender, defMods, rollSession);
 
     // Blessing terrain combat bonuses
     const terrainBonuses = this.runManager?.getTerrainCombatBonuses?.() || [];
@@ -6355,7 +6477,7 @@ export class BattleScene extends Phaser.Scene {
   _getWeaponArtHpAfterCost(unit, art) {
     if (!unit || !art) return unit?.currentHP;
     const hp = Number(unit.currentHP) || 0;
-    const cost = Math.max(0, Number(art.hpCost) || 0);
+    const cost = getEffectiveWeaponArtHpCost(unit, art);
     return Math.max(1, hp - cost);
   }
 
@@ -6455,9 +6577,9 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  _scoreEnemyWeaponArt(art) {
+  _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
-    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const hpCost = getEffectiveWeaponArtHpCost(unit, art);
     const effectivenessScore = mods.effectiveness?.multiplier > 1
       ? (mods.effectiveness.multiplier - 1) * 4
       : 0;
@@ -6506,14 +6628,14 @@ export class BattleScene extends Phaser.Scene {
     }).filter((entry) => entry.canUse);
     if (choices.length <= 0) return null;
     const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(choice.art) }))
+      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
       .filter((entry) => entry.score >= tuning.minScore);
     if (scored.length <= 0) return null;
     if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      const aCost = Math.max(0, Number(a.art?.hpCost) || 0);
-      const bCost = Math.max(0, Number(b.art?.hpCost) || 0);
+      const aCost = getEffectiveWeaponArtHpCost(unit, a.art);
+      const bCost = getEffectiveWeaponArtHpCost(unit, b.art);
       if (aCost !== bCost) return aCost - bCost;
       const aId = String(a.art?.id || '');
       const bId = String(b.art?.id || '');
@@ -6567,13 +6689,13 @@ export class BattleScene extends Phaser.Scene {
       isInitiating: true,
     });
     if (check?.ok === false || check?.canUse === false) return this._weaponArtReasonLabel(check.reason);
-    const hpCost = Math.max(0, Number(art?.hpCost) || 0);
+    const hpCostLabel = this._formatWeaponArtCostLabel(unit, art);
     const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
     const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
     const { mapCount, turnCount } = this._getWeaponArtUsageCounts(unit, art);
     const mapLimit = Number(art?.perMapLimit) > 0 ? `${mapCount}/${art.perMapLimit}` : '-';
     const turnLimit = Number(art?.perTurnLimit) > 0 ? `${turnCount}/${art.perTurnLimit}` : '-';
-    return `HP-${hpCost} (${hpNow}->${hpAfter})  Turn ${turnLimit}  Map ${mapLimit}`;
+    return `HP-${hpCostLabel} (${hpNow}->${hpAfter})  Turn ${turnLimit}  Map ${mapLimit}`;
   }
 
   _beginAttackSelection(unit) {
@@ -6850,7 +6972,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (isAttacker && this._forecastWeaponArt) {
-      const hpCost = Number(this._forecastWeaponArt.hpCost) || 0;
+      const hpCost = this._formatWeaponArtCostLabel(unit, this._forecastWeaponArt);
       const hpNow = Number(unit.currentHP) || 0;
       const hpAfter = this._getWeaponArtHpAfterCost(unit, this._forecastWeaponArt);
       const artText = this.add.text(x + 2, y, `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`, {
@@ -6858,6 +6980,15 @@ export class BattleScene extends Phaser.Scene {
         wordWrap: { width: sideW - 6 },
       }).setDepth(textDepth);
       this.forecastObjects.push(artText);
+      y += 12;
+    }
+
+    if (isAttacker && this._forecastGamblerLine) {
+      const gamblerText = this.add.text(x + 2, y, this._forecastGamblerLine, {
+        fontFamily: 'monospace', fontSize: '9px', color: '#ffb38a',
+        wordWrap: { width: sideW - 6 },
+      }).setDepth(textDepth);
+      this.forecastObjects.push(gamblerText);
       y += 12;
     }
 
@@ -6883,6 +7014,7 @@ export class BattleScene extends Phaser.Scene {
   async showForecast(attacker, defender) {
     this.forecastTarget = defender;
     this.battleState = 'SHOWING_FORECAST';
+    const rollSession = this._ensureCombatRollSession(attacker, defender);
 
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     this._clearSelectedWeaponArtIfInvalid(attacker);
@@ -6897,6 +7029,13 @@ export class BattleScene extends Phaser.Scene {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._forecastWeaponArt = weaponArt;
+    if (attacker?.accessory?.combatEffects?.gambler || attacker?.accessory?.combatEffects?.gamblerCoin) {
+      const delta = this._getGamblerAtkDelta(attacker, rollSession);
+      const signed = delta >= 0 ? `+${delta}` : `${delta}`;
+      this._forecastGamblerLine = `GAMBLER: ATK ${signed} (locked)`;
+    } else {
+      this._forecastGamblerLine = null;
+    }
     const skillCtx = this._buildForecastSkillCtx(attacker, defender, weaponArt);
 
     const forecast = getCombatForecast(
@@ -7040,6 +7179,7 @@ export class BattleScene extends Phaser.Scene {
     this.forecastTarget = null;
     this._forecastValidWeapons = null;
     this._forecastWeaponArt = null;
+    this._forecastGamblerLine = null;
   }
 
   async executeCombat(attacker, defender) {
@@ -7051,13 +7191,16 @@ export class BattleScene extends Phaser.Scene {
     const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
+    this._ensureCombatRollSession(attacker, defender);
     const selectedArt = attacker.faction === 'player'
       ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
       : null;
     if (selectedArt) {
       applyWeaponArtCost(attacker, selectedArt);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+      this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       this.updateHPBar(attacker);
+      await this._checkPhoenixBrooch(attacker);
     }
     const skillCtx = this.buildSkillCtx(attacker, defender, selectedArt);
 
@@ -7097,6 +7240,8 @@ export class BattleScene extends Phaser.Scene {
       attackerWeaponArt: selectedArt,
       defenderWeaponArt: null,
     });
+    await this._checkPhoenixBrooch(attacker);
+    await this._checkPhoenixBrooch(defender);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(0, defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)));
@@ -7112,13 +7257,16 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (defender.currentHP <= 0) {
-      await this.removeUnit(defender);
+      await this.removeUnit(defender, { killer: attacker });
     }
     if (attacker.currentHP <= 0) {
-      await this.removeUnit(attacker);
+      await this.removeUnit(attacker, { killer: defender });
     }
 
-    if (this.checkBattleEnd()) return;
+    if (this.checkBattleEnd()) {
+      this._clearCombatRollSession();
+      return;
+    }
 
     if (attacker.currentHP <= 0) {
       this.selectedUnit = null;
@@ -7126,6 +7274,7 @@ export class BattleScene extends Phaser.Scene {
       this.battleState = 'PLAYER_IDLE';
       this.grid.clearAttackHighlights();
       this.attackTargets = [];
+      this._clearCombatRollSession();
       return;
     }
 
@@ -7153,6 +7302,7 @@ export class BattleScene extends Phaser.Scene {
         this.battleState = 'PLAYER_IDLE';
         this.grid.clearAttackHighlights();
         this.attackTargets = [];
+        this._clearCombatRollSession();
         return;
       }
     }
@@ -7359,7 +7509,7 @@ export class BattleScene extends Phaser.Scene {
       const pos = this.grid.gridToPixel(target.col, target.row);
       this.showMinorHintAt(pos.x, pos.y, `Pierce -${actualDamage}`, '#ff7777');
       if (target.currentHP <= 0) {
-        await this.removeUnit(target);
+        await this.removeUnit(target, { killer: sourceUnit });
         break;
       }
     }
@@ -7441,7 +7591,7 @@ export class BattleScene extends Phaser.Scene {
       const pos = this.grid.gridToPixel(target.col, target.row);
       this.showMinorHintAt(pos.x, pos.y, `Splash -${actualDamage}`, '#ff9966');
       if (target.currentHP <= 0) {
-        await this.removeUnit(target);
+        await this.removeUnit(target, { killer: sourceUnit });
       }
     }
   }
@@ -7877,8 +8027,9 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  async removeUnit(unit) {
+  async removeUnit(unit, options = {}) {
     if (!unit || unit._removing) return;
+    const killer = options?.killer || null;
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -7899,13 +8050,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
-      // Track gold earned from enemy kills
-      if (this.runManager) {
-        const rewardMultiplier = this.getEnemyRewardMultiplier(unit);
-        const pressureGoldMultiplier = this.getTurnPressureState().goldMultiplier;
-        const adjustedGold = Math.max(0, Math.floor(calculateKillGold(unit) * rewardMultiplier * pressureGoldMultiplier));
-        this.goldEarned += adjustedGold;
-      }
+      this._applyKillRewards(unit, killer);
     }
     this.dangerZoneStale = true;
     // Detect boss death on seize maps -- show prominent notification
@@ -7931,7 +8076,7 @@ export class BattleScene extends Phaser.Scene {
           targets: txt, y: pos.y - 32, alpha: 0, duration: 500, onComplete: () => txt.destroy(),
         });
         if (victim.currentHP <= 0) {
-          await this.removeUnit(victim);
+          await this.removeUnit(victim, { killer: unit });
         }
       }
       await new Promise(resolve => this.time.delayedCall(150, resolve));
@@ -7943,6 +8088,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Phase management ---
 
   onPhaseChange(phase, turn) {
+    if (typeof this._clearCombatRollSession === 'function') this._clearCombatRollSession();
     if (this.isMobileInput) {
       this.inspectMode = false;
       if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
@@ -8236,6 +8382,7 @@ export class BattleScene extends Phaser.Scene {
       unit.currentHP = nextHP;
       this.updateHPBar(unit);
       await this.showTerrainDamage(unit, appliedDamage);
+      await this._checkPhoenixBrooch(unit);
     }
   }
 
@@ -8369,11 +8516,14 @@ export class BattleScene extends Phaser.Scene {
     const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
     const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
     const defTerrain = this.grid.getTerrainAt(target.col, target.row);
+    this._ensureCombatRollSession(enemy, target);
     const selectedArt = this._selectEnemyWeaponArt(enemy, target);
     if (selectedArt) {
       applyWeaponArtCost(enemy, selectedArt);
       recordWeaponArtUse(enemy, selectedArt, { turnNumber: this.turnManager?.turnNumber });
+      this._applyRecoilGuardAfterArtUse(enemy, selectedArt);
       this.updateHPBar(enemy);
+      await this._checkPhoenixBrooch(enemy);
     }
     const skillCtx = this.buildSkillCtx(enemy, target, selectedArt);
 
@@ -8412,6 +8562,8 @@ export class BattleScene extends Phaser.Scene {
       attackerWeaponArt: selectedArt,
       defenderWeaponArt: null,
     });
+    await this._checkPhoenixBrooch(enemy);
+    await this._checkPhoenixBrooch(target);
 
     // Award XP to player defender if they survived
     if (target.faction === 'player' && target.currentHP > 0) {
@@ -8419,9 +8571,10 @@ export class BattleScene extends Phaser.Scene {
       await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
     }
 
-    if (target.currentHP <= 0) await this.removeUnit(target);
-    if (enemy.currentHP <= 0) await this.removeUnit(enemy);
+    if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
+    if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
     this.checkBattleEnd();
+    this._clearCombatRollSession();
   }
 
   async executeEnemyBreak(enemy, tile) {

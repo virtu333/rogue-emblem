@@ -209,6 +209,13 @@ export function getEffectivenessMultiplier(weapon, defender) {
 
   // Check if defender's accessory negates effectiveness
   if (defender.accessory?.combatEffects?.negateEffectiveness) return 1;
+  if (
+    weapon?.type === 'Bow'
+    && defender.moveType === 'Flying'
+    && defender.accessory?.combatEffects?.negateFlierWeakness
+  ) {
+    return 1;
+  }
   // Global rule: all bows are effective against fliers
   if (weapon?.type === 'Bow' && defender.moveType === 'Flying') return 3;
   if (!weapon?.special) return 1;
@@ -804,7 +811,8 @@ function rollStrike(
   strikeSkills,
   weaponSpecial,
   strikeSides = null,
-  drainPercent = 0
+  drainPercent = 0,
+  perHitHeal = 0
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -910,8 +918,11 @@ function rollStrike(
     if (drainPercent > 0) {
       heal = Math.max(heal, Math.min(Math.floor(finalDmg * drainPercent), targetHP));
     }
+    heal = Math.min(heal, targetHP);
+    if (perHitHeal > 0) {
+      heal += Math.max(0, Math.trunc(perHitHeal));
+    }
   }
-  heal = Math.min(heal, targetHP);
 
   const hpAfter = Math.max(0, targetHP - finalDmg);
   return {
@@ -1067,12 +1078,15 @@ export function resolveCombat(
   // Track Cancel follow-up negation by side.
   let attackerFollowUpCancelled = false;
   let defenderFollowUpCancelled = false;
+  const atkPerHitHeal = Math.max(0, Number(attacker?.accessory?.combatEffects?.perHitHeal) || 0);
+  const defPerHitHeal = Math.max(0, Number(defender?.accessory?.combatEffects?.perHitHeal) || 0);
 
   // Execute N strikes from one combatant against the other
   function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
+    const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
       const evt = rollStrike(
@@ -1085,7 +1099,8 @@ export function resolveCombat(
         strikeSkills,
         weaponSpecial,
         { attackerSide, targetSide },
-        drainPct
+        drainPct,
+        strikePerHitHeal
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
@@ -1133,7 +1148,8 @@ export function resolveCombat(
           null,
           weaponSpecial,
           { attackerSide, targetSide },
-          drainPct
+          drainPct,
+          strikePerHitHeal
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {

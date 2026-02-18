@@ -255,6 +255,12 @@ describe('RunManager', () => {
       expect(serialized._miracleUsed).toBe(false);
     });
 
+    it('resets _phoenixBroochUsed flag', () => {
+      const unit = { name: 'Test', _phoenixBroochUsed: true, hasMoved: false, hasActed: false, graphic: null, label: null, hpBar: null };
+      const serialized = serializeUnit(unit);
+      expect(serialized._phoenixBroochUsed).toBe(false);
+    });
+
     it('does not persist _movementSpent', () => {
       const unit = {
         name: 'Test',
