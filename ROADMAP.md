@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 1621 tests across 102 files on `main` baseline (Feb 15, 2026). Deployed to Netlify with Supabase auth + cloud saves. 54 meta upgrades across 6 categories, 88 weapons, 35 skills (7 trigger types), 17 accessories, 32 classes (16 base + 16 promoted incl. Wyvern), 12 terrain types, 12 map templates (6 rout + 6 seize), 75 weapon arts configured (60 shipped mechanics + 15 deferred placeholders), 12 enemy affixes, 18 blessings, 10 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 2226 tests across 136 files on `main` baseline (Feb 18, 2026). Deployed to Netlify with Supabase auth + cloud saves. 58 meta upgrades across 6 categories, 106 weapons, 42 skills (7 trigger types), 17 accessories, 38 classes (19 base + 19 promoted, including Wyvern), 12 terrain types, 12 map templates (6 rout + 6 seize), 75 weapon arts configured (60 shipped mechanics + 15 deferred placeholders), 12 enemy affixes, 23 blessings, 12 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -65,7 +65,7 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 - **Wave 2D** (Stat Boosters) - Complete. 7 stat boosters in consumables.json, loot-only (not in shops)
 - **Wave 2 (Map Generation Enhancements 2A-2E)** - Complete. Terrain-aware enemy placement, template affinity, boss throne AI/guards, recruit visibility safety, and template-driven fog
 - **Wave 4A** (On-Defend Skills, New Skills) - Complete. 21 skills, 6 trigger types, 9 class innate skills, 8 scrolls
-- **Wave 6A** (Home Base UI) - Complete. 6-tab UI, 41 upgrades, starting equipment/skills meta tabs
+- **Wave 6A** (Home Base UI) - Complete. 6-tab UI, expanded meta tabs and progression support (current total: 58 upgrades)
 - **Wave 7A-B** (Inspection Panel, Danger Zone) - Complete
 - **Wave 1** (Battle Actions) - Complete. Trade, Swap, Dance + Canto + Shove/Pull implemented
 - **Wave 1.5** (Turn Bonus) - Complete. Par calculation, S/A/B/C rating, bonus gold on loot screen
@@ -101,7 +101,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline: 1621 tests across 102 files on Feb 15, 2026.
+- [x] `npm run test:unit` passes (53 files / 986 tests on Feb 12, 2026); updated baseline: 2226 tests across 136 files on Feb 18, 2026.
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
 - [x] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).

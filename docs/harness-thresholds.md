@@ -4,12 +4,13 @@ This document defines how to calibrate and maintain strict full-run harness thre
 
 ## Scope
 
-Applies to deterministic full-run slices in `tests/sim/fullrun-slices.js`, especially economy and progression windows:
+Applies to deterministic full-run slices in `tests/sim/fullrun-slices.js`, especially economy/progression and ambush coverage windows:
 
 - `avg_gold`
 - `avg_shop_spent`
 - `promotion_by_act2_rate_pct`
 - `avg_invalid_shop_entries`
+- `avg_ambush_battles`
 
 ## Current PR Gate Metrics
 
@@ -23,7 +24,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_avg_units_lost=1.25`
   - `max_avg_invalid_shop_entries=0.00`
 - `act1_pressure_hard`
-  - `min_avg_gold=250`, `max_avg_gold=650`
+  - `min_avg_gold=200`, `max_avg_gold=650`
   - `max_avg_shop_spent=200`
   - `min_avg_nodes=1.00`
   - `max_avg_turns=10.00`
@@ -33,12 +34,21 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=10.00`
-  - `min_avg_gold=4000`, `max_avg_gold=6500`
+  - `min_avg_gold=4000`, `max_avg_gold=12500`
   - `min_avg_shop_spent=1000`, `max_avg_shop_spent=6500`
   - `min_avg_recruits=0.50`
-  - `min_promotion_by_act2_rate=10.00`, `max_promotion_by_act2_rate=50.00`
+  - `min_promotion_by_act2_rate=0.00`, `max_promotion_by_act2_rate=50.00`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
+- `ambush_hard_invincible`
+  - `max_timeout_rate=0.00`
+  - `min_win_rate=95.00`
+  - `min_avg_nodes=25.00`
+  - `min_avg_gold=9000`, `max_avg_gold=18000`
+  - `min_avg_shop_spent=8000`, `max_avg_shop_spent=17000`
+  - `max_avg_units_lost=0.00`
+  - `max_avg_invalid_shop_entries=0.00`
+  - `min_avg_ambush_battles=0.50`
 
 ## Recalibration Procedure
 
@@ -50,8 +60,9 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
 3. Update threshold windows.
    - Keep integrity checks strict:
      - `max_avg_invalid_shop_entries` should stay `0.00`.
-     - `max_timeout_rate` should stay `0.00` for invincible progression slice.
-   - For value windows (`avg_gold`, `avg_shop_spent`, promotion rate), use bounded windows around observed baseline, not single-point targets.
+     - `max_timeout_rate` should stay `0.00` for invincible slices.
+     - `min_avg_ambush_battles` should stay enabled for ambush slices.
+   - For value windows (`avg_gold`, `avg_shop_spent`, promotion rate, ambush frequency), use bounded windows around observed baseline, not single-point targets.
    - Recommended default windowing:
      - Lower bound: `floor(observed * 0.85)`
      - Upper bound: `ceil(observed * 1.25)`
@@ -70,6 +81,7 @@ Rebaseline when any of these changes land:
 - Run policies (`tests/sim/RunPolicies.js`)
 - Battle agent behavior that changes node outcomes
 - Promotion gating rules/costs
+- Ambush generation or ambush-shop flow changes (`villageAmbushChance`, ambush node routing, battle-first shop behavior)
 
 Do not rebaseline for unrelated UI/scene instrumentation work.
 

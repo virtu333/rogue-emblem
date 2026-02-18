@@ -1,10 +1,10 @@
 # Units, Reclassing & Loot Restructure — GDD Section (v1 FINAL)
 
 > **Ported from:** `References/GDDExpansion/` (Feb 13, 2026)
-> **Implementation status:** Wyvern Rider/Wyvern Lord shipped on `main` (classes, enemy/recruit pool integration, Stun + Intimidate skills, loot compatibility). Second Seal / Reclass system, Sickle & Hammer, Lord Selection, and Loot Table Restructure remain future scope.
+> **Implementation status:** Wyvern Rider/Wyvern Lord shipped on `main` (classes, enemy/recruit pool integration, Stun + Intimidate skills, loot compatibility). Second Seal reclass flow is now shipped with seal-gated usage (including starting seal meta support). Sickle & Hammer, Lord Selection, and the full loot table restructure remain future scope.
 
 **Date:** February 11, 2026
-**Status:** Design complete — partially implemented (Wyvern shipped, reclass deferred)
+**Status:** Design complete — partially implemented (Wyvern + reclass seals shipped; loot/system follow-ups remain)
 **Dependencies:** classes.json, skills.json, lootTables.json, consumables.json, metaUpgrades.json, recruits.json, enemies.json
 **Source Research:** Serenes Forest — Path of Radiance, Sacred Stones (Wyvern class data)
 

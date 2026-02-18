@@ -59,6 +59,7 @@ cmd /c npm run sim:fullrun:harness:slices:list
 - `--min-promotion-by-act2-rate <pct>`
 - `--max-promotion-by-act2-rate <pct>`
 - `--max-avg-invalid-shop-entries <n>`
+- `--min-avg-ambush-battles <n>`
 
 ## Notes
 
@@ -87,6 +88,7 @@ Not covered by full-run simulation:
 - `act1_pressure_normal` (normal opening stability/pacing)
 - `act1_pressure_hard` (hard opening stress)
 - `progression_invincible` (long-run progression/economy telemetry under invincibility)
+- `ambush_hard_invincible` (hard-mode ambush battle-first shop flow with explicit ambush frequency gate)
 
 Slice definitions live in `tests/sim/fullrun-slices.js`.
 Calibration guidance lives in `docs/harness-thresholds.md`.

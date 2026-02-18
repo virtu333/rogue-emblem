@@ -4,8 +4,15 @@
 
 ### Village Ambush + Coverage Hardening (Feb 18, 2026)
 - **Village ambush flow**: Shop nodes can become ambush encounters by difficulty (Normal 10%, Hard 20%, Lunatic 25%). Players must win a rout battle before the shop opens, then receive a 20% ambush discount that applies to item prices, rerolls, and forge costs, stacking multiplicatively with blessing discounts.
-- **Ambush deterministic fullrun slice**: Added a Hard-difficulty invincible PR slice on seeds 301-312 to continuously gate battle-first ambush shop flow and economy invariants.
+- **Ambush deterministic fullrun slice**: Added a Hard-difficulty invincible PR slice on seeds 301-312 to continuously gate battle-first ambush shop flow and economy invariants, including a strict `avg_ambush_battles` threshold.
 - **Ambush edge-case test coverage**: Added simulation defeat/timeout abort coverage for ambush shop battles, plus generator assertions for intermediate ambush probability and ambush battleParams row/level scaling composition.
+
+### Economy + Inventory + Reclass Sync (Feb 18, 2026)
+- **Fallen-unit transfer behavior hardened**: Fallen units now route eligible weapons/staves and consumables to convoy, accessories to the accessory pool, avoid duplicate convoy transfer on deep-equal equipped-weapon edge cases, and preserve blocked equipped items on the fallen unit when convoy is full.
+- **Shop sell + capacity UX clarified**: Consumables can now be sold in village shops; sell-list scrolling now uses a unified row model (no dead-scroll drift); shop picker, battle trade, and roster trade surfaces now show labeled capacities (`Inventory x/5 | Consumables y/3`).
+- **Shop convoy fallback preserved**: Full unit rows in the shop picker remain selectable so purchases can still route to convoy when personal slots are full.
+- **Reclass seal closeout landed**: `starting_reclass_seal` is now present in runtime/public meta upgrade data and validated by run-start regression coverage.
+- **Meta economy retune applied**: Updated outlier upgrades and costs, including `Plunder` (`+10% / +20%`, costs `125 / 325`), `War Chest` pricing (`50 / 100 / 150` for flat `+500 / +1000 / +1500`), `Expanded Ranks` (`+3` at `175`), vision charge pricing, and starting-gear economy costs.
 
 ### Act 4 + Narrative + Systems Hardening (Feb 15, 2026)
 - **Act 4 hard-mode progression shipped**: Added runtime progression support for Act 4 with new templates, terrain hazards, and slide-aware AI behavior.

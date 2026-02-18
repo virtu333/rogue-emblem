@@ -1,7 +1,7 @@
 # Economy & Convoy — GDD Section (v1)
 
 > **Ported from:** `References/GDDExpansion/` (Feb 13, 2026)
-> **Implementation status:** Convoy MVP shipped on `main` (5+5 split slots for weapons + supplies, unlimited accessories). Economy tuning is ongoing via playtest data. Status countermeasure items (Herbs, Pure Water, Remedy) deferred until status staves ship.
+> **Implementation status:** Convoy storage shipped on `main` with split capacities (weapons + consumables) and shared accessory pool support. Economy tuning is ongoing via playtest data. Status countermeasure items (Herbs, Pure Water, Remedy) deferred until status staves ship.
 
 **Date:** February 11, 2026
 **Status:** Convoy MVP shipped; economy tuning ongoing
@@ -285,9 +285,9 @@ When buying from a shop:
 | Kill gold | Per-enemy, scales by act/difficulty | `goldMultiplier` from difficulty.json |
 | Turn bonus | S/A/B/C rating × base bonus per act | Act 1: 100, Act 2: 200, Act 3: 300, Final: 400 |
 | Loot gold drops | Gold category in loot table | Act 1: 300–500, Act 2: 600–900, Act 3: 900–1400 |
-| Meta: War Chest | +100/+200/+300 starting gold | 3 tiers |
-| Meta: Plunder | +20%/+40% battle gold | 2 tiers |
-| Blessing: Coin of Fate | +100 starting gold | Tier 1 blessing |
+| Meta: War Chest | +500/+1000/+1500 starting gold | 3 tiers |
+| Meta: Plunder | +10%/+20% battle gold | 2 tiers |
+| Blessing: Coin of Fate | +15% battle gold during run | Tier 1 blessing |
 | Blessing: Merchant Bane | +15% battle gold (but skip first shop) | Tier 3 blessing |
 
 ### 5.2 Spending
@@ -323,10 +323,10 @@ When buying from a shop:
 | Slot Type | Capacity | Notes |
 |-----------|----------|-------|
 | Weapons | INVENTORY_MAX (5) | Includes equipped weapon |
-| Consumables | Shared with weapons in current impl | Part of the 5-slot inventory |
+| Consumables | CONSUMABLE_MAX (3) | Stored in a separate consumables array |
 | Accessory | 1 | Separate slot, always 1 |
 
-**Note:** The current implementation stores weapons and consumables in a shared 5-slot inventory. The roster screen UI already visually separates them (Inventory section for weapons, Consumables section for items) but the underlying data model is a single array.
+**Note:** Runtime uses separate arrays (`inventory` for weapons/staves, `consumables` for consumables/scrolls), and UI labels reflect separate capacities.
 
 ### 6.2 No Changes Proposed
 
@@ -379,7 +379,7 @@ Unit inventory capacity stays at 5. The convoy absorbs overflow pressure. If pla
 | Whetstone storage | Defer to future roadmap | Currently apply-on-pickup; storable whetstones add UI complexity |
 | Art scroll shop availability | Defer to playtest | Currently loot-only; may add to Act 3+ shops if acquisition feels too random |
 | Relics system | Defer to future roadmap | Passive team effects, separate from convoy |
-| Sell items to shop | Not planned | FE traditionally doesn't have sell; convoy + discard covers inventory management |
+| Sell items to shop | Implemented | Shop sell tab supports weapon and consumable selling with sell-price gating |
 
 ---
 
