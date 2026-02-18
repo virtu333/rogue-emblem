@@ -255,6 +255,20 @@ describe('RunManager', () => {
       expect(serialized._miracleUsed).toBe(false);
     });
 
+    it('does not persist _movementSpent', () => {
+      const unit = {
+        name: 'Test',
+        _movementSpent: 4,
+        hasMoved: false,
+        hasActed: false,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
+      const serialized = serializeUnit(unit);
+      expect(serialized._movementSpent).toBeUndefined();
+    });
+
     it('preserves stats and inventory', () => {
       const unit = {
         name: 'Edric', stats: { HP: 20, STR: 8 }, currentHP: 15,

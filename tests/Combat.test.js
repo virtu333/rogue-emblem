@@ -63,6 +63,14 @@ describe('Combat utilities', () => {
     expect(parseRange('2-3')).toEqual({ min: 2, max: 3 });
   });
 
+  it('parseRange handles ALL and malformed values safely', () => {
+    expect(parseRange('ALL')).toEqual({ min: 1, max: 99 });
+    expect(parseRange(null)).toEqual({ min: 1, max: 1 });
+    expect(parseRange(undefined)).toEqual({ min: 1, max: 1 });
+    expect(parseRange('')).toEqual({ min: 1, max: 1 });
+    expect(parseRange('bad-range')).toEqual({ min: 1, max: 1 });
+  });
+
   it('isInRange checks weapon range correctly', () => {
     const sword = data.weapons.find(w => w.name === 'Iron Sword');
     const bow = data.weapons.find(w => w.name === 'Iron Bow');
@@ -70,6 +78,25 @@ describe('Combat utilities', () => {
     expect(isInRange(sword, 2)).toBe(false);
     expect(isInRange(bow, 2)).toBe(true);
     expect(isInRange(bow, 1)).toBe(false);
+  });
+
+  it('isInRange returns false for missing weapon and falls back safely for malformed range input', () => {
+    expect(isInRange(null, 1)).toBe(false);
+    expect(isInRange({ range: null }, 1)).toBe(true);
+    expect(isInRange({ range: 'bad-range' }, 1)).toBe(true);
+    expect(isInRange({ range: 'bad-range' }, 2)).toBe(false);
+  });
+
+  it('forecast and resolution do not throw when defender range is malformed', () => {
+    const attacker = makeUnit();
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      weapon: { ...makeUnit().weapon, range: null },
+    });
+    const terrain = data.terrain.find(t => t.name === 'Plain');
+    expect(() => getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain)).not.toThrow();
+    expect(() => resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain)).not.toThrow();
   });
 
   it('classifies weapon types correctly', () => {

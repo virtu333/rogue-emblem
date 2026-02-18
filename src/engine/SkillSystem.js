@@ -73,7 +73,9 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
   };
 
   // Conditional weapon bonuses — independent of skillsData
-  const wpnCond = getConditionalWeaponBonuses(unit.weapon, unit, allAllies);
+  const allies = Array.isArray(allAllies) ? allAllies : [];
+  const enemies = Array.isArray(allEnemies) ? allEnemies : [];
+  const wpnCond = getConditionalWeaponBonuses(unit.weapon, unit, allies);
   mods.atkBonus += wpnCond.atkBonus;
   mods.spdBonus += wpnCond.spdBonus;
 
@@ -81,7 +83,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
 
   // --- Affix Modifiers ---
   if (affixData) {
-    const affixMods = getAffixCombatMods(unit, opponent, allAllies, affixData, terrain);
+    const affixMods = getAffixCombatMods(unit, opponent, allies, affixData, terrain);
     mods.atkBonus += affixMods.atkBonus;
     mods.defBonus += affixMods.defBonus + affixMods.terrainDefBonus;
     mods.resBonus += affixMods.resBonus;
@@ -108,7 +110,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       // Check passive conditions
       let passiveCondMet = true;
       if (skill.condition === 'no_adjacent_ally') {
-        passiveCondMet = !allAllies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+        passiveCondMet = !allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
       }
       if (passiveCondMet) {
         if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
@@ -127,7 +129,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       let condMet = !skill.condition;
       if (skill.condition === 'below50') condMet = isBelow50(unit);
       if (skill.condition === 'adjacent_ally') {
-        condMet = allAllies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+        condMet = allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
       }
       if (skill.condition === 'initiating') condMet = isInitiating;
       if (skill.condition === 'above50_defending') {
@@ -159,7 +161,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
           mods.activated.push({ id: skill.id, name: skill.name });
         }
         if (skill.id === 'spell_harmony') {
-          const adjacentPlayerAllies = allAllies.filter(a =>
+          const adjacentPlayerAllies = allies.filter(a =>
             a !== unit
             && a.faction === 'player'
             && gridDistance(unit.col, unit.row, a.col, a.row) === 1
@@ -186,7 +188,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
   }
 
   // Aura effects from allies (buffs by default)
-  for (const ally of (allAllies || [])) {
+  for (const ally of allies) {
     if (ally === unit || !ally.skills) continue;
     for (const skillId of ally.skills) {
       const skill = getSkill(skillId, skillsData);
@@ -199,7 +201,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
   }
 
   // Enemy aura effects (debuffs)
-  for (const enemy of (allEnemies || [])) {
+  for (const enemy of enemies) {
     if (!enemy || !enemy.skills) continue;
     for (const skillId of enemy.skills) {
       const skill = getSkill(skillId, skillsData);
@@ -217,7 +219,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     if (ce.condition === 'below50') condMet = isBelow50(unit);
     else if (ce.condition === 'above75') condMet = unit.currentHP > Math.floor(unit.stats.HP * 0.75);
     else if (ce.condition === 'on_forest') condMet = terrain?.name === 'Forest';
-    else if (ce.condition === 'adjacent_ally') condMet = allAllies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+    else if (ce.condition === 'adjacent_ally') condMet = allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
 
     if (condMet) {
       if (ce.critBonus) mods.critBonus += ce.critBonus;

@@ -245,7 +245,8 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
   const special = weapon?.special;
   if (!special || !special.toLowerCase().includes('if no adjacent allies')) return result;
 
-  const hasAdjacentAlly = allAllies.some(a =>
+  const allies = Array.isArray(allAllies) ? allAllies : [];
+  const hasAdjacentAlly = allies.some(a =>
     a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1
   );
   if (hasAdjacentAlly) return result;
@@ -414,18 +415,36 @@ export function getEffectiveStaffRange(staff, healer) {
 
 /** Parse "1", "1-2", "2-3" → { min, max }. "1-ALL" treated as { min:1, max:99 }. */
 export function parseRange(rangeStr) {
-  if (rangeStr.includes('ALL')) return { min: 1, max: 99 };
-  if (rangeStr.includes('-')) {
-    const [min, max] = rangeStr.split('-').map(Number);
-    return { min, max };
+  if (typeof rangeStr === 'number' && Number.isFinite(rangeStr)) {
+    const val = Math.trunc(rangeStr);
+    return val > 0 ? { min: val, max: val } : { min: 1, max: 1 };
   }
-  const val = parseInt(rangeStr, 10);
+
+  const text = typeof rangeStr === 'string' ? rangeStr.trim().toUpperCase() : '';
+  if (!text) return { min: 1, max: 1 };
+
+  if (text.includes('ALL')) return { min: 1, max: 99 };
+  if (text.includes('-')) {
+    const [rawMin, rawMax] = text.split('-', 2);
+    const min = Number.parseInt(rawMin, 10);
+    const max = Number.parseInt(rawMax, 10);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0) {
+      return { min: 1, max: 1 };
+    }
+    return { min: Math.min(min, max), max: Math.max(min, max) };
+  }
+
+  const val = Number.parseInt(text, 10);
+  if (!Number.isFinite(val) || val <= 0) return { min: 1, max: 1 };
   return { min: val, max: val };
 }
 
 export function isInRange(weapon, distance) {
+  if (!weapon) return false;
+  const dist = Number(distance);
+  if (!Number.isFinite(dist)) return false;
   const { min, max } = parseRange(weapon.range);
-  return distance >= min && distance <= max;
+  return dist >= min && dist <= max;
 }
 
 /** Manhattan distance between two grid positions */

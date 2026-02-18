@@ -197,6 +197,14 @@ describe('Bow Patch — Doublebow Conditional Bonus', () => {
     expect(result.atkBonus).toBe(4);
     expect(result.spdBonus).toBe(4);
   });
+
+  it('treats null ally list as empty for conditional weapon bonus checks', () => {
+    const doublebow = findWeapon('Doublebow');
+    const unit = makeUnit({ weapon: doublebow, col: 3, row: 3 });
+    const result = getConditionalWeaponBonuses(doublebow, unit, null);
+    expect(result.atkBonus).toBe(4);
+    expect(result.spdBonus).toBe(4);
+  });
 });
 
 describe('Bow Patch — Combat Integration', () => {

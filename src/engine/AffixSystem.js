@@ -30,6 +30,7 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
   };
 
   if (!affixData || !unit.affixes) return mods;
+  const allies = Array.isArray(allAllies) ? allAllies : [];
 
   for (const aid of unit.affixes) {
     const affix = getAffix(aid, affixData);
@@ -49,7 +50,7 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
   }
 
   // Aura buffs from allies
-  for (const ally of allAllies) {
+  for (const ally of allies) {
     if (ally === unit || !ally.affixes) continue;
     for (const aid of ally.affixes) {
       const affix = getAffix(aid, affixData);

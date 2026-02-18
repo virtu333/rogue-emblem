@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveCombat } from '../src/engine/Combat.js';
-import { rollDefenseAffixes, getWarpCandidates } from '../src/engine/AffixSystem.js';
+import { rollDefenseAffixes, getWarpCandidates, getAffixCombatMods } from '../src/engine/AffixSystem.js';
 
 describe('Affix Combat Interactions', () => {
   const mockSkills = [];
@@ -66,6 +66,18 @@ describe('Affix Combat Interactions', () => {
     expect(attackerStrikes[1].skillActivations.some(s => s.id === 'shielded')).toBe(false);
 
     vi.restoreAllMocks();
+  });
+
+  it('getAffixCombatMods treats null allAllies as an empty collection', () => {
+    const affixData = {
+      affixes: [
+        { id: 'fury', name: 'Fury', trigger: 'passive', effects: { atkBonus: 2 } },
+      ],
+    };
+    const unitWithPassiveAffix = { ...attacker, affixes: ['fury'] };
+    const mods = getAffixCombatMods(unitWithPassiveAffix, defender, null, affixData, null);
+    expect(mods.atkBonus).toBe(2);
+    expect(mods.activated.some(a => a.id === 'fury')).toBe(true);
   });
 
   it('executeWarp prioritizes tiles farthest from the attacker', async () => {

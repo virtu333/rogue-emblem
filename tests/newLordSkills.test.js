@@ -129,6 +129,13 @@ describe('Skyward (skyward)', () => {
     const mods = getSkillCombatMods(unit, enemy, [unit, ally], [enemy], skillsData, null, false);
     expect(mods.avoidBonus).toBe(15);
   });
+
+  it('treats null allAllies as empty for adjacency checks', () => {
+    const unit = makeUnit({ skills: ['skyward'], col: 5, row: 5 });
+    const enemy = makeEnemy({ col: 3, row: 3 });
+    const mods = getSkillCombatMods(unit, enemy, null, [enemy], skillsData, null, false);
+    expect(mods.avoidBonus).toBe(15);
+  });
 });
 
 // --- Draconic Aura ---

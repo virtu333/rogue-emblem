@@ -491,6 +491,25 @@ function normalizeLootNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function getValidGoldRange(table) {
+  const range = Array.isArray(table?.goldRange) ? table.goldRange : [];
+  const rawMin = Math.trunc(normalizeLootNumber(range[0]));
+  const rawMax = Math.trunc(normalizeLootNumber(range[1]));
+  const min = Math.max(0, rawMin);
+  const max = Math.max(0, rawMax);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 0];
+  return [Math.min(min, max), Math.max(min, max)];
+}
+
+function rollGoldAmountFromRange(min, max) {
+  const safeMin = Number.isFinite(min) ? Math.max(0, Math.trunc(min)) : 0;
+  const safeMax = Number.isFinite(max) ? Math.max(0, Math.trunc(max)) : 0;
+  const low = Math.min(safeMin, safeMax);
+  const high = Math.max(safeMin, safeMax);
+  const span = Math.max(0, high - low);
+  return Math.floor((low + Math.floor(Math.random() * (span + 1))) * GOLD_LOOT_REWARD_MULTIPLIER);
+}
+
 function splitWeightByPoolCounts(totalWeight, categoryPools, fallbackRatios = null) {
   const categories = Object.keys(categoryPools);
   const poolCounts = {};
@@ -723,6 +742,7 @@ export function generateLootChoices(
   generateOptions = {}
 ) {
   const table = lootTables[actId] || lootTables.act3;
+  const [baseGoldMin, baseGoldMax] = getValidGoldRange(table);
   const metaInnateArtConfig = buildMetaInnateArtConfig(weaponArtSpawnConfig);
   const qualityBonusPercent = normalizeLootNumber(lootWeaponQualityBonus);
   const { pools, weights } = buildLootTablesFromAct(table, allWeapons, consumables);
@@ -754,7 +774,8 @@ export function generateLootChoices(
 
     if (category === 'gold') {
       if (choices.some(c => c.type === 'gold')) continue;
-      let [min, max] = table.goldRange;
+      let min = baseGoldMin;
+      let max = baseGoldMax;
       if (isBoss) {
         min = Math.floor(min * 1.5);
         max = Math.floor(max * 1.5);
@@ -762,7 +783,7 @@ export function generateLootChoices(
         min = Math.floor(min * 1.25);
         max = Math.floor(max * 1.25);
       }
-      const goldAmount = Math.floor((min + Math.floor(Math.random() * (max - min + 1))) * GOLD_LOOT_REWARD_MULTIPLIER);
+      const goldAmount = rollGoldAmountFromRange(min, max);
       const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
       choices.push({ type: 'gold', goldAmount, xpAmount });
       continue;
@@ -799,8 +820,7 @@ export function generateLootChoices(
   }
 
   while (choices.length < count) {
-    const [min, max] = table.goldRange;
-    const goldAmount = Math.floor((min + Math.floor(Math.random() * (max - min + 1))) * GOLD_LOOT_REWARD_MULTIPLIER);
+    const goldAmount = rollGoldAmountFromRange(baseGoldMin, baseGoldMax);
     const xpAmount = (LOOT_GOLD_TEAM_XP[actId] || LOOT_GOLD_TEAM_XP.act3) || 0;
     choices.push({ type: 'gold', goldAmount, xpAmount });
   }

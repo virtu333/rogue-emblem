@@ -164,6 +164,55 @@ describe('LootSystem', () => {
       expect(choices.length).toBe(LOOT_CHOICES);
     });
 
+    it('handles missing goldRange without NaN gold rewards', () => {
+      const customTables = {
+        act1: {
+          weapons: [],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { gold: 100 },
+        },
+      };
+      const choices = generateLootChoices('act1', customTables, gameData.weapons, gameData.consumables, 3);
+      expect(choices.length).toBe(3);
+      expect(choices.every(c => c.type === 'gold')).toBe(true);
+      for (const choice of choices) {
+        expect(Number.isFinite(choice.goldAmount)).toBe(true);
+        expect(Number.isNaN(choice.goldAmount)).toBe(false);
+      }
+    });
+
+    it('handles malformed goldRange without NaN gold rewards', () => {
+      const customTables = {
+        act1: {
+          weapons: [],
+          healing: [],
+          statBooster: [],
+          promotion: [],
+          skillScroll: [],
+          weaponArtScroll: [],
+          legendaryWeapon: [],
+          accessories: [],
+          forge: [],
+          weights: { gold: 100 },
+          goldRange: ['bad', -9],
+        },
+      };
+      const choices = generateLootChoices('act1', customTables, gameData.weapons, gameData.consumables, 3);
+      expect(choices.length).toBe(3);
+      expect(choices.every(c => c.type === 'gold')).toBe(true);
+      for (const choice of choices) {
+        expect(Number.isFinite(choice.goldAmount)).toBe(true);
+        expect(choice.goldAmount).toBeGreaterThanOrEqual(0);
+      }
+    });
+
     it('finalBoss returns exactly LOOT_CHOICES gold-only choices', () => {
       for (let i = 0; i < 10; i++) {
         const choices = generateLootChoices('finalBoss', gameData.lootTables, gameData.weapons, gameData.consumables);
