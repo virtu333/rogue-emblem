@@ -1488,13 +1488,33 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       weaponRank: 'Mast', hasMoved: false, hasActed: false,
       graphic: null, label: null, hpBar: null,
     });
+    json.roster.push({
+      name: 'PromoWyvernLord',
+      className: 'Wyvern Lord',
+      tier: 'promoted',
+      level: 10,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
+      growths: { HP: 65, STR: 50, MAG: 0, SKL: 35, SPD: 35, DEF: 45, RES: 15, LCK: 25 },
+      proficiencies: [{ type: 'Lance', rank: 'Mast' }, { type: 'Axe', rank: 'Prof' }],
+      skills: [],
+      col: 0, row: 0, mov: 5, moveType: 'Flying',
+      stats: { HP: 34, STR: 16, MAG: 2, SKL: 12, SPD: 11, DEF: 15, RES: 7, LCK: 8, MOV: 5 },
+      currentHP: 34, faction: 'player',
+      weapon: null, inventory: [], consumables: [], accessory: null,
+      weaponRank: 'Mast', hasMoved: false, hasActed: false,
+      graphic: null, label: null, hpBar: null,
+    });
 
     const restored = RunManager.fromJSON(json, gameData);
     const baseMage = restored.roster.find(u => u.name === 'BaseMage');
     const promoPaladin = restored.roster.find(u => u.name === 'PromoPaladin');
+    const promoWyvernLord = restored.roster.find(u => u.name === 'PromoWyvernLord');
 
     expect(baseMage.skills).toContain('luna');
     expect(promoPaladin.skills).toContain('sol');
+    expect(promoWyvernLord.skills).toContain('draconic_aura');
   });
 
   it('relinkWeapon fallback skips non-proficient inventory[0]', () => {
@@ -1769,6 +1789,7 @@ describe('blessing run-start effect application', () => {
       expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
       expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
       expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
+      expect(params.enemyPoisonChance).toBe(gameData.difficulty.modes.hard.enemyPoisonChance);
       expect(params.reinforcementTurnOffset).toBe(gameData.difficulty.modes.hard.reinforcementTurnOffset);
     });
 

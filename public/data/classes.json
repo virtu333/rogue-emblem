@@ -649,7 +649,13 @@
     "moveType": "Flying",
     "weaponProficiencies": "Lances (M), Axes (P)",
     "roleChange": "Gains Axes, heavy flying bruiser",
-    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air."
+    "description": "A draconic terror — gains axes, immense bulk, and dominates from the air.",
+    "learnableSkills": [
+      {
+        "skillId": "draconic_aura",
+        "level": 10
+      }
+    ]
   },
   {
     "name": "Hero",

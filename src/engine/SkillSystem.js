@@ -27,6 +27,25 @@ function getActivationChance(unit, activation) {
   }
 }
 
+function isWithinSkillRange(source, target, skill) {
+  const maxRange = Number(skill?.range ?? 0);
+  const minRange = Number(skill?.rangeMin ?? 0);
+  if (!Number.isFinite(maxRange) || !Number.isFinite(minRange)) return false;
+  if (maxRange < 0 || minRange < 0 || maxRange < minRange) return false;
+  const dist = gridDistance(source.col, source.row, target.col, target.row);
+  return dist >= minRange && dist <= maxRange;
+}
+
+function applyAuraEffects(mods, effects) {
+  if (!effects) return;
+  mods.hitBonus += effects.hitBonus || 0;
+  mods.avoidBonus += effects.avoidBonus || 0;
+  mods.atkBonus += effects.atkBonus || 0;
+  mods.defBonus += effects.defBonus || 0;
+  mods.resBonus += effects.resBonus || 0;
+  mods.critBonus += effects.critBonus || 0;
+}
+
 // --- Static combat modifiers ---
 
 /**
@@ -166,22 +185,28 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     }
   }
 
-  // Aura buffs from allies
-  for (const ally of allAllies) {
+  // Aura effects from allies (buffs by default)
+  for (const ally of (allAllies || [])) {
     if (ally === unit || !ally.skills) continue;
     for (const skillId of ally.skills) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
+      const auraTarget = skill.auraTarget || 'ally';
+      if (auraTarget !== 'ally') continue;
+      if (!isWithinSkillRange(ally, unit, skill)) continue;
+      applyAuraEffects(mods, skill.effects);
+    }
+  }
 
-      const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
-      if (dist <= (skill.range || 0) && skill.effects) {
-        mods.hitBonus += skill.effects.hitBonus || 0;
-        mods.avoidBonus += skill.effects.avoidBonus || 0;
-        mods.atkBonus += skill.effects.atkBonus || 0;
-        mods.defBonus += skill.effects.defBonus || 0;
-        mods.resBonus += skill.effects.resBonus || 0;
-        mods.critBonus += skill.effects.critBonus || 0;
-      }
+  // Enemy aura effects (debuffs)
+  for (const enemy of (allEnemies || [])) {
+    if (!enemy || !enemy.skills) continue;
+    for (const skillId of enemy.skills) {
+      const skill = getSkill(skillId, skillsData);
+      if (!skill || skill.trigger !== 'passive-aura') continue;
+      if (skill.auraTarget !== 'enemy') continue;
+      if (!isWithinSkillRange(enemy, unit, skill)) continue;
+      applyAuraEffects(mods, skill.effects);
     }
   }
 

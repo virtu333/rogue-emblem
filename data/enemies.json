@@ -4,37 +4,43 @@
       "levelRange": [1, 3],
       "base": ["Myrmidon", "Fighter", "Archer", "Cavalier"],
       "promoted": [],
-      "sunderChance": 0
+      "sunderChance": 0,
+      "poisonChance": 0
     },
     "act2": {
       "levelRange": [3, 8],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
       "promoted": [],
-      "sunderChance": 0.08
+      "sunderChance": 0.08,
+      "poisonChance": 0
     },
     "act3": {
       "levelRange": [8, 15],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
       "promoted": ["Swordmaster", "General", "Paladin", "Sniper", "Wyvern Lord"],
-      "sunderChance": 0.20
+      "sunderChance": 0.20,
+      "poisonChance": 0.12
     },
     "act4": {
       "levelRange": [11, 17],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
       "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero"],
-      "sunderChance": 0.25
+      "sunderChance": 0.25,
+      "poisonChance": 0.15
     },
     "postAct": {
       "levelRange": [12, 18],
       "base": ["Myrmidon", "Fighter", "Cavalier", "Mage"],
       "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero"],
-      "sunderChance": 0.20
+      "sunderChance": 0.20,
+      "poisonChance": 0.12
     },
     "finalBoss": {
       "levelRange": [13, 18],
       "base": [],
       "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Wyvern Lord", "Hero"],
-      "sunderChance": 0.15
+      "sunderChance": 0.15,
+      "poisonChance": 0.08
     }
   },
   "bosses": {

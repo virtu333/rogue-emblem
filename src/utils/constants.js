@@ -198,6 +198,13 @@ export const SUNDER_WEAPON_BY_TYPE = {
 };
 // Proficiency prefixes that have sunder variants (used to gate sunder rolls)
 export const SUNDER_ELIGIBLE_PROFS = new Set(['Swords', 'Lances', 'Axes', 'Bows']);
+// Poison weapons (enemy-only variants)
+export const POISON_WEAPON_BY_TYPE = {
+  Sword: 'Venin Blade',
+  Bow: 'Venin Bow',
+};
+// Proficiency prefixes that have poison variants (used to gate poison rolls)
+export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 
 export const DEADLY_ARSENAL_POOL = {
   Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],

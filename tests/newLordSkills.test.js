@@ -131,6 +131,48 @@ describe('Skyward (skyward)', () => {
   });
 });
 
+// --- Draconic Aura ---
+
+describe('Draconic Aura (draconic_aura)', () => {
+  it('applies -10 Hit from enemy aura at distance 1', () => {
+    const unit = makeUnit({ col: 1, row: 0 });
+    const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
+    const enemy = makeEnemy({ col: 4, row: 0 });
+    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemy, enemy], skillsData, null, true);
+    expect(mods.hitBonus).toBe(-10);
+  });
+
+  it('applies -10 Hit from enemy aura at distance 2', () => {
+    const unit = makeUnit({ col: 2, row: 0 });
+    const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
+    const enemy = makeEnemy({ col: 4, row: 0 });
+    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemy, enemy], skillsData, null, true);
+    expect(mods.hitBonus).toBe(-10);
+  });
+
+  it('does not apply at distance 0 or beyond max range', () => {
+    const onTileUnit = makeUnit({ col: 0, row: 0 });
+    const farUnit = makeUnit({ col: 3, row: 0 });
+    const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
+    const enemy = makeEnemy({ col: 4, row: 0 });
+
+    const onTileMods = getSkillCombatMods(onTileUnit, enemy, [onTileUnit], [auraEnemy, enemy], skillsData, null, true);
+    const farMods = getSkillCombatMods(farUnit, enemy, [farUnit], [auraEnemy, enemy], skillsData, null, true);
+
+    expect(onTileMods.hitBonus).toBe(0);
+    expect(farMods.hitBonus).toBe(0);
+  });
+
+  it('stacks additively from multiple enemy aura sources', () => {
+    const unit = makeUnit({ col: 1, row: 0 });
+    const auraEnemyA = makeEnemy({ name: 'AuraA', skills: ['draconic_aura'], col: 0, row: 0 });
+    const auraEnemyB = makeEnemy({ name: 'AuraB', skills: ['draconic_aura'], col: 2, row: 0 });
+    const enemy = makeEnemy({ col: 4, row: 0 });
+    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemyA, auraEnemyB, enemy], skillsData, null, true);
+    expect(mods.hitBonus).toBe(-20);
+  });
+});
+
 // --- Intimidate ---
 
 describe('Intimidate (intimidate)', () => {

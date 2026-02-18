@@ -851,6 +851,19 @@
     "price": 1800
   },
   {
+    "name": "Venin Bow",
+    "type": "Bow",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 85,
+    "crit": 0,
+    "weight": 7,
+    "range": "2",
+    "special": "Poison: target loses 5 HP after combat",
+    "price": 0
+  },
+  {
     "name": "Sol Scroll",
     "type": "Scroll",
     "tier": "Rare",

@@ -65,6 +65,7 @@ import { calculateKillGold } from '../../src/engine/LootSystem.js';
 import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
+  POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
   XP_SPECIAL_ENEMY_MULTIPLIER,
 } from '../../src/utils/constants.js';
@@ -209,14 +210,14 @@ export class HeadlessBattle {
           const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
           if (baseClassData) {
             const baseDef = { ...npcSpawn, className: baseClassData.name };
-            npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, null, null, null);
+            npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, null, null, null, this.gameData.classes);
             for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
             }
             promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
           }
         } else {
-          npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, null, null, null);
+          npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, null, null, null, this.gameData.classes);
           for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
             if (!npc.skills.includes(sid)) npc.skills.push(sid);
           }
@@ -544,13 +545,14 @@ export class HeadlessBattle {
       const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
       if (!classData) continue;
       const level = Math.max(1, Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()));
-      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}`;
+      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
       if (seen.has(key)) continue;
       seen.add(key);
       templates.push({
         className: spawn.className,
         level,
         sunderWeapon: Boolean(spawn.sunderWeapon),
+        poisonWeapon: Boolean(spawn.poisonWeapon),
         aiMode: spawn.aiMode || null,
         affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
       });
@@ -572,6 +574,7 @@ export class HeadlessBattle {
           className,
           level: fallbackLevel,
           sunderWeapon: false,
+          poisonWeapon: false,
           aiMode: null,
           affixes: [],
         });
@@ -642,6 +645,9 @@ export class HeadlessBattle {
       sunderWeapon: typeof scheduledSpawn?.sunderWeapon === 'boolean'
         ? scheduledSpawn.sunderWeapon
         : Boolean(template?.sunderWeapon),
+      poisonWeapon: typeof scheduledSpawn?.poisonWeapon === 'boolean'
+        ? scheduledSpawn.poisonWeapon
+        : Boolean(template?.poisonWeapon),
       aiMode: typeof scheduledSpawn?.aiMode === 'string'
         ? scheduledSpawn.aiMode
         : (template?.aiMode || null),
@@ -692,6 +698,17 @@ export class HeadlessBattle {
           const sunderClone = structuredClone(sunderData);
           enemy.weapon = sunderClone;
           enemy.inventory = [sunderClone];
+        }
+      }
+    } else if (spawn.poisonWeapon) {
+      const primaryType = enemy.proficiencies?.[0]?.type;
+      const poisonName = primaryType ? POISON_WEAPON_BY_TYPE[primaryType] : null;
+      if (poisonName) {
+        const poisonData = this.gameData.weapons.find((weapon) => weapon.name === poisonName);
+        if (poisonData) {
+          const poisonClone = structuredClone(poisonData);
+          enemy.weapon = poisonClone;
+          enemy.inventory = [poisonClone];
         }
       }
     }

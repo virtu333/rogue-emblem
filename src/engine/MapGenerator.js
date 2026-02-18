@@ -1,7 +1,13 @@
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
 
-import { TERRAIN, DEPLOY_LIMITS, ENEMY_COUNT_OFFSET, SUNDER_ELIGIBLE_PROFS } from '../utils/constants.js';
+import {
+  TERRAIN,
+  DEPLOY_LIMITS,
+  ENEMY_COUNT_OFFSET,
+  SUNDER_ELIGIBLE_PROFS,
+  POISON_ELIGIBLE_PROFS,
+} from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { createScopedLogger } from '../utils/logger.js';
 
@@ -28,6 +34,7 @@ export function generateBattle(params, deps) {
     templateId: preAssignedTemplateId,
     firstBattleFightersOnly = false,
     usedRecruitNames = {},
+    enemyPoisonChance = 0,
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
@@ -83,7 +90,8 @@ export function generateBattle(params, deps) {
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
   let enemySpawns = generateEnemies(
     mapLayout, template, cols, rows, terrain,
-    pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes
+    pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes,
+    { enemyPoisonChance }
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     affixConfig: deps.affixes,
@@ -738,7 +746,22 @@ function weightedClassPick(classList, enemyWeights, classData) {
 
 // --- Enemy generation ---
 
-function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, count, objective, act, bossData, thronePos, levelRangeOverride, classes) {
+function generateEnemies(
+  mapLayout,
+  template,
+  cols,
+  rows,
+  terrainData,
+  pool,
+  count,
+  objective,
+  act,
+  bossData,
+  thronePos,
+  levelRangeOverride,
+  classes,
+  extraOptions = {},
+) {
   const spawns = [];
   const usedPositions = new Set();
 
@@ -874,6 +897,10 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
     const sunderWeapon = canHaveSunder && pool.sunderChance && Math.random() < pool.sunderChance;
+    const canHavePoison = !sunderWeapon && primaryProf && POISON_ELIGIBLE_PROFS.has(primaryProf);
+    const rawPoisonChance = Number(pool.poisonChance || 0) + Number(extraOptions.enemyPoisonChance || 0);
+    const poisonChance = Math.max(0, Math.min(1, rawPoisonChance));
+    const poisonWeapon = canHavePoison && poisonChance > 0 && Math.random() < poisonChance;
 
     if (DEBUG_MAP_GEN) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
@@ -888,6 +915,7 @@ function generateEnemies(mapLayout, template, cols, rows, terrainData, pool, cou
       row: pos.row,
       isBoss: false,
       sunderWeapon: sunderWeapon || undefined,
+      poisonWeapon: poisonWeapon || undefined,
     });
   }
 

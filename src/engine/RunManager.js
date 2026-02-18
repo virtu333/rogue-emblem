@@ -1734,7 +1734,8 @@ export class RunManager {
       this.gameData?.weapons || [],
       statBonuses,
       growthBonuses,
-      randomSkillPool
+      randomSkillPool,
+      classes
     );
     if (!hasRecruitTemplate) {
       promoteUnit(
@@ -1894,6 +1895,7 @@ export class RunManager {
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
+    battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);
     battleParams.reinforcementTurnOffset = this.getDifficultyModifier('reinforcementTurnOffset', 0);
     battleParams.difficultyId = this.difficultyId || 'normal';
     this._repairDuplicateRosterNames();

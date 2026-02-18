@@ -336,6 +336,18 @@ describe('checkLevelUpSkills class thresholds', () => {
     expect(learned).toContain('sol');
     expect(unit.skills).toContain('sol');
   });
+
+  it('promoted class learns own class skill at promoted level 10', () => {
+    const unit = {
+      className: 'Wyvern Lord',
+      tier: 'promoted',
+      level: 10,
+      skills: [],
+    };
+    const learned = checkLevelUpSkills(unit, data.classes);
+    expect(learned).toContain('draconic_aura');
+    expect(unit.skills).toContain('draconic_aura');
+  });
 });
 
 describe('getCombatWeapons', () => {
@@ -648,6 +660,19 @@ describe('createRecruitUnit', () => {
       fighterClass, data.weapons, null, null, null
     );
     expect(unit.skills.length).toBe(0);
+  });
+
+  it('grants class learnables for already-leveled recruits when classesData is provided', () => {
+    const unit = createRecruitUnit(
+      { className: 'Fighter', name: 'Drake', level: 15 },
+      fighterClass,
+      data.weapons,
+      null,
+      null,
+      null,
+      data.classes
+    );
+    expect(unit.skills).toContain('wrath');
   });
 
   describe('Longbow secondary weapon for archer/sniper recruits', () => {

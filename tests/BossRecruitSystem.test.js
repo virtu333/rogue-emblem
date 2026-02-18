@@ -541,6 +541,21 @@ describe('BossRecruitSystem', () => {
       }
     });
 
+    it('promoted Wyvern Lord candidates learn draconic_aura at promoted level 10', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Wyvern Lord', name: 'Skarn' }];
+      const roster = [
+        { name: 'Edric', className: 'Lord', isLord: true, level: 30, faction: 'player' },
+        { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
+      ];
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Wyvern Lord');
+      expect(candidates[0].unit.level).toBe(10);
+      expect(candidates[0].unit.skills).toContain('draconic_aura');
+    });
+
     it('promoted candidates have correct promoted className', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);

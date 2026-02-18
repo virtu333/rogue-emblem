@@ -72,7 +72,7 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER, RECRUIT_NODE_LORD_CHANCE } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, POISON_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER, RECRUIT_NODE_LORD_CHANCE } from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
@@ -1173,13 +1173,14 @@ export class BattleScene extends Phaser.Scene {
       const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
       if (!classData) continue;
       const level = Math.max(1, Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()));
-      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}`;
+      const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
       if (seen.has(key)) continue;
       seen.add(key);
       templates.push({
         className: spawn.className,
         level,
         sunderWeapon: Boolean(spawn.sunderWeapon),
+        poisonWeapon: Boolean(spawn.poisonWeapon),
         aiMode: spawn.aiMode || null,
         affixes: Array.isArray(spawn.affixes) ? [...spawn.affixes] : [],
       });
@@ -1201,6 +1202,7 @@ export class BattleScene extends Phaser.Scene {
           className,
           level: fallbackLevel,
           sunderWeapon: false,
+          poisonWeapon: false,
           aiMode: null,
           affixes: [],
         });
@@ -1271,6 +1273,9 @@ export class BattleScene extends Phaser.Scene {
       sunderWeapon: typeof scheduledSpawn?.sunderWeapon === 'boolean'
         ? scheduledSpawn.sunderWeapon
         : Boolean(template?.sunderWeapon),
+      poisonWeapon: typeof scheduledSpawn?.poisonWeapon === 'boolean'
+        ? scheduledSpawn.poisonWeapon
+        : Boolean(template?.poisonWeapon),
       aiMode: typeof scheduledSpawn?.aiMode === 'string'
         ? scheduledSpawn.aiMode
         : (template?.aiMode || null),
@@ -1321,6 +1326,17 @@ export class BattleScene extends Phaser.Scene {
           const sunderClone = structuredClone(sunderData);
           enemy.weapon = sunderClone;
           enemy.inventory = [sunderClone];
+        }
+      }
+    } else if (spawn.poisonWeapon) {
+      const primaryType = enemy.proficiencies?.[0]?.type;
+      const poisonName = primaryType ? POISON_WEAPON_BY_TYPE[primaryType] : null;
+      if (poisonName) {
+        const poisonData = this.gameData.weapons.find((weapon) => weapon.name === poisonName);
+        if (poisonData) {
+          const poisonClone = structuredClone(poisonData);
+          enemy.weapon = poisonClone;
+          enemy.inventory = [poisonClone];
         }
       }
     }

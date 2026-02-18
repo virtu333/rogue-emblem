@@ -297,6 +297,18 @@
     "personal": true
   },
   {
+    "id": "draconic_aura",
+    "name": "Draconic Aura",
+    "description": "Enemies within 1-2 tiles suffer -10 Hit",
+    "trigger": "passive-aura",
+    "auraTarget": "enemy",
+    "rangeMin": 1,
+    "range": 2,
+    "effects": {
+      "hitBonus": -10
+    }
+  },
+  {
     "id": "aether",
     "name": "Aether",
     "description": "SKL%: strike twice — first Sol, then Luna",

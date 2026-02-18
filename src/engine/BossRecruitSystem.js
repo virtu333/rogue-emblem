@@ -4,7 +4,7 @@
  */
 
 import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT, BASE_CLASS_LEVEL_CAP } from '../utils/constants.js';
-import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked, grantLethalArmoryWeapon } from './UnitManager.js';
+import { createRecruitUnit, createLordUnit, promoteUnit, levelUp, getClassInnateSkills, isPromotionClassBlocked, grantLethalArmoryWeapon, checkLevelUpSkills } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
@@ -173,6 +173,10 @@ export function createBossLordUnit(lordDef, classData, allWeapons, targetLevel, 
           unit.currentHP += result.gains.HP;
         }
       }
+
+      if (Array.isArray(recruitContext?.classes) && recruitContext.classes.length > 0) {
+        checkLevelUpSkills(unit, recruitContext.classes);
+      }
     }
   }
 
@@ -334,7 +338,7 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
     // Cap base class leveling at BASE_CLASS_LEVEL_CAP
     const baseLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
     const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: baseLevel };
-    const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses);
+    const unit = createRecruitUnit(recruitDef, baseClassData, weapons, statBonuses, growthBonuses, null, classes);
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
 
@@ -351,6 +355,8 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
       }
     }
 
+    checkLevelUpSkills(unit, classes);
+
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
     }
@@ -363,7 +369,7 @@ function createRecruitFromPool(recruitEntry, promoted, targetLevel, classes, wea
 
     const cappedLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
     const recruitDef = { className: classData.name, name: recruitEntry.name, level: cappedLevel };
-    const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses);
+    const unit = createRecruitUnit(recruitDef, classData, weapons, statBonuses, growthBonuses, null, classes);
     addClassInnates(unit, classData.name);
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);

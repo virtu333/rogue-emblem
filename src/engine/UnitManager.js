@@ -384,7 +384,15 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
  * Uses same pattern as createEnemyUnit but with faction: 'npc'.
  * Weapon tier scales with level: 1-5 Iron, 6-12 Steel, 13+ Silver.
  */
-export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses = null, growthBonuses = null, randomSkillPool = null) {
+export function createRecruitUnit(
+  recruitDef,
+  classData,
+  allWeapons,
+  statBonuses = null,
+  growthBonuses = null,
+  randomSkillPool = null,
+  classesData = null,
+) {
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
     classData.tier || 'base'
@@ -460,6 +468,11 @@ export function createRecruitUnit(recruitDef, classData, allWeapons, statBonuses
   if (isArcherTypeRecruit) {
     const longbow = allWeapons.find(w => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
+  }
+
+  // Ensure already-leveled recruits receive any class learnables at current thresholds.
+  if (Array.isArray(classesData) && classesData.length > 0) {
+    checkLevelUpSkills(unit, classesData);
   }
 
   return unit;

@@ -703,7 +703,7 @@ describe('Skills data integrity', () => {
   const expectedSkills = [
     'cancel', 'desperation', 'quick_riposte', 'death_blow', 'darting_blow',
     'shove', 'pull', 'canto',
-    'commanders_gambit', 'tactical_advantage', 'aether', 'flare', 'spell_harmony',
+    'commanders_gambit', 'tactical_advantage', 'draconic_aura', 'aether', 'flare', 'spell_harmony',
   ];
   for (const id of expectedSkills) {
     it(`skill ${id} exists in skills.json`, () => {
