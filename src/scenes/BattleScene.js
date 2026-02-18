@@ -565,8 +565,14 @@ export class BattleScene extends Phaser.Scene {
         if (availLords.length > 0 && Math.random() < effectiveLordChance) {
           const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
           const lordClassData = this.gameData.classes.find(c => c.name === lordDef.class);
+          const recruitPoolClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+          const promoteLord = recruitPoolClassData?.tier === 'promoted';
           if (lordClassData) {
-            const npc = createBossLordUnit(lordDef, lordClassData, this.gameData.weapons, npcSpawn.level, metaEffects);
+            const npc = createBossLordUnit(lordDef, lordClassData, this.gameData.weapons, npcSpawn.level, metaEffects, {
+              promoteLord,
+              classes: this.gameData.classes || [],
+              skills: this.gameData.skills || [],
+            });
             npc.faction = 'npc';
             npc.col = npcSpawn.col;
             npc.row = npcSpawn.row;

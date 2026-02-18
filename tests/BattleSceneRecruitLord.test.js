@@ -43,7 +43,22 @@ function makeDisplayObject() {
   };
 }
 
-function makeBattleSceneWithLords({ lordRecruitChanceBonus = 0 } = {}) {
+function makeLordRestrictedRoster(gameData, availableLordName) {
+  const recruited = ['Edric', 'Sera'];
+  if (availableLordName) {
+    for (const lord of gameData.lords || []) {
+      if (lord.name !== availableLordName) recruited.push(lord.name);
+    }
+  }
+  return recruited.map(name => ({ name, className: 'Lord', isLord: true, level: 5, faction: 'player' }));
+}
+
+function makeBattleSceneWithLords({
+  lordRecruitChanceBonus = 0,
+  act = 'act1',
+  npcClassName = 'Fighter',
+  runRoster = null,
+} = {}) {
   const gameData = loadGameData();
   const scene = new BattleScene();
 
@@ -57,7 +72,7 @@ function makeBattleSceneWithLords({ lordRecruitChanceBonus = 0 } = {}) {
     ],
     enemySpawns: [],
     npcSpawn: {
-      className: 'Fighter',
+      className: npcClassName,
       name: 'Test Recruit',
       col: 1,
       row: 2,
@@ -68,10 +83,7 @@ function makeBattleSceneWithLords({ lordRecruitChanceBonus = 0 } = {}) {
 
   const runManager = {
     metaEffects: { lordRecruitChanceBonus },
-    roster: [
-      { name: 'Edric', className: 'Lord', isLord: true, level: 5, faction: 'player' },
-      { name: 'Sera', className: 'Light Sage', isLord: true, level: 5, faction: 'player' },
-    ],
+    roster: runRoster || makeLordRestrictedRoster(gameData, null),
     fallenUnits: [],
     getLockedBattleConfig: vi.fn(() => battleConfig),
     getEffectiveRecruitGrowthBonuses: vi.fn(() => null),
@@ -81,7 +93,7 @@ function makeBattleSceneWithLords({ lordRecruitChanceBonus = 0 } = {}) {
 
   scene.gameData = gameData;  // includes lords data with Kira/Voss
   scene.runManager = runManager;
-  scene.battleParams = { act: 'act1', tutorialMode: false, fogEnabled: false, isRecruitBattle: true };
+  scene.battleParams = { act, tutorialMode: false, fogEnabled: false, isRecruitBattle: true };
   scene.nodeId = 'battle-recruit-node';
   scene.roster = [{ name: 'Edric', isLord: true, level: 5, col: 0, row: 0, className: 'Lord' }];
 
@@ -170,6 +182,27 @@ describe('BattleScene recruit-node lord meta bonus', () => {
       const scene = makeBattleSceneWithLords({ lordRecruitChanceBonus: 0 });
       BattleScene.prototype.beginBattle.call(scene, scene.roster);
       expect(scene.npcUnits.every(u => !u.isLord)).toBe(true);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('promotes recruit-node lords when the selected recruit pool class is promoted', () => {
+    const gameData = loadGameData();
+    const runRoster = makeLordRestrictedRoster(gameData, 'Voss');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const scene = makeBattleSceneWithLords({
+        act: 'act4',
+        npcClassName: 'Hero',
+        runRoster,
+      });
+      BattleScene.prototype.beginBattle.call(scene, scene.roster);
+      const lordNpc = scene.npcUnits.find(u => u.isLord);
+      expect(lordNpc).toBeTruthy();
+      expect(lordNpc.name).toBe('Voss');
+      expect(lordNpc.tier).toBe('promoted');
+      expect(lordNpc.className).toBe('Vanguard');
     } finally {
       randomSpy.mockRestore();
     }
