@@ -26,12 +26,15 @@ const ACT_LEVEL_SCALING = {
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
  * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize)
- * @param {{ fogChanceBonus?: number, halfFogChance?: boolean }} [options]
+ * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, villageAmbushChance?: number }} [options]
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const halfFogChance = options.halfFogChance === true;
+  const villageAmbushChance = Number.isFinite(options.villageAmbushChance)
+    ? Math.max(0, Math.min(1, options.villageAmbushChance))
+    : 0;
   const { rows } = actConfig;
 
   // Special case: finalBoss is a single boss node
@@ -166,6 +169,48 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       const pick = remaining[Math.floor(Math.random() * remaining.length)];
       pick.type = NODE_TYPES.RECRUIT;
       pick.battleParams = buildBattleParams(actId, NODE_TYPES.RECRUIT, pick.row, rows);
+    }
+  }
+
+  // Post-process: mark a subset of remaining shops as village ambush encounters.
+  // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
+  if (villageAmbushChance > 0) {
+    const scaling = ACT_LEVEL_SCALING[actId];
+    for (const node of nodes) {
+      if (node.type !== NODE_TYPES.SHOP) continue;
+      if (Math.random() >= villageAmbushChance) continue;
+
+      node.isAmbush = true;
+      node.ambushCleared = false;
+      node.battleParams = {
+        act: actId,
+        objective: 'rout',
+        row: node.row,
+        battleSeed: rollBattleSeed(),
+        isAmbush: true,
+      };
+
+      if (scaling && node.row !== undefined) {
+        node.battleParams.levelRange = scaling[node.row] || scaling.default;
+      }
+
+      const template = pickTemplateForNode('rout', mapTemplates, actId, false);
+      if (template) {
+        node.templateId = template.id;
+        node.battleParams.templateId = template.id;
+      }
+
+      const fogChance = (template && template.fogChance !== undefined)
+        ? template.fogChance
+        : (FOG_CHANCE_BY_ACT[actId] || 0);
+      let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
+      if (halfFogChance) {
+        adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
+      }
+      delete node.fogEnabled;
+      if (Math.random() < adjustedFogChance) {
+        node.fogEnabled = true;
+      }
     }
   }
 

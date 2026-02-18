@@ -184,6 +184,36 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.showShopOverlay).toHaveBeenCalledWith(node, priced);
   });
 
+  it('handleShop applies ambush discount before opening overlay', () => {
+    const generated = [makeShopEntry('Iron Sword', 'weapon', 100)];
+    const priced = [makeShopEntry('Iron Sword', 'weapon', 90)];
+    const discounted = [makeShopEntry('Iron Sword', 'weapon', 72)];
+    generateShopInventoryMock.mockReturnValueOnce(generated);
+    const node = { id: 'shop-ambush', isAmbush: true, ambushCleared: true };
+
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => false),
+        currentAct: 'act1',
+        roster: [],
+        getWeaponArtSpawnConfig: vi.fn(() => null),
+        getShopItemCountDelta: vi.fn(() => 0),
+      },
+      gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+      registry: { get: vi.fn(() => null) },
+      applyDifficultyShopPricing: vi.fn(() => priced),
+      applyAmbushDiscount: vi.fn(() => discounted),
+      showShopOverlay: vi.fn(),
+      _isPendingAmbushNode: vi.fn(() => false),
+    };
+
+    NodeMapScene.prototype.handleShop.call(scene, node, { ambushDiscount: true, pendingAmbush: false });
+
+    expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
+    expect(scene.applyAmbushDiscount).toHaveBeenCalledWith(priced);
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, discounted, { ambushDiscount: true, pendingAmbush: false });
+  });
+
   it('applyDifficultyShopPricing combines difficulty multiplier with blessing discount', () => {
     const scene = {
       runManager: {
@@ -359,6 +389,77 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.shopBuyItems.map((entry) => entry.item.name)).toEqual(['Fresh A', 'Fresh B', 'Fresh C']);
     expect(scene.runManager.spendGold).toHaveBeenCalledTimes(1);
     expect(scene.shopRerollCount).toBe(1);
+  });
+
+  it('reroll reapplies ambush discount when current shop is ambush-discounted', () => {
+    generateShopInventoryMock.mockReturnValueOnce([
+      makeShopEntry('Fresh A', 'weapon', 100),
+    ]);
+
+    const { scene, createdTexts } = makeRerollScene({
+      shopBuyItems: [makeShopEntry('Old A', 'weapon', 100)],
+      originalCount: 1,
+    });
+    scene._currentShopHasAmbushDiscount = true;
+    scene.applyDifficultyShopPricing = vi.fn((items) => items.map((entry) => ({ ...entry })));
+    scene.applyAmbushDiscount = vi.fn((items) => items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 0.8) })));
+
+    NodeMapScene.prototype.drawRerollButton.call(scene);
+    createdTexts[0].handlers.pointerdown();
+
+    expect(scene.applyAmbushDiscount).toHaveBeenCalled();
+    expect(scene.shopBuyItems[0].price).toBe(80);
+  });
+
+  it('showForgeStatPicker keeps displayed and charged cost in sync with stacked ambush and blessing discounts', () => {
+    const createdTexts = [];
+    const spendGold = vi.fn(() => true);
+    const weapon = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      might: 5,
+      hit: 85,
+      crit: 0,
+      weight: 6,
+      range: '1',
+      price: 900,
+    };
+    const scene = {
+      _currentShopHasAmbushDiscount: true,
+      shopForgesUsed: 0,
+      runManager: {
+        gold: 9999,
+        spendGold,
+        getForgeCostDiscount: vi.fn(() => 0.25),
+      },
+      registry: { get: vi.fn(() => null) },
+      add: {
+        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        text: (x, y, text, style) => {
+          const obj = makeDisplayObject({ x, y, text, style });
+          createdTexts.push(obj);
+          return obj;
+        },
+      },
+      closeForgeStatPicker: vi.fn(),
+      refreshShop: vi.fn(),
+      showShopBanner: vi.fn(),
+    };
+
+    NodeMapScene.prototype.showForgeStatPicker.call(scene, weapon);
+
+    const mightButton = createdTexts.find((entry) => typeof entry.text === 'string' && entry.text.includes('+1 Mt'));
+    expect(mightButton).toBeTruthy();
+    const costMatch = mightButton.text.match(/(\d+)G/);
+    expect(costMatch).not.toBeNull();
+    const displayedCost = Number(costMatch[1]);
+    expect(displayedCost).toBe(240);
+
+    mightButton.handlers.pointerdown();
+
+    expect(spendGold).toHaveBeenCalledWith(displayedCost);
+    expect(scene.closeForgeStatPicker).toHaveBeenCalledTimes(1);
+    expect(scene.refreshShop).toHaveBeenCalledTimes(1);
   });
 
   it('drawRoster shows lords only and +N more for omitted non-lords', () => {
@@ -650,7 +751,7 @@ describe('NodeMapScene Slice 4', () => {
   });
 
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {
-    const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true };
+    const node = { id: 'shop-1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: true };
     const scene = {
       isTransitioning: false,
       battleLaunchInFlight: false,
@@ -691,6 +792,32 @@ describe('NodeMapScene Slice 4', () => {
     NodeMapScene.prototype.onNodeClick.call(scene, node);
 
     expect(scene.handleShop).toHaveBeenCalledWith(node, { ambushDiscount: false, pendingAmbush: true });
+  });
+
+  it('onNodeClick starts battle launch flow for uncleared ambush shops', () => {
+    const node = { id: 'shop-ambush', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      _sceneLifecycleGeneration: 42,
+      input: { enabled: true },
+      shopOverlay: null,
+      churchOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      showAmbushFlash: vi.fn(),
+      handleShop: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.battleLaunchInFlight).toBe(true);
+    expect(scene.isTransitioning).toBe(true);
+    expect(scene.isSceneReady).toBe(false);
+    expect(scene.input.enabled).toBe(false);
+    expect(scene.showAmbushFlash).toHaveBeenCalledWith(node, 42);
+    expect(scene.handleShop).not.toHaveBeenCalled();
   });
 
   it('handleShop skip path clears pending ambush only when node matches pending id', () => {

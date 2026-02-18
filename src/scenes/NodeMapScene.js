@@ -2,7 +2,7 @@
 
 import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
-import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST, SAFE_BOTTOM_Y } from '../utils/constants.js';
+import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST, SAFE_BOTTOM_Y, AMBUSH_SHOP_DISCOUNT } from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
   addToInventory,
@@ -220,6 +220,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._shopViewingMap = false;
     this._churchViewingMap = false;
     this._shopOriginalSlotCount = 0;
+    this._currentShopHasAmbushDiscount = false;
 
     // Debug overlay (dev-only)
     if (this.isDevToolsEnabled()) {
@@ -485,6 +486,42 @@ export class NodeMapScene extends Phaser.Scene {
       return this.runManager.clearPendingAmbushNode(nodeId);
     }
     return false;
+  }
+
+  showAmbushFlash(node, lifecycleGeneration = this._sceneLifecycleGeneration) {
+    if (!node) return;
+    if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+    if (!this.add || !this.time) {
+      void this.handleBattle(node, lifecycleGeneration);
+      return;
+    }
+
+    const cam = this.cameras?.main;
+    const cx = cam?.centerX ?? 320;
+    const cy = cam?.centerY ?? 240;
+    const backdrop = this.add.rectangle(cx, cy, 420, 86, 0x000000, 0.86)
+      .setDepth(OVERLAY_CONTENT_DEPTH + 120)
+      .setStrokeStyle(2, 0xaa3333)
+      .setAlpha(0);
+    const label = this.add.text(cx, cy, 'The village is under attack!', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ff6666',
+      backgroundColor: '#00000000',
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH + 121).setAlpha(0);
+
+    if (this.tweens?.add) {
+      this.tweens.add({ targets: [backdrop, label], alpha: 1, duration: 120 });
+    } else {
+      backdrop.setAlpha(1);
+      label.setAlpha(1);
+    }
+
+    const timer = trackSceneTimer(this, this.time.delayedCall(1500, () => {
+      clearTrackedSceneTimer(this, timer);
+      if (backdrop?.active) backdrop.destroy();
+      if (label?.active) label.destroy();
+      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+      void this.handleBattle(node, lifecycleGeneration);
+    }));
   }
 
   onPointerUp(pointer) {
@@ -1169,9 +1206,17 @@ export class NodeMapScene extends Phaser.Scene {
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
     } else if (node.type === NODE_TYPES.SHOP) {
+      if (node?.isAmbush === true && node?.ambushCleared !== true) {
+        this.battleLaunchInFlight = true;
+        this.isTransitioning = true;
+        this.isSceneReady = false;
+        if (this.input) this.input.enabled = false;
+        this.showAmbushFlash(node, this._sceneLifecycleGeneration);
+        return;
+      }
       const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
       this.handleShop(node, {
-        ambushDiscount: Boolean(node?.isAmbush),
+        ambushDiscount: Boolean(node?.isAmbush && (node?.ambushCleared === true || pendingAmbush)),
         pendingAmbush,
       });
     } else {
@@ -1594,8 +1639,10 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   handleShop(node, options = {}) {
-    const ambushDiscount = options?.ambushDiscount === true;
     const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
+    const ambushDiscount = options?.ambushDiscount === true
+      || pendingAmbush
+      || (node?.isAmbush === true && node?.ambushCleared === true);
     if (this.runManager.consumeSkipFirstShop()) {
       showMinorHint(this, 'Blessing effect: first shop skipped.');
       this.runManager.markNodeComplete(node.id);
@@ -1617,7 +1664,8 @@ export class NodeMapScene extends Phaser.Scene {
       { itemCountBonus: shopItemDelta }
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
-    if (ambushDiscount || pendingAmbush) {
+    if (ambushDiscount) {
+      shopItems = this.applyAmbushDiscount(shopItems);
       this.showShopOverlay(node, shopItems, { ambushDiscount, pendingAmbush });
       return;
     }
@@ -1635,6 +1683,14 @@ export class NodeMapScene extends Phaser.Scene {
     }));
   }
 
+  applyAmbushDiscount(items) {
+    if (!Array.isArray(items)) return [];
+    return items.map((entry) => ({
+      ...entry,
+      price: Math.max(1, Math.floor((entry?.price || 0) * AMBUSH_SHOP_DISCOUNT)),
+    }));
+  }
+
   showShopOverlay(node, shopItems, options = {}) {
     this.shopOverlay = [];
     this.shopContentGroup = [];
@@ -1643,6 +1699,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollMax = 0;
     this._shopViewingMap = false;
+    this._currentShopHasAmbushDiscount = options?.ambushDiscount === true || options?.pendingAmbush === true;
 
     // Tutorial hint for shop
     const hints = this.registry.get('hints');
@@ -1662,8 +1719,11 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay.push(panel);
 
     // Title
-    const title = this.add.text(320, 30, 'Village', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#ffdd44',
+    const titleLabel = this._currentShopHasAmbushDiscount
+      ? 'Village (Liberated - 20% Off)'
+      : 'Village';
+    const title = this.add.text(320, 30, titleLabel, {
+      fontFamily: 'monospace', fontSize: '22px', color: this._currentShopHasAmbushDiscount ? '#88ff88' : '#ffdd44',
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(title);
 
@@ -1792,7 +1852,8 @@ export class NodeMapScene extends Phaser.Scene {
       const y = startY + i * lineH - offset;
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
       const affordable = this.runManager.gold >= entry.price;
-      const color = affordable ? '#e0e0e0' : '#666666';
+      const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
+      const color = affordable ? affordableColor : '#666666';
       const marker = hasWeaponArt(entry?.item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
       const text = this.add.text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
         fontFamily: 'monospace', fontSize: '12px', color,
@@ -2271,17 +2332,23 @@ export class NodeMapScene extends Phaser.Scene {
 
     const btnStartY = cy - 50;
     const btnH = 32;
+    const blessingDiscountRaw = this.runManager?.getForgeCostDiscount?.() || 0;
+    const blessingDiscount = Math.max(0, Math.min(0.95, blessingDiscountRaw));
+    const ambushDiscount = this._currentShopHasAmbushDiscount
+      ? 1 - ((1 - blessingDiscount) * AMBUSH_SHOP_DISCOUNT)
+      : blessingDiscount;
+    const discount = Math.max(0, Math.min(0.95, ambushDiscount));
 
     for (let i = 0; i < stats.length; i++) {
       const stat = stats[i];
       const statCount = getStatForgeCount(weapon, stat.key);
       const atStatCap = statCount >= FORGE_STAT_CAP;
       const baseCost = getForgeCost(weapon, stat.key);
-      const discount = this.runManager?.getForgeCostDiscount?.() || 0;
       const cost = Math.max(1, Math.floor(baseCost * (1 - discount)));
       const affordable = cost > 0 && this.runManager.gold >= cost;
       const by = btnStartY + i * btnH;
-      const color = atStatCap ? '#666666' : (affordable ? '#e0e0e0' : '#666666');
+      const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
+      const color = atStatCap ? '#666666' : (affordable ? affordableColor : '#666666');
 
       const costLabel = atStatCap ? 'MAX' : `${cost}G`;
       const btn = this.add.text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
@@ -2425,7 +2492,10 @@ export class NodeMapScene extends Phaser.Scene {
             this.gameData.accessories, this.runManager.roster,
             this.runManager.getWeaponArtSpawnConfig()
           );
-          const priced = this.applyDifficultyShopPricing(generated);
+          let priced = this.applyDifficultyShopPricing(generated);
+          if (this._currentShopHasAmbushDiscount) {
+            priced = this.applyAmbushDiscount(priced);
+          }
           return Array.isArray(priced) ? priced : [];
         };
 
@@ -2646,6 +2716,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._shopViewingMap = false;
     this._shopOriginalSlotCount = 0;
     this._shopNode = null;
+    this._currentShopHasAmbushDiscount = false;
   }
 
   checkActComplete() {

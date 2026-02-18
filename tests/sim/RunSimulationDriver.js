@@ -9,7 +9,7 @@ import {
   addToInventory,
   addToConsumables,
 } from '../../src/engine/UnitManager.js';
-import { CHURCH_PROMOTE_COST, DEPLOY_LIMITS, NODE_TYPES } from '../../src/utils/constants.js';
+import { CHURCH_PROMOTE_COST, DEPLOY_LIMITS, NODE_TYPES, AMBUSH_SHOP_DISCOUNT } from '../../src/utils/constants.js';
 import { GameDriver } from '../harness/GameDriver.js';
 import { ScriptedAgent } from '../agents/ScriptedAgent.js';
 import {
@@ -100,7 +100,7 @@ export class RunSimulationDriver {
       if (node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) {
         nodeResult = await this._runBattleNode(node);
       } else if (node.type === NODE_TYPES.SHOP) {
-        nodeResult = this._runShopNode(node);
+        nodeResult = await this._runShopNode(node);
       } else if (node.type === NODE_TYPES.CHURCH) {
         nodeResult = this._runChurchNode(node);
       } else {
@@ -236,10 +236,20 @@ export class RunSimulationDriver {
     };
   }
 
-  _runShopNode(node) {
+  async _runShopNode(node) {
     this.metrics.shopNodes++;
 
+    if (node?.isAmbush === true && node?.ambushCleared !== true) {
+      const ambushResult = await this._runBattleNode(node);
+      if (ambushResult.result === 'defeat' || ambushResult.result === 'timeout') {
+        return ambushResult;
+      }
+    }
+
     if (this.runManager.consumeSkipFirstShop()) {
+      if (node?.isAmbush === true && typeof this.runManager?.clearAmbushPendingNode === 'function') {
+        this.runManager.clearAmbushPendingNode(node.id);
+      }
       this.runManager.markNodeComplete(node.id);
       return { result: 'shop_skipped', reason: 'skip_first_shop_blessing' };
     }
@@ -255,7 +265,7 @@ export class RunSimulationDriver {
       roster,
       null,
       { itemCountBonus: shopItemDelta }
-    ));
+    ), { ambushDiscount: node?.isAmbush === true });
 
     let purchases = 0;
     let spent = 0;
@@ -293,18 +303,24 @@ export class RunSimulationDriver {
     }
 
     this.metrics.shopGoldSpent += spent;
+    if (node?.isAmbush === true && typeof this.runManager?.clearAmbushPendingNode === 'function') {
+      this.runManager.clearAmbushPendingNode(node.id);
+    }
     this.runManager.markNodeComplete(node.id);
     return { result: 'shop_done', purchases, spent, offered: inventory.length };
   }
 
-  _applyShopPricing(items) {
+  _applyShopPricing(items, options = {}) {
     const diffMult = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
     const blessingDiscount = this.runManager?.getShopPriceDiscount?.() || 0;
     const multiplier = Math.max(0.1, diffMult * (1 - blessingDiscount));
+    const ambushDiscount = options?.ambushDiscount === true;
     if (!Array.isArray(items)) return [];
     return items.map((entry) => ({
       ...entry,
-      price: Math.max(1, Math.floor((entry?.price || 0) * multiplier)),
+      price: Math.max(1, Math.floor(
+        Math.floor((entry?.price || 0) * multiplier) * (ambushDiscount ? AMBUSH_SHOP_DISCOUNT : 1)
+      )),
     }));
   }
 

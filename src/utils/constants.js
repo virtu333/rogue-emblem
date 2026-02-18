@@ -148,6 +148,7 @@ export const CONVOY_WEAPON_CAPACITY = 20;
 export const CONVOY_CONSUMABLE_CAPACITY = 15;
 export const SHOP_REROLL_COST = 150;
 export const SHOP_REROLL_ESCALATION = 50;
+export const AMBUSH_SHOP_DISCOUNT = 0.80; // 20% off for liberated ambush villages
 export const LOOT_GOLD_TEAM_XP = { act1: 25, act2: 25, act3: 25, act4: 25, finalBoss: 25 };
 
 // Weapon forging

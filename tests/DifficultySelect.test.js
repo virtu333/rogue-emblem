@@ -5,10 +5,11 @@ import { loadGameData } from './testData.js';
 const gameData = loadGameData();
 
 describe('generateModifierSummary', () => {
-  it('returns empty array for Normal mode (no modifiers)', () => {
+  it('includes village ambush chance for Normal mode', () => {
     const normalMode = gameData.difficulty.modes.normal;
     const result = generateModifierSummary(normalMode);
-    expect(result).toEqual([]);
+    expect(result.some(l => l.includes('village ambush chance'))).toBe(true);
+    expect(result.some(l => l.includes('10%'))).toBe(true);
   });
 
   it('returns correct modifier lines for Hard mode', () => {
@@ -20,6 +21,7 @@ describe('generateModifierSummary', () => {
     expect(result.some(l => l.includes('+25% meta currency'))).toBe(true);
     expect(result.some(l => l.includes('Shop prices +15%'))).toBe(true);
     expect(result.some(l => l.includes('90% XP earned'))).toBe(true);
+    expect(result.some(l => l.includes('20% village ambush chance'))).toBe(true);
   });
 
   it('includes extended leveling for Lunatic mode', () => {
@@ -28,6 +30,7 @@ describe('generateModifierSummary', () => {
     expect(result.some(l => l.includes('Extended enemy leveling'))).toBe(true);
     expect(result.some(l => l.includes('Enemy stats +2'))).toBe(true);
     expect(result.some(l => l.includes('weapon tier'))).toBe(true);
+    expect(result.some(l => l.includes('25% village ambush chance'))).toBe(true);
   });
 
   it('returns empty array for null/undefined input', () => {

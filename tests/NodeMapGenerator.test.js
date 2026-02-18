@@ -559,6 +559,42 @@ describe('Shop node frequency (25%)', () => {
   });
 });
 
+describe('Village ambush post-pass', () => {
+  it('marks shop nodes as ambushes when villageAmbushChance is 1', () => {
+    let sawShop = false;
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, { villageAmbushChance: 1 });
+      const shops = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP);
+      if (shops.length <= 0) continue;
+      sawShop = true;
+      for (const node of shops) {
+        expect(node.isAmbush).toBe(true);
+        expect(node.ambushCleared).toBe(false);
+        expect(node.battleParams?.objective).toBe('rout');
+        expect(node.battleParams?.isAmbush).toBe(true);
+        expect(Number.isInteger(node.battleParams?.battleSeed)).toBe(true);
+      }
+    }
+    expect(sawShop).toBe(true);
+  });
+
+  it('leaves shop nodes non-ambush when villageAmbushChance is 0', () => {
+    let sawShop = false;
+    for (let i = 0; i < 30; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2, gameData.mapTemplates, { villageAmbushChance: 0 });
+      const shops = map.nodes.filter((node) => node.type === NODE_TYPES.SHOP);
+      if (shops.length <= 0) continue;
+      sawShop = true;
+      for (const node of shops) {
+        expect(node.isAmbush).toBeUndefined();
+        expect(node.ambushCleared).toBeUndefined();
+        expect(node.battleParams).toBeNull();
+      }
+    }
+    expect(sawShop).toBe(true);
+  });
+});
+
 describe('Template-driven fog', () => {
   const mapTemplates = gameData.mapTemplates;
 

@@ -17,6 +17,7 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'deployLimitBonus',
   'xpMultiplier',
   'fogChanceBonus',
+  'villageAmbushChance',
   'reinforcementTurnOffset',
   'currencyMultiplier',
   'actsIncluded',
@@ -38,6 +39,7 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   deployLimitBonus: 0,
   xpMultiplier: 1,
   fogChanceBonus: 0,
+  villageAmbushChance: 0,
   reinforcementTurnOffset: 0,
   currencyMultiplier: 1,
   actsIncluded: ['act1', 'act2', 'act3', 'finalBoss'],
@@ -71,6 +73,9 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.fogChanceBonus > (defaults.fogChanceBonus || 0)) {
     lines.push(`+${Math.round(mode.fogChanceBonus * 100)}% fog chance`);
+  }
+  if (mode.villageAmbushChance > (defaults.villageAmbushChance || 0)) {
+    lines.push(`${Math.round(mode.villageAmbushChance * 100)}% village ambush chance`);
   }
   if (mode.currencyMultiplier > (defaults.currencyMultiplier ?? 1)) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);

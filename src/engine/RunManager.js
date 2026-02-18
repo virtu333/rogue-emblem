@@ -301,6 +301,7 @@ export class RunManager {
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
       halfFogChance: this.difficultyId === 'normal',
+      villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
     });
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
@@ -2203,6 +2204,7 @@ export class RunManager {
     this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
       fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
       halfFogChance: this.difficultyId === 'normal',
+      villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
     });
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     this.currentNodeId = null;
