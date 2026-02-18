@@ -264,6 +264,10 @@ describe('BossRecruitSystem', () => {
   });
 
   describe('lord slot', () => {
+    it('uses tuned boss-recruit base lord chance', () => {
+      expect(BOSS_RECRUIT_LORD_CHANCE).toBe(0.25);
+    });
+
     it('act1 lord slot keeps lord candidates base-tier', () => {
       const promotableLord = getPromotableRecruitLord(gameData);
       expect(promotableLord).toBeTruthy();
@@ -334,7 +338,7 @@ describe('BossRecruitSystem', () => {
     });
 
     it('includes a lord when RNG is below threshold', () => {
-      // Math.random called: first for lord chance (0.05 < 0.35), then for lord pick, then for shuffles
+      // Math.random called: first for lord chance (0.05 < 0.25), then for lord pick, then for shuffles
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
@@ -378,11 +382,11 @@ describe('BossRecruitSystem', () => {
     });
 
     it('lordRecruitChanceBonus increases effective lord chance', () => {
-      // Math.random returns 0.40 — above 0.35 base, below 0.35+0.16=0.51
+      // Math.random returns 0.40 — above 0.25 base, below 0.25+0.16=0.41
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return 0.40;  // lord chance check — would fail at base 0.35
+        if (callCount === 1) return 0.40;  // lord chance check — would fail at base 0.25
         return 0.5;
       });
       const metaEffects = { lordRecruitChanceBonus: 0.16 };
@@ -391,7 +395,7 @@ describe('BossRecruitSystem', () => {
     });
 
     it('no lord bonus when lordRecruitChanceBonus is absent', () => {
-      // Same random value 0.40 — should NOT trigger lord at base 0.35
+      // Same random value 0.40 — should NOT trigger lord at base 0.25
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
@@ -595,3 +599,4 @@ describe('BossRecruitSystem', () => {
     });
   });
 });
+

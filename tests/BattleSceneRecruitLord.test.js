@@ -30,6 +30,7 @@ vi.mock('../src/engine/AIController.js', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { RECRUIT_NODE_LORD_CHANCE } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 function makeDisplayObject() {
@@ -150,8 +151,12 @@ function makeBattleSceneWithLords({
 }
 
 describe('BattleScene recruit-node lord meta bonus', () => {
+  it('uses tuned recruit-node base lord chance', () => {
+    expect(RECRUIT_NODE_LORD_CHANCE).toBe(0.15);
+  });
+
   it('lordRecruitChanceBonus increases recruit-node lord chance', () => {
-    // 0.30 is above base 0.25 but below 0.25+0.16=0.41
+    // 0.30 is above base 0.15 but below 0.15+0.16=0.31
     let callCount = 0;
     const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
       callCount++;
@@ -171,7 +176,7 @@ describe('BattleScene recruit-node lord meta bonus', () => {
   });
 
   it('does not spawn lord at same random value without bonus', () => {
-    // Same 0.30 value — should NOT trigger at base 0.25
+    // Same 0.30 value — should NOT trigger at base 0.15
     let callCount = 0;
     const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
       callCount++;
@@ -208,3 +213,4 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     }
   });
 });
+
