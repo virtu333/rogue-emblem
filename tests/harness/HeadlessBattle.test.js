@@ -645,6 +645,7 @@ describe('HeadlessBattle', () => {
       className: 'Fighter',
       level: 3,
       sunderWeapon: false,
+      poisonWeapon: false,
       aiMode: 'rush',
       affixes: ['template_affix'],
     }];
@@ -664,6 +665,7 @@ describe('HeadlessBattle', () => {
       col: 1,
       row: 1,
       sunderWeapon: true,
+      poisonWeapon: false,
       aiMode: 'guard',
       affixes: ['scripted_affix'],
     });

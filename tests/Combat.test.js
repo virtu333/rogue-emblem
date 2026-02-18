@@ -531,6 +531,38 @@ describe('Combat resolution', () => {
     }
   });
 
+  it('applies poison when attacking with Venin Bow', () => {
+    const veninBow = data.weapons.find((weapon) => weapon.name === 'Venin Bow');
+    if (!veninBow) return;
+
+    const attacker = makeUnit({
+      stats: { HP: 40, STR: 9, MAG: 0, SKL: 12, SPD: 12, DEF: 18, RES: 8, LCK: 5 },
+      currentHP: 40,
+      weapon: veninBow,
+      inventory: [veninBow],
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+    });
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { HP: 40, STR: 6, MAG: 0, SKL: 8, SPD: 8, DEF: 18, RES: 8, LCK: 5 },
+      currentHP: 40,
+      weapon: data.weapons.find((weapon) => weapon.name === 'Iron Bow'),
+      inventory: [data.weapons.find((weapon) => weapon.name === 'Iron Bow')],
+      proficiencies: [{ type: 'Bow', rank: 'Prof' }],
+    });
+
+    const terrain = data.terrain.find((tile) => tile.name === 'Plain');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain);
+      expect(result.poisonEffects).toBeDefined();
+      expect(result.poisonEffects.some((effect) => effect.target === 'defender' && effect.damage === 5)).toBe(true);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it('poisonEffects is empty array when no poison weapons used', () => {
     const attacker = makeUnit({ stats: { ...makeUnit().stats, STR: 5, SPD: 10, DEF: 20 }, currentHP: 50 });
     const defender = makeUnit({

@@ -746,6 +746,12 @@ function weightedClassPick(classList, enemyWeights, classData) {
 
 // --- Enemy generation ---
 
+function deriveSecondaryRoll(primaryRoll) {
+  const seed = Math.trunc(primaryRoll * 0x100000000) >>> 0;
+  const mixed = (Math.imul(seed ^ 0x9e3779b9, 1664525) + 1013904223) >>> 0;
+  return mixed / 0x100000000;
+}
+
 function generateEnemies(
   mapLayout,
   template,
@@ -896,11 +902,19 @@ function generateEnemies(
     const cd = classes?.find(c => c.name === className);
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
-    const sunderWeapon = canHaveSunder && pool.sunderChance && Math.random() < pool.sunderChance;
+    const sunderChance = Number(pool.sunderChance || 0);
+    const sunderRoll = canHaveSunder && sunderChance > 0 ? Math.random() : null;
+    const sunderWeapon = sunderRoll !== null && sunderRoll < sunderChance;
     const canHavePoison = !sunderWeapon && primaryProf && POISON_ELIGIBLE_PROFS.has(primaryProf);
     const rawPoisonChance = Number(pool.poisonChance || 0) + Number(extraOptions.enemyPoisonChance || 0);
     const poisonChance = Math.max(0, Math.min(1, rawPoisonChance));
-    const poisonWeapon = canHavePoison && poisonChance > 0 && Math.random() < poisonChance;
+    let poisonWeapon = false;
+    if (canHavePoison && poisonChance > 0) {
+      // Derive poison roll from the sunder roll when available to avoid adding
+      // extra RNG draws that would perturb existing seeded map-generation paths.
+      const poisonRoll = sunderRoll !== null ? deriveSecondaryRoll(sunderRoll) : Math.random();
+      poisonWeapon = poisonRoll < poisonChance;
+    }
 
     if (DEBUG_MAP_GEN) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;

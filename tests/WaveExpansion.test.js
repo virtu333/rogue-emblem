@@ -690,6 +690,13 @@ describe('Renamed weapons', () => {
     expect(w.might).toBe(8);
   });
 
+  it('Venin Bow exists with poison special', () => {
+    const w = data.weapons.find(w => w.name === 'Venin Bow');
+    expect(w).toBeTruthy();
+    expect(w.type).toBe('Bow');
+    expect(w.special).toBe('Poison: target loses 5 HP after combat');
+  });
+
   it('old names do not exist', () => {
     expect(data.weapons.find(w => w.name === 'Ragnell')).toBeFalsy();
     expect(data.weapons.find(w => w.name === 'Runesword')).toBeFalsy();

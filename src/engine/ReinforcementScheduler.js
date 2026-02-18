@@ -356,6 +356,7 @@ export function scheduleReinforcementsForTurn({
       if (typeof rawSpawn.className === 'string') scriptedSpawn.className = rawSpawn.className;
       if (Number.isFinite(rawSpawn.level)) scriptedSpawn.level = normalizeInteger(rawSpawn.level, 1);
       if (typeof rawSpawn.sunderWeapon === 'boolean') scriptedSpawn.sunderWeapon = rawSpawn.sunderWeapon;
+      if (typeof rawSpawn.poisonWeapon === 'boolean') scriptedSpawn.poisonWeapon = rawSpawn.poisonWeapon;
       if (typeof rawSpawn.aiMode === 'string') scriptedSpawn.aiMode = rawSpawn.aiMode;
       if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
       spawns.push(scriptedSpawn);

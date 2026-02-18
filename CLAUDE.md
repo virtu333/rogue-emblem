@@ -55,7 +55,7 @@ emblem-rogue/
 │   ├── terrain.json       # 12 terrain types with move costs and bonuses (includes Ice, Lava Crack) ✅
 │   ├── turnBonus.json     # Turn par calculation config: weights, brackets, per-act bonus gold ✅
 │   ├── weaponArts.json    # 39 weapon arts across 5 types, HP-cost combat mods ✅
-│   ├── weapons.json       # 88 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 8, Tome 5, Light 4, Staff 5, Scroll 23) ✅
+│   ├── weapons.json       # 89 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 9, Tome 5, Light 4, Staff 5, Scroll 23) ✅
 │   └── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight ✅
 ├── .env.example           # Template for Supabase env vars
 ├── src/
@@ -195,7 +195,7 @@ emblem-rogue/
 Each lord has: `name`, `class`, `baseStats`, `personalGrowths` (fixed, added to class growths), `promotedClass`, `promotionBonuses`, `promotionWeapons`, `personalSkill`.
 
 ### weapons.json
-88 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 8, Tome 5, Light 4, Staff 5, Scroll 23). Each weapon has: `name`, `type`, `tier` (Iron/Steel/Silver/Legend/Rare), `rankRequired` (Prof/Mast), `might`, `hit`, `crit`, `weight`, `range`, `special`, `price`. Scroll items also have `skillId` (the skill they teach when used). Scrolls cannot be equipped as weapons — they're consumable items used from the equip menu. Prices: Iron=500, Steel=1000, Silver=2000, Legend=0 (not for sale), Scrolls=2500, range 1-2 +200, special effect +300, Staves 300/600/1000/1200/0.
+89 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 9, Tome 5, Light 4, Staff 5, Scroll 23). Each weapon has: `name`, `type`, `tier` (Iron/Steel/Silver/Legend/Rare), `rankRequired` (Prof/Mast), `might`, `hit`, `crit`, `weight`, `range`, `special`, `price`. Scroll items also have `skillId` (the skill they teach when used). Scrolls cannot be equipped as weapons — they're consumable items used from the equip menu. Prices: Iron=500, Steel=1000, Silver=2000, Legend=0 (not for sale), Scrolls=2500, range 1-2 +200, special effect +300, Staves 300/600/1000/1200/0.
 
 **Weapon categories:**
 - **Throwable (range 1-2):** Hand Axe, Javelin, Short Spear, Tomahawk, Spear — lower stats than pure melee
@@ -290,7 +290,7 @@ Follow this order — each phase should be testable:
 6. **Node Map** ✅ — branching node map per act, battle/rest/boss nodes, unit persistence between battles, act progression (act1→act2→act3→finalBoss), RunManager run state, victory/defeat end screen
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
 8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 54 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→DifficultySelect→BlessingSelect→NodeMap), Save & Exit, localStorage persistence
-9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (17 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (88 total, throwables, effectiveness, specials) ✅ | Expanded skills (35 total, 7 trigger types) ✅ | Lord classes + Wyvern classes in classes.json (32 total) ✅ | **3 save slots + user flow rework** ✅ | Enemy affixes (12) ✅ | Weapon arts (39) ✅ | Blessings (18) ✅ | Difficulty modes (Normal/Hard/Lunatic) ✅ | Terrain hazards (Ice/Lava Crack) ✅ | Convoy ✅ | Wyvern classes ✅ | Reinforcements ✅ | Boss recruit events ✅ | Tutorial hints ✅ | Scene Router/Guard ✅ | Dialogue scaffold ✅
+9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (17 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (89 total, throwables, effectiveness, specials) ✅ | Expanded skills (35 total, 7 trigger types) ✅ | Lord classes + Wyvern classes in classes.json (32 total) ✅ | **3 save slots + user flow rework** ✅ | Enemy affixes (12) ✅ | Weapon arts (39) ✅ | Blessings (18) ✅ | Difficulty modes (Normal/Hard/Lunatic) ✅ | Terrain hazards (Ice/Lava Crack) ✅ | Convoy ✅ | Wyvern classes ✅ | Reinforcements ✅ | Boss recruit events ✅ | Tutorial hints ✅ | Scene Router/Guard ✅ | Dialogue scaffold ✅
 10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Cloud sync is callback-driven via `onSave` with hardening against write races/older-meta overwrite. Offline play supported.
 
 ## Art Style Guidelines

@@ -1160,6 +1160,12 @@ function countTerrainWhere(config, predicate) {
   return count;
 }
 
+function isPoisonEligibleClass(className) {
+  const classData = data.classes.find((candidate) => candidate.name === className);
+  const primaryProf = classData?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
+  return primaryProf === 'Swords' || primaryProf === 'Bows';
+}
+
 describe('enemy sunder weapon assignment', () => {
   it('act1 enemies never get sunderWeapon (sunderChance=0)', () => {
     for (let i = 0; i < 50; i++) {
@@ -1189,6 +1195,85 @@ describe('enemy sunder weapon assignment', () => {
         expect(boss.sunderWeapon).toBeFalsy();
       }
     }
+  });
+});
+
+describe('enemy poison weapon assignment', () => {
+  it('act1 normal enemies never get poisonWeapon', () => {
+    for (let i = 0; i < 50; i++) {
+      const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
+      const withPoison = config.enemySpawns.filter((spawn) => spawn.poisonWeapon);
+      expect(withPoison.length).toBe(0);
+    }
+  });
+
+  it('act3 enemies can get poisonWeapon flag', () => {
+    let foundPoison = false;
+    for (let i = 0; i < 120; i++) {
+      const config = generateBattle({ act: 'act3', objective: 'rout' }, data);
+      if (config.enemySpawns.some((spawn) => spawn.poisonWeapon)) {
+        foundPoison = true;
+        break;
+      }
+    }
+    expect(foundPoison).toBe(true);
+  });
+
+  it('boss spawns do not get poisonWeapon', () => {
+    for (let i = 0; i < 50; i++) {
+      const config = generateBattle({ act: 'act3', objective: 'seize' }, data);
+      const bosses = config.enemySpawns.filter((spawn) => spawn.isBoss);
+      for (const boss of bosses) {
+        expect(boss.poisonWeapon).toBeFalsy();
+      }
+    }
+  });
+
+  it('never assigns both sunderWeapon and poisonWeapon to the same spawn', () => {
+    for (let i = 0; i < 120; i++) {
+      const config = generateBattle({
+        act: 'act3',
+        objective: 'rout',
+        enemyPoisonChance: 1,
+      }, data);
+      for (const spawn of config.enemySpawns) {
+        expect(Boolean(spawn.sunderWeapon && spawn.poisonWeapon)).toBe(false);
+      }
+    }
+  });
+
+  it('enemyPoisonChance additive enables poison rolls on early acts', () => {
+    let foundPoison = false;
+    for (let i = 0; i < 120; i++) {
+      const config = generateBattle({
+        act: 'act1',
+        objective: 'rout',
+        enemyPoisonChance: 0.2,
+      }, data);
+      if (config.enemySpawns.some((spawn) => spawn.poisonWeapon)) {
+        foundPoison = true;
+        break;
+      }
+    }
+    expect(foundPoison).toBe(true);
+  });
+
+  it('clamps combined poison chance to [0,1]', () => {
+    let checkedEligible = false;
+    for (let seed = 1; seed <= 30; seed++) {
+      const config = withSeed(seed, () => generateBattle({
+        act: 'act1',
+        objective: 'rout',
+        enemyPoisonChance: 99,
+      }, data));
+      const eligible = config.enemySpawns.filter((spawn) => isPoisonEligibleClass(spawn.className));
+      if (eligible.length === 0) continue;
+      checkedEligible = true;
+      for (const spawn of eligible) {
+        expect(Boolean(spawn.poisonWeapon)).toBe(true);
+      }
+    }
+    expect(checkedEligible).toBe(true);
   });
 });
 

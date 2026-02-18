@@ -123,7 +123,7 @@ function validateScriptedWaveSpawn(path, spawn, errors) {
     return;
   }
 
-  const knownKeys = new Set(['col', 'row', 'className', 'level', 'sunderWeapon', 'aiMode', 'affixes']);
+  const knownKeys = new Set(['col', 'row', 'className', 'level', 'sunderWeapon', 'poisonWeapon', 'aiMode', 'affixes']);
   if (!hasOnlyKnownKeys(spawn, knownKeys)) {
     errors.push(`${path} contains unknown keys`);
   }
@@ -143,6 +143,9 @@ function validateScriptedWaveSpawn(path, spawn, errors) {
   }
   if (spawn.sunderWeapon !== undefined && typeof spawn.sunderWeapon !== 'boolean') {
     errors.push(`${path}.sunderWeapon must be boolean when provided`);
+  }
+  if (spawn.poisonWeapon !== undefined && typeof spawn.poisonWeapon !== 'boolean') {
+    errors.push(`${path}.poisonWeapon must be boolean when provided`);
   }
   if (spawn.aiMode !== undefined && (typeof spawn.aiMode !== 'string' || spawn.aiMode.trim() === '')) {
     errors.push(`${path}.aiMode must be a non-empty string when provided`);

@@ -323,7 +323,7 @@ describe('ReinforcementScheduler', () => {
             turn: 2,
             xpMultiplier: 0.4,
             spawns: [
-              { col: 0, row: 0, className: 'Fighter', level: 9 },
+              { col: 0, row: 0, className: 'Fighter', level: 9, poisonWeapon: true },
               { col: 1, row: 0, className: 'Archer', level: 8, aiMode: 'guard', affixes: ['test_affix'] },
               { col: 2, row: 0, className: 'Knight', level: 10 },
             ],
@@ -350,6 +350,7 @@ describe('ReinforcementScheduler', () => {
           waveType: 'scripted',
           className: 'Fighter',
           level: 9,
+          poisonWeapon: true,
           xpMultiplier: 0.4,
         }),
       ]);

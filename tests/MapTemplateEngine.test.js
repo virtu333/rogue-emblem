@@ -156,6 +156,33 @@ describe('MapTemplateEngine', () => {
     expect(result.errors.some((error) => error.includes('scriptedWaves[0].spawns[0].col must be a non-negative integer'))).toBe(true);
   });
 
+  it('accepts scripted reinforcement poisonWeapon boolean metadata', () => {
+    const ok = JSON.parse(JSON.stringify(mapTemplates));
+    const template = ok.rout.find((entry) => entry.id === 'frozen_pass');
+    template.reinforcements.scriptedWaves = [
+      {
+        turn: 3,
+        spawns: [{ col: 0, row: 0, poisonWeapon: true }],
+      },
+    ];
+    const result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects scripted reinforcement poisonWeapon metadata with non-boolean type', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.rout.find((entry) => entry.id === 'frozen_pass');
+    template.reinforcements.scriptedWaves = [
+      {
+        turn: 3,
+        spawns: [{ col: 0, row: 0, poisonWeapon: 'yes' }],
+      },
+    ];
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('scriptedWaves[0].spawns[0].poisonWeapon must be boolean when provided'))).toBe(true);
+  });
+
   it('rejects zones missing rect coordinates', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     bad.rout[0].zones[0] = { terrain: { Plain: 100 } };
