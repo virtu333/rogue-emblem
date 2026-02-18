@@ -68,6 +68,11 @@ const SHOP_LIST_TOP_Y = 105;
 const SHOP_LIST_BOTTOM_Y = 390;
 const SHOP_SCROLL_STEP = 24;
 const UNIT_PICKER_SCROLL_STEP = 30;
+const CHURCH_ITEM_HEIGHT = 30;
+const CHURCH_LIST_TOP_Y = 160;                              // Below heal button + status message area
+const CHURCH_VIEW_MAP_Y = SAFE_BOTTOM_Y - 36;               // View Map button Y (matches showChurchOverlay)
+const CHURCH_LIST_BOTTOM_Y = CHURCH_VIEW_MAP_Y - 20;        // 20px gap above View Map button to prevent overlap
+const CHURCH_SCROLL_STEP = CHURCH_ITEM_HEIGHT;               // Row-height-aligned for deterministic scrolling
 
 function getWeaponArtCatalogForScene(scene) {
   if (scene && typeof scene._getWeaponArtCatalog === 'function') {
@@ -455,6 +460,17 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
 
+    if (this.churchOverlay && !this._churchViewingMap) {
+      if ((this.churchScrollMax || 0) <= 0) return;
+      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
+      this._touchScrollDrag = {
+        type: 'church',
+        startY: pointer.y,
+        startOffset: this.churchScrollOffset || 0,
+      };
+      return;
+    }
+
     if (!this.shopOverlay || this._shopViewingMap || !this.activeShopTab) return;
     if (this.forgePicker || this.unitPicker) return;
     if ((this.shopScrollMax || 0) <= 0) return;
@@ -485,6 +501,18 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
 
+    if (drag.type === 'church') {
+      if (!this.churchOverlay || this._churchViewingMap) return;
+      const max = this.churchScrollMax || 0;
+      if (max <= 0) return;
+      const deltaY = pointer.y - drag.startY;
+      const next = Phaser.Math.Clamp(drag.startOffset - deltaY, 0, max);
+      if (next === this.churchScrollOffset) return;
+      this.churchScrollOffset = next;
+      this.drawChurchScrollContent();
+      return;
+    }
+
     if (drag.type === 'shop') {
       if (!this.shopOverlay || this._shopViewingMap || this.forgePicker || this.unitPicker) return;
       if (!this.activeShopTab || drag.tab !== this.activeShopTab) return;
@@ -510,6 +538,19 @@ export class NodeMapScene extends Phaser.Scene {
       if (next === current) return;
       this.unitPickerState.offset = next;
       this.renderUnitPicker();
+      return;
+    }
+
+    if (this.churchOverlay && !this._churchViewingMap) {
+      if (!pointer) return;
+      if ((this.churchScrollMax || 0) <= 0) return;
+      if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
+      const step = Math.sign(deltaY || 0) * CHURCH_SCROLL_STEP;
+      if (!step) return;
+      const next = Phaser.Math.Clamp((this.churchScrollOffset || 0) + step, 0, this.churchScrollMax);
+      if (next === this.churchScrollOffset) return;
+      this.churchScrollOffset = next;
+      this.drawChurchScrollContent();
       return;
     }
 
@@ -588,6 +629,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   _setChurchOverlayVisibility(visible) {
     this._setOverlayVisibility(this.churchOverlay, visible);
+    this._setOverlayVisibility(this.churchContentGroup, visible);
   }
 
   _enterShopMapView() {
@@ -601,6 +643,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   _enterChurchMapView() {
     if (!this.churchOverlay || this._churchViewingMap) return;
+    this._touchScrollDrag = null;
     this._setChurchOverlayVisibility(false);
     this._churchViewingMap = true;
   }
@@ -1172,8 +1215,12 @@ export class NodeMapScene extends Phaser.Scene {
 
   showChurchOverlay(node) {
     this.churchOverlay = [];
+    this.churchContentGroup = [];
     this._churchNode = node;
     this._churchViewingMap = false;
+    this.churchScrollOffset = 0;
+    this.churchScrollMax = 0;
+    this._churchScrollItems = null;
 
     // Tutorial hint for church
     const hints = this.registry.get('hints');
@@ -1204,20 +1251,10 @@ export class NodeMapScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(this.churchGoldText);
 
-    const viewMapBtn = this.add.text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
-      backgroundColor: '#223344', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
-    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
-    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
-    viewMapBtn.on('pointerdown', () => this._enterChurchMapView());
-    this.churchOverlay.push(viewMapBtn);
-
     const rm = this.runManager;
-    let yOffset = 110;
 
-    // Service 1: Heal All (Free)
-    const healBtn = this.add.text(320, yOffset, '[ Heal All Units ] (Free)', {
+    // Service 1: Heal All (Free) — fixed, not scrollable
+    const healBtn = this.add.text(320, 110, '[ Heal All Units ] (Free)', {
       fontFamily: 'monospace', fontSize: '16px', color: '#44ff44',
       backgroundColor: '#222222', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
@@ -1232,18 +1269,97 @@ export class NodeMapScene extends Phaser.Scene {
       this.showChurchMessage('All units healed!', '#44ff44');
     });
     this.churchOverlay.push(healBtn);
-    yOffset += 50;
+
+    // View Map button — fixed
+    const viewMapBtn = this.add.text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
+      backgroundColor: '#223344', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
+    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
+    viewMapBtn.on('pointerdown', () => this._enterChurchMapView());
+    this.churchOverlay.push(viewMapBtn);
+
+    // Leave button — fixed
+    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
+      backgroundColor: '#333333', padding: { x: 16, y: 8 },
+    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
+    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
+    leaveBtn.on('pointerdown', () => {
+      this.leaveChurchNode();
+    });
+    this.churchOverlay.push(leaveBtn);
+
+    // Build scrollable item descriptors
+    const items = [];
+    let localY = 0;
 
     // Service 2: Revive Fallen Unit (1000g)
     if (rm.fallenUnits.length > 0) {
-      const reviveLabel = this.add.text(320, yOffset, 'Revive Fallen Unit (1000G):', {
-        fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
-      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
-      this.churchOverlay.push(reviveLabel);
-      yOffset += 25;
-
+      items.push({ type: 'label', text: 'Revive Fallen Unit (1000G):', color: '#cccccc', y: localY });
+      localY += 25;
       for (const fallen of rm.fallenUnits) {
-        const unitBtn = this.add.text(320, yOffset, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
+        items.push({ type: 'revive', unit: fallen, y: localY });
+        localY += CHURCH_ITEM_HEIGHT;
+      }
+      localY += 10;
+    }
+
+    // Service 3: Promote Unit
+    items.push({ type: 'label', text: `Promote Unit (${CHURCH_PROMOTE_COST}G):`, color: '#cccccc', y: localY });
+    localY += 25;
+
+    const eligibleUnits = rm.roster.filter(u => canPromote(u));
+    if (eligibleUnits.length === 0) {
+      items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
+      localY += CHURCH_ITEM_HEIGHT;
+    } else {
+      for (const unit of eligibleUnits) {
+        items.push({ type: 'promote', unit, y: localY });
+        localY += CHURCH_ITEM_HEIGHT;
+      }
+    }
+
+    this._churchScrollItems = items;
+    const availableHeight = CHURCH_LIST_BOTTOM_Y - CHURCH_LIST_TOP_Y;
+    this.churchScrollMax = Math.max(0, localY - availableHeight);
+    this.churchScrollOffset = 0;
+
+    this.drawChurchScrollContent();
+  }
+
+  drawChurchScrollContent() {
+    // Destroy previous scroll content
+    if (this.churchContentGroup) this.churchContentGroup.forEach(o => o.destroy());
+    this.churchContentGroup = [];
+
+    const items = this._churchScrollItems;
+    if (!items) return;
+
+    const offset = this.churchScrollOffset || 0;
+    const rm = this.runManager;
+    const node = this._churchNode;
+
+    for (const item of items) {
+      const y = CHURCH_LIST_TOP_Y + item.y - offset;
+      // Keep row/button bounds out of fixed controls; use half-row guard at bottom.
+      if (y < CHURCH_LIST_TOP_Y - CHURCH_ITEM_HEIGHT || y > CHURCH_LIST_BOTTOM_Y - (CHURCH_ITEM_HEIGHT / 2)) continue;
+
+      if (item.type === 'label') {
+        const label = this.add.text(320, y, item.text, {
+          fontFamily: 'monospace', fontSize: '14px', color: item.color,
+        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+        this.churchContentGroup.push(label);
+      } else if (item.type === 'none') {
+        const noneText = this.add.text(320, y, item.text, {
+          fontFamily: 'monospace', fontSize: '12px', color: '#888888',
+        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+        this.churchContentGroup.push(noneText);
+      } else if (item.type === 'revive') {
+        const fallen = item.unit;
+        const unitBtn = this.add.text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
           fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
           backgroundColor: '#222222', padding: { x: 10, y: 4 },
         }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
@@ -1268,28 +1384,10 @@ export class NodeMapScene extends Phaser.Scene {
             this.showChurchMessage('Not enough gold or roster full!', '#ff4444');
           }
         });
-        this.churchOverlay.push(unitBtn);
-        yOffset += 30;
-      }
-      yOffset += 10;
-    }
-
-    // Service 3: Promote Unit
-    const promoteLabel = this.add.text(320, yOffset, `Promote Unit (${CHURCH_PROMOTE_COST}G):`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
-    this.churchOverlay.push(promoteLabel);
-    yOffset += 25;
-
-    const eligibleUnits = rm.roster.filter(u => canPromote(u));
-    if (eligibleUnits.length === 0) {
-      const noneText = this.add.text(320, yOffset, '(No units eligible for promotion)', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
-      this.churchOverlay.push(noneText);
-    } else {
-      for (const unit of eligibleUnits) {
-        const unitBtn = this.add.text(320, yOffset, `${unit.name} (Lv${unit.level} ${unit.className})`, {
+        this.churchContentGroup.push(unitBtn);
+      } else if (item.type === 'promote') {
+        const unit = item.unit;
+        const unitBtn = this.add.text(320, y, `${unit.name} (Lv${unit.level} ${unit.className})`, {
           fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
           backgroundColor: '#222222', padding: { x: 10, y: 4 },
         }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
@@ -1336,22 +1434,21 @@ export class NodeMapScene extends Phaser.Scene {
             this.showChurchMessage('Not enough gold!', '#ff4444');
           }
         });
-        this.churchOverlay.push(unitBtn);
-        yOffset += 30;
+        this.churchContentGroup.push(unitBtn);
       }
     }
 
-    // Leave button
-    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
-    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
-    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
-    leaveBtn.on('pointerdown', () => {
-      this.leaveChurchNode();
-    });
-    this.churchOverlay.push(leaveBtn);
+    // Scroll hint when content overflows
+    if ((this.churchScrollMax || 0) > 0) {
+      const percent = this.churchScrollMax > 0
+        ? Math.round((offset / this.churchScrollMax) * 100)
+        : 0;
+      const hint = this.add.text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
+        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+        backgroundColor: '#222222', padding: { x: 4, y: 2 },
+      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      this.churchContentGroup.push(hint);
+    }
   }
 
   leaveChurchNode() {
@@ -1415,6 +1512,10 @@ export class NodeMapScene extends Phaser.Scene {
       this.churchOverlay.forEach(o => o.destroy());
       this.churchOverlay = null;
     }
+    if (this.churchContentGroup) {
+      this.churchContentGroup.forEach(o => o.destroy());
+      this.churchContentGroup = null;
+    }
     if (this.churchMessage) {
       this.churchMessage.destroy();
       this.churchMessage = null;
@@ -1422,6 +1523,10 @@ export class NodeMapScene extends Phaser.Scene {
     this.churchGoldText = null;
     this._churchNode = null;
     this._churchViewingMap = false;
+    this.churchScrollOffset = 0;
+    this.churchScrollMax = 0;
+    this._churchScrollItems = null;
+    this._touchScrollDrag = null;
   }
 
   handleShop(node) {

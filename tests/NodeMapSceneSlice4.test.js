@@ -453,10 +453,17 @@ describe('NodeMapScene Slice 4', () => {
       _shopOriginalSlotCount: 5,
       _shopNode: { id: 's1' },
       churchOverlay: [makeDisplayObject()],
+      churchContentGroup: [makeDisplayObject()],
       churchMessage: null,
       churchGoldText: makeDisplayObject(),
       _churchNode: { id: 'c1' },
       _churchViewingMap: true,
+      _sceneTimers: new Set(),
+      _churchMessageTimer: null,
+      _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
+      churchScrollOffset: 50,
+      churchScrollMax: 100,
+      _churchScrollItems: [{ type: 'label', text: 'test', y: 0 }],
     };
 
     NodeMapScene.prototype.closeShopOverlay.call(scene);
@@ -465,5 +472,168 @@ describe('NodeMapScene Slice 4', () => {
 
     NodeMapScene.prototype.closeChurchOverlay.call(scene);
     expect(scene._churchViewingMap).toBe(false);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.churchScrollMax).toBe(0);
+    expect(scene._churchScrollItems).toBeNull();
+    expect(scene._touchScrollDrag).toBeNull();
+  });
+
+  it('church map-view hide/show includes scroll group', () => {
+    const churchObj = makeDisplayObject().setInteractive({ useHandCursor: true });
+    const scrollObj = makeDisplayObject().setInteractive({ useHandCursor: true });
+    const scene = makeCancelableScene({
+      churchOverlay: [churchObj],
+      churchContentGroup: [scrollObj],
+    });
+
+    scene._setChurchOverlayVisibility(false);
+    expect(churchObj.visible).toBe(false);
+    expect(scrollObj.visible).toBe(false);
+
+    scene._setChurchOverlayVisibility(true);
+    expect(churchObj.visible).toBe(true);
+    expect(scrollObj.visible).toBe(true);
+  });
+
+  it('church wheel/drag blocked during map-view', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      unitPickerState: null,
+      churchOverlay: [makeDisplayObject()],
+      _churchViewingMap: true,
+      churchScrollMax: 100,
+      churchScrollOffset: 0,
+      drawChurchScrollContent: vi.fn(),
+      shopOverlay: null,
+      forgePicker: null,
+      unitPicker: null,
+      _touchScrollDrag: null,
+    };
+
+    // Wheel should be blocked by _churchViewingMap
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 30);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
+  });
+
+  it('church wheel scrolls within bounds and clamps', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      unitPickerState: null,
+      churchOverlay: [makeDisplayObject()],
+      _churchViewingMap: false,
+      churchScrollMax: 60,
+      churchScrollOffset: 0,
+      drawChurchScrollContent: vi.fn(),
+      shopOverlay: null,
+    };
+
+    // Scroll down
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 30);
+    expect(scene.churchScrollOffset).toBe(30);
+    expect(scene.drawChurchScrollContent).toHaveBeenCalledTimes(1);
+
+    // Scroll down past max — should clamp to 60
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, 300);
+    expect(scene.churchScrollOffset).toBe(60);
+
+    // Scroll up — step-based, goes to 30
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
+    expect(scene.churchScrollOffset).toBe(30);
+
+    // Scroll up again — goes to 0
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
+    expect(scene.churchScrollOffset).toBe(0);
+
+    // Scroll up once more — clamped at 0, no change
+    scene.drawChurchScrollContent.mockClear();
+    NodeMapScene.prototype.onWheel.call(scene, { y: 200 }, 0, -300);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
+  });
+
+  it('church wheel ignores pointer outside list bounds', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: { visible: false },
+      unitPickerState: null,
+      churchOverlay: [makeDisplayObject()],
+      _churchViewingMap: false,
+      churchScrollMax: 100,
+      churchScrollOffset: 0,
+      drawChurchScrollContent: vi.fn(),
+      shopOverlay: null,
+    };
+
+    // Pointer above the list area
+    NodeMapScene.prototype.onWheel.call(scene, { y: 50 }, 0, 30);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
+
+    // Pointer below the list area
+    NodeMapScene.prototype.onWheel.call(scene, { y: 450 }, 0, 30);
+    expect(scene.churchScrollOffset).toBe(0);
+    expect(scene.drawChurchScrollContent).not.toHaveBeenCalled();
+  });
+
+  it('no stale drag after church close', () => {
+    const scene = {
+      _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
+      churchOverlay: [makeDisplayObject()],
+      churchContentGroup: [makeDisplayObject()],
+      churchMessage: null,
+      churchGoldText: null,
+      _churchNode: { id: 'c1' },
+      _churchViewingMap: false,
+      _sceneTimers: new Set(),
+      _churchMessageTimer: null,
+      churchScrollOffset: 30,
+      churchScrollMax: 60,
+      _churchScrollItems: [],
+    };
+
+    NodeMapScene.prototype.closeChurchOverlay.call(scene);
+    expect(scene._touchScrollDrag).toBeNull();
+  });
+
+  it('no stale drag after church map-view entry', () => {
+    const scene = {
+      churchOverlay: [makeDisplayObject()],
+      churchContentGroup: [makeDisplayObject()],
+      _churchViewingMap: false,
+      _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
+      _setOverlayVisibility: NodeMapScene.prototype._setOverlayVisibility,
+      _setChurchOverlayVisibility: NodeMapScene.prototype._setChurchOverlayVisibility,
+    };
+
+    NodeMapScene.prototype._enterChurchMapView.call(scene);
+    expect(scene._touchScrollDrag).toBeNull();
+    expect(scene._churchViewingMap).toBe(true);
+  });
+
+  it('requestCancel restores both churchOverlay and churchContentGroup from map-view', () => {
+    const churchObj = makeDisplayObject().setInteractive({ useHandCursor: true });
+    const scrollObj = makeDisplayObject().setInteractive({ useHandCursor: true });
+    churchObj.visible = false;
+    churchObj.input.enabled = false;
+    scrollObj.visible = false;
+    scrollObj.input.enabled = false;
+    const scene = makeCancelableScene({
+      churchOverlay: [churchObj],
+      churchContentGroup: [scrollObj],
+      _churchViewingMap: true,
+    });
+
+    const handled = NodeMapScene.prototype.requestCancel.call(scene);
+
+    expect(handled).toBe(true);
+    expect(scene._churchViewingMap).toBe(false);
+    expect(churchObj.visible).toBe(true);
+    expect(churchObj.input.enabled).toBe(true);
+    expect(scrollObj.visible).toBe(true);
+    expect(scrollObj.input.enabled).toBe(true);
+    expect(scene.leaveChurchNode).not.toHaveBeenCalled();
   });
 });
