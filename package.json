@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "A Fire Emblem x Roguelike Tactical RPG",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "node tools/buildReferenceContent.js && node tools/syncData.js && node tools/syncAssets.js && vite build",
