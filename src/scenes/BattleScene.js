@@ -11574,6 +11574,160 @@ export class BattleScene extends Phaser.Scene {
     return trimmed;
   }
 
+  _setupLootPickerScroller({
+    pickerGroup,
+    rows,
+    topY,
+    bottomY,
+    rowHeight,
+    listLeft,
+    listRight,
+    onBack = null,
+  }) {
+    const setVisibleSafe = (obj, visible) => {
+      if (!obj) return;
+      if (typeof obj.setVisible === 'function') obj.setVisible(visible);
+      else obj.visible = visible;
+    };
+
+    const setInteractiveSafe = (obj, enabled) => {
+      if (!obj) return;
+      if (enabled) {
+        if (typeof obj.setInteractive === 'function') obj.setInteractive({ useHandCursor: true });
+        else if (obj.input) obj.input.enabled = true;
+        return;
+      }
+      if (typeof obj.disableInteractive === 'function') obj.disableInteractive();
+      else if (obj.input) obj.input.enabled = false;
+    };
+
+    const normalizedRowHeight = Math.max(1, Math.floor(rowHeight || 1));
+    const availableHeight = Math.max(0, (bottomY || 0) - (topY || 0));
+    const maxVisibleRows = Math.max(1, Math.floor(availableHeight / normalizedRowHeight));
+    const maxScrollOffset = Math.max(0, rows.length - maxVisibleRows);
+    const canScroll = maxScrollOffset > 0;
+    const rowBottomBound = topY + maxVisibleRows * normalizedRowHeight;
+    let scrollOffset = 0;
+    const detachHandlers = [];
+
+    let scrollUp = null;
+    let scrollDown = null;
+
+    const setArrowEnabled = (arrow, enabled) => {
+      if (!arrow) return;
+      if (typeof arrow.setAlpha === 'function') arrow.setAlpha(enabled ? 1 : 0.45);
+      if (typeof arrow.setColor === 'function') arrow.setColor(enabled ? '#88ccff' : '#666666');
+    };
+
+    const updateScrollArrows = () => {
+      if (!canScroll) return;
+      setArrowEnabled(scrollUp, scrollOffset > 0);
+      setArrowEnabled(scrollDown, scrollOffset < maxScrollOffset);
+    };
+
+    const applyLayout = () => {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const visibleIndex = i - scrollOffset;
+        const visible = visibleIndex >= 0 && visibleIndex < maxVisibleRows;
+        const centerY = topY + visibleIndex * normalizedRowHeight + normalizedRowHeight / 2;
+        if (typeof row?.setCenterY === 'function') row.setCenterY(centerY);
+        const objects = Array.isArray(row?.objects) ? row.objects : [];
+        for (const obj of objects) setVisibleSafe(obj, visible);
+        if (row?.inputTarget && row?.selectable) {
+          setInteractiveSafe(row.inputTarget, visible);
+        }
+      }
+      updateScrollArrows();
+    };
+
+    const setScrollOffset = (nextOffset) => {
+      const clamped = Math.max(0, Math.min(maxScrollOffset, nextOffset));
+      if (clamped === scrollOffset) return;
+      scrollOffset = clamped;
+      applyLayout();
+    };
+
+    if (canScroll) {
+      const camWidth = Number(this.cameras?.main?.width) || 640;
+      const arrowX = Math.min(listRight + 18, camWidth - 10);
+      scrollUp = this.add
+        .text(arrowX, topY + 10, '^', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#88ccff',
+        })
+        .setOrigin(0.5)
+        .setDepth(713)
+        .setInteractive({ useHandCursor: true });
+      scrollDown = this.add
+        .text(arrowX, rowBottomBound - 10, 'v', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#88ccff',
+        })
+        .setOrigin(0.5)
+        .setDepth(713)
+        .setInteractive({ useHandCursor: true });
+      const hint = this.add
+        .text(arrowX, rowBottomBound + 2, 'Scroll', {
+          fontFamily: 'monospace',
+          fontSize: '8px',
+          color: '#777777',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(713);
+      pickerGroup.push(scrollUp, scrollDown, hint);
+
+      scrollUp.on('pointerdown', () => setScrollOffset(scrollOffset - 1));
+      scrollDown.on('pointerdown', () => setScrollOffset(scrollOffset + 1));
+
+      if (this.input?.on && this.input?.off) {
+        const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
+          if (!pointer || !Number.isFinite(deltaY) || deltaY === 0) return;
+          if (pointer.x < listLeft || pointer.x > listRight) return;
+          if (pointer.y < topY || pointer.y > rowBottomBound) return;
+          setScrollOffset(scrollOffset + (deltaY > 0 ? 1 : -1));
+        };
+        this.input.on('wheel', wheelHandler);
+        detachHandlers.push(() => this.input.off('wheel', wheelHandler));
+      }
+    }
+
+    if (this.input?.keyboard?.on && this.input?.keyboard?.off) {
+      const keyHandler = (event) => {
+        const key = String(event?.key ?? event?.code ?? '').toLowerCase();
+        if (!key) return;
+        if ((key === 'escape' || key === 'esc') && typeof onBack === 'function') {
+          if (typeof event?.preventDefault === 'function') event.preventDefault();
+          onBack();
+          return;
+        }
+        if (!canScroll) return;
+
+        let nextOffset = scrollOffset;
+        if (key === 'arrowdown' || key === 'down') nextOffset += 1;
+        else if (key === 'arrowup' || key === 'up') nextOffset -= 1;
+        else if (key === 'pagedown') nextOffset += maxVisibleRows;
+        else if (key === 'pageup') nextOffset -= maxVisibleRows;
+        else if (key === 'home') nextOffset = 0;
+        else if (key === 'end') nextOffset = maxScrollOffset;
+        else return;
+
+        if (typeof event?.preventDefault === 'function') event.preventDefault();
+        setScrollOffset(nextOffset);
+      };
+      this.input.keyboard.on('keydown', keyHandler);
+      detachHandlers.push(() => this.input.keyboard.off('keydown', keyHandler));
+    }
+
+    applyLayout();
+
+    return () => {
+      for (const detach of detachHandlers) detach();
+    };
+  }
+
   /** Show forge loot picker: unit -> weapon -> (stat for Silver). */
   showForgeLootPicker(whetstone, lootGroup, cardIdx) {
     for (const obj of lootGroup) obj.setVisible(false);
@@ -11609,13 +11763,24 @@ export class BattleScene extends Phaser.Scene {
     pickerGroup.push(subtitle);
 
     const btnW = 240;
-    const topY = 110;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      26,
-      Math.min(42, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
-    );
-    const btnH = Math.max(22, rowGap - 8);
+    const listTop = 108;
+    const listBottom = cam.height - 62;
+    const rowHeight = 30;
+    const btnH = 22;
+    const labelOffset = -Math.floor(btnH * 0.1);
+    const rows = [];
+    let detachScroll = () => {};
+    let pickerClosed = false;
+    const closePicker = (afterClose) => {
+      if (pickerClosed) return;
+      pickerClosed = true;
+      detachScroll();
+      detachScroll = () => {};
+      for (const obj of pickerGroup) {
+        if (obj && typeof obj.destroy === 'function') obj.destroy();
+      }
+      if (typeof afterClose === 'function') afterClose();
+    };
     let validCount = 0;
 
     for (let i = 0; i < roster.length; i++) {
@@ -11623,7 +11788,7 @@ export class BattleScene extends Phaser.Scene {
       const forgeableCount = unit.inventory.filter((w) =>
         whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
       ).length;
-      const by = topY + i * rowGap;
+      const by = listTop + i * rowHeight + rowHeight / 2;
 
       if (forgeableCount === 0) {
         const label = this.add
@@ -11635,6 +11800,14 @@ export class BattleScene extends Phaser.Scene {
           .setOrigin(0.5)
           .setDepth(712);
         pickerGroup.push(label);
+        rows.push({
+          objects: [label],
+          selectable: false,
+          inputTarget: null,
+          setCenterY: (centerY) => {
+            label.y = centerY + labelOffset;
+          },
+        });
         continue;
       }
 
@@ -11660,17 +11833,24 @@ export class BattleScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(label);
+      rows.push({
+        objects: [btn, label],
+        selectable: true,
+        inputTarget: btn,
+        setCenterY: (centerY) => {
+          btn.y = centerY;
+          label.y = centerY + labelOffset;
+        },
+      });
 
       btn.on('pointerdown', () => {
         try {
-          for (const obj of pickerGroup) obj.destroy();
-          this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx);
+          closePicker(() => this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx));
         } catch (err) {
           this.reportLootError('showForgeLootPicker:unitSelect', err, {
             unit: unit?.name,
             whetstone: whetstone?.name,
           });
-          for (const obj of pickerGroup) obj.destroy();
           for (const obj of lootGroup) obj.setVisible(true);
         }
       });
@@ -11688,6 +11868,12 @@ export class BattleScene extends Phaser.Scene {
       pickerGroup.push(noWeapons);
     }
 
+    const handleBack = () => {
+      closePicker(() => {
+        for (const obj of lootGroup) obj.setVisible(true);
+      });
+    };
+
     // Back button
     const backBtn = this.add
       .text(cam.centerX, cam.height - 24, '< Back', {
@@ -11702,9 +11888,19 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
-      for (const obj of pickerGroup) obj.destroy();
-      for (const obj of lootGroup) obj.setVisible(true);
+    backBtn.on('pointerdown', handleBack);
+
+    const setupScroller =
+      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
+    detachScroll = setupScroller.call(this, {
+      pickerGroup,
+      rows,
+      topY: listTop,
+      bottomY: listBottom,
+      rowHeight,
+      listLeft: cam.centerX - btnW / 2,
+      listRight: cam.centerX + btnW / 2,
+      onBack: handleBack,
     });
   }
 
@@ -11952,20 +12148,32 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const topY = 130;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      34,
-      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
-    );
-    const btnH = Math.max(24, rowGap - 12);
+    const listTop = 124;
+    const listBottom = cam.height - 86;
+    const rowHeight = 36;
+    const btnH = 24;
+    const nameOffset = -Math.floor(btnH * 0.22);
+    const detailOffset = Math.floor(btnH * 0.28);
+    const rows = [];
+    let detachScroll = () => {};
+    let pickerClosed = false;
+    const closePicker = (afterClose) => {
+      if (pickerClosed) return;
+      pickerClosed = true;
+      detachScroll();
+      detachScroll = () => {};
+      for (const obj of pickerGroup) {
+        if (obj && typeof obj.destroy === 'function') obj.destroy();
+      }
+      if (typeof afterClose === 'function') afterClose();
+    };
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const invCount = unit.inventory ? unit.inventory.length : 0;
       const full = invCount >= INVENTORY_MAX;
       const cannotEquip = !canEquip(unit, item);
-      const by = topY + i * rowGap;
+      const by = listTop + i * rowHeight + rowHeight / 2;
 
       const btnColor = full ? 0x444444 : cannotEquip ? 0x554433 : 0x335566;
       const borderColor = full ? 0x666666 : cannotEquip ? 0xcc8844 : 0x66aacc;
@@ -11999,11 +12207,22 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(712);
       pickerGroup.push(invLabel);
 
+      const selectable = !full && !cannotEquip;
+      rows.push({
+        objects: [btn, label, invLabel],
+        selectable,
+        inputTarget: btn,
+        setCenterY: (centerY) => {
+          btn.y = centerY;
+          label.y = centerY + nameOffset;
+          invLabel.y = centerY + detailOffset;
+        },
+      });
+
       if (!full && !cannotEquip) {
         btn.on('pointerdown', () => {
           addToInventory(unit, { ...item });
-          for (const obj of pickerGroup) obj.destroy();
-          this.finalizeLootPick(lootGroup, cardIdx);
+          closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
         });
       }
     }
@@ -12034,10 +12253,15 @@ export class BattleScene extends Phaser.Scene {
         }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
-        for (const obj of pickerGroup) obj.destroy();
-        this.finalizeLootPick(lootGroup, cardIdx);
+        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
       });
     }
+
+    const handleBack = () => {
+      closePicker(() => {
+        for (const obj of lootGroup) obj.setVisible(true);
+      });
+    };
 
     // Back button
     const backBtn = this.add
@@ -12053,9 +12277,19 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
-      for (const obj of pickerGroup) obj.destroy();
-      for (const obj of lootGroup) obj.setVisible(true);
+    backBtn.on('pointerdown', handleBack);
+
+    const setupScroller =
+      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
+    detachScroll = setupScroller.call(this, {
+      pickerGroup,
+      rows,
+      topY: listTop,
+      bottomY: listBottom,
+      rowHeight,
+      listLeft: cam.centerX - btnW / 2,
+      listRight: cam.centerX + btnW / 2,
+      onBack: handleBack,
     });
   }
 
@@ -12085,18 +12319,30 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const topY = 130;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      34,
-      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
-    );
-    const btnH = Math.max(24, rowGap - 12);
+    const listTop = 124;
+    const listBottom = cam.height - 52;
+    const rowHeight = 36;
+    const btnH = 24;
+    const nameOffset = -Math.floor(btnH * 0.22);
+    const detailOffset = Math.floor(btnH * 0.28);
+    const rows = [];
+    let detachScroll = () => {};
+    let pickerClosed = false;
+    const closePicker = (afterClose) => {
+      if (pickerClosed) return;
+      pickerClosed = true;
+      detachScroll();
+      detachScroll = () => {};
+      for (const obj of pickerGroup) {
+        if (obj && typeof obj.destroy === 'function') obj.destroy();
+      }
+      if (typeof afterClose === 'function') afterClose();
+    };
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const currentVal = unit.stats[item.stat] || 0;
-      const by = topY + i * rowGap;
+      const by = listTop + i * rowHeight + rowHeight / 2;
 
       const btn = this.add
         .rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
@@ -12129,15 +12375,30 @@ export class BattleScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(statLabel);
+      rows.push({
+        objects: [btn, label, statLabel],
+        selectable: true,
+        inputTarget: btn,
+        setCenterY: (centerY) => {
+          btn.y = centerY;
+          label.y = centerY + nameOffset;
+          statLabel.y = centerY + detailOffset;
+        },
+      });
 
       btn.on('pointerdown', () => {
         applyStatBoost(unit, item);
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
-        for (const obj of pickerGroup) obj.destroy();
-        this.finalizeLootPick(lootGroup, cardIdx);
+        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
       });
     }
+
+    const handleBack = () => {
+      closePicker(() => {
+        for (const obj of lootGroup) obj.setVisible(true);
+      });
+    };
 
     // Back button
     const backBtn = this.add
@@ -12153,9 +12414,19 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
-      for (const obj of pickerGroup) obj.destroy();
-      for (const obj of lootGroup) obj.setVisible(true);
+    backBtn.on('pointerdown', handleBack);
+
+    const setupScroller =
+      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
+    detachScroll = setupScroller.call(this, {
+      pickerGroup,
+      rows,
+      topY: listTop,
+      bottomY: listBottom,
+      rowHeight,
+      listLeft: cam.centerX - btnW / 2,
+      listRight: cam.centerX + btnW / 2,
+      onBack: handleBack,
     });
   }
 
@@ -12184,19 +12455,31 @@ export class BattleScene extends Phaser.Scene {
 
     const roster = this.runManager.roster;
     const btnW = 200;
-    const topY = 130;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      34,
-      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
-    );
-    const btnH = Math.max(24, rowGap - 12);
+    const listTop = 124;
+    const listBottom = cam.height - 86;
+    const rowHeight = 36;
+    const btnH = 24;
+    const nameOffset = -Math.floor(btnH * 0.22);
+    const detailOffset = Math.floor(btnH * 0.28);
+    const rows = [];
+    let detachScroll = () => {};
+    let pickerClosed = false;
+    const closePicker = (afterClose) => {
+      if (pickerClosed) return;
+      pickerClosed = true;
+      detachScroll();
+      detachScroll = () => {};
+      for (const obj of pickerGroup) {
+        if (obj && typeof obj.destroy === 'function') obj.destroy();
+      }
+      if (typeof afterClose === 'function') afterClose();
+    };
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const consumableCount = unit.consumables ? unit.consumables.length : 0;
       const full = consumableCount >= CONSUMABLE_MAX;
-      const by = topY + i * rowGap;
+      const by = listTop + i * rowHeight + rowHeight / 2;
 
       const btn = this.add
         .rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
@@ -12229,14 +12512,24 @@ export class BattleScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(712);
       pickerGroup.push(invLabel);
+      const selectable = !full;
+      rows.push({
+        objects: [btn, label, invLabel],
+        selectable,
+        inputTarget: btn,
+        setCenterY: (centerY) => {
+          btn.y = centerY;
+          label.y = centerY + nameOffset;
+          invLabel.y = centerY + detailOffset;
+        },
+      });
 
       if (!full) {
         btn.on('pointerdown', () => {
           addToConsumables(unit, { ...item });
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
-          for (const obj of pickerGroup) obj.destroy();
-          this.finalizeLootPick(lootGroup, cardIdx);
+          closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
         });
       }
     }
@@ -12267,10 +12560,15 @@ export class BattleScene extends Phaser.Scene {
         }
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
-        for (const obj of pickerGroup) obj.destroy();
-        this.finalizeLootPick(lootGroup, cardIdx);
+        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
       });
     }
+
+    const handleBack = () => {
+      closePicker(() => {
+        for (const obj of lootGroup) obj.setVisible(true);
+      });
+    };
 
     // Back button
     const backBtn = this.add
@@ -12286,9 +12584,19 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
-      for (const obj of pickerGroup) obj.destroy();
-      for (const obj of lootGroup) obj.setVisible(true);
+    backBtn.on('pointerdown', handleBack);
+
+    const setupScroller =
+      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
+    detachScroll = setupScroller.call(this, {
+      pickerGroup,
+      rows,
+      topY: listTop,
+      bottomY: listBottom,
+      rowHeight,
+      listLeft: cam.centerX - btnW / 2,
+      listRight: cam.centerX + btnW / 2,
+      onBack: handleBack,
     });
   }
 

@@ -26,6 +26,8 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
+    visible: true,
+    input: null,
     setOrigin() {
       return this;
     },
@@ -33,17 +35,32 @@ function makeDisplayObject(seed = {}) {
       return this;
     },
     setInteractive() {
+      if (!this.input) this.input = {};
+      this.input.enabled = true;
+      return this;
+    },
+    disableInteractive() {
+      if (this.input) this.input.enabled = false;
       return this;
     },
     setStrokeStyle() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setAlpha() {
       return this;
     },
     on(event, cb) {
       this.handlers[event] = cb;
       return this;
     },
-    destroy() {},
-    setVisible() {
+    destroy() {
+      this.destroyed = true;
+    },
+    setVisible(visible) {
+      this.visible = visible;
       return this;
     },
   };
@@ -71,6 +88,10 @@ function makeScene(metaEffects) {
   scene.input = {
     on: vi.fn(),
     off: vi.fn(),
+    keyboard: {
+      on: vi.fn(),
+      off: vi.fn(),
+    },
   };
   scene.time = {
     delayedCall: vi.fn(() => ({ remove: vi.fn() })),
@@ -252,6 +273,83 @@ describe('BattleScene loot meta wiring', () => {
 
     expect(unit.stats.STR).toBe(10);
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps large stat-booster rosters scrollable and selectable', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.finalizeLootPick = vi.fn();
+    scene.runManager.roster = Array.from({ length: 14 }, (_v, i) => ({
+      name: `Unit${i}`,
+      stats: { RES: i, HP: 20 },
+      currentHP: 20,
+      inventory: [],
+      consumables: [],
+    }));
+
+    const rowButtons = [];
+    scene.add.rectangle = (...args) => {
+      const obj = makeDisplayObject({ args });
+      if (args[2] === 200) rowButtons.push(obj);
+      return obj;
+    };
+    scene.add.text = (...args) => makeDisplayObject({ args, text: args[2] });
+
+    const lootGroup = [makeDisplayObject(), makeDisplayObject()];
+    const item = { name: 'Talisman', effect: 'statBoost', stat: 'RES', value: 2 };
+    BattleScene.prototype.showStatBoostUnitPicker.call(scene, item, lootGroup, 0);
+
+    expect(rowButtons).toHaveLength(14);
+    const lastBtn = rowButtons[rowButtons.length - 1];
+    expect(lastBtn.visible).toBe(false);
+    expect(lastBtn.input?.enabled).toBe(false);
+
+    const wheelCall = scene.input.on.mock.calls.find((call) => call[0] === 'wheel');
+    expect(wheelCall).toBeTruthy();
+    const wheelHandler = wheelCall[1];
+    for (let i = 0; i < 20; i++) {
+      wheelHandler({ x: 320, y: 200 }, null, 0, 120);
+    }
+
+    expect(lastBtn.visible).toBe(true);
+    expect(lastBtn.input?.enabled).toBe(true);
+
+    lastBtn.handlers.pointerdown();
+    expect(scene.runManager.roster[13].stats.RES).toBe(15);
+    expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('Escape backs out of stat-booster picker and detaches scroll handlers', () => {
+    const scene = makeScene({ lootWeaponQualityBonus: 0 });
+    scene.runManager.roster = Array.from({ length: 12 }, (_v, i) => ({
+      name: `Unit${i}`,
+      stats: { DEF: i, HP: 20 },
+      currentHP: 20,
+      inventory: [],
+      consumables: [],
+    }));
+
+    scene.add.rectangle = (...args) => makeDisplayObject({ args });
+    scene.add.text = (...args) => makeDisplayObject({ args, text: args[2] });
+
+    const lootGroup = [makeDisplayObject(), makeDisplayObject()];
+    const item = { name: 'Dracoshield', effect: 'statBoost', stat: 'DEF', value: 2 };
+    BattleScene.prototype.showStatBoostUnitPicker.call(scene, item, lootGroup, 0);
+
+    const wheelCall = scene.input.on.mock.calls.find((call) => call[0] === 'wheel');
+    expect(wheelCall).toBeTruthy();
+    const wheelHandler = wheelCall[1];
+
+    const keyCall = scene.input.keyboard.on.mock.calls.find((call) => call[0] === 'keydown');
+    expect(keyCall).toBeTruthy();
+    const keyHandler = keyCall[1];
+
+    const preventDefault = vi.fn();
+    keyHandler({ key: 'Escape', preventDefault });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(lootGroup.every((obj) => obj.visible === true)).toBe(true);
+    expect(scene.input.off).toHaveBeenCalledWith('wheel', wheelHandler);
+    expect(scene.input.keyboard.off).toHaveBeenCalledWith('keydown', keyHandler);
   });
 
   it('renders category-aware detail text for weapons, accessories, and promotion loot', () => {
