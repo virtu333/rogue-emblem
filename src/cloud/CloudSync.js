@@ -122,7 +122,7 @@ function applyMetaSlots(metaData) {
   for (let i = 1; i <= MAX_SLOTS; i++) {
     const key = getMetaKey(i);
     const cloudSlot = metaSlots[String(i)];
-    if (!cloudSlot) continue;
+    if (cloudSlot == null) continue;
     const localSlot = readLocalJSON(key);
     const shouldKeepLocal = shouldPreferLocalMeta(localSlot, cloudSlot);
     if (!shouldKeepLocal) localStorage.setItem(key, JSON.stringify(cloudSlot));

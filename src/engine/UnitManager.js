@@ -1053,7 +1053,10 @@ export function getAvailableWeapons(unit, allWeapons) {
 /** Get the default weapon (Iron-tier of first proficiency). */
 export function getDefaultWeapon(proficiencies, allWeapons) {
   if (!proficiencies || proficiencies.length === 0) return null;
-  const primaryType = proficiencies[0].type;
+  // Prefer first non-Staff proficiency (Staff is healing-only).
+  // Fall back to Staff only when it's the sole proficiency (e.g. Cleric).
+  const combatProf = proficiencies.find((p) => p.type !== 'Staff');
+  const primaryType = combatProf ? combatProf.type : proficiencies[0].type;
 
   // Try Iron tier first
   const iron = allWeapons.find((w) => w.type === primaryType && w.tier === 'Iron');
@@ -1066,7 +1069,9 @@ export function getDefaultWeapon(proficiencies, allWeapons) {
 /** Get weapon by specific tier for enemy scaling. */
 function getWeaponByTier(proficiencies, allWeapons, targetTier) {
   if (!proficiencies || proficiencies.length === 0) return null;
-  const primaryType = proficiencies[0].type;
+  // Prefer first non-Staff proficiency, same as getDefaultWeapon.
+  const combatProf = proficiencies.find((p) => p.type !== 'Staff');
+  const primaryType = combatProf ? combatProf.type : proficiencies[0].type;
 
   // Try requested tier
   const weapon = allWeapons.find(

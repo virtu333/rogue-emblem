@@ -291,3 +291,25 @@ describe('SkillSystem accessory phase helpers', () => {
     expect(mods.defBonus).toBe(2);
   });
 });
+
+describe('SkillSystem Fury crit scaling edge cases', () => {
+  it('Fury skill with stats.HP = 0 returns finite critBonus (not NaN)', () => {
+    const gameData = loadGameData();
+    const furySkill = gameData.skills.find((s) => s.effects?.critScalesWithMissingHP);
+    if (!furySkill) throw new Error('No Fury-type skill found in skills.json');
+
+    const unit = {
+      name: 'Test',
+      col: 5,
+      row: 5,
+      skills: [furySkill.id],
+      stats: { HP: 0, STR: 10, MAG: 5, SKL: 10, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      currentHP: 0,
+      weapon: gameData.weapons.find((w) => w.type === 'Sword'),
+      accessory: null,
+    };
+
+    const mods = getSkillCombatMods(unit, unit, [], [], gameData.skills, null);
+    expect(Number.isFinite(mods.critBonus)).toBe(true);
+  });
+});

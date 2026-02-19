@@ -238,7 +238,8 @@ export function getSkillCombatMods(
       if (passiveCondMet) {
         if (skill.effects.critScalesWithMissingHP) {
           const maxCrit = skill.effects.critScaleMax || 30;
-          const missingRatio = 1 - unit.currentHP / unit.stats.HP;
+          const maxHp = Math.max(1, unit.stats.HP);
+          const missingRatio = 1 - unit.currentHP / maxHp;
           mods.critBonus += Math.min(maxCrit, Math.floor(missingRatio * maxCrit));
         }
         if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;

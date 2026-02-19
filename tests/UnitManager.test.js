@@ -26,6 +26,7 @@ import {
   grantLethalArmoryWeapon,
   getStaffWeapon,
   resolvePromotionTargetClass,
+  getDefaultWeapon,
 } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 import {
@@ -114,6 +115,52 @@ describe('createEnemyUnit', () => {
       expect(enemy.className).toBe(cls.name);
       expect(enemy.stats.HP).toBeGreaterThan(0);
     }
+  });
+
+  it('prefers Light over Staff for mixed Staff+Light enemy proficiencies', () => {
+    const mixedClass = {
+      name: 'Test Light Monk',
+      tier: 'base',
+      weaponProficiencies: 'Staves (M), Light (P)',
+      moveType: 'Infantry',
+      baseStats: { HP: 20, STR: 2, MAG: 8, SKL: 7, SPD: 6, DEF: 4, RES: 7, LCK: 5, MOV: 5 },
+      growthRanges: {
+        HP: '0-0',
+        STR: '0-0',
+        MAG: '0-0',
+        SKL: '0-0',
+        SPD: '0-0',
+        DEF: '0-0',
+        RES: '0-0',
+        LCK: '0-0',
+      },
+    };
+    const enemy = createEnemyUnit(mixedClass, 10, data.weapons);
+    expect(enemy.weapon).toBeTruthy();
+    expect(enemy.weapon.type).toBe('Light');
+  });
+
+  it('prefers Axe over Staff for mixed Staff+Axe enemy proficiencies', () => {
+    const mixedClass = {
+      name: 'Test Axe Monk',
+      tier: 'base',
+      weaponProficiencies: 'Staves (M), Axes (P)',
+      moveType: 'Infantry',
+      baseStats: { HP: 22, STR: 7, MAG: 2, SKL: 6, SPD: 5, DEF: 6, RES: 4, LCK: 5, MOV: 5 },
+      growthRanges: {
+        HP: '0-0',
+        STR: '0-0',
+        MAG: '0-0',
+        SKL: '0-0',
+        SPD: '0-0',
+        DEF: '0-0',
+        RES: '0-0',
+        LCK: '0-0',
+      },
+    };
+    const enemy = createEnemyUnit(mixedClass, 10, data.weapons);
+    expect(enemy.weapon).toBeTruthy();
+    expect(enemy.weapon.type).toBe('Axe');
   });
 
   it('assigns skills to level 5+ enemies when skillsData provided', () => {
@@ -1144,5 +1191,45 @@ describe('unit affixes initialization', () => {
     const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
     const unit = createRecruitUnit({ name: 'Test', level: 3 }, myrmidon, data.weapons);
     expect(unit.affixes).toEqual([]);
+  });
+});
+
+describe('getDefaultWeapon Staff fallback', () => {
+  const data = loadGameData();
+
+  it('returns Staff for Staff-only proficiency (Cleric)', () => {
+    const profs = parseWeaponProficiencies('Staves (P)');
+    const weapon = getDefaultWeapon(profs, data.weapons);
+    expect(weapon).not.toBeNull();
+    expect(weapon.type).toBe('Staff');
+  });
+
+  it('returns Light weapon for Staff + Light proficiency (Bishop)', () => {
+    const profs = parseWeaponProficiencies('Staves (M), Light (P)');
+    const weapon = getDefaultWeapon(profs, data.weapons);
+    expect(weapon).not.toBeNull();
+    expect(weapon.type).toBe('Light');
+  });
+
+  it('returns Axe weapon for Staff + Axe proficiency (Battle Monk)', () => {
+    const profs = parseWeaponProficiencies('Staves (P), Axes (P)');
+    const weapon = getDefaultWeapon(profs, data.weapons);
+    expect(weapon).not.toBeNull();
+    expect(weapon.type).toBe('Axe');
+  });
+
+  it('createUnit with Cleric class assigns Staff weapon', () => {
+    const cleric = data.classes.find((c) => c.name === 'Cleric');
+    const unit = createUnit(cleric, 1, data.weapons);
+    expect(unit.weapon).not.toBeNull();
+    expect(unit.weapon.type).toBe('Staff');
+  });
+
+  it('Bishop class proficiencies resolve to Light weapon (not Staff)', () => {
+    const bishop = data.classes.find((c) => c.name === 'Bishop');
+    const profs = parseWeaponProficiencies(bishop.weaponProficiencies);
+    const weapon = getDefaultWeapon(profs, data.weapons);
+    expect(weapon).not.toBeNull();
+    expect(weapon.type).toBe('Light');
   });
 });

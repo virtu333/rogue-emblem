@@ -34,12 +34,12 @@ emblem-rogue/
 │   ├── emblem_rogue_class_data.xlsx
 │   ├── mobile-controls-spec.md  # Mobile virtual controls spec (HTML overlay, landscape)
 │   └── ios-port-spec.md         # iOS Capacitor port spec (deferred)
-├── data/                  # Game data JSON (22 files, loaded at runtime)
-│   ├── accessories.json   # 17 accessories: 10 stat-based + 7 with combatEffects ✅
+├── data/                  # Game data JSON (23 files, loaded at runtime)
+│   ├── accessories.json   # 29 accessories: 10 stat-based + 19 with combatEffects ✅
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules ✅
-│   ├── blessings.json     # 18 shrine blessings: tiered run-shaping modifiers ✅
-│   ├── classes.json       # 32 entries: 16 base + 16 promoted (includes lord + Wyvern classes) ✅
-│   ├── consumables.json   # 10 consumable items: 3 core + 7 stat boosters ✅
+│   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers ✅
+│   ├── classes.json       # 47 entries: 19 base + 28 promoted (includes lord + Wyvern classes) ✅
+│   ├── consumables.json   # 13 consumable items: 3 core + 8 stat boosters + 2 reclass seals ✅
 │   ├── dialogue.json      # Recruit lines, act transition dialogue, story sequences ✅
 │   ├── difficulty.json    # Difficulty modes (Normal/Hard/Lunatic): stat/economy/fog modifiers ✅
 │   ├── enemies.json       # Enemy pools by act (act1-act4, postAct, finalBoss), boss defs, count scaling ✅
@@ -48,14 +48,14 @@ emblem-rogue/
 │   ├── mapSizes.json      # 10 map size templates by act/phase ✅
 │   ├── mapTemplates.json  # 12 zone-based map templates (6 rout, 6 seize) including tundra + volcanic biomes ✅
 │   ├── mechanicsReference.json # Advanced mechanics help content for in-game reference ✅
-│   ├── metaUpgrades.json  # 54 tiered upgrades in 6 categories (recruit_stats, lord_bonuses, economy, capacity, starting_equipment, starting_skills) ✅
+│   ├── metaUpgrades.json  # 58 tiered upgrades in 6 categories (recruit_stats, lord_bonuses, economy, capacity, starting_equipment, starting_skills) ✅
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool ✅
 │   ├── referenceViewer.json # Reference viewer config: combat formulas, weapon ranks, game version ✅
-│   ├── skills.json        # 35 skills across 7 trigger types: personal, combat, class innate, on-defend, action ✅
+│   ├── skills.json        # 50 skills across 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action ✅
 │   ├── terrain.json       # 12 terrain types with move costs and bonuses (includes Ice, Lava Crack) ✅
 │   ├── turnBonus.json     # Turn par calculation config: weights, brackets, per-act bonus gold ✅
-│   ├── weaponArts.json    # 39 weapon arts across 5 types, HP-cost combat mods ✅
-│   ├── weapons.json       # 89 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 9, Tome 5, Light 4, Staff 5, Scroll 23) ✅
+│   ├── weaponArts.json    # 75 weapon arts across 5 types, HP-cost combat mods ✅
+│   ├── weapons.json       # 106 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 12, Tome 5, Light 4, Staff 5, Scroll 37) ✅
 │   └── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight ✅
 ├── .env.example           # Template for Supabase env vars
 ├── src/
@@ -63,7 +63,7 @@ emblem-rogue/
 │   ├── cloud/             # Supabase auth + cloud sync
 │   │   ├── supabaseClient.js # Supabase singleton, signUp/signIn/signOut/getSession ✅
 │   │   └── CloudSync.js   # Cloud save/load (fetchAllToLocalStorage, push*, delete*) with serialized updates + meta freshness guard ✅
-│   ├── engine/            # Core game systems (27 files)
+│   ├── engine/            # Core game systems (30 files)
 │   │   ├── AffixEngine.js # Enemy affix assignment: difficulty-gated, exclusion rules, scaling (pure) ✅
 │   │   ├── AffixSystem.js # Affix combat resolution: trigger evaluation, effect application (pure) ✅
 │   │   ├── AIController.js # Enemy AI decision-making, NPC targeting
@@ -93,7 +93,7 @@ emblem-rogue/
 │   │   └── WeaponArtSystem.js # Weapon art evaluation: HP cost, eligibility, combat mod application (pure) ✅
 │   ├── data/              # Static help content
 │   │   └── helpContent.js  # HELP_TABS (8 categories) + HOW_TO_PLAY_PAGES (4 pages) ✅
-│   ├── ui/                # UI components (14 files)
+│   ├── ui/                # UI components (18 files)
 │   │   ├── CampaignMapOverlay.js # Campaign/act progression map overlay ✅
 │   │   ├── DangerZoneOverlay.js # Enemy threat range overlay (D key toggle) ✅
 │   │   ├── DebugOverlay.js # Developer debug panel: state inspection, scene diagnostics ✅
@@ -118,7 +118,7 @@ emblem-rogue/
 │   │   ├── RunCompleteScene.js # Victory/defeat end screen, clears run save, awards meta currency, Home Base / Title ✅
 │   │   ├── SlotPickerScene.js # Save slot selection: 3 slots with summaries, select/delete ✅
 │   │   └── TitleScene.js  # Animated pixel-art title screen: sky/castle/fireflies background, styled buttons, Press Start 2P font ✅
-│   └── utils/             # Helpers (22 files)
+│   └── utils/             # Helpers (26 files)
 │       ├── accessoryText.js # Accessory tooltip/description text generation ✅
 │       ├── assetWarmup.js # Preload asset warmup for scene transition smoothness ✅
 │       ├── AudioManager.js # Music/SFX playback wrapper (stored on Phaser registry) ✅
@@ -141,9 +141,9 @@ emblem-rogue/
 │       ├── startupTelemetry.js # Boot timing and startup health telemetry ✅
 │       ├── tooltipTiming.js # Tooltip show/hide timing coordination ✅
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-├── tests/                 # Vitest test suite (1621 tests across 102 files, Feb 15 2026)
+├── tests/                 # Vitest test suite (2450 tests across 147 files, Feb 19 2026)
 │   ├── testData.js        # Shared data loader for tests
-│   ├── *.test.js          # 93 unit/integration test files covering: combat, map gen, run state,
+│   ├── *.test.js          # 134 unit/integration test files covering: combat, map gen, run state,
 │   │                      #   loot/forge, skills, accessories, fog, affixes, weapon arts, blessings,
 │   │                      #   difficulty, terrain hazards, reinforcements, convoy, wyverns, tutorial,
 │   │                      #   campaign map, mobile controls, scene router/guard, cloud sync, and more
@@ -189,13 +189,13 @@ emblem-rogue/
 ## Data Files Reference
 
 ### classes.json
-32 entries: 16 base + 16 promoted (includes lord classes + Wyvern Rider/Wyvern Lord). Each class has: `name`, `tier` ("base"/"promoted"), `baseStats` (HP/STR/MAG/SKL/SPD/DEF/RES/LCK/MOV), `moveType`, `weaponProficiencies`, `role`. Base classes also have `growthRanges` (e.g. "55-70" = roll once at recruitment), `promotesTo`. Promoted classes have `promotesFrom`, `promotionBonuses`, `roleChange`. Some classes have `learnableSkills`: `[{ "skillId": "vantage", "level": 8 }]` — skills units learn automatically at the specified level.
+47 entries: 19 base + 28 promoted (includes lord classes + Wyvern Rider/Wyvern Lord). Each class has: `name`, `tier` ("base"/"promoted"), `baseStats` (HP/STR/MAG/SKL/SPD/DEF/RES/LCK/MOV), `moveType`, `weaponProficiencies`, `role`. Base classes also have `growthRanges` (e.g. "55-70" = roll once at recruitment), `promotesTo`. Promoted classes have `promotesFrom`, `promotionBonuses`, `roleChange`. Some classes have `learnableSkills`: `[{ "skillId": "vantage", "level": 8 }]` — skills units learn automatically at the specified level.
 
 ### lords.json
 Each lord has: `name`, `class`, `baseStats`, `personalGrowths` (fixed, added to class growths), `promotedClass`, `promotionBonuses`, `promotionWeapons`, `personalSkill`.
 
 ### weapons.json
-89 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 9, Tome 5, Light 4, Staff 5, Scroll 23). Each weapon has: `name`, `type`, `tier` (Iron/Steel/Silver/Legend/Rare), `rankRequired` (Prof/Mast), `might`, `hit`, `crit`, `weight`, `range`, `special`, `price`. Scroll items also have `skillId` (the skill they teach when used). Scrolls cannot be equipped as weapons — they're consumable items used from the equip menu. Prices: Iron=500, Steel=1000, Silver=2000, Legend=0 (not for sale), Scrolls=2500, range 1-2 +200, special effect +300, Staves 300/600/1000/1200/0.
+106 weapons across 8 types (Sword 17, Lance 13, Axe 13, Bow 12, Tome 5, Light 4, Staff 5, Scroll 37). Each weapon has: `name`, `type`, `tier` (Iron/Steel/Silver/Legend/Rare), `rankRequired` (Prof/Mast), `might`, `hit`, `crit`, `weight`, `range`, `special`, `price`. Scroll items also have `skillId` (the skill they teach when used). Scrolls cannot be equipped as weapons — they're consumable items used from the equip menu. Prices: Iron=500, Steel=1000, Silver=2000, Legend=0 (not for sale), Scrolls=2500, range 1-2 +200, special effect +300, Staves 300/600/1000/1200/0.
 
 **Weapon categories:**
 - **Throwable (range 1-2):** Hand Axe, Javelin, Short Spear, Tomahawk, Spear — lower stats than pure melee
@@ -204,10 +204,10 @@ Each lord has: `name`, `class`, `baseStats`, `personalGrowths` (fixed, added to 
 - **Legendary specials:** Ragnell (range 1-2, +5 DEF when equipped), Runesword (drains HP equal to damage dealt), Bolting (range 3-10 siege magic)
 - **Poison:** Venin Edge (target loses 5 HP after combat)
 - **Staves (5):** Heal (MAG+5, 3 uses), Mend (MAG+10, 2 uses), Physic (MAG+5, range 2+MAG bonuses, 1 use), Recover (MAG+15, 1 use), Fortify (MAG+5 AoE, range 2, 1 use). All staves gain +1 use at MAG 8/14/20. Heal amount = healer's MAG + `healBase`. Uses tracked via `_usesSpent` field (survives serialization).
-- **Scrolls (23):** Sol, Luna, Astra, Vantage, Wrath, Adept, Miracle, Guard, and 15 more — each teaches the named skill via `skillId`
+- **Scrolls (37):** Sol, Luna, Astra, Vantage, Wrath, Adept, Miracle, Guard, and 29 more — each teaches the named skill via `skillId`
 
 ### consumables.json
-10 consumable items. Each has: `name`, `type` ("Consumable"), `effect` ("heal"/"healFull"/"promote"/"statBoost"), `value` (heal amount, 0 for non-heal), `uses`, `price`. Core items: Vulnerary (heal 10, 3 uses, 300g), Elixir (heal full, 1 use, 1500g), Master Seal (promote, 1 use, 2500g). Stat boosters (7): Energy Drop (+2 STR), Spirit Dust (+2 MAG), Secret Book (+2 SKL), Speedwing (+2 SPD), Dracoshield (+2 DEF), Talisman (+2 RES), Angelic Robe (+5 HP). Stat boosters are loot-only (not in shops).
+13 consumable items. Each has: `name`, `type` ("Consumable"), `effect` ("heal"/"healFull"/"promote"/"statBoost"/"reclass"), `value` (heal amount, 0 for non-heal), `uses`, `price`. Core items: Vulnerary (heal 10, 3 uses, 300g), Elixir (heal full, 1 use, 1500g), Master Seal (promote, 1 use, 2500g). Stat boosters (8): Energy Drop (+2 STR), Spirit Dust (+2 MAG), Secret Book (+2 SKL), Speedwing (+2 SPD), Dracoshield (+2 DEF), Talisman (+2 RES), Angelic Robe (+5 HP), Swiftsoles (+1 MOV). Reclass seals (2): Infantry Seal, Mounted Seal. Stat boosters are loot-only (not in shops).
 
 ### lootTables.json
 Keyed by act (act1–finalBoss). Each entry has: `weapons[]`, `consumables[]`, `rare[]` (scrolls + legendary weapons), `accessories[]`, `forge[]` (whetstone names), `weights` (category probabilities: weapon/consumable/gold/rare/accessory/forge), `goldRange` ([min, max] for gold drops). Act 1 has no rare pool, forge pool excludes Crit/Silver whetstones; Act 2+ adds all 5 whetstones. Loot weapons filtered by roster proficiencies.
@@ -219,9 +219,9 @@ Keyed by act (act1–finalBoss). Each entry has: `weapons[]`, `consumables[]`, `
 Turn par calculation config. Fields: `enemyWeight` (0.6), `areaPenaltyPerTile` (0.03), `terrainMultiplier` (3.0), `difficultTerrainTypes` (Forest/Mountain/Water/Sand — matches terrain.json names), `objectiveBasePar` (rout=5, seize=7), `objectiveAdjustments` (rout=1, seize=2), `brackets` (ordered array: S≤0/A≤3/B≤6/C=rest with bonusMultiplier 1.0/0.6/0.25/0.0), `baseBonusGold` (act1=80, act2=150, act3=250, finalBoss=350). Par formula: `ceil(basePar + enemies×enemyWeight + area×areaPenaltyPerTile + difficultRatio×terrainMultiplier + adjustment)`. Used by `TurnBonusCalculator.js`.
 
 ### skills.json
-35 skills across 7 trigger types. Each skill has: `id` (unique key), `name`, `description`, `trigger` (passive/passive-aura/on-combat-start/on-attack/on-turn-start/on-defend/action). Optional fields: `effects` (stat bonuses), `activation` (SKL/SKL_HALF/LCK_QUARTER/SPD/LCK for proc chance), `condition` (below50/adjacent_ally), `range` (for auras), `personal` (lord-only), `classInnate` (class name that gains this on promotion).
+50 skills across 7 trigger types. Each skill has: `id` (unique key), `name`, `description`, `trigger` (passive/passive-aura/on-combat-start/on-attack/on-turn-start/on-defend/action). Optional fields: `effects` (stat bonuses), `activation` (SKL/SKL_HALF/LCK_QUARTER/SPD/LCK for proc chance), `condition` (below50/adjacent_ally), `range` (for auras), `personal` (lord-only), `classInnate` (class name that gains this on promotion).
 
-**Skill breakdown by trigger:** 8 on-attack + 9 on-combat-start + 7 passive + 2 passive-aura + 2 on-turn-start + 4 on-defend + 3 action (Dance/Shove/Pull). Class innate skills: Swordmaster (Crit+15), Sniper (Sure Shot), Assassin (Lethality), General (Pavise), Paladin (Aegis), Warrior (Colossus), Falcon Knight (Discipline), Bishop (Renewal), Hero (Vigilance).
+**Skill breakdown by trigger:** 11 on-attack + 14 on-combat-start + 11 passive + 4 passive-aura + 2 on-turn-start + 5 on-defend + 3 action (Dance/Shove/Pull). Class innate skills: Swordmaster (Crit+15), Sniper (Sure Shot), Assassin (Lethality), General (Pavise), Paladin (Aegis), Warrior (Colossus), Falcon Knight (Discipline), Bishop (Renewal), Hero (Vigilance).
 
 ### terrain.json
 12 terrain types (Plain, Forest, Mountain, Fort, Throne, Wall, Water, Bridge, Sand, Village, Ice, Lava Crack). Each has: `name`, `moveCost` (by move type), `avoidBonus`, `defBonus`, `special`. Ice causes sliding movement; Lava Crack deals end-of-turn damage.
@@ -236,20 +236,20 @@ Keyed by act (act1–act4) plus `namePool` for generated recruit names. Each ent
 `pools`: keyed by act (act1–act4, postAct, finalBoss), each with `levelRange`, `base` class list, `promoted` class list. Act 1 pool: `["Myrmidon", "Fighter", "Archer", "Cavalier"]` (Knight removed — too tanky for L1 party). Act 4 pool includes Wyvern Rider. `bosses`: keyed by act (act1–act4, finalBoss), array of `{className, level, name}`. `enemyCountByTiles`: maps tile count → [min, max] enemy count. Note: Act 1 `levelRange` is overridden per-node by `ACT_LEVEL_SCALING` in `NodeMapGenerator.js` (row 0: `[1,1]`, row 1: `[1,2]`, row 2+: `[2,3]`).
 
 ### accessories.json
-Array of 17 accessories in two categories. Each has: `name`, `type` ("Accessory"), `effects` (stat bonuses object), `price`. Optional: `combatEffects` (combat-time modifiers with conditions).
+Array of 29 accessories in two categories. Each has: `name`, `type` ("Accessory"), `effects` (stat bonuses object), `price`. Optional: `combatEffects` (combat-time modifiers with conditions).
 
 **Stat accessories (10):** Effects applied directly to `unit.stats` on equip, reversed on unequip. Power Ring (+2 STR), Magic Ring (+2 MAG), Speed Ring (+2 SPD), Shield Ring (+2 DEF), Barrier Ring (+2 RES), Skill Ring (+3 SKL), Goddess Icon (+5 LCK), Boots (+1 MOV), Delphi Shield (+3 DEF +3 RES), Veteran's Crest (+1 STR/SPD/DEF).
 
-**Combat accessories (7):** Have `combatEffects` field evaluated at combat time by Combat.js and SkillSystem.js. Wrath Band (+15 crit below 50% HP), Counter Seal (prevent enemy double attacks), Pursuit Ring (reduce double threshold by 2), Nullify Ring (negate weapon effectiveness), Life Ring (+3 atk/+2 def above 75% HP), Forest Charm (+10 avoid/+2 def on forest terrain). Conditions: `below50`, `above75`, `on_forest`.
+**Combat accessories (19):** Have `combatEffects` field evaluated at combat time by Combat.js and SkillSystem.js. Wrath Band (+15 crit below 50% HP), Counter Seal (prevent enemy double attacks), Pursuit Ring (reduce double threshold by 2), Nullify Ring (negate weapon effectiveness), Life Ring (+3 atk/+2 def above 75% HP), Forest Charm (+10 avoid/+2 def on forest terrain). Conditions: `below50`, `above75`, `on_forest`.
 
 ### metaUpgrades.json
-Array of 54 upgrade definitions. Each has: `id`, `name`, `description`, `category` ("recruit_stats"/"lord_bonuses"/"economy"/"capacity"/"starting_equipment"/"starting_skills"), `maxLevel`, `costs[]` (renown cost per tier), `effects[]` (cumulative effect per tier). Growth and flat stat upgrades are independent: recruit growth (6 upgrades × 5 tiers, +5%/tier via `{recruitGrowth, growthValue}`), recruit flat (6 × 3 tiers via `{stat, value}`), lord growth (5 × 5 tiers via `{lordGrowth, growthValue}` — includes SPD/RES), lord flat (5 × 3 tiers via `{lordStat, value}` — includes SPD/RES). Economy upgrades have `{goldBonus}` / `{battleGoldMultiplier}` / `{extraVulnerary}` / `{lootWeaponWeightBonus}`, capacity upgrades have `{deployBonus}` / `{rosterCapBonus}` / `{recruitRandomSkill}`. Equipment upgrades: `weapon_forge` (3 tiers, `{startingWeaponForge}`), `weapon_tier` (1 tier, `{deadlyArsenal}`), `starting_accessory` (3 tiers, `{startingAccessoryTier}`), `staff_upgrade` (2 tiers, `{startingStaffTier}`). Skills upgrades: 8+ skill unlocks (`{skillUnlock, skillId}`). Effects are cumulative per tier (level 2 shows total bonus, not incremental).
+Array of 58 upgrade definitions. Each has: `id`, `name`, `description`, `category` ("recruit_stats"/"lord_bonuses"/"economy"/"capacity"/"starting_equipment"/"starting_skills"), `maxLevel`, `costs[]` (renown cost per tier), `effects[]` (cumulative effect per tier). Growth and flat stat upgrades are independent: recruit growth (6 upgrades × 5 tiers, +5%/tier via `{recruitGrowth, growthValue}`), recruit flat (6 × 3 tiers via `{stat, value}`), lord growth (5 × 5 tiers via `{lordGrowth, growthValue}` — includes SPD/RES), lord flat (5 × 3 tiers via `{lordStat, value}` — includes SPD/RES). Economy upgrades have `{goldBonus}` / `{battleGoldMultiplier}` / `{extraVulnerary}` / `{lootWeaponWeightBonus}`, capacity upgrades have `{deployBonus}` / `{rosterCapBonus}` / `{recruitRandomSkill}`. Equipment upgrades: `weapon_forge` (3 tiers, `{startingWeaponForge}`), `weapon_tier` (1 tier, `{deadlyArsenal}`), `starting_accessory` (3 tiers, `{startingAccessoryTier}`), `staff_upgrade` (2 tiers, `{startingStaffTier}`). Skills upgrades: 8+ skill unlocks (`{skillUnlock, skillId}`). Effects are cumulative per tier (level 2 shows total bonus, not incremental).
 
 ### affixes.json
 12 enemy affixes across 2 tiers and 6 trigger types (on-defend, on-turn-start, on-attack, passive-aura, passive, on-death). Top-level keys: `version`, `affixes[]`, `config`. Each affix has: `id`, `name`, `description`, `tier` (1-2), `trigger`, `effects` (modifier object), `weight`, `icon`, `narrativeHint`. Optional: `aiOverride`. Config contains `difficultyGating` (Normal=0%, Hard=12% chance/1 max, Lunatic=30%/2 max), `actScaling` (per-act chance multiplier), `bossAffixRules` (disabled — bosses use hand-crafted skills), and `exclusions` (mutual exclusion + class exclusion rules).
 
 ### blessings.json
-18 shrine blessings across 4 tiers. Top-level keys: `version`, `blessings[]`. Each blessing has: `id`, `name`, `tier` (1-4), `description`, `weight`, `boons[]` (positive effects), `costs[]` (trade-offs). Boon/cost types include: `act_hit_bonus`, `battle_gold_multiplier_delta`, `run_start_max_hp_bonus`, `lord_stat_bonus`, `deploy_cap_delta`, `all_growths_delta`, `starting_weapon_tier`, `xp_multiplier_delta`, `forge_cost_discount`, `recruit_level_bonus`, `terrain_combat_bonus`, and more. Higher tiers offer stronger boons with meaningful costs.
+23 shrine blessings across 4 tiers. Top-level keys: `version`, `blessings[]`. Each blessing has: `id`, `name`, `tier` (1-4), `description`, `weight`, `boons[]` (positive effects), `costs[]` (trade-offs). Boon/cost types include: `act_hit_bonus`, `battle_gold_multiplier_delta`, `run_start_max_hp_bonus`, `lord_stat_bonus`, `deploy_cap_delta`, `all_growths_delta`, `starting_weapon_tier`, `xp_multiplier_delta`, `forge_cost_discount`, `recruit_level_bonus`, `terrain_combat_bonus`, and more. Higher tiers offer stronger boons with meaningful costs.
 
 ### dialogue.json
 Recruit lines keyed by class name (arrays of flavor text), plus `actTransitions` keyed by event (runStart, act1_to_act2, etc.) with `{speaker, portrait, line}` objects. Used by DialogueOverlay for story sequences between acts and at recruit events.
@@ -264,7 +264,7 @@ In-game help content for advanced mechanics. Contains `help` (tab label/title, n
 Reference viewer config with `gameVersion`, `helpTabLabel`, and duplicate combat/weaponRank formulas for the standalone reference viewer. Includes `rankRequirements` with total weapon counts per rank tier.
 
 ### weaponArts.json
-39 weapon arts across 5 weapon types (Sword 11, Lance 8, Axe 9, Bow 6, Tome 5). Top-level keys: `version`, `mvp` (cost model notes), `arts[]`. Each art has: `id`, `name`, `weaponType`, `unlockAct` (act1-act3), `requiredRank` (Prof/Mast), `hpCost` (HP deducted before combat), `perTurnLimit`, `perMapLimit`, `targeting`, `description`, `combatMods` (hit/crit/damage bonuses, stat scaling, activated effects). Arts use HP-cost model — no durability/stamina. Unlocked progressively by act.
+75 weapon arts across 5 weapon types (Sword 19, Lance 14, Axe 15, Bow 14, Tome 13). Top-level keys: `version`, `mvp` (cost model notes), `arts[]`. Each art has: `id`, `name`, `weaponType`, `unlockAct` (act1-act3), `requiredRank` (Prof/Mast), `hpCost` (HP deducted before combat), `perTurnLimit`, `perMapLimit`, `targeting`, `description`, `combatMods` (hit/crit/damage bonuses, stat scaling, activated effects). Arts use HP-cost model — no durability/stamina. Unlocked progressively by act.
 
 ## Core Formulas (from GDD Section 3.3)
 ```
@@ -285,12 +285,12 @@ Follow this order — each phase should be testable:
 1. **Grid Engine & Movement** ✅ — tiled map rendering, unit placement, movement ranges, A* pathfinding
 2. **Combat System** ✅ — damage formula, weapon triangle, attack/counter, turn phases, enemy AI, combat UI
 3. **Unit System** ✅ — stats, leveling, growth rates, promotion framework, weapon ranks, XP system
-4. **Equipment & Skills** ✅ — inventory, weapon swapping, staff healing, skill system (35 skills, 7 trigger types including on-defend + action), promotion UI, weapon effectiveness multipliers, skill acquisition/learning (class level-up + scroll consumables), enemy skill assignment, MAX_SKILLS=5 cap, weapon specials (drain, poison, siege, equipped stat bonuses)
+4. **Equipment & Skills** ✅ — inventory, weapon swapping, staff healing, skill system (50 skills, 7 trigger types including on-defend + action), promotion UI, weapon effectiveness multipliers, skill acquisition/learning (class level-up + scroll consumables), enemy skill assignment, MAX_SKILLS=5 cap, weapon specials (drain, poison, siege, equipped stat bonuses)
 5. **Map Generation** ✅ — procedural maps from templates, randomized terrain, Rout + Seize objectives, enemy pools by act, boss enemies, reachability checks
 6. **Node Map** ✅ — branching node map per act, battle/rest/boss nodes, unit persistence between battles, act progression (act1→act2→act3→finalBoss), RunManager run state, victory/defeat end screen
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
-8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 54 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→DifficultySelect→BlessingSelect→NodeMap), Save & Exit, localStorage persistence
-9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (17 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (89 total, throwables, effectiveness, specials) ✅ | Expanded skills (35 total, 7 trigger types) ✅ | Lord classes + Wyvern classes in classes.json (32 total) ✅ | **3 save slots + user flow rework** ✅ | Enemy affixes (12) ✅ | Weapon arts (39) ✅ | Blessings (18) ✅ | Difficulty modes (Normal/Hard/Lunatic) ✅ | Terrain hazards (Ice/Lava Crack) ✅ | Convoy ✅ | Wyvern classes ✅ | Reinforcements ✅ | Boss recruit events ✅ | Tutorial hints ✅ | Scene Router/Guard ✅ | Dialogue scaffold ✅
+8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 58 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→DifficultySelect→BlessingSelect→NodeMap), Save & Exit, localStorage persistence
+9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (29 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (106 total, throwables, effectiveness, specials) ✅ | Expanded skills (50 total, 7 trigger types) ✅ | Lord classes + Wyvern classes in classes.json (47 total) ✅ | **3 save slots + user flow rework** ✅ | Enemy affixes (12) ✅ | Weapon arts (75) ✅ | Blessings (23) ✅ | Difficulty modes (Normal/Hard/Lunatic) ✅ | Terrain hazards (Ice/Lava Crack) ✅ | Convoy ✅ | Wyvern classes ✅ | Reinforcements ✅ | Boss recruit events ✅ | Tutorial hints ✅ | Scene Router/Guard ✅ | Dialogue scaffold ✅
 10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Cloud sync is callback-driven via `onSave` with hardening against write races/older-meta overwrite. Offline play supported.
 
 ## Art Style Guidelines
@@ -320,7 +320,7 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (1621 tests across 102 files, Feb 15 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, affixes, weapon arts, blessings, difficulty, terrain hazards, reinforcements, scene router/guard, convoy, wyverns, tutorial, campaign map, mobile controls, cloud-sync guard tests, and deterministic run hooks
+- **Coverage (2450 tests across 147 files, Feb 19 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, affixes, weapon arts, blessings, difficulty, terrain hazards, reinforcements, scene router/guard, convoy, wyverns, tutorial, campaign map, mobile controls, cloud-sync guard tests, and deterministic run hooks
 - **Residual testing gap:** Scene-level integration assertions for some menu/UX states (for example difficulty unlock messaging and certain mobile touch parity paths) still rely on behavior tests + manual verification.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
