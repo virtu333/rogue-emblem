@@ -298,6 +298,263 @@ describe('BattleScene fog snapshot lifecycle', () => {
   });
 });
 
+describe('BattleScene deferred vision snapshot commit', () => {
+  function primeVisionSnapshots(scene) {
+    const previous = { id: 'previous-commit' };
+    const pending = { id: 'current-turn-start' };
+    scene.visionSnapshot = previous;
+    scene.pendingVisionSnapshot = pending;
+    scene.turnManager = {
+      ...scene.turnManager,
+      currentPhase: 'player',
+      unitActed: scene.turnManager?.unitActed || vi.fn(),
+      endPlayerPhase: scene.turnManager?.endPlayerPhase || vi.fn(),
+    };
+    return { previous, pending };
+  }
+
+  function prepareSelectUnitDeps(scene) {
+    scene.inspectionPanel = { hide: vi.fn() };
+    scene.unitDetailOverlay = { visible: false, hide: vi.fn() };
+    scene.dangerZone = { hide: vi.fn() };
+    scene._clearCombatRollSession = vi.fn();
+    scene._clearSelectedWeaponArt = vi.fn();
+    scene.buildUnitPositionMap = vi.fn(() => new Map());
+    scene.grid.showMovementRange = vi.fn();
+  }
+
+  it('does not promote pending snapshot on selectUnit', () => {
+    const { scene, unit } = setupScene();
+    const { previous, pending } = primeVisionSnapshots(scene);
+    unit.mov = 5;
+    prepareSelectUnitDeps(scene);
+
+    BattleScene.prototype.selectUnit.call(scene, unit);
+
+    expect(scene.visionSnapshot).toBe(previous);
+    expect(scene.pendingVisionSnapshot).toBe(pending);
+  });
+
+  it('promotes pending snapshot on confirmForecastCombat', () => {
+    const { scene, unit } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    scene.selectedUnit = unit;
+    scene.forecastTarget = makeUnit({ faction: 'enemy' });
+    scene.battleState = 'SHOWING_FORECAST';
+    scene.executeCombat = vi.fn();
+
+    BattleScene.prototype.confirmForecastCombat.call(scene);
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(scene.executeCombat).toHaveBeenCalledWith(unit, scene.forecastTarget);
+  });
+
+  it('promotes pending snapshot on finishUnitAction', () => {
+    const { scene, unit } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+
+    BattleScene.prototype.finishUnitAction.call(scene, unit, { skipCanto: true });
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+  });
+
+  it('promotes pending snapshot on forceEndTurn', () => {
+    const { scene } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    scene.canForceEndTurn = () => true;
+    scene._isTutorialStrictGateActive = () => false;
+    scene.registry = { get: () => null };
+    scene.selectedUnit = makeUnit();
+
+    BattleScene.prototype.forceEndTurn.call(scene);
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+  });
+
+  it('promotes pending snapshot on first trade mutation', () => {
+    const { scene } = setupScene();
+    const { texts } = attachUiHarness(scene);
+    const { pending } = primeVisionSnapshots(scene);
+    const unitA = makeUnit({
+      name: 'Edric',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [{ name: 'Iron Sword', type: 'Sword', rank: 'Prof', range: '1' }],
+      consumables: [],
+    });
+    const unitB = makeUnit({
+      name: 'Sera',
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      inventory: [],
+      consumables: [],
+    });
+
+    BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
+    const swordRow = texts.find((obj) => obj.text === 'Iron Sword');
+    expect(swordRow).toBeTruthy();
+
+    swordRow.trigger('pointerdown');
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(scene.tradeMutatedThisSession).toBe(true);
+  });
+
+  it('promotes pending snapshot on useConsumable entry (heal path)', async () => {
+    const { scene, unit } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    unit.name = 'Edric';
+    unit.currentHP = 10;
+    unit.stats = { ...unit.stats, HP: 20 };
+    scene.updateHPBar = vi.fn();
+    scene.finishUnitAction = vi.fn();
+    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    unit.consumables = [item];
+
+    let resolveBanner;
+    scene.showBriefBanner = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveBanner = resolve;
+        }),
+    );
+
+    const actionPromise = BattleScene.prototype.useConsumable.call(scene, unit, item);
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+
+    resolveBanner();
+    await actionPromise;
+  });
+
+  it('does not promote pending snapshot on useConsumable promote (cancelled)', async () => {
+    const { scene, unit } = setupScene();
+    const { previous, pending } = primeVisionSnapshots(scene);
+    const item = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    scene.executePromotion = vi.fn(async () => false);
+    scene.finishUnitAction = vi.fn();
+
+    await BattleScene.prototype.useConsumable.call(scene, unit, item);
+
+    expect(scene.executePromotion).toHaveBeenCalledWith(unit, item);
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.visionSnapshot).toBe(previous);
+    expect(scene.pendingVisionSnapshot).toBe(pending);
+  });
+
+  it('does not promote pending snapshot on useConsumable reclass entry', async () => {
+    const { scene, unit } = setupScene();
+    const { previous, pending } = primeVisionSnapshots(scene);
+    const item = { name: 'Second Seal', effect: 'reclass', uses: 1 };
+    scene.showReclassClassPicker = vi.fn();
+    scene.finishUnitAction = vi.fn();
+
+    await BattleScene.prototype.useConsumable.call(scene, unit, item);
+
+    expect(scene.showReclassClassPicker).toHaveBeenCalledWith(unit, item);
+    expect(scene.finishUnitAction).not.toHaveBeenCalled();
+    expect(scene.visionSnapshot).toBe(previous);
+    expect(scene.pendingVisionSnapshot).toBe(pending);
+  });
+
+  it('promotes pending snapshot on executeShove entry', () => {
+    const { scene } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    scene.tweens = { add: vi.fn() };
+    const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
+    const ally = makeUnit({ col: 5, row: 4, label: { x: 0, y: 0 } });
+
+    BattleScene.prototype.executeShove.call(scene, actor, {
+      ally,
+      destCol: 6,
+      destRow: 4,
+    });
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+  });
+
+  it('promotes pending snapshot on executePull entry', () => {
+    const { scene } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    scene.tweens = { add: vi.fn() };
+    const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
+    const ally = makeUnit({ col: 4, row: 5, label: { x: 0, y: 0 } });
+
+    BattleScene.prototype.executePull.call(scene, actor, {
+      ally,
+      retreatCol: 4,
+      retreatRow: 3,
+    });
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+  });
+
+  it('promotes pending snapshot on executeSwap entry', () => {
+    const { scene } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    scene.tweens = { add: vi.fn() };
+    const actor = makeUnit({ col: 4, row: 4, label: { x: 0, y: 0 } });
+    const ally = makeUnit({ col: 5, row: 4, label: { x: 0, y: 0 } });
+
+    BattleScene.prototype.executeSwap.call(scene, actor, { ally });
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+  });
+
+  it('promotes pending snapshot on executeDance entry', async () => {
+    const { scene } = setupScene();
+    const { pending } = primeVisionSnapshots(scene);
+    const sparkle = {
+      setDepth: vi.fn().mockReturnThis(),
+      destroy: vi.fn(),
+    };
+    scene.add = {
+      circle: vi.fn(() => sparkle),
+    };
+    scene._isReducedEffects = vi.fn(() => true);
+    scene.tweens = { add: vi.fn() };
+    scene.awardScaledXP = vi.fn(async () => {});
+    scene.finishUnitAction = vi.fn();
+    const actor = makeUnit({ name: 'Dancer' });
+    const ally = makeUnit({ hasMoved: true, hasActed: true });
+
+    const actionPromise = BattleScene.prototype.executeDance.call(scene, actor, { ally });
+
+    expect(scene.visionSnapshot).toBe(pending);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+
+    await actionPromise;
+  });
+
+  it('rewind after select-before-action uses prior committed snapshot', () => {
+    const { scene, unit } = setupScene();
+    const { previous, pending } = primeVisionSnapshots(scene);
+    scene.runManager = { visionChargesRemaining: 1, visionCount: 0 };
+    scene.applyVisionSnapshot = vi.fn(function applyVisionSnapshot() {
+      this._appliedSnapshotId = this.visionSnapshot?.id;
+      return true;
+    });
+    unit.mov = 5;
+    prepareSelectUnitDeps(scene);
+
+    BattleScene.prototype.selectUnit.call(scene, unit);
+    const didRewind = BattleScene.prototype.executeVisionRewind.call(scene);
+
+    expect(didRewind).toBe(true);
+    expect(scene._appliedSnapshotId).toBe(previous.id);
+    expect(scene.visionSnapshot).toBe(previous);
+    expect(scene.pendingVisionSnapshot).toBeNull();
+    expect(scene.runManager.visionChargesRemaining).toBe(0);
+    expect(pending.id).toBe('current-turn-start');
+  });
+});
+
 describe('BattleScene _movementSpent reset', () => {
   it('undoMove resets _movementSpent to zero', () => {
     const { scene, unit } = setupScene();

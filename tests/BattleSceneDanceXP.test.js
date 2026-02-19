@@ -42,6 +42,7 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
       },
     },
     _isReducedEffects: () => true,
+    commitVisionSnapshotIfPending: () => false,
     hideActionMenu() {},
     undimUnit() {},
     finishUnitAction() {},

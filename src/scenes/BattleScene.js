@@ -1934,6 +1934,13 @@ export class BattleScene extends Phaser.Scene {
     this.pendingVisionSnapshot = null;
   }
 
+  commitVisionSnapshotIfPending() {
+    if (this.turnManager?.currentPhase !== 'player') return false;
+    if (!this.pendingVisionSnapshot) return false;
+    this.activatePendingVisionSnapshot();
+    return true;
+  }
+
   applyVisionSnapshot() {
     if (!this.visionSnapshot) return false;
     const restoreUnits = (targetArr, sourceUnits) => {
@@ -3993,7 +4000,7 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (!this.canForceEndTurn()) return;
-    this.activatePendingVisionSnapshot();
+    this.commitVisionSnapshotIfPending();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
 
@@ -4208,6 +4215,7 @@ export class BattleScene extends Phaser.Scene {
     if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
       return;
     const target = this.forecastTarget;
+    this.commitVisionSnapshotIfPending();
     this.hideForecast();
     this.executeCombat(this.selectedUnit, target);
   }
@@ -4221,9 +4229,6 @@ export class BattleScene extends Phaser.Scene {
         void this._showTutorialBlockingInstruction('Select Edric first to continue the tutorial.');
         return;
       }
-    }
-    if (this.turnManager?.currentPhase === 'player') {
-      this.activatePendingVisionSnapshot();
     }
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     this.inspectionPanel.hide();
@@ -4639,6 +4644,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   finishUnitAction(unit, { skipCanto = false } = {}) {
+    this.commitVisionSnapshotIfPending();
     this._clearCombatRollSession();
     this.hideActionMenu();
     this.grid.clearAttackHighlights();
@@ -4834,6 +4840,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executeShove(unit, target) {
+    this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const pos = this.grid.gridToPixel(target.destCol, target.destRow);
     const targets = target.ally.label
@@ -4855,6 +4862,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executePull(unit, target) {
+    this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     // Move both simultaneously: unit retreats, ally moves to unit's old spot
     const unitPos = this.grid.gridToPixel(target.retreatCol, target.retreatRow);
@@ -5026,6 +5034,7 @@ export class BattleScene extends Phaser.Scene {
               if (!this.tradeMutatedThisSession) {
                 this.tradeMutatedThisSession = true;
                 this.preMoveLoc = null;
+                this.commitVisionSnapshotIfPending();
               }
               this.cleanupTradeUI();
               this.showBattleTradeUI(unitA, unitB);
@@ -5064,6 +5073,7 @@ export class BattleScene extends Phaser.Scene {
             if (!this.tradeMutatedThisSession) {
               this.tradeMutatedThisSession = true;
               this.preMoveLoc = null;
+              this.commitVisionSnapshotIfPending();
             }
             this.cleanupTradeUI();
             this.showBattleTradeUI(unitA, unitB);
@@ -5116,6 +5126,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   executeSwap(unit, target) {
+    this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
     const allyPos = this.grid.gridToPixel(unit.col, unit.row);
@@ -5167,6 +5178,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async executeDance(unit, target) {
+    this.commitVisionSnapshotIfPending();
     this.hideActionMenu();
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_heal');
@@ -5887,6 +5899,7 @@ export class BattleScene extends Phaser.Scene {
             this.executeTalk(unit);
           } else if (label === 'Seize') {
             this.hideActionMenu();
+            this.commitVisionSnapshotIfPending();
             this.onVictory();
           } else if (label === 'Shove') {
             this.startShoveTargetSelection(unit);
@@ -6808,6 +6821,17 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.inEquipMenu = false;
 
+    if (item.effect === 'promote') {
+      const didPromote = await this.executePromotion(unit, item);
+      if (!didPromote) return;
+      return;
+    } else if (item.effect === 'reclass') {
+      this.showReclassClassPicker(unit, item);
+      return;
+    }
+
+    this.commitVisionSnapshotIfPending();
+
     if (item.effect === 'heal') {
       const oldHP = unit.currentHP;
       unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + item.value);
@@ -6818,13 +6842,6 @@ export class BattleScene extends Phaser.Scene {
       unit.currentHP = unit.stats.HP;
       this.updateHPBar(unit);
       await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
-    } else if (item.effect === 'promote') {
-      const didPromote = await this.executePromotion(unit, item);
-      if (!didPromote) return;
-      return;
-    } else if (item.effect === 'reclass') {
-      this.showReclassClassPicker(unit, item);
-      return;
     }
 
     // Decrement uses, remove if depleted
