@@ -14,6 +14,11 @@ import {
   GOLD_PER_LEVEL_BONUS,
   GOLD_BATTLE_BONUS,
   GOLD_BOSS_BONUS,
+  GOLD_PER_KILL_SOFT_CAP,
+  GOLD_PER_KILL_EXCESS_RATE,
+  GOLD_PROMOTED_BONUS_START_LEVEL,
+  GOLD_PROMOTED_BONUS_PER_LEVEL,
+  GOLD_PROMOTED_BONUS_MAX,
   SHOP_SELL_RATIO,
   LOOT_CHOICES,
   SHOP_ITEM_COUNT,
@@ -42,10 +47,54 @@ describe('LootSystem', () => {
       expect(gold5).toBe(GOLD_PER_KILL_BASE + 5 * GOLD_PER_LEVEL_BONUS);
     });
 
+    it('uses soft-cap compression and delayed promoted bonus ramp', () => {
+      const level = 20;
+      const baseRaw = GOLD_PER_KILL_BASE + level * GOLD_PER_LEVEL_BONUS;
+      const expectedSoft =
+        baseRaw <= GOLD_PER_KILL_SOFT_CAP
+          ? baseRaw
+          : GOLD_PER_KILL_SOFT_CAP +
+            Math.floor((baseRaw - GOLD_PER_KILL_SOFT_CAP) * GOLD_PER_KILL_EXCESS_RATE);
+      const expectedPromoted = Math.min(
+        GOLD_PROMOTED_BONUS_MAX,
+        Math.max(0, level - GOLD_PROMOTED_BONUS_START_LEVEL) * GOLD_PROMOTED_BONUS_PER_LEVEL,
+      );
+      expect(calculateKillGold({ level, tier: 'promoted' })).toBe(expectedSoft + expectedPromoted);
+    });
+
+    it('matches promoted non-boss acceptance values', () => {
+      const expected = new Map([
+        [10, 108],
+        [12, 118],
+        [14, 128],
+        [16, 141],
+        [18, 155],
+        [20, 168],
+      ]);
+      for (const [level, total] of expected) {
+        expect(calculateKillGold({ level, tier: 'promoted', isBoss: false })).toBe(total);
+      }
+    });
+
+    it('is monotonic for promoted non-boss levels 1..40', () => {
+      let prev = calculateKillGold({ level: 1, tier: 'promoted', isBoss: false });
+      for (let level = 2; level <= 40; level++) {
+        const current = calculateKillGold({ level, tier: 'promoted', isBoss: false });
+        expect(current).toBeGreaterThan(prev);
+        prev = current;
+      }
+    });
+
     it('adds boss bonus for boss enemies', () => {
       const normal = calculateKillGold({ level: 5 });
       const boss = calculateKillGold({ level: 5, isBoss: true });
       expect(boss).toBe(normal + GOLD_BOSS_BONUS);
+    });
+
+    it('applies boss bonus after soft-cap compression and promoted bonus', () => {
+      const promoted = calculateKillGold({ level: 24, tier: 'promoted', isBoss: false });
+      const bossPromoted = calculateKillGold({ level: 24, tier: 'promoted', isBoss: true });
+      expect(bossPromoted).toBe(promoted + GOLD_BOSS_BONUS);
     });
   });
 

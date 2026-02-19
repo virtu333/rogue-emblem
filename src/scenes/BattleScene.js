@@ -22,9 +22,11 @@ import {
 import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
+  createPromotedEnemyUnit,
   createRecruitUnit,
   calculateCombatXP,
   gainExperience,
+  levelUp,
   addToInventory,
   addToConsumables,
   removeFromConsumables,
@@ -105,6 +107,7 @@ import {
   FORT_HEAL_DECAY_MULTIPLIERS,
   ANTI_TURTLE_NO_PROGRESS_TURNS,
   RECRUIT_SKILL_POOL,
+  XP_STAT_NAMES,
   FORGE_MAX_LEVEL,
   FORGE_STAT_CAP,
   SUNDER_WEAPON_BY_TYPE,
@@ -112,6 +115,7 @@ import {
   XP_BASE_DANCE,
   XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
+  BASE_CLASS_LEVEL_CAP,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
   RECRUIT_NODE_LORD_CHANCE,
@@ -149,6 +153,7 @@ import {
   getAvailableLords,
   createBossLordUnit,
 } from '../engine/BossRecruitSystem.js';
+import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -626,15 +631,14 @@ export class BattleScene extends Phaser.Scene {
       // Spawn NPC for recruit battles
       if (bc.npcSpawn) {
         const npcSpawn = bc.npcSpawn;
-        // Scale recruit to lord's level (lord level or lord level - 1) + blessing bonus
-        const lord = this.playerUnits.find((u) => u.isLord);
-        if (lord) {
-          const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
-          npcSpawn.level = Math.max(
-            1,
-            lord.level - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
-          );
-        }
+        const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
+        const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+          resolveRecruitScalingTargets(this.playerUnits);
+        const nodeTargetLevel = Math.max(
+          1,
+          recruitTargetLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
+        );
+        npcSpawn.level = nodeTargetLevel;
 
         // Lord roll: chance to spawn a lord (Kira/Voss) instead of a regular recruit
         let spawnedLord = false;
@@ -670,6 +674,8 @@ export class BattleScene extends Phaser.Scene {
                 promoteLord,
                 classes: this.gameData.classes || [],
                 skills: this.gameData.skills || [],
+                dynamicPromotionLevel,
+                promotedLevelTarget,
               },
             );
             npc.faction = 'npc';
@@ -698,7 +704,11 @@ export class BattleScene extends Phaser.Scene {
                 (c) => c.name === npcClassData.promotesFrom,
               );
               if (baseClassData) {
-                const baseDef = { ...npcSpawn, className: baseClassData.name };
+                const baseDef = {
+                  ...npcSpawn,
+                  className: baseClassData.name,
+                  level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+                };
                 npc = createRecruitUnit(
                   baseDef,
                   baseClassData,
@@ -712,6 +722,16 @@ export class BattleScene extends Phaser.Scene {
                   if (!npc.skills.includes(sid)) npc.skills.push(sid);
                 }
                 promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+                const promotedLevels = Math.max(0, promotedLevelTarget - 1);
+                for (let i = 0; i < promotedLevels; i++) {
+                  const result = levelUp(npc);
+                  if (result) {
+                    npc.level = result.newLevel;
+                    for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
+                    npc.currentHP += result.gains.HP;
+                  }
+                }
+                checkLevelUpSkills(npc, this.gameData.classes);
               } else {
                 // Safety fallback: create from promoted class directly rather than aborting battle load.
                 npc = createRecruitUnit(
@@ -1638,19 +1658,15 @@ export class BattleScene extends Phaser.Scene {
 
     let enemy;
     if (classData.tier === 'promoted') {
-      const baseClassData = this.gameData.classes.find(
-        (candidate) => candidate.name === classData.promotesFrom,
-      );
-      if (!baseClassData) return null;
-      enemy = createEnemyUnitFromClass(
-        baseClassData,
+      enemy = createPromotedEnemyUnit(
+        classData,
         spawnLevel,
         this.gameData.weapons,
         difficultyConfig,
         this.gameData.skills,
         this.battleParams.act,
+        this.gameData.classes,
       );
-      promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
     } else {
       enemy = createEnemyUnitFromClass(
         classData,
@@ -1661,6 +1677,7 @@ export class BattleScene extends Phaser.Scene {
         this.battleParams.act,
       );
     }
+    if (!enemy) return null;
 
     enemy.col = spawn.col;
     enemy.row = spawn.row;

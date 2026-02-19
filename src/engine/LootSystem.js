@@ -6,6 +6,11 @@ import {
   GOLD_PER_LEVEL_BONUS,
   GOLD_BATTLE_BONUS,
   GOLD_BOSS_BONUS,
+  GOLD_PER_KILL_SOFT_CAP,
+  GOLD_PER_KILL_EXCESS_RATE,
+  GOLD_PROMOTED_BONUS_START_LEVEL,
+  GOLD_PROMOTED_BONUS_PER_LEVEL,
+  GOLD_PROMOTED_BONUS_MAX,
   GOLD_SKIP_LOOT_MULTIPLIER,
   SHOP_SELL_RATIO,
   LOOT_CHOICES,
@@ -41,13 +46,25 @@ const LOOT_WEAPON_TIER_INDEX = new Map(
 
 /**
  * Calculate gold earned from killing an enemy.
- * @param {{ level: number, isBoss?: boolean }} enemy
+ * @param {{ level: number, tier?: string, isBoss?: boolean }} enemy
  * @returns {number}
  */
 export function calculateKillGold(enemy) {
-  let gold = GOLD_PER_KILL_BASE + enemy.level * GOLD_PER_LEVEL_BONUS;
-  if (enemy.isBoss) gold += GOLD_BOSS_BONUS;
-  return gold;
+  const level = Math.max(1, Math.trunc(Number(enemy?.level) || 1));
+  const baseRaw = GOLD_PER_KILL_BASE + level * GOLD_PER_LEVEL_BONUS;
+  const baseSoft =
+    baseRaw <= GOLD_PER_KILL_SOFT_CAP
+      ? baseRaw
+      : GOLD_PER_KILL_SOFT_CAP +
+        Math.floor((baseRaw - GOLD_PER_KILL_SOFT_CAP) * GOLD_PER_KILL_EXCESS_RATE);
+  const promotedBonus =
+    enemy?.tier === 'promoted'
+      ? Math.min(
+          GOLD_PROMOTED_BONUS_MAX,
+          Math.max(0, level - GOLD_PROMOTED_BONUS_START_LEVEL) * GOLD_PROMOTED_BONUS_PER_LEVEL,
+        )
+      : 0;
+  return baseSoft + promotedBonus + (enemy?.isBoss ? GOLD_BOSS_BONUS : 0);
 }
 
 /**

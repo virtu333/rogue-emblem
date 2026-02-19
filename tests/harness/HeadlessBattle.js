@@ -21,9 +21,11 @@ import {
 import {
   createLordUnit,
   createEnemyUnit,
+  createPromotedEnemyUnit,
   createRecruitUnit,
   calculateCombatXP,
   gainExperience,
+  levelUp,
   equipWeapon,
   hasStaff,
   getCombatWeapons,
@@ -67,11 +69,14 @@ import {
 } from '../../src/engine/WeaponArtPostCombat.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
+import { resolveRecruitScalingTargets } from '../../src/engine/RecruitScaling.js';
 import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
+  BASE_CLASS_LEVEL_CAP,
+  XP_STAT_NAMES,
   XP_SPECIAL_ENEMY_MULTIPLIER,
 } from '../../src/utils/constants.js';
 
@@ -214,10 +219,14 @@ export class HeadlessBattle {
     // Lord recruit behavior is tested via unit tests in RecruitNodeLord.test.js.
     if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
-      const lord = this.playerUnits.find((u) => u.isLord);
-      if (lord) {
-        npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0));
-      }
+      const recruitLevelBonus = Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0);
+      const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+        resolveRecruitScalingTargets(this.playerUnits);
+      const nodeTargetLevel = Math.max(
+        1,
+        recruitTargetLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
+      );
+      npcSpawn.level = nodeTargetLevel;
       const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
       if (npcClassData) {
         let npc;
@@ -226,7 +235,11 @@ export class HeadlessBattle {
             (c) => c.name === npcClassData.promotesFrom,
           );
           if (baseClassData) {
-            const baseDef = { ...npcSpawn, className: baseClassData.name };
+            const baseDef = {
+              ...npcSpawn,
+              className: baseClassData.name,
+              level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+            };
             npc = createRecruitUnit(
               baseDef,
               baseClassData,
@@ -240,6 +253,16 @@ export class HeadlessBattle {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
             }
             promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+            const promotedLevels = Math.max(0, promotedLevelTarget - 1);
+            for (let i = 0; i < promotedLevels; i++) {
+              const result = levelUp(npc);
+              if (result) {
+                npc.level = result.newLevel;
+                for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
+                npc.currentHP += result.gains.HP;
+              }
+            }
+            checkLevelUpSkills(npc, this.gameData.classes);
           }
         } else {
           npc = createRecruitUnit(
@@ -738,19 +761,15 @@ export class HeadlessBattle {
 
     let enemy;
     if (classData.tier === 'promoted') {
-      const baseClassData = this.gameData.classes.find(
-        (candidate) => candidate.name === classData.promotesFrom,
-      );
-      if (!baseClassData) return null;
-      enemy = createEnemyUnit(
-        baseClassData,
+      enemy = createPromotedEnemyUnit(
+        classData,
         spawnLevel,
         this.gameData.weapons,
         difficultyConfig,
         this.gameData.skills,
         this.battleParams.act,
+        this.gameData.classes,
       );
-      promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
     } else {
       enemy = createEnemyUnit(
         classData,
@@ -761,6 +780,7 @@ export class HeadlessBattle {
         this.battleParams.act,
       );
     }
+    if (!enemy) return null;
 
     enemy.col = spawn.col;
     enemy.row = spawn.row;

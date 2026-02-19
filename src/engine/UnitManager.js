@@ -13,6 +13,7 @@ import {
   PROMOTED_CLASS_LEVEL_CAP,
   PROMOTION_MIN_LEVEL,
   MAX_SKILLS,
+  ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
 
 // --- Weapon proficiency parsing ---
@@ -295,6 +296,70 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * level 5+ enemies get 1 random combat skill (chance scaled by act).
  * act: 'act1'/'act2'/'act3'/'act4'/'finalBoss' — determines skill assignment probability.
  */
+function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
+  const isConfigObject = difficultyConfig && typeof difficultyConfig === 'object';
+  const difficultyMod = isConfigObject
+    ? Number(difficultyConfig.multiplier ?? 1.0)
+    : Number(difficultyConfig ?? 1.0);
+  const enemyStatBonus = isConfigObject
+    ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0))
+    : 0;
+  return { difficultyMod, enemyStatBonus };
+}
+
+export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
+  if (!unit) return unit;
+  const { difficultyMod, enemyStatBonus } = parseEnemyDifficultyConfig(difficultyConfig);
+
+  // Apply multiplier first for backward compatibility with harness fixtures.
+  if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
+    for (const stat of XP_STAT_NAMES) {
+      unit.stats[stat] = Math.round(unit.stats[stat] * difficultyMod);
+    }
+    unit.currentHP = unit.stats.HP;
+  }
+
+  // Apply flat difficulty stat bonus (HP gets double value).
+  if (enemyStatBonus !== 0) {
+    for (const stat of XP_STAT_NAMES) {
+      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
+      unit.stats[stat] = (unit.stats[stat] || 0) + delta;
+    }
+    unit.currentHP = unit.stats.HP;
+  }
+
+  return unit;
+}
+
+function assignEnemySkills(unit, classData, level, skillsData, act) {
+  if (!skillsData) return;
+
+  // Promoted enemies get class innate skills.
+  if (classData.tier === 'promoted') {
+    const innateSkills = getClassInnateSkills(classData.name, skillsData);
+    for (const sid of innateSkills) {
+      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+    }
+  }
+
+  // Act-scaled combat skill chance.
+  const SKILL_CHANCE_BY_ACT = {
+    act1: 0.1,
+    act2: 0.25,
+    act3: 0.5,
+    act4: 0.6,
+    finalBoss: 0.65,
+  };
+  const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
+
+  // Level 5+ enemies roll for 1 random combat skill based on act.
+  if (level >= 5 && Math.random() < chance) {
+    const pool = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    if (!unit.skills.includes(pick)) unit.skills.push(pick);
+  }
+}
+
 export function createEnemyUnit(
   classData,
   level,
@@ -303,6 +368,7 @@ export function createEnemyUnit(
   skillsData = null,
   act = 'act1',
 ) {
+  const enemyLevel = Math.max(1, Math.trunc(Number(level) || 1));
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
     classData.tier || 'base',
@@ -310,7 +376,7 @@ export function createEnemyUnit(
   const growths = rollGrowthRates(classData.growthRanges);
 
   // Pick weapon tier by level
-  const weaponTier = level >= 13 ? 'Silver' : level >= 6 ? 'Steel' : 'Iron';
+  const weaponTier = enemyLevel >= 13 ? 'Silver' : enemyLevel >= 6 ? 'Steel' : 'Iron';
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
 
   // Clone weapon to avoid shared state
@@ -348,66 +414,57 @@ export function createEnemyUnit(
   };
 
   // Auto-level to target level
-  for (let i = 1; i < level; i++) {
+  for (let i = 1; i < enemyLevel; i++) {
     const gains = levelUp(unit);
     if (gains) applyLevelUpGains(unit, gains);
   }
 
-  // Legacy multiplier path and Wave 8 flat bonus path both supported.
-  const isConfigObject = difficultyConfig && typeof difficultyConfig === 'object';
-  const difficultyMod = isConfigObject
-    ? Number(difficultyConfig.multiplier ?? 1.0)
-    : Number(difficultyConfig ?? 1.0);
-  const enemyStatBonus = isConfigObject
-    ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0))
-    : 0;
-
-  // Apply multiplier first for backward compatibility with harness fixtures.
-  if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
-    for (const stat of XP_STAT_NAMES) {
-      unit.stats[stat] = Math.round(unit.stats[stat] * difficultyMod);
-    }
-    unit.currentHP = unit.stats.HP;
-  }
-
-  // Apply flat difficulty stat bonus (HP gets double value).
-  if (enemyStatBonus !== 0) {
-    for (const stat of XP_STAT_NAMES) {
-      const delta = stat === 'HP' ? enemyStatBonus * 2 : enemyStatBonus;
-      unit.stats[stat] = (unit.stats[stat] || 0) + delta;
-    }
-    unit.currentHP = unit.stats.HP;
-  }
-
-  // Assign skills to enemies
-  if (skillsData) {
-    // Promoted enemies get class innate skills
-    if (classData.tier === 'promoted') {
-      const innateSkills = getClassInnateSkills(classData.name, skillsData);
-      for (const sid of innateSkills) {
-        if (!unit.skills.includes(sid)) unit.skills.push(sid);
-      }
-    }
-
-    // Act-scaled combat skill chance
-    const SKILL_CHANCE_BY_ACT = {
-      act1: 0.1,
-      act2: 0.25,
-      act3: 0.5,
-      act4: 0.6,
-      finalBoss: 0.65,
-    };
-    const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
-
-    // Level 5+ enemies roll for 1 random combat skill based on act
-    if (level >= 5 && Math.random() < chance) {
-      const pool = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      if (!unit.skills.includes(pick)) unit.skills.push(pick);
-    }
-  }
+  applyEnemyDifficultyModifiers(unit, difficultyConfig);
+  assignEnemySkills(unit, classData, enemyLevel, skillsData, act);
 
   return unit;
+}
+
+/**
+ * Create a promoted enemy from base class with capped pre-promotion growth.
+ * Difficulty modifiers are applied once to the final promoted statline.
+ */
+export function createPromotedEnemyUnit(
+  promotedClassData,
+  level,
+  allWeapons,
+  difficultyConfig = 1.0,
+  skillsData = null,
+  act = 'act1',
+  classesData = [],
+) {
+  if (!promotedClassData) return null;
+  if (promotedClassData.tier !== 'promoted') {
+    return createEnemyUnit(promotedClassData, level, allWeapons, difficultyConfig, skillsData, act);
+  }
+
+  const spawnLevel = Math.max(1, Math.trunc(Number(level) || 1));
+  const baseClassData = Array.isArray(classesData)
+    ? classesData.find((candidate) => candidate?.name === promotedClassData.promotesFrom)
+    : null;
+  if (!baseClassData) return null;
+
+  const cappedBaseLevel = Math.min(spawnLevel, ENEMY_PROMOTION_BASE_LEVEL);
+  const enemy = createEnemyUnit(baseClassData, cappedBaseLevel, allWeapons, 1.0, null, act);
+  promoteUnit(enemy, promotedClassData, promotedClassData.promotionBonuses, skillsData);
+
+  const promotedLevels = Math.max(0, spawnLevel - ENEMY_PROMOTION_BASE_LEVEL);
+  for (let i = 0; i < promotedLevels; i++) {
+    const gains = levelUp(enemy);
+    if (gains) applyLevelUpGains(enemy, gains);
+  }
+  if (Array.isArray(classesData) && classesData.length > 0) {
+    checkLevelUpSkills(enemy, classesData);
+  }
+
+  applyEnemyDifficultyModifiers(enemy, difficultyConfig);
+  assignEnemySkills(enemy, promotedClassData, spawnLevel, skillsData, act);
+  return enemy;
 }
 
 /**

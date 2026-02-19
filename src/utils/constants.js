@@ -33,6 +33,9 @@ export const CRIT_MULTIPLIER = 3;
 export const BASE_CLASS_LEVEL_CAP = 20;
 export const PROMOTED_CLASS_LEVEL_CAP = 20;
 export const PROMOTION_MIN_LEVEL = 10;
+export const RECRUIT_PROMOTION_BASE_LEVEL = 10;
+export const BOSS_RECRUIT_PROMOTED_PENALTY = 0;
+export const ENEMY_PROMOTION_BASE_LEVEL = 12;
 
 // Skill cap per unit
 export const MAX_SKILLS = 5;
@@ -147,6 +150,11 @@ export const GOLD_PER_KILL_BASE = 28;
 export const GOLD_PER_LEVEL_BONUS = 8;
 export const GOLD_BATTLE_BONUS = 80;
 export const GOLD_BOSS_BONUS = 300;
+export const GOLD_PER_KILL_SOFT_CAP = 110;
+export const GOLD_PER_KILL_EXCESS_RATE = 0.6;
+export const GOLD_PROMOTED_BONUS_START_LEVEL = 14;
+export const GOLD_PROMOTED_BONUS_PER_LEVEL = 2;
+export const GOLD_PROMOTED_BONUS_MAX = 12;
 export const GOLD_BATTLE_REWARD_MULTIPLIER = 1.3;
 // Shared loot multiplier: applied in LootSystem gold generation and BattleScene skip-loot payout.
 export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;

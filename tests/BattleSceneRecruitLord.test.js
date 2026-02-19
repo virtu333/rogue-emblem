@@ -218,4 +218,70 @@ describe('BattleScene recruit-node lord meta bonus', () => {
       randomSpy.mockRestore();
     }
   });
+
+  it('uses matching promoted-level targets for recruit-node lord and regular promoted recruit paths', () => {
+    const gameData = loadGameData();
+
+    // Regular promoted recruit path (no lord slot).
+    const regularRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    let regularLevel = null;
+    try {
+      const regularScene = makeBattleSceneWithLords({
+        act: 'act4',
+        npcClassName: 'Hero',
+      });
+      regularScene.roster = [
+        {
+          name: 'Edric',
+          isLord: true,
+          level: 4,
+          tier: 'promoted',
+          col: 0,
+          row: 0,
+          className: 'Great Lord',
+        },
+      ];
+      BattleScene.prototype.beginBattle.call(regularScene, regularScene.roster);
+      const regularNpc = regularScene.npcUnits.find((u) => !u.isLord);
+      expect(regularNpc).toBeTruthy();
+      regularLevel = regularNpc.level;
+    } finally {
+      regularRandomSpy.mockRestore();
+    }
+
+    // Recruit-node lord path (force lord slot).
+    const runRoster = makeLordRestrictedRoster(gameData, 'Voss');
+    let callCount = 0;
+    const lordRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return 0.99; // recruit level roll: no -1
+      if (callCount === 2) return 0.0; // force lord chance
+      return 0.0;
+    });
+    try {
+      const lordScene = makeBattleSceneWithLords({
+        act: 'act4',
+        npcClassName: 'Hero',
+        runRoster,
+      });
+      lordScene.roster = [
+        {
+          name: 'Edric',
+          isLord: true,
+          level: 4,
+          tier: 'promoted',
+          col: 0,
+          row: 0,
+          className: 'Great Lord',
+        },
+      ];
+      BattleScene.prototype.beginBattle.call(lordScene, lordScene.roster);
+      const lordNpc = lordScene.npcUnits.find((u) => u.isLord);
+      expect(lordNpc).toBeTruthy();
+      expect(regularLevel).toBe(4);
+      expect(lordNpc.level).toBe(regularLevel);
+    } finally {
+      lordRandomSpy.mockRestore();
+    }
+  });
 });

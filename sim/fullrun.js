@@ -9,6 +9,7 @@ import {
   createBoss,
   createRecruit,
 } from './lib/SimUnitFactory.js';
+import { sampleEnemyFromAct } from './lib/EnemySampling.js';
 import {
   printTable,
   toCSV,
@@ -16,15 +17,8 @@ import {
   printRecommendations,
   printHeader,
   meanStd,
-  percentiles,
 } from './lib/TableFormatter.js';
-import {
-  resolveCombat,
-  resolveHeal,
-  calculateHealAmount,
-  canCounter,
-  parseRange,
-} from '../src/engine/Combat.js';
+import { resolveCombat, resolveHeal, parseRange } from '../src/engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, checkAstra } from '../src/engine/SkillSystem.js';
 import {
   gainExperience,
@@ -41,9 +35,6 @@ import {
   ROSTER_CAP,
   DEPLOY_LIMITS,
   STARTING_GOLD,
-  GOLD_BOSS_BONUS,
-  BOSS_STAT_BONUS,
-  XP_STAT_NAMES,
   ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
@@ -109,20 +100,6 @@ function getEnemyCount(act, deployCount, row, isBoss) {
   }
   const [minOff, maxOff] = offset;
   return deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
-}
-
-function getEnemyLevel(act, levelRange) {
-  const pool = data.enemies.pools[act];
-  if (!pool) return 10;
-  const [min, max] = levelRange || pool.levelRange;
-  return min + Math.floor(Math.random() * (max - min + 1));
-}
-
-function pickEnemyClass(act) {
-  const pool = data.enemies.pools[act];
-  if (!pool) return 'Fighter';
-  const combined = [...pool.base, ...pool.promoted];
-  return combined[Math.floor(Math.random() * combined.length)];
 }
 
 function pickBoss(act) {
@@ -224,7 +201,11 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
 
       if (target.currentHP <= 0) {
         alive.enemy.splice(alive.enemy.indexOf(target), 1);
-        totalKillGold += calculateKillGold({ level: target.level, isBoss: target.isBoss });
+        totalKillGold += calculateKillGold({
+          level: target.level,
+          isBoss: target.isBoss,
+          tier: target.tier || 'base',
+        });
 
         // XP gain
         const xp = calculateCombatXP(unit, target, true);
@@ -281,7 +262,11 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
 
       if (enemy.currentHP <= 0) {
         alive.enemy.splice(alive.enemy.indexOf(enemy), 1);
-        totalKillGold += calculateKillGold({ level: enemy.level, isBoss: enemy.isBoss });
+        totalKillGold += calculateKillGold({
+          level: enemy.level,
+          isBoss: enemy.isBoss,
+          tier: enemy.tier || 'base',
+        });
       }
     }
   }
@@ -340,21 +325,25 @@ function simulateRun(metaLevel, verbose) {
         const enemyCount = getEnemyCount(actId, enemySizingDeployCount, node.row, isBoss);
         const enemies = [];
         for (let i = 0; i < enemyCount; i++) {
-          const cls = pickEnemyClass(actId);
-          const lvl = getEnemyLevel(actId, node.battleParams?.levelRange);
+          const enemySpec = sampleEnemyFromAct(
+            data.enemies,
+            data.classes,
+            actId,
+            node.battleParams?.levelRange,
+          );
           try {
-            enemies.push(createEnemy(cls, lvl));
+            enemies.push(createEnemy(enemySpec.className, enemySpec.level, null, actId));
           } catch (_) {
-            enemies.push(createEnemy('Fighter', lvl));
+            enemies.push(createEnemy('Fighter', enemySpec.level, null, actId));
           }
         }
 
         if (isBoss) {
           const bossDef = pickBoss(actId);
           try {
-            enemies.push(createBoss(bossDef.className, bossDef.level));
+            enemies.push(createBoss(bossDef.className, bossDef.level, actId));
           } catch (_) {
-            enemies.push(createBoss('Fighter', bossDef.level));
+            enemies.push(createBoss('Fighter', bossDef.level, actId));
           }
         }
 

@@ -8,7 +8,7 @@ import { loadFixture } from '../fixtures/battles/index.js';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { gridDistance } from '../../src/engine/Combat.js';
-import { hasStaff } from '../../src/engine/UnitManager.js';
+import { hasStaff, createPromotedEnemyUnit } from '../../src/engine/UnitManager.js';
 
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
 const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
@@ -331,6 +331,40 @@ describe('HeadlessBattle', () => {
       expect(e.weapon).toBeTruthy();
       expect(e.weapon.name).toBeTruthy();
     }
+  });
+
+  it('promoted enemy spawn path matches shared promoted-enemy helper with difficulty', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act3',
+      objective: 'rout',
+      row: 2,
+      difficultyMod: 1.1,
+      enemyStatBonus: 2,
+    });
+    battle.init();
+
+    const promotedClass = gameData.classes.find((c) => c.name === 'General');
+    const spawn = { className: 'General', level: 18, col: 0, row: 0 };
+    const difficultyConfig = battle._getEnemyDifficultyConfig();
+
+    installSeed(20260219);
+    const expected = createPromotedEnemyUnit(
+      promotedClass,
+      spawn.level,
+      gameData.weapons,
+      difficultyConfig,
+      gameData.skills,
+      battle.battleParams.act,
+      gameData.classes,
+    );
+    installSeed(20260219);
+    const actual = battle._addEnemyFromSpawn(spawn);
+
+    expect(actual).toBeTruthy();
+    expect(actual.className).toBe(expected.className);
+    expect(actual.tier).toBe(expected.tier);
+    expect(actual.level).toBe(expected.level);
+    expect(actual.stats).toEqual(expected.stats);
   });
 
   it('all units have valid grid positions', () => {

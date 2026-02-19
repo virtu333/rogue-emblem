@@ -218,14 +218,14 @@ describe('BossRecruitSystem', () => {
       expect(candidates.every((c) => c.className !== 'Thief')).toBe(true);
     });
 
-    it('candidate level matches highest lord level', () => {
+    it('candidate level uses Edric-anchored recruit target', () => {
       const roster = [
         { name: 'Edric', className: 'Lord', isLord: true, level: 12, faction: 'player' },
-        { name: 'Sera', className: 'Light Sage', isLord: true, level: 9, faction: 'player' },
+        { name: 'Sera', className: 'Light Sage', isLord: true, level: 19, faction: 'player' },
       ];
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(0, roster, gameData, null);
-      // Unpromoted units should be at level 12 (highest lord level)
+      // Unpromoted recruits use Edric's base level target, not another lord's higher level.
       for (const c of candidates) {
         expect(c.unit.level).toBe(12);
       }
@@ -346,9 +346,15 @@ describe('BossRecruitSystem', () => {
       expect(promotableLord).toBeTruthy();
       if (!promotableLord) return;
 
-      const targetLevel = BASE_CLASS_LEVEL_CAP + 5;
       const roster = [
-        { name: 'Edric', className: 'Lord', isLord: true, level: targetLevel, faction: 'player' },
+        {
+          name: 'Edric',
+          className: 'Great Lord',
+          isLord: true,
+          level: 5,
+          tier: 'promoted',
+          faction: 'player',
+        },
         { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
         ...RECRUITABLE_LORD_NAMES.filter((name) => name !== promotableLord.name).map((name) => ({
           name,
@@ -369,7 +375,7 @@ describe('BossRecruitSystem', () => {
       const lordCand = candidates.find((c) => c.isLord);
       expect(lordCand).toBeTruthy();
       expect(lordCand.unit.tier).toBe('promoted');
-      expect(lordCand.unit.level).toBe(targetLevel - BASE_CLASS_LEVEL_CAP);
+      expect(lordCand.unit.level).toBe(5);
     });
 
     it('includes a lord when RNG is below threshold', () => {
@@ -587,7 +593,14 @@ describe('BossRecruitSystem', () => {
       const localData = structuredClone(gameData);
       localData.recruits.act3.pool = [{ className: 'Wyvern Lord', name: 'Skarn' }];
       const roster = [
-        { name: 'Edric', className: 'Lord', isLord: true, level: 30, faction: 'player' },
+        {
+          name: 'Edric',
+          className: 'Great Lord',
+          isLord: true,
+          level: 10,
+          tier: 'promoted',
+          faction: 'player',
+        },
         { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
       ];
       const candidates = generateBossRecruitCandidates(1, roster, localData, null);
@@ -627,6 +640,31 @@ describe('BossRecruitSystem', () => {
       expect(candidates).toHaveLength(1);
       expect(candidates[0].className).toBe('Stage Bard');
       expect(candidates[0].unit.skills).toContain('dance');
+    });
+
+    it('getRecruitPoolEntries falls back to base-class namePool for promoted classPool entries', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const localData = structuredClone(gameData);
+      localData.recruits.act3 = { classPool: ['Hero'] };
+      localData.recruits.namePool.Hero = [];
+      localData.recruits.namePool.Mercenary = ['Gareth'];
+
+      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Hero');
+      expect(candidates[0].displayName).toBe('Gareth');
+    });
+
+    it('pickUniqueRecruitNameForClass falls back to base-class namePool when promoted pool lacks names', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Hero' }];
+      localData.recruits.namePool.Hero = [];
+      localData.recruits.namePool.Mercenary = ['Gareth'];
+
+      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].displayName).toBe('Gareth');
     });
 
     it('Bard is not generated as a boss recruit candidate', () => {

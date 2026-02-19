@@ -8,6 +8,7 @@ import {
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
 } from '../utils/constants.js';
+import { resolveRecruitScalingTargets } from './RecruitScaling.js';
 import {
   createRecruitUnit,
   createLordUnit,
@@ -23,7 +24,7 @@ import { serializeUnit } from './RunManager.js';
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
 
-function getRecruitPoolEntries(recruits, poolKey) {
+function getRecruitPoolEntries(recruits, poolKey, classesData = null) {
   const poolData = recruits?.[poolKey];
   if (!poolData) return [];
 
@@ -39,7 +40,17 @@ function getRecruitPoolEntries(recruits, poolKey) {
   const namePool = recruits?.namePool || {};
   return poolData.classPool.map((className) => {
     const names = Array.isArray(namePool[className]) ? namePool[className] : [];
-    const name = names.length > 0 ? names[0] : className;
+    let name = names.length > 0 ? names[0] : null;
+    if (!name && Array.isArray(classesData)) {
+      const classData = classesData.find((entry) => entry?.name === className);
+      const baseNames = classData?.promotesFrom
+        ? Array.isArray(namePool[classData.promotesFrom])
+          ? namePool[classData.promotesFrom]
+          : []
+        : [];
+      if (baseNames.length > 0) name = baseNames[0];
+    }
+    if (!name) name = className;
     return { className, name };
   });
 }
@@ -109,10 +120,19 @@ function makeUniqueRecruitName(baseName, takenNames) {
   }
 }
 
-function pickUniqueRecruitNameForClass(recruitEntry, recruits, takenNames) {
-  const classNames = Array.isArray(recruits?.namePool?.[recruitEntry.className])
+function pickUniqueRecruitNameForClass(recruitEntry, recruits, takenNames, classesData = null) {
+  let classNames = Array.isArray(recruits?.namePool?.[recruitEntry.className])
     ? recruits.namePool[recruitEntry.className]
     : [];
+  if (classNames.length === 0 && Array.isArray(classesData)) {
+    const classData = classesData.find((entry) => entry?.name === recruitEntry.className);
+    const baseClassNames = classData?.promotesFrom
+      ? Array.isArray(recruits?.namePool?.[classData.promotesFrom])
+        ? recruits.namePool[classData.promotesFrom]
+        : []
+      : [];
+    classNames = baseClassNames;
+  }
   const available = classNames.filter((name) => !takenNames.has(name));
   if (available.length > 0) {
     return available[Math.floor(Math.random() * available.length)];
@@ -156,8 +176,11 @@ export function createBossLordUnit(
     }
   }
 
-  // Auto-level to target (createLordUnit starts at level 1), capped at base class cap
-  const cappedLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+  const dynamicPromotionLevel = recruitContext?.dynamicPromotionLevel ?? BASE_CLASS_LEVEL_CAP;
+  const promotedLevelTarget = recruitContext?.promotedLevelTarget ?? 0;
+
+  // Auto-level to target (createLordUnit starts at level 1), capped to current promotion target.
+  const cappedLevel = Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
   for (let i = 1; i < cappedLevel; i++) {
     const result = levelUp(unit);
     if (result) {
@@ -186,8 +209,8 @@ export function createBossLordUnit(
         Array.isArray(recruitContext?.skills) ? recruitContext.skills : [],
       );
 
-      // Match regular recruit promoted leveling: target effective level beyond base cap.
-      const promotedLevels = Math.max(0, targetLevel - BASE_CLASS_LEVEL_CAP - 1);
+      // Match regular recruit promoted leveling.
+      const promotedLevels = Math.max(0, promotedLevelTarget - 1);
       for (let i = 0; i < promotedLevels; i++) {
         const result = levelUp(unit);
         if (result) {
@@ -251,17 +274,14 @@ export function generateBossRecruitCandidates(
   const { lords, classes, weapons, recruits, skills, consumables } = gameData;
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
-  // Determine target level from highest lord effective level in roster
-  // Promoted lords have an effective level = level + BASE_CLASS_LEVEL_CAP
-  const lordLevels = roster
-    .filter((u) => u.isLord)
-    .map((u) => (u.tier === 'promoted' ? u.level + BASE_CLASS_LEVEL_CAP : u.level));
-  const targetLevel = Math.max(1, ...lordLevels);
+  // Recruit scaling anchor is always Edric to keep behavior aligned across systems.
+  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+    resolveRecruitScalingTargets(roster);
 
   // Determine if promoted and which recruit pool to use
   const usePromoted = actId !== 'act1';
   const poolKey = resolveRecruitPoolKey(actId, recruits);
-  const recruitPool = getRecruitPoolEntries(recruits, poolKey);
+  const recruitPool = getRecruitPoolEntries(recruits, poolKey, classes);
 
   // Filter pool to classes not already in roster and not temporarily blocked
   let availablePool = recruitPool.filter(
@@ -299,11 +319,13 @@ export function generateBossRecruitCandidates(
   // Regular recruit candidates
   for (let i = 0; i < shuffled.length && candidates.length < regularCount; i++) {
     const r = shuffled[i];
-    const recruitName = pickUniqueRecruitNameForClass(r, recruits, takenNames);
+    const recruitName = pickUniqueRecruitNameForClass(r, recruits, takenNames, classes);
     const unit = createRecruitFromPool(
       { ...r, name: recruitName },
       usePromoted,
-      targetLevel,
+      recruitTargetLevel,
+      dynamicPromotionLevel,
+      promotedLevelTarget,
       classes,
       weapons,
       consumables,
@@ -331,12 +353,14 @@ export function generateBossRecruitCandidates(
         chosenLord,
         lordClassData,
         weapons,
-        targetLevel,
+        recruitTargetLevel,
         metaEffects,
         {
           promoteLord: usePromoted,
           classes,
           skills,
+          dynamicPromotionLevel,
+          promotedLevelTarget,
         },
       );
       unit.name = chosenLord.name || unit.name;
@@ -363,6 +387,8 @@ function createRecruitFromPool(
   recruitEntry,
   promoted,
   targetLevel,
+  dynamicPromotionLevel,
+  promotedLevelTarget,
   classes,
   weapons,
   consumables,
@@ -389,8 +415,8 @@ function createRecruitFromPool(
     const baseClassData = classes.find((c) => c.name === promotedClassData.promotesFrom);
     if (!baseClassData) return null;
 
-    // Cap base class leveling at BASE_CLASS_LEVEL_CAP
-    const baseLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+    // Cap base class leveling at the dynamic promotion target.
+    const baseLevel = Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
     const recruitDef = { className: baseClassData.name, name: recruitEntry.name, level: baseLevel };
     const unit = createRecruitUnit(
       recruitDef,
@@ -404,8 +430,8 @@ function createRecruitFromPool(
     addClassInnates(unit, baseClassData.name);
     promoteUnit(unit, promotedClassData, promotedClassData.promotionBonuses, skills);
 
-    // Post-promotion leveling if targetLevel exceeds base cap
-    const promotedLevels = Math.max(0, targetLevel - BASE_CLASS_LEVEL_CAP - 1);
+    // Post-promotion leveling from dynamic promoted-level target.
+    const promotedLevels = Math.max(0, promotedLevelTarget - 1);
     for (let i = 0; i < promotedLevels; i++) {
       const result = levelUp(unit);
       if (result) {

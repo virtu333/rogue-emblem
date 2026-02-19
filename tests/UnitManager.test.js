@@ -5,6 +5,8 @@ import {
   createUnit,
   createLordUnit,
   createEnemyUnit,
+  createPromotedEnemyUnit,
+  applyEnemyDifficultyModifiers,
   createRecruitUnit,
   levelUp,
   gainExperience,
@@ -32,6 +34,7 @@ import {
   XP_LEVEL_DIFF_SCALE,
   XP_LEVEL_DIFF_STEEP,
   XP_MIN,
+  ENEMY_PROMOTION_BASE_LEVEL,
 } from '../src/utils/constants.js';
 
 const data = loadGameData();
@@ -139,6 +142,83 @@ describe('promoted enemy creation pattern', () => {
     expect(enemy.className).toBe('General');
     expect(enemy.tier).toBe('promoted');
     expect(enemy.level).toBe(1); // reset on promotion
+  });
+});
+
+describe('createPromotedEnemyUnit', () => {
+  it('caps base growth at ENEMY_PROMOTION_BASE_LEVEL and applies post-promotion levels', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'General');
+    const spawnLevel = ENEMY_PROMOTION_BASE_LEVEL + 6;
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      spawnLevel,
+      data.weapons,
+      1.0,
+      data.skills,
+      'act3',
+      data.classes,
+    );
+    expect(enemy).toBeTruthy();
+    expect(enemy.className).toBe('General');
+    expect(enemy.tier).toBe('promoted');
+    expect(enemy.level).toBe(7); // 1 + (spawnLevel - baseCap)
+  });
+
+  it('keeps promoted level at 1 when spawn level is at/below ENEMY_PROMOTION_BASE_LEVEL', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'Hero');
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      ENEMY_PROMOTION_BASE_LEVEL,
+      data.weapons,
+      1.0,
+      data.skills,
+      'act3',
+      data.classes,
+    );
+    expect(enemy).toBeTruthy();
+    expect(enemy.level).toBe(1);
+  });
+
+  it('applies difficulty modifiers once on final promoted statline', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'General');
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const base = createPromotedEnemyUnit(
+        promotedClass,
+        ENEMY_PROMOTION_BASE_LEVEL + 4,
+        data.weapons,
+        1.0,
+        data.skills,
+        'act3',
+        data.classes,
+      );
+      const scaled = createPromotedEnemyUnit(
+        promotedClass,
+        ENEMY_PROMOTION_BASE_LEVEL + 4,
+        data.weapons,
+        { multiplier: 1.1, enemyStatBonus: 2 },
+        data.skills,
+        'act3',
+        data.classes,
+      );
+      expect(scaled.stats.HP).toBeGreaterThan(base.stats.HP);
+      expect(scaled.stats.STR).toBeGreaterThan(base.stats.STR);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+});
+
+describe('applyEnemyDifficultyModifiers', () => {
+  it('applies multiplier then flat bonus order', () => {
+    const unit = {
+      stats: { HP: 20, STR: 10, MAG: 8, SKL: 9, SPD: 11, DEF: 7, RES: 6, LCK: 5 },
+      currentHP: 20,
+    };
+    applyEnemyDifficultyModifiers(unit, { multiplier: 1.1, enemyStatBonus: 2 });
+    expect(unit.stats.HP).toBe(26); // round(20*1.1)=22, +4 HP flat
+    expect(unit.stats.STR).toBe(13); // round(10*1.1)=11, +2 flat
+    expect(unit.currentHP).toBe(unit.stats.HP);
   });
 });
 

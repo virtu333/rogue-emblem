@@ -7,9 +7,8 @@ import { fileURLToPath } from 'url';
 import {
   createLordUnit,
   createEnemyUnit,
+  createPromotedEnemyUnit,
   createUnit,
-  promoteUnit,
-  levelUp,
   gainExperience,
   canPromote,
   parseWeaponProficiencies,
@@ -55,45 +54,34 @@ export function createLord(name) {
 
 /**
  * Create an enemy unit by class name and level.
- * Handles promoted enemies: creates from base class at L10, promotes, then levels remaining.
+ * Handles promoted enemies: creates from capped base level, promotes, then levels remaining.
  */
-export function createEnemy(className, level, skillsData = null) {
+export function createEnemy(className, level, skillsData = null, act = 'act1') {
   const data = getData();
   const skills = skillsData || data.skills;
   const classData = data.classes.find((c) => c.name === className);
   if (!classData) throw new Error(`Class "${className}" not found`);
 
   if (classData.tier === 'promoted') {
-    // Find base class
-    const baseClassName = classData.promotesFrom;
-    const baseClassData = data.classes.find((c) => c.name === baseClassName);
-    if (!baseClassData) throw new Error(`Base class "${baseClassName}" not found`);
-
-    // Create at base L10, then promote
-    const unit = createEnemyUnit(baseClassData, 10, data.weapons, 1.0, skills);
-    promoteUnit(unit, classData, classData.promotionBonuses, skills);
-
-    // Level up remaining (promoted level starts at 1)
-    const promotedLevelsNeeded = level - 1;
-    for (let i = 0; i < promotedLevelsNeeded; i++) {
-      const gains = levelUp(unit);
-      if (gains) {
-        unit.level = gains.newLevel;
-        for (const stat of XP_STAT_NAMES) {
-          unit.stats[stat] += gains.gains[stat];
-        }
-        unit.currentHP += gains.gains.HP;
-      }
-    }
+    const unit = createPromotedEnemyUnit(
+      classData,
+      level,
+      data.weapons,
+      1.0,
+      skills,
+      act,
+      data.classes,
+    );
+    if (!unit) throw new Error(`Base class "${classData.promotesFrom}" not found`);
     return unit;
   }
 
-  return createEnemyUnit(classData, level, data.weapons, 1.0, skills);
+  return createEnemyUnit(classData, level, data.weapons, 1.0, skills, act);
 }
 
 /** Create a boss enemy: createEnemy + BOSS_STAT_BONUS to all stats. */
-export function createBoss(className, level) {
-  const unit = createEnemy(className, level);
+export function createBoss(className, level, act = 'act1') {
+  const unit = createEnemy(className, level, null, act);
   for (const stat of XP_STAT_NAMES) {
     unit.stats[stat] += BOSS_STAT_BONUS;
   }

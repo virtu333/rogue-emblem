@@ -3,6 +3,7 @@
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData } from './lib/SimUnitFactory.js';
+import { sampleEnemyFromAct } from './lib/EnemySampling.js';
 import {
   printTable,
   toCSV,
@@ -24,9 +25,6 @@ import {
   STARTING_GOLD,
   ACT_CONFIG,
   NODE_TYPES,
-  GOLD_PER_KILL_BASE,
-  GOLD_PER_LEVEL_BONUS,
-  GOLD_BATTLE_BONUS,
   GOLD_BOSS_BONUS,
   GOLD_SKIP_LOOT_MULTIPLIER,
   DEPLOY_LIMITS,
@@ -61,14 +59,6 @@ function getEnemyCount(act, row, isBoss) {
   }
   const [minOff, maxOff] = offset;
   return deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1));
-}
-
-// Estimate enemy level by act
-function getEnemyLevel(act) {
-  const pool = data.enemies.pools[act];
-  if (!pool) return 5;
-  const [min, max] = pool.levelRange;
-  return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 /** Simulate a full run's economy. Returns { goldByCheckpoint, canPromoteByMidAct2, totalGold, ... } */
@@ -108,8 +98,13 @@ function simulateRunEconomy(strategy, metaLevel) {
         // Calculate kill gold
         let killGold = 0;
         for (let i = 0; i < enemyCount; i++) {
-          const enemyLvl = getEnemyLevel(act);
-          killGold += calculateKillGold({ level: enemyLvl, isBoss: false });
+          const enemy = sampleEnemyFromAct(
+            data.enemies,
+            data.classes,
+            act,
+            node.battleParams?.levelRange,
+          );
+          killGold += calculateKillGold({ level: enemy.level, isBoss: false, tier: enemy.tier });
         }
         if (isBoss) {
           killGold += GOLD_BOSS_BONUS;

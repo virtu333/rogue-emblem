@@ -16,7 +16,7 @@ describe('Boss Recruit Level Scaling', () => {
   });
 
   describe('promoted lord effective level', () => {
-    it('promoted lord at level 5 gives targetLevel = 5 + BASE_CLASS_LEVEL_CAP', () => {
+    it('promoted Edric at level 5 sets promoted recruit level target to 5', () => {
       const roster = [
         {
           name: 'Edric',
@@ -43,8 +43,7 @@ describe('Boss Recruit Level Scaling', () => {
       // targetLevel = 25 → base leveled to 20, promoted, then 5 more promoted levels
       for (const c of candidates) {
         expect(c.unit.tier).toBe('promoted');
-        // Level should be > 1 (post-promotion leveling happened)
-        expect(c.unit.level).toBeGreaterThan(1);
+        expect(c.unit.level).toBe(5);
       }
     });
 
@@ -61,7 +60,7 @@ describe('Boss Recruit Level Scaling', () => {
       }
     });
 
-    it('uses highest effective level among multiple lords', () => {
+    it('uses Edric promoted level target even when another lord has higher base level', () => {
       const roster = [
         {
           name: 'Edric',
@@ -81,12 +80,11 @@ describe('Boss Recruit Level Scaling', () => {
         },
       ];
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      // Edric effective = 23, Sera effective = 18 → targetLevel = 23
+      // Recruit target stays Edric-anchored (promoted level target = 3).
       const candidates = generateBossRecruitCandidates(1, roster, gameData, null);
       expect(candidates).not.toBeNull();
       for (const c of candidates) {
-        // Should have post-promotion levels (23 - 20 = 3 promoted levels)
-        expect(c.unit.level).toBeGreaterThan(1);
+        expect(c.unit.level).toBe(3);
       }
     });
   });
