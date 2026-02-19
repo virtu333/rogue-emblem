@@ -68,4 +68,21 @@ describe('SimUnitFactory promoted-enemy parity', () => {
       randomSpy.mockRestore();
     }
   });
+
+  it('threads act through boss path skill-roll chance for promoted bosses', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
+    try {
+      const act1Boss = createBoss('General', ENEMY_PROMOTION_BASE_LEVEL + 6, 'act1');
+      const act3Boss = createBoss('General', ENEMY_PROMOTION_BASE_LEVEL + 6, 'act3');
+      expect(act1Boss.isBoss).toBe(true);
+      expect(act3Boss.isBoss).toBe(true);
+      expect(act1Boss.tier).toBe('promoted');
+      expect(act3Boss.tier).toBe('promoted');
+      expect(act1Boss.skills).toContain('pavise');
+      expect(act3Boss.skills).toContain('pavise');
+      expect(act3Boss.skills.length).toBe(act1Boss.skills.length + 1);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
 });
