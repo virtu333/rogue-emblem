@@ -886,7 +886,10 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
     }
   }
 
-  // Update class info
+  // Update class info; sync generic enemy names (name === className) to promoted class.
+  if (unit.name === unit.className) {
+    unit.name = promotedClassData.name;
+  }
   unit.className = promotedClassData.name;
   unit.tier = 'promoted';
   unit.level = 1;

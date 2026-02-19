@@ -190,6 +190,18 @@ describe('promoted enemy creation pattern', () => {
     expect(enemy.tier).toBe('promoted');
     expect(enemy.level).toBe(1); // reset on promotion
   });
+
+  it('preserves personal names when promoted class changes', () => {
+    const general = data.classes.find((c) => c.name === 'General');
+    const knight = data.classes.find((c) => c.name === general.promotesFrom);
+    const enemy = createEnemyUnit(knight, 10, data.weapons, 1.0, data.skills);
+    enemy.name = 'Custom Boss Name';
+
+    promoteUnit(enemy, general, general.promotionBonuses, data.skills);
+
+    expect(enemy.name).toBe('Custom Boss Name');
+    expect(enemy.className).toBe('General');
+  });
 });
 
 describe('createPromotedEnemyUnit', () => {
@@ -224,6 +236,21 @@ describe('createPromotedEnemyUnit', () => {
     );
     expect(enemy).toBeTruthy();
     expect(enemy.level).toBe(1);
+  });
+
+  it('updates unit.name to promoted class name for generic enemies', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'General');
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      ENEMY_PROMOTION_BASE_LEVEL + 2,
+      data.weapons,
+      1.0,
+      data.skills,
+      'act3',
+      data.classes,
+    );
+    expect(enemy.name).toBe('General');
+    expect(enemy.className).toBe('General');
   });
 
   it('applies difficulty modifiers once on final promoted statline', () => {
