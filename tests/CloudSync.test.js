@@ -4,8 +4,12 @@ import { getRunKey } from '../src/engine/SlotManager.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null)),
-  setItem: vi.fn((key, val) => { store[key] = String(val); }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = String(val);
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -85,7 +89,7 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 300 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { '1': cloud } });
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -97,7 +101,7 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 100 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { '1': cloud } });
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -124,7 +128,7 @@ describe('CloudSync run merge guard', () => {
     for (const scenario of scenarios) {
       for (const storeKey of Object.keys(store)) delete store[storeKey];
       localStorage.setItem(key, JSON.stringify(scenario.local));
-      mockCloudBootstrap({ runData: { '1': scenario.cloud } });
+      mockCloudBootstrap({ runData: { 1: scenario.cloud } });
 
       await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -137,7 +141,7 @@ describe('CloudSync run merge guard', () => {
     const local = { marker: 'local', savedAt: 200 };
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, JSON.stringify(local));
-    mockCloudBootstrap({ runData: { '1': cloud } });
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -147,7 +151,7 @@ describe('CloudSync run merge guard', () => {
   it('applies cloud run slot when local slot is absent', async () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
-    mockCloudBootstrap({ runData: { '1': cloud } });
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -158,7 +162,7 @@ describe('CloudSync run merge guard', () => {
     const key = getRunKey(1);
     const cloud = { marker: 'cloud', savedAt: 200 };
     localStorage.setItem(key, '{not-json');
-    mockCloudBootstrap({ runData: { '1': cloud } });
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
@@ -194,11 +198,9 @@ describe('CloudSync auth-expiry status', () => {
   it('clears shared cloud status after a successful fetch', async () => {
     const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
     let failAuth = true;
-    mocked.fromMock.mockImplementation(() => (
-      failAuth
-        ? makeTableApi({ selectError: authError })
-        : makeTableApi({ data: null })
-    ));
+    mocked.fromMock.mockImplementation(() =>
+      failAuth ? makeTableApi({ selectError: authError }) : makeTableApi({ data: null }),
+    );
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
     expect(getCloudSyncStatus().authExpired).toBe(true);

@@ -26,7 +26,11 @@ function buildExclusionMaps(config) {
         });
         mutual.set(left, set);
       }
-    } else if (row.rule === 'class_exclude' && typeof row.affix === 'string' && Array.isArray(row.classes)) {
+    } else if (
+      row.rule === 'class_exclude' &&
+      typeof row.affix === 'string' &&
+      Array.isArray(row.classes)
+    ) {
       classExclude.set(row.affix, new Set(row.classes.filter((name) => typeof name === 'string')));
     }
   }
@@ -75,22 +79,25 @@ function resolveDifficultyRules(config, difficultyId) {
   return {
     affixChance: Math.max(0, asNumber(rules.affixChance, 0)),
     maxAffixesPerUnit: Math.max(0, Math.trunc(asNumber(rules.maxAffixesPerUnit, 0))),
-    tierPool: toArray(rules.tierPool).map((x) => Math.trunc(asNumber(x, 0))).filter((x) => x > 0),
+    tierPool: toArray(rules.tierPool)
+      .map((x) => Math.trunc(asNumber(x, 0)))
+      .filter((x) => x > 0),
   };
 }
 
 export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
-  const {
-    affixConfig = null,
-    difficultyId = 'normal',
-    act = 'act1',
-  } = options;
+  const { affixConfig = null, difficultyId = 'normal', act = 'act1' } = options;
   if (!Array.isArray(enemySpawns) || enemySpawns.length === 0) return enemySpawns || [];
   const config = affixConfig;
   if (!config || !Array.isArray(config.affixes)) return enemySpawns;
 
   const rules = resolveDifficultyRules(config, difficultyId);
-  if (!rules || rules.maxAffixesPerUnit <= 0 || rules.affixChance <= 0 || rules.tierPool.length === 0) {
+  if (
+    !rules ||
+    rules.maxAffixesPerUnit <= 0 ||
+    rules.affixChance <= 0 ||
+    rules.tierPool.length === 0
+  ) {
     return enemySpawns;
   }
 
@@ -98,7 +105,9 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   if (chance <= 0) return enemySpawns;
 
   const tierPool = new Set(rules.tierPool);
-  const allowedAffixes = config.affixes.filter((affix) => tierPool.has(Math.trunc(asNumber(affix?.tier, 0))));
+  const allowedAffixes = config.affixes.filter((affix) =>
+    tierPool.has(Math.trunc(asNumber(affix?.tier, 0))),
+  );
   if (allowedAffixes.length === 0) return enemySpawns;
 
   const exclusionMaps = buildExclusionMaps(config);
@@ -129,4 +138,3 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
     };
   });
 }
-

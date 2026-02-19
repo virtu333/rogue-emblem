@@ -115,7 +115,7 @@ for (const [catName, category] of Object.entries(categories)) {
     // Rate limit (skip delay before first request)
     if (requestCount > 0 && !dryRun) {
       console.log('  (waiting 2s for rate limit...)');
-      await new Promise(r => setTimeout(r, RATE_LIMIT_MS));
+      await new Promise((r) => setTimeout(r, RATE_LIMIT_MS));
     }
 
     const result = await generateAsset(catName, category, asset);

@@ -5,12 +5,25 @@ import { PauseOverlay } from '../src/ui/PauseOverlay.js';
 function mockScene() {
   const makeDisplayObject = (extra = {}) => ({
     handlers: {},
-    setDepth: function () { return this; },
-    setInteractive: function () { return this; },
-    setStrokeStyle: function () { return this; },
-    setOrigin: function () { return this; },
-    setColor: function () { return this; },
-    on: function (event, handler) { this.handlers[event] = handler; return this; },
+    setDepth: function () {
+      return this;
+    },
+    setInteractive: function () {
+      return this;
+    },
+    setStrokeStyle: function () {
+      return this;
+    },
+    setOrigin: function () {
+      return this;
+    },
+    setColor: function () {
+      return this;
+    },
+    on: function (event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
     destroy: vi.fn(),
     ...extra,
   });
@@ -22,11 +35,21 @@ function mockScene() {
       text: (_x, _y, label, _style) => makeDisplayObject({ text: label }),
       graphics: () => ({
         ...makeDisplayObject(),
-        lineStyle: function () { return this; },
-        beginPath: function () { return this; },
-        moveTo: function () { return this; },
-        lineTo: function () { return this; },
-        strokePath: function () { return this; },
+        lineStyle: function () {
+          return this;
+        },
+        beginPath: function () {
+          return this;
+        },
+        moveTo: function () {
+          return this;
+        },
+        lineTo: function () {
+          return this;
+        },
+        strokePath: function () {
+          return this;
+        },
       }),
     },
     input: {
@@ -80,7 +103,7 @@ describe('PauseOverlay', () => {
     const overlay = new PauseOverlay(mockScene(), { onResume });
     overlay.show();
 
-    const helpBtn = overlay.objects.find(o => o.text === 'More Info');
+    const helpBtn = overlay.objects.find((o) => o.text === 'More Info');
     expect(helpBtn).toBeTruthy();
     expect(typeof helpBtn.handlers.pointerdown).toBe('function');
     helpBtn.handlers.pointerdown();
@@ -102,9 +125,16 @@ describe('PauseOverlay', () => {
     const scene = mockScene();
     const interactiveCalls = [];
     scene.add.rectangle = () => ({
-      setDepth: function () { return this; },
-      setStrokeStyle: function () { return this; },
-      setInteractive: function () { interactiveCalls.push(this); return this; },
+      setDepth: function () {
+        return this;
+      },
+      setStrokeStyle: function () {
+        return this;
+      },
+      setInteractive: function () {
+        interactiveCalls.push(this);
+        return this;
+      },
       destroy: vi.fn(),
     });
     const overlay = new PauseOverlay(scene, { onResume: vi.fn() });

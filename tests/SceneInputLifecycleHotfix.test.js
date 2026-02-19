@@ -12,7 +12,9 @@ vi.mock('../src/engine/RunManager.js', async () => {
     ...actual,
     RunManager: class {
       startRun() {}
-      getBlessingOptions() { return []; }
+      getBlessingOptions() {
+        return [];
+      }
     },
   };
 });
@@ -88,10 +90,18 @@ function setupBattleShortcutContext(scene, keyboard) {
 
 function createDisplayObject() {
   return {
-    setOrigin() { return this; },
-    setInteractive() { return this; },
-    setColor() { return this; },
-    on() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    on() {
+      return this;
+    },
   };
 }
 
@@ -124,8 +134,9 @@ describe('BattleScene shutdown/input lifecycle hotfix', () => {
     scene.create();
 
     expect(scene.events.once).toHaveBeenCalledWith('shutdown', expect.any(Function));
-    expect(scene.events.once.mock.invocationCallOrder[0])
-      .toBeLessThan(scene.beginBattle.mock.invocationCallOrder[0]);
+    expect(scene.events.once.mock.invocationCallOrder[0]).toBeLessThan(
+      scene.beginBattle.mock.invocationCallOrder[0],
+    );
     expect(typeof shutdownHandler).toBe('function');
 
     shutdownHandler();
@@ -151,8 +162,12 @@ describe('BattleScene shutdown/input lifecycle hotfix', () => {
 
     let postLootFired = false;
     let lootCleanupFired = false;
-    scene._postLootTransitionTimer = setTimeout(() => { postLootFired = true; }, 100);
-    scene._lootCleanupTimeout = setTimeout(() => { lootCleanupFired = true; }, 100);
+    scene._postLootTransitionTimer = setTimeout(() => {
+      postLootFired = true;
+    }, 100);
+    scene._lootCleanupTimeout = setTimeout(() => {
+      lootCleanupFired = true;
+    }, 100);
 
     scene._runSceneShutdownCleanup();
     expect(scene._sceneShutdownCleanedUp).toBe(true);

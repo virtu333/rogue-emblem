@@ -5,7 +5,7 @@ import { createBossLordUnit, getAvailableLords } from '../src/engine/BossRecruit
 const gameData = loadGameData();
 
 function getClassData(lord) {
-  const cls = gameData.classes.find(c => c.name === lord.class);
+  const cls = gameData.classes.find((c) => c.name === lord.class);
   if (!cls) throw new Error(`Class "${lord.class}" not found in classes.json`);
   return cls;
 }
@@ -16,14 +16,14 @@ const NEW_PROMOTED_CLASSES = ['Holy Knight', 'Seraph Knight', 'Champion'];
 
 describe('New Lords — Data Integrity', () => {
   it('all 3 lords exist in lords.json', () => {
-    const lordNames = gameData.lords.map(l => l.name);
+    const lordNames = gameData.lords.map((l) => l.name);
     for (const name of NEW_LORDS) {
       expect(lordNames).toContain(name);
     }
   });
 
   it('6 new classes exist in classes.json', () => {
-    const classNames = gameData.classes.map(c => c.name);
+    const classNames = gameData.classes.map((c) => c.name);
     for (const name of [...NEW_BASE_CLASSES, ...NEW_PROMOTED_CLASSES]) {
       expect(classNames).toContain(name);
     }
@@ -36,7 +36,7 @@ describe('New Lords — Data Integrity', () => {
       ['Sentinel', 'Champion'],
     ];
     for (const [base, promoted] of pairs) {
-      const cls = gameData.classes.find(c => c.name === base);
+      const cls = gameData.classes.find((c) => c.name === base);
       expect(cls.tier).toBe('base');
       expect(cls.promotesTo).toBe(promoted);
       expect(cls.moveType).toBeTruthy();
@@ -51,7 +51,7 @@ describe('New Lords — Data Integrity', () => {
       ['Champion', 'Sentinel'],
     ];
     for (const [promoted, base] of pairs) {
-      const cls = gameData.classes.find(c => c.name === promoted);
+      const cls = gameData.classes.find((c) => c.name === promoted);
       expect(cls.tier).toBe('promoted');
       expect(cls.promotesFrom).toBe(base);
       expect(cls.promotionBonuses).toBeTruthy();
@@ -61,7 +61,7 @@ describe('New Lords — Data Integrity', () => {
   it('lord class matches base class', () => {
     const lordClassMap = { Rowan: 'Chevalier', Astrid: 'Sky Lancer', Cael: 'Sentinel' };
     for (const [name, cls] of Object.entries(lordClassMap)) {
-      const lord = gameData.lords.find(l => l.name === name);
+      const lord = gameData.lords.find((l) => l.name === name);
       expect(lord.class).toBe(cls);
     }
   });
@@ -69,13 +69,15 @@ describe('New Lords — Data Integrity', () => {
   it('lord promotedClass matches promoted class', () => {
     const map = { Rowan: 'Holy Knight', Astrid: 'Seraph Knight', Cael: 'Champion' };
     for (const [name, promoted] of Object.entries(map)) {
-      const lord = gameData.lords.find(l => l.name === name);
+      const lord = gameData.lords.find((l) => l.name === name);
       expect(lord.promotedClass).toBe(promoted);
     }
   });
 
   it('all lord promotions grant +1 MOV', () => {
-    const promotableLords = gameData.lords.filter((lord) => lord.promotedClass && lord.promotionBonuses);
+    const promotableLords = gameData.lords.filter(
+      (lord) => lord.promotedClass && lord.promotionBonuses,
+    );
     expect(promotableLords.length).toBeGreaterThan(0);
     for (const lord of promotableLords) {
       expect(lord.promotionBonuses.MOV).toBe(1);
@@ -83,22 +85,22 @@ describe('New Lords — Data Integrity', () => {
   });
 
   it('Rowan moveType is Cavalry', () => {
-    const lord = gameData.lords.find(l => l.name === 'Rowan');
+    const lord = gameData.lords.find((l) => l.name === 'Rowan');
     expect(lord.moveType).toBe('Cavalry');
   });
 
   it('Astrid moveType is Flying', () => {
-    const lord = gameData.lords.find(l => l.name === 'Astrid');
+    const lord = gameData.lords.find((l) => l.name === 'Astrid');
     expect(lord.moveType).toBe('Flying');
   });
 
   it('Cael moveType is Infantry', () => {
-    const lord = gameData.lords.find(l => l.name === 'Cael');
+    const lord = gameData.lords.find((l) => l.name === 'Cael');
     expect(lord.moveType).toBe('Infantry');
   });
 
   it('Canto classInnate includes Holy Knight and Seraph Knight', () => {
-    const canto = gameData.skills.find(s => s.id === 'canto');
+    const canto = gameData.skills.find((s) => s.id === 'canto');
     expect(canto.classInnate).toContain('Holy Knight');
     expect(canto.classInnate).toContain('Seraph Knight');
   });
@@ -110,7 +112,7 @@ describe('New Lords — Data Integrity', () => {
       Cael: 'unyielding',
     };
     for (const [name, skillId] of Object.entries(expected)) {
-      const lord = gameData.lords.find(l => l.name === name);
+      const lord = gameData.lords.find((l) => l.name === name);
       expect(lord.personalSkillL20).toBeTruthy();
       expect(lord.personalSkillL20.skillId).toBe(skillId);
     }
@@ -119,7 +121,7 @@ describe('New Lords — Data Integrity', () => {
 
 describe('New Lords — Unit Creation', () => {
   it('createBossLordUnit works for Rowan', () => {
-    const lord = gameData.lords.find(l => l.name === 'Rowan');
+    const lord = gameData.lords.find((l) => l.name === 'Rowan');
     const classData = getClassData(lord);
     expect(classData).toBeTruthy();
     const unit = createBossLordUnit(lord, classData, gameData.weapons, 5, null);
@@ -132,7 +134,7 @@ describe('New Lords — Unit Creation', () => {
   });
 
   it('createBossLordUnit works for Astrid', () => {
-    const lord = gameData.lords.find(l => l.name === 'Astrid');
+    const lord = gameData.lords.find((l) => l.name === 'Astrid');
     const classData = getClassData(lord);
     expect(classData).toBeTruthy();
     const unit = createBossLordUnit(lord, classData, gameData.weapons, 5, null);
@@ -144,7 +146,7 @@ describe('New Lords — Unit Creation', () => {
   });
 
   it('createBossLordUnit works for Cael', () => {
-    const lord = gameData.lords.find(l => l.name === 'Cael');
+    const lord = gameData.lords.find((l) => l.name === 'Cael');
     const classData = getClassData(lord);
     expect(classData).toBeTruthy();
     const unit = createBossLordUnit(lord, classData, gameData.weapons, 5, null);
@@ -162,7 +164,7 @@ describe('New Lords — Unit Creation', () => {
       Cael: 'intimidate',
     };
     for (const [name, skillId] of Object.entries(expected)) {
-      const lord = gameData.lords.find(l => l.name === name);
+      const lord = gameData.lords.find((l) => l.name === name);
       const classData = getClassData(lord);
       expect(classData).toBeTruthy();
       const unit = createBossLordUnit(lord, classData, gameData.weapons, 1, null);
@@ -171,7 +173,7 @@ describe('New Lords — Unit Creation', () => {
   });
 
   it('leveling works correctly', () => {
-    const lord = gameData.lords.find(l => l.name === 'Rowan');
+    const lord = gameData.lords.find((l) => l.name === 'Rowan');
     const classData = getClassData(lord);
     expect(classData).toBeTruthy();
     const unit = createBossLordUnit(lord, classData, gameData.weapons, 10, null);
@@ -181,7 +183,7 @@ describe('New Lords — Unit Creation', () => {
   });
 
   it('meta effects apply lord stat bonuses', () => {
-    const lord = gameData.lords.find(l => l.name === 'Cael');
+    const lord = gameData.lords.find((l) => l.name === 'Cael');
     const classData = getClassData(lord);
     expect(classData).toBeTruthy();
     const baseUnit = createBossLordUnit(lord, classData, gameData.weapons, 1, null);
@@ -200,7 +202,7 @@ describe('New Lords — Recruit Pool', () => {
       { name: 'Sera', isLord: true },
     ];
     const available = getAvailableLords(baseRoster, gameData.lords);
-    const names = available.map(l => l.name);
+    const names = available.map((l) => l.name);
     for (const name of NEW_LORDS) {
       expect(names).toContain(name);
     }
@@ -213,7 +215,7 @@ describe('New Lords — Recruit Pool', () => {
       { name: 'Rowan', isLord: true },
     ];
     const available = getAvailableLords(roster, gameData.lords);
-    const names = available.map(l => l.name);
+    const names = available.map((l) => l.name);
     expect(names).not.toContain('Rowan');
     expect(names).toContain('Astrid');
     expect(names).toContain('Cael');
@@ -226,7 +228,7 @@ describe('New Lords — Recruit Pool', () => {
     ];
     const fallen = [{ name: 'Astrid' }];
     const available = getAvailableLords(roster, gameData.lords, fallen);
-    const names = available.map(l => l.name);
+    const names = available.map((l) => l.name);
     expect(names).not.toContain('Astrid');
     expect(names).toContain('Rowan');
     expect(names).toContain('Cael');

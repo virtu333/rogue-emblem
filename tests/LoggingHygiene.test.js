@@ -46,7 +46,10 @@ describe('Logging hygiene', () => {
         return map;
       },
       getAttackRange: (col, row) => [{ col: col - 1, row }],
-      findPath: (fromCol, fromRow, toCol, toRow) => [{ col: fromCol, row: fromRow }, { col: toCol, row: toRow }],
+      findPath: (fromCol, fromRow, toCol, toRow) => [
+        { col: fromCol, row: fromRow },
+        { col: toCol, row: toRow },
+      ],
     };
 
     const enemy = {

@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MetaProgressionManager, calculateCurrencies } from '../src/engine/MetaProgressionManager.js';
+import {
+  MetaProgressionManager,
+  calculateCurrencies,
+} from '../src/engine/MetaProgressionManager.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -10,8 +13,12 @@ const getUpgrade = (id) => upgradesData.find((u) => u.id === id);
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] || null),
-  setItem: vi.fn((key, val) => { store[key] = val; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = val;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 vi.stubGlobal('localStorage', localStorageMock);
 
@@ -108,8 +115,6 @@ describe('MetaProgressionManager', () => {
     expect(meta.getNextCost('recruit_hp_flat')).toBeNull();
   });
 
-
-
   it('getNextCost returns null for unknown upgrade', () => {
     const meta = new MetaProgressionManager(upgradesData);
     expect(meta.getNextCost('nonexistent')).toBeNull();
@@ -135,7 +140,7 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalValor = 100;
     meta.totalSupply = 0;
-    expect(meta.canAfford('lord_hp_growth')).toBe(true);  // costs 100V
+    expect(meta.canAfford('lord_hp_growth')).toBe(true); // costs 100V
     expect(meta.canAfford('recruit_hp_growth')).toBe(false); // costs 75S, but supply is 0
   });
 
@@ -143,8 +148,8 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalValor = 0;
     meta.totalSupply = 75;
-    expect(meta.canAfford('recruit_hp_growth')).toBe(true);  // costs 75S
-    expect(meta.canAfford('lord_hp_growth')).toBe(false);    // costs 100V, but valor is 0
+    expect(meta.canAfford('recruit_hp_growth')).toBe(true); // costs 75S
+    expect(meta.canAfford('lord_hp_growth')).toBe(false); // costs 100V, but valor is 0
   });
 
   it('canAfford returns false for maxed upgrade', () => {
@@ -198,8 +203,6 @@ describe('MetaProgressionManager', () => {
     expect(meta.getUpgradeLevel('lord_hp_growth')).toBe(1);
   });
 
-
-
   it('purchaseUpgrade fails with insufficient currency', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalSupply = 10;
@@ -245,8 +248,8 @@ describe('MetaProgressionManager', () => {
 
   it('getActiveEffects aggregates split growth + flat upgrades correctly', () => {
     const meta = new MetaProgressionManager(upgradesData);
-    meta.purchasedUpgrades.recruit_hp_growth = 4;  // +20% growth
-    meta.purchasedUpgrades.recruit_hp_flat = 3;     // +10 HP
+    meta.purchasedUpgrades.recruit_hp_growth = 4; // +20% growth
+    meta.purchasedUpgrades.recruit_hp_flat = 3; // +10 HP
     const effects = meta.getActiveEffects();
     expect(effects.growthBonuses.HP).toBe(20);
     expect(effects.statBonuses.HP).toBe(10);
@@ -560,7 +563,12 @@ describe('MetaProgressionManager', () => {
         category: 'starting_equipment',
         maxLevel: 1,
         costs: [100],
-        effects: [{ unlockWeaponArt: 'legend_gemini_tempest', unlockWeaponArts: ['legend_starfall_volley'] }],
+        effects: [
+          {
+            unlockWeaponArt: 'legend_gemini_tempest',
+            unlockWeaponArts: ['legend_starfall_volley'],
+          },
+        ],
       },
     ];
     const meta = new MetaProgressionManager(customUpgrades);
@@ -569,9 +577,11 @@ describe('MetaProgressionManager', () => {
     const unlocked = meta.getUnlockedWeaponArts(gameData.weaponArts.arts);
     const expected = [];
     for (const weaponType of ['Sword', 'Bow']) {
-      expected.push(...gameData.weaponArts.arts
-        .filter((art) => art.weaponType === weaponType)
-        .map((art) => art.id));
+      expected.push(
+        ...gameData.weaponArts.arts
+          .filter((art) => art.weaponType === weaponType)
+          .map((art) => art.id),
+      );
     }
     if (!expected.includes('legend_gemini_tempest')) expected.push('legend_gemini_tempest');
     if (!expected.includes('legend_starfall_volley')) expected.push('legend_starfall_volley');
@@ -764,8 +774,10 @@ describe('MetaProgressionManager', () => {
 
   it('loads milestones from localStorage', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalValor: 100, totalSupply: 100,
-      purchasedUpgrades: {}, milestones: ['beatAct1', 'beatAct2'],
+      totalValor: 100,
+      totalSupply: 100,
+      purchasedUpgrades: {},
+      milestones: ['beatAct1', 'beatAct2'],
     });
     const meta = new MetaProgressionManager(upgradesData);
     expect(meta.hasMilestone('beatAct1')).toBe(true);
@@ -775,7 +787,8 @@ describe('MetaProgressionManager', () => {
 
   it('defaults milestones to empty for old saves without milestones field', () => {
     store['emblem_rogue_meta_save'] = JSON.stringify({
-      totalValor: 100, totalSupply: 100,
+      totalValor: 100,
+      totalSupply: 100,
       purchasedUpgrades: {},
     });
     const meta = new MetaProgressionManager(upgradesData);
@@ -942,11 +955,17 @@ describe('MetaProgressionManager', () => {
   it('getPrerequisiteInfo shows beatGame label', () => {
     const meta = new MetaProgressionManager(upgradesData);
     // Manually create a fake upgrade with beatGame prerequisite to test the label
-    const fakeUpgrades = [...upgradesData, {
-      id: 'test_beatgame', category: 'economy', maxLevel: 1,
-      costs: [100], effects: [{ goldBonus: 1 }],
-      requires: { milestones: ['beatGame'] },
-    }];
+    const fakeUpgrades = [
+      ...upgradesData,
+      {
+        id: 'test_beatgame',
+        category: 'economy',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ goldBonus: 1 }],
+        requires: { milestones: ['beatGame'] },
+      },
+    ];
     const meta2 = new MetaProgressionManager(fakeUpgrades);
     const info = meta2.getPrerequisiteInfo('test_beatgame');
     expect(info.met).toBe(false);
@@ -960,7 +979,7 @@ describe('MetaProgressionManager', () => {
       const meta = new MetaProgressionManager(upgradesData);
       const deps = meta.getDependentUpgrades('recruit_hp_growth');
       expect(deps.length).toBeGreaterThanOrEqual(1);
-      const flat = deps.find(d => d.id === 'recruit_hp_flat');
+      const flat = deps.find((d) => d.id === 'recruit_hp_flat');
       expect(flat).toBeTruthy();
       expect(flat.requiredLevel).toBe(3);
     });
@@ -974,7 +993,7 @@ describe('MetaProgressionManager', () => {
     it('returns correct dependent for vision_charges_2 → vision_charges_3', () => {
       const meta = new MetaProgressionManager(upgradesData);
       const deps = meta.getDependentUpgrades('vision_charges_2');
-      const vc3 = deps.find(d => d.id === 'vision_charges_3');
+      const vc3 = deps.find((d) => d.id === 'vision_charges_3');
       expect(vc3).toBeTruthy();
       expect(vc3.requiredLevel).toBe(1);
     });
@@ -1148,13 +1167,13 @@ describe('MetaProgressionManager', () => {
 describe('calculateCurrencies', () => {
   it('awards currencies per act reached', () => {
     const { valor, supply } = calculateCurrencies(2, 0, false);
-    expect(valor).toBe(100);  // 2 * 50
+    expect(valor).toBe(100); // 2 * 50
     expect(supply).toBe(100);
   });
 
   it('awards currencies per battle completed', () => {
     const { valor, supply } = calculateCurrencies(0, 5, false);
-    expect(valor).toBe(75);  // 5 * 15
+    expect(valor).toBe(75); // 5 * 15
     expect(supply).toBe(75);
   });
 

@@ -12,10 +12,18 @@ function makeInteractiveText(seed = {}) {
   const handlers = {};
   return {
     ...seed,
-    setOrigin() { return this; },
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setColor() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
     on(event, cb) {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(cb);

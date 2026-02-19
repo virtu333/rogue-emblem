@@ -9,12 +9,24 @@ import {
   getForgeDisplayInfo,
   getStatForgeCount,
 } from '../src/engine/ForgeSystem.js';
-import { FORGE_MAX_LEVEL, FORGE_BONUSES, FORGE_COSTS, FORGE_STAT_CAP } from '../src/utils/constants.js';
+import {
+  FORGE_MAX_LEVEL,
+  FORGE_BONUSES,
+  FORGE_COSTS,
+  FORGE_STAT_CAP,
+} from '../src/utils/constants.js';
 
 function makeWeapon(overrides = {}) {
   return {
-    name: 'Iron Sword', type: 'Sword', tier: 'Iron',
-    might: 5, hit: 90, crit: 0, weight: 5, range: '1', price: 500,
+    name: 'Iron Sword',
+    type: 'Sword',
+    tier: 'Iron',
+    might: 5,
+    hit: 90,
+    crit: 0,
+    weight: 5,
+    range: '1',
+    price: 500,
     ...overrides,
   };
 }
@@ -82,10 +94,10 @@ describe('ForgeSystem', () => {
       const wpn = makeWeapon({
         _forgeBonuses: { might: 2, crit: 10, hit: 0, weight: -2 },
       });
-      expect(getStatForgeCount(wpn, 'might')).toBe(2);   // 2 / 1
-      expect(getStatForgeCount(wpn, 'crit')).toBe(2);    // 10 / 5
+      expect(getStatForgeCount(wpn, 'might')).toBe(2); // 2 / 1
+      expect(getStatForgeCount(wpn, 'crit')).toBe(2); // 10 / 5
       expect(getStatForgeCount(wpn, 'hit')).toBe(0);
-      expect(getStatForgeCount(wpn, 'weight')).toBe(2);  // |-2 / -1| = 2
+      expect(getStatForgeCount(wpn, 'weight')).toBe(2); // |-2 / -1| = 2
     });
 
     it('returns correct count after applying forges', () => {
@@ -432,7 +444,7 @@ describe('ForgeSystem', () => {
       // 2. Call applyForge with same discount
       // 3. Verify result.cost === display cost
       const wpn = makeWeapon({ price: 500 });
-      const discount = 0.20; // frugal_smith blessing
+      const discount = 0.2; // frugal_smith blessing
 
       // Step 1: Display cost (NodeMapScene line ~1735)
       const baseCost = getForgeCost(wpn, 'might');
@@ -450,9 +462,8 @@ describe('ForgeSystem', () => {
       const discount = 0;
 
       const baseCost = getForgeCost(wpn, 'might');
-      const displayCost = discount > 0
-        ? Math.max(1, Math.floor(baseCost * (1 - discount)))
-        : baseCost;
+      const displayCost =
+        discount > 0 ? Math.max(1, Math.floor(baseCost * (1 - discount))) : baseCost;
 
       const result = applyForge(wpn, 'might', discount);
       expect(result.cost).toBe(displayCost);
@@ -460,7 +471,7 @@ describe('ForgeSystem', () => {
 
     it('display/charge parity holds across multiple forge levels', () => {
       const wpn = makeWeapon({ price: 500 });
-      const discount = 0.20;
+      const discount = 0.2;
 
       for (let i = 0; i < FORGE_STAT_CAP; i++) {
         const baseCost = getForgeCost(wpn, 'might');

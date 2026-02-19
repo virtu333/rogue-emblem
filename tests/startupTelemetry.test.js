@@ -26,12 +26,15 @@ describe('startupTelemetry', () => {
   it('records startup markers and asset failures', () => {
     initStartupTelemetry({ isMobile: true });
     markStartup('boot_preload_start', { reducedPreload: true });
-    recordStartupAssetFailure({ key: 'portrait_lord_edric', type: 'image', src: '/assets/foo.png' }, 'Boot');
+    recordStartupAssetFailure(
+      { key: 'portrait_lord_edric', type: 'image', src: '/assets/foo.png' },
+      'Boot',
+    );
 
     const telemetry = getStartupTelemetry();
     expect(telemetry.meta.isMobile).toBe(true);
-    expect(telemetry.markers.some(m => m.name === 'app_init_start')).toBe(true);
-    expect(telemetry.markers.some(m => m.name === 'boot_preload_start')).toBe(true);
+    expect(telemetry.markers.some((m) => m.name === 'app_init_start')).toBe(true);
+    expect(telemetry.markers.some((m) => m.name === 'boot_preload_start')).toBe(true);
     expect(telemetry.assetFailures).toHaveLength(1);
     expect(telemetry.assetFailures[0]).toMatchObject({
       key: 'portrait_lord_edric',

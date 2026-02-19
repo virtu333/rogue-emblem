@@ -49,7 +49,10 @@ function makeScene() {
     ],
     terrainData: [{ name: 'Plains', moveCost: { Infantry: 1 } }],
     fogEnabled: true,
-    findPath: vi.fn(() => [{ col: 1, row: 1 }, { col: 2, row: 1 }]),
+    findPath: vi.fn(() => [
+      { col: 1, row: 1 },
+      { col: 2, row: 1 },
+    ]),
     getMoveCost: vi.fn(() => 1),
     snapshotFogState: vi.fn(() => new Set(['1,1'])),
     restoreFogState: vi.fn(),

@@ -8,4 +8,3 @@ describe('blessings data sync guard', () => {
     expect(publicCopy).toEqual(source);
   });
 });
-

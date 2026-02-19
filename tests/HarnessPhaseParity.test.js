@@ -4,12 +4,12 @@ import { loadGameData } from './testData.js';
 
 describe('Headless Harness Phase Parity', () => {
   const data = loadGameData();
-  
+
   const mockBattleParams = {
     act: 'act1',
     objective: 'rout',
     enemyStatBonus: 0,
-    enemyCountBonus: 0
+    enemyCountBonus: 0,
   };
 
   it('Enemy Regenerator does NOT tick during Player Phase', async () => {
@@ -23,8 +23,8 @@ describe('Headless Harness Phase Parity', () => {
         proficiencies: [{ type: 'Sword', rank: 'Prof' }],
         skills: [],
         moveType: 'Infantry',
-        faction: 'player'
-      }
+        faction: 'player',
+      },
     ];
 
     const battle = new HeadlessBattle(data, mockBattleParams, roster);
@@ -41,10 +41,10 @@ describe('Headless Harness Phase Parity', () => {
     // _onPhaseChange('player', 2) is where turn-start effects are applied
     battle.turnManager.phase = 'enemy';
     battle.turnManager.turnNumber = 1;
-    
+
     // This should trigger turn-start for player units, NOT enemy units
     battle._onPhaseChange('player', 2);
-    
+
     expect(enemy.currentHP).toBe(10); // Should remain at 10
   });
 
@@ -59,8 +59,8 @@ describe('Headless Harness Phase Parity', () => {
         proficiencies: [{ type: 'Sword', rank: 'Prof' }],
         skills: [],
         moveType: 'Infantry',
-        faction: 'player'
-      }
+        faction: 'player',
+      },
     ];
 
     const battle = new HeadlessBattle(data, mockBattleParams, roster);
@@ -74,7 +74,7 @@ describe('Headless Harness Phase Parity', () => {
 
     // _processEnemyPhase is where enemy turn-start effects are applied
     await battle._processEnemyPhase();
-    
+
     // Regenerator heals 20% max HP (20 * 0.2 = 4)
     expect(enemy.currentHP).toBe(14);
   });

@@ -7,13 +7,28 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive() { return this; },
-    setOrigin() { return this; },
-    setColor() { return this; },
-    setAlpha() { return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setAlpha() {
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
     destroy: vi.fn(),
   };
 }
@@ -41,8 +56,12 @@ function makeScene() {
       graphics: () => {
         const g = makeDisplayObject({
           kind: 'graphics',
-          lineStyle() { return this; },
-          lineBetween() { return this; },
+          lineStyle() {
+            return this;
+          },
+          lineBetween() {
+            return this;
+          },
         });
         created.graphics.push(g);
         return g;
@@ -67,7 +86,14 @@ function makeNodeMap() {
     startNodeId: 'act1_0_2',
     bossNodeId: 'act1_2_2',
     nodes: [
-      { id: 'act1_0_2', row: 0, col: 2, type: 'battle', edges: ['act1_1_1', 'act1_1_3'], completed: true },
+      {
+        id: 'act1_0_2',
+        row: 0,
+        col: 2,
+        type: 'battle',
+        edges: ['act1_1_1', 'act1_1_3'],
+        completed: true,
+      },
       { id: 'act1_1_1', row: 1, col: 1, type: 'shop', edges: ['act1_2_2'], completed: false },
       { id: 'act1_1_3', row: 1, col: 3, type: 'recruit', edges: ['act1_2_2'], completed: false },
       { id: 'act1_2_2', row: 2, col: 2, type: 'boss', edges: [], completed: false },
@@ -84,9 +110,9 @@ describe('classifyNodes', () => {
     const states = classifyNodes(nodeMap.nodes, 'act1_1_1');
 
     expect(states.get('act1_0_2')).toBe('completed'); // completed=true
-    expect(states.get('act1_1_1')).toBe('active');     // activeNodeId match
-    expect(states.get('act1_2_2')).toBe('next');       // edge from active
-    expect(states.get('act1_1_3')).toBe('locked');     // not completed, not active, not next
+    expect(states.get('act1_1_1')).toBe('active'); // activeNodeId match
+    expect(states.get('act1_2_2')).toBe('next'); // edge from active
+    expect(states.get('act1_1_3')).toBe('locked'); // not completed, not active, not next
   });
 
   it('marks active node even if it is also completed', () => {
@@ -135,8 +161,11 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const nodeMap = makeNodeMap();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap, currentNodeId: 'act1_0_2', actId: 'act1',
-      activeNodeId: 'act1_1_1', onClose: vi.fn(),
+      nodeMap,
+      currentNodeId: 'act1_0_2',
+      actId: 'act1',
+      activeNodeId: 'act1_1_1',
+      onClose: vi.fn(),
     });
 
     overlay.show();
@@ -151,8 +180,11 @@ describe('CampaignMapOverlay', () => {
     const nodeMap = makeNodeMap();
     const onClose = vi.fn();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap, currentNodeId: 'act1_0_2', actId: 'act1',
-      activeNodeId: 'act1_1_1', onClose,
+      nodeMap,
+      currentNodeId: 'act1_0_2',
+      actId: 'act1',
+      activeNodeId: 'act1_1_1',
+      onClose,
     });
 
     overlay.show();
@@ -169,8 +201,11 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const onClose = vi.fn();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap: makeNodeMap(), currentNodeId: null, actId: 'act1',
-      activeNodeId: null, onClose,
+      nodeMap: makeNodeMap(),
+      currentNodeId: null,
+      actId: 'act1',
+      activeNodeId: null,
+      onClose,
     });
 
     overlay.hide(); // never shown
@@ -181,7 +216,10 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const overlay = new CampaignMapOverlay(scene, {
       nodeMap: { actId: 'act1', nodes: [], startNodeId: null, bossNodeId: null },
-      currentNodeId: null, actId: 'act1', activeNodeId: null, onClose: vi.fn(),
+      currentNodeId: null,
+      actId: 'act1',
+      activeNodeId: null,
+      onClose: vi.fn(),
     });
 
     expect(() => overlay.show()).not.toThrow();
@@ -191,8 +229,11 @@ describe('CampaignMapOverlay', () => {
   it('handles null nodeMap without throwing', () => {
     const scene = makeScene();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap: null, currentNodeId: null, actId: 'act1',
-      activeNodeId: null, onClose: vi.fn(),
+      nodeMap: null,
+      currentNodeId: null,
+      actId: 'act1',
+      activeNodeId: null,
+      onClose: vi.fn(),
     });
 
     expect(() => overlay.show()).not.toThrow();
@@ -202,8 +243,11 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const nodeMap = makeNodeMap();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap, currentNodeId: 'act1_0_2', actId: 'act1',
-      activeNodeId: 'act1_1_1', onClose: vi.fn(),
+      nodeMap,
+      currentNodeId: 'act1_0_2',
+      actId: 'act1',
+      activeNodeId: 'act1_1_1',
+      onClose: vi.fn(),
     });
 
     overlay.show();
@@ -214,12 +258,17 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const nodeMap = makeNodeMap();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap, currentNodeId: 'act1_0_2', actId: 'act1',
-      activeNodeId: 'act1_1_1', onClose: vi.fn(),
+      nodeMap,
+      currentNodeId: 'act1_0_2',
+      actId: 'act1',
+      activeNodeId: 'act1_1_1',
+      onClose: vi.fn(),
     });
 
     overlay.show();
-    const youTexts = scene.created.texts.filter(t => typeof t.text === 'string' && t.text.includes('YOU'));
+    const youTexts = scene.created.texts.filter(
+      (t) => typeof t.text === 'string' && t.text.includes('YOU'),
+    );
     expect(youTexts.length).toBe(1);
   });
 
@@ -227,13 +276,15 @@ describe('CampaignMapOverlay', () => {
     const scene = makeScene();
     const overlay = new CampaignMapOverlay(scene, {
       nodeMap: { actId: 'act1', nodes: [], startNodeId: null, bossNodeId: null },
-      currentNodeId: null, actId: undefined,
-      activeNodeId: null, onClose: vi.fn(),
+      currentNodeId: null,
+      actId: undefined,
+      activeNodeId: null,
+      onClose: vi.fn(),
     });
 
     expect(() => overlay.show()).not.toThrow();
-    const titleTexts = scene.created.texts.filter(t =>
-      typeof t.text === 'string' && t.text === 'Campaign Map'
+    const titleTexts = scene.created.texts.filter(
+      (t) => typeof t.text === 'string' && t.text === 'Campaign Map',
     );
     expect(titleTexts.length).toBe(1);
   });
@@ -241,13 +292,16 @@ describe('CampaignMapOverlay', () => {
   it('title shows act name from ACT_CONFIG', () => {
     const scene = makeScene();
     const overlay = new CampaignMapOverlay(scene, {
-      nodeMap: makeNodeMap(), currentNodeId: null, actId: 'act2',
-      activeNodeId: null, onClose: vi.fn(),
+      nodeMap: makeNodeMap(),
+      currentNodeId: null,
+      actId: 'act2',
+      activeNodeId: null,
+      onClose: vi.fn(),
     });
 
     overlay.show();
-    const titleTexts = scene.created.texts.filter(t =>
-      typeof t.text === 'string' && t.text.includes('Act 2')
+    const titleTexts = scene.created.texts.filter(
+      (t) => typeof t.text === 'string' && t.text.includes('Act 2'),
     );
     expect(titleTexts.length).toBe(1);
     expect(titleTexts[0].text).toContain('Occupied Territory');
@@ -282,8 +336,8 @@ describe('PauseOverlay campaign map button', () => {
     overlay.show();
 
     const buttonTexts = scene.created.texts
-      .filter(t => typeof t.text === 'string')
-      .map(t => t.text);
+      .filter((t) => typeof t.text === 'string')
+      .map((t) => t.text);
     expect(buttonTexts).toContain('Campaign Map');
   });
 
@@ -301,8 +355,8 @@ describe('PauseOverlay campaign map button', () => {
     overlay.show();
 
     const buttonTexts = scene.created.texts
-      .filter(t => typeof t.text === 'string')
-      .map(t => t.text);
+      .filter((t) => typeof t.text === 'string')
+      .map((t) => t.text);
     expect(buttonTexts).not.toContain('Campaign Map');
   });
 });

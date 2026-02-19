@@ -51,7 +51,13 @@ describe('data consistency workflow guards', () => {
 
   it('enemy-only Sunder weapons and Venin Bow are excluded from standard loot pools', () => {
     const lootTables = readJson('data/lootTables.json');
-    const enemyOnlyWeapons = ['Venin Bow', 'Sunder Sword', 'Sunder Lance', 'Sunder Axe', 'Sunder Bow'];
+    const enemyOnlyWeapons = [
+      'Venin Bow',
+      'Sunder Sword',
+      'Sunder Lance',
+      'Sunder Axe',
+      'Sunder Bow',
+    ];
 
     for (const act of ['act1', 'act2', 'act3', 'finalBoss']) {
       const table = lootTables[act] || {};

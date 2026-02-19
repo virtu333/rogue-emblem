@@ -113,9 +113,10 @@ export function summarizeWeaponArtEffect(art) {
   if (mods.vengeance) chunks.push('Vengeance dmg');
   if (mods.halfPhysicalDamage) chunks.push('Half physical taken');
   if (mods.rangeOverride) {
-    const range = (typeof mods.rangeOverride === 'object')
-      ? `${mods.rangeOverride.min}-${mods.rangeOverride.max}`
-      : String(mods.rangeOverride);
+    const range =
+      typeof mods.rangeOverride === 'object'
+        ? `${mods.rangeOverride.min}-${mods.rangeOverride.max}`
+        : String(mods.rangeOverride);
     chunks.push(`Range = ${range}`);
   } else {
     pushSigned('Range', mods.rangeBonus);
@@ -133,16 +134,21 @@ export function summarizeWeaponArtEffect(art) {
 }
 
 export function resolveWeaponArtStatus(art, options = {}) {
-  const actSequence = Array.isArray(options.actSequence) && options.actSequence.length > 0
-    ? options.actSequence
-    : ['act1', 'act2', 'act3'];
+  const actSequence =
+    Array.isArray(options.actSequence) && options.actSequence.length > 0
+      ? options.actSequence
+      : ['act1', 'act2', 'act3'];
   const currentAct = options.currentAct || actSequence[0] || 'act1';
   const unlockAct = art?.unlockAct || actSequence[0] || 'act1';
   const currentIdx = Math.max(0, actSequence.indexOf(String(currentAct)));
   const unlockIdx = actSequence.indexOf(String(unlockAct));
   const unlockedIds = new Set(Array.isArray(options.unlockedIds) ? options.unlockedIds : []);
-  const metaUnlockedIds = new Set(Array.isArray(options.metaUnlockedIds) ? options.metaUnlockedIds : []);
-  const actUnlockedIds = new Set(Array.isArray(options.actUnlockedIds) ? options.actUnlockedIds : []);
+  const metaUnlockedIds = new Set(
+    Array.isArray(options.metaUnlockedIds) ? options.metaUnlockedIds : [],
+  );
+  const actUnlockedIds = new Set(
+    Array.isArray(options.actUnlockedIds) ? options.actUnlockedIds : [],
+  );
   const isUnlockedById = !!art?.id && unlockedIds.has(art.id);
   const isMetaUnlocked = !!art?.id && metaUnlockedIds.has(art.id);
   const isActUnlocked = !!art?.id && actUnlockedIds.has(art.id);
@@ -220,11 +226,12 @@ export function buildWeaponArtVisibilityRows(arts, options = {}) {
       };
     });
 
-  rows.sort((a, b) =>
-    (a.statusRank - b.statusRank)
-    || (a.unlockIdx - b.unlockIdx)
-    || a.weaponType.localeCompare(b.weaponType)
-    || a.name.localeCompare(b.name)
+  rows.sort(
+    (a, b) =>
+      a.statusRank - b.statusRank ||
+      a.unlockIdx - b.unlockIdx ||
+      a.weaponType.localeCompare(b.weaponType) ||
+      a.name.localeCompare(b.name),
   );
   return rows;
 }

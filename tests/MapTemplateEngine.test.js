@@ -47,14 +47,22 @@ describe('MapTemplateEngine', () => {
     bad.rout[0].reinforcementContractVersion = REINFORCEMENT_CONTRACT_VERSION;
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('must define both reinforcementContractVersion and reinforcements'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('must define both reinforcementContractVersion and reinforcements'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects config when either objective template pool is empty', () => {
     const result = validateMapTemplatesConfig({ rout: [], seize: [] });
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('rout must include at least one template'))).toBe(true);
-    expect(result.errors.some((error) => error.includes('seize must include at least one template'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('rout must include at least one template')),
+    ).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('seize must include at least one template')),
+    ).toBe(true);
   });
 
   it('rejects reinforcement waves with invalid count ranges', () => {
@@ -63,7 +71,9 @@ describe('MapTemplateEngine', () => {
     template.reinforcements.waves[0].count = [3, 1];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('count must have 0 < min <= max'))).toBe(true);
+    expect(result.errors.some((error) => error.includes('count must have 0 < min <= max'))).toBe(
+      true,
+    );
   });
 
   it('rejects reinforcement wave edges outside spawnEdges', () => {
@@ -72,7 +82,9 @@ describe('MapTemplateEngine', () => {
     template.reinforcements.waves[0].edges = ['left'];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('subset of reinforcements.spawnEdges'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('subset of reinforcements.spawnEdges')),
+    ).toBe(true);
   });
 
   it('accepts valid reinforcement turnJitter range', () => {
@@ -89,7 +101,9 @@ describe('MapTemplateEngine', () => {
     template.reinforcements.turnJitter = [2, -1];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('turnJitter must satisfy minDelta <= maxDelta'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('turnJitter must satisfy minDelta <= maxDelta')),
+    ).toBe(true);
   });
 
   it('rejects reinforcement turnJitter when values are non-integers', () => {
@@ -98,7 +112,11 @@ describe('MapTemplateEngine', () => {
     template.reinforcements.turnJitter = [0.5, 1];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('turnJitter must be [minDelta,maxDelta] integers'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('turnJitter must be [minDelta,maxDelta] integers'),
+      ),
+    ).toBe(true);
   });
 
   it('accepts valid scripted reinforcement waves', () => {
@@ -139,7 +157,11 @@ describe('MapTemplateEngine', () => {
     delete template.reinforcements.scriptedWaves;
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('reinforcements.waves must be a non-empty array'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('reinforcements.waves must be a non-empty array'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects scripted reinforcement waves with invalid spawn coordinates', () => {
@@ -153,7 +175,11 @@ describe('MapTemplateEngine', () => {
     ];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('scriptedWaves[0].spawns[0].col must be a non-negative integer'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('scriptedWaves[0].spawns[0].col must be a non-negative integer'),
+      ),
+    ).toBe(true);
   });
 
   it('accepts scripted reinforcement poisonWeapon boolean metadata', () => {
@@ -180,7 +206,11 @@ describe('MapTemplateEngine', () => {
     ];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('scriptedWaves[0].spawns[0].poisonWeapon must be boolean when provided'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('scriptedWaves[0].spawns[0].poisonWeapon must be boolean when provided'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects zones missing rect coordinates', () => {
@@ -188,7 +218,11 @@ describe('MapTemplateEngine', () => {
     bad.rout[0].zones[0] = { terrain: { Plain: 100 } };
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('zones[0].rect must be [x1,y1,x2,y2] finite numbers'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('zones[0].rect must be [x1,y1,x2,y2] finite numbers'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects zones with invalid rect bounds', () => {
@@ -196,7 +230,11 @@ describe('MapTemplateEngine', () => {
     bad.rout[0].zones[0].rect = [0.5, 0.5, 0.4, 1.2];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('must satisfy 0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('must satisfy 0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects zones with invalid terrain weights', () => {
@@ -204,7 +242,9 @@ describe('MapTemplateEngine', () => {
     bad.rout[0].zones[0].terrain = { Plain: 0 };
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('terrain["Plain"] must be a positive number'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('terrain["Plain"] must be a positive number')),
+    ).toBe(true);
   });
 
   it('accepts valid hybrid arena contract shape', () => {
@@ -222,20 +262,23 @@ describe('MapTemplateEngine', () => {
     template.bossOnly = false;
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('bossOnly must be true when hybridArena is provided'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('bossOnly must be true when hybridArena is provided'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects hybrid arena contract with ragged arenaTiles rows', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     const template = bad.seize.find((entry) => entry.id === ACT4_HYBRID_BASE_TEMPLATE_ID);
     Object.assign(template, makeHybridTemplatePatch());
-    template.hybridArena.arenaTiles = [
-      ['Wall', 'Wall'],
-      ['Wall'],
-    ];
+    template.hybridArena.arenaTiles = [['Wall', 'Wall'], ['Wall']];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('hybridArena.arenaTiles must be rectangular'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('hybridArena.arenaTiles must be rectangular')),
+    ).toBe(true);
   });
 
   it('rejects phase terrain overrides referencing unknown anchors', () => {
@@ -245,7 +288,9 @@ describe('MapTemplateEngine', () => {
     template.phaseTerrainOverrides[0].setTiles[0] = { anchor: 'unknown', terrain: 'Plain' };
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('references unknown hybridArena anchor'))).toBe(true);
+    expect(
+      result.errors.some((error) => error.includes('references unknown hybridArena anchor')),
+    ).toBe(true);
   });
 
   it('rejects phase terrain overrides with duplicate target tiles', () => {
@@ -258,7 +303,11 @@ describe('MapTemplateEngine', () => {
     ];
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('phaseTerrainOverrides[0].setTiles contains duplicate target tile'))).toBe(true);
+    expect(
+      result.errors.some((error) =>
+        error.includes('phaseTerrainOverrides[0].setTiles contains duplicate target tile'),
+      ),
+    ).toBe(true);
   });
 
   it('reports malformed hybridArena with overrides without throwing', () => {
@@ -274,6 +323,8 @@ describe('MapTemplateEngine', () => {
     expect(() => validateMapTemplatesConfig(bad)).not.toThrow();
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes('hybridArena must be an object'))).toBe(true);
+    expect(result.errors.some((error) => error.includes('hybridArena must be an object'))).toBe(
+      true,
+    );
   });
 });

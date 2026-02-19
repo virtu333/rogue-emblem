@@ -37,7 +37,15 @@ export class HeadlessGrid {
   }
 
   // Dijkstra flood-fill: all tiles reachable within `mov` movement points.
-  getMovementRange(startCol, startRow, mov, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
+  getMovementRange(
+    startCol,
+    startRow,
+    mov,
+    moveType,
+    unitPositions = null,
+    moverFaction = null,
+    costModifier = 0,
+  ) {
     const reachable = new Map();
     const queue = [{ col: startCol, row: startRow, cost: 0 }];
     reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
@@ -86,7 +94,16 @@ export class HeadlessGrid {
   }
 
   // A* pathfinding — returns array of {col, row} or null.
-  findPath(startCol, startRow, goalCol, goalRow, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
+  findPath(
+    startCol,
+    startRow,
+    goalCol,
+    goalRow,
+    moveType,
+    unitPositions = null,
+    moverFaction = null,
+    costModifier = 0,
+  ) {
     const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
 
     const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
@@ -194,11 +211,11 @@ export class HeadlessGrid {
 
   setTemporaryTerrain(col, row, terrainName, duration = 1) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
-    const terrainIndex = this.terrainData.findIndex(t => t?.name === terrainName);
+    const terrainIndex = this.terrainData.findIndex((t) => t?.name === terrainName);
     if (terrainIndex < 0) return false;
     if (!this.temporaryTerrains) this.temporaryTerrains = [];
     const key = `${col},${row}`;
-    const existing = this.temporaryTerrains.find(t => t.key === key);
+    const existing = this.temporaryTerrains.find((t) => t.key === key);
     if (existing) {
       existing.remainingTurns = Math.max(existing.remainingTurns, Math.max(1, duration | 0));
       return this.setTerrainAt(col, row, terrainIndex);
@@ -217,7 +234,7 @@ export class HeadlessGrid {
   clearTemporaryTerrainAt(col, row) {
     const key = `${col},${row}`;
     if (!this.temporaryTerrains) return false;
-    const idx = this.temporaryTerrains.findIndex(t => t.key === key);
+    const idx = this.temporaryTerrains.findIndex((t) => t.key === key);
     if (idx < 0) return false;
     const entry = this.temporaryTerrains.splice(idx, 1)[0];
     return this.setTerrainAt(entry.col, entry.row, entry.originalIndex);
@@ -226,7 +243,7 @@ export class HeadlessGrid {
   isTemporaryTerrainAt(col, row, terrainIndex = null) {
     const key = `${col},${row}`;
     if (!this.temporaryTerrains) return false;
-    const entry = this.temporaryTerrains.find(t => t.key === key);
+    const entry = this.temporaryTerrains.find((t) => t.key === key);
     if (!entry) return false;
     if (terrainIndex == null) return true;
     return this.mapLayout[row]?.[col] === terrainIndex;

@@ -43,11 +43,17 @@ describe('GridParity', () => {
         recruits: gameData.recruits,
         classes: gameData.classes,
         weapons: gameData.weapons,
-      }
+      },
     );
 
     const headless = new HeadlessGrid(bc.cols, bc.rows, gameData.terrain, bc.mapLayout);
-    const production = new Grid(createMockScene(), bc.cols, bc.rows, gameData.terrain, bc.mapLayout);
+    const production = new Grid(
+      createMockScene(),
+      bc.cols,
+      bc.rows,
+      gameData.terrain,
+      bc.mapLayout,
+    );
     return { headless, production, bc };
   }
 
@@ -156,7 +162,15 @@ describe('GridParity', () => {
     const pos = bc.playerSpawns[0];
     if (pos) {
       const hRange = headless.getMovementRange(pos.col, pos.row, 5, 'Infantry', new Map(), null, 1);
-      const pRange = production.getMovementRange(pos.col, pos.row, 5, 'Infantry', new Map(), null, 1);
+      const pRange = production.getMovementRange(
+        pos.col,
+        pos.row,
+        5,
+        'Infantry',
+        new Map(),
+        null,
+        1,
+      );
       const hKeys = new Set(hRange.keys());
       const pKeys = new Set(pRange.keys());
       expect(hKeys).toEqual(pKeys);
@@ -168,8 +182,26 @@ describe('GridParity', () => {
     if (bc.playerSpawns.length >= 1 && bc.enemySpawns.length >= 1) {
       const start = bc.playerSpawns[0];
       const goal = bc.enemySpawns[0];
-      const hPath = headless.findPath(start.col, start.row, goal.col, goal.row, 'Infantry', new Map(), null, 1);
-      const pPath = production.findPath(start.col, start.row, goal.col, goal.row, 'Infantry', new Map(), null, 1);
+      const hPath = headless.findPath(
+        start.col,
+        start.row,
+        goal.col,
+        goal.row,
+        'Infantry',
+        new Map(),
+        null,
+        1,
+      );
+      const pPath = production.findPath(
+        start.col,
+        start.row,
+        goal.col,
+        goal.row,
+        'Infantry',
+        new Map(),
+        null,
+        1,
+      );
       if (hPath === null) {
         expect(pPath).toBeNull();
       } else {
@@ -188,8 +220,8 @@ describe('GridParity', () => {
     const hTiles = headless.getAttackRange(col, row, weapon);
     const pTiles = production.getAttackRange(col, row, weapon);
 
-    const hSet = new Set(hTiles.map(t => `${t.col},${t.row}`));
-    const pSet = new Set(pTiles.map(t => `${t.col},${t.row}`));
+    const hSet = new Set(hTiles.map((t) => `${t.col},${t.row}`));
+    const pSet = new Set(pTiles.map((t) => `${t.col},${t.row}`));
     expect(hSet).toEqual(pSet);
   });
 });

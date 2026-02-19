@@ -1,17 +1,29 @@
 import { describe, it, expect, vi } from 'vitest';
 import { resolveCombat } from '../src/engine/Combat.js';
-import { rollDefenseAffixes, getWarpCandidates, getAffixCombatMods } from '../src/engine/AffixSystem.js';
+import {
+  rollDefenseAffixes,
+  getWarpCandidates,
+  getAffixCombatMods,
+} from '../src/engine/AffixSystem.js';
 
 describe('Affix Combat Interactions', () => {
   const mockSkills = [];
   const mockAffixes = {
     affixes: [
-      { id: 'shielded', name: 'Shielded', trigger: 'on-defend', effects: { negateFirstHit: true } }
-    ]
+      { id: 'shielded', name: 'Shielded', trigger: 'on-defend', effects: { negateFirstHit: true } },
+    ],
   };
 
   const weapon = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1' };
-  const braveWeapon = { name: 'Brave Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1', special: 'twice consecutively' };
+  const braveWeapon = {
+    name: 'Brave Sword',
+    type: 'Sword',
+    might: 5,
+    hit: 90,
+    crit: 0,
+    range: '1',
+    special: 'twice consecutively',
+  };
 
   const attacker = {
     name: 'Attacker',
@@ -19,7 +31,7 @@ describe('Affix Combat Interactions', () => {
     currentHP: 20,
     weapon: weapon,
     proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-    skills: []
+    skills: [],
   };
 
   const defender = {
@@ -29,7 +41,7 @@ describe('Affix Combat Interactions', () => {
     weapon: weapon,
     proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     skills: [],
-    affixes: ['shielded']
+    affixes: ['shielded'],
   };
 
   const skillCtx = {
@@ -38,51 +50,48 @@ describe('Affix Combat Interactions', () => {
     rollStrikeSkills: (s, d, t, sd) => ({ modifiedDamage: d, activated: [] }),
     rollDefenseAffixes: rollDefenseAffixes,
     affixData: mockAffixes,
-    skillsData: mockSkills
+    skillsData: mockSkills,
   };
 
   it('Shielded negates only the first hit in a Brave weapon sequence', () => {
     // Mock Math.random to always hit and not crit
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
-    const result = resolveCombat(
-      attacker, braveWeapon,
-      defender, weapon,
-      1, null, null,
-      { ...skillCtx, atkMods: { ...skillCtx.atkMods } }
-    );
+    const result = resolveCombat(attacker, braveWeapon, defender, weapon, 1, null, null, {
+      ...skillCtx,
+      atkMods: { ...skillCtx.atkMods },
+    });
 
     // Expect at least 2 strikes from attacker (brave)
-    const attackerStrikes = result.events.filter(e => e.attacker === 'Attacker');
+    const attackerStrikes = result.events.filter((e) => e.attacker === 'Attacker');
     expect(attackerStrikes.length).toBeGreaterThanOrEqual(2);
 
     // First strike should deal 0 damage (Shielded)
     expect(attackerStrikes[0].damage).toBe(0);
-    expect(attackerStrikes[0].skillActivations.some(s => s.id === 'shielded')).toBe(true);
+    expect(attackerStrikes[0].skillActivations.some((s) => s.id === 'shielded')).toBe(true);
 
     // Second strike should deal normal damage (Shielded consumed)
     // Damage = 10 (STR) + 5 (Might) - 5 (DEF) = 10
     expect(attackerStrikes[1].damage).toBe(10);
-    expect(attackerStrikes[1].skillActivations.some(s => s.id === 'shielded')).toBe(false);
+    expect(attackerStrikes[1].skillActivations.some((s) => s.id === 'shielded')).toBe(false);
 
     vi.restoreAllMocks();
   });
 
   it('getAffixCombatMods treats null allAllies as an empty collection', () => {
     const affixData = {
-      affixes: [
-        { id: 'fury', name: 'Fury', trigger: 'passive', effects: { atkBonus: 2 } },
-      ],
+      affixes: [{ id: 'fury', name: 'Fury', trigger: 'passive', effects: { atkBonus: 2 } }],
     };
     const unitWithPassiveAffix = { ...attacker, affixes: ['fury'] };
     const mods = getAffixCombatMods(unitWithPassiveAffix, defender, null, affixData, null);
     expect(mods.atkBonus).toBe(2);
-    expect(mods.activated.some(a => a.id === 'fury')).toBe(true);
+    expect(mods.activated.some((a) => a.id === 'fury')).toBe(true);
   });
 
   it('executeWarp prioritizes tiles farthest from the attacker', async () => {
     const mockGrid = {
-      cols: 10, rows: 10,
+      cols: 10,
+      rows: 10,
       getMoveCost: () => 1,
     };
     const getUnitAt = () => null;
@@ -94,22 +103,28 @@ describe('Affix Combat Interactions', () => {
     // Farthest tiles in range 3 from (4,5) that are reachable from (5,5):
     // Max Manhattan dist from (4,5) is 4.
     const bestPicks = getWarpCandidates(unit, range, attacker, mockGrid, getUnitAt);
-    
+
     expect(bestPicks.length).toBeGreaterThan(0);
     expect(bestPicks[0].distToAttacker).toBe(4);
-    
+
     // Check that all returned picks are indeed the optimal distance
     for (const pick of bestPicks) {
       expect(pick.distToAttacker).toBe(4);
     }
-    
+
     // Check that it identifies specific optimal tiles correctly
     const possibleFarthest = [
-      {col:8, row:5}, {col:5, row:8}, {col:5, row:2}, {col:7, row:6}, {col:7, row:4}, {col:6, row:7}, {col:6, row:3}
+      { col: 8, row: 5 },
+      { col: 5, row: 8 },
+      { col: 5, row: 2 },
+      { col: 7, row: 6 },
+      { col: 7, row: 4 },
+      { col: 6, row: 7 },
+      { col: 6, row: 3 },
     ];
-    
+
     for (const p of possibleFarthest) {
-      const match = bestPicks.find(bp => bp.col === p.col && bp.row === p.row);
+      const match = bestPicks.find((bp) => bp.col === p.col && bp.row === p.row);
       expect(match).toBeDefined();
     }
   });

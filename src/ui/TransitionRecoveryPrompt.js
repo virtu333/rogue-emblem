@@ -17,30 +17,50 @@ import { markStartup } from '../utils/startupTelemetry.js';
  * @param {string} [opts.overlayKey] — scene property to null-out (e.g. 'pauseOverlay')
  * @returns {object[]|null}          — created UI group, or null if guard blocked
  */
-export function showTransitionRecoveryPrompt(scene, { reason, sceneName, guardKey, titleData, overlayKey }) {
+export function showTransitionRecoveryPrompt(
+  scene,
+  { reason, sceneName, guardKey, titleData, overlayKey },
+) {
   if (scene[guardKey]?.length) return null;
   if (overlayKey) scene[overlayKey] = null; // clean stale overlay ref
   const cam = scene.cameras.main;
   const group = [];
 
-  const blocker = scene.add.rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
-    .setDepth(910).setInteractive();
+  const blocker = scene.add
+    .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
+    .setDepth(910)
+    .setInteractive();
   group.push(blocker);
 
-  const panel = scene.add.rectangle(cam.centerX, cam.centerY, 380, 150, 0x111122, 0.97)
-    .setDepth(911).setStrokeStyle(2, 0x777777).setInteractive();
+  const panel = scene.add
+    .rectangle(cam.centerX, cam.centerY, 380, 150, 0x111122, 0.97)
+    .setDepth(911)
+    .setStrokeStyle(2, 0x777777)
+    .setInteractive();
   group.push(panel);
 
-  const msg = scene.add.text(cam.centerX, cam.centerY - 28, 'Transition to title failed.', {
-    fontFamily: 'monospace', fontSize: '13px', color: '#ff8888',
-  }).setOrigin(0.5).setDepth(912);
+  const msg = scene.add
+    .text(cam.centerX, cam.centerY - 28, 'Transition to title failed.', {
+      fontFamily: 'monospace',
+      fontSize: '13px',
+      color: '#ff8888',
+    })
+    .setOrigin(0.5)
+    .setDepth(912);
   group.push(msg);
 
   // Retry button
-  const retryBtn = scene.add.text(cam.centerX, cam.centerY + 12, '[ Retry ]', {
-    fontFamily: 'monospace', fontSize: '14px', color: '#aaddff',
-    backgroundColor: '#223344', padding: { x: 12, y: 5 },
-  }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+  const retryBtn = scene.add
+    .text(cam.centerX, cam.centerY + 12, '[ Retry ]', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#aaddff',
+      backgroundColor: '#223344',
+      padding: { x: 12, y: 5 },
+    })
+    .setOrigin(0.5)
+    .setDepth(912)
+    .setInteractive({ useHandCursor: true });
   retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
   retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
   retryBtn.on('pointerdown', () => {
@@ -51,8 +71,10 @@ export function showTransitionRecoveryPrompt(scene, { reason, sceneName, guardKe
     transitionToScene(scene, 'Title', titleData, { reason })
       .then((ok) => {
         if (!ok) {
-          try { scene.scene.start('Title', titleData); } // scene-router-bypass
-          catch (err) {
+          try {
+            scene.scene.start('Title', titleData);
+          } catch (err) {
+            // scene-router-bypass
             console.error(`[${sceneName}] pause recovery fallback failed:`, err);
             retryBtn.setText('[ Retry ]');
             retryBtn.setInteractive({ useHandCursor: true });
@@ -68,10 +90,16 @@ export function showTransitionRecoveryPrompt(scene, { reason, sceneName, guardKe
   group.push(retryBtn);
 
   // Reload escape hatch
-  const reloadBtn = scene.add.text(cam.centerX, cam.centerY + 48, '[ Reload Page ]', {
-    fontFamily: 'monospace', fontSize: '11px', color: '#777777',
-    padding: { x: 8, y: 3 },
-  }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+  const reloadBtn = scene.add
+    .text(cam.centerX, cam.centerY + 48, '[ Reload Page ]', {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#777777',
+      padding: { x: 8, y: 3 },
+    })
+    .setOrigin(0.5)
+    .setDepth(912)
+    .setInteractive({ useHandCursor: true });
   reloadBtn.on('pointerover', () => reloadBtn.setColor('#aaaaaa'));
   reloadBtn.on('pointerout', () => reloadBtn.setColor('#777777'));
   reloadBtn.on('pointerdown', () => {

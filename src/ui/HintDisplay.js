@@ -15,15 +15,29 @@ export function showImportantHint(scene, message) {
     const objects = [];
 
     // Dark box background
-    const textObj = scene.add.text(cx, cy - 10, message, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ffdd44',
-      align: 'center', wordWrap: { width: 420 }, lineSpacing: 4,
-    }).setOrigin(0.5).setDepth(DEPTH + 1).setAlpha(0);
+    const textObj = scene.add
+      .text(cx, cy - 10, message, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ffdd44',
+        align: 'center',
+        wordWrap: { width: 420 },
+        lineSpacing: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH + 1)
+      .setAlpha(0);
 
-    const footerObj = scene.add.text(cx, 0, '[Space / Click to continue]', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#888888',
-      align: 'center',
-    }).setOrigin(0.5).setDepth(DEPTH + 1).setAlpha(0);
+    const footerObj = scene.add
+      .text(cx, 0, '[Space / Click to continue]', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#888888',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH + 1)
+      .setAlpha(0);
 
     // Size box around text
     const padX = 30;
@@ -35,8 +49,11 @@ export function showImportantHint(scene, message) {
 
     footerObj.setY(boxY + boxH / 2 - 14);
 
-    const bg = scene.add.rectangle(cx, boxY, boxW, boxH, 0x000000, 0.92)
-      .setStrokeStyle(2, 0xffdd44).setDepth(DEPTH).setAlpha(0);
+    const bg = scene.add
+      .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.92)
+      .setStrokeStyle(2, 0xffdd44)
+      .setDepth(DEPTH)
+      .setAlpha(0);
 
     objects.push(bg, textObj, footerObj);
 
@@ -79,10 +96,18 @@ export function showMinorHint(scene, message) {
     const cx = cam.centerX;
     const y = cam.height - 40;
 
-    const text = scene.add.text(cx, y, message, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
-      align: 'center', backgroundColor: '#000000cc', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(DEPTH).setAlpha(0);
+    const text = scene.add
+      .text(cx, y, message, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffdd44',
+        align: 'center',
+        backgroundColor: '#000000cc',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH)
+      .setAlpha(0);
 
     // Fade in → hold → fade out → destroy
     scene.tweens.add({

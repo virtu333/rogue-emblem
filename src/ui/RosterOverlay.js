@@ -1,17 +1,41 @@
 // RosterOverlay.js — Node map roster management (view stats, equip, trade, accessories)
 // Follows PauseOverlay/SettingsOverlay pattern with this.objects[].
 
-import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS, INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import {
+  XP_STAT_NAMES,
+  XP_PER_LEVEL,
+  MAX_SKILLS,
+  INVENTORY_MAX,
+  CONSUMABLE_MAX,
+} from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
-  equipWeapon, addToInventory, removeFromInventory, isLastCombatWeapon, hasProficiency, canEquip,
-  canPromote, promoteUnit, equipAccessory, unequipAccessory,
-  resolvePromotionTargets, resolvePromotionTargetClass,
-  addToConsumables, removeFromConsumables, learnSkill,
-  canReclass, getReclassTargets, reclassUnit,
+  equipWeapon,
+  addToInventory,
+  removeFromInventory,
+  isLastCombatWeapon,
+  hasProficiency,
+  canEquip,
+  canPromote,
+  promoteUnit,
+  equipAccessory,
+  unequipAccessory,
+  resolvePromotionTargets,
+  resolvePromotionTargetClass,
+  addToConsumables,
+  removeFromConsumables,
+  learnSkill,
+  canReclass,
+  getReclassTargets,
+  reclassUnit,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
-import { getStaffRemainingUses, getStaffMaxUses, parseRange, getStaticCombatStats } from '../engine/Combat.js';
+import {
+  getStaffRemainingUses,
+  getStaffMaxUses,
+  parseRange,
+  getStaticCombatStats,
+} from '../engine/Combat.js';
 import {
   canUseWeaponArt,
   getWeaponArtBindings,
@@ -24,7 +48,11 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
-import { hasWeaponArt, getWeaponArtTooltipLines, resolveWeaponArtIds } from './WeaponArtVisibility.js';
+import {
+  hasWeaponArt,
+  getWeaponArtTooltipLines,
+  resolveWeaponArtIds,
+} from './WeaponArtVisibility.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
 const WEAPON_ART_MAX_SLOTS = 3;
@@ -70,9 +98,10 @@ function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
 function formatUnitCapacityLabel(unit, maxNameChars = null) {
   const inventoryCount = (unit?.inventory || []).length;
   const consumableCount = (unit?.consumables || []).length;
-  const name = maxNameChars == null
-    ? String(unit?.name || '')
-    : truncateUnitNameForCapacityLabel(unit?.name, maxNameChars);
+  const name =
+    maxNameChars == null
+      ? String(unit?.name || '')
+      : truncateUnitNameForCapacityLabel(unit?.name, maxNameChars);
   return `${name} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})`;
 }
 
@@ -120,29 +149,41 @@ export class RosterOverlay {
     this.visible = true;
 
     // Full-screen dark overlay (blocks clicks below)
-    const bg = this.scene.add.rectangle(320, 240, 640, 480, 0x000000, 0.9)
-      .setDepth(DEPTH_BG).setInteractive();
+    const bg = this.scene.add
+      .rectangle(320, 240, 640, 480, 0x000000, 0.9)
+      .setDepth(DEPTH_BG)
+      .setInteractive();
     this.objects.push(bg);
 
     // Header
-    const title = this.scene.add.text(20, 12, 'Roster', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#ffdd44',
-    }).setDepth(DEPTH_TEXT);
+    const title = this.scene.add
+      .text(20, 12, 'Roster', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#ffdd44',
+      })
+      .setDepth(DEPTH_TEXT);
     this.objects.push(title);
 
     // Close button
-    const closeBtn = this.scene.add.text(590, 12, '[ Close ]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 8, y: 4 },
-    }).setOrigin(1, 0).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    const closeBtn = this.scene.add
+      .text(590, 12, '[ Close ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH_TEXT)
+      .setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
     closeBtn.on('pointerout', () => closeBtn.setColor('#e0e0e0'));
     closeBtn.on('pointerdown', () => this.hide());
     this.objects.push(closeBtn);
 
     // Divider line
-    const divider = this.scene.add.rectangle(320, 38, 600, 2, 0x888888)
-      .setDepth(DEPTH_TEXT);
+    const divider = this.scene.add.rectangle(320, 38, 600, 2, 0x888888).setDepth(DEPTH_TEXT);
     this.objects.push(divider);
 
     this._registerListeners();
@@ -175,7 +216,7 @@ export class RosterOverlay {
 
     this._keyHandler = (event) => {
       if (!this.visible) return;
-      
+
       if (event.code === 'ArrowUp') {
         this._cycleSelection(-1);
       } else if (event.code === 'ArrowDown') {
@@ -199,11 +240,7 @@ export class RosterOverlay {
       if (!pointer || pointer.x < DETAIL_X) return; // Only scroll in detail panel
 
       const step = Math.sign(deltaY) * 20;
-      const nextOffset = this._clamp(
-        this._convoyScrollOffset + step,
-        0,
-        this._convoyScrollMax
-      );
+      const nextOffset = this._clamp(this._convoyScrollOffset + step, 0, this._convoyScrollMax);
       if (nextOffset === this._convoyScrollOffset) return;
       this._convoyScrollOffset = nextOffset;
       this.drawUnitDetails();
@@ -226,13 +263,13 @@ export class RosterOverlay {
       this._convoyDragStart = { id: pointer?.id, y: pointer.y, offset: this._convoyScrollOffset };
     };
     this._pointerMoveHandler = (pointer) => {
-      if (this._rosterDragStart && pointer?.isDown && this._isDragPointerMatch(this._rosterDragStart, pointer)) {
+      if (
+        this._rosterDragStart &&
+        pointer?.isDown &&
+        this._isDragPointerMatch(this._rosterDragStart, pointer)
+      ) {
         const dy = this._rosterDragStart.y - pointer.y;
-        const nextOffset = this._clamp(
-          this._rosterDragStart.offset + dy,
-          0,
-          this._rosterScrollMax
-        );
+        const nextOffset = this._clamp(this._rosterDragStart.offset + dy, 0, this._rosterScrollMax);
         if (nextOffset !== this._rosterScrollOffset) {
           this._rosterScrollOffset = nextOffset;
           this.drawUnitList();
@@ -240,13 +277,14 @@ export class RosterOverlay {
         return;
       }
 
-      if (!this._convoyDragStart || !pointer?.isDown || !this._isDragPointerMatch(this._convoyDragStart, pointer)) return;
+      if (
+        !this._convoyDragStart ||
+        !pointer?.isDown ||
+        !this._isDragPointerMatch(this._convoyDragStart, pointer)
+      )
+        return;
       const dy = this._convoyDragStart.y - pointer.y;
-      const nextOffset = this._clamp(
-        this._convoyDragStart.offset + dy,
-        0,
-        this._convoyScrollMax
-      );
+      const nextOffset = this._clamp(this._convoyDragStart.offset + dy, 0, this._convoyScrollMax);
       if (nextOffset === this._convoyScrollOffset) return;
       this._convoyScrollOffset = nextOffset;
       this.drawUnitDetails();
@@ -280,7 +318,7 @@ export class RosterOverlay {
   _cycleSelection(dir) {
     const rosterCount = this.runManager.roster.length;
     const totalCount = rosterCount + 1; // units + convoy
-    
+
     let currentIndex = this.selection.kind === 'unit' ? this.selection.index : rosterCount;
     let nextIndex = (currentIndex + dir + totalCount) % totalCount;
 
@@ -324,7 +362,7 @@ export class RosterOverlay {
       startY: LIST_START_Y,
       entryH: LIST_ENTRY_HEIGHT,
       convoyTop,
-      convoyCenterY: convoyTop + (LIST_ENTRY_HEIGHT / 2),
+      convoyCenterY: convoyTop + LIST_ENTRY_HEIGHT / 2,
       unitViewportTop,
       unitViewportBottom,
       unitViewportHeight: Math.max(0, unitViewportBottom - unitViewportTop),
@@ -396,7 +434,7 @@ export class RosterOverlay {
       layout.listLeft,
       layout.listRight,
       PANEL_TOP,
-      PANEL_BOTTOM
+      PANEL_BOTTOM,
     );
     if (!inListBounds) return false;
     const step = Math.sign(deltaY || 0) * LIST_SCROLL_STEP;
@@ -417,7 +455,7 @@ export class RosterOverlay {
       layout.listLeft,
       layout.listRight,
       layout.unitViewportTop,
-      layout.unitViewportBottom
+      layout.unitViewportBottom,
     );
   }
 
@@ -429,21 +467,26 @@ export class RosterOverlay {
 
   _getRosterListSignature(roster = this.runManager?.roster) {
     const list = Array.isArray(roster) ? roster : [];
-    return list.map((unit, index) => {
-      const name = unit?.name ?? '';
-      const level = unit?.level ?? '';
-      const hp = unit?.currentHP ?? '';
-      const maxHp = unit?.stats?.HP ?? '';
-      return `${index}:${name}|${level}|${hp}|${maxHp}`;
-    }).join(';');
+    return list
+      .map((unit, index) => {
+        const name = unit?.name ?? '';
+        const level = unit?.level ?? '';
+        const hp = unit?.currentHP ?? '';
+        const maxHp = unit?.stats?.HP ?? '';
+        return `${index}:${name}|${level}|${hp}|${maxHp}`;
+      })
+      .join(';');
   }
 
   drawUnitList() {
     this._syncLeftListSelectionState();
 
     // Remove old list objects (tagged)
-    this.objects = this.objects.filter(o => {
-      if (o._rosterList) { o.destroy(); return false; }
+    this.objects = this.objects.filter((o) => {
+      if (o._rosterList) {
+        o.destroy();
+        return false;
+      }
       return true;
     });
 
@@ -456,9 +499,10 @@ export class RosterOverlay {
     this._updateRosterScrollBounds(layout);
 
     // List background
-    const listBg = this.scene.add.rectangle(
-      LIST_X + LIST_WIDTH / 2, PANEL_CENTER_Y, LIST_WIDTH, PANEL_HEIGHT, 0x1a1a2e
-    ).setDepth(DEPTH_PANEL).setStrokeStyle(1, 0x444444);
+    const listBg = this.scene.add
+      .rectangle(LIST_X + LIST_WIDTH / 2, PANEL_CENTER_Y, LIST_WIDTH, PANEL_HEIGHT, 0x1a1a2e)
+      .setDepth(DEPTH_PANEL)
+      .setStrokeStyle(1, 0x444444);
     listBg._rosterList = true;
     this.objects.push(listBg);
 
@@ -474,13 +518,17 @@ export class RosterOverlay {
       const isSelected = this.selection.kind === 'unit' && this.selection.index === i;
 
       // Hit area
-      const hitZone = this.scene.add.rectangle(
-        LIST_X + LIST_WIDTH / 2,
-        visibleTop + visibleHeight / 2,
-        LIST_WIDTH - 4,
-        Math.max(2, visibleHeight - 2),
-        isSelected ? 0x333355 : 0x000000, isSelected ? 1 : 0
-      ).setDepth(DEPTH_PANEL + 1).setInteractive({ useHandCursor: true });
+      const hitZone = this.scene.add
+        .rectangle(
+          LIST_X + LIST_WIDTH / 2,
+          visibleTop + visibleHeight / 2,
+          LIST_WIDTH - 4,
+          Math.max(2, visibleHeight - 2),
+          isSelected ? 0x333355 : 0x000000,
+          isSelected ? 1 : 0,
+        )
+        .setDepth(DEPTH_PANEL + 1)
+        .setInteractive({ useHandCursor: true });
       hitZone._rosterList = true;
 
       // Name
@@ -488,11 +536,17 @@ export class RosterOverlay {
       let nameText = null;
       const nameY = y + 4;
       const NAME_LINE_HEIGHT = 12;
-      if (nameY >= layout.unitViewportTop && (nameY + NAME_LINE_HEIGHT) <= layout.unitViewportBottom) {
-        nameText = this.scene.add.text(LIST_X + 8, nameY,
-          `${unit.name}  Lv${unit.level}`, {
-          fontFamily: 'monospace', fontSize: '11px', color: nameColor,
-        }).setDepth(DEPTH_TEXT);
+      if (
+        nameY >= layout.unitViewportTop &&
+        nameY + NAME_LINE_HEIGHT <= layout.unitViewportBottom
+      ) {
+        nameText = this.scene.add
+          .text(LIST_X + 8, nameY, `${unit.name}  Lv${unit.level}`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: nameColor,
+          })
+          .setDepth(DEPTH_TEXT);
         nameText._rosterList = true;
       }
 
@@ -508,25 +562,35 @@ export class RosterOverlay {
       let barBg = null;
       let barFill = null;
       if (clippedBarHeight > 0) {
-        const clippedBarCenterY = clippedBarTop + (clippedBarHeight / 2);
-        barBg = this.scene.add.rectangle(barX + barW / 2, clippedBarCenterY, barW, clippedBarHeight, 0x333333)
+        const clippedBarCenterY = clippedBarTop + clippedBarHeight / 2;
+        barBg = this.scene.add
+          .rectangle(barX + barW / 2, clippedBarCenterY, barW, clippedBarHeight, 0x333333)
           .setDepth(DEPTH_TEXT);
         barBg._rosterList = true;
-        barFill = this.scene.add.rectangle(
-          barX + (barW * ratio) / 2, clippedBarCenterY,
-          barW * ratio, clippedBarHeight, getHPBarColor(ratio)
-        ).setDepth(DEPTH_TEXT);
+        barFill = this.scene.add
+          .rectangle(
+            barX + (barW * ratio) / 2,
+            clippedBarCenterY,
+            barW * ratio,
+            clippedBarHeight,
+            getHPBarColor(ratio),
+          )
+          .setDepth(DEPTH_TEXT);
         barFill._rosterList = true;
       }
 
       let hpText = null;
       const hpY = barY - 3;
       const HP_LINE_HEIGHT = 8;
-      if (hpY >= layout.unitViewportTop && (hpY + HP_LINE_HEIGHT) <= layout.unitViewportBottom) {
-        hpText = this.scene.add.text(LIST_X + LIST_WIDTH - 6, hpY,
-          `${unit.currentHP}/${unit.stats.HP}`, {
-          fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
-        }).setOrigin(1, 0).setDepth(DEPTH_TEXT);
+      if (hpY >= layout.unitViewportTop && hpY + HP_LINE_HEIGHT <= layout.unitViewportBottom) {
+        hpText = this.scene.add
+          .text(LIST_X + LIST_WIDTH - 6, hpY, `${unit.currentHP}/${unit.stats.HP}`, {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: '#aaaaaa',
+          })
+          .setOrigin(1, 0)
+          .setDepth(DEPTH_TEXT);
         hpText._rosterList = true;
       }
 
@@ -547,16 +611,24 @@ export class RosterOverlay {
 
     // 2. Draw viewport overflow indicators
     if (this._rosterScrollOffset > 0) {
-      const upIndicator = this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportTop + 1, '\u25b2', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      }).setDepth(DEPTH_TEXT);
+      const upIndicator = this.scene.add
+        .text(LIST_X + LIST_WIDTH - 12, layout.unitViewportTop + 1, '\u25b2', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+        })
+        .setDepth(DEPTH_TEXT);
       upIndicator._rosterList = true;
       this.objects.push(upIndicator);
     }
     if (this._rosterScrollOffset < this._rosterScrollMax) {
-      const downIndicator = this.scene.add.text(LIST_X + LIST_WIDTH - 12, layout.unitViewportBottom - 12, '\u25bc', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      }).setDepth(DEPTH_TEXT);
+      const downIndicator = this.scene.add
+        .text(LIST_X + LIST_WIDTH - 12, layout.unitViewportBottom - 12, '\u25bc', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+        })
+        .setDepth(DEPTH_TEXT);
       downIndicator._rosterList = true;
       this.objects.push(downIndicator);
     }
@@ -564,16 +636,27 @@ export class RosterOverlay {
     // 3. Draw Convoy entry (always fixed at bottom)
     const convoyY = layout.convoyTop;
     const isConvoySelected = this.selection.kind === 'convoy';
-    const convoyHitZone = this.scene.add.rectangle(
-      LIST_X + LIST_WIDTH / 2, convoyY + entryH / 2, LIST_WIDTH - 4, entryH - 2,
-      isConvoySelected ? 0x333355 : 0x000000, isConvoySelected ? 1 : 0
-    ).setDepth(DEPTH_PANEL + 1).setInteractive({ useHandCursor: true });
+    const convoyHitZone = this.scene.add
+      .rectangle(
+        LIST_X + LIST_WIDTH / 2,
+        convoyY + entryH / 2,
+        LIST_WIDTH - 4,
+        entryH - 2,
+        isConvoySelected ? 0x333355 : 0x000000,
+        isConvoySelected ? 1 : 0,
+      )
+      .setDepth(DEPTH_PANEL + 1)
+      .setInteractive({ useHandCursor: true });
     convoyHitZone._rosterList = true;
 
     const convoyColor = isConvoySelected ? '#ffdd44' : '#88ccff';
-    const convoyText = this.scene.add.text(LIST_X + 8, convoyY + 12, 'Convoy Management', {
-      fontFamily: 'monospace', fontSize: '11px', color: convoyColor,
-    }).setDepth(DEPTH_TEXT);
+    const convoyText = this.scene.add
+      .text(LIST_X + 8, convoyY + 12, 'Convoy Management', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: convoyColor,
+      })
+      .setDepth(DEPTH_TEXT);
     convoyText._rosterList = true;
 
     convoyHitZone.on('pointerdown', () => this.select('convoy'));
@@ -586,9 +669,9 @@ export class RosterOverlay {
 
     this.objects.push(convoyHitZone, convoyText);
 
-    const divider = this.scene.add.rectangle(
-      LIST_X + LIST_WIDTH / 2, layout.convoyTop, LIST_WIDTH - 4, 1, 0x444444
-    ).setDepth(DEPTH_TEXT);
+    const divider = this.scene.add
+      .rectangle(LIST_X + LIST_WIDTH / 2, layout.convoyTop, LIST_WIDTH - 4, 1, 0x444444)
+      .setDepth(DEPTH_TEXT);
     divider._rosterList = true;
     this.objects.push(divider);
   }
@@ -627,9 +710,10 @@ export class RosterOverlay {
     this._destroyTrade();
 
     // Detail panel background
-    const detailBg = this.scene.add.rectangle(
-      DETAIL_X + DETAIL_WIDTH / 2, PANEL_CENTER_Y, DETAIL_WIDTH, PANEL_HEIGHT, 0x1a1a2e
-    ).setDepth(DEPTH_PANEL).setStrokeStyle(1, 0x444444);
+    const detailBg = this.scene.add
+      .rectangle(DETAIL_X + DETAIL_WIDTH / 2, PANEL_CENTER_Y, DETAIL_WIDTH, PANEL_HEIGHT, 0x1a1a2e)
+      .setDepth(DEPTH_PANEL)
+      .setStrokeStyle(1, 0x444444);
     this.detailObjects.push(detailBg);
 
     if (this.selection.kind === 'unit') {
@@ -648,14 +732,21 @@ export class RosterOverlay {
 
     // --- Fixed Header ---
     const tierLabel = unit.tier === 'promoted' ? 'Promoted' : 'Base';
-    this._text(x, y, `${unit.name}  Lv${unit.level} ${unit.className}  (${tierLabel})`, '#ffdd44', '12px');
+    this._text(
+      x,
+      y,
+      `${unit.name}  Lv${unit.level} ${unit.className}  (${tierLabel})`,
+      '#ffdd44',
+      '12px',
+    );
 
     // Portrait
     const portraitKey = this._getPortraitKey(unit);
     if (portraitKey && this.scene.textures.exists(portraitKey)) {
-      const portrait = this.scene.add.image(
-        DETAIL_X + DETAIL_WIDTH - 36, y + 20, portraitKey
-      ).setDisplaySize(48, 48).setDepth(DEPTH_TEXT);
+      const portrait = this.scene.add
+        .image(DETAIL_X + DETAIL_WIDTH - 36, y + 20, portraitKey)
+        .setDisplaySize(48, 48)
+        .setDepth(DEPTH_TEXT);
       this.detailObjects.push(portrait);
     }
 
@@ -669,26 +760,50 @@ export class RosterOverlay {
     const barW = 180;
     const barH = 8;
     const ratio = unit.currentHP / unit.stats.HP;
-    const barBg = this.scene.add.rectangle(x, y + 4, barW, barH, 0x333333).setOrigin(0, 0.5).setDepth(DEPTH_TEXT);
-    const barFill = this.scene.add.rectangle(x, y + 4, barW * ratio, barH, getHPBarColor(ratio)).setOrigin(0, 0.5).setDepth(DEPTH_TEXT);
-    const hpText = this._text(x + barW + 8, y, `${unit.currentHP}/${unit.stats.HP}`, STAT_COLORS.HP, '10px');
+    const barBg = this.scene.add
+      .rectangle(x, y + 4, barW, barH, 0x333333)
+      .setOrigin(0, 0.5)
+      .setDepth(DEPTH_TEXT);
+    const barFill = this.scene.add
+      .rectangle(x, y + 4, barW * ratio, barH, getHPBarColor(ratio))
+      .setOrigin(0, 0.5)
+      .setDepth(DEPTH_TEXT);
+    const hpText = this._text(
+      x + barW + 8,
+      y,
+      `${unit.currentHP}/${unit.stats.HP}`,
+      STAT_COLORS.HP,
+      '10px',
+    );
     this.detailObjects.push(barBg, barFill);
     y += 20;
 
     // --- Navigation Arrows ---
     const navX = DETAIL_X + DETAIL_WIDTH - 85;
     const navY = 50;
-    
+
     // Unit navigation
-    const upArrow = this.scene.add.text(navX, navY + 6, '\u25b2', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    const upArrow = this.scene.add
+      .text(navX, navY + 6, '\u25b2', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_TEXT)
+      .setInteractive({ useHandCursor: true });
     upArrow.on('pointerdown', () => this._cycleSelection(-1));
     this.detailObjects.push(upArrow);
 
-    const downArrow = this.scene.add.text(navX, navY + 40, '\u25bc', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    const downArrow = this.scene.add
+      .text(navX, navY + 40, '\u25bc', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_TEXT)
+      .setInteractive({ useHandCursor: true });
     downArrow.on('pointerdown', () => this._cycleSelection(1));
     this.detailObjects.push(downArrow);
 
@@ -717,23 +832,45 @@ export class RosterOverlay {
 
     // Stats tab
     const isStats = this._activeTab === 'stats';
-    const statsBtn = this.scene.add.rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, isStats ? 0x443300 : 0x222233)
-      .setDepth(DEPTH_TEXT).setStrokeStyle(1, isStats ? 0xffdd44 : 0x666666).setInteractive({ useHandCursor: true });
-    const statsLabel = this.scene.add.text(x + tabW / 2, y + tabH / 2, 'Stats', {
-      fontFamily: 'monospace', fontSize: '10px', color: isStats ? '#ffffff' : '#888888',
-    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
-    statsBtn.on('pointerdown', () => { this._activeTab = 'stats'; this.drawUnitDetails(); });
+    const statsBtn = this.scene.add
+      .rectangle(x + tabW / 2, y + tabH / 2, tabW, tabH, isStats ? 0x443300 : 0x222233)
+      .setDepth(DEPTH_TEXT)
+      .setStrokeStyle(1, isStats ? 0xffdd44 : 0x666666)
+      .setInteractive({ useHandCursor: true });
+    const statsLabel = this.scene.add
+      .text(x + tabW / 2, y + tabH / 2, 'Stats', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: isStats ? '#ffffff' : '#888888',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_TEXT + 1);
+    statsBtn.on('pointerdown', () => {
+      this._activeTab = 'stats';
+      this.drawUnitDetails();
+    });
     this.detailObjects.push(statsBtn, statsLabel);
 
     // Gear tab
     const gx = x + tabW + gap;
     const isGear = this._activeTab === 'gear';
-    const gearBtn = this.scene.add.rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, isGear ? 0x443300 : 0x222233)
-      .setDepth(DEPTH_TEXT).setStrokeStyle(1, isGear ? 0xffdd44 : 0x666666).setInteractive({ useHandCursor: true });
-    const gearLabel = this.scene.add.text(gx + tabW / 2, y + tabH / 2, 'Gear', {
-      fontFamily: 'monospace', fontSize: '10px', color: isGear ? '#ffffff' : '#888888',
-    }).setOrigin(0.5).setDepth(DEPTH_TEXT + 1);
-    gearBtn.on('pointerdown', () => { this._activeTab = 'gear'; this.drawUnitDetails(); });
+    const gearBtn = this.scene.add
+      .rectangle(gx + tabW / 2, y + tabH / 2, tabW, tabH, isGear ? 0x443300 : 0x222233)
+      .setDepth(DEPTH_TEXT)
+      .setStrokeStyle(1, isGear ? 0xffdd44 : 0x666666)
+      .setInteractive({ useHandCursor: true });
+    const gearLabel = this.scene.add
+      .text(gx + tabW / 2, y + tabH / 2, 'Gear', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: isGear ? '#ffffff' : '#888888',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_TEXT + 1);
+    gearBtn.on('pointerdown', () => {
+      this._activeTab = 'gear';
+      this.drawUnitDetails();
+    });
     this.detailObjects.push(gearBtn, gearLabel);
 
     // Tab cycle arrows (visible hint)
@@ -752,8 +889,8 @@ export class RosterOverlay {
     for (let s = 0; s < leftStats.length; s++) {
       const ls = leftStats[s];
       const rs = rightStats[s];
-      const lVal = ls === 'MOV' ? (unit.mov || unit.stats.MOV) : unit.stats[ls];
-      const rVal = rs === 'MOV' ? (unit.mov || unit.stats.MOV) : unit.stats[rs];
+      const lVal = ls === 'MOV' ? unit.mov || unit.stats.MOV : unit.stats[ls];
+      const rVal = rs === 'MOV' ? unit.mov || unit.stats.MOV : unit.stats[rs];
       this._text(x, y, `${ls.padEnd(4)}${String(lVal).padStart(3)}`, STAT_COLORS[ls], '10px');
       this._text(col2X, y, `${rs.padEnd(4)}${String(rVal).padStart(3)}`, STAT_COLORS[rs], '10px');
       y += 13;
@@ -763,14 +900,20 @@ export class RosterOverlay {
     y += 6;
     const combat = getStaticCombatStats(unit, unit.weapon);
     this._text(x, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
-    this._text(col2X, y, `AS  ${String(combat.as).padStart(3)}`, (combat.as < unit.stats.SPD ? '#ff6666' : '#ffffff'), '10px');
+    this._text(
+      col2X,
+      y,
+      `AS  ${String(combat.as).padStart(3)}`,
+      combat.as < unit.stats.SPD ? '#ff6666' : '#ffffff',
+      '10px',
+    );
     y += 16;
 
     // Proficiencies
     this._text(x, y, '\u2500\u2500 Proficiencies \u2500\u2500', '#888888', '10px');
     y += 14;
     if (unit.proficiencies && unit.proficiencies.length > 0) {
-      const profStr = unit.proficiencies.map(p => `${p.type}(${p.rank[0]})`).join('  ');
+      const profStr = unit.proficiencies.map((p) => `${p.type}(${p.rank[0]})`).join('  ');
       this._text(x, y, profStr, '#aaaacc', '10px');
       y += 16;
     } else {
@@ -782,7 +925,7 @@ export class RosterOverlay {
     if (unit.faction !== 'enemy' && unit.growths) {
       this._text(x, y, '\u2500\u2500 Growths \u2500\u2500', '#888888', '10px');
       y += 14;
-      const growthPairs = XP_STAT_NAMES.map(s => `${s}:${unit.growths[s] || 0}`);
+      const growthPairs = XP_STAT_NAMES.map((s) => `${s}:${unit.growths[s] || 0}`);
       for (let i = 0; i < growthPairs.length; i += 4) {
         this._text(x, y, growthPairs.slice(i, i + 4).join('  '), '#888888', '9px');
         y += 12;
@@ -808,7 +951,10 @@ export class RosterOverlay {
         const nameColor = usableNow ? this._getWeaponNameColor(item, lineColor) : lineColor;
         const forgeSuffixSegments = usableNow
           ? this._getWeaponForgeSuffixSegments(item)
-          : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: lineColor }));
+          : this._getWeaponForgeSuffixSegments(item).map((segment) => ({
+              ...segment,
+              color: lineColor,
+            }));
         const hasArt = hasWeaponArt(item, this.gameData?.weaponArts?.arts || []);
         const artMarkerSegments = hasArt ? [{ text: '*', color: lineColor }] : [];
         if (item.type === 'Staff') {
@@ -816,42 +962,72 @@ export class RosterOverlay {
           const max = getStaffMaxUses(item, unit);
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          const line = this._textSegments(x, y, [
-            { text: marker, color: lineColor },
-            { text: this._getWeaponBaseName(item), color: nameColor },
-            ...forgeSuffixSegments,
-            ...artMarkerSegments,
-            { text: ` (${rem}/${max}) ${rngStr}`, color: lineColor },
-          ], '9px');
+          const line = this._textSegments(
+            x,
+            y,
+            [
+              { text: marker, color: lineColor },
+              { text: this._getWeaponBaseName(item), color: nameColor },
+              ...forgeSuffixSegments,
+              ...artMarkerSegments,
+              { text: ` (${rem}/${max}) ${rngStr}`, color: lineColor },
+            ],
+            '9px',
+          );
           tooltipAnchor = line.anchor;
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
-          const line = this._textSegments(x, y, [
-            { text: marker, color: lineColor },
-            { text: this._getWeaponBaseName(item), color: nameColor },
-            ...forgeSuffixSegments,
-            ...artMarkerSegments,
-            { text: ' ', color: lineColor },
-            { text: `Mt${item.might}`, color: usableNow ? this._getForgeStatColor(item, 'might', lineColor) : lineColor },
-            { text: ' ', color: lineColor },
-            { text: `Ht${item.hit}`, color: usableNow ? this._getForgeStatColor(item, 'hit', lineColor) : lineColor },
-            { text: ' ', color: lineColor },
-            { text: `Cr${item.crit}`, color: usableNow ? this._getForgeStatColor(item, 'crit', lineColor) : lineColor },
-            { text: ' ', color: lineColor },
-            { text: `Wt${item.weight}`, color: usableNow ? this._getForgeStatColor(item, 'weight', lineColor) : lineColor },
-            { text: ` ${rngStr}`, color: lineColor },
-          ], '9px');
+          const line = this._textSegments(
+            x,
+            y,
+            [
+              { text: marker, color: lineColor },
+              { text: this._getWeaponBaseName(item), color: nameColor },
+              ...forgeSuffixSegments,
+              ...artMarkerSegments,
+              { text: ' ', color: lineColor },
+              {
+                text: `Mt${item.might}`,
+                color: usableNow ? this._getForgeStatColor(item, 'might', lineColor) : lineColor,
+              },
+              { text: ' ', color: lineColor },
+              {
+                text: `Ht${item.hit}`,
+                color: usableNow ? this._getForgeStatColor(item, 'hit', lineColor) : lineColor,
+              },
+              { text: ' ', color: lineColor },
+              {
+                text: `Cr${item.crit}`,
+                color: usableNow ? this._getForgeStatColor(item, 'crit', lineColor) : lineColor,
+              },
+              { text: ' ', color: lineColor },
+              {
+                text: `Wt${item.weight}`,
+                color: usableNow ? this._getForgeStatColor(item, 'weight', lineColor) : lineColor,
+              },
+              { text: ` ${rngStr}`, color: lineColor },
+            ],
+            '9px',
+          );
           tooltipAnchor = line.anchor;
         } else {
-          const line = this._textSegments(x, y, [
-            { text: marker, color: lineColor },
-            { text: item.name || '', color: nameColor },
-            ...artMarkerSegments,
-          ], '9px');
+          const line = this._textSegments(
+            x,
+            y,
+            [
+              { text: marker, color: lineColor },
+              { text: item.name || '', color: nameColor },
+              ...artMarkerSegments,
+            ],
+            '9px',
+          );
           tooltipAnchor = line.anchor;
         }
-        if (tooltipAnchor) this._wireTooltipTarget(tooltipAnchor, () => this._showWeaponSpecialTooltip(item, tooltipAnchor));
+        if (tooltipAnchor)
+          this._wireTooltipTarget(tooltipAnchor, () =>
+            this._showWeaponSpecialTooltip(item, tooltipAnchor),
+          );
 
         const btnX = x + 280;
         const storeX = x + 340;
@@ -891,11 +1067,17 @@ export class RosterOverlay {
             this._actionBtn(btnX, y, '[Use]', () => this._useHealItem(unit, item));
           }
         } else if (item.effect === 'promote') {
-          if (canPromote(unit) && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) {
+          if (
+            canPromote(unit) &&
+            resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
+          ) {
             this._actionBtn(btnX, y, '[Use]', () => this._usePromote(unit, item));
           }
         } else if (item.effect === 'reclass') {
-          if (canReclass(unit) && getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0) {
+          if (
+            canReclass(unit) &&
+            getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0
+          ) {
             this._actionBtn(btnX, y, '[Use]', () => this._showReclassClassPicker(unit, item));
           }
         }
@@ -912,7 +1094,9 @@ export class RosterOverlay {
 
     // Accessory
     y += 4;
-    const teamAccessories = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+    const teamAccessories = Array.isArray(this.runManager.accessories)
+      ? this.runManager.accessories
+      : [];
     const accPoolLabel = teamAccessories.length > 0 ? ` (${teamAccessories.length} in pool)` : '';
     this._text(x, y, `\u2500\u2500 Accessory${accPoolLabel} \u2500\u2500`, '#888888', '10px');
     y += 14;
@@ -942,15 +1126,23 @@ export class RosterOverlay {
     // Skills
     if (unit.skills && unit.skills.length > 0) {
       y += 4;
-      this._text(x, y, `\u2500\u2500 Skills (${unit.skills.length}/${MAX_SKILLS}) \u2500\u2500`, '#888888', '10px');
+      this._text(
+        x,
+        y,
+        `\u2500\u2500 Skills (${unit.skills.length}/${MAX_SKILLS}) \u2500\u2500`,
+        '#888888',
+        '10px',
+      );
       y += 14;
       for (const sid of unit.skills) {
-        const skillData = this.gameData.skills?.find(s => s.id === sid);
+        const skillData = this.gameData.skills?.find((s) => s.id === sid);
         const name = skillData ? skillData.name : sid.replace(/_/g, ' ');
         const skillText = this._text(x + 8, y, name, '#88ffff', '9px');
         if (skillData?.description) {
           skillText.setInteractive({ useHandCursor: true });
-          skillText.on('pointerover', () => this._showSkillTooltip(skillText, skillData.description));
+          skillText.on('pointerover', () =>
+            this._showSkillTooltip(skillText, skillData.description),
+          );
           skillText.on('pointerout', () => this._hideSkillTooltip());
         }
         y += 12;
@@ -971,16 +1163,30 @@ export class RosterOverlay {
         const hpCost = Math.max(0, Number(art?.hpCost) || 0);
         const suffix = hpCost > 0 ? ` HP-${hpCost}` : '';
         const weaponName = this._getWeaponBaseName(weapon);
-        const row = this._text(x + 8, y, `${art.name} (${weaponName})${suffix}  ${status}`, color, '9px');
+        const row = this._text(
+          x + 8,
+          y,
+          `${art.name} (${weaponName})${suffix}  ${status}`,
+          color,
+          '9px',
+        );
         const effect = art?.description || 'No description';
-        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, `${art.name} [${weaponName}]: ${effect}`));
+        this._wireTooltipTarget(row, () =>
+          this._showSkillTooltip(row, `${art.name} [${weaponName}]: ${effect}`),
+        );
         y += 12;
       }
     }
 
     y += 6;
     const teamScrolls = Array.isArray(this.runManager.scrolls) ? this.runManager.scrolls : [];
-    this._text(x, y, `\u2500\u2500 Team Scrolls (${teamScrolls.length}) \u2500\u2500`, '#888888', '10px');
+    this._text(
+      x,
+      y,
+      `\u2500\u2500 Team Scrolls (${teamScrolls.length}) \u2500\u2500`,
+      '#888888',
+      '10px',
+    );
     y += 14;
     if (teamScrolls.length <= 0) {
       this._text(x + 8, y, '(none)', '#888888', '10px');
@@ -1033,13 +1239,20 @@ export class RosterOverlay {
 
   _weaponArtReasonLabel(reason) {
     switch (reason) {
-      case 'insufficient_rank': return 'Rank too low';
-      case 'insufficient_hp': return 'Not enough HP';
-      case 'per_turn_limit': return 'Turn limit';
-      case 'per_map_limit': return 'Map limit';
-      case 'no_proficiency': return 'No proficiency';
-      case 'initiation_only': return 'Player phase only';
-      default: return 'Unavailable';
+      case 'insufficient_rank':
+        return 'Rank too low';
+      case 'insufficient_hp':
+        return 'Not enough HP';
+      case 'per_turn_limit':
+        return 'Turn limit';
+      case 'per_map_limit':
+        return 'Map limit';
+      case 'no_proficiency':
+        return 'No proficiency';
+      case 'initiation_only':
+        return 'Player phase only';
+      default:
+        return 'Unavailable';
     }
   }
 
@@ -1053,7 +1266,13 @@ export class RosterOverlay {
     const caps = this.runManager.getConvoyCapacities();
     const counts = this.runManager.getConvoyCounts();
     const items = this.runManager.getConvoyItems();
-    this._text(x, y, `Weapons: ${counts.weapons}/${caps.weapons}  Consumables: ${counts.consumables}/${caps.consumables}`, '#88ccff', '10px');
+    this._text(
+      x,
+      y,
+      `Weapons: ${counts.weapons}/${caps.weapons}  Consumables: ${counts.consumables}/${caps.consumables}`,
+      '#88ccff',
+      '10px',
+    );
     y += 24;
 
     const roster = this.runManager.roster;
@@ -1081,9 +1300,13 @@ export class RosterOverlay {
 
     const startY = y;
     const itemH = 18;
-    const totalItems = items.weapons.length + items.consumables.length + (items.weapons.length > 0 ? 1 : 0) + (items.consumables.length > 0 ? 1 : 0);
+    const totalItems =
+      items.weapons.length +
+      items.consumables.length +
+      (items.weapons.length > 0 ? 1 : 0) +
+      (items.consumables.length > 0 ? 1 : 0);
     const visibleH = PANEL_BOTTOM - y - 40;
-    this._convoyScrollMax = Math.max(0, (totalItems * itemH) - visibleH);
+    this._convoyScrollMax = Math.max(0, totalItems * itemH - visibleH);
     this._convoyScrollOffset = this._clamp(this._convoyScrollOffset, 0, this._convoyScrollMax);
 
     let rowY = startY - this._convoyScrollOffset;
@@ -1092,8 +1315,11 @@ export class RosterOverlay {
       if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) {
         const color = type === 'weapon' ? (isForged(item) ? '#44ff88' : '#aaccff') : '#88ffcc';
         this._text(x + 8, rowY, item.name, color, '10px');
-        
-        const isFull = type === 'weapon' ? (targetUnit.inventory.length >= INVENTORY_MAX) : (targetUnit.consumables.length >= CONSUMABLE_MAX);
+
+        const isFull =
+          type === 'weapon'
+            ? targetUnit.inventory.length >= INVENTORY_MAX
+            : targetUnit.consumables.length >= CONSUMABLE_MAX;
         if (isFull) {
           this._text(x + 250, rowY, '(unit full)', '#666666', '10px');
         } else {
@@ -1110,12 +1336,14 @@ export class RosterOverlay {
     };
 
     if (items.weapons.length > 0) {
-      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) this._text(x, rowY, 'Weapons:', '#888888', '10px');
+      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40)
+        this._text(x, rowY, 'Weapons:', '#888888', '10px');
       rowY += itemH;
       items.weapons.forEach((wpn, i) => drawItem(wpn, 'weapon', i));
     }
     if (items.consumables.length > 0) {
-      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40) this._text(x, rowY, 'Consumables:', '#888888', '10px');
+      if (rowY >= startY && rowY <= PANEL_BOTTOM - 40)
+        this._text(x, rowY, 'Consumables:', '#888888', '10px');
       rowY += itemH;
       items.consumables.forEach((item, i) => drawItem(item, 'consumable', i));
     }
@@ -1143,7 +1371,7 @@ export class RosterOverlay {
 
   async _usePromote(unit, item) {
     // Find promotion targets
-    const lordData = this.gameData.lords.find(l => l.name === unit.name);
+    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
     if (!targets?.length) {
       this._showBanner('Promotion to that class is currently unavailable.', '#ff8888');
@@ -1170,7 +1398,7 @@ export class RosterOverlay {
     if (!promotionBonuses) return;
 
     // Track old types for new weapon grant
-    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
 
@@ -1178,17 +1406,27 @@ export class RosterOverlay {
     const lordPromoWeapons = lordData?.promotionWeapons;
     if (lordPromoWeapons) {
       const newType = lordPromoWeapons.match(/(\w+)/)?.[1];
-      const typeMap = { Swords: 'Sword', Lances: 'Lance', Axes: 'Axe', Bows: 'Bow', Tomes: 'Tome', Staves: 'Staff', Light: 'Light' };
+      const typeMap = {
+        Swords: 'Sword',
+        Lances: 'Lance',
+        Axes: 'Axe',
+        Bows: 'Bow',
+        Tomes: 'Tome',
+        Staves: 'Staff',
+        Light: 'Light',
+      };
       const wpnType = typeMap[newType] || newType;
-      const newWeapon = this.gameData.weapons.find(w => w.type === wpnType && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+      const newWeapon = this.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
+      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
         addToInventory(unit, newWeapon);
       }
     } else {
       for (const prof of unit.proficiencies) {
         if (oldTypes.has(prof.type)) continue;
-        const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === 'Iron');
-        if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+        const newWeapon = this.gameData.weapons.find(
+          (w) => w.type === prof.type && w.tier === 'Iron',
+        );
+        if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
           addToInventory(unit, newWeapon);
         }
       }
@@ -1201,7 +1439,8 @@ export class RosterOverlay {
     }
 
     const audio = this.scene.registry.get('audio');
-    if (typeof this.scene.sound?.stopByKey === 'function') this.scene.sound.stopByKey('sfx_levelup');
+    if (typeof this.scene.sound?.stopByKey === 'function')
+      this.scene.sound.stopByKey('sfx_levelup');
     if (audio) audio.playSFX('sfx_levelup');
     this._showBanner(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
     this.refresh();
@@ -1238,22 +1477,24 @@ export class RosterOverlay {
   }
 
   _useReclass(unit, sealItem, newClassData) {
-    const oldClassData = this.gameData.classes.find(c => c.name === unit.className);
+    const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
     if (!oldClassData) {
       this._showBanner('Reclass data missing.', '#ff8888');
       return;
     }
 
     // Track old proficiency types to detect new ones
-    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
 
     // Grant Iron weapons for newly gained proficiency types
     for (const prof of unit.proficiencies) {
       if (oldTypes.has(prof.type)) continue;
-      const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+      const newWeapon = this.gameData.weapons.find(
+        (w) => w.type === prof.type && w.tier === 'Iron',
+      );
+      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
         addToInventory(unit, newWeapon);
       }
     }
@@ -1278,20 +1519,21 @@ export class RosterOverlay {
       const audio = this.scene.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
 
-      const skillData = this.gameData.skills.find(s => s.id === scroll.skillId);
+      const skillData = this.gameData.skills.find((s) => s.id === scroll.skillId);
       const skillName = skillData ? skillData.name : scroll.skillId;
       this._showBanner(`${unit.name} learned ${skillName}!`, '#88ffff');
       this.refresh();
     } else {
-      const reason = result.reason === 'at_cap'
-        ? 'Already knows 5 skills!'
-        : 'Already knows this skill!';
+      const reason =
+        result.reason === 'at_cap' ? 'Already knows 5 skills!' : 'Already knows this skill!';
       this._showBanner(reason, '#ff8888');
     }
   }
 
   _isWeaponArtScroll(scroll) {
-    return typeof scroll?.teachesWeaponArtId === 'string' && scroll.teachesWeaponArtId.trim().length > 0;
+    return (
+      typeof scroll?.teachesWeaponArtId === 'string' && scroll.teachesWeaponArtId.trim().length > 0
+    );
   }
 
   _removeTeamScroll(scroll) {
@@ -1303,7 +1545,8 @@ export class RosterOverlay {
   }
 
   _getWeaponArtFromScroll(scroll) {
-    const artId = typeof scroll?.teachesWeaponArtId === 'string' ? scroll.teachesWeaponArtId.trim() : '';
+    const artId =
+      typeof scroll?.teachesWeaponArtId === 'string' ? scroll.teachesWeaponArtId.trim() : '';
     if (!artId) return null;
     const arts = this.gameData?.weaponArts?.arts || [];
     return arts.find((art) => art?.id === artId) || null;
@@ -1332,30 +1575,38 @@ export class RosterOverlay {
 
   _weaponArtScrollReasonLabel(reason) {
     switch (reason) {
-      case 'wrong_type': return 'No compatible weapon for this scroll.';
-      case 'no_proficiency': return 'Unit lacks proficiency for this art.';
-      case 'insufficient_rank': return 'Weapon rank too low for this art.';
-      case 'already_has_art': return 'Weapon already has this art.';
-      default: return 'Cannot apply this scroll.';
+      case 'wrong_type':
+        return 'No compatible weapon for this scroll.';
+      case 'no_proficiency':
+        return 'Unit lacks proficiency for this art.';
+      case 'insufficient_rank':
+        return 'Weapon rank too low for this art.';
+      case 'already_has_art':
+        return 'Weapon already has this art.';
+      default:
+        return 'Cannot apply this scroll.';
     }
   }
 
   _isHardWeaponArtScrollBlockReason(reason) {
-    return reason === 'invalid'
-      || reason === 'wrong_type'
-      || reason === 'no_proficiency'
-      || reason === 'insufficient_rank'
-      || reason === 'already_has_art';
+    return (
+      reason === 'invalid' ||
+      reason === 'wrong_type' ||
+      reason === 'no_proficiency' ||
+      reason === 'insufficient_rank' ||
+      reason === 'already_has_art'
+    );
   }
 
   _getScrollEligibleWeaponsForArt(unit, scroll, art) {
     const inventory = Array.isArray(unit?.inventory) ? unit.inventory : [];
-    const weapons = inventory.filter((item) =>
-      item
-      && item.type
-      && item.type !== 'Consumable'
-      && item.type !== 'Scroll'
-      && item.type !== 'Accessory'
+    const weapons = inventory.filter(
+      (item) =>
+        item &&
+        item.type &&
+        item.type !== 'Consumable' &&
+        item.type !== 'Scroll' &&
+        item.type !== 'Accessory',
     );
     return weapons
       .map((weapon) => ({
@@ -1378,25 +1629,44 @@ export class RosterOverlay {
     const width = 360;
     const height = 140;
 
-    const bg = this.scene.add.rectangle(cx, cy, width, height, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const bg = this.scene.add
+      .rectangle(cx, cy, width, height, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(bg);
 
-    const titleText = this.scene.add.text(cx, cy - 46, title, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const titleText = this.scene.add
+      .text(cx, cy - 46, title, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(titleText);
 
-    const messageText = this.scene.add.text(cx, cy - 18, message, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-      align: 'center',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const messageText = this.scene.add
+      .text(cx, cy - 18, message, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#e0e0e0',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(messageText);
 
-    const yesBtn = this.scene.add.text(cx - 60, cy + 24, 'Overwrite', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ff8888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const yesBtn = this.scene.add
+      .text(cx - 60, cy + 24, 'Overwrite', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ff8888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     yesBtn.on('pointerover', () => yesBtn.setColor('#ff4444'));
     yesBtn.on('pointerout', () => yesBtn.setColor('#ff8888'));
     yesBtn.on('pointerdown', () => {
@@ -1405,10 +1675,17 @@ export class RosterOverlay {
     });
     this.tradeObjects.push(yesBtn);
 
-    const cancelBtn = this.scene.add.text(cx + 60, cy + 24, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx + 60, cy + 24, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -1431,18 +1708,30 @@ export class RosterOverlay {
     const cy = 240;
     const topY = cy - totalH / 2;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 380, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const pickerBg = this.scene.add
+      .rectangle(cx, cy, 380, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add.text(cx, topY + pad, `Replace with ${art.name}:`, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const pickerTitle = this.scene.add
+      .text(cx, topY + pad, `Replace with ${art.name}:`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
-    const subTitle = this.scene.add.text(cx, topY + pad + 16, 'Choose an existing art slot to overwrite', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const subTitle = this.scene.add
+      .text(cx, topY + pad + 16, 'Choose an existing art slot to overwrite', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(subTitle);
 
     const allArts = this.gameData?.weaponArts?.arts || [];
@@ -1451,10 +1740,17 @@ export class RosterOverlay {
       const boundArt = allArts.find((row) => row?.id === binding.id);
       const artName = boundArt?.name || binding.id;
       const sourceLabel = this._weaponArtSourceLabel(binding.source);
-      const btn = this.scene.add.text(cx, y, `${artName} (${sourceLabel})`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-        backgroundColor: '#444444', padding: { x: 10, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const btn = this.scene.add
+        .text(cx, y, `${artName} (${sourceLabel})`, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#e0e0e0',
+          backgroundColor: '#444444',
+          padding: { x: 10, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -1466,10 +1762,17 @@ export class RosterOverlay {
     });
 
     const cancelY = topY + titleH + bindings.length * itemH + pad;
-    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -1486,7 +1789,11 @@ export class RosterOverlay {
     if (bindings.length < WEAPON_ART_MAX_SLOTS) {
       bindings.push({ id: art.id, source: 'scroll' });
     } else {
-      if (!Number.isInteger(replacementIndex) || replacementIndex < 0 || replacementIndex >= bindings.length) {
+      if (
+        !Number.isInteger(replacementIndex) ||
+        replacementIndex < 0 ||
+        replacementIndex >= bindings.length
+      ) {
         return { ok: false, reason: 'needs_replacement' };
       }
       overwritten = bindings[replacementIndex];
@@ -1508,9 +1815,10 @@ export class RosterOverlay {
     const reason = this._getWeaponArtScrollBlockReason(unit, weapon, scroll, art);
     if (reason !== 'needs_replacement') return reason;
     const bindings = getWeaponArtBindings(weapon, { maxSlots: WEAPON_ART_MAX_SLOTS });
-    const hasValidReplacementIndex = Number.isInteger(replacementIndex)
-      && replacementIndex >= 0
-      && replacementIndex < bindings.length;
+    const hasValidReplacementIndex =
+      Number.isInteger(replacementIndex) &&
+      replacementIndex >= 0 &&
+      replacementIndex < bindings.length;
     return hasValidReplacementIndex ? null : reason;
   }
 
@@ -1521,7 +1829,13 @@ export class RosterOverlay {
     }
 
     // Revalidate right before commit in case state changed during confirm/picker UI.
-    const reason = this._resolveWeaponArtScrollBlockReasonForApply(unit, weapon, scroll, art, replacementIndex);
+    const reason = this._resolveWeaponArtScrollBlockReasonForApply(
+      unit,
+      weapon,
+      scroll,
+      art,
+      replacementIndex,
+    );
     if (this._isHardWeaponArtScrollBlockReason(reason)) {
       this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
       return false;
@@ -1572,7 +1886,9 @@ export class RosterOverlay {
 
     const drawPage = () => {
       this._destroyTrade();
-      const accessories = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+      const accessories = Array.isArray(this.runManager.accessories)
+        ? this.runManager.accessories
+        : [];
       if (accessories.length <= 0) {
         this._showBanner('No accessories available.', '#ff8888');
         return;
@@ -1586,34 +1902,55 @@ export class RosterOverlay {
       const start = page * ACCESSORY_PICKER_MAX_ROWS;
       const pageItems = accessories.slice(start, start + ACCESSORY_PICKER_MAX_ROWS);
 
-      const pickerBg = this.scene.add.rectangle(cx, 240, 460, totalH, 0x222222, 0.95)
-        .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+      const pickerBg = this.scene.add
+        .rectangle(cx, 240, 460, totalH, 0x222222, 0.95)
+        .setDepth(DEPTH_PICKER)
+        .setStrokeStyle(1, 0x888888);
       this.tradeObjects.push(pickerBg);
 
-      const pickerTitle = this.scene.add.text(cx, topY + pad, 'Equip Accessory:', {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      const pickerTitle = this.scene.add
+        .text(cx, topY + pad, 'Equip Accessory:', {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#ffdd44',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(pickerTitle);
 
-      const subTitle = this.scene.add.text(cx, topY + pad + 14, `${unit.name} (${accessories.length} in pool)`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#999999',
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      const subTitle = this.scene.add
+        .text(cx, topY + pad + 14, `${unit.name} (${accessories.length} in pool)`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#999999',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(subTitle);
 
       pageItems.forEach((acc, i) => {
         const y = topY + titleH + i * itemH + pad;
         const detail = formatAccessoryDetail(acc);
         const label = detail ? `${acc.name} - ${detail}` : acc.name;
-        const btn = this.scene.add.text(cx, y, label, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#cc88ff',
-          backgroundColor: '#444444', padding: { x: 10, y: 3 },
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+        const btn = this.scene.add
+          .text(cx, y, label, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#cc88ff',
+            backgroundColor: '#444444',
+            padding: { x: 10, y: 3 },
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1)
+          .setInteractive({ useHandCursor: true });
 
         const selectedIndex = start + i;
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#cc88ff'));
         btn.on('pointerdown', () => {
-          const pool = Array.isArray(this.runManager.accessories) ? this.runManager.accessories : [];
+          const pool = Array.isArray(this.runManager.accessories)
+            ? this.runManager.accessories
+            : [];
           if (selectedIndex < 0 || selectedIndex >= pool.length) {
             this._showBanner('Accessory list changed. Please try again.', '#ff8888');
             drawPage();
@@ -1639,17 +1976,28 @@ export class RosterOverlay {
       });
 
       const navY = topY + titleH + visibleRows * itemH + pad;
-      const pageLabel = this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      const pageLabel = this.scene.add
+        .text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1);
       this.tradeObjects.push(pageLabel);
 
       if (totalPages > 1) {
         const prevColor = page > 0 ? '#e0e0e0' : '#666666';
-        const prevBtn = this.scene.add.text(cx - 100, navY, 'Prev', {
-          fontFamily: 'monospace', fontSize: '11px', color: prevColor,
-          backgroundColor: '#333333', padding: { x: 8, y: 3 },
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        const prevBtn = this.scene.add
+          .text(cx - 100, navY, 'Prev', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: prevColor,
+            backgroundColor: '#333333',
+            padding: { x: 8, y: 3 },
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1);
         this.tradeObjects.push(prevBtn);
         if (page > 0) {
           prevBtn.setInteractive({ useHandCursor: true });
@@ -1662,10 +2010,16 @@ export class RosterOverlay {
         }
 
         const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
-        const nextBtn = this.scene.add.text(cx + 100, navY, 'Next', {
-          fontFamily: 'monospace', fontSize: '11px', color: nextColor,
-          backgroundColor: '#333333', padding: { x: 8, y: 3 },
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        const nextBtn = this.scene.add
+          .text(cx + 100, navY, 'Next', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: nextColor,
+            backgroundColor: '#333333',
+            padding: { x: 8, y: 3 },
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1);
         this.tradeObjects.push(nextBtn);
         if (page < totalPages - 1) {
           nextBtn.setInteractive({ useHandCursor: true });
@@ -1679,10 +2033,17 @@ export class RosterOverlay {
       }
 
       const cancelY = navY + itemH;
-      const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-        backgroundColor: '#333333', padding: { x: 10, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const cancelBtn = this.scene.add
+        .text(cx, cancelY, 'Cancel', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#888888',
+          backgroundColor: '#333333',
+          padding: { x: 10, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
       cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
       cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
       cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -1719,21 +2080,33 @@ export class RosterOverlay {
       const pageScrolls = allScrolls.slice(start, start + SCROLL_PICKER_MAX_PER_PAGE);
 
       // Pass 1: create elements at y=0 so Phaser computes their height
-      const pickerTitle = this.scene.add.text(cx, 0, 'Use Scroll:', {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      const pickerTitle = this.scene.add
+        .text(cx, 0, 'Use Scroll:', {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#ffdd44',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1);
 
       const buttons = pageScrolls.map((scroll, i) => {
         const isWeaponArt = this._isWeaponArtScroll(scroll);
         const color = isWeaponArt ? '#88ddff' : '#88ffff';
-        const skillDef = this.gameData?.skills?.find(s => s.id === scroll.skillId);
+        const skillDef = this.gameData?.skills?.find((s) => s.id === scroll.skillId);
         const desc = skillDef?.description ? `\n${skillDef.description}` : '';
         const label = `${scroll.name}${desc}`;
-        const btn = this.scene.add.text(cx, 0, label, {
-          fontFamily: 'monospace', fontSize: '11px', color,
-          backgroundColor: '#444444', padding: { x: 10, y: 3 },
-          wordWrap: { width: 260 },
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+        const btn = this.scene.add
+          .text(cx, 0, label, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color,
+            backgroundColor: '#444444',
+            padding: { x: 10, y: 3 },
+            wordWrap: { width: 260 },
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1)
+          .setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor(color));
         btn.on('pointerdown', () => {
@@ -1753,7 +2126,7 @@ export class RosterOverlay {
       pickerTitle.setY(curY);
       curY += pickerTitle.height / 2 + gap;
 
-      buttons.forEach(btn => {
+      buttons.forEach((btn) => {
         curY += btn.height / 2;
         btn.setY(curY);
         curY += btn.height / 2 + gap;
@@ -1761,50 +2134,80 @@ export class RosterOverlay {
 
       // Nav row
       const navY = curY + navH / 2;
-      const pageLabel = this.scene.add.text(cx, navY, `Page ${page + 1}/${totalPages}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+      const pageLabel = this.scene.add
+        .text(cx, navY, `Page ${page + 1}/${totalPages}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1);
 
       const navObjects = [pageLabel];
       if (totalPages > 1) {
         const prevColor = page > 0 ? '#e0e0e0' : '#666666';
-        const prevBtn = this.scene.add.text(cx - 100, navY, 'Prev', {
-          fontFamily: 'monospace', fontSize: '11px', color: prevColor,
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        const prevBtn = this.scene.add
+          .text(cx - 100, navY, 'Prev', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: prevColor,
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1);
         if (page > 0) {
           prevBtn.setInteractive({ useHandCursor: true });
           prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
           prevBtn.on('pointerout', () => prevBtn.setColor('#e0e0e0'));
-          prevBtn.on('pointerdown', () => { page--; drawPage(); });
+          prevBtn.on('pointerdown', () => {
+            page--;
+            drawPage();
+          });
         }
         navObjects.push(prevBtn);
 
         const nextColor = page < totalPages - 1 ? '#e0e0e0' : '#666666';
-        const nextBtn = this.scene.add.text(cx + 100, navY, 'Next', {
-          fontFamily: 'monospace', fontSize: '11px', color: nextColor,
-        }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+        const nextBtn = this.scene.add
+          .text(cx + 100, navY, 'Next', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: nextColor,
+          })
+          .setOrigin(0.5)
+          .setDepth(DEPTH_PICKER + 1);
         if (page < totalPages - 1) {
           nextBtn.setInteractive({ useHandCursor: true });
           nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
           nextBtn.on('pointerout', () => nextBtn.setColor('#e0e0e0'));
-          nextBtn.on('pointerdown', () => { page++; drawPage(); });
+          nextBtn.on('pointerdown', () => {
+            page++;
+            drawPage();
+          });
         }
         navObjects.push(nextBtn);
       }
 
       // Cancel button
       const cancelY = navY + navH;
-      const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-        backgroundColor: '#333333', padding: { x: 10, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const cancelBtn = this.scene.add
+        .text(cx, cancelY, 'Cancel', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#888888',
+          backgroundColor: '#333333',
+          padding: { x: 10, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
       cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
       cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
       cancelBtn.on('pointerdown', () => this._destroyTrade());
 
       // Background behind everything
-      const pickerBg = this.scene.add.rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
-        .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+      const pickerBg = this.scene.add
+        .rectangle(cx, topY + totalH / 2, 300, totalH, 0x222222, 0.95)
+        .setDepth(DEPTH_PICKER)
+        .setStrokeStyle(1, 0x888888);
 
       this.tradeObjects.push(pickerBg, pickerTitle, ...buttons, ...navObjects, cancelBtn);
     };
@@ -1822,21 +2225,35 @@ export class RosterOverlay {
     const cy = 240;
     const topY = cy - totalH / 2;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 320, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const pickerBg = this.scene.add
+      .rectangle(cx, cy, 320, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add.text(cx, topY + pad, title, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const pickerTitle = this.scene.add
+      .text(cx, topY + pad, title, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
     weapons.forEach((weapon, i) => {
       const y = topY + titleH + i * itemH + pad;
-      const btn = this.scene.add.text(cx, y, weapon.name, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-        backgroundColor: '#444444', padding: { x: 10, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const btn = this.scene.add
+        .text(cx, y, weapon.name, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#e0e0e0',
+          backgroundColor: '#444444',
+          padding: { x: 10, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -1848,10 +2265,17 @@ export class RosterOverlay {
     });
 
     const cancelY = topY + titleH + weapons.length * itemH + pad;
-    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -1879,16 +2303,31 @@ export class RosterOverlay {
     const eligibleEntries = this._getScrollEligibleWeaponsForArt(unit, scroll, art);
     const eligible = eligibleEntries.map((entry) => entry.weapon);
     if (eligible.length <= 0) {
-      const firstWeapon = Array.isArray(unit.inventory) ? unit.inventory.find((item) =>
-        item && item.type && item.type !== 'Consumable' && item.type !== 'Scroll' && item.type !== 'Accessory'
-      ) : null;
-      const reason = firstWeapon ? this._getWeaponArtScrollBlockReason(unit, firstWeapon, scroll, art) : 'wrong_type';
+      const firstWeapon = Array.isArray(unit.inventory)
+        ? unit.inventory.find(
+            (item) =>
+              item &&
+              item.type &&
+              item.type !== 'Consumable' &&
+              item.type !== 'Scroll' &&
+              item.type !== 'Accessory',
+          )
+        : null;
+      const reason = firstWeapon
+        ? this._getWeaponArtScrollBlockReason(unit, firstWeapon, scroll, art)
+        : 'wrong_type';
       this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
       return;
     }
 
     const applyToWeapon = (weapon, replacementIndex = null) => {
-      const reason = this._resolveWeaponArtScrollBlockReasonForApply(unit, weapon, scroll, art, replacementIndex);
+      const reason = this._resolveWeaponArtScrollBlockReasonForApply(
+        unit,
+        weapon,
+        scroll,
+        art,
+        replacementIndex,
+      );
       if (this._isHardWeaponArtScrollBlockReason(reason)) {
         this._showBanner(this._weaponArtScrollReasonLabel(reason), '#ff8888');
         return;
@@ -1911,10 +2350,8 @@ export class RosterOverlay {
 
       const overwrittenSource = plan.overwritten?.source || null;
       if (overwrittenSource === 'innate' || overwrittenSource === 'meta_innate') {
-        this._showWeaponArtOverwriteConfirm(
-          plan.overwritten,
-          art,
-          () => this._commitWeaponArtScrollApply(unit, scroll, weapon, art, plan, replacementIndex)
+        this._showWeaponArtOverwriteConfirm(plan.overwritten, art, () =>
+          this._commitWeaponArtScrollApply(unit, scroll, weapon, art, plan, replacementIndex),
         );
         return;
       }
@@ -1927,11 +2364,7 @@ export class RosterOverlay {
       return;
     }
 
-    this._showWeaponPickerForScroll(
-      eligible,
-      `Apply ${art.name} to:`,
-      applyToWeapon
-    );
+    this._showWeaponPickerForScroll(eligible, `Apply ${art.name} to:`, applyToWeapon);
   }
 
   // --- Trade ---
@@ -1963,9 +2396,13 @@ export class RosterOverlay {
     const paneX = DETAIL_X + 20;
     const depth = DEPTH_PICKER + 2;
     const addText = (x, y, str, color = '#e0e0e0', fontSize = '10px') => {
-      const t = this.scene.add.text(x, y, str, {
-        fontFamily: 'monospace', fontSize, color,
-      }).setDepth(depth);
+      const t = this.scene.add
+        .text(x, y, str, {
+          fontFamily: 'monospace',
+          fontSize,
+          color,
+        })
+        .setDepth(depth);
       this._tradeDetailObjects.push(t);
       return t;
     };
@@ -1977,13 +2414,25 @@ export class RosterOverlay {
 
     // --- Consumable detail ---
     if (item.type === 'Consumable') {
-      addText(paneX, paneY + 6, `${item.name} (${item.uses} use${item.uses !== 1 ? 's' : ''})`, '#88ff88', '11px');
-      const effectLabel = item.effect === 'heal' ? `Heal ${item.value} HP`
-        : item.effect === 'healFull' ? 'Heal to full HP'
-        : item.effect === 'promote' ? 'Promote to advanced class'
-        : item.effect === 'statBoost' ? `+${item.value} stat boost`
-        : item.effect === 'reclass' ? `Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`
-        : item.effect || '';
+      addText(
+        paneX,
+        paneY + 6,
+        `${item.name} (${item.uses} use${item.uses !== 1 ? 's' : ''})`,
+        '#88ff88',
+        '11px',
+      );
+      const effectLabel =
+        item.effect === 'heal'
+          ? `Heal ${item.value} HP`
+          : item.effect === 'healFull'
+            ? 'Heal to full HP'
+            : item.effect === 'promote'
+              ? 'Promote to advanced class'
+              : item.effect === 'statBoost'
+                ? `+${item.value} stat boost`
+                : item.effect === 'reclass'
+                  ? `Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`
+                  : item.effect || '';
       addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
       if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');
       return;
@@ -2000,7 +2449,13 @@ export class RosterOverlay {
     const fullName = forgeLevel > 0 ? `${baseName} +${forgeLevel}` : baseName;
     const typeLabel = item.type || '';
     addText(paneX, line1Y, `${typeLabel}:`, '#aaaaaa');
-    addText(paneX + typeLabel.length * 6 + 12, line1Y, fullName, this._getWeaponNameColor(item, '#e0e0e0'), '11px');
+    addText(
+      paneX + typeLabel.length * 6 + 12,
+      line1Y,
+      fullName,
+      this._getWeaponNameColor(item, '#e0e0e0'),
+      '11px',
+    );
 
     // Line 2: Stats
     if (item.type === 'Staff') {
@@ -2026,7 +2481,7 @@ export class RosterOverlay {
       for (const [label, val, key] of stats) {
         const color = this._getForgeStatColor(item, key, '#bbbbbb');
         addText(cx, line2Y, `${label}${val}`, color);
-        cx += (`${label}${val}`).length * 6 + 10;
+        cx += `${label}${val}`.length * 6 + 10;
       }
       addText(cx, line2Y, `Rng ${rngStr}`, '#bbbbbb');
     }
@@ -2038,7 +2493,8 @@ export class RosterOverlay {
       parts.push(`\u26a0 ${recipientUnit.name} cannot equip`);
     }
     if (parts.length > 0) {
-      const specialColor = recipientUnit && !hasProficiency(recipientUnit, item) ? '#cc8844' : '#aaaaaa';
+      const specialColor =
+        recipientUnit && !hasProficiency(recipientUnit, item) ? '#cc8844' : '#aaaaaa';
       addText(paneX, line3Y, parts.join('  |  '), specialColor);
     }
   }
@@ -2056,25 +2512,35 @@ export class RosterOverlay {
     const cy = 240;
     const topY = cy - totalH / 2;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 360, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const pickerBg = this.scene.add
+      .rectangle(cx, cy, 360, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add.text(cx, topY + pad, 'Trade with:', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const pickerTitle = this.scene.add
+      .text(cx, topY + pad, 'Trade with:', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
     targets.forEach((unit, i) => {
       const y = topY + titleH + i * itemH + pad;
-      const btn = this.scene.add.text(
-        cx,
-        y,
-        formatUnitCapacityLabel(unit, 18),
-        {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-        backgroundColor: '#444444', padding: { x: 12, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const btn = this.scene.add
+        .text(cx, y, formatUnitCapacityLabel(unit, 18), {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#e0e0e0',
+          backgroundColor: '#444444',
+          padding: { x: 12, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -2087,10 +2553,17 @@ export class RosterOverlay {
 
     // Cancel
     const cancelY = topY + titleH + targets.length * itemH + pad;
-    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -2109,21 +2582,35 @@ export class RosterOverlay {
     const cy = 240;
     const topY = cy - totalH / 2;
 
-    const pickerBg = this.scene.add.rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
-      .setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const pickerBg = this.scene.add
+      .rectangle(cx, cy, 260, totalH, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(pickerBg);
 
-    const pickerTitle = this.scene.add.text(cx, topY + pad, 'Select Unit:', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1);
+    const pickerTitle = this.scene.add
+      .text(cx, topY + pad, 'Select Unit:', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1);
     this.tradeObjects.push(pickerTitle);
 
     roster.forEach((unit, i) => {
       const y = topY + titleH + i * itemH + pad;
-      const btn = this.scene.add.text(cx, y, unit.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-        backgroundColor: '#444444', padding: { x: 12, y: 3 },
-      }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+      const btn = this.scene.add
+        .text(cx, y, unit.name, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#e0e0e0',
+          backgroundColor: '#444444',
+          padding: { x: 12, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_PICKER + 1)
+        .setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor('#e0e0e0'));
@@ -2135,10 +2622,17 @@ export class RosterOverlay {
     });
 
     const cancelY = topY + titleH + roster.length * itemH + pad;
-    const cancelBtn = this.scene.add.text(cx, cancelY, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 10, y: 3 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 1).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx, cancelY, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 1)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this._destroyTrade());
@@ -2156,9 +2650,10 @@ export class RosterOverlay {
     const DETAIL_PANE_H = 56;
 
     // Trade overlay bg (extra height for detail pane)
-    const tradeBg = this.scene.add.rectangle(
-      DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 480, 0x1a1a2e, 0.98
-    ).setDepth(DEPTH_PICKER).setStrokeStyle(1, 0x888888);
+    const tradeBg = this.scene.add
+      .rectangle(DETAIL_X + DETAIL_WIDTH / 2, 240, DETAIL_WIDTH, 480, 0x1a1a2e, 0.98)
+      .setDepth(DEPTH_PICKER)
+      .setStrokeStyle(1, 0x888888);
     this.tradeObjects.push(tradeBg);
 
     // Init detail pane tracking
@@ -2191,7 +2686,10 @@ export class RosterOverlay {
           const baseNameColor = ownerUsable ? this._getWeaponNameColor(item, rowColor) : rowColor;
           const forgeSuffixSegments = ownerUsable
             ? this._getWeaponForgeSuffixSegments(item)
-            : this._getWeaponForgeSuffixSegments(item).map((segment) => ({ ...segment, color: rowColor }));
+            : this._getWeaponForgeSuffixSegments(item).map((segment) => ({
+                ...segment,
+                color: rowColor,
+              }));
           const nameColor = noProf ? '#cc8844' : baseNameColor;
           const segments = [
             { text: marker, color: rowColor },
@@ -2210,11 +2708,22 @@ export class RosterOverlay {
           if (otherInventory.length < INVENTORY_MAX) {
             const interactiveSegments = [...segments, { text: '  \u25b6', color: '#e0e0e0' }];
             const row = this._tradeTextSegments(xPos, sy, interactiveSegments, '10px');
-            const hit = this.scene.add.rectangle(
-              xPos + Math.max(row.width, 12) / 2, sy + 6, Math.max(row.width, 12), 12, 0x000000, 0
-            ).setOrigin(0.5).setDepth(DEPTH_PICKER + 3).setInteractive({ useHandCursor: true });
+            const hit = this.scene.add
+              .rectangle(
+                xPos + Math.max(row.width, 12) / 2,
+                sy + 6,
+                Math.max(row.width, 12),
+                12,
+                0x000000,
+                0,
+              )
+              .setOrigin(0.5)
+              .setDepth(DEPTH_PICKER + 3)
+              .setInteractive({ useHandCursor: true });
             const restore = () => {
-              row.texts.forEach((t, idx) => t.setColor(interactiveSegments[idx]?.color || '#e0e0e0'));
+              row.texts.forEach((t, idx) =>
+                t.setColor(interactiveSegments[idx]?.color || '#e0e0e0'),
+              );
             };
             hit.on('pointerover', () => {
               row.texts.forEach((t) => t.setColor('#ffdd44'));
@@ -2247,9 +2756,14 @@ export class RosterOverlay {
           const label = `${marker}${item.name} (${item.uses})`;
 
           if ((otherUnit.consumables || []).length < CONSUMABLE_MAX) {
-            const btn = this.scene.add.text(xPos, sy, label + '  \u25b6', {
-              fontFamily: 'monospace', fontSize: '10px', color,
-            }).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
+            const btn = this.scene.add
+              .text(xPos, sy, label + '  \u25b6', {
+                fontFamily: 'monospace',
+                fontSize: '10px',
+                color,
+              })
+              .setDepth(DEPTH_PICKER + 2)
+              .setInteractive({ useHandCursor: true });
             btn.on('pointerover', () => {
               btn.setColor('#ffdd44');
               this._drawTradeDetailPane(item, unit, otherUnit);
@@ -2281,10 +2795,17 @@ export class RosterOverlay {
     const detailPaneY = Math.max(leftEnd, rightEnd) + 10;
 
     // Detail pane background (persistent area at bottom of item lists)
-    const detailPaneBg = this.scene.add.rectangle(
-      DETAIL_X + DETAIL_WIDTH / 2, detailPaneY + DETAIL_PANE_H / 2,
-      DETAIL_WIDTH - 20, DETAIL_PANE_H, 0x111122, 0.95
-    ).setDepth(DEPTH_PICKER + 1).setStrokeStyle(1, 0x555566);
+    const detailPaneBg = this.scene.add
+      .rectangle(
+        DETAIL_X + DETAIL_WIDTH / 2,
+        detailPaneY + DETAIL_PANE_H / 2,
+        DETAIL_WIDTH - 20,
+        DETAIL_PANE_H,
+        0x111122,
+        0.95,
+      )
+      .setDepth(DEPTH_PICKER + 1)
+      .setStrokeStyle(1, 0x555566);
     this.tradeObjects.push(detailPaneBg);
     this._tradeDetailPaneBg = detailPaneBg;
     this._tradeDetailPaneY = detailPaneY;
@@ -2294,11 +2815,17 @@ export class RosterOverlay {
 
     // Done button (below detail pane)
     const doneY = detailPaneY + DETAIL_PANE_H + 12;
-    const doneBtn = this.scene.add.text(
-      DETAIL_X + DETAIL_WIDTH / 2, doneY, '[ Done ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 16, y: 4 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 2).setInteractive({ useHandCursor: true });
+    const doneBtn = this.scene.add
+      .text(DETAIL_X + DETAIL_WIDTH / 2, doneY, '[ Done ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 2)
+      .setInteractive({ useHandCursor: true });
     doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
     doneBtn.on('pointerdown', () => {
@@ -2308,7 +2835,7 @@ export class RosterOverlay {
     this.tradeObjects.push(doneBtn);
 
     // Resize bg to fit all content
-    const totalH = (doneY + 28) - (55 - 15); // from top padding to below Done
+    const totalH = doneY + 28 - (55 - 15); // from top padding to below Done
     tradeBg.setSize(DETAIL_WIDTH, totalH);
     tradeBg.setPosition(DETAIL_X + DETAIL_WIDTH / 2, 55 - 15 + totalH / 2);
   }
@@ -2327,9 +2854,13 @@ export class RosterOverlay {
     for (const segment of segments) {
       const text = String(segment?.text ?? '');
       if (!text) continue;
-      const t = this.scene.add.text(cursor, y, text, {
-        fontFamily: 'monospace', fontSize, color: segment?.color || '#e0e0e0',
-      }).setDepth(DEPTH_TEXT);
+      const t = this.scene.add
+        .text(cursor, y, text, {
+          fontFamily: 'monospace',
+          fontSize,
+          color: segment?.color || '#e0e0e0',
+        })
+        .setDepth(DEPTH_TEXT);
       this.detailObjects.push(t);
       if (!anchor) anchor = t;
       texts.push(t);
@@ -2373,17 +2904,25 @@ export class RosterOverlay {
   }
 
   _text(x, y, str, color = '#e0e0e0', fontSize = '10px') {
-    const t = this.scene.add.text(x, y, str, {
-      fontFamily: 'monospace', fontSize, color,
-    }).setDepth(DEPTH_TEXT);
+    const t = this.scene.add
+      .text(x, y, str, {
+        fontFamily: 'monospace',
+        fontSize,
+        color,
+      })
+      .setDepth(DEPTH_TEXT);
     this.detailObjects.push(t);
     return t;
   }
 
   _tradeText(x, y, str, color = '#e0e0e0', fontSize = '10px') {
-    const t = this.scene.add.text(x, y, str, {
-      fontFamily: 'monospace', fontSize, color,
-    }).setDepth(DEPTH_PICKER + 2);
+    const t = this.scene.add
+      .text(x, y, str, {
+        fontFamily: 'monospace',
+        fontSize,
+        color,
+      })
+      .setDepth(DEPTH_PICKER + 2);
     this.tradeObjects.push(t);
     return t;
   }
@@ -2394,9 +2933,13 @@ export class RosterOverlay {
     for (const segment of segments) {
       const text = String(segment?.text ?? '');
       if (!text) continue;
-      const t = this.scene.add.text(cursor, y, text, {
-        fontFamily: 'monospace', fontSize, color: segment?.color || '#e0e0e0',
-      }).setDepth(DEPTH_PICKER + 2);
+      const t = this.scene.add
+        .text(cursor, y, text, {
+          fontFamily: 'monospace',
+          fontSize,
+          color: segment?.color || '#e0e0e0',
+        })
+        .setDepth(DEPTH_PICKER + 2);
       this.tradeObjects.push(t);
       texts.push(t);
       cursor += t.width;
@@ -2405,10 +2948,16 @@ export class RosterOverlay {
   }
 
   _actionBtn(x, y, label, onClick, fontSize = '10px') {
-    const btn = this.scene.add.text(x, y, label, {
-      fontFamily: 'monospace', fontSize, color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 4, y: 1 },
-    }).setDepth(DEPTH_TEXT).setInteractive({ useHandCursor: true });
+    const btn = this.scene.add
+      .text(x, y, label, {
+        fontFamily: 'monospace',
+        fontSize,
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 4, y: 1 },
+      })
+      .setDepth(DEPTH_TEXT)
+      .setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setColor('#ffdd44'));
     btn.on('pointerout', () => btn.setColor('#e0e0e0'));
     btn.on('pointerdown', onClick);
@@ -2418,7 +2967,7 @@ export class RosterOverlay {
 
   _getPortraitKey(unit) {
     // Lords have named portraits
-    const lordData = this.gameData.lords.find(l => l.name === unit.name);
+    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
 
     // Try current class
@@ -2426,7 +2975,7 @@ export class RosterOverlay {
     if (this.scene.textures.exists(classKey)) return classKey;
 
     // Promoted fallback: use base class portrait
-    const classData = this.gameData.classes.find(c => c.name === unit.className);
+    const classData = this.gameData.classes.find((c) => c.name === unit.className);
     if (classData?.promotesFrom) {
       const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
       if (this.scene.textures.exists(baseKey)) return baseKey;
@@ -2487,7 +3036,12 @@ export class RosterOverlay {
       }
     });
     target.on('pointermove', (pointer) => {
-      if (!this._tooltipPressStart || pointer.id !== this._tooltipPressStart.id || !this._tooltipPressTimer) return;
+      if (
+        !this._tooltipPressStart ||
+        pointer.id !== this._tooltipPressStart.id ||
+        !this._tooltipPressTimer
+      )
+        return;
       const dx = pointer.x - this._tooltipPressStart.x;
       const dy = pointer.y - this._tooltipPressStart.y;
       if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
@@ -2504,21 +3058,31 @@ export class RosterOverlay {
     const tipX = Math.min(anchor.x + anchor.width + 8, 430);
     let tipY = anchor.y;
 
-    const txt = this.scene.add.text(tipX + 6, tipY + 4, description, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0',
-      wordWrap: { width: 200 },
-    }).setDepth(DEPTH_PICKER + 2);
+    const txt = this.scene.add
+      .text(tipX + 6, tipY + 4, description, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        wordWrap: { width: 200 },
+      })
+      .setDepth(DEPTH_PICKER + 2);
 
     const w = txt.width + 12;
     const h = txt.height + 8;
 
     // Clamp to canvas
-    if (tipX + w > 636) { txt.x = 636 - w + 6; }
-    if (tipY + h > 476) { tipY = 476 - h; txt.y = tipY + 4; }
+    if (tipX + w > 636) {
+      txt.x = 636 - w + 6;
+    }
+    if (tipY + h > 476) {
+      tipY = 476 - h;
+      txt.y = tipY + 4;
+    }
 
-    const bg = this.scene.add.rectangle(
-      txt.x - 6 + w / 2, txt.y - 4 + h / 2, w, h, 0x222222, 0.95
-    ).setDepth(DEPTH_PICKER + 1).setStrokeStyle(1, 0x888888);
+    const bg = this.scene.add
+      .rectangle(txt.x - 6 + w / 2, txt.y - 4 + h / 2, w, h, 0x222222, 0.95)
+      .setDepth(DEPTH_PICKER + 1)
+      .setStrokeStyle(1, 0x888888);
 
     this._skillTooltip = [bg, txt];
   }
@@ -2548,15 +3112,12 @@ export class RosterOverlay {
       fontFamily: 'monospace',
       fontSize: '9px',
       color: '#ffffff',
-      wordWrap: { width: maxWidth - padding * 2 }
+      wordWrap: { width: maxWidth - padding * 2 },
     });
 
-    const bg = this.scene.add.rectangle(
-      0, 0,
-      descText.width + padding * 2,
-      descText.height + padding * 2,
-      0x222222, 0.95
-    ).setOrigin(0);
+    const bg = this.scene.add
+      .rectangle(0, 0, descText.width + padding * 2, descText.height + padding * 2, 0x222222, 0.95)
+      .setOrigin(0);
 
     tooltip.add([bg, descText]);
     descText.setPosition(padding, padding);
@@ -2582,14 +3143,24 @@ export class RosterOverlay {
   }
 
   _showBanner(msg, color) {
-    const banner = this.scene.add.text(320, 240, msg, {
-      fontFamily: 'monospace', fontSize: '14px', color,
-      backgroundColor: '#000000cc', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(DEPTH_PICKER + 10).setAlpha(0);
+    const banner = this.scene.add
+      .text(320, 240, msg, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_PICKER + 10)
+      .setAlpha(0);
 
     this.scene.tweens.add({
-      targets: banner, alpha: 1, duration: 200,
-      yoyo: true, hold: 800,
+      targets: banner,
+      alpha: 1,
+      duration: 200,
+      yoyo: true,
+      hold: 800,
       onComplete: () => banner.destroy(),
     });
   }

@@ -45,8 +45,7 @@ console.log(`Cutting ${candidates.length} regions...`);
 
 for (const c of candidates) {
   try {
-    let pipeline = sharp(SOURCE)
-      .extract({ left: c.x, top: c.y, width: c.w, height: c.h });
+    let pipeline = sharp(SOURCE).extract({ left: c.x, top: c.y, width: c.w, height: c.h });
 
     if (FINAL) {
       // Trim transparent edges, resize to 48x48

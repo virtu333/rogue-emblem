@@ -32,25 +32,40 @@ export class DebugOverlay {
     const panelH = 30 + buttons.length * (btnH + pad) + pad;
 
     // Semi-transparent dark panel
-    const bg = this.scene.add.rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x1a0000, 0.9)
-      .setDepth(950).setStrokeStyle(1, 0xcc3333).setInteractive();
+    const bg = this.scene.add
+      .rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x1a0000, 0.9)
+      .setDepth(950)
+      .setStrokeStyle(1, 0xcc3333)
+      .setInteractive();
     this.objects.push(bg);
 
     // Header
-    const header = this.scene.add.text(panelX + panelW / 2, panelY + 12, 'DEBUG', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ff4444', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(951);
+    const header = this.scene.add
+      .text(panelX + panelW / 2, panelY + 12, 'DEBUG', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ff4444',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(951);
     this.objects.push(header);
 
     // Buttons
     let btnY = panelY + 28;
     for (const { label, onClick, getLabel } of buttons) {
       const displayLabel = getLabel ? getLabel() : label;
-      const btn = this.scene.add.text(panelX + pad, btnY, displayLabel, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
-        backgroundColor: '#333333', padding: { x: 6, y: 3 },
-        fixedWidth: panelW - pad * 2,
-      }).setDepth(951).setInteractive({ useHandCursor: true });
+      const btn = this.scene.add
+        .text(panelX + pad, btnY, displayLabel, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#e0e0e0',
+          backgroundColor: '#333333',
+          padding: { x: 6, y: 3 },
+          fixedWidth: panelW - pad * 2,
+        })
+        .setDepth(951)
+        .setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor('#e0e0e0'));
       btn.on('pointerdown', () => {
@@ -72,11 +87,23 @@ export class DebugOverlay {
 
   // --- Toast notification ---
   _toast(msg) {
-    const t = this.scene.add.text(
-      this.scene.cameras.main.centerX, 60, msg,
-      { fontFamily: 'monospace', fontSize: '12px', color: '#ff8888', backgroundColor: '#000000cc', padding: { x: 8, y: 4 } }
-    ).setOrigin(0.5).setDepth(999);
-    this.scene.tweens.add({ targets: t, alpha: 0, delay: 1200, duration: 400, onComplete: () => t.destroy() });
+    const t = this.scene.add
+      .text(this.scene.cameras.main.centerX, 60, msg, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ff8888',
+        backgroundColor: '#000000cc',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(999);
+    this.scene.tweens.add({
+      targets: t,
+      alpha: 0,
+      delay: 1200,
+      duration: 400,
+      onComplete: () => t.destroy(),
+    });
   }
 
   // --- BattleScene buttons ---
@@ -116,7 +143,10 @@ export class DebugOverlay {
       {
         label: '+1000 Gold',
         onClick: () => {
-          if (!scene.runManager) { this._toast('No run active'); return; }
+          if (!scene.runManager) {
+            this._toast('No run active');
+            return;
+          }
           scene.runManager.addGold(1000);
           this._toast(`Gold: ${scene.runManager.gold}`);
         },
@@ -136,7 +166,7 @@ export class DebugOverlay {
         },
       },
       {
-        getLabel: () => debugState.invincible ? 'Invincible: ON' : 'Invincible: OFF',
+        getLabel: () => (debugState.invincible ? 'Invincible: ON' : 'Invincible: OFF'),
         onClick: () => {
           debugState.invincible = !debugState.invincible;
           this._toast(debugState.invincible ? 'Invincible ON' : 'Invincible OFF');

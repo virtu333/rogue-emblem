@@ -105,7 +105,9 @@ describe('NodeMap story-dialogue node click queue', () => {
         getAvailableNodes: () => [node],
         nodeMap: { nodes: [node] },
       },
-      gameData: { dialogue: { actTransitions: { runStart: [{ speaker: 'Sera', line: 'Start' }] } } },
+      gameData: {
+        dialogue: { actTransitions: { runStart: [{ speaker: 'Sera', line: 'Start' }] } },
+      },
       dialogueOverlay: { showSequence: vi.fn(async () => {}), visible: false },
       persistRunSave: vi.fn(() => {}),
       _showPendingNodeMapHints: vi.fn(async () => {}),
@@ -142,7 +144,7 @@ describe('NodeMap story-dialogue node click queue', () => {
     expect(scene.isSceneReady).toBe(true);
     expect(scene._consumePendingNodeSelection).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
-      '[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints'
+      '[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints',
     );
     warnSpy.mockRestore();
   });
@@ -246,7 +248,10 @@ describe('NodeMap story-dialogue node click queue', () => {
     await NodeMapScene.prototype.finalizeSceneReady.call(scene);
 
     expect(handleShop).toHaveBeenCalledTimes(1);
-    expect(handleShop).toHaveBeenCalledWith(pendingShopNode, { ambushDiscount: true, pendingAmbush: true });
+    expect(handleShop).toHaveBeenCalledWith(pendingShopNode, {
+      ambushDiscount: true,
+      pendingAmbush: true,
+    });
   });
 
   it('finalizeSceneReady auto-opens pending ambush shop from real completeBattle producer state', async () => {
@@ -290,7 +295,10 @@ describe('NodeMap story-dialogue node click queue', () => {
     await NodeMapScene.prototype.finalizeSceneReady.call(scene);
 
     expect(handleShop).toHaveBeenCalledTimes(1);
-    expect(handleShop).toHaveBeenCalledWith(ambushShopNode, { ambushDiscount: true, pendingAmbush: true });
+    expect(handleShop).toHaveBeenCalledWith(ambushShopNode, {
+      ambushDiscount: true,
+      pendingAmbush: true,
+    });
   });
 
   it('finalizeSceneReady does not auto-open stale pending ambush when current node differs', async () => {

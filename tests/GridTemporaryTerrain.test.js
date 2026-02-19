@@ -7,13 +7,21 @@ function makeMockScene() {
     add: {
       rectangle: () => ({
         depth: 0,
-        setDepth(v) { this.depth = v; return this; },
+        setDepth(v) {
+          this.depth = v;
+          return this;
+        },
         destroy() {},
       }),
       image: () => ({
         depth: 0,
-        setDisplaySize() { return this; },
-        setDepth(v) { this.depth = v; return this; },
+        setDisplaySize() {
+          return this;
+        },
+        setDepth(v) {
+          this.depth = v;
+          return this;
+        },
         destroy() {},
       }),
     },

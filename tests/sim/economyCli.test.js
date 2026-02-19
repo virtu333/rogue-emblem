@@ -12,7 +12,7 @@ describe('sim/economy CLI', () => {
       const result = spawnSync(
         process.execPath,
         [economyScriptPath, '--trials', '2', '--seed', '1', '--meta', String(meta)],
-        { encoding: 'utf8' }
+        { encoding: 'utf8' },
       );
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(`meta=${meta}`);

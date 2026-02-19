@@ -3,10 +3,7 @@
 // Boss enemies on seize maps stay within 1 tile of throne.
 // Guard enemies wait until a player enters trigger range, then permanently switch to chase.
 
-import {
-  gridDistance,
-  isInRange,
-} from './Combat.js';
+import { gridDistance, isInRange } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
@@ -67,9 +64,17 @@ export class AIController {
     // planned target is no longer valid, attempt a fallback retarget in current range.
     if (decision.target) {
       let targetToAttack = decision.target;
-      const plannedDist = gridDistance(enemy.col, enemy.row, decision.target.col, decision.target.row);
+      const plannedDist = gridDistance(
+        enemy.col,
+        enemy.row,
+        decision.target.col,
+        decision.target.row,
+      );
       if (!enemy.weapon || !isInRange(enemy.weapon, plannedDist)) {
-        targetToAttack = this._selectBestInRangeTarget(enemy, [...playerUnits, ...(npcUnits || [])]);
+        targetToAttack = this._selectBestInRangeTarget(enemy, [
+          ...playerUnits,
+          ...(npcUnits || []),
+        ]);
       }
       if (targetToAttack) {
         await callbacks.onAttack(enemy, targetToAttack);
@@ -98,8 +103,8 @@ export class AIController {
     if (enemy.aiMode === 'guard') {
       const attackableUnits = [...playerUnits, ...(npcUnits || [])];
       const nearestDist = Math.min(
-        ...attackableUnits.map(u => gridDistance(enemy.col, enemy.row, u.col, u.row)),
-        Infinity
+        ...attackableUnits.map((u) => gridDistance(enemy.col, enemy.row, u.col, u.row)),
+        Infinity,
       );
       const triggerDist = this.aggressiveMode ? 6 : 3;
 
@@ -114,7 +119,10 @@ export class AIController {
           path: null,
           target: null,
           reason: 'guard_hold',
-          detail: { nearestDistance: Number.isFinite(nearestDist) ? nearestDist : null, triggerDistance: triggerDist },
+          detail: {
+            nearestDistance: Number.isFinite(nearestDist) ? nearestDist : null,
+            triggerDistance: triggerDist,
+          },
         });
       }
     }
@@ -129,8 +137,13 @@ export class AIController {
 
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const moveRange = this.grid.getMovementRange(
-      enemy.col, enemy.row, enemy.mov, enemy.moveType,
-      unitPositions, enemy.faction, costMod
+      enemy.col,
+      enemy.row,
+      enemy.mov,
+      enemy.moveType,
+      unitPositions,
+      enemy.faction,
+      costMod,
     );
 
     // Add current position to candidates
@@ -143,14 +156,15 @@ export class AIController {
     }
 
     // --- Boss throne clamping ---
-    const isBossOnSeize = enemy.isBoss && this.objective === 'seize' && this.thronePos && !this.aggressiveMode;
+    const isBossOnSeize =
+      enemy.isBoss && this.objective === 'seize' && this.thronePos && !this.aggressiveMode;
     if (isBossOnSeize) {
       // Only consider tiles within 1 manhattan tile of throne
-      candidates = candidates.filter(t =>
-        gridDistance(t.col, t.row, this.thronePos.col, this.thronePos.row) <= 1
+      candidates = candidates.filter(
+        (t) => gridDistance(t.col, t.row, this.thronePos.col, this.thronePos.row) <= 1,
       );
       // Always include current position as fallback
-      if (!candidates.some(t => t.col === enemy.col && t.row === enemy.row)) {
+      if (!candidates.some((t) => t.col === enemy.col && t.row === enemy.row)) {
         candidates.push({ col: enemy.col, row: enemy.row });
       }
       aiLog.debug(`Boss clamped to ${candidates.length} tiles near throne`);
@@ -179,7 +193,12 @@ export class AIController {
 
       for (const target of attackableUnits) {
         if (!target || target.currentHP <= 0 || target._removing) continue;
-        const dist = gridDistance(candidate.finalTile.col, candidate.finalTile.row, target.col, target.row);
+        const dist = gridDistance(
+          candidate.finalTile.col,
+          candidate.finalTile.row,
+          target.col,
+          target.row,
+        );
         if (!isInRange(enemy.weapon, dist)) continue;
 
         const score = this._scoreAttackTarget(enemy, target, forceLowestHpTargeting);
@@ -201,7 +220,10 @@ export class AIController {
           targetName: bestAttack.target.name || null,
           targetPos: { col: bestAttack.target.col, row: bestAttack.target.row },
           fromPos: { col: enemy.col, row: enemy.row },
-          attackTile: { col: bestAttack.candidate.finalTile.col, row: bestAttack.candidate.finalTile.row },
+          attackTile: {
+            col: bestAttack.candidate.finalTile.col,
+            row: bestAttack.candidate.finalTile.row,
+          },
           plannedTile: { col: bestAttack.candidate.tile.col, row: bestAttack.candidate.tile.row },
         },
       });
@@ -249,7 +271,10 @@ export class AIController {
     // If blocked (pathAwareTile is null), try to move adjacent to a wall that's closer to the target
     if (nearest && !pathAwareTile) {
       const bestWallMove = this._findMoveToBreakableWall(enemy, nearest, candidates, unitPositions);
-      if (bestWallMove && (bestWallMove.tile.col !== enemy.col || bestWallMove.tile.row !== enemy.row)) {
+      if (
+        bestWallMove &&
+        (bestWallMove.tile.col !== enemy.col || bestWallMove.tile.row !== enemy.row)
+      ) {
         const path = this._buildPath(enemy, bestWallMove.tile, unitPositions);
         if (path && path.length >= 2) {
           return this._finalizeDecision(enemy, {
@@ -298,7 +323,7 @@ export class AIController {
         enemy,
         [...playerUnits, ...(npcUnits || [])],
         candidates,
-        unitPositions
+        unitPositions,
       );
       if (recoveryTile) {
         const path = this._buildPath(enemy, recoveryTile.tile, unitPositions);
@@ -340,7 +365,7 @@ export class AIController {
   }
 
   _findPathAwareChaseTile(enemy, target, candidates, unitPositions) {
-    const candidateSet = new Set(candidates.map(t => `${t.col},${t.row}`));
+    const candidateSet = new Set(candidates.map((t) => `${t.col},${t.row}`));
     const approachTiles = this._getApproachTilesForTarget(enemy, target);
     if (approachTiles.length === 0) return null;
 
@@ -348,8 +373,14 @@ export class AIController {
     for (const tile of approachTiles) {
       const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
       const path = this.grid.findPath(
-        enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
-        unitPositions, enemy.faction, costMod
+        enemy.col,
+        enemy.row,
+        tile.col,
+        tile.row,
+        enemy.moveType,
+        unitPositions,
+        enemy.faction,
+        costMod,
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -382,10 +413,12 @@ export class AIController {
 
   _findRecoveryFallbackTile(enemy, targets, candidates, unitPositions) {
     if (!targets || targets.length === 0) return null;
-    const sortedTargets = [...targets].sort((a, b) =>
-      gridDistance(enemy.col, enemy.row, a.col, a.row) - gridDistance(enemy.col, enemy.row, b.col, b.row)
+    const sortedTargets = [...targets].sort(
+      (a, b) =>
+        gridDistance(enemy.col, enemy.row, a.col, a.row) -
+        gridDistance(enemy.col, enemy.row, b.col, b.row),
     );
-    const candidateSet = new Set(candidates.map(t => `${t.col},${t.row}`));
+    const candidateSet = new Set(candidates.map((t) => `${t.col},${t.row}`));
 
     let best = null;
     for (const target of sortedTargets) {
@@ -433,8 +466,14 @@ export class AIController {
     let bestPath = null;
     for (const tile of tiles) {
       const path = this.grid.findPath(
-        enemy.col, enemy.row, tile.col, tile.row, enemy.moveType,
-        unitPositions, enemy.faction, costMod
+        enemy.col,
+        enemy.row,
+        tile.col,
+        tile.row,
+        enemy.moveType,
+        unitPositions,
+        enemy.faction,
+        costMod,
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -472,7 +511,10 @@ export class AIController {
       const sorted = [...playerUnits].sort((a, b) => {
         const r = rank(a) - rank(b);
         if (r !== 0) return r;
-        return gridDistance(enemy.col, enemy.row, a.col, a.row) - gridDistance(enemy.col, enemy.row, b.col, b.row);
+        return (
+          gridDistance(enemy.col, enemy.row, a.col, a.row) -
+          gridDistance(enemy.col, enemy.row, b.col, b.row)
+        );
       });
       return sorted[0] || null;
     }
@@ -493,8 +535,14 @@ export class AIController {
     if (destTile.col === enemy.col && destTile.row === enemy.row) return null;
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const path = this.grid.findPath(
-      enemy.col, enemy.row, destTile.col, destTile.row, enemy.moveType,
-      unitPositions, enemy.faction, costMod
+      enemy.col,
+      enemy.row,
+      destTile.col,
+      destTile.row,
+      enemy.moveType,
+      unitPositions,
+      enemy.faction,
+      costMod,
     );
     return path;
   }
@@ -506,7 +554,7 @@ export class AIController {
     } else {
       // Default score: prefer damaged/lower HP targets.
       const maxHp = target?.stats?.HP || target.currentHP || 0;
-      score = (maxHp - (target.currentHP || 0)) + (100 - (target.currentHP || 0));
+      score = maxHp - (target.currentHP || 0) + (100 - (target.currentHP || 0));
     }
     if (this.aggressiveMode) {
       const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
@@ -541,10 +589,10 @@ export class AIController {
     }
 
     if (
-      !Array.isArray(this.grid?.mapLayout)
-      || !Array.isArray(this.grid?.terrainData)
-      || !Number.isInteger(this.grid?.cols)
-      || !Number.isInteger(this.grid?.rows)
+      !Array.isArray(this.grid?.mapLayout) ||
+      !Array.isArray(this.grid?.terrainData) ||
+      !Number.isInteger(this.grid?.cols) ||
+      !Number.isInteger(this.grid?.rows)
     ) {
       const fallback = path[path.length - 1];
       return { finalTile: { col: fallback.col, row: fallback.row } };
@@ -570,12 +618,17 @@ export class AIController {
   }
 
   _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   _findAdjacentBreakableWall(enemy, unitPositions) {
     if (typeof this.grid.isTemporaryTerrainAt !== 'function') return null;
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const col = enemy.col + dc;
       const row = enemy.row + dr;
@@ -592,17 +645,22 @@ export class AIController {
   /** Find a reachable tile adjacent to a breakable wall that brings us closer to target. */
   _findMoveToBreakableWall(enemy, target, candidates, unitPositions) {
     if (typeof this.grid.isTemporaryTerrainAt !== 'function') return null;
-    
+
     let best = null;
     let minDist = Infinity;
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
 
     for (const tile of candidates) {
       for (const { dc, dr } of dirs) {
         const wc = tile.col + dc;
         const wr = tile.row + dr;
         if (wc < 0 || wr < 0 || wc >= this.grid.cols || wr >= this.grid.rows) continue;
-        
+
         if (this.grid.isTemporaryTerrainAt(wc, wr)) {
           const terrain = this.grid.getTerrainAt(wc, wr);
           if (terrain?.name !== 'Wall') continue;
@@ -624,7 +682,7 @@ export class AIController {
     const affixList = this.gameData?.affixes?.affixes;
     if (!Array.isArray(affixList)) return false;
     for (const id of enemy.affixes) {
-      const affix = affixList.find(a => a.id === id);
+      const affix = affixList.find((a) => a.id === id);
       if (affix?.aiOverride === overrideName) return true;
     }
     return false;

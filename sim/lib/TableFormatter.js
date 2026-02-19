@@ -26,17 +26,19 @@ export function printTable(columns, rows, opts = {}) {
   }
 
   // Header
-  const headerLine = columns.map(c => c.padEnd(widths[c])).join('  ');
+  const headerLine = columns.map((c) => c.padEnd(widths[c])).join('  ');
   console.log(`\n${headerLine}`);
-  console.log(columns.map(c => '-'.repeat(widths[c])).join('  '));
+  console.log(columns.map((c) => '-'.repeat(widths[c])).join('  '));
 
   // Rows
   for (const row of rows) {
-    const line = columns.map(c => {
-      const val = formatVal(row[c]);
-      // Right-align numbers
-      return typeof row[c] === 'number' ? val.padStart(widths[c]) : val.padEnd(widths[c]);
-    }).join('  ');
+    const line = columns
+      .map((c) => {
+        const val = formatVal(row[c]);
+        // Right-align numbers
+        return typeof row[c] === 'number' ? val.padStart(widths[c]) : val.padEnd(widths[c]);
+      })
+      .join('  ');
     console.log(line);
   }
   console.log('');
@@ -54,13 +56,17 @@ function formatVal(v) {
 export function toCSV(columns, rows) {
   console.log(columns.join(','));
   for (const row of rows) {
-    console.log(columns.map(c => {
-      const v = row[c];
-      if (v === undefined || v === null) return '';
-      if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(2);
-      const s = String(v);
-      return s.includes(',') ? `"${s}"` : s;
-    }).join(','));
+    console.log(
+      columns
+        .map((c) => {
+          const v = row[c];
+          if (v === undefined || v === null) return '';
+          if (typeof v === 'number') return Number.isInteger(v) ? String(v) : v.toFixed(2);
+          const s = String(v);
+          return s.includes(',') ? `"${s}"` : s;
+        })
+        .join(','),
+    );
   }
 }
 
@@ -138,7 +144,7 @@ export function percentiles(values, pcts = [10, 25, 50, 75, 90]) {
   const sorted = [...values].sort((a, b) => a - b);
   const result = {};
   for (const p of pcts) {
-    const idx = Math.floor(sorted.length * p / 100);
+    const idx = Math.floor((sorted.length * p) / 100);
     result[`P${p}`] = sorted[Math.min(idx, sorted.length - 1)];
   }
   return result;

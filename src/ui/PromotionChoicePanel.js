@@ -37,7 +37,7 @@ export class PromotionChoicePanel {
    * @returns {Promise<object|null>}
    */
   show() {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this._resolve = resolve;
       this._registerScenePromotionChoiceGuard();
       this._build();
@@ -51,8 +51,8 @@ export class PromotionChoicePanel {
     const unit = this.unit;
 
     // --- Compute column content for each target ---
-    const columns = this.targets.map(cls => this._buildColumnData(cls));
-    const maxLines = Math.max(...columns.map(c => c.lines.length));
+    const columns = this.targets.map((cls) => this._buildColumnData(cls));
+    const maxLines = Math.max(...columns.map((c) => c.lines.length));
 
     // Panel sizing
     const panelW = COL_W * 2 + COL_GAP + PANEL_PAD * 2;
@@ -62,26 +62,43 @@ export class PromotionChoicePanel {
     const panelH = headerH + bodyH + footerH + PANEL_PAD * 2;
 
     // Dim
-    const dim = this.scene.add.rectangle(
-      cam.width / 2, cam.height / 2, cam.width, cam.height, 0x000000, 0.5
-    ).setDepth(DEPTH_DIM).setInteractive();
+    const dim = this.scene.add
+      .rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0x000000, 0.5)
+      .setDepth(DEPTH_DIM)
+      .setInteractive();
     this.objects.push(dim);
 
     // Panel bg
-    const bg = this.scene.add.rectangle(
-      cx, cy, panelW, panelH, 0x111122, 0.95
-    ).setDepth(DEPTH_PANEL).setStrokeStyle(2, 0x4466aa);
+    const bg = this.scene.add
+      .rectangle(cx, cy, panelW, panelH, 0x111122, 0.95)
+      .setDepth(DEPTH_PANEL)
+      .setStrokeStyle(2, 0x4466aa);
     this.objects.push(bg);
 
     // --- Header ---
     let y = cy - panelH / 2 + PANEL_PAD;
-    this._text(cx, y, 'CHOOSE PROMOTION', {
-      fontSize: '14px', color: '#88ffff', fontStyle: 'bold',
-    }, 0.5);
+    this._text(
+      cx,
+      y,
+      'CHOOSE PROMOTION',
+      {
+        fontSize: '14px',
+        color: '#88ffff',
+        fontStyle: 'bold',
+      },
+      0.5,
+    );
     y += LINE_H + 2;
-    this._text(cx, y, `${unit.name} — ${unit.className}`, {
-      fontSize: '11px', color: '#cccccc',
-    }, 0.5);
+    this._text(
+      cx,
+      y,
+      `${unit.name} — ${unit.className}`,
+      {
+        fontSize: '11px',
+        color: '#cccccc',
+      },
+      0.5,
+    );
     y += LINE_H + 6;
 
     // --- Two columns ---
@@ -92,9 +109,9 @@ export class PromotionChoicePanel {
     const divX = cx;
     const divTop = y - 2;
     const divBot = y + bodyH + 2;
-    const divLine = this.scene.add.rectangle(
-      divX, (divTop + divBot) / 2, 1, divBot - divTop, 0x4466aa
-    ).setDepth(DEPTH_PANEL);
+    const divLine = this.scene.add
+      .rectangle(divX, (divTop + divBot) / 2, 1, divBot - divTop, 0x4466aa)
+      .setDepth(DEPTH_PANEL);
     this.objects.push(divLine);
 
     // Render columns
@@ -104,11 +121,17 @@ export class PromotionChoicePanel {
       let ly = y;
 
       for (const line of col.lines) {
-        this._text(colX + 4, ly, line.text, {
-          fontSize: line.fontSize || '11px',
-          color: line.color || '#e0e0e0',
-          fontStyle: line.bold ? 'bold' : '',
-        }, 0);
+        this._text(
+          colX + 4,
+          ly,
+          line.text,
+          {
+            fontSize: line.fontSize || '11px',
+            color: line.color || '#e0e0e0',
+            fontStyle: line.bold ? 'bold' : '',
+          },
+          0,
+        );
         ly += LINE_H;
       }
     }
@@ -120,14 +143,24 @@ export class PromotionChoicePanel {
       const btnCx = colX + COL_W / 2;
       const cls = this.targets[ci];
 
-      const btnBg = this.scene.add.rectangle(
-        btnCx, btnY, COL_W - 16, 22, 0x224488, 1
-      ).setDepth(DEPTH_TEXT).setStrokeStyle(1, 0x6688cc).setInteractive({ useHandCursor: true });
+      const btnBg = this.scene.add
+        .rectangle(btnCx, btnY, COL_W - 16, 22, 0x224488, 1)
+        .setDepth(DEPTH_TEXT)
+        .setStrokeStyle(1, 0x6688cc)
+        .setInteractive({ useHandCursor: true });
       this.objects.push(btnBg);
 
-      this._text(btnCx, btnY, `Select ${cls.name}`, {
-        fontSize: '11px', color: '#ffffff', fontStyle: 'bold',
-      }, 0.5);
+      this._text(
+        btnCx,
+        btnY,
+        `Select ${cls.name}`,
+        {
+          fontSize: '11px',
+          color: '#ffffff',
+          fontStyle: 'bold',
+        },
+        0.5,
+      );
 
       btnBg.on('pointerover', () => btnBg.setFillStyle(0x3366aa));
       btnBg.on('pointerout', () => btnBg.setFillStyle(0x224488));
@@ -139,9 +172,16 @@ export class PromotionChoicePanel {
 
     // Cancel hint
     const cancelY = btnY + LINE_H + 8;
-    const cancelText = this._text(cx, cancelY, '(ESC to cancel)', {
-      fontSize: '10px', color: '#888888',
-    }, 0.5);
+    const cancelText = this._text(
+      cx,
+      cancelY,
+      '(ESC to cancel)',
+      {
+        fontSize: '10px',
+        color: '#888888',
+      },
+      0.5,
+    );
 
     // ESC key handler (participates in scene ESC consumption contract)
     this._escHandler = (event) => {
@@ -153,8 +193,10 @@ export class PromotionChoicePanel {
 
     // Also cancel on dim click outside panel
     dim.on('pointerdown', (pointer) => {
-      const px = pointer.x, py = pointer.y;
-      const halfW = panelW / 2, halfH = panelH / 2;
+      const px = pointer.x,
+        py = pointer.y;
+      const halfW = panelW / 2,
+        halfH = panelH / 2;
       if (px < cx - halfW || px > cx + halfW || py < cy - halfH || py > cy + halfH) {
         this.destroy();
         this._resolve(null);
@@ -225,7 +267,7 @@ export class PromotionChoicePanel {
     if (innateIds.length > 0) {
       lines.push({ text: 'Innate Skill', color: '#aaaaaa', bold: true });
       for (const sid of innateIds) {
-        const skill = this.skillsData.find(s => s.id === sid);
+        const skill = this.skillsData.find((s) => s.id === sid);
         if (skill) {
           lines.push({ text: `  ${skill.name}`, color: '#ffcc44', bold: true });
           // Wrap description to fit column
@@ -260,9 +302,14 @@ export class PromotionChoicePanel {
 
   /** Helper to add text, track for cleanup, and return it. */
   _text(x, y, str, style, originX = 0) {
-    const t = this.scene.add.text(x, y, str, {
-      fontFamily: FONT, fontSize: '11px', ...style,
-    }).setOrigin(originX, 0).setDepth(DEPTH_TEXT);
+    const t = this.scene.add
+      .text(x, y, str, {
+        fontFamily: FONT,
+        fontSize: '11px',
+        ...style,
+      })
+      .setOrigin(originX, 0)
+      .setDepth(DEPTH_TEXT);
     this.objects.push(t);
     return t;
   }

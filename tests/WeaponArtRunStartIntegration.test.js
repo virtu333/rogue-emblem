@@ -36,7 +36,10 @@ describe('Weapon Art run-start integration', () => {
     scene.runManager = rm;
     scene.turnManager = { turnNumber: 1 };
 
-    const choices = scene._getWeaponArtChoices(makeLegendarySwordUnit(), makeLegendarySwordUnit().weapon);
+    const choices = scene._getWeaponArtChoices(
+      makeLegendarySwordUnit(),
+      makeLegendarySwordUnit().weapon,
+    );
     expect(choices.some((entry) => entry.art?.id === 'legend_gemini_tempest')).toBe(true);
   });
 
@@ -61,4 +64,3 @@ describe('Weapon Art run-start integration', () => {
     expect(after.some((entry) => entry.art?.id === 'legend_gemini_tempest')).toBe(true);
   });
 });
-

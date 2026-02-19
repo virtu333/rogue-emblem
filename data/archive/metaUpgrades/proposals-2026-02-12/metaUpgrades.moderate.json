@@ -5,13 +5,7 @@
     "description": "+5% HP growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      50,
-      75
-    ],
+    "costs": [50, 50, 50, 50, 75],
     "effects": [
       {
         "recruitGrowth": "HP",
@@ -41,13 +35,7 @@
     "description": "+5% STR growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      75,
-      125
-    ],
+    "costs": [50, 50, 50, 75, 125],
     "effects": [
       {
         "recruitGrowth": "STR",
@@ -77,13 +65,7 @@
     "description": "+5% DEF growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      75,
-      125
-    ],
+    "costs": [50, 50, 50, 75, 125],
     "effects": [
       {
         "recruitGrowth": "DEF",
@@ -113,13 +95,7 @@
     "description": "+5% SPD growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      75,
-      125
-    ],
+    "costs": [50, 50, 50, 75, 125],
     "effects": [
       {
         "recruitGrowth": "SPD",
@@ -149,13 +125,7 @@
     "description": "+5% SKL growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      50,
-      100
-    ],
+    "costs": [50, 50, 50, 50, 100],
     "effects": [
       {
         "recruitGrowth": "SKL",
@@ -185,13 +155,7 @@
     "description": "+5% RES growth per tier",
     "category": "recruit_stats",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      50,
-      75
-    ],
+    "costs": [50, 50, 50, 50, 75],
     "effects": [
       {
         "recruitGrowth": "RES",
@@ -221,11 +185,7 @@
     "description": "+HP for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      50,
-      125,
-      275
-    ],
+    "costs": [50, 125, 275],
     "requires": {
       "upgrades": [
         {
@@ -255,11 +215,7 @@
     "description": "+STR for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      75,
-      175,
-      325
-    ],
+    "costs": [75, 175, 325],
     "requires": {
       "upgrades": [
         {
@@ -289,11 +245,7 @@
     "description": "+DEF for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      75,
-      175,
-      325
-    ],
+    "costs": [75, 175, 325],
     "requires": {
       "upgrades": [
         {
@@ -323,11 +275,7 @@
     "description": "+SPD for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      75,
-      175,
-      375
-    ],
+    "costs": [75, 175, 375],
     "requires": {
       "upgrades": [
         {
@@ -357,11 +305,7 @@
     "description": "+SKL for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      50,
-      125,
-      250
-    ],
+    "costs": [50, 125, 250],
     "requires": {
       "upgrades": [
         {
@@ -391,11 +335,7 @@
     "description": "+RES for recruits",
     "category": "recruit_stats",
     "maxLevel": 3,
-    "costs": [
-      50,
-      100,
-      200
-    ],
+    "costs": [50, 100, 200],
     "requires": {
       "upgrades": [
         {
@@ -425,13 +365,7 @@
     "description": "+5% HP growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      50,
-      75
-    ],
+    "costs": [50, 50, 50, 50, 75],
     "effects": [
       {
         "lordGrowth": "HP",
@@ -461,13 +395,7 @@
     "description": "+5% STR growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      75,
-      100,
-      150
-    ],
+    "costs": [50, 50, 75, 100, 150],
     "effects": [
       {
         "lordGrowth": "STR",
@@ -497,13 +425,7 @@
     "description": "+5% DEF growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      75,
-      100,
-      150
-    ],
+    "costs": [50, 50, 75, 100, 150],
     "effects": [
       {
         "lordGrowth": "DEF",
@@ -533,13 +455,7 @@
     "description": "+5% SPD growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      75,
-      100,
-      175
-    ],
+    "costs": [50, 50, 75, 100, 175],
     "effects": [
       {
         "lordGrowth": "SPD",
@@ -569,13 +485,7 @@
     "description": "+5% RES growth per tier",
     "category": "lord_bonuses",
     "maxLevel": 5,
-    "costs": [
-      50,
-      50,
-      50,
-      75,
-      125
-    ],
+    "costs": [50, 50, 50, 75, 125],
     "effects": [
       {
         "lordGrowth": "RES",
@@ -605,11 +515,7 @@
     "description": "+HP for lords",
     "category": "lord_bonuses",
     "maxLevel": 3,
-    "costs": [
-      75,
-      175,
-      350
-    ],
+    "costs": [75, 175, 350],
     "requires": {
       "upgrades": [
         {
@@ -617,9 +523,7 @@
           "level": 3
         }
       ],
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -642,11 +546,7 @@
     "description": "+STR for lords",
     "category": "lord_bonuses",
     "maxLevel": 3,
-    "costs": [
-      75,
-      200,
-      400
-    ],
+    "costs": [75, 200, 400],
     "requires": {
       "upgrades": [
         {
@@ -654,9 +554,7 @@
           "level": 3
         }
       ],
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -679,11 +577,7 @@
     "description": "+DEF for lords",
     "category": "lord_bonuses",
     "maxLevel": 3,
-    "costs": [
-      75,
-      200,
-      400
-    ],
+    "costs": [75, 200, 400],
     "requires": {
       "upgrades": [
         {
@@ -691,9 +585,7 @@
           "level": 3
         }
       ],
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -716,11 +608,7 @@
     "description": "+SPD for lords",
     "category": "lord_bonuses",
     "maxLevel": 3,
-    "costs": [
-      75,
-      200,
-      425
-    ],
+    "costs": [75, 200, 425],
     "requires": {
       "upgrades": [
         {
@@ -728,9 +616,7 @@
           "level": 3
         }
       ],
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -753,11 +639,7 @@
     "description": "+RES for lords",
     "category": "lord_bonuses",
     "maxLevel": 3,
-    "costs": [
-      75,
-      175,
-      300
-    ],
+    "costs": [75, 175, 300],
     "requires": {
       "upgrades": [
         {
@@ -787,11 +669,7 @@
     "description": "+500 starting gold per level",
     "category": "economy",
     "maxLevel": 3,
-    "costs": [
-      50,
-      100,
-      200
-    ],
+    "costs": [50, 100, 200],
     "effects": [
       {
         "goldBonus": 500
@@ -810,10 +688,7 @@
     "description": "+20% battle gold per level",
     "category": "economy",
     "maxLevel": 2,
-    "costs": [
-      75,
-      150
-    ],
+    "costs": [75, 150],
     "effects": [
       {
         "battleGoldMultiplier": 0.2
@@ -829,9 +704,7 @@
     "description": "Extra Vulnerary for lord at start",
     "category": "economy",
     "maxLevel": 1,
-    "costs": [
-      75
-    ],
+    "costs": [75],
     "effects": [
       {
         "extraVulnerary": 1
@@ -844,14 +717,9 @@
     "description": "Higher chance for upgraded weapon drops",
     "category": "economy",
     "maxLevel": 2,
-    "costs": [
-      100,
-      200
-    ],
+    "costs": [100, 200],
     "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -868,14 +736,9 @@
     "description": "Increases art scroll quality and diversity",
     "category": "economy",
     "maxLevel": 2,
-    "costs": [
-      100,
-      200
-    ],
+    "costs": [100, 200],
     "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -904,14 +767,9 @@
     "description": "Increases accessory quality and diversity",
     "category": "economy",
     "maxLevel": 2,
-    "costs": [
-      100,
-      200
-    ],
+    "costs": [100, 200],
     "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -938,15 +796,9 @@
     "description": "+8% lord recruit chance per tier",
     "category": "economy",
     "maxLevel": 3,
-    "costs": [
-      100,
-      200,
-      325
-    ],
+    "costs": [100, 200, 325],
     "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -966,13 +818,9 @@
     "description": "+1 deploy slot in all acts",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      325
-    ],
+    "costs": [325],
     "requires": {
-      "milestones": [
-        "beatAct2"
-      ]
+      "milestones": ["beatAct2"]
     },
     "effects": [
       {
@@ -986,13 +834,9 @@
     "description": "+2 max roster size",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      200
-    ],
+    "costs": [200],
     "requires": {
-      "milestones": [
-        "beatAct1"
-      ]
+      "milestones": ["beatAct1"]
     },
     "effects": [
       {
@@ -1006,9 +850,7 @@
     "description": "+1 Vision charge per run",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      250
-    ],
+    "costs": [250],
     "effects": [
       {
         "visionChargesBonus": 1
@@ -1021,9 +863,7 @@
     "description": "+1 Vision charge per run",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      500
-    ],
+    "costs": [500],
     "requires": {
       "upgrades": [
         {
@@ -1044,9 +884,7 @@
     "description": "Recruits spawn with 1 random combat skill",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      325
-    ],
+    "costs": [325],
     "effects": [
       {
         "recruitRandomSkill": true
@@ -1059,9 +897,7 @@
     "description": "Recruits start with a Vulnerary",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      200
-    ],
+    "costs": [200],
     "requires": {
       "upgrades": [
         {
@@ -1082,12 +918,7 @@
     "description": "Start with 1 extra random unit from an expanding class pool",
     "category": "capacity",
     "maxLevel": 4,
-    "costs": [
-      250,
-      450,
-      650,
-      975
-    ],
+    "costs": [250, 450, 650, 975],
     "effects": [
       {
         "extraStartingUnitTier": 1
@@ -1109,9 +940,7 @@
     "description": "Recruits can gain one extra Steel weapon",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      325
-    ],
+    "costs": [325],
     "effects": [
       {
         "lethalArmoryTier": 1
@@ -1124,9 +953,7 @@
     "description": "Recruits can also have a 25% chance at a Killer weapon",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      575
-    ],
+    "costs": [575],
     "requires": {
       "upgrades": [
         {
@@ -1147,9 +974,7 @@
     "description": "Recruits can also have a 25% chance at a Silver weapon",
     "category": "capacity",
     "maxLevel": 1,
-    "costs": [
-      900
-    ],
+    "costs": [900],
     "requires": {
       "upgrades": [
         {
@@ -1170,11 +995,7 @@
     "description": "Lords' starting weapons gain forge levels",
     "category": "starting_equipment",
     "maxLevel": 3,
-    "costs": [
-      75,
-      125,
-      225
-    ],
+    "costs": [75, 125, 225],
     "effects": [
       {
         "startingWeaponForge": 1
@@ -1193,9 +1014,7 @@
     "description": "Edric's Steel Sword is replaced with Rapier",
     "category": "starting_equipment",
     "maxLevel": 1,
-    "costs": [
-      175
-    ],
+    "costs": [175],
     "effects": [
       {
         "deadlyArsenalTier": 1
@@ -1208,9 +1027,7 @@
     "description": "Edric also starts with a Silver Sword (auto-equipped)",
     "category": "starting_equipment",
     "maxLevel": 1,
-    "costs": [
-      325
-    ],
+    "costs": [325],
     "requires": {
       "upgrades": [
         {
@@ -1231,9 +1048,7 @@
     "description": "Iron weapons can spawn with 1 random type-appropriate weapon art",
     "category": "starting_equipment",
     "maxLevel": 1,
-    "costs": [
-      250
-    ],
+    "costs": [250],
     "effects": [
       {
         "ironArms": 1
@@ -1246,9 +1061,7 @@
     "description": "Steel weapons can spawn with 1 random type-appropriate weapon art",
     "category": "starting_equipment",
     "maxLevel": 1,
-    "costs": [
-      525
-    ],
+    "costs": [525],
     "requires": {
       "upgrades": [
         {
@@ -1269,9 +1082,7 @@
     "description": "One lord starting weapon gains 1 additional random weapon art",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      150
-    ],
+    "costs": [150],
     "effects": [
       {
         "artAdept": 1
@@ -1284,11 +1095,7 @@
     "description": "Edric starts with an accessory",
     "category": "starting_equipment",
     "maxLevel": 3,
-    "costs": [
-      75,
-      150,
-      250
-    ],
+    "costs": [75, 150, 250],
     "effects": [
       {
         "startingAccessoryTier": 1
@@ -1307,10 +1114,7 @@
     "description": "Sera starts with a better staff",
     "category": "starting_equipment",
     "maxLevel": 2,
-    "costs": [
-      75,
-      175
-    ],
+    "costs": [75, 175],
     "effects": [
       {
         "startingStaffTier": 1
@@ -1326,9 +1130,7 @@
     "description": "Start each run with 1 Infantry Seal in convoy",
     "category": "starting_equipment",
     "maxLevel": 1,
-    "costs": [
-      125
-    ],
+    "costs": [125],
     "effects": [
       {
         "startingReclassSeal": 1
@@ -1341,9 +1143,7 @@
     "description": "SKL% chance to heal damage dealt",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      150
-    ],
+    "costs": [150],
     "effects": [
       {
         "unlockSkill": "sol"
@@ -1356,9 +1156,7 @@
     "description": "SKL% chance to halve DEF/RES",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      125
-    ],
+    "costs": [125],
     "effects": [
       {
         "unlockSkill": "luna"
@@ -1371,9 +1169,7 @@
     "description": "SKL/2% chance for 5 consecutive hits",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      150
-    ],
+    "costs": [150],
     "effects": [
       {
         "unlockSkill": "astra"
@@ -1386,9 +1182,7 @@
     "description": "Attack first when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      125
-    ],
+    "costs": [125],
     "effects": [
       {
         "unlockSkill": "vantage"
@@ -1401,9 +1195,7 @@
     "description": "+30 Crit when below 50% HP",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      125
-    ],
+    "costs": [125],
     "effects": [
       {
         "unlockSkill": "wrath"
@@ -1416,9 +1208,7 @@
     "description": "SPD% chance for follow-up attack",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      150
-    ],
+    "costs": [150],
     "effects": [
       {
         "unlockSkill": "adept"
@@ -1431,9 +1221,7 @@
     "description": "LCK% chance to survive lethal hit at 1 HP",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      75
-    ],
+    "costs": [75],
     "effects": [
       {
         "unlockSkill": "miracle"
@@ -1446,9 +1234,7 @@
     "description": "Unlocks Guard (+3 DEF/RES when adjacent to an ally)",
     "category": "starting_skills",
     "maxLevel": 1,
-    "costs": [
-      75
-    ],
+    "costs": [75],
     "effects": [
       {
         "unlockSkill": "guard"

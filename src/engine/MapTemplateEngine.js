@@ -123,7 +123,16 @@ function validateScriptedWaveSpawn(path, spawn, errors) {
     return;
   }
 
-  const knownKeys = new Set(['col', 'row', 'className', 'level', 'sunderWeapon', 'poisonWeapon', 'aiMode', 'affixes']);
+  const knownKeys = new Set([
+    'col',
+    'row',
+    'className',
+    'level',
+    'sunderWeapon',
+    'poisonWeapon',
+    'aiMode',
+    'affixes',
+  ]);
   if (!hasOnlyKnownKeys(spawn, knownKeys)) {
     errors.push(`${path} contains unknown keys`);
   }
@@ -135,7 +144,10 @@ function validateScriptedWaveSpawn(path, spawn, errors) {
     errors.push(`${path}.row must be a non-negative integer`);
   }
 
-  if (spawn.className !== undefined && (typeof spawn.className !== 'string' || spawn.className.trim() === '')) {
+  if (
+    spawn.className !== undefined &&
+    (typeof spawn.className !== 'string' || spawn.className.trim() === '')
+  ) {
     errors.push(`${path}.className must be a non-empty string when provided`);
   }
   if (spawn.level !== undefined && (!isInteger(spawn.level) || spawn.level <= 0)) {
@@ -147,11 +159,17 @@ function validateScriptedWaveSpawn(path, spawn, errors) {
   if (spawn.poisonWeapon !== undefined && typeof spawn.poisonWeapon !== 'boolean') {
     errors.push(`${path}.poisonWeapon must be boolean when provided`);
   }
-  if (spawn.aiMode !== undefined && (typeof spawn.aiMode !== 'string' || spawn.aiMode.trim() === '')) {
+  if (
+    spawn.aiMode !== undefined &&
+    (typeof spawn.aiMode !== 'string' || spawn.aiMode.trim() === '')
+  ) {
     errors.push(`${path}.aiMode must be a non-empty string when provided`);
   }
   if (spawn.affixes !== undefined) {
-    if (!Array.isArray(spawn.affixes) || spawn.affixes.some((value) => typeof value !== 'string' || value.trim() === '')) {
+    if (
+      !Array.isArray(spawn.affixes) ||
+      spawn.affixes.some((value) => typeof value !== 'string' || value.trim() === '')
+    ) {
       errors.push(`${path}.affixes must be a string array when provided`);
     }
   }
@@ -181,7 +199,12 @@ function validateScriptedWave(path, wave, errors) {
   }
 
   if (wave.xpMultiplier !== undefined) {
-    if (typeof wave.xpMultiplier !== 'number' || !Number.isFinite(wave.xpMultiplier) || wave.xpMultiplier < 0 || wave.xpMultiplier > 1) {
+    if (
+      typeof wave.xpMultiplier !== 'number' ||
+      !Number.isFinite(wave.xpMultiplier) ||
+      wave.xpMultiplier < 0 ||
+      wave.xpMultiplier > 1
+    ) {
       errors.push(`${path}.xpMultiplier must be a finite number in [0,1] when provided`);
     }
   }
@@ -239,9 +262,14 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     errors.push(`${path}.reinforcements contains unknown keys`);
   }
 
-  const spawnEdges = validateEdges(`${path}.reinforcements.spawnEdges`, reinforcements.spawnEdges, errors);
+  const spawnEdges = validateEdges(
+    `${path}.reinforcements.spawnEdges`,
+    reinforcements.spawnEdges,
+    errors,
+  );
 
-  const hasScriptedWaves = Array.isArray(reinforcements.scriptedWaves) && reinforcements.scriptedWaves.length > 0;
+  const hasScriptedWaves =
+    Array.isArray(reinforcements.scriptedWaves) && reinforcements.scriptedWaves.length > 0;
   if (!Array.isArray(reinforcements.waves)) {
     errors.push(`${path}.reinforcements.waves must be an array`);
   } else if (reinforcements.waves.length === 0 && !hasScriptedWaves) {
@@ -256,12 +284,20 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     errors.push(`${path}.reinforcements.difficultyScaling must be boolean`);
   }
 
-  validateTurnOffsets(`${path}.reinforcements.turnOffsetByDifficulty`, reinforcements.turnOffsetByDifficulty, errors);
+  validateTurnOffsets(
+    `${path}.reinforcements.turnOffsetByDifficulty`,
+    reinforcements.turnOffsetByDifficulty,
+    errors,
+  );
   if (reinforcements.turnJitter !== undefined) {
     validateTurnJitter(`${path}.reinforcements.turnJitter`, reinforcements.turnJitter, errors);
   }
   validateXpDecay(`${path}.reinforcements.xpDecay`, reinforcements.xpDecay, errors);
-  validateScriptedWaves(`${path}.reinforcements.scriptedWaves`, reinforcements.scriptedWaves, errors);
+  validateScriptedWaves(
+    `${path}.reinforcements.scriptedWaves`,
+    reinforcements.scriptedWaves,
+    errors,
+  );
 }
 
 function validateZone(path, zone, errors) {
@@ -313,7 +349,13 @@ function validateZone(path, zone, errors) {
 }
 
 function validateCoordPair(path, coord, errors) {
-  if (!Array.isArray(coord) || coord.length !== 2 || !coord.every(isInteger) || coord[0] < 0 || coord[1] < 0) {
+  if (
+    !Array.isArray(coord) ||
+    coord.length !== 2 ||
+    !coord.every(isInteger) ||
+    coord[0] < 0 ||
+    coord[1] < 0
+  ) {
     errors.push(`${path} must be [col,row] non-negative integers`);
     return false;
   }
@@ -365,7 +407,9 @@ function validateHybridArena(path, hybridArena, errors) {
       else if (row.length !== arenaWidth) errors.push(`${path}.arenaTiles must be rectangular`);
       row.forEach((terrainName, colIndex) => {
         if (typeof terrainName !== 'string' || terrainName.trim() === '') {
-          errors.push(`${path}.arenaTiles[${rowIndex}][${colIndex}] must be a non-empty terrain name`);
+          errors.push(
+            `${path}.arenaTiles[${rowIndex}][${colIndex}] must be a non-empty terrain name`,
+          );
         }
       });
     });
@@ -515,12 +559,19 @@ export function validateMapTemplatesConfig(config, options = {}) {
       }
 
       if (template.acts !== undefined) {
-        if (!Array.isArray(template.acts) || template.acts.length === 0 || template.acts.some((act) => typeof act !== 'string' || act.length === 0)) {
+        if (
+          !Array.isArray(template.acts) ||
+          template.acts.length === 0 ||
+          template.acts.some((act) => typeof act !== 'string' || act.length === 0)
+        ) {
           errors.push(`${path}.acts must be a non-empty string array when provided`);
         }
       }
 
-      if (template.biome !== undefined && (typeof template.biome !== 'string' || template.biome.trim() === '')) {
+      if (
+        template.biome !== undefined &&
+        (typeof template.biome !== 'string' || template.biome.trim() === '')
+      ) {
         errors.push(`${path}.biome must be a non-empty string when provided`);
       }
 
@@ -536,7 +587,12 @@ export function validateMapTemplatesConfig(config, options = {}) {
         errors.push(`${path}.phaseTerrainOverrides requires hybridArena`);
       }
       if (template.phaseTerrainOverrides !== undefined) {
-        validatePhaseTerrainOverrides(`${path}.phaseTerrainOverrides`, template.phaseTerrainOverrides, anchorCoords, errors);
+        validatePhaseTerrainOverrides(
+          `${path}.phaseTerrainOverrides`,
+          template.phaseTerrainOverrides,
+          anchorCoords,
+          errors,
+        );
       }
 
       validateReinforcements(path, template, strict, errors, warnings);

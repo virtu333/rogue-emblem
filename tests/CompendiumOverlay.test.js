@@ -11,12 +11,26 @@ function makeDisplayObject(extra = {}) {
     style: {},
     x: 0,
     y: 0,
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor(color) { this.style.color = color; return this; },
-    on(event, handler) { this.handlers[event] = handler; return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor(color) {
+      this.style.color = color;
+      return this;
+    },
+    on(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
     destroy: vi.fn(),
     ...extra,
   };
@@ -26,14 +40,25 @@ function makeScene() {
   return {
     cameras: { main: { centerX: 320, centerY: 240 } },
     add: {
-      rectangle: (x, y, width, height, _color, _alpha) => makeDisplayObject({ x, y, width, height }),
+      rectangle: (x, y, width, height, _color, _alpha) =>
+        makeDisplayObject({ x, y, width, height }),
       graphics: () => ({
         ...makeDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       }),
       text: (x, y, text, style = {}) => makeDisplayObject({ x, y, text, style: { ...style } }),
     },
@@ -76,9 +101,19 @@ describe('CompendiumOverlay', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
     overlay.show();
     // Tab labels should appear in rendered objects
-    const labels = ['Arms', 'Skills', 'Arts', 'Class', 'Items', 'Lords', 'Bless', 'Terrain', 'Affixes'];
+    const labels = [
+      'Arms',
+      'Skills',
+      'Arts',
+      'Class',
+      'Items',
+      'Lords',
+      'Bless',
+      'Terrain',
+      'Affixes',
+    ];
     for (const label of labels) {
-      const found = overlay.objects.find(o => o.text === label);
+      const found = overlay.objects.find((o) => o.text === label);
       expect(found, `Tab "${label}" should exist`).toBeTruthy();
     }
   });
@@ -105,7 +140,8 @@ describe('CompendiumOverlay', () => {
 
   it('Items tab returns consumables + accessories + whetstones', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-    const expected = gameData.consumables.length + gameData.accessories.length + gameData.whetstones.length;
+    const expected =
+      gameData.consumables.length + gameData.accessories.length + gameData.whetstones.length;
     expect(overlay._getItemsForTab(4).length).toBe(expected);
   });
 
@@ -136,7 +172,7 @@ describe('CompendiumOverlay', () => {
       overlay.activeFilterIndex = 1; // "Sword"
       const filtered = overlay._getFilteredItems();
       expect(filtered.length).toBeGreaterThan(0);
-      expect(filtered.every(i => i.type === 'Sword')).toBe(true);
+      expect(filtered.every((i) => i.type === 'Sword')).toBe(true);
     });
 
     it('Skills "Attack" filter maps to trigger on-attack', () => {
@@ -145,7 +181,7 @@ describe('CompendiumOverlay', () => {
       overlay.activeFilterIndex = 4; // "Attack"
       const filtered = overlay._getFilteredItems();
       expect(filtered.length).toBeGreaterThan(0);
-      expect(filtered.every(i => i.trigger === 'on-attack')).toBe(true);
+      expect(filtered.every((i) => i.trigger === 'on-attack')).toBe(true);
     });
 
     it('Bless "T1" returns only tier-1 blessings', () => {
@@ -154,7 +190,7 @@ describe('CompendiumOverlay', () => {
       overlay.activeFilterIndex = 1; // "T1"
       const filtered = overlay._getFilteredItems();
       expect(filtered.length).toBeGreaterThan(0);
-      expect(filtered.every(i => i.tier === 1)).toBe(true);
+      expect(filtered.every((i) => i.tier === 1)).toBe(true);
     });
 
     it('Class "base" returns only base-tier classes', () => {
@@ -163,7 +199,7 @@ describe('CompendiumOverlay', () => {
       overlay.activeFilterIndex = 1; // "base"
       const filtered = overlay._getFilteredItems();
       expect(filtered.length).toBeGreaterThan(0);
-      expect(filtered.every(i => i.tier === 'base')).toBe(true);
+      expect(filtered.every((i) => i.tier === 'base')).toBe(true);
     });
 
     it('"All" filter returns all items', () => {
@@ -194,49 +230,61 @@ describe('CompendiumOverlay', () => {
   describe('renderer schema contracts', () => {
     it('renders scroll teaches line from teachesWeaponArtId when skillId is absent', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const artScroll = gameData.weapons.find(w => w.type === 'Scroll' && !w.skillId && w.teachesWeaponArtId);
+      const artScroll = gameData.weapons.find(
+        (w) => w.type === 'Scroll' && !w.skillId && w.teachesWeaponArtId,
+      );
       expect(artScroll).toBeTruthy();
 
       overlay._renderWeapon(artScroll, 100, 20, 500);
-      const teachesLine = overlay.objects.find(o => typeof o.text === 'string' && o.text.startsWith('Teaches:'));
+      const teachesLine = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('Teaches:'),
+      );
       expect(teachesLine).toBeTruthy();
       expect(teachesLine.text).toContain(artScroll.teachesWeaponArtId);
     });
 
     it('renders class weaponProficiencies when stored as a string', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const klass = gameData.classes.find(c => typeof c.weaponProficiencies === 'string');
+      const klass = gameData.classes.find((c) => typeof c.weaponProficiencies === 'string');
       expect(klass).toBeTruthy();
 
       overlay._renderClass(klass, 100, 20, 500);
-      const classLine = overlay.objects.find(o => typeof o.text === 'string' && o.text.includes(klass.weaponProficiencies));
+      const classLine = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes(klass.weaponProficiencies),
+      );
       expect(classLine).toBeTruthy();
     });
 
     it('renders accessory preventEnemyDouble and doubleThresholdReduction combat effects', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
 
-      const counterSeal = gameData.accessories.find(a => a.name === 'Counter Seal');
+      const counterSeal = gameData.accessories.find((a) => a.name === 'Counter Seal');
       expect(counterSeal).toBeTruthy();
       overlay._renderItem(counterSeal, 100, 20, 500);
-      const preventDoubleLine = overlay.objects.find(o => typeof o.text === 'string' && o.text.includes('Prevent Double'));
+      const preventDoubleLine = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('Prevent Double'),
+      );
       expect(preventDoubleLine).toBeTruthy();
 
       const overlay2 = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const pursuitRing = gameData.accessories.find(a => a.name === 'Pursuit Ring');
+      const pursuitRing = gameData.accessories.find((a) => a.name === 'Pursuit Ring');
       expect(pursuitRing).toBeTruthy();
       overlay2._renderItem(pursuitRing, 100, 20, 500);
-      const thresholdLine = overlay2.objects.find(o => typeof o.text === 'string' && o.text.includes('Dbl Thres -2'));
+      const thresholdLine = overlay2.objects.find(
+        (o) => typeof o.text === 'string' && o.text.includes('Dbl Thres -2'),
+      );
       expect(thresholdLine).toBeTruthy();
     });
 
     it('renders lord weapon from weapon string, not first character of promotionWeapons', () => {
       const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-      const lord = gameData.lords.find(l => typeof l.weapon === 'string');
+      const lord = gameData.lords.find((l) => typeof l.weapon === 'string');
       expect(lord).toBeTruthy();
 
       overlay._renderLord(lord, 100, 20, 500);
-      const lordLine = overlay.objects.find(o => typeof o.text === 'string' && o.text.startsWith('Skill:'));
+      const lordLine = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('Skill:'),
+      );
       expect(lordLine).toBeTruthy();
       expect(lordLine.text).toContain(`Weapon: ${lord.weapon}`);
     });
@@ -284,14 +332,19 @@ describe('CompendiumOverlay', () => {
       overlay.show();
       overlay.searchInputActive = true;
       overlay._setSearchQuery('zzzz_no_result_term');
-      const noMatches = overlay.objects.find(o => o?.text === 'No matches');
+      const noMatches = overlay.objects.find((o) => o?.text === 'No matches');
       expect(noMatches).toBeTruthy();
     });
   });
 
   describe('null-safety', () => {
     it('missing weaponArts/blessings/affixes returns empty arrays', () => {
-      const sparseData = { ...gameData, weaponArts: undefined, blessings: undefined, affixes: undefined };
+      const sparseData = {
+        ...gameData,
+        weaponArts: undefined,
+        blessings: undefined,
+        affixes: undefined,
+      };
       const overlay = new CompendiumOverlay(makeScene(), sparseData, vi.fn());
       expect(overlay._getItemsForTab(2)).toEqual([]); // Arts
       expect(overlay._getItemsForTab(6)).toEqual([]); // Bless
@@ -299,7 +352,16 @@ describe('CompendiumOverlay', () => {
     });
 
     it('show() with sparse data does not throw', () => {
-      const sparseData = { weapons: [], skills: [], classes: [], consumables: [], accessories: [], whetstones: [], lords: [], terrain: [] };
+      const sparseData = {
+        weapons: [],
+        skills: [],
+        classes: [],
+        consumables: [],
+        accessories: [],
+        whetstones: [],
+        lords: [],
+        terrain: [],
+      };
       const overlay = new CompendiumOverlay(makeScene(), sparseData, vi.fn());
       expect(() => overlay.show()).not.toThrow();
       overlay.hide();
@@ -311,12 +373,18 @@ describe('CompendiumOverlay', () => {
       const scene = makeScene();
       const overlay = new CompendiumOverlay(scene, gameData, vi.fn());
       overlay.show();
-      expect(scene.game.events.emit).toHaveBeenCalledWith('mobile:pushContext', { context: 'overlay_tabs' });
-      const pushCount = scene.game.events.emit.mock.calls.filter(c => c[0] === 'mobile:pushContext').length;
+      expect(scene.game.events.emit).toHaveBeenCalledWith('mobile:pushContext', {
+        context: 'overlay_tabs',
+      });
+      const pushCount = scene.game.events.emit.mock.calls.filter(
+        (c) => c[0] === 'mobile:pushContext',
+      ).length;
       expect(pushCount).toBe(1);
 
       overlay.hide();
-      const popCount = scene.game.events.emit.mock.calls.filter(c => c[0] === 'mobile:popContext').length;
+      const popCount = scene.game.events.emit.mock.calls.filter(
+        (c) => c[0] === 'mobile:popContext',
+      ).length;
       expect(popCount).toBe(1);
     });
   });
@@ -340,20 +408,23 @@ describe('CompendiumOverlay', () => {
       overlay.currentPage = 0;
       overlay._draw();
 
-      const nav = overlay.objects.find(o => typeof o.text === 'string' && o.text.startsWith('Page '));
+      const nav = overlay.objects.find(
+        (o) => typeof o.text === 'string' && o.text.startsWith('Page '),
+      );
       expect(nav).toBeTruthy();
       const navY = nav.y;
 
-      const contentTexts = overlay.objects.filter((o) => (
-        typeof o.text === 'string'
-        && typeof o.y === 'number'
-        && o.y >= 130
-        && o.text !== '\u25C0 Prev'
-        && o.text !== 'Next \u25B6'
-        && !o.text.startsWith('Page ')
-      ));
+      const contentTexts = overlay.objects.filter(
+        (o) =>
+          typeof o.text === 'string' &&
+          typeof o.y === 'number' &&
+          o.y >= 130 &&
+          o.text !== '\u25C0 Prev' &&
+          o.text !== 'Next \u25B6' &&
+          !o.text.startsWith('Page '),
+      );
       expect(contentTexts.length).toBeGreaterThan(0);
-      const maxContentY = Math.max(...contentTexts.map(o => o.y));
+      const maxContentY = Math.max(...contentTexts.map((o) => o.y));
       expect(maxContentY).toBeLessThan(navY);
     });
   });
@@ -368,7 +439,7 @@ describe('PauseOverlay — Compendium integration', () => {
     });
     pause.show();
     // Open Compendium via the button
-    const compendiumBtn = pause.objects.find(o => o.text === 'Compendium');
+    const compendiumBtn = pause.objects.find((o) => o.text === 'Compendium');
     expect(compendiumBtn, 'Compendium button should exist').toBeTruthy();
     compendiumBtn.handlers.pointerdown();
     expect(pause.compendiumOverlay).toBeTruthy();
@@ -383,7 +454,7 @@ describe('PauseOverlay — Compendium integration', () => {
       gameData,
     });
     pause.show();
-    const compendiumBtn = pause.objects.find(o => o.text === 'Compendium');
+    const compendiumBtn = pause.objects.find((o) => o.text === 'Compendium');
     compendiumBtn.handlers.pointerdown();
     expect(pause.closeActiveSubOverlay()).toBe(true);
     expect(pause.compendiumOverlay).toBeNull(); // onClose nulls it
@@ -399,7 +470,7 @@ describe('PauseOverlay — Compendium integration', () => {
     });
     pause.show();
     // Open Compendium
-    const compendiumBtn = pause.objects.find(o => o.text === 'Compendium');
+    const compendiumBtn = pause.objects.find((o) => o.text === 'Compendium');
     compendiumBtn.handlers.pointerdown();
     expect(pause.compendiumOverlay?.visible).toBe(true);
 
@@ -425,13 +496,13 @@ describe('PauseOverlay — Compendium integration', () => {
     pause.show();
 
     // Trigger abandon to open confirm modal
-    const abandonBtn = pause.objects.find(o => o.text === 'Abandon Run');
+    const abandonBtn = pause.objects.find((o) => o.text === 'Abandon Run');
     expect(abandonBtn).toBeTruthy();
     abandonBtn.handlers.pointerdown();
     expect(pause.confirmObjects.length).toBeGreaterThan(0);
 
     // Open Compendium — should auto-dismiss confirm
-    const compendiumBtn = pause.objects.find(o => o.text === 'Compendium');
+    const compendiumBtn = pause.objects.find((o) => o.text === 'Compendium');
     compendiumBtn.handlers.pointerdown();
     expect(pause.confirmObjects.length).toBe(0);
   });
@@ -443,7 +514,7 @@ describe('PauseOverlay — Compendium integration', () => {
       gameData: null,
     });
     pause.show();
-    const compendiumBtn = pause.objects.find(o => o.text === 'Compendium');
+    const compendiumBtn = pause.objects.find((o) => o.text === 'Compendium');
     expect(compendiumBtn).toBeFalsy();
   });
 });

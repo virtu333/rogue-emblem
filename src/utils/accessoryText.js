@@ -86,10 +86,17 @@ function formatTurnStartEffect(accessory) {
   const hasCombatEffects = combatEffects && typeof combatEffects === 'object';
   if (!hasTurnStart && !hasCombatEffects) return '';
 
-  const healFlat = Math.max(0, Math.trunc(firstNumericValue(turnStart?.healSelfFlat, combatEffects?.turnStartHealFlat) || 0));
+  const healFlat = Math.max(
+    0,
+    Math.trunc(firstNumericValue(turnStart?.healSelfFlat, combatEffects?.turnStartHealFlat) || 0),
+  );
   const healPercentRaw = Math.max(
     0,
-    firstNumericValue(turnStart?.healSelfPercent, turnStart?.turnStartHealPercent, combatEffects?.turnStartHealPercent) || 0
+    firstNumericValue(
+      turnStart?.healSelfPercent,
+      turnStart?.turnStartHealPercent,
+      combatEffects?.turnStartHealPercent,
+    ) || 0,
   );
   const healPercent = healPercentRaw <= 1 ? healPercentRaw * 100 : healPercentRaw;
 
@@ -104,9 +111,7 @@ function formatTurnStartEffect(accessory) {
 export function formatAccessoryEffects(accessory, options = {}) {
   const separator = options.separator ?? ' ';
   const entries = buildOrderedStatEntries(accessory?.effects);
-  const parts = entries
-    .map(([stat, value]) => formatSignedStat(value, stat))
-    .filter(Boolean);
+  const parts = entries.map(([stat, value]) => formatSignedStat(value, stat)).filter(Boolean);
   return parts.join(separator);
 }
 
@@ -181,14 +186,18 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.phoenixBrooch) {
     const phoenixHeal = firstNumericValue(combatEffects?.phoenixHeal, combatEffects?.healFlat);
     const phoenixThresholdRaw = firstNumericValue(combatEffects?.phoenixThreshold);
-    const phoenixThresholdPercent = phoenixThresholdRaw !== null
-      ? (phoenixThresholdRaw <= 1 ? phoenixThresholdRaw * 100 : phoenixThresholdRaw)
-      : null;
+    const phoenixThresholdPercent =
+      phoenixThresholdRaw !== null
+        ? phoenixThresholdRaw <= 1
+          ? phoenixThresholdRaw * 100
+          : phoenixThresholdRaw
+        : null;
 
     if (phoenixHeal !== null || phoenixThresholdPercent !== null) {
-      const thresholdText = phoenixThresholdPercent !== null
-        ? `${Number(phoenixThresholdPercent.toFixed(2))}% HP`
-        : 'low HP';
+      const thresholdText =
+        phoenixThresholdPercent !== null
+          ? `${Number(phoenixThresholdPercent.toFixed(2))}% HP`
+          : 'low HP';
       const healText = phoenixHeal !== null ? `heal ${phoenixHeal} HP` : 'heal';
       parts.push(`Phoenix (once/map: ${healText} at <=${thresholdText})`);
     } else {

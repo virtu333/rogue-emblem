@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Weapons",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string" },
+      "type": {
+        "type": "string",
+        "enum": ["Sword", "Lance", "Axe", "Bow", "Tome", "Light", "Staff", "Scroll"]
+      },
+      "tier": {
+        "type": "string",
+        "enum": ["Iron", "Steel", "Silver", "Legend", "Rare"]
+      },
+      "rankRequired": {
+        "type": "string",
+        "enum": ["Prof", "Mast"]
+      },
+      "might": { "type": "integer", "minimum": 0 },
+      "hit": { "type": "integer", "minimum": 0 },
+      "crit": { "type": "integer", "minimum": 0 },
+      "weight": { "type": "integer", "minimum": 0 },
+      "range": { "type": "string", "pattern": "^\\d+(-\\d+)?$" },
+      "special": { "type": "string" },
+      "price": { "type": "integer", "minimum": 0 },
+      "healBase": { "type": "integer" },
+      "uses": { "type": "integer", "minimum": 1 },
+      "perBattleUses": { "type": "boolean" },
+      "healAll": { "type": "boolean" },
+      "rangeBonuses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "mag": { "type": "integer" },
+            "bonus": { "type": "integer" }
+          },
+          "required": ["mag", "bonus"],
+          "additionalProperties": false
+        }
+      },
+      "skillId": { "type": "string" },
+      "weaponArtIds": { "type": "array", "items": { "type": "string" } },
+      "weaponArtSources": { "type": "array", "items": { "type": "string" } },
+      "teachesWeaponArtId": { "type": "string" },
+      "allowedWeaponTypes": { "type": "array", "items": { "type": "string" } }
+    },
+    "required": [
+      "name",
+      "type",
+      "tier",
+      "rankRequired",
+      "might",
+      "hit",
+      "crit",
+      "weight",
+      "range",
+      "special",
+      "price"
+    ],
+    "additionalProperties": false
+  }
+}

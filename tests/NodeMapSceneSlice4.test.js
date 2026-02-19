@@ -38,22 +38,49 @@ function makeDisplayObject(seed = {}) {
     input: null,
     handlers: {},
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setAlpha() { return this; },
-    setColor(color) { this._color = color; return this; },
-    setBackgroundColor(color) { this._bg = color; return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setAlpha() {
+      return this;
+    },
+    setColor(color) {
+      this._color = color;
+      return this;
+    },
+    setBackgroundColor(color) {
+      this._bg = color;
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
     setInteractive(opts) {
       this._interactive = opts;
       this.input = this.input || {};
       this.input.enabled = true;
       return this;
     },
-    setVisible(next) { this.visible = next; return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this._destroyed = true; this.active = false; },
+    setVisible(next) {
+      this.visible = next;
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this._destroyed = true;
+      this.active = false;
+    },
   };
 }
 
@@ -110,7 +137,8 @@ function makeRerollScene({ shopBuyItems, originalCount, gold = 9999 }) {
       getWeaponArtSpawnConfig: vi.fn(() => ({})),
     },
     gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
-    applyDifficultyShopPricing: (items) => (Array.isArray(items) ? items.map((entry) => ({ ...entry })) : []),
+    applyDifficultyShopPricing: (items) =>
+      Array.isArray(items) ? items.map((entry) => ({ ...entry })) : [],
     shopBuyItems: shopBuyItems.map((entry, i) => ({ ...entry, index: i })),
     _shopOriginalSlotCount: originalCount,
     shopRerollCount: 0,
@@ -178,7 +206,7 @@ describe('NodeMapScene Slice 4', () => {
       scene.gameData.accessories,
       scene.runManager.roster,
       null,
-      { itemCountBonus: 1 }
+      { itemCountBonus: 1 },
     );
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
     expect(scene.showShopOverlay).toHaveBeenCalledWith(node, priced);
@@ -207,17 +235,25 @@ describe('NodeMapScene Slice 4', () => {
       _isPendingAmbushNode: vi.fn(() => false),
     };
 
-    NodeMapScene.prototype.handleShop.call(scene, node, { ambushDiscount: true, pendingAmbush: false });
+    NodeMapScene.prototype.handleShop.call(scene, node, {
+      ambushDiscount: true,
+      pendingAmbush: false,
+    });
 
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
     expect(scene.applyAmbushDiscount).toHaveBeenCalledWith(priced);
-    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, discounted, { ambushDiscount: true, pendingAmbush: false });
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, discounted, {
+      ambushDiscount: true,
+      pendingAmbush: false,
+    });
   });
 
   it('applyDifficultyShopPricing combines difficulty multiplier with blessing discount', () => {
     const scene = {
       runManager: {
-        getDifficultyModifier: vi.fn((key, fallback) => (key === 'shopPriceMultiplier' ? 1.15 : fallback)),
+        getDifficultyModifier: vi.fn((key, fallback) =>
+          key === 'shopPriceMultiplier' ? 1.15 : fallback,
+        ),
         getShopPriceDiscount: vi.fn(() => 0.15),
       },
     };
@@ -386,15 +422,17 @@ describe('NodeMapScene Slice 4', () => {
     createdTexts[0].handlers.pointerdown();
 
     expect(scene.shopBuyItems).toHaveLength(3);
-    expect(scene.shopBuyItems.map((entry) => entry.item.name)).toEqual(['Fresh A', 'Fresh B', 'Fresh C']);
+    expect(scene.shopBuyItems.map((entry) => entry.item.name)).toEqual([
+      'Fresh A',
+      'Fresh B',
+      'Fresh C',
+    ]);
     expect(scene.runManager.spendGold).toHaveBeenCalledTimes(1);
     expect(scene.shopRerollCount).toBe(1);
   });
 
   it('reroll reapplies ambush discount when current shop is ambush-discounted', () => {
-    generateShopInventoryMock.mockReturnValueOnce([
-      makeShopEntry('Fresh A', 'weapon', 100),
-    ]);
+    generateShopInventoryMock.mockReturnValueOnce([makeShopEntry('Fresh A', 'weapon', 100)]);
 
     const { scene, createdTexts } = makeRerollScene({
       shopBuyItems: [makeShopEntry('Old A', 'weapon', 100)],
@@ -402,7 +440,9 @@ describe('NodeMapScene Slice 4', () => {
     });
     scene._currentShopHasAmbushDiscount = true;
     scene.applyDifficultyShopPricing = vi.fn((items) => items.map((entry) => ({ ...entry })));
-    scene.applyAmbushDiscount = vi.fn((items) => items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 0.8) })));
+    scene.applyAmbushDiscount = vi.fn((items) =>
+      items.map((entry) => ({ ...entry, price: Math.floor(entry.price * 0.8) })),
+    );
 
     NodeMapScene.prototype.drawRerollButton.call(scene);
     createdTexts[0].handlers.pointerdown();
@@ -434,7 +474,8 @@ describe('NodeMapScene Slice 4', () => {
       },
       registry: { get: vi.fn(() => null) },
       add: {
-        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        rectangle: (x, y, width, height, color, alpha) =>
+          makeDisplayObject({ x, y, width, height, color, alpha }),
         text: (x, y, text, style) => {
           const obj = makeDisplayObject({ x, y, text, style });
           createdTexts.push(obj);
@@ -448,7 +489,9 @@ describe('NodeMapScene Slice 4', () => {
 
     NodeMapScene.prototype.showForgeStatPicker.call(scene, weapon);
 
-    const mightButton = createdTexts.find((entry) => typeof entry.text === 'string' && entry.text.includes('+1 Mt'));
+    const mightButton = createdTexts.find(
+      (entry) => typeof entry.text === 'string' && entry.text.includes('+1 Mt'),
+    );
     expect(mightButton).toBeTruthy();
     const costMatch = mightButton.text.match(/(\d+)G/);
     expect(costMatch).not.toBeNull();
@@ -769,7 +812,10 @@ describe('NodeMapScene Slice 4', () => {
 
     NodeMapScene.prototype.onNodeClick.call(scene, node);
 
-    expect(scene.handleShop).toHaveBeenCalledWith(node, { ambushDiscount: true, pendingAmbush: false });
+    expect(scene.handleShop).toHaveBeenCalledWith(node, {
+      ambushDiscount: true,
+      pendingAmbush: false,
+    });
   });
 
   it('onNodeClick sets pendingAmbush true when clicked shop matches pending node', () => {
@@ -791,7 +837,10 @@ describe('NodeMapScene Slice 4', () => {
 
     NodeMapScene.prototype.onNodeClick.call(scene, node);
 
-    expect(scene.handleShop).toHaveBeenCalledWith(node, { ambushDiscount: false, pendingAmbush: true });
+    expect(scene.handleShop).toHaveBeenCalledWith(node, {
+      ambushDiscount: false,
+      pendingAmbush: true,
+    });
   });
 
   it('onNodeClick starts battle launch flow for uncleared ambush shops', () => {
@@ -834,14 +883,22 @@ describe('NodeMapScene Slice 4', () => {
       _clearPendingAmbushForNode: NodeMapScene.prototype._clearPendingAmbushForNode,
     };
 
-    NodeMapScene.prototype.handleShop.call(scene, { id: 'shop-1' }, { ambushDiscount: true, pendingAmbush: true });
+    NodeMapScene.prototype.handleShop.call(
+      scene,
+      { id: 'shop-1' },
+      { ambushDiscount: true, pendingAmbush: true },
+    );
     expect(clearAmbushPendingNode).toHaveBeenCalledWith('shop-1');
     expect(scene.runManager.markNodeComplete).toHaveBeenCalledWith('shop-1');
     expect(scene.checkActComplete).toHaveBeenCalledTimes(1);
 
     clearAmbushPendingNode.mockClear();
     scene.runManager.getAmbushPendingNode.mockReturnValueOnce({ id: 'shop-2' });
-    NodeMapScene.prototype.handleShop.call(scene, { id: 'shop-1' }, { ambushDiscount: true, pendingAmbush: false });
+    NodeMapScene.prototype.handleShop.call(
+      scene,
+      { id: 'shop-1' },
+      { ambushDiscount: true, pendingAmbush: false },
+    );
     expect(clearAmbushPendingNode).not.toHaveBeenCalled();
     expect(scene.runManager.markNodeComplete).toHaveBeenCalledTimes(2);
     expect(scene.checkActComplete).toHaveBeenCalledTimes(2);

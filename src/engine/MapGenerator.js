@@ -43,12 +43,17 @@ export function generateBattle(params, deps) {
   const [cols, rows] = sizeEntry.mapSize.split('x').map(Number);
 
   // 2. Pick template (use pre-assigned templateId if available)
-  const preAssignedTemplate = preAssignedTemplateId ? findTemplateById(preAssignedTemplateId, mapTemplates) : null;
-  const preAssignedAllowed = preAssignedTemplate
-    && isTemplateAllowedForAct(preAssignedTemplate, act)
-    && isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
+  const preAssignedTemplate = preAssignedTemplateId
+    ? findTemplateById(preAssignedTemplateId, mapTemplates)
+    : null;
+  const preAssignedAllowed =
+    preAssignedTemplate &&
+    isTemplateAllowedForAct(preAssignedTemplate, act) &&
+    isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
   const template = preAssignedTemplateId
-    ? (preAssignedAllowed ? preAssignedTemplate : pickTemplate(objective, mapTemplates, act, { isBoss }))
+    ? preAssignedAllowed
+      ? preAssignedTemplate
+      : pickTemplate(objective, mapTemplates, act, { isBoss })
     : pickTemplate(objective, mapTemplates, act, { isBoss });
   if (!template) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
@@ -74,7 +79,15 @@ export function generateBattle(params, deps) {
 
   // 5. Player spawns
   const spawnCount = deployCount || DEPLOY_LIMITS[act]?.max || 4;
-  const playerSpawns = placeSpawns(mapLayout, template, cols, rows, 'playerSpawn', terrain, spawnCount);
+  const playerSpawns = placeSpawns(
+    mapLayout,
+    template,
+    cols,
+    rows,
+    'playerSpawn',
+    terrain,
+    spawnCount,
+  );
 
   // 6. Enemy composition
   const basePool = enemies.pools[act];
@@ -82,16 +95,32 @@ export function generateBattle(params, deps) {
     ? { ...basePool, base: ['Fighter'], promoted: [] }
     : basePool;
   const rolledEnemyCount = rollEnemyCount({
-    deployCount: spawnCount, act, row, isBoss,
-    tiles: sizeEntry.tiles, densityCap: enemies.enemyCountByTiles, enemyCountBonus,
+    deployCount: spawnCount,
+    act,
+    row,
+    isBoss,
+    tiles: sizeEntry.tiles,
+    densityCap: enemies.enemyCountByTiles,
+    enemyCountBonus,
   });
   const recruitBonus = isRecruitBattle ? 1 : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
   let enemySpawns = generateEnemies(
-    mapLayout, template, cols, rows, terrain,
-    pool, enemyCount, objective, act, enemies.bosses, thronePos, levelRange, classes,
-    { enemyPoisonChance }
+    mapLayout,
+    template,
+    cols,
+    rows,
+    terrain,
+    pool,
+    enemyCount,
+    objective,
+    act,
+    enemies.bosses,
+    thronePos,
+    levelRange,
+    classes,
+    { enemyPoisonChance },
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     affixConfig: deps.affixes,
@@ -105,19 +134,36 @@ export function generateBattle(params, deps) {
     // If recruits.namePool exists, we're using the new structure.
     const pool = recruits[act] ? { ...recruits[act], namePool: recruits.namePool } : null;
     if (pool) {
-      npcSpawn = generateNPCSpawn(mapLayout, cols, rows, terrain, playerSpawns, enemySpawns, pool, template, classes, deps.weapons, usedRecruitNames);
+      npcSpawn = generateNPCSpawn(
+        mapLayout,
+        cols,
+        rows,
+        terrain,
+        playerSpawns,
+        enemySpawns,
+        pool,
+        template,
+        classes,
+        deps.weapons,
+        usedRecruitNames,
+      );
     }
   }
 
   // 7b. Recruit guardian elite for Hard/Lunatic
-  if (npcSpawn && params.recruitGuardianChance > 0 && Math.random() < params.recruitGuardianChance) {
+  if (
+    npcSpawn &&
+    params.recruitGuardianChance > 0 &&
+    Math.random() < params.recruitGuardianChance
+  ) {
     const guardianPool = enemies.recruitGuardians?.[act];
     if (guardianPool?.length > 0 && enemySpawns.length < densityCap) {
       const guardianDef = guardianPool[Math.floor(Math.random() * guardianPool.length)];
-      const guardianMoveType = classes?.find(c => c.name === guardianDef.className)?.moveType || 'Infantry';
+      const guardianMoveType =
+        classes?.find((c) => c.name === guardianDef.className)?.moveType || 'Infantry';
       const occupied = new Set([
-        ...playerSpawns.map(s => `${s.col},${s.row}`),
-        ...enemySpawns.map(s => `${s.col},${s.row}`),
+        ...playerSpawns.map((s) => `${s.col},${s.row}`),
+        ...enemySpawns.map((s) => `${s.col},${s.row}`),
         `${npcSpawn.col},${npcSpawn.row}`,
       ]);
       const guardianPos = findAdjacentPassableTile(
@@ -127,7 +173,7 @@ export function generateBattle(params, deps) {
         terrain,
         npcSpawn,
         occupied,
-        guardianMoveType
+        guardianMoveType,
       );
       if (guardianPos) {
         enemySpawns.push({
@@ -197,7 +243,7 @@ function pickMapSize(act, mapSizes) {
     finalBoss: 'Final Boss',
   };
   const prefix = prefixMap[act] || 'Act 1';
-  const candidates = mapSizes.filter(s => s.phase.startsWith(prefix));
+  const candidates = mapSizes.filter((s) => s.phase.startsWith(prefix));
   if (candidates.length === 0) return mapSizes[0];
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
@@ -210,7 +256,7 @@ function isTemplateAllowedForAct(template, act) {
 
 export function filterTemplatesByAct(pool, act) {
   if (!Array.isArray(pool)) return [];
-  return pool.filter(template => isTemplateAllowedForAct(template, act));
+  return pool.filter((template) => isTemplateAllowedForAct(template, act));
 }
 
 function isTemplateAllowedForBoss(template, isBoss = false) {
@@ -224,8 +270,12 @@ export function pickTemplate(objective, mapTemplates, act = null, options = {}) 
     return null;
   }
   const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
-  const bossFilteredPool = filteredPool.filter((template) => isTemplateAllowedForBoss(template, isBoss));
-  const fallbackBossFilteredPool = pool.filter((template) => isTemplateAllowedForBoss(template, isBoss));
+  const bossFilteredPool = filteredPool.filter((template) =>
+    isTemplateAllowedForBoss(template, isBoss),
+  );
+  const fallbackBossFilteredPool = pool.filter((template) =>
+    isTemplateAllowedForBoss(template, isBoss),
+  );
   const sourcePool = bossFilteredPool.length > 0 ? bossFilteredPool : fallbackBossFilteredPool;
   if (sourcePool.length === 0) return null;
   return sourcePool[Math.floor(Math.random() * sourcePool.length)];
@@ -240,7 +290,7 @@ function isTemplateAllowedForObjective(template, objective, mapTemplates) {
 function findTemplateById(templateId, mapTemplates) {
   for (const pool of Object.values(mapTemplates)) {
     if (!Array.isArray(pool)) continue;
-    const found = pool.find(t => t.id === templateId);
+    const found = pool.find((t) => t.id === templateId);
     if (found) return found;
   }
   return null;
@@ -283,14 +333,24 @@ function applyHybridArenaOverlay(mapLayout, hybridArena, cols, rows, terrainData
   if (!hybridArena) return;
   const arenaTiles = hybridArena.arenaTiles;
   const arenaOrigin = hybridArena.arenaOrigin;
-  if (!Array.isArray(arenaTiles) || arenaTiles.length === 0 || !Array.isArray(arenaOrigin) || arenaOrigin.length !== 2) {
+  if (
+    !Array.isArray(arenaTiles) ||
+    arenaTiles.length === 0 ||
+    !Array.isArray(arenaOrigin) ||
+    arenaOrigin.length !== 2
+  ) {
     throw new Error('hybridArena is malformed');
   }
 
   const [originCol, originRow] = arenaOrigin;
   const overlayRows = arenaTiles.length;
   const overlayCols = arenaTiles[0]?.length || 0;
-  if (originCol < 0 || originRow < 0 || originCol + overlayCols > cols || originRow + overlayRows > rows) {
+  if (
+    originCol < 0 ||
+    originRow < 0 ||
+    originCol + overlayCols > cols ||
+    originRow + overlayRows > rows
+  ) {
     throw new Error('hybridArena overlay exceeds map bounds');
   }
 
@@ -324,8 +384,10 @@ function applyPhaseOverrideToLayout(mapLayout, override, resolvedAnchors, terrai
       throw new Error(`phaseTerrainOverrides references unknown terrain: ${setTile.terrain}`);
     }
     if (
-      target.row < 0 || target.row >= mapLayout.length
-      || target.col < 0 || target.col >= mapLayout[0].length
+      target.row < 0 ||
+      target.row >= mapLayout.length ||
+      target.col < 0 ||
+      target.col >= mapLayout[0].length
     ) {
       throw new Error('phaseTerrainOverrides target is out of bounds');
     }
@@ -346,7 +408,11 @@ function generateTerrain(template, cols, rows, terrainData) {
     map[r] = new Array(cols).fill(TERRAIN.Plain);
   }
 
-  const approachBounds = resolveNormalizedRectBounds(template?.hybridArena?.approachRect, cols, rows);
+  const approachBounds = resolveNormalizedRectBounds(
+    template?.hybridArena?.approachRect,
+    cols,
+    rows,
+  );
   if (template?.hybridArena && !approachBounds) {
     throw new Error('hybridArena.approachRect is malformed');
   }
@@ -386,7 +452,11 @@ function generateTerrain(template, cols, rows, terrainData) {
 }
 
 function resolveNormalizedRectBounds(rect, cols, rows) {
-  if (!Array.isArray(rect) || rect.length !== 4 || rect.some((v) => typeof v !== 'number' || !Number.isFinite(v))) {
+  if (
+    !Array.isArray(rect) ||
+    rect.length !== 4 ||
+    rect.some((v) => typeof v !== 'number' || !Number.isFinite(v))
+  ) {
     return null;
   }
   const [x1, y1, x2, y2] = rect;
@@ -438,7 +508,7 @@ function resolveFeaturePosition(position, cols, rows) {
 
 function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count) {
   // Find the zone for this role
-  const zone = template.zones.find(z => z.role === role);
+  const zone = template.zones.find((z) => z.role === role);
   if (!zone) {
     // Fallback: leftmost columns for player, rightmost for enemy
     const startCol = role === 'playerSpawn' ? 0 : cols - 3;
@@ -517,7 +587,7 @@ function scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classData) {
   const t = terrainData[terrainIdx];
   if (!t) return 0;
 
-  const cd = classData?.find(c => c.name === unit.className);
+  const cd = classData?.find((c) => c.name === unit.className);
   const moveType = cd?.moveType || 'Infantry';
 
   // Passability check
@@ -603,10 +673,15 @@ function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thro
       // Search outward from center for passable tiles
       for (let dr = 0; dr <= 2 && tiles.length < count; dr++) {
         for (let dc = 0; dc <= 2 && tiles.length < count; dc++) {
-          for (const [sr, sc] of [[midRow + dr, midCol + dc], [midRow - dr, midCol - dc], [midRow + dr, midCol - dc], [midRow - dr, midCol + dc]]) {
+          for (const [sr, sc] of [
+            [midRow + dr, midCol + dc],
+            [midRow - dr, midCol - dc],
+            [midRow + dr, midCol - dc],
+            [midRow - dr, midCol + dc],
+          ]) {
             if (sr >= 0 && sr < rows && sc >= 0 && sc < cols && tiles.length < count) {
               if (isPassable(terrainData, mapLayout[sr][sc], 'Infantry')) {
-                if (!tiles.some(t => t.col === sc && t.row === sr)) {
+                if (!tiles.some((t) => t.col === sc && t.row === sr)) {
                   tiles.push({ col: sc, row: sr });
                 }
               }
@@ -624,8 +699,12 @@ function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thro
           if (mapLayout[r][c] === TERRAIN.Bridge) {
             // Check right-side neighbor (enemy side)
             const nc = c + 1;
-            if (nc < cols && isPassable(terrainData, mapLayout[r][nc], 'Infantry') && mapLayout[r][nc] !== TERRAIN.Water) {
-              if (!tiles.some(t => t.col === nc && t.row === r)) {
+            if (
+              nc < cols &&
+              isPassable(terrainData, mapLayout[r][nc], 'Infantry') &&
+              mapLayout[r][nc] !== TERRAIN.Water
+            ) {
+              if (!tiles.some((t) => t.col === nc && t.row === r)) {
                 tiles.push({ col: nc, row: r });
               }
             }
@@ -639,17 +718,27 @@ function resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thro
       // Find passable tiles adjacent to wall formations (gate = gap in walls)
       const midRow = Math.floor(rows / 2);
       // Search near the castle area (right side) for passable tiles adjacent to walls
-      for (let r = Math.max(0, midRow - 3); r <= Math.min(rows - 1, midRow + 3) && tiles.length < count; r++) {
+      for (
+        let r = Math.max(0, midRow - 3);
+        r <= Math.min(rows - 1, midRow + 3) && tiles.length < count;
+        r++
+      ) {
         for (let c = Math.floor(cols * 0.5); c < cols && tiles.length < count; c++) {
           if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
           // Check if adjacent to a wall
           const adj = [
-            { col: c - 1, row: r }, { col: c + 1, row: r },
-            { col: c, row: r - 1 }, { col: c, row: r + 1 },
+            { col: c - 1, row: r },
+            { col: c + 1, row: r },
+            { col: c, row: r - 1 },
+            { col: c, row: r + 1 },
           ];
-          const nearWall = adj.some(n =>
-            n.col >= 0 && n.col < cols && n.row >= 0 && n.row < rows &&
-            mapLayout[n.row][n.col] === TERRAIN.Wall
+          const nearWall = adj.some(
+            (n) =>
+              n.col >= 0 &&
+              n.col < cols &&
+              n.row >= 0 &&
+              n.row < rows &&
+              mapLayout[n.row][n.col] === TERRAIN.Wall,
           );
           if (nearWall) {
             tiles.push({ col: c, row: r });
@@ -678,18 +767,25 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
       return null; // boss already placed by seize logic; skip
     case 'lance_user': {
       // Find a lance-using class from pool
-      const lanceClasses = [...pool.base, ...pool.promoted].filter(c =>
-        c === 'Cavalier' || c === 'Knight' || c === 'Soldier' ||
-        c === 'Paladin' || c === 'General' || c === 'Pegasus Knight' || c === 'Falcon Knight'
-        || c === 'Wyvern Rider' || c === 'Wyvern Lord'
+      const lanceClasses = [...pool.base, ...pool.promoted].filter(
+        (c) =>
+          c === 'Cavalier' ||
+          c === 'Knight' ||
+          c === 'Soldier' ||
+          c === 'Paladin' ||
+          c === 'General' ||
+          c === 'Pegasus Knight' ||
+          c === 'Falcon Knight' ||
+          c === 'Wyvern Rider' ||
+          c === 'Wyvern Lord',
       );
       return lanceClasses.length > 0
         ? lanceClasses[Math.floor(Math.random() * lanceClasses.length)]
         : pool.base[Math.floor(Math.random() * pool.base.length)];
     }
     case 'knight': {
-      const knightClasses = [...pool.base, ...pool.promoted].filter(c =>
-        c === 'Knight' || c === 'General'
+      const knightClasses = [...pool.base, ...pool.promoted].filter(
+        (c) => c === 'Knight' || c === 'General',
       );
       return knightClasses.length > 0
         ? knightClasses[Math.floor(Math.random() * knightClasses.length)]
@@ -710,13 +806,16 @@ function resolveAnchorUnitClass(anchor, pool, spawns) {
 function resolveClassWeight(className, enemyWeights, classData) {
   if (!enemyWeights) return 1.0;
 
-  const cd = classData?.find(c => c.name === className);
+  const cd = classData?.find((c) => c.name === className);
   if (!cd) return 1.0;
 
   const moveType = cd.moveType || 'Infantry';
   const profs = cd.weaponProficiencies || '';
-  const profList = profs.split(',').map(p => p.trim().split(' ')[0]).filter(Boolean);
-  const isMelee = profList.some(p => p === 'Swords' || p === 'Lances' || p === 'Axes');
+  const profList = profs
+    .split(',')
+    .map((p) => p.trim().split(' ')[0])
+    .filter(Boolean);
+  const isMelee = profList.some((p) => p === 'Swords' || p === 'Lances' || p === 'Axes');
 
   let composite = 1.0;
   const matched = [];
@@ -737,7 +836,10 @@ function resolveClassWeight(className, enemyWeights, classData) {
     matched.push('archer');
   }
   // "mage" — has Tomes or Light proficiency
-  if (enemyWeights.mage !== undefined && (profList.includes('Tomes') || profList.includes('Light'))) {
+  if (
+    enemyWeights.mage !== undefined &&
+    (profList.includes('Tomes') || profList.includes('Light'))
+  ) {
     composite *= enemyWeights.mage;
     matched.push('mage');
   }
@@ -771,7 +873,7 @@ function weightedClassPick(classList, enemyWeights, classData) {
   if (!enemyWeights || classList.length === 0) {
     return classList[Math.floor(Math.random() * classList.length)];
   }
-  const entries = classList.map(name => ({
+  const entries = classList.map((name) => ({
     item: name,
     weight: resolveClassWeight(name, enemyWeights, classData),
   }));
@@ -830,7 +932,14 @@ function generateEnemies(
       // Skip throne anchors — boss already placed by seize logic
       if (anchor.unit === 'boss_or_strongest') continue;
 
-      const anchorTiles = resolveAnchorPositions(anchor, mapLayout, cols, rows, terrainData, thronePos);
+      const anchorTiles = resolveAnchorPositions(
+        anchor,
+        mapLayout,
+        cols,
+        rows,
+        terrainData,
+        thronePos,
+      );
       const className = resolveAnchorUnitClass(anchor, pool, spawns);
       if (!className || anchorTiles.length === 0) continue;
 
@@ -840,9 +949,10 @@ function generateEnemies(
         if (spawns.length >= count) break;
 
         usedPositions.add(key);
-        const level = anchor.unit === 'highest_level'
-          ? maxLvlAnchor
-          : minLvlAnchor + Math.floor(Math.random() * (maxLvlAnchor - minLvlAnchor + 1));
+        const level =
+          anchor.unit === 'highest_level'
+            ? maxLvlAnchor
+            : minLvlAnchor + Math.floor(Math.random() * (maxLvlAnchor - minLvlAnchor + 1));
 
         spawns.push({
           className,
@@ -852,13 +962,16 @@ function generateEnemies(
           isBoss: false,
         });
 
-        if (DEBUG_MAP_GEN) mapGenLog.debug(`Anchor placed: ${className} at (${tile.col},${tile.row}) for ${anchor.position}`);
+        if (DEBUG_MAP_GEN)
+          mapGenLog.debug(
+            `Anchor placed: ${className} at (${tile.col},${tile.row}) for ${anchor.position}`,
+          );
       }
     }
   }
 
   // Get enemy spawn zone positions
-  const enemyZone = template.zones.find(z => z.role === 'enemySpawn');
+  const enemyZone = template.zones.find((z) => z.role === 'enemySpawn');
   let zoneStartCol, zoneEndCol, zoneStartRow, zoneEndRow;
   if (enemyZone) {
     const [x1, y1, x2, y2] = enemyZone.rect;
@@ -894,7 +1007,9 @@ function generateEnemies(
   const enemyWeights = template.enemyWeights || null;
 
   if (DEBUG_MAP_GEN) {
-    mapGenLog.debug(`Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles, template=${template.id}`);
+    mapGenLog.debug(
+      `Placing ${remaining} enemies, ${candidateTiles.length} candidate tiles, template=${template.id}`,
+    );
     if (enemyWeights) {
       mapGenLog.debug(`Template enemyWeights: ${JSON.stringify(enemyWeights)}`);
     }
@@ -926,21 +1041,22 @@ function generateEnemies(
     const pos = weightedPick(scored);
 
     // Remove chosen tile from candidates
-    const idx = candidateTiles.findIndex(t => t.col === pos.col && t.row === pos.row);
+    const idx = candidateTiles.findIndex((t) => t.col === pos.col && t.row === pos.row);
     if (idx !== -1) candidateTiles.splice(idx, 1);
     usedPositions.add(`${pos.col},${pos.row}`);
 
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
     // Roll for Sunder weapon
-    const cd = classes?.find(c => c.name === className);
+    const cd = classes?.find((c) => c.name === className);
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
     const sunderChance = Number(pool.sunderChance || 0);
     const sunderRoll = canHaveSunder && sunderChance > 0 ? Math.random() : null;
     const sunderWeapon = sunderRoll !== null && sunderRoll < sunderChance;
     const canHavePoison = !sunderWeapon && primaryProf && POISON_ELIGIBLE_PROFS.has(primaryProf);
-    const rawPoisonChance = Number(pool.poisonChance || 0) + Number(extraOptions.enemyPoisonChance || 0);
+    const rawPoisonChance =
+      Number(pool.poisonChance || 0) + Number(extraOptions.enemyPoisonChance || 0);
     const poisonChance = Math.max(0, Math.min(1, rawPoisonChance));
     let poisonWeapon = false;
     if (canHavePoison && poisonChance > 0) {
@@ -952,8 +1068,10 @@ function generateEnemies(
 
     if (DEBUG_MAP_GEN) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
-      const chosenScore = scored.find(s => s.item === pos)?.weight;
-      mapGenLog.debug(`${className} -> (${pos.col},${pos.row}) ${tName} score=${chosenScore} candidates=${scored.length}`);
+      const chosenScore = scored.find((s) => s.item === pos)?.weight;
+      mapGenLog.debug(
+        `${className} -> (${pos.col},${pos.row}) ${tName} score=${chosenScore} candidates=${scored.length}`,
+      );
     }
 
     spawns.push({
@@ -970,14 +1088,17 @@ function generateEnemies(
   // Assign guard AI mode only on seize maps to avoid passive enemies on rout maps.
   if (objective === 'seize') {
     const bossHalfCol = Math.floor(cols / 2);
-    const bossHalfEnemies = spawns.filter(s => !s.isBoss && s.col >= bossHalfCol);
-    const guardRate = 0.15 + Math.random() * 0.10; // 15-25%
+    const bossHalfEnemies = spawns.filter((s) => !s.isBoss && s.col >= bossHalfCol);
+    const guardRate = 0.15 + Math.random() * 0.1; // 15-25%
     const guardCount = Math.max(0, Math.round(bossHalfEnemies.length * guardRate));
     const shuffledGuards = [...bossHalfEnemies];
     shuffleArray(shuffledGuards);
     for (let i = 0; i < guardCount; i++) {
       shuffledGuards[i].aiMode = 'guard';
-      if (DEBUG_MAP_GEN) mapGenLog.debug(`Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`);
+      if (DEBUG_MAP_GEN)
+        mapGenLog.debug(
+          `Guard assigned: ${shuffledGuards[i].className} at (${shuffledGuards[i].col},${shuffledGuards[i].row})`,
+        );
     }
   }
 
@@ -995,7 +1116,11 @@ function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap, enem
     offset = [2, 3]; // fallback for unmapped acts (postAct)
   }
   const [minOff, maxOff] = offset;
-  const count = deployCount + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
+  const count =
+    deployCount +
+    minOff +
+    Math.floor(Math.random() * (maxOff - minOff + 1)) +
+    Math.trunc(enemyCountBonus);
 
   // Density safety cap from tile table (prevents overcrowding)
   const cap = getEnemyDensityCapByTiles(tiles, densityCap);
@@ -1003,7 +1128,9 @@ function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap, enem
 }
 
 function getEnemyDensityCapByTiles(tiles, densityCap) {
-  const keys = Object.keys(densityCap).map(Number).sort((a, b) => a - b);
+  const keys = Object.keys(densityCap)
+    .map(Number)
+    .sort((a, b) => a - b);
   let cap = Infinity;
   for (const k of keys) {
     if (k <= tiles) cap = densityCap[String(k)][1];
@@ -1013,12 +1140,20 @@ function getEnemyDensityCapByTiles(tiles, densityCap) {
 
 // --- Reachability check ---
 
-function ensureReachability(mapLayout, cols, rows, terrainData, playerSpawn, enemySpawns, thronePos) {
+function ensureReachability(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  playerSpawn,
+  enemySpawns,
+  thronePos,
+) {
   // BFS from player spawn using Infantry movement
   const reachable = bfs(mapLayout, cols, rows, terrainData, playerSpawn, 'Infantry');
 
   // Collect all targets that must be reachable
-  const targets = enemySpawns.map(e => ({ col: e.col, row: e.row }));
+  const targets = enemySpawns.map((e) => ({ col: e.col, row: e.row }));
   if (thronePos) targets.push(thronePos);
 
   for (const target of targets) {
@@ -1077,7 +1212,7 @@ function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable)
     target,
     reachable,
     'Infantry',
-    cols + rows
+    cols + rows,
   );
 }
 
@@ -1090,7 +1225,7 @@ function carvePathForMoveType(
   target,
   reachable,
   moveType,
-  maxConversions
+  maxConversions,
 ) {
   if (!start || !target || maxConversions <= 0) return 0;
 
@@ -1157,7 +1292,7 @@ function ensureCavalryAdvanceGuarantees({
     rows,
     terrainData,
     cavalrySources,
-    engagementCandidates
+    engagementCandidates,
   );
 
   if (objective !== 'seize' || !thronePos) return;
@@ -1171,18 +1306,11 @@ function ensureCavalryAdvanceGuarantees({
     rows,
     terrainData,
     cavalrySources,
-    thronePressureCandidates
+    thronePressureCandidates,
   );
 }
 
-function ensureCavalryCanReachCandidates(
-  mapLayout,
-  cols,
-  rows,
-  terrainData,
-  sources,
-  candidates
-) {
+function ensureCavalryCanReachCandidates(mapLayout, cols, rows, terrainData, sources, candidates) {
   if (!Array.isArray(sources) || sources.length === 0) return;
   if (!Array.isArray(candidates) || candidates.length === 0) return;
 
@@ -1191,12 +1319,7 @@ function ensureCavalryCanReachCandidates(
 
   let remainingConversions = CAVALRY_CARVE_MAX_CONVERSIONS;
   while (remainingConversions > 0) {
-    const rankedTarget = pickBestCavalryTarget(
-      mapLayout,
-      terrainData,
-      sources,
-      candidates
-    );
+    const rankedTarget = pickBestCavalryTarget(mapLayout, terrainData, sources, candidates);
     if (!rankedTarget) break;
 
     const conversions = carvePathForMoveType(
@@ -1208,7 +1331,7 @@ function ensureCavalryCanReachCandidates(
       rankedTarget.target,
       reachable,
       'Cavalry',
-      remainingConversions
+      remainingConversions,
     );
     if (conversions <= 0) break;
 
@@ -1220,7 +1343,7 @@ function ensureCavalryCanReachCandidates(
 
 function getCavalrySources(mapLayout, terrainData, playerSpawns) {
   const passableSources = (playerSpawns || []).filter((spawn) =>
-    isPassable(terrainData, mapLayout[spawn.row][spawn.col], 'Cavalry')
+    isPassable(terrainData, mapLayout[spawn.row][spawn.col], 'Cavalry'),
   );
   if (passableSources.length > 0) {
     return passableSources;
@@ -1231,9 +1354,8 @@ function getCavalrySources(mapLayout, terrainData, playerSpawns) {
 
   const tileIndex = mapLayout[fallback.row][fallback.col];
   if (!isPassable(terrainData, tileIndex, 'Cavalry')) {
-    mapLayout[fallback.row][fallback.col] = tileIndex === TERRAIN.Water
-      ? TERRAIN.Bridge
-      : TERRAIN.Plain;
+    mapLayout[fallback.row][fallback.col] =
+      tileIndex === TERRAIN.Water ? TERRAIN.Bridge : TERRAIN.Plain;
   }
   return [fallback];
 }
@@ -1290,7 +1412,9 @@ function pickBestCavalryTarget(mapLayout, terrainData, sources, candidates) {
       source: nearestSource,
       target: candidate,
       distance: manhattanDistance(nearestSource, candidate),
-      passableRank: isPassable(terrainData, mapLayout[candidate.row][candidate.col], 'Cavalry') ? 0 : 1,
+      passableRank: isPassable(terrainData, mapLayout[candidate.row][candidate.col], 'Cavalry')
+        ? 0
+        : 1,
     });
   }
 
@@ -1343,7 +1467,8 @@ function getCardinalNeighbors(col, row, cols, rows) {
     { col, row: row + 1 },
   ];
   for (const neighbor of candidates) {
-    if (neighbor.col < 0 || neighbor.col >= cols || neighbor.row < 0 || neighbor.row >= rows) continue;
+    if (neighbor.col < 0 || neighbor.col >= cols || neighbor.row < 0 || neighbor.row >= rows)
+      continue;
     neighbors.push(neighbor);
   }
   return neighbors;
@@ -1369,7 +1494,7 @@ function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
   // Add bridges if needed, spacing them vertically
   while (bridgeCount < minBridges && waterTiles.length > 0) {
     // Pick a water tile roughly evenly spaced
-    const targetRow = Math.floor(rows * (bridgeCount + 1) / (minBridges + 1));
+    const targetRow = Math.floor((rows * (bridgeCount + 1)) / (minBridges + 1));
     // Find closest water tile to target row
     waterTiles.sort((a, b) => Math.abs(a.row - targetRow) - Math.abs(b.row - targetRow));
     const tile = waterTiles.shift();
@@ -1385,9 +1510,19 @@ function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
 function toRomanNumeral(value) {
   let n = Math.max(1, Math.trunc(Number(value) || 1));
   const map = [
-    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
-    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
-    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+    [1000, 'M'],
+    [900, 'CM'],
+    [500, 'D'],
+    [400, 'CD'],
+    [100, 'C'],
+    [90, 'XC'],
+    [50, 'L'],
+    [40, 'XL'],
+    [10, 'X'],
+    [9, 'IX'],
+    [5, 'V'],
+    [4, 'IV'],
+    [1, 'I'],
   ];
   let out = '';
   for (const [amount, glyph] of map) {
@@ -1411,9 +1546,8 @@ function getUsedRecruitNameSet(usedRecruitNames = {}) {
 }
 
 function makeUniqueRecruitName(baseName, usedNames) {
-  const safeBase = (typeof baseName === 'string' && baseName.trim().length > 0)
-    ? baseName.trim()
-    : 'Recruit';
+  const safeBase =
+    typeof baseName === 'string' && baseName.trim().length > 0 ? baseName.trim() : 'Recruit';
   if (!usedNames.has(safeBase)) return safeBase;
 
   for (let i = 2; i <= 99; i++) {
@@ -1431,9 +1565,8 @@ function makeUniqueRecruitName(baseName, usedNames) {
 
 function trackRecruitNameUsage(usedRecruitNames, className, name) {
   if (!usedRecruitNames || typeof usedRecruitNames !== 'object') return;
-  const classKey = (typeof className === 'string' && className.trim().length > 0)
-    ? className.trim()
-    : 'Recruit';
+  const classKey =
+    typeof className === 'string' && className.trim().length > 0 ? className.trim() : 'Recruit';
 
   if (!Array.isArray(usedRecruitNames[classKey])) usedRecruitNames[classKey] = [];
   if (!usedRecruitNames[classKey].includes(name)) usedRecruitNames[classKey].push(name);
@@ -1442,7 +1575,19 @@ function trackRecruitNameUsage(usedRecruitNames, className, name) {
   if (!usedRecruitNames.__all__.includes(name)) usedRecruitNames.__all__.push(name);
 }
 
-function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enemySpawns, recruitPool, template, classesData, weaponsData, usedRecruitNames = {}) {
+function generateNPCSpawn(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  playerSpawns,
+  enemySpawns,
+  recruitPool,
+  template,
+  classesData,
+  weaponsData,
+  usedRecruitNames = {},
+) {
   const { classPool, namePool, levelRange } = recruitPool;
   // If we have classPool (new structure), pick from it. Else fall back to pool (old structure).
   const className = classPool
@@ -1454,13 +1599,15 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   let name = makeUniqueRecruitName(className, usedGlobalNames); // Fallback
   if (namePool && namePool[className]) {
     const classNames = namePool[className];
-    const usedByClass = Array.isArray(usedRecruitNames[className]) ? usedRecruitNames[className] : [];
-    const available = classNames.filter(n => !usedByClass.includes(n) && !usedGlobalNames.has(n));
+    const usedByClass = Array.isArray(usedRecruitNames[className])
+      ? usedRecruitNames[className]
+      : [];
+    const available = classNames.filter((n) => !usedByClass.includes(n) && !usedGlobalNames.has(n));
 
     if (available.length > 0) {
       name = available[Math.floor(Math.random() * available.length)];
     } else {
-      const globallyAvailable = classNames.filter(n => !usedGlobalNames.has(n));
+      const globallyAvailable = classNames.filter((n) => !usedGlobalNames.has(n));
       if (globallyAvailable.length > 0) {
         name = globallyAvailable[Math.floor(Math.random() * globallyAvailable.length)];
       } else {
@@ -1472,7 +1619,7 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
     trackRecruitNameUsage(usedRecruitNames, className, name);
   } else if (recruitPool.pool) {
     // Old structure fallback
-    const entry = recruitPool.pool.find(p => p.className === className) || recruitPool.pool[0];
+    const entry = recruitPool.pool.find((p) => p.className === className) || recruitPool.pool[0];
     name = makeUniqueRecruitName(entry.name, usedGlobalNames);
     trackRecruitNameUsage(usedRecruitNames, className, name);
   }
@@ -1486,16 +1633,21 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   for (const s of enemySpawns) occupied.add(`${s.col},${s.row}`);
 
   // D2: River map NPC spawn bias — tighter range for river templates
-  const isRiverTemplate = template && (template.id === 'river_crossing' ||
-    (template.zones && template.zones.some(z => z.terrain && z.terrain.Water >= 50)));
-  const tightStartCol = Math.floor(cols * 0.20);
-  const tightEndCol = Math.ceil(cols * 0.40);
-  const wideStartCol = Math.floor(cols * 0.20);
+  const isRiverTemplate =
+    template &&
+    (template.id === 'river_crossing' ||
+      (template.zones && template.zones.some((z) => z.terrain && z.terrain.Water >= 50)));
+  const tightStartCol = Math.floor(cols * 0.2);
+  const tightEndCol = Math.ceil(cols * 0.4);
+  const wideStartCol = Math.floor(cols * 0.2);
   const wideEndCol = Math.ceil(cols * 0.55);
 
   if (DEBUG_MAP_GEN) {
     mapGenLog.debug(`NPC Spawn template=${template?.id}, isRiver=${isRiverTemplate}`);
-    if (isRiverTemplate) mapGenLog.debug(`NPC Spawn river bias: trying tight zone [${tightStartCol}-${tightEndCol}] first`);
+    if (isRiverTemplate)
+      mapGenLog.debug(
+        `NPC Spawn river bias: trying tight zone [${tightStartCol}-${tightEndCol}] first`,
+      );
   }
 
   // Pre-compute enemy turn-1 reach for D3 threat radius check
@@ -1509,8 +1661,12 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
         const key = `${c},${r}`;
         if (occupied.has(key)) continue;
         if (!isPassable(terrainData, mapLayout[r][c], 'Infantry')) continue;
-        const minPlayerDist = Math.min(...playerSpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
-        const minEnemyDist = Math.min(...enemySpawns.map(s => Math.abs(s.col - c) + Math.abs(s.row - r)));
+        const minPlayerDist = Math.min(
+          ...playerSpawns.map((s) => Math.abs(s.col - c) + Math.abs(s.row - r)),
+        );
+        const minEnemyDist = Math.min(
+          ...enemySpawns.map((s) => Math.abs(s.col - c) + Math.abs(s.row - r)),
+        );
         if (minPlayerDist >= 2 && minEnemyDist >= 4) {
           cands.push({ col: c, row: r, playerDist: minPlayerDist });
         }
@@ -1523,10 +1679,12 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
   let candidates;
   if (isRiverTemplate) {
     candidates = findCandidates(tightStartCol, tightEndCol);
-    if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn river tight zone: ${candidates.length} candidates`);
+    if (DEBUG_MAP_GEN)
+      mapGenLog.debug(`NPC Spawn river tight zone: ${candidates.length} candidates`);
     if (candidates.length === 0) {
       candidates = findCandidates(wideStartCol, wideEndCol);
-      if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn river fallback to wide zone: ${candidates.length} candidates`);
+      if (DEBUG_MAP_GEN)
+        mapGenLog.debug(`NPC Spawn river fallback to wide zone: ${candidates.length} candidates`);
     }
   } else {
     candidates = findCandidates(wideStartCol, wideEndCol);
@@ -1544,7 +1702,9 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
       const candidate = pickPool[attempt];
       const threatsInRange = countThreats(candidate.col, candidate.row, enemyReach);
       if (DEBUG_MAP_GEN) {
-        mapGenLog.debug(`NPC Spawn attempt ${attempt + 1}: (${candidate.col},${candidate.row}) threats=${threatsInRange} ${threatsInRange > 2 ? 'REJECTED' : 'ACCEPTED'}`);
+        mapGenLog.debug(
+          `NPC Spawn attempt ${attempt + 1}: (${candidate.col},${candidate.row}) threats=${threatsInRange} ${threatsInRange > 2 ? 'REJECTED' : 'ACCEPTED'}`,
+        );
       }
       if (threatsInRange <= 2) {
         pos = candidate;
@@ -1554,7 +1714,10 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
     // If all retries failed, place anyway with warning
     if (!pos) {
       pos = pickPool[0];
-      if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn all ${maxRetries} retries exceeded threat limit, placing at (${pos.col},${pos.row}) anyway`);
+      if (DEBUG_MAP_GEN)
+        mapGenLog.debug(
+          `NPC Spawn all ${maxRetries} retries exceeded threat limit, placing at (${pos.col},${pos.row}) anyway`,
+        );
     }
   } else {
     // Fallback: any passable tile in wide zone (relax distance constraints)
@@ -1590,11 +1753,19 @@ function generateNPCSpawn(mapLayout, cols, rows, terrainData, playerSpawns, enem
 // Estimate max weapon range from a class's primary weapon proficiency
 function estimateMaxWeaponRange(className, classesData, weaponsData) {
   if (!classesData || !weaponsData) return 1;
-  const cd = classesData.find(c => c.name === className);
+  const cd = classesData.find((c) => c.name === className);
   if (!cd?.weaponProficiencies) return 1;
   const primaryProf = cd.weaponProficiencies.split(',')[0]?.trim()?.split(' ')[0];
   // Map proficiency to weapon type
-  const profToType = { Swords: 'Sword', Lances: 'Lance', Axes: 'Axe', Bows: 'Bow', Tomes: 'Tome', Light: 'Light', Staves: 'Staff' };
+  const profToType = {
+    Swords: 'Sword',
+    Lances: 'Lance',
+    Axes: 'Axe',
+    Bows: 'Bow',
+    Tomes: 'Tome',
+    Light: 'Light',
+    Staves: 'Staff',
+  };
   const weaponType = profToType[primaryProf];
   if (!weaponType) return 1;
   // Find max range among that weapon type
@@ -1611,8 +1782,8 @@ function estimateMaxWeaponRange(className, classesData, weaponsData) {
 
 // Pre-compute enemy turn-1 reach: MOV + max weapon range
 function computeEnemyReach(enemySpawns, classesData, weaponsData) {
-  return enemySpawns.map(e => {
-    const cd = classesData?.find(c => c.name === e.className);
+  return enemySpawns.map((e) => {
+    const cd = classesData?.find((c) => c.name === e.className);
     const mov = cd?.baseStats?.MOV || 4;
     const maxRange = estimateMaxWeaponRange(e.className, classesData, weaponsData);
     return { col: e.col, row: e.row, reach: mov + maxRange };
@@ -1643,7 +1814,7 @@ function weightedRandom(weights) {
 }
 
 function terrainNameToIndex(name, terrainData) {
-  return terrainData.findIndex(t => t.name === name);
+  return terrainData.findIndex((t) => t.name === name);
 }
 
 function isPassable(terrainData, terrainIndex, moveType) {
@@ -1658,13 +1829,30 @@ function isPassable(terrainData, terrainIndex, moveType) {
  * Uses the provided moveType to validate terrain passability.
  * Returns { col, row } or null if none found.
  */
-function findAdjacentPassableTile(mapLayout, cols, rows, terrainData, anchor, occupied, moveType = 'Infantry') {
+function findAdjacentPassableTile(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  anchor,
+  occupied,
+  moveType = 'Infantry',
+) {
   const deltas = [
     // Distance 1
-    [0, -1], [0, 1], [-1, 0], [1, 0],
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
     // Distance 2
-    [-1, -1], [-1, 1], [1, -1], [1, 1],
-    [0, -2], [0, 2], [-2, 0], [2, 0],
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+    [0, -2],
+    [0, 2],
+    [-2, 0],
+    [2, 0],
   ];
   for (const [dc, dr] of deltas) {
     const c = anchor.col + dc;

@@ -37,7 +37,7 @@ export class UnitInspectionPanel {
     const tooltipH = 34;
 
     let tx = pixelX + TILE_SIZE / 2 + 4; // right of unit
-    let ty = pixelY - (TILE_SIZE / 2) - 4;
+    let ty = pixelY - TILE_SIZE / 2 - 4;
 
     // Clamp to screen edges (640x480)
     if (tx + tooltipW > viewW - 4) tx = pixelX - tooltipW - 4;
@@ -46,8 +46,11 @@ export class UnitInspectionPanel {
     if (tx < 4) tx = 4;
 
     // Dark background box
-    const bg = this.scene.add.rectangle(tx, ty, tooltipW, tooltipH, 0x111122, 0.92)
-      .setOrigin(0, 0).setDepth(150).setStrokeStyle(1, 0x666688)
+    const bg = this.scene.add
+      .rectangle(tx, ty, tooltipW, tooltipH, 0x111122, 0.92)
+      .setOrigin(0, 0)
+      .setDepth(150)
+      .setStrokeStyle(1, 0x666688)
       .setInteractive({ useHandCursor: true });
     bg.on('pointerdown', () => {
       if (this.scene.openUnitDetailOverlay) this.scene.openUnitDetailOverlay();
@@ -55,15 +58,23 @@ export class UnitInspectionPanel {
     this.objects.push(bg);
 
     // Unit name
-    const nameText = this.scene.add.text(tx + 6, ty + 3, unit.name, {
-      fontFamily: 'monospace', fontSize: '10px', color: UI_COLORS.gold,
-    }).setDepth(151);
+    const nameText = this.scene.add
+      .text(tx + 6, ty + 3, unit.name, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: UI_COLORS.gold,
+      })
+      .setDepth(151);
     this.objects.push(nameText);
 
     const hintLabel = this.scene?.isMobileInput ? 'Tap to View Unit' : 'View Unit [V]';
-    const hintText = this.scene.add.text(tx + 6, ty + 17, hintLabel, {
-      fontFamily: 'monospace', fontSize: '9px', color: UI_COLORS.gray,
-    }).setDepth(151);
+    const hintText = this.scene.add
+      .text(tx + 6, ty + 17, hintLabel, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: UI_COLORS.gray,
+      })
+      .setDepth(151);
     this.objects.push(hintText);
 
     this.scene?._pinToScreen?.(this.objects);

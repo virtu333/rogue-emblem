@@ -5,7 +5,12 @@ import {
   resolveClassWeight,
   CAVALRY_CARVE_MAX_CONVERSIONS,
 } from '../src/engine/MapGenerator.js';
-import { TERRAIN, DEPLOY_LIMITS, ACT_SEQUENCE, ENEMY_COUNT_OFFSET } from '../src/utils/constants.js';
+import {
+  TERRAIN,
+  DEPLOY_LIMITS,
+  ACT_SEQUENCE,
+  ENEMY_COUNT_OFFSET,
+} from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -26,7 +31,7 @@ function withSeed(seed, fn) {
 function mulberry32(seed) {
   return function () {
     seed |= 0;
-    seed = (seed + 0x6D2B79F5) | 0;
+    seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -34,7 +39,9 @@ function mulberry32(seed) {
 }
 
 function capForTiles(tiles, densityCap) {
-  const keys = Object.keys(densityCap).map(Number).sort((a, b) => a - b);
+  const keys = Object.keys(densityCap)
+    .map(Number)
+    .sort((a, b) => a - b);
   let cap = Infinity;
   for (const k of keys) {
     if (k <= tiles) cap = densityCap[String(k)][1];
@@ -64,14 +71,15 @@ describe('MapGenerator', () => {
       expect(config.thronePos.row).toBeGreaterThanOrEqual(0);
 
       // Should have at least one boss
-      const bosses = config.enemySpawns.filter(e => e.isBoss);
+      const bosses = config.enemySpawns.filter((e) => e.isBoss);
       expect(bosses.length).toBe(1);
     });
 
     it('throws a clear error when no valid template is available', () => {
       const deps = { ...data, mapTemplates: { rout: [], seize: [] } };
-      expect(() => generateBattle({ act: 'act1', objective: 'rout' }, deps))
-        .toThrow('No valid map template found');
+      expect(() => generateBattle({ act: 'act1', objective: 'rout' }, deps)).toThrow(
+        'No valid map template found',
+      );
     });
 
     it('throws a clear error for seize when seize pool is empty', () => {
@@ -82,8 +90,9 @@ describe('MapGenerator', () => {
           seize: [],
         },
       };
-      expect(() => generateBattle({ act: 'act1', objective: 'seize' }, deps))
-        .toThrow('No valid map template found');
+      expect(() => generateBattle({ act: 'act1', objective: 'seize' }, deps)).toThrow(
+        'No valid map template found',
+      );
     });
   });
 
@@ -119,7 +128,7 @@ describe('MapGenerator', () => {
 
     it('seize map has a Throne tile at thronePos', () => {
       const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
-      const throneIdx = data.terrain.findIndex(t => t.name === 'Throne');
+      const throneIdx = data.terrain.findIndex((t) => t.name === 'Throne');
       const tp = config.thronePos;
       expect(config.mapLayout[tp.row][tp.col]).toBe(throneIdx);
     });
@@ -147,8 +156,8 @@ describe('MapGenerator', () => {
     it('no two spawns share the same tile', () => {
       const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
       const allPositions = [
-        ...config.playerSpawns.map(s => `${s.col},${s.row}`),
-        ...config.enemySpawns.map(s => `${s.col},${s.row}`),
+        ...config.playerSpawns.map((s) => `${s.col},${s.row}`),
+        ...config.enemySpawns.map((s) => `${s.col},${s.row}`),
       ];
       const unique = new Set(allPositions);
       expect(unique.size).toBe(allPositions.length);
@@ -160,11 +169,18 @@ describe('MapGenerator', () => {
       // Run multiple times since maps are random
       for (let i = 0; i < 10; i++) {
         const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
-        const reachable = bfs(config.mapLayout, config.cols, config.rows, data.terrain, config.playerSpawns[0]);
+        const reachable = bfs(
+          config.mapLayout,
+          config.cols,
+          config.rows,
+          data.terrain,
+          config.playerSpawns[0],
+        );
 
         for (const enemy of config.enemySpawns) {
-          expect(reachable.has(`${enemy.col},${enemy.row}`),
-            `Enemy at (${enemy.col},${enemy.row}) unreachable on iteration ${i}`
+          expect(
+            reachable.has(`${enemy.col},${enemy.row}`),
+            `Enemy at (${enemy.col},${enemy.row}) unreachable on iteration ${i}`,
           ).toBe(true);
         }
       }
@@ -173,10 +189,17 @@ describe('MapGenerator', () => {
     it('throne is reachable on seize maps', () => {
       for (let i = 0; i < 10; i++) {
         const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
-        const reachable = bfs(config.mapLayout, config.cols, config.rows, data.terrain, config.playerSpawns[0]);
+        const reachable = bfs(
+          config.mapLayout,
+          config.cols,
+          config.rows,
+          data.terrain,
+          config.playerSpawns[0],
+        );
         const tp = config.thronePos;
-        expect(reachable.has(`${tp.col},${tp.row}`),
-          `Throne at (${tp.col},${tp.row}) unreachable on iteration ${i}`
+        expect(
+          reachable.has(`${tp.col},${tp.row}`),
+          `Throne at (${tp.col},${tp.row}) unreachable on iteration ${i}`,
         ).toBe(true);
       }
     });
@@ -231,13 +254,16 @@ describe('MapGenerator', () => {
 
     it('guarantees cavalry can reach an unoccupied enemy-adjacent tile on chokepoint', () => {
       const config = withSeed(18, () =>
-        generateBattle({
-          act: 'act2',
-          objective: 'rout',
-          templateId: 'chokepoint',
-          deployCount: 4,
-          row: 0,
-        }, data)
+        generateBattle(
+          {
+            act: 'act2',
+            objective: 'rout',
+            templateId: 'chokepoint',
+            deployCount: 4,
+            row: 0,
+          },
+          data,
+        ),
       );
 
       const candidates = collectUnoccupiedAdjacentEnemyTiles(config);
@@ -247,13 +273,16 @@ describe('MapGenerator', () => {
 
     it('guarantees cavalry can reach a throne-adjacent tile on hilltop_fortress', () => {
       const config = withSeed(36, () =>
-        generateBattle({
-          act: 'act4',
-          objective: 'seize',
-          templateId: 'hilltop_fortress',
-          deployCount: 6,
-          row: 1,
-        }, data)
+        generateBattle(
+          {
+            act: 'act4',
+            objective: 'seize',
+            templateId: 'hilltop_fortress',
+            deployCount: 6,
+            row: 1,
+          },
+          data,
+        ),
       );
 
       const candidates = collectThroneAdjacentTiles(config, true);
@@ -263,13 +292,16 @@ describe('MapGenerator', () => {
 
     it('still enforces throne pressure when all unoccupied throne-adjacent tiles are exhausted', () => {
       const config = withSeed(488, () =>
-        generateBattle({
-          act: 'act3',
-          objective: 'seize',
-          templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID,
-          deployCount: 6,
-          row: 1,
-        }, data)
+        generateBattle(
+          {
+            act: 'act3',
+            objective: 'seize',
+            templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID,
+            deployCount: 6,
+            row: 1,
+          },
+          data,
+        ),
       );
 
       const unoccupiedCandidates = collectThroneAdjacentTiles(config, false);
@@ -283,17 +315,20 @@ describe('MapGenerator', () => {
     it('converts at least one player spawn to cavalry-passable when all spawns start on Mountain', () => {
       const deps = makeCavalryStressDeps();
       const config = withSeed(7, () =>
-        generateBattle({
-          act: 'act1',
-          objective: 'rout',
-          templateId: 'cavalry_stress_test',
-          deployCount: 2,
-          row: 0,
-        }, deps)
+        generateBattle(
+          {
+            act: 'act1',
+            objective: 'rout',
+            templateId: 'cavalry_stress_test',
+            deployCount: 2,
+            row: 0,
+          },
+          deps,
+        ),
       );
 
       const cavalryPassableSpawns = config.playerSpawns.filter((spawn) =>
-        isPassableForMoveType(data.terrain, config.mapLayout[spawn.row][spawn.col], 'Cavalry')
+        isPassableForMoveType(data.terrain, config.mapLayout[spawn.row][spawn.col], 'Cavalry'),
       );
       expect(cavalryPassableSpawns.length).toBeGreaterThan(0);
 
@@ -322,34 +357,61 @@ describe('MapGenerator', () => {
     it('keeps cavalry carve footprint bounded on the mountain stress template', () => {
       const deps = makeCavalryStressDeps();
       const config = withSeed(11, () =>
-        generateBattle({
-          act: 'act1',
-          objective: 'rout',
-          templateId: 'cavalry_stress_test',
-          deployCount: 2,
-          row: 0,
-        }, deps)
+        generateBattle(
+          {
+            act: 'act1',
+            objective: 'rout',
+            templateId: 'cavalry_stress_test',
+            deployCount: 2,
+            row: 0,
+          },
+          deps,
+        ),
       );
 
-      const nonMountainCount = countTerrainWhere(config, (terrainName) => terrainName !== 'Mountain');
+      const nonMountainCount = countTerrainWhere(
+        config,
+        (terrainName) => terrainName !== 'Mountain',
+      );
       const enemyZoneStartCol = Math.floor(config.cols * 0.7);
       const baselineNonMountain = (config.cols - enemyZoneStartCol) * config.rows;
       expect(nonMountainCount).toBeLessThanOrEqual(
-        baselineNonMountain + CAVALRY_CARVE_MAX_CONVERSIONS + 1
+        baselineNonMountain + CAVALRY_CARVE_MAX_CONVERSIONS + 1,
       );
     });
 
     it('passes a lightweight seeded sweep for known cavalry-challenging templates', () => {
       const scenarios = [
-        { act: 'act2', objective: 'rout', templateId: 'chokepoint', deployCount: 4, row: 0, checkThrone: false },
-        { act: 'act4', objective: 'seize', templateId: 'hilltop_fortress', deployCount: 6, row: 1, checkThrone: true },
-        { act: 'act4', objective: 'seize', templateId: 'eruption_point', deployCount: 6, row: 1, checkThrone: true },
+        {
+          act: 'act2',
+          objective: 'rout',
+          templateId: 'chokepoint',
+          deployCount: 4,
+          row: 0,
+          checkThrone: false,
+        },
+        {
+          act: 'act4',
+          objective: 'seize',
+          templateId: 'hilltop_fortress',
+          deployCount: 6,
+          row: 1,
+          checkThrone: true,
+        },
+        {
+          act: 'act4',
+          objective: 'seize',
+          templateId: 'eruption_point',
+          deployCount: 6,
+          row: 1,
+          checkThrone: true,
+        },
       ];
 
       scenarios.forEach((scenario, scenarioIndex) => {
         for (let seed = 1; seed <= 5; seed++) {
           const config = withSeed(1000 + scenarioIndex * 100 + seed, () =>
-            generateBattle(scenario, data)
+            generateBattle(scenario, data),
           );
 
           const engagementCandidates = collectUnoccupiedAdjacentEnemyTiles(config);
@@ -389,7 +451,7 @@ describe('MapGenerator', () => {
     it('seize maps have exactly one boss', () => {
       for (let i = 0; i < 5; i++) {
         const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
-        const bosses = config.enemySpawns.filter(e => e.isBoss);
+        const bosses = config.enemySpawns.filter((e) => e.isBoss);
         expect(bosses.length).toBe(1);
         expect(bosses[0].name).toBeTruthy();
       }
@@ -397,11 +459,14 @@ describe('MapGenerator', () => {
 
     it('act1 boss pool excludes Knight', () => {
       const act1Bosses = data.enemies.bosses.act1 || [];
-      expect(act1Bosses.some(b => b.className === 'Knight')).toBe(false);
+      expect(act1Bosses.some((b) => b.className === 'Knight')).toBe(false);
     });
 
     it('firstBattleFightersOnly spawns only Fighter enemies', () => {
-      const config = generateBattle({ act: 'act1', objective: 'rout', firstBattleFightersOnly: true }, data);
+      const config = generateBattle(
+        { act: 'act1', objective: 'rout', firstBattleFightersOnly: true },
+        data,
+      );
       for (const spawn of config.enemySpawns) {
         expect(spawn.className).toBe('Fighter');
       }
@@ -430,7 +495,10 @@ describe('MapGenerator', () => {
 
   describe('NPC spawn for recruit battles', () => {
     it('isRecruitBattle produces battleConfig with npcSpawn', () => {
-      const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+      const config = generateBattle(
+        { act: 'act1', objective: 'rout', isRecruitBattle: true },
+        data,
+      );
       expect(config.npcSpawn).not.toBeNull();
       expect(config.npcSpawn.className).toBeTruthy();
       expect(config.npcSpawn.name).toBeTruthy();
@@ -441,7 +509,10 @@ describe('MapGenerator', () => {
 
     it('NPC spawn is on a passable tile', () => {
       for (let i = 0; i < 10; i++) {
-        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', isRecruitBattle: true },
+          data,
+        );
         const npc = config.npcSpawn;
         const terrainIdx = config.mapLayout[npc.row][npc.col];
         const t = data.terrain[terrainIdx];
@@ -451,7 +522,10 @@ describe('MapGenerator', () => {
 
     it('NPC spawn is not on player or enemy spawn position', () => {
       for (let i = 0; i < 10; i++) {
-        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', isRecruitBattle: true },
+          data,
+        );
         const npc = config.npcSpawn;
         const npcKey = `${npc.col},${npc.row}`;
         for (const ps of config.playerSpawns) {
@@ -478,7 +552,7 @@ describe('MapGenerator', () => {
       for (let i = 0; i < 6; i++) {
         const config = generateBattle(
           { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
-          data
+          data,
         );
         expect(config.npcSpawn).toBeTruthy();
         expect(seen.has(config.npcSpawn.name)).toBe(false);
@@ -495,11 +569,11 @@ describe('MapGenerator', () => {
       const usedRecruitNames = {};
       const first = generateBattle(
         { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
-        localData
+        localData,
       );
       const second = generateBattle(
         { act: 'act1', objective: 'rout', isRecruitBattle: true, usedRecruitNames },
-        localData
+        localData,
       );
 
       expect(first.npcSpawn).toBeTruthy();
@@ -509,15 +583,21 @@ describe('MapGenerator', () => {
 
     it('NPC spawn is biased toward player side of map', () => {
       for (let i = 0; i < 20; i++) {
-        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', isRecruitBattle: true },
+          data,
+        );
         const npc = config.npcSpawn;
-        expect(npc.col).toBeLessThan(Math.ceil(config.cols * 0.60));
+        expect(npc.col).toBeLessThan(Math.ceil(config.cols * 0.6));
       }
     });
 
     it('NPC spawn maintains distance from enemy spawns', () => {
       for (let i = 0; i < 20; i++) {
-        const config = generateBattle({ act: 'act1', objective: 'rout', isRecruitBattle: true }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', isRecruitBattle: true },
+          data,
+        );
         const npc = config.npcSpawn;
         for (const es of config.enemySpawns) {
           const dist = Math.abs(npc.col - es.col) + Math.abs(npc.row - es.row);
@@ -532,12 +612,17 @@ describe('MapGenerator', () => {
       let playerSideCount = 0;
       const trials = 100;
       for (let i = 0; i < trials; i++) {
-        const config = generateBattle({
-          act: 'act2', objective: 'rout', isRecruitBattle: true,
-          templateId: 'river_crossing',
-        }, data);
+        const config = generateBattle(
+          {
+            act: 'act2',
+            objective: 'rout',
+            isRecruitBattle: true,
+            templateId: 'river_crossing',
+          },
+          data,
+        );
         if (!config.npcSpawn) continue;
-        const threshold = Math.ceil(config.cols * 0.40);
+        const threshold = Math.ceil(config.cols * 0.4);
         if (config.npcSpawn.col < threshold) playerSideCount++;
       }
       expect(playerSideCount).toBeGreaterThan(trials * 0.75);
@@ -545,11 +630,16 @@ describe('MapGenerator', () => {
 
     it('non-river templates still use standard 20-55% range', () => {
       for (let i = 0; i < 20; i++) {
-        const config = generateBattle({
-          act: 'act1', objective: 'rout', isRecruitBattle: true,
-        }, data);
+        const config = generateBattle(
+          {
+            act: 'act1',
+            objective: 'rout',
+            isRecruitBattle: true,
+          },
+          data,
+        );
         if (!config.npcSpawn) continue;
-        expect(config.npcSpawn.col).toBeLessThan(Math.ceil(config.cols * 0.60));
+        expect(config.npcSpawn.col).toBeLessThan(Math.ceil(config.cols * 0.6));
       }
     });
   });
@@ -559,15 +649,20 @@ describe('MapGenerator', () => {
       let safeCount = 0;
       const trials = 100;
       for (let i = 0; i < trials; i++) {
-        const config = generateBattle({
-          act: 'act2', objective: 'rout', isRecruitBattle: true,
-        }, data);
+        const config = generateBattle(
+          {
+            act: 'act2',
+            objective: 'rout',
+            isRecruitBattle: true,
+          },
+          data,
+        );
         if (!config.npcSpawn) continue;
         const npc = config.npcSpawn;
         // Estimate enemy reach: class MOV + max weapon range (capped at 2)
         let threats = 0;
         for (const e of config.enemySpawns) {
-          const cd = data.classes.find(c => c.name === e.className);
+          const cd = data.classes.find((c) => c.name === e.className);
           const mov = cd?.baseStats?.MOV || 4;
           const dist = Math.abs(e.col - npc.col) + Math.abs(e.row - npc.row);
           // Simplified: MOV + 2 (generous cap for max weapon range)
@@ -647,7 +742,7 @@ describe('MapGenerator', () => {
         for (let i = 0; i < 10; i++) {
           const deployCount = DEPLOY_LIMITS[act]?.max || 4;
           const config = generateBattle({ act, objective: 'rout', deployCount }, data);
-          const nonBossEnemies = config.enemySpawns.filter(e => !e.isBoss).length;
+          const nonBossEnemies = config.enemySpawns.filter((e) => !e.isBoss).length;
           expect(nonBossEnemies).toBeGreaterThanOrEqual(deployCount);
         }
       }
@@ -656,7 +751,10 @@ describe('MapGenerator', () => {
     it('act1 rows 0-1 produce exactly deployCount enemies (offset [0,0])', () => {
       for (let i = 0; i < 20; i++) {
         const deployCount = 2;
-        const config = generateBattle({ act: 'act1', objective: 'rout', deployCount, row: 0 }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', deployCount, row: 0 },
+          data,
+        );
         expect(config.enemySpawns.length).toBe(deployCount);
       }
     });
@@ -665,7 +763,10 @@ describe('MapGenerator', () => {
       const counts = new Set();
       for (let i = 0; i < 30; i++) {
         const deployCount = 3;
-        const config = generateBattle({ act: 'act1', objective: 'rout', deployCount, row: 4 }, data);
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', deployCount, row: 4 },
+          data,
+        );
         counts.add(config.enemySpawns.length);
         expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount + 1);
         expect(config.enemySpawns.length).toBeLessThanOrEqual(deployCount + 2);
@@ -675,7 +776,10 @@ describe('MapGenerator', () => {
     it('boss fights use boss offset (higher enemy count)', () => {
       for (let i = 0; i < 10; i++) {
         const deployCount = 4;
-        const config = generateBattle({ act: 'act2', objective: 'seize', deployCount, isBoss: true }, data);
+        const config = generateBattle(
+          { act: 'act2', objective: 'seize', deployCount, isBoss: true },
+          data,
+        );
         // act2 boss offset is [3,4], so total enemies = 4 + 3..4 = 7..8
         // (seize boss is included in enemySpawns, counted within rollEnemyCount total)
         expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount + 3);
@@ -686,7 +790,10 @@ describe('MapGenerator', () => {
       for (let i = 0; i < 10; i++) {
         const deployCount = 4;
         // act2 row 5 has no specific entry, should use default [2,3]
-        const config = generateBattle({ act: 'act2', objective: 'rout', deployCount, row: 5 }, data);
+        const config = generateBattle(
+          { act: 'act2', objective: 'rout', deployCount, row: 5 },
+          data,
+        );
         const count = config.enemySpawns.length;
         expect(count).toBeGreaterThanOrEqual(deployCount + 2);
         expect(count).toBeLessThanOrEqual(deployCount + 3);
@@ -698,10 +805,13 @@ describe('MapGenerator', () => {
     it('adds +1 enemy for recruit battles when under density cap', () => {
       for (let seed = 1; seed <= 30; seed++) {
         const baseline = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0 }, data)
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0 }, data),
         );
         const recruit = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 2, row: 0, isRecruitBattle: true }, data)
+          generateBattle(
+            { act: 'act1', objective: 'rout', deployCount: 2, row: 0, isRecruitBattle: true },
+            data,
+          ),
         );
         expect(recruit.enemySpawns.length).toBe(baseline.enemySpawns.length + 1);
       }
@@ -710,10 +820,13 @@ describe('MapGenerator', () => {
     it('does not exceed density cap when recruit +1 would overflow cap', () => {
       for (let seed = 1; seed <= 20; seed++) {
         const baseline = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4 }, data)
+          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4 }, data),
         );
         const recruit = withSeed(seed, () =>
-          generateBattle({ act: 'act1', objective: 'rout', deployCount: 7, row: 4, isRecruitBattle: true }, data)
+          generateBattle(
+            { act: 'act1', objective: 'rout', deployCount: 7, row: 4, isRecruitBattle: true },
+            data,
+          ),
         );
 
         const tiles = baseline.cols * baseline.rows;
@@ -728,8 +841,11 @@ describe('MapGenerator', () => {
     it('finalBoss support enemy count within [3,5] offset', () => {
       for (let i = 0; i < 20; i++) {
         const deployCount = DEPLOY_LIMITS.finalBoss.max;
-        const config = generateBattle({ act: 'finalBoss', objective: 'rout', deployCount, isBoss: true }, data);
-        const nonBoss = config.enemySpawns.filter(e => !e.isBoss).length;
+        const config = generateBattle(
+          { act: 'finalBoss', objective: 'rout', deployCount, isBoss: true },
+          data,
+        );
+        const nonBoss = config.enemySpawns.filter((e) => !e.isBoss).length;
         expect(nonBoss).toBeGreaterThanOrEqual(deployCount + 3);
         expect(nonBoss).toBeLessThanOrEqual(deployCount + 5);
       }
@@ -738,7 +854,10 @@ describe('MapGenerator', () => {
     it('finalBoss support enemy levels within [13, 18]', () => {
       for (let i = 0; i < 10; i++) {
         const deployCount = DEPLOY_LIMITS.finalBoss.max;
-        const config = generateBattle({ act: 'finalBoss', objective: 'rout', deployCount, isBoss: true }, data);
+        const config = generateBattle(
+          { act: 'finalBoss', objective: 'rout', deployCount, isBoss: true },
+          data,
+        );
         for (const spawn of config.enemySpawns) {
           if (spawn.isBoss) continue;
           expect(spawn.level).toBeGreaterThanOrEqual(13);
@@ -750,8 +869,8 @@ describe('MapGenerator', () => {
 
   describe('act4 progression data', () => {
     it('includes two act4 map sizes (18x12 and 18x13)', () => {
-      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
-      const keys = new Set(act4Sizes.map(s => s.mapSize));
+      const act4Sizes = data.mapSizes.filter((s) => s.phase.startsWith('Act 4'));
+      const keys = new Set(act4Sizes.map((s) => s.mapSize));
       expect(act4Sizes.length).toBe(2);
       expect(keys.has('18x12')).toBe(true);
       expect(keys.has('18x13')).toBe(true);
@@ -766,7 +885,7 @@ describe('MapGenerator', () => {
     });
 
     it('act4 enemy count offsets stay under density caps for both act4 map sizes', () => {
-      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
+      const act4Sizes = data.mapSizes.filter((s) => s.phase.startsWith('Act 4'));
       const deployCount = DEPLOY_LIMITS.act4.max;
       const maxOffset = ENEMY_COUNT_OFFSET.act4.default[1];
       for (const size of act4Sizes) {
@@ -776,16 +895,19 @@ describe('MapGenerator', () => {
     });
 
     it('generateBattle produces valid act4 rout battles for each act4 map size', () => {
-      const act4Sizes = data.mapSizes.filter(s => s.phase.startsWith('Act 4'));
+      const act4Sizes = data.mapSizes.filter((s) => s.phase.startsWith('Act 4'));
       const deployCount = DEPLOY_LIMITS.act4.max;
       for (const sizeEntry of act4Sizes) {
         const deps = { ...data, mapSizes: [sizeEntry] };
-        const config = generateBattle({
-          act: 'act4',
-          objective: 'rout',
-          deployCount,
-          templateId: 'frozen_pass',
-        }, deps);
+        const config = generateBattle(
+          {
+            act: 'act4',
+            objective: 'rout',
+            deployCount,
+            templateId: 'frozen_pass',
+          },
+          deps,
+        );
         const cap = capForTiles(sizeEntry.tiles, data.enemies.enemyCountByTiles);
         expect(`${config.cols}x${config.rows}`).toBe(sizeEntry.mapSize);
         expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount);
@@ -794,11 +916,14 @@ describe('MapGenerator', () => {
     });
 
     it('passes reinforcement contract fields through for act4 templates', () => {
-      const config = generateBattle({
-        act: 'act4',
-        objective: 'rout',
-        templateId: 'frozen_pass',
-      }, data);
+      const config = generateBattle(
+        {
+          act: 'act4',
+          objective: 'rout',
+          templateId: 'frozen_pass',
+        },
+        data,
+      );
       expect(config.reinforcementContractVersion).toBe(1);
       expect(config.reinforcements).toBeDefined();
       expect(Array.isArray(config.reinforcements.waves)).toBe(true);
@@ -807,11 +932,14 @@ describe('MapGenerator', () => {
 
     it('returns a deep clone of reinforcement config (no shared mutation)', () => {
       const template = data.mapTemplates.rout.find((t) => t.id === 'frozen_pass');
-      const config = generateBattle({
-        act: 'act4',
-        objective: 'rout',
-        templateId: 'frozen_pass',
-      }, data);
+      const config = generateBattle(
+        {
+          act: 'act4',
+          objective: 'rout',
+          templateId: 'frozen_pass',
+        },
+        data,
+      );
       config.reinforcements.waves[0].turn = 99;
       expect(template.reinforcements.waves[0].turn).not.toBe(99);
     });
@@ -823,11 +951,14 @@ describe('MapGenerator', () => {
         { turn: 2, spawns: [{ col: 0, row: 0, className: 'Fighter', level: 8 }] },
       ];
 
-      const config = generateBattle({
-        act: 'act4',
-        objective: 'rout',
-        templateId: 'frozen_pass',
-      }, clonedData);
+      const config = generateBattle(
+        {
+          act: 'act4',
+          objective: 'rout',
+          templateId: 'frozen_pass',
+        },
+        clonedData,
+      );
 
       expect(config.reinforcements.scriptedWaves).toBeDefined();
       config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
@@ -840,11 +971,14 @@ describe('MapGenerator', () => {
         { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID },
       ];
       for (const scenario of scenarios) {
-        const config = generateBattle({
-          act: scenario.act,
-          objective: 'seize',
-          templateId: scenario.templateId,
-        }, data);
+        const config = generateBattle(
+          {
+            act: scenario.act,
+            objective: 'seize',
+            templateId: scenario.templateId,
+          },
+          data,
+        );
         expect(config.templateId).toBe(scenario.templateId);
         expect(config.reinforcementContractVersion).toBe(1);
         expect(config.reinforcements).toBeDefined();
@@ -861,19 +995,26 @@ describe('MapGenerator', () => {
         { act: 'act3', templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID },
       ];
       for (const scenario of scenarios) {
-        const template = data.mapTemplates.seize.find((candidate) => candidate.id === scenario.templateId);
-        const config = generateBattle({
-          act: scenario.act,
-          objective: 'seize',
-          templateId: scenario.templateId,
-        }, data);
+        const template = data.mapTemplates.seize.find(
+          (candidate) => candidate.id === scenario.templateId,
+        );
+        const config = generateBattle(
+          {
+            act: scenario.act,
+            objective: 'seize',
+            templateId: scenario.templateId,
+          },
+          data,
+        );
         config.reinforcements.scriptedWaves[0].spawns[0].col = 99;
         expect(template.reinforcements.scriptedWaves[0].spawns[0].col).not.toBe(99);
       }
     });
 
     it('passes hybrid arena fields through and deep-clones returned hybrid config', () => {
-      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const baseTemplate = data.mapTemplates.seize.find(
+        (template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID,
+      );
       const hybridTemplate = {
         ...baseTemplate,
         id: HYBRID_TEST_TEMPLATE_ID,
@@ -904,12 +1045,15 @@ describe('MapGenerator', () => {
         },
       };
 
-      const config = generateBattle({
-        act: 'act4',
-        objective: 'seize',
-        isBoss: true,
-        templateId: HYBRID_TEST_TEMPLATE_ID,
-      }, deps);
+      const config = generateBattle(
+        {
+          act: 'act4',
+          objective: 'seize',
+          isBoss: true,
+          templateId: HYBRID_TEST_TEMPLATE_ID,
+        },
+        deps,
+      );
 
       expect(config.templateId).toBe(HYBRID_TEST_TEMPLATE_ID);
       expect(config.hybridArena).toBeDefined();
@@ -923,7 +1067,9 @@ describe('MapGenerator', () => {
     });
 
     it('hybrid arena overlay stays fixed across seeds and differences stay in approach region', () => {
-      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const baseTemplate = data.mapTemplates.seize.find(
+        (template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID,
+      );
       const hybridTemplate = {
         ...baseTemplate,
         id: HYBRID_TEST_TEMPLATE_ID,
@@ -949,18 +1095,28 @@ describe('MapGenerator', () => {
           seize: [hybridTemplate],
         },
       };
-      const configA = withSeed(1001, () => generateBattle({
-        act: 'act4',
-        objective: 'seize',
-        isBoss: true,
-        templateId: HYBRID_TEST_TEMPLATE_ID,
-      }, deps));
-      const configB = withSeed(2002, () => generateBattle({
-        act: 'act4',
-        objective: 'seize',
-        isBoss: true,
-        templateId: HYBRID_TEST_TEMPLATE_ID,
-      }, deps));
+      const configA = withSeed(1001, () =>
+        generateBattle(
+          {
+            act: 'act4',
+            objective: 'seize',
+            isBoss: true,
+            templateId: HYBRID_TEST_TEMPLATE_ID,
+          },
+          deps,
+        ),
+      );
+      const configB = withSeed(2002, () =>
+        generateBattle(
+          {
+            act: 'act4',
+            objective: 'seize',
+            isBoss: true,
+            templateId: HYBRID_TEST_TEMPLATE_ID,
+          },
+          deps,
+        ),
+      );
 
       const wallIdx = data.terrain.findIndex((entry) => entry.name === 'Wall');
       const fortIdx = data.terrain.findIndex((entry) => entry.name === 'Fort');
@@ -985,14 +1141,16 @@ describe('MapGenerator', () => {
       let nonApproachNonOverlayDiffs = 0;
       for (let row = 0; row < configA.rows; row++) {
         for (let col = 0; col < configA.cols; col++) {
-          const inApproach = row >= approachStartRow
-            && row < approachEndRow
-            && col >= approachStartCol
-            && col < approachEndCol;
-          const inOverlay = row >= overlayStartRow
-            && row < overlayEndRow
-            && col >= overlayStartCol
-            && col < overlayEndCol;
+          const inApproach =
+            row >= approachStartRow &&
+            row < approachEndRow &&
+            col >= approachStartCol &&
+            col < approachEndCol;
+          const inOverlay =
+            row >= overlayStartRow &&
+            row < overlayEndRow &&
+            col >= overlayStartCol &&
+            col < overlayEndCol;
           const differs = configA.mapLayout[row][col] !== configB.mapLayout[row][col];
           if (!differs) continue;
           if (!inApproach && !inOverlay) nonApproachNonOverlayDiffs++;
@@ -1004,7 +1162,9 @@ describe('MapGenerator', () => {
     });
 
     it('throws a clear error when hybrid approachRect is malformed at runtime', () => {
-      const baseTemplate = data.mapTemplates.seize.find((template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID);
+      const baseTemplate = data.mapTemplates.seize.find(
+        (template) => template.id === ACT4_BOSS_INTENT_TEMPLATE_ID,
+      );
       const hybridTemplate = {
         ...baseTemplate,
         id: HYBRID_TEST_TEMPLATE_ID,
@@ -1023,12 +1183,17 @@ describe('MapGenerator', () => {
           seize: [hybridTemplate],
         },
       };
-      expect(() => generateBattle({
-        act: 'act4',
-        objective: 'seize',
-        isBoss: true,
-        templateId: HYBRID_TEST_TEMPLATE_ID,
-      }, deps)).toThrow('hybridArena.approachRect is malformed');
+      expect(() =>
+        generateBattle(
+          {
+            act: 'act4',
+            objective: 'seize',
+            isBoss: true,
+            templateId: HYBRID_TEST_TEMPLATE_ID,
+          },
+          deps,
+        ),
+      ).toThrow('hybridArena.approachRect is malformed');
     });
   });
 
@@ -1074,8 +1239,14 @@ function bfsFromSources(mapLayout, cols, rows, terrainData, sources, moveType = 
 
   while (queue.length > 0) {
     const { col, row } = queue.shift();
-    for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const nc = col + dc, nr = row + dr;
+    for (const [dc, dr] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
+      const nc = col + dc,
+        nr = row + dr;
       if (nc < 0 || nc >= cols || nr < 0 || nr >= rows) continue;
       const key = `${nc},${nr}`;
       if (visited.has(key)) continue;
@@ -1107,7 +1278,12 @@ function collectUnoccupiedAdjacentEnemyTiles(config) {
   const seen = new Set();
   const tiles = [];
   for (const enemy of config.enemySpawns) {
-    for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    for (const [dc, dr] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]) {
       const col = enemy.col + dc;
       const row = enemy.row + dr;
       if (col < 0 || col >= config.cols || row < 0 || row >= config.rows) continue;
@@ -1125,7 +1301,12 @@ function collectThroneAdjacentTiles(config, includeOccupied = false) {
   const occupied = includeOccupied ? null : buildOccupiedSpawnSet(config);
   const tiles = [];
   const seen = new Set();
-  for (const [dc, dr] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+  for (const [dc, dr] of [
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+  ]) {
     const col = config.thronePos.col + dc;
     const row = config.thronePos.row + dr;
     if (col < 0 || col >= config.cols || row < 0 || row >= config.rows) continue;
@@ -1144,7 +1325,7 @@ function cavalryCanReachAnyTiles(config, tiles) {
     config.rows,
     data.terrain,
     config.playerSpawns,
-    'Cavalry'
+    'Cavalry',
   );
   return tiles.some((tile) => reachable.has(`${tile.col},${tile.row}`));
 }
@@ -1170,7 +1351,7 @@ describe('enemy sunder weapon assignment', () => {
   it('act1 enemies never get sunderWeapon (sunderChance=0)', () => {
     for (let i = 0; i < 50; i++) {
       const config = generateBattle({ act: 'act1', objective: 'rout' }, data);
-      const withSunder = config.enemySpawns.filter(e => e.sunderWeapon);
+      const withSunder = config.enemySpawns.filter((e) => e.sunderWeapon);
       expect(withSunder.length).toBe(0);
     }
   });
@@ -1179,7 +1360,7 @@ describe('enemy sunder weapon assignment', () => {
     let foundSunder = false;
     for (let i = 0; i < 100; i++) {
       const config = generateBattle({ act: 'act3', objective: 'rout' }, data);
-      if (config.enemySpawns.some(e => e.sunderWeapon)) {
+      if (config.enemySpawns.some((e) => e.sunderWeapon)) {
         foundSunder = true;
         break;
       }
@@ -1190,7 +1371,7 @@ describe('enemy sunder weapon assignment', () => {
   it('boss spawns do not get sunderWeapon', () => {
     for (let i = 0; i < 50; i++) {
       const config = generateBattle({ act: 'act3', objective: 'seize' }, data);
-      const bosses = config.enemySpawns.filter(e => e.isBoss);
+      const bosses = config.enemySpawns.filter((e) => e.isBoss);
       for (const boss of bosses) {
         expect(boss.sunderWeapon).toBeFalsy();
       }
@@ -1231,11 +1412,14 @@ describe('enemy poison weapon assignment', () => {
 
   it('never assigns both sunderWeapon and poisonWeapon to the same spawn', () => {
     for (let i = 0; i < 120; i++) {
-      const config = generateBattle({
-        act: 'act3',
-        objective: 'rout',
-        enemyPoisonChance: 1,
-      }, data);
+      const config = generateBattle(
+        {
+          act: 'act3',
+          objective: 'rout',
+          enemyPoisonChance: 1,
+        },
+        data,
+      );
       for (const spawn of config.enemySpawns) {
         expect(Boolean(spawn.sunderWeapon && spawn.poisonWeapon)).toBe(false);
       }
@@ -1245,11 +1429,14 @@ describe('enemy poison weapon assignment', () => {
   it('enemyPoisonChance additive enables poison rolls on early acts', () => {
     let foundPoison = false;
     for (let i = 0; i < 120; i++) {
-      const config = generateBattle({
-        act: 'act1',
-        objective: 'rout',
-        enemyPoisonChance: 0.2,
-      }, data);
+      const config = generateBattle(
+        {
+          act: 'act1',
+          objective: 'rout',
+          enemyPoisonChance: 0.2,
+        },
+        data,
+      );
       if (config.enemySpawns.some((spawn) => spawn.poisonWeapon)) {
         foundPoison = true;
         break;
@@ -1261,11 +1448,16 @@ describe('enemy poison weapon assignment', () => {
   it('clamps combined poison chance to [0,1]', () => {
     let checkedEligible = false;
     for (let seed = 1; seed <= 30; seed++) {
-      const config = withSeed(seed, () => generateBattle({
-        act: 'act1',
-        objective: 'rout',
-        enemyPoisonChance: 99,
-      }, data));
+      const config = withSeed(seed, () =>
+        generateBattle(
+          {
+            act: 'act1',
+            objective: 'rout',
+            enemyPoisonChance: 99,
+          },
+          data,
+        ),
+      );
       const eligible = config.enemySpawns.filter((spawn) => isPoisonEligibleClass(spawn.className));
       if (eligible.length === 0) continue;
       checkedEligible = true;
@@ -1280,9 +1472,7 @@ describe('enemy poison weapon assignment', () => {
 describe('terrain-aware enemy placement', () => {
   // Helper: build a small map layout from terrain names
   function makeMap(grid) {
-    return grid.map(row =>
-      row.map(name => data.terrain.findIndex(t => t.name === name))
-    );
+    return grid.map((row) => row.map((name) => data.terrain.findIndex((t) => t.name === name)));
   }
 
   describe('scoreSpawnTile direct tests', () => {
@@ -1291,7 +1481,10 @@ describe('terrain-aware enemy placement', () => {
       const score = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Cavalier' },
-        data.terrain, map, 1, data.classes
+        data.terrain,
+        map,
+        1,
+        data.classes,
       );
       expect(score).toBe(0);
     });
@@ -1302,7 +1495,10 @@ describe('terrain-aware enemy placement', () => {
         const score = scoreSpawnTile(
           { col: 0, row: 0 },
           { className: cls },
-          data.terrain, map, 1, data.classes
+          data.terrain,
+          map,
+          1,
+          data.classes,
         );
         expect(score).toBe(0);
       }
@@ -1313,12 +1509,18 @@ describe('terrain-aware enemy placement', () => {
       const forestScore = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Myrmidon' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       const plainScore = scoreSpawnTile(
         { col: 1, row: 0 },
         { className: 'Myrmidon' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       expect(forestScore).toBeGreaterThan(plainScore);
     });
@@ -1328,12 +1530,18 @@ describe('terrain-aware enemy placement', () => {
       const plainScore = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Cavalier' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       const forestScore = scoreSpawnTile(
         { col: 1, row: 0 },
         { className: 'Cavalier' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       expect(plainScore).toBeGreaterThan(forestScore);
     });
@@ -1343,12 +1551,18 @@ describe('terrain-aware enemy placement', () => {
       const fortScore = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Myrmidon' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       const plainScore = scoreSpawnTile(
         { col: 1, row: 0 },
         { className: 'Myrmidon' },
-        data.terrain, map, 2, data.classes
+        data.terrain,
+        map,
+        2,
+        data.classes,
       );
       expect(fortScore).toBe(plainScore + 3);
     });
@@ -1358,7 +1572,10 @@ describe('terrain-aware enemy placement', () => {
       const score = scoreSpawnTile(
         { col: 1, row: 0 },
         { className: 'Myrmidon' },
-        data.terrain, map, 3, data.classes
+        data.terrain,
+        map,
+        3,
+        data.classes,
       );
       // base 1 + 2 adjacent walls = 3
       expect(score).toBe(3);
@@ -1370,7 +1587,10 @@ describe('terrain-aware enemy placement', () => {
       const score = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Cavalier' },
-        data.terrain, map, 1, data.classes
+        data.terrain,
+        map,
+        1,
+        data.classes,
       );
       expect(score).toBeGreaterThanOrEqual(1);
     });
@@ -1380,7 +1600,10 @@ describe('terrain-aware enemy placement', () => {
       const score = scoreSpawnTile(
         { col: 0, row: 0 },
         { className: 'Knight' },
-        data.terrain, map, 1, data.classes
+        data.terrain,
+        map,
+        1,
+        data.classes,
       );
       // base 1 + 2 (forest affinity) = 3
       expect(score).toBe(3);
@@ -1395,10 +1618,13 @@ describe('terrain-aware enemy placement', () => {
           if (spawn.isBoss) continue;
           const terrainIdx = config.mapLayout[spawn.row][spawn.col];
           const t = data.terrain[terrainIdx];
-          const cd = data.classes.find(c => c.name === spawn.className);
+          const cd = data.classes.find((c) => c.name === spawn.className);
           const moveType = cd?.moveType || 'Infantry';
           const cost = t.moveCost[moveType];
-          expect(cost, `${spawn.className} (${moveType}) on ${t.name} at (${spawn.col},${spawn.row})`).not.toBe('--');
+          expect(
+            cost,
+            `${spawn.className} (${moveType}) on ${t.name} at (${spawn.col},${spawn.row})`,
+          ).not.toBe('--');
         }
       }
     });
@@ -1409,12 +1635,15 @@ describe('terrain-aware enemy placement', () => {
         const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
         for (const spawn of config.enemySpawns) {
           if (spawn.isBoss) continue;
-          const cd = data.classes.find(c => c.name === spawn.className);
+          const cd = data.classes.find((c) => c.name === spawn.className);
           if (cd?.moveType !== 'Cavalry') continue;
           cavalryFound = true;
           const terrainIdx = config.mapLayout[spawn.row][spawn.col];
           const tName = data.terrain[terrainIdx]?.name;
-          expect(tName, `Cavalry ${spawn.className} on Mountain at (${spawn.col},${spawn.row})`).not.toBe('Mountain');
+          expect(
+            tName,
+            `Cavalry ${spawn.className} on Mountain at (${spawn.col},${spawn.row})`,
+          ).not.toBe('Mountain');
         }
       }
       // Sanity: ensure we actually checked some cavalry units
@@ -1431,7 +1660,7 @@ describe('terrain-aware enemy placement', () => {
         const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
         for (const spawn of config.enemySpawns) {
           if (spawn.isBoss) continue;
-          const cd = data.classes.find(c => c.name === spawn.className);
+          const cd = data.classes.find((c) => c.name === spawn.className);
           if (cd?.moveType !== 'Infantry') continue;
           totalInfantry++;
           const terrainIdx = config.mapLayout[spawn.row][spawn.col];
@@ -1453,10 +1682,11 @@ describe('terrain-aware enemy placement', () => {
   describe('seeded deterministic replay', () => {
     function mulberry32(seed) {
       return function () {
-        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
     }
 
@@ -1503,7 +1733,7 @@ describe('terrain-aware enemy placement', () => {
     it('seize boss is still on throne tile', () => {
       for (let i = 0; i < 10; i++) {
         const config = generateBattle({ act: 'act1', objective: 'seize' }, data);
-        const boss = config.enemySpawns.find(e => e.isBoss);
+        const boss = config.enemySpawns.find((e) => e.isBoss);
         expect(boss).toBeDefined();
         expect(boss.col).toBe(config.thronePos.col);
         expect(boss.row).toBe(config.thronePos.row);
@@ -1515,23 +1745,32 @@ describe('terrain-aware enemy placement', () => {
 describe('pre-assigned templateId', () => {
   it('generateBattle uses pre-assigned templateId when provided', () => {
     for (let i = 0; i < 20; i++) {
-      const config = generateBattle({ act: 'act1', objective: 'rout', templateId: 'forest_ambush' }, data);
+      const config = generateBattle(
+        { act: 'act1', objective: 'rout', templateId: 'forest_ambush' },
+        data,
+      );
       expect(config.templateId).toBe('forest_ambush');
     }
   });
 
   it('generateBattle uses pre-assigned seize templateId', () => {
     for (let i = 0; i < 20; i++) {
-      const config = generateBattle({ act: 'act1', objective: 'seize', templateId: 'castle_assault' }, data);
+      const config = generateBattle(
+        { act: 'act1', objective: 'seize', templateId: 'castle_assault' },
+        data,
+      );
       expect(config.templateId).toBe('castle_assault');
     }
   });
 
   it('generateBattle falls back to random template for invalid templateId', () => {
-    const config = generateBattle({ act: 'act1', objective: 'rout', templateId: 'nonexistent_template' }, data);
+    const config = generateBattle(
+      { act: 'act1', objective: 'rout', templateId: 'nonexistent_template' },
+      data,
+    );
     expect(config.templateId).toBeTruthy();
     // Should fall back to a valid rout template
-    const routIds = data.mapTemplates.rout.map(t => t.id);
+    const routIds = data.mapTemplates.rout.map((t) => t.id);
     expect(routIds).toContain(config.templateId);
   });
 
@@ -1543,19 +1782,27 @@ describe('pre-assigned templateId', () => {
         seize: [],
       },
     };
-    expect(() => generateBattle({
-      act: 'act1',
-      objective: 'seize',
-      templateId: data.mapTemplates.rout[0].id,
-    }, deps)).toThrow('No valid map template found');
+    expect(() =>
+      generateBattle(
+        {
+          act: 'act1',
+          objective: 'seize',
+          templateId: data.mapTemplates.rout[0].id,
+        },
+        deps,
+      ),
+    ).toThrow('No valid map template found');
   });
 
   it('generateBattle falls back to a valid objective template when pre-assigned template mismatches objective', () => {
-    const config = generateBattle({
-      act: 'act1',
-      objective: 'seize',
-      templateId: data.mapTemplates.rout[0].id,
-    }, data);
+    const config = generateBattle(
+      {
+        act: 'act1',
+        objective: 'seize',
+        templateId: data.mapTemplates.rout[0].id,
+      },
+      data,
+    );
     const seizeIds = data.mapTemplates.seize.map((template) => template.id);
     expect(seizeIds).toContain(config.templateId);
     expect(config.thronePos).not.toBeNull();
@@ -1607,12 +1854,15 @@ describe('pre-assigned templateId', () => {
         seize: [seizeBase, bossOnlyTemplate],
       },
     };
-    const config = generateBattle({
-      act: 'act1',
-      objective: 'seize',
-      isBoss: false,
-      templateId: bossOnlyTemplate.id,
-    }, deps);
+    const config = generateBattle(
+      {
+        act: 'act1',
+        objective: 'seize',
+        isBoss: false,
+        templateId: bossOnlyTemplate.id,
+      },
+      deps,
+    );
     expect(config.templateId).toBe(bossOnlyTemplate.id);
   });
 });
@@ -1711,7 +1961,7 @@ describe('composition-template affinity', () => {
       const seeds = 200;
 
       // Force forest_ambush template by filtering
-      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
+      const forestTemplate = data.mapTemplates.rout.find((t) => t.id === 'forest_ambush');
       const modifiedTemplates = { rout: [forestTemplate], seize: data.mapTemplates.seize };
       const modData = { ...data, mapTemplates: modifiedTemplates };
 
@@ -1724,7 +1974,10 @@ describe('composition-template affinity', () => {
       }
 
       // Infantry melee classes: Myrmidon, Fighter, Thief (Swords=melee)
-      const infantryCount = (classCounts['Myrmidon'] || 0) + (classCounts['Fighter'] || 0) + (classCounts['Thief'] || 0);
+      const infantryCount =
+        (classCounts['Myrmidon'] || 0) +
+        (classCounts['Fighter'] || 0) +
+        (classCounts['Thief'] || 0);
       const archerCount = classCounts['Archer'] || 0;
       const cavalryCount = classCounts['Cavalier'] || 0;
 
@@ -1736,22 +1989,30 @@ describe('composition-template affinity', () => {
   describe('statistical: Open Field produces more cavalry than forest maps', () => {
     it('over 200 seeds, open field cavalry rate exceeds forest ambush cavalry rate', () => {
       // Open Field: cavalry x1.3 — Forest Ambush: cavalry x0.5
-      const fieldTemplate = data.mapTemplates.rout.find(t => t.id === 'open_field');
-      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
+      const fieldTemplate = data.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const forestTemplate = data.mapTemplates.rout.find((t) => t.id === 'forest_ambush');
       const seeds = 200;
 
-      let fieldCavalry = 0, fieldTotal = 0;
-      let forestCavalry = 0, forestTotal = 0;
+      let fieldCavalry = 0,
+        fieldTotal = 0;
+      let forestCavalry = 0,
+        forestTotal = 0;
 
-      const fieldData = { ...data, mapTemplates: { rout: [fieldTemplate], seize: data.mapTemplates.seize } };
-      const forestData = { ...data, mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize } };
+      const fieldData = {
+        ...data,
+        mapTemplates: { rout: [fieldTemplate], seize: data.mapTemplates.seize },
+      };
+      const forestData = {
+        ...data,
+        mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize },
+      };
 
       for (let i = 0; i < seeds; i++) {
         const fieldConfig = generateBattle({ act: 'act2', objective: 'rout' }, fieldData);
         for (const s of fieldConfig.enemySpawns) {
           if (s.isBoss) continue;
           fieldTotal++;
-          const cd = data.classes.find(c => c.name === s.className);
+          const cd = data.classes.find((c) => c.name === s.className);
           if (cd?.moveType === 'Cavalry') fieldCavalry++;
         }
 
@@ -1759,7 +2020,7 @@ describe('composition-template affinity', () => {
         for (const s of forestConfig.enemySpawns) {
           if (s.isBoss) continue;
           forestTotal++;
-          const cd = data.classes.find(c => c.name === s.className);
+          const cd = data.classes.find((c) => c.name === s.className);
           if (cd?.moveType === 'Cavalry') forestCavalry++;
         }
       }
@@ -1778,7 +2039,10 @@ describe('composition-template affinity', () => {
         id: 'no_weights_test',
         enemyWeights: undefined,
       };
-      const modData = { ...data, mapTemplates: { rout: [noWeightsTemplate], seize: data.mapTemplates.seize } };
+      const modData = {
+        ...data,
+        mapTemplates: { rout: [noWeightsTemplate], seize: data.mapTemplates.seize },
+      };
 
       // Should still produce valid battles
       for (let i = 0; i < 20; i++) {
@@ -1795,16 +2059,20 @@ describe('composition-template affinity', () => {
   describe('seeded deterministic replay with template influence', () => {
     function mulberry32(seed) {
       return function () {
-        seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
       };
     }
 
     it('forest_ambush: same seed produces identical class composition', () => {
-      const forestTemplate = data.mapTemplates.rout.find(t => t.id === 'forest_ambush');
-      const modData = { ...data, mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize } };
+      const forestTemplate = data.mapTemplates.rout.find((t) => t.id === 'forest_ambush');
+      const modData = {
+        ...data,
+        mapTemplates: { rout: [forestTemplate], seize: data.mapTemplates.seize },
+      };
       const origRandom = Math.random;
 
       Math.random = mulberry32(777);
@@ -1824,8 +2092,11 @@ describe('composition-template affinity', () => {
     });
 
     it('chokepoint: same seed produces identical class composition', () => {
-      const chokepointTemplate = data.mapTemplates.rout.find(t => t.id === 'chokepoint');
-      const modData = { ...data, mapTemplates: { rout: [chokepointTemplate], seize: data.mapTemplates.seize } };
+      const chokepointTemplate = data.mapTemplates.rout.find((t) => t.id === 'chokepoint');
+      const modData = {
+        ...data,
+        mapTemplates: { rout: [chokepointTemplate], seize: data.mapTemplates.seize },
+      };
       const origRandom = Math.random;
 
       Math.random = mulberry32(1234);
@@ -1851,7 +2122,7 @@ describe('guard AI assignment', () => {
     let foundGuards = false;
     for (let i = 0; i < 30; i++) {
       const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
-      const guards = config.enemySpawns.filter(s => s.aiMode === 'guard');
+      const guards = config.enemySpawns.filter((s) => s.aiMode === 'guard');
       if (guards.length > 0) {
         foundGuards = true;
         const halfCol = Math.floor(config.cols / 2);
@@ -1866,7 +2137,7 @@ describe('guard AI assignment', () => {
   it('rout maps do not assign guards', () => {
     for (let i = 0; i < 30; i++) {
       const config = generateBattle({ act: 'act2', objective: 'rout' }, data);
-      const guards = config.enemySpawns.filter(s => s.aiMode === 'guard');
+      const guards = config.enemySpawns.filter((s) => s.aiMode === 'guard');
       expect(guards.length).toBe(0);
     }
   });
@@ -1875,11 +2146,11 @@ describe('guard AI assignment', () => {
     for (let i = 0; i < 20; i++) {
       const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
       const halfCol = Math.floor(config.cols / 2);
-      const bossHalf = config.enemySpawns.filter(s => !s.isBoss && s.col >= halfCol);
-      const guards = bossHalf.filter(s => s.aiMode === 'guard');
+      const bossHalf = config.enemySpawns.filter((s) => !s.isBoss && s.col >= halfCol);
+      const guards = bossHalf.filter((s) => s.aiMode === 'guard');
       if (bossHalf.length > 0) {
         const rate = guards.length / bossHalf.length;
-        expect(rate).toBeLessThanOrEqual(0.40);
+        expect(rate).toBeLessThanOrEqual(0.4);
       }
     }
   });
@@ -1887,7 +2158,7 @@ describe('guard AI assignment', () => {
   it('bosses never get guard aiMode', () => {
     for (let i = 0; i < 20; i++) {
       const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
-      const bosses = config.enemySpawns.filter(s => s.isBoss);
+      const bosses = config.enemySpawns.filter((s) => s.isBoss);
       for (const b of bosses) {
         expect(b.aiMode).toBeUndefined();
       }
@@ -1906,26 +2177,26 @@ describe('anchor templates', () => {
   });
 
   it('chokepoint has center_gap anchor', () => {
-    const t = data.mapTemplates.rout.find(t => t.id === 'chokepoint');
-    expect(t.anchors.some(a => a.position === 'center_gap')).toBe(true);
+    const t = data.mapTemplates.rout.find((t) => t.id === 'chokepoint');
+    expect(t.anchors.some((a) => a.position === 'center_gap')).toBe(true);
   });
 
   it('river_crossing has bridge_ends anchor with count 2', () => {
-    const t = data.mapTemplates.rout.find(t => t.id === 'river_crossing');
-    const anchor = t.anchors.find(a => a.position === 'bridge_ends');
+    const t = data.mapTemplates.rout.find((t) => t.id === 'river_crossing');
+    const anchor = t.anchors.find((a) => a.position === 'bridge_ends');
     expect(anchor).toBeDefined();
     expect(anchor.count).toBe(2);
     expect(anchor.unit).toBe('lance_user');
   });
 
   it('castle_assault has throne and gate_adjacent anchors', () => {
-    const t = data.mapTemplates.seize.find(t => t.id === 'castle_assault');
-    expect(t.anchors.some(a => a.position === 'throne')).toBe(true);
-    expect(t.anchors.some(a => a.position === 'gate_adjacent')).toBe(true);
+    const t = data.mapTemplates.seize.find((t) => t.id === 'castle_assault');
+    expect(t.anchors.some((a) => a.position === 'throne')).toBe(true);
+    expect(t.anchors.some((a) => a.position === 'gate_adjacent')).toBe(true);
   });
 
   it('hilltop_fortress has throne anchor', () => {
-    const t = data.mapTemplates.seize.find(t => t.id === 'hilltop_fortress');
-    expect(t.anchors.some(a => a.position === 'throne')).toBe(true);
+    const t = data.mapTemplates.seize.find((t) => t.id === 'hilltop_fortress');
+    expect(t.anchors.some((a) => a.position === 'throne')).toBe(true);
   });
 });

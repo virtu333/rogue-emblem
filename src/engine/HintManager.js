@@ -16,9 +16,11 @@ export class HintManager {
       const raw = localStorage.getItem(getKey(slot));
       if (raw) {
         const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) arr.forEach(id => this.seen.add(id));
+        if (Array.isArray(arr)) arr.forEach((id) => this.seen.add(id));
       }
-    } catch (_) { /* incognito / corrupt */ }
+    } catch (_) {
+      /* incognito / corrupt */
+    }
   }
 
   /** Returns true on first call for a given id (and marks it seen). False thereafter. */
@@ -40,12 +42,16 @@ export class HintManager {
   _save() {
     try {
       localStorage.setItem(getKey(this.slot), JSON.stringify([...this.seen]));
-    } catch (_) { /* incognito / quota exceeded */ }
+    } catch (_) {
+      /* incognito / quota exceeded */
+    }
   }
 
   static deleteForSlot(slot) {
     try {
       localStorage.removeItem(getKey(slot));
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
 }

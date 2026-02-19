@@ -26,8 +26,10 @@ function assertKeyRendered(key, combatText, accessory) {
   const combatEffects = accessory?.combatEffects || {};
   if (key === 'atkBonus') return combatText.includes('Atk');
   if (key === 'avoidBonus') return combatText.includes('Avo');
-  if (key === 'buffDEF') return combatText.includes(String(combatEffects.buffDEF)) && combatText.includes('Def');
-  if (key === 'buffRES') return combatText.includes(String(combatEffects.buffRES)) && combatText.includes('Res');
+  if (key === 'buffDEF')
+    return combatText.includes(String(combatEffects.buffDEF)) && combatText.includes('Def');
+  if (key === 'buffRES')
+    return combatText.includes(String(combatEffects.buffRES)) && combatText.includes('Res');
   if (key === 'condition') return combatText.includes(getConditionLabel(combatEffects.condition));
   if (key === 'critBonus') return combatText.includes('Crit');
   if (key === 'defBonus') return combatText.includes('Def');
@@ -45,7 +47,8 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'preventEnemyDouble') return combatText.includes('Block double attacks');
   if (key === 'resBonus') return combatText.includes('Res');
   if (key === 'turnStartHealPercent') return combatText.includes('Turn start heal');
-  if (key === 'weaponArtCostReduction') return combatText.includes(`Art HP Cost -${combatEffects.weaponArtCostReduction}`);
+  if (key === 'weaponArtCostReduction')
+    return combatText.includes(`Art HP Cost -${combatEffects.weaponArtCostReduction}`);
   if (key === 'weaponArtDefBuff') return combatText.includes('Recoil Guard');
   return true;
 }
@@ -74,7 +77,9 @@ describe('accessory text coverage', () => {
       issues.push(`Unknown combat effect keys: ${Array.from(unknownCombatKeys).sort().join(', ')}`);
     }
     if (unknownTurnStartKeys.size > 0) {
-      issues.push(`Unknown turn-start effect keys: ${Array.from(unknownTurnStartKeys).sort().join(', ')}`);
+      issues.push(
+        `Unknown turn-start effect keys: ${Array.from(unknownTurnStartKeys).sort().join(', ')}`,
+      );
     }
 
     expect(issues, issues.join('\n')).toEqual([]);
@@ -91,7 +96,9 @@ describe('accessory text coverage', () => {
 
       const detail = formatAccessoryDetail(accessory);
       expect(detail, `${accessory.name} should render accessory detail text`).not.toBe('');
-      expect(detail, `${accessory.name} should not render placeholder combat text`).not.toContain('Combat effect');
+      expect(detail, `${accessory.name} should not render placeholder combat text`).not.toContain(
+        'Combat effect',
+      );
     }
   });
 
@@ -105,7 +112,9 @@ describe('accessory text coverage', () => {
 
       const combatText = formatAccessoryCombatEffect(accessory);
       expect(combatText, `${accessory.name} should render combat text`).not.toBe('');
-      expect(combatText, `${accessory.name} should not fall back to placeholder`).not.toBe('Combat effect');
+      expect(combatText, `${accessory.name} should not fall back to placeholder`).not.toBe(
+        'Combat effect',
+      );
 
       for (const key of keys) {
         const rendered = assertKeyRendered(key, combatText, accessory);

@@ -153,9 +153,10 @@ function applyMetaPreset(meta, preset) {
 }
 
 function createRunPreset(gameData, meta, config) {
-  const metaEffects = meta?.getActiveEffects({
-    weaponArtCatalog: gameData?.weaponArts?.arts || [],
-  }) || null;
+  const metaEffects =
+    meta?.getActiveEffects({
+      weaponArtCatalog: gameData?.weaponArts?.arts || [],
+    }) || null;
   const runManager = new RunManager(gameData, metaEffects);
   runManager.startRun({
     runSeed: Number.isFinite(config.seed) ? config.seed : Date.now(),
@@ -192,7 +193,11 @@ function createRunPreset(gameData, meta, config) {
         }));
       }
       const soulreaver = (gameData?.weapons || []).find((weapon) => weapon?.name === 'Soulreaver');
-      if (soulreaver && Array.isArray(edric.inventory) && !edric.inventory.some((weapon) => weapon?.name === 'Soulreaver')) {
+      if (
+        soulreaver &&
+        Array.isArray(edric.inventory) &&
+        !edric.inventory.some((weapon) => weapon?.name === 'Soulreaver')
+      ) {
         edric.inventory.push(structuredClone(soulreaver));
       }
       const equippedSoulreaver = Array.isArray(edric.inventory)
@@ -210,10 +215,11 @@ function createRunPreset(gameData, meta, config) {
 
 function pickBattleNode(runManager) {
   const available = runManager.getAvailableNodes();
-  const preferred = available.find((node) =>
-    node?.type === NODE_TYPES.BATTLE
-    || node?.type === NODE_TYPES.BOSS
-    || node?.type === NODE_TYPES.RECRUIT
+  const preferred = available.find(
+    (node) =>
+      node?.type === NODE_TYPES.BATTLE ||
+      node?.type === NODE_TYPES.BOSS ||
+      node?.type === NODE_TYPES.RECRUIT,
   );
   return preferred || available[0] || runManager.nodeMap?.nodes?.[0] || null;
 }
@@ -239,8 +245,8 @@ export function parseDevStartupConfig(search, options = {}) {
 
   const rawScene = params.get('devScene');
   const sceneKey = rawScene
-    ? (DEV_SCENE_ALIASES[String(rawScene).trim().toLowerCase()] || null)
-    : (qaConfig?.sceneKey || null);
+    ? DEV_SCENE_ALIASES[String(rawScene).trim().toLowerCase()] || null
+    : qaConfig?.sceneKey || null;
   if (!sceneKey) return null;
 
   return {
@@ -267,7 +273,11 @@ export function buildDevStartupRoute(gameData, registry, config) {
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
 
-  if (config.sceneKey === 'HomeBase' || config.sceneKey === 'DifficultySelect' || config.sceneKey === 'BlessingSelect') {
+  if (
+    config.sceneKey === 'HomeBase' ||
+    config.sceneKey === 'DifficultySelect' ||
+    config.sceneKey === 'BlessingSelect'
+  ) {
     return { key: config.sceneKey, data: baseData };
   }
 
@@ -284,10 +294,12 @@ export function buildDevStartupRoute(gameData, registry, config) {
   }
 
   const battleNode = pickBattleNode(runManager);
-  const battleParams = battleNode ? runManager.getBattleParams(battleNode) : {
-    act: runManager.currentAct || 'act1',
-    objective: 'rout',
-  };
+  const battleParams = battleNode
+    ? runManager.getBattleParams(battleNode)
+    : {
+        act: runManager.currentAct || 'act1',
+        objective: 'rout',
+      };
   return {
     key: 'Battle',
     data: {

@@ -23,9 +23,15 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 function makeDisplayObject(seed = {}) {
   return {
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setColor() { return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
     on: vi.fn().mockReturnThis(),
     destroy() {},
   };
@@ -35,11 +41,21 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setColor() { return this; },
-    setOrigin() { return this; },
-    setInteractive() { return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
     on(event, cb) {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(cb);
@@ -103,7 +119,8 @@ describe('BattleScene attack weapon picker text', () => {
     getCombatWeaponsMock.mockReturnValue([equipped, fallbackStats]);
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, fallbackStats],
     };
@@ -128,7 +145,9 @@ describe('BattleScene attack weapon picker text', () => {
 
     // Auto-show tooltip fires for equipped weapon
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      equipped, expect.any(Object), expect.any(Number),
+      equipped,
+      expect.any(Object),
+      expect.any(Number),
     );
   });
 
@@ -194,7 +213,9 @@ describe('BattleScene attack picker tooltip lifecycle', () => {
     const overHandlers = textObjects[1].handlers.pointerover;
     overHandlers[overHandlers.length - 1]();
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      secondary, expect.any(Object), expect.any(Number),
+      secondary,
+      expect.any(Object),
+      expect.any(Number),
     );
 
     // Mouse pointerout hides tooltip

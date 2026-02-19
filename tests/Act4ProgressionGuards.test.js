@@ -41,9 +41,25 @@ describe('Act4 progression guards', () => {
   });
 
   it('difficulty mode act sequences keep normal/lunatic unchanged and add act4 to hard', () => {
-    expect(data.difficulty.modes.normal.actsIncluded).toEqual(['act1', 'act2', 'act3', 'finalBoss']);
-    expect(data.difficulty.modes.hard.actsIncluded).toEqual(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
-    expect(data.difficulty.modes.lunatic.actsIncluded).toEqual(['act1', 'act2', 'act3', 'finalBoss']);
+    expect(data.difficulty.modes.normal.actsIncluded).toEqual([
+      'act1',
+      'act2',
+      'act3',
+      'finalBoss',
+    ]);
+    expect(data.difficulty.modes.hard.actsIncluded).toEqual([
+      'act1',
+      'act2',
+      'act3',
+      'act4',
+      'finalBoss',
+    ]);
+    expect(data.difficulty.modes.lunatic.actsIncluded).toEqual([
+      'act1',
+      'act2',
+      'act3',
+      'finalBoss',
+    ]);
   });
 
   it('pickTemplate selects act4-only templates when act4 is requested, then falls back when needed', () => {
@@ -55,8 +71,9 @@ describe('Act4 progression guards', () => {
       seize: [],
     };
     expect(pickTemplate('rout', templates, 'act4').id).toBe('act4_only');
-    expect(pickTemplate('rout', { rout: [{ id: 'act4_only', acts: ['act4'] }], seize: [] }, 'act1').id)
-      .toBe('act4_only');
+    expect(
+      pickTemplate('rout', { rout: [{ id: 'act4_only', acts: ['act4'] }], seize: [] }, 'act1').id,
+    ).toBe('act4_only');
   });
 
   it('pickTemplate excludes bossOnly templates unless isBoss is true', () => {
@@ -70,8 +87,12 @@ describe('Act4 progression guards', () => {
 
   it('act4 templates that define reinforcements use contract v1 with required fields', () => {
     const act4Templates = [
-      ...data.mapTemplates.rout.filter((template) => Array.isArray(template.acts) && template.acts.includes('act4')),
-      ...data.mapTemplates.seize.filter((template) => Array.isArray(template.acts) && template.acts.includes('act4')),
+      ...data.mapTemplates.rout.filter(
+        (template) => Array.isArray(template.acts) && template.acts.includes('act4'),
+      ),
+      ...data.mapTemplates.seize.filter(
+        (template) => Array.isArray(template.acts) && template.acts.includes('act4'),
+      ),
     ];
     const withReinforcements = act4Templates.filter((template) => template.reinforcements);
     expect(withReinforcements.length).toBeGreaterThan(0);
@@ -79,7 +100,10 @@ describe('Act4 progression guards', () => {
       expect(template.reinforcementContractVersion).toBe(1);
       expect(Array.isArray(template.reinforcements.spawnEdges)).toBe(true);
       expect(Array.isArray(template.reinforcements.waves)).toBe(true);
-      expect((template.reinforcements.waves?.length || 0) + (template.reinforcements.scriptedWaves?.length || 0)).toBeGreaterThan(0);
+      expect(
+        (template.reinforcements.waves?.length || 0) +
+          (template.reinforcements.scriptedWaves?.length || 0),
+      ).toBeGreaterThan(0);
       expect(template.reinforcements.turnOffsetByDifficulty).toBeDefined();
       expect(Array.isArray(template.reinforcements.xpDecay)).toBe(true);
     }
@@ -111,8 +135,10 @@ describe('Act4 progression guards', () => {
       expect(Array.isArray(template.reinforcements.scriptedWaves)).toBe(true);
       expect(template.reinforcements.scriptedWaves.length).toBeGreaterThan(0);
       if (entry.id === ACT4_BOSS_INTENT_TEMPLATE_ID) {
-        const hasPlayerHalfSpawnIntent = template.reinforcements.scriptedWaves.some((wave) =>
-          Array.isArray(wave?.spawns) && wave.spawns.some((spawn) => Number.isInteger(spawn?.col) && spawn.col < act4HalfCol)
+        const hasPlayerHalfSpawnIntent = template.reinforcements.scriptedWaves.some(
+          (wave) =>
+            Array.isArray(wave?.spawns) &&
+            wave.spawns.some((spawn) => Number.isInteger(spawn?.col) && spawn.col < act4HalfCol),
         );
         expect(hasPlayerHalfSpawnIntent).toBe(true);
       }

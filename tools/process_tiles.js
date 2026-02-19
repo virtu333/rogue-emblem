@@ -9,8 +9,18 @@ const DIR = resolve('assets/sprites/tilesets');
 const PUBLIC_DIR = resolve('public/assets/sprites/tilesets');
 
 const tiles = [
-  'plain', 'forest', 'mountain', 'fort', 'throne',
-  'wall', 'water', 'bridge', 'sand', 'village', 'ice', 'lava_crack',
+  'plain',
+  'forest',
+  'mountain',
+  'fort',
+  'throne',
+  'wall',
+  'water',
+  'bridge',
+  'sand',
+  'village',
+  'ice',
+  'lava_crack',
 ];
 
 // Ensure public dir exists

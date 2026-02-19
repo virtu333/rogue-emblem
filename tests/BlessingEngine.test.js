@@ -93,7 +93,7 @@ describe('BlessingEngine', () => {
     const a = selectBlessingOptions(gameData.blessings, rngA, { count: 4 });
     const b = selectBlessingOptions(gameData.blessings, rngB, { count: 4 });
     expect(a.map((x) => ({ id: x.id, cost: x.rolledCost?.label || null }))).toEqual(
-      b.map((x) => ({ id: x.id, cost: x.rolledCost?.label || null }))
+      b.map((x) => ({ id: x.id, cost: x.rolledCost?.label || null })),
     );
     expect(a.some((x) => x.tier >= 2 && x.rolledCost)).toBe(true);
   });
@@ -109,14 +109,48 @@ describe('BlessingEngine', () => {
     const config = {
       version: 2,
       blessings: [
-        { id: 'a', name: 'A', tier: 1, description: 'A', boons: [{ type: 'noop', params: {} }], costs: [], excludes: ['b'] },
-        { id: 'b', name: 'B', tier: 2, description: 'B', boons: [{ type: 'noop', params: {} }], costs: [] },
-        { id: 'c', name: 'C', tier: 2, description: 'C', boons: [{ type: 'noop', params: {} }], costs: [] },
+        {
+          id: 'a',
+          name: 'A',
+          tier: 1,
+          description: 'A',
+          boons: [{ type: 'noop', params: {} }],
+          costs: [],
+          excludes: ['b'],
+        },
+        {
+          id: 'b',
+          name: 'B',
+          tier: 2,
+          description: 'B',
+          boons: [{ type: 'noop', params: {} }],
+          costs: [],
+        },
+        {
+          id: 'c',
+          name: 'C',
+          tier: 2,
+          description: 'C',
+          boons: [{ type: 'noop', params: {} }],
+          costs: [],
+        },
       ],
       costPools: {
-        '2': [{ label: '-1 deploy', effects: [{ type: 'deploy_cap_delta', params: { value: -1 } }] }],
-        '3': [{ label: '-2 DEF act1', effects: [{ type: 'act_stat_delta_all_units', params: { act: 'act1', stat: 'DEF', value: -2 } }] }],
-        '4': [{ label: '-30% gold', effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.3 } }] }],
+        2: [{ label: '-1 deploy', effects: [{ type: 'deploy_cap_delta', params: { value: -1 } }] }],
+        3: [
+          {
+            label: '-2 DEF act1',
+            effects: [
+              { type: 'act_stat_delta_all_units', params: { act: 'act1', stat: 'DEF', value: -2 } },
+            ],
+          },
+        ],
+        4: [
+          {
+            label: '-30% gold',
+            effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.3 } }],
+          },
+        ],
       },
     };
     const selected = selectBlessingOptions(config, createSeededRng(1), { count: 3 });

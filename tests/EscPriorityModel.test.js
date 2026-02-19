@@ -17,18 +17,35 @@ function makeDisplayObject(extra = {}) {
   return {
     handlers: {},
     style: {},
-    setDepth() { return this; },
+    setDepth() {
+      return this;
+    },
     setInteractive() {
       this.input = this.input || {};
       this.input.enabled = true;
       return this;
     },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor(color) { this.style.color = color; return this; },
-    setAlpha() { return this; },
-    on(event, handler) { this.handlers[event] = handler; return this; },
-    once(event, handler) { this.handlers[event] = handler; return this; },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor(color) {
+      this.style.color = color;
+      return this;
+    },
+    setAlpha() {
+      return this;
+    },
+    on(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
+    once(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
     destroy: vi.fn(),
     ...extra,
   };
@@ -42,11 +59,21 @@ function makeOverlayScene() {
       text: (_x, _y, text, style = {}) => makeDisplayObject({ text, style: { ...style } }),
       graphics: () => ({
         ...makeDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       }),
       circle: () => makeDisplayObject(),
     },
@@ -83,9 +110,7 @@ function createNodeMapEscScene(keyboardOverride = null) {
   const overlay = makeOverlayScene();
   const scene = {
     ...overlay,
-    input: keyboardOverride
-      ? { ...overlay.input, keyboard: keyboardOverride }
-      : overlay.input,
+    input: keyboardOverride ? { ...overlay.input, keyboard: keyboardOverride } : overlay.input,
     _storyDialogueActive: false,
     dialogueOverlay: { visible: false },
     isDevToolsEnabled: () => false,
@@ -397,8 +422,18 @@ describe('ESC priority model', () => {
       },
     ];
     const skills = [
-      { id: 'crit_plus_15', name: 'Crit +15', description: 'Gain +15 crit.', classInnate: 'Swordmaster' },
-      { id: 'duelist_stance', name: 'Duelist Stance', description: 'Defending grants avoid and defenses.', classInnate: 'Duelist' },
+      {
+        id: 'crit_plus_15',
+        name: 'Crit +15',
+        description: 'Gain +15 crit.',
+        classInnate: 'Swordmaster',
+      },
+      {
+        id: 'duelist_stance',
+        name: 'Duelist Stance',
+        description: 'Defending grants avoid and defenses.',
+        classInnate: 'Duelist',
+      },
     ];
 
     const panel = new PromotionChoicePanel(scene, unit, targets, skills);
@@ -445,8 +480,18 @@ describe('ESC priority model', () => {
       },
     ];
     const skills = [
-      { id: 'pavise', name: 'Pavise', description: 'Halve physical damage sometimes.', classInnate: 'General' },
-      { id: 'armored_blow', name: 'Armored Blow', description: 'Initiating grants +4 DEF.', classInnate: 'Great Knight' },
+      {
+        id: 'pavise',
+        name: 'Pavise',
+        description: 'Halve physical damage sometimes.',
+        classInnate: 'General',
+      },
+      {
+        id: 'armored_blow',
+        name: 'Armored Blow',
+        description: 'Initiating grants +4 DEF.',
+        classInnate: 'Great Knight',
+      },
     ];
 
     const panel = new PromotionChoicePanel(scene, unit, targets, skills);
@@ -467,12 +512,16 @@ describe('ESC priority model', () => {
     scene.churchOverlay = [makeDisplayObject()];
     scene._promotionChoicePanelOpen = 1;
 
-    const handledWhileOpen = NodeMapScene.prototype.requestCancel.call(scene, { allowPause: false });
+    const handledWhileOpen = NodeMapScene.prototype.requestCancel.call(scene, {
+      allowPause: false,
+    });
     expect(handledWhileOpen).toBe(false);
     expect(scene.leaveChurchNode).not.toHaveBeenCalled();
 
     scene._promotionChoicePanelOpen = 0;
-    const handledAfterClose = NodeMapScene.prototype.requestCancel.call(scene, { allowPause: false });
+    const handledAfterClose = NodeMapScene.prototype.requestCancel.call(scene, {
+      allowPause: false,
+    });
     expect(handledAfterClose).toBe(true);
     expect(scene.leaveChurchNode).toHaveBeenCalledTimes(1);
   });

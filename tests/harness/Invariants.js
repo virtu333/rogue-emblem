@@ -36,11 +36,17 @@ export function checkInvariants(driver, context = {}) {
 
   // 4. Weapon consistency
   for (const u of [...b.playerUnits, ...b.enemyUnits, ...b.npcUnits]) {
-    const hasWeaponMatch = !u.weapon || !Array.isArray(u.inventory) || u.inventory.some((item) =>
-      item === u.weapon || (item?.name === u.weapon?.name && item?.type === u.weapon?.type)
-    );
+    const hasWeaponMatch =
+      !u.weapon ||
+      !Array.isArray(u.inventory) ||
+      u.inventory.some(
+        (item) =>
+          item === u.weapon || (item?.name === u.weapon?.name && item?.type === u.weapon?.type),
+      );
     if (!hasWeaponMatch) {
-      errors.push(`weapon_consistency: ${u.name}'s equipped weapon "${u.weapon.name}" not in inventory`);
+      errors.push(
+        `weapon_consistency: ${u.name}'s equipped weapon "${u.weapon.name}" not in inventory`,
+      );
     }
   }
 
@@ -60,7 +66,9 @@ export function checkInvariants(driver, context = {}) {
   }
   if (context.lastTurn !== undefined && currentTurn === context.lastTurn) {
     if (context.lastPhase === 'enemy' && currentPhase === 'player') {
-      errors.push(`phase_monotonic: phase changed enemy->player without turn increment (turn=${currentTurn})`);
+      errors.push(
+        `phase_monotonic: phase changed enemy->player without turn increment (turn=${currentTurn})`,
+      );
     }
   }
   if (!['player', 'enemy'].includes(currentPhase)) {
@@ -71,7 +79,7 @@ export function checkInvariants(driver, context = {}) {
 
   // 7. Edric alive (unless battle ended)
   if (b.battleState !== HEADLESS_STATES.BATTLE_END) {
-    const edricAlive = b.playerUnits.some(u => u.name === 'Edric');
+    const edricAlive = b.playerUnits.some((u) => u.name === 'Edric');
     if (!edricAlive) {
       errors.push(`edric_alive: Edric not in playerUnits but battle hasn't ended`);
     }
@@ -91,13 +99,13 @@ export function checkInvariants(driver, context = {}) {
       errors.push(`objective_consistency: rout victory but ${b.enemyUnits.length} enemies remain`);
     }
     if (b.battleConfig?.objective === 'seize') {
-      const bossAlive = b.enemyUnits.some(u => u.isBoss);
+      const bossAlive = b.enemyUnits.some((u) => u.isBoss);
       if (bossAlive) {
         errors.push('objective_consistency: seize victory while boss is still alive');
       }
       const throne = b.battleConfig?.thronePos;
       const lordOnThrone = throne
-        ? b.playerUnits.some(u => u.isLord && u.col === throne.col && u.row === throne.row)
+        ? b.playerUnits.some((u) => u.isLord && u.col === throne.col && u.row === throne.row)
         : false;
       if (!lordOnThrone) {
         errors.push('objective_consistency: seize victory without lord on throne');
@@ -105,9 +113,11 @@ export function checkInvariants(driver, context = {}) {
     }
   }
   if (b.result === 'defeat') {
-    const edricAlive = b.playerUnits.some(u => u.name === 'Edric');
+    const edricAlive = b.playerUnits.some((u) => u.name === 'Edric');
     if (edricAlive && b.playerUnits.length > 0) {
-      errors.push('objective_consistency: defeat result while Edric and player units are still alive');
+      errors.push(
+        'objective_consistency: defeat result while Edric and player units are still alive',
+      );
     }
   }
 
@@ -115,7 +125,9 @@ export function checkInvariants(driver, context = {}) {
   if (context.enemyPhaseActions !== undefined) {
     const maxExpected = b.enemyUnits.length * 3;
     if (context.enemyPhaseActions > maxExpected) {
-      errors.push(`enemy_phase_bound: ${context.enemyPhaseActions} actions > expected max ${maxExpected}`);
+      errors.push(
+        `enemy_phase_bound: ${context.enemyPhaseActions} actions > expected max ${maxExpected}`,
+      );
     }
   }
 
@@ -172,7 +184,11 @@ export function updateContext(context, action, driver) {
   }
 
   // Reset selection tracking when a unit acts
-  if (action.type === 'choose_action' || action.type === 'choose_target' || action.type === 'end_turn') {
+  if (
+    action.type === 'choose_action' ||
+    action.type === 'choose_target' ||
+    action.type === 'end_turn'
+  ) {
     context.anyUnitActed = true;
     context.selectionCounts = {};
   }

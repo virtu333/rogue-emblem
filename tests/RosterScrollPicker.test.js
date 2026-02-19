@@ -20,17 +20,46 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive() { this._interactive = true; return this; },
-    setOrigin() { return this; },
-    setDisplaySize() { return this; },
-    setColor() { return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
-    setSize(width, height) { this.width = width; this.height = height; return this; },
-    setY(y) { this.y = y; return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this._destroyed = true; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive() {
+      this._interactive = true;
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
+    setSize(width, height) {
+      this.width = width;
+      this.height = height;
+      return this;
+    },
+    setY(y) {
+      this.y = y;
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this._destroyed = true;
+    },
   };
 }
 
@@ -49,7 +78,15 @@ function makeSceneStub() {
         // Simulate Phaser text height: multi-line text is taller
         const lineCount = String(text).split('\n').length;
         const height = lineCount > 1 ? 40 : 20;
-        const obj = makeDisplayObject({ kind: 'text', x: _x, y: _y, text, style, width: 200, height });
+        const obj = makeDisplayObject({
+          kind: 'text',
+          x: _x,
+          y: _y,
+          text,
+          style,
+          width: 200,
+          height,
+        });
         created.texts.push(obj);
         return obj;
       },
@@ -58,13 +95,17 @@ function makeSceneStub() {
     registry: { get: () => null },
     input: {
       keyboard: {
-        on: (event, cb) => { keyboardHandlers[event] = cb; },
+        on: (event, cb) => {
+          keyboardHandlers[event] = cb;
+        },
         off: (event, cb) => {
           if (!keyboardHandlers[event]) return;
           if (!cb || keyboardHandlers[event] === cb) delete keyboardHandlers[event];
         },
       },
-      on: (event, cb) => { inputHandlers[event] = cb; },
+      on: (event, cb) => {
+        inputHandlers[event] = cb;
+      },
       off: (event, cb) => {
         if (!inputHandlers[event]) return;
         if (!cb || inputHandlers[event] === cb) delete inputHandlers[event];
@@ -108,7 +149,9 @@ function seedRoster(rm, count) {
 }
 
 function getInteractiveRosterRows(overlay) {
-  return overlay.objects.filter((obj) => obj?._rosterList && obj?._interactive && obj.handlers?.pointerdown);
+  return overlay.objects.filter(
+    (obj) => obj?._rosterList && obj?._interactive && obj.handlers?.pointerdown,
+  );
 }
 
 describe('scroll picker layout', () => {
@@ -165,12 +208,10 @@ describe('scroll picker layout', () => {
     overlay._showScrollPicker(unit);
 
     // Page 1: bg, title, 6 buttons, pageLabel, prev, next, cancel = 12
-    expect(scene.created.texts.some(t => t.text === 'Page 1/2')).toBe(true);
+    expect(scene.created.texts.some((t) => t.text === 'Page 1/2')).toBe(true);
 
     // Only 6 scroll buttons on this page (not 12)
-    const scrollBtns = overlay.tradeObjects.filter(
-      o => o._scrollRef !== undefined
-    );
+    const scrollBtns = overlay.tradeObjects.filter((o) => o._scrollRef !== undefined);
     expect(scrollBtns).toHaveLength(6);
 
     // Cancel bottom edge fits viewport
@@ -178,11 +219,11 @@ describe('scroll picker layout', () => {
     expect(cancel.y + cancel.height / 2).toBeLessThan(480);
 
     // Navigate to page 2
-    const nextBtn = scene.created.texts.find(t => t.text === 'Next');
+    const nextBtn = scene.created.texts.find((t) => t.text === 'Next');
     expect(nextBtn?.handlers.pointerdown).toBeTypeOf('function');
     nextBtn.handlers.pointerdown();
 
-    expect(scene.created.texts.some(t => t.text === 'Page 2/2')).toBe(true);
+    expect(scene.created.texts.some((t) => t.text === 'Page 2/2')).toBe(true);
 
     // Page 2 also fits viewport
     const cancel2 = overlay.tradeObjects[overlay.tradeObjects.length - 1];
@@ -200,8 +241,8 @@ describe('left roster overflow behavior', () => {
 
     const selectedUnitRow = getInteractiveRosterRows(overlay).find((row) => row.alpha === 1);
     expect(selectedUnitRow).toBeTruthy();
-    expect(selectedUnitRow.y - (selectedUnitRow.height / 2)).toBeGreaterThanOrEqual(50);
-    expect(selectedUnitRow.y + (selectedUnitRow.height / 2)).toBeLessThanOrEqual(414);
+    expect(selectedUnitRow.y - selectedUnitRow.height / 2).toBeGreaterThanOrEqual(50);
+    expect(selectedUnitRow.y + selectedUnitRow.height / 2).toBeLessThanOrEqual(414);
     expect(overlay._rosterScrollOffset).toBeGreaterThan(0);
 
     overlay._cycleSelection(1);
@@ -286,11 +327,9 @@ describe('left roster overflow behavior', () => {
     overlay._rosterScrollOffset = 24;
     overlay.drawUnitList();
 
-    const unitNameTexts = overlay.objects.filter((obj) => (
-      obj?._rosterList &&
-      typeof obj.text === 'string' &&
-      obj.text.startsWith('Unit')
-    ));
+    const unitNameTexts = overlay.objects.filter(
+      (obj) => obj?._rosterList && typeof obj.text === 'string' && obj.text.startsWith('Unit'),
+    );
     expect(unitNameTexts.length).toBeGreaterThan(0);
     for (const textObj of unitNameTexts) {
       expect(textObj.y).toBeGreaterThanOrEqual(50);
@@ -324,9 +363,9 @@ describe('left roster overflow behavior', () => {
     rm.roster[0].currentHP = Math.max(1, (rm.roster[0].currentHP || 1) - 1);
     overlay.drawUnitDetails();
 
-    const rosterTexts = overlay.objects.filter((obj) => (
-      obj?._rosterList && typeof obj.text === 'string'
-    ));
+    const rosterTexts = overlay.objects.filter(
+      (obj) => obj?._rosterList && typeof obj.text === 'string',
+    );
     expect(rosterTexts.some((obj) => String(obj.text).startsWith('ZZZ_Renamed'))).toBe(true);
   });
 });

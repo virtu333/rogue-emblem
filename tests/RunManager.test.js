@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RunManager, serializeUnit, saveRun, loadRun, hasSavedRun, clearSavedRun } from '../src/engine/RunManager.js';
+import {
+  RunManager,
+  serializeUnit,
+  saveRun,
+  loadRun,
+  hasSavedRun,
+  clearSavedRun,
+} from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 import { NODE_TYPES, ELITE_GOLD_MULTIPLIER } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
@@ -8,8 +15,12 @@ import { calculateBattleGold } from '../src/engine/LootSystem.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => { store[key] = val; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = val;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -100,10 +111,13 @@ describe('RunManager', () => {
     it('extra starter receives a Vulnerary when recruit_field_supplies is active', () => {
       const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
       try {
-        const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, recruitStartingVulnerary: 1 });
+        const rmMeta = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          recruitStartingVulnerary: 1,
+        });
         rmMeta.startRun();
         const extra = rmMeta.roster[2];
-        expect(extra.consumables.some(c => c.name === 'Vulnerary')).toBe(true);
+        expect(extra.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
       } finally {
         randomSpy.mockRestore();
       }
@@ -117,11 +131,11 @@ describe('RunManager', () => {
         const extra = rmMeta.roster[2];
         expect(extra.className).toBe('Paladin');
 
-        const names = extra.inventory.map(w => w.name).sort();
+        const names = extra.inventory.map((w) => w.name).sort();
         expect(names).toEqual(['Iron Sword', 'Steel Lance']);
-        expect(extra.inventory.some(w => w.name === 'Iron Lance')).toBe(false);
-        expect(extra.inventory.map(w => w.name)).toContain(extra.weapon?.name);
-        expect(extra.proficiencies.some(p => p.type === extra.weapon?.type)).toBe(true);
+        expect(extra.inventory.some((w) => w.name === 'Iron Lance')).toBe(false);
+        expect(extra.inventory.map((w) => w.name)).toContain(extra.weapon?.name);
+        expect(extra.proficiencies.some((p) => p.type === extra.weapon?.type)).toBe(true);
       } finally {
         randomSpy.mockRestore();
       }
@@ -130,19 +144,19 @@ describe('RunManager', () => {
     it('Edric has Steel Sword in inventory', () => {
       rm.startRun();
       const edric = rm.roster[0];
-      expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(true);
+      expect(edric.inventory.some((w) => w.name === 'Steel Sword')).toBe(true);
     });
 
     it('Sera has Heal staff in inventory', () => {
       rm.startRun();
       const sera = rm.roster[1];
-      expect(sera.inventory.some(w => w.name === 'Heal')).toBe(true);
+      expect(sera.inventory.some((w) => w.name === 'Heal')).toBe(true);
     });
 
     it('Sera has Staff proficiency', () => {
       rm.startRun();
       const sera = rm.roster[1];
-      expect(sera.proficiencies.some(p => p.type === 'Staff')).toBe(true);
+      expect(sera.proficiencies.some((p) => p.type === 'Staff')).toBe(true);
     });
 
     it('generates act1 node map', () => {
@@ -159,7 +173,9 @@ describe('RunManager', () => {
     it('stores selected difficulty and modifiers', () => {
       rm.startRun({ difficultyId: 'hard' });
       expect(rm.difficultyId).toBe('hard');
-      expect(rm.getDifficultyModifier('enemyStatBonus', 0)).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
+      expect(rm.getDifficultyModifier('enemyStatBonus', 0)).toBe(
+        gameData.difficulty.modes.hard.enemyStatBonus,
+      );
     });
 
     it('initializes vision charges and rng seed from meta effects', () => {
@@ -191,11 +207,14 @@ describe('RunManager', () => {
   describe('serializeUnit', () => {
     it('strips Phaser fields', () => {
       const unit = {
-        name: 'Test', stats: { HP: 20 }, currentHP: 20,
+        name: 'Test',
+        stats: { HP: 20 },
+        currentHP: 20,
         graphic: { destroy: () => {} },
         label: { destroy: () => {} },
         hpBar: { bg: {}, fill: {} },
-        hasMoved: true, hasActed: true,
+        hasMoved: true,
+        hasActed: true,
       };
       const serialized = serializeUnit(unit);
       expect(serialized.graphic).toBeNull();
@@ -243,20 +262,43 @@ describe('RunManager', () => {
     });
 
     it('resets per-battle flags', () => {
-      const unit = { name: 'Test', hasMoved: true, hasActed: true, graphic: null, label: null, hpBar: null };
+      const unit = {
+        name: 'Test',
+        hasMoved: true,
+        hasActed: true,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
       const serialized = serializeUnit(unit);
       expect(serialized.hasMoved).toBe(false);
       expect(serialized.hasActed).toBe(false);
     });
 
     it('resets _miracleUsed flag', () => {
-      const unit = { name: 'Test', _miracleUsed: true, hasMoved: false, hasActed: false, graphic: null, label: null, hpBar: null };
+      const unit = {
+        name: 'Test',
+        _miracleUsed: true,
+        hasMoved: false,
+        hasActed: false,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
       const serialized = serializeUnit(unit);
       expect(serialized._miracleUsed).toBe(false);
     });
 
     it('resets _phoenixBroochUsed flag', () => {
-      const unit = { name: 'Test', _phoenixBroochUsed: true, hasMoved: false, hasActed: false, graphic: null, label: null, hpBar: null };
+      const unit = {
+        name: 'Test',
+        _phoenixBroochUsed: true,
+        hasMoved: false,
+        hasActed: false,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
       const serialized = serializeUnit(unit);
       expect(serialized._phoenixBroochUsed).toBe(false);
     });
@@ -277,10 +319,16 @@ describe('RunManager', () => {
 
     it('preserves stats and inventory', () => {
       const unit = {
-        name: 'Edric', stats: { HP: 20, STR: 8 }, currentHP: 15,
-        inventory: [{ name: 'Iron Sword' }], skills: ['charisma'],
-        graphic: null, label: null, hpBar: null,
-        hasMoved: false, hasActed: false,
+        name: 'Edric',
+        stats: { HP: 20, STR: 8 },
+        currentHP: 15,
+        inventory: [{ name: 'Iron Sword' }],
+        skills: ['charisma'],
+        graphic: null,
+        label: null,
+        hpBar: null,
+        hasMoved: false,
+        hasActed: false,
       };
       const serialized = serializeUnit(unit);
       expect(serialized.name).toBe('Edric');
@@ -320,7 +368,7 @@ describe('RunManager', () => {
 
     it('returns connected nodes after completing a node', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.markNodeComplete(startNode.id);
       const available = rm.getAvailableNodes();
       expect(available.length).toBeGreaterThan(0);
@@ -334,7 +382,7 @@ describe('RunManager', () => {
   describe('ambush pending state', () => {
     it('getAmbushPendingNode resolves pending node id from the current map', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.pendingAmbushNodeId = startNode.id;
 
       expect(rm.getAmbushPendingNode()).toBe(startNode);
@@ -342,7 +390,7 @@ describe('RunManager', () => {
 
     it('clearAmbushPendingNode only clears when id matches (or id is omitted)', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.pendingAmbushNodeId = startNode.id;
 
       expect(rm.clearAmbushPendingNode('different-node')).toBe(false);
@@ -384,7 +432,7 @@ describe('RunManager', () => {
   describe('completeBattle', () => {
     it('updates roster with surviving units', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       // Simulate a battle: units gain XP
       const roster = rm.getRoster();
       roster[0].xp = 50;
@@ -397,21 +445,21 @@ describe('RunManager', () => {
     it('increments completedBattles', () => {
       rm.startRun();
       expect(rm.completedBattles).toBe(0);
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.completeBattle(rm.getRoster(), startNode.id);
       expect(rm.completedBattles).toBe(1);
     });
 
     it('marks node as completed', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.completeBattle(rm.getRoster(), startNode.id);
       expect(startNode.completed).toBe(true);
     });
 
     it('applies battle reward multiplier exactly once', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       const startGold = rm.gold;
       rm.completeBattle(rm.getRoster(), startNode.id, 100);
 
@@ -427,7 +475,7 @@ describe('RunManager', () => {
       rmMeta.difficultyModifiers = { ...rmMeta.difficultyModifiers, goldMultiplier: 0.9 };
 
       // Mark first node as elite
-      const node = rmMeta.nodeMap.nodes.find(n => n.id === rmMeta.nodeMap.startNodeId);
+      const node = rmMeta.nodeMap.nodes.find((n) => n.id === rmMeta.nodeMap.startNodeId);
       if (!node.battleParams) node.battleParams = {};
       node.battleParams.isElite = true;
 
@@ -448,13 +496,17 @@ describe('RunManager', () => {
       control.startRun();
       overridden.startRun();
 
-      const controlNode = control.nodeMap.nodes.find(n => n.id === control.nodeMap.startNodeId);
-      const overriddenNode = overridden.nodeMap.nodes.find(n => n.id === overridden.nodeMap.startNodeId);
+      const controlNode = control.nodeMap.nodes.find((n) => n.id === control.nodeMap.startNodeId);
+      const overriddenNode = overridden.nodeMap.nodes.find(
+        (n) => n.id === overridden.nodeMap.startNodeId,
+      );
       const controlStartGold = control.gold;
       const overriddenStartGold = overridden.gold;
 
       control.completeBattle(control.getRoster(), controlNode.id, 0);
-      overridden.completeBattle(overridden.getRoster(), overriddenNode.id, 0, { completionGoldOverride: 0 });
+      overridden.completeBattle(overridden.getRoster(), overriddenNode.id, 0, {
+        completionGoldOverride: 0,
+      });
 
       const controlGain = control.gold - controlStartGold;
       const overriddenGain = overridden.gold - overriddenStartGold;
@@ -464,7 +516,7 @@ describe('RunManager', () => {
 
     it('sets pending ambush state when an ambush battle is completed', () => {
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const node = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       node.type = 'shop';
       node.isAmbush = true;
       node.ambushCleared = false;
@@ -479,7 +531,7 @@ describe('RunManager', () => {
 
     it('uses battle gold multiplier path for ambush battles on shop nodes', () => {
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const node = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       node.type = 'shop';
       node.isAmbush = true;
       node.ambushCleared = false;
@@ -520,7 +572,7 @@ describe('RunManager', () => {
 
     it('is a full no-op when completeBattle is called twice for the same node', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       const firstApplied = rm.completeBattle(rm.getRoster(), startNode.id, 100);
 
       const stateBeforeSecondCall = {
@@ -552,7 +604,7 @@ describe('RunManager', () => {
 
     it('grants +1 vision on first completion of an act2 boss node', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.nodeMap.actId = 'act2';
       rm.nodeMap.bossNodeId = startNode.id;
       startNode.type = 'boss';
@@ -565,7 +617,7 @@ describe('RunManager', () => {
 
     it('grants +1 vision on first completion of an act3 boss node', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.nodeMap.actId = 'act3';
       rm.nodeMap.bossNodeId = startNode.id;
       startNode.type = 'boss';
@@ -578,7 +630,7 @@ describe('RunManager', () => {
 
     it('grants +1 vision on first completion of an act4 boss node', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.nodeMap.actId = 'act4';
       rm.nodeMap.bossNodeId = startNode.id;
       startNode.type = 'boss';
@@ -592,7 +644,9 @@ describe('RunManager', () => {
     it('does not grant vision for non-boss nodes, act1, or finalBoss', () => {
       const nonBossType = new RunManager(gameData);
       nonBossType.startRun();
-      const nonBossTypeNode = nonBossType.nodeMap.nodes.find(n => n.id === nonBossType.nodeMap.startNodeId);
+      const nonBossTypeNode = nonBossType.nodeMap.nodes.find(
+        (n) => n.id === nonBossType.nodeMap.startNodeId,
+      );
       nonBossType.nodeMap.actId = 'act2';
       nonBossType.nodeMap.bossNodeId = nonBossTypeNode.id;
       nonBossTypeNode.type = 'battle';
@@ -602,7 +656,9 @@ describe('RunManager', () => {
 
       const nonBossId = new RunManager(gameData);
       nonBossId.startRun();
-      const nonBossIdNode = nonBossId.nodeMap.nodes.find(n => n.id === nonBossId.nodeMap.startNodeId);
+      const nonBossIdNode = nonBossId.nodeMap.nodes.find(
+        (n) => n.id === nonBossId.nodeMap.startNodeId,
+      );
       nonBossId.nodeMap.actId = 'act2';
       nonBossId.nodeMap.bossNodeId = 'different-node-id';
       nonBossIdNode.type = 'boss';
@@ -612,7 +668,9 @@ describe('RunManager', () => {
 
       const nonTargetAct = new RunManager(gameData);
       nonTargetAct.startRun();
-      const nonTargetActNode = nonTargetAct.nodeMap.nodes.find(n => n.id === nonTargetAct.nodeMap.startNodeId);
+      const nonTargetActNode = nonTargetAct.nodeMap.nodes.find(
+        (n) => n.id === nonTargetAct.nodeMap.startNodeId,
+      );
       nonTargetAct.nodeMap.actId = 'act1';
       nonTargetAct.nodeMap.bossNodeId = nonTargetActNode.id;
       nonTargetActNode.type = 'boss';
@@ -622,7 +680,9 @@ describe('RunManager', () => {
 
       const finalBossAct = new RunManager(gameData);
       finalBossAct.startRun();
-      const finalBossActNode = finalBossAct.nodeMap.nodes.find(n => n.id === finalBossAct.nodeMap.startNodeId);
+      const finalBossActNode = finalBossAct.nodeMap.nodes.find(
+        (n) => n.id === finalBossAct.nodeMap.startNodeId,
+      );
       finalBossAct.nodeMap.actId = 'finalBoss';
       finalBossAct.nodeMap.bossNodeId = finalBossActNode.id;
       finalBossActNode.type = 'boss';
@@ -633,7 +693,7 @@ describe('RunManager', () => {
 
     it('does not grant vision more than once for the same boss completion', () => {
       rm.startRun();
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.nodeMap.actId = 'act2';
       rm.nodeMap.bossNodeId = startNode.id;
       startNode.type = 'boss';
@@ -649,7 +709,7 @@ describe('RunManager', () => {
       const mapAuthoritative = new RunManager(gameData);
       mapAuthoritative.startRun();
       const mapAuthoritativeNode = mapAuthoritative.nodeMap.nodes.find(
-        n => n.id === mapAuthoritative.nodeMap.startNodeId
+        (n) => n.id === mapAuthoritative.nodeMap.startNodeId,
       );
       mapAuthoritative.actIndex = 0; // currentAct = act1
       mapAuthoritative.nodeMap.actId = 'act2';
@@ -662,7 +722,7 @@ describe('RunManager', () => {
       const currentActWouldReward = new RunManager(gameData);
       currentActWouldReward.startRun();
       const currentActWouldRewardNode = currentActWouldReward.nodeMap.nodes.find(
-        n => n.id === currentActWouldReward.nodeMap.startNodeId
+        (n) => n.id === currentActWouldReward.nodeMap.startNodeId,
       );
       const act3Index = currentActWouldReward.actSequence.indexOf('act3');
       currentActWouldReward.actIndex = act3Index >= 0 ? act3Index : 0;
@@ -670,7 +730,11 @@ describe('RunManager', () => {
       currentActWouldReward.nodeMap.bossNodeId = currentActWouldRewardNode.id;
       currentActWouldRewardNode.type = 'boss';
       const currentActWouldRewardInitialVision = currentActWouldReward.visionChargesRemaining;
-      currentActWouldReward.completeBattle(currentActWouldReward.getRoster(), currentActWouldRewardNode.id, 0);
+      currentActWouldReward.completeBattle(
+        currentActWouldReward.getRoster(),
+        currentActWouldRewardNode.id,
+        0,
+      );
       expect(currentActWouldReward.visionChargesRemaining).toBe(currentActWouldRewardInitialVision);
     });
   });
@@ -711,7 +775,7 @@ describe('RunManager', () => {
       rm.startRun();
       expect(rm.isActComplete()).toBe(false);
       // Complete the boss node
-      const bossNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.bossNodeId);
+      const bossNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
       bossNode.completed = true;
       expect(rm.isActComplete()).toBe(true);
     });
@@ -750,7 +814,9 @@ describe('RunManager', () => {
         perMapLimit: 3,
         combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Test Act 2 Ordered' }] },
       });
-      const localRm = new RunManager(localData, { metaUnlockedWeaponArts: ['legend_gemini_tempest'] });
+      const localRm = new RunManager(localData, {
+        metaUnlockedWeaponArts: ['legend_gemini_tempest'],
+      });
       localRm.startRun();
       const ids = localRm.getUnlockedWeaponArtIds();
       const metaIdx = ids.indexOf('legend_gemini_tempest');
@@ -798,8 +864,8 @@ describe('RunManager', () => {
 
     it('stores weapons and consumables in separate convoy pools', () => {
       rm.startRun();
-      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
-      const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
+      const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
       expect(rm.addToConvoy(sword)).toBe(true);
       expect(rm.addToConvoy(vuln)).toBe(true);
       expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 1 });
@@ -809,7 +875,7 @@ describe('RunManager', () => {
 
     it('takeFromConvoy removes and returns an item', () => {
       rm.startRun();
-      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
       rm.addToConvoy(sword);
       const pulled = rm.takeFromConvoy('weapon', 0);
       expect(pulled?.name).toBe('Iron Sword');
@@ -818,7 +884,7 @@ describe('RunManager', () => {
 
     it('takeFromConvoy returns null for invalid type', () => {
       rm.startRun();
-      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
       rm.addToConvoy(sword);
       const pulled = rm.takeFromConvoy('invalid-type', 0);
       expect(pulled).toBeNull();
@@ -841,7 +907,7 @@ describe('RunManager', () => {
 
     it('getConvoyItems returns cloned snapshots', () => {
       rm.startRun();
-      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
       rm.addToConvoy(sword);
       const snapshot = rm.getConvoyItems();
       snapshot.weapons[0].name = 'Mutated';
@@ -859,8 +925,8 @@ describe('RunManager', () => {
 
     it('toJSON/fromJSON preserves convoy data', () => {
       rm.startRun();
-      const sword = gameData.weapons.find(w => w.name === 'Iron Sword');
-      const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+      const sword = gameData.weapons.find((w) => w.name === 'Iron Sword');
+      const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
       rm.addToConvoy(sword);
       rm.addToConvoy(vuln);
       const restored = RunManager.fromJSON(rm.toJSON(), gameData);
@@ -937,7 +1003,7 @@ describe('RunManager', () => {
       rm.startRun();
       rm.gold = 500;
       rm.completedBattles = 3;
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.markNodeComplete(startNode.id);
 
       const json = rm.toJSON();
@@ -979,7 +1045,9 @@ describe('RunManager', () => {
         perMapLimit: 3,
         combatMods: { hitBonus: 5, activated: [{ id: 'weapon_art', name: 'Manual Unlock' }] },
       });
-      const localRm = new RunManager(localData, { metaUnlockedWeaponArts: ['legend_starfall_volley'] });
+      const localRm = new RunManager(localData, {
+        metaUnlockedWeaponArts: ['legend_starfall_volley'],
+      });
       localRm.startRun();
       expect(localRm.unlockWeaponArt('test_manual_unlock')).toBe(true);
       const restored = RunManager.fromJSON(localRm.toJSON(), localData);
@@ -1058,7 +1126,7 @@ describe('RunManager', () => {
 
     it('round-trips pendingAmbushNodeId through save/load', () => {
       rm.startRun({ runSeed: 999 });
-      const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
       rm.pendingAmbushNodeId = startNode.id;
 
       const json = rm.toJSON();
@@ -1104,15 +1172,17 @@ describe('RunManager', () => {
       json.actIndex = 3;
       json.nodeMap = {
         actId: 'finalBoss',
-        nodes: [{
-          id: 'finalBoss_0_0',
-          row: 0,
-          col: 0,
-          type: NODE_TYPES.BOSS,
-          edges: [],
-          battleParams: { act: 'finalBoss', objective: 'seize', battleSeed: 1 },
-          completed: false,
-        }],
+        nodes: [
+          {
+            id: 'finalBoss_0_0',
+            row: 0,
+            col: 0,
+            type: NODE_TYPES.BOSS,
+            edges: [],
+            battleParams: { act: 'finalBoss', objective: 'seize', battleSeed: 1 },
+            completed: false,
+          },
+        ],
         startNodeId: 'finalBoss_0_0',
         bossNodeId: 'finalBoss_0_0',
       };
@@ -1166,12 +1236,14 @@ describe('RunManager', () => {
     it('fromJSON strips invalid scroll weapon-art metadata fail-closed', () => {
       rm.startRun();
       const json = rm.toJSON();
-      json.scrolls = [{
-        name: 'Test Art Scroll',
-        type: 'Scroll',
-        teachesWeaponArtId: 'missing_art',
-        allowedWeaponTypes: [' sword ', 'SWORD', 'Blade', '', 42],
-      }];
+      json.scrolls = [
+        {
+          name: 'Test Art Scroll',
+          type: 'Scroll',
+          teachesWeaponArtId: 'missing_art',
+          allowedWeaponTypes: [' sword ', 'SWORD', 'Blade', '', 42],
+        },
+      ];
       const restored = RunManager.fromJSON(json, gameData);
       expect(restored.scrolls[0].teachesWeaponArtId).toBeUndefined();
       expect(restored.scrolls[0].allowedWeaponTypes).toEqual(['Sword']);
@@ -1365,7 +1437,7 @@ describe('RunManager', () => {
       const edric = rmMeta.roster[0];
       // Edric has default Iron Sword (5 might) + Steel Sword (8 might)
       // Both get +2 forges of might
-      const steelSword = edric.inventory.find(w => w._baseName === 'Steel Sword');
+      const steelSword = edric.inventory.find((w) => w._baseName === 'Steel Sword');
       expect(steelSword._forgeLevel).toBe(2);
       expect(steelSword.might).toBe(10); // 8 + 2
     });
@@ -1375,8 +1447,8 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      expect(edric.inventory.some(w => w.name === 'Rapier')).toBe(true);
-      expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(false);
+      expect(edric.inventory.some((w) => w.name === 'Rapier')).toBe(true);
+      expect(edric.inventory.some((w) => w.name === 'Steel Sword')).toBe(false);
     });
 
     it('deadlyArsenalTier 2 gives Edric Rapier + Silver Sword and auto-equips Silver Sword', () => {
@@ -1384,9 +1456,9 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      expect(edric.inventory.some(w => w.name === 'Rapier')).toBe(true);
-      expect(edric.inventory.some(w => w.name === 'Silver Sword')).toBe(true);
-      expect(edric.inventory.some(w => w.name === 'Steel Sword')).toBe(false);
+      expect(edric.inventory.some((w) => w.name === 'Rapier')).toBe(true);
+      expect(edric.inventory.some((w) => w.name === 'Silver Sword')).toBe(true);
+      expect(edric.inventory.some((w) => w.name === 'Steel Sword')).toBe(false);
       expect(edric.weapon?.name).toBe('Silver Sword');
     });
 
@@ -1395,7 +1467,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const silverSword = edric.inventory.find(w => w._baseName === 'Silver Sword');
+      const silverSword = edric.inventory.find((w) => w._baseName === 'Silver Sword');
       expect(silverSword).toBeTruthy();
       expect(silverSword._forgeLevel).toBe(3);
     });
@@ -1405,7 +1477,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      const lightWeapons = sera.inventory.filter(w => w.type === 'Light');
+      const lightWeapons = sera.inventory.filter((w) => w.type === 'Light');
       expect(lightWeapons).toHaveLength(1);
       expect(lightWeapons[0].name).toBe('Lightning');
     });
@@ -1419,7 +1491,7 @@ describe('RunManager', () => {
       expect(edric.accessory.name).toBe('Goddess Icon');
     });
 
-    it('starting_accessory tier 3 equips Veteran\'s Crest', () => {
+    it("starting_accessory tier 3 equips Veteran's Crest", () => {
       const metaEffects = { startingAccessoryTier: 3 };
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
@@ -1432,8 +1504,8 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      expect(sera.inventory.some(w => w.name === 'Mend')).toBe(true);
-      expect(sera.inventory.some(w => w.name === 'Heal')).toBe(false);
+      expect(sera.inventory.some((w) => w.name === 'Mend')).toBe(true);
+      expect(sera.inventory.some((w) => w.name === 'Heal')).toBe(false);
     });
 
     it('staff_upgrade gives Sera Recover at tier 2', () => {
@@ -1441,7 +1513,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      expect(sera.inventory.some(w => w.name === 'Recover')).toBe(true);
+      expect(sera.inventory.some((w) => w.name === 'Recover')).toBe(true);
     });
 
     it('startingReclassSeal adds one Infantry Seal to convoy at run start', () => {
@@ -1458,7 +1530,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const sera = rmMeta.roster[1];
-      const staff = sera.inventory.find(w => w.type === 'Staff');
+      const staff = sera.inventory.find((w) => w.type === 'Staff');
       expect(staff._forgeLevel).toBeUndefined();
     });
   });
@@ -1481,7 +1553,7 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      const charismaCount = edric.skills.filter(s => s === 'charisma').length;
+      const charismaCount = edric.skills.filter((s) => s === 'charisma').length;
       expect(charismaCount).toBe(1);
     });
 
@@ -1516,10 +1588,16 @@ describe('Fallen unit tracking and revival', () => {
   it('fallenUnits tracks units lost in battle', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     // Add a third unit to the roster
-    const recruit = { name: 'TestRecruit', stats: { HP: 25 }, currentHP: 25, level: 1, className: 'Myrmidon' };
+    const recruit = {
+      name: 'TestRecruit',
+      stats: { HP: 25 },
+      currentHP: 25,
+      level: 1,
+      className: 'Myrmidon',
+    };
     rm.roster.push(recruit);
 
     // Simulate battle: 2 units survive, 1 falls
@@ -1533,14 +1611,18 @@ describe('Fallen unit tracking and revival', () => {
   it('completeBattle transfers fallen weapons/consumables to convoy and accessory to team pool', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
-    const weaponA = gameData.weapons.find(w => w.type === profType) || gameData.weapons.find(w => w.type === 'Sword');
-    const weaponB = gameData.weapons.find(w => w.type === profType && w.name !== weaponA?.name)
-      || gameData.weapons.find(w => w.type === 'Sword' && w.name !== weaponA?.name)
-      || weaponA;
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const weaponA =
+      gameData.weapons.find((w) => w.type === profType) ||
+      gameData.weapons.find((w) => w.type === 'Sword');
+    const weaponB =
+      gameData.weapons.find((w) => w.type === profType && w.name !== weaponA?.name) ||
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name !== weaponA?.name) ||
+      weaponA;
+    const vuln =
+      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
     const accessory = gameData.accessories[0];
 
     const fallen = structuredClone(rm.roster[0]);
@@ -1555,9 +1637,9 @@ describe('Fallen unit tracking and revival', () => {
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 2, consumables: 1 });
-    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+    expect(rm.accessories.some((a) => a.name === accessory.name)).toBe(true);
 
-    const stored = rm.fallenUnits.find(u => u.name === 'FallenRecruit');
+    const stored = rm.fallenUnits.find((u) => u.name === 'FallenRecruit');
     expect(stored).toBeTruthy();
     expect(stored.inventory).toEqual([]);
     expect(stored.consumables).toEqual([]);
@@ -1568,10 +1650,11 @@ describe('Fallen unit tracking and revival', () => {
   it('keeps fallen weapon/consumable on fallen unit when convoy buckets are full', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
-    const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const sword = gameData.weapons.find((w) => w.type === 'Sword') || gameData.weapons[0];
+    const vuln =
+      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
     const caps = rm.getConvoyCapacities();
     for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
     for (let i = 0; i < caps.consumables; i++) rm.addToConvoy(vuln);
@@ -1589,9 +1672,9 @@ describe('Fallen unit tracking and revival', () => {
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual(caps);
-    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+    expect(rm.accessories.some((a) => a.name === accessory.name)).toBe(true);
 
-    const stored = rm.fallenUnits.find(u => u.name === 'ConvoyFullFallen');
+    const stored = rm.fallenUnits.find((u) => u.name === 'ConvoyFullFallen');
     expect(stored).toBeTruthy();
     expect(stored.inventory).toHaveLength(1);
     expect(stored.inventory[0].name).toBe(sword.name);
@@ -1603,10 +1686,11 @@ describe('Fallen unit tracking and revival', () => {
   it('transfers available buckets and keeps only blocked bucket items on fallen unit', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
-    const sword = gameData.weapons.find(w => w.type === 'Sword') || gameData.weapons[0];
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary') || gameData.consumables[0];
+    const sword = gameData.weapons.find((w) => w.type === 'Sword') || gameData.weapons[0];
+    const vuln =
+      gameData.consumables.find((c) => c.name === 'Vulnerary') || gameData.consumables[0];
     const caps = rm.getConvoyCapacities();
     for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(sword);
 
@@ -1623,9 +1707,9 @@ describe('Fallen unit tracking and revival', () => {
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 1 });
-    expect(rm.accessories.some(a => a.name === accessory.name)).toBe(true);
+    expect(rm.accessories.some((a) => a.name === accessory.name)).toBe(true);
 
-    const stored = rm.fallenUnits.find(u => u.name === 'PartialTransferFallen');
+    const stored = rm.fallenUnits.find((u) => u.name === 'PartialTransferFallen');
     expect(stored).toBeTruthy();
     expect(stored.inventory).toHaveLength(1);
     expect(stored.inventory[0].name).toBe(sword.name);
@@ -1636,12 +1720,13 @@ describe('Fallen unit tracking and revival', () => {
   it('does not double-transfer equipped weapon when it matches inventory by value only', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
-    const weapon = gameData.weapons.find(w => w.type === profType)
-      || gameData.weapons.find(w => w.type === 'Sword')
-      || gameData.weapons[0];
+    const weapon =
+      gameData.weapons.find((w) => w.type === profType) ||
+      gameData.weapons.find((w) => w.type === 'Sword') ||
+      gameData.weapons[0];
 
     const fallen = structuredClone(rm.roster[0]);
     fallen.name = 'ValueMatchFallen';
@@ -1655,7 +1740,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: 1, consumables: 0 });
-    const stored = rm.fallenUnits.find(u => u.name === 'ValueMatchFallen');
+    const stored = rm.fallenUnits.find((u) => u.name === 'ValueMatchFallen');
     expect(stored).toBeTruthy();
     expect(stored.inventory).toEqual([]);
     expect(stored.weapon).toBeNull();
@@ -1664,12 +1749,13 @@ describe('Fallen unit tracking and revival', () => {
   it('keeps equipped weapon on fallen unit when convoy is full and weapon is missing from inventory', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    const startNode = rm.nodeMap.nodes.find(n => n.id === rm.nodeMap.startNodeId);
+    const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
 
     const profType = rm.roster[0].proficiencies?.[0]?.type || 'Sword';
-    const weapon = gameData.weapons.find(w => w.type === profType)
-      || gameData.weapons.find(w => w.type === 'Sword')
-      || gameData.weapons[0];
+    const weapon =
+      gameData.weapons.find((w) => w.type === profType) ||
+      gameData.weapons.find((w) => w.type === 'Sword') ||
+      gameData.weapons[0];
     const caps = rm.getConvoyCapacities();
     for (let i = 0; i < caps.weapons; i++) rm.addToConvoy(weapon);
 
@@ -1685,7 +1771,7 @@ describe('Fallen unit tracking and revival', () => {
     rm.completeBattle(survivors, startNode.id, 100);
 
     expect(rm.getConvoyCounts()).toEqual({ weapons: caps.weapons, consumables: 0 });
-    const stored = rm.fallenUnits.find(u => u.name === 'LegacyMissingEquippedFallen');
+    const stored = rm.fallenUnits.find((u) => u.name === 'LegacyMissingEquippedFallen');
     expect(stored).toBeTruthy();
     expect(stored.inventory).toHaveLength(1);
     expect(stored.inventory[0].name).toBe(weapon.name);
@@ -1695,30 +1781,30 @@ describe('Fallen unit tracking and revival', () => {
   it('reviveFallenUnit restores unit to roster at 1 HP', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    
+
     // Kill a unit
     const fallen = rm.roster[0];
     const fallenName = fallen.name;
     rm.roster = rm.roster.slice(1); // Remove first unit
     rm.fallenUnits.push(fallen);
     rm.gold = 2000;
-    
+
     const success = rm.reviveFallenUnit(fallenName, 1000);
     expect(success).toBe(true);
     expect(rm.roster.length).toBe(2); // Back to 2 (was 1, revived 1)
-    expect(rm.roster.find(u => u.name === fallenName).currentHP).toBe(1);
+    expect(rm.roster.find((u) => u.name === fallenName).currentHP).toBe(1);
   });
 
   it('reviveFallenUnit deducts gold and removes from fallenUnits', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    
+
     const fallen = rm.roster[0];
     const fallenName = fallen.name;
     rm.roster = rm.roster.slice(1);
     rm.fallenUnits.push(fallen);
     rm.gold = 2000;
-    
+
     rm.reviveFallenUnit(fallenName, 1000);
     expect(rm.gold).toBe(1000); // 2000 - 1000
     expect(rm.fallenUnits.length).toBe(0);
@@ -1727,21 +1813,23 @@ describe('Fallen unit tracking and revival', () => {
   it('reviveFallenUnit fails if insufficient gold or roster full', () => {
     const rm = new RunManager(gameData, null);
     rm.startRun();
-    
+
     const fallen = rm.roster[0];
     const fallenName = fallen.name;
     rm.roster = rm.roster.slice(1);
     rm.fallenUnits.push(fallen);
-    
+
     // Test insufficient gold
     rm.gold = 500;
     let success = rm.reviveFallenUnit(fallenName, 1000);
     expect(success).toBe(false);
     expect(rm.fallenUnits.length).toBe(1); // Still fallen
-    
+
     // Test roster full (max = 12 by default)
     rm.gold = 2000;
-    rm.roster = Array(12).fill(null).map((_, i) => ({ name: `Unit${i}`, stats: { HP: 30 }, currentHP: 30 }));
+    rm.roster = Array(12)
+      .fill(null)
+      .map((_, i) => ({ name: `Unit${i}`, stats: { HP: 30 }, currentHP: 30 }));
     success = rm.reviveFallenUnit(fallenName, 1000);
     expect(success).toBe(false);
   });
@@ -1791,8 +1879,8 @@ describe('weapon reference integrity (relinkWeapon)', () => {
 
     const cloned = rm.getRoster();
 
-    expect(cloned.every(u => u && u.stats && u.name)).toBe(true);
-    expect(rm.roster.every(u => u && u.stats && u.name)).toBe(true);
+    expect(cloned.every((u) => u && u.stats && u.name)).toBe(true);
+    expect(rm.roster.every((u) => u && u.stats && u.name)).toBe(true);
   });
 
   it('fromJSON() round-trip preserves weapon === inventory[idx]', () => {
@@ -1816,8 +1904,8 @@ describe('weapon reference integrity (relinkWeapon)', () => {
 
     const restored = RunManager.fromJSON(json, gameData);
 
-    expect(restored.roster.every(u => u && u.stats && u.name)).toBe(true);
-    expect(restored.fallenUnits.every(u => u && u.stats && u.name)).toBe(true);
+    expect(restored.roster.every((u) => u && u.stats && u.name)).toBe(true);
+    expect(restored.fallenUnits.every((u) => u && u.stats && u.name)).toBe(true);
   });
 
   it('relink handles empty inventory → weapon null', () => {
@@ -1867,7 +1955,14 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const json = rm.toJSON();
     const unit = json.roster[0];
     // Inject a Consumable at inventory[0] to simulate pre-migration save
-    const vuln = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 };
+    const vuln = {
+      name: 'Vulnerary',
+      type: 'Consumable',
+      effect: 'heal',
+      value: 10,
+      uses: 3,
+      price: 300,
+    };
     unit.inventory.unshift(vuln);
     // Clear weapon name to force relink fallback to inventory[0]
     unit.weapon = { name: 'NonExistentWeapon' };
@@ -1877,7 +1972,7 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const restored = RunManager.fromJSON(json, gameData);
     const restoredUnit = restored.roster[0];
     // After migration, Consumable should be in consumables, not inventory
-    expect(restoredUnit.inventory.every(w => w.type !== 'Consumable')).toBe(true);
+    expect(restoredUnit.inventory.every((w) => w.type !== 'Consumable')).toBe(true);
     // Weapon should NOT be the consumable (migration ran first)
     if (restoredUnit.weapon) {
       expect(restoredUnit.weapon.type).not.toBe('Consumable');
@@ -1889,22 +1984,37 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     rm.startRun();
     // Inject a Dancer unit without the 'dance' skill (simulates pre-fix boss recruit save)
     const dancerUnit = {
-      name: 'Sylvie', className: 'Dancer', tier: 'base', level: 5, xp: 0,
-      isLord: false, personalGrowths: null,
+      name: 'Sylvie',
+      className: 'Dancer',
+      tier: 'base',
+      level: 5,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
       growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-      skills: [],  // BUG: missing 'dance'
+      skills: [], // BUG: missing 'dance'
       stats: { HP: 20, STR: 5, MAG: 6, SKL: 8, SPD: 10, DEF: 3, RES: 5, LCK: 7, MOV: 6 },
-      currentHP: 20, mov: 6, moveType: 'foot', faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Prof', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 20,
+      mov: 6,
+      moveType: 'foot',
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     };
     rm.roster.push(dancerUnit);
     const json = rm.toJSON();
 
     const restored = RunManager.fromJSON(json, gameData);
-    const restoredDancer = restored.roster.find(u => u.name === 'Sylvie');
+    const restoredDancer = restored.roster.find((u) => u.name === 'Sylvie');
     expect(restoredDancer.skills).toContain('dance');
   });
 
@@ -1913,23 +2023,38 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     rm.startRun();
     // Dancer that ALREADY has 'dance' — migration should not duplicate it
     const dancerUnit = {
-      name: 'Sylvie', className: 'Dancer', tier: 'base', level: 5, xp: 0,
-      isLord: false, personalGrowths: null,
+      name: 'Sylvie',
+      className: 'Dancer',
+      tier: 'base',
+      level: 5,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
       growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-      skills: ['dance'],  // already correct
+      skills: ['dance'], // already correct
       stats: { HP: 20, STR: 5, MAG: 6, SKL: 8, SPD: 10, DEF: 3, RES: 5, LCK: 7, MOV: 6 },
-      currentHP: 20, mov: 6, moveType: 'foot', faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Prof', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 20,
+      mov: 6,
+      moveType: 'foot',
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     };
     rm.roster.push(dancerUnit);
     const json = rm.toJSON();
 
     const restored = RunManager.fromJSON(json, gameData);
-    const restoredDancer = restored.roster.find(u => u.name === 'Sylvie');
-    expect(restoredDancer.skills.filter(s => s === 'dance')).toHaveLength(1);
+    const restoredDancer = restored.roster.find((u) => u.name === 'Sylvie');
+    expect(restoredDancer.skills.filter((s) => s === 'dance')).toHaveLength(1);
   });
 
   it('fromJSON migrates innate skills for promoted units including base class skills', () => {
@@ -1937,22 +2062,37 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     rm.startRun();
     // Swordmaster (promoted from Myrmidon) without its 'crit_plus_15' innate skill
     const swordmaster = {
-      name: 'TestUnit', className: 'Swordmaster', tier: 'promoted', level: 1, xp: 0,
-      isLord: false, personalGrowths: null,
+      name: 'TestUnit',
+      className: 'Swordmaster',
+      tier: 'promoted',
+      level: 1,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
       growths: { HP: 50, STR: 45, MAG: 10, SKL: 55, SPD: 60, DEF: 25, RES: 20, LCK: 40 },
       proficiencies: [{ type: 'Sword', rank: 'Mast' }],
-      skills: [],  // missing 'crit_plus_15'
+      skills: [], // missing 'crit_plus_15'
       stats: { HP: 28, STR: 12, MAG: 3, SKL: 16, SPD: 18, DEF: 8, RES: 5, LCK: 9, MOV: 6 },
-      currentHP: 28, mov: 6, moveType: 'foot', faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Mast', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 28,
+      mov: 6,
+      moveType: 'foot',
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Mast',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     };
     rm.roster.push(swordmaster);
     const json = rm.toJSON();
 
     const restored = RunManager.fromJSON(json, gameData);
-    const restoredUnit = restored.roster.find(u => u.name === 'TestUnit');
+    const restoredUnit = restored.roster.find((u) => u.name === 'TestUnit');
     expect(restoredUnit.skills).toContain('crit_plus_15');
   });
 
@@ -1960,22 +2100,37 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const dancerUnit = {
-      name: 'FallenDancer', className: 'Dancer', tier: 'base', level: 3, xp: 0,
-      isLord: false, personalGrowths: null,
+      name: 'FallenDancer',
+      className: 'Dancer',
+      tier: 'base',
+      level: 3,
+      xp: 0,
+      isLord: false,
+      personalGrowths: null,
       growths: { HP: 50, STR: 30, MAG: 40, SKL: 45, SPD: 60, DEF: 20, RES: 35, LCK: 50 },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       stats: { HP: 18, STR: 4, MAG: 5, SKL: 7, SPD: 9, DEF: 2, RES: 4, LCK: 6, MOV: 6 },
-      currentHP: 0, mov: 6, moveType: 'foot', faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Prof', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 0,
+      mov: 6,
+      moveType: 'foot',
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     };
     rm.fallenUnits.push(dancerUnit);
     const json = rm.toJSON();
 
     const restored = RunManager.fromJSON(json, gameData);
-    const fallen = restored.fallenUnits.find(u => u.name === 'FallenDancer');
+    const fallen = restored.fallenUnits.find((u) => u.name === 'FallenDancer');
     expect(fallen.skills).toContain('dance');
   });
 
@@ -1994,12 +2149,23 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       growths: { HP: 50, STR: 0, MAG: 60, SKL: 35, SPD: 40, DEF: 15, RES: 45, LCK: 25 },
       proficiencies: [{ type: 'Tome', rank: 'Prof' }],
       skills: [],
-      col: 0, row: 0, mov: 4, moveType: 'Infantry',
+      col: 0,
+      row: 0,
+      mov: 4,
+      moveType: 'Infantry',
       stats: { HP: 20, STR: 1, MAG: 12, SKL: 8, SPD: 9, DEF: 3, RES: 10, LCK: 5, MOV: 4 },
-      currentHP: 20, faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Prof', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 20,
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Prof',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     });
     json.roster.push({
       name: 'PromoPaladin',
@@ -2010,14 +2176,28 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       isLord: false,
       personalGrowths: null,
       growths: { HP: 60, STR: 45, MAG: 10, SKL: 40, SPD: 40, DEF: 35, RES: 20, LCK: 30 },
-      proficiencies: [{ type: 'Lance', rank: 'Mast' }, { type: 'Sword', rank: 'Prof' }],
+      proficiencies: [
+        { type: 'Lance', rank: 'Mast' },
+        { type: 'Sword', rank: 'Prof' },
+      ],
       skills: [],
-      col: 0, row: 0, mov: 7, moveType: 'Cavalry',
+      col: 0,
+      row: 0,
+      mov: 7,
+      moveType: 'Cavalry',
       stats: { HP: 30, STR: 14, MAG: 4, SKL: 11, SPD: 11, DEF: 12, RES: 6, LCK: 8, MOV: 7 },
-      currentHP: 30, faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Mast', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 30,
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Mast',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     });
     json.roster.push({
       name: 'PromoWyvernLord',
@@ -2028,20 +2208,34 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       isLord: false,
       personalGrowths: null,
       growths: { HP: 65, STR: 50, MAG: 0, SKL: 35, SPD: 35, DEF: 45, RES: 15, LCK: 25 },
-      proficiencies: [{ type: 'Lance', rank: 'Mast' }, { type: 'Axe', rank: 'Prof' }],
+      proficiencies: [
+        { type: 'Lance', rank: 'Mast' },
+        { type: 'Axe', rank: 'Prof' },
+      ],
       skills: [],
-      col: 0, row: 0, mov: 5, moveType: 'Flying',
+      col: 0,
+      row: 0,
+      mov: 5,
+      moveType: 'Flying',
       stats: { HP: 34, STR: 16, MAG: 2, SKL: 12, SPD: 11, DEF: 15, RES: 7, LCK: 8, MOV: 5 },
-      currentHP: 34, faction: 'player',
-      weapon: null, inventory: [], consumables: [], accessory: null,
-      weaponRank: 'Mast', hasMoved: false, hasActed: false,
-      graphic: null, label: null, hpBar: null,
+      currentHP: 34,
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      accessory: null,
+      weaponRank: 'Mast',
+      hasMoved: false,
+      hasActed: false,
+      graphic: null,
+      label: null,
+      hpBar: null,
     });
 
     const restored = RunManager.fromJSON(json, gameData);
-    const baseMage = restored.roster.find(u => u.name === 'BaseMage');
-    const promoPaladin = restored.roster.find(u => u.name === 'PromoPaladin');
-    const promoWyvernLord = restored.roster.find(u => u.name === 'PromoWyvernLord');
+    const baseMage = restored.roster.find((u) => u.name === 'BaseMage');
+    const promoPaladin = restored.roster.find((u) => u.name === 'PromoPaladin');
+    const promoWyvernLord = restored.roster.find((u) => u.name === 'PromoWyvernLord');
 
     expect(baseMage.skills).toContain('luna');
     expect(promoPaladin.skills).toContain('sol');
@@ -2053,8 +2247,18 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     rm.startRun();
     const unit = rm.roster[0]; // Edric (Sword proficiency)
     // Add a non-proficient lance at inventory[0]
-    const lance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron', rankRequired: 'Prof',
-      might: 7, hit: 80, crit: 0, weight: 8, range: '1', price: 500 };
+    const lance = {
+      name: 'Iron Lance',
+      type: 'Lance',
+      tier: 'Iron',
+      rankRequired: 'Prof',
+      might: 7,
+      hit: 80,
+      crit: 0,
+      weight: 8,
+      range: '1',
+      price: 500,
+    };
     unit.inventory.unshift(lance);
     // Set weapon to something that won't match any inventory item
     unit.weapon = { name: 'GhostBlade' };
@@ -2072,8 +2276,18 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     rm.startRun();
     const unit = rm.roster[0]; // Edric (Sword proficiency)
     // Put a lance in inventory and set it as equipped weapon
-    const lance = { name: 'Iron Lance', type: 'Lance', tier: 'Iron', rankRequired: 'Prof',
-      might: 7, hit: 80, crit: 0, weight: 8, range: '1', price: 500 };
+    const lance = {
+      name: 'Iron Lance',
+      type: 'Lance',
+      tier: 'Iron',
+      rankRequired: 'Prof',
+      might: 7,
+      hit: 80,
+      crit: 0,
+      weight: 8,
+      range: '1',
+      price: 500,
+    };
     unit.inventory.push(lance);
     unit.weapon = lance; // in-inventory but non-proficient
     const json = rm.toJSON();
@@ -2089,8 +2303,8 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const json = rm.toJSON();
-    const ironSword = gameData.weapons.find(w => w.name === 'Iron Sword');
-    const ironLance = gameData.weapons.find(w => w.name === 'Iron Lance');
+    const ironSword = gameData.weapons.find((w) => w.name === 'Iron Sword');
+    const ironLance = gameData.weapons.find((w) => w.name === 'Iron Lance');
     expect(ironSword).toBeTruthy();
     expect(ironLance).toBeTruthy();
 
@@ -2125,7 +2339,7 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     });
 
     const restored = RunManager.fromJSON(json, gameData);
-    const wyvern = restored.roster.find(u => u.name === 'LegacyWyvern');
+    const wyvern = restored.roster.find((u) => u.name === 'LegacyWyvern');
 
     expect(wyvern).toBeTruthy();
     expect(wyvern.moveType).toBe('Flying');
@@ -2171,7 +2385,7 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     });
 
     const restored = RunManager.fromJSON(json, gameData);
-    const paladin = restored.roster.find(u => u.name === 'LegacyPaladinTier');
+    const paladin = restored.roster.find((u) => u.name === 'LegacyPaladinTier');
     expect(paladin).toBeTruthy();
     expect(paladin.tier).toBe('promoted');
     expect(paladin.skills).toContain('sol');
@@ -2216,7 +2430,7 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       const json = rm.toJSON();
       json.roster.push(makeLegacyUnit('Dancer', 'base', []));
       const restored = RunManager.fromJSON(json, gameData);
-      const dancer = restored.roster.find(u => u.className === 'Dancer');
+      const dancer = restored.roster.find((u) => u.className === 'Dancer');
       expect(dancer.skills).toContain('dance');
     });
 
@@ -2227,8 +2441,8 @@ describe('weapon reference integrity (relinkWeapon)', () => {
       json.roster.push(makeLegacyUnit('Dancer', 'base', ['dance']));
       const restored1 = RunManager.fromJSON(json, gameData);
       const restored2 = RunManager.fromJSON(restored1.toJSON(), gameData);
-      const dancer = restored2.roster.find(u => u.className === 'Dancer');
-      expect(dancer.skills.filter(s => s === 'dance')).toHaveLength(1);
+      const dancer = restored2.roster.find((u) => u.className === 'Dancer');
+      expect(dancer.skills.filter((s) => s === 'dance')).toHaveLength(1);
     });
 
     it('migration applies to fallenUnits and promoted base innates', () => {
@@ -2254,7 +2468,9 @@ describe('blessing run-start effect application', () => {
     expect(a.blessingSelectionTelemetry?.seed).toBe(1234);
     expect(Array.isArray(a.blessingSelectionTelemetry?.candidatePoolIds)).toBe(true);
     expect(Array.isArray(a.blessingSelectionTelemetry?.offeredIds)).toBe(true);
-    expect(a.blessingSelectionTelemetry?.offeredIds).toEqual(b.blessingSelectionTelemetry?.offeredIds);
+    expect(a.blessingSelectionTelemetry?.offeredIds).toEqual(
+      b.blessingSelectionTelemetry?.offeredIds,
+    );
     expect(Array.isArray(a.blessingSelectionTelemetry?.chosenIds)).toBe(true);
     expect(a.blessingSelectionTelemetry?.chosenIds).toEqual([]);
   });
@@ -2264,7 +2480,7 @@ describe('blessing run-start effect application', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       expect(node).toBeTruthy();
       const config = { cols: 10, rows: 8, objective: 'rout', enemySpawns: [{ col: 5, row: 5 }] };
       rm.lockBattleConfig(node.id, config);
@@ -2282,11 +2498,11 @@ describe('blessing run-start effect application', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       rm.lockBattleConfig(node.id, { cols: 9, rows: 7, objective: 'seize' });
       const restored = RunManager.fromJSON(rm.toJSON(), gameData);
       expect(restored.battleConfigsByNodeId[node.id]).toBeTruthy();
-      const restoredNode = restored.nodeMap.nodes.find(n => n.id === node.id);
+      const restoredNode = restored.nodeMap.nodes.find((n) => n.id === node.id);
       expect(restoredNode.encounterLocked).toBe(true);
     });
 
@@ -2305,7 +2521,7 @@ describe('blessing run-start effect application', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
       params.enemyStatBonus = 999;
       expect(node.battleParams.enemyStatBonus).toBeUndefined();
@@ -2315,13 +2531,15 @@ describe('blessing run-start effect application', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
       rm.startRun({ difficultyId: 'hard' });
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
       expect(params.enemyStatBonus).toBe(gameData.difficulty.modes.hard.enemyStatBonus);
       expect(params.enemyCountBonus).toBe(gameData.difficulty.modes.hard.enemyCountBonus);
       expect(params.xpMultiplier).toBe(gameData.difficulty.modes.hard.xpMultiplier);
       expect(params.enemyPoisonChance).toBe(gameData.difficulty.modes.hard.enemyPoisonChance);
-      expect(params.reinforcementTurnOffset).toBe(gameData.difficulty.modes.hard.reinforcementTurnOffset);
+      expect(params.reinforcementTurnOffset).toBe(
+        gameData.difficulty.modes.hard.reinforcementTurnOffset,
+      );
     });
 
     it('getBattleParams forwards recruit guardian chance modifier', () => {
@@ -2329,7 +2547,7 @@ describe('blessing run-start effect application', () => {
       const rm = new RunManager(gameData);
       rm.startRun();
       rm.difficultyModifiers.recruitGuardianChance = 0.35;
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
       expect(params.recruitGuardianChance).toBe(0.35);
     });
@@ -2339,7 +2557,7 @@ describe('blessing run-start effect application', () => {
       const rm = new RunManager(gameData);
       rm.startRun();
       rm.usedRecruitNames = { Fighter: ['Galvin'] };
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       const params = rm.getBattleParams(node);
       expect(params.usedRecruitNames.Fighter).toEqual(expect.arrayContaining(['Galvin']));
       expect(Array.isArray(params.usedRecruitNames.__all__)).toBe(true);
@@ -2356,7 +2574,7 @@ describe('blessing run-start effect application', () => {
         name: duplicateName,
       });
 
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       rm.getBattleParams(node);
 
       const names = rm.roster.map((unit) => unit.name);
@@ -2370,7 +2588,7 @@ describe('blessing run-start effect application', () => {
       const gameData = loadGameData();
       const rm = new RunManager(gameData);
       rm.startRun();
-      const node = rm.nodeMap.nodes.find(n => n.type === NODE_TYPES.BATTLE && n.battleParams);
+      const node = rm.nodeMap.nodes.find((n) => n.type === NODE_TYPES.BATTLE && n.battleParams);
       node.fogEnabled = true;
 
       const firstParams = rm.getBattleParams(node);
@@ -2407,7 +2625,9 @@ describe('blessing run-start effect application', () => {
     expect(rm.chooseBlessing(selected)).toBe(true);
     expect(rm.activeBlessings).toEqual([{ id: selected, rolledCost: null }]);
     expect(rm.blessingSelectionTelemetry.chosenIds).toEqual([selected]);
-    expect(rm.blessingHistory.some(e => e.eventType === 'selection' && e.blessingId === selected)).toBe(true);
+    expect(
+      rm.blessingHistory.some((e) => e.eventType === 'selection' && e.blessingId === selected),
+    ).toBe(true);
   });
 
   it('act_hit_bonus blessing applies to player units in target act only', () => {
@@ -2444,13 +2664,15 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseMultiplier = rm.getBattleGoldMultiplier();
-    rm.activeBlessings = [{
-      id: 'scout_blessing',
-      rolledCost: {
-        label: '-10% battle gold',
-        effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+    rm.activeBlessings = [
+      {
+        id: 'scout_blessing',
+        rolledCost: {
+          label: '-10% battle gold',
+          effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+        },
       },
-    }];
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
@@ -2461,13 +2683,15 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const baseMultiplier = rm.getBattleGoldMultiplier();
-    rm.activeBlessings = [{
-      id: 'scholar_vow',
-      rolledCost: {
-        label: '-10% battle gold',
-        effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+    rm.activeBlessings = [
+      {
+        id: 'scholar_vow',
+        rolledCost: {
+          label: '-10% battle gold',
+          effects: [{ type: 'battle_gold_multiplier_delta', params: { value: -0.1 } }],
+        },
       },
-    }];
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier - 0.1);
@@ -2480,8 +2704,8 @@ describe('blessing run-start effect application', () => {
     const boosted = new RunManager(gameData);
     boosted.startRun();
 
-    const controlNode = control.nodeMap.nodes.find(n => n.id === control.nodeMap.startNodeId);
-    const boostedNode = boosted.nodeMap.nodes.find(n => n.id === boosted.nodeMap.startNodeId);
+    const controlNode = control.nodeMap.nodes.find((n) => n.id === control.nodeMap.startNodeId);
+    const boostedNode = boosted.nodeMap.nodes.find((n) => n.id === boosted.nodeMap.startNodeId);
     const controlStartGold = control.gold;
     const boostedStartGold = boosted.gold;
 
@@ -2520,7 +2744,7 @@ describe('blessing run-start effect application', () => {
       consumables: [],
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     });
-    const baseDefs = rm.roster.map(u => u.stats.DEF);
+    const baseDefs = rm.roster.map((u) => u.stats.DEF);
 
     rm.activeBlessings = ['iron_oath'];
     rm._runStartBlessingsApplied = false;
@@ -2547,8 +2771,8 @@ describe('blessing run-start effect application', () => {
     });
     const rm = new RunManager(gameData);
     rm.startRun();
-    const baseMov = rm.roster.map(u => u.stats.MOV);
-    const baseRuntimeMov = rm.roster.map(u => u.mov);
+    const baseMov = rm.roster.map((u) => u.stats.MOV);
+    const baseRuntimeMov = rm.roster.map((u) => u.mov);
 
     rm.activeBlessings = ['test_worldly_stride'];
     rm._runStartBlessingsApplied = false;
@@ -2565,13 +2789,15 @@ describe('blessing run-start effect application', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    rm.activeBlessings = [{
-      id: 'merchant_bane',
-      rolledCost: {
-        label: 'Villages offer -1 item',
-        effects: [{ type: 'shop_item_count_delta', params: { value: -1 } }],
+    rm.activeBlessings = [
+      {
+        id: 'merchant_bane',
+        rolledCost: {
+          label: 'Villages offer -1 item',
+          effects: [{ type: 'shop_item_count_delta', params: { value: -1 } }],
+        },
       },
-    }];
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
@@ -2608,7 +2834,7 @@ describe('blessing run-start effect application', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-    const baseGrowths = rm.roster.map(u => ({ ...u.growths }));
+    const baseGrowths = rm.roster.map((u) => ({ ...u.growths }));
 
     rm.activeBlessings = ['forbidden_tome'];
     rm._runStartBlessingsApplied = false;
@@ -2629,7 +2855,7 @@ describe('blessing run-start effect application', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-    const beforeSkills = rm.roster.map(u => ({
+    const beforeSkills = rm.roster.map((u) => ({
       name: u.name,
       skills: [...(u.skills || [])],
     }));
@@ -2657,20 +2883,30 @@ describe('blessing run-start effect application', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-    const baseDefs = rm.roster.map(u => u.stats.DEF);
-    const silverBefore = rm.roster.reduce((sum, u) => sum + u.inventory.filter(w => w.tier === 'Silver').length, 0);
+    const baseDefs = rm.roster.map((u) => u.stats.DEF);
+    const silverBefore = rm.roster.reduce(
+      (sum, u) => sum + u.inventory.filter((w) => w.tier === 'Silver').length,
+      0,
+    );
 
-    rm.activeBlessings = [{
-      id: 'arsenal_pact',
-      rolledCost: {
-        label: '-1 DEF to all units in Act 1',
-        effects: [{ type: 'act_stat_delta_all_units', params: { act: 'act1', stat: 'DEF', value: -1 } }],
+    rm.activeBlessings = [
+      {
+        id: 'arsenal_pact',
+        rolledCost: {
+          label: '-1 DEF to all units in Act 1',
+          effects: [
+            { type: 'act_stat_delta_all_units', params: { act: 'act1', stat: 'DEF', value: -1 } },
+          ],
+        },
       },
-    }];
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    const silverAfter = rm.roster.reduce((sum, u) => sum + u.inventory.filter(w => w.tier === 'Silver').length, 0);
+    const silverAfter = rm.roster.reduce(
+      (sum, u) => sum + u.inventory.filter((w) => w.tier === 'Silver').length,
+      0,
+    );
     expect(silverAfter).toBe(silverBefore + 1);
     rm.roster.forEach((unit, idx) => {
       expect(unit.stats.DEF).toBe(baseDefs[idx] - 1);
@@ -2681,7 +2917,7 @@ describe('blessing run-start effect application', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-    const baseDefs = rm.roster.map(u => u.stats.DEF);
+    const baseDefs = rm.roster.map((u) => u.stats.DEF);
 
     rm.activeBlessings = ['arsenal_pact'];
     rm._runStartBlessingsApplied = false;
@@ -2706,7 +2942,10 @@ describe('blessing run-start effect application', () => {
       options: { count: 3, forceTier1: true, allowTier4: true },
     };
     const restored = RunManager.fromJSON(json, gameData);
-    expect(restored.blessingSelectionTelemetry.offeredIds).toEqual(['steady_hands', 'coin_of_fate']);
+    expect(restored.blessingSelectionTelemetry.offeredIds).toEqual([
+      'steady_hands',
+      'coin_of_fate',
+    ]);
     expect(restored.blessingSelectionTelemetry.chosenIds).toEqual([]);
   });
 
@@ -2729,7 +2968,9 @@ describe('blessing run-start effect application', () => {
     expect(restoredA.chooseBlessing('scout_blessing')).toBe(true);
     expect(restoredB.chooseBlessing('scout_blessing')).toBe(true);
     expect(restoredA.activeBlessings[0].rolledCost).toBeTruthy();
-    expect(restoredA.activeBlessings[0].rolledCost).toEqual(restoredB.activeBlessings[0].rolledCost);
+    expect(restoredA.activeBlessings[0].rolledCost).toEqual(
+      restoredB.activeBlessings[0].rolledCost,
+    );
   });
 
   it('fromJSON normalizes legacy skill names to canonical ids', () => {
@@ -2764,20 +3005,24 @@ describe('blessing run-start effect application', () => {
     const restoredB = RunManager.fromJSON(json, gameData);
     expect(restoredA.activeBlessings[0].id).toBe('scout_blessing');
     expect(restoredA.activeBlessings[0].rolledCost).toBeTruthy();
-    expect(restoredA.activeBlessings[0].rolledCost).toEqual(restoredB.activeBlessings[0].rolledCost);
+    expect(restoredA.activeBlessings[0].rolledCost).toEqual(
+      restoredB.activeBlessings[0].rolledCost,
+    );
   });
 
   it('forge_cost_multiplier maps to forgeCostDiscount sign convention', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
-    rm.activeBlessings = [{
-      id: 'scout_blessing',
-      rolledCost: {
-        label: '+25% forge costs',
-        effects: [{ type: 'forge_cost_multiplier', params: { value: 0.25 } }],
+    rm.activeBlessings = [
+      {
+        id: 'scout_blessing',
+        rolledCost: {
+          label: '+25% forge costs',
+          effects: [{ type: 'forge_cost_multiplier', params: { value: 0.25 } }],
+        },
       },
-    }];
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
     expect(rm.getForgeCostDiscount()).toBeCloseTo(-0.25, 5);
@@ -2791,12 +3036,6 @@ describe('blessing run-start effect application', () => {
     rm._runStartBlessingsApplied = false;
     expect(() => rm.applyRunStartBlessingEffects()).not.toThrow();
     expect(rm.activeBlessings).toEqual(['unknown_future_blessing']);
-    expect(rm.blessingHistory.some(e => e.details?.reason === 'unknown_blessing_id')).toBe(true);
+    expect(rm.blessingHistory.some((e) => e.details?.reason === 'unknown_blessing_id')).toBe(true);
   });
 });
-
-
-
-
-
-

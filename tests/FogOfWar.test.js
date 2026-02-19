@@ -10,26 +10,52 @@ function makeMockScene() {
     cameras: { main: { width: 640, height: 480 } },
     add: {
       rectangle: () => ({
-        setDepth: function() { return this; },
-        setAlpha: function() { return this; },
-        setFillStyle: function() { return this; },
-        setOrigin: function() { return this; },
-        setSize: function() { return this; },
-        setPosition: function() { return this; },
-        setVisible: function() { return this; },
-        setStrokeStyle: function() { return this; },
-        setInteractive: function() { return this; },
-        destroy: function() {},
+        setDepth: function () {
+          return this;
+        },
+        setAlpha: function () {
+          return this;
+        },
+        setFillStyle: function () {
+          return this;
+        },
+        setOrigin: function () {
+          return this;
+        },
+        setSize: function () {
+          return this;
+        },
+        setPosition: function () {
+          return this;
+        },
+        setVisible: function () {
+          return this;
+        },
+        setStrokeStyle: function () {
+          return this;
+        },
+        setInteractive: function () {
+          return this;
+        },
+        destroy: function () {},
       }),
       image: () => ({
-        setDisplaySize: function() { return this; },
-        setDepth: function() { return this; },
-        destroy: function() {},
+        setDisplaySize: function () {
+          return this;
+        },
+        setDepth: function () {
+          return this;
+        },
+        destroy: function () {},
       }),
       text: () => ({
-        setOrigin: function() { return this; },
-        setDepth: function() { return this; },
-        destroy: function() {},
+        setOrigin: function () {
+          return this;
+        },
+        setDepth: function () {
+          return this;
+        },
+        destroy: function () {},
       }),
     },
     textures: { exists: () => false },
@@ -52,7 +78,7 @@ describe('Fog of War', () => {
     });
 
     it('FOG_CHANCE_BY_ACT scales fog frequency per act', () => {
-      expect(FOG_CHANCE_BY_ACT.act1).toBe(0.10);
+      expect(FOG_CHANCE_BY_ACT.act1).toBe(0.1);
       expect(FOG_CHANCE_BY_ACT.act2).toBe(0.25);
       expect(FOG_CHANCE_BY_ACT.act3).toBe(0.35);
       expect(FOG_CHANCE_BY_ACT.act4).toBe(0.45);

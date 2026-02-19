@@ -22,7 +22,6 @@ function toNonEmptyString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-
 export function normalizeWeaponArtSource(value) {
   const source = toNonEmptyString(value)?.toLowerCase() || null;
   if (!source) return null;
@@ -33,17 +32,19 @@ export function getWeaponArtBindings(weapon, options = {}) {
   if (!weapon || typeof weapon !== 'object') return [];
   const validArtIds = options.validArtIds instanceof Set ? options.validArtIds : null;
   const maxSlots = Math.max(1, Math.trunc(Number(options.maxSlots) || MAX_WEAPON_ART_SLOTS));
-  const legacyBinding = weapon.weaponArtBinding && typeof weapon.weaponArtBinding === 'object'
-    ? weapon.weaponArtBinding
-    : null;
+  const legacyBinding =
+    weapon.weaponArtBinding && typeof weapon.weaponArtBinding === 'object'
+      ? weapon.weaponArtBinding
+      : null;
   const bindings = [];
   const seen = new Set();
 
   const explicitIds = Array.isArray(weapon.weaponArtIds) ? weapon.weaponArtIds : [];
   const explicitSources = Array.isArray(weapon.weaponArtSources) ? weapon.weaponArtSources : [];
-  const fallbackSource = normalizeWeaponArtSource(weapon.weaponArtSource)
-    || normalizeWeaponArtSource(legacyBinding?.source)
-    || 'innate';
+  const fallbackSource =
+    normalizeWeaponArtSource(weapon.weaponArtSource) ||
+    normalizeWeaponArtSource(legacyBinding?.source) ||
+    'innate';
 
   for (let i = 0; i < explicitIds.length; i++) {
     const id = toNonEmptyString(explicitIds[i]);
@@ -103,9 +104,7 @@ export function normalizeWeaponArtBinding(weapon, options = {}) {
 function normalizeStringList(value) {
   if (value === undefined || value === null) return null;
   if (!Array.isArray(value)) return undefined;
-  const out = value
-    .map(toNonEmptyString)
-    .filter(Boolean);
+  const out = value.map(toNonEmptyString).filter(Boolean);
   return [...new Set(out)];
 }
 
@@ -121,12 +120,12 @@ function normalizeEffectiveness(value) {
   if (!value || typeof value !== 'object') return null;
   const rawMoveTypes = Array.isArray(value.moveTypes)
     ? value.moveTypes
-    : (typeof value.moveType === 'string' ? [value.moveType] : []);
-  const moveTypes = [...new Set(
-    rawMoveTypes
-      .map((entry) => toNonEmptyString(entry)?.toLowerCase())
-      .filter(Boolean)
-  )];
+    : typeof value.moveType === 'string'
+      ? [value.moveType]
+      : [];
+  const moveTypes = [
+    ...new Set(rawMoveTypes.map((entry) => toNonEmptyString(entry)?.toLowerCase()).filter(Boolean)),
+  ];
   const multiplier = Math.max(1, Math.trunc(toFiniteNumber(value.multiplier, 1)));
   if (moveTypes.length <= 0 || multiplier <= 1) return null;
   return { moveTypes, multiplier };
@@ -426,7 +425,8 @@ function ensureUsageState(unit) {
 
 function getTurnKey(context = {}) {
   if (context.turnKey !== undefined && context.turnKey !== null) return String(context.turnKey);
-  if (context.turnNumber !== undefined && context.turnNumber !== null) return String(context.turnNumber);
+  if (context.turnNumber !== undefined && context.turnNumber !== null)
+    return String(context.turnNumber);
   return null;
 }
 
@@ -486,9 +486,9 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   }
   if (Array.isArray(config.legendaryIds) && config.legendaryIds.length > 0) {
     const tokens = [weapon?._baseName, weapon?.id, weapon?.name]
-      .map(t => toNonEmptyString(t))
+      .map((t) => toNonEmptyString(t))
       .filter(Boolean);
-    if (tokens.length === 0 || !tokens.some(t => config.legendaryIds.includes(t))) {
+    if (tokens.length === 0 || !tokens.some((t) => config.legendaryIds.includes(t))) {
       return { ok: false, reason: 'legendary_weapon_required' };
     }
   }
@@ -522,9 +522,9 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     const minHp = Math.max(
       defaultMinHpAfterCost,
       Math.trunc(toFiniteNumber(art.aiMinHpAfterCost, 0)),
-      Math.ceil(maxHp * Math.max(0, toFiniteNumber(art.aiMinHpAfterCostPercent, 0)))
+      Math.ceil(maxHp * Math.max(0, toFiniteNumber(art.aiMinHpAfterCostPercent, 0))),
     );
-    if ((hp - hpCost) < minHp) return { ok: false, reason: 'ai_hp_floor' };
+    if (hp - hpCost < minHp) return { ok: false, reason: 'ai_hp_floor' };
   }
 
   const mapLimit = Math.max(0, Math.trunc(toFiniteNumber(art.perMapLimit, 0)));
@@ -533,10 +533,17 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   }
 
   const turnLimit = Math.max(0, Math.trunc(toFiniteNumber(art.perTurnLimit, 0)));
-  const aiTurnLimit = context.isAI ? Math.max(0, Math.trunc(toFiniteNumber(art.aiPerTurnLimit, 0))) : 0;
-  const effectiveTurnLimit = aiTurnLimit > 0 ? (turnLimit > 0 ? Math.min(turnLimit, aiTurnLimit) : aiTurnLimit) : turnLimit;
+  const aiTurnLimit = context.isAI
+    ? Math.max(0, Math.trunc(toFiniteNumber(art.aiPerTurnLimit, 0)))
+    : 0;
+  const effectiveTurnLimit =
+    aiTurnLimit > 0 ? (turnLimit > 0 ? Math.min(turnLimit, aiTurnLimit) : aiTurnLimit) : turnLimit;
   const turnKey = getTurnKey(context);
-  if (effectiveTurnLimit > 0 && turnKey && getTurnCount(unit, art.id, turnKey) >= effectiveTurnLimit) {
+  if (
+    effectiveTurnLimit > 0 &&
+    turnKey &&
+    getTurnCount(unit, art.id, turnKey) >= effectiveTurnLimit
+  ) {
     return { ok: false, reason: 'per_turn_limit' };
   }
 
@@ -568,9 +575,9 @@ export function getEffectiveWeaponArtHpCost(unit, art) {
     Math.trunc(
       toFiniteNumber(
         combatEffects?.weaponArtHpCostReduction,
-        toFiniteNumber(combatEffects?.weaponArtCostReduction, 0)
-      )
-    )
+        toFiniteNumber(combatEffects?.weaponArtCostReduction, 0),
+      ),
+    ),
   );
   const fallbackReduction = combatEffects?.bloodGem ? 5 : 0;
   const reduction = Math.max(explicitReduction, fallbackReduction);

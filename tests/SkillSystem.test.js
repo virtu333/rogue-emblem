@@ -37,7 +37,7 @@ describe('SkillSystem turn-start effects', () => {
           amount: 3,
           sourceUnit: sera,
         }),
-      ])
+      ]),
     );
   });
 
@@ -95,8 +95,24 @@ describe('SkillSystem accessory combat conditions', () => {
     const allyFar = { ...baseUnit, name: 'AllyFar', col: 8, row: 8, currentHP: 12 };
     const allyNear = { ...baseUnit, name: 'AllyNear', col: 5, row: 5, currentHP: 12 };
 
-    const farMods = getSkillCombatMods(unit, opponent, [unit, allyFar], [opponent], [], { name: 'Plain' }, true);
-    const nearMods = getSkillCombatMods(unit, opponent, [unit, allyNear], [opponent], [], { name: 'Plain' }, true);
+    const farMods = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit, allyFar],
+      [opponent],
+      [],
+      { name: 'Plain' },
+      true,
+    );
+    const nearMods = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit, allyNear],
+      [opponent],
+      [],
+      { name: 'Plain' },
+      true,
+    );
 
     expect(farMods.atkBonus).toBe(3);
     expect(nearMods.atkBonus).toBe(0);
@@ -109,8 +125,24 @@ describe('SkillSystem accessory combat conditions', () => {
     };
     const enemyA = { ...opponent, name: 'A', col: 5, row: 4, currentHP: 10 };
     const enemyB = { ...opponent, name: 'B', col: 4, row: 6, currentHP: 10 };
-    const oneEnemy = getSkillCombatMods(unit, opponent, [unit], [enemyA], [], { name: 'Plain' }, true);
-    const twoEnemies = getSkillCombatMods(unit, opponent, [unit], [enemyA, enemyB], [], { name: 'Plain' }, true);
+    const oneEnemy = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit],
+      [enemyA],
+      [],
+      { name: 'Plain' },
+      true,
+    );
+    const twoEnemies = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit],
+      [enemyA, enemyB],
+      [],
+      { name: 'Plain' },
+      true,
+    );
 
     expect(oneEnemy.atkBonus).toBe(0);
     expect(twoEnemies.atkBonus).toBe(2);
@@ -120,9 +152,33 @@ describe('SkillSystem accessory combat conditions', () => {
       ...baseUnit,
       accessory: { combatEffects: { avoidBonus: 12, condition: 'on_forest_or_mountain' } },
     };
-    const forestMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Forest' }, true);
-    const mountainMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Mountain' }, true);
-    const plainMods = getSkillCombatMods(terrainUnit, opponent, [terrainUnit], [opponent], [], { name: 'Plain' }, true);
+    const forestMods = getSkillCombatMods(
+      terrainUnit,
+      opponent,
+      [terrainUnit],
+      [opponent],
+      [],
+      { name: 'Forest' },
+      true,
+    );
+    const mountainMods = getSkillCombatMods(
+      terrainUnit,
+      opponent,
+      [terrainUnit],
+      [opponent],
+      [],
+      { name: 'Mountain' },
+      true,
+    );
+    const plainMods = getSkillCombatMods(
+      terrainUnit,
+      opponent,
+      [terrainUnit],
+      [opponent],
+      [],
+      { name: 'Plain' },
+      true,
+    );
     expect(forestMods.avoidBonus).toBe(12);
     expect(mountainMods.avoidBonus).toBe(12);
     expect(plainMods.avoidBonus).toBe(0);
@@ -134,8 +190,24 @@ describe('SkillSystem accessory combat conditions', () => {
       accessory: { combatEffects: { atkBonus: 3, condition: 'isolated_duel' } },
     };
     const thirdUnitNearDefender = { ...baseUnit, name: 'Third', col: 6, row: 4, currentHP: 10 };
-    const isolated = getSkillCombatMods(unit, opponent, [unit], [opponent], [], { name: 'Plain' }, true);
-    const crowded = getSkillCombatMods(unit, opponent, [unit], [opponent, thirdUnitNearDefender], [], { name: 'Plain' }, true);
+    const isolated = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit],
+      [opponent],
+      [],
+      { name: 'Plain' },
+      true,
+    );
+    const crowded = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit],
+      [opponent, thirdUnitNearDefender],
+      [],
+      { name: 'Plain' },
+      true,
+    );
     expect(isolated.atkBonus).toBe(3);
     expect(crowded.atkBonus).toBe(0);
   });

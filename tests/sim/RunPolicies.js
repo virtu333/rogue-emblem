@@ -33,10 +33,7 @@ export function chooseDeployRoster(roster, deployCount) {
 }
 
 export function chooseChurchPlan(runManager, options = {}) {
-  const {
-    reviveCost = 1000,
-    promoteCost = 2000,
-  } = options;
+  const { reviveCost = 1000, promoteCost = 2000 } = options;
 
   const canRevive = runManager.fallenUnits.length > 0 && runManager.gold >= reviveCost;
   const canPromote = runManager.gold >= promoteCost;
@@ -56,7 +53,7 @@ function desiredVulneraries(roster) {
 function countConsumable(roster, itemName) {
   let count = 0;
   for (const unit of roster) {
-    count += (unit.consumables || []).filter(c => c.name === itemName).length;
+    count += (unit.consumables || []).filter((c) => c.name === itemName).length;
   }
   return count;
 }

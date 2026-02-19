@@ -15,9 +15,9 @@ export class DangerZoneOverlay {
     this.visible = true;
     for (const { col, row } of dangerTiles) {
       const { x, y } = this.grid.gridToPixel(col, row);
-      const rect = this.scene.add.rectangle(
-        x, y, TILE_SIZE - 1, TILE_SIZE - 1, 0xff8800, 0.25
-      ).setDepth(4);
+      const rect = this.scene.add
+        .rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, 0xff8800, 0.25)
+        .setDepth(4);
       this.tiles.push(rect);
     }
   }

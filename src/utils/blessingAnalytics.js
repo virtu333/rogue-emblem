@@ -63,7 +63,8 @@ export function loadBlessingAnalytics() {
     if (!parsed || parsed.version !== VERSION || typeof parsed !== 'object') {
       return createEmptySnapshot();
     }
-    if (!parsed.global || typeof parsed.global !== 'object') parsed.global = createEmptySnapshot().global;
+    if (!parsed.global || typeof parsed.global !== 'object')
+      parsed.global = createEmptySnapshot().global;
     if (!parsed.blessings || typeof parsed.blessings !== 'object') parsed.blessings = {};
     return parsed;
   } catch (_) {
@@ -83,7 +84,13 @@ export function saveBlessingAnalytics(snapshot) {
 
 export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {}) {
   const snapshot = loadBlessingAnalytics();
-  const offered = [...new Set((Array.isArray(offeredIds) ? offeredIds : []).filter(id => typeof id === 'string' && id.length > 0))];
+  const offered = [
+    ...new Set(
+      (Array.isArray(offeredIds) ? offeredIds : []).filter(
+        (id) => typeof id === 'string' && id.length > 0,
+      ),
+    ),
+  ];
   const selected = typeof chosenId === 'string' && chosenId.length > 0 ? chosenId : null;
   const selectedAt = Date.now();
 
@@ -107,12 +114,21 @@ export function recordBlessingSelection({ offeredIds = [], chosenId = null } = {
   return snapshot;
 }
 
-export function recordBlessingRunOutcome({ activeBlessings = [], result = 'defeat', actIndex = 0, completedBattles = 0 } = {}) {
+export function recordBlessingRunOutcome({
+  activeBlessings = [],
+  result = 'defeat',
+  actIndex = 0,
+  completedBattles = 0,
+} = {}) {
   const snapshot = loadBlessingAnalytics();
   const now = Date.now();
-  const blessingIds = [...new Set((Array.isArray(activeBlessings) ? activeBlessings : [])
-    .map(extractBlessingId)
-    .filter(Boolean))];
+  const blessingIds = [
+    ...new Set(
+      (Array.isArray(activeBlessings) ? activeBlessings : [])
+        .map(extractBlessingId)
+        .filter(Boolean),
+    ),
+  ];
   const isVictory = result === 'victory';
   const safeActReached = Math.max(1, Math.trunc(Number(actIndex) + 1) || 1);
   const safeBattles = Math.max(0, Math.trunc(Number(completedBattles) || 0));

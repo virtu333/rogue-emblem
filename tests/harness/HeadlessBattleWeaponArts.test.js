@@ -62,8 +62,12 @@ describe('HeadlessBattle weapon arts', () => {
       cols: 8,
       rows: 8,
       fogEnabled: false,
-      getTerrainAt() { return {}; },
-      getMoveCost() { return 1; },
+      getTerrainAt() {
+        return {};
+      },
+      getMoveCost() {
+        return 1;
+      },
       updateFogOfWar() {},
     };
     battle.selectedUnit = attacker;
@@ -122,11 +126,15 @@ describe('HeadlessBattle weapon arts', () => {
         if (col === 0 && row === 0) return { name: 'Forest' };
         return { name: 'Plain' };
       },
-      getMoveCost() { return 1; },
+      getMoveCost() {
+        return 1;
+      },
       updateFogOfWar() {},
     };
     battle.runManager = {
-      getActHitBonusForUnit() { return 7; },
+      getActHitBonusForUnit() {
+        return 7;
+      },
       getTerrainCombatBonuses() {
         return [{ terrains: ['Forest'], avoidBonus: 11, defBonus: 4 }];
       },

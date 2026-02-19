@@ -72,9 +72,14 @@ function makeBattleSceneWithRecruit({ lethalArmoryTier = 0, recruitStartingVulne
     getEffectiveRecruitGrowthBonuses: vi.fn(() => null),
   };
 
-  scene.gameData = { ...gameData, lords: [] };  // Empty lords to skip recruit-node lord roll
+  scene.gameData = { ...gameData, lords: [] }; // Empty lords to skip recruit-node lord roll
   scene.runManager = runManager;
-  scene.battleParams = { act: 'act1', tutorialMode: false, fogEnabled: false, isRecruitBattle: true };
+  scene.battleParams = {
+    act: 'act1',
+    tutorialMode: false,
+    fogEnabled: false,
+    isRecruitBattle: true,
+  };
   scene.nodeId = 'battle-recruit-node';
   scene.roster = [{ name: 'Edric', isLord: true, level: 1, col: 0, row: 0, className: 'Edric' }];
 

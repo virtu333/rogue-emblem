@@ -154,9 +154,15 @@ function main() {
       multipliers: profile.multipliers,
       summary: summarize(proposal),
       deltas: {
-        totalCostPct: Number(((summarize(proposal).totalCost / baseline.totalCost) * 100).toFixed(1)),
-        valorPct: Number(((summarize(proposal).byCurrency.valor / baseline.byCurrency.valor) * 100).toFixed(1)),
-        supplyPct: Number(((summarize(proposal).byCurrency.supply / baseline.byCurrency.supply) * 100).toFixed(1)),
+        totalCostPct: Number(
+          ((summarize(proposal).totalCost / baseline.totalCost) * 100).toFixed(1),
+        ),
+        valorPct: Number(
+          ((summarize(proposal).byCurrency.valor / baseline.byCurrency.valor) * 100).toFixed(1),
+        ),
+        supplyPct: Number(
+          ((summarize(proposal).byCurrency.supply / baseline.byCurrency.supply) * 100).toFixed(1),
+        ),
       },
       sampleChanges: proposal.slice(0, 8).map((u, i) => ({
         id: u.id,
@@ -179,21 +185,30 @@ function main() {
     fs.writeFileSync(proposalFile, `${JSON.stringify(proposal, null, 2)}\n`);
   }
 
-  console.log(JSON.stringify({
-    wrote: [
-      path.relative(ROOT, outFile).replace(/\\/g, '/'),
-      path.relative(ROOT, proposalDir).replace(/\\/g, '/'),
-    ],
-    baseline,
-    profiles: Object.fromEntries(
-      Object.entries(result.profiles).map(([k, v]) => [k, {
-        label: v.label,
-        totalCostPct: v.deltas.totalCostPct,
-        byCurrency: v.summary.byCurrency,
-        runs: v.summary.fullVictoryRunsToMaxAll,
-      }])
+  console.log(
+    JSON.stringify(
+      {
+        wrote: [
+          path.relative(ROOT, outFile).replace(/\\/g, '/'),
+          path.relative(ROOT, proposalDir).replace(/\\/g, '/'),
+        ],
+        baseline,
+        profiles: Object.fromEntries(
+          Object.entries(result.profiles).map(([k, v]) => [
+            k,
+            {
+              label: v.label,
+              totalCostPct: v.deltas.totalCostPct,
+              byCurrency: v.summary.byCurrency,
+              runs: v.summary.fullVictoryRunsToMaxAll,
+            },
+          ]),
+        ),
+      },
+      null,
+      2,
     ),
-  }, null, 2));
+  );
 }
 
 main();

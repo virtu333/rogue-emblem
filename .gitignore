@@ -13,3 +13,4 @@ test-results/
 playwright-report/
 tests/artifacts/replays/
 .tmp_netlify_*
+.eslintcache

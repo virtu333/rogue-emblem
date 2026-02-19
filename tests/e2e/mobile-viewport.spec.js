@@ -9,12 +9,7 @@
 // device testing is required for full validation of the viewport fixes.
 
 import { test, expect, devices } from '@playwright/test';
-import {
-  waitForGame,
-  waitForScene,
-  collectErrors,
-  attachSceneCrashArtifacts,
-} from './helpers.js';
+import { waitForGame, waitForScene, collectErrors, attachSceneCrashArtifacts } from './helpers.js';
 
 // iPhone 13 landscape: 844×390 viewport, touch events
 const iPhone = devices['iPhone 13'];
@@ -46,61 +41,78 @@ test.afterEach(async ({ page }, testInfo) => {
  * Only checks objects with pointerdown listeners (actual buttons/links),
  * skipping hover-only targets like tooltip triggers.
  */
-async function scanInteractiveViolations(page, sceneKey, safeAnchorY, canvasW = 640, canvasH = 480) {
-  return page.evaluate(({ sceneKey, safeAnchorY, canvasW, canvasH }) => {
-    const game = window.__emblemRogueGame;
-    const scene = game?.scene?.getScene?.(sceneKey);
-    if (!scene) return [`Scene "${sceneKey}" not found`];
+async function scanInteractiveViolations(
+  page,
+  sceneKey,
+  safeAnchorY,
+  canvasW = 640,
+  canvasH = 480,
+) {
+  return page.evaluate(
+    ({ sceneKey, safeAnchorY, canvasW, canvasH }) => {
+      const game = window.__emblemRogueGame;
+      const scene = game?.scene?.getScene?.(sceneKey);
+      if (!scene) return [`Scene "${sceneKey}" not found`];
 
-    const violations = [];
-    const seen = new Set();
+      const violations = [];
+      const seen = new Set();
 
-    function walk(obj, parentVisible) {
-      if (!obj || seen.has(obj)) return;
-      seen.add(obj);
+      function walk(obj, parentVisible) {
+        if (!obj || seen.has(obj)) return;
+        seen.add(obj);
 
-      const isVisible = parentVisible && obj.visible !== false;
+        const isVisible = parentVisible && obj.visible !== false;
 
-      // Check clickable interactive objects (with pointerdown listeners).
-      // This skips hover-only tooltip targets (progress bars, etc.)
-      if (isVisible && obj.input?.enabled && obj.listenerCount?.('pointerdown') > 0) {
-        const name = obj.name || obj.text?.substring?.(0, 20) || obj.type || '?';
-        try {
-          const b = obj.getBounds();
-          if (b) {
-            const centerY = b.y + b.height / 2;
-            const bottom = b.bottom ?? (b.y + b.height);
-            const left = b.x ?? b.left ?? 0;
-            const right = b.right ?? (b.x + b.width);
+        // Check clickable interactive objects (with pointerdown listeners).
+        // This skips hover-only tooltip targets (progress bars, etc.)
+        if (isVisible && obj.input?.enabled && obj.listenerCount?.('pointerdown') > 0) {
+          const name = obj.name || obj.text?.substring?.(0, 20) || obj.type || '?';
+          try {
+            const b = obj.getBounds();
+            if (b) {
+              const centerY = b.y + b.height / 2;
+              const bottom = b.bottom ?? b.y + b.height;
+              const left = b.x ?? b.left ?? 0;
+              const right = b.right ?? b.x + b.width;
 
-            // Tier 1: world-space center must be in safe zone
-            if (centerY > safeAnchorY) {
-              violations.push(`anchor: ${name} (centerY=${Math.round(centerY)}, limit=${safeAnchorY})`);
+              // Tier 1: world-space center must be in safe zone
+              if (centerY > safeAnchorY) {
+                violations.push(
+                  `anchor: ${name} (centerY=${Math.round(centerY)}, limit=${safeAnchorY})`,
+                );
+              }
+              // Tier 2: nothing overflows the canvas vertically
+              if (bottom > canvasH) {
+                violations.push(
+                  `y-overflow: ${name} (bottom=${Math.round(bottom)}, limit=${canvasH})`,
+                );
+              }
+              // Tier 3: nothing cut off or overflows horizontally
+              if (left < 0) {
+                violations.push(`x-cutoff: ${name} (left=${Math.round(left)})`);
+              }
+              if (right > canvasW) {
+                violations.push(
+                  `x-overflow: ${name} (right=${Math.round(right)}, limit=${canvasW})`,
+                );
+              }
             }
-            // Tier 2: nothing overflows the canvas vertically
-            if (bottom > canvasH) {
-              violations.push(`y-overflow: ${name} (bottom=${Math.round(bottom)}, limit=${canvasH})`);
-            }
-            // Tier 3: nothing cut off or overflows horizontally
-            if (left < 0) {
-              violations.push(`x-cutoff: ${name} (left=${Math.round(left)})`);
-            }
-            if (right > canvasW) {
-              violations.push(`x-overflow: ${name} (right=${Math.round(right)}, limit=${canvasW})`);
-            }
+          } catch (_) {
+            /* destroyed or no getBounds */
           }
-        } catch (_) { /* destroyed or no getBounds */ }
+        }
+
+        // Recurse into container children
+        if (Array.isArray(obj.list)) {
+          for (const child of obj.list) walk(child, isVisible);
+        }
       }
 
-      // Recurse into container children
-      if (Array.isArray(obj.list)) {
-        for (const child of obj.list) walk(child, isVisible);
-      }
-    }
-
-    for (const obj of scene.children.list) walk(obj, true);
-    return violations;
-  }, { sceneKey, safeAnchorY, canvasW, canvasH });
+      for (const obj of scene.children.list) walk(obj, true);
+      return violations;
+    },
+    { sceneKey, safeAnchorY, canvasW, canvasH },
+  );
 }
 
 // Known non-critical elements that intentionally live below SAFE_BOTTOM_Y.
@@ -157,11 +169,9 @@ async function ensurePlayerIdle(page) {
   const state = await page.evaluate(() => window.__sceneState?.battle?.state);
   if (state === 'DEPLOY_SELECTION') {
     await advancePastDeploy(page);
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state === 'PLAYER_IDLE',
-      null,
-      { timeout: 12_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE', null, {
+      timeout: 12_000,
+    });
   }
 }
 
@@ -173,9 +183,9 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
     await waitForGame(page);
 
     // Verify touch-action: manipulation on game-wrapper
-    const touchAction = await page.locator('#game-wrapper').evaluate(
-      (el) => getComputedStyle(el).touchAction,
-    );
+    const touchAction = await page
+      .locator('#game-wrapper')
+      .evaluate((el) => getComputedStyle(el).touchAction);
     expect(touchAction).toBe('manipulation');
 
     // Verify the stylesheet source contains 100dvh (not just 100vh)
@@ -185,7 +195,9 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
           for (const rule of sheet.cssRules) {
             if (rule.cssText?.includes('100dvh')) return true;
           }
-        } catch (_) { /* cross-origin sheets */ }
+        } catch (_) {
+          /* cross-origin sheets */
+        }
       }
       return false;
     });
@@ -197,9 +209,9 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
     await waitForGame(page);
     await waitForScene(page, 'Title');
 
-    const wrapperDisplay = await page.locator('#game-wrapper').evaluate(
-      (el) => getComputedStyle(el).display,
-    );
+    const wrapperDisplay = await page
+      .locator('#game-wrapper')
+      .evaluate((el) => getComputedStyle(el).display);
     expect(wrapperDisplay).toBe('flex');
 
     const container = page.locator('#game-container');
@@ -265,9 +277,9 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
     await page.goto('/');
     await waitForGame(page);
 
-    const overflow = await page.locator('#game-container').evaluate(
-      (el) => getComputedStyle(el).overflow,
-    );
+    const overflow = await page
+      .locator('#game-container')
+      .evaluate((el) => getComputedStyle(el).overflow);
     expect(overflow).toBe('hidden');
 
     const panelZIndex = await page.evaluate(() => {
@@ -317,11 +329,9 @@ test.describe('Mobile viewport — bottom buttons visibility', () => {
     await dangerBtn.tap();
 
     // Danger zone should toggle on
-    await page.waitForFunction(
-      () => window.__sceneState?.overlays?.dangerZone === true,
-      null,
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.overlays?.dangerZone === true, null, {
+      timeout: 5_000,
+    });
 
     expect(errors).toEqual([]);
   });

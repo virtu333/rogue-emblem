@@ -129,20 +129,32 @@ export class GameDriver {
       battleState: this.battle.battleState,
       turn: this.battle.turnManager?.turnNumber || 0,
       goldEarned: this.battle.goldEarned,
-      playerUnits: this.battle.playerUnits.map(u => ({
-        name: u.name, col: u.col, row: u.row,
-        hp: u.currentHP, maxHp: u.stats.HP,
-        level: u.level, xp: u.xp || 0,
-        hasMoved: u.hasMoved, hasActed: u.hasActed,
+      playerUnits: this.battle.playerUnits.map((u) => ({
+        name: u.name,
+        col: u.col,
+        row: u.row,
+        hp: u.currentHP,
+        maxHp: u.stats.HP,
+        level: u.level,
+        xp: u.xp || 0,
+        hasMoved: u.hasMoved,
+        hasActed: u.hasActed,
         weapon: u.weapon?.name || null,
       })),
-      enemyUnits: this.battle.enemyUnits.map(u => ({
-        name: u.name, col: u.col, row: u.row,
-        hp: u.currentHP, maxHp: u.stats.HP,
-        level: u.level, weapon: u.weapon?.name || null,
+      enemyUnits: this.battle.enemyUnits.map((u) => ({
+        name: u.name,
+        col: u.col,
+        row: u.row,
+        hp: u.currentHP,
+        maxHp: u.stats.HP,
+        level: u.level,
+        weapon: u.weapon?.name || null,
       })),
-      npcUnits: this.battle.npcUnits.map(u => ({
-        name: u.name, col: u.col, row: u.row, hp: u.currentHP,
+      npcUnits: this.battle.npcUnits.map((u) => ({
+        name: u.name,
+        col: u.col,
+        row: u.row,
+        hp: u.currentHP,
       })),
     };
   }

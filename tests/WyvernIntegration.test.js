@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createEnemyUnit, promoteUnit, canEquip, resolvePromotionTargetClass } from '../src/engine/UnitManager.js';
+import {
+  createEnemyUnit,
+  promoteUnit,
+  canEquip,
+  resolvePromotionTargetClass,
+} from '../src/engine/UnitManager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -21,8 +26,8 @@ const skills = loadJSON('skills.json');
 
 describe('Wyvern integration (no reclass)', () => {
   it('class data includes Wyvern Rider -> Wyvern Lord progression', () => {
-    const rider = classes.find(c => c.name === 'Wyvern Rider');
-    const lord = classes.find(c => c.name === 'Wyvern Lord');
+    const rider = classes.find((c) => c.name === 'Wyvern Rider');
+    const lord = classes.find((c) => c.name === 'Wyvern Lord');
 
     expect(rider).toBeTruthy();
     expect(lord).toBeTruthy();
@@ -48,8 +53,8 @@ describe('Wyvern integration (no reclass)', () => {
   });
 
   it('promotion target resolution supports Wyvern path and stops at promoted tier', () => {
-    const rider = classes.find(c => c.name === 'Wyvern Rider');
-    const lord = classes.find(c => c.name === 'Wyvern Lord');
+    const rider = classes.find((c) => c.name === 'Wyvern Rider');
+    const lord = classes.find((c) => c.name === 'Wyvern Lord');
 
     const baseUnit = createEnemyUnit(rider, 10, weapons);
     const promotionTarget = resolvePromotionTargetClass(baseUnit, classes, lords);
@@ -61,10 +66,10 @@ describe('Wyvern integration (no reclass)', () => {
   });
 
   it('Wyvern loadout legality is enforced before/after promotion', () => {
-    const rider = classes.find(c => c.name === 'Wyvern Rider');
-    const lord = classes.find(c => c.name === 'Wyvern Lord');
-    const ironLance = structuredClone(weapons.find(w => w.name === 'Iron Lance'));
-    const ironAxe = structuredClone(weapons.find(w => w.name === 'Iron Axe'));
+    const rider = classes.find((c) => c.name === 'Wyvern Rider');
+    const lord = classes.find((c) => c.name === 'Wyvern Lord');
+    const ironLance = structuredClone(weapons.find((w) => w.name === 'Iron Lance'));
+    const ironAxe = structuredClone(weapons.find((w) => w.name === 'Iron Axe'));
 
     const unit = createEnemyUnit(rider, 10, weapons);
     expect(canEquip(unit, ironLance)).toBe(true);

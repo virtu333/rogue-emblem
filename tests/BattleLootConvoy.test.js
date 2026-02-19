@@ -14,17 +14,40 @@ function makeDisplayObject(label = '') {
     _label: label,
     _handlers: {},
     destroyed: false,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive() { return this; },
-    setOrigin() { return this; },
-    setDisplaySize() { return this; },
-    setVisible() { return this; },
-    setFillStyle() { return this; },
-    disableInteractive() { return this; },
-    removeAllListeners() { return this; },
-    on(event, handler) { this._handlers[event] = handler; return this; },
-    destroy() { this.destroyed = true; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setVisible() {
+      return this;
+    },
+    setFillStyle() {
+      return this;
+    },
+    disableInteractive() {
+      return this;
+    },
+    removeAllListeners() {
+      return this;
+    },
+    on(event, handler) {
+      this._handlers[event] = handler;
+      return this;
+    },
+    destroy() {
+      this.destroyed = true;
+    },
   };
 }
 
@@ -43,12 +66,14 @@ function buildBattleContext(addResult) {
     },
     registry: { get: () => audio },
     runManager: {
-      roster: [{
-        name: 'Iris',
-        inventory: [],
-        consumables: [],
-        proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-      }],
+      roster: [
+        {
+          name: 'Iris',
+          inventory: [],
+          consumables: [],
+          proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        },
+      ],
       canAddToConvoy: vi.fn(() => true),
       addToConvoy: vi.fn(() => addResult),
     },
@@ -70,13 +95,16 @@ describe('battle loot convoy guard', () => {
 
     BattleScene.prototype.showLootUnitPicker.call(context, item, lootGroup, 0);
 
-    const convoyBtn = textObjects.find(t => t._label === '[ Send to Convoy ]');
+    const convoyBtn = textObjects.find((t) => t._label === '[ Send to Convoy ]');
     expect(convoyBtn).toBeTruthy();
     convoyBtn._handlers.pointerdown();
 
     expect(context.runManager.addToConvoy).toHaveBeenCalledWith(item);
     expect(context.finalizeLootPick).not.toHaveBeenCalled();
-    expect(context.showLootStatus).toHaveBeenCalledWith('Convoy is full. Choose another reward.', '#ff8888');
+    expect(context.showLootStatus).toHaveBeenCalledWith(
+      'Convoy is full. Choose another reward.',
+      '#ff8888',
+    );
     expect(convoyBtn.destroyed).toBe(false);
   });
 
@@ -87,13 +115,16 @@ describe('battle loot convoy guard', () => {
 
     BattleScene.prototype.showConsumableUnitPicker.call(context, item, lootGroup, 1);
 
-    const convoyBtn = textObjects.find(t => t._label === '[ Send to Convoy ]');
+    const convoyBtn = textObjects.find((t) => t._label === '[ Send to Convoy ]');
     expect(convoyBtn).toBeTruthy();
     convoyBtn._handlers.pointerdown();
 
     expect(context.runManager.addToConvoy).toHaveBeenCalledWith(item);
     expect(context.finalizeLootPick).not.toHaveBeenCalled();
-    expect(context.showLootStatus).toHaveBeenCalledWith('Convoy is full. Choose another reward.', '#ff8888');
+    expect(context.showLootStatus).toHaveBeenCalledWith(
+      'Convoy is full. Choose another reward.',
+      '#ff8888',
+    );
     expect(convoyBtn.destroyed).toBe(false);
   });
 });

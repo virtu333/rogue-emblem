@@ -17,9 +17,9 @@ function cloneDeep(value) {
 }
 
 export function createSeededRng(seed) {
-  let t = (seed >>> 0);
+  let t = seed >>> 0;
   return () => {
-    t += 0x6D2B79F5;
+    t += 0x6d2b79f5;
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
@@ -228,9 +228,11 @@ export function rollCostForBlessing(costPool, blessing, rand) {
   if (typeof rand !== 'function') {
     throw new Error('rollCostForBlessing requires an RNG function argument');
   }
-  const boonTypes = new Set((Array.isArray(blessing?.boons) ? blessing.boons : [])
-    .map((effect) => effect?.type)
-    .filter(Boolean));
+  const boonTypes = new Set(
+    (Array.isArray(blessing?.boons) ? blessing.boons : [])
+      .map((effect) => effect?.type)
+      .filter(Boolean),
+  );
   const nonConflicting = costPool.filter((entry) => {
     const effects = Array.isArray(entry?.effects) ? entry.effects : [];
     return !effects.some((effect) => boonTypes.has(effect?.type));
@@ -277,7 +279,7 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
   function violatesExclusion(candidate) {
     const excludes = Array.isArray(candidate.excludes) ? candidate.excludes : [];
     for (const chosenId of selectedIds) {
-      const chosen = pool.find(b => b.id === chosenId);
+      const chosen = pool.find((b) => b.id === chosenId);
       const chosenExcludes = Array.isArray(chosen?.excludes) ? chosen.excludes : [];
       if (excludes.includes(chosenId) || chosenExcludes.includes(candidate.id)) {
         return `excludes:${chosenId}`;
@@ -287,7 +289,7 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
   }
 
   if (forceTier1) {
-    const tier1 = pool.filter(b => b.tier === 1 && !violatesExclusion(b));
+    const tier1 = pool.filter((b) => b.tier === 1 && !violatesExclusion(b));
     if (tier1.length === 0) {
       throw new Error('cannot force tier1 option: no tier1 blessings available');
     }
@@ -297,8 +299,8 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
   }
 
   while (selected.length < count) {
-    let candidates = pool.filter(b => !selectedIds.has(b.id));
-    if (!allowTier4) candidates = candidates.filter(b => b.tier !== 4);
+    let candidates = pool.filter((b) => !selectedIds.has(b.id));
+    if (!allowTier4) candidates = candidates.filter((b) => b.tier !== 4);
     const filtered = [];
     for (const candidate of candidates) {
       const exclusionReason = violatesExclusion(candidate);
@@ -329,8 +331,8 @@ export function selectBlessingOptionsWithTelemetry(config, rand, options = {}) {
   return {
     selected: selectedWithCosts,
     telemetry: {
-      candidatePoolIds: pool.map(b => b.id),
-      chosenIds: selected.map(b => b.id),
+      candidatePoolIds: pool.map((b) => b.id),
+      chosenIds: selected.map((b) => b.id),
       rejectionReasons,
       options: { count, forceTier1, allowTier4 },
     },

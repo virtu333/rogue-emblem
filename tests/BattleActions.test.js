@@ -19,7 +19,8 @@ describe('Battle Actions - Trade', () => {
       consumables: [],
     };
 
-    const unitHasItems = (unitWithItems.inventory?.length || 0) + (unitWithItems.consumables?.length || 0) > 0;
+    const unitHasItems =
+      (unitWithItems.inventory?.length || 0) + (unitWithItems.consumables?.length || 0) > 0;
     const spaceHasSpace = (unitWithSpace.inventory?.length || 0) < 5; // INVENTORY_MAX
 
     expect(unitHasItems).toBe(true);
@@ -32,7 +33,8 @@ describe('Battle Actions - Trade', () => {
       consumables: [],
     };
 
-    const unitHasItems = (emptyUnit.inventory?.length || 0) + (emptyUnit.consumables?.length || 0) > 0;
+    const unitHasItems =
+      (emptyUnit.inventory?.length || 0) + (emptyUnit.consumables?.length || 0) > 0;
 
     expect(unitHasItems).toBe(false);
   });

@@ -11,9 +11,12 @@ import {
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
-const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
-const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
-const plainTerrain = data.terrain.find(t => t.name === 'Plain') || { avoidBonus: '0', defBonus: '0' };
+const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
+const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
+const plainTerrain = data.terrain.find((t) => t.name === 'Plain') || {
+  avoidBonus: '0',
+  defBonus: '0',
+};
 
 function makeUnit(statOverrides = {}) {
   return {
@@ -22,7 +25,18 @@ function makeUnit(statOverrides = {}) {
     tier: 'base',
     level: 1,
     isLord: false,
-    stats: { HP: 20, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5, MOV: 5, ...statOverrides },
+    stats: {
+      HP: 20,
+      STR: 8,
+      MAG: 0,
+      SKL: 10,
+      SPD: 10,
+      DEF: 5,
+      RES: 3,
+      LCK: 5,
+      MOV: 5,
+      ...statOverrides,
+    },
     currentHP: statOverrides.HP || 20,
     faction: 'player',
     weapon: ironSword,
@@ -46,9 +60,11 @@ describe('Combat property tests', () => {
       for (const str of STR_RANGE) {
         for (const def of DEF_RANGE) {
           const dmg = calculateDamage(
-            makeUnit({ STR: str }), ironSword,
-            makeUnit({ DEF: def }), ironSword,
-            plainTerrain
+            makeUnit({ STR: str }),
+            ironSword,
+            makeUnit({ DEF: def }),
+            ironSword,
+            plainTerrain,
           );
           expect(Number.isNaN(dmg)).toBe(false);
         }
@@ -59,9 +75,11 @@ describe('Combat property tests', () => {
       for (const str of STR_RANGE) {
         for (const def of DEF_RANGE) {
           const dmg = calculateDamage(
-            makeUnit({ STR: str }), ironSword,
-            makeUnit({ DEF: def }), ironSword,
-            plainTerrain
+            makeUnit({ STR: str }),
+            ironSword,
+            makeUnit({ DEF: def }),
+            ironSword,
+            plainTerrain,
           );
           expect(dmg).toBeGreaterThanOrEqual(0);
         }
@@ -72,9 +90,11 @@ describe('Combat property tests', () => {
       let prevDmg = -Infinity;
       for (const str of STR_RANGE) {
         const dmg = calculateDamage(
-          makeUnit({ STR: str }), ironSword,
-          makeUnit({ DEF: 10 }), ironSword,
-          plainTerrain
+          makeUnit({ STR: str }),
+          ironSword,
+          makeUnit({ DEF: 10 }),
+          ironSword,
+          plainTerrain,
         );
         expect(dmg).toBeGreaterThanOrEqual(prevDmg);
         prevDmg = dmg;
@@ -85,9 +105,11 @@ describe('Combat property tests', () => {
       let prevDmg = Infinity;
       for (const def of DEF_RANGE) {
         const dmg = calculateDamage(
-          makeUnit({ STR: 15 }), ironSword,
-          makeUnit({ DEF: def }), ironSword,
-          plainTerrain
+          makeUnit({ STR: 15 }),
+          ironSword,
+          makeUnit({ DEF: def }),
+          ironSword,
+          plainTerrain,
         );
         expect(dmg).toBeLessThanOrEqual(prevDmg);
         prevDmg = dmg;
@@ -97,9 +119,11 @@ describe('Combat property tests', () => {
     it('returns integer values', () => {
       for (const str of STR_RANGE) {
         const dmg = calculateDamage(
-          makeUnit({ STR: str }), ironSword,
-          makeUnit({ DEF: 7 }), ironSword,
-          plainTerrain
+          makeUnit({ STR: str }),
+          ironSword,
+          makeUnit({ DEF: 7 }),
+          ironSword,
+          plainTerrain,
         );
         expect(Number.isInteger(dmg)).toBe(true);
       }
@@ -111,8 +135,10 @@ describe('Combat property tests', () => {
       for (const skl of SKL_RANGE) {
         for (const spd of SPD_RANGE) {
           const hit = calculateHitRate(
-            makeUnit({ SKL: skl }), ironSword,
-            makeUnit({ SPD: spd }), plainTerrain
+            makeUnit({ SKL: skl }),
+            ironSword,
+            makeUnit({ SPD: spd }),
+            plainTerrain,
           );
           expect(hit).toBeGreaterThanOrEqual(0);
           expect(hit).toBeLessThanOrEqual(100);
@@ -125,10 +151,7 @@ describe('Combat property tests', () => {
   describe('calculateCritRate', () => {
     it('is always non-negative and <= 100', () => {
       for (const skl of SKL_RANGE) {
-        const crit = calculateCritRate(
-          makeUnit({ SKL: skl }), ironSword,
-          makeUnit({ LCK: 5 })
-        );
+        const crit = calculateCritRate(makeUnit({ SKL: skl }), ironSword, makeUnit({ LCK: 5 }));
         expect(crit).toBeGreaterThanOrEqual(0);
         expect(crit).toBeLessThanOrEqual(100);
         expect(Number.isNaN(crit)).toBe(false);
@@ -138,10 +161,7 @@ describe('Combat property tests', () => {
     it('is monotonically non-decreasing with SKL', () => {
       let prevCrit = -Infinity;
       for (const skl of SKL_RANGE) {
-        const crit = calculateCritRate(
-          makeUnit({ SKL: skl }), ironSword,
-          makeUnit({ LCK: 5 })
-        );
+        const crit = calculateCritRate(makeUnit({ SKL: skl }), ironSword, makeUnit({ LCK: 5 }));
         expect(crit).toBeGreaterThanOrEqual(prevCrit);
         prevCrit = crit;
       }
@@ -153,15 +173,21 @@ describe('Combat property tests', () => {
       for (const str of [0, 10, 20]) {
         for (const def of [0, 10, 20]) {
           const forecast = getCombatForecast(
-            makeUnit({ STR: str }), ironSword,
-            makeUnit({ DEF: def }), ironLance,
-            1, plainTerrain, plainTerrain
+            makeUnit({ STR: str }),
+            ironSword,
+            makeUnit({ DEF: def }),
+            ironLance,
+            1,
+            plainTerrain,
+            plainTerrain,
           );
 
           for (const side of [forecast.attacker, forecast.defender]) {
             for (const [k, v] of Object.entries(side)) {
               if (typeof v === 'number') {
-                expect(Number.isNaN(v), `${side.name}.${k} is NaN (STR=${str}, DEF=${def})`).toBe(false);
+                expect(Number.isNaN(v), `${side.name}.${k} is NaN (STR=${str}, DEF=${def})`).toBe(
+                  false,
+                );
               }
             }
           }
@@ -172,9 +198,13 @@ describe('Combat property tests', () => {
     it('attacker.damage is non-negative', () => {
       for (const str of STR_RANGE) {
         const forecast = getCombatForecast(
-          makeUnit({ STR: str }), ironSword,
-          makeUnit({ DEF: 15 }), ironLance,
-          1, plainTerrain, plainTerrain
+          makeUnit({ STR: str }),
+          ironSword,
+          makeUnit({ DEF: 15 }),
+          ironLance,
+          1,
+          plainTerrain,
+          plainTerrain,
         );
         expect(forecast.attacker.damage).toBeGreaterThanOrEqual(0);
       }
@@ -183,9 +213,13 @@ describe('Combat property tests', () => {
     it('hit and crit are in [0, 100]', () => {
       for (const skl of SKL_RANGE) {
         const forecast = getCombatForecast(
-          makeUnit({ SKL: skl }), ironSword,
-          makeUnit({ SPD: skl }), ironLance,
-          1, plainTerrain, plainTerrain
+          makeUnit({ SKL: skl }),
+          ironSword,
+          makeUnit({ SPD: skl }),
+          ironLance,
+          1,
+          plainTerrain,
+          plainTerrain,
         );
         expect(forecast.attacker.hit).toBeGreaterThanOrEqual(0);
         expect(forecast.attacker.hit).toBeLessThanOrEqual(100);
@@ -196,9 +230,13 @@ describe('Combat property tests', () => {
 
     it('attackCount is a positive integer when weapon exists', () => {
       const forecast = getCombatForecast(
-        makeUnit({ SPD: 20 }), ironSword,
-        makeUnit({ SPD: 5 }), ironLance,
-        1, plainTerrain, plainTerrain
+        makeUnit({ SPD: 20 }),
+        ironSword,
+        makeUnit({ SPD: 5 }),
+        ironLance,
+        1,
+        plainTerrain,
+        plainTerrain,
       );
       expect(forecast.attacker.attackCount).toBeGreaterThan(0);
       expect(Number.isInteger(forecast.attacker.attackCount)).toBe(true);
@@ -206,9 +244,13 @@ describe('Combat property tests', () => {
 
     it('returns zeroed forecast for null weapon', () => {
       const forecast = getCombatForecast(
-        makeUnit(), null,
-        makeUnit(), ironLance,
-        1, plainTerrain, plainTerrain
+        makeUnit(),
+        null,
+        makeUnit(),
+        ironLance,
+        1,
+        plainTerrain,
+        plainTerrain,
       );
       expect(forecast.attacker.damage).toBe(0);
       expect(forecast.attacker.hit).toBe(0);
@@ -239,8 +281,10 @@ describe('Combat property tests', () => {
       for (const atkSpd of SPD_RANGE) {
         for (const defSpd of SPD_RANGE) {
           const result = canDouble(
-            makeUnit({ SPD: atkSpd }), makeUnit({ SPD: defSpd }),
-            ironSword, ironLance
+            makeUnit({ SPD: atkSpd }),
+            makeUnit({ SPD: defSpd }),
+            ironSword,
+            ironLance,
           );
           expect(typeof result).toBe('boolean');
         }

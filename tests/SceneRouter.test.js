@@ -51,17 +51,29 @@ describe('SceneRouter', () => {
   it('transitionToScene delegates to sceneLoader with reason metadata', async () => {
     const scene = makeScene({ active: true, key: 'Title' });
 
-    const ok = await transitionToScene(scene, 'SlotPicker', { gameData: {} }, { reason: TRANSITION_REASONS.CONTINUE });
+    const ok = await transitionToScene(
+      scene,
+      'SlotPicker',
+      { gameData: {} },
+      { reason: TRANSITION_REASONS.CONTINUE },
+    );
 
     expect(ok).toBe(true);
     expect(scene.scene.start).toHaveBeenCalledWith('SlotPicker', { gameData: {} });
-    expect(globalThis.__sceneState._pendingTransitionMeta?.reason).toBe(TRANSITION_REASONS.CONTINUE);
+    expect(globalThis.__sceneState._pendingTransitionMeta?.reason).toBe(
+      TRANSITION_REASONS.CONTINUE,
+    );
   });
 
   it('transitionToScene returns false when source scene is inactive', async () => {
     const scene = makeScene({ active: false, key: 'Title' });
 
-    const ok = await transitionToScene(scene, 'SlotPicker', { gameData: {} }, { reason: TRANSITION_REASONS.CONTINUE });
+    const ok = await transitionToScene(
+      scene,
+      'SlotPicker',
+      { gameData: {} },
+      { reason: TRANSITION_REASONS.CONTINUE },
+    );
 
     expect(ok).toBe(false);
     expect(scene.scene.start).not.toHaveBeenCalled();
@@ -73,7 +85,12 @@ describe('SceneRouter', () => {
       throw new Error('boom');
     });
 
-    const ok = await transitionToScene(scene, 'SlotPicker', { gameData: {} }, { reason: TRANSITION_REASONS.CONTINUE });
+    const ok = await transitionToScene(
+      scene,
+      'SlotPicker',
+      { gameData: {} },
+      { reason: TRANSITION_REASONS.CONTINUE },
+    );
 
     expect(ok).toBe(false);
     expect(globalThis.__sceneState._pendingTransitionMeta).toBeNull();

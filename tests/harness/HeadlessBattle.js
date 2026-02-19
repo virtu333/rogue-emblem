@@ -162,7 +162,11 @@ export class HeadlessBattle {
     this.battleConfig = bc;
 
     this.grid = new HeadlessGrid(
-      bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, Boolean(this.battleParams.fogEnabled)
+      bc.cols,
+      bc.rows,
+      this.gameData.terrain,
+      bc.mapLayout,
+      Boolean(this.battleParams.fogEnabled),
     );
 
     this.playerUnits = [];
@@ -191,7 +195,7 @@ export class HeadlessBattle {
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
         unit._gambitUsedThisTurn = false;
-        for (const w of (unit.inventory || [])) {
+        for (const w of unit.inventory || []) {
           if (w.perBattleUses) w._usesSpent = 0;
         }
         this.playerUnits.push(unit);
@@ -210,25 +214,43 @@ export class HeadlessBattle {
     // Lord recruit behavior is tested via unit tests in RecruitNodeLord.test.js.
     if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
-      const lord = this.playerUnits.find(u => u.isLord);
+      const lord = this.playerUnits.find((u) => u.isLord);
       if (lord) {
         npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0));
       }
-      const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+      const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
       if (npcClassData) {
         let npc;
         if (npcClassData.tier === 'promoted') {
-          const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
+          const baseClassData = this.gameData.classes.find(
+            (c) => c.name === npcClassData.promotesFrom,
+          );
           if (baseClassData) {
             const baseDef = { ...npcSpawn, className: baseClassData.name };
-            npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, null, null, null, this.gameData.classes);
+            npc = createRecruitUnit(
+              baseDef,
+              baseClassData,
+              this.gameData.weapons,
+              null,
+              null,
+              null,
+              this.gameData.classes,
+            );
             for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
             }
             promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
           }
         } else {
-          npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, null, null, null, this.gameData.classes);
+          npc = createRecruitUnit(
+            npcSpawn,
+            npcClassData,
+            this.gameData.weapons,
+            null,
+            null,
+            null,
+            this.gameData.classes,
+          );
           for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
             if (!npc.skills.includes(sid)) npc.skills.push(sid);
           }
@@ -275,18 +297,22 @@ export class HeadlessBattle {
     if (this.battleState !== HEADLESS_STATES.PLAYER_IDLE) {
       throw new Error(`Cannot select unit in state: ${this.battleState}`);
     }
-    const matching = this.playerUnits.filter(u => u.name === unitName);
+    const matching = this.playerUnits.filter((u) => u.name === unitName);
     if (matching.length === 0) throw new Error(`Unit not found: ${unitName}`);
 
     // Duplicate unit names can exist in simulations; prefer any unacted match.
-    const unit = matching.find(u => !u.hasActed) || matching[0];
+    const unit = matching.find((u) => !u.hasActed) || matching[0];
     if (unit.hasActed) throw new Error(`Unit already acted: ${unitName}`);
 
     this.selectedUnit = unit;
     this.preMoveLoc = { col: unit.col, row: unit.row };
     this.movementRange = this.grid.getMovementRange(
-      unit.col, unit.row, unit.stats.MOV, unit.moveType,
-      this._buildUnitPositionMap(unit.faction), unit.faction
+      unit.col,
+      unit.row,
+      unit.stats.MOV,
+      unit.moveType,
+      this._buildUnitPositionMap(unit.faction),
+      unit.faction,
     );
     this.battleState = HEADLESS_STATES.UNIT_SELECTED;
   }
@@ -297,7 +323,10 @@ export class HeadlessBattle {
     }
     const key = `${col},${row}`;
     // Allow staying in place (current tile always in movementRange)
-    if (!this.movementRange.has(key) && !(col === this.selectedUnit.col && row === this.selectedUnit.row)) {
+    if (
+      !this.movementRange.has(key) &&
+      !(col === this.selectedUnit.col && row === this.selectedUnit.row)
+    ) {
       throw new Error(`Tile (${col},${row}) not reachable`);
     }
 
@@ -330,7 +359,7 @@ export class HeadlessBattle {
     // Seize
     if (this.battleConfig.objective === 'seize' && unit.isLord) {
       const throne = this.battleConfig.thronePos;
-      const bossAlive = this.enemyUnits.some(u => u.isBoss);
+      const bossAlive = this.enemyUnits.some((u) => u.isBoss);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
         actions.push({ label: 'Seize', supported: true });
       }
@@ -345,11 +374,13 @@ export class HeadlessBattle {
     }
 
     // Deferred actions (listed but unsupported in MVP)
-    const equippable = unit.inventory.filter(item =>
-      item.type !== 'Consumable' && canEquip(unit, item)
+    const equippable = unit.inventory.filter(
+      (item) => item.type !== 'Consumable' && canEquip(unit, item),
     );
     if (equippable.length >= 2) actions.push({ label: 'Equip', supported: false });
-    const hasPromotionSeal = (unit.consumables || []).some(item => item?.effect === 'promote' && (item.uses ?? 0) > 0);
+    const hasPromotionSeal = (unit.consumables || []).some(
+      (item) => item?.effect === 'promote' && (item.uses ?? 0) > 0,
+    );
     if (canPromote(unit) && hasPromotionSeal) actions.push({ label: 'Promote', supported: false });
     if ((unit.consumables || []).length > 0) actions.push({ label: 'Item', supported: false });
 
@@ -401,7 +432,7 @@ export class HeadlessBattle {
       }
       default: {
         const actions = this.getAvailableActions();
-        const action = actions.find(a => a.label === label);
+        const action = actions.find((a) => a.label === label);
         if (action && !action.supported) {
           throw new Error(`Action "${label}" is not supported in MVP`);
         }
@@ -414,7 +445,7 @@ export class HeadlessBattle {
     if (this.battleState !== HEADLESS_STATES.SELECTING_TARGET) {
       throw new Error(`Cannot choose attack target in state: ${this.battleState}`);
     }
-    const target = this.attackTargets.find(u => u.name === targetName);
+    const target = this.attackTargets.find((u) => u.name === targetName);
     if (!target) throw new Error(`Target not in attack range: ${targetName}`);
 
     // Ensure equipped weapon can reach target
@@ -426,7 +457,7 @@ export class HeadlessBattle {
     if (this.battleState !== HEADLESS_STATES.SELECTING_HEAL_TARGET) {
       throw new Error(`Cannot choose heal target in state: ${this.battleState}`);
     }
-    const target = this.healTargets.find(u => u.name === targetName);
+    const target = this.healTargets.find((u) => u.name === targetName);
     if (!target) throw new Error(`Target not in heal range: ${targetName}`);
 
     this._executeHeal(this.selectedUnit, target);
@@ -486,27 +517,27 @@ export class HeadlessBattle {
   // --- Internal methods ---
 
   _createFallbackLords(bc) {
-    const edric = this.gameData.lords.find(l => l.name === 'Edric');
-    const edricClass = this.gameData.classes.find(c => c.name === edric.class);
+    const edric = this.gameData.lords.find((l) => l.name === 'Edric');
+    const edricClass = this.gameData.classes.find((c) => c.name === edric.class);
     const p1 = createLordUnit(edric, edricClass, this.gameData.weapons);
     p1.col = bc.playerSpawns[0].col;
     p1.row = bc.playerSpawns[0].row;
-    const steelSword = this.gameData.weapons.find(w => w.name === 'Steel Sword');
+    const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
     if (steelSword) addToInventory(p1, steelSword);
-    const vul = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+    const vul = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
     if (vul) addToConsumables(p1, vul);
     this.playerUnits.push(p1);
 
     if (bc.playerSpawns.length > 1) {
-      const sera = this.gameData.lords.find(l => l.name === 'Sera');
-      const seraClass = this.gameData.classes.find(c => c.name === sera.class);
+      const sera = this.gameData.lords.find((l) => l.name === 'Sera');
+      const seraClass = this.gameData.classes.find((c) => c.name === sera.class);
       const p2 = createLordUnit(sera, seraClass, this.gameData.weapons);
       p2.col = bc.playerSpawns[1].col;
       p2.row = bc.playerSpawns[1].row;
       p2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
-      const heal = this.gameData.weapons.find(w => w.name === 'Heal');
+      const heal = this.gameData.weapons.find((w) => w.name === 'Heal');
       if (heal) addToInventory(p2, heal);
-      const vul2 = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+      const vul2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
       if (vul2) addToConsumables(p2, vul2);
       this.playerUnits.push(p2);
     }
@@ -550,7 +581,10 @@ export class HeadlessBattle {
   }
 
   _getReinforcementTemplatePool() {
-    if (Array.isArray(this.reinforcementTemplatePool) && this.reinforcementTemplatePool.length > 0) {
+    if (
+      Array.isArray(this.reinforcementTemplatePool) &&
+      this.reinforcementTemplatePool.length > 0
+    ) {
       return this.reinforcementTemplatePool;
     }
 
@@ -558,9 +592,14 @@ export class HeadlessBattle {
     const seen = new Set();
     for (const spawn of this.battleConfig?.enemySpawns || []) {
       if (!spawn || spawn.isBoss || typeof spawn.className !== 'string') continue;
-      const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+      const classData = this.gameData.classes.find(
+        (candidate) => candidate.name === spawn.className,
+      );
       if (!classData) continue;
-      const level = Math.max(1, Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()));
+      const level = Math.max(
+        1,
+        Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()),
+      );
       const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -637,15 +676,17 @@ export class HeadlessBattle {
   }
 
   _buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
-    const classOverride = (scheduledSpawn && typeof scheduledSpawn.className === 'string')
-      ? scheduledSpawn.className
-      : null;
+    const classOverride =
+      scheduledSpawn && typeof scheduledSpawn.className === 'string'
+        ? scheduledSpawn.className
+        : null;
 
     let template = null;
     if (!classOverride) {
       const templates = this._getReinforcementTemplatePool();
       if (!Array.isArray(templates) || templates.length === 0) return null;
-      const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
+      const pickIndex =
+        this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
       template = templates[pickIndex];
       if (!template || typeof template.className !== 'string') return null;
     }
@@ -655,21 +696,32 @@ export class HeadlessBattle {
     const baseLevel = template ? template.level : this._getEnemySpawnFallbackLevel();
     return {
       className,
-      level: Math.max(1, Math.trunc(Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) || this._getEnemySpawnFallbackLevel())),
+      level: Math.max(
+        1,
+        Math.trunc(
+          Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) ||
+            this._getEnemySpawnFallbackLevel(),
+        ),
+      ),
       col: scheduledSpawn.col,
       row: scheduledSpawn.row,
-      sunderWeapon: typeof scheduledSpawn?.sunderWeapon === 'boolean'
-        ? scheduledSpawn.sunderWeapon
-        : Boolean(template?.sunderWeapon),
-      poisonWeapon: typeof scheduledSpawn?.poisonWeapon === 'boolean'
-        ? scheduledSpawn.poisonWeapon
-        : Boolean(template?.poisonWeapon),
-      aiMode: typeof scheduledSpawn?.aiMode === 'string'
-        ? scheduledSpawn.aiMode
-        : (template?.aiMode || null),
+      sunderWeapon:
+        typeof scheduledSpawn?.sunderWeapon === 'boolean'
+          ? scheduledSpawn.sunderWeapon
+          : Boolean(template?.sunderWeapon),
+      poisonWeapon:
+        typeof scheduledSpawn?.poisonWeapon === 'boolean'
+          ? scheduledSpawn.poisonWeapon
+          : Boolean(template?.poisonWeapon),
+      aiMode:
+        typeof scheduledSpawn?.aiMode === 'string'
+          ? scheduledSpawn.aiMode
+          : template?.aiMode || null,
       affixes: Array.isArray(scheduledSpawn?.affixes)
         ? [...scheduledSpawn.affixes]
-        : (Array.isArray(template?.affixes) ? [...template.affixes] : []),
+        : Array.isArray(template?.affixes)
+          ? [...template.affixes]
+          : [],
     };
   }
 
@@ -678,17 +730,36 @@ export class HeadlessBattle {
     const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
     if (!classData) return null;
 
-    const spawnLevel = Math.max(1, Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()));
+    const spawnLevel = Math.max(
+      1,
+      Math.trunc(Number(spawn.level) || this._getEnemySpawnFallbackLevel()),
+    );
     const difficultyConfig = this._getEnemyDifficultyConfig();
 
     let enemy;
     if (classData.tier === 'promoted') {
-      const baseClassData = this.gameData.classes.find((candidate) => candidate.name === classData.promotesFrom);
+      const baseClassData = this.gameData.classes.find(
+        (candidate) => candidate.name === classData.promotesFrom,
+      );
       if (!baseClassData) return null;
-      enemy = createEnemyUnit(baseClassData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      enemy = createEnemyUnit(
+        baseClassData,
+        spawnLevel,
+        this.gameData.weapons,
+        difficultyConfig,
+        this.gameData.skills,
+        this.battleParams.act,
+      );
       promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
     } else {
-      enemy = createEnemyUnit(classData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      enemy = createEnemyUnit(
+        classData,
+        spawnLevel,
+        this.gameData.weapons,
+        difficultyConfig,
+        this.gameData.skills,
+        this.battleParams.act,
+      );
     }
 
     enemy.col = spawn.col;
@@ -736,7 +807,7 @@ export class HeadlessBattle {
       enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
       enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
       const rewardMultiplier = this._normalizeEnemyRewardMultiplier(
-        Number(reinforcementMeta.xpMultiplier)
+        Number(reinforcementMeta.xpMultiplier),
       );
       enemy._reinforcementRewardMultiplier = rewardMultiplier;
       // Backward compatibility for legacy field name.
@@ -771,7 +842,8 @@ export class HeadlessBattle {
   _applyReinforcementsForTurn(turn) {
     const schedule = this._resolveReinforcementsForTurn(turn);
     this.lastReinforcementSchedule = schedule;
-    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0) return { ...schedule, spawned: 0 };
+    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)
+      return { ...schedule, spawned: 0 };
 
     let spawned = 0;
     for (let i = 0; i < schedule.spawns.length; i++) {
@@ -797,10 +869,11 @@ export class HeadlessBattle {
       this.appliedHybridOverrideTurns = new Set();
     }
 
-    const dueOverrides = overrides.filter((entry) =>
-      Number.isInteger(entry?.turn)
-      && entry.turn === normalizedTurn
-      && !this.appliedHybridOverrideTurns.has(entry.turn)
+    const dueOverrides = overrides.filter(
+      (entry) =>
+        Number.isInteger(entry?.turn) &&
+        entry.turn === normalizedTurn &&
+        !this.appliedHybridOverrideTurns.has(entry.turn),
     );
     if (dueOverrides.length === 0) {
       const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
@@ -817,7 +890,9 @@ export class HeadlessBattle {
           ? { col: setTile.coord[0], row: setTile.coord[1] }
           : anchors?.[setTile?.anchor];
         if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
-        const terrainIndex = this.gameData.terrain.findIndex((terrain) => terrain?.name === setTile?.terrain);
+        const terrainIndex = this.gameData.terrain.findIndex(
+          (terrain) => terrain?.name === setTile?.terrain,
+        );
         if (terrainIndex < 0) continue;
         const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
         if (didSet) changedTiles++;
@@ -875,7 +950,7 @@ export class HeadlessBattle {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
         effect.target.currentHP = Math.min(
           effect.target.stats.HP,
-          effect.target.currentHP + effect.amount
+          effect.target.currentHP + effect.amount,
         );
       }
     }
@@ -883,7 +958,10 @@ export class HeadlessBattle {
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {
       if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
-        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
+        effect.target.currentHP = Math.min(
+          effect.target.stats.HP,
+          effect.target.currentHP + effect.amount,
+        );
       }
       // Note: spawn_terrain is not fully simulated in HeadlessBattle MVP for now
     }
@@ -906,12 +984,12 @@ export class HeadlessBattle {
     const inferredSide = sourceSide || null;
     const didLandHit = inferredSide
       ? didCombatSideLandHit(
-        events,
-        inferredSide,
-        inferredSide === 'attacker' ? attacker : defender,
-        inferredSide === 'attacker' ? defender : attacker
-      )
-      : events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+          events,
+          inferredSide,
+          inferredSide === 'attacker' ? attacker : defender,
+          inferredSide === 'attacker' ? defender : attacker,
+        )
+      : events.some((e) => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
     if (!didLandHit || !attacker.affixes?.length) return;
     const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
@@ -943,13 +1021,20 @@ export class HeadlessBattle {
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     for (const enemy of enemies) {
-      if (this.grid.fogEnabled && unit.faction === 'player' && !this.grid.isVisible(enemy.col, enemy.row)) continue;
+      if (
+        this.grid.fogEnabled &&
+        unit.faction === 'player' &&
+        !this.grid.isVisible(enemy.col, enemy.row)
+      )
+        continue;
       const dist = gridDistance(unit.col, unit.row, enemy.col, enemy.row);
-      if (combatWeapons.some(w => {
-        const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
-        const { min, max } = parseRange(w.range);
-        return dist >= min && dist <= max + bonus;
-      })) {
+      if (
+        combatWeapons.some((w) => {
+          const bonus = getWeaponRangeBonus(unit, w, this.gameData.skills);
+          const { min, max } = parseRange(w.range);
+          return dist >= min && dist <= max + bonus;
+        })
+      ) {
         targets.push(enemy);
       }
     }
@@ -1032,9 +1117,12 @@ export class HeadlessBattle {
 
   _getAvailableWeaponArtEntriesForUnit(unit) {
     if (!unit) return [];
-    const inventory = Array.isArray(unit.inventory) && unit.inventory.length > 0
-      ? unit.inventory
-      : (unit.weapon ? [unit.weapon] : []);
+    const inventory =
+      Array.isArray(unit.inventory) && unit.inventory.length > 0
+        ? unit.inventory
+        : unit.weapon
+          ? [unit.weapon]
+          : [];
     const entries = [];
     for (const weapon of inventory) {
       if (!weapon || !weapon.type || isStaff(weapon)) continue;
@@ -1071,12 +1159,16 @@ export class HeadlessBattle {
     const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
     if (entries.length <= 0) return null;
 
-    if (Number.isInteger(selected.weaponIndex)
-      && selected.weaponIndex >= 0
-      && Array.isArray(unit.inventory)
-      && selected.weaponIndex < unit.inventory.length) {
+    if (
+      Number.isInteger(selected.weaponIndex) &&
+      selected.weaponIndex >= 0 &&
+      Array.isArray(unit.inventory) &&
+      selected.weaponIndex < unit.inventory.length
+    ) {
       const selectedWeapon = unit.inventory[selected.weaponIndex];
-      const strict = entries.find((entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon);
+      const strict = entries.find(
+        (entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon,
+      );
       if (strict) return strict;
     }
 
@@ -1104,18 +1196,21 @@ export class HeadlessBattle {
   _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
     if (!unit) return [];
     const restrictToWeapon = Boolean(options?.restrictToWeapon && weapon);
-    const entries = this._getAvailableWeaponArtEntriesForUnit(unit)
-      .filter((entry) => !restrictToWeapon || entry.weapon === weapon);
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit).filter(
+      (entry) => !restrictToWeapon || entry.weapon === weapon,
+    );
 
-    return entries.map(({ weapon: sourceWeapon, art }) => {
-      const check = canUseWeaponArt(unit, sourceWeapon, art, {
-        turnNumber: this.turnManager?.turnNumber,
-        isInitiating: true,
-        actorFaction: unit.faction,
-        ...context,
-      });
-      return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
-    }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
+    return entries
+      .map(({ weapon: sourceWeapon, art }) => {
+        const check = canUseWeaponArt(unit, sourceWeapon, art, {
+          turnNumber: this.turnManager?.turnNumber,
+          isInitiating: true,
+          actorFaction: unit.faction,
+          ...context,
+        });
+        return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
+      })
+      .filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
   _getCombatRollSessionKey(attacker, defender) {
@@ -1128,7 +1223,12 @@ export class HeadlessBattle {
     if (!attacker || !defender) return null;
     const key = this._getCombatRollSessionKey(attacker, defender);
     const existing = this._combatRollSession;
-    if (existing && existing.key === key && existing.attacker === attacker && existing.defender === defender) {
+    if (
+      existing &&
+      existing.key === key &&
+      existing.attacker === attacker &&
+      existing.defender === defender
+    ) {
       return existing;
     }
     const next = {
@@ -1163,15 +1263,22 @@ export class HeadlessBattle {
     const recoilGuard = combatEffects.recoilGuard;
     const hasRecoilGuard = Boolean(recoilGuard) || Boolean(combatEffects.weaponArtDefBuff);
     if (!hasRecoilGuard) return;
-    const rawStats = recoilGuard?.stats && typeof recoilGuard.stats === 'object'
-      ? recoilGuard.stats
-      : {
-        DEF: Number.isFinite(Number(combatEffects?.buffDEF)) ? Number(combatEffects.buffDEF) : 3,
-        RES: Number.isFinite(Number(combatEffects?.buffRES)) ? Number(combatEffects.buffRES) : 3,
-      };
+    const rawStats =
+      recoilGuard?.stats && typeof recoilGuard.stats === 'object'
+        ? recoilGuard.stats
+        : {
+            DEF: Number.isFinite(Number(combatEffects?.buffDEF))
+              ? Number(combatEffects.buffDEF)
+              : 3,
+            RES: Number.isFinite(Number(combatEffects?.buffRES))
+              ? Number(combatEffects.buffRES)
+              : 3,
+          };
     const stats = {};
     for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '').trim().toUpperCase();
+      const stat = String(rawStat || '')
+        .trim()
+        .toUpperCase();
       if (!stat) continue;
       const value = Math.trunc(Number(rawValue) || 0);
       if (value === 0) continue;
@@ -1206,27 +1313,26 @@ export class HeadlessBattle {
   _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
     const hpCost = getEffectiveWeaponArtHpCost(unit, art);
-    const effectivenessScore = mods.effectiveness?.multiplier > 1
-      ? (mods.effectiveness.multiplier - 1) * 4
-      : 0;
+    const effectivenessScore =
+      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
     const rangeOverrideScore = mods.rangeOverride
       ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
       : 0;
     return (
-      (mods.atkBonus * 3)
-      + (mods.hitBonus * 0.35)
-      + (mods.critBonus * 0.25)
-      + (mods.spdBonus * 0.5)
-      + (mods.avoidBonus * 0.15)
-      + (mods.defBonus * 0.1)
-      + effectivenessScore
-      + ((mods.rangeBonus || 0) * 1.2)
-      + rangeOverrideScore
-      + (mods.preventCounter ? 3.5 : 0)
-      + (mods.targetsRES ? 2.5 : 0)
-      + (mods.halfPhysicalDamage ? 2.5 : 0)
-      + (mods.vengeance ? 4 : 0)
-      - (hpCost * 0.75)
+      mods.atkBonus * 3 +
+      mods.hitBonus * 0.35 +
+      mods.critBonus * 0.25 +
+      mods.spdBonus * 0.5 +
+      mods.avoidBonus * 0.15 +
+      mods.defBonus * 0.1 +
+      effectivenessScore +
+      (mods.rangeBonus || 0) * 1.2 +
+      rangeOverrideScore +
+      (mods.preventCounter ? 3.5 : 0) +
+      (mods.targetsRES ? 2.5 : 0) +
+      (mods.halfPhysicalDamage ? 2.5 : 0) +
+      (mods.vengeance ? 4 : 0) -
+      hpCost * 0.75
     );
   }
 
@@ -1244,9 +1350,10 @@ export class HeadlessBattle {
   }
 
   _rollEnemyWeaponArtChance() {
-    const roll = typeof this._enemyWeaponArtRandom === 'function'
-      ? Number(this._enemyWeaponArtRandom())
-      : Math.random();
+    const roll =
+      typeof this._enemyWeaponArtRandom === 'function'
+        ? Number(this._enemyWeaponArtRandom())
+        : Math.random();
     if (!Number.isFinite(roll)) return 1;
     return Math.min(1, Math.max(0, roll));
   }
@@ -1296,8 +1403,26 @@ export class HeadlessBattle {
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
     const affixes = this.gameData.affixes;
-    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true, affixes);
-    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
+    const atkMods = getSkillCombatMods(
+      attacker,
+      defender,
+      getAllies(attacker),
+      getEnemies(attacker),
+      skills,
+      atkTerrain,
+      true,
+      affixes,
+    );
+    const defMods = getSkillCombatMods(
+      defender,
+      attacker,
+      getAllies(defender),
+      getEnemies(defender),
+      skills,
+      defTerrain,
+      false,
+      affixes,
+    );
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
@@ -1365,8 +1490,12 @@ export class HeadlessBattle {
     for (const step of steps) {
       const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
       const targetUnit = step.targetSide
-        ? (step.targetSide === 'attacker' ? attacker : defender)
-        : (step.sourceSide === 'defender' ? attacker : defender);
+        ? step.targetSide === 'attacker'
+          ? attacker
+          : defender
+        : step.sourceSide === 'defender'
+          ? attacker
+          : defender;
       switch (step.type) {
         case 'affix':
           this._applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
@@ -1385,7 +1514,10 @@ export class HeadlessBattle {
           break;
         case 'tier2_damage':
           if (!targetUnit || targetUnit.currentHP <= 0) break;
-          targetUnit.currentHP = Math.max(step.nonLethal ? 1 : 0, targetUnit.currentHP - step.amount);
+          targetUnit.currentHP = Math.max(
+            step.nonLethal ? 1 : 0,
+            targetUnit.currentHP - step.amount,
+          );
           break;
         case 'tier2_debuff':
           if (!targetUnit || targetUnit.currentHP <= 0) break;
@@ -1415,13 +1547,17 @@ export class HeadlessBattle {
   _applyDivineChargeHealStep(step, attacker, defender) {
     const caster = step.side === 'defender' ? defender : attacker;
     if (!caster || caster.currentHP <= 0) return;
-    const healAmount = Math.floor(step.damageDealt * step.percent / 100);
+    const healAmount = Math.floor((step.damageDealt * step.percent) / 100);
     if (healAmount <= 0) return;
-    const allies = this._getDivineChargeAllies(caster)
-      .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-        && gridDistance(caster.col, caster.row, u.col, u.row) <= step.range);
+    const allies = this._getDivineChargeAllies(caster).filter(
+      (u) =>
+        u.currentHP > 0 &&
+        u.currentHP < u.stats.HP &&
+        u !== caster &&
+        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
+    );
     if (allies.length === 0) return;
-    allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+    allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
     allies[0].currentHP = Math.min(allies[0].stats.HP, allies[0].currentHP + healAmount);
   }
 
@@ -1455,10 +1591,10 @@ export class HeadlessBattle {
     const secondaryCol = primaryTarget.col + dc;
     const secondaryRow = primaryTarget.row + dr;
     if (
-      secondaryCol < 0
-      || secondaryCol >= this.grid.cols
-      || secondaryRow < 0
-      || secondaryRow >= this.grid.rows
+      secondaryCol < 0 ||
+      secondaryCol >= this.grid.cols ||
+      secondaryRow < 0 ||
+      secondaryRow >= this.grid.rows
     ) {
       return null;
     }
@@ -1503,7 +1639,9 @@ export class HeadlessBattle {
     if (radius <= 0) return [];
     const candidates = this._getTier5HostileUnitsFor(sourceUnit)
       .filter((unit) => unit && unit !== primaryTarget && unit.currentHP > 0)
-      .filter((unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius);
+      .filter(
+        (unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius,
+      );
     const maxTargets = Math.max(0, Math.trunc(Number(step?.maxTargets) || 0));
     if (maxTargets === 1) {
       candidates.sort((a, b) => {
@@ -1588,14 +1726,18 @@ export class HeadlessBattle {
   _recomputeTimedWeaponArtBuffState(unit) {
     if (!unit) return;
     const buffs = Array.isArray(unit._battleTimedWeaponArtBuffs)
-      ? unit._battleTimedWeaponArtBuffs.filter((entry) => entry && entry.stats && typeof entry.stats === 'object')
+      ? unit._battleTimedWeaponArtBuffs.filter(
+          (entry) => entry && entry.stats && typeof entry.stats === 'object',
+        )
       : [];
     unit._battleTimedWeaponArtBuffs = buffs;
 
     const strongestByStat = {};
     for (const entry of buffs) {
       for (const [rawStat, rawValue] of Object.entries(entry.stats || {})) {
-        const stat = String(rawStat || '').trim().toUpperCase();
+        const stat = String(rawStat || '')
+          .trim()
+          .toUpperCase();
         if (!stat) continue;
         const value = Math.trunc(Number(rawValue) || 0);
         if (value === 0) continue;
@@ -1639,7 +1781,8 @@ export class HeadlessBattle {
     if (Object.keys(nextApplied).length > 0) unit._battleTimedWeaponArtAppliedStats = nextApplied;
     else delete unit._battleTimedWeaponArtAppliedStats;
 
-    if (Object.keys(combatMods).length > 0) unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
+    if (Object.keys(combatMods).length > 0)
+      unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
     else delete unit._battleTimedWeaponArtAppliedCombatMods;
 
     if (unit._battleTimedWeaponArtBuffs.length <= 0) {
@@ -1665,7 +1808,9 @@ export class HeadlessBattle {
     if (!rawStats || typeof rawStats !== 'object') return;
     const stats = {};
     for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '').trim().toUpperCase();
+      const stat = String(rawStat || '')
+        .trim()
+        .toUpperCase();
       if (!stat) continue;
       const value = Math.trunc(Number(rawValue) || 0);
       if (value === 0) continue;
@@ -1680,7 +1825,10 @@ export class HeadlessBattle {
       .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
     if (allies.length <= 0) return;
 
-    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(sourceUnit, step?.durationPhases);
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
+      sourceUnit,
+      step?.durationPhases,
+    );
     const keyRoot = `${String(step?.artId || 'tier5_buff')}::${String(sourceUnit.name || '')}`;
     for (const ally of allies) {
       this._applyTier5TimedBuffEntry(ally, {
@@ -1698,9 +1846,17 @@ export class HeadlessBattle {
   _expireTimedWeaponArtBuffs(phase, turn) {
     const normalizedPhase = phase === 'enemy' ? 'enemy' : 'player';
     const normalizedTurn = Math.max(1, Math.trunc(Number(turn) || 1));
-    const units = [...(this.playerUnits || []), ...(this.enemyUnits || []), ...(this.npcUnits || [])];
+    const units = [
+      ...(this.playerUnits || []),
+      ...(this.enemyUnits || []),
+      ...(this.npcUnits || []),
+    ];
     for (const unit of units) {
-      if (!Array.isArray(unit?._battleTimedWeaponArtBuffs) || unit._battleTimedWeaponArtBuffs.length <= 0) continue;
+      if (
+        !Array.isArray(unit?._battleTimedWeaponArtBuffs) ||
+        unit._battleTimedWeaponArtBuffs.length <= 0
+      )
+        continue;
       const previousCount = unit._battleTimedWeaponArtBuffs.length;
       unit._battleTimedWeaponArtBuffs = unit._battleTimedWeaponArtBuffs.filter((entry) => {
         const expiryPhase = entry?.expiryPhase === 'enemy' ? 'enemy' : 'player';
@@ -1748,9 +1904,10 @@ export class HeadlessBattle {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._ensureCombatRollSession(attacker, defender);
-    const selectedArt = attacker.faction === 'player'
-      ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
-      : null;
+    const selectedArt =
+      attacker.faction === 'player'
+        ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
+        : null;
     if (selectedArt) {
       applyWeaponArtCost(attacker, selectedArt);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -1760,10 +1917,14 @@ export class HeadlessBattle {
     const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
-      attacker, attacker.weapon,
-      defender, defender.weapon,
-      dist, atkTerrain, defTerrain,
-      skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      dist,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
     );
 
     attacker.currentHP = result.attackerHP;
@@ -1806,8 +1967,8 @@ export class HeadlessBattle {
     }
 
     if (!attacker._gambitUsedThisTurn) {
-      const gambitTriggered = result.events?.some(e =>
-        e.skillActivations?.some(s => s.id === 'commanders_gambit')
+      const gambitTriggered = result.events?.some((e) =>
+        e.skillActivations?.some((s) => s.id === 'commanders_gambit'),
       );
       if (gambitTriggered) {
         attacker._gambitUsedThisTurn = true;
@@ -1861,10 +2022,9 @@ export class HeadlessBattle {
   }
 
   _getUsableStaves(unit) {
-    return unit.inventory.filter(w =>
-      w.type === 'Staff'
-      && getStaffMaxUses(w, unit) > 0
-      && getStaffRemainingUses(w, unit) > 0
+    return unit.inventory.filter(
+      (w) =>
+        w.type === 'Staff' && getStaffMaxUses(w, unit) > 0 && getStaffRemainingUses(w, unit) > 0,
     );
   }
 
@@ -1924,7 +2084,7 @@ export class HeadlessBattle {
   }
 
   _checkBattleEnd() {
-    const edricAlive = this.playerUnits.some(u => u.name === 'Edric');
+    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {
       this._onDefeat();
       return true;
@@ -1943,29 +2103,24 @@ export class HeadlessBattle {
     this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
     this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
     try {
-      await this.aiController.processEnemyPhase(
-        this.enemyUnits,
-        this.playerUnits,
-        this.npcUnits,
-        {
-          onMoveUnit: (enemy, path) => {
-            if (path && path.length >= 2) {
-              const dest = path[path.length - 1];
-              enemy.col = dest.col;
-              enemy.row = dest.row;
-            }
-            return Promise.resolve();
-          },
-          onAttack: (enemy, target) => {
-            this._executeEnemyCombat(enemy, target);
-            return Promise.resolve();
-          },
-          onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
-          onUnitDone: (enemy) => {
-            enemy.hasActed = true;
-          },
-        }
-      );
+      await this.aiController.processEnemyPhase(this.enemyUnits, this.playerUnits, this.npcUnits, {
+        onMoveUnit: (enemy, path) => {
+          if (path && path.length >= 2) {
+            const dest = path[path.length - 1];
+            enemy.col = dest.col;
+            enemy.row = dest.row;
+          }
+          return Promise.resolve();
+        },
+        onAttack: (enemy, target) => {
+          this._executeEnemyCombat(enemy, target);
+          return Promise.resolve();
+        },
+        onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
+        onUnitDone: (enemy) => {
+          enemy.hasActed = true;
+        },
+      });
     } finally {
       this._finalizeEnemyPhaseAiStats();
     }
@@ -2028,10 +2183,14 @@ export class HeadlessBattle {
     const skillCtx = this._buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
-      attacker, attacker.weapon,
-      defender, defender.weapon,
-      dist, atkTerrain, defTerrain,
-      skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      dist,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
     );
 
     attacker.currentHP = result.attackerHP;
@@ -2091,7 +2250,10 @@ export class HeadlessBattle {
   }
 
   getUnitAt(col, row) {
-    return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
-      .find(u => u.col === col && u.row === row) || null;
+    return (
+      [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].find(
+        (u) => u.col === col && u.row === row,
+      ) || null
+    );
   }
 }

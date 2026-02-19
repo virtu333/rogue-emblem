@@ -13,12 +13,25 @@ import { TitleScene } from '../src/scenes/TitleScene.js';
 function makeDisplayObject(extra = {}) {
   return {
     handlers: {},
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor() { return this; },
-    on(event, handler) { this.handlers[event] = handler; return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    on(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
     destroy: vi.fn(),
     ...extra,
   };
@@ -32,11 +45,21 @@ function makeOverlayScene() {
       text: () => makeDisplayObject(),
       graphics: () => ({
         ...makeDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       }),
     },
     input: {

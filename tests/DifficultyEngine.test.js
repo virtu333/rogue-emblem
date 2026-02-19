@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
-import { resolveDifficultyMode, validateDifficultyConfig, DIFFICULTY_CONTRACT_VERSION } from '../src/engine/DifficultyEngine.js';
+import {
+  resolveDifficultyMode,
+  validateDifficultyConfig,
+  DIFFICULTY_CONTRACT_VERSION,
+} from '../src/engine/DifficultyEngine.js';
 
 const difficulty = JSON.parse(readFileSync('data/difficulty.json', 'utf8'));
 
@@ -17,7 +21,9 @@ describe('DifficultyEngine', () => {
     delete bad.modes.hard.goldMultiplier;
     const result = validateDifficultyConfig(bad);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('missing required key: goldMultiplier'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('missing required key: goldMultiplier'))).toBe(
+      true,
+    );
   });
 
   it('resolves requested mode with fallback to normal', () => {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatAccessoryCombatEffect, formatAccessoryDetail, formatAccessoryEffects } from '../src/utils/accessoryText.js';
+import {
+  formatAccessoryCombatEffect,
+  formatAccessoryDetail,
+  formatAccessoryEffects,
+} from '../src/utils/accessoryText.js';
 
 describe('accessory text helpers', () => {
   it('formats stat effects in stable order', () => {
@@ -23,13 +27,21 @@ describe('accessory text helpers', () => {
   });
 
   it('formats non-crit combat effects', () => {
-    expect(formatAccessoryCombatEffect({ combatEffects: { preventEnemyDouble: true } })).toBe('Block double attacks');
-    expect(formatAccessoryCombatEffect({ combatEffects: { doubleThresholdReduction: 2 } })).toBe('Double at +3 SPD');
-    expect(formatAccessoryCombatEffect({ combatEffects: { negateEffectiveness: true } })).toBe('Negate effectiveness');
+    expect(formatAccessoryCombatEffect({ combatEffects: { preventEnemyDouble: true } })).toBe(
+      'Block double attacks',
+    );
+    expect(formatAccessoryCombatEffect({ combatEffects: { doubleThresholdReduction: 2 } })).toBe(
+      'Double at +3 SPD',
+    );
+    expect(formatAccessoryCombatEffect({ combatEffects: { negateEffectiveness: true } })).toBe(
+      'Negate effectiveness',
+    );
   });
 
   it('formats multi-bonus combat effects and condition', () => {
-    const accessory = { combatEffects: { atkBonus: 2, defBonus: 1, avoidBonus: 15, condition: 'above75' } };
+    const accessory = {
+      combatEffects: { atkBonus: 2, defBonus: 1, avoidBonus: 15, condition: 'above75' },
+    };
     expect(formatAccessoryCombatEffect(accessory)).toBe('+2 Atk/+1 Def/+15 Avo >75% HP');
   });
 
@@ -46,7 +58,9 @@ describe('accessory text helpers', () => {
         condition: 'on_forest_or_mountain',
       },
     };
-    expect(formatAccessoryCombatEffect(accessory)).toBe('Art HP Cost -5/Heal +2/hit (forest/mountain)');
+    expect(formatAccessoryCombatEffect(accessory)).toBe(
+      'Art HP Cost -5/Heal +2/hit (forest/mountain)',
+    );
   });
 
   it('formats turn-start accessory effects for Soothing Stone-style items', () => {
@@ -71,7 +85,9 @@ describe('accessory text helpers', () => {
 
   it('supports detail options for separator, fallback, and include flags', () => {
     const accessory = { effects: { STR: 2 }, combatEffects: { negateEffectiveness: true } };
-    expect(formatAccessoryDetail(accessory, { separator: ' / ' })).toBe('+2 STR / Negate effectiveness');
+    expect(formatAccessoryDetail(accessory, { separator: ' / ' })).toBe(
+      '+2 STR / Negate effectiveness',
+    );
     expect(formatAccessoryDetail(accessory, { separator: '' })).toBe('+2 STRNegate effectiveness');
     expect(formatAccessoryDetail(accessory, { includeCombat: false })).toBe('+2 STR');
     expect(formatAccessoryDetail(accessory, { includeStats: false })).toBe('Negate effectiveness');

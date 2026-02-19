@@ -13,14 +13,35 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive(opts) { this._interactive = opts; return this; },
-    setOrigin() { return this; },
-    setColor(color) { this._color = color; return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this._destroyed = true; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive(opts) {
+      this._interactive = opts;
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor(color) {
+      this._color = color;
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this._destroyed = true;
+    },
   };
 }
 
@@ -93,7 +114,8 @@ function makeForgeListScene({ unit, gameData = {} }) {
         createdTexts.push(obj);
         return obj;
       },
-      rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+      rectangle: (x, y, width, height, color, alpha) =>
+        makeDisplayObject({ x, y, width, height, color, alpha }),
     },
   };
   return { scene, createdTexts };
@@ -173,7 +195,13 @@ describe('NodeMap shop hover details', () => {
   });
 
   it('keeps last-weapon sell rows disabled with the last-weapon marker', () => {
-    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', price: 500, range: '1' };
+    const sword = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      price: 500,
+      range: '1',
+    };
     const unit = {
       name: 'Edric',
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
@@ -184,7 +212,9 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.drawShopSellList.call(scene);
 
-    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'));
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'),
+    );
     expect(row).toBeTruthy();
     expect(row.text).toContain('(last weapon)');
     expect(row._interactive).toBeUndefined();
@@ -213,7 +243,9 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.drawShopSellList.call(scene);
 
-    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'));
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('Iron Sword'),
+    );
     expect(row).toBeTruthy();
     expect(row.text).toContain('Iron Sword *');
   });
@@ -231,7 +263,9 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.drawShopSellList.call(scene);
 
-    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('Vulnerary'));
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('Vulnerary'),
+    );
     expect(row).toBeTruthy();
     expect(row._interactive).toEqual({ useHandCursor: true });
     expect(row.handlers.pointerdown).toBeTypeOf('function');
@@ -240,7 +274,10 @@ describe('NodeMap shop hover details', () => {
     expect(scene.runManager.addGold).toHaveBeenCalledWith(expect.any(Number));
     expect(unit.consumables).toHaveLength(0);
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
-    expect(scene.showShopBanner).toHaveBeenCalledWith(expect.stringContaining('Sold Vulnerary for '), '#ffdd44');
+    expect(scene.showShopBanner).toHaveBeenCalledWith(
+      expect.stringContaining('Sold Vulnerary for '),
+      '#ffdd44',
+    );
   });
 
   it('omits unsellable consumables from sell rows', () => {
@@ -255,7 +292,9 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.drawShopSellList.call(scene);
 
-    expect(createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Free Tonic'))).toBe(false);
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Free Tonic')),
+    ).toBe(false);
   });
 
   it('sell scroll range counts only renderable sell rows', () => {
@@ -277,23 +316,28 @@ describe('NodeMap shop hover details', () => {
     NodeMapScene.prototype.drawShopSellList.call(scene);
 
     expect(scene.shopScrollMax).toBe(0);
-    expect(createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Rusty'))).toBe(false);
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Rusty')),
+    ).toBe(false);
   });
 
   it('unit picker only shows no prof for proficiency-relevant items', () => {
     const createdTexts = [];
     const makePickerScene = () => ({
       runManager: {
-        roster: [{
-          name: 'Mora',
-          inventory: [],
-          consumables: [],
-          proficiencies: [{ type: 'Axe', rank: 'Prof' }],
-        }],
+        roster: [
+          {
+            name: 'Mora',
+            inventory: [],
+            consumables: [],
+            proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+          },
+        ],
       },
       unitPicker: null,
       add: {
-        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        rectangle: (x, y, width, height, color, alpha) =>
+          makeDisplayObject({ x, y, width, height, color, alpha }),
         text: (x, y, text, style) => {
           const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
           createdTexts.push(obj);
@@ -315,7 +359,9 @@ describe('NodeMap shop hover details', () => {
     };
     NodeMapScene.prototype.renderUnitPicker.call(scene);
 
-    const consumableRow = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('));
+    const consumableRow = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('),
+    );
     expect(consumableRow).toBeTruthy();
     expect(consumableRow.text).toContain('Inventory 0/5 | Consumables 0/3');
     expect(consumableRow.text).not.toContain('no prof');
@@ -332,7 +378,9 @@ describe('NodeMap shop hover details', () => {
     };
     NodeMapScene.prototype.renderUnitPicker.call(scene);
 
-    const weaponRow = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('));
+    const weaponRow = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.startsWith('Mora ('),
+    );
     expect(weaponRow).toBeTruthy();
     expect(weaponRow.text).toContain('no prof');
   });
@@ -341,16 +389,19 @@ describe('NodeMap shop hover details', () => {
     const createdTexts = [];
     const scene = {
       runManager: {
-        roster: [{
-          name: 'ExtremelyLongUnitNameForOverflow',
-          inventory: [],
-          consumables: [],
-          proficiencies: [{ type: 'Sword', rank: 'Prof' }],
-        }],
+        roster: [
+          {
+            name: 'ExtremelyLongUnitNameForOverflow',
+            inventory: [],
+            consumables: [],
+            proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+          },
+        ],
       },
       unitPicker: null,
       add: {
-        rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ x, y, width, height, color, alpha }),
+        rectangle: (x, y, width, height, color, alpha) =>
+          makeDisplayObject({ x, y, width, height, color, alpha }),
         text: (x, y, text, style) => {
           const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
           createdTexts.push(obj);
@@ -372,7 +423,9 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.renderUnitPicker.call(scene);
 
-    const row = createdTexts.find((obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'));
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'),
+    );
     expect(row).toBeTruthy();
     expect(row.text).toContain('Inventory 0/5 | Consumables 0/3');
     expect(row.text).toContain('...');
@@ -419,20 +472,36 @@ describe('NodeMap shop hover details', () => {
 
     NodeMapScene.prototype.drawShopForgeList.call(scene);
 
-    expect(createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Bow *'))).toBe(true);
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Iron Bow *')),
+    ).toBe(true);
   });
 
   it('formats detail text for accessory and weapon shop entries', () => {
-    const accessoryText = NodeMapScene.prototype._getShopItemDetailText.call({}, {
-      type: 'accessory',
-      item: { name: 'Power Ring', type: 'Accessory', effects: { STR: 2 } },
-    });
+    const accessoryText = NodeMapScene.prototype._getShopItemDetailText.call(
+      {},
+      {
+        type: 'accessory',
+        item: { name: 'Power Ring', type: 'Accessory', effects: { STR: 2 } },
+      },
+    );
     expect(accessoryText).toContain('+2 STR');
 
-    const weaponText = NodeMapScene.prototype._getShopItemDetailText.call({}, {
-      type: 'weapon',
-      item: { name: 'Venin Blade', might: 8, hit: 90, crit: 0, weight: 3, range: '1', special: 'Poison' },
-    });
+    const weaponText = NodeMapScene.prototype._getShopItemDetailText.call(
+      {},
+      {
+        type: 'weapon',
+        item: {
+          name: 'Venin Blade',
+          might: 8,
+          hit: 90,
+          crit: 0,
+          weight: 3,
+          range: '1',
+          special: 'Poison',
+        },
+      },
+    );
     expect(weaponText).toContain('Mt: 8');
     expect(weaponText).toContain('Wt: 3');
     expect(weaponText).toContain('Special: Poison');
@@ -443,11 +512,13 @@ describe('NodeMap shop hover details', () => {
       {
         gameData: {
           weaponArts: {
-            arts: [{
-              id: 'bow_curved_shot',
-              name: 'Curved Shot',
-              combatMods: { rangeBonus: 1, hitBonus: 15 },
-            }],
+            arts: [
+              {
+                id: 'bow_curved_shot',
+                name: 'Curved Shot',
+                combatMods: { rangeBonus: 1, hitBonus: 15 },
+              },
+            ],
           },
         },
       },
@@ -463,16 +534,24 @@ describe('NodeMap shop hover details', () => {
           range: '2',
           weaponArtId: 'bow_curved_shot',
         },
-      }
+      },
     );
     expect(text).toContain('Art: Curved Shot - Hit +15, Range +1');
   });
 
   it('formats detail text for scroll entries with skill descriptions', () => {
-    const skills = [{ id: 'adept', description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)' }];
+    const skills = [
+      {
+        id: 'adept',
+        description: 'SPD% chance for an extra follow-up strike at full damage (once per combat)',
+      },
+    ];
     const text = NodeMapScene.prototype._getShopItemDetailText.call(
       { gameData: { skills } },
-      { type: 'scroll', item: { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Adept' } }
+      {
+        type: 'scroll',
+        item: { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept', special: 'Teaches Adept' },
+      },
     );
     expect(text).toContain('Teaches Adept');
     expect(text).toContain('SPD% chance');
@@ -480,10 +559,21 @@ describe('NodeMap shop hover details', () => {
   });
 
   it('includes weapon type in detail text', () => {
-    const text = NodeMapScene.prototype._getShopItemDetailText.call({}, {
-      type: 'weapon',
-      item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
-    });
+    const text = NodeMapScene.prototype._getShopItemDetailText.call(
+      {},
+      {
+        type: 'weapon',
+        item: {
+          name: 'Iron Sword',
+          type: 'Sword',
+          might: 5,
+          hit: 90,
+          crit: 0,
+          weight: 5,
+          range: '1',
+        },
+      },
+    );
     const lines = text.split('\n');
     expect(lines[0]).toBe('Sword');
     expect(lines[1]).toContain('Mt: 5');
@@ -498,7 +588,14 @@ describe('NodeMap shop hover details', () => {
       gameData: { skills: [] },
       add: {
         text: (_x, _y, _text, style) => {
-          const obj = makeDisplayObject({ x: _x, y: _y, text: _text, style, width: 200, height: 40 });
+          const obj = makeDisplayObject({
+            x: _x,
+            y: _y,
+            text: _text,
+            style,
+            width: 200,
+            height: 40,
+          });
           return obj;
         },
         rectangle: (x, y, w, h, color, alpha) => {
@@ -511,7 +608,15 @@ describe('NodeMap shop hover details', () => {
 
     const entry = {
       type: 'weapon',
-      item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+      item: {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        range: '1',
+      },
     };
 
     NodeMapScene.prototype._showShopItemTooltip.call(scene, entry, 100, 100);
@@ -534,11 +639,13 @@ describe('NodeMap shop hover details', () => {
       forgeTooltip: null,
       gameData: {
         weaponArts: {
-          arts: [{
-            id: 'bow_curved_shot',
-            name: 'Curved Shot',
-            combatMods: { rangeBonus: 1 },
-          }],
+          arts: [
+            {
+              id: 'bow_curved_shot',
+              name: 'Curved Shot',
+              combatMods: { rangeBonus: 1 },
+            },
+          ],
         },
       },
       _hideForgeTooltip: NodeMapScene.prototype._hideForgeTooltip,
@@ -552,37 +659,48 @@ describe('NodeMap shop hover details', () => {
             text,
             style,
             width: 200,
-            height: 10 + (lineCount * 12),
+            height: 10 + lineCount * 12,
           });
           return obj;
         },
-        rectangle: (x, y, w, h, color, alpha) => makeDisplayObject({ x, y, width: w, height: h, color, alpha }),
+        rectangle: (x, y, w, h, color, alpha) =>
+          makeDisplayObject({ x, y, width: w, height: h, color, alpha }),
       },
     });
 
     const noArtScene = makeScene();
-    NodeMapScene.prototype._showForgeTooltip.call(noArtScene, {
-      name: 'Iron Bow',
-      might: 6,
-      hit: 85,
-      crit: 0,
-      weight: 5,
-      range: '2',
-      special: '',
-    }, 100, 100);
+    NodeMapScene.prototype._showForgeTooltip.call(
+      noArtScene,
+      {
+        name: 'Iron Bow',
+        might: 6,
+        hit: 85,
+        crit: 0,
+        weight: 5,
+        range: '2',
+        special: '',
+      },
+      100,
+      100,
+    );
     const noArtHeight = noArtScene.forgeTooltip[0].height;
 
     const artScene = makeScene();
-    NodeMapScene.prototype._showForgeTooltip.call(artScene, {
-      name: 'Iron Bow',
-      might: 6,
-      hit: 85,
-      crit: 0,
-      weight: 5,
-      range: '2',
-      special: '',
-      weaponArtId: 'bow_curved_shot',
-    }, 100, 100);
+    NodeMapScene.prototype._showForgeTooltip.call(
+      artScene,
+      {
+        name: 'Iron Bow',
+        might: 6,
+        hit: 85,
+        crit: 0,
+        weight: 5,
+        range: '2',
+        special: '',
+        weaponArtId: 'bow_curved_shot',
+      },
+      100,
+      100,
+    );
 
     const tooltipText = artScene.forgeTooltip
       .filter((obj) => typeof obj.text === 'string')

@@ -91,16 +91,26 @@ export class DifficultySelectScene extends Phaser.Scene {
     }
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void transitionToScene(this, 'BlessingSelect', {
-      gameData: this.gameData,
-      difficultyId: mode.id,
-    }, { reason: TRANSITION_REASONS.BEGIN_RUN });
+    void transitionToScene(
+      this,
+      'BlessingSelect',
+      {
+        gameData: this.gameData,
+        difficultyId: mode.id,
+      },
+      { reason: TRANSITION_REASONS.BEGIN_RUN },
+    );
   }
 
   _back() {
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
+    void transitionToScene(
+      this,
+      'HomeBase',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.BACK },
+    );
   }
 
   _draw() {
@@ -113,13 +123,22 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.add.rectangle(cx, 240, w, 480, 0x0a0a14);
 
     // Title
-    this.add.text(cx, 36, 'CHOOSE DIFFICULTY', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, 36, 'CHOOSE DIFFICULTY', {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
-    this.add.text(cx, 62, 'Left/Right to browse, Enter to confirm, ESC to go back', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, 62, 'Left/Right to browse, Enter to confirm, ESC to go back', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setOrigin(0.5);
 
     // Cards
     const cardW = 180;
@@ -135,9 +154,10 @@ export class DifficultySelectScene extends Phaser.Scene {
       const isSelected = i === this.selectedIndex;
 
       // Card background
-      const borderColor = isSelected ? 0xffdd44 : (mode.locked ? 0x444444 : 0x666666);
+      const borderColor = isSelected ? 0xffdd44 : mode.locked ? 0x444444 : 0x666666;
       const bgColor = isSelected ? 0x1a1a2e : 0x111122;
-      const card = this.add.rectangle(mx, cardTopY + cardH / 2, cardW, cardH, bgColor)
+      const card = this.add
+        .rectangle(mx, cardTopY + cardH / 2, cardW, cardH, bgColor)
         .setStrokeStyle(isSelected ? 2 : 1, borderColor);
 
       card.setInteractive({ useHandCursor: true });
@@ -150,34 +170,57 @@ export class DifficultySelectScene extends Phaser.Scene {
 
       // Mode name
       const nameColor = mode.locked ? '#666666' : mode.color;
-      this.add.text(mx, cardTopY + 20, mode.label, {
-        fontFamily: 'monospace', fontSize: '16px', color: nameColor, fontStyle: 'bold',
-      }).setOrigin(0.5);
+      this.add
+        .text(mx, cardTopY + 20, mode.label, {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: nameColor,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5);
 
       // Lock or summary
       if (mode.locked) {
-        this.add.text(mx, cardTopY + 50, mode.lockReason, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#aa4444',
-          wordWrap: { width: cardW - 20 },
-        }).setOrigin(0.5, 0);
+        this.add
+          .text(mx, cardTopY + 50, mode.lockReason, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#aa4444',
+            wordWrap: { width: cardW - 20 },
+          })
+          .setOrigin(0.5, 0);
       } else if (mode.summary.length === 0) {
-        this.add.text(mx, cardTopY + 50, 'Standard experience\n  no modifiers', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#88cc88',
-          wordWrap: { width: cardW - 20 }, lineSpacing: 4,
-        }).setOrigin(0.5, 0);
+        this.add
+          .text(mx, cardTopY + 50, 'Standard experience\n  no modifiers', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#88cc88',
+            wordWrap: { width: cardW - 20 },
+            lineSpacing: 4,
+          })
+          .setOrigin(0.5, 0);
       } else {
-        const summaryText = mode.summary.map(s => `\u2022 ${s}`).join('\n');
-        this.add.text(mx, cardTopY + 50, summaryText, {
-          fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
-          wordWrap: { width: cardW - 20 }, lineSpacing: 3,
-        }).setOrigin(0.5, 0);
+        const summaryText = mode.summary.map((s) => `\u2022 ${s}`).join('\n');
+        this.add
+          .text(mx, cardTopY + 50, summaryText, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#cccccc',
+            wordWrap: { width: cardW - 20 },
+            lineSpacing: 3,
+          })
+          .setOrigin(0.5, 0);
       }
 
       // Selection indicator
       if (isSelected && !mode.locked) {
-        this.add.text(mx, cardTopY + cardH - 16, '\u25b6 Selected', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#ffdd44',
-        }).setOrigin(0.5);
+        this.add
+          .text(mx, cardTopY + cardH - 16, '\u25b6 Selected', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#ffdd44',
+          })
+          .setOrigin(0.5);
       }
     }
 
@@ -186,11 +229,16 @@ export class DifficultySelectScene extends Phaser.Scene {
     const selected = this.modes[this.selectedIndex];
     const canConfirm = selected && !selected.locked;
 
-    const confirmBtn = this.add.text(cx - 80, btnY, '[ Confirm ]', {
-      fontFamily: 'monospace', fontSize: '16px',
-      color: canConfirm ? '#88ff88' : '#555555',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: canConfirm });
+    const confirmBtn = this.add
+      .text(cx - 80, btnY, '[ Confirm ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: canConfirm ? '#88ff88' : '#555555',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: canConfirm });
 
     if (canConfirm) {
       confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
@@ -198,10 +246,16 @@ export class DifficultySelectScene extends Phaser.Scene {
       confirmBtn.on('pointerdown', () => this._confirm());
     }
 
-    const backBtn = this.add.text(cx + 80, btnY, '[ Back ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cx + 80, btnY, '[ Back ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));

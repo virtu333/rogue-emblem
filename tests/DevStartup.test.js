@@ -17,7 +17,10 @@ function createRegistry() {
 
 describe('dev startup helpers', () => {
   it('parses dev scene config from query string in dev mode', () => {
-    const config = parseDevStartupConfig('?devScene=battle&preset=battle_smoke&seed=123&devTools=1', { devMode: true });
+    const config = parseDevStartupConfig(
+      '?devScene=battle&preset=battle_smoke&seed=123&devTools=1',
+      { devMode: true },
+    );
     expect(config).toEqual({
       enabled: true,
       sceneKey: 'Battle',
@@ -54,7 +57,9 @@ describe('dev startup helpers', () => {
   it('builds NodeMap route with weapon art preset state', () => {
     const gameData = loadGameData();
     const registry = createRegistry();
-    const config = parseDevStartupConfig('?devScene=nodemap&preset=weapon_arts&seed=9&devTools=1', { devMode: true });
+    const config = parseDevStartupConfig('?devScene=nodemap&preset=weapon_arts&seed=9&devTools=1', {
+      devMode: true,
+    });
     const route = buildDevStartupRoute(gameData, registry, config);
 
     expect(route.key).toBe('NodeMap');
@@ -67,7 +72,9 @@ describe('dev startup helpers', () => {
   it('builds battle smoke route with node and roster payload', () => {
     const gameData = loadGameData();
     const registry = createRegistry();
-    const config = parseDevStartupConfig('?devScene=battle&preset=battle_smoke&seed=42', { devMode: true });
+    const config = parseDevStartupConfig('?devScene=battle&preset=battle_smoke&seed=42', {
+      devMode: true,
+    });
     const route = buildDevStartupRoute(gameData, registry, config);
 
     expect(route.key).toBe('Battle');

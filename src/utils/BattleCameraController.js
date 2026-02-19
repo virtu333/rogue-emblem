@@ -9,7 +9,7 @@ function clamp(value, min, max) {
 function distance(a, b) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
-  return Math.sqrt((dx * dx) + (dy * dy));
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function midpoint(a, b) {
@@ -91,8 +91,8 @@ export class BattleCameraController {
     const relY = y - (cam.y || 0);
     const zoom = Number(cam.zoom) || 1;
     return {
-      x: (Number(cam.scrollX) || 0) + (relX / zoom),
-      y: (Number(cam.scrollY) || 0) + (relY / zoom),
+      x: (Number(cam.scrollX) || 0) + relX / zoom,
+      y: (Number(cam.scrollY) || 0) + relY / zoom,
     };
   }
 
@@ -101,8 +101,8 @@ export class BattleCameraController {
     if (!cam || !Number.isFinite(x) || !Number.isFinite(y)) return null;
     const zoom = Number(cam.zoom) || 1;
     return {
-      x: ((x - (Number(cam.scrollX) || 0)) * zoom) + (cam.x || 0),
-      y: ((y - (Number(cam.scrollY) || 0)) * zoom) + (cam.y || 0),
+      x: (x - (Number(cam.scrollX) || 0)) * zoom + (cam.x || 0),
+      y: (y - (Number(cam.scrollY) || 0)) * zoom + (cam.y || 0),
     };
   }
 
@@ -125,23 +125,14 @@ export class BattleCameraController {
     const viewWidth = cam.width / zoom;
     const viewHeight = cam.height / zoom;
 
-    const nextX = this._clampAxis(
-      Number(cam.scrollX) || 0,
-      bounds.left,
-      bounds.width,
-      viewWidth,
-    );
-    const nextY = this._clampAxis(
-      Number(cam.scrollY) || 0,
-      bounds.top,
-      bounds.height,
-      viewHeight,
-    );
+    const nextX = this._clampAxis(Number(cam.scrollX) || 0, bounds.left, bounds.width, viewWidth);
+    const nextY = this._clampAxis(Number(cam.scrollY) || 0, bounds.top, bounds.height, viewHeight);
     cam.setScroll(nextX, nextY);
   }
 
   handlePointerDown(pointer, allowed = true) {
-    if (!isTouchPointer(pointer)) return { consumed: false, beganGesture: false, touchCount: this._touches.size };
+    if (!isTouchPointer(pointer))
+      return { consumed: false, beganGesture: false, touchCount: this._touches.size };
     this.pruneInactiveTouches(pointer);
     if (this._gestureActive && this._touches.size < 2) this._endGesture();
     this._touches.set(pointer.id, { x: pointer.x, y: pointer.y });
@@ -184,12 +175,13 @@ export class BattleCameraController {
 
     this.camera.setZoom(nextZoom);
     this.camera.setScroll(
-      anchor.x - ((mid.x - (this.camera.x || 0)) / nextZoom),
-      anchor.y - ((mid.y - (this.camera.y || 0)) / nextZoom),
+      anchor.x - (mid.x - (this.camera.x || 0)) / nextZoom,
+      anchor.y - (mid.y - (this.camera.y || 0)) / nextZoom,
     );
     this.clampToBounds();
 
-    this._pinchOutResetRequested = (scale < this.resetPinchScaleThreshold && nextZoom <= (this.minZoom + 0.001));
+    this._pinchOutResetRequested =
+      scale < this.resetPinchScaleThreshold && nextZoom <= this.minZoom + 0.001;
     this._emitViewChanged();
     return { consumed: true };
   }
@@ -224,7 +216,7 @@ export class BattleCameraController {
   _clampAxis(scroll, mapStart, mapSize, viewSize) {
     if (!Number.isFinite(mapSize) || mapSize <= 0) return 0;
     if (viewSize >= mapSize) {
-      return mapStart + ((mapSize - viewSize) / 2);
+      return mapStart + (mapSize - viewSize) / 2;
     }
     const min = mapStart;
     const max = mapStart + mapSize - viewSize;

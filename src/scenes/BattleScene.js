@@ -60,7 +60,13 @@ import {
   resolveGamblerDelta,
   applyAccessoryPhaseCombatMods,
 } from '../engine/SkillSystem.js';
-import { getTurnStartAffixes, getOnDeathAffixes, getAttackAffixes, rollDefenseAffixes, getWarpCandidates } from '../engine/AffixSystem.js';
+import {
+  getTurnStartAffixes,
+  getOnDeathAffixes,
+  getAttackAffixes,
+  rollDefenseAffixes,
+  getWarpCandidates,
+} from '../engine/AffixSystem.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import {
   getWeaponArtCombatMods,
@@ -81,27 +87,78 @@ import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
 import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
-import { TILE_SIZE, FACTION_COLORS, MAX_SKILLS, BOSS_STAT_BONUS, INVENTORY_MAX, CONSUMABLE_MAX, GOLD_BATTLE_BONUS, LOOT_CHOICES, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS, ROSTER_CAP, DEPLOY_LIMITS, TERRAIN, TERRAIN_HEAL_PERCENT, FORT_HEAL_DECAY_MULTIPLIERS, ANTI_TURTLE_NO_PROGRESS_TURNS, RECRUIT_SKILL_POOL, FORGE_MAX_LEVEL, FORGE_STAT_CAP, SUNDER_WEAPON_BY_TYPE, POISON_WEAPON_BY_TYPE, XP_BASE_DANCE, XP_BASE_HEAL, XP_SPECIAL_ENEMY_MULTIPLIER, LAVA_CRACK_DAMAGE, GOLD_LOOT_REWARD_MULTIPLIER, RECRUIT_NODE_LORD_CHANCE } from '../utils/constants.js';
+import {
+  TILE_SIZE,
+  FACTION_COLORS,
+  MAX_SKILLS,
+  BOSS_STAT_BONUS,
+  INVENTORY_MAX,
+  CONSUMABLE_MAX,
+  GOLD_BATTLE_BONUS,
+  LOOT_CHOICES,
+  ELITE_LOOT_CHOICES,
+  ELITE_MAX_PICKS,
+  ROSTER_CAP,
+  DEPLOY_LIMITS,
+  TERRAIN,
+  TERRAIN_HEAL_PERCENT,
+  FORT_HEAL_DECAY_MULTIPLIERS,
+  ANTI_TURTLE_NO_PROGRESS_TURNS,
+  RECRUIT_SKILL_POOL,
+  FORGE_MAX_LEVEL,
+  FORGE_STAT_CAP,
+  SUNDER_WEAPON_BY_TYPE,
+  POISON_WEAPON_BY_TYPE,
+  XP_BASE_DANCE,
+  XP_BASE_HEAL,
+  XP_SPECIAL_ENEMY_MULTIPLIER,
+  LAVA_CRACK_DAMAGE,
+  GOLD_LOOT_REWARD_MULTIPLIER,
+  RECRUIT_NODE_LORD_CHANCE,
+} from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
 import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
-import { calculateKillReward, generateLootChoices, calculateSkipLootBonus } from '../engine/LootSystem.js';
-import { canForge, canForgeStat, applyForge, isForged, getStatForgeCount } from '../engine/ForgeSystem.js';
-import { calculatePar, getRating, calculateBonusGold, getLatePressureState, isBossEnrageActive } from '../engine/TurnBonusCalculator.js';
+import {
+  calculateKillReward,
+  generateLootChoices,
+  calculateSkipLootBonus,
+} from '../engine/LootSystem.js';
+import {
+  canForge,
+  canForgeStat,
+  applyForge,
+  isForged,
+  getStatForgeCount,
+} from '../engine/ForgeSystem.js';
+import {
+  calculatePar,
+  getRating,
+  calculateBonusGold,
+  getLatePressureState,
+  isBossEnrageActive,
+} from '../engine/TurnBonusCalculator.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
-import { generateBossRecruitCandidates, getAvailableLords, createBossLordUnit } from '../engine/BossRecruitSystem.js';
+import {
+  generateBossRecruitCandidates,
+  getAvailableLords,
+  createBossLordUnit,
+} from '../engine/BossRecruitSystem.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
 import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
-import { buildTutorialBattleConfig as _buildTutorialBattleConfig, buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
+import {
+  buildTutorialBattleConfig as _buildTutorialBattleConfig,
+  buildTutorialRoster as _buildTutorialRoster,
+} from '../engine/TutorialHelpers.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
@@ -407,7 +464,8 @@ export class BattleScene extends Phaser.Scene {
 
     this._devToggleKey = key;
     this._onDevToggleKeyDown = () => {
-      if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION') return;
+      if (this.battleState === 'COMBAT_RESOLVING' || this.battleState === 'DEPLOY_SELECTION')
+        return;
       this.debugOverlay.toggle();
     };
     this._devToggleKey.on('down', this._onDevToggleKeyDown);
@@ -417,27 +475,30 @@ export class BattleScene extends Phaser.Scene {
     try {
       const startupFlags = this.registry.get('startupFlags');
       this.isMobileInput = Boolean(startupFlags?.isMobile);
-      const mobileCameraFlag = (typeof startupFlags?.MOBILE_CAMERA_ENABLED === 'boolean')
-        ? startupFlags.MOBILE_CAMERA_ENABLED
-        : startupFlags?.mobileCameraEnabled;
+      const mobileCameraFlag =
+        typeof startupFlags?.MOBILE_CAMERA_ENABLED === 'boolean'
+          ? startupFlags.MOBILE_CAMERA_ENABLED
+          : startupFlags?.mobileCameraEnabled;
       this.mobileCameraEnabled = Boolean(
-        typeof mobileCameraFlag === 'boolean'
-          ? mobileCameraFlag
-          : this.isMobileInput,
+        typeof mobileCameraFlag === 'boolean' ? mobileCameraFlag : this.isMobileInput,
       );
       this.inspectMode = false;
       this._playerDeathsThisBattle = 0;
 
       // Track non-deployed units for merging back on victory
       if (!this.battleParams?.tutorialMode && this.roster && deployedRoster) {
-        const deployedNames = new Set(deployedRoster.map(u => u.name));
-        this.nonDeployedUnits = this.roster.filter(u => !deployedNames.has(u.name));
+        const deployedNames = new Set(deployedRoster.map((u) => u.name));
+        this.nonDeployedUnits = this.roster.filter((u) => !deployedNames.has(u.name));
       } else {
         this.nonDeployedUnits = [];
       }
 
       // Set deployCount for MapGenerator spawn generation
-      const deployCount = this.battleParams?.tutorialMode ? 2 : (deployedRoster ? deployedRoster.length : 2);
+      const deployCount = this.battleParams?.tutorialMode
+        ? 2
+        : deployedRoster
+          ? deployedRoster.length
+          : 2;
       this.battleParams.deployCount = deployCount;
       this.battleParams.isBoss = !!this.isBoss;
 
@@ -452,7 +513,9 @@ export class BattleScene extends Phaser.Scene {
           const battleSeed = Number.isFinite(this.battleParams?.battleSeed)
             ? this.battleParams.battleSeed
             : this.deriveBattleSeed();
-          this.battleConfig = this.withBattleSeed(battleSeed, () => generateBattle(this.battleParams, this.gameData));
+          this.battleConfig = this.withBattleSeed(battleSeed, () =>
+            generateBattle(this.battleParams, this.gameData),
+          );
           this.runManager?.lockBattleConfig?.(this.nodeId, this.battleConfig);
         }
       }
@@ -460,7 +523,15 @@ export class BattleScene extends Phaser.Scene {
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
-      this.grid = new Grid(this, bc.cols, bc.rows, this.gameData.terrain, bc.mapLayout, fogEnabled, bc.biome || null);
+      this.grid = new Grid(
+        this,
+        bc.cols,
+        bc.rows,
+        this.gameData.terrain,
+        bc.mapLayout,
+        fogEnabled,
+        bc.biome || null,
+      );
 
       // Unit arrays
       this.playerUnits = [];
@@ -494,7 +565,7 @@ export class BattleScene extends Phaser.Scene {
           unit.hasActed = false;
           unit._miracleUsed = false;
           unit._gambitUsedThisTurn = false;
-          for (const w of (unit.inventory || [])) {
+          for (const w of unit.inventory || []) {
             if (w.perBattleUses) w._usesSpent = 0;
           }
           this.playerUnits.push(unit);
@@ -510,7 +581,7 @@ export class BattleScene extends Phaser.Scene {
           unit._miracleUsed = false;
           unit._gambitUsedThisTurn = false;
           // Reset per-battle weapon uses (e.g. Bolting)
-          for (const w of (unit.inventory || [])) {
+          for (const w of unit.inventory || []) {
             if (w.perBattleUses) w._usesSpent = 0;
           }
           this.playerUnits.push(unit);
@@ -518,27 +589,27 @@ export class BattleScene extends Phaser.Scene {
         }
       } else {
         // Standalone fallback -- create lords directly
-        const edric = this.gameData.lords.find(l => l.name === 'Edric');
-        const edricClass = this.gameData.classes.find(c => c.name === edric.class);
+        const edric = this.gameData.lords.find((l) => l.name === 'Edric');
+        const edricClass = this.gameData.classes.find((c) => c.name === edric.class);
         const playerUnit1 = createLordUnit(edric, edricClass, this.gameData.weapons);
         playerUnit1.col = bc.playerSpawns[0].col;
         playerUnit1.row = bc.playerSpawns[0].row;
-        const steelSword = this.gameData.weapons.find(w => w.name === 'Steel Sword');
+        const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
         if (steelSword) addToInventory(playerUnit1, steelSword);
-        const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+        const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
         if (vulnerary) addToConsumables(playerUnit1, vulnerary);
         this.playerUnits.push(playerUnit1);
         this.addUnitGraphic(playerUnit1);
 
-        const sera = this.gameData.lords.find(l => l.name === 'Sera');
-        const seraClass = this.gameData.classes.find(c => c.name === sera.class);
+        const sera = this.gameData.lords.find((l) => l.name === 'Sera');
+        const seraClass = this.gameData.classes.find((c) => c.name === sera.class);
         const playerUnit2 = createLordUnit(sera, seraClass, this.gameData.weapons);
         playerUnit2.col = bc.playerSpawns[1].col;
         playerUnit2.row = bc.playerSpawns[1].row;
         playerUnit2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
-        const healStaff = this.gameData.weapons.find(w => w.name === 'Heal');
+        const healStaff = this.gameData.weapons.find((w) => w.name === 'Heal');
         if (healStaff) addToInventory(playerUnit2, healStaff);
-        const vulnerary2 = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+        const vulnerary2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
         if (vulnerary2) addToConsumables(playerUnit2, vulnerary2);
         this.playerUnits.push(playerUnit2);
         this.addUnitGraphic(playerUnit2);
@@ -549,39 +620,58 @@ export class BattleScene extends Phaser.Scene {
         this.addEnemyFromSpawn(spawn);
       }
       this._bossName = this._resolveBossDialogueName(
-        this.enemyUnits.find((unit) => unit.isBoss)?.name || null
+        this.enemyUnits.find((unit) => unit.isBoss)?.name || null,
       );
 
       // Spawn NPC for recruit battles
       if (bc.npcSpawn) {
         const npcSpawn = bc.npcSpawn;
         // Scale recruit to lord's level (lord level or lord level - 1) + blessing bonus
-        const lord = this.playerUnits.find(u => u.isLord);
+        const lord = this.playerUnits.find((u) => u.isLord);
         if (lord) {
           const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
-          npcSpawn.level = Math.max(1, lord.level - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus);
+          npcSpawn.level = Math.max(
+            1,
+            lord.level - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
+          );
         }
 
         // Lord roll: chance to spawn a lord (Kira/Voss) instead of a regular recruit
         let spawnedLord = false;
         const rosterForLordCheck = this.runManager?.roster || [];
         const fallenForLordCheck = this.runManager?.fallenUnits || [];
-        const availLords = getAvailableLords(rosterForLordCheck, this.gameData.lords || [], fallenForLordCheck);
+        const availLords = getAvailableLords(
+          rosterForLordCheck,
+          this.gameData.lords || [],
+          fallenForLordCheck,
+        );
 
         const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
         const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
-        const effectiveLordChance = Math.min(1, Math.max(0, RECRUIT_NODE_LORD_CHANCE + lordChanceBonus));
+        const effectiveLordChance = Math.min(
+          1,
+          Math.max(0, RECRUIT_NODE_LORD_CHANCE + lordChanceBonus),
+        );
         if (availLords.length > 0 && Math.random() < effectiveLordChance) {
           const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
-          const lordClassData = this.gameData.classes.find(c => c.name === lordDef.class);
-          const recruitPoolClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+          const lordClassData = this.gameData.classes.find((c) => c.name === lordDef.class);
+          const recruitPoolClassData = this.gameData.classes.find(
+            (c) => c.name === npcSpawn.className,
+          );
           const promoteLord = recruitPoolClassData?.tier === 'promoted';
           if (lordClassData) {
-            const npc = createBossLordUnit(lordDef, lordClassData, this.gameData.weapons, npcSpawn.level, metaEffects, {
-              promoteLord,
-              classes: this.gameData.classes || [],
-              skills: this.gameData.skills || [],
-            });
+            const npc = createBossLordUnit(
+              lordDef,
+              lordClassData,
+              this.gameData.weapons,
+              npcSpawn.level,
+              metaEffects,
+              {
+                promoteLord,
+                classes: this.gameData.classes || [],
+                skills: this.gameData.skills || [],
+              },
+            );
             npc.faction = 'npc';
             npc.col = npcSpawn.col;
             npc.row = npcSpawn.row;
@@ -592,31 +682,63 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (!spawnedLord) {
-          const npcClassData = this.gameData.classes.find(c => c.name === npcSpawn.className);
+          const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
           if (npcClassData) {
             const recruitStatBonuses = this.runManager?.metaEffects?.statBonuses || null;
-            const recruitGrowthBonuses = this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
+            const recruitGrowthBonuses =
+              this.runManager?.getEffectiveRecruitGrowthBonuses() || null;
             const recruitSkillPool = this.runManager?.metaEffects?.recruitRandomSkill
-              ? RECRUIT_SKILL_POOL : null;
+              ? RECRUIT_SKILL_POOL
+              : null;
 
             let npc;
             if (npcClassData.tier === 'promoted') {
               // Promoted recruit: create from base class, then promote
-              const baseClassData = this.gameData.classes.find(c => c.name === npcClassData.promotesFrom);
+              const baseClassData = this.gameData.classes.find(
+                (c) => c.name === npcClassData.promotesFrom,
+              );
               if (baseClassData) {
                 const baseDef = { ...npcSpawn, className: baseClassData.name };
-                npc = createRecruitUnit(baseDef, baseClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
+                npc = createRecruitUnit(
+                  baseDef,
+                  baseClassData,
+                  this.gameData.weapons,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
+                  this.gameData.classes,
+                );
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
                   if (!npc.skills.includes(sid)) npc.skills.push(sid);
                 }
                 promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
               } else {
                 // Safety fallback: create from promoted class directly rather than aborting battle load.
-                npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
-                console.warn('Promoted recruit missing base class mapping:', npcClassData.name, npcClassData.promotesFrom);
+                npc = createRecruitUnit(
+                  npcSpawn,
+                  npcClassData,
+                  this.gameData.weapons,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
+                  this.gameData.classes,
+                );
+                console.warn(
+                  'Promoted recruit missing base class mapping:',
+                  npcClassData.name,
+                  npcClassData.promotesFrom,
+                );
               }
             } else {
-              npc = createRecruitUnit(npcSpawn, npcClassData, this.gameData.weapons, recruitStatBonuses, recruitGrowthBonuses, recruitSkillPool, this.gameData.classes);
+              npc = createRecruitUnit(
+                npcSpawn,
+                npcClassData,
+                this.gameData.weapons,
+                recruitStatBonuses,
+                recruitGrowthBonuses,
+                recruitSkillPool,
+                this.gameData.classes,
+              );
               // Assign base-class innate skills (e.g. Dancer gets 'dance')
               for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
                 if (!npc.skills.includes(sid)) npc.skills.push(sid);
@@ -624,10 +746,14 @@ export class BattleScene extends Phaser.Scene {
             }
 
             if (this.runManager?.metaEffects?.lethalArmoryTier) {
-              grantLethalArmoryWeapon(npc, this.gameData.weapons, this.runManager.metaEffects.lethalArmoryTier);
+              grantLethalArmoryWeapon(
+                npc,
+                this.gameData.weapons,
+                this.runManager.metaEffects.lethalArmoryTier,
+              );
             }
             if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
-              const vulnerary = this.gameData.consumables.find(c => c.name === 'Vulnerary');
+              const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
               if (vulnerary) addToConsumables(npc, vulnerary);
             }
 
@@ -646,10 +772,15 @@ export class BattleScene extends Phaser.Scene {
       // Throne marker for Seize objective
       if (bc.objective === 'seize' && bc.thronePos) {
         const tp = this.grid.gridToPixel(bc.thronePos.col, bc.thronePos.row);
-        this.add.text(tp.x, tp.y - 10, 'SEIZE', {
-          fontFamily: 'monospace', fontSize: '8px', color: '#ffdd44',
-          fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(5);
+        this.add
+          .text(tp.x, tp.y - 10, 'SEIZE', {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: '#ffdd44',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(5);
       }
 
       // Calculate turn par (for turn bonus system)
@@ -709,28 +840,46 @@ export class BattleScene extends Phaser.Scene {
       });
 
       // Cursor highlight
-      this.cursorHighlight = this.add.rectangle(
-        0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0xffffff, 0.15
-      ).setVisible(false).setDepth(50);
+      this.cursorHighlight = this.add
+        .rectangle(0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0xffffff, 0.15)
+        .setVisible(false)
+        .setDepth(50);
 
       // Terrain/unit info (top-left)
-      this.infoText = this.add.text(8, 8, '', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-      }).setDepth(100);
+      this.infoText = this.add
+        .text(8, 8, '', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#e0e0e0',
+          backgroundColor: '#000000aa',
+          padding: { x: 4, y: 2 },
+        })
+        .setDepth(100);
 
       // Objective display (top-right) -- dynamic
-      this.objectiveText = this.add.text(this.cameras.main.width - 8, 8, '', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
-        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-      }).setOrigin(1, 0).setDepth(100);
+      this.objectiveText = this.add
+        .text(this.cameras.main.width - 8, 8, '', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#ffdd44',
+          backgroundColor: '#000000aa',
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(1, 0)
+        .setDepth(100);
       this.updateObjectiveText();
 
       // Turn counter (top-left corner, below info text)
-      this.turnCounterText = this.add.text(8, 28, '', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-      }).setOrigin(0, 0).setDepth(100);
+      this.turnCounterText = this.add
+        .text(8, 28, '', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#e0e0e0',
+          backgroundColor: '#000000aa',
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(0, 0)
+        .setDepth(100);
       this.updateTopLeftHudLayout();
 
       // Bottom command bar -- Row 1: clickable action buttons, Row 2: info text
@@ -740,8 +889,11 @@ export class BattleScene extends Phaser.Scene {
       const helpRowY = hh - 40;
       const btnStyle = { fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0' };
       const makeButton = (x, label, handler) => {
-        const btn = this.add.text(x, commandRowY, label, btnStyle)
-          .setOrigin(0.5).setDepth(101).setInteractive({ useHandCursor: true });
+        const btn = this.add
+          .text(x, commandRowY, label, btnStyle)
+          .setOrigin(0.5)
+          .setDepth(101)
+          .setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
         btn.on('pointerdown', () => {
@@ -753,19 +905,25 @@ export class BattleScene extends Phaser.Scene {
       this.dangerButton = makeButton(hw - 140, '[D] Danger', () => this._onDangerClick());
       this.rosterButton = makeButton(hw, '[O] Roster', () => this._onRosterClick());
       this.endTurnButton = makeButton(hw + 140, '[E] End Turn', () => this.forceEndTurn());
-      this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () => this.requestCancel({ allowPause: false }));
+      this.cancelButton = makeButton(this.cameras.main.width - 72, '[X] Cancel', () =>
+        this.requestCancel({ allowPause: false }),
+      );
       if (this.isMobileInput) {
         this.inspectButton = makeButton(72, '[Inspect: OFF]', () => this.toggleInspectMode());
       } else {
         this.inspectButton = null;
       }
-      this.instructionText2 = this.add.text(
-        hw, helpRowY,
-        this.isMobileInput
-          ? '[R] Vision  [Inspect]/long-press unit: Details  |  [X]/off-map tap: cancel'
-          : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
-        { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' }
-      ).setOrigin(0.5).setDepth(100);
+      this.instructionText2 = this.add
+        .text(
+          hw,
+          helpRowY,
+          this.isMobileInput
+            ? '[R] Vision  [Inspect]/long-press unit: Details  |  [X]/off-map tap: cancel'
+            : '[R] Vision  [V] Right-click Unit: Details  |  ESC/[X]/off-map tap: cancel',
+          { fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff' },
+        )
+        .setOrigin(0.5)
+        .setDepth(100);
 
       // Hide in-canvas buttons on mobile (HTML overlay provides them)
       if (this.isMobileInput) {
@@ -791,10 +949,17 @@ export class BattleScene extends Phaser.Scene {
       // Tutorial skip button (bottom-right)
       if (this.battleParams.tutorialMode) {
         const cam = this.cameras.main;
-        const skipBtn = this.add.text(cam.width - 8, cam.height - 12, 'SKIP', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-          backgroundColor: '#00000088', padding: { x: 6, y: 3 },
-        }).setOrigin(1, 1).setDepth(101).setInteractive({ useHandCursor: true });
+        const skipBtn = this.add
+          .text(cam.width - 8, cam.height - 12, 'SKIP', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#888888',
+            backgroundColor: '#00000088',
+            padding: { x: 6, y: 3 },
+          })
+          .setOrigin(1, 1)
+          .setDepth(101)
+          .setInteractive({ useHandCursor: true });
         skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
         skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
         skipBtn.on('pointerdown', () => {
@@ -855,7 +1020,8 @@ export class BattleScene extends Phaser.Scene {
             if (this.isStoryInputLocked()) return;
             if (this.battleState === 'BATTLE_END' && this.lootGroup && this.runManager) {
               this._hideLootTooltip();
-              if (this.lootRosterVisible) this.hideLootRoster(); else this.showLootRoster();
+              if (this.lootRosterVisible) this.hideLootRoster();
+              else this.showLootRoster();
             } else {
               this._onRosterClick();
             }
@@ -894,9 +1060,7 @@ export class BattleScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) {
         const act = this.battleParams?.act || 'act1';
-        const key = this.isBoss
-          ? getMusicKey('boss', act)
-          : getMusicKey('battle', act);
+        const key = this.isBoss ? getMusicKey('boss', act) : getMusicKey('battle', act);
         if (this.battleParams?.tutorialMode) {
           audio.releaseMusic(this, 0);
         }
@@ -914,10 +1078,15 @@ export class BattleScene extends Phaser.Scene {
       if (this.grid.fogEnabled && this.battleParams.isRecruitBattle && this.npcUnits.length > 0) {
         const npc = this.npcUnits[0];
         const npcPixel = this.grid.gridToPixel(npc.col, npc.row);
-        this.recruitFogMarker = this.add.text(npcPixel.x, npcPixel.y, '?', {
-          fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
-          fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(4); // depth 4 = above fog (3) but below highlights (5)
+        this.recruitFogMarker = this.add
+          .text(npcPixel.x, npcPixel.y, '?', {
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            color: '#ffdd44',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(4); // depth 4 = above fog (3) but below highlights (5)
         if (!this._isReducedEffects()) {
           this.tweens.add({
             targets: this.recruitFogMarker,
@@ -931,10 +1100,15 @@ export class BattleScene extends Phaser.Scene {
 
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
-        const fogLabel = this.add.text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#ffaa44',
-          backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-        }).setDepth(100);
+        const fogLabel = this.add
+          .text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#ffaa44',
+            backgroundColor: '#000000aa',
+            padding: { x: 4, y: 2 },
+          })
+          .setDepth(100);
         this._pinToScreen(fogLabel);
 
         const hints = this.registry.get('hints');
@@ -943,17 +1117,26 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
-      this.visionHudText = this.add.text(8, 48, '', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#9ed8ff',
-        backgroundColor: '#000000aa', padding: { x: 4, y: 2 },
-      }).setOrigin(0, 0).setDepth(100);
+      this.visionHudText = this.add
+        .text(8, 48, '', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#9ed8ff',
+          backgroundColor: '#000000aa',
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(0, 0)
+        .setDepth(100);
       this._pinToScreen(this.visionHudText);
       this.updateVisionHud();
 
       if (this.mobileCameraEnabled) {
         const hints = this.registry.get('hints');
         if (hints?.shouldShow('battle_mobile_camera')) {
-          showMinorHint(this, 'Use two fingers to pan and pinch to zoom. Pinch out or tap Reset to restore view.');
+          showMinorHint(
+            this,
+            'Use two fingers to pan and pinch to zoom. Pinch out or tap Reset to restore view.',
+          );
         }
       }
 
@@ -981,18 +1164,28 @@ export class BattleScene extends Phaser.Scene {
       console.error('BattleScene.beginBattle failed:', err);
       const reason = String(err?.message || 'unknown_error').slice(0, 140);
       const cam = this.cameras.main;
-      const toast = this.add.text(
-        cam.centerX, cam.centerY,
-        `Battle failed to load (${reason}). Returning to map...`,
-        { fontFamily: 'monospace', fontSize: '14px', color: '#ff4444', backgroundColor: '#000000', padding: { x: 10, y: 6 } }
-      ).setOrigin(0.5).setDepth(999);
+      const toast = this.add
+        .text(cam.centerX, cam.centerY, `Battle failed to load (${reason}). Returning to map...`, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ff4444',
+          backgroundColor: '#000000',
+          padding: { x: 10, y: 6 },
+        })
+        .setOrigin(0.5)
+        .setDepth(999);
       this.time.delayedCall(2000, () => {
         toast.destroy();
         if (this.runManager) {
-          void transitionToScene(this, 'NodeMap', {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          }, { reason: TRANSITION_REASONS.BACK });
+          void transitionToScene(
+            this,
+            'NodeMap',
+            {
+              gameData: this.gameData,
+              runManager: this.runManager,
+            },
+            { reason: TRANSITION_REASONS.BACK },
+          );
         } else {
           void transitionToScene(this, 'Title', undefined, { reason: TRANSITION_REASONS.BACK });
         }
@@ -1060,7 +1253,10 @@ export class BattleScene extends Phaser.Scene {
       if (this._postLootTransitionCompleted) return;
       const elapsed = Date.now() - this._postLootTransitionStartedAt;
       if (this.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
-        this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_RECHECK_MS);
+        this._postLootTransitionTimer = setTimeout(
+          maybeForceFallback,
+          POST_LOOT_TRANSITION_RECHECK_MS,
+        );
         return;
       }
       this.forceTransitionAfterBattle();
@@ -1087,7 +1283,12 @@ export class BattleScene extends Phaser.Scene {
 
   _isTutorialStrictGateActive() {
     const step = Number(this.tutorialStep);
-    return Boolean(this.battleParams?.tutorialMode && !this._tutorialStrictGateReleased && Number.isFinite(step) && step >= 2);
+    return Boolean(
+      this.battleParams?.tutorialMode &&
+      !this._tutorialStrictGateReleased &&
+      Number.isFinite(step) &&
+      step >= 2,
+    );
   }
 
   _getTutorialEdricUnit() {
@@ -1096,10 +1297,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getTutorialFortTile() {
-    const mapLayout = this.battleConfig?.mapLayout
-      || this.grid?.mapLayout
-      || this.buildTutorialBattleConfig?.()?.mapLayout
-      || null;
+    const mapLayout =
+      this.battleConfig?.mapLayout ||
+      this.grid?.mapLayout ||
+      this.buildTutorialBattleConfig?.()?.mapLayout ||
+      null;
     if (!Array.isArray(mapLayout)) return null;
     for (let row = 0; row < mapLayout.length; row++) {
       const rowData = mapLayout[row];
@@ -1139,7 +1341,8 @@ export class BattleScene extends Phaser.Scene {
     if (!this.battleParams?.tutorialMode || !this.grid || !this.add) return;
     const draw = (col, row, color) => {
       const pos = this.grid.gridToPixel(col, row);
-      const marker = this.add.rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x000000, 0)
+      const marker = this.add
+        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x000000, 0)
         .setStrokeStyle(2, color, 1)
         .setDepth(52);
       if (!this._isReducedEffects()) {
@@ -1176,13 +1379,19 @@ export class BattleScene extends Phaser.Scene {
   _transitionTutorialToTitle() {
     const audio = this.registry.get('audio');
     if (audio) audio.releaseMusic(this, 0);
-    return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
+    return transitionToScene(
+      this,
+      'Title',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.BACK },
+    );
   }
 
   _handleTutorialSkipRequested() {
-    const confirmed = (typeof window !== 'undefined' && typeof window.confirm === 'function')
-      ? window.confirm('Skip tutorial and return to title?')
-      : true;
+    const confirmed =
+      typeof window !== 'undefined' && typeof window.confirm === 'function'
+        ? window.confirm('Skip tutorial and return to title?')
+        : true;
     if (!confirmed) return false;
     void this._transitionTutorialToTitle();
     return true;
@@ -1202,8 +1411,8 @@ export class BattleScene extends Phaser.Scene {
   installBattleRng() {
     const fallbackSeed = this.deriveBattleSeed();
     const currentSeed = Number.isFinite(this.runManager?.rngSeed)
-      ? (this.runManager.rngSeed >>> 0)
-      : (fallbackSeed >>> 0);
+      ? this.runManager.rngSeed >>> 0
+      : fallbackSeed >>> 0;
     if (this.runManager) this.runManager.rngSeed = currentSeed;
     this.visionBaseSeed = currentSeed;
     const prevRandom = Math.random;
@@ -1227,15 +1436,16 @@ export class BattleScene extends Phaser.Scene {
   initializeVisionState() {
     if (this.runManager) {
       const baseSeed = Number.isFinite(this.runManager.rngSeed)
-        ? (this.runManager.rngSeed >>> 0)
-        : (this.deriveBattleSeed() >>> 0);
+        ? this.runManager.rngSeed >>> 0
+        : this.deriveBattleSeed() >>> 0;
       this.runManager.rngSeed = baseSeed;
       this.visionBaseSeed = baseSeed;
       if (!Number.isFinite(this.runManager.visionChargesRemaining)) {
         const getBaseVisionCharges = this.runManager.getBaseVisionCharges;
-        this.runManager.visionChargesRemaining = typeof getBaseVisionCharges === 'function'
-          ? getBaseVisionCharges.call(this.runManager)
-          : 1;
+        this.runManager.visionChargesRemaining =
+          typeof getBaseVisionCharges === 'function'
+            ? getBaseVisionCharges.call(this.runManager)
+            : 1;
       }
       if (!Number.isFinite(this.runManager.visionCount)) this.runManager.visionCount = 0;
     } else {
@@ -1271,7 +1481,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getReinforcementTemplatePool() {
-    if (Array.isArray(this.reinforcementTemplatePool) && this.reinforcementTemplatePool.length > 0) {
+    if (
+      Array.isArray(this.reinforcementTemplatePool) &&
+      this.reinforcementTemplatePool.length > 0
+    ) {
       return this.reinforcementTemplatePool;
     }
 
@@ -1279,9 +1492,14 @@ export class BattleScene extends Phaser.Scene {
     const seen = new Set();
     for (const spawn of this.battleConfig?.enemySpawns || []) {
       if (!spawn || spawn.isBoss || typeof spawn.className !== 'string') continue;
-      const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
+      const classData = this.gameData.classes.find(
+        (candidate) => candidate.name === spawn.className,
+      );
       if (!classData) continue;
-      const level = Math.max(1, Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()));
+      const level = Math.max(
+        1,
+        Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()),
+      );
       const key = `${spawn.className}:${level}:${spawn.sunderWeapon ? 's' : 'n'}:${spawn.poisonWeapon ? 'p' : 'n'}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -1358,15 +1576,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   buildReinforcementSpawnSpec(scheduledSpawn, spawnOrdinal = 0) {
-    const classOverride = (scheduledSpawn && typeof scheduledSpawn.className === 'string')
-      ? scheduledSpawn.className
-      : null;
+    const classOverride =
+      scheduledSpawn && typeof scheduledSpawn.className === 'string'
+        ? scheduledSpawn.className
+        : null;
 
     let template = null;
     if (!classOverride) {
       const templates = this.getReinforcementTemplatePool();
       if (!Array.isArray(templates) || templates.length === 0) return null;
-      const pickIndex = this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
+      const pickIndex =
+        this._hashReinforcementTemplateChoice(scheduledSpawn, spawnOrdinal) % templates.length;
       template = templates[pickIndex];
       if (!template || typeof template.className !== 'string') return null;
     }
@@ -1376,21 +1596,32 @@ export class BattleScene extends Phaser.Scene {
     const baseLevel = template ? template.level : this.getEnemySpawnFallbackLevel();
     return {
       className,
-      level: Math.max(1, Math.trunc(Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) || this.getEnemySpawnFallbackLevel())),
+      level: Math.max(
+        1,
+        Math.trunc(
+          Number(hasLevelOverride ? scheduledSpawn.level : baseLevel) ||
+            this.getEnemySpawnFallbackLevel(),
+        ),
+      ),
       col: scheduledSpawn.col,
       row: scheduledSpawn.row,
-      sunderWeapon: typeof scheduledSpawn?.sunderWeapon === 'boolean'
-        ? scheduledSpawn.sunderWeapon
-        : Boolean(template?.sunderWeapon),
-      poisonWeapon: typeof scheduledSpawn?.poisonWeapon === 'boolean'
-        ? scheduledSpawn.poisonWeapon
-        : Boolean(template?.poisonWeapon),
-      aiMode: typeof scheduledSpawn?.aiMode === 'string'
-        ? scheduledSpawn.aiMode
-        : (template?.aiMode || null),
+      sunderWeapon:
+        typeof scheduledSpawn?.sunderWeapon === 'boolean'
+          ? scheduledSpawn.sunderWeapon
+          : Boolean(template?.sunderWeapon),
+      poisonWeapon:
+        typeof scheduledSpawn?.poisonWeapon === 'boolean'
+          ? scheduledSpawn.poisonWeapon
+          : Boolean(template?.poisonWeapon),
+      aiMode:
+        typeof scheduledSpawn?.aiMode === 'string'
+          ? scheduledSpawn.aiMode
+          : template?.aiMode || null,
       affixes: Array.isArray(scheduledSpawn?.affixes)
         ? [...scheduledSpawn.affixes]
-        : (Array.isArray(template?.affixes) ? [...template.affixes] : []),
+        : Array.isArray(template?.affixes)
+          ? [...template.affixes]
+          : [],
     };
   }
 
@@ -1399,17 +1630,36 @@ export class BattleScene extends Phaser.Scene {
     const classData = this.gameData.classes.find((candidate) => candidate.name === spawn.className);
     if (!classData) return null;
 
-    const spawnLevel = Math.max(1, Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()));
+    const spawnLevel = Math.max(
+      1,
+      Math.trunc(Number(spawn.level) || this.getEnemySpawnFallbackLevel()),
+    );
     const difficultyConfig = this.getEnemyDifficultyConfig();
 
     let enemy;
     if (classData.tier === 'promoted') {
-      const baseClassData = this.gameData.classes.find((candidate) => candidate.name === classData.promotesFrom);
+      const baseClassData = this.gameData.classes.find(
+        (candidate) => candidate.name === classData.promotesFrom,
+      );
       if (!baseClassData) return null;
-      enemy = createEnemyUnitFromClass(baseClassData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      enemy = createEnemyUnitFromClass(
+        baseClassData,
+        spawnLevel,
+        this.gameData.weapons,
+        difficultyConfig,
+        this.gameData.skills,
+        this.battleParams.act,
+      );
       promoteUnit(enemy, classData, classData.promotionBonuses, this.gameData.skills);
     } else {
-      enemy = createEnemyUnitFromClass(classData, spawnLevel, this.gameData.weapons, difficultyConfig, this.gameData.skills, this.battleParams.act);
+      enemy = createEnemyUnitFromClass(
+        classData,
+        spawnLevel,
+        this.gameData.weapons,
+        difficultyConfig,
+        this.gameData.skills,
+        this.battleParams.act,
+      );
     }
 
     enemy.col = spawn.col;
@@ -1457,7 +1707,7 @@ export class BattleScene extends Phaser.Scene {
       enemy._reinforcementWaveIndex = Math.trunc(Number(reinforcementMeta.waveIndex) || 0);
       enemy._reinforcementSpawnTurn = Math.trunc(Number(reinforcementMeta.scheduledTurn) || 0);
       const rewardMultiplier = this.normalizeEnemyRewardMultiplier(
-        Number(reinforcementMeta.xpMultiplier)
+        Number(reinforcementMeta.xpMultiplier),
       );
       enemy._reinforcementRewardMultiplier = rewardMultiplier;
       // Backward compatibility for legacy field name.
@@ -1495,7 +1745,8 @@ export class BattleScene extends Phaser.Scene {
   applyReinforcementsForTurn(turn) {
     const schedule = this.resolveReinforcementsForTurn(turn);
     this.lastReinforcementSchedule = schedule;
-    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0) return { ...schedule, spawned: 0 };
+    if (!Array.isArray(schedule.spawns) || schedule.spawns.length === 0)
+      return { ...schedule, spawned: 0 };
 
     let spawned = 0;
     for (let i = 0; i < schedule.spawns.length; i++) {
@@ -1529,10 +1780,11 @@ export class BattleScene extends Phaser.Scene {
       this.appliedHybridOverrideTurns = new Set();
     }
 
-    const dueOverrides = overrides.filter((entry) =>
-      Number.isInteger(entry?.turn)
-      && entry.turn === normalizedTurn
-      && !this.appliedHybridOverrideTurns.has(entry.turn)
+    const dueOverrides = overrides.filter(
+      (entry) =>
+        Number.isInteger(entry?.turn) &&
+        entry.turn === normalizedTurn &&
+        !this.appliedHybridOverrideTurns.has(entry.turn),
     );
     if (dueOverrides.length === 0) {
       const none = { turn: normalizedTurn, dueOverrides: 0, appliedOverrides: 0, changedTiles: 0 };
@@ -1549,7 +1801,9 @@ export class BattleScene extends Phaser.Scene {
           ? { col: setTile.coord[0], row: setTile.coord[1] }
           : anchors?.[setTile?.anchor];
         if (!target || !Number.isInteger(target.col) || !Number.isInteger(target.row)) continue;
-        const terrainIndex = this.gameData.terrain.findIndex((terrain) => terrain?.name === setTile?.terrain);
+        const terrainIndex = this.gameData.terrain.findIndex(
+          (terrain) => terrain?.name === setTile?.terrain,
+        );
         if (terrainIndex < 0) continue;
         const didSet = this.grid?.setTerrainAt?.(target.col, target.row, terrainIndex);
         if (didSet) changedTiles++;
@@ -1575,19 +1829,19 @@ export class BattleScene extends Phaser.Scene {
 
   showReinforcementBanner(spawnedCount) {
     if (!Number.isFinite(spawnedCount) || spawnedCount <= 0) return;
-    const label = spawnedCount === 1 ? 'Reinforcement arrives!' : `${spawnedCount} reinforcements arrive!`;
-    const banner = this.add.text(
-      this.cameras.main.centerX,
-      38,
-      label,
-      {
+    const label =
+      spawnedCount === 1 ? 'Reinforcement arrives!' : `${spawnedCount} reinforcements arrive!`;
+    const banner = this.add
+      .text(this.cameras.main.centerX, 38, label, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ffbb55',
         backgroundColor: '#000000dd',
         padding: { x: 10, y: 5 },
-      }
-    ).setOrigin(0.5).setDepth(520).setAlpha(0);
+      })
+      .setOrigin(0.5)
+      .setDepth(520)
+      .setAlpha(0);
     this._pinToScreen(banner);
     this.tweens.add({
       targets: banner,
@@ -1638,15 +1892,21 @@ export class BattleScene extends Phaser.Scene {
             _miracleUsed: Boolean(serialized._miracleUsed),
             _gambitUsedThisTurn: Boolean(serialized._gambitUsedThisTurn),
           };
-          console.warn('Vision snapshot used minimal fallback clone for unit:', serialized?.name, err);
+          console.warn(
+            'Vision snapshot used minimal fallback clone for unit:',
+            serialized?.name,
+            err,
+          );
           return minimal;
         }
       }
     };
-    const fog = this.grid?.fogEnabled ? {
-      visible: [...(this.grid.visibleSet || new Set())],
-      everSeen: [...(this.grid.everSeenSet || new Set())],
-    } : null;
+    const fog = this.grid?.fogEnabled
+      ? {
+          visible: [...(this.grid.visibleSet || new Set())],
+          everSeen: [...(this.grid.everSeenSet || new Set())],
+        }
+      : null;
     const snapshot = {
       playerUnits: this.playerUnits.map(stripVisuals),
       enemyUnits: this.enemyUnits.map(stripVisuals),
@@ -1655,7 +1915,9 @@ export class BattleScene extends Phaser.Scene {
       phase: this.turnManager?.currentPhase || 'player',
       objectiveText: this.objectiveText?.text || '',
       antiTurtleState: structuredClone(this.antiTurtleState || {}),
-      rngSeed: Number.isFinite(this.runManager?.rngSeed) ? (this.runManager.rngSeed >>> 0) : (this.visionBaseSeed >>> 0),
+      rngSeed: Number.isFinite(this.runManager?.rngSeed)
+        ? this.runManager.rngSeed >>> 0
+        : this.visionBaseSeed >>> 0,
       fog,
     };
     if (!this.visionSnapshot) {
@@ -1713,13 +1975,15 @@ export class BattleScene extends Phaser.Scene {
     this.turnManager.currentPhase = this.visionSnapshot.phase;
     this.turnManager.turnNumber = this.visionSnapshot.turnNumber;
     this.battleState = 'PLAYER_IDLE';
-    this.antiTurtleState = structuredClone(this.visionSnapshot.antiTurtleState || {
-      noProgressTurns: 0,
-      aggressiveMode: false,
-      turnEnrageActive: false,
-      bestEnemyCount: this.enemyUnits.length,
-      bestLordThroneDistance: this.getBestLordThroneDistance(),
-    });
+    this.antiTurtleState = structuredClone(
+      this.visionSnapshot.antiTurtleState || {
+        noProgressTurns: 0,
+        aggressiveMode: false,
+        turnEnrageActive: false,
+        bestEnemyCount: this.enemyUnits.length,
+        bestLordThroneDistance: this.getBestLordThroneDistance(),
+      },
+    );
     this.aiController?.setAggressiveMode?.(Boolean(this.antiTurtleState.aggressiveMode));
 
     if (this.grid.fogEnabled) {
@@ -1740,8 +2004,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const sourceSeed = Number.isFinite(this.visionSnapshot.rngSeed)
-      ? (this.visionSnapshot.rngSeed >>> 0)
-      : (this.visionBaseSeed >>> 0);
+      ? this.visionSnapshot.rngSeed >>> 0
+      : this.visionBaseSeed >>> 0;
     const rewindCount = this.runManager ? this.runManager.visionCount : 0;
     const reseed = hashRewindSeed(sourceSeed, rewindCount);
     this.reseedBattleRng(reseed);
@@ -1751,7 +2015,9 @@ export class BattleScene extends Phaser.Scene {
       const rating = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
       const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
-      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`);
+      this.turnCounterText.setText(
+        `Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
+      );
       this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
     } else if (this.turnCounterText) {
       const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
@@ -1770,14 +2036,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   playVisionRewindEffect() {
-    const flash = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      0xa8f2ff,
-      0
-    ).setDepth(950);
+    const flash = this.add
+      .rectangle(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        this.cameras.main.width,
+        this.cameras.main.height,
+        0xa8f2ff,
+        0,
+      )
+      .setDepth(950);
     this._pinToScreen(flash);
     this.tweens.add({
       targets: flash,
@@ -1804,12 +2072,14 @@ export class BattleScene extends Phaser.Scene {
       'TRADING',
       'CANTO_MOVING',
     ]);
-    return this.turnManager?.currentPhase === 'player'
-      && allowedStates.has(this.battleState)
-      && !this.pauseOverlay?.visible
-      && !this.visionDialog
-      && this.getVisionChargesRemaining() > 0
-      && !!this.visionSnapshot;
+    return (
+      this.turnManager?.currentPhase === 'player' &&
+      allowedStates.has(this.battleState) &&
+      !this.pauseOverlay?.visible &&
+      !this.visionDialog &&
+      this.getVisionChargesRemaining() > 0 &&
+      !!this.visionSnapshot
+    );
   }
 
   requestVisionRewind({ force = false } = {}) {
@@ -1845,34 +2115,63 @@ export class BattleScene extends Phaser.Scene {
     return true;
   }
 
-  showVisionDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel, accent = 0x66aacc }) {
+  showVisionDialog({
+    title,
+    body,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+    onCancel,
+    accent = 0x66aacc,
+  }) {
     if (this.visionDialog) this.closeVisionDialog();
     this.battleState = 'PAUSED';
     const group = [];
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
 
-    const blocker = this.add.rectangle(cx, cy, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75)
+    const blocker = this.add
+      .rectangle(cx, cy, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75)
       .setDepth(900)
       .setInteractive();
     group.push(blocker);
-    const panel = this.add.rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
+    const panel = this.add
+      .rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
       .setDepth(901)
       .setStrokeStyle(2, accent, 1);
     group.push(panel);
-    const titleText = this.add.text(cx, cy - 54, title, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffdd88', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(902);
+    const titleText = this.add
+      .text(cx, cy - 54, title, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffdd88',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(902);
     group.push(titleText);
-    const bodyText = this.add.text(cx, cy - 14, body, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#d0d7e8', align: 'center',
-    }).setOrigin(0.5).setDepth(902);
+    const bodyText = this.add
+      .text(cx, cy - 14, body, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#d0d7e8',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(902);
     group.push(bodyText);
     const makeButton = (x, y, label, color, callback) => {
-      const btn = this.add.text(x, y, label, {
-        fontFamily: 'monospace', fontSize: '13px', color,
-        backgroundColor: '#223044', padding: { x: 10, y: 5 },
-      }).setOrigin(0.5).setDepth(902).setInteractive({ useHandCursor: true });
+      const btn = this.add
+        .text(x, y, label, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color,
+          backgroundColor: '#223044',
+          padding: { x: 10, y: 5 },
+        })
+        .setOrigin(0.5)
+        .setDepth(902)
+        .setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
       btn.on('pointerdown', () => {
@@ -1940,10 +2239,10 @@ export class BattleScene extends Phaser.Scene {
 
   getBestLordThroneDistance() {
     if (this.battleConfig?.objective !== 'seize' || !this.battleConfig?.thronePos) return Infinity;
-    const lords = (this.playerUnits || []).filter(u => u.isLord && u.currentHP > 0);
+    const lords = (this.playerUnits || []).filter((u) => u.isLord && u.currentHP > 0);
     if (!lords.length) return Infinity;
     const throne = this.battleConfig.thronePos;
-    return Math.min(...lords.map(u => gridDistance(u.col, u.row, throne.col, throne.row)));
+    return Math.min(...lords.map((u) => gridDistance(u.col, u.row, throne.col, throne.row)));
   }
 
   getCurrentTurnNumber(turnOverride = null) {
@@ -1977,16 +2276,24 @@ export class BattleScene extends Phaser.Scene {
 
     if (progressed) {
       this.antiTurtleState.noProgressTurns = 0;
-      this.antiTurtleState.bestEnemyCount = Math.min(this.antiTurtleState.bestEnemyCount, enemyCount);
-      this.antiTurtleState.bestLordThroneDistance = Math.min(this.antiTurtleState.bestLordThroneDistance, lordThroneDist);
+      this.antiTurtleState.bestEnemyCount = Math.min(
+        this.antiTurtleState.bestEnemyCount,
+        enemyCount,
+      );
+      this.antiTurtleState.bestLordThroneDistance = Math.min(
+        this.antiTurtleState.bestLordThroneDistance,
+        lordThroneDist,
+      );
     } else {
       this.antiTurtleState.noProgressTurns++;
     }
 
     const currentTurn = this.getCurrentTurnNumber(turnOverride);
-    const hasLivingBoss = this.enemyUnits.some(u => u?.isBoss && u.currentHP > 0);
-    const turnEnrageActive = hasLivingBoss && isBossEnrageActive(currentTurn, this.turnPar, this.turnBonusConfig);
-    const shouldAggro = this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS || turnEnrageActive;
+    const hasLivingBoss = this.enemyUnits.some((u) => u?.isBoss && u.currentHP > 0);
+    const turnEnrageActive =
+      hasLivingBoss && isBossEnrageActive(currentTurn, this.turnPar, this.turnBonusConfig);
+    const shouldAggro =
+      this.antiTurtleState.noProgressTurns >= ANTI_TURTLE_NO_PROGRESS_TURNS || turnEnrageActive;
     this.antiTurtleState.aggressiveMode = shouldAggro;
     this.antiTurtleState.turnEnrageActive = turnEnrageActive;
     this.aiController?.setAggressiveMode?.(shouldAggro);
@@ -2047,19 +2354,32 @@ export class BattleScene extends Phaser.Scene {
     let detachDeployInputHandlers = null;
 
     // Dark overlay
-    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
-      .setDepth(700).setInteractive();
+    const overlay = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
+      .setDepth(700)
+      .setInteractive();
     deployGroup.push(overlay);
 
     // Title
-    const title = this.add.text(cam.centerX, 28, 'DEPLOY UNITS', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(701);
+    const title = this.add
+      .text(cam.centerX, 28, 'DEPLOY UNITS', {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     deployGroup.push(title);
 
-    const subtitle = this.add.text(cam.centerX, 52, `Select ${limits.min}-${limits.max} units`, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(701);
+    const subtitle = this.add
+      .text(cam.centerX, 52, `Select ${limits.min}-${limits.max} units`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     deployGroup.push(subtitle);
 
     const cleanupDeployOverlay = () => {
@@ -2108,14 +2428,19 @@ export class BattleScene extends Phaser.Scene {
     };
 
     // Auto-select Edric (locked)
-    const edricIdx = roster.findIndex(u => u.name === 'Edric');
+    const edricIdx = roster.findIndex((u) => u.name === 'Edric');
     if (edricIdx !== -1) selected.add(edricIdx);
     restoreSelectedUnitNames(initialSelectedNames);
 
     // Counter text
-    const counterText = this.add.text(cam.centerX, 74, '', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#88ccff',
-    }).setOrigin(0.5).setDepth(701);
+    const counterText = this.add
+      .text(cam.centerX, 74, '', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#88ccff',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     deployGroup.push(counterText);
 
     const updateCounter = () => {
@@ -2145,32 +2470,50 @@ export class BattleScene extends Phaser.Scene {
       const isEdric = unit.name === 'Edric';
 
       // Row background
-      const rowBg = this.add.rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
-        .setDepth(701).setInteractive({ useHandCursor: !isEdric });
+      const rowBg = this.add
+        .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
+        .setDepth(701)
+        .setInteractive({ useHandCursor: !isEdric });
       deployGroup.push(rowBg);
 
       // Checkbox
-      const checkText = this.add.text(cam.centerX - listWidth / 2 + 16, ry, '', {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      }).setOrigin(0.5).setDepth(702);
+      const checkText = this.add
+        .text(cam.centerX - listWidth / 2 + 16, ry, '', {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#ffffff',
+        })
+        .setOrigin(0.5)
+        .setDepth(702);
       deployGroup.push(checkText);
 
       // Unit info
       const lvl = unit.level || 1;
       const cls = unit.className || '';
-      const hp = unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
+      const hp =
+        unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
       const infoStr = `${unit.name}  Lv${lvl} ${cls}  HP ${hp}`;
-      const infoText = this.add.text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-      }).setOrigin(0, 0.5).setDepth(702);
+      const infoText = this.add
+        .text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#e0e0e0',
+        })
+        .setOrigin(0, 0.5)
+        .setDepth(702);
       deployGroup.push(infoText);
 
       // Lock label for Edric
       let lockLabel = null;
       if (isEdric) {
-        lockLabel = this.add.text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
-          fontFamily: 'monospace', fontSize: '9px', color: '#ffaa44',
-        }).setOrigin(1, 0.5).setDepth(702);
+        lockLabel = this.add
+          .text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#ffaa44',
+          })
+          .setOrigin(1, 0.5)
+          .setDepth(702);
         deployGroup.push(lockLabel);
       }
 
@@ -2248,12 +2591,22 @@ export class BattleScene extends Phaser.Scene {
     };
 
     const scrollX = cam.centerX + listWidth / 2 + 26;
-    const scrollUp = this.add.text(scrollX, startY, '^', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#88ccff',
-    }).setOrigin(0.5).setDepth(702);
-    const scrollDown = this.add.text(scrollX, listBottomY, 'v', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#88ccff',
-    }).setOrigin(0.5).setDepth(702);
+    const scrollUp = this.add
+      .text(scrollX, startY, '^', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#88ccff',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
+    const scrollDown = this.add
+      .text(scrollX, listBottomY, 'v', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#88ccff',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
     deployGroup.push(scrollUp);
     deployGroup.push(scrollDown);
 
@@ -2293,13 +2646,22 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Confirm button (anchored near bottom so long rosters do not push controls off-screen)
-    const confirmBg = this.add.rectangle(cam.centerX, confirmY, 120, 32, 0x225522, 1)
-      .setStrokeStyle(2, 0x44aa44).setDepth(701).setInteractive({ useHandCursor: true });
+    const confirmBg = this.add
+      .rectangle(cam.centerX, confirmY, 120, 32, 0x225522, 1)
+      .setStrokeStyle(2, 0x44aa44)
+      .setDepth(701)
+      .setInteractive({ useHandCursor: true });
     deployGroup.push(confirmBg);
 
-    const confirmText = this.add.text(cam.centerX, confirmY, 'CONFIRM', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#666666', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(702);
+    const confirmText = this.add
+      .text(cam.centerX, confirmY, 'CONFIRM', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#666666',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
     deployGroup.push(confirmText);
 
     confirmBg.on('pointerdown', () => {
@@ -2315,23 +2677,36 @@ export class BattleScene extends Phaser.Scene {
       onConfirm(selectedRoster);
     });
 
-    const backText = this.add.text(cam.centerX, confirmY + 22, 'BACK', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(702).setInteractive({ useHandCursor: true });
+    const backText = this.add
+      .text(cam.centerX, confirmY + 22, 'BACK', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+      .setDepth(702)
+      .setInteractive({ useHandCursor: true });
     backText.on('pointerover', () => backText.setColor('#ffdd44'));
     backText.on('pointerout', () => backText.setColor('#aaaaaa'));
     backText.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       if (!this.runManager) {
-        console.warn('[BattleScene] Deploy BACK ignored: missing runManager for NodeMap transition.');
+        console.warn(
+          '[BattleScene] Deploy BACK ignored: missing runManager for NodeMap transition.',
+        );
         return;
       }
       try {
-        const transitioned = await transitionToScene(this, 'NodeMap', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-        }, { reason: TRANSITION_REASONS.BACK });
+        const transitioned = await transitionToScene(
+          this,
+          'NodeMap',
+          {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          },
+          { reason: TRANSITION_REASONS.BACK },
+        );
         if (!transitioned) {
           console.warn('[BattleScene] Deploy BACK transition to NodeMap failed.');
           return;
@@ -2343,9 +2718,15 @@ export class BattleScene extends Phaser.Scene {
     });
     deployGroup.push(backText);
 
-    const rosterText = this.add.text(cam.centerX, confirmY + 38, 'ROSTER', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#88ccff',
-    }).setOrigin(0.5).setDepth(702).setInteractive({ useHandCursor: true });
+    const rosterText = this.add
+      .text(cam.centerX, confirmY + 38, 'ROSTER', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#88ccff',
+      })
+      .setOrigin(0.5)
+      .setDepth(702)
+      .setInteractive({ useHandCursor: true });
     rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
     rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
     rosterText.on('pointerdown', () => {
@@ -2376,7 +2757,10 @@ export class BattleScene extends Phaser.Scene {
     // Tutorial hint for deploy screen
     const hints = this.registry.get('hints');
     if (hints?.shouldShow('battle_deploy')) {
-      showImportantHint(this, 'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.');
+      showImportantHint(
+        this,
+        'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.',
+      );
     }
   }
 
@@ -2408,18 +2792,26 @@ export class BattleScene extends Phaser.Scene {
     const weapon = unit.weapon;
     if (!weapon) return 'sfx_hit';
     switch (weapon.type) {
-      case 'Sword': return 'sfx_sword';
-      case 'Lance': return 'sfx_lance';
-      case 'Axe':   return 'sfx_axe';
-      case 'Bow':   return 'sfx_bow';
-      case 'Staff': return 'sfx_heal';
+      case 'Sword':
+        return 'sfx_sword';
+      case 'Lance':
+        return 'sfx_lance';
+      case 'Axe':
+        return 'sfx_axe';
+      case 'Bow':
+        return 'sfx_bow';
+      case 'Staff':
+        return 'sfx_heal';
       case 'Tome':
         if (weapon.name.includes('Fire') || weapon.name.includes('Bolganone')) return 'sfx_fire';
-        if (weapon.name.includes('Thunder') || weapon.name.includes('Lightning')) return 'sfx_thunder';
+        if (weapon.name.includes('Thunder') || weapon.name.includes('Lightning'))
+          return 'sfx_thunder';
         if (weapon.name.includes('Excalibur')) return 'sfx_ice';
         return 'sfx_fire';
-      case 'Light': return 'sfx_light';
-      default: return 'sfx_hit';
+      case 'Light':
+        return 'sfx_light';
+      default:
+        return 'sfx_hit';
     }
   }
 
@@ -2434,18 +2826,22 @@ export class BattleScene extends Phaser.Scene {
       unit.graphic.setDisplaySize(TILE_SIZE - 2, TILE_SIZE - 2);
       unit.label = null;
     } else {
-      unit.graphic = this.add.rectangle(
-        pos.x, pos.y, TILE_SIZE - 4, TILE_SIZE - 4, color
-      );
-      unit.label = this.add.text(pos.x, pos.y, unit.name[0], {
-        fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
-      }).setOrigin(0.5).setDepth(11);
+      unit.graphic = this.add.rectangle(pos.x, pos.y, TILE_SIZE - 4, TILE_SIZE - 4, color);
+      unit.label = this.add
+        .text(pos.x, pos.y, unit.name[0], {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ffffff',
+        })
+        .setOrigin(0.5)
+        .setDepth(11);
     }
     unit.graphic.setDepth(10);
 
     // Faction indicator ring (blue=player, red=enemy, green=npc)
     const ringY = pos.y + 6;
-    unit.factionIndicator = this.add.ellipse(pos.x, ringY, 24, 12, 0x000000, 0)
+    unit.factionIndicator = this.add
+      .ellipse(pos.x, ringY, 24, 12, 0x000000, 0)
       .setStrokeStyle(2, color, 0.7)
       .setDepth(8);
 
@@ -2455,13 +2851,17 @@ export class BattleScene extends Phaser.Scene {
     const barX = pos.x - barWidth / 2;
     const barY = pos.y + TILE_SIZE / 2 - 4;
     unit.hpBar = {
-      bg: this.add.rectangle(
-        pos.x, barY, barWidth, barHeight, dimColor(color, 0.3)
-      ).setDepth(12),
-      fill: this.add.rectangle(
-        barX + barWidth / 2, barY, barWidth, barHeight,
-        unit.faction === 'enemy' ? 0xcc4444 : 0x44cc44
-      ).setOrigin(0.5).setDepth(13),
+      bg: this.add.rectangle(pos.x, barY, barWidth, barHeight, dimColor(color, 0.3)).setDepth(12),
+      fill: this.add
+        .rectangle(
+          barX + barWidth / 2,
+          barY,
+          barWidth,
+          barHeight,
+          unit.faction === 'enemy' ? 0xcc4444 : 0x44cc44,
+        )
+        .setOrigin(0.5)
+        .setDepth(13),
     };
     this.updateHPBar(unit);
 
@@ -2472,7 +2872,7 @@ export class BattleScene extends Phaser.Scene {
 
   updateAffixPips(unit) {
     if (unit.affixPips) {
-      unit.affixPips.forEach(p => p.destroy());
+      unit.affixPips.forEach((p) => p.destroy());
     }
     unit.affixPips = [];
     if (!unit.affixes || unit.affixes.length === 0) return;
@@ -2481,15 +2881,17 @@ export class BattleScene extends Phaser.Scene {
     const pipY = pos.y - TILE_SIZE / 2 + 4;
     const pipSize = 4;
     const gap = 2;
-    const totalW = (pipSize * unit.affixes.length) + (gap * (unit.affixes.length - 1));
+    const totalW = pipSize * unit.affixes.length + gap * (unit.affixes.length - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
 
     for (const affixId of unit.affixes) {
-      const affix = this.gameData.affixes?.affixes?.find(a => a.id === affixId);
+      const affix = this.gameData.affixes?.affixes?.find((a) => a.id === affixId);
       const tier = affix?.tier || 1;
       const color = tier === 2 ? 0xff4444 : 0xffdd44;
-      const pip = this.add.rectangle(startX, pipY, pipSize, pipSize, color)
-        .setStrokeStyle(1, 0x000000).setDepth(14);
+      const pip = this.add
+        .rectangle(startX, pipY, pipSize, pipSize, color)
+        .setStrokeStyle(1, 0x000000)
+        .setDepth(14);
       unit.affixPips.push(pip);
       startX += pipSize + gap;
     }
@@ -2520,13 +2922,16 @@ export class BattleScene extends Phaser.Scene {
   removeUnitGraphic(unit) {
     if (unit.graphic) unit.graphic.destroy();
     if (unit.label) unit.label.destroy();
-    if (unit.factionIndicator) { unit.factionIndicator.destroy(); unit.factionIndicator = null; }
+    if (unit.factionIndicator) {
+      unit.factionIndicator.destroy();
+      unit.factionIndicator = null;
+    }
     if (unit.hpBar) {
       unit.hpBar.bg.destroy();
       unit.hpBar.fill.destroy();
     }
     if (unit.affixPips) {
-      unit.affixPips.forEach(p => p.destroy());
+      unit.affixPips.forEach((p) => p.destroy());
       unit.affixPips = [];
     }
   }
@@ -2538,7 +2943,7 @@ export class BattleScene extends Phaser.Scene {
     if (unit.label) unit.label.setAlpha(0.5);
     if (unit.factionIndicator) unit.factionIndicator.setAlpha(0.5);
     if (unit.affixPips) {
-      unit.affixPips.forEach(p => p.setAlpha(0.5));
+      unit.affixPips.forEach((p) => p.setAlpha(0.5));
     }
   }
 
@@ -2549,7 +2954,7 @@ export class BattleScene extends Phaser.Scene {
     if (unit.label) unit.label.setAlpha(1);
     if (unit.factionIndicator) unit.factionIndicator.setAlpha(1);
     if (unit.affixPips) {
-      unit.affixPips.forEach(p => p.setAlpha(1));
+      unit.affixPips.forEach((p) => p.setAlpha(1));
     }
   }
 
@@ -2557,7 +2962,7 @@ export class BattleScene extends Phaser.Scene {
 
   getUnitAt(col, row) {
     const all = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits];
-    return all.find(u => u.col === col && u.row === row) || null;
+    return all.find((u) => u.col === col && u.row === row) || null;
   }
 
   buildUnitPositionMap(moverFaction) {
@@ -2657,13 +3062,20 @@ export class BattleScene extends Phaser.Scene {
     // Path preview when unit selected and hovering a reachable tile
     if (this.battleState === 'UNIT_SELECTED' && this.selectedUnit && this.movementRange) {
       const key = `${gp.col},${gp.row}`;
-      if (this.movementRange.has(key) && key !== `${this.selectedUnit.col},${this.selectedUnit.row}`) {
+      if (
+        this.movementRange.has(key) &&
+        key !== `${this.selectedUnit.col},${this.selectedUnit.row}`
+      ) {
         if (this._lastPathPreviewKey === key) return;
         const path = this.grid.findPath(
-          this.selectedUnit.col, this.selectedUnit.row,
-          gp.col, gp.row, this.selectedUnit.moveType,
-          this.unitPositions, this.selectedUnit.faction,
-          this._getCostModifier(this.selectedUnit)
+          this.selectedUnit.col,
+          this.selectedUnit.row,
+          gp.col,
+          gp.row,
+          this.selectedUnit.moveType,
+          this.unitPositions,
+          this.selectedUnit.faction,
+          this._getCostModifier(this.selectedUnit),
         );
         if (path) {
           const occupied = this.buildOccupiedSet(this.selectedUnit);
@@ -2715,7 +3127,8 @@ export class BattleScene extends Phaser.Scene {
       const start = this._touchHoldStart;
       this._touchHoldTimer = null;
       if (!start) return;
-      if (this.unitDetailOverlay?.visible || this.pauseOverlay?.visible || this.lootSettingsOverlay) return;
+      if (this.unitDetailOverlay?.visible || this.pauseOverlay?.visible || this.lootSettingsOverlay)
+        return;
       const world = this._screenToWorld(start.x, start.y);
       if (world && this._showInspectionAtPixel(world.x, world.y)) {
         this._touchHoldTriggered = true;
@@ -2730,7 +3143,7 @@ export class BattleScene extends Phaser.Scene {
     const dx = pointer.x - this._touchHoldStart.x;
     const dy = pointer.y - this._touchHoldStart.y;
     const threshold = TOOLTIP_LONG_PRESS_MOVE_THRESHOLD;
-    if ((dx * dx + dy * dy) > (threshold * threshold)) {
+    if (dx * dx + dy * dy > threshold * threshold) {
       this.cancelTouchInspectHold();
     }
   }
@@ -2766,8 +3179,13 @@ export class BattleScene extends Phaser.Scene {
       const positions = this.buildUnitPositionMap(unit.faction);
       const mov = unit.mov ?? unit.stats?.MOV ?? 0;
       const moveRange = this.grid.getMovementRange(
-        unit.col, unit.row, mov, unit.moveType, positions, unit.faction,
-        this._getCostModifier(unit)
+        unit.col,
+        unit.row,
+        mov,
+        unit.moveType,
+        positions,
+        unit.faction,
+        this._getCostModifier(unit),
       );
       this.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
 
@@ -2780,7 +3198,7 @@ export class BattleScene extends Phaser.Scene {
             if (!moveRange.has(tk)) attackTiles.add(tk);
           }
         }
-        const tiles = Array.from(attackTiles).map(k => {
+        const tiles = Array.from(attackTiles).map((k) => {
           const [col, row] = k.split(',').map(Number);
           return { col, row };
         });
@@ -2936,19 +3354,21 @@ export class BattleScene extends Phaser.Scene {
     if (obj._forceWorldCamera === true) return false;
     if (obj.depth >= 500) return true;
     if (obj.depth >= 100 && obj.depth <= 200) {
-      return obj === this.infoText
-        || obj === this.objectiveText
-        || obj === this.turnCounterText
-        || obj === this.visionHudText
-        || obj === this.instructionText2
-        || obj === this.inspectButton
-        || obj === this.dangerButton
-        || obj === this.rosterButton
-        || obj === this.endTurnButton
-        || obj === this.cancelButton
-        || obj === this.inspectionPanel?.objects?.[0]
-        || obj === this.inspectionPanel?.objects?.[1]
-        || obj === this.inspectionPanel?.objects?.[2];
+      return (
+        obj === this.infoText ||
+        obj === this.objectiveText ||
+        obj === this.turnCounterText ||
+        obj === this.visionHudText ||
+        obj === this.instructionText2 ||
+        obj === this.inspectButton ||
+        obj === this.dangerButton ||
+        obj === this.rosterButton ||
+        obj === this.endTurnButton ||
+        obj === this.cancelButton ||
+        obj === this.inspectionPanel?.objects?.[0] ||
+        obj === this.inspectionPanel?.objects?.[1] ||
+        obj === this.inspectionPanel?.objects?.[2]
+      );
     }
     return false;
   }
@@ -3019,7 +3439,9 @@ export class BattleScene extends Phaser.Scene {
 
   _syncMobileResetViewButton() {
     if (!this.isMobileInput || !this.game?.events) return;
-    const visible = Boolean(this.mobileCameraEnabled && this._battleCamera && this._battleCamera.getZoom() > 1.001);
+    const visible = Boolean(
+      this.mobileCameraEnabled && this._battleCamera && this._battleCamera.getZoom() > 1.001,
+    );
     this.game.events.emit('mobile:setButtonVisible', { action: 'resetView', visible });
   }
 
@@ -3034,7 +3456,8 @@ export class BattleScene extends Phaser.Scene {
     if (!this.mobileCameraEnabled || !this._battleCamera) return false;
     if (this.isStoryInputLocked()) return false;
     if (this._isTutorialStrictGateActive()) return false;
-    if (this.pauseOverlay?.visible || this.unitDetailOverlay?.visible || this.visionDialog) return false;
+    if (this.pauseOverlay?.visible || this.unitDetailOverlay?.visible || this.visionDialog)
+      return false;
     if (this.rosterOverlay?.visible) return false;
     if (this.lootSettingsOverlay || this.lootRosterVisible) return false;
 
@@ -3084,8 +3507,8 @@ export class BattleScene extends Phaser.Scene {
     }
     const zoom = Number(cam.zoom) || 1;
     return {
-      x: (Number(cam.scrollX) || 0) + ((x - (cam.x || 0)) / zoom),
-      y: (Number(cam.scrollY) || 0) + ((y - (cam.y || 0)) / zoom),
+      x: (Number(cam.scrollX) || 0) + (x - (cam.x || 0)) / zoom,
+      y: (Number(cam.scrollY) || 0) + (y - (cam.y || 0)) / zoom,
     };
   }
 
@@ -3095,8 +3518,8 @@ export class BattleScene extends Phaser.Scene {
     if (!cam) return null;
     const zoom = Number(cam.zoom) || 1;
     return {
-      x: ((x - (Number(cam.scrollX) || 0)) * zoom) + (cam.x || 0),
-      y: ((y - (Number(cam.scrollY) || 0)) * zoom) + (cam.y || 0),
+      x: (x - (Number(cam.scrollX) || 0)) * zoom + (cam.x || 0),
+      y: (y - (Number(cam.scrollY) || 0)) * zoom + (cam.y || 0),
     };
   }
 
@@ -3115,14 +3538,17 @@ export class BattleScene extends Phaser.Scene {
     if (this.isStoryInputLocked()) return;
     if (pointer?.rightButtonDown && pointer.rightButtonDown()) return; // handled separately
     if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
-    if (this.battleState === 'ENEMY_PHASE' ||
-        this.battleState === 'BATTLE_END' ||
-        this.battleState === 'UNIT_MOVING' ||
-        this.battleState === 'COMBAT_RESOLVING' ||
-        this.battleState === 'HEAL_RESOLVING' ||
-        this.battleState === 'DEPLOY_SELECTION' ||
-        this.battleState === 'TUTORIAL_HINT' ||
-        this.battleState === 'PAUSED') return;
+    if (
+      this.battleState === 'ENEMY_PHASE' ||
+      this.battleState === 'BATTLE_END' ||
+      this.battleState === 'UNIT_MOVING' ||
+      this.battleState === 'COMBAT_RESOLVING' ||
+      this.battleState === 'HEAL_RESOLVING' ||
+      this.battleState === 'DEPLOY_SELECTION' ||
+      this.battleState === 'TUTORIAL_HINT' ||
+      this.battleState === 'PAUSED'
+    )
+      return;
 
     const screenX = clickPos?.x ?? pointer?.x;
     const screenY = clickPos?.y ?? pointer?.y;
@@ -3210,14 +3636,14 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.input.manager?.hitTest) {
       hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
       if (this._uiCamera) {
-        hit = hit.concat(this.input.manager.hitTest(pointer, this.children.list, this._uiCamera) || []);
+        hit = hit.concat(
+          this.input.manager.hitTest(pointer, this.children.list, this._uiCamera) || [],
+        );
       }
     }
-    return Array.isArray(hit) && hit.some(obj =>
-      obj
-      && obj.visible !== false
-      && obj.active !== false
-      && obj.input?.enabled
+    return (
+      Array.isArray(hit) &&
+      hit.some((obj) => obj && obj.visible !== false && obj.active !== false && obj.input?.enabled)
     );
   }
 
@@ -3275,7 +3701,10 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.unitDetailOverlay?.visible) {
       this.unitDetailOverlay.hide();
-    } else if (this.inspectionPanel?.visible && !(this.isMobileInput && allowPause && this.battleState === 'PLAYER_IDLE')) {
+    } else if (
+      this.inspectionPanel?.visible &&
+      !(this.isMobileInput && allowPause && this.battleState === 'PLAYER_IDLE')
+    ) {
       if (this.isMobileInput) this.inspectMode = false;
       this.clearInspectionVisuals();
     } else if (this.pauseOverlay?.visible) {
@@ -3290,7 +3719,9 @@ export class BattleScene extends Phaser.Scene {
       return true;
     } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
       this._hideLootTooltip();
-      this.lootSettingsOverlay = new SettingsOverlay(this, () => { this.lootSettingsOverlay = null; });
+      this.lootSettingsOverlay = new SettingsOverlay(this, () => {
+        this.lootSettingsOverlay = null;
+      });
       this.lootSettingsOverlay.show();
     } else if (this.isCancelableBattleState()) {
       this.handleCancel();
@@ -3310,11 +3741,9 @@ export class BattleScene extends Phaser.Scene {
   openUnitDetailOverlay() {
     const { _unit, _terrain, _gameData } = this.inspectionPanel;
     if (!_unit) return;
-    const living = (this.playerUnits || []).filter(u => u.currentHP > 0);
+    const living = (this.playerUnits || []).filter((u) => u.currentHP > 0);
     const rosterIndex = living.includes(_unit) ? living.indexOf(_unit) : 0;
-    const rosterOptions = living.length > 0
-      ? { rosterUnits: living, rosterIndex }
-      : undefined;
+    const rosterOptions = living.length > 0 ? { rosterUnits: living, rosterIndex } : undefined;
     this.unitDetailOverlay.show(_unit, _terrain, _gameData, rosterOptions);
     this.refreshEndTurnControl();
   }
@@ -3411,12 +3840,14 @@ export class BattleScene extends Phaser.Scene {
       'TRADING',
       'CANTO_MOVING',
     ];
-    return playerInputStates.includes(this.battleState)
-      && this.turnManager?.currentPhase === 'player'
-      && !this.pauseOverlay?.visible
-      && !this.unitDetailOverlay?.visible
-      && !this.lootSettingsOverlay
-      && this.battleState !== 'BATTLE_END';
+    return (
+      playerInputStates.includes(this.battleState) &&
+      this.turnManager?.currentPhase === 'player' &&
+      !this.pauseOverlay?.visible &&
+      !this.unitDetailOverlay?.visible &&
+      !this.lootSettingsOverlay &&
+      this.battleState !== 'BATTLE_END'
+    );
   }
 
   _emitMobileContext() {
@@ -3429,12 +3860,21 @@ export class BattleScene extends Phaser.Scene {
     let ctx = 'none';
     if (s === 'PLAYER_IDLE') ctx = 'battle_player_idle';
     else if (s === 'UNIT_SELECTED') ctx = 'battle_unit_selected';
-    else if (s === 'UNIT_MOVED' || s === 'UNIT_ACTION_MENU' || s === 'SELECTING_TARGET'
-      || s === 'SELECTING_HEAL_TARGET' || s === 'SELECTING_SHOVE_TARGET'
-      || s === 'SELECTING_PULL_TARGET' || s === 'SELECTING_TRADE_TARGET'
-      || s === 'SELECTING_SWAP_TARGET' || s === 'SELECTING_DANCE_TARGET'
-      || s === 'SELECTING_BREAK_TARGET' || s === 'TRADING'
-      || s === 'CANTO_MOVING') ctx = 'battle_selected';
+    else if (
+      s === 'UNIT_MOVED' ||
+      s === 'UNIT_ACTION_MENU' ||
+      s === 'SELECTING_TARGET' ||
+      s === 'SELECTING_HEAL_TARGET' ||
+      s === 'SELECTING_SHOVE_TARGET' ||
+      s === 'SELECTING_PULL_TARGET' ||
+      s === 'SELECTING_TRADE_TARGET' ||
+      s === 'SELECTING_SWAP_TARGET' ||
+      s === 'SELECTING_DANCE_TARGET' ||
+      s === 'SELECTING_BREAK_TARGET' ||
+      s === 'TRADING' ||
+      s === 'CANTO_MOVING'
+    )
+      ctx = 'battle_selected';
     else if (s === 'SHOWING_FORECAST' || s === 'CONFIRMING_ATTACK') ctx = 'battle_forecast';
     else if (s === 'BATTLE_END') ctx = 'battle_end';
     this.game.events.emit('mobile:setContext', { context: ctx });
@@ -3447,13 +3887,14 @@ export class BattleScene extends Phaser.Scene {
       return; // Skip in-canvas button management on mobile
     }
     if (this.inspectButton) {
-      const enabled = this.battleState !== 'ENEMY_PHASE'
-        && this.battleState !== 'BATTLE_END'
-        && this.battleState !== 'DEPLOY_SELECTION'
-        && this.battleState !== 'PAUSED'
-        && !this.pauseOverlay?.visible
-        && !this.unitDetailOverlay?.visible
-        && !this.lootSettingsOverlay;
+      const enabled =
+        this.battleState !== 'ENEMY_PHASE' &&
+        this.battleState !== 'BATTLE_END' &&
+        this.battleState !== 'DEPLOY_SELECTION' &&
+        this.battleState !== 'PAUSED' &&
+        !this.pauseOverlay?.visible &&
+        !this.unitDetailOverlay?.visible &&
+        !this.lootSettingsOverlay;
       this.inspectButton.setVisible(enabled);
       this.inspectButton.setText(this.inspectMode ? '[Inspect: ON]' : '[Inspect: OFF]');
       if (enabled) {
@@ -3500,16 +3941,27 @@ export class BattleScene extends Phaser.Scene {
 
   _onRosterClick() {
     if (this.isStoryInputLocked()) return;
-    const rosterStates = ['PLAYER_IDLE', 'UNIT_SELECTED', 'UNIT_ACTION_MENU',
-      'SHOWING_FORECAST', 'SELECTING_TARGET', 'SELECTING_HEAL_TARGET'];
-    if (!rosterStates.includes(this.battleState) || !this.playerUnits
-        || this.pauseOverlay?.visible || this.lootSettingsOverlay) return;
+    const rosterStates = [
+      'PLAYER_IDLE',
+      'UNIT_SELECTED',
+      'UNIT_ACTION_MENU',
+      'SHOWING_FORECAST',
+      'SELECTING_TARGET',
+      'SELECTING_HEAL_TARGET',
+    ];
+    if (
+      !rosterStates.includes(this.battleState) ||
+      !this.playerUnits ||
+      this.pauseOverlay?.visible ||
+      this.lootSettingsOverlay
+    )
+      return;
     if (this.unitDetailOverlay?.visible) {
       this.unitDetailOverlay.hide();
       this.refreshEndTurnControl();
       return;
     }
-    const living = this.playerUnits.filter(u => u.currentHP > 0);
+    const living = this.playerUnits.filter((u) => u.currentHP > 0);
     if (living.length === 0) return;
     let defaultIdx = 0;
     const inspected = this.inspectionPanel?._unit;
@@ -3518,14 +3970,16 @@ export class BattleScene extends Phaser.Scene {
     } else if (this.selectedUnit && living.includes(this.selectedUnit)) {
       defaultIdx = living.indexOf(this.selectedUnit);
     } else {
-      const lordIdx = living.findIndex(u => u.isLord);
+      const lordIdx = living.findIndex((u) => u.isLord);
       if (lordIdx >= 0) defaultIdx = lordIdx;
     }
     const unit = living[defaultIdx];
     const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
     const terrain = terrainIdx != null ? this.gameData.terrain[terrainIdx] : null;
-    this.unitDetailOverlay.show(unit, terrain, this.gameData,
-      { rosterUnits: living, rosterIndex: defaultIdx });
+    this.unitDetailOverlay.show(unit, terrain, this.gameData, {
+      rosterUnits: living,
+      rosterIndex: defaultIdx,
+    });
     if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
     this.refreshEndTurnControl();
   }
@@ -3583,64 +4037,86 @@ export class BattleScene extends Phaser.Scene {
   showPauseMenu() {
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
-    const abandonCb = this.runManager ? async () => {
-      try {
-        const cloud = this.registry.get('cloud');
-        const slot = this.registry.get('activeSlot');
-        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
-        this.clearBattleScopedDeltas(this.playerUnits);
-        this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-        this.runManager.failRun();
-        this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
-        const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(this, 0);
-        markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'ABANDON_RUN' });
-        const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
-        if (!ok) {
-          markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
-          resetTransitionLocks(this);
+    const abandonCb = this.runManager
+      ? async () => {
           try {
-            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+            const cloud = this.registry.get('cloud');
+            const slot = this.registry.get('activeSlot');
+            clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+            this.clearBattleScopedDeltas(this.playerUnits);
+            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+            this.runManager.failRun();
+            this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
+            const audio = this.registry.get('audio');
+            if (audio) audio.stopMusic(this, 0);
+            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'ABANDON_RUN' });
+            const ok = await transitionToScene(
+              this,
+              'Title',
+              { gameData: this.gameData },
+              { reason: TRANSITION_REASONS.ABANDON_RUN },
+            );
+            if (!ok) {
+              markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
+              resetTransitionLocks(this);
+              try {
+                this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+              } catch (err) {
+                markStartup('pause_transition_double_failure', {
+                  scene: 'Battle',
+                  reason: 'ABANDON_RUN',
+                });
+                this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
+              }
+            }
           } catch (err) {
-            markStartup('pause_transition_double_failure', { scene: 'Battle', reason: 'ABANDON_RUN' });
+            reportAsyncError('Battle-pause-abandon', err);
             this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
           }
         }
-      } catch (err) {
-        reportAsyncError('Battle-pause-abandon', err);
-        this.showPauseTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
-      }
-    } : null;
-    const saveExitCb = this.runManager ? async () => {
-      try {
-        // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
-        this.clearBattleScopedDeltas(this.playerUnits);
-        this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-        const audio = this.registry.get('audio');
-        if (audio) audio.stopMusic(this, 0);
-        markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'SAVE_EXIT' });
-        const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
-        if (!ok) {
-          markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
-          resetTransitionLocks(this);
+      : null;
+    const saveExitCb = this.runManager
+      ? async () => {
           try {
-            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+            // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
+            this.clearBattleScopedDeltas(this.playerUnits);
+            this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
+            const audio = this.registry.get('audio');
+            if (audio) audio.stopMusic(this, 0);
+            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'SAVE_EXIT' });
+            const ok = await transitionToScene(
+              this,
+              'Title',
+              { gameData: this.gameData },
+              { reason: TRANSITION_REASONS.SAVE_EXIT },
+            );
+            if (!ok) {
+              markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
+              resetTransitionLocks(this);
+              try {
+                this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+              } catch (err) {
+                markStartup('pause_transition_double_failure', {
+                  scene: 'Battle',
+                  reason: 'SAVE_EXIT',
+                });
+                this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
+              }
+            }
           } catch (err) {
-            markStartup('pause_transition_double_failure', { scene: 'Battle', reason: 'SAVE_EXIT' });
+            reportAsyncError('Battle-pause-save-exit', err);
             this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
           }
         }
-      } catch (err) {
-        reportAsyncError('Battle-pause-save-exit', err);
-        this.showPauseTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
-      }
-    } : null;
-    const campaignMapData = this.runManager?.nodeMap ? {
-      nodeMap: this.runManager.nodeMap,
-      currentNodeId: this.runManager.currentNodeId,
-      actId: this.runManager.currentAct,
-      activeNodeId: this.nodeId,
-    } : null;
+      : null;
+    const campaignMapData = this.runManager?.nodeMap
+      ? {
+          nodeMap: this.runManager.nodeMap,
+          currentNodeId: this.runManager.currentNodeId,
+          actId: this.runManager.currentAct,
+          activeNodeId: this.nodeId,
+        }
+      : null;
     this.pauseOverlay = new PauseOverlay(this, {
       onResume: () => {
         this.battleState = this.prePauseState || 'PLAYER_IDLE';
@@ -3680,7 +4156,9 @@ export class BattleScene extends Phaser.Scene {
       const key = `${gp.col},${gp.row}`;
       const canMoveToTile = Boolean(this.movementRange && this.movementRange.has(key));
       if (!isFortTile || !canMoveToTile) {
-        void this._showTutorialBlockingInstruction('Move Edric to the highlighted Fort tile to continue.');
+        void this._showTutorialBlockingInstruction(
+          'Move Edric to the highlighted Fort tile to continue.',
+        );
         return;
       }
     }
@@ -3713,7 +4191,7 @@ export class BattleScene extends Phaser.Scene {
 
   handleTargetClick(gp) {
     // Check if clicked an attackable enemy
-    const target = this.attackTargets.find(t => t.col === gp.col && t.row === gp.row);
+    const target = this.attackTargets.find((t) => t.col === gp.col && t.row === gp.row);
     if (target) {
       this.showForecast(this.selectedUnit, target);
     }
@@ -3727,7 +4205,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   confirmForecastCombat() {
-    if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST') return;
+    if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
+      return;
     const target = this.forecastTarget;
     this.hideForecast();
     this.executeCombat(this.selectedUnit, target);
@@ -3760,8 +4239,13 @@ export class BattleScene extends Phaser.Scene {
 
     this.unitPositions = this.buildUnitPositionMap(unit.faction);
     this.movementRange = this.grid.getMovementRange(
-      unit.col, unit.row, unit.mov, unit.moveType, this.unitPositions, unit.faction,
-      this._getCostModifier(unit)
+      unit.col,
+      unit.row,
+      unit.mov,
+      unit.moveType,
+      this.unitPositions,
+      unit.faction,
+      this._getCostModifier(unit),
     );
     this.grid.showMovementRange(this.movementRange, unit.col, unit.row);
 
@@ -3771,9 +4255,11 @@ export class BattleScene extends Phaser.Scene {
       const prevState = this.battleState;
       this.battleState = 'TUTORIAL_HINT';
       const verb = this.isMobileInput ? 'Tap' : 'Click';
-      showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`).then(() => {
-        if (this.scene?.isActive?.()) this.battleState = 'UNIT_SELECTED';
-      });
+      showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`).then(
+        () => {
+          if (this.scene?.isActive?.()) this.battleState = 'UNIT_SELECTED';
+        },
+      );
     }
   }
 
@@ -3791,13 +4277,16 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
   }
 
-  _recoverFromMovementFault(unit, {
-    context = 'moveUnit',
-    reason = 'unknown movement failure',
-    error = null,
-    rollbackTo = null,
-    rollbackMovementSpent,
-  } = {}) {
+  _recoverFromMovementFault(
+    unit,
+    {
+      context = 'moveUnit',
+      reason = 'unknown movement failure',
+      error = null,
+      rollbackTo = null,
+      rollbackMovementSpent,
+    } = {},
+  ) {
     const prefix = `[${context}]`;
     if (context === 'handleCantoClick') this._resetCantoPreInitFaultTracking();
     if (error) {
@@ -3899,9 +4388,14 @@ export class BattleScene extends Phaser.Scene {
     let path;
     try {
       path = this.grid.findPath(
-        unit.col, unit.row, toCol, toRow, unit.moveType,
-        this.unitPositions, unit.faction,
-        this._getCostModifier(unit)
+        unit.col,
+        unit.row,
+        toCol,
+        toRow,
+        unit.moveType,
+        this.unitPositions,
+        unit.faction,
+        this._getCostModifier(unit),
       );
     } catch (err) {
       console.error('[moveUnit] Error during path initialization', {
@@ -3960,14 +4454,12 @@ export class BattleScene extends Phaser.Scene {
     // Forced slide tiles do not consume movement for Canto.
     const moveCostEndIndex = Number.isInteger(effective.pathEndIndex)
       ? effective.pathEndIndex
-      : (path.length - 1);
+      : path.length - 1;
     const rollbackLoc = { col: unit.col, row: unit.row };
     const rollbackMovementSpent = unit._movementSpent;
 
     // Animate step-by-step along path
-    const targets = unit.label
-      ? [unit.graphic, unit.label]
-      : [unit.graphic];
+    const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
 
     let recoveryTriggered = false;
     let finalizeTriggered = false;
@@ -4008,10 +4500,12 @@ export class BattleScene extends Phaser.Scene {
       }
       try {
         const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-        const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
+        const duration =
+          effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
         this.tweens.add({
           targets,
-          x: pos.x, y: pos.y,
+          x: pos.x,
+          y: pos.y,
           duration,
           ease: 'Linear',
           onComplete: () => {
@@ -4032,7 +4526,12 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = { ...rollbackLoc };
       this._preFogSnapshot = null;
       this._preFogSnapshot = this.grid.snapshotFogState();
-      unit._movementSpent = this.calculatePathMovementCost(path, unit.moveType, moveCostEndIndex, this._getCostModifier(unit));
+      unit._movementSpent = this.calculatePathMovementCost(
+        path,
+        unit.moveType,
+        moveCostEndIndex,
+        this._getCostModifier(unit),
+      );
 
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -4105,12 +4604,19 @@ export class BattleScene extends Phaser.Scene {
     // Check all combat weapons in inventory for range (with skill bonuses)
     for (const enemy of enemies) {
       // In fog mode, player can only target visible enemies
-      if (this.grid.fogEnabled && unit.faction === 'player' && !this.grid.isVisible(enemy.col, enemy.row)) continue;
+      if (
+        this.grid.fogEnabled &&
+        unit.faction === 'player' &&
+        !this.grid.isVisible(enemy.col, enemy.row)
+      )
+        continue;
       const dist = gridDistance(unit.col, unit.row, enemy.col, enemy.row);
-      if (combatWeapons.some(w => {
-        const art = selectedWeapon === w ? selectedArt : null;
-        return this._isDistanceInWeaponRange(unit, w, dist, art);
-      })) {
+      if (
+        combatWeapons.some((w) => {
+          const art = selectedWeapon === w ? selectedArt : null;
+          return this._isDistanceInWeaponRange(unit, w, dist, art);
+        })
+      ) {
         targets.push(enemy);
       }
     }
@@ -4126,7 +4632,7 @@ export class BattleScene extends Phaser.Scene {
       if (this._isDistanceInWeaponRange(unit, unit.weapon, dist)) return;
     }
     // Find first combat weapon that can reach
-    const validWeapon = getCombatWeapons(unit).find(w => {
+    const validWeapon = getCombatWeapons(unit).find((w) => {
       return this._isDistanceInWeaponRange(unit, w, dist);
     });
     if (validWeapon) equipWeapon(unit, validWeapon);
@@ -4170,19 +4676,26 @@ export class BattleScene extends Phaser.Scene {
 
   findShoveTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       // Must be an ally at that position
-      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
       if (!ally) continue;
       const destC = ac + dc;
       const destR = ar + dr;
       if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
       const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
       if (moveCost === Infinity) continue;
-      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(u => u.col === destC && u.row === destR);
+      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(
+        (u) => u.col === destC && u.row === destR,
+      );
       if (occupied) continue;
       targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
     }
@@ -4191,22 +4704,30 @@ export class BattleScene extends Phaser.Scene {
 
   findPullTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
-      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
       if (!ally) continue;
       // Unit retreats opposite direction
       const retreatC = unit.col - dc;
       const retreatR = unit.row - dr;
-      if (retreatC < 0 || retreatC >= this.grid.cols || retreatR < 0 || retreatR >= this.grid.rows) continue;
+      if (retreatC < 0 || retreatC >= this.grid.cols || retreatR < 0 || retreatR >= this.grid.rows)
+        continue;
       const retreatCost = this.grid.getMoveCost(retreatC, retreatR, unit.moveType);
       if (retreatCost === Infinity) continue;
       // Ally moves to unit's old position -- passable for ally?
       const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
       if (allyDestCost === Infinity) continue;
-      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(u => u.col === retreatC && u.row === retreatR);
+      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(
+        (u) => u.col === retreatC && u.row === retreatR,
+      );
       if (occupied) continue;
       targets.push({ ally, retreatCol: retreatC, retreatRow: retreatR, dc, dr });
     }
@@ -4215,18 +4736,27 @@ export class BattleScene extends Phaser.Scene {
 
   findTradeTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
-      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
       if (!ally) continue;
 
       // Both units must have items OR space for items
       const unitHasItems = (unit.inventory?.length || 0) + (unit.consumables?.length || 0) > 0;
       const allyHasItems = (ally.inventory?.length || 0) + (ally.consumables?.length || 0) > 0;
-      const unitHasSpace = (unit.inventory?.length || 0) < INVENTORY_MAX || (unit.consumables?.length || 0) < CONSUMABLE_MAX;
-      const allyHasSpace = (ally.inventory?.length || 0) < INVENTORY_MAX || (ally.consumables?.length || 0) < CONSUMABLE_MAX;
+      const unitHasSpace =
+        (unit.inventory?.length || 0) < INVENTORY_MAX ||
+        (unit.consumables?.length || 0) < CONSUMABLE_MAX;
+      const allyHasSpace =
+        (ally.inventory?.length || 0) < INVENTORY_MAX ||
+        (ally.consumables?.length || 0) < CONSUMABLE_MAX;
 
       if ((unitHasItems && allyHasSpace) || (allyHasItems && unitHasSpace)) {
         targets.push({ ally });
@@ -4237,16 +4767,22 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
-      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
       if (!ally) continue;
 
       // Check if both positions are walkable by both units
       const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
-      const allyCanWalkToUnit = this.grid.getMoveCost(unit.col, unit.row, ally.moveType) !== Infinity;
+      const allyCanWalkToUnit =
+        this.grid.getMoveCost(unit.col, unit.row, ally.moveType) !== Infinity;
 
       if (unitCanWalkToAlly && allyCanWalkToUnit) {
         targets.push({ ally });
@@ -4257,11 +4793,16 @@ export class BattleScene extends Phaser.Scene {
 
   findDanceTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
-      const ally = this.playerUnits.find(u => u !== unit && u.col === ac && u.row === ar);
+      const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
       if (!ally) continue;
 
       // Must have acted AND not be another dancer
@@ -4274,7 +4815,12 @@ export class BattleScene extends Phaser.Scene {
 
   findBreakTargets(unit) {
     const targets = [];
-    const dirs = [{ dc: 0, dr: -1 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 }, { dc: 1, dr: 0 }];
+    const dirs = [
+      { dc: 0, dr: -1 },
+      { dc: 0, dr: 1 },
+      { dc: -1, dr: 0 },
+      { dc: 1, dr: 0 },
+    ];
     for (const { dc, dr } of dirs) {
       const col = unit.col + dc;
       const row = unit.row + dr;
@@ -4290,10 +4836,13 @@ export class BattleScene extends Phaser.Scene {
   executeShove(unit, target) {
     this.hideActionMenu();
     const pos = this.grid.gridToPixel(target.destCol, target.destRow);
-    const targets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+    const targets = target.ally.label
+      ? [target.ally.graphic, target.ally.label]
+      : [target.ally.graphic];
     this.tweens.add({
       targets,
-      x: pos.x, y: pos.y,
+      x: pos.x,
+      y: pos.y,
       duration: 80,
       ease: 'Linear',
       onComplete: () => {
@@ -4311,13 +4860,22 @@ export class BattleScene extends Phaser.Scene {
     const unitPos = this.grid.gridToPixel(target.retreatCol, target.retreatRow);
     const allyPos = this.grid.gridToPixel(unit.col, unit.row);
     const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+    const allyTargets = target.ally.label
+      ? [target.ally.graphic, target.ally.label]
+      : [target.ally.graphic];
     const allyDestCol = unit.col;
     const allyDestRow = unit.row;
-    this.tweens.add({ targets: unitTargets, x: unitPos.x, y: unitPos.y, duration: 80, ease: 'Linear' });
+    this.tweens.add({
+      targets: unitTargets,
+      x: unitPos.x,
+      y: unitPos.y,
+      duration: 80,
+      ease: 'Linear',
+    });
     this.tweens.add({
       targets: allyTargets,
-      x: allyPos.x, y: allyPos.y,
+      x: allyPos.x,
+      y: allyPos.y,
       duration: 80,
       ease: 'Linear',
       onComplete: () => {
@@ -4336,12 +4894,12 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_BREAK_TARGET';
     this.breakTargets = this.findBreakTargets(unit);
-    const tiles = this.breakTargets.map(t => ({ col: t.col, row: t.row }));
+    const tiles = this.breakTargets.map((t) => ({ col: t.col, row: t.row }));
     this.grid.showAttackRange(tiles, 0xffaa44, 0.45);
   }
 
   handleBreakTargetClick(gp) {
-    const target = this.breakTargets?.find(t => t.col === gp.col && t.row === gp.row);
+    const target = this.breakTargets?.find((t) => t.col === gp.col && t.row === gp.row);
     if (!target) return;
     this.grid.clearAttackHighlights();
     this.executeBreak(this.selectedUnit, target);
@@ -4363,7 +4921,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_TRADE_TARGET';
     this.tradeTargets = this.findTradeTargets(unit);
-    const tiles = this.tradeTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    const tiles = this.tradeTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
     this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
   }
 
@@ -4379,35 +4937,59 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'TRADING';
 
     // Dark overlay
-    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.7)
-      .setDepth(400).setInteractive();
+    const overlay = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.7)
+      .setDepth(400)
+      .setInteractive();
     this.tradeUIObjects = [overlay];
 
     // Title
-    const title = this.add.text(cam.centerX, 30, 'TRADE ITEMS', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(401);
+    const title = this.add
+      .text(cam.centerX, 30, 'TRADE ITEMS', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(401);
     this.tradeUIObjects.push(title);
 
     // Unit names
-    const leftName = this.add.text(160, 60, unitA.name, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
-    }).setOrigin(0.5).setDepth(401);
-    const rightName = this.add.text(480, 60, unitB.name, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
-    }).setOrigin(0.5).setDepth(401);
-    const leftCounts = this.add.text(
-      160,
-      76,
-      `Inventory ${(unitA.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitA.consumables || []).length}/${CONSUMABLE_MAX}`,
-      { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' }
-    ).setOrigin(0.5).setDepth(401);
-    const rightCounts = this.add.text(
-      480,
-      76,
-      `Inventory ${(unitB.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitB.consumables || []).length}/${CONSUMABLE_MAX}`,
-      { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' }
-    ).setOrigin(0.5).setDepth(401);
+    const leftName = this.add
+      .text(160, 60, unitA.name, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#e0e0e0',
+      })
+      .setOrigin(0.5)
+      .setDepth(401);
+    const rightName = this.add
+      .text(480, 60, unitB.name, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#e0e0e0',
+      })
+      .setOrigin(0.5)
+      .setDepth(401);
+    const leftCounts = this.add
+      .text(
+        160,
+        76,
+        `Inventory ${(unitA.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitA.consumables || []).length}/${CONSUMABLE_MAX}`,
+        { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' },
+      )
+      .setOrigin(0.5)
+      .setDepth(401);
+    const rightCounts = this.add
+      .text(
+        480,
+        76,
+        `Inventory ${(unitB.inventory || []).length}/${INVENTORY_MAX} | Consumables ${(unitB.consumables || []).length}/${CONSUMABLE_MAX}`,
+        { fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa' },
+      )
+      .setOrigin(0.5)
+      .setDepth(401);
     this.tradeUIObjects.push(leftName, rightName, leftCounts, rightCounts);
 
     // Two-column item lists (weapons + consumables)
@@ -4422,10 +5004,16 @@ export class BattleScene extends Phaser.Scene {
         const noProf = !hasProficiency(otherUnit, item);
         const suffix = noProf ? ' (no prof)' : '';
         const color = hasCapacity ? (noProf ? '#cc8844' : '#e0e0e0') : '#666666';
-        const btn = this.add.text(x, yOffset + i * 20, item.name + suffix, {
-          fontFamily: 'monospace', fontSize: '11px', color,
-          backgroundColor: '#222222', padding: { x: 6, y: 2 },
-        }).setOrigin(0.5).setDepth(401);
+        const btn = this.add
+          .text(x, yOffset + i * 20, item.name + suffix, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color,
+            backgroundColor: '#222222',
+            padding: { x: 6, y: 2 },
+          })
+          .setOrigin(0.5)
+          .setDepth(401);
 
         if (hasCapacity) {
           btn.setInteractive({ useHandCursor: true });
@@ -4453,10 +5041,16 @@ export class BattleScene extends Phaser.Scene {
         const hasCapacity = (otherUnit.consumables?.length || 0) < CONSUMABLE_MAX;
         const color = hasCapacity ? '#88ccff' : '#666666';
         const suffix = hasCapacity ? '' : ' (consumables full)';
-        const btn = this.add.text(x, yOffset + consumableOffset + i * 20, `${item.name}${suffix}`, {
-          fontFamily: 'monospace', fontSize: '11px', color,
-          backgroundColor: '#222222', padding: { x: 6, y: 2 },
-        }).setOrigin(0.5).setDepth(401);
+        const btn = this.add
+          .text(x, yOffset + consumableOffset + i * 20, `${item.name}${suffix}`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color,
+            backgroundColor: '#222222',
+            padding: { x: 6, y: 2 },
+          })
+          .setOrigin(0.5)
+          .setDepth(401);
 
         if (hasCapacity) {
           btn.setInteractive({ useHandCursor: true });
@@ -4483,10 +5077,17 @@ export class BattleScene extends Phaser.Scene {
     drawItems(unitB, 480, unitA);
 
     // Done button
-    const doneBtn = this.add.text(cam.centerX, cam.height - 40, '[ Done ]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 16, y: 6 },
-    }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+    const doneBtn = this.add
+      .text(cam.centerX, cam.height - 40, '[ Done ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(401)
+      .setInteractive({ useHandCursor: true });
     doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
     doneBtn.on('pointerdown', () => {
@@ -4501,7 +5102,7 @@ export class BattleScene extends Phaser.Scene {
 
   cleanupTradeUI() {
     if (this.tradeUIObjects) {
-      this.tradeUIObjects.forEach(obj => obj.destroy());
+      this.tradeUIObjects.forEach((obj) => obj.destroy());
       this.tradeUIObjects = null;
     }
   }
@@ -4510,7 +5111,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_SWAP_TARGET';
     this.swapTargets = this.findSwapTargets(unit);
-    const tiles = this.swapTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    const tiles = this.swapTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
     this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
   }
 
@@ -4519,20 +5120,36 @@ export class BattleScene extends Phaser.Scene {
     const unitPos = this.grid.gridToPixel(target.ally.col, target.ally.row);
     const allyPos = this.grid.gridToPixel(unit.col, unit.row);
     const unitTargets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const allyTargets = target.ally.label ? [target.ally.graphic, target.ally.label] : [target.ally.graphic];
+    const allyTargets = target.ally.label
+      ? [target.ally.graphic, target.ally.label]
+      : [target.ally.graphic];
 
     // Store positions for swap
-    const unitOldCol = unit.col, unitOldRow = unit.row;
-    const allyOldCol = target.ally.col, allyOldRow = target.ally.row;
+    const unitOldCol = unit.col,
+      unitOldRow = unit.row;
+    const allyOldCol = target.ally.col,
+      allyOldRow = target.ally.row;
 
     // Animate both units simultaneously
-    this.tweens.add({ targets: unitTargets, x: unitPos.x, y: unitPos.y, duration: 120, ease: 'Quad.easeInOut' });
     this.tweens.add({
-      targets: allyTargets, x: allyPos.x, y: allyPos.y, duration: 120, ease: 'Quad.easeInOut',
+      targets: unitTargets,
+      x: unitPos.x,
+      y: unitPos.y,
+      duration: 120,
+      ease: 'Quad.easeInOut',
+    });
+    this.tweens.add({
+      targets: allyTargets,
+      x: allyPos.x,
+      y: allyPos.y,
+      duration: 120,
+      ease: 'Quad.easeInOut',
       onComplete: () => {
         const allyWasActed = target.ally.hasActed;
-        unit.col = allyOldCol; unit.row = allyOldRow;
-        target.ally.col = unitOldCol; target.ally.row = unitOldRow;
+        unit.col = allyOldCol;
+        unit.row = allyOldRow;
+        target.ally.col = unitOldCol;
+        target.ally.row = unitOldRow;
         this.updateUnitPosition(unit);
         this.updateUnitPosition(target.ally);
         this.finishUnitAction(unit);
@@ -4545,7 +5162,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_DANCE_TARGET';
     this.danceTargets = this.findDanceTargets(unit);
-    const tiles = this.danceTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    const tiles = this.danceTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
     this.grid.showAttackRange(tiles, 0x44ff88, 0.4);
   }
 
@@ -4556,12 +5173,18 @@ export class BattleScene extends Phaser.Scene {
 
     // Visual feedback: brief sparkle/glow on target
     const pos = this.grid.gridToPixel(target.ally.col, target.ally.row);
-    const sparkle = this.add.circle(pos.x, pos.y, 20, 0x44ff88, this._isReducedEffects() ? 0.4 : 0.6).setDepth(200);
+    const sparkle = this.add
+      .circle(pos.x, pos.y, 20, 0x44ff88, this._isReducedEffects() ? 0.4 : 0.6)
+      .setDepth(200);
     if (this._isReducedEffects()) {
       this.time.delayedCall(120, () => sparkle.destroy());
     } else {
       this.tweens.add({
-        targets: sparkle, alpha: 0, scale: 1.5, duration: 400, ease: 'Quad.easeOut',
+        targets: sparkle,
+        alpha: 0,
+        scale: 1.5,
+        duration: 400,
+        ease: 'Quad.easeOut',
         onComplete: () => sparkle.destroy(),
       });
     }
@@ -4583,7 +5206,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_SHOVE_TARGET';
     this.shoveTargets = this.findShoveTargets(unit);
-    const tiles = this.shoveTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    const tiles = this.shoveTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
     this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
   }
 
@@ -4591,7 +5214,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'SELECTING_PULL_TARGET';
     this.pullTargets = this.findPullTargets(unit);
-    const tiles = this.pullTargets.map(t => ({ col: t.ally.col, row: t.ally.row }));
+    const tiles = this.pullTargets.map((t) => ({ col: t.ally.col, row: t.ally.row }));
     this.grid.showAttackRange(tiles, 0x44ff44, 0.4);
   }
 
@@ -4600,15 +5223,20 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'CANTO_MOVING';
     const positions = this.buildUnitPositionMap(unit.faction);
     const moveRange = this.grid.getMovementRange(
-      unit.col, unit.row, remainingMov, unit.moveType, positions, unit.faction,
-      this._getCostModifier(unit)
+      unit.col,
+      unit.row,
+      remainingMov,
+      unit.moveType,
+      positions,
+      unit.faction,
+      this._getCostModifier(unit),
     );
     this.grid.showMovementRange(moveRange, unit.col, unit.row, 0x44aaff, 0.3);
     this.cantoRange = moveRange;
   }
 
   handleShoveTargetClick(gp) {
-    const target = this.shoveTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    const target = this.shoveTargets.find((t) => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       this.grid.clearAttackHighlights();
       this.executeShove(this.selectedUnit, target);
@@ -4616,7 +5244,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handlePullTargetClick(gp) {
-    const target = this.pullTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    const target = this.pullTargets.find((t) => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       this.grid.clearAttackHighlights();
       this.executePull(this.selectedUnit, target);
@@ -4624,7 +5252,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleTradeTargetClick(gp) {
-    const target = this.tradeTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    const target = this.tradeTargets.find((t) => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
@@ -4634,7 +5262,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleSwapTargetClick(gp) {
-    const target = this.swapTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    const target = this.swapTargets.find((t) => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
@@ -4644,7 +5272,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async handleDanceTargetClick(gp) {
-    const target = this.danceTargets.find(t => t.ally.col === gp.col && t.ally.row === gp.row);
+    const target = this.danceTargets.find((t) => t.ally.col === gp.col && t.ally.row === gp.row);
     if (target) {
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
@@ -4675,8 +5303,14 @@ export class BattleScene extends Phaser.Scene {
     try {
       const positions = this.buildUnitPositionMap(unit.faction);
       path = this.grid.findPath(
-        unit.col, unit.row, gp.col, gp.row, unit.moveType, positions, unit.faction,
-        this._getCostModifier(unit)
+        unit.col,
+        unit.row,
+        gp.col,
+        gp.row,
+        unit.moveType,
+        positions,
+        unit.faction,
+        this._getCostModifier(unit),
       );
     } catch (err) {
       const retryCount = this._recordCantoPreInitFault(unit);
@@ -4689,13 +5323,16 @@ export class BattleScene extends Phaser.Scene {
         stack: err?.stack || null,
       });
       if (retryCount >= 2) {
-        console.error('[handleCantoClick] Failing closed after repeated canto path initialization errors', {
-          unit: unit?.name || unit?.id || '<unknown>',
-          from,
-          to,
-          battleState: this.battleState,
-          retryCount,
-        });
+        console.error(
+          '[handleCantoClick] Failing closed after repeated canto path initialization errors',
+          {
+            unit: unit?.name || unit?.id || '<unknown>',
+            from,
+            to,
+            battleState: this.battleState,
+            retryCount,
+          },
+        );
         this._recoverFromMovementFault(unit, {
           context: 'handleCantoClick',
           reason: 'Repeated canto path initialization errors',
@@ -4760,7 +5397,8 @@ export class BattleScene extends Phaser.Scene {
         const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
         this.tweens.add({
           targets,
-          x: pos.x, y: pos.y,
+          x: pos.x,
+          y: pos.y,
           duration: 80,
           ease: 'Linear',
           onComplete: () => {
@@ -4797,9 +5435,10 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const maxX = cam.width - menuWidth - pad;
     const maxY = cam.height - menuHeight - pad;
-    const screenPos = (typeof this._worldToScreen === 'function')
-      ? (this._worldToScreen(preferredX, preferredY) || { x: preferredX, y: preferredY })
-      : { x: preferredX, y: preferredY };
+    const screenPos =
+      typeof this._worldToScreen === 'function'
+        ? this._worldToScreen(preferredX, preferredY) || { x: preferredX, y: preferredY }
+        : { x: preferredX, y: preferredY };
     const clampedScreenX = Math.max(pad, Math.min(screenPos.x, maxX));
     const clampedScreenY = Math.max(pad, Math.min(screenPos.y, maxY));
     return {
@@ -4819,9 +5458,7 @@ export class BattleScene extends Phaser.Scene {
       clickOnPointerUp = false,
     } = options;
 
-    const text = this.add.text(x, y, label, textStyle)
-      .setOrigin(originX, originY)
-      .setDepth(depth);
+    const text = this.add.text(x, y, label, textStyle).setOrigin(originX, originY).setDepth(depth);
 
     if (hitWidth > 0) {
       text.setInteractive(
@@ -4883,7 +5520,8 @@ export class BattleScene extends Phaser.Scene {
     const hit = Number.isFinite(Number(wpn?.hit)) ? Number(wpn.hit) : 0;
     const crit = Number.isFinite(Number(wpn?.crit)) ? Number(wpn.crit) : 0;
     const weight = Number.isFinite(Number(wpn?.weight)) ? Number(wpn.weight) : 0;
-    const range = (typeof wpn?.range === 'string' && wpn.range.trim().length > 0) ? wpn.range.trim() : '1';
+    const range =
+      typeof wpn?.range === 'string' && wpn.range.trim().length > 0 ? wpn.range.trim() : '1';
     const lines = [];
     if (wpn.type) lines.push(wpn.type);
     lines.push(`${might}Mt ${hit}Hit ${crit}Crt`);
@@ -4896,22 +5534,23 @@ export class BattleScene extends Phaser.Scene {
     const body = lines.join('\n');
     const padding = 6;
     const maxWidth = 160;
-    const txt = this.add.text(0, 0, body, {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#e0e0e0',
-      wordWrap: { width: maxWidth - (padding * 2) },
-    }).setDepth(450);
-    const bg = this.add.rectangle(
-      0, 0,
-      txt.width + (padding * 2),
-      txt.height + (padding * 2),
-      0x222222, 0.95
-    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(449);
+    const txt = this.add
+      .text(0, 0, body, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        wordWrap: { width: maxWidth - padding * 2 },
+      })
+      .setDepth(450);
+    const bg = this.add
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x666666)
+      .setDepth(449);
     const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
     txt.setPosition(padding, padding);
     let x = menuRect.x + menuRect.width + 4;
-    let y = itemY - (bg.height / 2);
+    let y = itemY - bg.height / 2;
     if (x + bg.width > this.cameras.main.width - 4) x = menuRect.x - bg.width - 4;
     if (x < 4) x = 4;
     if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
@@ -4936,18 +5575,19 @@ export class BattleScene extends Phaser.Scene {
     const body = lines.join('\n');
     const padding = 8;
     const maxWidth = 220;
-    const txt = this.add.text(0, 0, body, {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#e0e0e0',
-      wordWrap: { width: maxWidth - (padding * 2) },
-    }).setDepth(450);
-    const bg = this.add.rectangle(
-      0, 0,
-      txt.width + (padding * 2),
-      txt.height + (padding * 2),
-      0x222222, 0.95
-    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(449);
+    const txt = this.add
+      .text(0, 0, body, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        wordWrap: { width: maxWidth - padding * 2 },
+      })
+      .setDepth(450);
+    const bg = this.add
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x666666)
+      .setDepth(449);
     const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
     txt.setPosition(padding, padding);
 
@@ -4990,23 +5630,22 @@ export class BattleScene extends Phaser.Scene {
     if (!body) return;
     this._hideMenuTooltip();
     const anchorDepth = Number(anchorText?.depth);
-    const tooltipDepth = Number.isFinite(anchorDepth)
-      ? Math.max(703, anchorDepth + 1)
-      : 703;
+    const tooltipDepth = Number.isFinite(anchorDepth) ? Math.max(703, anchorDepth + 1) : 703;
     const padding = 8;
     const maxWidth = 220;
-    const txt = this.add.text(0, 0, body, {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#e0e0e0',
-      wordWrap: { width: maxWidth - (padding * 2) },
-    }).setDepth(tooltipDepth);
-    const bg = this.add.rectangle(
-      0, 0,
-      txt.width + (padding * 2),
-      txt.height + (padding * 2),
-      0x222222, 0.95
-    ).setOrigin(0).setStrokeStyle(1, 0x666666).setDepth(tooltipDepth);
+    const txt = this.add
+      .text(0, 0, body, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        wordWrap: { width: maxWidth - padding * 2 },
+      })
+      .setDepth(tooltipDepth);
+    const bg = this.add
+      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x666666)
+      .setDepth(tooltipDepth);
     const box = this.add.container(0, 0, [bg, txt]).setDepth(tooltipDepth);
     txt.setPosition(padding, padding);
 
@@ -5085,14 +5724,13 @@ export class BattleScene extends Phaser.Scene {
     const normalAttackTargets = this.findAttackTargets(unit);
     const usableStaves = this.getUsableStaves(unit);
     const healOptions = usableStaves
-      .map(staff => ({ staff, targets: this.findHealTargets(unit, staff) }))
-      .filter(option => option.targets.length > 0);
-    const preferredHealOption = healOptions.find(option => option.staff === unit.weapon) || healOptions[0] || null;
+      .map((staff) => ({ staff, targets: this.findHealTargets(unit, staff) }))
+      .filter((option) => option.targets.length > 0);
+    const preferredHealOption =
+      healOptions.find((option) => option.staff === unit.weapon) || healOptions[0] || null;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = (unit.col < this.grid.cols - 3)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 60;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 60;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -5100,7 +5738,8 @@ export class BattleScene extends Phaser.Scene {
     // Build dynamic item list
     const items = [];
     if (normalAttackTargets.length > 0) items.push('Attack');
-    const artWeapon = (unit.weapon && !isStaff(unit.weapon)) ? unit.weapon : getCombatWeapons(unit)[0];
+    const artWeapon =
+      unit.weapon && !isStaff(unit.weapon) ? unit.weapon : getCombatWeapons(unit)[0];
     if (this._hasUsableWeaponArtTargets(unit, artWeapon, { isInitiating: true })) {
       const activeArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
       items.push(activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art');
@@ -5111,36 +5750,44 @@ export class BattleScene extends Phaser.Scene {
       const max = getStaffMaxUses(staff, unit);
       items.push(`Heal (${rem}/${max})`);
     }
-    const equipMenuItems = unit.inventory.filter(item =>
-      item.type !== 'Consumable'
-      && item.type !== 'Scroll'
-      && (canEquip(unit, item) || !hasProficiency(unit, item))
+    const equipMenuItems = unit.inventory.filter(
+      (item) =>
+        item.type !== 'Consumable' &&
+        item.type !== 'Scroll' &&
+        (canEquip(unit, item) || !hasProficiency(unit, item)),
     );
     if (equipMenuItems.length >= 2) items.push('Equip');
-    if (canPromote(unit)
-      && resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)
-      && this.getPromotionConsumable(unit)) items.push('Promote');
+    if (
+      canPromote(unit) &&
+      resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords) &&
+      this.getPromotionConsumable(unit)
+    )
+      items.push('Promote');
     const usableReclassSeals = this.getUsableReclassConsumables(unit);
     if (usableReclassSeals.length === 1) items.push('Reclass');
     // Item: show if unit has consumables
     const consumables = unit.consumables || [];
     if (consumables.length > 0) items.push('Item');
     // Shove/Pull: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0) items.push('Shove');
+    if (unit.skills?.includes('shove') && this.findShoveTargets(unit).length > 0)
+      items.push('Shove');
     if (unit.skills?.includes('pull') && this.findPullTargets(unit).length > 0) items.push('Pull');
     // Trade: show if adjacent ally with items/space exists
     if (this.findTradeTargets(unit).length > 0) items.push('Trade');
     // Swap: show if adjacent ally on walkable terrain exists
     if (this.findSwapTargets(unit).length > 0) items.push('Swap');
     // Dance: show if unit has skill and valid targets exist
-    if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0) items.push('Dance');
+    if (unit.skills?.includes('dance') && this.findDanceTargets(unit).length > 0)
+      items.push('Dance');
     // Break: adjacent temporary wall terrain (Waller)
     if (this.findBreakTargets(unit).length > 0) items.push('Break');
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
       const rosterCapBonus = this.runManager?.metaEffects?.rosterCapBonus || 0;
-      const fullRosterCount = (this.runManager?.roster?.length ?? this.playerUnits.length) - (this._playerDeathsThisBattle || 0);
+      const fullRosterCount =
+        (this.runManager?.roster?.length ?? this.playerUnits.length) -
+        (this._playerDeathsThisBattle || 0);
       if (talkTarget && fullRosterCount < ROSTER_CAP + rosterCapBonus) {
         items.push('Talk');
       }
@@ -5148,97 +5795,117 @@ export class BattleScene extends Phaser.Scene {
     // Seize: Lord on throne, boss dead
     if (this.battleConfig.objective === 'seize' && unit.isLord) {
       const throne = this.battleConfig.thronePos;
-      const bossAlive = this.enemyUnits.some(u => u.isBoss && u.currentHP > 0);
+      const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
         items.push('Seize');
       }
     }
     items.push('Wait');
 
-    const longestLabel = Math.max(...items.map(l => l.length));
+    const longestLabel = Math.max(...items.map((l) => l.length));
     const menuWidth = Math.max(70, longestLabel * 8 + 16);
     const itemHeight = 28;
     const menuHeight = items.length * itemHeight + 8;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     items.forEach((label, i) => {
       const itemY = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const itemX = menuPos.x + menuWidth / 2;
-      const text = this._makeMenuTextButton(itemX, itemY, label, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#e0e0e0',
-      }, '#e0e0e0', () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        if (label === 'Attack') {
-          // Auto-equip first combat weapon if staff is currently equipped
-          if (unit.weapon && isStaff(unit.weapon)) {
-            const combatWpn = getCombatWeapons(unit)[0];
-            if (combatWpn) {
-              equipWeapon(unit, combatWpn);
-              this.showAutoSwitchTooltip(unit, combatWpn);
+      const text = this._makeMenuTextButton(
+        itemX,
+        itemY,
+        label,
+        {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#e0e0e0',
+        },
+        '#e0e0e0',
+        () => {
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          if (label === 'Attack') {
+            // Auto-equip first combat weapon if staff is currently equipped
+            if (unit.weapon && isStaff(unit.weapon)) {
+              const combatWpn = getCombatWeapons(unit)[0];
+              if (combatWpn) {
+                equipWeapon(unit, combatWpn);
+                this.showAutoSwitchTooltip(unit, combatWpn);
+              }
             }
-          }
-          this._clearSelectedWeaponArtIfInvalid(unit);
-          this._beginAttackSelection(unit);
-        } else if (label.startsWith('Weapon Art')) {
-          if (unit.weapon && isStaff(unit.weapon)) {
-            const combatWpn = getCombatWeapons(unit)[0];
-            if (combatWpn) {
-              equipWeapon(unit, combatWpn);
-              this.showAutoSwitchTooltip(unit, combatWpn);
+            this._clearSelectedWeaponArtIfInvalid(unit);
+            this._beginAttackSelection(unit);
+          } else if (label.startsWith('Weapon Art')) {
+            if (unit.weapon && isStaff(unit.weapon)) {
+              const combatWpn = getCombatWeapons(unit)[0];
+              if (combatWpn) {
+                equipWeapon(unit, combatWpn);
+                this.showAutoSwitchTooltip(unit, combatWpn);
+              }
             }
+            this.showWeaponArtPicker(unit);
+          } else if (label.startsWith('Heal')) {
+            this.hideActionMenu();
+            if (healOptions.length >= 2) {
+              this.showStaffPicker(
+                unit,
+                healOptions.map((option) => option.staff),
+              );
+            } else if (healOptions.length === 1) {
+              const option = healOptions[0];
+              this.startHealTargetSelection(unit, option.targets, option.staff);
+            } else {
+              this.showActionMenu(unit);
+            }
+          } else if (label === 'Equip') {
+            this.showEquipMenu(unit);
+          } else if (label === 'Promote') {
+            this.hideActionMenu();
+            this.executePromotion(unit, this.getPromotionConsumable(unit));
+          } else if (label === 'Reclass') {
+            this.hideActionMenu();
+            const [soleSeal] = this.getUsableReclassConsumables(unit);
+            if (soleSeal) this.showReclassClassPicker(unit, soleSeal);
+            else this.showActionMenu(unit);
+          } else if (label === 'Item') {
+            this.showItemMenu(unit);
+          } else if (label === 'Talk') {
+            this.hideActionMenu();
+            this.executeTalk(unit);
+          } else if (label === 'Seize') {
+            this.hideActionMenu();
+            this.onVictory();
+          } else if (label === 'Shove') {
+            this.startShoveTargetSelection(unit);
+          } else if (label === 'Pull') {
+            this.startPullTargetSelection(unit);
+          } else if (label === 'Trade') {
+            this.startTradeTargetSelection(unit);
+          } else if (label === 'Swap') {
+            this.startSwapTargetSelection(unit);
+          } else if (label === 'Dance') {
+            this.startDanceTargetSelection(unit);
+          } else if (label === 'Break') {
+            this.startBreakTargetSelection(unit);
+          } else if (label === 'Wait') {
+            this.finishUnitAction(unit, { skipCanto: true });
           }
-          this.showWeaponArtPicker(unit);
-        } else if (label.startsWith('Heal')) {
-          this.hideActionMenu();
-          if (healOptions.length >= 2) {
-            this.showStaffPicker(unit, healOptions.map(option => option.staff));
-          } else if (healOptions.length === 1) {
-            const option = healOptions[0];
-            this.startHealTargetSelection(unit, option.targets, option.staff);
-          } else {
-            this.showActionMenu(unit);
-          }
-        } else if (label === 'Equip') {
-          this.showEquipMenu(unit);
-        } else if (label === 'Promote') {
-          this.hideActionMenu();
-          this.executePromotion(unit, this.getPromotionConsumable(unit));
-        } else if (label === 'Reclass') {
-          this.hideActionMenu();
-          const [soleSeal] = this.getUsableReclassConsumables(unit);
-          if (soleSeal) this.showReclassClassPicker(unit, soleSeal);
-          else this.showActionMenu(unit);
-        } else if (label === 'Item') {
-          this.showItemMenu(unit);
-        } else if (label === 'Talk') {
-          this.hideActionMenu();
-          this.executeTalk(unit);
-        } else if (label === 'Seize') {
-          this.hideActionMenu();
-          this.onVictory();
-        } else if (label === 'Shove') {
-          this.startShoveTargetSelection(unit);
-        } else if (label === 'Pull') {
-          this.startPullTargetSelection(unit);
-        } else if (label === 'Trade') {
-          this.startTradeTargetSelection(unit);
-        } else if (label === 'Swap') {
-          this.startSwapTargetSelection(unit);
-        } else if (label === 'Dance') {
-          this.startDanceTargetSelection(unit);
-        } else if (label === 'Break') {
-          this.startBreakTargetSelection(unit);
-        } else if (label === 'Wait') {
-          this.finishUnitAction(unit, { skipCanto: true });
-        }
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+        },
+        { hitWidth: menuWidth - 10, hitHeight: itemHeight },
+      );
 
       this.actionMenu.push(text);
     });
@@ -5254,30 +5921,34 @@ export class BattleScene extends Phaser.Scene {
       this._actionMenuWheelHandler = null;
     }
     if (this.actionMenu) {
-      this.actionMenu.forEach(obj => obj.destroy());
+      this.actionMenu.forEach((obj) => obj.destroy());
       this.actionMenu = null;
     }
   }
 
   getPromotionConsumable(unit) {
     if (!unit?.consumables?.length) return null;
-    return unit.consumables.find(item => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null;
+    return (
+      unit.consumables.find((item) => item?.effect === 'promote' && (item.uses ?? 0) > 0) || null
+    );
   }
 
   getReclassConsumable(unit) {
     if (!unit?.consumables?.length) return null;
-    return unit.consumables.find(item => item?.effect === 'reclass' && (item.uses ?? 0) > 0) || null;
+    return (
+      unit.consumables.find((item) => item?.effect === 'reclass' && (item.uses ?? 0) > 0) || null
+    );
   }
 
   getReclassConsumables(unit) {
     if (!unit?.consumables?.length) return [];
-    return unit.consumables.filter(item => item?.effect === 'reclass' && (item.uses ?? 0) > 0);
+    return unit.consumables.filter((item) => item?.effect === 'reclass' && (item.uses ?? 0) > 0);
   }
 
   getUsableReclassConsumables(unit) {
     if (!canReclass(unit)) return [];
-    return this.getReclassConsumables(unit).filter((seal) =>
-      getReclassTargets(unit, this.gameData.classes, seal.subEffect).length > 0
+    return this.getReclassConsumables(unit).filter(
+      (seal) => getReclassTargets(unit, this.gameData.classes, seal.subEffect).length > 0,
     );
   }
 
@@ -5326,7 +5997,9 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
     // Show recruitment dialogue
-    const recruitLines = this.gameData.dialogue?.recruitLines?.[npc.className] || ["Joined the army!"];
+    const recruitLines = this.gameData.dialogue?.recruitLines?.[npc.className] || [
+      'Joined the army!',
+    ];
     const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
     const portraitKey = this._getPortraitKey(npc);
     await this.dialogueOverlay.show(npc.name, line, portraitKey);
@@ -5353,8 +6026,8 @@ export class BattleScene extends Phaser.Scene {
   // --- Heal flow ---
 
   getUsableStaves(unit) {
-    return unit.inventory.filter(w =>
-      w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0
+    return unit.inventory.filter(
+      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
     );
   }
 
@@ -5366,7 +6039,9 @@ export class BattleScene extends Phaser.Scene {
     // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
     // to prevent 'bleed-through' clicks to the map.
     if (this._isTouchPointer(pointer)) {
-      const wasTouchCanceled = Boolean(pointer.wasCanceled || pointer?.event?.type === 'touchcancel');
+      const wasTouchCanceled = Boolean(
+        pointer.wasCanceled || pointer?.event?.type === 'touchcancel',
+      );
       if (wasTouchCanceled) {
         const hadTouches = Boolean(this._battleCamera?.clearTouches?.());
         this._cameraGestureTapSuppressed = true;
@@ -5411,7 +6086,7 @@ export class BattleScene extends Phaser.Scene {
       }
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
-      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+      if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
         this._touchTapDown = null;
         return;
       }
@@ -5458,7 +6133,10 @@ export class BattleScene extends Phaser.Scene {
     // First-heal tutorial hint (one-time per save slot)
     const hints = this.registry.get('hints');
     if (hints?.shouldShow('battle_heal_uses')) {
-      showMinorHint(this, 'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.');
+      showMinorHint(
+        this,
+        'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.',
+      );
     }
 
     // Fortify: auto-heal all targets, no selection needed
@@ -5468,7 +6146,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this.healTargets = targets;
-    const healTiles = targets.map(a => ({ col: a.col, row: a.row }));
+    const healTiles = targets.map((a) => ({ col: a.col, row: a.row }));
     this.grid.showHealRange(healTiles);
     this.battleState = 'SELECTING_HEAL_TARGET';
   }
@@ -5479,9 +6157,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'UNIT_ACTION_MENU';
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = (unit.col < this.grid.cols - 3)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 210;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 210;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -5490,10 +6166,17 @@ export class BattleScene extends Phaser.Scene {
     const menuHeight = usableStaves.length * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     usableStaves.forEach((staff, i) => {
@@ -5506,22 +6189,33 @@ export class BattleScene extends Phaser.Scene {
       const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
       const defaultColor = staff === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this._makeMenuTextButton(itemX, itemY, label, {
-        fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
-      }, defaultColor, async () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        equipWeapon(unit, staff);
-        const healTargets = this.findHealTargets(unit, staff);
-        if (healTargets.length === 0) {
-          await this.showBriefBanner('No heal targets in range for that staff.', '#ff8888');
-          this.showStaffPicker(unit, usableStaves);
-          return;
-        }
-        this.inEquipMenu = false;
-        this.hideActionMenu();
-        this.startHealTargetSelection(unit, healTargets, staff);
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
+      const text = this._makeMenuTextButton(
+        itemX,
+        itemY,
+        label,
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: defaultColor,
+          lineSpacing: 1,
+        },
+        defaultColor,
+        async () => {
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          equipWeapon(unit, staff);
+          const healTargets = this.findHealTargets(unit, staff);
+          if (healTargets.length === 0) {
+            await this.showBriefBanner('No heal targets in range for that staff.', '#ff8888');
+            this.showStaffPicker(unit, usableStaves);
+            return;
+          }
+          this.inEquipMenu = false;
+          this.hideActionMenu();
+          this.startHealTargetSelection(unit, healTargets, staff);
+        },
+        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
+      );
 
       this.actionMenu.push(text);
     });
@@ -5529,7 +6223,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleHealTargetClick(gp) {
-    const target = this.healTargets.find(a => a.col === gp.col && a.row === gp.row);
+    const target = this.healTargets.find((a) => a.col === gp.col && a.row === gp.row);
     if (target) {
       this.executeHeal(this.selectedUnit, target);
     }
@@ -5591,7 +6285,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   animateHeal(target, healAmount) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const reduced = this._isReducedEffects();
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_heal');
@@ -5599,13 +6293,22 @@ export class BattleScene extends Phaser.Scene {
       if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
 
       const pos = this.grid.gridToPixel(target.col, target.row);
-      const healText = this.add.text(pos.x, pos.y - 16, `+${healAmount}`, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#44ff44', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(300);
+      const healText = this.add
+        .text(pos.x, pos.y - 16, `+${healAmount}`, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#44ff44',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(300);
 
       this.tweens.add({
-        targets: healText, y: pos.y - 36, alpha: 0,
-        duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
+        targets: healText,
+        y: pos.y - 36,
+        alpha: 0,
+        duration: reduced ? 260 : 600,
+        onComplete: () => healText.destroy(),
       });
 
       this.time.delayedCall(reduced ? 120 : 250, () => {
@@ -5631,9 +6334,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = (unit.col < this.grid.cols - 3)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - 280;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 280;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -5642,35 +6343,53 @@ export class BattleScene extends Phaser.Scene {
     const menuHeight = (choices.length + 1) * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.9
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.9,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
-    const current = this._selectedWeaponArt?.unitName === unit.name ? this._selectedWeaponArt : null;
+    const current =
+      this._selectedWeaponArt?.unitName === unit.name ? this._selectedWeaponArt : null;
 
     const noneY = menuPos.y + 6 + itemHeight / 2;
     const noneColor = current ? '#e0e0e0' : '#ffdd44';
-    const noneText = this._makeMenuTextButton(menuPos.x + 8, noneY, `${current ? '  ' : '> '}Normal Attack`, {
-      fontFamily: 'monospace', fontSize: '12px', color: noneColor,
-    }, noneColor, () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      this._setSelectedWeaponArt(unit, null);
-      this.inEquipMenu = false;
-      this._beginAttackSelection(unit);
-    }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
+    const noneText = this._makeMenuTextButton(
+      menuPos.x + 8,
+      noneY,
+      `${current ? '  ' : '> '}Normal Attack`,
+      {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: noneColor,
+      },
+      noneColor,
+      () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.playSFX('sfx_confirm');
+        this._setSelectedWeaponArt(unit, null);
+        this.inEquipMenu = false;
+        this._beginAttackSelection(unit);
+      },
+      { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
+    );
     this.actionMenu.push(noneText);
 
     choices.forEach(({ weapon, art, canUse, reason }, i) => {
       const rowY = menuPos.y + 6 + (i + 1) * itemHeight + itemHeight / 2;
       const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;
       const isActive = Boolean(
-        current
-        && current.artId === art.id
-        && Number.isInteger(current.weaponIndex)
-        && current.weaponIndex === weaponIndex
+        current &&
+        current.artId === art.id &&
+        Number.isInteger(current.weaponIndex) &&
+        current.weaponIndex === weaponIndex,
       );
       const marker = isActive ? '> ' : '  ';
       const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
@@ -5679,24 +6398,41 @@ export class BattleScene extends Phaser.Scene {
       const label = `${marker}${art.name} (${weaponName})
    ${status}`;
 
-      const text = this._makeMenuTextButton(menuPos.x + 8, rowY, label, {
-        fontFamily: 'monospace', fontSize: '10px', color, lineSpacing: 1,
-      }, color, () => {
-        const latest = canUseWeaponArt(unit, weapon, art, {
-          turnNumber: this.turnManager?.turnNumber,
-          isInitiating: true,
-        });
-        if (!latest.ok) {
-          this.showWeaponArtPicker(unit);
-          return;
-        }
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        if (unit.weapon !== weapon) equipWeapon(unit, weapon);
-        this._setSelectedWeaponArt(unit, art.id, weapon);
-        this.inEquipMenu = false;
-        this._beginAttackSelection(unit);
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight, clickOnPointerUp: true });
+      const text = this._makeMenuTextButton(
+        menuPos.x + 8,
+        rowY,
+        label,
+        {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color,
+          lineSpacing: 1,
+        },
+        color,
+        () => {
+          const latest = canUseWeaponArt(unit, weapon, art, {
+            turnNumber: this.turnManager?.turnNumber,
+            isInitiating: true,
+          });
+          if (!latest.ok) {
+            this.showWeaponArtPicker(unit);
+            return;
+          }
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          if (unit.weapon !== weapon) equipWeapon(unit, weapon);
+          this._setSelectedWeaponArt(unit, art.id, weapon);
+          this.inEquipMenu = false;
+          this._beginAttackSelection(unit);
+        },
+        {
+          originX: 0,
+          originY: 0.5,
+          hitWidth: menuWidth - 12,
+          hitHeight: itemHeight,
+          clickOnPointerUp: true,
+        },
+      );
       this._wireWeaponArtTooltip(text, art);
 
       this.actionMenu.push(text);
@@ -5713,9 +6449,7 @@ export class BattleScene extends Phaser.Scene {
     const combatWeapons = getCombatWeapons(unit);
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 130;
-    const menuX = (unit.col < this.grid.cols - 3)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - menuWidth;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
@@ -5725,10 +6459,17 @@ export class BattleScene extends Phaser.Scene {
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
     const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     combatWeapons.forEach((wpn, i) => {
@@ -5739,20 +6480,31 @@ export class BattleScene extends Phaser.Scene {
       const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}`;
       const defaultColor = wpn === unit.weapon ? '#ffdd44' : '#e0e0e0';
 
-      const text = this._makeMenuTextButton(itemX, itemY, label, {
-        fontFamily: 'monospace', fontSize: '11px', color: defaultColor, lineSpacing: 1,
-      }, defaultColor, () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        equipWeapon(unit, wpn);
-        this._clearSelectedWeaponArtIfInvalid(unit);
-        this.inEquipMenu = false;
-        this.hideActionMenu();
-        this.attackTargets = this.findAttackTargets(unit);
-        const attackTiles = this.attackTargets.map(e => ({ col: e.col, row: e.row }));
-        this.grid.showAttackRange(attackTiles);
-        this.battleState = 'SELECTING_TARGET';
-      }, { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight });
+      const text = this._makeMenuTextButton(
+        itemX,
+        itemY,
+        label,
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: defaultColor,
+          lineSpacing: 1,
+        },
+        defaultColor,
+        () => {
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          equipWeapon(unit, wpn);
+          this._clearSelectedWeaponArtIfInvalid(unit);
+          this.inEquipMenu = false;
+          this.hideActionMenu();
+          this.attackTargets = this.findAttackTargets(unit);
+          const attackTiles = this.attackTargets.map((e) => ({ col: e.col, row: e.row }));
+          this.grid.showAttackRange(attackTiles);
+          this.battleState = 'SELECTING_TARGET';
+        },
+        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
+      );
 
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, itemY);
@@ -5767,7 +6519,7 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Auto-show tooltip for equipped weapon
-    const equippedWpn = combatWeapons.find(w => w === unit.weapon) || combatWeapons[0];
+    const equippedWpn = combatWeapons.find((w) => w === unit.weapon) || combatWeapons[0];
     if (equippedWpn) {
       const eqIdx = combatWeapons.indexOf(equippedWpn);
       const autoY = menuPos.y + 6 + eqIdx * itemHeight + itemHeight / 2;
@@ -5787,17 +6539,16 @@ export class BattleScene extends Phaser.Scene {
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 130;
-    const menuX = (unit.col < this.grid.cols - 3)
-      ? pos.x + TILE_SIZE
-      : pos.x - TILE_SIZE - menuWidth;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
     this.actionMenu = [];
 
-    const displayWeapons = unit.inventory.filter(item =>
-      item.type !== 'Consumable'
-      && item.type !== 'Scroll'
-      && (canEquip(unit, item) || !hasProficiency(unit, item))
+    const displayWeapons = unit.inventory.filter(
+      (item) =>
+        item.type !== 'Consumable' &&
+        item.type !== 'Scroll' &&
+        (canEquip(unit, item) || !hasProficiency(unit, item)),
     );
     const itemHeight = 20;
     const menuPadding = 8;
@@ -5808,10 +6559,17 @@ export class BattleScene extends Phaser.Scene {
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
     const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     const rows = [];
@@ -5823,19 +6581,34 @@ export class BattleScene extends Phaser.Scene {
       const marker = wpn === unit.weapon ? '\u25b6 ' : '  ';
       const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
       const label = `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`;
-      const defaultColor = isNonProficient ? '#888888' : (wpn === unit.weapon ? '#ffdd44' : '#e0e0e0');
+      const defaultColor = isNonProficient
+        ? '#888888'
+        : wpn === unit.weapon
+          ? '#ffdd44'
+          : '#e0e0e0';
 
-      const text = this._makeMenuTextButton(itemX, itemY, label, {
-        fontFamily: 'monospace', fontSize: '9px', color: defaultColor, lineSpacing: 1,
-      }, defaultColor, () => {
-        if (!canEquipNow) return;
-        equipWeapon(unit, wpn);
-        this.showActionMenu(unit);
-      }, {
-        hitWidth: menuWidth - 10,
-        hitHeight: itemHeight,
-        hoverColor: isNonProficient ? '#999999' : '#ffdd44',
-      });
+      const text = this._makeMenuTextButton(
+        itemX,
+        itemY,
+        label,
+        {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: defaultColor,
+          lineSpacing: 1,
+        },
+        defaultColor,
+        () => {
+          if (!canEquipNow) return;
+          equipWeapon(unit, wpn);
+          this.showActionMenu(unit);
+        },
+        {
+          hitWidth: menuWidth - 10,
+          hitHeight: itemHeight,
+          hoverColor: isNonProficient ? '#999999' : '#ffdd44',
+        },
+      );
 
       text.on('pointerover', () => {
         this._showWeaponDetailTooltip(wpn, menuRect, text.y);
@@ -5862,7 +6635,8 @@ export class BattleScene extends Phaser.Scene {
         for (const row of rows) {
           const centerY = row.baseY + scrollY;
           row.text.y = centerY;
-          const visible = (centerY + row.rowHeight / 2) >= topY && (centerY - row.rowHeight / 2) <= bottomY;
+          const visible =
+            centerY + row.rowHeight / 2 >= topY && centerY - row.rowHeight / 2 <= bottomY;
           if (typeof row.text.setVisible === 'function') row.text.setVisible(visible);
           if (row.text.input) row.text.input.enabled = visible;
         }
@@ -5870,23 +6644,29 @@ export class BattleScene extends Phaser.Scene {
       applyScroll();
 
       const onWheel = (_pointer, _gameObjects, _deltaX, deltaY) => {
-        if (!this.inEquipMenu || this.battleState !== 'UNIT_ACTION_MENU' || !this.actionMenu) return;
+        if (!this.inEquipMenu || this.battleState !== 'UNIT_ACTION_MENU' || !this.actionMenu)
+          return;
         if (!Number.isFinite(deltaY) || deltaY === 0) return;
-        scrollY = Phaser.Math.Clamp(scrollY - (Math.sign(deltaY) * 16), minScroll, 0);
+        scrollY = Phaser.Math.Clamp(scrollY - Math.sign(deltaY) * 16, minScroll, 0);
         applyScroll();
       };
       this._actionMenuWheelHandler = onWheel;
       this.input.on('wheel', onWheel);
 
-      const hint = this.add.text(menuPos.x + menuWidth / 2, menuPos.y + menuHeight - 2, 'Scroll', {
-        fontFamily: 'monospace', fontSize: '8px', color: '#777777',
-      }).setOrigin(0.5, 1).setDepth(401);
+      const hint = this.add
+        .text(menuPos.x + menuWidth / 2, menuPos.y + menuHeight - 2, 'Scroll', {
+          fontFamily: 'monospace',
+          fontSize: '8px',
+          color: '#777777',
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(401);
       this.actionMenu.push(hint);
     }
 
     // Auto-show tooltip for equipped weapon (skip if overflowing — equipped row may be off-screen)
     if (!hasOverflow) {
-      const equippedWpn = displayWeapons.find(w => w === unit.weapon) || displayWeapons[0];
+      const equippedWpn = displayWeapons.find((w) => w === unit.weapon) || displayWeapons[0];
       if (equippedWpn) {
         const eqIdx = displayWeapons.indexOf(equippedWpn);
         const autoY = menuPos.y + 4 + eqIdx * itemHeight + itemHeight / 2;
@@ -5928,7 +6708,7 @@ export class BattleScene extends Phaser.Scene {
     // Use consumables array instead of filtering inventory
     const consumables = unit.consumables || [];
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = (unit.col < this.grid.cols - 3) ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 120;
+    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 120;
     const menuY = pos.y - 10;
 
     const itemHeight = 28;
@@ -5936,10 +6716,17 @@ export class BattleScene extends Phaser.Scene {
     const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.85
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.85,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     consumables.forEach((item, i) => {
@@ -5950,24 +6737,39 @@ export class BattleScene extends Phaser.Scene {
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
       const isPromote = item.effect === 'promote';
       const isReclass = item.effect === 'reclass';
-      const canUsePromote = canPromote(unit)
-        && Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords))
-        && this.getPromotionConsumable(unit) === item;
-      const canUseReclass = canReclass(unit)
-        && getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
-      const usable = !(isHeal && unit.currentHP >= unit.stats.HP) && !(isPromote && !canUsePromote) && !(isReclass && !canUseReclass);
+      const canUsePromote =
+        canPromote(unit) &&
+        Boolean(resolvePromotionTargetClass(unit, this.gameData.classes, this.gameData.lords)) &&
+        this.getPromotionConsumable(unit) === item;
+      const canUseReclass =
+        canReclass(unit) &&
+        getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
+      const usable =
+        !(isHeal && unit.currentHP >= unit.stats.HP) &&
+        !(isPromote && !canUsePromote) &&
+        !(isReclass && !canUseReclass);
 
       let label = item.name;
       if (item.uses !== undefined) label += ` (${item.uses})`;
 
       const color = usable ? '#88ff88' : '#666666';
-      const text = this.add.text(ix, iy, label, {
-        fontFamily: 'monospace', fontSize: '11px', color,
-      }).setOrigin(0.5).setDepth(401);
+      const text = this.add
+        .text(ix, iy, label, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color,
+        })
+        .setOrigin(0.5)
+        .setDepth(401);
 
       if (usable) {
         text.setInteractive(
-          new Phaser.Geom.Rectangle(-(menuWidth - 10) / 2, -itemHeight / 2, menuWidth - 10, itemHeight),
+          new Phaser.Geom.Rectangle(
+            -(menuWidth - 10) / 2,
+            -itemHeight / 2,
+            menuWidth - 10,
+            itemHeight,
+          ),
           Phaser.Geom.Rectangle.Contains,
         );
         text.on('pointerover', () => text.setColor('#ffdd44'));
@@ -5981,13 +6783,23 @@ export class BattleScene extends Phaser.Scene {
 
     // Back button
     const backY = menuPos.y + 4 + consumables.length * itemHeight + itemHeight / 2;
-    const backText = this._makeMenuTextButton(menuPos.x + menuWidth / 2, backY, 'Back', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }, '#aaaaaa', () => {
-      this.hideActionMenu();
-      this.inEquipMenu = false;
-      this.showActionMenu(unit);
-    }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+    const backText = this._makeMenuTextButton(
+      menuPos.x + menuWidth / 2,
+      backY,
+      'Back',
+      {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
+      },
+      '#aaaaaa',
+      () => {
+        this.hideActionMenu();
+        this.inEquipMenu = false;
+        this.showActionMenu(unit);
+      },
+      { hitWidth: menuWidth - 10, hitHeight: itemHeight },
+    );
     this.actionMenu.push(backText);
     this._pinToScreen(this.actionMenu);
   }
@@ -6023,41 +6835,64 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showSkillLearnedBanner(unit, skillName) {
-    return new Promise(resolve => {
-      const banner = this.add.text(
-        this.cameras.main.centerX, this.cameras.main.centerY,
-        `${unit.name} learned ${skillName}!`,
-        {
-          fontFamily: 'monospace', fontSize: '16px', color: '#88ffff',
-          backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
-        }
-      ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    return new Promise((resolve) => {
+      const banner = this.add
+        .text(
+          this.cameras.main.centerX,
+          this.cameras.main.centerY,
+          `${unit.name} learned ${skillName}!`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            color: '#88ffff',
+            backgroundColor: '#000000cc',
+            padding: { x: 16, y: 8 },
+          },
+        )
+        .setOrigin(0.5)
+        .setAlpha(0)
+        .setDepth(500);
       this._pinToScreen(banner);
 
       this.tweens.add({
-        targets: banner, alpha: 1, duration: 300,
-        yoyo: true, hold: 1200,
-        onComplete: () => { banner.destroy(); resolve(); },
+        targets: banner,
+        alpha: 1,
+        duration: 300,
+        yoyo: true,
+        hold: 1200,
+        onComplete: () => {
+          banner.destroy();
+          resolve();
+        },
       });
     });
   }
 
   showBriefBanner(message, color = '#ffdd44') {
-    return new Promise(resolve => {
-      const banner = this.add.text(
-        this.cameras.main.centerX, this.cameras.main.centerY,
-        message,
-        {
-          fontFamily: 'monospace', fontSize: '14px', color,
-          backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
-        }
-      ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    return new Promise((resolve) => {
+      const banner = this.add
+        .text(this.cameras.main.centerX, this.cameras.main.centerY, message, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color,
+          backgroundColor: '#000000cc',
+          padding: { x: 16, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setAlpha(0)
+        .setDepth(500);
       this._pinToScreen(banner);
 
       this.tweens.add({
-        targets: banner, alpha: 1, duration: 200,
-        yoyo: true, hold: 800,
-        onComplete: () => { banner.destroy(); resolve(); },
+        targets: banner,
+        alpha: 1,
+        duration: 200,
+        yoyo: true,
+        hold: 800,
+        onComplete: () => {
+          banner.destroy();
+          resolve();
+        },
       });
     });
   }
@@ -6074,7 +6909,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Find promotion targets
-    const lordData = this.gameData.lords.find(l => l.name === unit.name);
+    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
     if (!targets?.length) {
       await this.showBriefBanner('Promotion to that class is currently unavailable.', '#ff8888');
@@ -6119,7 +6954,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Track pre-promotion weapon types to detect new proficiencies
-    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     // Apply promotion
     promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
@@ -6132,10 +6967,18 @@ export class BattleScene extends Phaser.Scene {
     if (promotionWeapons) {
       // Lords get specific promotion weapons (e.g. "Lances (P)")
       const newType = promotionWeapons.match(/(\w+)/)?.[1];
-      const typeMap = { Swords: 'Sword', Lances: 'Lance', Axes: 'Axe', Bows: 'Bow', Tomes: 'Tome', Staves: 'Staff', Light: 'Light' };
+      const typeMap = {
+        Swords: 'Sword',
+        Lances: 'Lance',
+        Axes: 'Axe',
+        Bows: 'Bow',
+        Tomes: 'Tome',
+        Staves: 'Staff',
+        Light: 'Light',
+      };
       const wpnType = typeMap[newType] || newType;
-      const newWeapon = this.gameData.weapons.find(w => w.type === wpnType && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+      const newWeapon = this.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
+      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
         addToInventory(unit, newWeapon);
       }
     } else {
@@ -6143,8 +6986,10 @@ export class BattleScene extends Phaser.Scene {
       for (const prof of unit.proficiencies) {
         if (oldTypes.has(prof.type)) continue;
         const tier = 'Iron';
-        const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === tier);
-        if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+        const newWeapon = this.gameData.weapons.find(
+          (w) => w.type === prof.type && w.tier === tier,
+        );
+        if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
           addToInventory(unit, newWeapon);
         }
       }
@@ -6159,7 +7004,14 @@ export class BattleScene extends Phaser.Scene {
     // Show stat gains as a level-up style popup
     const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
     delete gains.gains.MOV; // MOV isn't shown in level-up popup
-    const popup = new LevelUpPopup(this, unit, gains, true, [], promotedClassData.growthBonuses || null);
+    const popup = new LevelUpPopup(
+      this,
+      unit,
+      gains,
+      true,
+      [],
+      promotedClassData.growthBonuses || null,
+    );
     await popup.show();
 
     // Consume Master Seal on successful promotion
@@ -6171,21 +7023,35 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showPromotionBanner(unit, newClassName) {
-    return new Promise(resolve => {
-      const banner = this.add.text(
-        this.cameras.main.centerX, this.cameras.main.centerY,
-        `${unit.name} promoted to ${newClassName}!`,
-        {
-          fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
-          backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
-        }
-      ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    return new Promise((resolve) => {
+      const banner = this.add
+        .text(
+          this.cameras.main.centerX,
+          this.cameras.main.centerY,
+          `${unit.name} promoted to ${newClassName}!`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            color: '#ffdd44',
+            backgroundColor: '#000000cc',
+            padding: { x: 16, y: 8 },
+          },
+        )
+        .setOrigin(0.5)
+        .setAlpha(0)
+        .setDepth(500);
       this._pinToScreen(banner);
 
       this.tweens.add({
-        targets: banner, alpha: 1, duration: 300,
-        yoyo: true, hold: 1200,
-        onComplete: () => { banner.destroy(); resolve(); },
+        targets: banner,
+        alpha: 1,
+        duration: 300,
+        yoyo: true,
+        hold: 1200,
+        onComplete: () => {
+          banner.destroy();
+          resolve();
+        },
       });
     });
   }
@@ -6215,38 +7081,70 @@ export class BattleScene extends Phaser.Scene {
     const menuHeight = targets.length * itemHeight + itemHeight + 8; // +1 for Back row
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
-    const menuPos = this._clampMenuPosition(cx - menuWidth / 2, cy - menuHeight / 2, menuWidth, menuHeight);
+    const menuPos = this._clampMenuPosition(
+      cx - menuWidth / 2,
+      cy - menuHeight / 2,
+      menuWidth,
+      menuHeight,
+    );
 
     this.actionMenu = [];
 
-    const bg = this.add.rectangle(
-      menuPos.x + menuWidth / 2, menuPos.y + menuHeight / 2,
-      menuWidth, menuHeight, 0x000000, 0.9
-    ).setDepth(400).setStrokeStyle(1, 0x666666);
+    const bg = this.add
+      .rectangle(
+        menuPos.x + menuWidth / 2,
+        menuPos.y + menuHeight / 2,
+        menuWidth,
+        menuHeight,
+        0x000000,
+        0.9,
+      )
+      .setDepth(400)
+      .setStrokeStyle(1, 0x666666);
     this.actionMenu.push(bg);
 
     targets.forEach((cls, i) => {
       const iy = menuPos.y + 4 + i * itemHeight + itemHeight / 2;
       const ix = menuPos.x + menuWidth / 2;
-      const text = this._makeMenuTextButton(ix, iy, cls.name, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#88ff88',
-      }, '#88ff88', () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        this.executeReclass(unit, sealItem, cls);
-      }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+      const text = this._makeMenuTextButton(
+        ix,
+        iy,
+        cls.name,
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#88ff88',
+        },
+        '#88ff88',
+        () => {
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_confirm');
+          this.executeReclass(unit, sealItem, cls);
+        },
+        { hitWidth: menuWidth - 10, hitHeight: itemHeight },
+      );
       this.actionMenu.push(text);
     });
 
     // Back button
     const backY = menuPos.y + 4 + targets.length * itemHeight + itemHeight / 2;
-    const backText = this._makeMenuTextButton(menuPos.x + menuWidth / 2, backY, 'Back', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }, '#aaaaaa', () => {
-      this.hideActionMenu();
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-    }, { hitWidth: menuWidth - 10, hitHeight: itemHeight });
+    const backText = this._makeMenuTextButton(
+      menuPos.x + menuWidth / 2,
+      backY,
+      'Back',
+      {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
+      },
+      '#aaaaaa',
+      () => {
+        this.hideActionMenu();
+        this.battleState = 'UNIT_ACTION_MENU';
+        this.showActionMenu(unit);
+      },
+      { hitWidth: menuWidth - 10, hitHeight: itemHeight },
+    );
     this.actionMenu.push(backText);
     this._pinToScreen(this.actionMenu);
   }
@@ -6255,7 +7153,7 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    const oldClassData = this.gameData.classes.find(c => c.name === unit.className);
+    const oldClassData = this.gameData.classes.find((c) => c.name === unit.className);
     if (!oldClassData) {
       await this.showBriefBanner('Reclass data missing.', '#ff8888');
       this.battleState = 'UNIT_ACTION_MENU';
@@ -6264,7 +7162,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Track old proficiency types to detect new ones
-    const oldTypes = new Set(unit.proficiencies.map(p => p.type));
+    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     reclassUnit(unit, newClassData, oldClassData, this.gameData.classes, this.gameData.skills);
 
@@ -6275,8 +7173,10 @@ export class BattleScene extends Phaser.Scene {
     // Grant Iron weapons for newly gained proficiency types
     for (const prof of unit.proficiencies) {
       if (oldTypes.has(prof.type)) continue;
-      const newWeapon = this.gameData.weapons.find(w => w.type === prof.type && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some(w => w.name === newWeapon.name)) {
+      const newWeapon = this.gameData.weapons.find(
+        (w) => w.type === prof.type && w.tier === 'Iron',
+      );
+      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
         addToInventory(unit, newWeapon);
       }
     }
@@ -6302,7 +7202,12 @@ export class BattleScene extends Phaser.Scene {
     if (!attacker || !defender) return null;
     const key = this._getCombatRollSessionKey(attacker, defender);
     const existing = this._combatRollSession;
-    if (existing && existing.key === key && existing.attacker === attacker && existing.defender === defender) {
+    if (
+      existing &&
+      existing.key === key &&
+      existing.attacker === attacker &&
+      existing.defender === defender
+    ) {
       return existing;
     }
     const next = {
@@ -6350,15 +7255,22 @@ export class BattleScene extends Phaser.Scene {
     const recoilGuard = combatEffects.recoilGuard;
     const hasRecoilGuard = Boolean(recoilGuard) || Boolean(combatEffects.weaponArtDefBuff);
     if (!hasRecoilGuard) return;
-    const rawStats = recoilGuard?.stats && typeof recoilGuard.stats === 'object'
-      ? recoilGuard.stats
-      : {
-        DEF: Number.isFinite(Number(combatEffects?.buffDEF)) ? Number(combatEffects.buffDEF) : 3,
-        RES: Number.isFinite(Number(combatEffects?.buffRES)) ? Number(combatEffects.buffRES) : 3,
-      };
+    const rawStats =
+      recoilGuard?.stats && typeof recoilGuard.stats === 'object'
+        ? recoilGuard.stats
+        : {
+            DEF: Number.isFinite(Number(combatEffects?.buffDEF))
+              ? Number(combatEffects.buffDEF)
+              : 3,
+            RES: Number.isFinite(Number(combatEffects?.buffRES))
+              ? Number(combatEffects.buffRES)
+              : 3,
+          };
     const stats = {};
     for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '').trim().toUpperCase();
+      const stat = String(rawStat || '')
+        .trim()
+        .toUpperCase();
       if (!stat) continue;
       const value = Math.trunc(Number(rawValue) || 0);
       if (value === 0) continue;
@@ -6416,8 +7328,26 @@ export class BattleScene extends Phaser.Scene {
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
 
     const affixes = this.gameData.affixes;
-    const atkMods = getSkillCombatMods(attacker, defender, getAllies(attacker), getEnemies(attacker), skills, atkTerrain, true, affixes);
-    const defMods = getSkillCombatMods(defender, attacker, getAllies(defender), getEnemies(defender), skills, defTerrain, false, affixes);
+    const atkMods = getSkillCombatMods(
+      attacker,
+      defender,
+      getAllies(attacker),
+      getEnemies(attacker),
+      skills,
+      atkTerrain,
+      true,
+      affixes,
+    );
+    const defMods = getSkillCombatMods(
+      defender,
+      attacker,
+      getAllies(defender),
+      getEnemies(defender),
+      skills,
+      defTerrain,
+      false,
+      affixes,
+    );
     atkMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(attacker) || 0;
     defMods.hitBonus += this.runManager?.getActHitBonusForUnit?.(defender) || 0;
     const atkTimedBuffMods = this._getTimedWeaponArtCombatBuffMods(attacker);
@@ -6487,9 +7417,12 @@ export class BattleScene extends Phaser.Scene {
 
   _getAvailableWeaponArtEntriesForUnit(unit) {
     if (!unit) return [];
-    const inventory = Array.isArray(unit.inventory) && unit.inventory.length > 0
-      ? unit.inventory
-      : (unit.weapon ? [unit.weapon] : []);
+    const inventory =
+      Array.isArray(unit.inventory) && unit.inventory.length > 0
+        ? unit.inventory
+        : unit.weapon
+          ? [unit.weapon]
+          : [];
     const entries = [];
     for (const weapon of inventory) {
       if (!weapon || !weapon.type || isStaff(weapon)) continue;
@@ -6537,12 +7470,16 @@ export class BattleScene extends Phaser.Scene {
     const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
     if (entries.length <= 0) return null;
 
-    if (Number.isInteger(selected.weaponIndex)
-      && selected.weaponIndex >= 0
-      && Array.isArray(unit.inventory)
-      && selected.weaponIndex < unit.inventory.length) {
+    if (
+      Number.isInteger(selected.weaponIndex) &&
+      selected.weaponIndex >= 0 &&
+      Array.isArray(unit.inventory) &&
+      selected.weaponIndex < unit.inventory.length
+    ) {
       const selectedWeapon = unit.inventory[selected.weaponIndex];
-      const strict = entries.find((entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon);
+      const strict = entries.find(
+        (entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon,
+      );
       if (strict) return strict;
     }
 
@@ -6585,23 +7522,27 @@ export class BattleScene extends Phaser.Scene {
   _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
     if (!unit) return [];
     const restrictToWeapon = Boolean(options?.restrictToWeapon && weapon);
-    const entries = this._getAvailableWeaponArtEntriesForUnit(unit)
-      .filter((entry) => !restrictToWeapon || entry.weapon === weapon);
+    const entries = this._getAvailableWeaponArtEntriesForUnit(unit).filter(
+      (entry) => !restrictToWeapon || entry.weapon === weapon,
+    );
 
-    return entries.map(({ weapon: sourceWeapon, art }) => {
-      const check = canUseWeaponArt(unit, sourceWeapon, art, {
-        turnNumber: this.turnManager?.turnNumber,
-        isInitiating: true,
-        actorFaction: unit.faction,
-        ...context,
-      });
-      return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
-    }).filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
+    return entries
+      .map(({ weapon: sourceWeapon, art }) => {
+        const check = canUseWeaponArt(unit, sourceWeapon, art, {
+          turnNumber: this.turnManager?.turnNumber,
+          isInitiating: true,
+          actorFaction: unit.faction,
+          ...context,
+        });
+        return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
+      })
+      .filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
   _hasUsableWeaponArtTargets(unit, weapon = null, context = {}) {
-    const usableChoices = this._getWeaponArtChoices(unit, weapon, context)
-      .filter((entry) => entry.canUse);
+    const usableChoices = this._getWeaponArtChoices(unit, weapon, context).filter(
+      (entry) => entry.canUse,
+    );
     return usableChoices.some(({ weapon: sourceWeapon, art }) => {
       const targets = this.findAttackTargets(unit, { weapon: sourceWeapon, weaponArt: art });
       return targets.length > 0;
@@ -6611,27 +7552,26 @@ export class BattleScene extends Phaser.Scene {
   _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
     const hpCost = getEffectiveWeaponArtHpCost(unit, art);
-    const effectivenessScore = mods.effectiveness?.multiplier > 1
-      ? (mods.effectiveness.multiplier - 1) * 4
-      : 0;
+    const effectivenessScore =
+      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
     const rangeOverrideScore = mods.rangeOverride
       ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
       : 0;
     return (
-      (mods.atkBonus * 3)
-      + (mods.hitBonus * 0.35)
-      + (mods.critBonus * 0.25)
-      + (mods.spdBonus * 0.5)
-      + (mods.avoidBonus * 0.15)
-      + (mods.defBonus * 0.1)
-      + effectivenessScore
-      + ((mods.rangeBonus || 0) * 1.2)
-      + rangeOverrideScore
-      + (mods.preventCounter ? 3.5 : 0)
-      + (mods.targetsRES ? 2.5 : 0)
-      + (mods.halfPhysicalDamage ? 2.5 : 0)
-      + (mods.vengeance ? 4 : 0)
-      - (hpCost * 0.75)
+      mods.atkBonus * 3 +
+      mods.hitBonus * 0.35 +
+      mods.critBonus * 0.25 +
+      mods.spdBonus * 0.5 +
+      mods.avoidBonus * 0.15 +
+      mods.defBonus * 0.1 +
+      effectivenessScore +
+      (mods.rangeBonus || 0) * 1.2 +
+      rangeOverrideScore +
+      (mods.preventCounter ? 3.5 : 0) +
+      (mods.targetsRES ? 2.5 : 0) +
+      (mods.halfPhysicalDamage ? 2.5 : 0) +
+      (mods.vengeance ? 4 : 0) -
+      hpCost * 0.75
     );
   }
 
@@ -6676,33 +7616,52 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _rollEnemyWeaponArtChance() {
-    const roll = typeof this._enemyWeaponArtRandom === 'function'
-      ? Number(this._enemyWeaponArtRandom())
-      : Math.random();
+    const roll =
+      typeof this._enemyWeaponArtRandom === 'function'
+        ? Number(this._enemyWeaponArtRandom())
+        : Math.random();
     if (!Number.isFinite(roll)) return 1;
     return Math.min(1, Math.max(0, roll));
   }
 
   _weaponArtReasonLabel(reason) {
     switch (reason) {
-      case 'insufficient_rank': return 'Rank too low';
-      case 'insufficient_hp': return 'Not enough HP';
-      case 'per_turn_limit': return 'Turn limit reached';
-      case 'per_map_limit': return 'Map limit reached';
-      case 'wrong_weapon_type': return 'Wrong weapon type';
-      case 'no_proficiency': return 'No proficiency';
-      case 'initiation_only': return 'Player phase only';
-      case 'owner_scope_mismatch': return 'Unavailable';
-      case 'faction_mismatch': return 'Unavailable';
-      case 'legendary_weapon_required': return 'Legendary weapon required';
-      case 'ai_disabled': return 'Unavailable';
-      case 'ai_hp_floor': return 'Unavailable';
-      case 'invalid_owner_scope_config': return 'Unavailable';
-      case 'invalid_faction_config': return 'Unavailable';
-      case 'invalid_legendary_weapon_ids_config': return 'Unavailable';
-      case 'invalid_unlock_act_config': return 'Unavailable';
-      case 'invalid_input': return 'Unavailable';
-      default: return 'Unavailable';
+      case 'insufficient_rank':
+        return 'Rank too low';
+      case 'insufficient_hp':
+        return 'Not enough HP';
+      case 'per_turn_limit':
+        return 'Turn limit reached';
+      case 'per_map_limit':
+        return 'Map limit reached';
+      case 'wrong_weapon_type':
+        return 'Wrong weapon type';
+      case 'no_proficiency':
+        return 'No proficiency';
+      case 'initiation_only':
+        return 'Player phase only';
+      case 'owner_scope_mismatch':
+        return 'Unavailable';
+      case 'faction_mismatch':
+        return 'Unavailable';
+      case 'legendary_weapon_required':
+        return 'Legendary weapon required';
+      case 'ai_disabled':
+        return 'Unavailable';
+      case 'ai_hp_floor':
+        return 'Unavailable';
+      case 'invalid_owner_scope_config':
+        return 'Unavailable';
+      case 'invalid_faction_config':
+        return 'Unavailable';
+      case 'invalid_legendary_weapon_ids_config':
+        return 'Unavailable';
+      case 'invalid_unlock_act_config':
+        return 'Unavailable';
+      case 'invalid_input':
+        return 'Unavailable';
+      default:
+        return 'Unavailable';
     }
   }
 
@@ -6710,16 +7669,19 @@ export class BattleScene extends Phaser.Scene {
     const usage = unit?._battleWeaponArtUsage || {};
     const mapCount = usage.map?.[art.id] || 0;
     const currentTurnKey = String(this.turnManager?.turnNumber ?? '');
-    const turnCount = usage.turnKey === currentTurnKey ? (usage.turn?.[art.id] || 0) : 0;
+    const turnCount = usage.turnKey === currentTurnKey ? usage.turn?.[art.id] || 0 : 0;
     return { mapCount, turnCount };
   }
 
   _getWeaponArtStatusLine(unit, art, availability = null) {
-    const check = availability || canUseWeaponArt(unit, unit?.weapon, art, {
-      turnNumber: this.turnManager?.turnNumber,
-      isInitiating: true,
-    });
-    if (check?.ok === false || check?.canUse === false) return this._weaponArtReasonLabel(check.reason);
+    const check =
+      availability ||
+      canUseWeaponArt(unit, unit?.weapon, art, {
+        turnNumber: this.turnManager?.turnNumber,
+        isInitiating: true,
+      });
+    if (check?.ok === false || check?.canUse === false)
+      return this._weaponArtReasonLabel(check.reason);
     const hpCostLabel = this._formatWeaponArtCostLabel(unit, art);
     const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
     const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
@@ -6742,7 +7704,7 @@ export class BattleScene extends Phaser.Scene {
     if (selectedEntry) {
       this.hideActionMenu();
       this.attackTargets = attackTargets;
-      const attackTiles = attackTargets.map(e => ({ col: e.col, row: e.row }));
+      const attackTiles = attackTargets.map((e) => ({ col: e.col, row: e.row }));
       this.grid.showAttackRange(attackTiles);
       this.battleState = 'SELECTING_TARGET';
       return;
@@ -6754,7 +7716,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.hideActionMenu();
     this.attackTargets = attackTargets;
-    const attackTiles = attackTargets.map(e => ({ col: e.col, row: e.row }));
+    const attackTiles = attackTargets.map((e) => ({ col: e.col, row: e.row }));
     this.grid.showAttackRange(attackTiles);
     this.battleState = 'SELECTING_TARGET';
   }
@@ -6762,22 +7724,30 @@ export class BattleScene extends Phaser.Scene {
   _buildForecastSkillCtx(attacker, defender, weaponArt = null) {
     if (!weaponArt) return this.buildSkillCtx(attacker, defender, null);
     const hadPhoenixFlag = Object.prototype.hasOwnProperty.call(attacker, '_phoenixBroochUsed');
-    const hadTimedBuffs = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtBuffs');
-    const hadTimedAppliedStats = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtAppliedStats');
-    const hadTimedAppliedCombatMods = Object.prototype.hasOwnProperty.call(attacker, '_battleTimedWeaponArtAppliedCombatMods');
+    const hadTimedBuffs = Object.prototype.hasOwnProperty.call(
+      attacker,
+      '_battleTimedWeaponArtBuffs',
+    );
+    const hadTimedAppliedStats = Object.prototype.hasOwnProperty.call(
+      attacker,
+      '_battleTimedWeaponArtAppliedStats',
+    );
+    const hadTimedAppliedCombatMods = Object.prototype.hasOwnProperty.call(
+      attacker,
+      '_battleTimedWeaponArtAppliedCombatMods',
+    );
     const hadMov = Object.prototype.hasOwnProperty.call(attacker, 'mov');
 
     const originalHP = attacker.currentHP;
     const originalPhoenixFlag = attacker._phoenixBroochUsed;
     const originalMov = attacker.mov;
-    const originalStats = attacker?.stats && typeof attacker.stats === 'object'
-      ? { ...attacker.stats }
-      : null;
+    const originalStats =
+      attacker?.stats && typeof attacker.stats === 'object' ? { ...attacker.stats } : null;
     const originalTimedBuffs = Array.isArray(attacker._battleTimedWeaponArtBuffs)
       ? attacker._battleTimedWeaponArtBuffs.map((entry) => ({
-        ...(entry || {}),
-        stats: { ...(entry?.stats || {}) },
-      }))
+          ...(entry || {}),
+          stats: { ...(entry?.stats || {}) },
+        }))
       : attacker._battleTimedWeaponArtBuffs;
     const originalTimedAppliedStats = attacker._battleTimedWeaponArtAppliedStats
       ? { ...attacker._battleTimedWeaponArtAppliedStats }
@@ -6813,10 +7783,12 @@ export class BattleScene extends Phaser.Scene {
       if (hadTimedBuffs) attacker._battleTimedWeaponArtBuffs = originalTimedBuffs;
       else delete attacker._battleTimedWeaponArtBuffs;
 
-      if (hadTimedAppliedStats) attacker._battleTimedWeaponArtAppliedStats = originalTimedAppliedStats;
+      if (hadTimedAppliedStats)
+        attacker._battleTimedWeaponArtAppliedStats = originalTimedAppliedStats;
       else delete attacker._battleTimedWeaponArtAppliedStats;
 
-      if (hadTimedAppliedCombatMods) attacker._battleTimedWeaponArtAppliedCombatMods = originalTimedAppliedCombatMods;
+      if (hadTimedAppliedCombatMods)
+        attacker._battleTimedWeaponArtAppliedCombatMods = originalTimedAppliedCombatMods;
       else delete attacker._battleTimedWeaponArtAppliedCombatMods;
     }
   }
@@ -6845,11 +7817,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getPortraitKey(unit) {
-    const lordData = this.gameData.lords.find(l => l.name === unit.name);
+    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
     const classKey = `portrait_generic_${unit.className.toLowerCase().replace(/ /g, '_')}`;
     if (this.textures.exists(classKey)) return classKey;
-    const classData = this.gameData.classes.find(c => c.name === unit.className);
+    const classData = this.gameData.classes.find((c) => c.name === unit.className);
     if (classData?.promotesFrom) {
       const baseKey = `portrait_generic_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
       if (this.textures.exists(baseKey)) return baseKey;
@@ -6866,37 +7838,60 @@ export class BattleScene extends Phaser.Scene {
     const portraitKey = this._getPortraitKey(unit);
     if (portraitKey && this.textures.exists(portraitKey)) {
       const px = isAttacker ? x + 2 : x + sideW - 42;
-      const portrait = this.add.image(px + 20, y + 20, portraitKey)
-        .setDisplaySize(40, 40).setDepth(textDepth);
+      const portrait = this.add
+        .image(px + 20, y + 20, portraitKey)
+        .setDisplaySize(40, 40)
+        .setDepth(textDepth);
       this.forecastObjects.push(portrait);
     }
 
     // Name -- positioned next to portrait
     const nameX = isAttacker ? x + 48 : x + 2;
-    const name = this.add.text(nameX, y + 6, unit.name, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
-    }).setDepth(textDepth);
+    const name = this.add
+      .text(nameX, y + 6, unit.name, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(name);
 
     // EFFECTIVE! banner -- below name, beside portrait
-    if (unit.weapon && getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
-        (isAttacker || info.canCounter)) {
-      const eff = this.add.text(nameX, y + 22, 'EFFECTIVE!', {
-        fontFamily: 'monospace', fontSize: '9px', color: '#ff4444', fontStyle: 'bold',
-      }).setDepth(textDepth);
+    if (
+      unit.weapon &&
+      getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
+      (isAttacker || info.canCounter)
+    ) {
+      const eff = this.add
+        .text(nameX, y + 22, 'EFFECTIVE!', {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#ff4444',
+          fontStyle: 'bold',
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(eff);
     }
 
     // HP row -- below portrait area
     y += 44;
-    const hpLabel = this.add.text(x + 2, y, 'HP', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-    }).setDepth(textDepth);
+    const hpLabel = this.add
+      .text(x + 2, y, 'HP', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#aaaaaa',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(hpLabel);
 
-    const hpVal = this.add.text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
-    }).setDepth(textDepth);
+    const hpVal = this.add
+      .text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#ffffff',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(hpVal);
 
     // HP bar
@@ -6916,49 +7911,82 @@ export class BattleScene extends Phaser.Scene {
 
     // Cannot counter case (defender only)
     if (!isAttacker && !info.canCounter) {
-      const noCounter = this.add.text(x + sideW / 2, y + 4, '-- No Counter --', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#cc6666',
-      }).setOrigin(0.5, 0).setDepth(textDepth);
+      const noCounter = this.add
+        .text(x + sideW / 2, y + 4, '-- No Counter --', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#cc6666',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(textDepth);
       this.forecastObjects.push(noCounter);
 
       y += 20;
       const wpnName = unit.weapon?.name || 'Unarmed';
-      const wpn = this.add.text(x + 2, y, wpnName, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#88bbff',
-      }).setDepth(textDepth);
+      const wpn = this.add
+        .text(x + 2, y, wpnName, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#88bbff',
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(wpn);
       return;
     }
 
     // Stat row 1: Dmg + Hit
-    const dmgLabel = this.add.text(x + 2, y, 'Dmg', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-    }).setDepth(textDepth);
+    const dmgLabel = this.add
+      .text(x + 2, y, 'Dmg', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(dmgLabel);
-    const dmgVal = this.add.text(x + 32, y, `${info.damage}`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
-    }).setDepth(textDepth);
+    const dmgVal = this.add
+      .text(x + 32, y, `${info.damage}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#e0e0e0',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(dmgVal);
 
-    const hitLabel = this.add.text(x + 80, y, 'Hit', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-    }).setDepth(textDepth);
+    const hitLabel = this.add
+      .text(x + 80, y, 'Hit', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(hitLabel);
-    const hitVal = this.add.text(x + 108, y, `${info.hit}%`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
-    }).setDepth(textDepth);
+    const hitVal = this.add
+      .text(x + 108, y, `${info.hit}%`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#e0e0e0',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(hitVal);
 
     y += 14;
 
     // Stat row 2: Crt + doubling
-    const crtLabel = this.add.text(x + 2, y, 'Crt', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-    }).setDepth(textDepth);
+    const crtLabel = this.add
+      .text(x + 2, y, 'Crt', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(crtLabel);
-    const crtVal = this.add.text(x + 32, y, `${info.crit}%`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#e0e0e0',
-    }).setDepth(textDepth);
+    const crtVal = this.add
+      .text(x + 32, y, `${info.crit}%`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#e0e0e0',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(crtVal);
 
     // AS display
@@ -6966,20 +7994,33 @@ export class BattleScene extends Phaser.Scene {
     let asColor = '#e0e0e0';
     if (info.as < baseAs) asColor = '#ff6666';
     else if (info.as > baseAs) asColor = '#44ff88';
-    const asLabel = this.add.text(x + 80, y, 'AS', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-    }).setDepth(textDepth);
+    const asLabel = this.add
+      .text(x + 80, y, 'AS', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(asLabel);
-    const asVal = this.add.text(x + 108, y, `${info.as}`, {
-      fontFamily: 'monospace', fontSize: '10px', color: asColor,
-    }).setDepth(textDepth);
+    const asVal = this.add
+      .text(x + 108, y, `${info.as}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: asColor,
+      })
+      .setDepth(textDepth);
     this.forecastObjects.push(asVal);
 
     // Doubling indicator
     if (info.attackCount > 1) {
-      const countText = this.add.text(x + 134, y, `x${info.attackCount}`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44', fontStyle: 'bold',
-      }).setDepth(textDepth);
+      const countText = this.add
+        .text(x + 134, y, `x${info.attackCount}`, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#ffdd44',
+          fontStyle: 'bold',
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(countText);
     }
 
@@ -6993,24 +8034,38 @@ export class BattleScene extends Phaser.Scene {
 
     if (canCycle) {
       // Left arrow
-      const leftArrow = this.add.text(x + 1, y - 2, '\u25C4', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      }).setDepth(textDepth).setInteractive({ useHandCursor: true });
+      const leftArrow = this.add
+        .text(x + 1, y - 2, '\u25C4', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#888888',
+        })
+        .setDepth(textDepth)
+        .setInteractive({ useHandCursor: true });
       leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
       leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
       leftArrow.on('pointerdown', () => this._cycleForecastWeapon(-1));
       this.forecastObjects.push(leftArrow);
 
       // Current weapon name (centered between arrows)
-      const wpn = this.add.text(x + 16, y, wpnName, {
-        fontFamily: 'monospace', fontSize: '9px', color: wpnColor,
-      }).setDepth(textDepth);
+      const wpn = this.add
+        .text(x + 16, y, wpnName, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: wpnColor,
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(wpn);
 
       // Right arrow
-      const rightArrow = this.add.text(x + sideW - 14, y - 2, '\u25BA', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      }).setDepth(textDepth).setInteractive({ useHandCursor: true });
+      const rightArrow = this.add
+        .text(x + sideW - 14, y - 2, '\u25BA', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#888888',
+        })
+        .setDepth(textDepth)
+        .setInteractive({ useHandCursor: true });
       rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
       rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
       rightArrow.on('pointerdown', () => this._cycleForecastWeapon(1));
@@ -7021,15 +8076,23 @@ export class BattleScene extends Phaser.Scene {
       const nextIdx = (curIdx + 1) % validWpns.length;
       const nextWpn = validWpns[nextIdx];
       if (nextWpn) {
-        const preview = this.add.text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
-          fontFamily: 'monospace', fontSize: '8px', color: '#666688',
-        }).setDepth(textDepth);
+        const preview = this.add
+          .text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: '#666688',
+          })
+          .setDepth(textDepth);
         this.forecastObjects.push(preview);
       }
     } else {
-      const wpn = this.add.text(x + 2, y, wpnName, {
-        fontFamily: 'monospace', fontSize: '9px', color: wpnColor,
-      }).setDepth(textDepth);
+      const wpn = this.add
+        .text(x + 2, y, wpnName, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: wpnColor,
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(wpn);
     }
 
@@ -7038,17 +8101,21 @@ export class BattleScene extends Phaser.Scene {
     // Skills + Miracle (combined on one line if both present)
     const parts = [];
     if (info.skills?.length) {
-      parts.push(info.skills.map(s => s.name).join(', '));
+      parts.push(info.skills.map((s) => s.name).join(', '));
     }
     if (unit.skills?.includes('miracle')) {
       const used = unit._miracleUsed;
       parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
     }
     if (parts.length) {
-      const skillText = this.add.text(x + 2, y, parts.join('  '), {
-        fontFamily: 'monospace', fontSize: '9px', color: '#aaddff',
-        wordWrap: { width: sideW - 6 },
-      }).setDepth(textDepth);
+      const skillText = this.add
+        .text(x + 2, y, parts.join('  '), {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#aaddff',
+          wordWrap: { width: sideW - 6 },
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(skillText);
       y += 12;
     }
@@ -7057,19 +8124,32 @@ export class BattleScene extends Phaser.Scene {
       const hpCost = this._formatWeaponArtCostLabel(unit, this._forecastWeaponArt);
       const hpNow = Number(unit.currentHP) || 0;
       const hpAfter = this._getWeaponArtHpAfterCost(unit, this._forecastWeaponArt);
-      const artText = this.add.text(x + 2, y, `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#ffd98a',
-        wordWrap: { width: sideW - 6 },
-      }).setDepth(textDepth);
+      const artText = this.add
+        .text(
+          x + 2,
+          y,
+          `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#ffd98a',
+            wordWrap: { width: sideW - 6 },
+          },
+        )
+        .setDepth(textDepth);
       this.forecastObjects.push(artText);
       y += 12;
     }
 
     if (isAttacker && this._forecastGamblerLine) {
-      const gamblerText = this.add.text(x + 2, y, this._forecastGamblerLine, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#ffb38a',
-        wordWrap: { width: sideW - 6 },
-      }).setDepth(textDepth);
+      const gamblerText = this.add
+        .text(x + 2, y, this._forecastGamblerLine, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#ffb38a',
+          wordWrap: { width: sideW - 6 },
+        })
+        .setDepth(textDepth);
       this.forecastObjects.push(gamblerText);
       y += 12;
     }
@@ -7079,14 +8159,29 @@ export class BattleScene extends Phaser.Scene {
       for (const warn of info.warnings) {
         let label = warn.toUpperCase();
         let color = '#ffcc88';
-        if (warn === 'Shielded') { label = '[BLOCK]'; color = '#88ccff'; }
-        if (warn === 'Thorns') { label = '[REFLECT]'; color = '#ff8888'; }
-        if (warn === 'Teleporter') { label = '[WARP]'; color = '#cc88ff'; }
+        if (warn === 'Shielded') {
+          label = '[BLOCK]';
+          color = '#88ccff';
+        }
+        if (warn === 'Thorns') {
+          label = '[REFLECT]';
+          color = '#ff8888';
+        }
+        if (warn === 'Teleporter') {
+          label = '[WARP]';
+          color = '#cc88ff';
+        }
 
-        const warningText = this.add.text(x + 2, y, label, {
-          fontFamily: 'monospace', fontSize: '10px', color, fontStyle: 'bold',
-          backgroundColor: '#00000088', padding: { x: 4, y: 1 }
-        }).setDepth(textDepth);
+        const warningText = this.add
+          .text(x + 2, y, label, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color,
+            fontStyle: 'bold',
+            backgroundColor: '#00000088',
+            padding: { x: 4, y: 1 },
+          })
+          .setDepth(textDepth);
         this.forecastObjects.push(warningText);
         y += 14;
       }
@@ -7111,7 +8206,10 @@ export class BattleScene extends Phaser.Scene {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._forecastWeaponArt = weaponArt;
-    if (attacker?.accessory?.combatEffects?.gambler || attacker?.accessory?.combatEffects?.gamblerCoin) {
+    if (
+      attacker?.accessory?.combatEffects?.gambler ||
+      attacker?.accessory?.combatEffects?.gamblerCoin
+    ) {
       const delta = this._getGamblerAtkDelta(attacker, rollSession);
       const signed = delta >= 0 ? `+${delta}` : `${delta}`;
       this._forecastGamblerLine = `GAMBLER: ATK ${signed} (locked)`;
@@ -7121,10 +8219,14 @@ export class BattleScene extends Phaser.Scene {
     const skillCtx = this._buildForecastSkillCtx(attacker, defender, weaponArt);
 
     const forecast = getCombatForecast(
-      attacker, attacker.weapon,
-      defender, defender.weapon,
-      dist, atkTerrain, defTerrain,
-      skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      dist,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
     );
 
     // Compute valid weapons for cycling (weapons that can reach this target)
@@ -7136,20 +8238,30 @@ export class BattleScene extends Phaser.Scene {
     // Build graphical forecast panel (FE GBA-style split layout)
     this.forecastObjects = [];
     const depth = 200;
-    const panelW = 380, panelH = 152;
+    const panelW = 380,
+      panelH = 152;
     const panelX = (this.cameras.main.width - panelW) / 2;
     const panelY = this.cameras.main.height - panelH - 10;
     const halfW = (panelW - 8) / 2; // 186 per side
 
     // Panel background
-    const bg = this.add.rectangle(panelX + panelW / 2, panelY + panelH / 2,
-      panelW, panelH, 0x111122, 0.95
-    ).setDepth(depth).setStrokeStyle(2, 0x4466aa);
+    const bg = this.add
+      .rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x111122, 0.95)
+      .setDepth(depth)
+      .setStrokeStyle(2, 0x4466aa);
     this.forecastObjects.push(bg);
 
     // Draw attacker (left) and defender (right)
     this._drawForecastSide(panelX + 4, panelY, attacker, forecast.attacker, defender, true, depth);
-    this._drawForecastSide(panelX + halfW + 8, panelY, defender, forecast.defender, attacker, false, depth);
+    this._drawForecastSide(
+      panelX + halfW + 8,
+      panelY,
+      defender,
+      forecast.defender,
+      attacker,
+      false,
+      depth,
+    );
 
     // Center divider + VS
     const divGfx = this.add.graphics().setDepth(depth + 1);
@@ -7157,22 +8269,28 @@ export class BattleScene extends Phaser.Scene {
     divGfx.lineBetween(panelX + panelW / 2, panelY + 8, panelX + panelW / 2, panelY + panelH - 22);
     this.forecastObjects.push(divGfx);
 
-    const vs = this.add.text(panelX + panelW / 2, panelY + 28, 'VS', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#666688',
-    }).setOrigin(0.5).setDepth(depth + 1);
+    const vs = this.add
+      .text(panelX + panelW / 2, panelY + 28, 'VS', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#666688',
+      })
+      .setOrigin(0.5)
+      .setDepth(depth + 1);
     this.forecastObjects.push(vs);
 
     // Confirm footer: avoid text/button overlap and fall back to 2-row layout on narrow widths
     const hintStyle = { fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8' };
-    const hintPrimary = validWeapons.length >= 2
-      ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
-      : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
-    const hintCompact = validWeapons.length >= 2
-      ? 'Click enemy or button | \u25C4 \u25BA weapon | ESC cancel'
-      : 'Click enemy or button | ESC cancel';
-    const hintUltraCompact = validWeapons.length >= 2
-      ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC'
-      : '[CONFIRM] | ESC';
+    const hintPrimary =
+      validWeapons.length >= 2
+        ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
+        : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
+    const hintCompact =
+      validWeapons.length >= 2
+        ? 'Click enemy or button | \u25C4 \u25BA weapon | ESC cancel'
+        : 'Click enemy or button | ESC cancel';
+    const hintUltraCompact =
+      validWeapons.length >= 2 ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC' : '[CONFIRM] | ESC';
 
     const measureHint = (text) => {
       const t = this.add.text(-9999, -9999, text, hintStyle).setVisible(false);
@@ -7200,28 +8318,29 @@ export class BattleScene extends Phaser.Scene {
     const confirmBtnY = useTwoRows ? footerTop + 24 : footerTop + 9;
     const confirmBtnX = useTwoRows
       ? panelX + panelW / 2
-      : panelX + panelW - footerRightPad - (confirmBtnW / 2);
+      : panelX + panelW - footerRightPad - confirmBtnW / 2;
     const hintX = panelX + footerLeftPad;
-    const hintWrapW = useTwoRows
-      ? panelW - footerLeftPad - footerRightPad - 2
-      : hintMaxSingleRow;
+    const hintWrapW = useTwoRows ? panelW - footerLeftPad - footerRightPad - 2 : hintMaxSingleRow;
 
-    const hintBg = this.add.rectangle(panelX + panelW / 2, footerTop + (footerH / 2),
-      panelW - 4, footerH, 0x0a0a15, 0.8
-    ).setDepth(depth);
+    const hintBg = this.add
+      .rectangle(panelX + panelW / 2, footerTop + footerH / 2, panelW - 4, footerH, 0x0a0a15, 0.8)
+      .setDepth(depth);
     this.forecastObjects.push(hintBg);
 
-    const confirmBtnBg = this.add.rectangle(
-      confirmBtnX,
-      confirmBtnY,
-      confirmBtnW,
-      confirmBtnH,
-      0x1d5f2a,
-      0.95
-    ).setDepth(depth + 1).setStrokeStyle(1, 0x4dff77).setInteractive({ useHandCursor: true });
-    const confirmBtnText = this.add.text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#d8ffe1', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(depth + 2);
+    const confirmBtnBg = this.add
+      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, 0x1d5f2a, 0.95)
+      .setDepth(depth + 1)
+      .setStrokeStyle(1, 0x4dff77)
+      .setInteractive({ useHandCursor: true });
+    const confirmBtnText = this.add
+      .text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#d8ffe1',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(depth + 2);
     confirmBtnBg.on('pointerover', () => {
       confirmBtnBg.setFillStyle(0x2c7b3a, 1);
       confirmBtnText.setColor('#ffffff');
@@ -7237,10 +8356,13 @@ export class BattleScene extends Phaser.Scene {
     });
     this.forecastObjects.push(confirmBtnBg, confirmBtnText);
 
-    const hint = this.add.text(hintX, hintY, hintText, {
-      ...hintStyle,
-      wordWrap: { width: hintWrapW, useAdvancedWrap: false },
-    }).setOrigin(0, 0.5).setDepth(depth + 1);
+    const hint = this.add
+      .text(hintX, hintY, hintText, {
+        ...hintStyle,
+        wordWrap: { width: hintWrapW, useAdvancedWrap: false },
+      })
+      .setOrigin(0, 0.5)
+      .setDepth(depth + 1);
     this.forecastObjects.push(hint);
     this._pinToScreen(this.forecastObjects);
 
@@ -7248,7 +8370,10 @@ export class BattleScene extends Phaser.Scene {
       this.tutorialStep = 5;
       const prevState = this.battleState;
       this.battleState = 'TUTORIAL_HINT';
-      await showImportantHint(this, 'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.');
+      await showImportantHint(
+        this,
+        'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
+      );
       if (this.scene?.isActive?.()) this.battleState = prevState;
     }
   }
@@ -7274,9 +8399,10 @@ export class BattleScene extends Phaser.Scene {
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._ensureCombatRollSession(attacker, defender);
-    const selectedArt = attacker.faction === 'player'
-      ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
-      : null;
+    const selectedArt =
+      attacker.faction === 'player'
+        ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
+        : null;
     if (selectedArt) {
       applyWeaponArtCost(attacker, selectedArt);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
@@ -7287,10 +8413,14 @@ export class BattleScene extends Phaser.Scene {
     const skillCtx = this.buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
-      attacker, attacker.weapon,
-      defender, defender.weapon,
-      dist, atkTerrain, defTerrain,
-      skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      dist,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
     );
 
     for (const event of result.events) {
@@ -7308,8 +8438,14 @@ export class BattleScene extends Phaser.Scene {
     defender.currentHP = result.defenderHP;
 
     if (this.isDevToolsEnabled() && debugState.invincible) {
-      if (attacker.faction === 'player') { attacker.currentHP = attacker.stats.HP; result.attackerDied = false; }
-      if (defender.faction === 'player') { defender.currentHP = defender.stats.HP; result.defenderDied = false; }
+      if (attacker.faction === 'player') {
+        attacker.currentHP = attacker.stats.HP;
+        result.attackerDied = false;
+      }
+      if (defender.faction === 'player') {
+        defender.currentHP = defender.stats.HP;
+        result.defenderDied = false;
+      }
     }
 
     this.updateHPBar(attacker);
@@ -7326,14 +8462,26 @@ export class BattleScene extends Phaser.Scene {
     await this._checkPhoenixBrooch(defender);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const damageDealt = Math.max(0, defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)));
-      await this.awardXP(attacker, defender, defender.currentHP <= 0, damageDealt, defenderHpAtStart);
+      const damageDealt = Math.max(
+        0,
+        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
+      );
+      await this.awardXP(
+        attacker,
+        defender,
+        defender.currentHP <= 0,
+        damageDealt,
+        defenderHpAtStart,
+      );
     }
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
       this.tutorialStep = 6;
       this.battleState = 'TUTORIAL_HINT';
-      await showImportantHint(this, 'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!');
+      await showImportantHint(
+        this,
+        'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
+      );
       if (!this.scene?.isActive?.()) return;
       this.battleState = 'COMBAT_RESOLVING';
     }
@@ -7361,8 +8509,8 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (!attacker._gambitUsedThisTurn) {
-      const gambitTriggered = result.events.some(e =>
-        e.skillActivations?.some(s => s.id === 'commanders_gambit')
+      const gambitTriggered = result.events.some((e) =>
+        e.skillActivations?.some((s) => s.id === 'commanders_gambit'),
       );
       if (gambitTriggered) {
         attacker._gambitUsedThisTurn = true;
@@ -7397,12 +8545,12 @@ export class BattleScene extends Phaser.Scene {
     const inferredSide = sourceSide || null;
     const didLandHit = inferredSide
       ? didCombatSideLandHit(
-        events,
-        inferredSide,
-        inferredSide === 'attacker' ? attacker : defender,
-        inferredSide === 'attacker' ? defender : attacker
-      )
-      : events.some(e => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
+          events,
+          inferredSide,
+          inferredSide === 'attacker' ? attacker : defender,
+          inferredSide === 'attacker' ? defender : attacker,
+        )
+      : events.some((e) => e.type === 'strike' && !e.miss && e.attacker === attacker.name);
     if (!didLandHit || !attacker.affixes?.length) return;
     const affixResult = getAttackAffixes(attacker, this.gameData.affixes);
 
@@ -7415,7 +8563,12 @@ export class BattleScene extends Phaser.Scene {
     if (affixResult.debuffStat && defender.currentHP > 0) {
       this.applyBattleDebuff(defender, affixResult.debuffStat, affixResult.debuffValue);
       const pos = this.grid.gridToPixel(defender.col, defender.row);
-      this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`, '#ff8888');
+      this.showMinorHintAt(
+        pos.x,
+        pos.y,
+        `-${Math.abs(affixResult.debuffValue)} ${affixResult.debuffStat}`,
+        '#ff8888',
+      );
     }
   }
 
@@ -7437,8 +8590,12 @@ export class BattleScene extends Phaser.Scene {
     for (const step of steps) {
       const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
       const targetUnit = step.targetSide
-        ? (step.targetSide === 'attacker' ? attacker : defender)
-        : (step.sourceSide === 'defender' ? attacker : defender);
+        ? step.targetSide === 'attacker'
+          ? attacker
+          : defender
+        : step.sourceSide === 'defender'
+          ? attacker
+          : defender;
       switch (step.type) {
         case 'affix':
           await this.applyOnAttackAffixes(sourceUnit, targetUnit, result.events, step.sourceSide);
@@ -7506,13 +8663,17 @@ export class BattleScene extends Phaser.Scene {
   async _applyDivineChargeHealStep(step, attacker, defender) {
     const caster = step.side === 'defender' ? defender : attacker;
     if (!caster || caster.currentHP <= 0) return;
-    const healAmount = Math.floor(step.damageDealt * step.percent / 100);
+    const healAmount = Math.floor((step.damageDealt * step.percent) / 100);
     if (healAmount <= 0) return;
-    const allies = this.getDivineChargeAllies(caster)
-      .filter(u => u.currentHP > 0 && u.currentHP < u.stats.HP && u !== caster
-        && gridDistance(caster.col, caster.row, u.col, u.row) <= step.range);
+    const allies = this.getDivineChargeAllies(caster).filter(
+      (u) =>
+        u.currentHP > 0 &&
+        u.currentHP < u.stats.HP &&
+        u !== caster &&
+        gridDistance(caster.col, caster.row, u.col, u.row) <= step.range,
+    );
     if (allies.length === 0) return;
-    allies.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP));
+    allies.sort((a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP);
     const healTarget = allies[0];
     const prevHP = healTarget.currentHP;
     healTarget.currentHP = Math.min(healTarget.stats.HP, healTarget.currentHP + healAmount);
@@ -7558,10 +8719,10 @@ export class BattleScene extends Phaser.Scene {
     const secondaryCol = primaryTarget.col + dc;
     const secondaryRow = primaryTarget.row + dr;
     if (
-      secondaryCol < 0
-      || secondaryCol >= this.grid.cols
-      || secondaryRow < 0
-      || secondaryRow >= this.grid.rows
+      secondaryCol < 0 ||
+      secondaryCol >= this.grid.cols ||
+      secondaryRow < 0 ||
+      secondaryRow >= this.grid.rows
     ) {
       return null;
     }
@@ -7617,7 +8778,9 @@ export class BattleScene extends Phaser.Scene {
     if (radius <= 0) return [];
     const candidates = this._getTier5HostileUnitsFor(sourceUnit)
       .filter((unit) => unit && unit !== primaryTarget && unit.currentHP > 0)
-      .filter((unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius);
+      .filter(
+        (unit) => gridDistance(primaryTarget.col, primaryTarget.row, unit.col, unit.row) <= radius,
+      );
     const maxTargets = Math.max(0, Math.trunc(Number(step?.maxTargets) || 0));
     if (maxTargets === 1) {
       candidates.sort((a, b) => {
@@ -7710,14 +8873,18 @@ export class BattleScene extends Phaser.Scene {
   _recomputeTimedWeaponArtBuffState(unit) {
     if (!unit) return;
     const buffs = Array.isArray(unit._battleTimedWeaponArtBuffs)
-      ? unit._battleTimedWeaponArtBuffs.filter((entry) => entry && entry.stats && typeof entry.stats === 'object')
+      ? unit._battleTimedWeaponArtBuffs.filter(
+          (entry) => entry && entry.stats && typeof entry.stats === 'object',
+        )
       : [];
     unit._battleTimedWeaponArtBuffs = buffs;
 
     const strongestByStat = {};
     for (const entry of buffs) {
       for (const [rawStat, rawValue] of Object.entries(entry.stats || {})) {
-        const stat = String(rawStat || '').trim().toUpperCase();
+        const stat = String(rawStat || '')
+          .trim()
+          .toUpperCase();
         if (!stat) continue;
         const value = Math.trunc(Number(rawValue) || 0);
         if (value === 0) continue;
@@ -7761,7 +8928,8 @@ export class BattleScene extends Phaser.Scene {
     if (Object.keys(nextApplied).length > 0) unit._battleTimedWeaponArtAppliedStats = nextApplied;
     else delete unit._battleTimedWeaponArtAppliedStats;
 
-    if (Object.keys(combatMods).length > 0) unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
+    if (Object.keys(combatMods).length > 0)
+      unit._battleTimedWeaponArtAppliedCombatMods = combatMods;
     else delete unit._battleTimedWeaponArtAppliedCombatMods;
 
     if (unit._battleTimedWeaponArtBuffs.length <= 0) {
@@ -7787,7 +8955,9 @@ export class BattleScene extends Phaser.Scene {
     if (!rawStats || typeof rawStats !== 'object') return;
     const stats = {};
     for (const [rawStat, rawValue] of Object.entries(rawStats)) {
-      const stat = String(rawStat || '').trim().toUpperCase();
+      const stat = String(rawStat || '')
+        .trim()
+        .toUpperCase();
       if (!stat) continue;
       const value = Math.trunc(Number(rawValue) || 0);
       if (value === 0) continue;
@@ -7802,7 +8972,10 @@ export class BattleScene extends Phaser.Scene {
       .filter((ally) => gridDistance(sourceUnit.col, sourceUnit.row, ally.col, ally.row) <= range);
     if (allies.length <= 0) return;
 
-    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(sourceUnit, step?.durationPhases);
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
+      sourceUnit,
+      step?.durationPhases,
+    );
     const keyRoot = `${String(step?.artId || 'tier5_buff')}::${String(sourceUnit.name || '')}`;
     for (const ally of allies) {
       this._applyTier5TimedBuffEntry(ally, {
@@ -7822,9 +8995,17 @@ export class BattleScene extends Phaser.Scene {
   _expireTimedWeaponArtBuffs(phase, turn) {
     const normalizedPhase = phase === 'enemy' ? 'enemy' : 'player';
     const normalizedTurn = Math.max(1, Math.trunc(Number(turn) || 1));
-    const units = [...(this.playerUnits || []), ...(this.enemyUnits || []), ...(this.npcUnits || [])];
+    const units = [
+      ...(this.playerUnits || []),
+      ...(this.enemyUnits || []),
+      ...(this.npcUnits || []),
+    ];
     for (const unit of units) {
-      if (!Array.isArray(unit?._battleTimedWeaponArtBuffs) || unit._battleTimedWeaponArtBuffs.length <= 0) continue;
+      if (
+        !Array.isArray(unit?._battleTimedWeaponArtBuffs) ||
+        unit._battleTimedWeaponArtBuffs.length <= 0
+      )
+        continue;
       const previousCount = unit._battleTimedWeaponArtBuffs.length;
       unit._battleTimedWeaponArtBuffs = unit._battleTimedWeaponArtBuffs.filter((entry) => {
         const expiryPhase = entry?.expiryPhase === 'enemy' ? 'enemy' : 'player';
@@ -7873,52 +9054,80 @@ export class BattleScene extends Phaser.Scene {
 
   async animateStrike(event, attacker, defender) {
     const reduced = this._isReducedEffects();
-    const strikerIsAttacker = (event.attackerSide === 'attacker' || event.attackerSide === 'defender')
-      ? event.attackerSide === 'attacker'
-      : event.attacker === attacker.name;
+    const strikerIsAttacker =
+      event.attackerSide === 'attacker' || event.attackerSide === 'defender'
+        ? event.attackerSide === 'attacker'
+        : event.attacker === attacker.name;
     const striker = strikerIsAttacker ? attacker : defender;
     const target = strikerIsAttacker ? defender : attacker;
 
     if (event.skillActivations?.length) {
-      const names = event.skillActivations.map(s => s.name).join(', ');
+      const names = event.skillActivations.map((s) => s.name).join(', ');
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const skillText = this.add.text(sPos.x, sPos.y - 24, names, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#88ffff', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(301);
+      const skillText = this.add
+        .text(sPos.x, sPos.y - 24, names, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#88ffff',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(301);
       this.tweens.add({
-        targets: skillText, y: sPos.y - 40, alpha: 0,
-        duration: reduced ? 260 : 700, onComplete: () => skillText.destroy(),
+        targets: skillText,
+        y: sPos.y - 40,
+        alpha: 0,
+        duration: reduced ? 260 : 700,
+        onComplete: () => skillText.destroy(),
       });
     }
 
     const audio = this.registry.get('audio');
     if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
     if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
-    await new Promise(resolve => this.time.delayedCall(reduced ? 70 : 120, resolve));
+    await new Promise((resolve) => this.time.delayedCall(reduced ? 70 : 120, resolve));
     if (striker.graphic?.clearTint) striker.graphic.clearTint();
 
     if (event.miss) {
       const pos = this.grid.gridToPixel(target.col, target.row);
-      const missText = this.add.text(pos.x, pos.y - 16, 'MISS', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(300);
+      const missText = this.add
+        .text(pos.x, pos.y - 16, 'MISS', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#aaaaaa',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(300);
       this.tweens.add({
-        targets: missText, y: pos.y - 32, alpha: 0,
-        duration: reduced ? 220 : 500, onComplete: () => missText.destroy(),
+        targets: missText,
+        y: pos.y - 32,
+        alpha: 0,
+        duration: reduced ? 220 : 500,
+        onComplete: () => missText.destroy(),
       });
-      await new Promise(resolve => this.time.delayedCall(reduced ? 200 : 300, resolve));
+      await new Promise((resolve) => this.time.delayedCall(reduced ? 200 : 300, resolve));
       return;
     }
 
     if (target.graphic?.setTint) target.graphic.setTint(0xff4444);
     if (audio) audio.playSFX(event.isCrit ? 'sfx_crit' : 'sfx_hit');
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const dmgText = this.add.text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
-      fontFamily: 'monospace', fontSize: '13px', color: event.isCrit ? '#ffff00' : '#ffffff', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(300);
+    const dmgText = this.add
+      .text(pos.x, pos.y - 16, event.isCrit ? `${event.damage}!` : `${event.damage}`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: event.isCrit ? '#ffff00' : '#ffffff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
     this.tweens.add({
-      targets: dmgText, y: pos.y - 32, alpha: 0,
-      duration: reduced ? 260 : 600, onComplete: () => dmgText.destroy(),
+      targets: dmgText,
+      y: pos.y - 32,
+      alpha: 0,
+      duration: reduced ? 260 : 600,
+      onComplete: () => dmgText.destroy(),
     });
 
     target.currentHP = event.targetHPAfter;
@@ -7928,12 +9137,21 @@ export class BattleScene extends Phaser.Scene {
       striker.currentHP = event.strikerHealTo;
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = this.add.text(sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#44ff44', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(300);
+      const healText = this.add
+        .text(sPos.x + 12, sPos.y - 8, `+${event.heal}`, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#44ff44',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(300);
       this.tweens.add({
-        targets: healText, y: sPos.y - 28, alpha: 0,
-        duration: reduced ? 260 : 600, onComplete: () => healText.destroy(),
+        targets: healText,
+        y: sPos.y - 28,
+        alpha: 0,
+        duration: reduced ? 260 : 600,
+        onComplete: () => healText.destroy(),
       });
     }
 
@@ -7941,16 +9159,25 @@ export class BattleScene extends Phaser.Scene {
       striker.currentHP = Math.max(1, striker.currentHP - event.reflectDamage);
       this.updateHPBar(striker);
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = this.add.text(sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ff4444', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(300);
+      const refText = this.add
+        .text(sPos.x, sPos.y - 16, `${event.reflectDamage}`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ff4444',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(300);
       this.tweens.add({
-        targets: refText, y: sPos.y - 32, alpha: 0,
-        duration: reduced ? 260 : 600, onComplete: () => refText.destroy(),
+        targets: refText,
+        y: sPos.y - 32,
+        alpha: 0,
+        duration: reduced ? 260 : 600,
+        onComplete: () => refText.destroy(),
       });
     }
 
-    await new Promise(resolve => this.time.delayedCall(reduced ? 80 : 150, resolve));
+    await new Promise((resolve) => this.time.delayedCall(reduced ? 80 : 150, resolve));
     if (target.graphic?.clearTint) target.graphic.clearTint();
 
     if (event.warpRange > 0 && target.currentHP > 0) {
@@ -7960,13 +9187,21 @@ export class BattleScene extends Phaser.Scene {
 
   /** Execute warp for Teleporter affix. Target is the unit warping. */
   async executeWarp(unit, range, attacker) {
-    const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) => this.getUnitAt(c, r));
+    const bestPicks = getWarpCandidates(unit, range, attacker, this.grid, (c, r) =>
+      this.getUnitAt(c, r),
+    );
     if (bestPicks.length === 0) return;
     const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
 
-    await new Promise(resolve => {
+    await new Promise((resolve) => {
       this.tweens.add({
-        targets: [unit.graphic, unit.label, unit.factionIndicator, unit.hpBar.bg, unit.hpBar.fill].filter(Boolean),
+        targets: [
+          unit.graphic,
+          unit.label,
+          unit.factionIndicator,
+          unit.hpBar.bg,
+          unit.hpBar.fill,
+        ].filter(Boolean),
         alpha: 0,
         duration: 180,
         onComplete: () => {
@@ -7974,7 +9209,13 @@ export class BattleScene extends Phaser.Scene {
           unit.row = pick.row;
           this.updateUnitPosition(unit);
           this.tweens.add({
-            targets: [unit.graphic, unit.label, unit.factionIndicator, unit.hpBar.bg, unit.hpBar.fill].filter(Boolean),
+            targets: [
+              unit.graphic,
+              unit.label,
+              unit.factionIndicator,
+              unit.hpBar.bg,
+              unit.hpBar.fill,
+            ].filter(Boolean),
             alpha: unit.hasActed ? 0.5 : 1,
             duration: 180,
             onComplete: resolve,
@@ -7985,21 +9226,35 @@ export class BattleScene extends Phaser.Scene {
   }
   /** Animate a skill activation event (Vantage, Astra banner) */
   animateSkillActivation(event) {
-    return new Promise(resolve => {
-      const text = this.add.text(
-        this.cameras.main.centerX, this.cameras.main.centerY - 40,
-        `${event.unit} -- ${event.name}!`,
-        {
-          fontFamily: 'monospace', fontSize: '14px', color: '#88ffff',
-          backgroundColor: '#000000cc', padding: { x: 10, y: 4 },
-        }
-      ).setOrigin(0.5).setDepth(500).setAlpha(0);
+    return new Promise((resolve) => {
+      const text = this.add
+        .text(
+          this.cameras.main.centerX,
+          this.cameras.main.centerY - 40,
+          `${event.unit} -- ${event.name}!`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#88ffff',
+            backgroundColor: '#000000cc',
+            padding: { x: 10, y: 4 },
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(500)
+        .setAlpha(0);
       this._pinToScreen(text);
 
       this.tweens.add({
-        targets: text, alpha: 1, duration: 150,
-        yoyo: true, hold: 400,
-        onComplete: () => { text.destroy(); resolve(); },
+        targets: text,
+        alpha: 1,
+        duration: 150,
+        yoyo: true,
+        hold: 400,
+        onComplete: () => {
+          text.destroy();
+          resolve();
+        },
       });
     });
   }
@@ -8008,30 +9263,54 @@ export class BattleScene extends Phaser.Scene {
   showAutoSwitchTooltip(unit, weapon) {
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add.text(pos.x, pos.y - 20, `Switched to ${weapon.name}`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
-      backgroundColor: '#000000cc', padding: { x: 4, y: 2 },
-    }).setOrigin(0.5).setDepth(301);
+    const text = this.add
+      .text(pos.x, pos.y - 20, `Switched to ${weapon.name}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#88ccff',
+        backgroundColor: '#000000cc',
+        padding: { x: 4, y: 2 },
+      })
+      .setOrigin(0.5)
+      .setDepth(301);
     this.tweens.add({
-      targets: text, alpha: 0, y: pos.y - 36,
-      duration: 1200, delay: 400,
+      targets: text,
+      alpha: 0,
+      y: pos.y - 36,
+      duration: 1200,
+      delay: 400,
       onComplete: () => text.destroy(),
     });
   }
 
   /** Show poison damage floating text. */
   showPoisonDamage(unit, damage) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const reduced = this._isReducedEffects();
-      if (!unit.graphic) { resolve(); return; }
+      if (!unit.graphic) {
+        resolve();
+        return;
+      }
       const pos = this.grid.gridToPixel(unit.col, unit.row);
-      const text = this.add.text(pos.x, pos.y - 16, `Poison -${damage}`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#cc66ff', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(301);
+      const text = this.add
+        .text(pos.x, pos.y - 16, `Poison -${damage}`, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#cc66ff',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(301);
       this.updateHPBar(unit);
       this.tweens.add({
-        targets: text, y: pos.y - 32, alpha: 0,
-        duration: reduced ? 260 : 600, onComplete: () => { text.destroy(); resolve(); },
+        targets: text,
+        y: pos.y - 32,
+        alpha: 0,
+        duration: reduced ? 260 : 600,
+        onComplete: () => {
+          text.destroy();
+          resolve();
+        },
       });
     });
   }
@@ -8071,19 +9350,30 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async awardScaledXP(playerUnit, baseXp) {
-    const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier) ? this.battleParams.xpMultiplier : 1;
+    const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier)
+      ? this.battleParams.xpMultiplier
+      : 1;
     const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
     const xp = Math.max(1, Math.floor(baseXp * (xpMultiplier + blessingXpDelta)));
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
-    const xpText = this.add.text(pos.x, pos.y - 20, `+${xp} XP`, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#88ccff', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(300);
+    const xpText = this.add
+      .text(pos.x, pos.y - 20, `+${xp} XP`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#88ccff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
 
     this.tweens.add({
-      targets: xpText, y: pos.y - 44, alpha: 0,
-      duration: 800, onComplete: () => xpText.destroy(),
+      targets: xpText,
+      y: pos.y - 44,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => xpText.destroy(),
     });
 
     // Apply XP and check for level-ups
@@ -8096,8 +9386,8 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(playerUnit);
       // Check for new skills learned at this level
       const learnedIds = checkLevelUpSkills(playerUnit, this.gameData.classes);
-      const learnedNames = learnedIds.map(id => {
-        const skill = this.gameData.skills.find(s => s.id === id);
+      const learnedNames = learnedIds.map((id) => {
+        const skill = this.gameData.skills.find((s) => s.id === id);
         return skill ? skill.name : id;
       });
       const popup = new LevelUpPopup(this, playerUnit, lvUp, false, learnedNames);
@@ -8144,24 +9434,35 @@ export class BattleScene extends Phaser.Scene {
     const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
     for (const effect of deathEffects) {
       if (effect.type !== 'aoe_damage') continue;
-      const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
-        .filter(other => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1));
+      const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].filter(
+        (other) => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1),
+      );
       for (const victim of victims) {
         if (victim.currentHP <= 0) continue;
         victim.currentHP = Math.max(0, victim.currentHP - effect.amount);
         this.updateHPBar(victim);
         const pos = this.grid.gridToPixel(victim.col, victim.row);
-        const txt = this.add.text(pos.x, pos.y - 16, `${effect.amount}`, {
-          fontFamily: 'monospace', fontSize: '12px', color: '#ff8844', fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(320);
+        const txt = this.add
+          .text(pos.x, pos.y - 16, `${effect.amount}`, {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#ff8844',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(320);
         this.tweens.add({
-          targets: txt, y: pos.y - 32, alpha: 0, duration: 500, onComplete: () => txt.destroy(),
+          targets: txt,
+          y: pos.y - 32,
+          alpha: 0,
+          duration: 500,
+          onComplete: () => txt.destroy(),
         });
         if (victim.currentHP <= 0) {
           await this.removeUnit(victim, { killer: unit });
         }
       }
-      await new Promise(resolve => this.time.delayedCall(150, resolve));
+      await new Promise((resolve) => this.time.delayedCall(150, resolve));
     }
 
     unit._removing = false;
@@ -8206,7 +9507,9 @@ export class BattleScene extends Phaser.Scene {
         const rating = getRating(turn, this.turnPar, this.turnBonusConfig);
         const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
         const pressureSuffix = this.getTurnPressureSummary(turn);
-        this.turnCounterText.setText(`Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`);
+        this.turnCounterText.setText(
+          `Turn: ${turn} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
+        );
         this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
       } else if (this.turnCounterText) {
         const pressureSuffix = this.getTurnPressureSummary(turn);
@@ -8235,21 +9538,23 @@ export class BattleScene extends Phaser.Scene {
         this.time.delayedCall(1500, async () => {
           const prevState = this.battleState;
           this.battleState = 'TUTORIAL_HINT';
-          await showImportantHint(this, 'Welcome to the tutorial!\nLearn the basics of tactical combat.');
+          await showImportantHint(
+            this,
+            'Welcome to the tutorial!\nLearn the basics of tactical combat.',
+          );
           if (!this.scene?.isActive?.()) return;
           this.tutorialStep = 1;
           const verb = this.isMobileInput ? 'Tap' : 'Click';
-          await showImportantHint(this, `${verb} a blue unit to select it.\nBlue tiles show where it can move.`);
+          await showImportantHint(
+            this,
+            `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
+          );
           if (!this.scene?.isActive?.()) return;
           this.tutorialStep = 2;
           this._setTutorialGuideHighlight('edric');
           this.battleState = prevState;
         });
-      } else if (
-        this.battleParams.tutorialMode &&
-        !this._tutorialVisionIntroShown &&
-        turn === 3
-      ) {
+      } else if (this.battleParams.tutorialMode && !this._tutorialVisionIntroShown && turn === 3) {
         this._tutorialVisionIntroShown = true;
         this.time.delayedCall(1500, async () => {
           const prevState = this.battleState;
@@ -8261,29 +9566,35 @@ export class BattleScene extends Phaser.Scene {
       } else if (this.battleParams.tutorialMode) {
         // Suppress normal hints during tutorial -- do nothing
       } else {
-      const hints = this.registry.get('hints');
-      if (hints && turn === 1) {
-        this.time.delayedCall(1500, async () => {
-          if (hints.shouldShow('battle_first_turn')) {
-            const inspectHint = this.isMobileInput
-              ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
-              : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
-            await showImportantHint(this, inspectHint);
-          }
-          if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
-            await showImportantHint(this, 'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!');
-          }
-          if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
-            await showImportantHint(this, 'Defeat the boss, then move a Lord\nto the throne and select Seize!');
-          }
-        });
-      } else if (hints && turn === 2) {
-        this.time.delayedCall(1500, () => {
-          if (hints.shouldShow('battle_danger_zone')) {
-            showMinorHint(this, 'Press [D] to show enemy threat range.');
-          }
-        });
-      }
+        const hints = this.registry.get('hints');
+        if (hints && turn === 1) {
+          this.time.delayedCall(1500, async () => {
+            if (hints.shouldShow('battle_first_turn')) {
+              const inspectHint = this.isMobileInput
+                ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+                : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
+              await showImportantHint(this, inspectHint);
+            }
+            if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
+              await showImportantHint(
+                this,
+                'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
+              );
+            }
+            if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
+              await showImportantHint(
+                this,
+                'Defeat the boss, then move a Lord\nto the throne and select Seize!',
+              );
+            }
+          });
+        } else if (hints && turn === 2) {
+          this.time.delayedCall(1500, () => {
+            if (hints.shouldShow('battle_danger_zone')) {
+              showMinorHint(this, 'Press [D] to show enemy threat range.');
+            }
+          });
+        }
       } // end else (non-tutorial hints)
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
@@ -8310,7 +9621,10 @@ export class BattleScene extends Phaser.Scene {
     const skillEffects = getTurnStartEffects(units, this.gameData.skills);
     for (const effect of skillEffects) {
       if (effect.type === 'heal' && effect.amount > 0) {
-        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
+        effect.target.currentHP = Math.min(
+          effect.target.stats.HP,
+          effect.target.currentHP + effect.amount,
+        );
         this.updateHPBar(effect.target);
         await this.animateHeal(effect.target, effect.amount);
       }
@@ -8320,7 +9634,10 @@ export class BattleScene extends Phaser.Scene {
     const affixEffects = getTurnStartAffixes(units, this.gameData.affixes);
     for (const effect of affixEffects) {
       if (effect.type === 'heal' && effect.amount > 0) {
-        effect.target.currentHP = Math.min(effect.target.stats.HP, effect.target.currentHP + effect.amount);
+        effect.target.currentHP = Math.min(
+          effect.target.stats.HP,
+          effect.target.currentHP + effect.amount,
+        );
         this.updateHPBar(effect.target);
         await this.animateHeal(effect.target, effect.amount);
       } else if (effect.type === 'spawn_terrain') {
@@ -8341,7 +9658,7 @@ export class BattleScene extends Phaser.Scene {
   async executeWallerSpawn(effect) {
     const unit = effect.sourceUnit;
     const range = effect.range || 1;
-    
+
     // Find valid adjacent tiles: empty, no combat stats (Plain/Floor usually)
     const candidates = [];
     for (let dr = -range; dr <= range; dr++) {
@@ -8350,10 +9667,10 @@ export class BattleScene extends Phaser.Scene {
         if (Math.abs(dr) + Math.abs(dc) > range) continue;
         const col = unit.col + dc;
         const row = unit.row + dr;
-        
+
         if (col < 0 || col >= this.grid.cols || row < 0 || row >= this.grid.rows) continue;
         if (this.getUnitAt(col, row)) continue;
-        
+
         const terrain = this.grid.getTerrainAt(col, row);
         if (!terrain) continue;
 
@@ -8361,7 +9678,8 @@ export class BattleScene extends Phaser.Scene {
         if (terrain.name === 'Fort' || terrain.name === 'Throne') continue;
 
         // Only spawn on "boring" terrain (no DEF/AVO bonus) to avoid destroying tactical spots
-        const hasCombatBonus = (parseInt(terrain?.avoidBonus) || 0) !== 0 || (parseInt(terrain?.defBonus) || 0) !== 0;
+        const hasCombatBonus =
+          (parseInt(terrain?.avoidBonus) || 0) !== 0 || (parseInt(terrain?.defBonus) || 0) !== 0;
         if (!hasCombatBonus) {
           candidates.push({ col, row });
         }
@@ -8369,7 +9687,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (candidates.length === 0) return;
-    
+
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     // We'll implement this.grid.setTemporaryTerrain in 6.4
     if (this.grid.setTemporaryTerrain) {
@@ -8381,10 +9699,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showMinorHintAt(x, y, message, color = '#ffdd44') {
-    const text = this.add.text(x, y, message, {
-      fontFamily: 'monospace', fontSize: '11px', color,
-      backgroundColor: '#000000cc', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setDepth(1000);
+    const text = this.add
+      .text(x, y, message, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 6, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(1000);
     text._forceWorldCamera = true;
 
     this.tweens.add({
@@ -8407,11 +9731,11 @@ export class BattleScene extends Phaser.Scene {
     unit.stats[stat] = Math.max(0, unit.stats[stat] + value);
     // Special guard for MOV: minimum 1
     if (stat === 'MOV') unit.stats[stat] = Math.max(1, unit.stats[stat]);
-    
+
     // Store the actual delta applied (in case value was clamped by floor)
     const actualDelta = unit.stats[stat] - oldVal;
     unit._battleDeltas[stat] += actualDelta;
-    
+
     if (stat === 'MOV') unit.mov = unit.stats.MOV;
   }
 
@@ -8469,15 +9793,21 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showTerrainDamage(unit, damage) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const wasTinted = Boolean(unit.graphic?.isTinted);
       const previousTint = unit.graphic?.tintTopLeft;
       if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
       const pos = this.grid.gridToPixel(unit.col, unit.row);
-      const text = this.add.text(pos.x, pos.y - 16, `Lava -${damage}`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ff8844', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(320);
+      const text = this.add
+        .text(pos.x, pos.y - 16, `Lava -${damage}`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ff8844',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(320);
 
       this.tweens.add({
         targets: text,
@@ -8489,7 +9819,8 @@ export class BattleScene extends Phaser.Scene {
 
       this.time.delayedCall(120, () => {
         if (!unit.graphic) return;
-        if (wasTinted && unit.graphic.setTint && previousTint != null) unit.graphic.setTint(previousTint);
+        if (wasTinted && unit.graphic.setTint && previousTint != null)
+          unit.graphic.setTint(previousTint);
         else if (unit.graphic.clearTint) unit.graphic.clearTint();
       });
       this.time.delayedCall(180, resolve);
@@ -8506,30 +9837,25 @@ export class BattleScene extends Phaser.Scene {
 
     this.currentEnemyPhaseAiStats = this.createEnemyPhaseAiStats();
     try {
-      await this.aiController.processEnemyPhase(
-        this.enemyUnits,
-        this.playerUnits,
-        this.npcUnits,
-        {
-          onMoveUnit: (enemy, path) => {
-            if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-            return this.animateEnemyMove(enemy, path);
-          },
-          onAttack: (enemy, target) => {
-            if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-            return this.executeEnemyCombat(enemy, target);
-          },
-          onBreak: (enemy, tile) => {
-            if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-            return this.executeEnemyBreak(enemy, tile);
-          },
-          onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
-          onUnitDone: (enemy) => {
-            enemy.hasActed = true;
-            this.dimUnit(enemy);
-          },
-        }
-      );
+      await this.aiController.processEnemyPhase(this.enemyUnits, this.playerUnits, this.npcUnits, {
+        onMoveUnit: (enemy, path) => {
+          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+          return this.animateEnemyMove(enemy, path);
+        },
+        onAttack: (enemy, target) => {
+          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+          return this.executeEnemyCombat(enemy, target);
+        },
+        onBreak: (enemy, tile) => {
+          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+          return this.executeEnemyBreak(enemy, tile);
+        },
+        onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
+        onUnitDone: (enemy) => {
+          enemy.hasActed = true;
+          this.dimUnit(enemy);
+        },
+      });
     } finally {
       this.finalizeEnemyPhaseAiStats();
     }
@@ -8542,7 +9868,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   animateEnemyMove(enemy, path) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       if (!path || path.length < 2) {
         resolve();
         return;
@@ -8564,9 +9890,7 @@ export class BattleScene extends Phaser.Scene {
         return;
       }
 
-      const targets = enemy.label
-        ? [enemy.graphic, enemy.label]
-        : [enemy.graphic];
+      const targets = enemy.label ? [enemy.graphic, enemy.label] : [enemy.graphic];
 
       const animateStep = (stepIndex) => {
         if (stepIndex >= finalPath.length) {
@@ -8579,10 +9903,12 @@ export class BattleScene extends Phaser.Scene {
           return;
         }
         const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-        const duration = effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
+        const duration =
+          effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
         this.tweens.add({
           targets,
-          x: pos.x, y: pos.y,
+          x: pos.x,
+          y: pos.y,
           duration,
           ease: 'Linear',
           onComplete: () => animateStep(stepIndex + 1),
@@ -8610,10 +9936,14 @@ export class BattleScene extends Phaser.Scene {
     const skillCtx = this.buildSkillCtx(enemy, target, selectedArt);
 
     const result = resolveCombat(
-      enemy, enemy.weapon,
-      target, target.weapon,
-      dist, atkTerrain, defTerrain,
-      skillCtx
+      enemy,
+      enemy.weapon,
+      target,
+      target.weapon,
+      dist,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
     );
 
     // Animate events
@@ -8631,7 +9961,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Debug: invincibility -- restore player units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
-      if (target.faction === 'player') { target.currentHP = target.stats.HP; result.defenderDied = false; }
+      if (target.faction === 'player') {
+        target.currentHP = target.stats.HP;
+        result.defenderDied = false;
+      }
     }
 
     this.updateHPBar(enemy);
@@ -8649,7 +9982,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Award XP to player defender if they survived
     if (target.faction === 'player' && target.currentHP > 0) {
-      const counterDamage = Math.max(0, enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)));
+      const counterDamage = Math.max(
+        0,
+        enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
+      );
       await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
     }
 
@@ -8664,20 +10000,23 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
     const pos = this.grid.gridToPixel(tile.col, tile.row);
     this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
-    await new Promise(resolve => this.time.delayedCall(120, resolve));
+    await new Promise((resolve) => this.time.delayedCall(120, resolve));
   }
 
   showPhaseBanner(phase, turn) {
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
     const color = phase === 'player' ? '#3366cc' : '#cc3333';
-    const banner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY,
-      `Turn ${turn} - ${label}`,
-      {
-        fontFamily: 'monospace', fontSize: '20px', color,
-        backgroundColor: '#000000cc', padding: { x: 16, y: 8 },
-      }
-    ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    const banner = this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, `Turn ${turn} - ${label}`, {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(500);
     this._pinToScreen(banner);
 
     if (this._isReducedEffects()) {
@@ -8685,28 +10024,42 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(420, () => banner.destroy());
     } else {
       this.tweens.add({
-        targets: banner, alpha: 1, duration: 300,
-        yoyo: true, hold: 800,
+        targets: banner,
+        alpha: 1,
+        duration: 300,
+        yoyo: true,
+        hold: 800,
         onComplete: () => banner.destroy(),
       });
     }
   }
 
   _showBossDefeatedBanner() {
-    const banner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY - 30,
-      'Boss defeated!\nSeize the throne with a Lord!',
-      {
-        fontFamily: 'monospace', fontSize: '18px', color: '#66ff66',
-        backgroundColor: '#000000dd', padding: { x: 16, y: 8 },
-        align: 'center',
-      }
-    ).setOrigin(0.5).setAlpha(0).setDepth(500);
+    const banner = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY - 30,
+        'Boss defeated!\nSeize the throne with a Lord!',
+        {
+          fontFamily: 'monospace',
+          fontSize: '18px',
+          color: '#66ff66',
+          backgroundColor: '#000000dd',
+          padding: { x: 16, y: 8 },
+          align: 'center',
+        },
+      )
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(500);
     this._pinToScreen(banner);
 
     this.tweens.add({
-      targets: banner, alpha: 1, duration: 400,
-      yoyo: true, hold: 1800,
+      targets: banner,
+      alpha: 1,
+      duration: 400,
+      yoyo: true,
+      hold: 1800,
       onComplete: () => banner.destroy(),
     });
 
@@ -8714,8 +10067,12 @@ export class BattleScene extends Phaser.Scene {
     if (this.objectiveText) {
       this.tweens.add({
         targets: this.objectiveText,
-        scaleX: 1.15, scaleY: 1.15, duration: 300,
-        yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
+        scaleX: 1.15,
+        scaleY: 1.15,
+        duration: 300,
+        yoyo: true,
+        repeat: 2,
+        ease: 'Sine.easeInOut',
       });
     }
   }
@@ -8731,7 +10088,7 @@ export class BattleScene extends Phaser.Scene {
 
   checkBattleEnd() {
     // Edric defeat = immediate loss (permadeath rule -- other lords can fall)
-    const edricAlive = this.playerUnits.some(u => u.name === 'Edric');
+    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {
       if (this.turnManager?.currentPhase === 'enemy' && this.showLordDeathVisionPrompt()) {
         return true;
@@ -8753,7 +10110,7 @@ export class BattleScene extends Phaser.Scene {
     let label;
     let color = '#ffdd44'; // default gold
     if (this.battleConfig.objective === 'seize') {
-      const bossAlive = this.enemyUnits.some(u => u.isBoss && u.currentHP > 0);
+      const bossAlive = this.enemyUnits.some((u) => u.isBoss && u.currentHP > 0);
       if (bossAlive) {
         label = 'Seize: Defeat boss, then capture throne';
         color = '#ff6666'; // red -- boss still alive
@@ -8777,9 +10134,13 @@ export class BattleScene extends Phaser.Scene {
       if (this.grid.fogEnabled && !this.grid.isVisible(enemy.col, enemy.row)) continue;
       const positions = this.buildUnitPositionMap(enemy.faction);
       const moveRange = this.grid.getMovementRange(
-        enemy.col, enemy.row, enemy.mov || enemy.stats.MOV,
-        enemy.moveType, positions, enemy.faction,
-        this._getCostModifier(enemy)
+        enemy.col,
+        enemy.row,
+        enemy.mov || enemy.stats.MOV,
+        enemy.moveType,
+        positions,
+        enemy.faction,
+        this._getCostModifier(enemy),
       );
       for (const [key] of moveRange) {
         const [mc, mr] = key.split(',').map(Number);
@@ -8792,7 +10153,7 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
-    return Array.from(threatened).map(k => {
+    return Array.from(threatened).map((k) => {
       const [col, row] = k.split(',').map(Number);
       return { col, row };
     });
@@ -8834,37 +10195,52 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'BATTLE_END';
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, this, 0);
-    const victoryBanner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY,
-      'VICTORY!',
-      {
-        fontFamily: 'monospace', fontSize: '28px', color: '#ffdd44',
-        backgroundColor: '#000000dd', padding: { x: 24, y: 12 },
-      }
-    ).setOrigin(0.5).setDepth(600);
+    const victoryBanner = this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'VICTORY!', {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#ffdd44',
+        backgroundColor: '#000000dd',
+        padding: { x: 24, y: 12 },
+      })
+      .setOrigin(0.5)
+      .setDepth(600);
     this._pinToScreen(victoryBanner);
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
         if (!this.scene?.isActive?.()) return;
-        await showImportantHint(this, 'Victory! You\'ve completed the tutorial.\nYou\'re ready for a real run -- good luck!');
+        await showImportantHint(
+          this,
+          "Victory! You've completed the tutorial.\nYou're ready for a real run -- good luck!",
+        );
         if (!this.scene?.isActive?.()) return;
-        try { localStorage.setItem('emblem_rogue_tutorial_completed', '1'); } catch (_) {}
+        try {
+          localStorage.setItem('emblem_rogue_tutorial_completed', '1');
+        } catch (_) {}
         this._transitionTutorialToTitle();
       });
     } else if (this.runManager) {
       this.clearBattleScopedDeltas(this.playerUnits);
       this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-      const surviving = this.playerUnits.map(u => serializeUnit(u));
+      const surviving = this.playerUnits.map((u) => serializeUnit(u));
       const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
       const turnPressure = this.getTurnPressureState();
-      const completionGoldAward = Math.max(0, Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier));
+      const completionGoldAward = Math.max(
+        0,
+        Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier),
+      );
       this._victoryPressureState = turnPressure;
       this._completionGoldAward = completionGoldAward;
       const vaultGoldBeforeCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
-      const completionApplied = this.runManager.completeBattle(allUnits, this.nodeId, this.goldEarned, {
-        completionGoldOverride: completionGoldAward,
-      });
+      const completionApplied = this.runManager.completeBattle(
+        allUnits,
+        this.nodeId,
+        this.goldEarned,
+        {
+          completionGoldOverride: completionGoldAward,
+        },
+      );
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
       this._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
@@ -8873,10 +10249,15 @@ export class BattleScene extends Phaser.Scene {
         if (!this.scene?.isActive?.()) return;
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
-          await transitionToScene(this, 'NodeMap', {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
+          await transitionToScene(
+            this,
+            'NodeMap',
+            {
+              gameData: this.gameData,
+              runManager: this.runManager,
+            },
+            { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+          );
           return;
         }
         try {
@@ -8914,11 +10295,16 @@ export class BattleScene extends Phaser.Scene {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
           this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-          await transitionToScene(this, 'RunComplete', {
-            gameData: this.gameData,
-            runManager: this.runManager,
-            result: 'victory',
-          }, { reason: TRANSITION_REASONS.VICTORY });
+          await transitionToScene(
+            this,
+            'RunComplete',
+            {
+              gameData: this.gameData,
+              runManager: this.runManager,
+              result: 'victory',
+            },
+            { reason: TRANSITION_REASONS.VICTORY },
+          );
         } else {
           const fromAct = this.runManager.currentAct;
           this.runManager.advanceAct();
@@ -8930,16 +10316,26 @@ export class BattleScene extends Phaser.Scene {
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
           }
-          await transitionToScene(this, 'NodeMap', {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
+          await transitionToScene(
+            this,
+            'NodeMap',
+            {
+              gameData: this.gameData,
+              runManager: this.runManager,
+            },
+            { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+          );
         }
       } else {
-        await transitionToScene(this, 'NodeMap', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-        }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
+        await transitionToScene(
+          this,
+          'NodeMap',
+          {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          },
+          { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+        );
       }
     } catch (err) {
       this.isTransitioningOut = false;
@@ -8958,17 +10354,27 @@ export class BattleScene extends Phaser.Scene {
     try {
       if (this.runManager?.isRunComplete?.()) {
         this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        void transitionToScene(this, 'RunComplete', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-          result: 'victory',
-        }, { reason: TRANSITION_REASONS.VICTORY });
+        void transitionToScene(
+          this,
+          'RunComplete',
+          {
+            gameData: this.gameData,
+            runManager: this.runManager,
+            result: 'victory',
+          },
+          { reason: TRANSITION_REASONS.VICTORY },
+        );
         return;
       }
-      void transitionToScene(this, 'NodeMap', {
-        gameData: this.gameData,
-        runManager: this.runManager,
-      }, { reason: TRANSITION_REASONS.BATTLE_COMPLETE });
+      void transitionToScene(
+        this,
+        'NodeMap',
+        {
+          gameData: this.gameData,
+          runManager: this.runManager,
+        },
+        { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+      );
     } catch (err) {
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
       this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
@@ -8983,7 +10389,7 @@ export class BattleScene extends Phaser.Scene {
       this.runManager.roster,
       this.gameData,
       this.runManager.getEffectiveMetaEffects(),
-      this.runManager?.fallenUnits || []
+      this.runManager?.fallenUnits || [],
     );
     // Fallback to loot if no candidates generated
     if (!candidates || candidates.length === 0) {
@@ -8996,19 +10402,36 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
 
     // Dark overlay
-    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
-      .setDepth(700).setInteractive();
+    const overlay = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
+      .setDepth(700)
+      .setInteractive();
     recruitGroup.push(overlay);
 
     // Title
-    const title = applyTextResolution(this.add.text(cam.centerX, 28, 'BOSS RECRUIT', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(701));
+    const title = applyTextResolution(
+      this.add
+        .text(cam.centerX, 28, 'BOSS RECRUIT', {
+          fontFamily: 'monospace',
+          fontSize: '20px',
+          color: '#ffdd44',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(701),
+    );
     recruitGroup.push(title);
 
-    const subtitle = applyTextResolution(this.add.text(cam.centerX, 54, 'Choose a warrior to join your cause', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(701));
+    const subtitle = applyTextResolution(
+      this.add
+        .text(cam.centerX, 54, 'Choose a warrior to join your cause', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(701),
+    );
     recruitGroup.push(subtitle);
 
     // Card layout: candidates + skip
@@ -9037,49 +10460,89 @@ export class BattleScene extends Phaser.Scene {
 
       const cardColor = c.isLord ? 0x443322 : 0x2a2a44;
       const strokeColor = c.isLord ? 0xffdd44 : 0x66aacc;
-      const card = this.add.rectangle(cx, cardY, cardW, cardH, cardColor, 1)
-        .setStrokeStyle(2, strokeColor).setDepth(701).setInteractive({ useHandCursor: true });
+      const card = this.add
+        .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
+        .setStrokeStyle(2, strokeColor)
+        .setDepth(701)
+        .setInteractive({ useHandCursor: true });
       recruitGroup.push(card);
 
       let yOff = cardY - cardH / 2 + 12;
 
       // Lord tag
       if (c.isLord) {
-        const tag = applyTextResolution(this.add.text(cx, yOff, '[LORD]', {
-          fontFamily: 'monospace', fontSize: '9px', color: '#ffdd44', fontStyle: 'bold',
-        }).setOrigin(0.5).setDepth(702));
+        const tag = applyTextResolution(
+          this.add
+            .text(cx, yOff, '[LORD]', {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#ffdd44',
+              fontStyle: 'bold',
+            })
+            .setOrigin(0.5)
+            .setDepth(702),
+        );
         recruitGroup.push(tag);
         yOff += 14;
       }
 
       // Name
-      const name = applyTextResolution(this.add.text(cx, yOff, c.displayName, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ffffff', fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(702));
+      const name = applyTextResolution(
+        this.add
+          .text(cx, yOff, c.displayName, {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#ffffff',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(name);
       yOff += 16;
 
       // Class
-      const cls = applyTextResolution(this.add.text(cx, yOff, u.className, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
-      }).setOrigin(0.5).setDepth(702));
+      const cls = applyTextResolution(
+        this.add
+          .text(cx, yOff, u.className, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#aaaaaa',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(cls);
       yOff += 14;
 
-      const classData = this.gameData.classes?.find(cl => cl.name === u.className);
+      const classData = this.gameData.classes?.find((cl) => cl.name === u.className);
       const descText = classData?.description || '';
 
       // Level
-      const lvl = applyTextResolution(this.add.text(cx, yOff, `Lv ${u.level}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#66ddff',
-      }).setOrigin(0.5).setDepth(702));
+      const lvl = applyTextResolution(
+        this.add
+          .text(cx, yOff, `Lv ${u.level}`, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#66ddff',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(lvl);
       yOff += 16;
 
       // Separator
-      const sep = applyTextResolution(this.add.text(cx, yOff, '-----------------', {
-        fontFamily: 'monospace', fontSize: '8px', color: '#555555',
-      }).setOrigin(0.5).setDepth(702));
+      const sep = applyTextResolution(
+        this.add
+          .text(cx, yOff, '-----------------', {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: '#555555',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(sep);
       yOff += 12;
 
@@ -9104,27 +10567,57 @@ export class BattleScene extends Phaser.Scene {
       const res = Number(u.stats?.RES || 0);
       const mov = Number(u.mov ?? u.stats?.MOV ?? 0);
 
-      const coreA = applyTextResolution(this.add.text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
-      }).setOrigin(0.5).setDepth(702));
+      const coreA = applyTextResolution(
+        this.add
+          .text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#cccccc',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(coreA);
       yOff += 12;
 
-      const coreB = applyTextResolution(this.add.text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#88bbff',
-      }).setOrigin(0.5).setDepth(702));
+      const coreB = applyTextResolution(
+        this.add
+          .text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#88bbff',
+          })
+          .setOrigin(0.5)
+          .setDepth(702),
+      );
       recruitGroup.push(coreB);
       yOff += 14;
 
       // Weapon proficiency signal (trimmed preview so card width stays readable)
       if (u.proficiencies && u.proficiencies.length > 0) {
-        const profShort = { Sword: 'Swd', Lance: 'Lnc', Axe: 'Axe', Bow: 'Bow', Tome: 'Tom', Light: 'Lgt', Staff: 'Stf' };
-        const profEntries = u.proficiencies.map((p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`);
+        const profShort = {
+          Sword: 'Swd',
+          Lance: 'Lnc',
+          Axe: 'Axe',
+          Bow: 'Bow',
+          Tome: 'Tom',
+          Light: 'Lgt',
+          Staff: 'Stf',
+        };
+        const profEntries = u.proficiencies.map(
+          (p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`,
+        );
         const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
-        const prof = this.add.text(cx, yOff, `Wpn: ${profPreview}`, {
-          fontFamily: 'monospace', fontSize: '8px', color: '#aaaaaa',
-          wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        const prof = this.add
+          .text(cx, yOff, `Wpn: ${profPreview}`, {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: '#aaaaaa',
+            wordWrap: { width: cardW - 10 },
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         recruitGroup.push(prof);
         yOff += 13;
       }
@@ -9134,10 +10627,16 @@ export class BattleScene extends Phaser.Scene {
         ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
         : null;
       if (notableSkill) {
-        const sk = this.add.text(cx, yOff, `Skill: ${notableSkill}`, {
-          fontFamily: 'monospace', fontSize: '8px', color: c.isLord ? '#ffdd44' : '#aaccff',
-          wordWrap: { width: cardW - 10 }, align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        const sk = this.add
+          .text(cx, yOff, `Skill: ${notableSkill}`, {
+            fontFamily: 'monospace',
+            fontSize: '8px',
+            color: c.isLord ? '#ffdd44' : '#aaccff',
+            wordWrap: { width: cardW - 10 },
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         recruitGroup.push(sk);
       }
 
@@ -9151,23 +10650,49 @@ export class BattleScene extends Phaser.Scene {
 
     // Skip card
     const skipX = startX + candidates.length * (cardW + gap);
-    const skipCard = this.add.rectangle(skipX, cardY, cardW, cardH, 0x333333, 1)
-      .setStrokeStyle(2, 0x666666).setDepth(701).setInteractive({ useHandCursor: true });
+    const skipCard = this.add
+      .rectangle(skipX, cardY, cardW, cardH, 0x333333, 1)
+      .setStrokeStyle(2, 0x666666)
+      .setDepth(701)
+      .setInteractive({ useHandCursor: true });
     recruitGroup.push(skipCard);
 
-    const skipIcon = applyTextResolution(this.add.text(skipX, cardY - 30, '>', {
-      fontFamily: 'monospace', fontSize: '28px', color: '#888888', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(702));
+    const skipIcon = applyTextResolution(
+      this.add
+        .text(skipX, cardY - 30, '>', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: '#888888',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(702),
+    );
     recruitGroup.push(skipIcon);
 
-    const skipLabel = applyTextResolution(this.add.text(skipX, cardY + 10, 'SKIP', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(702));
+    const skipLabel = applyTextResolution(
+      this.add
+        .text(skipX, cardY + 10, 'SKIP', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(702),
+    );
     recruitGroup.push(skipLabel);
 
-    const skipDesc = applyTextResolution(this.add.text(skipX, cardY + 35, 'Continue\nto Loot', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#777777', align: 'center',
-    }).setOrigin(0.5).setDepth(702));
+    const skipDesc = applyTextResolution(
+      this.add
+        .text(skipX, cardY + 35, 'Continue\nto Loot', {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#777777',
+          align: 'center',
+        })
+        .setOrigin(0.5)
+        .setDepth(702),
+    );
     recruitGroup.push(skipDesc);
 
     skipCard.on('pointerdown', () => {
@@ -9178,14 +10703,28 @@ export class BattleScene extends Phaser.Scene {
     skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, 0x666666));
 
     // Footer hints
-    const inst = applyTextResolution(this.add.text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-    }).setOrigin(0.5).setDepth(701));
+    const inst = applyTextResolution(
+      this.add
+        .text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#888888',
+        })
+        .setOrigin(0.5)
+        .setDepth(701),
+    );
     recruitGroup.push(inst);
 
-    const hintText = applyTextResolution(this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#666666',
-    }).setOrigin(0.5).setDepth(701));
+    const hintText = applyTextResolution(
+      this.add
+        .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#666666',
+        })
+        .setOrigin(0.5)
+        .setDepth(701),
+    );
     recruitGroup.push(hintText);
 
     this._pinToScreen(recruitGroup);
@@ -9208,15 +10747,23 @@ export class BattleScene extends Phaser.Scene {
     this._lootCleanedUp = false;
 
     // Dark overlay
-    const overlay = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
-      .setDepth(700).setInteractive();
+    const overlay = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
+      .setDepth(700)
+      .setInteractive();
     lootGroup.push(overlay);
 
     // Title
     const titleText = this.isElite ? 'ELITE BATTLE REWARDS' : 'BATTLE REWARDS';
-    const title = this.add.text(cam.centerX, 30, titleText, {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(701);
+    const title = this.add
+      .text(cam.centerX, 30, titleText, {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     lootGroup.push(title);
 
     const turnPressure = this._victoryPressureState || this.getTurnPressureState();
@@ -9228,13 +10775,14 @@ export class BattleScene extends Phaser.Scene {
       : Math.max(0, Math.floor(GOLD_BATTLE_BONUS * pressureGoldMultiplier));
     const battleCompletionGold = Number.isFinite(this._battleCompletionAwardedGold)
       ? Math.max(0, Math.trunc(this._battleCompletionAwardedGold))
-      : (this.goldEarned + completionGold);
+      : this.goldEarned + completionGold;
     const previewAwardedGold = (amount) => {
       const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
       return normalized;
     };
     const awardGoldNow = (amount) => {
-      if (typeof this.runManager?.awardGold === 'function') return this.runManager.awardGold(amount);
+      if (typeof this.runManager?.awardGold === 'function')
+        return this.runManager.awardGold(amount);
       if (typeof this.runManager?.addGold === 'function') this.runManager.addGold(amount);
       return Math.max(0, Math.trunc(Number(amount) || 0));
     };
@@ -9245,8 +10793,15 @@ export class BattleScene extends Phaser.Scene {
     if (this.turnPar != null && this.turnBonusConfig) {
       const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
       turnRating = result.rating;
-      const rawTurnBonusGold = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
-      const scaledTurnBonusGold = Math.max(0, Math.floor(rawTurnBonusGold * pressureGoldMultiplier));
+      const rawTurnBonusGold = calculateBonusGold(
+        result,
+        this.runManager.currentAct,
+        this.turnBonusConfig,
+      );
+      const scaledTurnBonusGold = Math.max(
+        0,
+        Math.floor(rawTurnBonusGold * pressureGoldMultiplier),
+      );
       if (scaledTurnBonusGold > 0) {
         turnBonusGold = awardGoldNow(scaledTurnBonusGold);
       }
@@ -9260,13 +10815,20 @@ export class BattleScene extends Phaser.Scene {
       goldLines.push(`Turn ${turnRating}: +${turnBonusGold}G`);
     }
     if (turnPressure.active) {
-      goldLines.push(`Late pressure: Gold ${this.formatPressureMultiplier(pressureGoldMultiplier)}`);
+      goldLines.push(
+        `Late pressure: Gold ${this.formatPressureMultiplier(pressureGoldMultiplier)}`,
+      );
     }
     goldLines.push(`Total: ${displayedTotalGold}G  |  Vault: ${this.runManager.gold}G`);
 
-    const goldText = this.add.text(cam.centerX, 58, goldLines.join('  |  '), {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaffaa',
-    }).setOrigin(0.5).setDepth(701);
+    const goldText = this.add
+      .text(cam.centerX, 58, goldLines.join('  |  '), {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaffaa',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     lootGroup.push(goldText);
 
     // Tutorial hint for loot screen
@@ -9280,9 +10842,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Generate loot choices
     const lootWeaponQualityBonus =
-      this.runManager?.metaEffects?.lootWeaponQualityBonus
-      ?? this.runManager?.metaEffects?.lootWeaponWeightBonus
-      ?? 0;
+      this.runManager?.metaEffects?.lootWeaponQualityBonus ??
+      this.runManager?.metaEffects?.lootWeaponWeightBonus ??
+      0;
     const metaLootBonuses = this.runManager?.metaEffects?.lootCategoryWeightBonuses;
     const lootCount = this.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
     const choices = generateLootChoices(
@@ -9299,7 +10861,7 @@ export class BattleScene extends Phaser.Scene {
       null,
       this.isElite,
       this.runManager.getWeaponArtSpawnConfig(),
-      { lootCategoryWeightBonuses: metaLootBonuses }
+      { lootCategoryWeightBonuses: metaLootBonuses },
     );
 
     // Skip bonus gold
@@ -9314,8 +10876,22 @@ export class BattleScene extends Phaser.Scene {
     const startX = cam.centerX - totalW / 2 + cardW / 2;
     const cardY = cam.centerY + 10;
 
-    const typeIcons = { weapon: 'W', consumable: 'H', rare: 'R', gold: '$', accessory: 'A', forge: 'F' };
-    const typeColors = { weapon: '#88bbff', consumable: '#88ff88', rare: '#ffaa55', gold: '#ffdd44', accessory: '#cc88ff', forge: '#ff8844' };
+    const typeIcons = {
+      weapon: 'W',
+      consumable: 'H',
+      rare: 'R',
+      gold: '$',
+      accessory: 'A',
+      forge: 'F',
+    };
+    const typeColors = {
+      weapon: '#88bbff',
+      consumable: '#88ff88',
+      rare: '#ffaa55',
+      gold: '#ffdd44',
+      accessory: '#cc88ff',
+      forge: '#ff8844',
+    };
     const lootTypeDisplayMap = {
       healing: 'consumable',
       statBooster: 'consumable',
@@ -9333,8 +10909,11 @@ export class BattleScene extends Phaser.Scene {
       // Card background
       const cardColor = choice.type === 'forge' ? 0x443322 : 0x333355;
       const strokeColor = choice.type === 'forge' ? 0xff8844 : 0x8888cc;
-      const card = this.add.rectangle(cx, cardY, cardW, cardH, cardColor, 1)
-        .setStrokeStyle(2, strokeColor).setDepth(701).setInteractive({ useHandCursor: true });
+      const card = this.add
+        .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
+        .setStrokeStyle(2, strokeColor)
+        .setDepth(701)
+        .setInteractive({ useHandCursor: true });
       lootGroup.push(card);
 
       // Track card ref for elite pick-2 graying
@@ -9342,37 +10921,63 @@ export class BattleScene extends Phaser.Scene {
 
       // Type icon
       const displayType = lootTypeDisplayMap[choice.type] || choice.type;
-      const icon = this.add.text(cx, cardY - 55, typeIcons[displayType] || '?', {
-        fontFamily: 'monospace', fontSize: '28px', color: typeColors[displayType] || '#ffffff',
-        fontStyle: 'bold',
-      }).setOrigin(0.5).setDepth(702);
+      const icon = this.add
+        .text(cx, cardY - 55, typeIcons[displayType] || '?', {
+          fontFamily: 'monospace',
+          fontSize: '28px',
+          color: typeColors[displayType] || '#ffffff',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(702);
       lootGroup.push(icon);
 
       if (choice.type === 'gold') {
-        const scaledGoldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier));
+        const scaledGoldAmount = Math.max(
+          0,
+          Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier),
+        );
         const displayedGoldAmount = previewAwardedGold(scaledGoldAmount);
         // Gold choice
-        const goldLabel = this.add.text(cx, cardY - 2, `${displayedGoldAmount}G`, {
-          fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
-        }).setOrigin(0.5).setDepth(702);
+        const goldLabel = this.add
+          .text(cx, cardY - 2, `${displayedGoldAmount}G`, {
+            fontFamily: 'monospace',
+            fontSize: '16px',
+            color: '#ffdd44',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         lootGroup.push(goldLabel);
 
         if (choice.xpAmount) {
-          const xpLabel = this.add.text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
-            fontFamily: 'monospace', fontSize: '10px', color: '#88ff88',
-          }).setOrigin(0.5).setDepth(702);
+          const xpLabel = this.add
+            .text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
+              fontFamily: 'monospace',
+              fontSize: '10px',
+              color: '#88ff88',
+            })
+            .setOrigin(0.5)
+            .setDepth(702);
           lootGroup.push(xpLabel);
         }
 
-        const typeLabel = this.add.text(cx, cardY + 42, 'Gold', {
-          fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-        }).setOrigin(0.5).setDepth(702);
+        const typeLabel = this.add
+          .text(cx, cardY + 42, 'Gold', {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#aaaaaa',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         lootGroup.push(typeLabel);
 
         card.on('pointerdown', () => {
           this._hideLootTooltip();
           const audio = this.registry.get('audio');
-          if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
+          if (audio) {
+            audio.playSFX('sfx_gold');
+            audio.playSFX('sfx_confirm');
+          }
           awardGoldNow(scaledGoldAmount);
           // Distribute team XP to entire roster
           if (choice.xpAmount && this.runManager.roster) {
@@ -9387,20 +10992,38 @@ export class BattleScene extends Phaser.Scene {
         // Forge whetstone card
         const item = choice.item;
         const nameLines = this.wrapText(item.name, 12);
-        const nameLabel = this.add.text(cx, cardY + 5, nameLines, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#ff8844',
-          align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        const nameLabel = this.add
+          .text(cx, cardY + 5, nameLines, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#ff8844',
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         lootGroup.push(nameLabel);
 
         // Detail line
-        let detail = item.forgeStat === 'choice' ? 'Choose stat' :
-          item.forgeStat === 'might' ? '+1 Might' :
-          item.forgeStat === 'crit' ? '+5 Crit' :
-          item.forgeStat === 'hit' ? '+5 Hit' : '-1 Weight';
-        const detailLabel = applyTextResolution(this.add.text(cx, cardY + 35, detail, {
-          fontFamily: 'monospace', fontSize: '9px', color: '#cc8844',
-        }).setOrigin(0.5).setDepth(702));
+        let detail =
+          item.forgeStat === 'choice'
+            ? 'Choose stat'
+            : item.forgeStat === 'might'
+              ? '+1 Might'
+              : item.forgeStat === 'crit'
+                ? '+5 Crit'
+                : item.forgeStat === 'hit'
+                  ? '+5 Hit'
+                  : '-1 Weight';
+        const detailLabel = applyTextResolution(
+          this.add
+            .text(cx, cardY + 35, detail, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#cc8844',
+            })
+            .setOrigin(0.5)
+            .setDepth(702),
+        );
         lootGroup.push(detailLabel);
 
         card.on('pointerdown', () => {
@@ -9421,24 +11044,41 @@ export class BattleScene extends Phaser.Scene {
         // Item choice (weapon, consumable, rare, accessory)
         const item = choice.item;
         const nameLines = this.wrapText(item.name, 12);
-        const nameLabel = this.add.text(cx, cardY + 5, nameLines, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
-          align: 'center',
-        }).setOrigin(0.5).setDepth(702);
+        const nameLabel = this.add
+          .text(cx, cardY + 5, nameLines, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#ffffff',
+            align: 'center',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         lootGroup.push(nameLabel);
 
-        const priceLabel = this.add.text(cx, cardY + 35, `${item.price || 0}G`, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
-        }).setOrigin(0.5).setDepth(702);
+        const priceLabel = this.add
+          .text(cx, cardY + 35, `${item.price || 0}G`, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#aaaaaa',
+          })
+          .setOrigin(0.5)
+          .setDepth(702);
         lootGroup.push(priceLabel);
 
         // Category-aware detail text for decision quality.
         const detailInfo = this.getLootCardDetailLines(choice, item, cardW);
         if (detailInfo.lines.length > 0) {
-          const detailLabel = applyTextResolution(this.add.text(cx, cardY + 46, detailInfo.lines.join('\n'), {
-            fontFamily: 'monospace', fontSize: '9px', color: detailInfo.color,
-            align: 'center',
-          }).setOrigin(0.5, 0).setDepth(702));
+          const detailLabel = applyTextResolution(
+            this.add
+              .text(cx, cardY + 46, detailInfo.lines.join('\n'), {
+                fontFamily: 'monospace',
+                fontSize: '9px',
+                color: detailInfo.color,
+                align: 'center',
+              })
+              .setOrigin(0.5, 0)
+              .setDepth(702),
+          );
           lootGroup.push(detailLabel);
         }
 
@@ -9482,45 +11122,77 @@ export class BattleScene extends Phaser.Scene {
 
     // Skip card (always ends loot screen immediately)
     const skipX = startX + choices.length * (cardW + gap);
-    const skipCard = this.add.rectangle(skipX, cardY, cardW, cardH, 0x554433, 1)
-      .setStrokeStyle(2, 0xccaa44).setDepth(701).setInteractive({ useHandCursor: true });
+    const skipCard = this.add
+      .rectangle(skipX, cardY, cardW, cardH, 0x554433, 1)
+      .setStrokeStyle(2, 0xccaa44)
+      .setDepth(701)
+      .setInteractive({ useHandCursor: true });
     lootGroup.push(skipCard);
 
-    const skipIcon = this.add.text(skipX, cardY - 55, '$', {
-      fontFamily: 'monospace', fontSize: '28px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(702);
+    const skipIcon = this.add
+      .text(skipX, cardY - 55, '$', {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
     lootGroup.push(skipIcon);
 
     const displayedSkipGold = previewAwardedGold(skipGold);
-    const skipLabel = this.add.text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(702);
+    const skipLabel = this.add
+      .text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
     lootGroup.push(skipLabel);
 
-    const skipDesc = this.add.text(skipX, cardY + 35, 'Skip Loot', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#ccaa66',
-    }).setOrigin(0.5).setDepth(702);
+    const skipDesc = this.add
+      .text(skipX, cardY + 35, 'Skip Loot', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#ccaa66',
+      })
+      .setOrigin(0.5)
+      .setDepth(702);
     lootGroup.push(skipDesc);
 
     skipCard.on('pointerdown', () => {
       this._hideLootTooltip();
       const audio = this.registry.get('audio');
-      if (audio) { audio.playSFX('sfx_gold'); audio.playSFX('sfx_confirm'); }
+      if (audio) {
+        audio.playSFX('sfx_gold');
+        audio.playSFX('sfx_confirm');
+      }
       awardGoldNow(skipGold);
       this.cleanupLootScreen(lootGroup);
     });
 
     // Instruction
     const instText = this.isElite ? 'Choose 2 rewards' : 'Choose a reward';
-    const inst = this.add.text(cam.centerX, cardY + cardH / 2 + 24, instText, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-    }).setOrigin(0.5).setDepth(701);
+    const inst = this.add
+      .text(cam.centerX, cardY + cardH / 2 + 24, instText, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     lootGroup.push(inst);
     this._lootInstruction = inst;
 
-    const hintText = this.add.text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#666666',
-    }).setOrigin(0.5).setDepth(701);
+    const hintText = this.add
+      .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#666666',
+      })
+      .setOrigin(0.5)
+      .setDepth(701);
     lootGroup.push(hintText);
 
     this._pinToScreen(lootGroup);
@@ -9541,12 +11213,15 @@ export class BattleScene extends Phaser.Scene {
         : String(lines || '');
       return this._formatSpecialLinesForUi(text, detailWrapChars, maxLines);
     };
-    const usesLine = item.uses !== undefined
-      ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`
-      : '';
+    const usesLine =
+      item.uses !== undefined ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}` : '';
     const type = choice?.type;
 
-    if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
+    if (
+      (item.might !== undefined && item.type !== 'Scroll') ||
+      type === 'weapon' ||
+      type === 'legendaryWeapon'
+    ) {
       const range = item.range == null ? '1' : String(item.range);
       const lines = [];
       if (item.type) lines.push(item.type);
@@ -9558,27 +11233,41 @@ export class BattleScene extends Phaser.Scene {
 
     if (item.type === 'Accessory' || type === 'accessory') {
       const detail = this.getAccessoryDetailText(item);
-      return { lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2), color: '#cc88ff' };
+      return {
+        lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2),
+        color: '#cc88ff',
+      };
     }
 
     if (item.type === 'Scroll' || type === 'skillScroll' || type === 'weaponArtScroll') {
-      const typeHint = Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0
-        ? `For ${item.allowedWeaponTypes.join('/')}`
-        : '';
+      const typeHint =
+        Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0
+          ? `For ${item.allowedWeaponTypes.join('/')}`
+          : '';
       if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-        return { lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2), color: '#ffaa55' };
+        return {
+          lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2),
+          color: '#ffaa55',
+        };
       }
-      const special = typeof item.special === 'string' && item.special.trim().length > 0
-        ? item.special.trim()
-        : 'Teaches a skill';
-      const skillDef = this.gameData?.skills?.find(s => s.id === item.skillId);
+      const special =
+        typeof item.special === 'string' && item.special.trim().length > 0
+          ? item.special.trim()
+          : 'Teaches a skill';
+      const skillDef = this.gameData?.skills?.find((s) => s.id === item.skillId);
       const descLine = skillDef?.description || '';
-      return { lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3), color: '#ffaa55' };
+      return {
+        lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3),
+        color: '#ffaa55',
+      };
     }
 
     if (item.effect === 'statBoost' || type === 'statBooster') {
       const stat = item.stat || 'Stat';
-      return { lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2), color: '#88ff88' };
+      return {
+        lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2),
+        color: '#88ff88',
+      };
     }
 
     if (item.effect === 'promote' || type === 'promotion') {
@@ -9596,7 +11285,10 @@ export class BattleScene extends Phaser.Scene {
 
     if (item.effect === 'heal' || type === 'healing') {
       const amount = asNum(item.value);
-      return { lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])], color: '#88ff88' };
+      return {
+        lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])],
+        color: '#88ff88',
+      };
     }
 
     if (usesLine) return { lines: [usesLine], color: '#999999' };
@@ -9617,10 +11309,17 @@ export class BattleScene extends Phaser.Scene {
   _getLootTooltipText(choice, item) {
     if (!item) return null;
     const type = choice?.type;
-    const asNum = (v, fb = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fb; };
+    const asNum = (v, fb = 0) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fb;
+    };
 
     // Weapons (non-scroll)
-    if ((item.might !== undefined && item.type !== 'Scroll') || type === 'weapon' || type === 'legendaryWeapon') {
+    if (
+      (item.might !== undefined && item.type !== 'Scroll') ||
+      type === 'weapon' ||
+      type === 'legendaryWeapon'
+    ) {
       const lines = [];
       if (item.type) lines.push(item.type);
       const range = item.range == null ? '1' : String(item.range);
@@ -9633,7 +11332,7 @@ export class BattleScene extends Phaser.Scene {
     // Weapon art scrolls
     if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
       const artId = item.teachesWeaponArtId;
-      const art = artId && this.gameData?.weaponArts?.arts?.find(a => a.id === artId);
+      const art = artId && this.gameData?.weaponArts?.arts?.find((a) => a.id === artId);
       const lines = [];
       if (art) {
         lines.push(art.name || artId);
@@ -9660,7 +11359,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Skill scrolls
     if (item.type === 'Scroll' || type === 'skillScroll') {
-      const skillDef = item.skillId && this.gameData?.skills?.find(s => s.id === item.skillId);
+      const skillDef = item.skillId && this.gameData?.skills?.find((s) => s.id === item.skillId);
       const lines = [];
       lines.push(item.name || 'Skill Scroll');
       if (skillDef) {
@@ -9675,7 +11374,11 @@ export class BattleScene extends Phaser.Scene {
 
     // Accessories
     if (item.type === 'Accessory' || type === 'accessory') {
-      return formatAccessoryDetail(item, { separator: '\n', statSeparator: ', ', fallback: 'Equip for passive bonus' });
+      return formatAccessoryDetail(item, {
+        separator: '\n',
+        statSeparator: ', ',
+        fallback: 'Equip for passive bonus',
+      });
     }
 
     // Consumables
@@ -9684,9 +11387,12 @@ export class BattleScene extends Phaser.Scene {
       if (item.effect === 'heal') lines.push(`Restores ${asNum(item.value)} HP`);
       else if (item.effect === 'healFull') lines.push('Restores HP to full');
       else if (item.effect === 'promote') lines.push('Promotes a Lv 10+ unit');
-      else if (item.effect === 'reclass') lines.push(`Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`);
-      else if (item.effect === 'statBoost') lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
-      if (item.uses !== undefined) lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
+      else if (item.effect === 'reclass')
+        lines.push(`Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`);
+      else if (item.effect === 'statBoost')
+        lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
+      if (item.uses !== undefined)
+        lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
       return lines.join('\n');
     }
 
@@ -9715,10 +11421,15 @@ export class BattleScene extends Phaser.Scene {
     const maxTextW = 224;
     const cam = this.cameras.main;
 
-    const detailText = this.add.text(0, 0, text, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0',
-      lineSpacing: 3, wordWrap: { width: maxTextW },
-    }).setDepth(761);
+    const detailText = this.add
+      .text(0, 0, text, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        lineSpacing: 3,
+        wordWrap: { width: maxTextW },
+      })
+      .setDepth(761);
 
     const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 120, 240);
     const boxH = detailText.height + padY * 2;
@@ -9730,8 +11441,10 @@ export class BattleScene extends Phaser.Scene {
     if (tx < 5) tx = 5;
     if (ty < 5) ty = cardY + cardH / 2 + 6; // flip below if no room above
 
-    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(760).setStrokeStyle(1, 0x336666);
+    const bg = this.add
+      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(760)
+      .setStrokeStyle(1, 0x336666);
     detailText.setPosition(tx + padX, ty + padY);
 
     this._lootTooltip = this.add.container(0, 0, [bg, detailText]).setDepth(760);
@@ -9801,7 +11514,12 @@ export class BattleScene extends Phaser.Scene {
       const trimmed = segment.trim();
       if (!trimmed) continue;
       const wrapped = this.wrapText(trimmed, maxChars);
-      lines.push(...wrapped.split('\n').map(line => line.trim()).filter(Boolean));
+      lines.push(
+        ...wrapped
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+      );
     }
     return lines;
   }
@@ -9828,50 +11546,83 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const roster = this.runManager.roster;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 60, `Apply ${whetstone.name}`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ff8844',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 60, `Apply ${whetstone.name}`, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ff8844',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
-    const subtitle = this.add.text(cam.centerX, 82, 'Select a unit:', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-    }).setOrigin(0.5).setDepth(711);
+    const subtitle = this.add
+      .text(cam.centerX, 82, 'Select a unit:', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(subtitle);
 
     const btnW = 240;
     const topY = 110;
     const bottomY = cam.height - 70;
-    const rowGap = Math.max(26, Math.min(42, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const rowGap = Math.max(
+      26,
+      Math.min(42, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
+    );
     const btnH = Math.max(22, rowGap - 8);
     let validCount = 0;
 
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
-      const forgeableCount = unit.inventory.filter(w =>
-        whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
+      const forgeableCount = unit.inventory.filter((w) =>
+        whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
       ).length;
       const by = topY + i * rowGap;
 
       if (forgeableCount === 0) {
-        const label = this.add.text(cam.centerX, by, `${unit.name}  (no forgeable weapons)`, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#666666',
-        }).setOrigin(0.5).setDepth(712);
+        const label = this.add
+          .text(cam.centerX, by, `${unit.name}  (no forgeable weapons)`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#666666',
+          })
+          .setOrigin(0.5)
+          .setDepth(712);
         pickerGroup.push(label);
         continue;
       }
 
       validCount++;
-      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844).setDepth(711).setInteractive({ useHandCursor: true });
+      const btn = this.add
+        .rectangle(cam.centerX, by, btnW, btnH, 0x443322, 1)
+        .setStrokeStyle(1, 0xff8844)
+        .setDepth(711)
+        .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by, `${unit.name}  (${forgeableCount} weapon${forgeableCount > 1 ? 's' : ''})`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(
+          cam.centerX,
+          by,
+          `${unit.name}  (${forgeableCount} weapon${forgeableCount > 1 ? 's' : ''})`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#e0e0e0',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
       btn.on('pointerdown', () => {
@@ -9890,17 +11641,29 @@ export class BattleScene extends Phaser.Scene {
     }
 
     if (validCount === 0) {
-      const noWeapons = this.add.text(cam.centerX, cam.centerY + 10, 'No forgeable weapons in roster!', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ff8888',
-      }).setOrigin(0.5).setDepth(711);
+      const noWeapons = this.add
+        .text(cam.centerX, cam.centerY + 10, 'No forgeable weapons in roster!', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ff8888',
+        })
+        .setOrigin(0.5)
+        .setDepth(711);
       pickerGroup.push(noWeapons);
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -9914,21 +11677,31 @@ export class BattleScene extends Phaser.Scene {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 60, `${unit.name}: Select weapon to forge`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ff8844',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 60, `${unit.name}: Select weapon to forge`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ff8844',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
-    const forgeableWeapons = unit.inventory.filter(w =>
-      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w)
+    const forgeableWeapons = unit.inventory.filter((w) =>
+      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
     );
     const topY = 110;
     const bottomY = cam.height - 70;
-    const rowGap = Math.max(30, Math.min(48, Math.floor((bottomY - topY) / Math.max(forgeableWeapons.length, 1))));
+    const rowGap = Math.max(
+      30,
+      Math.min(48, Math.floor((bottomY - topY) / Math.max(forgeableWeapons.length, 1))),
+    );
     const btnH = Math.max(24, rowGap - 8);
 
     for (let i = 0; i < forgeableWeapons.length; i++) {
@@ -9937,18 +11710,36 @@ export class BattleScene extends Phaser.Scene {
       const by = topY + i * rowGap;
       const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
 
-      const btn = this.add.rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844).setDepth(711).setInteractive({ useHandCursor: true });
+      const btn = this.add
+        .rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
+        .setStrokeStyle(1, 0xff8844)
+        .setDepth(711)
+        .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: wpnColor,
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: wpnColor,
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
-      const detail = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa',
-      }).setOrigin(0.5).setDepth(712);
+      const detail = this.add
+        .text(
+          cam.centerX,
+          by + Math.floor(btnH * 0.28),
+          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#aaaaaa',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(detail);
 
       btn.on('pointerdown', () => {
@@ -9961,12 +11752,16 @@ export class BattleScene extends Phaser.Scene {
             // Specific whetstone: apply immediately
             const result = applyForge(wpn, whetstone.forgeStat);
             if (!result.success) {
-              this.reportLootError('showForgeWeaponPicker:applyForgeFailed', new Error('applyForge returned success=false'), {
-                unit: unit?.name,
-                weapon: wpn?.name,
-                forgeStat: whetstone?.forgeStat,
-                cardIdx,
-              });
+              this.reportLootError(
+                'showForgeWeaponPicker:applyForgeFailed',
+                new Error('applyForge returned success=false'),
+                {
+                  unit: unit?.name,
+                  weapon: wpn?.name,
+                  forgeStat: whetstone?.forgeStat,
+                  cardIdx,
+                },
+              );
               this.showLootStatus('Forge failed. Choose another weapon.', '#ff8888');
               this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
               return;
@@ -9989,10 +11784,17 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -10006,13 +11808,20 @@ export class BattleScene extends Phaser.Scene {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ff8844',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ff8844',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
     const stats = [
@@ -10033,13 +11842,20 @@ export class BattleScene extends Phaser.Scene {
       const color = atStatCap ? '#666666' : '#e0e0e0';
       const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
 
-      const btn = this.add.rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
-        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844).setDepth(711);
+      const btn = this.add
+        .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
+        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844)
+        .setDepth(711);
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
-        fontFamily: 'monospace', fontSize: '13px', color,
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color,
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
       if (!atStatCap) {
@@ -10055,10 +11871,17 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -10075,20 +11898,30 @@ export class BattleScene extends Phaser.Scene {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 80, `Give ${item.name} to:`, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
     const roster = this.runManager.roster;
     const btnW = 200;
     const topY = 130;
     const bottomY = cam.height - 70;
-    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const rowGap = Math.max(
+      34,
+      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
+    );
     const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
@@ -10098,24 +11931,36 @@ export class BattleScene extends Phaser.Scene {
       const cannotEquip = !canEquip(unit, item);
       const by = topY + i * rowGap;
 
-      const btnColor = full ? 0x444444 : (cannotEquip ? 0x554433 : 0x335566);
-      const borderColor = full ? 0x666666 : (cannotEquip ? 0xcc8844 : 0x66aacc);
-      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
-        .setStrokeStyle(2, borderColor).setDepth(711);
+      const btnColor = full ? 0x444444 : cannotEquip ? 0x554433 : 0x335566;
+      const borderColor = full ? 0x666666 : cannotEquip ? 0xcc8844 : 0x66aacc;
+      const btn = this.add
+        .rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
+        .setStrokeStyle(2, borderColor)
+        .setDepth(711);
       if (!full && !cannotEquip) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const nameColor = full ? '#666666' : (cannotEquip ? '#cc8844' : '#ffffff');
+      const nameColor = full ? '#666666' : cannotEquip ? '#cc8844' : '#ffffff';
       const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
-      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
-        fontFamily: 'monospace', fontSize: '13px', color: nameColor,
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: nameColor,
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
       const statusText = full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`;
-      const invLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
-        fontFamily: 'monospace', fontSize: '9px', color: full ? '#aa4444' : '#aaaaaa',
-      }).setOrigin(0.5).setDepth(712);
+      const invLabel = this.add
+        .text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: full ? '#aa4444' : '#aaaaaa',
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(invLabel);
 
       if (!full && !cannotEquip) {
@@ -10128,10 +11973,21 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = this.add.text(cam.centerX, cam.height - 54, convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: convoyCanStore ? '#88ccff' : '#666666',
-      backgroundColor: '#223344', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711);
+    const convoyBtn = this.add
+      .text(
+        cam.centerX,
+        cam.height - 54,
+        convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
+        {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: convoyCanStore ? '#88ccff' : '#666666',
+          backgroundColor: '#223344',
+          padding: { x: 12, y: 6 },
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(711);
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
@@ -10148,10 +12004,17 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -10168,20 +12031,30 @@ export class BattleScene extends Phaser.Scene {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#88ff88',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
     const roster = this.runManager.roster;
     const btnW = 200;
     const topY = 130;
     const bottomY = cam.height - 70;
-    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const rowGap = Math.max(
+      34,
+      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
+    );
     const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
@@ -10189,18 +12062,36 @@ export class BattleScene extends Phaser.Scene {
       const currentVal = unit.stats[item.stat] || 0;
       const by = topY + i * rowGap;
 
-      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
-        .setStrokeStyle(2, 0x66aacc).setDepth(711).setInteractive({ useHandCursor: true });
+      const btn = this.add
+        .rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
+        .setStrokeStyle(2, 0x66aacc)
+        .setDepth(711)
+        .setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: '#ffffff',
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
-      const statLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), `${item.stat}: ${currentVal} -> ${currentVal + item.value}`, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#88ff88',
-      }).setOrigin(0.5).setDepth(712);
+      const statLabel = this.add
+        .text(
+          cam.centerX,
+          by + Math.floor(btnH * 0.28),
+          `${item.stat}: ${currentVal} -> ${currentVal + item.value}`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#88ff88',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(statLabel);
 
       btn.on('pointerdown', () => {
@@ -10213,10 +12104,17 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -10232,20 +12130,30 @@ export class BattleScene extends Phaser.Scene {
     const pickerGroup = [];
     const cam = this.cameras.main;
 
-    const bg = this.add.rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710).setInteractive();
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
+      .setDepth(710)
+      .setInteractive();
     pickerGroup.push(bg);
 
-    const title = this.add.text(cam.centerX, 80, `Give ${item.name} to:`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
-    }).setOrigin(0.5).setDepth(711);
+    const title = this.add
+      .text(cam.centerX, 80, `Give ${item.name} to:`, {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(711);
     pickerGroup.push(title);
 
     const roster = this.runManager.roster;
     const btnW = 200;
     const topY = 130;
     const bottomY = cam.height - 70;
-    const rowGap = Math.max(34, Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))));
+    const rowGap = Math.max(
+      34,
+      Math.min(62, Math.floor((bottomY - topY) / Math.max(roster.length, 1))),
+    );
     const btnH = Math.max(24, rowGap - 12);
 
     for (let i = 0; i < roster.length; i++) {
@@ -10254,19 +12162,36 @@ export class BattleScene extends Phaser.Scene {
       const full = consumableCount >= CONSUMABLE_MAX;
       const by = topY + i * rowGap;
 
-      const btn = this.add.rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
-        .setStrokeStyle(2, full ? 0x666666 : 0x66aacc).setDepth(711);
+      const btn = this.add
+        .rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
+        .setStrokeStyle(2, full ? 0x666666 : 0x66aacc)
+        .setDepth(711);
       if (!full) btn.setInteractive({ useHandCursor: true });
       pickerGroup.push(btn);
 
-      const label = this.add.text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: full ? '#666666' : '#ffffff',
-      }).setOrigin(0.5).setDepth(712);
+      const label = this.add
+        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color: full ? '#666666' : '#ffffff',
+        })
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(label);
 
-      const invLabel = this.add.text(cam.centerX, by + Math.floor(btnH * 0.28), full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`, {
-        fontFamily: 'monospace', fontSize: '9px', color: full ? '#aa4444' : '#aaaaaa',
-      }).setOrigin(0.5).setDepth(712);
+      const invLabel = this.add
+        .text(
+          cam.centerX,
+          by + Math.floor(btnH * 0.28),
+          full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: full ? '#aa4444' : '#aaaaaa',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(712);
       pickerGroup.push(invLabel);
 
       if (!full) {
@@ -10281,10 +12206,21 @@ export class BattleScene extends Phaser.Scene {
     }
 
     const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = this.add.text(cam.centerX, cam.height - 54, convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: convoyCanStore ? '#88ccff' : '#666666',
-      backgroundColor: '#223344', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711);
+    const convoyBtn = this.add
+      .text(
+        cam.centerX,
+        cam.height - 54,
+        convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
+        {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: convoyCanStore ? '#88ccff' : '#666666',
+          backgroundColor: '#223344',
+          padding: { x: 12, y: 6 },
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(711);
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
@@ -10301,10 +12237,17 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // Back button
-    const backBtn = this.add.text(cam.centerX, cam.height - 24, '< Back', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(711).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cam.centerX, cam.height - 24, '< Back', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(711)
+      .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
     backBtn.on('pointerdown', () => {
@@ -10328,13 +12271,22 @@ export class BattleScene extends Phaser.Scene {
     const px = cam.centerX;
     const py = cam.centerY;
 
-    const bg = this.add.rectangle(px, py, panelW, panelH, 0x111122, 0.95)
-      .setStrokeStyle(2, 0x8888cc).setDepth(750).setInteractive();
+    const bg = this.add
+      .rectangle(px, py, panelW, panelH, 0x111122, 0.95)
+      .setStrokeStyle(2, 0x8888cc)
+      .setDepth(750)
+      .setInteractive();
     this.lootRosterGroup.push(bg);
 
-    const title = this.add.text(px, py - panelH / 2 + 14, 'ROSTER', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(751);
+    const title = this.add
+      .text(px, py - panelH / 2 + 14, 'ROSTER', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(751);
     this.lootRosterGroup.push(title);
 
     const startY = py - panelH / 2 + headerH + 8;
@@ -10345,18 +12297,27 @@ export class BattleScene extends Phaser.Scene {
       const y = startY + i * lineH;
       const wpnName = u.weapon?.name || u.inventory?.[0]?.name || '-';
       const accName = u.accessory?.name || '-';
-      const consumeNames = (u.consumables || []).map(c => c.name).join(', ') || '-';
+      const consumeNames = (u.consumables || []).map((c) => c.name).join(', ') || '-';
       const invCount = (u.inventory || []).length;
       const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(u.level).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
-      const txt = this.add.text(leftX, y, line, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#cccccc',
-      }).setDepth(751);
+      const txt = this.add
+        .text(leftX, y, line, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#cccccc',
+        })
+        .setDepth(751);
       this.lootRosterGroup.push(txt);
     }
 
-    const hint = this.add.text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
-      fontFamily: 'monospace', fontSize: '9px', color: '#888888',
-    }).setOrigin(0.5).setDepth(751);
+    const hint = this.add
+      .text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#888888',
+      })
+      .setOrigin(0.5)
+      .setDepth(751);
     this.lootRosterGroup.push(hint);
     this._pinToScreen(this.lootRosterGroup);
   }
@@ -10453,13 +12414,16 @@ export class BattleScene extends Phaser.Scene {
 
   showLootStatus(message, color = '#ff8888') {
     const cam = this.cameras.main;
-    const status = this.add.text(cam.centerX, cam.height - 44, message, {
-      fontFamily: 'monospace',
-      fontSize: '10px',
-      color,
-      backgroundColor: '#000000cc',
-      padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(799);
+    const status = this.add
+      .text(cam.centerX, cam.height - 44, message, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(799);
     this._pinToScreen(status);
     this.time.delayedCall(1500, () => {
       if (status && status.active) status.destroy();
@@ -10478,20 +12442,25 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.defeat, this, 0);
-    const defeatBanner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY,
-      'DEFEAT',
-      {
-        fontFamily: 'monospace', fontSize: '28px', color: '#cc3333',
-        backgroundColor: '#000000dd', padding: { x: 24, y: 12 },
-      }
-    ).setOrigin(0.5).setDepth(600);
+    const defeatBanner = this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'DEFEAT', {
+        fontFamily: 'monospace',
+        fontSize: '28px',
+        color: '#cc3333',
+        backgroundColor: '#000000dd',
+        padding: { x: 24, y: 12 },
+      })
+      .setOrigin(0.5)
+      .setDepth(600);
     this._pinToScreen(defeatBanner);
 
     if (this.battleParams.tutorialMode) {
       this.time.delayedCall(1500, async () => {
         if (!this.scene?.isActive?.()) return;
-        await showImportantHint(this, 'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.');
+        await showImportantHint(
+          this,
+          'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.',
+        );
         if (!this.scene?.isActive?.()) return;
         this._transitionTutorialToTitle();
       });
@@ -10518,11 +12487,16 @@ export class BattleScene extends Phaser.Scene {
   async transitionToRunCompleteWithRetry(result = 'defeat') {
     return retryBooleanAction(
       (attempt) => {
-        const ok = transitionToScene(this, 'RunComplete', {
-          gameData: this.gameData,
-          runManager: this.runManager,
-          result,
-        }, { reason: TRANSITION_REASONS.DEFEAT });
+        const ok = transitionToScene(
+          this,
+          'RunComplete',
+          {
+            gameData: this.gameData,
+            runManager: this.runManager,
+            result,
+          },
+          { reason: TRANSITION_REASONS.DEFEAT },
+        );
         return ok.then((success) => {
           if (!success) {
             console.warn('[BattleScene] defeat transition attempt failed', { attempt, result });
@@ -10534,11 +12508,12 @@ export class BattleScene extends Phaser.Scene {
         attempts: 4,
         initialDelayMs: 300,
         delayMultiplier: 2.0,
-        wait: (ms) => new Promise((resolve) => {
-          if (this.time?.delayedCall) this.time.delayedCall(ms, resolve);
-          else setTimeout(resolve, ms);
-        }),
-      }
+        wait: (ms) =>
+          new Promise((resolve) => {
+            if (this.time?.delayedCall) this.time.delayedCall(ms, resolve);
+            else setTimeout(resolve, ms);
+          }),
+      },
     );
   }
 
@@ -10547,31 +12522,57 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const group = [];
 
-    const blocker = this.add.rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
+    const blocker = this.add
+      .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
       .setDepth(910)
       .setInteractive();
     group.push(blocker);
 
-    const panel = this.add.rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+    const panel = this.add
+      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
       .setDepth(911)
       .setStrokeStyle(2, 0x777777)
       .setInteractive();
     group.push(panel);
 
-    const title = this.add.text(cam.centerX, cam.centerY - 42, 'Transition failed', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ff8888', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(912);
+    const title = this.add
+      .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ff8888',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(912);
     group.push(title);
 
-    const msg = this.add.text(cam.centerX, cam.centerY - 12, 'Could not open Run Complete.\nRetry or return to title.', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#dddddd', align: 'center',
-    }).setOrigin(0.5).setDepth(912);
+    const msg = this.add
+      .text(
+        cam.centerX,
+        cam.centerY - 12,
+        'Could not open Run Complete.\nRetry or return to title.',
+        {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#dddddd',
+          align: 'center',
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(912);
     group.push(msg);
 
-    const retryBtn = this.add.text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaddff',
-      backgroundColor: '#223344', padding: { x: 10, y: 5 },
-    }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+    const retryBtn = this.add
+      .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
     retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
     retryBtn.on('pointerdown', async () => {
@@ -10582,11 +12583,8 @@ export class BattleScene extends Phaser.Scene {
       if (!transitioned) {
         // Nuclear fallback — bypass startSceneLazy entirely
         try {
-          this.scene.start('RunComplete', { // scene-router-bypass
-            gameData: this.gameData,
-            runManager: this.runManager,
-            result: 'defeat',
-          });
+          // prettier-ignore
+          this.scene.start('RunComplete', { gameData: this.gameData, runManager: this.runManager, result: 'defeat' }); // scene-router-bypass
         } catch (err) {
           console.error('[BattleScene] direct RunComplete fallback failed:', err);
           retryBtn.setText('[ Retry ]');
@@ -10596,10 +12594,17 @@ export class BattleScene extends Phaser.Scene {
     });
     group.push(retryBtn);
 
-    const titleBtn = this.add.text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 10, y: 5 },
-    }).setOrigin(0.5).setDepth(912).setInteractive({ useHandCursor: true });
+    const titleBtn = this.add
+      .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive({ useHandCursor: true });
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
     titleBtn.on('pointerdown', () => {
@@ -10610,16 +12615,21 @@ export class BattleScene extends Phaser.Scene {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       resetTransitionLocks(this);
-      transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.DEFEAT })
-        .then((ok) => {
-          if (!ok) {
-            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
-            catch (err) {
-              console.error('[BattleScene] direct Title fallback failed:', err);
-              titleBtn.setInteractive({ useHandCursor: true });
-            }
+      transitionToScene(
+        this,
+        'Title',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.DEFEAT },
+      ).then((ok) => {
+        if (!ok) {
+          try {
+            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+          } catch (err) {
+            console.error('[BattleScene] direct Title fallback failed:', err);
+            titleBtn.setInteractive({ useHandCursor: true });
           }
-        });
+        }
+      });
     });
     group.push(titleBtn);
 
@@ -10637,6 +12647,3 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 }
-
-
-

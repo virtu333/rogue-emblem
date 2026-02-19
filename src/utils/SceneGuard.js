@@ -13,27 +13,27 @@ import { captureResourceSnapshot } from './resourceSnapshot.js';
 // 'boolean'  = plain boolean flag
 const OVERLAY_PROPS = {
   Battle: {
-    inspectionPanel:    'visible',
-    unitDetailOverlay:  'visible',
-    dangerZone:         'visible',
-    pauseOverlay:       'visible',   // PauseOverlay has .visible flag
-    lootSettingsOverlay:'visible',   // SettingsOverlay has .visible flag
-    dialogueOverlay:    'visible',   // persistent object, uses .visible
-    visionDialog:       'truthy',    // plain object, nulled on close
-    lootGroup:          'truthy',    // Phaser group, nulled on close
-    debugOverlay:       'visible',   // DebugOverlay has .visible flag (dev-only)
-    actionMenu:         'truthy',    // nulled on close
-    lootRosterVisible:  'boolean',
+    inspectionPanel: 'visible',
+    unitDetailOverlay: 'visible',
+    dangerZone: 'visible',
+    pauseOverlay: 'visible', // PauseOverlay has .visible flag
+    lootSettingsOverlay: 'visible', // SettingsOverlay has .visible flag
+    dialogueOverlay: 'visible', // persistent object, uses .visible
+    visionDialog: 'truthy', // plain object, nulled on close
+    lootGroup: 'truthy', // Phaser group, nulled on close
+    debugOverlay: 'visible', // DebugOverlay has .visible flag (dev-only)
+    actionMenu: 'truthy', // nulled on close
+    lootRosterVisible: 'boolean',
   },
   NodeMap: {
-    pauseOverlay:    'visible',   // PauseOverlay has .visible flag
-    settingsOverlay: 'visible',   // SettingsOverlay has .visible flag
-    rosterOverlay:   'visible',   // RosterOverlay has .visible flag
-    debugOverlay:    'visible',   // DebugOverlay has .visible flag
-    shopOverlay:     'truthy',    // nulled on close
-    churchOverlay:   'truthy',    // nulled on close
-    forgePicker:     'truthy',    // nulled on close
-    unitPicker:      'truthy',    // nulled on close
+    pauseOverlay: 'visible', // PauseOverlay has .visible flag
+    settingsOverlay: 'visible', // SettingsOverlay has .visible flag
+    rosterOverlay: 'visible', // RosterOverlay has .visible flag
+    debugOverlay: 'visible', // DebugOverlay has .visible flag
+    shopOverlay: 'truthy', // nulled on close
+    churchOverlay: 'truthy', // nulled on close
+    forgePicker: 'truthy', // nulled on close
+    unitPicker: 'truthy', // nulled on close
   },
 };
 
@@ -51,8 +51,8 @@ const RING_BUFFER_CAP = 50;
 // Per-scene tween tolerance for transition leak detection
 // (some scenes have heavier entry animations)
 const TRANSITION_TWEEN_TOLERANCE = {
-  Battle: 15,   // deploy screen animations
-  Title: 20,    // animated background, menu entry animations
+  Battle: 15, // deploy screen animations
+  Title: 20, // animated background, menu entry animations
   _default: 10,
 };
 
@@ -78,8 +78,12 @@ let _crashDumpInstalled = false;
 
 // Battle states considered "blocking" (game shouldn't show overlays during these)
 const BLOCKING_STATES = new Set([
-  'COMBAT_RESOLVING', 'HEAL_RESOLVING', 'UNIT_MOVING', 'ENEMY_PHASE',
-  'ENEMY_MOVING', 'ENEMY_ATTACKING',
+  'COMBAT_RESOLVING',
+  'HEAL_RESOLVING',
+  'UNIT_MOVING',
+  'ENEMY_PHASE',
+  'ENEMY_MOVING',
+  'ENEMY_ATTACKING',
 ]);
 
 /**
@@ -90,17 +94,17 @@ const BLOCKING_STATES = new Set([
 export function installSceneGuard(game) {
   const state = {
     activeScene: null,
-    history: [],      // last 20 transitions: { from, to, ts, reason?, pre?, post? }
-    sounds: 0,        // currently playing sound count
-    tweens: 0,        // active tween count in current scene
-    resources: null,  // latest resource snapshot for active scene
-    errors: [],       // invariant violation strings (capped at MAX_ERRORS)
-    ready: true,      // game booted successfully
+    history: [], // last 20 transitions: { from, to, ts, reason?, pre?, post? }
+    sounds: 0, // currently playing sound count
+    tweens: 0, // active tween count in current scene
+    resources: null, // latest resource snapshot for active scene
+    errors: [], // invariant violation strings (capped at MAX_ERRORS)
+    ready: true, // game booted successfully
 
     // Battle state tracking
     battle: {
-      state: null,       // current battleState string (null when not in Battle)
-      prevState: null,   // previous battleState
+      state: null, // current battleState string (null when not in Battle)
+      prevState: null, // previous battleState
       stateChangedAt: null,
     },
 
@@ -109,7 +113,7 @@ export function installSceneGuard(game) {
 
     // NodeMap composite state
     nodeMap: {
-      state: null,         // IDLE | SHOP | CHURCH | ROSTER | PAUSED | SETTINGS | DEBUG | FORGE_PICKER | UNIT_PICKER
+      state: null, // IDLE | SHOP | CHURCH | ROSTER | PAUSED | SETTINGS | DEBUG | FORGE_PICKER | UNIT_PICKER
       activeShopTab: null, // 'buy' | 'sell' | 'forge' | null
     },
 
@@ -163,7 +167,7 @@ export function installSceneGuard(game) {
 
   function countPlayingSounds() {
     try {
-      return game.sound?.sounds?.filter(s => s && s.isPlaying)?.length || 0;
+      return game.sound?.sounds?.filter((s) => s && s.isPlaying)?.length || 0;
     } catch (_) {
       return -1;
     }
@@ -266,7 +270,9 @@ export function installSceneGuard(game) {
     state.battle.stateChangedAt = Date.now();
 
     Object.defineProperty(scene, 'battleState', {
-      get() { return _val; },
+      get() {
+        return _val;
+      },
       set(v) {
         const prev = _val;
         _val = v;
@@ -289,7 +295,7 @@ export function installSceneGuard(game) {
     if (BLOCKING_STATES.has(newState) && scene.pauseOverlay?.visible) {
       pushError(
         'blocking_with_overlay',
-        `blocking_with_overlay: entered ${newState} while pauseOverlay active (from ${prevState})`
+        `blocking_with_overlay: entered ${newState} while pauseOverlay active (from ${prevState})`,
       );
     }
   }
@@ -302,7 +308,7 @@ export function installSceneGuard(game) {
     if (current >= 0 && current - soundBaseline > SOUND_LEAK_THRESHOLD) {
       pushError(
         'sound_leak_periodic',
-        `sound_leak_periodic: ${current} sounds playing (baseline ${soundBaseline}) in ${sceneKey}`
+        `sound_leak_periodic: ${current} sounds playing (baseline ${soundBaseline}) in ${sceneKey}`,
       );
     }
 
@@ -313,7 +319,7 @@ export function installSceneGuard(game) {
         if (elapsed > STUCK_THRESHOLD_MS) {
           pushError(
             'stuck_blocking',
-            `stuck_blocking: ${state.battle.state} for ${Math.round(elapsed / 1000)}s`
+            `stuck_blocking: ${state.battle.state} for ${Math.round(elapsed / 1000)}s`,
           );
         }
       }
@@ -327,10 +333,10 @@ export function installSceneGuard(game) {
 
     const pre = mergedMeta.pre;
     const post = postSnapshot || state.resources || snapshot(null);
-    const tweenTolerance = TRANSITION_TWEEN_TOLERANCE[sceneKey]
-      || TRANSITION_TWEEN_TOLERANCE._default;
-    const budget = TRANSITION_RESOURCE_DELTA_BUDGET[sceneKey]
-      || TRANSITION_RESOURCE_DELTA_BUDGET._default;
+    const tweenTolerance =
+      TRANSITION_TWEEN_TOLERANCE[sceneKey] || TRANSITION_TWEEN_TOLERANCE._default;
+    const budget =
+      TRANSITION_RESOURCE_DELTA_BUDGET[sceneKey] || TRANSITION_RESOURCE_DELTA_BUDGET._default;
 
     const deltas = {
       sounds: post.sounds - (pre.sounds || 0),
@@ -347,7 +353,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_sound_leak',
         `transition_sound_leak: +${deltas.sounds} sounds after ` +
-        `${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
     if (post.tweens > tweenTolerance) {
@@ -355,7 +361,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_tween_leak',
         `transition_tween_leak: ${post.tweens} tweens (tolerance ${tweenTolerance}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
     if (deltas.timers > budget.timers) {
@@ -363,7 +369,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_timer_leak',
         `transition_timer_leak: delta +${deltas.timers} timers (budget ${budget.timers}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
     if (deltas.listeners > budget.listeners) {
@@ -371,7 +377,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_listener_leak',
         `transition_listener_leak: delta +${deltas.listeners} listeners (budget ${budget.listeners}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
     if (deltas.objects > budget.objects) {
@@ -379,7 +385,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_object_leak',
         `transition_object_leak: delta +${deltas.objects} objects (budget ${budget.objects}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
     if (deltas.overlayOpen > budget.overlayOpen) {
@@ -387,7 +393,7 @@ export function installSceneGuard(game) {
       pushError(
         'transition_overlay_leak',
         `transition_overlay_leak: delta +${deltas.overlayOpen} open overlays (budget ${budget.overlayOpen}) ` +
-        `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`
+          `after ${mergedMeta.from} -> ${sceneKey} (reason: ${mergedMeta.reason || 'none'})`,
       );
     }
 
@@ -429,42 +435,42 @@ export function installSceneGuard(game) {
       breaches.push('tweens');
       pushError(
         'shutdown_tween_leak',
-        `shutdown_tween_leak: ${afterCleanup.tweens} tweens after shutdown cleanup in ${sceneKey}`
+        `shutdown_tween_leak: ${afterCleanup.tweens} tweens after shutdown cleanup in ${sceneKey}`,
       );
     }
     if (afterCleanup.timers > SHUTDOWN_CLEANUP_BUDGET.maxTimers) {
       breaches.push('timers');
       pushError(
         'shutdown_timer_leak',
-        `shutdown_timer_leak: ${afterCleanup.timers} timers after shutdown cleanup in ${sceneKey}`
+        `shutdown_timer_leak: ${afterCleanup.timers} timers after shutdown cleanup in ${sceneKey}`,
       );
     }
     if (afterCleanup.overlayOpen > SHUTDOWN_CLEANUP_BUDGET.maxOverlayOpen) {
       breaches.push('overlay_open');
       pushError(
         'shutdown_overlay_leak',
-        `shutdown_overlay_leak: ${afterCleanup.overlayOpen} overlays still open in ${sceneKey}`
+        `shutdown_overlay_leak: ${afterCleanup.overlayOpen} overlays still open in ${sceneKey}`,
       );
     }
     if (soundGrowth > SHUTDOWN_CLEANUP_BUDGET.maxSoundGrowth) {
       breaches.push('sounds');
       pushError(
         'shutdown_sound_growth',
-        `shutdown_sound_growth: +${soundGrowth} sounds during shutdown cleanup in ${sceneKey}`
+        `shutdown_sound_growth: +${soundGrowth} sounds during shutdown cleanup in ${sceneKey}`,
       );
     }
     if (listenerGrowth > SHUTDOWN_CLEANUP_BUDGET.maxListenerGrowth) {
       breaches.push('listeners');
       pushError(
         'shutdown_listener_growth',
-        `shutdown_listener_growth: +${listenerGrowth} listeners during shutdown cleanup in ${sceneKey}`
+        `shutdown_listener_growth: +${listenerGrowth} listeners during shutdown cleanup in ${sceneKey}`,
       );
     }
     if (objectGrowth > SHUTDOWN_CLEANUP_BUDGET.maxObjectGrowth) {
       breaches.push('objects');
       pushError(
         'shutdown_object_growth',
-        `shutdown_object_growth: +${objectGrowth} objects during shutdown cleanup in ${sceneKey}`
+        `shutdown_object_growth: +${objectGrowth} objects during shutdown cleanup in ${sceneKey}`,
       );
     }
 
@@ -626,7 +632,9 @@ export function installSceneGuard(game) {
     try {
       const added = game.scene.getScene(addKey);
       if (added) hookScene(added);
-    } catch (_) { /* defensive */ }
+    } catch (_) {
+      /* defensive */
+    }
     return result;
   };
 }

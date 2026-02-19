@@ -153,7 +153,9 @@ describe('startupViewportGuard', () => {
     vi.advanceTimersByTime(60);
 
     expect(h.guard.isActive()).toBe(false);
-    const timeoutMarker = h.mark.mock.calls.find(([name]) => name === 'startup_viewport_guard_timeout');
+    const timeoutMarker = h.mark.mock.calls.find(
+      ([name]) => name === 'startup_viewport_guard_timeout',
+    );
     const stopMarker = h.mark.mock.calls.find(([name]) => name === 'startup_viewport_guard_stop');
     expect(timeoutMarker).toBeDefined();
     expect(stopMarker).toBeDefined();

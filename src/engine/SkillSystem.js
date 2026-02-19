@@ -8,7 +8,7 @@ import { getAffixCombatMods } from './AffixSystem.js';
 // --- Helpers ---
 
 function getSkill(skillId, skillsData) {
-  return skillsData.find(s => s.id === skillId) || null;
+  return skillsData.find((s) => s.id === skillId) || null;
 }
 
 function isBelow50(unit) {
@@ -17,13 +17,20 @@ function isBelow50(unit) {
 
 function getActivationChance(unit, activation) {
   switch (activation) {
-    case 'SKL':          return unit.stats.SKL;
-    case 'SKL_HALF':     return Math.floor(unit.stats.SKL / 2);
-    case 'LCK_QUARTER':  return Math.floor(unit.stats.LCK / 4);
-    case 'SPD':          return unit.stats.SPD;
-    case 'LCK':          return unit.stats.LCK;
-    case 'always':       return 100;
-    default:             return 0;
+    case 'SKL':
+      return unit.stats.SKL;
+    case 'SKL_HALF':
+      return Math.floor(unit.stats.SKL / 2);
+    case 'LCK_QUARTER':
+      return Math.floor(unit.stats.LCK / 4);
+    case 'SPD':
+      return unit.stats.SPD;
+    case 'LCK':
+      return unit.stats.LCK;
+    case 'always':
+      return 100;
+    default:
+      return 0;
   }
 }
 
@@ -56,7 +63,10 @@ export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random)
   const gambler = combatEffects?.gambler || (combatEffects?.gamblerCoin ? {} : null);
   if (!gambler) return 0;
 
-  if (rollSession?.gamblerAtkDeltaByUnit instanceof Map && rollSession.gamblerAtkDeltaByUnit.has(unit)) {
+  if (
+    rollSession?.gamblerAtkDeltaByUnit instanceof Map &&
+    rollSession.gamblerAtkDeltaByUnit.has(unit)
+  ) {
     return rollSession.gamblerAtkDeltaByUnit.get(unit);
   }
 
@@ -64,7 +74,9 @@ export function resolveGamblerDelta(unit, rollSession = null, rng = Math.random)
   const winAtkBonus = Math.trunc(Number(gambler.winAtkBonus) || 5);
   const rawLossPenalty = Number(gambler.lossAtkPenalty);
   const lossAtkPenalty = Number.isFinite(rawLossPenalty)
-    ? (rawLossPenalty > 0 ? -Math.abs(rawLossPenalty) : Math.trunc(rawLossPenalty))
+    ? rawLossPenalty > 0
+      ? -Math.abs(rawLossPenalty)
+      : Math.trunc(rawLossPenalty)
     : -3;
   const roller = typeof rng === 'function' ? rng : Math.random;
   const delta = roller() < winChance ? winAtkBonus : lossAtkPenalty;
@@ -104,24 +116,27 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
   if (condition === 'above75') return unit.currentHP > Math.floor(unit.stats.HP * 0.75);
   if (condition === 'on_forest') return terrain?.name === 'Forest';
   if (condition === 'adjacent_ally') {
-    return allies.some((ally) =>
-      ally !== unit
-      && isLivingOnMap(ally)
-      && gridDistance(unit.col, unit.row, ally.col, ally.row) === 1
+    return allies.some(
+      (ally) =>
+        ally !== unit &&
+        isLivingOnMap(ally) &&
+        gridDistance(unit.col, unit.row, ally.col, ally.row) === 1,
     );
   }
   if (condition === 'no_ally_within_2') {
-    return !allies.some((ally) =>
-      ally !== unit
-      && isLivingOnMap(ally)
-      && gridDistance(unit.col, unit.row, ally.col, ally.row) <= 2
+    return !allies.some(
+      (ally) =>
+        ally !== unit &&
+        isLivingOnMap(ally) &&
+        gridDistance(unit.col, unit.row, ally.col, ally.row) <= 2,
     );
   }
   if (condition === 'enemies_nearby_2plus') {
-    const nearby = enemies.filter((enemy) =>
-      enemy !== unit
-      && isLivingOnMap(enemy)
-      && gridDistance(unit.col, unit.row, enemy.col, enemy.row) <= 2
+    const nearby = enemies.filter(
+      (enemy) =>
+        enemy !== unit &&
+        isLivingOnMap(enemy) &&
+        gridDistance(unit.col, unit.row, enemy.col, enemy.row) <= 2,
     ).length;
     return nearby >= 2;
   }
@@ -130,11 +145,14 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
   }
   if (condition === 'isolated_duel') {
     if (!isLivingOnMap(unit) || !isLivingOnMap(opponent)) return false;
-    const others = [...(allies || []), ...(enemies || [])]
-      .filter((candidate) => candidate && candidate !== unit && candidate !== opponent && isLivingOnMap(candidate));
-    return !others.some((candidate) =>
-      gridDistance(unit.col, unit.row, candidate.col, candidate.row) <= 2
-      || gridDistance(opponent.col, opponent.row, candidate.col, candidate.row) <= 2
+    const others = [...(allies || []), ...(enemies || [])].filter(
+      (candidate) =>
+        candidate && candidate !== unit && candidate !== opponent && isLivingOnMap(candidate),
+    );
+    return !others.some(
+      (candidate) =>
+        gridDistance(unit.col, unit.row, candidate.col, candidate.row) <= 2 ||
+        gridDistance(opponent.col, opponent.row, candidate.col, candidate.row) <= 2,
     );
   }
   return true;
@@ -147,7 +165,16 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
  */
-export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skillsData, terrain, isInitiating = false, affixData = null) {
+export function getSkillCombatMods(
+  unit,
+  opponent,
+  allAllies,
+  allEnemies,
+  skillsData,
+  terrain,
+  isInitiating = false,
+  affixData = null,
+) {
   const mods = {
     hitBonus: 0,
     avoidBonus: 0,
@@ -161,7 +188,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     desperation: false,
     quickRiposte: false,
     preventEnemyDouble: false,
-    activated: [],  // [{id, name}] for UI display
+    activated: [], // [{id, name}] for UI display
     // Affix specific fields
     immuneToDisplacement: false,
   };
@@ -183,7 +210,7 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
     mods.resBonus += affixMods.resBonus;
     mods.hitBonus += affixMods.hitBonus;
     mods.avoidBonus += affixMods.avoidBonus;
-    mods.spdBonus += (affixMods.movBonus || 0); // Note: haste adds MOV but we can map it to light stat if needed? Actually haste is just MOV.
+    mods.spdBonus += affixMods.movBonus || 0; // Note: haste adds MOV but we can map it to light stat if needed? Actually haste is just MOV.
     mods.immuneToDisplacement = affixMods.immuneToDisplacement;
     if (affixMods.activated.length > 0) {
       mods.activated.push(...affixMods.activated);
@@ -204,12 +231,14 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       // Check passive conditions
       let passiveCondMet = true;
       if (skill.condition === 'no_adjacent_ally') {
-        passiveCondMet = !allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+        passiveCondMet = !allies.some(
+          (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
+        );
       }
       if (passiveCondMet) {
         if (skill.effects.critScalesWithMissingHP) {
           const maxCrit = skill.effects.critScaleMax || 30;
-          const missingRatio = 1 - (unit.currentHP / unit.stats.HP);
+          const missingRatio = 1 - unit.currentHP / unit.stats.HP;
           mods.critBonus += Math.min(maxCrit, Math.floor(missingRatio * maxCrit));
         }
         if (skill.effects.critBonus) mods.critBonus += skill.effects.critBonus;
@@ -228,7 +257,9 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
       let condMet = !skill.condition;
       if (skill.condition === 'below50') condMet = isBelow50(unit);
       if (skill.condition === 'adjacent_ally') {
-        condMet = allies.some(a => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1);
+        condMet = allies.some(
+          (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
+        );
       }
       if (skill.condition === 'initiating') condMet = isInitiating;
       if (skill.condition === 'defending') condMet = !isInitiating;
@@ -261,10 +292,11 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
           mods.activated.push({ id: skill.id, name: skill.name });
         }
         if (skill.id === 'spell_harmony') {
-          const adjacentPlayerAllies = allies.filter(a =>
-            a !== unit
-            && a.faction === 'player'
-            && gridDistance(unit.col, unit.row, a.col, a.row) === 1
+          const adjacentPlayerAllies = allies.filter(
+            (a) =>
+              a !== unit &&
+              a.faction === 'player' &&
+              gridDistance(unit.col, unit.row, a.col, a.row) === 1,
           ).length;
           if (adjacentPlayerAllies > 0) {
             mods.atkBonus += adjacentPlayerAllies;
@@ -272,7 +304,14 @@ export function getSkillCombatMods(unit, opponent, allAllies, allEnemies, skills
           }
         }
         // Generic on-combat-start stat bonuses (Guard, Death Blow, Darting Blow, etc.)
-        const specialIds = new Set(['resolve', 'wrath', 'vantage', 'desperation', 'quick_riposte', 'spell_harmony']);
+        const specialIds = new Set([
+          'resolve',
+          'wrath',
+          'vantage',
+          'desperation',
+          'quick_riposte',
+          'spell_harmony',
+        ]);
         if (!specialIds.has(skill.id) && skill.effects) {
           if (skill.effects.defBonus) mods.defBonus += skill.effects.defBonus;
           if (skill.effects.resBonus) mods.resBonus += skill.effects.resBonus;
@@ -400,7 +439,10 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         break;
 
       case 'divine_charge':
-        result.divineCharge = { percent: skill.effects?.healLowestAlly?.percent || 50, range: skill.effects?.healLowestAlly?.range || 3 };
+        result.divineCharge = {
+          percent: skill.effects?.healLowestAlly?.percent || 50,
+          range: skill.effects?.healLowestAlly?.range || 3,
+        };
         result.activated.push({ id: 'divine_charge', name: 'Divine Charge' });
         break;
 
@@ -417,7 +459,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
 
       case 'drain': {
         const percent = skill.effects?.drainPercent || 25;
-        result.heal = Math.max(1, Math.floor(normalDamage * percent / 100));
+        result.heal = Math.max(1, Math.floor((normalDamage * percent) / 100));
         result.activated.push({ id: 'drain', name: 'Drain' });
         break;
       }
@@ -548,7 +590,7 @@ export function getTurnStartEffects(units, skillsData) {
         // Renewal: self-heal 10% max HP
         if (skill.id === 'renewal') {
           const healPercent = skill.effects?.healSelf || 10;
-          const healAmount = Math.max(1, Math.floor(unit.stats.HP * healPercent / 100));
+          const healAmount = Math.max(1, Math.floor((unit.stats.HP * healPercent) / 100));
           if (unit.currentHP < unit.stats.HP) {
             const actualHeal = Math.min(healAmount, unit.stats.HP - unit.currentHP);
             effects.push({
@@ -586,12 +628,13 @@ export function getTurnStartEffects(units, skillsData) {
     const accessory = unit.accessory;
     const turnStart = accessory?.turnStartEffects;
     const combatEffects = accessory?.combatEffects;
-    const hasSoothingStone = accessory?.name === 'Soothing Stone'
-      || Number.isFinite(Number(turnStart?.healSelfFlat))
-      || Number.isFinite(Number(turnStart?.healSelfPercent))
-      || Number.isFinite(Number(turnStart?.turnStartHealPercent))
-      || Number.isFinite(Number(combatEffects?.turnStartHealFlat))
-      || Number.isFinite(Number(combatEffects?.turnStartHealPercent));
+    const hasSoothingStone =
+      accessory?.name === 'Soothing Stone' ||
+      Number.isFinite(Number(turnStart?.healSelfFlat)) ||
+      Number.isFinite(Number(turnStart?.healSelfPercent)) ||
+      Number.isFinite(Number(turnStart?.turnStartHealPercent)) ||
+      Number.isFinite(Number(combatEffects?.turnStartHealFlat)) ||
+      Number.isFinite(Number(combatEffects?.turnStartHealPercent));
     if (!hasSoothingStone) continue;
     if (unit.currentHP >= unit.stats.HP) continue;
 
@@ -608,9 +651,10 @@ export function getTurnStartEffects(units, skillsData) {
         ? Number(combatEffects.turnStartHealFlat)
         : 0;
     const healFlat = Math.max(0, Math.trunc(healFlatRaw || 0));
-    const percentComponent = healPercent <= 1
-      ? Math.floor(unit.stats.HP * Math.max(0, healPercent))
-      : Math.floor(unit.stats.HP * Math.max(0, healPercent) / 100);
+    const percentComponent =
+      healPercent <= 1
+        ? Math.floor(unit.stats.HP * Math.max(0, healPercent))
+        : Math.floor((unit.stats.HP * Math.max(0, healPercent)) / 100);
     const healAmount = Math.max(1, healFlat + percentComponent);
     const actualHeal = Math.min(healAmount, unit.stats.HP - unit.currentHP);
     if (actualHeal > 0) {
@@ -630,13 +674,15 @@ export function getTurnStartEffects(units, skillsData) {
 export function checkPhoenixBrooch(unit) {
   if (!unit || unit.currentHP <= 0) return { triggered: false, amount: 0 };
   const combatEffects = unit.accessory?.combatEffects;
-  const hasPhoenixBrooch = unit.accessory?.name === 'Phoenix Brooch' || Boolean(combatEffects?.phoenixBrooch);
+  const hasPhoenixBrooch =
+    unit.accessory?.name === 'Phoenix Brooch' || Boolean(combatEffects?.phoenixBrooch);
   if (!hasPhoenixBrooch) return { triggered: false, amount: 0 };
   if (unit._phoenixBroochUsed) return { triggered: false, amount: 0 };
 
-  const phoenixConfig = (combatEffects?.phoenixBrooch && typeof combatEffects.phoenixBrooch === 'object')
-    ? combatEffects.phoenixBrooch
-    : {};
+  const phoenixConfig =
+    combatEffects?.phoenixBrooch && typeof combatEffects.phoenixBrooch === 'object'
+      ? combatEffects.phoenixBrooch
+      : {};
   const maxHp = Math.max(1, Number(unit.stats?.HP) || 1);
   const thresholdPercent = Number.isFinite(Number(phoenixConfig.thresholdPercent))
     ? Math.max(0, Number(phoenixConfig.thresholdPercent))
@@ -650,31 +696,36 @@ export function checkPhoenixBrooch(unit) {
       : Math.max(1, Math.floor(maxHp * thresholdPercent));
   if (unit.currentHP > thresholdHp) return { triggered: false, amount: 0 };
 
-  const hasExplicitHealPercent = Number.isFinite(Number(phoenixConfig.healPercent))
-    || Number.isFinite(Number(combatEffects?.phoenixHealPercent));
-  const hasExplicitHealFlat = Number.isFinite(Number(phoenixConfig.healFlat))
-    || Number.isFinite(Number(combatEffects?.phoenixHeal));
+  const hasExplicitHealPercent =
+    Number.isFinite(Number(phoenixConfig.healPercent)) ||
+    Number.isFinite(Number(combatEffects?.phoenixHealPercent));
+  const hasExplicitHealFlat =
+    Number.isFinite(Number(phoenixConfig.healFlat)) ||
+    Number.isFinite(Number(combatEffects?.phoenixHeal));
   const healPercentRaw = hasExplicitHealPercent
     ? Math.max(
-      0,
-      Number.isFinite(Number(phoenixConfig.healPercent))
-        ? Number(phoenixConfig.healPercent)
-        : Number(combatEffects?.phoenixHealPercent)
-    )
+        0,
+        Number.isFinite(Number(phoenixConfig.healPercent))
+          ? Number(phoenixConfig.healPercent)
+          : Number(combatEffects?.phoenixHealPercent),
+      )
     : 0;
   const healFlat = hasExplicitHealFlat
     ? Math.max(
-      0,
-      Math.trunc(
-        Number.isFinite(Number(phoenixConfig.healFlat))
-          ? Number(phoenixConfig.healFlat)
-          : Number(combatEffects?.phoenixHeal)
+        0,
+        Math.trunc(
+          Number.isFinite(Number(phoenixConfig.healFlat))
+            ? Number(phoenixConfig.healFlat)
+            : Number(combatEffects?.phoenixHeal),
+        ),
       )
-    )
-    : (hasExplicitHealPercent ? 0 : 10);
-  const percentHeal = healPercentRaw <= 1
-    ? Math.floor(maxHp * healPercentRaw)
-    : Math.floor(maxHp * healPercentRaw / 100);
+    : hasExplicitHealPercent
+      ? 0
+      : 10;
+  const percentHeal =
+    healPercentRaw <= 1
+      ? Math.floor(maxHp * healPercentRaw)
+      : Math.floor((maxHp * healPercentRaw) / 100);
   const rawHeal = Math.max(1, percentHeal + healFlat);
   const nextHp = Math.min(maxHp, unit.currentHP + rawHeal);
   const amount = nextHp - unit.currentHP;
@@ -720,4 +771,3 @@ export function getTerrainCostReduction(unit, skillsData) {
   }
   return 0;
 }
-

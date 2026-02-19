@@ -5,8 +5,12 @@ import { HintManager } from '../src/engine/HintManager.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => { store[key] = val; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = val;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -75,7 +79,9 @@ describe('HintManager', () => {
   });
 
   it('handles localStorage getItem throwing gracefully', () => {
-    localStorageMock.getItem.mockImplementationOnce(() => { throw new Error('blocked'); });
+    localStorageMock.getItem.mockImplementationOnce(() => {
+      throw new Error('blocked');
+    });
     const hm = new HintManager(1);
     expect(hm.hasSeen('anything')).toBe(false);
     // Should still work in-memory
@@ -83,7 +89,9 @@ describe('HintManager', () => {
   });
 
   it('handles localStorage setItem throwing gracefully', () => {
-    localStorageMock.setItem.mockImplementationOnce(() => { throw new Error('quota'); });
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('quota');
+    });
     const hm = new HintManager(1);
     // Should not throw
     expect(() => hm.shouldShow('test')).not.toThrow();

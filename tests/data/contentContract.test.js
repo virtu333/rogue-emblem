@@ -70,7 +70,9 @@ describe('PR1 content contract', () => {
 
     const result = validateContentContract(workspace);
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.includes('duplicate accessory name "Blood Gem"'))).toBe(true);
+    expect(
+      result.issues.some((issue) => issue.includes('duplicate accessory name "Blood Gem"')),
+    ).toBe(true);
   });
 
   it('fails on duplicate consumable names in source data', () => {
@@ -91,7 +93,9 @@ describe('PR1 content contract', () => {
 
     const result = validateContentContract(workspace);
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.includes('duplicate consumable name "Swiftsoles"'))).toBe(true);
+    expect(
+      result.issues.some((issue) => issue.includes('duplicate consumable name "Swiftsoles"')),
+    ).toBe(true);
   });
 
   it('enforces PR1 accessory exclusivity across all acts in lootTables', () => {
@@ -115,7 +119,11 @@ describe('PR1 content contract', () => {
 
     const result = validateContentContract(workspace);
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.includes('act4.accessories should not include "Blood Gem"'))).toBe(true);
+    expect(
+      result.issues.some((issue) =>
+        issue.includes('act4.accessories should not include "Blood Gem"'),
+      ),
+    ).toBe(true);
   });
 
   it('fails when loot tables reference unknown item names', () => {
@@ -135,8 +143,16 @@ describe('PR1 content contract', () => {
 
     const result = validateContentContract(workspace);
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.includes('act1.accessories references unknown accessory "Unknown Accessory"'))).toBe(true);
-    expect(result.issues.some((issue) => issue.includes('act1.healing references unknown consumable "Unknown Consumable"'))).toBe(true);
+    expect(
+      result.issues.some((issue) =>
+        issue.includes('act1.accessories references unknown accessory "Unknown Accessory"'),
+      ),
+    ).toBe(true);
+    expect(
+      result.issues.some((issue) =>
+        issue.includes('act1.healing references unknown consumable "Unknown Consumable"'),
+      ),
+    ).toBe(true);
   });
 
   it('fails when source totals drift from expected totals', () => {
@@ -161,8 +177,12 @@ describe('PR1 content contract', () => {
 
     const result = validateContentContract(workspace);
     expect(result.ok).toBe(false);
-    expect(result.issues.some((issue) => issue.includes('data/accessories.json total count expected'))).toBe(true);
-    expect(result.issues.some((issue) => issue.includes('data/consumables.json total count expected'))).toBe(true);
+    expect(
+      result.issues.some((issue) => issue.includes('data/accessories.json total count expected')),
+    ).toBe(true);
+    expect(
+      result.issues.some((issue) => issue.includes('data/consumables.json total count expected')),
+    ).toBe(true);
   });
 
   it('fails when expectedTotals types are invalid', () => {

@@ -90,8 +90,12 @@ test.describe('Accessory UI smoke', () => {
       if (!unit) return null;
 
       const getPickerState = () => {
-        const bg = overlay.tradeObjects.find((o) => o?.type === 'Rectangle' && Number(o.width) === 460);
-        const pageLabel = overlay.tradeObjects.find((o) => typeof o?.text === 'string' && o.text.startsWith('Page '));
+        const bg = overlay.tradeObjects.find(
+          (o) => o?.type === 'Rectangle' && Number(o.width) === 460,
+        );
+        const pageLabel = overlay.tradeObjects.find(
+          (o) => typeof o?.text === 'string' && o.text.startsWith('Page '),
+        );
         return {
           height: bg ? Number(bg.height) : null,
           page: pageLabel ? pageLabel.text : null,
@@ -113,7 +117,9 @@ test.describe('Accessory UI smoke', () => {
       overlay._showAccessoryPicker(unit);
       const large = getPickerState();
 
-      const next = overlay.tradeObjects.find((o) => typeof o?.text === 'string' && o.text === 'Next');
+      const next = overlay.tradeObjects.find(
+        (o) => typeof o?.text === 'string' && o.text === 'Next',
+      );
       if (next?.emit) next.emit('pointerdown');
       const afterNext = getPickerState();
 

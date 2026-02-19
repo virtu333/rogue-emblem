@@ -1,14 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
-import { validateBlessingsConfig, selectBlessingOptionsWithTelemetry, createSeededRng } from '../src/engine/BlessingEngine.js';
+import {
+  validateBlessingsConfig,
+  selectBlessingOptionsWithTelemetry,
+  createSeededRng,
+} from '../src/engine/BlessingEngine.js';
 import { getForgeCost } from '../src/engine/ForgeSystem.js';
 
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => { store[key] = val; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = val;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -16,7 +24,7 @@ function activeBlessing(id, rolledCost = null) {
   return { id, rolledCost };
 }
 
-describe('Blessing Expansion v2 — data validation', () => {
+describe('Blessing Expansion v2 ï¿½ data validation', () => {
   it('blessings.json passes validation with 23 entries', () => {
     const gameData = loadGameData();
     const result = validateBlessingsConfig(gameData.blessings);
@@ -48,7 +56,7 @@ describe('Blessing Expansion v2 — data validation', () => {
   });
 });
 
-describe('Blessing Expansion v2 — selection and exclusions', () => {
+describe('Blessing Expansion v2 ï¿½ selection and exclusions', () => {
   it('keeps exclusion pairs bidirectional', () => {
     const gameData = loadGameData();
     const index = new Map(gameData.blessings.blessings.map((b) => [b.id, b]));
@@ -62,7 +70,10 @@ describe('Blessing Expansion v2 — selection and exclusions', () => {
     const gameData = loadGameData();
     for (let seed = 1; seed <= 40; seed++) {
       const rng = createSeededRng(seed);
-      const { selected } = selectBlessingOptionsWithTelemetry(gameData.blessings, rng, { count: 4, allowTier4: true });
+      const { selected } = selectBlessingOptionsWithTelemetry(gameData.blessings, rng, {
+        count: 4,
+        allowTier4: true,
+      });
       const ids = new Set(selected.map((b) => b.id));
       if (ids.has('frugal_smith')) expect(ids.has('merchant_bane')).toBe(false);
       if (ids.has('merchant_bane')) expect(ids.has('frugal_smith')).toBe(false);
@@ -76,7 +87,7 @@ describe('Blessing Expansion v2 — selection and exclusions', () => {
   });
 });
 
-describe('Blessing Expansion v2 — effect handlers', () => {
+describe('Blessing Expansion v2 ï¿½ effect handlers', () => {
   it('frugal_smith applies forge_cost_multiplier as a discount', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
@@ -105,10 +116,12 @@ describe('Blessing Expansion v2 — effect handlers', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster.filter((u) => u.isLord).forEach((unit, idx) => {
-      expect(unit.consumables.length).toBeGreaterThanOrEqual(lordConsumableCounts[idx]);
-      expect(unit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
-    });
+    rm.roster
+      .filter((u) => u.isLord)
+      .forEach((unit, idx) => {
+        expect(unit.consumables.length).toBeGreaterThanOrEqual(lordConsumableCounts[idx]);
+        expect(unit.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
+      });
   });
 
   it('focused_curriculum applies targeted lord growths and updates growth bonus APIs', () => {
@@ -116,21 +129,29 @@ describe('Blessing Expansion v2 — effect handlers', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
 
-    const beforeLord = rm.roster.filter((u) => u.isLord).map((u) => ({ SPD: u.growths.SPD, SKL: u.growths.SKL }));
-    const beforeRecruit = rm.roster.filter((u) => !u.isLord).map((u) => ({ SPD: u.growths.SPD, SKL: u.growths.SKL }));
+    const beforeLord = rm.roster
+      .filter((u) => u.isLord)
+      .map((u) => ({ SPD: u.growths.SPD, SKL: u.growths.SKL }));
+    const beforeRecruit = rm.roster
+      .filter((u) => !u.isLord)
+      .map((u) => ({ SPD: u.growths.SPD, SKL: u.growths.SKL }));
 
     rm.activeBlessings = [activeBlessing('focused_curriculum')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster.filter((u) => u.isLord).forEach((unit, idx) => {
-      expect(unit.growths.SPD).toBe(beforeLord[idx].SPD + 12);
-      expect(unit.growths.SKL).toBe(beforeLord[idx].SKL + 12);
-    });
-    rm.roster.filter((u) => !u.isLord).forEach((unit, idx) => {
-      expect(unit.growths.SPD).toBe(beforeRecruit[idx].SPD);
-      expect(unit.growths.SKL).toBe(beforeRecruit[idx].SKL);
-    });
+    rm.roster
+      .filter((u) => u.isLord)
+      .forEach((unit, idx) => {
+        expect(unit.growths.SPD).toBe(beforeLord[idx].SPD + 12);
+        expect(unit.growths.SKL).toBe(beforeLord[idx].SKL + 12);
+      });
+    rm.roster
+      .filter((u) => !u.isLord)
+      .forEach((unit, idx) => {
+        expect(unit.growths.SPD).toBe(beforeRecruit[idx].SPD);
+        expect(unit.growths.SKL).toBe(beforeRecruit[idx].SKL);
+      });
 
     const recruitBonuses = rm.getEffectiveRecruitGrowthBonuses() || {};
     const lordBonuses = rm.getEffectiveLordGrowthBonuses() || {};
@@ -146,16 +167,18 @@ describe('Blessing Expansion v2 — effect handlers', () => {
 
     const before = rm.roster
       .filter((u) => u.isLord)
-      .map((u) => (u.weapon ? (u.weapon._forgeLevel || 0) : 0));
+      .map((u) => (u.weapon ? u.weapon._forgeLevel || 0 : 0));
 
     rm.activeBlessings = [activeBlessing('blood_forge')];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster.filter((u) => u.isLord).forEach((unit, idx) => {
-      if (!unit.weapon) return;
-      expect((unit.weapon._forgeLevel || 0)).toBeGreaterThanOrEqual(before[idx] + 1);
-    });
+    rm.roster
+      .filter((u) => u.isLord)
+      .forEach((unit, idx) => {
+        if (!unit.weapon) return;
+        expect(unit.weapon._forgeLevel || 0).toBeGreaterThanOrEqual(before[idx] + 1);
+      });
   });
 
   it('starting_scroll grants deterministic scrolls for same seed', () => {

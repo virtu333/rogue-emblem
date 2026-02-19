@@ -5,8 +5,12 @@ import { SettingsManager } from '../src/utils/SettingsManager.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, val) => { store[key] = val; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = val;
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -24,7 +28,11 @@ describe('SettingsManager', () => {
   });
 
   it('loads saved values from localStorage', () => {
-    store['emblem_rogue_settings'] = JSON.stringify({ musicVolume: 0.3, sfxVolume: 0.8, reducedEffects: true });
+    store['emblem_rogue_settings'] = JSON.stringify({
+      musicVolume: 0.3,
+      sfxVolume: 0.8,
+      reducedEffects: true,
+    });
     const sm = new SettingsManager();
     expect(sm.getMusicVolume()).toBe(0.3);
     expect(sm.getSFXVolume()).toBe(0.8);
@@ -69,7 +77,9 @@ describe('SettingsManager', () => {
   });
 
   it('survives localStorage throwing', () => {
-    localStorageMock.getItem.mockImplementationOnce(() => { throw new Error('blocked'); });
+    localStorageMock.getItem.mockImplementationOnce(() => {
+      throw new Error('blocked');
+    });
     const sm = new SettingsManager();
     expect(sm.getMusicVolume()).toBe(0.5); // falls back to defaults
   });

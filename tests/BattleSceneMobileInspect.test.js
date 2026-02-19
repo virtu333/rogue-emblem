@@ -30,8 +30,12 @@ function createCancelScene(overrides = {}) {
     showPauseMenu: vi.fn(),
     handleCancel: vi.fn(),
     cancelVisionDialog: vi.fn(),
-    canRequestCancel(opts) { return BattleScene.prototype.canRequestCancel.call(this, opts); },
-    isCancelableBattleState() { return BattleScene.prototype.isCancelableBattleState.call(this); },
+    canRequestCancel(opts) {
+      return BattleScene.prototype.canRequestCancel.call(this, opts);
+    },
+    isCancelableBattleState() {
+      return BattleScene.prototype.isCancelableBattleState.call(this);
+    },
     ...overrides,
   };
 }

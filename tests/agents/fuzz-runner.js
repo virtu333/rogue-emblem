@@ -179,7 +179,7 @@ async function main() {
 
   console.log('\n=== Headless Battle Harness ===');
   console.log(
-    `Agent: ${opts.agent} | Seeds: ${startSeed}-${endSeed} (selected=${seedList.length}) | Scenarios: ${scenarios.join(', ')} | Max actions(default): ${opts.maxActions}`
+    `Agent: ${opts.agent} | Seeds: ${startSeed}-${endSeed} (selected=${seedList.length}) | Scenarios: ${scenarios.join(', ')} | Max actions(default): ${opts.maxActions}`,
   );
   console.log(`Mode: ${opts.mode}`);
   if (opts.failOnTimeout) {
@@ -228,7 +228,10 @@ async function main() {
         replay.result === 'stuck';
       const timeoutFailure = timedOut && (opts.failOnTimeout || opts.mode === 'strict');
       const isFailure = hardFailure || timeoutFailure;
-      const isError = replay.result === 'error' || replay.result === 'invariant_violation' || replay.result === 'stuck';
+      const isError =
+        replay.result === 'error' ||
+        replay.result === 'invariant_violation' ||
+        replay.result === 'stuck';
 
       if (replay.result === 'victory') {
         stats.victories++;
@@ -276,16 +279,17 @@ async function main() {
 
   const elapsedMs = Date.now() - beganAt;
   const avgTurns = totals.runs > 0 ? (totals.totalTurns / totals.runs).toFixed(2) : '0.00';
-  const avgDurationMs = totals.runs > 0 ? (totals.totalDurationMs / totals.runs).toFixed(2) : '0.00';
+  const avgDurationMs =
+    totals.runs > 0 ? (totals.totalDurationMs / totals.runs).toFixed(2) : '0.00';
   const winRate = pct(totals.victories, totals.runs);
   const timeoutRate = Number(pct(totals.timeouts, totals.runs));
 
   console.log('\n--- Summary ---');
   console.log(
-    `runs=${totals.runs} failures=${totals.failures} errors=${totals.errors} timeouts=${totals.timeouts} victories=${totals.victories} defeats=${totals.defeats}`
+    `runs=${totals.runs} failures=${totals.failures} errors=${totals.errors} timeouts=${totals.timeouts} victories=${totals.victories} defeats=${totals.defeats}`,
   );
   console.log(
-    `avg_turns=${avgTurns} avg_run_ms=${avgDurationMs} win_rate_pct=${winRate} timeout_rate_pct=${timeoutRate.toFixed(2)} elapsed_ms=${elapsedMs}`
+    `avg_turns=${avgTurns} avg_run_ms=${avgDurationMs} win_rate_pct=${winRate} timeout_rate_pct=${timeoutRate.toFixed(2)} elapsed_ms=${elapsedMs}`,
   );
 
   console.log('\n--- By Scenario ---');
@@ -294,15 +298,19 @@ async function main() {
     const sAvgTurns = s.runs > 0 ? (s.totalTurns / s.runs).toFixed(2) : '0.00';
     const sWinRate = pct(s.victories, s.runs);
     console.log(
-      `${scenarioId}: runs=${s.runs} failures=${s.failures} timeouts=${s.timeouts} avg_turns=${sAvgTurns} win_rate_pct=${sWinRate}`
+      `${scenarioId}: runs=${s.runs} failures=${s.failures} timeouts=${s.timeouts} avg_turns=${sAvgTurns} win_rate_pct=${sWinRate}`,
     );
   }
 
   let thresholdBreach = false;
-  if (opts.mode === 'reporting' && opts.timeoutRateThreshold !== null && timeoutRate > opts.timeoutRateThreshold) {
+  if (
+    opts.mode === 'reporting' &&
+    opts.timeoutRateThreshold !== null &&
+    timeoutRate > opts.timeoutRateThreshold
+  ) {
     thresholdBreach = true;
     console.log(
-      `\nTimeout threshold breached: timeout_rate_pct=${timeoutRate.toFixed(2)} > threshold=${opts.timeoutRateThreshold.toFixed(2)}`
+      `\nTimeout threshold breached: timeout_rate_pct=${timeoutRate.toFixed(2)} > threshold=${opts.timeoutRateThreshold.toFixed(2)}`,
     );
   }
 
@@ -310,7 +318,9 @@ async function main() {
     if (failures.length > 0) {
       console.log('\n--- Failure Details ---');
       for (const f of failures) {
-        console.log(`seed=${f.seed} scenario=${f.scenario} action=${f.actionIndex} :: ${f.message}`);
+        console.log(
+          `seed=${f.seed} scenario=${f.scenario} action=${f.actionIndex} :: ${f.message}`,
+        );
         console.log(`replay=${f.replayPath}`);
       }
     }

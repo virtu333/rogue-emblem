@@ -1,11 +1,7 @@
 // Accessories.test.js — Accessory equip/unequip, loot, shop, serialization
 import { describe, it, expect, beforeAll } from 'vitest';
 import { loadGameData } from './testData.js';
-import {
-  createUnit,
-  equipAccessory,
-  unequipAccessory,
-} from '../src/engine/UnitManager.js';
+import { createUnit, equipAccessory, unequipAccessory } from '../src/engine/UnitManager.js';
 import { generateLootChoices, generateShopInventory } from '../src/engine/LootSystem.js';
 import { serializeUnit } from '../src/engine/RunManager.js';
 
@@ -16,7 +12,7 @@ beforeAll(() => {
 });
 
 function makeUnit() {
-  const classData = gameData.classes.find(c => c.name === 'Myrmidon');
+  const classData = gameData.classes.find((c) => c.name === 'Myrmidon');
   return createUnit(classData, 5, gameData.weapons);
 }
 
@@ -51,7 +47,13 @@ describe('Accessories', () => {
     it('roundtrip equip+unequip restores original stats', () => {
       const unit = makeUnit();
       const origStats = { ...unit.stats };
-      const delphi = { name: 'Delphi Shield', type: 'Accessory', effects: { DEF: 1, RES: 1 }, combatEffects: { negateFlierWeakness: true }, price: 2500 };
+      const delphi = {
+        name: 'Delphi Shield',
+        type: 'Accessory',
+        effects: { DEF: 1, RES: 1 },
+        combatEffects: { negateFlierWeakness: true },
+        price: 2500,
+      };
       equipAccessory(unit, delphi);
       expect(unit.stats.DEF).toBe(origStats.DEF + 1);
       expect(unit.stats.RES).toBe(origStats.RES + 1);
@@ -105,10 +107,15 @@ describe('Accessories', () => {
       let foundAccessory = false;
       for (let i = 0; i < 100; i++) {
         const choices = generateLootChoices(
-          'act2', gameData.lootTables, gameData.weapons,
-          gameData.consumables, 3, 0, gameData.accessories
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          3,
+          0,
+          gameData.accessories,
         );
-        if (choices.some(c => c.type === 'accessory')) {
+        if (choices.some((c) => c.type === 'accessory')) {
           foundAccessory = true;
           break;
         }
@@ -122,10 +129,13 @@ describe('Accessories', () => {
       let foundAccessory = false;
       for (let i = 0; i < 50; i++) {
         const inventory = generateShopInventory(
-          'act2', gameData.lootTables, gameData.weapons,
-          gameData.consumables, gameData.accessories
+          'act2',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
         );
-        if (inventory.some(entry => entry.type === 'accessory')) {
+        if (inventory.some((entry) => entry.type === 'accessory')) {
           foundAccessory = true;
           break;
         }

@@ -29,7 +29,28 @@ export class DataLoader {
   }
 
   async loadAll() {
-    const [terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue, weaponArts] = await Promise.all([
+    const [
+      terrain,
+      lords,
+      classes,
+      weapons,
+      skills,
+      mapSizes,
+      mapTemplates,
+      enemies,
+      consumables,
+      lootTables,
+      recruits,
+      metaUpgrades,
+      accessories,
+      whetstones,
+      turnBonus,
+      blessings,
+      difficulty,
+      affixes,
+      dialogue,
+      weaponArts,
+    ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
       this.loadJSON('data/classes.json'),
@@ -85,7 +106,28 @@ export class DataLoader {
     if (!diffValidation.valid) {
       throw new Error(`Invalid difficulty data: ${diffValidation.errors.join('; ')}`);
     }
-    return { terrain, lords, classes, weapons, skills, mapSizes, mapTemplates, enemies, consumables, lootTables, recruits, metaUpgrades, accessories, whetstones, turnBonus, blessings, difficulty, affixes, dialogue, weaponArts };
+    return {
+      terrain,
+      lords,
+      classes,
+      weapons,
+      skills,
+      mapSizes,
+      mapTemplates,
+      enemies,
+      consumables,
+      lootTables,
+      recruits,
+      metaUpgrades,
+      accessories,
+      whetstones,
+      turnBonus,
+      blessings,
+      difficulty,
+      affixes,
+      dialogue,
+      weaponArts,
+    };
   }
 
   async loadJSON(path) {

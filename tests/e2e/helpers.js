@@ -22,22 +22,16 @@ export async function skipAuth(page) {
  */
 export async function waitForGame(page) {
   await skipAuth(page);
-  await page.waitForFunction(
-    () => window.__sceneState?.ready === true,
-    null,
-    { timeout: 20_000 },
-  );
+  await page.waitForFunction(() => window.__sceneState?.ready === true, null, { timeout: 20_000 });
 }
 
 /**
  * Wait for a specific scene to become the active scene.
  */
 export async function waitForScene(page, sceneKey) {
-  await page.waitForFunction(
-    (key) => window.__sceneState?.activeScene === key,
-    sceneKey,
-    { timeout: 15_000 },
-  );
+  await page.waitForFunction((key) => window.__sceneState?.activeScene === key, sceneKey, {
+    timeout: 15_000,
+  });
 }
 
 /**
@@ -110,8 +104,8 @@ export async function assertLatestTransitionWithinBudget(page, toScene = null) {
   if (breaches.length > 0) {
     throw new Error(
       `Transition leak budget exceeded${toScene ? ` for to=${toScene}` : ''}: ` +
-      `${breaches.join(', ')}\n` +
-      `${JSON.stringify(audit, null, 2)}`
+        `${breaches.join(', ')}\n` +
+        `${JSON.stringify(audit, null, 2)}`,
     );
   }
 }
@@ -137,8 +131,8 @@ export async function assertLatestCleanupWithinBudget(page, sceneKey = null) {
   if (breaches.length > 0) {
     throw new Error(
       `Shutdown cleanup budget exceeded${sceneKey ? ` for scene=${sceneKey}` : ''}: ` +
-      `${breaches.join(', ')}\n` +
-      `${JSON.stringify(audit, null, 2)}`
+        `${breaches.join(', ')}\n` +
+        `${JSON.stringify(audit, null, 2)}`,
     );
   }
 }

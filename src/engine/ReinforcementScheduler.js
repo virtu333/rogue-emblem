@@ -38,11 +38,16 @@ function isPassable(terrain, mapLayout, col, row, moveType = 'Infantry') {
 
 function getInwardNeighbor(edge, col, row) {
   switch (edge) {
-    case 'left': return { col: col + 1, row };
-    case 'right': return { col: col - 1, row };
-    case 'top': return { col, row: row + 1 };
-    case 'bottom': return { col, row: row - 1 };
-    default: return null;
+    case 'left':
+      return { col: col + 1, row };
+    case 'right':
+      return { col: col - 1, row };
+    case 'top':
+      return { col, row: row + 1 };
+    case 'bottom':
+      return { col, row: row - 1 };
+    default:
+      return null;
   }
 }
 
@@ -128,30 +133,25 @@ function getScriptedWaveXpMultiplier(reinforcements, scriptedWave, scriptedWaveI
 }
 
 function mixSeed(baseSeed, salt) {
-  let x = (baseSeed >>> 0) ^ ((salt + 0x9E3779B9) >>> 0);
-  x = Math.imul(x ^ (x >>> 16), 0x85EBCA6B);
-  x = Math.imul(x ^ (x >>> 13), 0xC2B2AE35);
+  let x = (baseSeed >>> 0) ^ ((salt + 0x9e3779b9) >>> 0);
+  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35);
   return (x ^ (x >>> 16)) >>> 0;
 }
 
 export function createSeededRng(seed) {
   let t = seed >>> 0;
   return () => {
-    t += 0x6D2B79F5;
+    t += 0x6d2b79f5;
     let r = Math.imul(t ^ (t >>> 15), 1 | t);
     r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
     return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-export function rollWaveTurnJitter({
-  seed = 0,
-  waveIndex = 0,
-  turnJitter = [0, 0],
-} = {}) {
-  const [minDelta, maxDelta] = Array.isArray(turnJitter) && turnJitter.length === 2
-    ? turnJitter
-    : [0, 0];
+export function rollWaveTurnJitter({ seed = 0, waveIndex = 0, turnJitter = [0, 0] } = {}) {
+  const [minDelta, maxDelta] =
+    Array.isArray(turnJitter) && turnJitter.length === 2 ? turnJitter : [0, 0];
   const min = normalizeInteger(minDelta, 0);
   const max = normalizeInteger(maxDelta, min);
   if (max <= min) return min;
@@ -220,14 +220,19 @@ function getDueScriptedReinforcementWaves({
   difficultyTurnOffset = 0,
 } = {}) {
   const currentTurn = normalizeInteger(turn, 0);
-  if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves)) return [];
+  if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.scriptedWaves))
+    return [];
 
   const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
   const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
   const totalOffset = globalOffset + templateOffset;
 
   const due = [];
-  for (let scriptedWaveIndex = 0; scriptedWaveIndex < reinforcements.scriptedWaves.length; scriptedWaveIndex++) {
+  for (
+    let scriptedWaveIndex = 0;
+    scriptedWaveIndex < reinforcements.scriptedWaves.length;
+    scriptedWaveIndex++
+  ) {
     const scriptedWave = reinforcements.scriptedWaves[scriptedWaveIndex];
     const baseTurn = normalizeInteger(scriptedWave?.turn, 0);
     if (baseTurn <= 0) continue;
@@ -274,7 +279,7 @@ export function collectEdgeSpawnCandidates({
     candidates.push({ col, row });
   }
 
-  candidates.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+  candidates.sort((a, b) => a.row - b.row || a.col - b.col);
   return candidates;
 }
 
@@ -330,16 +335,15 @@ export function scheduleReinforcementsForTurn({
     const requestedCount = Array.isArray(due.wave?.spawns) ? due.wave.spawns.length : 0;
     let spawnedCount = 0;
 
-    for (const rawSpawn of (due.wave?.spawns || [])) {
+    for (const rawSpawn of due.wave?.spawns || []) {
       const col = normalizeInteger(rawSpawn?.col, -1);
       const row = normalizeInteger(rawSpawn?.row, -1);
       const occupiedNow = new Set([...baseOccupied, ...spawnedKeys]);
       const key = toTileKey(col, row);
-      const legal = (
-        isInBounds(col, row, mapLayout?.[0]?.length || 0, mapLayout?.length || 0)
-        && !occupiedNow.has(key)
-        && isPassable(terrain, mapLayout, col, row, moveType)
-      );
+      const legal =
+        isInBounds(col, row, mapLayout?.[0]?.length || 0, mapLayout?.length || 0) &&
+        !occupiedNow.has(key) &&
+        isPassable(terrain, mapLayout, col, row, moveType);
       if (!legal) {
         blockedSpawns++;
         continue;
@@ -354,9 +358,12 @@ export function scheduleReinforcementsForTurn({
         xpMultiplier: due.xpMultiplier,
       };
       if (typeof rawSpawn.className === 'string') scriptedSpawn.className = rawSpawn.className;
-      if (Number.isFinite(rawSpawn.level)) scriptedSpawn.level = normalizeInteger(rawSpawn.level, 1);
-      if (typeof rawSpawn.sunderWeapon === 'boolean') scriptedSpawn.sunderWeapon = rawSpawn.sunderWeapon;
-      if (typeof rawSpawn.poisonWeapon === 'boolean') scriptedSpawn.poisonWeapon = rawSpawn.poisonWeapon;
+      if (Number.isFinite(rawSpawn.level))
+        scriptedSpawn.level = normalizeInteger(rawSpawn.level, 1);
+      if (typeof rawSpawn.sunderWeapon === 'boolean')
+        scriptedSpawn.sunderWeapon = rawSpawn.sunderWeapon;
+      if (typeof rawSpawn.poisonWeapon === 'boolean')
+        scriptedSpawn.poisonWeapon = rawSpawn.poisonWeapon;
       if (typeof rawSpawn.aiMode === 'string') scriptedSpawn.aiMode = rawSpawn.aiMode;
       if (Array.isArray(rawSpawn.affixes)) scriptedSpawn.affixes = [...rawSpawn.affixes];
       spawns.push(scriptedSpawn);
@@ -378,7 +385,9 @@ export function scheduleReinforcementsForTurn({
 
   for (const due of dueWaves) {
     const edges = resolveWaveEdges(reinforcements, due.wave);
-    const scaledCountBonus = reinforcements?.difficultyScaling ? normalizeInteger(enemyCountBonus, 0) : 0;
+    const scaledCountBonus = reinforcements?.difficultyScaling
+      ? normalizeInteger(enemyCountBonus, 0)
+      : 0;
     const requestedCount = rollWaveCount(due.wave, rng, scaledCountBonus);
 
     let spawnedCount = 0;
@@ -388,13 +397,16 @@ export function scheduleReinforcementsForTurn({
       const occupiedNow = new Set([...baseOccupied, ...spawnedKeys]);
       const edgePools = new Map();
       for (const edge of edges) {
-        edgePools.set(edge, collectEdgeSpawnCandidates({
+        edgePools.set(
           edge,
-          mapLayout,
-          terrain,
-          occupied: occupiedNow,
-          moveType,
-        }));
+          collectEdgeSpawnCandidates({
+            edge,
+            mapLayout,
+            terrain,
+            occupied: occupiedNow,
+            moveType,
+          }),
+        );
       }
 
       const availableEdges = edges.filter((edge) => (edgePools.get(edge)?.length || 0) > 0);

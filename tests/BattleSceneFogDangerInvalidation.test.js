@@ -28,7 +28,9 @@ describe('BattleScene fog danger invalidation', () => {
     scene.npcUnits = [];
     scene.grid = {
       fogEnabled: true,
-      updateFogOfWar: vi.fn(() => { enemyVisible = true; }),
+      updateFogOfWar: vi.fn(() => {
+        enemyVisible = true;
+      }),
       isVisible: vi.fn(() => enemyVisible),
       getMovementRange: vi.fn(() => new Map([['2,2', true]])),
       getAttackRange: vi.fn(() => [{ col: 3, row: 3 }]),

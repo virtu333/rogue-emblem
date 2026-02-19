@@ -1,0 +1,11 @@
+dist/
+public/data/
+node_modules/
+References/
+assets/
+data/*.json
+*.md
+test-results/
+playwright-report/
+src/data/generated/
+data/referenceViewer.json

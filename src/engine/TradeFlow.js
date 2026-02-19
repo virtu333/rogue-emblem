@@ -3,5 +3,5 @@ export function shouldCommitTradeExit(tradeMutatedThisSession) {
 }
 
 export function shouldAllowUndoMove(preMoveLoc, tradeMutatedThisSession) {
-  return Boolean(preMoveLoc) && !Boolean(tradeMutatedThisSession);
+  return Boolean(preMoveLoc) && !tradeMutatedThisSession;
 }

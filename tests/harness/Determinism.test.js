@@ -50,7 +50,8 @@ describe('Determinism', () => {
     const run2 = await new ScenarioRunner(12346, fixture, factory).run(2000);
 
     // At least one of these should differ (extremely unlikely to be identical)
-    const differ = run1.initialHash !== run2.initialHash ||
+    const differ =
+      run1.initialHash !== run2.initialHash ||
       run1.actions.length !== run2.actions.length ||
       JSON.stringify(run1.actions) !== JSON.stringify(run2.actions);
     expect(differ).toBe(true);

@@ -11,8 +11,12 @@ import { XP_BASE_HEAL } from '../src/utils/constants.js';
 
 function makeTextStub() {
   return {
-    setOrigin() { return this; },
-    setDepth() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
     destroy() {},
   };
 }
@@ -24,11 +28,20 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
     registry: { get: () => ({ playSFX() {} }) },
     grid: { clearAttackHighlights() {}, gridToPixel: () => ({ x: 0, y: 0 }) },
     add: {
-      circle: () => ({ setDepth() { return this; }, destroy() {} }),
+      circle: () => ({
+        setDepth() {
+          return this;
+        },
+        destroy() {},
+      }),
       text: () => makeTextStub(),
     },
     time: { delayedCall: (_ms, cb) => cb() },
-    tweens: { add: ({ onComplete }) => { if (onComplete) onComplete(); } },
+    tweens: {
+      add: ({ onComplete }) => {
+        if (onComplete) onComplete();
+      },
+    },
     _isReducedEffects: () => true,
     hideActionMenu() {},
     undimUnit() {},
@@ -86,7 +99,9 @@ describe('Heal XP', () => {
 
   it('executeHeal still calls finishUnitAction if awardScaledXP rejects', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => { throw new Error('popup failed'); });
+    ctx.awardScaledXP = vi.fn(async () => {
+      throw new Error('popup failed');
+    });
     ctx.finishUnitAction = vi.fn();
     ctx.animateHeal = vi.fn(async () => {});
 
@@ -101,15 +116,15 @@ describe('Heal XP', () => {
 
   it('executeHealAll still calls finishUnitAction if awardScaledXP rejects', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => { throw new Error('popup failed'); });
+    ctx.awardScaledXP = vi.fn(async () => {
+      throw new Error('popup failed');
+    });
     ctx.finishUnitAction = vi.fn();
     ctx.animateHeal = vi.fn(async () => {});
 
     const staff = { type: 'Staff', healBase: 5, _usesSpent: 0, uses: 3 };
     const healer = { col: 1, row: 1, weapon: staff, stats: { MAG: 10 } };
-    const targets = [
-      { col: 1, row: 2, currentHP: 15, stats: { HP: 30 } },
-    ];
+    const targets = [{ col: 1, row: 2, currentHP: 15, stats: { HP: 30 } }];
 
     await BattleScene.prototype.executeHealAll.call(ctx, healer, targets).catch(() => {});
 

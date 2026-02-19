@@ -18,25 +18,56 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive() { this._interactive = true; return this; },
-    setOrigin() { return this; },
-    setDisplaySize() { return this; },
-    setColor() { return this; },
-    setY(y) { this.y = y; return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
-    setSize(width, height) { this.width = width; this.height = height; return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this._destroyed = true; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive() {
+      this._interactive = true;
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setY(y) {
+      this.y = y;
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
+    setSize(width, height) {
+      this.width = width;
+      this.height = height;
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this._destroyed = true;
+    },
   };
 }
 
 function makeRosterSceneStub() {
   return {
     add: {
-      rectangle: (x, y, width, height, color, alpha) => makeDisplayObject({ kind: 'rectangle', x, y, width, height, color, alpha }),
-      text: (x, y, text, style) => makeDisplayObject({ kind: 'text', x, y, text, style, height: 20 }),
+      rectangle: (x, y, width, height, color, alpha) =>
+        makeDisplayObject({ kind: 'rectangle', x, y, width, height, color, alpha }),
+      text: (x, y, text, style) =>
+        makeDisplayObject({ kind: 'text', x, y, text, style, height: 20 }),
       image: (x, y, key) => makeDisplayObject({ kind: 'image', x, y, key }),
     },
     textures: {
@@ -93,7 +124,9 @@ describe('convoy scene/UI flows', () => {
 
     expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
     expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
-    expect(showUnitPicker).toHaveBeenCalledWith(expect.any(Function), { itemTypeContext: 'consumable' });
+    expect(showUnitPicker).toHaveBeenCalledWith(expect.any(Function), {
+      itemTypeContext: 'consumable',
+    });
     expect(ctx.shopBuyItems).toHaveLength(0);
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Vulnerary sent to convoy.', '#88ccff');
   });
@@ -150,10 +183,10 @@ describe('convoy scene/UI flows', () => {
 
     expect(rm.addToConvoy).toHaveBeenCalledWith(entry.item);
     expect(rm.spendGold).toHaveBeenCalledWith(entry.price);
-    expect(showUnitPicker).toHaveBeenCalledWith(
-      expect.any(Function),
-      { profCheckItem: entry.item, itemTypeContext: 'inventory' }
-    );
+    expect(showUnitPicker).toHaveBeenCalledWith(expect.any(Function), {
+      profCheckItem: entry.item,
+      itemTypeContext: 'inventory',
+    });
     expect(ctx.shopBuyItems).toHaveLength(0);
     expect(ctx.showShopBanner).toHaveBeenCalledWith('Iron Sword sent to convoy.', '#88ccff');
   });
@@ -248,7 +281,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
     unit.inventory = [];
     unit.consumables = [structuredClone(vuln)];
     unit.skills = unit.skills || [];
@@ -266,7 +299,7 @@ describe('convoy scene/UI flows', () => {
 
     overlay._activeTab = 'gear';
     overlay.drawUnitDetails();
-    const storeAction = actions.find(a => a.label === '[Store]');
+    const storeAction = actions.find((a) => a.label === '[Store]');
     expect(storeAction).toBeTruthy();
     storeAction.onClick();
 
@@ -279,9 +312,10 @@ describe('convoy scene/UI flows', () => {
     rm.startRun();
     const unit = rm.roster[0];
     const profType = unit.proficiencies?.[0]?.type || 'Sword';
-    const baseWeapon = gameData.weapons.find(w => w.type === profType && w.rankRequired === 'Prof')
-      || gameData.weapons.find(w => w.type === profType)
-      || gameData.weapons.find(w => w.type === 'Sword');
+    const baseWeapon =
+      gameData.weapons.find((w) => w.type === profType && w.rankRequired === 'Prof') ||
+      gameData.weapons.find((w) => w.type === profType) ||
+      gameData.weapons.find((w) => w.type === 'Sword');
     const weapon = structuredClone(baseWeapon);
     unit.inventory = [weapon];
     unit.weapon = weapon;
@@ -302,7 +336,7 @@ describe('convoy scene/UI flows', () => {
     overlay._activeTab = 'gear';
     overlay.drawUnitDetails();
 
-    const storeAction = actions.find(a => a.label === '[Store]');
+    const storeAction = actions.find((a) => a.label === '[Store]');
     expect(storeAction).toBeUndefined();
   });
 
@@ -310,15 +344,19 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     unit.inventory = [sword];
     unit.weapon = sword;
     unit.skills = unit.skills || [];
-    rm.scrolls = [{
-      name: 'Precise Cut Scroll',
-      teachesWeaponArtId: 'sword_precise_cut',
-      allowedWeaponTypes: ['Sword'],
-    }];
+    rm.scrolls = [
+      {
+        name: 'Precise Cut Scroll',
+        teachesWeaponArtId: 'sword_precise_cut',
+        allowedWeaponTypes: ['Sword'],
+      },
+    ];
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
       lords: gameData.lords || [],
@@ -344,7 +382,9 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
@@ -352,11 +392,13 @@ describe('convoy scene/UI flows', () => {
     unit.inventory = [sword];
     unit.weapon = sword;
     unit.skills = unit.skills || [];
-    rm.scrolls = [{
-      name: 'Precise Cut Scroll',
-      teachesWeaponArtId: 'sword_precise_cut',
-      allowedWeaponTypes: ['Sword'],
-    }];
+    rm.scrolls = [
+      {
+        name: 'Precise Cut Scroll',
+        teachesWeaponArtId: 'sword_precise_cut',
+        allowedWeaponTypes: ['Sword'],
+      },
+    ];
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
       lords: gameData.lords || [],
@@ -368,7 +410,9 @@ describe('convoy scene/UI flows', () => {
     overlay.scene.registry = { get: () => null };
     overlay._showBanner = vi.fn();
     overlay.refresh = vi.fn();
-    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) =>
+      onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }),
+    );
     overlay._showWeaponArtOverwriteConfirm = vi.fn((binding, art, onConfirm) => onConfirm());
 
     const removeSpy = vi.spyOn(overlay, '_removeTeamScroll');
@@ -390,18 +434,22 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
     sword.weaponArtSource = 'innate';
     unit.inventory = [sword];
     unit.weapon = sword;
-    rm.scrolls = [{
-      name: 'Precise Cut Scroll',
-      teachesWeaponArtId: 'sword_precise_cut',
-      allowedWeaponTypes: ['Sword'],
-    }];
+    rm.scrolls = [
+      {
+        name: 'Precise Cut Scroll',
+        teachesWeaponArtId: 'sword_precise_cut',
+        allowedWeaponTypes: ['Sword'],
+      },
+    ];
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
       lords: gameData.lords || [],
@@ -413,7 +461,9 @@ describe('convoy scene/UI flows', () => {
     overlay.scene.registry = { get: () => null };
     overlay._showBanner = vi.fn();
     overlay.refresh = vi.fn();
-    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) =>
+      onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }),
+    );
     overlay._showWeaponArtOverwriteConfirm = vi.fn((_binding, _art, _onConfirm) => {});
 
     overlay._useTeamScroll(unit, rm.scrolls[0]);
@@ -429,18 +479,22 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
     sword.weaponArtSource = 'innate';
     unit.inventory = [sword];
     unit.weapon = sword;
-    rm.scrolls = [{
-      name: 'Precise Cut Scroll',
-      teachesWeaponArtId: 'sword_precise_cut',
-      allowedWeaponTypes: ['Sword'],
-    }];
+    rm.scrolls = [
+      {
+        name: 'Precise Cut Scroll',
+        teachesWeaponArtId: 'sword_precise_cut',
+        allowedWeaponTypes: ['Sword'],
+      },
+    ];
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
       lords: gameData.lords || [],
@@ -452,7 +506,9 @@ describe('convoy scene/UI flows', () => {
     overlay.scene.registry = { get: () => null };
     overlay._showBanner = vi.fn();
     overlay.refresh = vi.fn();
-    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) => onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }));
+    overlay._showWeaponArtSlotPicker = vi.fn((weapon, art, onSelect) =>
+      onSelect({ index: 0, binding: { id: 'legend_gemini_tempest', source: 'innate' } }),
+    );
     overlay._showWeaponArtOverwriteConfirm = vi.fn((binding, art, onConfirm) => onConfirm());
     vi.spyOn(overlay, '_removeTeamScroll').mockReturnValue(false);
 
@@ -469,18 +525,22 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
     sword.weaponArtSource = 'innate';
     unit.inventory = [sword];
     unit.weapon = sword;
-    rm.scrolls = [{
-      name: 'Precise Cut Scroll',
-      teachesWeaponArtId: 'sword_precise_cut',
-      allowedWeaponTypes: ['Sword'],
-    }];
+    rm.scrolls = [
+      {
+        name: 'Precise Cut Scroll',
+        teachesWeaponArtId: 'sword_precise_cut',
+        allowedWeaponTypes: ['Sword'],
+      },
+    ];
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
       lords: gameData.lords || [],
@@ -497,7 +557,11 @@ describe('convoy scene/UI flows', () => {
     overlay._useTeamScroll(unit, rm.scrolls[0]);
 
     expect(rm.scrolls).toHaveLength(1);
-    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b']);
+    expect(sword.weaponArtIds).toEqual([
+      'legend_gemini_tempest',
+      'sword_comet_edge',
+      'custom_art_b',
+    ]);
     expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
     expect(sword.weaponArtId).toBe('legend_gemini_tempest');
     expect(sword.weaponArtSource).toBe('innate');
@@ -507,7 +571,9 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'sword_comet_edge', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
@@ -526,20 +592,26 @@ describe('convoy scene/UI flows', () => {
     const plan = overlay._planWeaponArtScrollApply(
       sword,
       { id: 'sword_precise_cut', name: 'Precise Cut' },
-      1
+      1,
     );
 
     expect(plan.ok).toBe(true);
     expect(plan.overwritten).toEqual({ id: 'sword_comet_edge', source: 'scroll' });
     overlay._writeWeaponArtBindings(sword, plan.nextBindings);
-    expect(sword.weaponArtIds).toEqual(['legend_gemini_tempest', 'sword_precise_cut', 'custom_art_b']);
+    expect(sword.weaponArtIds).toEqual([
+      'legend_gemini_tempest',
+      'sword_precise_cut',
+      'custom_art_b',
+    ]);
     expect(sword.weaponArtSources).toEqual(['innate', 'scroll', 'scroll']);
   });
   it('recomputes plan at commit time to avoid stale overwrite state', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const sword = structuredClone(gameData.weapons.find(w => w.type === 'Sword' && w.name === 'Iron Sword'));
+    const sword = structuredClone(
+      gameData.weapons.find((w) => w.type === 'Sword' && w.name === 'Iron Sword'),
+    );
     sword.weaponArtIds = ['legend_gemini_tempest', 'custom_art_a', 'custom_art_b'];
     sword.weaponArtSources = ['innate', 'scroll', 'scroll'];
     sword.weaponArtId = 'legend_gemini_tempest';
@@ -566,7 +638,12 @@ describe('convoy scene/UI flows', () => {
     overlay._showBanner = vi.fn();
     overlay.refresh = vi.fn();
 
-    const art = { id: 'sword_precise_cut', name: 'Precise Cut', weaponType: 'Sword', requiredRank: 'Prof' };
+    const art = {
+      id: 'sword_precise_cut',
+      name: 'Precise Cut',
+      weaponType: 'Sword',
+      requiredRank: 'Prof',
+    };
     const stalePlan = overlay._planWeaponArtScrollApply(sword, art, 0);
     expect(stalePlan.ok).toBe(true);
 
@@ -589,7 +666,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const unit = rm.roster[0];
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
     unit.inventory = [];
     unit.consumables = [];
     unit.skills = unit.skills || [];
@@ -608,7 +685,7 @@ describe('convoy scene/UI flows', () => {
 
     overlay.select('convoy');
     overlay.drawUnitDetails();
-    const takeAction = actions.find(a => a.label === '[ Withdraw ]');
+    const takeAction = actions.find((a) => a.label === '[ Withdraw ]');
     expect(takeAction).toBeTruthy();
     takeAction.onClick();
 
@@ -621,7 +698,7 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     rm.roster = [];
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
     rm.addToConvoy(vuln);
 
     const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
@@ -663,17 +740,22 @@ describe('convoy scene/UI flows', () => {
       });
 
       overlay.drawUnitList();
-      const clickableRows = overlay.objects.filter((obj) =>
-        obj?._rosterList && obj?._interactive && obj.handlers?.pointerdown
+      const clickableRows = overlay.objects.filter(
+        (obj) => obj?._rosterList && obj?._interactive && obj.handlers?.pointerdown,
       );
       expect(clickableRows.length).toBeGreaterThan(0);
 
-      const convoyRow = clickableRows.reduce((best, row) => (!best || row.y > best.y ? row : best), null);
+      const convoyRow = clickableRows.reduce(
+        (best, row) => (!best || row.y > best.y ? row : best),
+        null,
+      );
       expect(convoyRow).toBeTruthy();
-      expect(convoyRow.y - (convoyRow.height / 2)).toBeGreaterThanOrEqual(50);
-      expect(convoyRow.y + (convoyRow.height / 2)).toBeLessThanOrEqual(462);
+      expect(convoyRow.y - convoyRow.height / 2).toBeGreaterThanOrEqual(50);
+      expect(convoyRow.y + convoyRow.height / 2).toBeLessThanOrEqual(462);
 
-      const convoyText = overlay.objects.find((obj) => obj?._rosterList && obj.text === 'Convoy Management');
+      const convoyText = overlay.objects.find(
+        (obj) => obj?._rosterList && obj.text === 'Convoy Management',
+      );
       expect(convoyText).toBeTruthy();
 
       convoyRow.handlers.pointerdown();
@@ -692,7 +774,9 @@ describe('convoy scene/UI flows', () => {
         weaponArts: { arts: [{ id: 'sword_precise_cut', name: 'Precise Cut' }] },
       },
       drawMap: vi.fn(),
-      showActCompleteBanner: (onComplete) => { if (onComplete) onComplete(); },
+      showActCompleteBanner: (onComplete) => {
+        if (onComplete) onComplete();
+      },
       showShopBanner: vi.fn(),
       showWeaponArtsUnlockedBanner: NodeMapScene.prototype.showWeaponArtsUnlockedBanner,
     };
@@ -707,12 +791,17 @@ describe('convoy scene/UI flows', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const onClose = vi.fn();
-    const overlay = new RosterOverlay(makeRosterSceneStub(), rm, {
-      lords: gameData.lords || [],
-      classes: gameData.classes || [],
-      skills: gameData.skills || [],
-      accessories: gameData.accessories || [],
-    }, { onClose });
+    const overlay = new RosterOverlay(
+      makeRosterSceneStub(),
+      rm,
+      {
+        lords: gameData.lords || [],
+        classes: gameData.classes || [],
+        skills: gameData.skills || [],
+        accessories: gameData.accessories || [],
+      },
+      { onClose },
+    );
 
     overlay.show();
     expect(onClose).not.toHaveBeenCalled();
@@ -724,8 +813,8 @@ describe('convoy scene/UI flows', () => {
   it('clamps convoy scroll offset after convoy content shrinks', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
-    const ironSword = gameData.weapons.find(w => w.name === 'Iron Sword');
+    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const ironSword = gameData.weapons.find((w) => w.name === 'Iron Sword');
     const unit = rm.roster[0];
     unit.inventory = [];
     unit.consumables = [];

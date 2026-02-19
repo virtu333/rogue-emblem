@@ -1,6 +1,12 @@
 // Grid — tile rendering, terrain management, movement range (Dijkstra), A* pathfinding, attack range
 
-import { TILE_SIZE, TERRAIN_COLORS, ATTACK_RANGE_COLOR, ATTACK_RANGE_ALPHA, VISION_RANGES } from '../utils/constants.js';
+import {
+  TILE_SIZE,
+  TERRAIN_COLORS,
+  ATTACK_RANGE_COLOR,
+  ATTACK_RANGE_ALPHA,
+  VISION_RANGES,
+} from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 
 const DIRECTIONS = [
@@ -11,7 +17,9 @@ const DIRECTIONS = [
 ];
 
 function normalizeTerrainName(name) {
-  return String(name || '').toLowerCase().replace(/ /g, '_');
+  return String(name || '')
+    .toLowerCase()
+    .replace(/ /g, '_');
 }
 
 function getTerrainAtLayout(mapLayout, terrainData, col, row, cols, rows) {
@@ -163,8 +171,8 @@ export class Grid {
     // Fog of war
     this.fogEnabled = fogEnabled;
     this.fogOverlays = [];
-    this.visibleSet = new Set();   // currently visible "col,row"
-    this.everSeenSet = new Set();  // ever revealed "col,row"
+    this.visibleSet = new Set(); // currently visible "col,row"
+    this.everSeenSet = new Set(); // ever revealed "col,row"
 
     // Center the grid on the canvas
     const mapWidth = cols * TILE_SIZE;
@@ -222,10 +230,10 @@ export class Grid {
 
   setTemporaryTerrain(col, row, terrainName, duration = 1) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
-    const terrainIndex = this.terrainData.findIndex(t => t?.name === terrainName);
+    const terrainIndex = this.terrainData.findIndex((t) => t?.name === terrainName);
     if (terrainIndex < 0) return false;
     const key = `${col},${row}`;
-    const existing = this.temporaryTerrains.find(t => t.key === key);
+    const existing = this.temporaryTerrains.find((t) => t.key === key);
     if (existing) {
       existing.remainingTurns = Math.max(existing.remainingTurns, Math.max(1, duration | 0));
       return this.setTerrainAt(col, row, terrainIndex);
@@ -243,7 +251,7 @@ export class Grid {
 
   clearTemporaryTerrainAt(col, row) {
     const key = `${col},${row}`;
-    const idx = this.temporaryTerrains.findIndex(t => t.key === key);
+    const idx = this.temporaryTerrains.findIndex((t) => t.key === key);
     if (idx < 0) return false;
     const entry = this.temporaryTerrains.splice(idx, 1)[0];
     return this.setTerrainAt(entry.col, entry.row, entry.originalIndex);
@@ -251,7 +259,7 @@ export class Grid {
 
   isTemporaryTerrainAt(col, row, terrainIndex = null) {
     const key = `${col},${row}`;
-    const entry = this.temporaryTerrains.find(t => t.key === key);
+    const entry = this.temporaryTerrains.find((t) => t.key === key);
     if (!entry) return false;
     if (terrainIndex == null) return true;
     return this.mapLayout[row]?.[col] === terrainIndex;
@@ -309,7 +317,15 @@ export class Grid {
    * @param {string} [moverFaction] - faction of the moving unit
    * @returns {Map} "col,row" -> { cost, parent }
    */
-  getMovementRange(startCol, startRow, mov, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
+  getMovementRange(
+    startCol,
+    startRow,
+    mov,
+    moveType,
+    unitPositions = null,
+    moverFaction = null,
+    costModifier = 0,
+  ) {
     const reachable = new Map();
     const queue = [{ col: startCol, row: startRow, cost: 0 }];
     reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
@@ -366,7 +382,16 @@ export class Grid {
 
   // A* pathfinding from (startCol,startRow) to (goalCol,goalRow)
   // Returns array of {col, row} from start to goal, or null if unreachable
-  findPath(startCol, startRow, goalCol, goalRow, moveType, unitPositions = null, moverFaction = null, costModifier = 0) {
+  findPath(
+    startCol,
+    startRow,
+    goalCol,
+    goalRow,
+    moveType,
+    unitPositions = null,
+    moverFaction = null,
+    costModifier = 0,
+  ) {
     const heuristic = (c, r) => Math.abs(c - goalCol) + Math.abs(r - goalRow);
 
     const openSet = [{ col: startCol, row: startRow, g: 0, f: heuristic(startCol, startRow) }];
@@ -461,9 +486,7 @@ export class Grid {
     this.clearAttackHighlights();
     for (const { col, row } of tiles) {
       const { x, y } = this.gridToPixel(col, row);
-      const highlight = this.scene.add.rectangle(
-        x, y, TILE_SIZE - 1, TILE_SIZE - 1, 0x33cc66, 0.4
-      );
+      const highlight = this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, 0x33cc66, 0.4);
       highlight.setDepth(5);
       this.attackHighlightTiles.push(highlight);
     }
@@ -474,16 +497,14 @@ export class Grid {
     this.clearAttackHighlights();
     for (const { col, row } of tiles) {
       const { x, y } = this.gridToPixel(col, row);
-      const highlight = this.scene.add.rectangle(
-        x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha
-      );
+      const highlight = this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha);
       highlight.setDepth(5);
       this.attackHighlightTiles.push(highlight);
     }
   }
 
   clearAttackHighlights() {
-    this.attackHighlightTiles.forEach(h => h.destroy());
+    this.attackHighlightTiles.forEach((h) => h.destroy());
     this.attackHighlightTiles = [];
   }
 
@@ -511,12 +532,12 @@ export class Grid {
   }
 
   clearPath() {
-    this.pathTiles.forEach(p => p.destroy());
+    this.pathTiles.forEach((p) => p.destroy());
     this.pathTiles = [];
   }
 
   clearHighlights() {
-    this.highlightTiles.forEach(h => h.destroy());
+    this.highlightTiles.forEach((h) => h.destroy());
     this.highlightTiles = [];
     this.clearPath();
   }
@@ -528,9 +549,7 @@ export class Grid {
       this.fogOverlays[row] = [];
       for (let col = 0; col < this.cols; col++) {
         const { x, y } = this.gridToPixel(col, row);
-        const fog = this.scene.add.rectangle(
-          x, y, TILE_SIZE, TILE_SIZE, 0x000000, 0.7
-        ).setDepth(3);
+        const fog = this.scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, 0x000000, 0.7).setDepth(3);
         this.fogOverlays[row][col] = fog;
       }
     }

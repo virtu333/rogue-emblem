@@ -37,7 +37,9 @@ function makeMapParams(overrides = {}) {
 
 // Terrain index lookup from terrain.json
 const TERRAIN_INDEX = {};
-gameData.terrain.forEach((t, i) => { TERRAIN_INDEX[t.name] = i; });
+gameData.terrain.forEach((t, i) => {
+  TERRAIN_INDEX[t.name] = i;
+});
 
 describe('TurnBonusCalculator', () => {
   describe('calculatePar', () => {
@@ -46,15 +48,24 @@ describe('TurnBonusCalculator', () => {
       const layout = makeMapLayout(8, 6, TERRAIN_INDEX.Plain);
       // Scatter 7 forest tiles (~14.6%)
       const forestIdx = TERRAIN_INDEX.Forest;
-      layout[0][0] = forestIdx; layout[0][3] = forestIdx;
-      layout[1][1] = forestIdx; layout[2][5] = forestIdx;
-      layout[3][2] = forestIdx; layout[4][7] = forestIdx;
+      layout[0][0] = forestIdx;
+      layout[0][3] = forestIdx;
+      layout[1][1] = forestIdx;
+      layout[2][5] = forestIdx;
+      layout[3][2] = forestIdx;
+      layout[4][7] = forestIdx;
       layout[5][4] = forestIdx;
 
-      const par = calculatePar(makeMapParams({
-        cols: 8, rows: 6, enemyCount: 6, objective: 'rout',
-        mapLayout: layout,
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 8,
+          rows: 6,
+          enemyCount: 6,
+          objective: 'rout',
+          mapLayout: layout,
+        }),
+        config,
+      );
 
       // basePar=2 + 6*0.6=3.6 + 48*0.01=0.48 + (7/48)*1.0=0.146 + adj=0 = 6.226 → ceil = 7
       expect(par).toBe(5);
@@ -69,28 +80,39 @@ describe('TurnBonusCalculator', () => {
       let placed = 0;
       for (let r = 0; r < 10 && placed < 20; r++) {
         for (let c = 0; c < 12 && placed < 20; c++) {
-          if ((r + c) % 4 === 0) { layout[r][c] = forestIdx; placed++; }
+          if ((r + c) % 4 === 0) {
+            layout[r][c] = forestIdx;
+            placed++;
+          }
         }
       }
       placed = 0;
       for (let r = 0; r < 10 && placed < 10; r++) {
         for (let c = 0; c < 12 && placed < 10; c++) {
           if ((r + c) % 6 === 1 && layout[r][c] === TERRAIN_INDEX.Plain) {
-            layout[r][c] = mtnIdx; placed++;
+            layout[r][c] = mtnIdx;
+            placed++;
           }
         }
       }
       // Count actual difficult
       const difficultSet = new Set(config.difficultTerrainTypes);
       let diffCount = 0;
-      for (const row of layout) for (const idx of row) {
-        if (difficultSet.has(gameData.terrain[idx].name)) diffCount++;
-      }
+      for (const row of layout)
+        for (const idx of row) {
+          if (difficultSet.has(gameData.terrain[idx].name)) diffCount++;
+        }
 
-      const par = calculatePar(makeMapParams({
-        cols: 12, rows: 10, enemyCount: 14, objective: 'seize',
-        mapLayout: layout,
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 12,
+          rows: 10,
+          enemyCount: 14,
+          objective: 'seize',
+          mapLayout: layout,
+        }),
+        config,
+      );
 
       // basePar=4 + 14*0.6=8.4 + 120*0.01=1.2 + (diffCount/120)*1.0 + adj=1
       const expected = Math.ceil((4 + 8.4 + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8);
@@ -103,26 +125,44 @@ describe('TurnBonusCalculator', () => {
     });
 
     it('handles 0 enemies', () => {
-      const par = calculatePar(makeMapParams({
-        cols: 8, rows: 6, enemyCount: 0, objective: 'rout',
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 8,
+          rows: 6,
+          enemyCount: 0,
+          objective: 'rout',
+        }),
+        config,
+      );
       // basePar=2 + 0 + 48*0.01=0.48 + 0 + adj=0 = 2.48 → ceil = 3
       expect(par).toBe(2);
     });
 
     it('handles all difficult terrain', () => {
-      const par = calculatePar(makeMapParams({
-        cols: 4, rows: 4, enemyCount: 2, objective: 'rout',
-        fillIndex: TERRAIN_INDEX.Forest,
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 4,
+          rows: 4,
+          enemyCount: 2,
+          objective: 'rout',
+          fillIndex: TERRAIN_INDEX.Forest,
+        }),
+        config,
+      );
       // basePar=2 + 2*0.6=1.2 + 16*0.01=0.16 + 1.0*1.0=1.0 + adj=0 = 4.36 → ceil = 5
       expect(par).toBe(4);
     });
 
     it('handles minimal map (1x1)', () => {
-      const par = calculatePar(makeMapParams({
-        cols: 1, rows: 1, enemyCount: 1, objective: 'rout',
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 1,
+          rows: 1,
+          enemyCount: 1,
+          objective: 'rout',
+        }),
+        config,
+      );
       // basePar=2 + 1*0.6=0.6 + 1*0.01=0.01 + 0 + adj=0 = 2.61 → ceil = 3
       expect(par).toBe(3);
     });
@@ -139,10 +179,17 @@ describe('TurnBonusCalculator', () => {
     });
 
     it('handles null mapLayout gracefully (no terrain penalty)', () => {
-      const par = calculatePar({
-        cols: 8, rows: 6, enemyCount: 4, objective: 'rout',
-        mapLayout: null, terrainData: null,
-      }, config);
+      const par = calculatePar(
+        {
+          cols: 8,
+          rows: 6,
+          enemyCount: 4,
+          objective: 'rout',
+          mapLayout: null,
+          terrainData: null,
+        },
+        config,
+      );
       // basePar=2 + 4*0.6=2.4 + 48*0.01=0.48 + 0 + adj=0 = 4.88 → ceil = 5
       expect(par).toBe(4);
     });
@@ -262,21 +309,21 @@ describe('TurnBonusCalculator', () => {
     it('returns full bonus for S rating in act1', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act1', config)).toBe(
-        Math.floor(200 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(200 * GOLD_PAR_BONUS_MULTIPLIER),
       );
     });
 
     it('returns 60% bonus for A rating in act2', () => {
       const rating = { rating: 'A', bonusMultiplier: 0.6 };
       expect(calculateBonusGold(rating, 'act2', config)).toBe(
-        Math.floor(400 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(400 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER),
       );
     });
 
     it('returns 25% bonus for B rating in act3', () => {
       const rating = { rating: 'B', bonusMultiplier: 0.25 };
       expect(calculateBonusGold(rating, 'act3', config)).toBe(
-        Math.floor(700 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(700 * 0.25 * GOLD_PAR_BONUS_MULTIPLIER),
       );
     });
 
@@ -289,14 +336,14 @@ describe('TurnBonusCalculator', () => {
     it('returns full bonus for S rating in finalBoss', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'finalBoss', config)).toBe(
-        Math.floor(1200 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(1200 * GOLD_PAR_BONUS_MULTIPLIER),
       );
     });
 
     it('returns full bonus for S rating in act4', () => {
       const rating = { rating: 'S', bonusMultiplier: 1.0 };
       expect(calculateBonusGold(rating, 'act4', config)).toBe(
-        Math.floor(1000 * GOLD_PAR_BONUS_MULTIPLIER)
+        Math.floor(1000 * GOLD_PAR_BONUS_MULTIPLIER),
       );
     });
 
@@ -321,9 +368,15 @@ describe('TurnBonusCalculator', () => {
 
   describe('integration: par → rating → gold', () => {
     it('calculates end-to-end bonus for a battle', () => {
-      const par = calculatePar(makeMapParams({
-        cols: 10, rows: 8, enemyCount: 5, objective: 'rout',
-      }), config);
+      const par = calculatePar(
+        makeMapParams({
+          cols: 10,
+          rows: 8,
+          enemyCount: 5,
+          objective: 'rout',
+        }),
+        config,
+      );
       expect(par).toBeGreaterThan(0);
 
       // Clear at par → S rank → full gold
@@ -372,8 +425,8 @@ describe('TurnBonusCalculator', () => {
         const scRatio = sTotal / cTotal;
 
         // Par bonus should be 40-60% of S-rank total
-        expect(parShare).toBeGreaterThanOrEqual(0.40);
-        expect(parShare).toBeLessThanOrEqual(0.60);
+        expect(parShare).toBeGreaterThanOrEqual(0.4);
+        expect(parShare).toBeLessThanOrEqual(0.6);
 
         // S-rank should earn at least 1.7× what C-rank earns
         expect(scRatio).toBeGreaterThanOrEqual(1.7);

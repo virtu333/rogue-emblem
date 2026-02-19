@@ -4,8 +4,12 @@ import { getMetaKey } from '../src/engine/SlotManager.js';
 const store = {};
 const localStorageMock = {
   getItem: vi.fn((key) => (Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null)),
-  setItem: vi.fn((key, val) => { store[key] = String(val); }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
+  setItem: vi.fn((key, val) => {
+    store[key] = String(val);
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -69,9 +73,7 @@ function makeSlotTableApi({
   injectSingleUpdateConflict = null,
 } = {}) {
   const state = {
-    row: exists
-      ? { data: { ...slotMap }, updated_at: 'rev-1' }
-      : null,
+    row: exists ? { data: { ...slotMap }, updated_at: 'rev-1' } : null,
     selectCalls: 0,
     updateCalls: 0,
     deleteCalls: 0,
@@ -113,35 +115,39 @@ function makeSlotTableApi({
       };
       return { error: null };
     }),
-    update: vi.fn((payload) => makeFilterChain(async (filters) => {
-      state.updateCalls++;
-      if (updateError) return { data: null, error: updateError };
-      if (!state.row) return { data: null, error: null };
-      if (typeof injectSingleUpdateConflict === 'function' && !state.injectedConflict) {
-        state.injectedConflict = true;
-        injectSingleUpdateConflict(state);
-        return { data: null, error: null };
-      }
-      if (conflictOnAllUpdates) return { data: null, error: null };
+    update: vi.fn((payload) =>
+      makeFilterChain(async (filters) => {
+        state.updateCalls++;
+        if (updateError) return { data: null, error: updateError };
+        if (!state.row) return { data: null, error: null };
+        if (typeof injectSingleUpdateConflict === 'function' && !state.injectedConflict) {
+          state.injectedConflict = true;
+          injectSingleUpdateConflict(state);
+          return { data: null, error: null };
+        }
+        if (conflictOnAllUpdates) return { data: null, error: null };
 
-      const expected = getRevisionExpectation(filters);
-      if (!matchesRevisionFilter(expected)) return { data: null, error: null };
+        const expected = getRevisionExpectation(filters);
+        if (!matchesRevisionFilter(expected)) return { data: null, error: null };
 
-      state.row = {
-        data: payload.data ?? {},
-        updated_at: payload.updated_at ?? `rev-${state.updateCalls + 1}`,
-      };
-      return { data: { updated_at: state.row.updated_at }, error: null };
-    })),
-    delete: vi.fn(() => makeFilterChain(async (filters) => {
-      state.deleteCalls++;
-      if (deleteError) return { data: null, error: deleteError };
-      if (!state.row) return { data: null, error: null };
-      const expected = getRevisionExpectation(filters);
-      if (!matchesRevisionFilter(expected)) return { data: null, error: null };
-      state.row = null;
-      return { data: { user_id: 'user-1' }, error: null };
-    })),
+        state.row = {
+          data: payload.data ?? {},
+          updated_at: payload.updated_at ?? `rev-${state.updateCalls + 1}`,
+        };
+        return { data: { updated_at: state.row.updated_at }, error: null };
+      }),
+    ),
+    delete: vi.fn(() =>
+      makeFilterChain(async (filters) => {
+        state.deleteCalls++;
+        if (deleteError) return { data: null, error: deleteError };
+        if (!state.row) return { data: null, error: null };
+        const expected = getRevisionExpectation(filters);
+        if (!matchesRevisionFilter(expected)) return { data: null, error: null };
+        state.row = null;
+        return { data: { user_id: 'user-1' }, error: null };
+      }),
+    ),
     upsert: vi.fn(async () => ({ error: null })),
   };
 }
@@ -161,7 +167,7 @@ describe('CloudSync write queue hardening', () => {
 
   it('reports async error when run slot update returns a Supabase error', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { version: 1 } },
+      slotMap: { 1: { version: 1 } },
       updateError: new Error('update-failed'),
     });
     mocked.fromMock.mockImplementation((table) => {
@@ -182,12 +188,12 @@ describe('CloudSync write queue hardening', () => {
 
   it('retries stale conflict and preserves unrelated cloud slot data', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { version: 1 } },
+      slotMap: { 1: { version: 1 } },
       injectSingleUpdateConflict: (state) => {
         state.row = {
           data: {
-            '1': { version: 1 },
-            '2': { marker: 'other-tab' },
+            1: { version: 1 },
+            2: { marker: 'other-tab' },
           },
           updated_at: 'rev-external',
         };
@@ -203,15 +209,15 @@ describe('CloudSync write queue hardening', () => {
 
     expect(runApi.state.updateCalls).toBe(2);
     expect(runApi.state.row?.data).toEqual({
-      '1': { version: 2 },
-      '2': { marker: 'other-tab' },
+      1: { version: 2 },
+      2: { marker: 'other-tab' },
     });
     expect(mocked.reportAsyncError).not.toHaveBeenCalled();
   });
 
   it('reports once when conflict retries are exhausted', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { version: 1 } },
+      slotMap: { 1: { version: 1 } },
       conflictOnAllUpdates: true,
     });
     mocked.fromMock.mockImplementation((table) => {
@@ -223,8 +229,9 @@ describe('CloudSync write queue hardening', () => {
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.updateCalls).toBe(3);
-    const updateFailures = mocked.reportAsyncError.mock.calls
-      .filter(([context]) => context === 'cloud_update_slot');
+    const updateFailures = mocked.reportAsyncError.mock.calls.filter(
+      ([context]) => context === 'cloud_update_slot',
+    );
     expect(updateFailures).toHaveLength(1);
     expect(updateFailures[0][1]).toMatchObject({ code: 'CLOUD_CONFLICT_RETRY_EXHAUSTED' });
     expect(updateFailures[0][2]).toEqual(expect.objectContaining({ maxAttempts: 3 }));
@@ -233,7 +240,7 @@ describe('CloudSync write queue hardening', () => {
   it('marks shared status when write fails due to auth expiry', async () => {
     const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { version: 1 } },
+      slotMap: { 1: { version: 1 } },
       updateError: authError,
     });
     mocked.fromMock.mockImplementation((table) => {
@@ -257,7 +264,7 @@ describe('CloudSync write queue hardening', () => {
   it('clears shared status after a later successful write', async () => {
     const authError = { message: 'JWT expired', status: 401, code: 'PGRST301' };
     const failingRunApi = makeSlotTableApi({
-      slotMap: { '1': { version: 1 } },
+      slotMap: { 1: { version: 1 } },
       updateError: authError,
     });
     mocked.fromMock.mockImplementation((table) => {
@@ -270,7 +277,7 @@ describe('CloudSync write queue hardening', () => {
     expect(getCloudSyncStatus().authExpired).toBe(true);
 
     const healthyRunApi = makeSlotTableApi({
-      slotMap: { '1': { version: 2 } },
+      slotMap: { 1: { version: 2 } },
     });
     mocked.fromMock.mockImplementation((table) => {
       if (table === 'run_saves') return healthyRunApi;
@@ -287,10 +294,10 @@ describe('CloudSync write queue hardening', () => {
 
   it('syncs local meta to cloud when deleteRunSave removes a run slot', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { runSeed: 7 } },
+      slotMap: { 1: { runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
-      slotMap: { '2': { totalValor: 10 } },
+      slotMap: { 2: { totalValor: 10 } },
     });
     mocked.fromMock.mockImplementation((table) => {
       if (table === 'run_saves') return runApi;
@@ -306,17 +313,17 @@ describe('CloudSync write queue hardening', () => {
 
     expect(runApi.state.row).toBeNull();
     expect(metaApi.state.row?.data).toEqual({
-      '1': localMeta,
-      '2': { totalValor: 10 },
+      1: localMeta,
+      2: { totalValor: 10 },
     });
   });
 
   it('skips deleteRunSave meta sync when local meta is malformed', async () => {
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { runSeed: 7 } },
+      slotMap: { 1: { runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
-      slotMap: { '1': { totalValor: 5 } },
+      slotMap: { 1: { totalValor: 5 } },
     });
     mocked.fromMock.mockImplementation((table) => {
       if (table === 'run_saves') return runApi;
@@ -330,7 +337,7 @@ describe('CloudSync write queue hardening', () => {
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.row).toBeNull();
-    expect(metaApi.state.row?.data).toEqual({ '1': { totalValor: 5 } });
+    expect(metaApi.state.row?.data).toEqual({ 1: { totalValor: 5 } });
     expect(mocked.reportAsyncError).toHaveBeenCalledWith(
       'cloud_delete_run_meta_sync_skipped',
       expect.any(Error),
@@ -341,10 +348,10 @@ describe('CloudSync write queue hardening', () => {
   it('skips deleteRunSave meta sync without async error when local meta is missing', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const runApi = makeSlotTableApi({
-      slotMap: { '1': { runSeed: 7 } },
+      slotMap: { 1: { runSeed: 7 } },
     });
     const metaApi = makeSlotTableApi({
-      slotMap: { '1': { totalValor: 5 } },
+      slotMap: { 1: { totalValor: 5 } },
     });
     mocked.fromMock.mockImplementation((table) => {
       if (table === 'run_saves') return runApi;
@@ -356,7 +363,7 @@ describe('CloudSync write queue hardening', () => {
     await __flushCloudSyncQueuesForTests();
 
     expect(runApi.state.row).toBeNull();
-    expect(metaApi.state.row?.data).toEqual({ '1': { totalValor: 5 } });
+    expect(metaApi.state.row?.data).toEqual({ 1: { totalValor: 5 } });
     expect(mocked.reportAsyncError).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(
       'CloudSync deleteRunSave meta sync skipped: local meta missing',
@@ -366,11 +373,15 @@ describe('CloudSync write queue hardening', () => {
   });
 
   it('reports fetch-table failures during cloud bootstrap', async () => {
-    mocked.fromMock.mockImplementation(() => makeSlotTableApi({ selectError: new Error('select-failed') }));
+    mocked.fromMock.mockImplementation(() =>
+      makeSlotTableApi({ selectError: new Error('select-failed') }),
+    );
 
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
-    const fetchCalls = mocked.reportAsyncError.mock.calls.filter(([tag]) => tag === 'cloud_fetch_table');
+    const fetchCalls = mocked.reportAsyncError.mock.calls.filter(
+      ([tag]) => tag === 'cloud_fetch_table',
+    );
     expect(fetchCalls.length).toBe(3);
   });
 });

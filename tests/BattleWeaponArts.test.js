@@ -42,11 +42,21 @@ function setupActionMenuHarness(scene) {
     labels.push(label);
     return {
       label,
-      setColor() { return this; },
-      on() { return this; },
-      setOrigin() { return this; },
-      setDepth() { return this; },
-      setInteractive() { return this; },
+      setColor() {
+        return this;
+      },
+      on() {
+        return this;
+      },
+      setOrigin() {
+        return this;
+      },
+      setDepth() {
+        return this;
+      },
+      setInteractive() {
+        return this;
+      },
     };
   });
   scene._pinToScreen = vi.fn();
@@ -57,8 +67,12 @@ function setupActionMenuHarness(scene) {
   scene._clampMenuPosition = vi.fn((x, y) => ({ x, y }));
   scene.add = {
     rectangle: vi.fn(() => ({
-      setDepth() { return this; },
-      setStrokeStyle() { return this; },
+      setDepth() {
+        return this;
+      },
+      setStrokeStyle() {
+        return this;
+      },
     })),
   };
   scene.findHealTargets = vi.fn(() => []);
@@ -397,8 +411,22 @@ describe('BattleScene weapon art helpers', () => {
   it('resolves selected art to the exact inventory weapon instance when duplicates exist', () => {
     const scene = new BattleScene();
     const art = makeArt({ id: 'shared_art' });
-    const firstWeapon = { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', weaponArtIds: ['shared_art'], weaponArtSources: ['scroll'] };
-    const secondWeapon = { id: 'steel_sword', name: 'Steel Sword', type: 'Sword', rankRequired: 'Prof', weaponArtIds: ['shared_art'], weaponArtSources: ['scroll'] };
+    const firstWeapon = {
+      id: 'iron_sword',
+      name: 'Iron Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      weaponArtIds: ['shared_art'],
+      weaponArtSources: ['scroll'],
+    };
+    const secondWeapon = {
+      id: 'steel_sword',
+      name: 'Steel Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      weaponArtIds: ['shared_art'],
+      weaponArtSources: ['scroll'],
+    };
     const unit = makeUnit({
       faction: 'player',
       inventory: [firstWeapon, secondWeapon],
@@ -675,7 +703,18 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
-      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
+      weapon: {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        range: '1',
+        special: '',
+        weaponArtIds: [art.id],
+        weaponArtSources: ['scroll'],
+      },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -702,7 +741,9 @@ describe('BattleScene weapon art helpers', () => {
     scene.npcUnits = [];
     scene.grid = {
       clearAttackHighlights() {},
-      getTerrainAt() { return {}; },
+      getTerrainAt() {
+        return {};
+      },
     };
     scene.resetFortHealStreak = () => {};
     const seenHp = [];
@@ -757,7 +798,18 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
-      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['scroll'] },
+      weapon: {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        range: '1',
+        special: '',
+        weaponArtIds: [art.id],
+        weaponArtSources: ['scroll'],
+      },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -784,7 +836,9 @@ describe('BattleScene weapon art helpers', () => {
     scene.npcUnits = [];
     scene.grid = {
       clearAttackHighlights() {},
-      getTerrainAt() { return {}; },
+      getTerrainAt() {
+        return {};
+      },
     };
     scene.resetFortHealStreak = () => {};
     scene.buildSkillCtx = vi.fn(() => ({}));
@@ -817,7 +871,16 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 20,
       stats: { HP: 24, STR: 18, MAG: 0, SKL: 8, SPD: 8, DEF: 7, RES: 3, LCK: 5 },
       weaponRank: 'Prof',
-      weapon: { name: 'Soulreaver', type: 'Sword', might: 12, hit: 90, crit: 0, weight: 6, range: '1', special: 'Drains HP equal to damage dealt' },
+      weapon: {
+        name: 'Soulreaver',
+        type: 'Sword',
+        might: 12,
+        hit: 90,
+        crit: 0,
+        weight: 6,
+        range: '1',
+        special: 'Drains HP equal to damage dealt',
+      },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -844,7 +907,9 @@ describe('BattleScene weapon art helpers', () => {
     scene.npcUnits = [];
     scene.grid = {
       clearAttackHighlights() {},
-      getTerrainAt() { return {}; },
+      getTerrainAt() {
+        return {};
+      },
     };
     scene.resetFortHealStreak = () => {};
     scene.buildSkillCtx = vi.fn(() => ({}));
@@ -1175,7 +1240,19 @@ describe('BattleScene weapon art helpers', () => {
       currentHP: 12,
       stats: { HP: 20, STR: 9, MAG: 0, SKL: 7, SPD: 7, DEF: 6, RES: 2, LCK: 3 },
       weaponRank: 'Prof',
-      weapon: { id: 'iron_sword', name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', special: '', weaponArtIds: [art.id], weaponArtSources: ['innate'] },
+      weapon: {
+        id: 'iron_sword',
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        range: '1',
+        special: '',
+        weaponArtIds: [art.id],
+        weaponArtSources: ['innate'],
+      },
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       skills: [],
       accessory: null,
@@ -1200,7 +1277,9 @@ describe('BattleScene weapon art helpers', () => {
     scene.enemyUnits = [enemy];
     scene.npcUnits = [];
     scene.grid = {
-      getTerrainAt() { return {}; },
+      getTerrainAt() {
+        return {};
+      },
     };
     scene.resetFortHealStreak = () => {};
     scene.buildSkillCtx = vi.fn(() => ({}));
@@ -1218,7 +1297,11 @@ describe('BattleScene weapon art helpers', () => {
     expect(enemy.currentHP).toBe(10);
     expect(enemy._battleWeaponArtUsage?.map?.[art.id]).toBe(1);
     expect(enemy._battleWeaponArtUsage?.turn?.[art.id]).toBe(1);
-    expect(scene.buildSkillCtx).toHaveBeenCalledWith(enemy, target, expect.objectContaining({ id: art.id }));
+    expect(scene.buildSkillCtx).toHaveBeenCalledWith(
+      enemy,
+      target,
+      expect.objectContaining({ id: art.id }),
+    );
   });
 
   it('applies Tier 2 debuff steps with scene/headless parity', async () => {
@@ -2018,4 +2101,3 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneAlly.stats.STR).toBe(headlessAlly.stats.STR);
   });
 });
-

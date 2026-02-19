@@ -11,7 +11,9 @@ import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 describe('HomeBaseScene upgrade description helpers', () => {
   it('describes deadly arsenal split tiers', () => {
     const scene = new HomeBaseScene();
-    expect(scene._getActionDesc({ effects: [{ deadlyArsenalTier: 1 }] })).toBe('Edric starting sword upgrades');
+    expect(scene._getActionDesc({ effects: [{ deadlyArsenalTier: 1 }] })).toBe(
+      'Edric starting sword upgrades',
+    );
     expect(scene._formatEffectValue({ deadlyArsenalTier: 1 })).toBe('Tier 1');
     expect(scene._formatEffectValue({ deadlyArsenalTier: 2 })).toBe('Tier 2');
   });
@@ -19,9 +21,15 @@ describe('HomeBaseScene upgrade description helpers', () => {
   it('describes iron/steel/art adept weapon-art spawn upgrades', () => {
     const scene = new HomeBaseScene();
 
-    expect(scene._getActionDesc({ effects: [{ ironArms: 1 }] })).toBe('Iron weapons can spawn with arts');
-    expect(scene._getActionDesc({ effects: [{ steelArms: 1 }] })).toBe('Steel weapons can spawn with arts');
-    expect(scene._getActionDesc({ effects: [{ artAdept: 1 }] })).toBe('Extra art on a lord starting weapon');
+    expect(scene._getActionDesc({ effects: [{ ironArms: 1 }] })).toBe(
+      'Iron weapons can spawn with arts',
+    );
+    expect(scene._getActionDesc({ effects: [{ steelArms: 1 }] })).toBe(
+      'Steel weapons can spawn with arts',
+    );
+    expect(scene._getActionDesc({ effects: [{ artAdept: 1 }] })).toBe(
+      'Extra art on a lord starting weapon',
+    );
   });
 
   it('describes upgraded weapon quality economy upgrade', () => {
@@ -44,30 +52,39 @@ describe('HomeBaseScene upgrade description helpers', () => {
 
     expect(scene._formatEffectValue(effect)).toBe('+Scroll, +W.Art');
     // _getActionDesc falls through to upgrade.description when lootCategoryWeightBonuses present
-    expect(scene._getActionDesc({ effects: [effect], description: 'Increases art scroll quality' }))
-      .toBe('Increases art scroll quality');
+    expect(
+      scene._getActionDesc({ effects: [effect], description: 'Increases art scroll quality' }),
+    ).toBe('Increases art scroll quality');
   });
 
   it('formats and describes extra starting unit tier upgrade', () => {
     const scene = new HomeBaseScene();
 
-    expect(scene._getActionDesc({ effects: [{ extraStartingUnitTier: 1 }] })).toBe('Extra random starting unit class pool');
+    expect(scene._getActionDesc({ effects: [{ extraStartingUnitTier: 1 }] })).toBe(
+      'Extra random starting unit class pool',
+    );
     expect(scene._formatEffectValue({ extraStartingUnitTier: 1 })).toBe('Archer');
-    expect(scene._formatEffectValue({ extraStartingUnitTier: 4 })).toBe('Archer/Knight/Cavalier/Paladin');
+    expect(scene._formatEffectValue({ extraStartingUnitTier: 4 })).toBe(
+      'Archer/Knight/Cavalier/Paladin',
+    );
     expect(scene._formatEffectValue({ extraStartingUnitTier: 9 })).toBe('Tier 9');
   });
 
   it('formats and describes lethal armory upgrades', () => {
     const scene = new HomeBaseScene();
 
-    expect(scene._getActionDesc({ effects: [{ lethalArmoryTier: 1 }] })).toBe('Recruits can gain extra weapons');
+    expect(scene._getActionDesc({ effects: [{ lethalArmoryTier: 1 }] })).toBe(
+      'Recruits can gain extra weapons',
+    );
     expect(scene._formatEffectValue({ lethalArmoryTier: 2 })).toBe('Tier 2');
     expect(scene._formatEffectValue({ lethalArmoryTier: 3 })).toBe('Tier 3');
   });
 
   it('describes heros_call lord recruit chance bonus', () => {
     const scene = new HomeBaseScene();
-    expect(scene._getActionDesc({ effects: [{ lordRecruitChanceBonus: 0.08 }] })).toBe('Lord recruit probability');
+    expect(scene._getActionDesc({ effects: [{ lordRecruitChanceBonus: 0.08 }] })).toBe(
+      'Lord recruit probability',
+    );
     expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.08 })).toBe('+8%');
     expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.16 })).toBe('+16%');
     expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.24 })).toBe('+24%');
@@ -76,7 +93,9 @@ describe('HomeBaseScene upgrade description helpers', () => {
   it('formats and describes recruit field supplies upgrade', () => {
     const scene = new HomeBaseScene();
 
-    expect(scene._getActionDesc({ effects: [{ recruitStartingVulnerary: 1 }] })).toBe('Recruits start with Vulnerary');
+    expect(scene._getActionDesc({ effects: [{ recruitStartingVulnerary: 1 }] })).toBe(
+      'Recruits start with Vulnerary',
+    );
     expect(scene._formatEffectValue({ recruitStartingVulnerary: 1 })).toBe('+1');
   });
 });
@@ -91,12 +110,8 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     };
     const lines = scene._getUpgradeTooltipLines(upgrade);
     expect(lines[0]).toBe('HP Growth');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('Hit Points'),
-    ]));
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('Growth'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('Hit Points')]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('Growth')]));
   });
 
   it('returns lord growth tooltip with stat hint and growth explanation', () => {
@@ -108,12 +123,8 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     };
     const lines = scene._getUpgradeTooltipLines(upgrade);
     expect(lines[0]).toBe('Lord SPD Growth');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('Speed'),
-    ]));
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('level-up'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('Speed')]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('level-up')]));
   });
 
   it('returns flat recruit tooltip with stat hint and recruitment text', () => {
@@ -125,12 +136,8 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     };
     const lines = scene._getUpgradeTooltipLines(upgrade);
     expect(lines[0]).toBe('STR Bonus');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('Strength'),
-    ]));
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('recruitment'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('Strength')]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('recruitment')]));
   });
 
   it('returns lord flat tooltip with stat hint and run text', () => {
@@ -142,12 +149,8 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     };
     const lines = scene._getUpgradeTooltipLines(upgrade);
     expect(lines[0]).toBe('Lord DEF');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('Defense'),
-    ]));
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('run'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('Defense')]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('run')]));
   });
 
   it('returns name + description for named upgrades', () => {
@@ -179,9 +182,7 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     expect(lines[0]).toBe('CHA Growth');
     // Should include the description as fallback instead of silently omitting
     expect(lines[1]).toBe('Increase CHA growth rate');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('level-up'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('level-up')]));
   });
 
   it('falls back to description for unrecognized flat stat key', () => {
@@ -194,9 +195,7 @@ describe('HomeBaseScene _getUpgradeTooltipLines', () => {
     const lines = scene._getUpgradeTooltipLines(upgrade);
     expect(lines[0]).toBe('CHA Bonus');
     expect(lines[1]).toBe('Recruit CHA bonus');
-    expect(lines).toEqual(expect.arrayContaining([
-      expect.stringContaining('recruitment'),
-    ]));
+    expect(lines).toEqual(expect.arrayContaining([expect.stringContaining('recruitment')]));
   });
 });
 
@@ -205,8 +204,12 @@ describe('HomeBaseScene tooltip tab scope', () => {
     const scene = new HomeBaseScene();
     scene.activeTab = 'recruit_stats';
     const tooltipObject = {
-      setDepth() { return this; },
-      setY() { return this; },
+      setDepth() {
+        return this;
+      },
+      setY() {
+        return this;
+      },
       destroy: vi.fn(),
       height: 16,
     };
@@ -240,8 +243,12 @@ describe('HomeBaseScene tab switching tooltip cleanup', () => {
         const handlers = {};
         const tab = {
           width: String(label).length * 8,
-          setInteractive() { return this; },
-          setColor() { return this; },
+          setInteractive() {
+            return this;
+          },
+          setColor() {
+            return this;
+          },
           on(event, handler) {
             handlers[event] = handler;
             return this;

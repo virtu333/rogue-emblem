@@ -4,12 +4,27 @@
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData, createLord, createEnemy } from './lib/SimUnitFactory.js';
 import {
-  getLordCombinedGrowths, getClassGrowths, expectedStatsAtLevel, applyPromotionBonuses
+  getLordCombinedGrowths,
+  getClassGrowths,
+  expectedStatsAtLevel,
+  applyPromotionBonuses,
 } from './lib/ExpectedValue.js';
 import {
-  printTable, toCSV, parseArgs, printRecommendations, printHeader, meanStd
+  printTable,
+  toCSV,
+  parseArgs,
+  printRecommendations,
+  printHeader,
+  meanStd,
 } from './lib/TableFormatter.js';
-import { XP_STAT_NAMES, XP_BASE_COMBAT, XP_KILL_BONUS, XP_LEVEL_DIFF_SCALE, XP_MIN, ACT_CONFIG } from '../src/utils/constants.js';
+import {
+  XP_STAT_NAMES,
+  XP_BASE_COMBAT,
+  XP_KILL_BONUS,
+  XP_LEVEL_DIFF_SCALE,
+  XP_MIN,
+  ACT_CONFIG,
+} from '../src/utils/constants.js';
 import { levelUp } from '../src/engine/UnitManager.js';
 
 const opts = parseArgs({ trials: 1000, lord: null, csv: false, seed: 42 });
@@ -28,21 +43,23 @@ printHeader('PART A: Expected Stats at Level Checkpoints');
 
 const checkpointLevels = [1, 5, 10, 15, 20];
 const lordsToRun = opts.lord
-  ? data.lords.filter(l => l.name.toLowerCase() === opts.lord.toLowerCase())
+  ? data.lords.filter((l) => l.name.toLowerCase() === opts.lord.toLowerCase())
   : data.lords;
 
 if (lordsToRun.length === 0) {
-  console.error(`Lord "${opts.lord}" not found. Available: ${data.lords.map(l => l.name).join(', ')}`);
+  console.error(
+    `Lord "${opts.lord}" not found. Available: ${data.lords.map((l) => l.name).join(', ')}`,
+  );
   process.exit(1);
 }
 
 for (const lord of lordsToRun) {
-  const classData = data.classes.find(c => c.name === lord.class);
+  const classData = data.classes.find((c) => c.name === lord.class);
   const growths = getLordCombinedGrowths(lord, classData);
 
-  const rows = checkpointLevels.map(lvl => {
+  const rows = checkpointLevels.map((lvl) => {
     const stats = expectedStatsAtLevel(lord.baseStats, growths, lvl);
-    return { Level: lvl, ...Object.fromEntries(XP_STAT_NAMES.map(s => [s, stats[s]])) };
+    return { Level: lvl, ...Object.fromEntries(XP_STAT_NAMES.map((s) => [s, stats[s]])) };
   });
 
   const columns = ['Level', ...XP_STAT_NAMES];
@@ -51,7 +68,9 @@ for (const lord of lordsToRun) {
     toCSV(columns, rows);
   } else {
     printTable(columns, rows, { title: `${lord.name} (${lord.class}) — Expected Stats` });
-    console.log(`  Growths: ${XP_STAT_NAMES.map(s => `${s}=${growths[s].toFixed(0)}%`).join(', ')}`);
+    console.log(
+      `  Growths: ${XP_STAT_NAMES.map((s) => `${s}=${growths[s].toFixed(0)}%`).join(', ')}`,
+    );
   }
 }
 
@@ -73,12 +92,12 @@ const enemyCheckpoints = [
 
 {
   const rows = enemyCheckpoints.map(({ name, cls, lvl }) => {
-    const classData = data.classes.find(c => c.name === cls);
+    const classData = data.classes.find((c) => c.name === cls);
     if (!classData) return { Enemy: name };
 
     if (classData.tier === 'promoted') {
       // Promoted: base L10 stats + promotion + promoted levels
-      const baseCls = data.classes.find(c => c.name === classData.promotesFrom);
+      const baseCls = data.classes.find((c) => c.name === classData.promotesFrom);
       const baseGrowths = getClassGrowths(baseCls);
       const baseStats = expectedStatsAtLevel(baseCls.baseStats, baseGrowths, 10);
       const promoted = applyPromotionBonuses(baseStats, classData.promotionBonuses);
@@ -87,12 +106,12 @@ const enemyCheckpoints = [
       for (const s of XP_STAT_NAMES) {
         finalStats[s] = promoted[s] + (baseGrowths[s] / 100) * (lvl - 1);
       }
-      return { Enemy: name, ...Object.fromEntries(XP_STAT_NAMES.map(s => [s, finalStats[s]])) };
+      return { Enemy: name, ...Object.fromEntries(XP_STAT_NAMES.map((s) => [s, finalStats[s]])) };
     }
 
     const growths = getClassGrowths(classData);
     const stats = expectedStatsAtLevel(classData.baseStats, growths, lvl);
-    return { Enemy: name, ...Object.fromEntries(XP_STAT_NAMES.map(s => [s, stats[s]])) };
+    return { Enemy: name, ...Object.fromEntries(XP_STAT_NAMES.map((s) => [s, stats[s]])) };
   });
 
   const columns = ['Enemy', ...XP_STAT_NAMES];
@@ -128,8 +147,11 @@ for (const lord of lordsToRun) {
   for (const cp of xpCheckpoints) {
     // Estimate total kills up to this point
     const totalEnemies = cp.battles * cp.enemiesPerBattle + cp.bossKills;
-    const xpPerKill = Math.max(XP_MIN, XP_BASE_COMBAT + (cp.enemyLevel - currentLevel) * XP_LEVEL_DIFF_SCALE + XP_KILL_BONUS);
-    totalXP = totalEnemies * xpPerKill / deployedUnits;
+    const xpPerKill = Math.max(
+      XP_MIN,
+      XP_BASE_COMBAT + (cp.enemyLevel - currentLevel) * XP_LEVEL_DIFF_SCALE + XP_KILL_BONUS,
+    );
+    totalXP = (totalEnemies * xpPerKill) / deployedUnits;
     currentLevel = Math.min(20, 1 + Math.floor(totalXP / 100));
 
     rows.push({
@@ -145,8 +167,9 @@ for (const lord of lordsToRun) {
     console.log(`\n# ${lord.name} — XP Model (${deployedUnits} units sharing XP)`);
     toCSV(['Checkpoint', 'TotalKills', 'XPPerKill', 'TotalXP', 'EstLevel'], rows);
   } else {
-    printTable(['Checkpoint', 'TotalKills', 'XPPerKill', 'TotalXP', 'EstLevel'], rows,
-      { title: `${lord.name} — XP Model (${deployedUnits} units sharing XP)` });
+    printTable(['Checkpoint', 'TotalKills', 'XPPerKill', 'TotalXP', 'EstLevel'], rows, {
+      title: `${lord.name} — XP Model (${deployedUnits} units sharing XP)`,
+    });
   }
 }
 
@@ -184,7 +207,7 @@ for (const lord of lordsToRun) {
     }
   }
 
-  const rows = mcLevels.map(lvl => {
+  const rows = mcLevels.map((lvl) => {
     const row = { Level: lvl };
     for (const stat of XP_STAT_NAMES) {
       const { mean, std } = meanStd(statsByLevel[lvl][stat]);
@@ -195,7 +218,7 @@ for (const lord of lordsToRun) {
 
   if (opts.csv) {
     // For CSV, output mean and std as separate columns
-    const csvRows = mcLevels.map(lvl => {
+    const csvRows = mcLevels.map((lvl) => {
       const row = { Level: lvl };
       for (const stat of XP_STAT_NAMES) {
         const { mean, std } = meanStd(statsByLevel[lvl][stat]);
@@ -204,12 +227,13 @@ for (const lord of lordsToRun) {
       }
       return row;
     });
-    const csvCols = ['Level', ...XP_STAT_NAMES.flatMap(s => [`${s}_mean`, `${s}_std`])];
+    const csvCols = ['Level', ...XP_STAT_NAMES.flatMap((s) => [`${s}_mean`, `${s}_std`])];
     console.log(`\n# ${lord.name} — Monte Carlo (N=${opts.trials})`);
     toCSV(csvCols, csvRows);
   } else {
-    printTable(['Level', ...XP_STAT_NAMES], rows,
-      { title: `${lord.name} — Monte Carlo Stats (N=${opts.trials}, mean±std)` });
+    printTable(['Level', ...XP_STAT_NAMES], rows, {
+      title: `${lord.name} — Monte Carlo Stats (N=${opts.trials}, mean±std)`,
+    });
   }
 
   // Flag high-variance stats
@@ -219,7 +243,7 @@ for (const lord of lordsToRun) {
       issues.push({
         severity: 'INFO',
         label: `${lord.name}: High variance in ${stat} at L20`,
-        detail: `mean=${mean.toFixed(1)}, std=${std.toFixed(1)} (${(std/mean*100).toFixed(0)}% CV)`,
+        detail: `mean=${mean.toFixed(1)}, std=${std.toFixed(1)} (${((std / mean) * 100).toFixed(0)}% CV)`,
       });
     }
   }
@@ -235,21 +259,27 @@ const powerCheckpoints = [
   { label: 'End Act 1 (L3-4)', playerLvl: 4, enemyClass: 'Fighter', enemyLvl: 3, act: 'act1' },
   { label: 'Mid Act 2 (L7-8)', playerLvl: 8, enemyClass: 'Myrmidon', enemyLvl: 6, act: 'act2' },
   { label: 'End Act 2 (L10-11)', playerLvl: 11, enemyClass: 'Knight', enemyLvl: 8, act: 'act2' },
-  { label: 'Mid Act 3 (L13-14)', playerLvl: 14, enemyClass: 'Swordmaster', enemyLvl: 5, act: 'act3' },
+  {
+    label: 'Mid Act 3 (L13-14)',
+    playerLvl: 14,
+    enemyClass: 'Swordmaster',
+    enemyLvl: 5,
+    act: 'act3',
+  },
   { label: 'End Act 3 (L17-18)', playerLvl: 18, enemyClass: 'General', enemyLvl: 8, act: 'act3' },
 ];
 
 for (const lord of lordsToRun) {
-  const classData = data.classes.find(c => c.name === lord.class);
+  const classData = data.classes.find((c) => c.name === lord.class);
   const growths = getLordCombinedGrowths(lord, classData);
 
-  const rows = powerCheckpoints.map(cp => {
+  const rows = powerCheckpoints.map((cp) => {
     const playerStats = expectedStatsAtLevel(lord.baseStats, growths, cp.playerLvl);
 
-    const enemyCls = data.classes.find(c => c.name === cp.enemyClass);
+    const enemyCls = data.classes.find((c) => c.name === cp.enemyClass);
     let enemyStats;
     if (enemyCls.tier === 'promoted') {
-      const baseCls = data.classes.find(c => c.name === enemyCls.promotesFrom);
+      const baseCls = data.classes.find((c) => c.name === enemyCls.promotesFrom);
       const baseGrowths = getClassGrowths(baseCls);
       const base10 = expectedStatsAtLevel(baseCls.baseStats, baseGrowths, 10);
       const promoted = applyPromotionBonuses(base10, enemyCls.promotionBonuses);

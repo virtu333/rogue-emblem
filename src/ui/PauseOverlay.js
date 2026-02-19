@@ -11,7 +11,10 @@ export class PauseOverlay {
    * @param {Phaser.Scene} scene
    * @param {{ onResume: Function, onSaveAndExit?: Function, onAbandon?: Function, onSaveAndExitWarning?: string }} callbacks
    */
-  constructor(scene, { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData, gameData }) {
+  constructor(
+    scene,
+    { onResume, onSaveAndExit, onAbandon, onSaveAndExitWarning, campaignMapData, gameData },
+  ) {
     this.scene = scene;
     this.onResume = onResume;
     this.onSaveAndExit = onSaveAndExit || null;
@@ -30,16 +33,32 @@ export class PauseOverlay {
 
   /** Returns true if any child overlay (Help, Settings, Compendium, CampaignMap) is open. */
   hasActiveSubOverlay() {
-    return !!(this.helpOverlay?.visible || this.settingsOverlay?.visible
-      || this.campaignMapOverlay?.visible || this.compendiumOverlay?.visible);
+    return !!(
+      this.helpOverlay?.visible ||
+      this.settingsOverlay?.visible ||
+      this.campaignMapOverlay?.visible ||
+      this.compendiumOverlay?.visible
+    );
   }
 
   /** Closes any active sub-overlay. Returns true if one was closed. */
   closeActiveSubOverlay() {
-    if (this.compendiumOverlay?.visible) { this.compendiumOverlay.hide(); return true; }
-    if (this.helpOverlay?.visible) { this.helpOverlay.hide(); return true; }
-    if (this.settingsOverlay?.visible) { this.settingsOverlay.hide(); return true; }
-    if (this.campaignMapOverlay?.visible) { this.campaignMapOverlay.hide(); return true; }
+    if (this.compendiumOverlay?.visible) {
+      this.compendiumOverlay.hide();
+      return true;
+    }
+    if (this.helpOverlay?.visible) {
+      this.helpOverlay.hide();
+      return true;
+    }
+    if (this.settingsOverlay?.visible) {
+      this.settingsOverlay.hide();
+      return true;
+    }
+    if (this.campaignMapOverlay?.visible) {
+      this.campaignMapOverlay.hide();
+      return true;
+    }
     return false;
   }
 
@@ -66,19 +85,28 @@ export class PauseOverlay {
     const panelHeight = 100 + buttonCount * 40;
 
     // Dark background
-    const bg = this.scene.add.rectangle(cx, cy, 640, 480, 0x000000, 0.8)
-      .setDepth(800).setInteractive();
+    const bg = this.scene.add
+      .rectangle(cx, cy, 640, 480, 0x000000, 0.8)
+      .setDepth(800)
+      .setInteractive();
     this.objects.push(bg);
 
     // Panel
-    const panel = this.scene.add.rectangle(cx, cy, 260, panelHeight, 0x1a1a2e, 1)
-      .setDepth(801).setStrokeStyle(2, 0x888888);
+    const panel = this.scene.add
+      .rectangle(cx, cy, 260, panelHeight, 0x1a1a2e, 1)
+      .setDepth(801)
+      .setStrokeStyle(2, 0x888888);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add.text(cx, cy - panelHeight / 2 + 25, 'Paused', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(802);
+    const title = this.scene.add
+      .text(cx, cy - panelHeight / 2 + 25, 'Paused', {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(802);
     this.objects.push(title);
 
     // Buttons
@@ -101,7 +129,9 @@ export class PauseOverlay {
     this._addButton(cx, btnY, 'More Info', () => {
       if (this.helpOverlay?.visible) return;
       this._hideConfirm();
-      this.helpOverlay = new HelpOverlay(this.scene, () => { this.helpOverlay = null; });
+      this.helpOverlay = new HelpOverlay(this.scene, () => {
+        this.helpOverlay = null;
+      });
       this.helpOverlay.show();
     });
     btnY += 40;
@@ -111,7 +141,9 @@ export class PauseOverlay {
       this._addButton(cx, btnY, 'Compendium', () => {
         if (this.compendiumOverlay?.visible) return;
         this._hideConfirm(); // auto-dismiss any active confirm modal
-        this.compendiumOverlay = new CompendiumOverlay(this.scene, this.gameData, () => { this.compendiumOverlay = null; });
+        this.compendiumOverlay = new CompendiumOverlay(this.scene, this.gameData, () => {
+          this.compendiumOverlay = null;
+        });
         this.compendiumOverlay.show();
       });
       btnY += 40;
@@ -124,7 +156,9 @@ export class PauseOverlay {
         this._hideConfirm();
         this.campaignMapOverlay = new CampaignMapOverlay(this.scene, {
           ...this.campaignMapData,
-          onClose: () => { this.campaignMapOverlay = null; },
+          onClose: () => {
+            this.campaignMapOverlay = null;
+          },
         });
         this.campaignMapOverlay.show();
       });
@@ -133,44 +167,77 @@ export class PauseOverlay {
 
     // Save & Return to Title
     if (this.onSaveAndExit) {
-      this._addButton(cx, btnY, 'Save & Return to Title', () => {
-        if (this.onSaveAndExitWarning) {
-          this._showConfirm(this.onSaveAndExitWarning, () => {
-            this.hideForTransition();
-            Promise.resolve().then(() => this.onSaveAndExit()).catch((err) => {
+      this._addButton(
+        cx,
+        btnY,
+        'Save & Return to Title',
+        () => {
+          if (this.onSaveAndExitWarning) {
+            this._showConfirm(
+              this.onSaveAndExitWarning,
+              () => {
+                this.hideForTransition();
+                Promise.resolve()
+                  .then(() => this.onSaveAndExit())
+                  .catch((err) => {
+                    console.error('[PauseOverlay] onSaveAndExit rejected:', err);
+                  });
+              },
+              '#88ccff',
+            );
+            return;
+          }
+          this.hideForTransition();
+          Promise.resolve()
+            .then(() => this.onSaveAndExit())
+            .catch((err) => {
               console.error('[PauseOverlay] onSaveAndExit rejected:', err);
             });
-          }, '#88ccff');
-          return;
-        }
-        this.hideForTransition();
-        Promise.resolve().then(() => this.onSaveAndExit()).catch((err) => {
-          console.error('[PauseOverlay] onSaveAndExit rejected:', err);
-        });
-      }, '#88ccff');
+        },
+        '#88ccff',
+      );
       btnY += 40;
     }
 
     // Abandon Run (only if callback provided)
     if (this.onAbandon) {
-      this._addButton(cx, btnY, 'Abandon Run', () => {
-        this._showConfirm('Abandon this run?\nProgress will be lost.', () => {
-          this.hideForTransition();
-          if (this.onAbandon) {
-            Promise.resolve().then(() => this.onAbandon()).catch((err) => {
-              console.error('[PauseOverlay] onAbandon rejected:', err);
-            });
-          }
-        }, '#cc5555');
-      }, '#cc5555');
+      this._addButton(
+        cx,
+        btnY,
+        'Abandon Run',
+        () => {
+          this._showConfirm(
+            'Abandon this run?\nProgress will be lost.',
+            () => {
+              this.hideForTransition();
+              if (this.onAbandon) {
+                Promise.resolve()
+                  .then(() => this.onAbandon())
+                  .catch((err) => {
+                    console.error('[PauseOverlay] onAbandon rejected:', err);
+                  });
+              }
+            },
+            '#cc5555',
+          );
+        },
+        '#cc5555',
+      );
     }
   }
 
   _addButton(x, y, label, onClick, color = '#e0e0e0') {
-    const btn = this.scene.add.text(x, y, label, {
-      fontFamily: 'monospace', fontSize: '14px', color,
-      backgroundColor: '#333333', padding: { x: 16, y: 6 },
-    }).setOrigin(0.5).setDepth(802).setInteractive({ useHandCursor: true });
+    const btn = this.scene.add
+      .text(x, y, label, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color,
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(802)
+      .setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setColor('#ffdd44'));
     btn.on('pointerout', () => btn.setColor(color));
     btn.on('pointerdown', onClick);
@@ -182,28 +249,51 @@ export class PauseOverlay {
     const cx = this.scene.cameras.main.centerX;
     const cy = this.scene.cameras.main.centerY;
 
-    const bg = this.scene.add.rectangle(cx, cy, 320, 120, 0x1a1a2e, 1)
-      .setDepth(850).setStrokeStyle(2, 0xcc5555).setInteractive();
+    const bg = this.scene.add
+      .rectangle(cx, cy, 320, 120, 0x1a1a2e, 1)
+      .setDepth(850)
+      .setStrokeStyle(2, 0xcc5555)
+      .setInteractive();
     this.confirmObjects.push(bg);
 
-    const msg = this.scene.add.text(cx, cy - 30, message, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0', align: 'center',
-    }).setOrigin(0.5).setDepth(851);
+    const msg = this.scene.add
+      .text(cx, cy - 30, message, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(851);
     this.confirmObjects.push(msg);
 
-    const yesBtn = this.scene.add.text(cx - 50, cy + 25, 'Yes', {
-      fontFamily: 'monospace', fontSize: '14px', color: confirmColor,
-      backgroundColor: '#333333', padding: { x: 12, y: 4 },
-    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    const yesBtn = this.scene.add
+      .text(cx - 50, cy + 25, 'Yes', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: confirmColor,
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(851)
+      .setInteractive({ useHandCursor: true });
     yesBtn.on('pointerover', () => yesBtn.setColor('#ffdd44'));
     yesBtn.on('pointerout', () => yesBtn.setColor(confirmColor));
     yesBtn.on('pointerdown', () => onConfirm());
     this.confirmObjects.push(yesBtn);
 
-    const cancelBtn = this.scene.add.text(cx + 50, cy + 25, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 12, y: 4 },
-    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.scene.add
+      .text(cx + 50, cy + 25, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(851)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#e0e0e0'));
     cancelBtn.on('pointerdown', () => this._hideConfirm());

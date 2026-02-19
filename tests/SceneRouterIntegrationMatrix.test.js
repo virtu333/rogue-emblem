@@ -23,7 +23,15 @@ const REQUIRED_REASON_MATRIX = {
   'DifficultySelectScene.js': ['BEGIN_RUN', 'BACK'],
   'BlessingSelectScene.js': ['BEGIN_RUN', 'BACK'],
   'NodeMapScene.js': ['SAVE_EXIT', 'ABANDON_RUN', 'ENTER_BATTLE', 'VICTORY'],
-  'BattleScene.js': ['BACK', 'ABANDON_RUN', 'SAVE_EXIT', 'VICTORY', 'BATTLE_COMPLETE', 'DEFEAT', 'RETRY'],
+  'BattleScene.js': [
+    'BACK',
+    'ABANDON_RUN',
+    'SAVE_EXIT',
+    'VICTORY',
+    'BATTLE_COMPLETE',
+    'DEFEAT',
+    'RETRY',
+  ],
   'RunCompleteScene.js': ['RETURN_HOME', 'RETURN_TITLE'],
 };
 
@@ -53,7 +61,7 @@ function extractCalls(source, fnName) {
         } else if (ch === quote) {
           quote = null;
         }
-      } else if (ch === '"' || ch === '\'' || ch === '`') {
+      } else if (ch === '"' || ch === "'" || ch === '`') {
         quote = ch;
       } else if (ch === '(') {
         depth++;
@@ -76,8 +84,10 @@ function hasInlineReason(callSource) {
   // Secondary: shorthand { reason } pass-through — currently no scene file uses this
   // (only TransitionRecoveryPrompt.js in src/ui/ does, which isn't scanned).
   // Kept as safety net for future refactors that pass reason through helper params.
-  return /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource)
-    || /,\s*\{\s*reason\s*\}\s*\)/s.test(callSource);
+  return (
+    /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource) ||
+    /,\s*\{\s*reason\s*\}\s*\)/s.test(callSource)
+  );
 }
 
 const ALLOWED_BYPASS_COUNT = {
@@ -107,7 +117,9 @@ describe('SceneRouter integration matrix', () => {
       const allowed = ALLOWED_BYPASS_COUNT[file] || 0;
 
       expect(unbypassedCount, `${file} has unbypassed direct scene lifecycle call`).toBe(0);
-      expect(bypassedCount, `${file} has ${bypassedCount} bypasses but expected ${allowed}`).toBe(allowed);
+      expect(bypassedCount, `${file} has ${bypassedCount} bypasses but expected ${allowed}`).toBe(
+        allowed,
+      );
     }
   });
 

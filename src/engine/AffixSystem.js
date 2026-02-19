@@ -4,7 +4,7 @@
 import { gridDistance } from './Combat.js';
 
 function getAffix(affixId, affixData) {
-  return affixData?.affixes?.find(a => a.id === affixId) || null;
+  return affixData?.affixes?.find((a) => a.id === affixId) || null;
 }
 
 /**
@@ -164,7 +164,12 @@ export function getTurnStartAffixes(units, affixData) {
       if (affix.effects?.healSelfPct) {
         const healAmt = Math.floor(unit.stats.HP * affix.effects.healSelfPct);
         if (unit.currentHP < unit.stats.HP) {
-          effects.push({ type: 'heal', target: unit, amount: Math.min(healAmt, unit.stats.HP - unit.currentHP), source: affix.name });
+          effects.push({
+            type: 'heal',
+            target: unit,
+            amount: Math.min(healAmt, unit.stats.HP - unit.currentHP),
+            source: affix.name,
+          });
         }
       }
 
@@ -231,5 +236,5 @@ export function getWarpCandidates(unit, range, attacker, grid, getUnitAt) {
   // Sort by distance descending
   candidates.sort((a, b) => b.distToAttacker - a.distToAttacker);
   const maxDist = candidates[0].distToAttacker;
-  return candidates.filter(c => c.distToAttacker === maxDist);
+  return candidates.filter((c) => c.distToAttacker === maxDist);
 }

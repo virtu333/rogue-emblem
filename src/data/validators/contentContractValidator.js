@@ -40,7 +40,9 @@ function isDeepEqual(left, right) {
 
 function compareField(issues, path, expectedValue, actualValue) {
   if (isDeepEqual(expectedValue, actualValue)) return;
-  issues.push(`${path}: expected ${stableStringify(expectedValue)}, found ${stableStringify(actualValue)}`);
+  issues.push(
+    `${path}: expected ${stableStringify(expectedValue)}, found ${stableStringify(actualValue)}`,
+  );
 }
 
 function ensureArray(value) {
@@ -72,7 +74,9 @@ function buildUniqueByNameMap(entries, issues, pathLabel, itemLabel) {
     }
     if (byName.has(name)) {
       const firstIndex = firstIndexByName.get(name);
-      issues.push(`${pathLabel}: duplicate ${itemLabel} name "${name}" at indices ${firstIndex} and ${index}`);
+      issues.push(
+        `${pathLabel}: duplicate ${itemLabel} name "${name}" at indices ${firstIndex} and ${index}`,
+      );
       return;
     }
     byName.set(name, entry);
@@ -97,7 +101,12 @@ function validateExpectedNameUniqueness(expectedEntries, issues, pathLabel, item
 
 function validateAccessories(contract, accessories, issues) {
   const contractAccessories = ensureArray(contract.accessories);
-  validateExpectedNameUniqueness(contractAccessories, issues, 'tests/fixtures/pr1_content_contract.json:accessories', 'accessory');
+  validateExpectedNameUniqueness(
+    contractAccessories,
+    issues,
+    'tests/fixtures/pr1_content_contract.json:accessories',
+    'accessory',
+  );
   const byName = buildUniqueByNameMap(accessories, issues, 'data/accessories.json', 'accessory');
 
   for (const expected of contractAccessories) {
@@ -120,7 +129,12 @@ function validateAccessories(contract, accessories, issues) {
 
 function validateConsumables(contract, consumables, issues) {
   const contractConsumables = ensureArray(contract.consumables);
-  validateExpectedNameUniqueness(contractConsumables, issues, 'tests/fixtures/pr1_content_contract.json:consumables', 'consumable');
+  validateExpectedNameUniqueness(
+    contractConsumables,
+    issues,
+    'tests/fixtures/pr1_content_contract.json:consumables',
+    'consumable',
+  );
   const byName = buildUniqueByNameMap(consumables, issues, 'data/consumables.json', 'consumable');
 
   for (const expected of contractConsumables) {
@@ -146,7 +160,9 @@ function validateExpectedTotals(contract, accessories, consumables, issues) {
 
   const hasAccessoriesTotal = Object.prototype.hasOwnProperty.call(expectedTotals, 'accessories');
   if (hasAccessoriesTotal && !Number.isInteger(expectedTotals.accessories)) {
-    issues.push('tests/fixtures/pr1_content_contract.json: expectedTotals.accessories must be an integer');
+    issues.push(
+      'tests/fixtures/pr1_content_contract.json: expectedTotals.accessories must be an integer',
+    );
   } else if (Number.isInteger(expectedTotals.accessories)) {
     const actualAccessories = ensureArray(accessories).length;
     if (actualAccessories !== expectedTotals.accessories) {
@@ -158,7 +174,9 @@ function validateExpectedTotals(contract, accessories, consumables, issues) {
 
   const hasConsumablesTotal = Object.prototype.hasOwnProperty.call(expectedTotals, 'consumables');
   if (hasConsumablesTotal && !Number.isInteger(expectedTotals.consumables)) {
-    issues.push('tests/fixtures/pr1_content_contract.json: expectedTotals.consumables must be an integer');
+    issues.push(
+      'tests/fixtures/pr1_content_contract.json: expectedTotals.consumables must be an integer',
+    );
   } else if (Number.isInteger(expectedTotals.consumables)) {
     const actualConsumables = ensureArray(consumables).length;
     if (actualConsumables !== expectedTotals.consumables) {
@@ -185,7 +203,9 @@ function validateLootDistribution(contract, lootTables, issues) {
         issues.push(`data/lootTables.json:${actId}.accessories missing "${accessoryName}"`);
       }
       if (expectedActByAccessory.has(accessoryName)) {
-        issues.push(`tests/fixtures/pr1_content_contract.json: accessory "${accessoryName}" assigned to multiple acts`);
+        issues.push(
+          `tests/fixtures/pr1_content_contract.json: accessory "${accessoryName}" assigned to multiple acts`,
+        );
       } else {
         expectedActByAccessory.set(accessoryName, actId);
       }
@@ -199,7 +219,9 @@ function validateLootDistribution(contract, lootTables, issues) {
       const actualPool = lootTables?.[actId]?.accessories;
       if (!Array.isArray(actualPool)) continue;
       if (actualPool.includes(accessoryName)) {
-        issues.push(`data/lootTables.json:${actId}.accessories should not include "${accessoryName}" (expected only in ${expectedAct})`);
+        issues.push(
+          `data/lootTables.json:${actId}.accessories should not include "${accessoryName}" (expected only in ${expectedAct})`,
+        );
       }
     }
   }
@@ -242,7 +264,9 @@ function validateLootReferenceIntegrity(accessories, consumables, lootTables, is
     const accessoryPool = Array.isArray(table?.accessories) ? table.accessories : [];
     for (const accessoryName of accessoryPool) {
       if (!accessoryNames.has(accessoryName)) {
-        issues.push(`data/lootTables.json:${actId}.accessories references unknown accessory "${accessoryName}"`);
+        issues.push(
+          `data/lootTables.json:${actId}.accessories references unknown accessory "${accessoryName}"`,
+        );
       }
     }
   }
@@ -253,7 +277,9 @@ function validateLootReferenceIntegrity(accessories, consumables, lootTables, is
       const pool = Array.isArray(table?.[poolKey]) ? table[poolKey] : [];
       for (const itemName of pool) {
         if (!consumableNames.has(itemName)) {
-          issues.push(`data/lootTables.json:${actId}.${poolKey} references unknown consumable "${itemName}"`);
+          issues.push(
+            `data/lootTables.json:${actId}.${poolKey} references unknown consumable "${itemName}"`,
+          );
         }
       }
     }
@@ -278,10 +304,14 @@ function validateAccessoryTextCoverage(accessories, issues) {
   }
 
   if (unknownCombatKeys.size > 0) {
-    issues.push(`accessoryText: unknown combat effect keys: ${Array.from(unknownCombatKeys).sort().join(', ')}`);
+    issues.push(
+      `accessoryText: unknown combat effect keys: ${Array.from(unknownCombatKeys).sort().join(', ')}`,
+    );
   }
   if (unknownTurnStartKeys.size > 0) {
-    issues.push(`accessoryText: unknown turn-start effect keys: ${Array.from(unknownTurnStartKeys).sort().join(', ')}`);
+    issues.push(
+      `accessoryText: unknown turn-start effect keys: ${Array.from(unknownTurnStartKeys).sort().join(', ')}`,
+    );
   }
 
   for (const accessory of ensureArray(accessories)) {
@@ -303,10 +333,14 @@ function validateAccessoryTextCoverage(accessories, issues) {
     const buffRES = parseFiniteNumber(combatEffects.buffRES);
     if (hasTimedBuff && (buffDEF !== null || buffRES !== null)) {
       const missing = [];
-      if (buffDEF !== null && !combatText.includes(String(buffDEF))) missing.push(`buffDEF=${buffDEF}`);
-      if (buffRES !== null && !combatText.includes(String(buffRES))) missing.push(`buffRES=${buffRES}`);
+      if (buffDEF !== null && !combatText.includes(String(buffDEF)))
+        missing.push(`buffDEF=${buffDEF}`);
+      if (buffRES !== null && !combatText.includes(String(buffRES)))
+        missing.push(`buffRES=${buffRES}`);
       if (missing.length > 0) {
-        issues.push(`accessoryText:${name} missing timed-buff values in combat text (${missing.join(', ')})`);
+        issues.push(
+          `accessoryText:${name} missing timed-buff values in combat text (${missing.join(', ')})`,
+        );
       }
     }
   }
@@ -314,7 +348,8 @@ function validateAccessoryTextCoverage(accessories, issues) {
 
 export function validateContentContract(options = {}) {
   const repoRoot = options.repoRoot || DEFAULT_REPO_ROOT;
-  const contractPath = options.contractPath || join(repoRoot, 'tests', 'fixtures', 'pr1_content_contract.json');
+  const contractPath =
+    options.contractPath || join(repoRoot, 'tests', 'fixtures', 'pr1_content_contract.json');
   const accessoriesPath = options.accessoriesPath || join(repoRoot, 'data', 'accessories.json');
   const consumablesPath = options.consumablesPath || join(repoRoot, 'data', 'consumables.json');
   const lootTablesPath = options.lootTablesPath || join(repoRoot, 'data', 'lootTables.json');

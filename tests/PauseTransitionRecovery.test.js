@@ -46,9 +46,15 @@ function mockScene(overrides = {}) {
     add: {
       rectangle: (_x, _y, _w, _h, _c, _a) => {
         const obj = {
-          setDepth: function () { return this; },
-          setInteractive: function () { return this; },
-          setStrokeStyle: function () { return this; },
+          setDepth: function () {
+            return this;
+          },
+          setInteractive: function () {
+            return this;
+          },
+          setStrokeStyle: function () {
+            return this;
+          },
           destroy: vi.fn(),
           type: 'rectangle',
         };
@@ -58,12 +64,25 @@ function mockScene(overrides = {}) {
       text: (_x, _y, label, _style) => {
         const obj = {
           text: label,
-          setOrigin: function () { return this; },
-          setDepth: function () { return this; },
-          setInteractive: function () { return this; },
-          disableInteractive: function () { return this; },
-          setColor: function () { return this; },
-          setText: function (t) { this.text = t; return this; },
+          setOrigin: function () {
+            return this;
+          },
+          setDepth: function () {
+            return this;
+          },
+          setInteractive: function () {
+            return this;
+          },
+          disableInteractive: function () {
+            return this;
+          },
+          setColor: function () {
+            return this;
+          },
+          setText: function (t) {
+            this.text = t;
+            return this;
+          },
           on: vi.fn().mockReturnThis(),
           destroy: vi.fn(),
           type: 'text',
@@ -86,8 +105,8 @@ function mockScene(overrides = {}) {
 
 /** Extract pointerdown handler for a text button by label */
 function findBtnHandler(objects, label) {
-  const btn = objects.find(o => o.type === 'text' && o.text === label);
-  return btn?.on.mock.calls.find(c => c[0] === 'pointerdown')?.[1] || null;
+  const btn = objects.find((o) => o.type === 'text' && o.text === label);
+  return btn?.on.mock.calls.find((c) => c[0] === 'pointerdown')?.[1] || null;
 }
 
 // ---- Tests: BattleScene showTransitionRecoveryPrompt (pauseTransitionRecovery guard) ----
@@ -247,9 +266,15 @@ describe('PauseOverlay async callback rejection safety', () => {
       add: {
         rectangle: () => {
           const obj = {
-            setDepth: function () { return this; },
-            setInteractive: function () { return this; },
-            setStrokeStyle: function () { return this; },
+            setDepth: function () {
+              return this;
+            },
+            setInteractive: function () {
+              return this;
+            },
+            setStrokeStyle: function () {
+              return this;
+            },
             destroy: vi.fn(),
             type: 'rectangle',
           };
@@ -259,12 +284,25 @@ describe('PauseOverlay async callback rejection safety', () => {
         text: (_x, _y, label, _style) => {
           const obj = {
             text: label,
-            setOrigin: function () { return this; },
-            setDepth: function () { return this; },
-            setInteractive: function () { return this; },
-            disableInteractive: function () { return this; },
-            setColor: function () { return this; },
-            setText: function (t) { this.text = t; return this; },
+            setOrigin: function () {
+              return this;
+            },
+            setDepth: function () {
+              return this;
+            },
+            setInteractive: function () {
+              return this;
+            },
+            disableInteractive: function () {
+              return this;
+            },
+            setColor: function () {
+              return this;
+            },
+            setText: function (t) {
+              this.text = t;
+              return this;
+            },
             on: vi.fn().mockReturnThis(),
             destroy: vi.fn(),
             type: 'text',
@@ -283,14 +321,16 @@ describe('PauseOverlay async callback rejection safety', () => {
     const scene = mockPauseScene();
     const overlay = new PauseOverlay(scene, {
       onResume: vi.fn(),
-      onSaveAndExit: () => { throw error; }, // sync throw — no onSaveAndExitWarning → direct path
+      onSaveAndExit: () => {
+        throw error;
+      }, // sync throw — no onSaveAndExitWarning → direct path
     });
     overlay.show();
 
     const handler = findBtnHandler(scene._createdObjects, 'Save & Return to Title');
     expect(handler).not.toBeNull();
     handler(); // triggers production Promise.resolve().then(() => cb()).catch()
-    await new Promise(r => setTimeout(r, 0)); // flush microtasks
+    await new Promise((r) => setTimeout(r, 0)); // flush microtasks
 
     expect(consoleError).toHaveBeenCalledWith('[PauseOverlay] onSaveAndExit rejected:', error);
     consoleError.mockRestore();
@@ -302,13 +342,15 @@ describe('PauseOverlay async callback rejection safety', () => {
     const scene = mockPauseScene();
     const overlay = new PauseOverlay(scene, {
       onResume: vi.fn(),
-      onSaveAndExit: async () => { throw error; },
+      onSaveAndExit: async () => {
+        throw error;
+      },
     });
     overlay.show();
 
     const handler = findBtnHandler(scene._createdObjects, 'Save & Return to Title');
     handler();
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(consoleError).toHaveBeenCalledWith('[PauseOverlay] onSaveAndExit rejected:', error);
     consoleError.mockRestore();
@@ -320,7 +362,9 @@ describe('PauseOverlay async callback rejection safety', () => {
     const scene = mockPauseScene();
     const overlay = new PauseOverlay(scene, {
       onResume: vi.fn(),
-      onAbandon: async () => { throw error; },
+      onAbandon: async () => {
+        throw error;
+      },
     });
     overlay.show();
 
@@ -333,7 +377,7 @@ describe('PauseOverlay async callback rejection safety', () => {
     const yesHandler = findBtnHandler(scene._createdObjects, 'Yes');
     expect(yesHandler).not.toBeNull();
     yesHandler(); // triggers production Promise.resolve().then(() => onAbandon()).catch()
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(consoleError).toHaveBeenCalledWith('[PauseOverlay] onAbandon rejected:', error);
     consoleError.mockRestore();
@@ -345,7 +389,9 @@ describe('PauseOverlay async callback rejection safety', () => {
     const scene = mockPauseScene();
     const overlay = new PauseOverlay(scene, {
       onResume: vi.fn(),
-      onSaveAndExit: async () => { throw error; },
+      onSaveAndExit: async () => {
+        throw error;
+      },
       onSaveAndExitWarning: 'Battle Progress Will Be Lost',
     });
     overlay.show();
@@ -359,7 +405,7 @@ describe('PauseOverlay async callback rejection safety', () => {
     const yesHandler = findBtnHandler(scene._createdObjects, 'Yes');
     expect(yesHandler).not.toBeNull();
     yesHandler();
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(consoleError).toHaveBeenCalledWith('[PauseOverlay] onSaveAndExit rejected:', error);
     consoleError.mockRestore();
@@ -391,11 +437,13 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
     handler();
 
     expect(resetTransitionLocks).toHaveBeenCalledWith(scene);
-    expect(transitionToScene).toHaveBeenCalledWith(
-      scene, 'Title', titleData, { reason: TRANSITION_REASONS.SAVE_EXIT },
-    );
+    expect(transitionToScene).toHaveBeenCalledWith(scene, 'Title', titleData, {
+      reason: TRANSITION_REASONS.SAVE_EXIT,
+    });
     // Button text changes to retrying
-    const retryBtn = scene._createdObjects.find(o => o.type === 'text' && o.text === '[ Retrying... ]');
+    const retryBtn = scene._createdObjects.find(
+      (o) => o.type === 'text' && o.text === '[ Retrying... ]',
+    );
     expect(retryBtn).toBeTruthy();
   });
 
@@ -406,7 +454,7 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
 
     const handler = findBtnHandler(scene._createdObjects, '[ Retry ]');
     handler();
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(scene.scene.start).toHaveBeenCalledWith('Title', titleData);
   });
@@ -417,10 +465,10 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
     const scene = mockScene();
     showTransitionRecoveryPrompt(scene, opts);
 
-    const retryBtn = scene._createdObjects.find(o => o.type === 'text' && o.text === '[ Retry ]');
-    const handler = retryBtn.on.mock.calls.find(c => c[0] === 'pointerdown')[1];
+    const retryBtn = scene._createdObjects.find((o) => o.type === 'text' && o.text === '[ Retry ]');
+    const handler = retryBtn.on.mock.calls.find((c) => c[0] === 'pointerdown')[1];
     handler();
-    await new Promise(r => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     // Button text reset to [ Retry ]
     expect(retryBtn.text).toBe('[ Retry ]');
@@ -440,7 +488,8 @@ describe('showTransitionRecoveryPrompt button behavior', () => {
       handler();
 
       expect(markStartup).toHaveBeenCalledWith('pause_transition_reload', {
-        scene: 'Battle', reason: TRANSITION_REASONS.SAVE_EXIT,
+        scene: 'Battle',
+        reason: TRANSITION_REASONS.SAVE_EXIT,
       });
       expect(globalThis.location.reload).toHaveBeenCalled();
     } finally {
@@ -480,7 +529,11 @@ describe('Scene recovery wrapper arg wiring', () => {
   it('BattleScene.showPauseTransitionRecovery forwards correct helper args', () => {
     const promptSpy = vi.fn();
     const scene = { gameData: { runId: 'battle' } };
-    const method = loadWrapperMethod('src/scenes/BattleScene.js', 'showPauseTransitionRecovery', promptSpy);
+    const method = loadWrapperMethod(
+      'src/scenes/BattleScene.js',
+      'showPauseTransitionRecovery',
+      promptSpy,
+    );
 
     method.call(scene, TRANSITION_REASONS.ABANDON_RUN);
 
@@ -496,7 +549,11 @@ describe('Scene recovery wrapper arg wiring', () => {
   it('NodeMapScene.showNodeMapTransitionRecovery forwards correct helper args', () => {
     const promptSpy = vi.fn();
     const scene = { gameData: { runId: 'node' } };
-    const method = loadWrapperMethod('src/scenes/NodeMapScene.js', 'showNodeMapTransitionRecovery', promptSpy);
+    const method = loadWrapperMethod(
+      'src/scenes/NodeMapScene.js',
+      'showNodeMapTransitionRecovery',
+      promptSpy,
+    );
 
     method.call(scene, TRANSITION_REASONS.SAVE_EXIT);
 

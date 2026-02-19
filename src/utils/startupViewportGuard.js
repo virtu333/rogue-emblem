@@ -15,13 +15,13 @@ function readViewport(env) {
   const width = Math.max(
     1,
     Math.round(
-      Number.isFinite(visualViewport?.width) ? visualViewport.width : (env?.innerWidth || 0),
+      Number.isFinite(visualViewport?.width) ? visualViewport.width : env?.innerWidth || 0,
     ),
   );
   const height = Math.max(
     1,
     Math.round(
-      Number.isFinite(visualViewport?.height) ? visualViewport.height : (env?.innerHeight || 0),
+      Number.isFinite(visualViewport?.height) ? visualViewport.height : env?.innerHeight || 0,
     ),
   );
   const scale = Number.isFinite(visualViewport?.scale)
@@ -149,7 +149,8 @@ export function createStartupViewportGuard({
     const viewportKey = buildViewportKey(viewport);
     const game = gameGetter();
     const gameScaleReady = typeof game?.scale?.refresh === 'function';
-    const needsFirstGameRefresh = gameScaleReady && state.lastGameRefreshViewportKey !== viewportKey;
+    const needsFirstGameRefresh =
+      gameScaleReady && state.lastGameRefreshViewportKey !== viewportKey;
 
     if (viewportKey === state.lastViewportKey && !needsFirstGameRefresh) {
       state.unchangedViewportCount += 1;
@@ -171,7 +172,8 @@ export function createStartupViewportGuard({
 
   function clearTimeoutIfSet() {
     if (!state.timeoutId) return;
-    const clearTimer = (typeof env?.clearTimeout === 'function') ? env.clearTimeout.bind(env) : clearTimeout;
+    const clearTimer =
+      typeof env?.clearTimeout === 'function' ? env.clearTimeout.bind(env) : clearTimeout;
     clearTimer(state.timeoutId);
     state.timeoutId = null;
   }
@@ -229,7 +231,7 @@ export function createStartupViewportGuard({
 
     reconcile('activate');
 
-    const setTimer = (typeof env?.setTimeout === 'function') ? env.setTimeout.bind(env) : setTimeout;
+    const setTimer = typeof env?.setTimeout === 'function' ? env.setTimeout.bind(env) : setTimeout;
     state.timeoutId = setTimer(() => {
       mark('startup_viewport_guard_timeout', {
         timeoutMs,

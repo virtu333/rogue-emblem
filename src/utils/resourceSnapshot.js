@@ -53,10 +53,18 @@ export function captureResourceSnapshot(scene) {
   let timers = 0;
   let objects = 0;
 
-  try { sounds = scene?.game?.sound?.sounds?.filter((s) => s?.isPlaying)?.length || 0; } catch (_) {}
-  try { tweens = scene?.tweens?.getTweens?.()?.length || 0; } catch (_) {}
-  try { timers = scene?.time?.getAllEvents?.()?.length || 0; } catch (_) {}
-  try { objects = scene?.children?.list?.length || 0; } catch (_) {}
+  try {
+    sounds = scene?.game?.sound?.sounds?.filter((s) => s?.isPlaying)?.length || 0;
+  } catch (_) {}
+  try {
+    tweens = scene?.tweens?.getTweens?.()?.length || 0;
+  } catch (_) {}
+  try {
+    timers = scene?.time?.getAllEvents?.()?.length || 0;
+  } catch (_) {}
+  try {
+    objects = scene?.children?.list?.length || 0;
+  } catch (_) {}
 
   const listeners = {
     sceneEvents: countEmitterListeners(scene?.events),
@@ -66,11 +74,8 @@ export function captureResourceSnapshot(scene) {
     scale: countEmitterListeners(scene?.scale),
   };
 
-  const listenerTotal = listeners.sceneEvents
-    + listeners.input
-    + listeners.keyboard
-    + listeners.game
-    + listeners.scale;
+  const listenerTotal =
+    listeners.sceneEvents + listeners.input + listeners.keyboard + listeners.game + listeners.scale;
 
   return {
     sounds,

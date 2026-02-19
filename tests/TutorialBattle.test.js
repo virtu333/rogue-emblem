@@ -30,8 +30,12 @@ const gameData = loadGameData();
 
 function makeGuideMarker() {
   return {
-    setStrokeStyle() { return this; },
-    setDepth() { return this; },
+    setStrokeStyle() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
     destroy: vi.fn(),
   };
 }
@@ -239,7 +243,7 @@ describe('TutorialBattle', () => {
     });
 
     it('Sera has Staff proficiency', () => {
-      const hasStaff = sera.proficiencies.some(p => p.type === 'Staff');
+      const hasStaff = sera.proficiencies.some((p) => p.type === 'Staff');
       expect(hasStaff).toBe(true);
     });
 
@@ -263,7 +267,10 @@ describe('TutorialBattle', () => {
 
       expect(scene.tutorialStep).toBe(2);
       expect(scene.selectedUnit).toBeUndefined();
-      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('Select Edric first'));
+      expect(showImportantHint).toHaveBeenCalledWith(
+        scene,
+        expect.stringContaining('Select Edric first'),
+      );
     });
 
     it('blocks first selection when Edric is missing from roster', async () => {
@@ -276,7 +283,10 @@ describe('TutorialBattle', () => {
 
       expect(scene.tutorialStep).toBe(2);
       expect(scene.selectedUnit).toBeUndefined();
-      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('Select Edric first'));
+      expect(showImportantHint).toHaveBeenCalledWith(
+        scene,
+        expect.stringContaining('Select Edric first'),
+      );
     });
 
     it('advances to Fort move gate after selecting Edric and swaps guide highlight', async () => {
@@ -292,7 +302,10 @@ describe('TutorialBattle', () => {
       expect(initialEdricGuide.destroy).toHaveBeenCalledTimes(1);
       expect(scene._tutorialEdricGuide).toBeNull();
       expect(scene._tutorialFortGuide).not.toBeNull();
-      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('highlighted Fort tile'));
+      expect(showImportantHint).toHaveBeenCalledWith(
+        scene,
+        expect.stringContaining('highlighted Fort tile'),
+      );
     });
 
     it('blocks non-Fort move attempts during Fort gate', async () => {
@@ -306,7 +319,10 @@ describe('TutorialBattle', () => {
 
       expect(scene.moveUnit).not.toHaveBeenCalled();
       expect(scene.tutorialStep).toBe(3);
-      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('highlighted Fort tile'));
+      expect(showImportantHint).toHaveBeenCalledWith(
+        scene,
+        expect.stringContaining('highlighted Fort tile'),
+      );
     });
 
     it('allows Fort move attempt during Fort gate', () => {
@@ -328,9 +344,12 @@ describe('TutorialBattle', () => {
       scene.tutorialStep = 3;
       scene._setTutorialGuideHighlight('fort');
       let resolveHint = null;
-      showImportantHint.mockImplementationOnce(() => new Promise((resolve) => {
-        resolveHint = resolve;
-      }));
+      showImportantHint.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveHint = resolve;
+          }),
+      );
 
       const pending = BattleScene.prototype.afterMove.call(scene, edric);
       const hintText = showImportantHint.mock.calls.at(-1)[1];
@@ -374,7 +393,10 @@ describe('TutorialBattle', () => {
 
       expect(canceled).toBe(true);
       expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
-      expect(showImportantHint).toHaveBeenCalledWith(scene, expect.stringContaining('tutorial movement step'));
+      expect(showImportantHint).toHaveBeenCalledWith(
+        scene,
+        expect.stringContaining('tutorial movement step'),
+      );
     });
   });
 
@@ -451,7 +473,9 @@ describe('TutorialBattle', () => {
       expect(window.confirm).toHaveBeenCalledWith('Skip tutorial and return to title?');
       expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
       expect(transitionToScene).toHaveBeenCalledTimes(1);
-      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(
+        transitionToScene.mock.invocationCallOrder[0],
+      );
     });
 
     it('onVictory writes tutorial completion flag and transitions to Title', async () => {
@@ -466,8 +490,12 @@ describe('TutorialBattle', () => {
       scene.cameras = { main: { centerX: 320, centerY: 240 } };
       scene.add = {
         text: vi.fn(() => ({
-          setOrigin() { return this; },
-          setDepth() { return this; },
+          setOrigin() {
+            return this;
+          },
+          setDepth() {
+            return this;
+          },
         })),
       };
       const pending = [];
@@ -486,7 +514,9 @@ describe('TutorialBattle', () => {
       expect(setItem).toHaveBeenCalledWith('emblem_rogue_tutorial_completed', '1');
       expect(transitionToScene).toHaveBeenCalledTimes(1);
       expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
-      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(
+        transitionToScene.mock.invocationCallOrder[0],
+      );
     });
 
     it('onDefeat tutorial path releases music before transition', async () => {
@@ -498,8 +528,12 @@ describe('TutorialBattle', () => {
       scene.cameras = { main: { centerX: 320, centerY: 240 } };
       scene.add = {
         text: vi.fn(() => ({
-          setOrigin() { return this; },
-          setDepth() { return this; },
+          setOrigin() {
+            return this;
+          },
+          setDepth() {
+            return this;
+          },
         })),
       };
       scene.clearInspectionVisuals = vi.fn();
@@ -518,7 +552,9 @@ describe('TutorialBattle', () => {
 
       expect(transitionToScene).toHaveBeenCalledTimes(1);
       expect(audio.releaseMusic).toHaveBeenCalledWith(scene, 0);
-      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(transitionToScene.mock.invocationCallOrder[0]);
+      expect(audio.releaseMusic.mock.invocationCallOrder[0]).toBeLessThan(
+        transitionToScene.mock.invocationCallOrder[0],
+      );
     });
   });
 });

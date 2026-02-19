@@ -99,17 +99,17 @@ export function getLatePressureState(turnsTaken, par, config) {
 
   const startOverPar = normalizeNonNegativeInt(Number(pressure?.startOverPar), 5);
   const stepTurns = Math.max(1, normalizeNonNegativeInt(Number(pressure?.stepTurns), 2));
-  const xpTable = Array.isArray(pressure?.xpMultipliers) && pressure.xpMultipliers.length > 0
-    ? pressure.xpMultipliers
-    : [1];
-  const goldTable = Array.isArray(pressure?.goldMultipliers) && pressure.goldMultipliers.length > 0
-    ? pressure.goldMultipliers
-    : [1];
+  const xpTable =
+    Array.isArray(pressure?.xpMultipliers) && pressure.xpMultipliers.length > 0
+      ? pressure.xpMultipliers
+      : [1];
+  const goldTable =
+    Array.isArray(pressure?.goldMultipliers) && pressure.goldMultipliers.length > 0
+      ? pressure.goldMultipliers
+      : [1];
 
   const active = hasPar && turnsOverPar > startOverPar;
-  const step = active
-    ? Math.max(1, Math.ceil((turnsOverPar - startOverPar) / stepTurns))
-    : 0;
+  const step = active ? Math.max(1, Math.ceil((turnsOverPar - startOverPar) / stepTurns)) : 0;
   const xpIdx = Math.min(step, xpTable.length - 1);
   const goldIdx = Math.min(step, goldTable.length - 1);
 

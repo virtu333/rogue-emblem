@@ -3,7 +3,13 @@
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData, createEnemy, getWeapon } from './lib/SimUnitFactory.js';
-import { printTable, toCSV, parseArgs, printRecommendations, printHeader } from './lib/TableFormatter.js';
+import {
+  printTable,
+  toCSV,
+  parseArgs,
+  printRecommendations,
+  printHeader,
+} from './lib/TableFormatter.js';
 import { resolveCombat } from '../src/engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, checkAstra } from '../src/engine/SkillSystem.js';
 import { XP_STAT_NAMES } from '../src/utils/constants.js';
@@ -11,22 +17,40 @@ import { XP_STAT_NAMES } from '../src/utils/constants.js';
 const opts = parseArgs({ trials: 200, level: 1, csv: false, focus: null, seed: 42 });
 
 if (opts.help) {
-  console.log('Usage: node sim/matchups.js [--trials N] [--level L] [--csv] [--focus CLASS] [--seed S]');
+  console.log(
+    'Usage: node sim/matchups.js [--trials N] [--level L] [--csv] [--focus CLASS] [--seed S]',
+  );
   process.exit(0);
 }
 
 const data = getData();
 const issues = [];
 
-const BASE_CLASSES = data.classes.filter(c => c.tier === 'base' && c.name !== 'Dancer'
-  && c.name !== 'Lord' && c.name !== 'Tactician' && c.name !== 'Ranger' && c.name !== 'Light Sage');
-const BASE_CLASS_NAMES = BASE_CLASSES.map(c => c.name);
+const BASE_CLASSES = data.classes.filter(
+  (c) =>
+    c.tier === 'base' &&
+    c.name !== 'Dancer' &&
+    c.name !== 'Lord' &&
+    c.name !== 'Tactician' &&
+    c.name !== 'Ranger' &&
+    c.name !== 'Light Sage',
+);
+const BASE_CLASS_NAMES = BASE_CLASSES.map((c) => c.name);
 
 /**
  * Run N trials of combat between two unit configurations.
  * Returns { winRate, avgDmgDealt, avgDmgTaken, doubles }
  */
-function runMatchup(atkClass, defClass, level, trials, atkSkills = [], defSkills = [], atkWeaponName = null, defWeaponName = null) {
+function runMatchup(
+  atkClass,
+  defClass,
+  level,
+  trials,
+  atkSkills = [],
+  defSkills = [],
+  atkWeaponName = null,
+  defWeaponName = null,
+) {
   let atkWins = 0;
   let totalDmgDealt = 0;
   let totalDmgTaken = 0;
@@ -46,10 +70,18 @@ function runMatchup(atkClass, defClass, level, trials, atkSkills = [], defSkills
     if (defSkills.length) def.skills = [...defSkills];
 
     // Set HP below 50% if any skill requires it
-    if (atk.skills.includes('wrath') || atk.skills.includes('vantage') || atk.skills.includes('resolve')) {
+    if (
+      atk.skills.includes('wrath') ||
+      atk.skills.includes('vantage') ||
+      atk.skills.includes('resolve')
+    ) {
       atk.currentHP = Math.floor(atk.stats.HP / 2);
     }
-    if (def.skills.includes('wrath') || def.skills.includes('vantage') || def.skills.includes('resolve')) {
+    if (
+      def.skills.includes('wrath') ||
+      def.skills.includes('vantage') ||
+      def.skills.includes('resolve')
+    ) {
       def.currentHP = Math.floor(def.stats.HP / 2);
     }
 
@@ -61,12 +93,23 @@ function runMatchup(atkClass, defClass, level, trials, atkSkills = [], defSkills
     const atkMods = getSkillCombatMods(atk, def, [atk], [def], data.skills);
     const defMods = getSkillCombatMods(def, atk, [def], [atk], data.skills);
     const skillCtx = {
-      atkMods, defMods,
-      rollStrikeSkills, checkAstra,
+      atkMods,
+      defMods,
+      rollStrikeSkills,
+      checkAstra,
       skillsData: data.skills,
     };
 
-    const result = resolveCombat(atk, atk.weapon, def, def.weapon, distance, atkTerrain, defTerrain, skillCtx);
+    const result = resolveCombat(
+      atk,
+      atk.weapon,
+      def,
+      def.weapon,
+      distance,
+      atkTerrain,
+      defTerrain,
+      skillCtx,
+    );
 
     if (result.defenderDied && !result.attackerDied) atkWins++;
     else if (result.defenderDied && result.attackerDied) atkWins += 0.5;
@@ -79,7 +122,7 @@ function runMatchup(atkClass, defClass, level, trials, atkSkills = [], defSkills
   }
 
   return {
-    winRate: (atkWins / trials * 100).toFixed(1),
+    winRate: ((atkWins / trials) * 100).toFixed(1),
     avgDmgDealt: (totalDmgDealt / trials).toFixed(1),
     avgDmgTaken: (totalDmgTaken / trials).toFixed(1),
     doubles: `${((doublesCount / trials) * 100).toFixed(0)}%`,
@@ -95,7 +138,7 @@ if (opts.focus) {
 
   const levels = [1, 4, 7, 10, 13];
   for (const lvl of levels) {
-    const rows = BASE_CLASS_NAMES.map(defCls => {
+    const rows = BASE_CLASS_NAMES.map((defCls) => {
       const result = runMatchup(opts.focus, defCls, lvl, opts.trials);
       return { Defender: defCls, ...result };
     });
@@ -104,12 +147,14 @@ if (opts.focus) {
       console.log(`\n# ${opts.focus} at Level ${lvl}`);
       toCSV(['Defender', 'winRate', 'avgDmgDealt', 'avgDmgTaken', 'doubles', 'doubled'], rows);
     } else {
-      printTable(['Defender', 'winRate', 'avgDmgDealt', 'avgDmgTaken', 'doubles', 'doubled'], rows,
-        { title: `${opts.focus} (L${lvl}) vs All` });
+      printTable(
+        ['Defender', 'winRate', 'avgDmgDealt', 'avgDmgTaken', 'doubles', 'doubled'],
+        rows,
+        { title: `${opts.focus} (L${lvl}) vs All` },
+      );
     }
   }
   restoreMathRandom();
-
 } else {
   // ─── Full Matrix Mode ───
 
@@ -163,9 +208,16 @@ installSeed(opts.seed);
 {
   console.log('\n--- Swordmaster (Killing Edge + Wrath + Crit+15) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Hero', 'Sniper'];
-  const rows = promotedEnemies.map(defCls => {
-    const result = runMatchup('Swordmaster', defCls, 5, opts.trials,
-      ['wrath', 'crit_plus_15'], [], 'Killing Edge');
+  const rows = promotedEnemies.map((defCls) => {
+    const result = runMatchup(
+      'Swordmaster',
+      defCls,
+      5,
+      opts.trials,
+      ['wrath', 'crit_plus_15'],
+      [],
+      'Killing Edge',
+    );
     return { Defender: defCls, ...result };
   });
   if (opts.csv) {
@@ -190,9 +242,8 @@ installSeed(opts.seed);
 {
   console.log('\n--- Hero (Brave Sword + Astra) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Swordmaster', 'Sniper'];
-  const rows = promotedEnemies.map(defCls => {
-    const result = runMatchup('Hero', defCls, 5, opts.trials,
-      ['astra'], [], 'Brave Sword');
+  const rows = promotedEnemies.map((defCls) => {
+    const result = runMatchup('Hero', defCls, 5, opts.trials, ['astra'], [], 'Brave Sword');
     return { Defender: defCls, ...result };
   });
   if (opts.csv) {
@@ -216,7 +267,7 @@ installSeed(opts.seed);
 {
   console.log('\n--- Knight Viability Curve (vs all base classes) ---');
   const levels = [1, 3, 5, 8, 10];
-  const rows = levels.map(lvl => {
+  const rows = levels.map((lvl) => {
     let totalWR = 0;
     let count = 0;
     for (const defCls of BASE_CLASS_NAMES) {
@@ -248,9 +299,14 @@ installSeed(opts.seed);
 // Scenario 4: Myrmidon speed advantage
 {
   console.log('\n--- Myrmidon Doubling Rate vs All (L1) ---');
-  const rows = BASE_CLASS_NAMES.filter(c => c !== 'Myrmidon').map(defCls => {
+  const rows = BASE_CLASS_NAMES.filter((c) => c !== 'Myrmidon').map((defCls) => {
     const result = runMatchup('Myrmidon', defCls, 1, opts.trials);
-    return { Defender: defCls, WinRate: result.winRate, Doubles: result.doubles, Doubled: result.doubled };
+    return {
+      Defender: defCls,
+      WinRate: result.winRate,
+      Doubles: result.doubles,
+      Doubled: result.doubled,
+    };
   });
   if (opts.csv) {
     toCSV(['Defender', 'WinRate', 'Doubles', 'Doubled'], rows);

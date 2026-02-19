@@ -17,14 +17,32 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive() { this._interactive = true; return this; },
-    setOrigin() { return this; },
-    setDisplaySize() { return this; },
-    setColor() { return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this._destroyed = true; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive() {
+      this._interactive = true;
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this._destroyed = true;
+    },
   };
 }
 
@@ -156,26 +174,29 @@ describe('accessory UI flows', () => {
     const pickerBg = scene.created.rectangles[0];
     expect(pickerBg).toBeTruthy();
     expect(pickerBg.height).toBe(142); // title(34) + rows(2*24) + nav(2*24) + pad(12)
-    expect(scene.created.texts.some(t => t.text === 'Page 1/1')).toBe(true);
+    expect(scene.created.texts.some((t) => t.text === 'Page 1/1')).toBe(true);
   });
 
   it('caps visible rows at 8 and supports paging for larger pools', () => {
     const { overlay, rm, scene } = makeOverlay();
     const unit = rm.roster[0];
-    rm.accessories = Array.from({ length: 10 }, (_v, i) => ({ name: `Accessory ${i + 1}`, effects: { STR: 1 } }));
+    rm.accessories = Array.from({ length: 10 }, (_v, i) => ({
+      name: `Accessory ${i + 1}`,
+      effects: { STR: 1 },
+    }));
 
     overlay._showAccessoryPicker(unit);
 
     const pickerBg = scene.created.rectangles[0];
     expect(pickerBg).toBeTruthy();
     expect(pickerBg.height).toBe(286); // title(34) + rows(8*24) + nav(2*24) + pad(12)
-    expect(scene.created.texts.some(t => t.text === 'Page 1/2')).toBe(true);
+    expect(scene.created.texts.some((t) => t.text === 'Page 1/2')).toBe(true);
 
-    const nextBtn = scene.created.texts.find(t => t.text === 'Next');
+    const nextBtn = scene.created.texts.find((t) => t.text === 'Next');
     expect(nextBtn?.handlers.pointerdown).toBeTypeOf('function');
     nextBtn.handlers.pointerdown();
 
-    expect(scene.created.texts.some(t => t.text === 'Page 2/2')).toBe(true);
+    expect(scene.created.texts.some((t) => t.text === 'Page 2/2')).toBe(true);
   });
 
   it('equips selected accessory from picker and returns prior accessory to pool', () => {
@@ -187,8 +208,8 @@ describe('accessory UI flows', () => {
 
     overlay._showAccessoryPicker(unit);
 
-    const equipBtn = overlay.tradeObjects.find((obj) =>
-      typeof obj?.text === 'string' && obj.text.startsWith('Goddess Icon')
+    const equipBtn = overlay.tradeObjects.find(
+      (obj) => typeof obj?.text === 'string' && obj.text.startsWith('Goddess Icon'),
     );
     expect(equipBtn?.handlers.pointerdown).toBeTypeOf('function');
 
@@ -240,7 +261,10 @@ describe('accessory UI flows', () => {
 
     NodeMapScene.prototype.onBuyItem.call(ctx, entry);
 
-    expect(ctx.showShopBanner).toHaveBeenCalledWith('Got Sol Scroll! Added to Scroll Pool.', '#88ff88');
+    expect(ctx.showShopBanner).toHaveBeenCalledWith(
+      'Got Sol Scroll! Added to Scroll Pool.',
+      '#88ff88',
+    );
     expect(rm.scrolls).toHaveLength(1);
   });
 
@@ -267,7 +291,10 @@ describe('accessory UI flows', () => {
 
     NodeMapScene.prototype.onBuyItem.call(ctx, entry);
 
-    expect(ctx.showShopBanner).toHaveBeenCalledWith('Got Goddess Icon! Added to Accessory Pool.', '#88ff88');
+    expect(ctx.showShopBanner).toHaveBeenCalledWith(
+      'Got Goddess Icon! Added to Accessory Pool.',
+      '#88ff88',
+    );
     expect(rm.accessories).toHaveLength(1);
   });
 });

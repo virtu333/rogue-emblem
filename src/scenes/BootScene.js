@@ -1,5 +1,6 @@
 // BootScene - loads game data, then launches TitleScene
 
+import Phaser from 'phaser';
 import { DataLoader } from '../engine/DataLoader.js';
 import { AudioManager } from '../utils/AudioManager.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
@@ -56,12 +57,22 @@ export class BootScene extends Phaser.Scene {
     this._stallUi = [];
 
     const failedFiles = [];
-    const statusText = this.add.text(320, 210, 'Loading assets...', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc', align: 'center',
-    }).setOrigin(0.5);
-    const progressText = this.add.text(320, 240, '0%', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa', align: 'center',
-    }).setOrigin(0.5);
+    const statusText = this.add
+      .text(320, 210, 'Loading assets...', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#cccccc',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    const progressText = this.add
+      .text(320, 240, '0%', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#aaaaaa',
+        align: 'center',
+      })
+      .setOrigin(0.5);
 
     markStartup('boot_preload_start', {
       reducedPreload: this._startupFlags.reducedPreload,
@@ -96,17 +107,56 @@ export class BootScene extends Phaser.Scene {
 
     // Character sprites (34) - keyed by filename
     const characterSprites = [
-      'lordedric', 'greatlordedric', 'archer', 'assassin', 'bishop', 'bishop_alt',
-      'cavalier', 'cleric', 'cleric_alt', 'dancer', 'falcon_knight',
-      'fighter', 'general', 'grandmaster', 'great_lord', 'hero',
-      'knight', 'light_priestess', 'light_sage', 'lord', 'mage',
-      'mercenary', 'myrmidon', 'paladin', 'pegasus_knight', 'ranger',
-      'sage', 'sniper', 'swordmaster', 'tactician', 'thief', 'wyvern_rider',
+      'lordedric',
+      'greatlordedric',
+      'archer',
+      'assassin',
+      'bishop',
+      'bishop_alt',
+      'cavalier',
+      'cleric',
+      'cleric_alt',
+      'dancer',
+      'falcon_knight',
+      'fighter',
+      'general',
+      'grandmaster',
+      'great_lord',
+      'hero',
+      'knight',
+      'light_priestess',
+      'light_sage',
+      'lord',
+      'mage',
+      'mercenary',
+      'myrmidon',
+      'paladin',
+      'pegasus_knight',
+      'ranger',
+      'sage',
+      'sniper',
+      'swordmaster',
+      'tactician',
+      'thief',
+      'wyvern_rider',
       'wyvern_lord',
-      'vanguard', 'warrior',
-      'chevalier', 'holy_knight', 'sky_lancer', 'seraph_knight', 'sentinel', 'champion',
-      'duelist', 'great_knight', 'berserker', 'dark_knight', 'bow_knight',
-      'warlock', 'battle_monk', 'trickster', 'hunter',
+      'vanguard',
+      'warrior',
+      'chevalier',
+      'holy_knight',
+      'sky_lancer',
+      'seraph_knight',
+      'sentinel',
+      'champion',
+      'duelist',
+      'great_knight',
+      'berserker',
+      'dark_knight',
+      'bow_knight',
+      'warlock',
+      'battle_monk',
+      'trickster',
+      'hunter',
     ];
     for (const name of characterSprites) {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
@@ -114,14 +164,43 @@ export class BootScene extends Phaser.Scene {
 
     // Enemy sprites (28) - keyed as enemy_{name}
     const enemySprites = [
-      'archer', 'assassin', 'bishop', 'cavalier', 'cleric', 'dragon',
-      'falcon_knight', 'fighter', 'general', 'hero', 'knight',
-      'mage', 'mercenary', 'myrmidon', 'paladin', 'pegasus_knight',
-      'sage', 'sniper', 'swordmaster', 'thief', 'warrior', 'warrior_alt',
-      'wyvern_priest', 'wyvern_rider', 'wyvern_lord', 'zombie', 'zombie_brute',
+      'archer',
+      'assassin',
+      'bishop',
+      'cavalier',
+      'cleric',
+      'dragon',
+      'falcon_knight',
+      'fighter',
+      'general',
+      'hero',
+      'knight',
+      'mage',
+      'mercenary',
+      'myrmidon',
+      'paladin',
+      'pegasus_knight',
+      'sage',
+      'sniper',
+      'swordmaster',
+      'thief',
+      'warrior',
+      'warrior_alt',
+      'wyvern_priest',
+      'wyvern_rider',
+      'wyvern_lord',
+      'zombie',
+      'zombie_brute',
       'emperor',
-      'duelist', 'great_knight', 'berserker', 'dark_knight', 'bow_knight',
-      'warlock', 'battle_monk', 'trickster', 'hunter',
+      'duelist',
+      'great_knight',
+      'berserker',
+      'dark_knight',
+      'bow_knight',
+      'warlock',
+      'battle_monk',
+      'trickster',
+      'hunter',
     ];
     for (const name of enemySprites) {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
@@ -129,8 +208,18 @@ export class BootScene extends Phaser.Scene {
 
     // Terrain tiles (12)
     const terrainNames = [
-      'plain', 'forest', 'mountain', 'fort', 'throne',
-      'wall', 'water', 'bridge', 'sand', 'village', 'ice', 'lava_crack',
+      'plain',
+      'forest',
+      'mountain',
+      'fort',
+      'throne',
+      'wall',
+      'water',
+      'bridge',
+      'sand',
+      'village',
+      'ice',
+      'lava_crack',
     ];
     for (const name of terrainNames) {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);
@@ -138,22 +227,55 @@ export class BootScene extends Phaser.Scene {
 
     // Portraits (34) - keyed as portrait_{name}
     const portraits = [
-      'lord_edric', 'lord_kira', 'lord_sera', 'lord_voss',
-      'generic_archer', 'generic_assassin', 'generic_bishop',
-      'generic_cavalier', 'generic_cleric', 'generic_dancer',
-      'generic_falcon_knight', 'generic_fighter', 'generic_general',
-      'generic_hero', 'generic_knight', 'generic_mage',
-      'generic_mercenary', 'generic_myrmidon', 'generic_paladin',
-      'generic_pegasus_knight', 'generic_sage', 'generic_sniper',
-      'generic_swordmaster', 'generic_thief', 'generic_warrior',
-      'generic_wyvern_rider', 'generic_wyvern_lord',
-      'boss_iron_captain', 'boss_warchief', 'boss_knight_commander',
-      'boss_archmage', 'boss_blade_lord', 'boss_iron_wall', 'boss_the_lieutenant',
-      'boss_dark_rider', 'boss_berserker_king', 'boss_the_emperor',
-      'lord_rowan', 'lord_astrid', 'lord_cael',
-      'generic_duelist', 'generic_great_knight', 'generic_berserker',
-      'generic_dark_knight', 'generic_bow_knight', 'generic_warlock',
-      'generic_battle_monk', 'generic_trickster', 'generic_hunter',
+      'lord_edric',
+      'lord_kira',
+      'lord_sera',
+      'lord_voss',
+      'generic_archer',
+      'generic_assassin',
+      'generic_bishop',
+      'generic_cavalier',
+      'generic_cleric',
+      'generic_dancer',
+      'generic_falcon_knight',
+      'generic_fighter',
+      'generic_general',
+      'generic_hero',
+      'generic_knight',
+      'generic_mage',
+      'generic_mercenary',
+      'generic_myrmidon',
+      'generic_paladin',
+      'generic_pegasus_knight',
+      'generic_sage',
+      'generic_sniper',
+      'generic_swordmaster',
+      'generic_thief',
+      'generic_warrior',
+      'generic_wyvern_rider',
+      'generic_wyvern_lord',
+      'boss_iron_captain',
+      'boss_warchief',
+      'boss_knight_commander',
+      'boss_archmage',
+      'boss_blade_lord',
+      'boss_iron_wall',
+      'boss_the_lieutenant',
+      'boss_dark_rider',
+      'boss_berserker_king',
+      'boss_the_emperor',
+      'lord_rowan',
+      'lord_astrid',
+      'lord_cael',
+      'generic_duelist',
+      'generic_great_knight',
+      'generic_berserker',
+      'generic_dark_knight',
+      'generic_bow_knight',
+      'generic_warlock',
+      'generic_battle_monk',
+      'generic_trickster',
+      'generic_hunter',
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');
@@ -179,38 +301,71 @@ export class BootScene extends Phaser.Scene {
 
     // UI icons (37) - keyed as icon_{type}
     const uiIcons = [
-      'sword', 'axe', 'lance', 'bow', 'tome',
-      'staff', 'potion', 'gold', 'scroll', 'light',
+      'sword',
+      'axe',
+      'lance',
+      'bow',
+      'tome',
+      'staff',
+      'potion',
+      'gold',
+      'scroll',
+      'light',
       // Stat boosters
-      'energy_drop', 'spirit_dust', 'secret_book', 'speedwing',
-      'dracoshield', 'talisman', 'angelic_robe',
+      'energy_drop',
+      'spirit_dust',
+      'secret_book',
+      'speedwing',
+      'dracoshield',
+      'talisman',
+      'angelic_robe',
       // Extra items
-      'whetstone', 'master_seal', 'elixir',
+      'whetstone',
+      'master_seal',
+      'elixir',
       // Accessories
-      'power_ring', 'magic_ring', 'speed_ring', 'shield_ring',
-      'barrier_ring', 'skill_ring', 'goddess_icon', 'seraph_robe',
-      'boots', 'delphi_shield', 'veterans_crest',
-      'wrath_band', 'counter_seal', 'pursuit_ring', 'nullify_ring',
-      'life_ring', 'forest_charm',
+      'power_ring',
+      'magic_ring',
+      'speed_ring',
+      'shield_ring',
+      'barrier_ring',
+      'skill_ring',
+      'goddess_icon',
+      'seraph_robe',
+      'boots',
+      'delphi_shield',
+      'veterans_crest',
+      'wrath_band',
+      'counter_seal',
+      'pursuit_ring',
+      'nullify_ring',
+      'life_ring',
+      'forest_charm',
     ];
     for (const name of uiIcons) {
       this.load.image(`icon_${name}`, `assets/sprites/ui/icon_${name}.png`);
     }
 
     // SFX (18 effects)
-    const essentialSfx = [
-      'sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold',
-    ];
+    const essentialSfx = ['sfx_cursor', 'sfx_confirm', 'sfx_cancel', 'sfx_gold'];
     const combatSfx = [
-      'sfx_sword', 'sfx_lance', 'sfx_axe', 'sfx_bow',
-      'sfx_fire', 'sfx_thunder', 'sfx_ice', 'sfx_light', 'sfx_dark',
-      'sfx_heal', 'sfx_hit', 'sfx_crit', 'sfx_death', 'sfx_levelup',
+      'sfx_sword',
+      'sfx_lance',
+      'sfx_axe',
+      'sfx_bow',
+      'sfx_fire',
+      'sfx_thunder',
+      'sfx_ice',
+      'sfx_light',
+      'sfx_dark',
+      'sfx_heal',
+      'sfx_hit',
+      'sfx_crit',
+      'sfx_death',
+      'sfx_levelup',
     ];
     for (const key of essentialSfx) {
-      this.load.audio(key, [
-        `assets/audio/sfx/${key}.ogg`,
-        `assets/audio/sfx/${key}.mp3`,
-      ]);
+      this.load.audio(key, [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`]);
     }
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('combat_sfx');
@@ -218,22 +373,15 @@ export class BootScene extends Phaser.Scene {
         this._deferredAssets.push({
           type: 'audio',
           key,
-          src: [
-            `assets/audio/sfx/${key}.ogg`,
-            `assets/audio/sfx/${key}.mp3`,
-          ],
+          src: [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`],
           group: 'combat_sfx',
         });
       }
     } else {
       for (const key of combatSfx) {
-        this.load.audio(key, [
-          `assets/audio/sfx/${key}.ogg`,
-          `assets/audio/sfx/${key}.mp3`,
-        ]);
+        this.load.audio(key, [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`]);
       }
     }
-
   }
 
   _installPreloadStallWatch() {
@@ -275,21 +423,41 @@ export class BootScene extends Phaser.Scene {
 
   _showPreloadRecoveryUi() {
     if (this._stallUi.length > 0) return;
-    const title = this.add.text(320, 306, 'Loading is taking longer than expected.', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffcc88', align: 'center',
-    }).setOrigin(0.5).setDepth(1200);
-    const retryBtn = this.add.text(320, 330, '[ Reload ]', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 10, y: 4 },
-    }).setOrigin(0.5).setDepth(1201).setInteractive({ useHandCursor: true });
+    const title = this.add
+      .text(320, 306, 'Loading is taking longer than expected.', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffcc88',
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setDepth(1200);
+    const retryBtn = this.add
+      .text(320, 330, '[ Reload ]', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(1201)
+      .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerdown', () => {
       markStartup('boot_preload_recovery_reload');
       window.location.reload();
     });
-    const safeBtn = this.add.text(320, 356, '[ Reload Safe Mode ]', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffd580',
-      backgroundColor: '#443322', padding: { x: 10, y: 4 },
-    }).setOrigin(0.5).setDepth(1201).setInteractive({ useHandCursor: true });
+    const safeBtn = this.add
+      .text(320, 356, '[ Reload Safe Mode ]', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffd580',
+        backgroundColor: '#443322',
+        padding: { x: 10, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(1201)
+      .setInteractive({ useHandCursor: true });
     safeBtn.on('pointerdown', () => {
       this._setSafeModeFlags();
       markStartup('boot_preload_recovery_safe_reload');
@@ -307,30 +475,57 @@ export class BootScene extends Phaser.Scene {
   _showDataLoadRecovery(err) {
     this.children.removeAll(true);
     const msg = err?.message || 'unknown';
-    this.add.text(320, 206, 'Failed to load game data.', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ff4444', align: 'center',
-    }).setOrigin(0.5);
-    this.add.text(320, 232, 'You can retry now or reload in safe mode.', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#cccccc', align: 'center',
-    }).setOrigin(0.5);
-    this.add.text(320, 258, msg, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#999999', align: 'center',
-      wordWrap: { width: 560, useAdvancedWrap: true },
-    }).setOrigin(0.5);
+    this.add
+      .text(320, 206, 'Failed to load game data.', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ff4444',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(320, 232, 'You can retry now or reload in safe mode.', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#cccccc',
+        align: 'center',
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(320, 258, msg, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#999999',
+        align: 'center',
+        wordWrap: { width: 560, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
 
-    const retryBtn = this.add.text(320, 302, '[ Retry ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const retryBtn = this.add
+      .text(320, 302, '[ Retry ]', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerdown', () => {
       markStartup('boot_data_retry_manual');
       restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
     });
 
-    const safeBtn = this.add.text(320, 336, '[ Reload Safe Mode ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ffd580',
-      backgroundColor: '#443322', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const safeBtn = this.add
+      .text(320, 336, '[ Reload Safe Mode ]', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ffd580',
+        backgroundColor: '#443322',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     safeBtn.on('pointerdown', () => {
       this._setSafeModeFlags();
       markStartup('boot_data_retry_safe_reload');
@@ -349,9 +544,14 @@ export class BootScene extends Phaser.Scene {
 
     if (Array.isArray(this._failedAssetKeys) && this._failedAssetKeys.length > 0) {
       const sample = this._failedAssetKeys.slice(0, 3).join(', ');
-      this.add.text(320, 26, `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#ffb347', align: 'center',
-      }).setOrigin(0.5);
+      this.add
+        .text(320, 26, `Warning: ${this._failedAssetKeys.length} asset(s) failed (${sample})`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#ffb347',
+          align: 'center',
+        })
+        .setOrigin(0.5);
     }
 
     let data;
@@ -422,7 +622,9 @@ export class BootScene extends Phaser.Scene {
           hasSeed: Number.isFinite(devStartupConfig.seed),
           devTools: Boolean(devStartupConfig.devTools),
         });
-        await transitionToScene(this, devRoute.key, devRoute.data, { reason: TRANSITION_REASONS.BOOT });
+        await transitionToScene(this, devRoute.key, devRoute.data, {
+          reason: TRANSITION_REASONS.BOOT,
+        });
         return;
       }
     }

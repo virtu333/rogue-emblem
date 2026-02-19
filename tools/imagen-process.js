@@ -25,7 +25,9 @@ function getArg(flag) {
 // Load manifest + selections
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
 if (!existsSync(SELECTIONS_PATH)) {
-  console.error('No selections.json found. Run imagen-compare.html first and save your selections.');
+  console.error(
+    'No selections.json found. Run imagen-compare.html first and save your selections.',
+  );
   process.exit(1);
 }
 const selections = JSON.parse(readFileSync(SELECTIONS_PATH, 'utf8'));
@@ -33,7 +35,9 @@ const selections = JSON.parse(readFileSync(SELECTIONS_PATH, 'utf8'));
 // Remove white background from raw RGBA buffer (in-place)
 function removeWhiteBg(raw) {
   for (let i = 0; i < raw.length; i += 4) {
-    const r = raw[i], g = raw[i + 1], b = raw[i + 2];
+    const r = raw[i],
+      g = raw[i + 1],
+      b = raw[i + 2];
     if (r >= 255 - TOLERANCE && g >= 255 - TOLERANCE && b >= 255 - TOLERANCE) {
       raw[i + 3] = 0;
     }
@@ -78,10 +82,7 @@ async function processAsset(catName, category, asset) {
     console.log(`  [${asset.name}] → ${size}x${size}, transparent bg (${kernel})`);
   } else {
     // Portraits: just resize to target with cover crop
-    await sharp(inputPath)
-      .resize(size, size, { fit: 'cover' })
-      .png()
-      .toFile(outputPath);
+    await sharp(inputPath).resize(size, size, { fit: 'cover' }).png().toFile(outputPath);
 
     console.log(`  [${asset.name}] → ${size}x${size}, cover crop`);
   }

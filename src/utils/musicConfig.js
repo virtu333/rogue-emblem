@@ -13,10 +13,29 @@ export const MUSIC = {
   },
 
   battle: {
-    act1: ['music_battle_act1_1', 'music_battle_act1_2', 'music_battle_act1_3', 'music_battle_act1_4'],
+    act1: [
+      'music_battle_act1_1',
+      'music_battle_act1_2',
+      'music_battle_act1_3',
+      'music_battle_act1_4',
+    ],
     act2: ['music_battle_act2_1', 'music_battle_act2_2', 'music_battle_act2_3'],
-    act3: ['music_battle_act3_1', 'music_battle_act3_2', 'music_battle_act3_3', 'music_battle_act3_4', 'music_battle_act3_5', 'music_battle_act3_6'],
-    act4: ['music_battle_act3_1', 'music_battle_act3_2', 'music_battle_act3_3', 'music_battle_act3_4', 'music_battle_act3_5', 'music_battle_act3_6'],
+    act3: [
+      'music_battle_act3_1',
+      'music_battle_act3_2',
+      'music_battle_act3_3',
+      'music_battle_act3_4',
+      'music_battle_act3_5',
+      'music_battle_act3_6',
+    ],
+    act4: [
+      'music_battle_act3_1',
+      'music_battle_act3_2',
+      'music_battle_act3_3',
+      'music_battle_act3_4',
+      'music_battle_act3_5',
+      'music_battle_act3_6',
+    ],
     finalBoss: ['music_battle_act3_1', 'music_battle_act3_2'],
   },
 
@@ -25,7 +44,13 @@ export const MUSIC = {
     act2: 'music_boss_act2',
     act3: 'music_boss_act3',
     act4: ['music_boss_act3', 'music_boss_final_2', 'music_boss_final_3'],
-    finalBoss: ['music_boss_final', 'music_boss_final_2', 'music_boss_final_3', 'music_boss_final_4', 'music_boss_final_5'],
+    finalBoss: [
+      'music_boss_final',
+      'music_boss_final_2',
+      'music_boss_final_3',
+      'music_boss_final_4',
+      'music_boss_final_5',
+    ],
   },
 
   shop: ['music_shop', 'music_shop_2'],
@@ -77,11 +102,11 @@ function collectKeys(obj) {
     if (typeof val === 'string') {
       keys.add(val);
     } else if (Array.isArray(val)) {
-      val.forEach(k => keys.add(k));
+      val.forEach((k) => keys.add(k));
     } else if (val && typeof val === 'object') {
       for (const inner of Object.values(val)) {
         if (typeof inner === 'string') keys.add(inner);
-        else if (Array.isArray(inner)) inner.forEach(k => keys.add(k));
+        else if (Array.isArray(inner)) inner.forEach((k) => keys.add(k));
       }
     }
   }

@@ -51,15 +51,40 @@ describe('Terrain hazards', () => {
   describe('Ice slide pure helpers', () => {
     it('resolveIceSlide slides right across ice and lands on plain', () => {
       const map = [[1, 1, 1, 0]];
-      const result = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 4, 1, 'Infantry', new Set());
+      const result = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        4,
+        1,
+        'Infantry',
+        new Set(),
+      );
       expect(result.col).toBe(3);
       expect(result.row).toBe(0);
-      expect(result.slidePath).toEqual([{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 2, row: 0 }, { col: 3, row: 0 }]);
+      expect(result.slidePath).toEqual([
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ]);
     });
 
     it('resolveIceSlide stops at map edge and stays on last ice', () => {
       const map = [[1, 1, 1]];
-      const result = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 3, 1, 'Infantry', new Set());
+      const result = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        3,
+        1,
+        'Infantry',
+        new Set(),
+      );
       expect(result.col).toBe(2);
       expect(result.row).toBe(0);
     });
@@ -67,22 +92,62 @@ describe('Terrain hazards', () => {
     it('resolveIceSlide stops before occupied tile', () => {
       const map = [[1, 1, 1, 0]];
       const occupied = new Set(['2,0']);
-      const result = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 4, 1, 'Infantry', occupied);
+      const result = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        4,
+        1,
+        'Infantry',
+        occupied,
+      );
       expect(result.col).toBe(1);
       expect(result.row).toBe(0);
     });
 
     it('resolveIceSlide stops before impassable tile', () => {
       const map = [[1, 1, 2]];
-      const result = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 3, 1, 'Infantry', new Set());
+      const result = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        3,
+        1,
+        'Infantry',
+        new Set(),
+      );
       expect(result.col).toBe(1);
       expect(result.row).toBe(0);
     });
 
     it('resolveIceSlide uses moveType passability', () => {
       const map = [[1, 3]];
-      const cavalryResult = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 2, 1, 'Cavalry', new Set());
-      const flyingResult = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 2, 1, 'Flying', new Set());
+      const cavalryResult = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        2,
+        1,
+        'Cavalry',
+        new Set(),
+      );
+      const flyingResult = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        2,
+        1,
+        'Flying',
+        new Set(),
+      );
       expect(cavalryResult.col).toBe(0);
       expect(flyingResult.col).toBe(1);
     });
@@ -90,10 +155,50 @@ describe('Terrain hazards', () => {
     it('resolveIceSlide supports all cardinal directions', () => {
       const horizontal = [[0, 1, 0]];
       const vertical = [[0], [1], [0]];
-      const left = resolveIceSlide(1, 0, { dc: -1, dr: 0 }, horizontal, TEST_TERRAIN, 3, 1, 'Infantry', new Set());
-      const right = resolveIceSlide(1, 0, { dc: 1, dr: 0 }, horizontal, TEST_TERRAIN, 3, 1, 'Infantry', new Set());
-      const up = resolveIceSlide(0, 1, { dc: 0, dr: -1 }, vertical, TEST_TERRAIN, 1, 3, 'Infantry', new Set());
-      const down = resolveIceSlide(0, 1, { dc: 0, dr: 1 }, vertical, TEST_TERRAIN, 1, 3, 'Infantry', new Set());
+      const left = resolveIceSlide(
+        1,
+        0,
+        { dc: -1, dr: 0 },
+        horizontal,
+        TEST_TERRAIN,
+        3,
+        1,
+        'Infantry',
+        new Set(),
+      );
+      const right = resolveIceSlide(
+        1,
+        0,
+        { dc: 1, dr: 0 },
+        horizontal,
+        TEST_TERRAIN,
+        3,
+        1,
+        'Infantry',
+        new Set(),
+      );
+      const up = resolveIceSlide(
+        0,
+        1,
+        { dc: 0, dr: -1 },
+        vertical,
+        TEST_TERRAIN,
+        1,
+        3,
+        'Infantry',
+        new Set(),
+      );
+      const down = resolveIceSlide(
+        0,
+        1,
+        { dc: 0, dr: 1 },
+        vertical,
+        TEST_TERRAIN,
+        1,
+        3,
+        'Infantry',
+        new Set(),
+      );
       expect(left).toMatchObject({ col: 0, row: 0 });
       expect(right).toMatchObject({ col: 2, row: 0 });
       expect(up).toMatchObject({ col: 0, row: 0 });
@@ -102,13 +207,27 @@ describe('Terrain hazards', () => {
 
     it('resolveIceSlide on single ice tile lands on adjacent non-ice', () => {
       const map = [[1, 0]];
-      const result = resolveIceSlide(0, 0, { dc: 1, dr: 0 }, map, TEST_TERRAIN, 2, 1, 'Infantry', new Set());
+      const result = resolveIceSlide(
+        0,
+        0,
+        { dc: 1, dr: 0 },
+        map,
+        TEST_TERRAIN,
+        2,
+        1,
+        'Infantry',
+        new Set(),
+      );
       expect(result.col).toBe(1);
       expect(result.row).toBe(0);
     });
 
     it('getEntryDirection extracts direction from last two path points', () => {
-      const dir = getEntryDirection([{ col: 2, row: 3 }, { col: 3, row: 3 }, { col: 3, row: 4 }]);
+      const dir = getEntryDirection([
+        { col: 2, row: 3 },
+        { col: 3, row: 3 },
+        { col: 3, row: 4 },
+      ]);
       expect(dir).toEqual({ dc: 0, dr: 1 });
     });
 
@@ -153,7 +272,12 @@ describe('Terrain hazards', () => {
 
     it('computeEffectivePath leaves flying paths unchanged', () => {
       const map = [[0, 1, 1, 0]];
-      const path = [{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 2, row: 0 }, { col: 3, row: 0 }];
+      const path = [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+        { col: 3, row: 0 },
+      ];
       const result = computeEffectivePath(path, map, TEST_TERRAIN, 4, 1, 'Flying', new Set());
       expect(result.slideStartIndex).toBe(-1);
       expect(result.pathEndIndex).toBe(path.length - 1);
@@ -162,7 +286,11 @@ describe('Terrain hazards', () => {
 
     it('computeEffectivePath returns original path when no ice exists', () => {
       const map = [[0, 0, 0]];
-      const path = [{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 2, row: 0 }];
+      const path = [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+      ];
       const result = computeEffectivePath(path, map, TEST_TERRAIN, 3, 1, 'Infantry', new Set());
       expect(result.slideStartIndex).toBe(-1);
       expect(result.pathEndIndex).toBe(path.length - 1);
@@ -173,7 +301,7 @@ describe('Terrain hazards', () => {
   describe('Lava crack damage helpers', () => {
     it('terrain data has Lava Crack move costs and special text', () => {
       const terrainData = loadTerrainData();
-      const lava = terrainData.find(t => t.name === 'Lava Crack');
+      const lava = terrainData.find((t) => t.name === 'Lava Crack');
       expect(lava).toBeTruthy();
       expect(lava.moveCost.Infantry).toBe('1');
       expect(lava.moveCost.Armored).toBe('2');
@@ -224,9 +352,7 @@ describe('Terrain hazards', () => {
 
     it('templates without acts remain available in all acts', () => {
       const templates = {
-        rout: [
-          { id: 'global_template' },
-        ],
+        rout: [{ id: 'global_template' }],
         seize: [],
       };
       expect(pickTemplate('rout', templates, 'act1').id).toBe('global_template');
@@ -235,9 +361,7 @@ describe('Terrain hazards', () => {
 
     it('pickTemplate falls back to unfiltered pool when act-filtered pool is empty', () => {
       const templates = {
-        rout: [
-          { id: 'act4_only', acts: ['act4'] },
-        ],
+        rout: [{ id: 'act4_only', acts: ['act4'] }],
         seize: [],
       };
       expect(pickTemplate('rout', templates, 'act1').id).toBe('act4_only');
@@ -247,7 +371,7 @@ describe('Terrain hazards', () => {
   describe('Data integrity', () => {
     it('avoid bonus parses as negative for Ice', () => {
       const terrainData = loadTerrainData();
-      const ice = terrainData.find(t => t.name === 'Ice');
+      const ice = terrainData.find((t) => t.name === 'Ice');
       expect(parseInt(ice.avoidBonus, 10)).toBe(-10);
     });
 

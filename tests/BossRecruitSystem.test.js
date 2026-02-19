@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { generateBossRecruitCandidates, getAvailableLords, createBossLordUnit } from '../src/engine/BossRecruitSystem.js';
-import { BOSS_RECRUIT_LORD_CHANCE, BOSS_RECRUIT_COUNT, BASE_CLASS_LEVEL_CAP } from '../src/utils/constants.js';
+import {
+  generateBossRecruitCandidates,
+  getAvailableLords,
+  createBossLordUnit,
+} from '../src/engine/BossRecruitSystem.js';
+import {
+  BOSS_RECRUIT_LORD_CHANCE,
+  BOSS_RECRUIT_COUNT,
+  BASE_CLASS_LEVEL_CAP,
+} from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -8,8 +16,8 @@ const gameData = loadGameData();
 // Compute expected recruitable lord names from data (excluding starting lords Edric/Sera)
 const STARTING_LORDS = new Set(['Edric', 'Sera']);
 const RECRUITABLE_LORD_NAMES = gameData.lords
-  .map(l => l.name)
-  .filter(n => !STARTING_LORDS.has(n))
+  .map((l) => l.name)
+  .filter((n) => !STARTING_LORDS.has(n))
   .sort();
 
 // Minimal roster with Edric + Sera at level 8
@@ -23,38 +31,48 @@ function makeBaseRoster() {
 function makeRosterWithOnlyLordAvailable(lordName) {
   return [
     ...makeBaseRoster(),
-    ...RECRUITABLE_LORD_NAMES
-      .filter((name) => name !== lordName)
-      .map((name) => ({ name, className: 'Lord', isLord: true, level: 5, faction: 'player' })),
+    ...RECRUITABLE_LORD_NAMES.filter((name) => name !== lordName).map((name) => ({
+      name,
+      className: 'Lord',
+      isLord: true,
+      level: 5,
+      faction: 'player',
+    })),
   ];
 }
 
 function getPromotableRecruitLord(data) {
-  return data.lords.find((lord) => {
-    if (STARTING_LORDS.has(lord.name)) return false;
-    if (!lord.promotedClass) return false;
-    const promotedClassData = data.classes.find((c) => c.name === lord.promotedClass);
-    return Boolean(promotedClassData?.promotionBonuses);
-  }) || null;
+  return (
+    data.lords.find((lord) => {
+      if (STARTING_LORDS.has(lord.name)) return false;
+      if (!lord.promotedClass) return false;
+      const promotedClassData = data.classes.find((c) => c.name === lord.promotedClass);
+      return Boolean(promotedClassData?.promotionBonuses);
+    }) || null
+  );
 }
 
 function getPromotableLordWithDistinctBonuses(data) {
-  return data.lords.find((lord) => {
-    if (STARTING_LORDS.has(lord.name)) return false;
-    if (!lord.promotedClass || !lord.promotionBonuses) return false;
-    const promotedClassData = data.classes.find((c) => c.name === lord.promotedClass);
-    if (!promotedClassData?.promotionBonuses) return false;
-    return Object.keys(lord.promotionBonuses).some(
-      (stat) => (lord.promotionBonuses?.[stat] || 0) !== (promotedClassData.promotionBonuses?.[stat] || 0)
-    );
-  }) || null;
+  return (
+    data.lords.find((lord) => {
+      if (STARTING_LORDS.has(lord.name)) return false;
+      if (!lord.promotedClass || !lord.promotionBonuses) return false;
+      const promotedClassData = data.classes.find((c) => c.name === lord.promotedClass);
+      if (!promotedClassData?.promotionBonuses) return false;
+      return Object.keys(lord.promotionBonuses).some(
+        (stat) =>
+          (lord.promotionBonuses?.[stat] || 0) !==
+          (promotedClassData.promotionBonuses?.[stat] || 0),
+      );
+    }) || null
+  );
 }
 
 function getPoolClassNames(recruitsData, actKey) {
   const actData = recruitsData?.[actKey];
   if (!actData) return [];
   if (Array.isArray(actData.pool) && actData.pool.length > 0) {
-    return actData.pool.map(r => r.className);
+    return actData.pool.map((r) => r.className);
   }
   if (Array.isArray(actData.classPool)) {
     return [...actData.classPool];
@@ -72,14 +90,17 @@ describe('BossRecruitSystem', () => {
   describe('getAvailableLords', () => {
     it('returns all recruitable lords when none are in roster', () => {
       const lords = getAvailableLords(makeBaseRoster(), gameData.lords);
-      const names = lords.map(l => l.name).sort();
+      const names = lords.map((l) => l.name).sort();
       expect(names).toEqual(RECRUITABLE_LORD_NAMES);
     });
 
     it('excludes a lord when she is in roster', () => {
-      const roster = [...makeBaseRoster(), { name: 'Kira', className: 'Tactician', isLord: true, level: 5 }];
+      const roster = [
+        ...makeBaseRoster(),
+        { name: 'Kira', className: 'Tactician', isLord: true, level: 5 },
+      ];
       const lords = getAvailableLords(roster, gameData.lords);
-      const names = lords.map(l => l.name);
+      const names = lords.map((l) => l.name);
       expect(names).not.toContain('Kira');
       expect(names).toHaveLength(RECRUITABLE_LORD_NAMES.length - 1);
     });
@@ -87,14 +108,19 @@ describe('BossRecruitSystem', () => {
     it('returns empty when all recruitable lords are in roster', () => {
       const roster = [
         ...makeBaseRoster(),
-        ...RECRUITABLE_LORD_NAMES.map(n => ({ name: n, className: 'Lord', isLord: true, level: 5 })),
+        ...RECRUITABLE_LORD_NAMES.map((n) => ({
+          name: n,
+          className: 'Lord',
+          isLord: true,
+          level: 5,
+        })),
       ];
       expect(getAvailableLords(roster, gameData.lords)).toHaveLength(0);
     });
 
     it('never includes Edric or Sera', () => {
       const lords = getAvailableLords([], gameData.lords);
-      const names = lords.map(l => l.name);
+      const names = lords.map((l) => l.name);
       expect(names).not.toContain('Edric');
       expect(names).not.toContain('Sera');
     });
@@ -164,7 +190,7 @@ describe('BossRecruitSystem', () => {
     it('candidates have no duplicate classNames', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      const classNames = candidates.map(c => c.className);
+      const classNames = candidates.map((c) => c.className);
       expect(new Set(classNames).size).toBe(classNames.length);
     });
 
@@ -172,7 +198,10 @@ describe('BossRecruitSystem', () => {
       const localData = structuredClone(gameData);
       localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
       localData.recruits.namePool.Hero = ['Dante'];
-      const roster = [...makeBaseRoster(), { name: 'Dante', className: 'Mercenary', isLord: false, level: 8 }];
+      const roster = [
+        ...makeBaseRoster(),
+        { name: 'Dante', className: 'Mercenary', isLord: false, level: 8 },
+      ];
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(1, roster, localData, null);
       expect(candidates).toHaveLength(1);
@@ -186,7 +215,7 @@ describe('BossRecruitSystem', () => {
       ];
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(0, roster, gameData, null);
-      expect(candidates.every(c => c.className !== 'Thief')).toBe(true);
+      expect(candidates.every((c) => c.className !== 'Thief')).toBe(true);
     });
 
     it('candidate level matches highest lord level', () => {
@@ -259,7 +288,9 @@ describe('BossRecruitSystem', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const meta = { recruitStartingVulnerary: 1 };
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, meta);
-      expect(candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Vulnerary'))).toBe(true);
+      expect(
+        candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Vulnerary')),
+      ).toBe(true);
     });
   });
 
@@ -319,9 +350,13 @@ describe('BossRecruitSystem', () => {
       const roster = [
         { name: 'Edric', className: 'Lord', isLord: true, level: targetLevel, faction: 'player' },
         { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
-        ...RECRUITABLE_LORD_NAMES
-          .filter((name) => name !== promotableLord.name)
-          .map((name) => ({ name, className: 'Lord', isLord: true, level: 5, faction: 'player' })),
+        ...RECRUITABLE_LORD_NAMES.filter((name) => name !== promotableLord.name).map((name) => ({
+          name,
+          className: 'Lord',
+          isLord: true,
+          level: 5,
+          faction: 'player',
+        })),
       ];
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
@@ -342,17 +377,17 @@ describe('BossRecruitSystem', () => {
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return 0.05;  // lord chance check — triggers
-        return 0.5;  // subsequent calls
+        if (callCount === 1) return 0.05; // lord chance check — triggers
+        return 0.5; // subsequent calls
       });
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      expect(candidates.some(c => c.isLord)).toBe(true);
+      expect(candidates.some((c) => c.isLord)).toBe(true);
     });
 
     it('does not include a lord when RNG is above threshold', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      expect(candidates.every(c => !c.isLord)).toBe(true);
+      expect(candidates.every((c) => !c.isLord)).toBe(true);
     });
 
     it('lord candidate has isLord true on unit', () => {
@@ -363,7 +398,7 @@ describe('BossRecruitSystem', () => {
         return 0.5;
       });
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      const lordCand = candidates.find(c => c.isLord);
+      const lordCand = candidates.find((c) => c.isLord);
       expect(lordCand).toBeTruthy();
       expect(lordCand.unit.isLord).toBe(true);
       expect(RECRUITABLE_LORD_NAMES).toContain(lordCand.displayName);
@@ -377,7 +412,7 @@ describe('BossRecruitSystem', () => {
         return 0.5;
       });
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      const lordCand = candidates.find(c => c.isLord);
+      const lordCand = candidates.find((c) => c.isLord);
       expect(lordCand.unit.skills.length).toBeGreaterThan(0);
     });
 
@@ -386,12 +421,12 @@ describe('BossRecruitSystem', () => {
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return 0.40;  // lord chance check — would fail at base 0.25
+        if (callCount === 1) return 0.4; // lord chance check — would fail at base 0.25
         return 0.5;
       });
       const metaEffects = { lordRecruitChanceBonus: 0.16 };
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, metaEffects);
-      expect(candidates.some(c => c.isLord)).toBe(true);
+      expect(candidates.some((c) => c.isLord)).toBe(true);
     });
 
     it('no lord bonus when lordRecruitChanceBonus is absent', () => {
@@ -399,17 +434,22 @@ describe('BossRecruitSystem', () => {
       let callCount = 0;
       mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
         callCount++;
-        if (callCount === 1) return 0.40;
+        if (callCount === 1) return 0.4;
         return 0.5;
       });
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
-      expect(candidates.every(c => !c.isLord)).toBe(true);
+      expect(candidates.every((c) => !c.isLord)).toBe(true);
     });
 
     it('no lord when all recruitable lords already in roster', () => {
       const roster = [
         ...makeBaseRoster(),
-        ...RECRUITABLE_LORD_NAMES.map(n => ({ name: n, className: 'Lord', isLord: true, level: 5 })),
+        ...RECRUITABLE_LORD_NAMES.map((n) => ({
+          name: n,
+          className: 'Lord',
+          isLord: true,
+          level: 5,
+        })),
       ];
       // Force low RNG that would trigger lord
       let callCount = 0;
@@ -419,14 +459,14 @@ describe('BossRecruitSystem', () => {
         return 0.5;
       });
       const candidates = generateBossRecruitCandidates(0, roster, gameData, null);
-      expect(candidates.every(c => !c.isLord)).toBe(true);
+      expect(candidates.every((c) => !c.isLord)).toBe(true);
     });
   });
 
   describe('createBossLordUnit', () => {
     it('creates lord at target level', () => {
-      const lordDef = gameData.lords.find(l => l.name === 'Kira');
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
+      const lordDef = gameData.lords.find((l) => l.name === 'Kira');
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 10, null);
       expect(unit.level).toBe(10);
       expect(unit.isLord).toBe(true);
@@ -437,7 +477,7 @@ describe('BossRecruitSystem', () => {
       const lordDef = getPromotableRecruitLord(gameData);
       expect(lordDef).toBeTruthy();
       if (!lordDef) return;
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
       expect(classData).toBeTruthy();
       if (!classData) return;
 
@@ -446,7 +486,7 @@ describe('BossRecruitSystem', () => {
         classData,
         gameData.weapons,
         BASE_CLASS_LEVEL_CAP + 5,
-        null
+        null,
       );
       expect(unit.tier).toBe('base');
       expect(unit.className).toBe(lordDef.class);
@@ -457,21 +497,18 @@ describe('BossRecruitSystem', () => {
       const lordDef = getPromotableLordWithDistinctBonuses(gameData);
       expect(lordDef).toBeTruthy();
       if (!lordDef) return;
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
-      const promotedClassData = gameData.classes.find(c => c.name === lordDef.promotedClass);
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
+      const promotedClassData = gameData.classes.find((c) => c.name === lordDef.promotedClass);
       expect(classData).toBeTruthy();
       expect(promotedClassData).toBeTruthy();
       if (!classData || !promotedClassData) return;
 
       const baseUnit = createBossLordUnit(lordDef, classData, gameData.weapons, 1, null);
-      const promotedUnit = createBossLordUnit(
-        lordDef,
-        classData,
-        gameData.weapons,
-        1,
-        null,
-        { promoteLord: true, classes: gameData.classes, skills: gameData.skills }
-      );
+      const promotedUnit = createBossLordUnit(lordDef, classData, gameData.weapons, 1, null, {
+        promoteLord: true,
+        classes: gameData.classes,
+        skills: gameData.skills,
+      });
 
       expect(promotedUnit.tier).toBe('promoted');
       expect(promotedUnit.className).toBe(lordDef.promotedClass);
@@ -484,8 +521,8 @@ describe('BossRecruitSystem', () => {
     });
 
     it('applies lord meta stat bonuses', () => {
-      const lordDef = gameData.lords.find(l => l.name === 'Voss');
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
+      const lordDef = gameData.lords.find((l) => l.name === 'Voss');
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const meta = { lordStatBonuses: { STR: 3, DEF: 2 }, lordGrowthBonuses: {} };
       const unitWith = createBossLordUnit(lordDef, classData, gameData.weapons, 1, meta);
       const unitWithout = createBossLordUnit(lordDef, classData, gameData.weapons, 1, null);
@@ -494,15 +531,15 @@ describe('BossRecruitSystem', () => {
     });
 
     it('gives a Vulnerary', () => {
-      const lordDef = gameData.lords.find(l => l.name === 'Kira');
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
+      const lordDef = gameData.lords.find((l) => l.name === 'Kira');
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null);
-      expect(unit.consumables.some(c => c.name === 'Vulnerary')).toBe(true);
+      expect(unit.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
     });
 
     it('has personalSkillL20 data preserved', () => {
-      const lordDef = gameData.lords.find(l => l.name === 'Kira');
-      const classData = gameData.classes.find(c => c.name === lordDef.class);
+      const lordDef = gameData.lords.find((l) => l.name === 'Kira');
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null);
       expect(unit._personalSkillL20).toBeTruthy();
       expect(unit._personalSkillL20.skillId).toBe('tactical_advantage');
@@ -521,8 +558,8 @@ describe('BossRecruitSystem', () => {
 
       // Find matching class between both sets
       const className = withMeta[0].className;
-      const matchWith = withMeta.find(c => c.className === className);
-      const matchWithout = without.find(c => c.className === className);
+      const matchWith = withMeta.find((c) => c.className === className);
+      const matchWithout = without.find((c) => c.className === className);
       if (matchWith && matchWithout) {
         expect(matchWith.unit.stats.STR).toBeGreaterThanOrEqual(matchWithout.unit.stats.STR);
       }
@@ -534,12 +571,12 @@ describe('BossRecruitSystem', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
       // Act3 pool has promoted classes like Hero, Sage, etc. which have innate skills
-      const heroCandidate = candidates.find(c => c.className === 'Hero');
+      const heroCandidate = candidates.find((c) => c.className === 'Hero');
       if (heroCandidate) {
         // Hero class should have 'vigilance' innate skill
         expect(heroCandidate.unit.skills).toContain('vigilance');
       }
-      const sniperCandidate = candidates.find(c => c.className === 'Sniper');
+      const sniperCandidate = candidates.find((c) => c.className === 'Sniper');
       if (sniperCandidate) {
         expect(sniperCandidate.unit.skills).toContain('sure_shot');
       }
@@ -582,7 +619,7 @@ describe('BossRecruitSystem', () => {
     it('promoted recruit from Dancer keeps base dance innate', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const localData = structuredClone(gameData);
-      const bard = localData.classes.find(c => c.name === 'Bard');
+      const bard = localData.classes.find((c) => c.name === 'Bard');
       if (!bard) return;
       localData.classes.push({ ...bard, name: 'Stage Bard' });
       localData.recruits.act3.pool = [{ className: 'Stage Bard', name: 'Cadence' }];
@@ -595,8 +632,7 @@ describe('BossRecruitSystem', () => {
     it('Bard is not generated as a boss recruit candidate', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
       const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
-      expect(candidates.some(c => c.className === 'Bard')).toBe(false);
+      expect(candidates.some((c) => c.className === 'Bard')).toBe(false);
     });
   });
 });
-

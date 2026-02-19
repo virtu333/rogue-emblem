@@ -13,9 +13,15 @@ function installMemoryStorage() {
     writable: true,
     value: {
       getItem: (key) => (store.has(key) ? store.get(key) : null),
-      setItem: (key, value) => { store.set(key, String(value)); },
-      removeItem: (key) => { store.delete(key); },
-      clear: () => { store.clear(); },
+      setItem: (key, value) => {
+        store.set(key, String(value));
+      },
+      removeItem: (key) => {
+        store.delete(key);
+      },
+      clear: () => {
+        store.clear();
+      },
     },
   });
 }
@@ -64,7 +70,7 @@ describe('blessingAnalytics', () => {
     expect(snapshot.global.runsCompleted).toBe(1);
     expect(snapshot.global.victories).toBe(1);
 
-    const iron = perBlessing.find(x => x.id === 'iron_oath');
+    const iron = perBlessing.find((x) => x.id === 'iron_oath');
     expect(iron).toBeTruthy();
     expect(iron.wins).toBe(1);
     expect(iron.winRate).toBe(1);

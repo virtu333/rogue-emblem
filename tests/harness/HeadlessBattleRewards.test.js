@@ -13,21 +13,36 @@ describe('HeadlessBattle reward multipliers', () => {
 
   it('applies +30% XP for elite targets', () => {
     const gameData = loadGameData();
-    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, isElite: true });
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      isElite: true,
+    });
 
     expect(battle._getEnemyXpMultiplier({ isElite: true })).toBe(1.3);
   });
 
   it('does not apply +30% XP from elite encounter context alone', () => {
     const gameData = loadGameData();
-    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, isElite: true });
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      isElite: true,
+    });
 
     expect(battle._getEnemyXpMultiplier({})).toBe(1);
   });
 
   it('stacks reinforcement and special-enemy XP multipliers once', () => {
     const gameData = loadGameData();
-    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, isElite: true });
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      isElite: true,
+    });
     const enemy = {
       _isReinforcement: true,
       _reinforcementRewardMultiplier: 0.25,
@@ -39,7 +54,12 @@ describe('HeadlessBattle reward multipliers', () => {
 
   it('keeps gold reward multiplier on reinforcement-only path', () => {
     const gameData = loadGameData();
-    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, isElite: true });
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      isElite: true,
+    });
     const enemy = {
       _isReinforcement: true,
       _reinforcementRewardMultiplier: 0.5,

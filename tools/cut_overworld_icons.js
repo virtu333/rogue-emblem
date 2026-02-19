@@ -52,9 +52,7 @@ const towerRegions = [
 
 // Check if a cell has any non-transparent content
 async function hasContent(buffer, width, height) {
-  const { data } = await sharp(buffer)
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+  const { data } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true });
   // Check alpha channel (every 4th byte starting at index 3)
   for (let i = 3; i < data.length; i += 4) {
     if (data[i] > 10) return true;
@@ -79,7 +77,9 @@ for (const sheet of gridSheets) {
 
   const cellW = Math.floor(meta.width / sheet.cols);
   const cellH = Math.floor(meta.height / sheet.rows);
-  console.log(`  ${meta.width}x${meta.height} → ${sheet.cols}x${sheet.rows} grid, cell=${cellW}x${cellH}`);
+  console.log(
+    `  ${meta.width}x${meta.height} → ${sheet.cols}x${sheet.rows} grid, cell=${cellW}x${cellH}`,
+  );
 
   for (let row = 0; row < sheet.rows; row++) {
     for (let col = 0; col < sheet.cols; col++) {
@@ -94,7 +94,7 @@ for (const sheet of gridSheets) {
           .toBuffer();
 
         // Skip empty cells
-        if (!await hasContent(cellBuffer, cellW, cellH)) {
+        if (!(await hasContent(cellBuffer, cellW, cellH))) {
           console.log(`  ${name}: empty, skipping`);
           continue;
         }

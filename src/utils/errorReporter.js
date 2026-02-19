@@ -25,4 +25,3 @@ export function reportAsyncError(context, err, extra = {}) {
     ...extra,
   });
 }
-

@@ -2,7 +2,21 @@
 
 import Phaser from 'phaser';
 import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
-import { ACT_CONFIG, NODE_TYPES, INVENTORY_MAX, CONSUMABLE_MAX, SHOP_REROLL_COST, SHOP_REROLL_ESCALATION, SHOP_FORGE_LIMITS, FORGE_MAX_LEVEL, FORGE_COSTS, FORGE_STAT_CAP, CHURCH_PROMOTE_COST, SAFE_BOTTOM_Y, AMBUSH_SHOP_DISCOUNT } from '../utils/constants.js';
+import {
+  ACT_CONFIG,
+  NODE_TYPES,
+  INVENTORY_MAX,
+  CONSUMABLE_MAX,
+  SHOP_REROLL_COST,
+  SHOP_REROLL_ESCALATION,
+  SHOP_FORGE_LIMITS,
+  FORGE_MAX_LEVEL,
+  FORGE_COSTS,
+  FORGE_STAT_CAP,
+  CHURCH_PROMOTE_COST,
+  SAFE_BOTTOM_Y,
+  AMBUSH_SHOP_DISCOUNT,
+} from '../utils/constants.js';
 import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
 import {
   addToInventory,
@@ -16,7 +30,14 @@ import {
   promoteUnit,
   resolvePromotionTargets,
 } from '../engine/UnitManager.js';
-import { canForge, canForgeStat, applyForge, isForged, getForgeCost, getStatForgeCount } from '../engine/ForgeSystem.js';
+import {
+  canForge,
+  canForgeStat,
+  applyForge,
+  isForged,
+  getForgeCost,
+  getStatForgeCount,
+} from '../engine/ForgeSystem.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -61,7 +82,7 @@ const AURA_ELITE_ALPHA = [0.26, 0.62]; // [min, max] breathing range
 const AURA_ELITE_DURATION = 900; // faster = menacing
 const AURA_CHURCH_COLOR = 0xfff2d0; // warm, slightly whiter gold
 const AURA_CHURCH_RADIUS = 28;
-const AURA_CHURCH_ALPHA = [0.20, 0.55];
+const AURA_CHURCH_ALPHA = [0.2, 0.55];
 const AURA_CHURCH_DURATION = 1200; // slower = calming
 const AURA_LOCKED_ALPHA_SCALE = 0.85; // visible but dim for locked nodes
 const AURA_DEPTH = -1; // below nodes and edges
@@ -71,10 +92,10 @@ const SHOP_LIST_BOTTOM_Y = 390;
 const SHOP_SCROLL_STEP = 24;
 const UNIT_PICKER_SCROLL_STEP = 30;
 const CHURCH_ITEM_HEIGHT = 30;
-const CHURCH_LIST_TOP_Y = 160;                              // Below heal button + status message area
-const CHURCH_VIEW_MAP_Y = SAFE_BOTTOM_Y - 36;               // View Map button Y (matches showChurchOverlay)
-const CHURCH_LIST_BOTTOM_Y = CHURCH_VIEW_MAP_Y - 20;        // 20px gap above View Map button to prevent overlap
-const CHURCH_SCROLL_STEP = CHURCH_ITEM_HEIGHT;               // Row-height-aligned for deterministic scrolling
+const CHURCH_LIST_TOP_Y = 160; // Below heal button + status message area
+const CHURCH_VIEW_MAP_Y = SAFE_BOTTOM_Y - 36; // View Map button Y (matches showChurchOverlay)
+const CHURCH_LIST_BOTTOM_Y = CHURCH_VIEW_MAP_Y - 20; // 20px gap above View Map button to prevent overlap
+const CHURCH_SCROLL_STEP = CHURCH_ITEM_HEIGHT; // Row-height-aligned for deterministic scrolling
 
 function getWeaponArtCatalogForScene(scene) {
   if (scene && typeof scene._getWeaponArtCatalog === 'function') {
@@ -94,9 +115,8 @@ function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
 }
 
 function beginSceneLifecycle(scene) {
-  const nextGeneration = (Number.isInteger(scene?._sceneLifecycleGeneration)
-    ? scene._sceneLifecycleGeneration
-    : 0) + 1;
+  const nextGeneration =
+    (Number.isInteger(scene?._sceneLifecycleGeneration) ? scene._sceneLifecycleGeneration : 0) + 1;
   scene._sceneLifecycleGeneration = nextGeneration;
   scene._sceneShuttingDown = false;
   scene._sceneShutdownCleanedUp = false;
@@ -109,7 +129,11 @@ function isSceneLifecycleActive(scene, generation = scene?._sceneLifecycleGenera
   const currentGeneration = Number.isInteger(scene._sceneLifecycleGeneration)
     ? scene._sceneLifecycleGeneration
     : null;
-  if (Number.isInteger(generation) && Number.isInteger(currentGeneration) && generation !== currentGeneration) {
+  if (
+    Number.isInteger(generation) &&
+    Number.isInteger(currentGeneration) &&
+    generation !== currentGeneration
+  ) {
     return false;
   }
   return true;
@@ -147,19 +171,19 @@ const OVERLAY_PANEL_DEPTH = 301;
 const OVERLAY_CONTENT_DEPTH = 302;
 
 const NODE_ICONS = {
-  [NODE_TYPES.BATTLE]:  '\u2694',  // ⚔
-  [NODE_TYPES.BOSS]:    '\u2620',  // ☠
-  [NODE_TYPES.SHOP]:    '$',
+  [NODE_TYPES.BATTLE]: '\u2694', // ⚔
+  [NODE_TYPES.BOSS]: '\u2620', // ☠
+  [NODE_TYPES.SHOP]: '$',
   [NODE_TYPES.RECRUIT]: '!',
-  [NODE_TYPES.CHURCH]:  '\u271D',  // ✝
+  [NODE_TYPES.CHURCH]: '\u271D', // ✝
 };
 
 const NODE_COLORS = {
-  [NODE_TYPES.BATTLE]:  COLOR_BATTLE,
-  [NODE_TYPES.BOSS]:    COLOR_BOSS,
-  [NODE_TYPES.SHOP]:    COLOR_SHOP,
+  [NODE_TYPES.BATTLE]: COLOR_BATTLE,
+  [NODE_TYPES.BOSS]: COLOR_BOSS,
+  [NODE_TYPES.SHOP]: COLOR_SHOP,
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
-  [NODE_TYPES.CHURCH]:  COLOR_CHURCH,
+  [NODE_TYPES.CHURCH]: COLOR_CHURCH,
 };
 
 export class NodeMapScene extends Phaser.Scene {
@@ -177,16 +201,21 @@ export class NodeMapScene extends Phaser.Scene {
     this.isSceneReady = false;
     this.battleLaunchInFlight = false;
     this._pendingNodeSelection = null;
-    const selectedDifficulty = data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
+    const selectedDifficulty =
+      data.difficultyId || this.registry.get('selectedDifficulty') || 'normal';
     if (data.runManager) {
       this.runManager = data.runManager;
       this.registry.set('selectedDifficulty', this.runManager.difficultyId || selectedDifficulty);
     } else {
-      console.warn('NodeMapScene: no runManager provided, creating fallback (should not happen in normal flow)');
+      console.warn(
+        'NodeMapScene: no runManager provided, creating fallback (should not happen in normal flow)',
+      );
       const meta = this.registry.get('meta');
-      const metaEffects = meta ? meta.getActiveEffects({
-        weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
-      }) : null;
+      const metaEffects = meta
+        ? meta.getActiveEffects({
+            weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+          })
+        : null;
       this.runManager = new RunManager(this.gameData, metaEffects);
       this.runManager.startRun({ difficultyId: selectedDifficulty });
       this.registry.set('selectedDifficulty', this.runManager.difficultyId);
@@ -236,9 +265,10 @@ export class NodeMapScene extends Phaser.Scene {
     const hints = this.registry.get('hints');
     this._pendingNodeMapHints = {
       showIntro: Boolean(hints?.shouldShow('nodemap_intro')),
-      showHpPersist: Boolean(hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1),
+      showHpPersist: Boolean(
+        hints?.shouldShow('nodemap_hp_persist') && this.runManager.completedBattles >= 1,
+      ),
     };
-
   }
 
   _bindInputHandlers() {
@@ -382,10 +412,10 @@ export class NodeMapScene extends Phaser.Scene {
         if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
           const entries = this.gameData?.dialogue?.actTransitions?.runStart;
           if (
-            Array.isArray(entries)
-            && entries.length > 0
-            && this.dialogueOverlay
-            && isSceneLifecycleActive(this, lifecycleGeneration)
+            Array.isArray(entries) &&
+            entries.length > 0 &&
+            this.dialogueOverlay &&
+            isSceneLifecycleActive(this, lifecycleGeneration)
           ) {
             this._storyDialogueActive = true;
             this.runManager.markDialogueShown('runStart');
@@ -409,7 +439,9 @@ export class NodeMapScene extends Phaser.Scene {
         }
       } else {
         if (!this._sceneShuttingDown) {
-          console.warn('[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints');
+          console.warn(
+            '[NodeMapScene] Scene inactive during finalizeSceneReady - skipping dialogue/hints',
+          );
         }
       }
     } catch (err) {
@@ -433,7 +465,10 @@ export class NodeMapScene extends Phaser.Scene {
     if (pending.showIntro) {
       this._storyDialogueActive = true;
       try {
-        await showImportantHint(this, 'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.');
+        await showImportantHint(
+          this,
+          'Choose your path. Battles give loot and gold.\nVillages let you buy, sell, and forge. Churches heal and promote.',
+        );
       } finally {
         if (isSceneLifecycleActive(this, lifecycleGeneration)) {
           this._storyDialogueActive = false;
@@ -452,7 +487,13 @@ export class NodeMapScene extends Phaser.Scene {
     if (!this.isSceneReady) return false;
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return false;
     if (this.isTransitioning || this.battleLaunchInFlight) return false;
-    if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible || this.settingsOverlay?.visible) {
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible ||
+      this.settingsOverlay?.visible
+    ) {
       return false;
     }
 
@@ -502,14 +543,21 @@ export class NodeMapScene extends Phaser.Scene {
     const cam = this.cameras?.main;
     const cx = cam?.centerX ?? 320;
     const cy = cam?.centerY ?? 240;
-    const backdrop = this.add.rectangle(cx, cy, 420, 86, 0x000000, 0.86)
+    const backdrop = this.add
+      .rectangle(cx, cy, 420, 86, 0x000000, 0.86)
       .setDepth(OVERLAY_CONTENT_DEPTH + 120)
       .setStrokeStyle(2, 0xaa3333)
       .setAlpha(0);
-    const label = this.add.text(cx, cy, 'The village is under attack!', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ff6666',
-      backgroundColor: '#00000000',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH + 121).setAlpha(0);
+    const label = this.add
+      .text(cx, cy, 'The village is under attack!', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ff6666',
+        backgroundColor: '#00000000',
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH + 121)
+      .setAlpha(0);
 
     if (this.tweens?.add) {
       this.tweens.add({ targets: [backdrop, label], alpha: 1, duration: 120 });
@@ -518,13 +566,16 @@ export class NodeMapScene extends Phaser.Scene {
       label.setAlpha(1);
     }
 
-    const timer = trackSceneTimer(this, this.time.delayedCall(1500, () => {
-      clearTrackedSceneTimer(this, timer);
-      if (backdrop?.active) backdrop.destroy();
-      if (label?.active) label.destroy();
-      if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
-      void this.handleBattle(node, lifecycleGeneration);
-    }));
+    const timer = trackSceneTimer(
+      this,
+      this.time.delayedCall(1500, () => {
+        clearTrackedSceneTimer(this, timer);
+        if (backdrop?.active) backdrop.destroy();
+        if (label?.active) label.destroy();
+        if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
+        void this.handleBattle(node, lifecycleGeneration);
+      }),
+    );
   }
 
   onPointerUp(pointer) {
@@ -534,7 +585,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
-      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+      if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
         this._touchTapDown = null;
         return;
       }
@@ -550,7 +601,11 @@ export class NodeMapScene extends Phaser.Scene {
 
     if (this.unitPickerState) {
       const state = this.unitPickerState;
-      if (pointer.y >= state.viewportTop && pointer.y <= state.viewportBottom && (state.maxOffset || 0) > 0) {
+      if (
+        pointer.y >= state.viewportTop &&
+        pointer.y <= state.viewportBottom &&
+        (state.maxOffset || 0) > 0
+      ) {
         this._touchScrollDrag = {
           type: 'unit-picker',
           startY: pointer.y,
@@ -647,7 +702,11 @@ export class NodeMapScene extends Phaser.Scene {
       if (pointer.y < CHURCH_LIST_TOP_Y || pointer.y > CHURCH_LIST_BOTTOM_Y) return;
       const step = Math.sign(deltaY || 0) * CHURCH_SCROLL_STEP;
       if (!step) return;
-      const next = Phaser.Math.Clamp((this.churchScrollOffset || 0) + step, 0, this.churchScrollMax);
+      const next = Phaser.Math.Clamp(
+        (this.churchScrollOffset || 0) + step,
+        0,
+        this.churchScrollMax,
+      );
       if (next === this.churchScrollOffset) return;
       this.churchScrollOffset = next;
       this.drawChurchScrollContent();
@@ -678,11 +737,9 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (this.input.manager?.hitTest) {
       hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
     }
-    return Array.isArray(hit) && hit.some(obj =>
-      obj
-      && obj.visible !== false
-      && obj.active !== false
-      && obj.input?.enabled
+    return (
+      Array.isArray(hit) &&
+      hit.some((obj) => obj && obj.visible !== false && obj.active !== false && obj.input?.enabled)
     );
   }
 
@@ -812,20 +869,31 @@ export class NodeMapScene extends Phaser.Scene {
   showPauseMenu() {
     if (this.pauseOverlay?.visible) return;
     this.pauseOverlay = new PauseOverlay(this, {
-      onResume: () => { this.pauseOverlay = null; },
+      onResume: () => {
+        this.pauseOverlay = null;
+      },
       onSaveAndExit: async () => {
         try {
           // Run is already auto-saved on NodeMap entry. Just navigate.
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
-          const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.SAVE_EXIT });
+          const ok = await transitionToScene(
+            this,
+            'Title',
+            { gameData: this.gameData },
+            { reason: TRANSITION_REASONS.SAVE_EXIT },
+          );
           if (!ok) {
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
             resetTransitionLocks(this);
-            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
-            catch (err) {
-              markStartup('pause_transition_double_failure', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
+            try {
+              this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+            } catch (err) {
+              markStartup('pause_transition_double_failure', {
+                scene: 'NodeMap',
+                reason: 'SAVE_EXIT',
+              });
               this.showNodeMapTransitionRecovery(TRANSITION_REASONS.SAVE_EXIT);
             }
           }
@@ -843,13 +911,22 @@ export class NodeMapScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
-          const ok = await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.ABANDON_RUN });
+          const ok = await transitionToScene(
+            this,
+            'Title',
+            { gameData: this.gameData },
+            { reason: TRANSITION_REASONS.ABANDON_RUN },
+          );
           if (!ok) {
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
             resetTransitionLocks(this);
-            try { this.scene.start('Title', { gameData: this.gameData }); } // scene-router-bypass
-            catch (err) {
-              markStartup('pause_transition_double_failure', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
+            try {
+              this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+            } catch (err) {
+              markStartup('pause_transition_double_failure', {
+                scene: 'NodeMap',
+                reason: 'ABANDON_RUN',
+              });
               this.showNodeMapTransitionRecovery(TRANSITION_REASONS.ABANDON_RUN);
             }
           }
@@ -881,47 +958,65 @@ export class NodeMapScene extends Phaser.Scene {
     const nodeMap = rm.nodeMap;
     const actConfig = ACT_CONFIG[rm.currentAct];
     const availableNodes = rm.getAvailableNodes();
-    const availableIds = new Set(availableNodes.map(n => n.id));
+    const availableIds = new Set(availableNodes.map((n) => n.id));
 
     // Title
-    this.add.text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
-      fontFamily: 'monospace', fontSize: '18px', color: '#ffdd44',
-    }).setOrigin(0.5);
+    this.add
+      .text(this.cameras.main.centerX, 20, `Act ${rm.actIndex + 1}: ${actConfig.name}`, {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5);
 
     // Gold display
-    this.add.text(this.cameras.main.width - 20, 20, `${rm.gold}G`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(1, 0);
+    this.add
+      .text(this.cameras.main.width - 20, 20, `${rm.gold}G`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+      })
+      .setOrigin(1, 0);
 
     // Difficulty label (non-Normal only, below gold)
     const diffLabel = rm.difficultyModifiers?.label || 'Normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
     if (diffLabel !== 'Normal') {
-      this.add.text(this.cameras.main.width - 20, 36, diffLabel, {
-        fontFamily: 'monospace', fontSize: '10px', color: diffColor,
-      }).setOrigin(1, 0);
+      this.add
+        .text(this.cameras.main.width - 20, 36, diffLabel, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: diffColor,
+        })
+        .setOrigin(1, 0);
     }
 
     // Gear icon — opens settings
-    const gear = this.add.text(20, 16, '\u2699', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#888888',
-    }).setInteractive({ useHandCursor: true });
+    const gear = this.add
+      .text(20, 16, '\u2699', {
+        fontFamily: 'monospace',
+        fontSize: '20px',
+        color: '#888888',
+      })
+      .setInteractive({ useHandCursor: true });
     gear.on('pointerover', () => gear.setColor('#ffdd44'));
     gear.on('pointerout', () => gear.setColor('#888888'));
     gear.on('pointerdown', () => {
       if (this.settingsOverlay?.visible) return;
-      this.settingsOverlay = new SettingsOverlay(this, () => { this.settingsOverlay = null; });
+      this.settingsOverlay = new SettingsOverlay(this, () => {
+        this.settingsOverlay = null;
+      });
       this.settingsOverlay.show();
     });
 
     // Compute node positions — bottom-to-top (row 0 at bottom, boss at top)
     // X position is determined by column lane (fixed grid 0-4), not even distribution
-    const totalRows = Math.max(...nodeMap.nodes.map(n => n.row)) + 1;
+    const totalRows = Math.max(...nodeMap.nodes.map((n) => n.row)) + 1;
     const NUM_COLUMNS = 5; // Must match NodeMapGenerator.js
     const nodePositions = new Map();
 
     for (const node of nodeMap.nodes) {
-      const yFrac = 1 - (node.row / Math.max(totalRows - 1, 1));
+      const yFrac = 1 - node.row / Math.max(totalRows - 1, 1);
       const y = MAP_TOP + yFrac * (MAP_BOTTOM - MAP_TOP);
       // Use fixed column grid (0-4) to preserve column-lane spacing
       const xFrac = node.col / (NUM_COLUMNS - 1);
@@ -936,8 +1031,9 @@ export class NodeMapScene extends Phaser.Scene {
       for (const edgeId of node.edges) {
         const to = nodePositions.get(edgeId);
         if (!from || !to) continue;
-        const isActive = (node.completed && availableIds.has(edgeId)) ||
-                         (rm.currentNodeId === null && node.id === nodeMap.startNodeId);
+        const isActive =
+          (node.completed && availableIds.has(edgeId)) ||
+          (rm.currentNodeId === null && node.id === nodeMap.startNodeId);
         graphics.lineStyle(2, isActive ? COLOR_EDGE_ACTIVE : COLOR_EDGE, isActive ? 0.8 : 0.4);
         graphics.lineBetween(from.x, from.y, to.x, to.y);
       }
@@ -971,7 +1067,8 @@ export class NodeMapScene extends Phaser.Scene {
         const auraRadius = isEliteNode ? AURA_ELITE_RADIUS : AURA_CHURCH_RADIUS;
         const auraAlphaRange = isEliteNode ? AURA_ELITE_ALPHA : AURA_CHURCH_ALPHA;
         const auraDuration = isEliteNode ? AURA_ELITE_DURATION : AURA_CHURCH_DURATION;
-        const aura = this.add.circle(pos.x, pos.y, auraRadius, auraColor, auraAlphaRange[0])
+        const aura = this.add
+          .circle(pos.x, pos.y, auraRadius, auraColor, auraAlphaRange[0])
           .setDepth(AURA_DEPTH);
         aura.setBlendMode(Phaser.BlendModes.ADD);
 
@@ -1006,19 +1103,26 @@ export class NodeMapScene extends Phaser.Scene {
       }
       let nodeObj;
       if (this.textures.exists(spriteKey)) {
-        nodeObj = this.add.image(pos.x, pos.y, spriteKey)
+        nodeObj = this.add
+          .image(pos.x, pos.y, spriteKey)
           .setDisplaySize(NODE_SIZE + 8, NODE_SIZE + 8)
           .setDepth(NODE_DEPTH);
         if (isCompleted) nodeObj.setTint(0x555555);
         if (!isAvailable && !isCompleted) nodeObj.setAlpha(isEliteNode ? 0.75 : 0.5);
       } else {
-        nodeObj = this.add.rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
+        nodeObj = this.add
+          .rectangle(pos.x, pos.y, NODE_SIZE, NODE_SIZE, color)
           .setStrokeStyle(2, isAvailable ? 0xffffff : 0x888888)
           .setDepth(NODE_DEPTH);
         const icon = NODE_ICONS[node.type] || '?';
-        this.add.text(pos.x, pos.y, icon, {
-          fontFamily: 'monospace', fontSize: '14px', color: isCompleted ? '#888888' : '#ffffff',
-        }).setOrigin(0.5).setDepth(NODE_DEPTH + 1);
+        this.add
+          .text(pos.x, pos.y, icon, {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: isCompleted ? '#888888' : '#ffffff',
+          })
+          .setOrigin(0.5)
+          .setDepth(NODE_DEPTH + 1);
       }
 
       // Make available nodes interactive
@@ -1027,8 +1131,13 @@ export class NodeMapScene extends Phaser.Scene {
 
         // Pulse animation
         this.tweens.add({
-          targets: nodeObj, scaleX: nodeObj.scaleX * 1.15, scaleY: nodeObj.scaleY * 1.15,
-          duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          targets: nodeObj,
+          scaleX: nodeObj.scaleX * 1.15,
+          scaleY: nodeObj.scaleY * 1.15,
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
         });
 
         nodeObj.on('pointerdown', () => this.onNodeClick(node));
@@ -1046,10 +1155,16 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawRoster();
 
     // Roster button (bottom-right, near gear icon area)
-    this._rosterBtn = this.add.text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 8, y: 4 },
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    this._rosterBtn = this.add
+      .text(this.cameras.main.width - 20, MAP_BOTTOM + 14, '[ Roster ]', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
     this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor('#ffdd44'));
     this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor('#e0e0e0'));
     this._rosterBtn.on('pointerdown', () => this._openRoster());
@@ -1074,9 +1189,13 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     // Instructions
-    this.add.text(this.cameras.main.centerX, MAP_BOTTOM + 20, 'Click a node to proceed', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-    }).setOrigin(0.5);
+    this.add
+      .text(this.cameras.main.centerX, MAP_BOTTOM + 20, 'Click a node to proceed', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#888888',
+      })
+      .setOrigin(0.5);
   }
 
   _openRoster() {
@@ -1099,7 +1218,9 @@ export class NodeMapScene extends Phaser.Scene {
 
   drawRoster() {
     const roster = this.runManager.roster || [];
-    const lordNames = new Set((this.gameData?.lords || []).map((lord) => lord?.name).filter(Boolean));
+    const lordNames = new Set(
+      (this.gameData?.lords || []).map((lord) => lord?.name).filter(Boolean),
+    );
     const isLordUnit = (unit) => Boolean(unit?.isLord || (unit?.name && lordNames.has(unit.name)));
     const lords = roster.filter((unit) => isLordUnit(unit));
     const showingLords = lords.length > 0;
@@ -1122,7 +1243,9 @@ export class NodeMapScene extends Phaser.Scene {
         ? `${unit.name} Lv${unit.level}`
         : `${unit.name} Lv${unit.level} ${unit.className}`;
       this.add.text(x, ROSTER_Y, label, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
       });
 
       // HP bar — scale width with spacing
@@ -1136,22 +1259,29 @@ export class NodeMapScene extends Phaser.Scene {
       this.add.rectangle(barX + barWidth / 2, barY + barHeight / 2, barWidth, barHeight, 0x333333);
       const fillColor = ratio > 0.5 ? 0x44cc44 : ratio > 0.25 ? 0xcccc44 : 0xcc4444;
       this.add.rectangle(
-        barX + (barWidth * ratio) / 2, barY + barHeight / 2,
-        barWidth * ratio, barHeight, fillColor
+        barX + (barWidth * ratio) / 2,
+        barY + barHeight / 2,
+        barWidth * ratio,
+        barHeight,
+        fillColor,
       );
 
       // HP text (only if enough space)
       if (spacing >= 80) {
         this.add.text(barX + barWidth + 4, barY - 2, `${unit.currentHP}/${maxHp}`, {
-          fontFamily: 'monospace', fontSize: '10px', color: '#aaaaaa',
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#aaaaaa',
         });
       }
     }
 
     if (hiddenCount > 0) {
-      const anchorX = Phaser.Math.Clamp(startX + (shownUnits.length * spacing), 120, 560);
+      const anchorX = Phaser.Math.Clamp(startX + shownUnits.length * spacing, 120, 560);
       this.add.text(anchorX, ROSTER_Y + 2, `+${hiddenCount} more`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
       });
     }
   }
@@ -1173,13 +1303,24 @@ export class NodeMapScene extends Phaser.Scene {
       const obj = node.battleParams?.objective || 'rout';
       label = `Battle (${obj})`;
     }
-    if ((node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) && node.encounterLocked) {
+    if (
+      (node.type === NODE_TYPES.BATTLE ||
+        node.type === NODE_TYPES.BOSS ||
+        node.type === NODE_TYPES.RECRUIT) &&
+      node.encounterLocked
+    ) {
       label += '\nEncounter Locked';
     }
-    this.nodeTooltip = this.add.text(pos.x, pos.y - NODE_SIZE - 8, label, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#ffffff',
-      backgroundColor: '#000000cc', padding: { x: 4, y: 2 },
-    }).setOrigin(0.5, 1).setDepth(100);
+    this.nodeTooltip = this.add
+      .text(pos.x, pos.y - NODE_SIZE - 8, label, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#ffffff',
+        backgroundColor: '#000000cc',
+        padding: { x: 4, y: 2 },
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(100);
     const halfW = this.nodeTooltip.width * 0.5;
     const margin = 6;
     const minX = halfW + margin;
@@ -1206,7 +1347,13 @@ export class NodeMapScene extends Phaser.Scene {
       }
       return;
     }
-    if (this.shopOverlay || this.churchOverlay || this.rosterOverlay?.visible || this.pauseOverlay?.visible) return;
+    if (
+      this.shopOverlay ||
+      this.churchOverlay ||
+      this.rosterOverlay?.visible ||
+      this.pauseOverlay?.visible
+    )
+      return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
     } else if (node.type === NODE_TYPES.SHOP) {
@@ -1262,22 +1409,28 @@ export class NodeMapScene extends Phaser.Scene {
       const rm = this.runManager;
       const battleParams = rm.getBattleParams(node);
       const roster = rm.getRoster();
-      const transitioned = await transitionToScene(this, 'Battle', {
-        gameData: this.gameData,
-        runManager: rm,
-        battleParams,
-        roster,
-        nodeId: node.id,
-        isBoss: node.type === NODE_TYPES.BOSS,
-        isElite: battleParams?.isElite || false,
-      }, { reason: TRANSITION_REASONS.ENTER_BATTLE });
+      const transitioned = await transitionToScene(
+        this,
+        'Battle',
+        {
+          gameData: this.gameData,
+          runManager: rm,
+          battleParams,
+          roster,
+          nodeId: node.id,
+          isBoss: node.type === NODE_TYPES.BOSS,
+          isElite: battleParams?.isElite || false,
+        },
+        { reason: TRANSITION_REASONS.ENTER_BATTLE },
+      );
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (transitioned === false) {
         this.battleLaunchInFlight = false;
         this.isTransitioning = false;
         this.isSceneReady = true;
         if (this.input) this.input.enabled = true;
-        if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+        if (audio)
+          void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       }
     } catch (err) {
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
@@ -1287,7 +1440,8 @@ export class NodeMapScene extends Phaser.Scene {
       this.isTransitioning = false;
       this.isSceneReady = true;
       if (this.input) this.input.enabled = true;
-      if (audio) void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      if (audio)
+        void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
       this.showTransientMessage('Failed to enter battle. Please try again.', '#ff6666');
     }
   }
@@ -1346,31 +1500,49 @@ export class NodeMapScene extends Phaser.Scene {
     this.churchOverlay.push(bg);
 
     // Centered panel container
-    const panel = this.add.rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+    const panel = this.add
+      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
       .setDepth(OVERLAY_PANEL_DEPTH)
       .setStrokeStyle(2, 0x444444)
       .setInteractive();
     this.churchOverlay.push(panel);
 
     // Title
-    const title = this.add.text(320, 40, 'Church', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#cccccc',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+    const title = this.add
+      .text(320, 40, 'Church', {
+        fontFamily: 'monospace',
+        fontSize: '22px',
+        color: '#cccccc',
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(title);
 
     // Gold display
-    this.churchGoldText = this.add.text(320, 70, `Gold: ${this.runManager.gold}G`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+    this.churchGoldText = this.add
+      .text(320, 70, `Gold: ${this.runManager.gold}G`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.churchOverlay.push(this.churchGoldText);
 
     const rm = this.runManager;
 
     // Service 1: Heal All (Free) — fixed, not scrollable
-    const healBtn = this.add.text(320, 110, '[ Heal All Units ] (Free)', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#44ff44',
-      backgroundColor: '#222222', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    const healBtn = this.add
+      .text(320, 110, '[ Heal All Units ] (Free)', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#44ff44',
+        backgroundColor: '#222222',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
     healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
     healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
     healBtn.on('pointerdown', () => {
@@ -1384,20 +1556,34 @@ export class NodeMapScene extends Phaser.Scene {
     this.churchOverlay.push(healBtn);
 
     // View Map button — fixed
-    const viewMapBtn = this.add.text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
-      backgroundColor: '#223344', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    const viewMapBtn = this.add
+      .text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
     viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
     viewMapBtn.on('pointerdown', () => this._enterChurchMapView());
     this.churchOverlay.push(viewMapBtn);
 
     // Leave button — fixed
-    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    const leaveBtn = this.add
+      .text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
@@ -1411,7 +1597,12 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Service 2: Revive Fallen Unit (1000g)
     if (rm.fallenUnits.length > 0) {
-      items.push({ type: 'label', text: 'Revive Fallen Unit (1000G):', color: '#cccccc', y: localY });
+      items.push({
+        type: 'label',
+        text: 'Revive Fallen Unit (1000G):',
+        color: '#cccccc',
+        y: localY,
+      });
       localY += 25;
       for (const fallen of rm.fallenUnits) {
         items.push({ type: 'revive', unit: fallen, y: localY });
@@ -1421,10 +1612,15 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     // Service 3: Promote Unit
-    items.push({ type: 'label', text: `Promote Unit (${CHURCH_PROMOTE_COST}G):`, color: '#cccccc', y: localY });
+    items.push({
+      type: 'label',
+      text: `Promote Unit (${CHURCH_PROMOTE_COST}G):`,
+      color: '#cccccc',
+      y: localY,
+    });
     localY += 25;
 
-    const eligibleUnits = rm.roster.filter(u => canPromote(u));
+    const eligibleUnits = rm.roster.filter((u) => canPromote(u));
     if (eligibleUnits.length === 0) {
       items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
       localY += CHURCH_ITEM_HEIGHT;
@@ -1445,7 +1641,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   drawChurchScrollContent() {
     // Destroy previous scroll content
-    if (this.churchContentGroup) this.churchContentGroup.forEach(o => o.destroy());
+    if (this.churchContentGroup) this.churchContentGroup.forEach((o) => o.destroy());
     this.churchContentGroup = [];
 
     const items = this._churchScrollItems;
@@ -1458,24 +1654,45 @@ export class NodeMapScene extends Phaser.Scene {
     for (const item of items) {
       const y = CHURCH_LIST_TOP_Y + item.y - offset;
       // Keep row/button bounds out of fixed controls; use half-row guard at bottom.
-      if (y < CHURCH_LIST_TOP_Y - CHURCH_ITEM_HEIGHT || y > CHURCH_LIST_BOTTOM_Y - (CHURCH_ITEM_HEIGHT / 2)) continue;
+      if (
+        y < CHURCH_LIST_TOP_Y - CHURCH_ITEM_HEIGHT ||
+        y > CHURCH_LIST_BOTTOM_Y - CHURCH_ITEM_HEIGHT / 2
+      )
+        continue;
 
       if (item.type === 'label') {
-        const label = this.add.text(320, y, item.text, {
-          fontFamily: 'monospace', fontSize: '14px', color: item.color,
-        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+        const label = this.add
+          .text(320, y, item.text, {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: item.color,
+          })
+          .setOrigin(0.5)
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.churchContentGroup.push(label);
       } else if (item.type === 'none') {
-        const noneText = this.add.text(320, y, item.text, {
-          fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+        const noneText = this.add
+          .text(320, y, item.text, {
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            color: '#888888',
+          })
+          .setOrigin(0.5)
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.churchContentGroup.push(noneText);
       } else if (item.type === 'revive') {
         const fallen = item.unit;
-        const unitBtn = this.add.text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
-          fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-          backgroundColor: '#222222', padding: { x: 10, y: 4 },
-        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+        const unitBtn = this.add
+          .text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#e0e0e0',
+            backgroundColor: '#222222',
+            padding: { x: 10, y: 4 },
+          })
+          .setOrigin(0.5)
+          .setDepth(OVERLAY_CONTENT_DEPTH)
+          .setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
           if (rm.gold >= 1000) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
@@ -1500,10 +1717,17 @@ export class NodeMapScene extends Phaser.Scene {
         this.churchContentGroup.push(unitBtn);
       } else if (item.type === 'promote') {
         const unit = item.unit;
-        const unitBtn = this.add.text(320, y, `${unit.name} (Lv${unit.level} ${unit.className})`, {
-          fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-          backgroundColor: '#222222', padding: { x: 10, y: 4 },
-        }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+        const unitBtn = this.add
+          .text(320, y, `${unit.name} (Lv${unit.level} ${unit.className})`, {
+            fontFamily: 'monospace',
+            fontSize: '14px',
+            color: '#e0e0e0',
+            backgroundColor: '#222222',
+            padding: { x: 10, y: 4 },
+          })
+          .setOrigin(0.5)
+          .setDepth(OVERLAY_CONTENT_DEPTH)
+          .setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
           if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
@@ -1520,7 +1744,7 @@ export class NodeMapScene extends Phaser.Scene {
             return;
           }
 
-          const lordData = this.gameData.lords.find(l => l.name === unit.name);
+          const lordData = this.gameData.lords.find((l) => l.name === unit.name);
           const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
           if (!targets?.length) {
             const audio = this.registry.get('audio');
@@ -1574,13 +1798,17 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Scroll hint when content overflows
     if ((this.churchScrollMax || 0) > 0) {
-      const percent = this.churchScrollMax > 0
-        ? Math.round((offset / this.churchScrollMax) * 100)
-        : 0;
-      const hint = this.add.text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-        backgroundColor: '#222222', padding: { x: 4, y: 2 },
-      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      const percent =
+        this.churchScrollMax > 0 ? Math.round((offset / this.churchScrollMax) * 100) : 0;
+      const hint = this.add
+        .text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+          backgroundColor: '#222222',
+          padding: { x: 4, y: 2 },
+        })
+        .setDepth(OVERLAY_CONTENT_DEPTH);
       this.churchContentGroup.push(hint);
     }
   }
@@ -1602,36 +1830,54 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.churchMessage) this.churchMessage.destroy();
     clearTrackedSceneTimer(this, this._churchMessageTimer);
     this._churchMessageTimer = null;
-    this.churchMessage = this.add.text(320, 95, text, {
-      fontFamily: 'monospace', fontSize: '12px', color,
-      backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(302);
+    this.churchMessage = this.add
+      .text(320, 95, text, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color,
+        backgroundColor: '#000000dd',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(302);
     this.churchOverlay.push(this.churchMessage);
 
-    this._churchMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2000, () => {
-      this._churchMessageTimer = null;
-      if (this.churchMessage) {
-        this.churchMessage.destroy();
-        this.churchMessage = null;
-      }
-    }));
+    this._churchMessageTimer = trackSceneTimer(
+      this,
+      this.time?.delayedCall?.(2000, () => {
+        this._churchMessageTimer = null;
+        if (this.churchMessage) {
+          this.churchMessage.destroy();
+          this.churchMessage = null;
+        }
+      }),
+    );
   }
 
   showTransientMessage(text, color = '#ff6666') {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
-    this.transientMessage = this.add.text(this.cameras.main.centerX, 96, text, {
-      fontFamily: 'monospace', fontSize: '12px', color,
-      backgroundColor: '#000000dd', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(400);
-    this._transientMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2200, () => {
-      this._transientMessageTimer = null;
-      if (this.transientMessage) {
-        this.transientMessage.destroy();
-        this.transientMessage = null;
-      }
-    }));
+    this.transientMessage = this.add
+      .text(this.cameras.main.centerX, 96, text, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color,
+        backgroundColor: '#000000dd',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(400);
+    this._transientMessageTimer = trackSceneTimer(
+      this,
+      this.time?.delayedCall?.(2200, () => {
+        this._transientMessageTimer = null;
+        if (this.transientMessage) {
+          this.transientMessage.destroy();
+          this.transientMessage = null;
+        }
+      }),
+    );
   }
 
   refreshChurchOverlay(node) {
@@ -1643,11 +1889,11 @@ export class NodeMapScene extends Phaser.Scene {
     clearTrackedSceneTimer(this, this._churchMessageTimer);
     this._churchMessageTimer = null;
     if (this.churchOverlay) {
-      this.churchOverlay.forEach(o => o.destroy());
+      this.churchOverlay.forEach((o) => o.destroy());
       this.churchOverlay = null;
     }
     if (this.churchContentGroup) {
-      this.churchContentGroup.forEach(o => o.destroy());
+      this.churchContentGroup.forEach((o) => o.destroy());
       this.churchContentGroup = null;
     }
     if (this.churchMessage) {
@@ -1665,9 +1911,10 @@ export class NodeMapScene extends Phaser.Scene {
 
   handleShop(node, options = {}) {
     const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
-    const ambushDiscount = options?.ambushDiscount === true
-      || pendingAmbush
-      || (node?.isAmbush === true && node?.ambushCleared === true);
+    const ambushDiscount =
+      options?.ambushDiscount === true ||
+      pendingAmbush ||
+      (node?.isAmbush === true && node?.ambushCleared === true);
     if (this.runManager.consumeSkipFirstShop()) {
       showMinorHint(this, 'Blessing effect: first shop skipped.');
       this.runManager.markNodeComplete(node.id);
@@ -1682,11 +1929,14 @@ export class NodeMapScene extends Phaser.Scene {
     const rm = this.runManager;
     const shopItemDelta = rm.getShopItemCountDelta();
     let shopItems = generateShopInventory(
-      rm.currentAct, this.gameData.lootTables,
-      this.gameData.weapons, this.gameData.consumables,
-      this.gameData.accessories, rm.roster,
+      rm.currentAct,
+      this.gameData.lootTables,
+      this.gameData.weapons,
+      this.gameData.consumables,
+      this.gameData.accessories,
+      rm.roster,
       rm.getWeaponArtSpawnConfig(),
-      { itemCountBonus: shopItemDelta }
+      { itemCountBonus: shopItemDelta },
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
     if (ambushDiscount) {
@@ -1724,7 +1974,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollMax = 0;
     this._shopViewingMap = false;
-    this._currentShopHasAmbushDiscount = options?.ambushDiscount === true || options?.pendingAmbush === true;
+    this._currentShopHasAmbushDiscount =
+      options?.ambushDiscount === true || options?.pendingAmbush === true;
 
     // Tutorial hint for shop
     const hints = this.registry.get('hints');
@@ -1737,7 +1988,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay.push(bg);
 
     // Centered panel container
-    const panel = this.add.rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
+    const panel = this.add
+      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
       .setDepth(OVERLAY_PANEL_DEPTH)
       .setStrokeStyle(2, 0x444444)
       .setInteractive();
@@ -1747,21 +1999,38 @@ export class NodeMapScene extends Phaser.Scene {
     const titleLabel = this._currentShopHasAmbushDiscount
       ? 'Village (Liberated - 20% Off)'
       : 'Village';
-    const title = this.add.text(320, 30, titleLabel, {
-      fontFamily: 'monospace', fontSize: '22px', color: this._currentShopHasAmbushDiscount ? '#88ff88' : '#ffdd44',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+    const title = this.add
+      .text(320, 30, titleLabel, {
+        fontFamily: 'monospace',
+        fontSize: '22px',
+        color: this._currentShopHasAmbushDiscount ? '#88ff88' : '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(title);
 
     // Gold display
-    this.shopGoldText = this.add.text(320, 58, `Gold: ${this.runManager.gold}G`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH);
+    this.shopGoldText = this.add
+      .text(320, 58, `Gold: ${this.runManager.gold}G`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopOverlay.push(this.shopGoldText);
 
-    const viewMapBtn = this.add.text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#aaddff',
-      backgroundColor: '#223344', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    const viewMapBtn = this.add
+      .text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
     viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
     viewMapBtn.on('pointerdown', () => this._enterShopMapView());
@@ -1779,10 +2048,17 @@ export class NodeMapScene extends Phaser.Scene {
     this.drawActiveTabContent();
 
     // Leave button
-    const leaveBtn = this.add.text(320, SAFE_BOTTOM_Y, '[ Leave Village ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#333333', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+    const leaveBtn = this.add
+      .text(320, SAFE_BOTTOM_Y, '[ Leave Village ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
     leaveBtn.on('pointerdown', () => {
@@ -1807,7 +2083,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   drawShopTabs() {
     // Destroy old tab objects
-    if (this.shopTabObjects) this.shopTabObjects.forEach(o => o.destroy());
+    if (this.shopTabObjects) this.shopTabObjects.forEach((o) => o.destroy());
     this.shopTabObjects = [];
 
     const tabs = [
@@ -1824,11 +2100,17 @@ export class NodeMapScene extends Phaser.Scene {
       const tx = startX + i * tabW;
       const isActive = this.activeShopTab === tab.key;
       const color = isActive ? '#ffdd44' : '#888888';
-      const tabText = this.add.text(tx, tabY, tab.label, {
-        fontFamily: 'monospace', fontSize: '14px', color,
-        backgroundColor: isActive ? '#333355' : '#222222',
-        padding: { x: 12, y: 4 },
-      }).setOrigin(0.5).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+      const tabText = this.add
+        .text(tx, tabY, tab.label, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color,
+          backgroundColor: isActive ? '#333355' : '#222222',
+          padding: { x: 12, y: 4 },
+        })
+        .setOrigin(0.5)
+        .setDepth(OVERLAY_CONTENT_DEPTH)
+        .setInteractive({ useHandCursor: true });
 
       tabText.on('pointerdown', () => {
         if (this.activeShopTab === tab.key) return;
@@ -1846,7 +2128,7 @@ export class NodeMapScene extends Phaser.Scene {
     // Clear previous tab content
     this._hideForgeTooltip();
     this._hideShopItemTooltip();
-    if (this.shopContentGroup) this.shopContentGroup.forEach(o => o.destroy());
+    if (this.shopContentGroup) this.shopContentGroup.forEach((o) => o.destroy());
     this.shopContentGroup = [];
 
     if (this.activeShopTab === 'buy') {
@@ -1868,9 +2150,16 @@ export class NodeMapScene extends Phaser.Scene {
   drawShopBuyList() {
     const startY = 105;
     const lineH = 24;
-    this.shopScrollMax = Math.max(0, (this.shopBuyItems.length * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    this.shopScrollMax = Math.max(
+      0,
+      this.shopBuyItems.length * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y),
+    );
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.buy = Phaser.Math.Clamp(this.shopScrollOffsets.buy || 0, 0, this.shopScrollMax);
+    this.shopScrollOffsets.buy = Phaser.Math.Clamp(
+      this.shopScrollOffsets.buy || 0,
+      0,
+      this.shopScrollMax,
+    );
     const offset = this.shopScrollOffsets.buy;
 
     this.shopBuyItems.forEach((entry, i) => {
@@ -1880,9 +2169,13 @@ export class NodeMapScene extends Phaser.Scene {
       const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
       const color = affordable ? affordableColor : '#666666';
       const marker = hasWeaponArt(entry?.item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-      const text = this.add.text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
-        fontFamily: 'monospace', fontSize: '12px', color,
-      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      const text = this.add
+        .text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color,
+        })
+        .setDepth(OVERLAY_CONTENT_DEPTH);
 
       text.setInteractive({ useHandCursor: affordable });
       text.on('pointerover', () => {
@@ -1936,17 +2229,54 @@ export class NodeMapScene extends Phaser.Scene {
 
     // Path 3a: Consumables use consumables limit
     if (entry.item.type === 'Consumable') {
-      this.showUnitPicker((unitIndex) => {
+      this.showUnitPicker(
+        (unitIndex) => {
+          const unit = rm.roster[unitIndex];
+          const consumableCount = unit.consumables ? unit.consumables.length : 0;
+          if (consumableCount >= CONSUMABLE_MAX) {
+            if (!rm.spendGold(entry.price)) {
+              this.showShopBanner('Not enough gold.', '#ff8888');
+              return;
+            }
+            if (!rm.addToConvoy(entry.item)) {
+              if (typeof rm.addGold === 'function') rm.addGold(entry.price);
+              this.showShopBanner(`${unit.name}'s consumables are full!`, '#ff8888');
+              return;
+            }
+            const idx = this.shopBuyItems.indexOf(entry);
+            if (idx !== -1) this.shopBuyItems.splice(idx, 1);
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_gold');
+            this.refreshShop();
+            this.showShopBanner(`${entry.item.name} sent to convoy.`, '#88ccff');
+            return;
+          }
+          rm.spendGold(entry.price);
+          addToConsumables(unit, { ...entry.item });
+          const idx = this.shopBuyItems.indexOf(entry);
+          if (idx !== -1) this.shopBuyItems.splice(idx, 1);
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          this.refreshShop();
+          this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
+        },
+        { itemTypeContext: 'consumable' },
+      );
+      return;
+    }
+
+    // Path 3b: Weapons/staves use main inventory limit
+    this.showUnitPicker(
+      (unitIndex) => {
         const unit = rm.roster[unitIndex];
-        const consumableCount = unit.consumables ? unit.consumables.length : 0;
-        if (consumableCount >= CONSUMABLE_MAX) {
+        if (unit.inventory.length >= INVENTORY_MAX) {
           if (!rm.spendGold(entry.price)) {
             this.showShopBanner('Not enough gold.', '#ff8888');
             return;
           }
           if (!rm.addToConvoy(entry.item)) {
             if (typeof rm.addGold === 'function') rm.addGold(entry.price);
-            this.showShopBanner(`${unit.name}'s consumables are full!`, '#ff8888');
+            this.showShopBanner(`${unit.name}'s inventory is full!`, '#ff8888');
             return;
           }
           const idx = this.shopBuyItems.indexOf(entry);
@@ -1958,47 +2288,16 @@ export class NodeMapScene extends Phaser.Scene {
           return;
         }
         rm.spendGold(entry.price);
-        addToConsumables(unit, { ...entry.item });
+        addToInventory(unit, { ...entry.item });
         const idx = this.shopBuyItems.indexOf(entry);
         if (idx !== -1) this.shopBuyItems.splice(idx, 1);
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
         this.refreshShop();
         this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-      }, { itemTypeContext: 'consumable' });
-      return;
-    }
-
-    // Path 3b: Weapons/staves use main inventory limit
-    this.showUnitPicker((unitIndex) => {
-      const unit = rm.roster[unitIndex];
-      if (unit.inventory.length >= INVENTORY_MAX) {
-        if (!rm.spendGold(entry.price)) {
-          this.showShopBanner('Not enough gold.', '#ff8888');
-          return;
-        }
-        if (!rm.addToConvoy(entry.item)) {
-          if (typeof rm.addGold === 'function') rm.addGold(entry.price);
-          this.showShopBanner(`${unit.name}'s inventory is full!`, '#ff8888');
-          return;
-        }
-        const idx = this.shopBuyItems.indexOf(entry);
-        if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        this.refreshShop();
-        this.showShopBanner(`${entry.item.name} sent to convoy.`, '#88ccff');
-        return;
-      }
-      rm.spendGold(entry.price);
-      addToInventory(unit, { ...entry.item });
-      const idx = this.shopBuyItems.indexOf(entry);
-      if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_gold');
-      this.refreshShop();
-      this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-    }, { profCheckItem: entry.item, itemTypeContext: 'inventory' });
+      },
+      { profCheckItem: entry.item, itemTypeContext: 'inventory' },
+    );
   }
 
   drawShopSellList() {
@@ -2026,9 +2325,13 @@ export class NodeMapScene extends Phaser.Scene {
       }
     }
     const rowTotal = rowModel.length;
-    this.shopScrollMax = Math.max(0, (rowTotal * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.sell = Phaser.Math.Clamp(this.shopScrollOffsets.sell || 0, 0, this.shopScrollMax);
+    this.shopScrollOffsets.sell = Phaser.Math.Clamp(
+      this.shopScrollOffsets.sell || 0,
+      0,
+      this.shopScrollMax,
+    );
     const offset = this.shopScrollOffsets.sell;
 
     for (let row = 0; row < rowModel.length; row++) {
@@ -2037,9 +2340,13 @@ export class NodeMapScene extends Phaser.Scene {
       if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) continue;
 
       if (rowData.kind === 'unit') {
-        const nameText = this.add.text(60, y, `${rowData.unit.name}:`, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-        }).setDepth(OVERLAY_CONTENT_DEPTH);
+        const nameText = this.add
+          .text(60, y, `${rowData.unit.name}:`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#aaaaaa',
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(nameText);
         this.shopOverlay.push(nameText);
         continue;
@@ -2052,12 +2359,20 @@ export class NodeMapScene extends Phaser.Scene {
         const locked = isLastCombatWeapon(unit, item);
         const equipped = item === unit.weapon ? '\u25b6' : ' ';
         const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const wpnColor = locked ? '#666666' : (isForged(item) ? '#44ff88' : '#e0e0e0');
+        const wpnColor = locked ? '#666666' : isForged(item) ? '#44ff88' : '#e0e0e0';
         const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const text = this.add.text(70, y,
-          `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + awardedSellPrice + 'G'}`, {
-          fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
-        }).setDepth(OVERLAY_CONTENT_DEPTH);
+        const text = this.add
+          .text(
+            70,
+            y,
+            `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + awardedSellPrice + 'G'}`,
+            {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: wpnColor,
+            },
+          )
+          .setDepth(OVERLAY_CONTENT_DEPTH);
 
         if (!locked) {
           text.setInteractive({ useHandCursor: true });
@@ -2085,9 +2400,13 @@ export class NodeMapScene extends Phaser.Scene {
       const unit = rowData.unit;
       const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
       const baseColor = '#88ff88';
-      const text = this.add.text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-        fontFamily: 'monospace', fontSize: '11px', color: baseColor,
-      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      const text = this.add
+        .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: baseColor,
+        })
+        .setDepth(OVERLAY_CONTENT_DEPTH);
       text.setInteractive({ useHandCursor: true });
       text.on('pointerover', () => text.setColor('#ffdd44'));
       text.on('pointerout', () => text.setColor(baseColor));
@@ -2115,21 +2434,29 @@ export class NodeMapScene extends Phaser.Scene {
     let row = 0;
     let rowTotal = 1.5;
     for (const unit of rm.roster) {
-      const forgeableWeapons = unit.inventory.filter(w => canForge(w));
+      const forgeableWeapons = unit.inventory.filter((w) => canForge(w));
       if (forgeableWeapons.length === 0) continue;
       rowTotal += 1 + forgeableWeapons.length;
     }
-    this.shopScrollMax = Math.max(0, (rowTotal * lineH) - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
+    this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.forge = Phaser.Math.Clamp(this.shopScrollOffsets.forge || 0, 0, this.shopScrollMax);
+    this.shopScrollOffsets.forge = Phaser.Math.Clamp(
+      this.shopScrollOffsets.forge || 0,
+      0,
+      this.shopScrollMax,
+    );
     const offset = this.shopScrollOffsets.forge;
 
     // Header: forges remaining
     const headerY = startY - offset;
     if (headerY >= SHOP_LIST_TOP_Y - lineH && headerY <= SHOP_LIST_BOTTOM_Y) {
-      const header = this.add.text(60, headerY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ff8844',
-      }).setDepth(OVERLAY_CONTENT_DEPTH);
+      const header = this.add
+        .text(60, headerY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ff8844',
+        })
+        .setDepth(OVERLAY_CONTENT_DEPTH);
       this.shopContentGroup.push(header);
       this.shopOverlay.push(header);
     }
@@ -2138,14 +2465,18 @@ export class NodeMapScene extends Phaser.Scene {
     const limitReached = this.shopForgesUsed >= forgeLimit;
 
     for (const unit of rm.roster) {
-      const forgeableWeapons = unit.inventory.filter(w => canForge(w));
+      const forgeableWeapons = unit.inventory.filter((w) => canForge(w));
       if (forgeableWeapons.length === 0) continue;
 
       const nameY = startY + row * lineH - offset;
       if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
-        const nameText = this.add.text(60, nameY, `${unit.name}:`, {
-          fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
-        }).setDepth(OVERLAY_CONTENT_DEPTH);
+        const nameText = this.add
+          .text(60, nameY, `${unit.name}:`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#aaaaaa',
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(nameText);
         this.shopOverlay.push(nameText);
       }
@@ -2161,9 +2492,13 @@ export class NodeMapScene extends Phaser.Scene {
           row++;
           continue;
         }
-        const wpnText = this.add.text(70, y, label, {
-          fontFamily: 'monospace', fontSize: '11px', color: wpnColor,
-        }).setDepth(OVERLAY_CONTENT_DEPTH);
+        const wpnText = this.add
+          .text(70, y, label, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: wpnColor,
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(wpnText);
         this.shopOverlay.push(wpnText);
 
@@ -2175,22 +2510,36 @@ export class NodeMapScene extends Phaser.Scene {
         wpnText.on('pointerout', () => this._hideForgeTooltip());
 
         if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = this.add.text(350, y, 'MAX', {
-            fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-          }).setDepth(OVERLAY_CONTENT_DEPTH);
+          const maxLabel = this.add
+            .text(350, y, 'MAX', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#888888',
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH);
           this.shopContentGroup.push(maxLabel);
           this.shopOverlay.push(maxLabel);
         } else if (limitReached) {
-          const limitLabel = this.add.text(350, y, '(limit)', {
-            fontFamily: 'monospace', fontSize: '11px', color: '#666666',
-          }).setDepth(OVERLAY_CONTENT_DEPTH);
+          const limitLabel = this.add
+            .text(350, y, '(limit)', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#666666',
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH);
           this.shopContentGroup.push(limitLabel);
           this.shopOverlay.push(limitLabel);
         } else {
-          const forgeBtn = this.add.text(350, y, '[ Forge ]', {
-            fontFamily: 'monospace', fontSize: '11px', color: '#ff8844',
-            backgroundColor: '#333333', padding: { x: 4, y: 1 },
-          }).setDepth(OVERLAY_CONTENT_DEPTH).setInteractive({ useHandCursor: true });
+          const forgeBtn = this.add
+            .text(350, y, '[ Forge ]', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#ff8844',
+              backgroundColor: '#333333',
+              padding: { x: 4, y: 1 },
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH)
+            .setInteractive({ useHandCursor: true });
           forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
           forgeBtn.on('pointerdown', () => this.showForgeStatPicker(wpn));
@@ -2205,9 +2554,13 @@ export class NodeMapScene extends Phaser.Scene {
     if (row <= 1.5) {
       const emptyY = startY + row * lineH - offset;
       if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
-        const emptyText = this.add.text(60, emptyY, 'No forgeable weapons in roster.', {
-          fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-        }).setDepth(OVERLAY_CONTENT_DEPTH);
+        const emptyText = this.add
+          .text(60, emptyY, 'No forgeable weapons in roster.', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#888888',
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
         this.shopContentGroup.push(emptyText);
         this.shopOverlay.push(emptyText);
       }
@@ -2218,13 +2571,16 @@ export class NodeMapScene extends Phaser.Scene {
     if (!this.shopOverlay || !this.shopContentGroup) return;
     if ((this.shopScrollMax || 0) <= 0) return;
     const offset = this.shopScrollOffsets?.[this.activeShopTab] || 0;
-    const percent = this.shopScrollMax > 0
-      ? Math.round((offset / this.shopScrollMax) * 100)
-      : 0;
-    const hint = this.add.text(445, 410, `Scroll: ${percent}%`, {
-      fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      backgroundColor: '#222222', padding: { x: 4, y: 2 },
-    }).setDepth(OVERLAY_CONTENT_DEPTH);
+    const percent = this.shopScrollMax > 0 ? Math.round((offset / this.shopScrollMax) * 100) : 0;
+    const hint = this.add
+      .text(445, 410, `Scroll: ${percent}%`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+        backgroundColor: '#222222',
+        padding: { x: 4, y: 2 },
+      })
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopContentGroup.push(hint);
     this.shopOverlay.push(hint);
   }
@@ -2261,7 +2617,7 @@ export class NodeMapScene extends Phaser.Scene {
 
     if (entryType === 'scroll' || item.type === 'Scroll') {
       const header = item.special || 'Teaches a skill';
-      const skillDef = this.gameData?.skills?.find(s => s.id === item.skillId);
+      const skillDef = this.gameData?.skills?.find((s) => s.id === item.skillId);
       const desc = skillDef?.description || '';
       return desc ? `${header}\n${desc}` : header;
     }
@@ -2302,10 +2658,15 @@ export class NodeMapScene extends Phaser.Scene {
     const maxTextW = 304; // 320 - padX*2
 
     // Create text first with wordWrap so Phaser computes accurate dimensions
-    const detailText = this.add.text(0, 0, detail, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#e0e0e0',
-      lineSpacing: 4, wordWrap: { width: maxTextW },
-    }).setDepth(311);
+    const detailText = this.add
+      .text(0, 0, detail, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#e0e0e0',
+        lineSpacing: 4,
+        wordWrap: { width: maxTextW },
+      })
+      .setDepth(311);
 
     const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 150, 320);
     const boxH = detailText.height + padY * 2;
@@ -2317,8 +2678,10 @@ export class NodeMapScene extends Phaser.Scene {
     if (tx < 5) tx = 5;
     if (ty < 5) ty = 5;
 
-    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(310).setStrokeStyle(1, 0x336666);
+    const bg = this.add
+      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(310)
+      .setStrokeStyle(1, 0x336666);
     detailText.setPosition(tx + padX, ty + padY);
 
     this.shopItemTooltip.push(bg, detailText);
@@ -2332,20 +2695,28 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showForgeStatPicker(weapon) {
-    if (this.forgePicker) this.forgePicker.forEach(o => o.destroy());
+    if (this.forgePicker) this.forgePicker.forEach((o) => o.destroy());
     this.forgePicker = [];
 
     const cx = 320;
     const cy = 240;
     const level = weapon._forgeLevel || 0;
 
-    const pickerBg = this.add.rectangle(cx, cy, 320, 220, 0x222233, 0.97)
-      .setDepth(450).setStrokeStyle(2, 0xff8844).setInteractive();
+    const pickerBg = this.add
+      .rectangle(cx, cy, 320, 220, 0x222233, 0.97)
+      .setDepth(450)
+      .setStrokeStyle(2, 0xff8844)
+      .setInteractive();
     this.forgePicker.push(pickerBg);
 
-    const title = this.add.text(cx, cy - 88, `Forge ${weapon.name} (${level}/${FORGE_MAX_LEVEL})`, {
-      fontFamily: 'monospace', fontSize: '12px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(451);
+    const title = this.add
+      .text(cx, cy - 88, `Forge ${weapon.name} (${level}/${FORGE_MAX_LEVEL})`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(451);
     this.forgePicker.push(title);
 
     const stats = [
@@ -2360,7 +2731,7 @@ export class NodeMapScene extends Phaser.Scene {
     const blessingDiscountRaw = this.runManager?.getForgeCostDiscount?.() || 0;
     const blessingDiscount = Math.max(0, Math.min(0.95, blessingDiscountRaw));
     const ambushDiscount = this._currentShopHasAmbushDiscount
-      ? 1 - ((1 - blessingDiscount) * AMBUSH_SHOP_DISCOUNT)
+      ? 1 - (1 - blessingDiscount) * AMBUSH_SHOP_DISCOUNT
       : blessingDiscount;
     const discount = Math.max(0, Math.min(0.95, ambushDiscount));
 
@@ -2373,14 +2744,19 @@ export class NodeMapScene extends Phaser.Scene {
       const affordable = cost > 0 && this.runManager.gold >= cost;
       const by = btnStartY + i * btnH;
       const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
-      const color = atStatCap ? '#666666' : (affordable ? affordableColor : '#666666');
+      const color = atStatCap ? '#666666' : affordable ? affordableColor : '#666666';
 
       const costLabel = atStatCap ? 'MAX' : `${cost}G`;
-      const btn = this.add.text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
-        fontFamily: 'monospace', fontSize: '12px', color,
-        backgroundColor: (affordable && !atStatCap) ? '#444444' : '#333333',
-        padding: { x: 16, y: 4 },
-      }).setOrigin(0.5).setDepth(451);
+      const btn = this.add
+        .text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color,
+          backgroundColor: affordable && !atStatCap ? '#444444' : '#333333',
+          padding: { x: 16, y: 4 },
+        })
+        .setOrigin(0.5)
+        .setDepth(451);
 
       if (affordable && !atStatCap) {
         btn.setInteractive({ useHandCursor: true });
@@ -2404,10 +2780,17 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     // Cancel button
-    const cancelBtn = this.add.text(cx, btnStartY + stats.length * btnH + 10, 'Cancel', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888',
-      backgroundColor: '#333333', padding: { x: 12, y: 4 },
-    }).setOrigin(0.5).setDepth(451).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.add
+      .text(cx, btnStartY + stats.length * btnH + 10, 'Cancel', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        backgroundColor: '#333333',
+        padding: { x: 12, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(451)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
     cancelBtn.on('pointerdown', () => this.closeForgeStatPicker());
@@ -2416,7 +2799,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   closeForgeStatPicker() {
     if (this.forgePicker) {
-      this.forgePicker.forEach(o => o.destroy());
+      this.forgePicker.forEach((o) => o.destroy());
       this.forgePicker = null;
     }
   }
@@ -2446,12 +2829,20 @@ export class NodeMapScene extends Phaser.Scene {
     const padY = 6;
     const maxTextW = 320;
     const lineSpacing = 3;
-    const detailLines = lineDefs.map(({ text, color }) => this.add.text(0, 0, text, {
-      fontFamily: 'monospace', fontSize: '9px', color, wordWrap: { width: maxTextW },
-    }).setDepth(311));
+    const detailLines = lineDefs.map(({ text, color }) =>
+      this.add
+        .text(0, 0, text, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color,
+          wordWrap: { width: maxTextW },
+        })
+        .setDepth(311),
+    );
     const textW = detailLines.reduce((max, lineObj) => Math.max(max, lineObj.width || 0), 0);
-    const textH = detailLines.reduce((sum, lineObj) => sum + (lineObj.height || 0), 0)
-      + Math.max(0, detailLines.length - 1) * lineSpacing;
+    const textH =
+      detailLines.reduce((sum, lineObj) => sum + (lineObj.height || 0), 0) +
+      Math.max(0, detailLines.length - 1) * lineSpacing;
     const boxW = Phaser.Math.Clamp(textW + padX * 2, 220, 340);
     const boxH = textH + padY * 2;
 
@@ -2463,8 +2854,10 @@ export class NodeMapScene extends Phaser.Scene {
     if (tx < 5) tx = 5;
     if (ty < 5) ty = 5;
 
-    const bg = this.add.rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(310).setStrokeStyle(1, 0x4466aa);
+    const bg = this.add
+      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
+      .setDepth(310)
+      .setStrokeStyle(1, 0x4466aa);
     this.forgeTooltip.push(bg);
     let lineY = ty + padY;
     for (const lineObj of detailLines) {
@@ -2476,7 +2869,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   _hideForgeTooltip() {
     if (this.forgeTooltip) {
-      this.forgeTooltip.forEach(o => o.destroy());
+      this.forgeTooltip.forEach((o) => o.destroy());
       this.forgeTooltip = null;
     }
   }
@@ -2488,13 +2881,18 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawRerollButton() {
-    const cost = SHOP_REROLL_COST + (this.shopRerollCount * SHOP_REROLL_ESCALATION);
+    const cost = SHOP_REROLL_COST + this.shopRerollCount * SHOP_REROLL_ESCALATION;
     const affordable = this.runManager.gold >= cost;
     const color = affordable ? '#aaddff' : '#666666';
-    const rerollBtn = this.add.text(60, 410, `[ Reroll ${cost}G ]`, {
-      fontFamily: 'monospace', fontSize: '12px', color,
-      backgroundColor: '#333333', padding: { x: 8, y: 4 },
-    }).setDepth(OVERLAY_CONTENT_DEPTH);
+    const rerollBtn = this.add
+      .text(60, 410, `[ Reroll ${cost}G ]`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color,
+        backgroundColor: '#333333',
+        padding: { x: 8, y: 4 },
+      })
+      .setDepth(OVERLAY_CONTENT_DEPTH);
     this.shopContentGroup.push(rerollBtn);
     this.shopOverlay.push(rerollBtn);
 
@@ -2505,17 +2903,24 @@ export class NodeMapScene extends Phaser.Scene {
       rerollBtn.on('pointerdown', () => {
         this.runManager.spendGold(cost);
         this.shopRerollCount++;
-        const targetCount = Math.max(0, Number(this._shopOriginalSlotCount) || this.shopBuyItems.length || 0);
+        const targetCount = Math.max(
+          0,
+          Number(this._shopOriginalSlotCount) || this.shopBuyItems.length || 0,
+        );
         const currentItems = Array.isArray(this.shopBuyItems) ? this.shopBuyItems.slice() : [];
         const hasPurchasedAny = currentItems.length < targetCount;
         const baseItems = hasPurchasedAny ? currentItems : [];
-        const itemKey = (entry) => `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
+        const itemKey = (entry) =>
+          `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
         const generatePricedItems = () => {
           const generated = generateShopInventory(
-            this.runManager.currentAct, this.gameData.lootTables,
-            this.gameData.weapons, this.gameData.consumables,
-            this.gameData.accessories, this.runManager.roster,
-            this.runManager.getWeaponArtSpawnConfig()
+            this.runManager.currentAct,
+            this.gameData.lootTables,
+            this.gameData.weapons,
+            this.gameData.consumables,
+            this.gameData.accessories,
+            this.runManager.roster,
+            this.runManager.getWeaponArtSpawnConfig(),
           );
           let priced = this.applyDifficultyShopPricing(generated);
           if (this._currentShopHasAmbushDiscount) {
@@ -2582,13 +2987,12 @@ export class NodeMapScene extends Phaser.Scene {
     const viewportHeight = 280;
     const contentHeight = rm.roster.length * 30;
     const maxOffset = Math.max(0, contentHeight - viewportHeight);
-    const pickerOptions = (
-      pickerOptionsOrItem
-      && typeof pickerOptionsOrItem === 'object'
-      && ('profCheckItem' in pickerOptionsOrItem || 'itemTypeContext' in pickerOptionsOrItem)
-    )
-      ? pickerOptionsOrItem
-      : { profCheckItem: pickerOptionsOrItem, itemTypeContext: null };
+    const pickerOptions =
+      pickerOptionsOrItem &&
+      typeof pickerOptionsOrItem === 'object' &&
+      ('profCheckItem' in pickerOptionsOrItem || 'itemTypeContext' in pickerOptionsOrItem)
+        ? pickerOptionsOrItem
+        : { profCheckItem: pickerOptionsOrItem, itemTypeContext: null };
     const profCheckItem = pickerOptions?.profCheckItem || null;
     const itemTypeContext = pickerOptions?.itemTypeContext || null;
 
@@ -2606,7 +3010,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   renderUnitPicker() {
     if (!this.unitPickerState) return;
-    if (this.unitPicker) this.unitPicker.forEach(o => o.destroy());
+    if (this.unitPicker) this.unitPicker.forEach((o) => o.destroy());
     this.unitPicker = [];
 
     const rm = this.runManager;
@@ -2619,17 +3023,27 @@ export class NodeMapScene extends Phaser.Scene {
     const listBottom = state.viewportBottom;
     const offset = state.offset || 0;
 
-    const pickerBg = this.add.rectangle(cx, panelY, panelW, panelH, 0x222222, 0.95)
-      .setDepth(400).setStrokeStyle(1, 0x888888).setInteractive();
+    const pickerBg = this.add
+      .rectangle(cx, panelY, panelW, panelH, 0x222222, 0.95)
+      .setDepth(400)
+      .setStrokeStyle(1, 0x888888)
+      .setInteractive();
     this.unitPicker.push(pickerBg);
 
-    const pickerTitle = this.add.text(cx, 102, 'Give to:', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44',
-    }).setOrigin(0.5).setDepth(401);
+    const pickerTitle = this.add
+      .text(cx, 102, 'Give to:', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5)
+      .setDepth(401);
     this.unitPicker.push(pickerTitle);
 
     const clipTop = this.add.rectangle(cx, listTop, panelW - 20, 1, 0x555555, 0.6).setDepth(401);
-    const clipBottom = this.add.rectangle(cx, listBottom, panelW - 20, 1, 0x555555, 0.6).setDepth(401);
+    const clipBottom = this.add
+      .rectangle(cx, listBottom, panelW - 20, 1, 0x555555, 0.6)
+      .setDepth(401);
     this.unitPicker.push(clipTop, clipBottom);
 
     rm.roster.forEach((unit, i) => {
@@ -2642,18 +3056,30 @@ export class NodeMapScene extends Phaser.Scene {
       const consumableCount = (unit.consumables || []).length;
       const inventoryFull = inventoryCount >= INVENTORY_MAX;
       const consumablesFull = consumableCount >= CONSUMABLE_MAX;
-      const fullSuffix = state.itemTypeContext === 'consumable'
-        ? (consumablesFull ? ' consumables full' : '')
-        : (state.itemTypeContext === 'inventory'
-          ? (inventoryFull ? ' inventory full' : '')
-          : '');
+      const fullSuffix =
+        state.itemTypeContext === 'consumable'
+          ? consumablesFull
+            ? ' consumables full'
+            : ''
+          : state.itemTypeContext === 'inventory'
+            ? inventoryFull
+              ? ' inventory full'
+              : ''
+            : '';
       const displayName = truncateUnitNameForCapacityLabel(unit.name, 16);
       const label = `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
       const color = noProf ? '#cc8844' : '#e0e0e0';
-      const btn = this.add.text(cx, y, label, {
-        fontFamily: 'monospace', fontSize: '13px', color,
-        backgroundColor: '#444444', padding: { x: 12, y: 4 },
-      }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+      const btn = this.add
+        .text(cx, y, label, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color,
+          backgroundColor: '#444444',
+          padding: { x: 12, y: 4 },
+        })
+        .setOrigin(0.5)
+        .setDepth(401)
+        .setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
@@ -2668,16 +3094,28 @@ export class NodeMapScene extends Phaser.Scene {
 
     if (state.maxOffset > 0) {
       const pct = Math.round((offset / state.maxOffset) * 100);
-      const hint = this.add.text(cx + panelW / 2 - 10, 102, `${pct}%`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      }).setOrigin(1, 0.5).setDepth(401);
+      const hint = this.add
+        .text(cx + panelW / 2 - 10, 102, `${pct}%`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+        })
+        .setOrigin(1, 0.5)
+        .setDepth(401);
       this.unitPicker.push(hint);
     }
 
-    const cancelBtn = this.add.text(cx, 430, '[ Cancel ]', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#bbbbbb',
-      backgroundColor: '#333333', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(401).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.add
+      .text(cx, 430, '[ Cancel ]', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#bbbbbb',
+        backgroundColor: '#333333',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(401)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#bbbbbb'));
     cancelBtn.on('pointerdown', () => this.closeUnitPicker());
@@ -2686,21 +3124,31 @@ export class NodeMapScene extends Phaser.Scene {
 
   closeUnitPicker() {
     if (this.unitPicker) {
-      this.unitPicker.forEach(o => o.destroy());
+      this.unitPicker.forEach((o) => o.destroy());
       this.unitPicker = null;
     }
     this.unitPickerState = null;
   }
 
   showShopBanner(msg, color) {
-    const banner = this.add.text(320, 400, msg, {
-      fontFamily: 'monospace', fontSize: '12px', color,
-      backgroundColor: '#000000cc', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(500).setAlpha(0);
+    const banner = this.add
+      .text(320, 400, msg, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(500)
+      .setAlpha(0);
 
     this.tweens.add({
-      targets: banner, alpha: 1, duration: 200,
-      yoyo: true, hold: 800,
+      targets: banner,
+      alpha: 1,
+      duration: 200,
+      yoyo: true,
+      hold: 800,
       onComplete: () => banner.destroy(),
     });
   }
@@ -2713,9 +3161,10 @@ export class NodeMapScene extends Phaser.Scene {
       .filter(Boolean);
     if (names.length <= 0) return;
     const suffix = names.length > 1 ? 's' : '';
-    const label = names.length > 2
-      ? `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
-      : names.join(', ');
+    const label =
+      names.length > 2
+        ? `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
+        : names.join(', ');
     this.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, '#88ddff');
   }
 
@@ -2724,15 +3173,15 @@ export class NodeMapScene extends Phaser.Scene {
     this._hideForgeTooltip();
     this._hideShopItemTooltip();
     if (this.shopOverlay) {
-      this.shopOverlay.forEach(o => o.destroy());
+      this.shopOverlay.forEach((o) => o.destroy());
       this.shopOverlay = null;
     }
     if (this.shopContentGroup) {
-      this.shopContentGroup.forEach(o => o.destroy());
+      this.shopContentGroup.forEach((o) => o.destroy());
       this.shopContentGroup = null;
     }
     if (this.shopTabObjects) {
-      this.shopTabObjects.forEach(o => o.destroy());
+      this.shopTabObjects.forEach((o) => o.destroy());
       this.shopTabObjects = null;
     }
     if (this.unitPicker) {
@@ -2750,11 +3199,16 @@ export class NodeMapScene extends Phaser.Scene {
       if (rm.isRunComplete()) {
         rm.status = 'victory';
         rm.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        void transitionToScene(this, 'RunComplete', {
-          gameData: this.gameData,
-          runManager: rm,
-          result: 'victory',
-        }, { reason: TRANSITION_REASONS.VICTORY });
+        void transitionToScene(
+          this,
+          'RunComplete',
+          {
+            gameData: this.gameData,
+            runManager: rm,
+            result: 'victory',
+          },
+          { reason: TRANSITION_REASONS.VICTORY },
+        );
       } else {
         this.showActCompleteBanner(() => {
           const unlockedArtIds = rm.advanceAct();
@@ -2768,18 +3222,24 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   showActCompleteBanner(onComplete) {
-    const banner = this.add.text(
-      this.cameras.main.centerX, this.cameras.main.centerY,
-      'Act Complete!',
-      {
-        fontFamily: 'monospace', fontSize: '24px', color: '#ffdd44',
-        backgroundColor: '#000000dd', padding: { x: 20, y: 10 },
-      }
-    ).setOrigin(0.5).setAlpha(0).setDepth(200);
+    const banner = this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'Act Complete!', {
+        fontFamily: 'monospace',
+        fontSize: '24px',
+        color: '#ffdd44',
+        backgroundColor: '#000000dd',
+        padding: { x: 20, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(200);
 
     this.tweens.add({
-      targets: banner, alpha: 1, duration: 300,
-      yoyo: true, hold: 1200,
+      targets: banner,
+      alpha: 1,
+      duration: 300,
+      yoyo: true,
+      hold: 1200,
       onComplete: () => {
         banner.destroy();
         if (onComplete) onComplete();
@@ -2787,4 +3247,3 @@ export class NodeMapScene extends Phaser.Scene {
     });
   }
 }
-

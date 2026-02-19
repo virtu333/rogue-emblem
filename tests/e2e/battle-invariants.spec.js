@@ -69,11 +69,9 @@ async function ensurePlayerIdle(page) {
   const state = await page.evaluate(() => window.__sceneState?.battle?.state);
   if (state === 'DEPLOY_SELECTION') {
     await advancePastDeploy(page);
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state === 'PLAYER_IDLE',
-      null,
-      { timeout: 12_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PLAYER_IDLE', null, {
+      timeout: 12_000,
+    });
   }
 }
 
@@ -140,32 +138,24 @@ test.describe('Battle invariants', () => {
     // 3. Dispatch ESC through Phaser input — should open pause
     await pressEscape(page);
 
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state === 'PAUSED',
-      null,
-      { timeout: 5_000 },
-    );
-    await page.waitForFunction(
-      () => window.__sceneState?.overlays?.pauseOverlay === true,
-      null,
-      { timeout: 3_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PAUSED', null, {
+      timeout: 5_000,
+    });
+    await page.waitForFunction(() => window.__sceneState?.overlays?.pauseOverlay === true, null, {
+      timeout: 3_000,
+    });
     const overlaysOpen = await getOverlays(page);
     expect(overlaysOpen.pauseOverlay).toBe(true);
 
     // 4. Dispatch ESC again — should close pause (Resume)
     await pressEscape(page);
 
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state !== 'PAUSED',
-      null,
-      { timeout: 5_000 },
-    );
-    await page.waitForFunction(
-      () => window.__sceneState?.overlays?.pauseOverlay === false,
-      null,
-      { timeout: 3_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state !== 'PAUSED', null, {
+      timeout: 5_000,
+    });
+    await page.waitForFunction(() => window.__sceneState?.overlays?.pauseOverlay === false, null, {
+      timeout: 3_000,
+    });
     const afterClose = await getOverlays(page);
     expect(afterClose.pauseOverlay).toBe(false);
 
@@ -188,16 +178,12 @@ test.describe('Battle invariants', () => {
       }
     });
 
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state === 'PAUSED',
-      null,
-      { timeout: 5_000 },
-    );
-    await page.waitForFunction(
-      () => window.__sceneState?.overlays?.pauseOverlay === true,
-      null,
-      { timeout: 3_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PAUSED', null, {
+      timeout: 5_000,
+    });
+    await page.waitForFunction(() => window.__sceneState?.overlays?.pauseOverlay === true, null, {
+      timeout: 3_000,
+    });
     const overlays = await getOverlays(page);
     expect(overlays.pauseOverlay).toBe(true);
 
@@ -242,17 +228,13 @@ test.describe('Battle invariants', () => {
     await clearUIBlockers(page);
 
     await pressEscape(page);
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state === 'PAUSED',
-      null,
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state === 'PAUSED', null, {
+      timeout: 5_000,
+    });
     await pressEscape(page);
-    await page.waitForFunction(
-      () => window.__sceneState?.battle?.state !== 'PAUSED',
-      null,
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.battle?.state !== 'PAUSED', null, {
+      timeout: 5_000,
+    });
     await page.waitForTimeout(900); // allow startup transition cooldown/lock to clear
 
     const ok = await page.evaluate(async () => {
@@ -313,11 +295,9 @@ test.describe('NodeMap invariants', () => {
       nodeMap.unitPickerState = { value: true };
     });
 
-    await page.waitForFunction(
-      () => window.__sceneState?.nodeMap?.state === 'UNIT_PICKER',
-      null,
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.nodeMap?.state === 'UNIT_PICKER', null, {
+      timeout: 5_000,
+    });
 
     await page.evaluate(() => {
       const game = window.__emblemRogueGame;
@@ -326,10 +306,8 @@ test.describe('NodeMap invariants', () => {
       nodeMap.unitPickerState = null;
     });
 
-    await page.waitForFunction(
-      () => window.__sceneState?.nodeMap?.state === 'IDLE',
-      null,
-      { timeout: 5_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.nodeMap?.state === 'IDLE', null, {
+      timeout: 5_000,
+    });
   });
 });

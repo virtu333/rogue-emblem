@@ -15,7 +15,9 @@ async function readStartupViewportGuardStats(page) {
   return page.evaluate(() => {
     const telemetry = window.__emblemRogueStartupTelemetry || null;
     const markers = Array.isArray(telemetry?.markers) ? telemetry.markers : [];
-    const guardMarkers = markers.filter((m) => String(m?.name || '').startsWith('startup_viewport_guard_'));
+    const guardMarkers = markers.filter((m) =>
+      String(m?.name || '').startsWith('startup_viewport_guard_'),
+    );
     const stopMarkers = markers.filter((m) => m?.name === 'startup_viewport_guard_stop');
     const maxListenerAttachCount = stopMarkers.reduce(
       (max, marker) => Math.max(max, Number(marker?.data?.listenerAttachCount || 0)),
@@ -161,11 +163,9 @@ test.describe('Boot & Title', () => {
     await page.fill('#auth-password', password);
     await page.click('#auth-submit');
 
-    await page.waitForFunction(
-      () => window.__sceneState?.ready === true,
-      null,
-      { timeout: 20_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.ready === true, null, {
+      timeout: 20_000,
+    });
     await waitForScene(page, 'Title');
 
     const loginPathGuard = await readStartupViewportGuardStats(page);
@@ -176,11 +176,9 @@ test.describe('Boot & Title', () => {
     expect(loginPathGuard.cloudModes).toContain('login');
 
     await page.reload();
-    await page.waitForFunction(
-      () => window.__sceneState?.ready === true,
-      null,
-      { timeout: 20_000 },
-    );
+    await page.waitForFunction(() => window.__sceneState?.ready === true, null, {
+      timeout: 20_000,
+    });
     await waitForScene(page, 'Title');
 
     const autoLoginPathGuard = await readStartupViewportGuardStats(page);

@@ -53,8 +53,12 @@ describe('BattleScene onVictory', () => {
     scene.cameras = { main: { centerX: 320, centerY: 240 } };
     scene.add = {
       text: vi.fn(() => ({
-        setOrigin() { return this; },
-        setDepth() { return this; },
+        setOrigin() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
       })),
     };
     const pending = [];
@@ -90,7 +94,7 @@ describe('BattleScene onVictory', () => {
       scene,
       'NodeMap',
       { gameData: scene.gameData, runManager: scene.runManager },
-      { reason: TRANSITION_REASONS.BATTLE_COMPLETE }
+      { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
     );
   });
 });

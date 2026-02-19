@@ -2,23 +2,57 @@
 // Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL]
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
-import { getData, createLord, createEnemy, createBoss, createRecruit } from './lib/SimUnitFactory.js';
-import { printTable, toCSV, parseArgs, printRecommendations, printHeader, meanStd, percentiles } from './lib/TableFormatter.js';
-import { resolveCombat, resolveHeal, calculateHealAmount, canCounter, parseRange } from '../src/engine/Combat.js';
+import {
+  getData,
+  createLord,
+  createEnemy,
+  createBoss,
+  createRecruit,
+} from './lib/SimUnitFactory.js';
+import {
+  printTable,
+  toCSV,
+  parseArgs,
+  printRecommendations,
+  printHeader,
+  meanStd,
+  percentiles,
+} from './lib/TableFormatter.js';
+import {
+  resolveCombat,
+  resolveHeal,
+  calculateHealAmount,
+  canCounter,
+  parseRange,
+} from '../src/engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, checkAstra } from '../src/engine/SkillSystem.js';
-import { gainExperience, calculateCombatXP, canPromote, promoteUnit } from '../src/engine/UnitManager.js';
+import {
+  gainExperience,
+  calculateCombatXP,
+  canPromote,
+  promoteUnit,
+} from '../src/engine/UnitManager.js';
 import { calculateKillGold, calculateBattleGold } from '../src/engine/LootSystem.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import {
-  ACT_CONFIG, ACT_SEQUENCE, NODE_TYPES, ROSTER_CAP, DEPLOY_LIMITS,
-  STARTING_GOLD, GOLD_BOSS_BONUS, BOSS_STAT_BONUS, XP_STAT_NAMES,
+  ACT_CONFIG,
+  ACT_SEQUENCE,
+  NODE_TYPES,
+  ROSTER_CAP,
+  DEPLOY_LIMITS,
+  STARTING_GOLD,
+  GOLD_BOSS_BONUS,
+  BOSS_STAT_BONUS,
+  XP_STAT_NAMES,
   ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
 const opts = parseArgs({ trials: 200, seed: 42, csv: false, verbose: false, meta: 0 });
 
 if (opts.help) {
-  console.log('Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL]');
+  console.log(
+    'Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL]',
+  );
   process.exit(0);
 }
 
@@ -26,10 +60,41 @@ const data = getData();
 const issues = [];
 
 function getMetaEffects(level) {
-  if (level === 0) return { statBonuses: {}, goldBonus: 0, battleGoldMultiplier: 0, extraVulnerary: 0, deployBonus: 0, rosterCapBonus: 0 };
-  if (level === 1) return { statBonuses: { HP: 2, STR: 1 }, goldBonus: 100, battleGoldMultiplier: 0.2, extraVulnerary: 0, deployBonus: 0, rosterCapBonus: 0 };
-  if (level === 2) return { statBonuses: { HP: 4, STR: 1, DEF: 1 }, goldBonus: 200, battleGoldMultiplier: 0.4, extraVulnerary: 1, deployBonus: 0, rosterCapBonus: 0 };
-  return { statBonuses: { HP: 6, STR: 2, DEF: 2, SPD: 2, SKL: 2, RES: 1 }, goldBonus: 300, battleGoldMultiplier: 0.4, extraVulnerary: 1, deployBonus: 1, rosterCapBonus: 2 };
+  if (level === 0)
+    return {
+      statBonuses: {},
+      goldBonus: 0,
+      battleGoldMultiplier: 0,
+      extraVulnerary: 0,
+      deployBonus: 0,
+      rosterCapBonus: 0,
+    };
+  if (level === 1)
+    return {
+      statBonuses: { HP: 2, STR: 1 },
+      goldBonus: 100,
+      battleGoldMultiplier: 0.2,
+      extraVulnerary: 0,
+      deployBonus: 0,
+      rosterCapBonus: 0,
+    };
+  if (level === 2)
+    return {
+      statBonuses: { HP: 4, STR: 1, DEF: 1 },
+      goldBonus: 200,
+      battleGoldMultiplier: 0.4,
+      extraVulnerary: 1,
+      deployBonus: 0,
+      rosterCapBonus: 0,
+    };
+  return {
+    statBonuses: { HP: 6, STR: 2, DEF: 2, SPD: 2, SKL: 2, RES: 1 },
+    goldBonus: 300,
+    battleGoldMultiplier: 0.4,
+    extraVulnerary: 1,
+    deployBonus: 1,
+    rosterCapBonus: 2,
+  };
 }
 
 function getEnemyCount(act, deployCount, row, isBoss) {
@@ -87,9 +152,12 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
   const unitDeaths = [];
 
   // Apply terrain bonuses: 30% player get Forest, 20% enemy
-  const forestTerrain = data.terrain.find(t => t.name === 'Forest') || { avoidBonus: 15, defBonus: 1 };
-  const playerTerrains = playerUnits.map(() => Math.random() < 0.3 ? forestTerrain : null);
-  const enemyTerrains = enemies.map(() => Math.random() < 0.2 ? forestTerrain : null);
+  const forestTerrain = data.terrain.find((t) => t.name === 'Forest') || {
+    avoidBonus: 15,
+    defBonus: 1,
+  };
+  const playerTerrains = playerUnits.map(() => (Math.random() < 0.3 ? forestTerrain : null));
+  const enemyTerrains = enemies.map(() => (Math.random() < 0.2 ? forestTerrain : null));
 
   while (rounds < MAX_ROUNDS && alive.player.length > 0 && alive.enemy.length > 0) {
     rounds++;
@@ -101,12 +169,15 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
 
       // Healers: heal lowest-HP ally
       if (unit.weapon?.type === 'Staff') {
-        const injured = alive.player.filter(u => u.currentHP < u.stats.HP && u !== unit);
+        const injured = alive.player.filter((u) => u.currentHP < u.stats.HP && u !== unit);
         if (injured.length > 0) {
-          const target = injured.sort((a, b) => (a.currentHP / a.stats.HP) - (b.currentHP / b.stats.HP))[0];
+          const target = injured.sort(
+            (a, b) => a.currentHP / a.stats.HP - b.currentHP / b.stats.HP,
+          )[0];
           const healResult = resolveHeal(unit.weapon, unit, target);
           target.currentHP = healResult.targetHPAfter;
-          if (verbose) console.log(`  ${unit.name} heals ${target.name} for ${healResult.healAmount}`);
+          if (verbose)
+            console.log(`  ${unit.name} heals ${target.name} for ${healResult.healAmount}`);
         }
         continue;
       }
@@ -129,17 +200,26 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const defMods = getSkillCombatMods(target, unit, alive.enemy, alive.player, data.skills);
 
       const result = resolveCombat(
-        unit, unit.weapon, target, target.weapon,
-        distance, atkTerrain, defTerrain,
-        { atkMods, defMods, rollStrikeSkills, checkAstra, skillsData: data.skills }
+        unit,
+        unit.weapon,
+        target,
+        target.weapon,
+        distance,
+        atkTerrain,
+        defTerrain,
+        { atkMods, defMods, rollStrikeSkills, checkAstra, skillsData: data.skills },
       );
 
       unit.currentHP = Math.max(0, result.attackerHP);
       target.currentHP = Math.max(0, result.defenderHP);
 
       if (verbose && result.events.length > 0) {
-        const dmgDealt = result.events.filter(e => e.attacker === unit.name && !e.miss).reduce((s, e) => s + e.damage, 0);
-        console.log(`  ${unit.name} attacks ${target.name}: ${dmgDealt} dmg, ${target.currentHP > 0 ? target.currentHP + ' HP left' : 'KILLED'}`);
+        const dmgDealt = result.events
+          .filter((e) => e.attacker === unit.name && !e.miss)
+          .reduce((s, e) => s + e.damage, 0);
+        console.log(
+          `  ${unit.name} attacks ${target.name}: ${dmgDealt} dmg, ${target.currentHP > 0 ? target.currentHP + ' HP left' : 'KILLED'}`,
+        );
       }
 
       if (target.currentHP <= 0) {
@@ -180,9 +260,14 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
       const defMods = getSkillCombatMods(target, enemy, alive.player, alive.enemy, data.skills);
 
       const result = resolveCombat(
-        enemy, enemy.weapon, target, target.weapon,
-        distance, atkTerrain, defTerrain,
-        { atkMods, defMods, rollStrikeSkills, checkAstra, skillsData: data.skills }
+        enemy,
+        enemy.weapon,
+        target,
+        target.weapon,
+        distance,
+        atkTerrain,
+        defTerrain,
+        { atkMods, defMods, rollStrikeSkills, checkAstra, skillsData: data.skills },
       );
 
       enemy.currentHP = Math.max(0, result.attackerHP);
@@ -239,10 +324,14 @@ function simulateRun(metaLevel, verbose) {
 
     while (currentId && !visited.has(currentId)) {
       visited.add(currentId);
-      const node = nodeMap.nodes.find(n => n.id === currentId);
+      const node = nodeMap.nodes.find((n) => n.id === currentId);
       if (!node) break;
 
-      if (node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) {
+      if (
+        node.type === NODE_TYPES.BATTLE ||
+        node.type === NODE_TYPES.BOSS ||
+        node.type === NODE_TYPES.RECRUIT
+      ) {
         totalBattles++;
         const isBoss = node.type === NODE_TYPES.BOSS;
 
@@ -277,27 +366,32 @@ function simulateRun(metaLevel, verbose) {
           if (Array.isArray(classPool) && classPool.length > 0) {
             const className = classPool[Math.floor(Math.random() * classPool.length)];
             const namePool = data.recruits?.namePool?.[className] || [];
-            const recruitName = namePool.length > 0
-              ? namePool[Math.floor(Math.random() * namePool.length)]
-              : `${className} Recruit`;
+            const recruitName =
+              namePool.length > 0
+                ? namePool[Math.floor(Math.random() * namePool.length)]
+                : `${className} Recruit`;
             const [minLevel, maxLevel] = recruitConfig.levelRange || [1, 1];
             const level = minLevel + Math.floor(Math.random() * (maxLevel - minLevel + 1));
             try {
               recruitUnit = createRecruit(className, recruitName, level);
-            } catch (_) { /* skip recruit */ }
+            } catch (_) {
+              /* skip recruit */
+            }
           }
         }
 
         // Deploy: select alive units, respecting deploy limits
-        const aliveRoster = roster.filter(u => u.currentHP > 0);
+        const aliveRoster = roster.filter((u) => u.currentHP > 0);
         const deployLimits = DEPLOY_LIMITS[actId] || { min: 4, max: 6 };
         const deployMax = Math.min(deployLimits.max + (meta.deployBonus || 0), aliveRoster.length);
         const deployCount = Math.max(deployLimits.min, Math.min(deployMax, aliveRoster.length));
         const deployed = aliveRoster.slice(0, deployCount);
 
         if (verbose) {
-          console.log(`\n  Battle ${totalBattles} (${node.type}): ${deployed.length} vs ${enemies.length} enemies`);
-          console.log(`  Deploy: ${deployed.map(u => `${u.name} L${u.level}`).join(', ')}`);
+          console.log(
+            `\n  Battle ${totalBattles} (${node.type}): ${deployed.length} vs ${enemies.length} enemies`,
+          );
+          console.log(`  Deploy: ${deployed.map((u) => `${u.name} L${u.level}`).join(', ')}`);
         }
 
         const result = resolveBattle(deployed, enemies, actId, isBoss, meta, verbose);
@@ -312,7 +406,7 @@ function simulateRun(metaLevel, verbose) {
 
         // Remove dead units from roster (except Edric — checked above)
         for (const deadName of result.unitDeaths) {
-          const idx = roster.findIndex(u => u.name === deadName);
+          const idx = roster.findIndex((u) => u.name === deadName);
           if (idx >= 0) {
             unitDeathLog.push({ name: deadName, act: actId, battle: totalBattles });
             roster.splice(idx, 1);
@@ -320,17 +414,24 @@ function simulateRun(metaLevel, verbose) {
         }
 
         // Add recruit to roster if battle won and space available
-        if (recruitUnit && result.victory && roster.length < ROSTER_CAP + (meta.rosterCapBonus || 0)) {
+        if (
+          recruitUnit &&
+          result.victory &&
+          roster.length < ROSTER_CAP + (meta.rosterCapBonus || 0)
+        ) {
           recruitUnit.faction = 'player';
           roster.push(recruitUnit);
-          if (verbose) console.log(`  Recruited ${recruitUnit.name} (${recruitUnit.className} L${recruitUnit.level})`);
+          if (verbose)
+            console.log(
+              `  Recruited ${recruitUnit.name} (${recruitUnit.className} L${recruitUnit.level})`,
+            );
         }
 
         // Try promotion for Edric if affordable and eligible
-        const edric = roster.find(u => u.name === 'Edric');
+        const edric = roster.find((u) => u.name === 'Edric');
         if (edric && canPromote(edric) && gold >= 2500 && !promoted) {
-          const lordData = data.lords.find(l => l.name === 'Edric');
-          const promotedClassData = data.classes.find(c => c.name === lordData.promotedClass);
+          const lordData = data.lords.find((l) => l.name === 'Edric');
+          const promotedClassData = data.classes.find((c) => c.name === lordData.promotedClass);
           if (promotedClassData) {
             promoteUnit(edric, promotedClassData, lordData.promotionBonuses, data.skills);
             gold -= 2500;
@@ -367,8 +468,8 @@ function simulateRun(metaLevel, verbose) {
     totalBattles,
     finalGold: gold,
     rosterSize: roster.length,
-    edricLevel: roster.find(u => u.name === 'Edric')?.level || 0,
-    edricTier: roster.find(u => u.name === 'Edric')?.tier || 'base',
+    edricLevel: roster.find((u) => u.name === 'Edric')?.level || 0,
+    edricTier: roster.find((u) => u.name === 'Edric')?.tier || 'base',
     promoted,
     unitDeaths: unitDeathLog,
   };
@@ -393,7 +494,7 @@ if (opts.verbose) {
   console.log(`  Edric Level: ${result.edricLevel} (${result.edricTier})`);
   console.log(`  Roster: ${result.rosterSize}`);
   if (result.unitDeaths.length > 0) {
-    console.log(`  Deaths: ${result.unitDeaths.map(d => `${d.name} (${d.act})`).join(', ')}`);
+    console.log(`  Deaths: ${result.unitDeaths.map((d) => `${d.name} (${d.act})`).join(', ')}`);
   }
   restoreMathRandom();
 } else {
@@ -409,24 +510,36 @@ if (opts.verbose) {
       results.push(simulateRun(ml, false));
     }
 
-    const winRate = results.filter(r => r.victory).length / results.length * 100;
-    const edricDeathRate = results.filter(r => r.edricDied).length / results.length * 100;
-    const promoRate = results.filter(r => r.promoted).length / results.length * 100;
-    const avgBattles = meanStd(results.map(r => r.totalBattles));
-    const avgActs = meanStd(results.map(r => r.actsCompleted));
-    const avgRoster = meanStd(results.map(r => r.rosterSize));
-    const avgGold = meanStd(results.map(r => r.finalGold));
-    const avgEdricLevel = meanStd(results.map(r => r.edricLevel));
+    const winRate = (results.filter((r) => r.victory).length / results.length) * 100;
+    const edricDeathRate = (results.filter((r) => r.edricDied).length / results.length) * 100;
+    const promoRate = (results.filter((r) => r.promoted).length / results.length) * 100;
+    const avgBattles = meanStd(results.map((r) => r.totalBattles));
+    const avgActs = meanStd(results.map((r) => r.actsCompleted));
+    const avgRoster = meanStd(results.map((r) => r.rosterSize));
+    const avgGold = meanStd(results.map((r) => r.finalGold));
+    const avgEdricLevel = meanStd(results.map((r) => r.edricLevel));
 
     const summaryRows = [
       { Metric: 'Win Rate', Value: `${winRate.toFixed(1)}%` },
       { Metric: 'Edric Death Rate', Value: `${edricDeathRate.toFixed(1)}%` },
       { Metric: 'Promotion Rate', Value: `${promoRate.toFixed(1)}%` },
-      { Metric: 'Avg Battles', Value: `${avgBattles.mean.toFixed(1)} ± ${avgBattles.std.toFixed(1)}` },
-      { Metric: 'Avg Acts Completed', Value: `${avgActs.mean.toFixed(1)} ± ${avgActs.std.toFixed(1)}` },
-      { Metric: 'Avg Roster Size', Value: `${avgRoster.mean.toFixed(1)} ± ${avgRoster.std.toFixed(1)}` },
+      {
+        Metric: 'Avg Battles',
+        Value: `${avgBattles.mean.toFixed(1)} ± ${avgBattles.std.toFixed(1)}`,
+      },
+      {
+        Metric: 'Avg Acts Completed',
+        Value: `${avgActs.mean.toFixed(1)} ± ${avgActs.std.toFixed(1)}`,
+      },
+      {
+        Metric: 'Avg Roster Size',
+        Value: `${avgRoster.mean.toFixed(1)} ± ${avgRoster.std.toFixed(1)}`,
+      },
       { Metric: 'Avg Final Gold', Value: `${avgGold.mean.toFixed(0)} ± ${avgGold.std.toFixed(0)}` },
-      { Metric: 'Avg Edric Level', Value: `${avgEdricLevel.mean.toFixed(1)} ± ${avgEdricLevel.std.toFixed(1)}` },
+      {
+        Metric: 'Avg Edric Level',
+        Value: `${avgEdricLevel.mean.toFixed(1)} ± ${avgEdricLevel.std.toFixed(1)}`,
+      },
     ];
 
     if (opts.csv) {
@@ -444,9 +557,13 @@ if (opts.verbose) {
       }
     }
     if (Object.keys(deathsByAct).length > 0) {
-      const deathRows = Object.entries(deathsByAct).sort((a, b) => b[1] - a[1]).map(([act, count]) => ({
-        Act: act, Deaths: count, Rate: `${(count / results.length * 100).toFixed(1)}%`,
-      }));
+      const deathRows = Object.entries(deathsByAct)
+        .sort((a, b) => b[1] - a[1])
+        .map(([act, count]) => ({
+          Act: act,
+          Deaths: count,
+          Rate: `${((count / results.length) * 100).toFixed(1)}%`,
+        }));
       console.log('  Edric death breakdown by act:');
       if (opts.csv) {
         toCSV(['Act', 'Deaths', 'Rate'], deathRows);
@@ -462,9 +579,14 @@ if (opts.verbose) {
         deathFreq[d.name] = (deathFreq[d.name] || 0) + 1;
       }
     }
-    const freqRows = Object.entries(deathFreq).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({
-      Unit: name, Deaths: count, Rate: `${(count / results.length * 100).toFixed(1)}%`,
-    }));
+    const freqRows = Object.entries(deathFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        Unit: name,
+        Deaths: count,
+        Rate: `${((count / results.length) * 100).toFixed(1)}%`,
+      }));
     if (freqRows.length > 0) {
       console.log('  Most frequent unit deaths:');
       if (opts.csv) {

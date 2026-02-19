@@ -64,9 +64,10 @@ describe('RunSimulationDriver', () => {
       getShopPriceDiscount: () => 0.15,
     };
 
-    const priced = driver._applyShopPricing([
-      { item: { name: 'Iron Sword' }, type: 'weapon', price: 100 },
-    ], { ambushDiscount: true });
+    const priced = driver._applyShopPricing(
+      [{ item: { name: 'Iron Sword' }, type: 'weapon', price: 100 }],
+      { ambushDiscount: true },
+    );
 
     expect(priced).toHaveLength(1);
     expect(priced[0].price).toBe(77);
@@ -89,7 +90,12 @@ describe('RunSimulationDriver', () => {
     driver._runBattleNode = vi.fn(async () => ({ result: 'victory' }));
     driver._applyShopPricing = vi.fn(() => []);
 
-    const node = { id: 'shop_ambush_1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const node = {
+      id: 'shop_ambush_1',
+      type: NODE_TYPES.SHOP,
+      isAmbush: true,
+      ambushCleared: false,
+    };
     const result = await driver._runShopNode(node);
 
     expect(driver._runBattleNode).toHaveBeenCalledWith(node);
@@ -116,7 +122,12 @@ describe('RunSimulationDriver', () => {
     driver._runBattleNode = vi.fn(async () => ({ result: 'defeat' }));
     driver._applyShopPricing = vi.fn(() => []);
 
-    const node = { id: 'shop_ambush_defeat_1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const node = {
+      id: 'shop_ambush_defeat_1',
+      type: NODE_TYPES.SHOP,
+      isAmbush: true,
+      ambushCleared: false,
+    };
     const result = await driver._runShopNode(node);
 
     expect(driver._runBattleNode).toHaveBeenCalledWith(node);
@@ -144,7 +155,12 @@ describe('RunSimulationDriver', () => {
     driver._runBattleNode = vi.fn(async () => ({ result: 'timeout' }));
     driver._applyShopPricing = vi.fn(() => []);
 
-    const node = { id: 'shop_ambush_timeout_1', type: NODE_TYPES.SHOP, isAmbush: true, ambushCleared: false };
+    const node = {
+      id: 'shop_ambush_timeout_1',
+      type: NODE_TYPES.SHOP,
+      isAmbush: true,
+      ambushCleared: false,
+    };
     const result = await driver._runShopNode(node);
 
     expect(driver._runBattleNode).toHaveBeenCalledWith(node);

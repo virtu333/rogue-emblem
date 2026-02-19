@@ -29,11 +29,21 @@ function makeUiObject() {
   const handlers = {};
   return {
     handlers,
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor() { return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
     on(event, cb) {
       handlers[event] = cb;
       return this;
@@ -112,7 +122,9 @@ describe('BattleScene mobile camera gesture policy', () => {
       _touchHoldTriggered: true,
     };
 
-    const consumed = BattleScene.prototype._handleCameraGesturePointerDown.call(scene, { wasTouch: true });
+    const consumed = BattleScene.prototype._handleCameraGesturePointerDown.call(scene, {
+      wasTouch: true,
+    });
 
     expect(consumed).toBe(true);
     expect(cancelTouchInspectHold).toHaveBeenCalledTimes(1);
@@ -122,7 +134,9 @@ describe('BattleScene mobile camera gesture policy', () => {
   it('recognizes touch pointers through Phaser wasTouch metadata', () => {
     const scene = {};
     expect(BattleScene.prototype._isTouchPointer.call(scene, { wasTouch: true })).toBe(true);
-    expect(BattleScene.prototype._isTouchPointer.call(scene, { event: { pointerType: 'touch' } })).toBe(true);
+    expect(
+      BattleScene.prototype._isTouchPointer.call(scene, { event: { pointerType: 'touch' } }),
+    ).toBe(true);
     expect(BattleScene.prototype._isTouchPointer.call(scene, { pointerType: 'mouse' })).toBe(false);
   });
 

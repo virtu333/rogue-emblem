@@ -27,12 +27,16 @@ function normalizeCombatEffectiveness(value) {
   if (!value || typeof value !== 'object') return null;
   const rawMoveTypes = Array.isArray(value.moveTypes)
     ? value.moveTypes
-    : (typeof value.moveType === 'string' ? [value.moveType] : []);
-  const moveTypes = [...new Set(
-    rawMoveTypes
-      .map((entry) => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
-      .filter(Boolean)
-  )];
+    : typeof value.moveType === 'string'
+      ? [value.moveType]
+      : [];
+  const moveTypes = [
+    ...new Set(
+      rawMoveTypes
+        .map((entry) => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
+        .filter(Boolean),
+    ),
+  ];
   const multiplier = Math.max(1, Math.trunc(Number(value.multiplier) || 1));
   if (moveTypes.length <= 0 || multiplier <= 1) return null;
   return { moveTypes, multiplier };
@@ -57,13 +61,14 @@ function normalizeCombatMultiHit(value) {
   const count = Math.trunc(Number(value.count) || 0);
   if (count < 2) return null;
   const damageMultiplier = Number(value.damageMultiplier);
-  if (!Number.isFinite(damageMultiplier) || damageMultiplier <= 0 || damageMultiplier > 1) return null;
+  if (!Number.isFinite(damageMultiplier) || damageMultiplier <= 0 || damageMultiplier > 1)
+    return null;
   return { count, damageMultiplier };
 }
 
 function normalizeCombatDrainPercent(value) {
   const n = Number(value);
-  return (Number.isFinite(n) && n > 0) ? n : null;
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function mergeCombatEffectiveness(baseValue, extraValue) {
@@ -81,9 +86,8 @@ function mergeCombatEffectiveness(baseValue, extraValue) {
 function getArtEffectivenessMultiplier(mods, defender) {
   const effectiveness = mods?.effectiveness;
   if (!effectiveness) return 1;
-  const defenderType = typeof defender?.moveType === 'string'
-    ? defender.moveType.trim().toLowerCase()
-    : '';
+  const defenderType =
+    typeof defender?.moveType === 'string' ? defender.moveType.trim().toLowerCase() : '';
   if (!defenderType) return 1;
   if (!Array.isArray(effectiveness.moveTypes) || effectiveness.moveTypes.length <= 0) return 1;
   if (!effectiveness.moveTypes.includes(defenderType)) return 1;
@@ -202,7 +206,9 @@ export function isStaff(weapon) {
 /** Check weapon effectiveness vs defender's moveType. Returns multiplier (1 if none). */
 export function getEffectivenessMultiplier(weapon, defender) {
   const normalizeMoveType = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
     if (normalized === 'calvary') return 'cavalry';
     return normalized;
   };
@@ -210,9 +216,9 @@ export function getEffectivenessMultiplier(weapon, defender) {
   // Check if defender's accessory negates effectiveness
   if (defender.accessory?.combatEffects?.negateEffectiveness) return 1;
   if (
-    weapon?.type === 'Bow'
-    && defender.moveType === 'Flying'
-    && defender.accessory?.combatEffects?.negateFlierWeakness
+    weapon?.type === 'Bow' &&
+    defender.moveType === 'Flying' &&
+    defender.accessory?.combatEffects?.negateFlierWeakness
   ) {
     return 1;
   }
@@ -223,7 +229,7 @@ export function getEffectivenessMultiplier(weapon, defender) {
   if (!match) return 1;
   const defenderMoveType = normalizeMoveType(defender.moveType);
   const targets = match[1]
-    .split(/[\/,]| and /i)
+    .split(/[/,]| and /i)
     .map(normalizeMoveType)
     .filter(Boolean);
   return targets.includes(defenderMoveType) ? parseInt(match[2], 10) : 1;
@@ -253,8 +259,8 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
   if (!special || !special.toLowerCase().includes('if no adjacent allies')) return result;
 
   const allies = Array.isArray(allAllies) ? allAllies : [];
-  const hasAdjacentAlly = allies.some(a =>
-    a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1
+  const hasAdjacentAlly = allies.some(
+    (a) => a !== unit && gridDistance(unit.col, unit.row, a.col, a.row) === 1,
   );
   if (hasAdjacentAlly) return result;
 
@@ -310,11 +316,11 @@ export function calculateEffectiveWeight(weapon, unit) {
  */
 export function calculateEffectiveSpeed(unit, weapon, additionalSpdBonus = 0) {
   if (!weapon || isStaff(weapon)) return unit.stats.SPD + additionalSpdBonus;
-  
+
   const weight = calculateEffectiveWeight(weapon, unit);
   const wpnBonuses = getWeaponStatBonuses(weapon);
   const wpnSpdBonus = sumWeaponBonus(wpnBonuses, 'SPD');
-  
+
   return unit.stats.SPD - weight + wpnSpdBonus + additionalSpdBonus;
 }
 
@@ -332,7 +338,7 @@ export function getStaticCombatStats(unit, weapon) {
   const as = calculateEffectiveSpeed(unit, weapon);
 
   // Static Hit/Crit (standard formulas without defender avoid/luck)
-  const hit = weapon.hit + (unit.stats.SKL * 2) + unit.stats.LCK;
+  const hit = weapon.hit + unit.stats.SKL * 2 + unit.stats.LCK;
   const crit = Math.floor(unit.stats.SKL / 2) + weapon.crit;
 
   return { atk, as, hit, crit, weight };
@@ -367,7 +373,7 @@ export function resolveHeal(staff, healer, target) {
 
 /** Count bonus uses from MAG thresholds (8→+1, 14→+2, 20→+3). */
 export function calculateBonusUses(mag) {
-  return STAFF_BONUS_USE_THRESHOLDS.filter(t => mag >= t).length;
+  return STAFF_BONUS_USE_THRESHOLDS.filter((t) => mag >= t).length;
 }
 
 /** Total max uses for a staff given the healer's MAG. */
@@ -413,7 +419,8 @@ export function getEffectiveStaffRange(staff, healer) {
   const baseRange = parseRange(staff.range);
   if (!staff.rangeBonuses) return baseRange;
   const bonus = staff.rangeBonuses.reduce(
-    (sum, rb) => sum + (healer.stats.MAG >= rb.mag ? rb.bonus : 0), 0
+    (sum, rb) => sum + (healer.stats.MAG >= rb.mag ? rb.bonus : 0),
+    0,
   );
   return { min: baseRange.min, max: baseRange.max + bonus };
 }
@@ -479,15 +486,13 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
   const mastery = weaponRank === 'Mast';
   const atkReaver = attackerWeapon.special?.includes('Reverses weapon triangle') ?? false;
   const defReaver = defenderWeapon.special?.includes('Reverses weapon triangle') ?? false;
-  const shouldReverse = atkReaver !== defReaver;  // XOR: one reaver reverses, two cancel out
+  const shouldReverse = atkReaver !== defReaver; // XOR: one reaver reverses, two cancel out
 
   let result = { hit: 0, damage: 0 };
 
   // Attacker has advantage
   if (matchups[atkType] === defType) {
-    result = mastery
-      ? { ...WEAPON_TRIANGLE.masteryAdvantage }
-      : { ...WEAPON_TRIANGLE.advantage };
+    result = mastery ? { ...WEAPON_TRIANGLE.masteryAdvantage } : { ...WEAPON_TRIANGLE.advantage };
   }
 
   // Attacker has disadvantage
@@ -501,9 +506,7 @@ export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRan
   if (shouldReverse && (result.hit !== 0 || result.damage !== 0)) {
     if (result.hit < 0) {
       // Was disadvantage → become advantage
-      result = mastery
-        ? { ...WEAPON_TRIANGLE.masteryAdvantage }
-        : { ...WEAPON_TRIANGLE.advantage };
+      result = mastery ? { ...WEAPON_TRIANGLE.masteryAdvantage } : { ...WEAPON_TRIANGLE.advantage };
     } else if (result.hit > 0) {
       // Was advantage → become disadvantage
       result = mastery
@@ -530,20 +533,23 @@ export function calculateAttack(
   triangleBonus = { damage: 0 },
   defender = null,
   isInitiating = true,
-  effectivenessMultiplier = null
+  effectivenessMultiplier = null,
 ) {
   const stat = usesMagic(weapon) ? unit.stats.MAG : unit.stats.STR;
-  const normalizedEffMult = (effectivenessMultiplier !== null && effectivenessMultiplier !== undefined
-    && Number.isFinite(Number(effectivenessMultiplier)))
-    ? Math.max(1, Number(effectivenessMultiplier))
-    : null;
-  const effMult = normalizedEffMult ?? (defender ? getEffectivenessMultiplier(weapon, defender) : 1);
+  const normalizedEffMult =
+    effectivenessMultiplier !== null &&
+    effectivenessMultiplier !== undefined &&
+    Number.isFinite(Number(effectivenessMultiplier))
+      ? Math.max(1, Number(effectivenessMultiplier))
+      : null;
+  const effMult =
+    normalizedEffMult ?? (defender ? getEffectivenessMultiplier(weapon, defender) : 1);
   // Gae Bolg: +5 STR when counterattacking (defending)
   let bonus = 0;
   if (!isInitiating && weapon?.special?.includes('+5 STR when counterattacking')) {
     bonus = 5;
   }
-  return stat + bonus + (weapon.might * effMult) + triangleBonus.damage;
+  return stat + bonus + weapon.might * effMult + triangleBonus.damage;
 }
 
 /** Defense against an incoming weapon (DEF for physical, RES for magical/magic sword). */
@@ -554,12 +560,18 @@ export function calculateDefense(unit, incomingWeapon) {
 /** Avoid = SPD×2 + LCK + terrain avoid bonus */
 export function calculateAvoid(unit, terrain) {
   const terrainAvoid = parseInt(terrain?.avoidBonus, 10) || 0;
-  return (unit.stats.SPD * 2) + unit.stats.LCK + terrainAvoid;
+  return unit.stats.SPD * 2 + unit.stats.LCK + terrainAvoid;
 }
 
 /** Hit rate, clamped [0, 100] */
-export function calculateHitRate(attacker, weapon, defender, defenderTerrain, triangleBonus = { hit: 0 }) {
-  const rawHit = weapon.hit + (attacker.stats.SKL * 2) + attacker.stats.LCK + triangleBonus.hit;
+export function calculateHitRate(
+  attacker,
+  weapon,
+  defender,
+  defenderTerrain,
+  triangleBonus = { hit: 0 },
+) {
+  const rawHit = weapon.hit + attacker.stats.SKL * 2 + attacker.stats.LCK + triangleBonus.hit;
   const avoid = calculateAvoid(defender, defenderTerrain);
   return Math.max(0, Math.min(100, rawHit - avoid));
 }
@@ -578,7 +590,7 @@ export function calculateDamage(
   defWeapon,
   defenderTerrain,
   isInitiating = true,
-  options = null
+  options = null,
 ) {
   const triangle = defWeapon
     ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
@@ -591,11 +603,9 @@ export function calculateDamage(
     triangle,
     defender,
     isInitiating,
-    Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null
+    Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
-  let def = targetsRES
-    ? (Number(defender?.stats?.RES) || 0)
-    : calculateDefense(defender, atkWeapon);
+  let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
   if (!targetsRES && hasSunderEffect(atkWeapon)) {
     def = Math.floor(def / 2);
   }
@@ -630,23 +640,44 @@ export function canCounter(defender, defenderWeapon, distance) {
  *   Each has: { hitBonus, avoidBonus, critBonus, atkBonus, defBonus, statScaling, preventCounter, targetsRES, effectiveness, rangeBonus, rangeOverride, halfPhysicalDamage, vengeance, ignoreTerrainAvoid, vantage, activated }
  */
 export function getCombatForecast(
-  attacker, atkWeapon,
-  defender, defWeapon,
-  distance, atkTerrain, defTerrain,
-  skillCtx = null
+  attacker,
+  atkWeapon,
+  defender,
+  defWeapon,
+  distance,
+  atkTerrain,
+  defTerrain,
+  skillCtx = null,
 ) {
   // Safety: if attacker has no valid weapon, return zeroed forecast
   if (!atkWeapon || isStaff(atkWeapon)) {
     return {
       attacker: {
-        name: attacker.name, hp: attacker.currentHP ?? attacker.stats.HP,
-        damage: 0, hit: 0, crit: 0, doubles: false, brave: false, attackCount: 0, skills: [],
-        multiHit: null, drainPercent: 0,
+        name: attacker.name,
+        hp: attacker.currentHP ?? attacker.stats.HP,
+        damage: 0,
+        hit: 0,
+        crit: 0,
+        doubles: false,
+        brave: false,
+        attackCount: 0,
+        skills: [],
+        multiHit: null,
+        drainPercent: 0,
       },
       defender: {
-        name: defender.name, hp: defender.currentHP ?? defender.stats.HP,
-        canCounter: false, damage: 0, hit: 0, crit: 0, doubles: false, brave: false, attackCount: 0, skills: [],
-        multiHit: null, drainPercent: 0,
+        name: defender.name,
+        hp: defender.currentHP ?? defender.stats.HP,
+        canCounter: false,
+        damage: 0,
+        hit: 0,
+        crit: 0,
+        doubles: false,
+        brave: false,
+        attackCount: 0,
+        skills: [],
+        multiHit: null,
+        drainPercent: 0,
       },
     };
   }
@@ -665,34 +696,42 @@ export function getCombatForecast(
   const fDefWpnBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const fAtkWpnBonuses = getWeaponStatBonuses(atkWeapon);
   const fDefWpnDef = sumWeaponBonus(fDefWpnBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
-  const fAtkWpnDef = defWeapon ? sumWeaponBonus(fAtkWpnBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF') : 0;
+  const fAtkWpnDef = defWeapon
+    ? sumWeaponBonus(fAtkWpnBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
+    : 0;
 
   // Attacker stats (skill mods applied as flat adjustments)
-  const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
+  const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
-  let atkDmg = calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
-    targetsRES: atkMods?.targetsRES,
-    effectivenessMultiplier: atkEffectiveness,
-  })
-    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0)
-    - (usesMagic(atkWeapon) ? (defMods?.resBonus || 0) : 0) - fDefWpnDef;
+  let atkDmg =
+    calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
+      targetsRES: atkMods?.targetsRES,
+      effectivenessMultiplier: atkEffectiveness,
+    }) +
+    (atkMods?.atkBonus || 0) -
+    (defMods?.defBonus || 0) -
+    (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+    fDefWpnDef;
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   atkDmg = Math.max(0, atkDmg);
   if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
-  let atkHit = calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
-    + (atkMods?.hitBonus || 0) - (defMods?.avoidBonus || 0);
+  let atkHit =
+    calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
+    (atkMods?.hitBonus || 0) -
+    (defMods?.avoidBonus || 0);
   atkHit = Math.max(0, Math.min(100, atkHit));
-  let atkCrit = calculateCritRate(attacker, atkWeapon, defender)
-    + (atkMods?.critBonus || 0);
+  let atkCrit = calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
 
   // Doubling with accessory + skill + weight modifiers
   const fAtkPursuit = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const fDefPursuit = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
-  const fAtkPrevent = attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
-  const fDefPrevent = defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
+  const fAtkPrevent =
+    attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
+  const fDefPrevent =
+    defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
   const atkSpdBonus = atkMods?.spdBonus || 0;
   const defSpdBonus = defMods?.spdBonus || 0;
 
@@ -700,45 +739,57 @@ export function getCombatForecast(
   const defEffectiveSpd = calculateEffectiveSpeed(defender, defWeapon, defSpdBonus);
 
   const atkArtActive = hasWeaponArtActivation(atkMods);
-  const atkDoubles = !atkArtActive && !fDefPrevent && (
-    atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit
-  );
+  const atkDoubles =
+    !atkArtActive &&
+    !fDefPrevent &&
+    atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit;
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
-  const atkBaseCount = atkMultiHit ? atkMultiHit.count : (atkBrave ? 2 : 1);
+  const atkBaseCount = atkMultiHit ? atkMultiHit.count : atkBrave ? 2 : 1;
   const atkCount = atkBaseCount * (atkDoubles ? 2 : 1);
 
   const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
   const combatSkillState = { adeptUsed: new Set() };
-  let defDmg = 0, defHit = 0, defCrit = 0, defDoubles = false, defBrave = false, defCount = 0;
+  let defDmg = 0,
+    defHit = 0,
+    defCrit = 0,
+    defDoubles = false,
+    defBrave = false,
+    defCount = 0;
 
   if (defCanCounter) {
     const defTriangle = getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
-    const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
+    const atkTerrainForDefHit = defMods?.ignoreTerrainAvoid ? null : atkTerrain;
     const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
-    defDmg = calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
-      targetsRES: defMods?.targetsRES,
-      effectivenessMultiplier: defEffectiveness,
-    })
-      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0)
-      - (usesMagic(defWeapon) ? (atkMods?.resBonus || 0) : 0) - fAtkWpnDef;
+    defDmg =
+      calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
+        targetsRES: defMods?.targetsRES,
+        effectivenessMultiplier: defEffectiveness,
+      }) +
+      (defMods?.atkBonus || 0) -
+      (atkMods?.defBonus || 0) -
+      (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+      fAtkWpnDef;
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     defDmg = Math.max(0, defDmg);
     if (defMultiHit) defDmg = Math.max(1, Math.floor(defDmg * defMultiHit.damageMultiplier));
-    defHit = calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
-      + (defMods?.hitBonus || 0) - (atkMods?.avoidBonus || 0);
+    defHit =
+      calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle) +
+      (defMods?.hitBonus || 0) -
+      (atkMods?.avoidBonus || 0);
     defHit = Math.max(0, Math.min(100, defHit));
-    defCrit = calculateCritRate(defender, defWeapon, attacker)
-      + (defMods?.critBonus || 0);
+    defCrit = calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0);
     defCrit = Math.max(0, Math.min(100, defCrit));
     // Quick Riposte: always double when defending above 50% HP
     const defArtActive = hasWeaponArtActivation(defMods);
-    defDoubles = (defMods?.quickRiposte) || (!defArtActive && !fAtkPrevent && (
-      defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit
-    ));
+    defDoubles =
+      defMods?.quickRiposte ||
+      (!defArtActive &&
+        !fAtkPrevent &&
+        defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit);
     defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
-    const defBaseCount = defMultiHit ? defMultiHit.count : (defBrave ? 2 : 1);
+    const defBaseCount = defMultiHit ? defMultiHit.count : defBrave ? 2 : 1;
     defCount = defBaseCount * (defDoubles ? 2 : 1);
   }
 
@@ -749,33 +800,49 @@ export function getCombatForecast(
   const defWarnings = [];
 
   if (Array.isArray(defender.affixes)) {
-    if (defender.affixes.includes('shielded') && !defender._hitByPlayerThisPhase) atkWarnings.push('Shielded');
-    if (defender.affixes.includes('thorns') && distance === 1 && atkDmg > 0) atkWarnings.push('Thorns');
+    if (defender.affixes.includes('shielded') && !defender._hitByPlayerThisPhase)
+      atkWarnings.push('Shielded');
+    if (defender.affixes.includes('thorns') && distance === 1 && atkDmg > 0)
+      atkWarnings.push('Thorns');
     if (defender.affixes.includes('teleporter') && atkDmg > 0) atkWarnings.push('Teleporter');
   }
   if (Array.isArray(attacker.affixes)) {
-    if (attacker.affixes.includes('shielded') && !attacker._hitByPlayerThisPhase) defWarnings.push('Shielded');
-    if (attacker.affixes.includes('thorns') && distance === 1 && defDmg > 0) defWarnings.push('Thorns');
+    if (attacker.affixes.includes('shielded') && !attacker._hitByPlayerThisPhase)
+      defWarnings.push('Shielded');
+    if (attacker.affixes.includes('thorns') && distance === 1 && defDmg > 0)
+      defWarnings.push('Thorns');
     if (attacker.affixes.includes('teleporter') && defDmg > 0) defWarnings.push('Teleporter');
   }
 
   const forecast = {
     attacker: {
-      name: attacker.name, hp: attacker.currentHP ?? attacker.stats.HP,
-      damage: atkDmg, hit: atkHit, crit: atkCrit,
+      name: attacker.name,
+      hp: attacker.currentHP ?? attacker.stats.HP,
+      damage: atkDmg,
+      hit: atkHit,
+      crit: atkCrit,
       as: atkEffectiveSpd,
-      doubles: atkDoubles, brave: atkBrave, attackCount: atkCount,
-      multiHit: atkMultiHit, drainPercent: atkMods?.drainPercent || 0,
+      doubles: atkDoubles,
+      brave: atkBrave,
+      attackCount: atkCount,
+      multiHit: atkMultiHit,
+      drainPercent: atkMods?.drainPercent || 0,
       skills: atkActivated,
       warnings: atkWarnings,
     },
     defender: {
-      name: defender.name, hp: defender.currentHP ?? defender.stats.HP,
+      name: defender.name,
+      hp: defender.currentHP ?? defender.stats.HP,
       canCounter: defCanCounter,
-      damage: defDmg, hit: defHit, crit: defCrit,
+      damage: defDmg,
+      hit: defHit,
+      crit: defCrit,
       as: defEffectiveSpd,
-      doubles: defDoubles, brave: defBrave, attackCount: defCount,
-      multiHit: defMultiHit, drainPercent: defMods?.drainPercent || 0,
+      doubles: defDoubles,
+      brave: defBrave,
+      attackCount: defCount,
+      multiHit: defMultiHit,
+      drainPercent: defMods?.drainPercent || 0,
       skills: defActivated,
       warnings: defWarnings,
     },
@@ -812,7 +879,7 @@ function rollStrike(
   weaponSpecial,
   strikeSides = null,
   drainPercent = 0,
-  perHitHeal = 0
+  perHitHeal = 0,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -846,14 +913,18 @@ function rollStrike(
   function mergeActivations(activated) {
     if (!activated?.length) return;
     for (const act of activated) {
-      if (!skillActivations.some(a => a.id === act.id)) skillActivations.push(act);
+      if (!skillActivations.some((a) => a.id === act.id)) skillActivations.push(act);
     }
   }
 
   // Per-strike skill effects (only on hit)
   if (strikeSkills?.rollStrikeSkills) {
     const skillResult = strikeSkills.rollStrikeSkills(
-      strikeSkills.striker, finalDmg, strikeSkills.target, strikeSkills.skillsData, strikeSkills.combatState
+      strikeSkills.striker,
+      finalDmg,
+      strikeSkills.target,
+      strikeSkills.skillsData,
+      strikeSkills.combatState,
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -870,7 +941,8 @@ function rollStrike(
     }
     if (skillResult.divineCharge) {
       // Store on the strike context for post-combat processing
-      if (!strikeSkills._divineChargeData) strikeSkills._divineChargeData = skillResult.divineCharge;
+      if (!strikeSkills._divineChargeData)
+        strikeSkills._divineChargeData = skillResult.divineCharge;
     }
     // Always surface all on-attack skill activations
     mergeActivations(skillResult.activated);
@@ -880,13 +952,17 @@ function rollStrike(
   if (strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
-      strikeSkills.target, finalDmg, isPhysicalAtk, strikeSkills.skillsData
+      strikeSkills.target,
+      finalDmg,
+      isPhysicalAtk,
+      strikeSkills.skillsData,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
     }
     if (defResult.debuffAttacker) {
-      if (!strikeSkills._debuffAttackerData) strikeSkills._debuffAttackerData = defResult.debuffAttacker;
+      if (!strikeSkills._debuffAttackerData)
+        strikeSkills._debuffAttackerData = defResult.debuffAttacker;
     }
     // Always surface all on-defend skill activations
     mergeActivations(defResult.activated);
@@ -895,7 +971,11 @@ function rollStrike(
   // On-defend affixes (Shielded, Teleporter, Thorns)
   if (strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
     const defResult = strikeSkills.rollDefenseAffixes(
-      strikeSkills.target, finalDmg, strikeSkills.isMelee, strikeSkills.isFirstHit, strikeSkills.affixData
+      strikeSkills.target,
+      finalDmg,
+      strikeSkills.isMelee,
+      strikeSkills.isFirstHit,
+      strikeSkills.affixData,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -926,11 +1006,22 @@ function rollStrike(
 
   const hpAfter = Math.max(0, targetHP - finalDmg);
   return {
-    type: 'strike', attacker: strikerName, target: targetName,
-    attackerSide, targetSide,
-    miss: false, damage: finalDmg, isCrit, targetHPAfter: hpAfter,
-    heal, skillActivations, extraStrike, aetherLuna, commandersGambit,
-    reflectDamage, warpRange,
+    type: 'strike',
+    attacker: strikerName,
+    target: targetName,
+    attackerSide,
+    targetSide,
+    miss: false,
+    damage: finalDmg,
+    isCrit,
+    targetHPAfter: hpAfter,
+    heal,
+    skillActivations,
+    extraStrike,
+    aetherLuna,
+    commandersGambit,
+    reflectDamage,
+    warpRange,
   };
 }
 
@@ -952,10 +1043,14 @@ function rollStrike(
  * }
  */
 export function resolveCombat(
-  attacker, atkWeapon,
-  defender, defWeapon,
-  distance, atkTerrain, defTerrain,
-  skillCtx = null
+  attacker,
+  atkWeapon,
+  defender,
+  defWeapon,
+  distance,
+  atkTerrain,
+  defTerrain,
+  skillCtx = null,
 ) {
   const combatSkillState = { adeptUsed: new Set() };
   const events = [];
@@ -970,7 +1065,9 @@ export function resolveCombat(
   const atkWeaponBonuses = getWeaponStatBonuses(atkWeapon);
   const defWeaponBonuses = defWeapon ? getWeaponStatBonuses(defWeapon) : [];
   const defWeaponDefBonus = sumWeaponBonus(defWeaponBonuses, usesMagic(atkWeapon) ? 'RES' : 'DEF');
-  const atkWeaponDefBonus = defWeapon ? sumWeaponBonus(atkWeaponBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF') : 0;
+  const atkWeaponDefBonus = defWeapon
+    ? sumWeaponBonus(atkWeaponBonuses, usesMagic(defWeapon) ? 'RES' : 'DEF')
+    : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
   const atkTriangle = defWeapon
@@ -980,32 +1077,46 @@ export function resolveCombat(
     ? getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank)
     : { hit: 0, damage: 0 };
 
-  const defTerrainForAtkHit = (atkMods?.ignoreTerrainAvoid) ? null : defTerrain;
+  const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
-  let atkDmg = Math.max(0,
+  let atkDmg = Math.max(
+    0,
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
       targetsRES: atkMods?.targetsRES,
       effectivenessMultiplier: atkEffectiveness,
-    })
-    + (atkMods?.atkBonus || 0) - (defMods?.defBonus || 0)
-    - (usesMagic(atkWeapon) ? (defMods?.resBonus || 0) : 0) - defWeaponDefBonus);
+    }) +
+      (atkMods?.atkBonus || 0) -
+      (defMods?.defBonus || 0) -
+      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      defWeaponDefBonus,
+  );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
   atkDmg = Math.max(0, atkDmg);
-  let atkHit = Math.max(0, Math.min(100,
-    calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle)
-    + (atkMods?.hitBonus || 0) - (defMods?.avoidBonus || 0)));
-  let atkCrit = Math.max(0, Math.min(100,
-    calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)));
+  let atkHit = Math.max(
+    0,
+    Math.min(
+      100,
+      calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
+        (atkMods?.hitBonus || 0) -
+        (defMods?.avoidBonus || 0),
+    ),
+  );
+  let atkCrit = Math.max(
+    0,
+    Math.min(100, calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)),
+  );
 
   const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
 
   // Doubling: apply accessory + skill + weight modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const defPursuitReduction = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
-  const atkPreventDouble = attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
-  const defPreventDouble = defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
+  const atkPreventDouble =
+    attacker.accessory?.combatEffects?.preventEnemyDouble || atkMods?.preventEnemyDouble || false;
+  const defPreventDouble =
+    defender.accessory?.combatEffects?.preventEnemyDouble || defMods?.preventEnemyDouble || false;
   const rAtkSpdBonus = atkMods?.spdBonus || 0;
   const rDefSpdBonus = defMods?.spdBonus || 0;
 
@@ -1014,66 +1125,91 @@ export function resolveCombat(
   const rDefAs = calculateEffectiveSpeed(defender, defWeapon, rDefSpdBonus);
 
   const atkArtActive = hasWeaponArtActivation(atkMods);
-  const atkDoubles = !atkArtActive && !defPreventDouble && (
-    rAtkAs >= rDefAs + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction
-  );
+  const atkDoubles =
+    !atkArtActive &&
+    !defPreventDouble &&
+    rAtkAs >= rDefAs + DOUBLE_ATTACK_SPD_THRESHOLD - atkPursuitReduction;
   const defArtActive = hasWeaponArtActivation(defMods);
   // Quick Riposte: always double when defending above 50% HP
-  const defDoubles = defCanCounter && ((defMods?.quickRiposte) || (!defArtActive && !atkPreventDouble && (
-    rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction
-  )));
+  const defDoubles =
+    defCanCounter &&
+    (defMods?.quickRiposte ||
+      (!defArtActive &&
+        !atkPreventDouble &&
+        rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction));
 
   const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
   const defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
 
-  let defDmg = 0, defHit = 0, defCrit = 0;
+  let defDmg = 0,
+    defHit = 0,
+    defCrit = 0;
   if (defCanCounter) {
-    const atkTerrainForDefHit = (defMods?.ignoreTerrainAvoid) ? null : atkTerrain;
+    const atkTerrainForDefHit = defMods?.ignoreTerrainAvoid ? null : atkTerrain;
     const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
-    defDmg = Math.max(0,
+    defDmg = Math.max(
+      0,
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
         targetsRES: defMods?.targetsRES,
         effectivenessMultiplier: defEffectiveness,
-      })
-      + (defMods?.atkBonus || 0) - (atkMods?.defBonus || 0)
-      - (usesMagic(defWeapon) ? (atkMods?.resBonus || 0) : 0) - atkWeaponDefBonus);
+      }) +
+        (defMods?.atkBonus || 0) -
+        (atkMods?.defBonus || 0) -
+        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        atkWeaponDefBonus,
+    );
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     defDmg = Math.max(0, defDmg);
-    defHit = Math.max(0, Math.min(100,
-      calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle)
-      + (defMods?.hitBonus || 0) - (atkMods?.avoidBonus || 0)));
-    defCrit = Math.max(0, Math.min(100,
-      calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0)));
+    defHit = Math.max(
+      0,
+      Math.min(
+        100,
+        calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle) +
+          (defMods?.hitBonus || 0) -
+          (atkMods?.avoidBonus || 0),
+      ),
+    );
+    defCrit = Math.max(
+      0,
+      Math.min(100, calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0)),
+    );
   }
 
   // Build per-strike skill context for attacker and defender
   const isMelee = distance === 1;
-  const atkStrikeSkills = skillCtx?.rollStrikeSkills ? {
-    striker: attacker, target: defender,
-    rollStrikeSkills: skillCtx.rollStrikeSkills,
-    rollDefenseSkills: skillCtx.rollDefenseSkills || null,
-    rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
-    affixData: skillCtx.affixData || null,
-    strikerWeaponPhysical: isPhysical(atkWeapon),
-    isFirstHit: !defender._hitByPlayerThisPhase,
-    isMelee,
-    skillsData: skillCtx.skillsData,
-    combatState: combatSkillState,
-  } : null;
-  const defStrikeSkills = (skillCtx?.rollStrikeSkills && defCanCounter) ? {
-    striker: defender, target: attacker,
-    rollStrikeSkills: skillCtx.rollStrikeSkills,
-    rollDefenseSkills: skillCtx.rollDefenseSkills || null,
-    rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
-    affixData: skillCtx.affixData || null,
-    strikerWeaponPhysical: defWeapon ? isPhysical(defWeapon) : true,
-    isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
-    isMelee,
-    skillsData: skillCtx.skillsData,
-    combatState: combatSkillState,
-  } : null;
+  const atkStrikeSkills = skillCtx?.rollStrikeSkills
+    ? {
+        striker: attacker,
+        target: defender,
+        rollStrikeSkills: skillCtx.rollStrikeSkills,
+        rollDefenseSkills: skillCtx.rollDefenseSkills || null,
+        rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
+        affixData: skillCtx.affixData || null,
+        strikerWeaponPhysical: isPhysical(atkWeapon),
+        isFirstHit: !defender._hitByPlayerThisPhase,
+        isMelee,
+        skillsData: skillCtx.skillsData,
+        combatState: combatSkillState,
+      }
+    : null;
+  const defStrikeSkills =
+    skillCtx?.rollStrikeSkills && defCanCounter
+      ? {
+          striker: defender,
+          target: attacker,
+          rollStrikeSkills: skillCtx.rollStrikeSkills,
+          rollDefenseSkills: skillCtx.rollDefenseSkills || null,
+          rollDefenseAffixes: skillCtx.rollDefenseAffixes || null,
+          affixData: skillCtx.affixData || null,
+          strikerWeaponPhysical: defWeapon ? isPhysical(defWeapon) : true,
+          isFirstHit: false, // Player doesn't have Shielded usually, but keeping consistent
+          isMelee,
+          skillsData: skillCtx.skillsData,
+          combatState: combatSkillState,
+        }
+      : null;
 
   // Track Cancel follow-up negation by side.
   let attackerFollowUpCancelled = false;
@@ -1082,7 +1218,17 @@ export function resolveCombat(
   const defPerHitHeal = Math.max(0, Number(defender?.accessory?.combatEffects?.perHitHeal) || 0);
 
   // Execute N strikes from one combatant against the other
-  function strike(aName, tName, hit, dmg, crit, isAttackingDefender, count, strikeSkills, weaponSpecial) {
+  function strike(
+    aName,
+    tName,
+    hit,
+    dmg,
+    crit,
+    isAttackingDefender,
+    count,
+    strikeSkills,
+    weaponSpecial,
+  ) {
     const attackerSide = isAttackingDefender ? 'attacker' : 'defender';
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
@@ -1100,7 +1246,7 @@ export function resolveCombat(
         weaponSpecial,
         { attackerSide, targetSide },
         drainPct,
-        strikePerHitHeal
+        strikePerHitHeal,
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
@@ -1149,7 +1295,7 @@ export function resolveCombat(
           weaponSpecial,
           { attackerSide, targetSide },
           drainPct,
-          strikePerHitHeal
+          strikePerHitHeal,
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {
@@ -1171,7 +1317,18 @@ export function resolveCombat(
   }
 
   // Resolve strike count/damage overrides: art multiHit first, then Astra fallback.
-  function strikePhase(aName, tName, hit, dmg, crit, isAtkDef, braveCount, strikeSkills, unit, weapon) {
+  function strikePhase(
+    aName,
+    tName,
+    hit,
+    dmg,
+    crit,
+    isAtkDef,
+    braveCount,
+    strikeSkills,
+    unit,
+    weapon,
+  ) {
     let count = braveCount;
     let phaseDmg = dmg;
     const artMultiHit = (isAtkDef ? atkMods : defMods)?.multiHit;
@@ -1197,38 +1354,222 @@ export function resolveCombat(
   if (defenderVantage) {
     // Vantage: defender strikes first
     events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
-    strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
-    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
-    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    strikePhase(
+      defender.name,
+      attacker.name,
+      defHit,
+      defDmg,
+      defCrit,
+      false,
+      defBrave ? 2 : 1,
+      defStrikeSkills,
+      defender,
+      defWeapon,
+    );
+    strikePhase(
+      attacker.name,
+      defender.name,
+      atkHit,
+      atkDmg,
+      atkCrit,
+      true,
+      atkBrave ? 2 : 1,
+      atkStrikeSkills,
+      attacker,
+      atkWeapon,
+    );
+    if (defDoubles && !defenderFollowUpCancelled)
+      strikePhase(
+        defender.name,
+        attacker.name,
+        defHit,
+        defDmg,
+        defCrit,
+        false,
+        defBrave ? 2 : 1,
+        defStrikeSkills,
+        defender,
+        defWeapon,
+      );
+    if (atkDoubles && !attackerFollowUpCancelled)
+      strikePhase(
+        attacker.name,
+        defender.name,
+        atkHit,
+        atkDmg,
+        atkCrit,
+        true,
+        atkBrave ? 2 : 1,
+        atkStrikeSkills,
+        attacker,
+        atkWeapon,
+      );
   } else if (attackerDesperation && atkDoubles) {
     // Desperation: all attacker hits before defender responds
     events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
-    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (!attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    strikePhase(
+      attacker.name,
+      defender.name,
+      atkHit,
+      atkDmg,
+      atkCrit,
+      true,
+      atkBrave ? 2 : 1,
+      atkStrikeSkills,
+      attacker,
+      atkWeapon,
+    );
+    if (!attackerFollowUpCancelled)
+      strikePhase(
+        attacker.name,
+        defender.name,
+        atkHit,
+        atkDmg,
+        atkCrit,
+        true,
+        atkBrave ? 2 : 1,
+        atkStrikeSkills,
+        attacker,
+        atkWeapon,
+      );
     if (defCanCounter) {
-      strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+      strikePhase(
+        defender.name,
+        attacker.name,
+        defHit,
+        defDmg,
+        defCrit,
+        false,
+        defBrave ? 2 : 1,
+        defStrikeSkills,
+        defender,
+        defWeapon,
+      );
     }
-    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (defDoubles && !defenderFollowUpCancelled)
+      strikePhase(
+        defender.name,
+        attacker.name,
+        defHit,
+        defDmg,
+        defCrit,
+        false,
+        defBrave ? 2 : 1,
+        defStrikeSkills,
+        defender,
+        defWeapon,
+      );
   } else if (defenderDesperation && defDoubles) {
     // Defender-side Desperation: defender follow-up occurs before attacker follow-up
-    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    strikePhase(
+      attacker.name,
+      defender.name,
+      atkHit,
+      atkDmg,
+      atkCrit,
+      true,
+      atkBrave ? 2 : 1,
+      atkStrikeSkills,
+      attacker,
+      atkWeapon,
+    );
     if (atkHP > 0 && defHP > 0) {
       events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
       if (defCanCounter) {
-        strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+        strikePhase(
+          defender.name,
+          attacker.name,
+          defHit,
+          defDmg,
+          defCrit,
+          false,
+          defBrave ? 2 : 1,
+          defStrikeSkills,
+          defender,
+          defWeapon,
+        );
       }
-      if (!defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+      if (!defenderFollowUpCancelled)
+        strikePhase(
+          defender.name,
+          attacker.name,
+          defHit,
+          defDmg,
+          defCrit,
+          false,
+          defBrave ? 2 : 1,
+          defStrikeSkills,
+          defender,
+          defWeapon,
+        );
     }
-    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    if (atkDoubles && !attackerFollowUpCancelled)
+      strikePhase(
+        attacker.name,
+        defender.name,
+        atkHit,
+        atkDmg,
+        atkCrit,
+        true,
+        atkBrave ? 2 : 1,
+        atkStrikeSkills,
+        attacker,
+        atkWeapon,
+      );
   } else {
     // Normal order
-    strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
+    strikePhase(
+      attacker.name,
+      defender.name,
+      atkHit,
+      atkDmg,
+      atkCrit,
+      true,
+      atkBrave ? 2 : 1,
+      atkStrikeSkills,
+      attacker,
+      atkWeapon,
+    );
     if (defCanCounter) {
-      strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+      strikePhase(
+        defender.name,
+        attacker.name,
+        defHit,
+        defDmg,
+        defCrit,
+        false,
+        defBrave ? 2 : 1,
+        defStrikeSkills,
+        defender,
+        defWeapon,
+      );
     }
-    if (atkDoubles && !attackerFollowUpCancelled) strikePhase(attacker.name, defender.name, atkHit, atkDmg, atkCrit, true, atkBrave ? 2 : 1, atkStrikeSkills, attacker, atkWeapon);
-    if (defDoubles && !defenderFollowUpCancelled) strikePhase(defender.name, attacker.name, defHit, defDmg, defCrit, false, defBrave ? 2 : 1, defStrikeSkills, defender, defWeapon);
+    if (atkDoubles && !attackerFollowUpCancelled)
+      strikePhase(
+        attacker.name,
+        defender.name,
+        atkHit,
+        atkDmg,
+        atkCrit,
+        true,
+        atkBrave ? 2 : 1,
+        atkStrikeSkills,
+        attacker,
+        atkWeapon,
+      );
+    if (defDoubles && !defenderFollowUpCancelled)
+      strikePhase(
+        defender.name,
+        attacker.name,
+        defHit,
+        defDmg,
+        defCrit,
+        false,
+        defBrave ? 2 : 1,
+        defStrikeSkills,
+        defender,
+        defWeapon,
+      );
   }
 
   // Post-combat: Poison damage (both sides can apply independently)
@@ -1260,37 +1601,39 @@ export function resolveCombat(
   if (atkStrikeSkills?._divineChargeData && atkHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
       if (
-        e.type === 'strike'
-        && !e.miss
-        && (
-          e.attackerSide === 'attacker'
-          || (e.attackerSide == null && e.attacker === attacker.name)
-        )
+        e.type === 'strike' &&
+        !e.miss &&
+        (e.attackerSide === 'attacker' || (e.attackerSide == null && e.attacker === attacker.name))
       ) {
         return sum + e.damage;
       }
       return sum;
     }, 0);
     if (totalDmg > 0) {
-      divineChargeHeals.push({ ...atkStrikeSkills._divineChargeData, damageDealt: totalDmg, side: 'attacker' });
+      divineChargeHeals.push({
+        ...atkStrikeSkills._divineChargeData,
+        damageDealt: totalDmg,
+        side: 'attacker',
+      });
     }
   }
   if (defStrikeSkills?._divineChargeData && defHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
       if (
-        e.type === 'strike'
-        && !e.miss
-        && (
-          e.attackerSide === 'defender'
-          || (e.attackerSide == null && e.attacker === defender.name)
-        )
+        e.type === 'strike' &&
+        !e.miss &&
+        (e.attackerSide === 'defender' || (e.attackerSide == null && e.attacker === defender.name))
       ) {
         return sum + e.damage;
       }
       return sum;
     }, 0);
     if (totalDmg > 0) {
-      divineChargeHeals.push({ ...defStrikeSkills._divineChargeData, damageDealt: totalDmg, side: 'defender' });
+      divineChargeHeals.push({
+        ...defStrikeSkills._divineChargeData,
+        damageDealt: totalDmg,
+        side: 'defender',
+      });
     }
   }
 

@@ -4,11 +4,7 @@ import {
   rollStrikeSkills,
   getTerrainCostReduction,
 } from '../src/engine/SkillSystem.js';
-import {
-  createEnemyUnit,
-  promoteUnit,
-  levelUp,
-} from '../src/engine/UnitManager.js';
+import { createEnemyUnit, promoteUnit, levelUp } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -16,7 +12,8 @@ const data = loadGameData();
 function makeUnit(overrides = {}) {
   return {
     name: 'TestUnit',
-    col: 3, row: 3,
+    col: 3,
+    row: 3,
     stats: { HP: 30, STR: 12, MAG: 5, SKL: 10, SPD: 12, DEF: 8, RES: 5, LCK: 5, MOV: 5 },
     currentHP: 30,
     skills: [],
@@ -36,7 +33,15 @@ describe('Defending condition (Duelist Stance)', () => {
   it('grants bonuses when defending (not initiating)', () => {
     const unit = makeUnit({ skills: ['duelist_stance'] });
     const opp = makeOpponent();
-    const mods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, false);
+    const mods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      false,
+    );
     expect(mods.avoidBonus).toBe(10);
     expect(mods.defBonus).toBe(1);
     expect(mods.resBonus).toBe(1);
@@ -54,21 +59,33 @@ describe('Defending condition (Duelist Stance)', () => {
 
 describe('Fury (critScalesWithMissingHP)', () => {
   it('grants 0 crit at full HP', () => {
-    const unit = makeUnit({ skills: ['fury'], currentHP: 30, stats: { ...makeUnit().stats, HP: 30 } });
+    const unit = makeUnit({
+      skills: ['fury'],
+      currentHP: 30,
+      stats: { ...makeUnit().stats, HP: 30 },
+    });
     const opp = makeOpponent();
     const mods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
     expect(mods.critBonus).toBe(0);
   });
 
   it('grants ~15 crit at 50% HP', () => {
-    const unit = makeUnit({ skills: ['fury'], currentHP: 15, stats: { ...makeUnit().stats, HP: 30 } });
+    const unit = makeUnit({
+      skills: ['fury'],
+      currentHP: 15,
+      stats: { ...makeUnit().stats, HP: 30 },
+    });
     const opp = makeOpponent();
     const mods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
     expect(mods.critBonus).toBe(15);
   });
 
   it('grants ~30 crit at 1 HP', () => {
-    const unit = makeUnit({ skills: ['fury'], currentHP: 1, stats: { ...makeUnit().stats, HP: 30 } });
+    const unit = makeUnit({
+      skills: ['fury'],
+      currentHP: 1,
+      stats: { ...makeUnit().stats, HP: 30 },
+    });
     const opp = makeOpponent();
     const mods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
     // floor((1 - 1/30) * 30) = floor(29/30 * 30) = floor(29) = 29
@@ -84,7 +101,7 @@ describe('Drain (on-attack, deterministic)', () => {
     const result = rollStrikeSkills(unit, 20, makeOpponent(), data.skills);
     vi.restoreAllMocks();
     expect(result.heal).toBe(5); // floor(20 * 0.25)
-    expect(result.activated.some(a => a.id === 'drain')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'drain')).toBe(true);
   });
 
   it('heals minimum 1 even on tiny damage', () => {
@@ -100,37 +117,101 @@ describe('Blow skills (initiate-only)', () => {
   it('armored_blow grants +4 DEF when initiating', () => {
     const unit = makeUnit({ skills: ['armored_blow'] });
     const opp = makeOpponent();
-    const initMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
+    const initMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(initMods.defBonus).toBe(4);
-    const defMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, false);
+    const defMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      false,
+    );
     expect(defMods.defBonus).toBe(0);
   });
 
   it('fiendish_blow grants +4 ATK when initiating', () => {
     const unit = makeUnit({ skills: ['fiendish_blow'] });
     const opp = makeOpponent();
-    const initMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
+    const initMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(initMods.atkBonus).toBe(4);
-    const defMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, false);
+    const defMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      false,
+    );
     expect(defMods.atkBonus).toBe(0);
   });
 
   it('darting_blow grants +6 SPD when initiating', () => {
     const unit = makeUnit({ skills: ['darting_blow'] });
     const opp = makeOpponent();
-    const initMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
+    const initMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(initMods.spdBonus).toBe(6);
-    const defMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, false);
+    const defMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      false,
+    );
     expect(defMods.spdBonus).toBe(0);
   });
 
   it('skirmisher grants +10 hit +5 avoid when initiating', () => {
     const unit = makeUnit({ skills: ['skirmisher'] });
     const opp = makeOpponent();
-    const initMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, true);
+    const initMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(initMods.hitBonus).toBe(10);
     expect(initMods.avoidBonus).toBe(5);
-    const defMods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Plain' }, false);
+    const defMods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      false,
+    );
     expect(defMods.hitBonus).toBe(0);
     expect(defMods.avoidBonus).toBe(0);
   });
@@ -142,7 +223,15 @@ describe('Fortify Aura (+2 DEF/RES to adjacent allies)', () => {
     const ally = makeUnit({ name: 'Ally', col: 4, row: 3, skills: [] });
     const opp = makeOpponent({ col: 5, row: 3 });
 
-    const mods = getSkillCombatMods(ally, opp, [auraUnit, ally], [opp], data.skills, { name: 'Plain' }, true);
+    const mods = getSkillCombatMods(
+      ally,
+      opp,
+      [auraUnit, ally],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(mods.defBonus).toBe(2);
     expect(mods.resBonus).toBe(2);
   });
@@ -152,7 +241,15 @@ describe('Fortify Aura (+2 DEF/RES to adjacent allies)', () => {
     const ally = makeUnit({ name: 'Ally', col: 6, row: 3, skills: [] });
     const opp = makeOpponent({ col: 7, row: 3 });
 
-    const mods = getSkillCombatMods(ally, opp, [auraUnit, ally], [opp], data.skills, { name: 'Plain' }, true);
+    const mods = getSkillCombatMods(
+      ally,
+      opp,
+      [auraUnit, ally],
+      [opp],
+      data.skills,
+      { name: 'Plain' },
+      true,
+    );
     expect(mods.defBonus).toBe(0);
     expect(mods.resBonus).toBe(0);
   });
@@ -177,8 +274,8 @@ describe('Pathfinder (getTerrainCostReduction)', () => {
 
 describe('Growth Bonuses on Promotion', () => {
   it('promoteUnit applies growthBonuses to unit.growths', () => {
-    const cls = data.classes.find(c => c.name === 'Myrmidon');
-    const promoted = data.classes.find(c => c.name === 'Swordmaster');
+    const cls = data.classes.find((c) => c.name === 'Myrmidon');
+    const promoted = data.classes.find((c) => c.name === 'Swordmaster');
     const unit = createEnemyUnit(cls, 10, data.weapons);
     // Give the unit explicit growths (createEnemyUnit may not set them)
     unit.growths = { HP: 50, STR: 40, MAG: 10, SKL: 50, SPD: 55, DEF: 25, RES: 20, LCK: 30 };
@@ -192,8 +289,8 @@ describe('Growth Bonuses on Promotion', () => {
   });
 
   it('classes without growthBonuses: growths unchanged', () => {
-    const cls = data.classes.find(c => c.name === 'Cavalier');
-    const promoted = data.classes.find(c => c.name === 'Paladin');
+    const cls = data.classes.find((c) => c.name === 'Cavalier');
+    const promoted = data.classes.find((c) => c.name === 'Paladin');
     const unit = createEnemyUnit(cls, 10, data.weapons);
     unit.growths = { HP: 50, STR: 40, MAG: 10, SKL: 50, SPD: 45, DEF: 30, RES: 20, LCK: 30 };
     const snapshot = { ...unit.growths };
@@ -205,8 +302,8 @@ describe('Growth Bonuses on Promotion', () => {
   });
 
   it('growth bonuses affect subsequent level-ups', () => {
-    const cls = data.classes.find(c => c.name === 'Knight');
-    const promoted = data.classes.find(c => c.name === 'General');
+    const cls = data.classes.find((c) => c.name === 'Knight');
+    const promoted = data.classes.find((c) => c.name === 'General');
     const unit = createEnemyUnit(cls, 10, data.weapons);
     unit.growths = { HP: 60, STR: 45, MAG: 5, SKL: 30, SPD: 15, DEF: 50, RES: 15, LCK: 20 };
 
@@ -233,7 +330,15 @@ describe('sure_shot now has critBonus', () => {
   it('sure_shot grants +10 crit and ignoreTerrainAvoid (passive)', () => {
     const unit = makeUnit({ skills: ['sure_shot'] });
     const opp = makeOpponent();
-    const mods = getSkillCombatMods(unit, opp, [unit], [opp], data.skills, { name: 'Forest' }, true);
+    const mods = getSkillCombatMods(
+      unit,
+      opp,
+      [unit],
+      [opp],
+      data.skills,
+      { name: 'Forest' },
+      true,
+    );
     expect(mods.critBonus).toBe(10);
     expect(mods.ignoreTerrainAvoid).toBe(true);
   });
@@ -241,8 +346,8 @@ describe('sure_shot now has critBonus', () => {
 
 describe('draconic_aura is classInnate for Wyvern Lord', () => {
   it('Wyvern Lord gains draconic_aura on promotion (not at L10)', () => {
-    const base = data.classes.find(c => c.name === 'Wyvern Rider');
-    const promoted = data.classes.find(c => c.name === 'Wyvern Lord');
+    const base = data.classes.find((c) => c.name === 'Wyvern Rider');
+    const promoted = data.classes.find((c) => c.name === 'Wyvern Lord');
     const unit = createEnemyUnit(base, 10, data.weapons);
 
     expect(unit.skills).not.toContain('draconic_aura');
@@ -251,8 +356,8 @@ describe('draconic_aura is classInnate for Wyvern Lord', () => {
   });
 
   it('Wyvern Lord has no learnableSkills for draconic_aura', () => {
-    const wl = data.classes.find(c => c.name === 'Wyvern Lord');
-    const hasDA = wl.learnableSkills?.some(ls => ls.skillId === 'draconic_aura');
+    const wl = data.classes.find((c) => c.name === 'Wyvern Lord');
+    const hasDA = wl.learnableSkills?.some((ls) => ls.skillId === 'draconic_aura');
     expect(hasDA).toBeFalsy();
   });
 });

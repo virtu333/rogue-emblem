@@ -32,7 +32,8 @@ function createMockGrid(moveTiles = []) {
     findPath: (fromCol, fromRow, toCol, toRow) => {
       // Simple straight-line path for testing
       const path = [{ col: fromCol, row: fromRow }];
-      let c = fromCol, r = fromRow;
+      let c = fromCol,
+        r = fromRow;
       while (c !== toCol || r !== toRow) {
         if (c < toCol) c++;
         else if (c > toCol) c--;
@@ -47,17 +48,30 @@ function createMockGrid(moveTiles = []) {
 
 function makeEnemy(overrides = {}) {
   return {
-    col: 5, row: 5, mov: 3, moveType: 'Infantry', faction: 'enemy',
-    isBoss: false, weapon: { range: '1', type: 'Sword' },
-    stats: { HP: 20 }, currentHP: 20, className: 'Fighter',
+    col: 5,
+    row: 5,
+    mov: 3,
+    moveType: 'Infantry',
+    faction: 'enemy',
+    isBoss: false,
+    weapon: { range: '1', type: 'Sword' },
+    stats: { HP: 20 },
+    currentHP: 20,
+    className: 'Fighter',
     ...overrides,
   };
 }
 
 function makePlayer(overrides = {}) {
   return {
-    col: 2, row: 2, mov: 3, moveType: 'Infantry', faction: 'player',
-    weapon: { range: '1', type: 'Sword' }, stats: { HP: 20 }, currentHP: 20,
+    col: 2,
+    row: 2,
+    mov: 3,
+    moveType: 'Infantry',
+    faction: 'player',
+    weapon: { range: '1', type: 'Sword' },
+    stats: { HP: 20 },
+    currentHP: 20,
     ...overrides,
   };
 }
@@ -68,10 +82,14 @@ describe('AIController', () => {
       const thronePos = { col: 8, row: 4 };
       // Movement tiles around throne
       const moveTiles = [
-        { col: 7, row: 4 }, { col: 9, row: 4 },
-        { col: 8, row: 3 }, { col: 8, row: 5 },
-        { col: 7, row: 3 }, { col: 9, row: 5 },
-        { col: 6, row: 4 }, { col: 10, row: 4 }, // 2 tiles away
+        { col: 7, row: 4 },
+        { col: 9, row: 4 },
+        { col: 8, row: 3 },
+        { col: 8, row: 5 },
+        { col: 7, row: 3 },
+        { col: 9, row: 5 },
+        { col: 6, row: 4 },
+        { col: 10, row: 4 }, // 2 tiles away
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'seize', thronePos });
@@ -94,8 +112,10 @@ describe('AIController', () => {
     it('boss attacks when target in range near throne', () => {
       const thronePos = { col: 8, row: 4 };
       const moveTiles = [
-        { col: 7, row: 4 }, { col: 9, row: 4 },
-        { col: 8, row: 3 }, { col: 8, row: 5 },
+        { col: 7, row: 4 },
+        { col: 9, row: 4 },
+        { col: 8, row: 3 },
+        { col: 8, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'seize', thronePos });
@@ -111,8 +131,11 @@ describe('AIController', () => {
 
     it('boss chases normally on rout maps', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 3, row: 5 },
-        { col: 6, row: 5 }, { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 3, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -131,8 +154,10 @@ describe('AIController', () => {
     it('boss does not chase when no targets near throne on seize', () => {
       const thronePos = { col: 8, row: 4 };
       const moveTiles = [
-        { col: 7, row: 4 }, { col: 9, row: 4 },
-        { col: 8, row: 3 }, { col: 8, row: 5 },
+        { col: 7, row: 4 },
+        { col: 9, row: 4 },
+        { col: 8, row: 3 },
+        { col: 8, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'seize', thronePos });
@@ -149,8 +174,11 @@ describe('AIController', () => {
     it('boss can chase off-throne on seize when aggressive mode is enabled', () => {
       const thronePos = { col: 8, row: 4 };
       const moveTiles = [
-        { col: 7, row: 4 }, { col: 6, row: 4 }, { col: 5, row: 4 },
-        { col: 8, row: 3 }, { col: 8, row: 5 },
+        { col: 7, row: 4 },
+        { col: 6, row: 4 },
+        { col: 5, row: 4 },
+        { col: 8, row: 3 },
+        { col: 8, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'seize', thronePos });
@@ -172,8 +200,10 @@ describe('AIController', () => {
   describe('Guard AI (C2)', () => {
     it('guard does not move when players are far away', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -190,8 +220,10 @@ describe('AIController', () => {
 
     it('guard triggers when player enters 3-tile range', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -205,8 +237,10 @@ describe('AIController', () => {
 
     it('guard triggers at exactly 3-tile range', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -220,7 +254,8 @@ describe('AIController', () => {
 
     it('guard does NOT trigger at 4-tile range', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -234,8 +269,10 @@ describe('AIController', () => {
 
     it('guard switches permanently to chase after trigger', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
         { col: 3, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
@@ -281,7 +318,9 @@ describe('AIController', () => {
   describe('Aggressive anti-turtle mode', () => {
     it('aggressive mode makes guard units chase even when players are far', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 3, row: 5 }, { col: 6, row: 5 },
+        { col: 4, row: 5 },
+        { col: 3, row: 5 },
+        { col: 6, row: 5 },
       ];
       const grid = createMockGrid(moveTiles);
       grid.mapLayout = Array.from({ length: 12 }, () => Array(12).fill(0));
@@ -375,8 +414,10 @@ describe('AIController', () => {
 
     it('normal enemy (no aiMode) chases normally', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -395,8 +436,10 @@ describe('AIController', () => {
 
     it('enemy with aiMode chase behaves like normal enemy', () => {
       const moveTiles = [
-        { col: 4, row: 5 }, { col: 6, row: 5 },
-        { col: 5, row: 4 }, { col: 5, row: 6 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
       ];
       const grid = createMockGrid(moveTiles);
       const ai = new AIController(grid, {}, { objective: 'rout' });
@@ -526,28 +569,25 @@ describe('AIController', () => {
       let unitDoneCalled = false;
 
       ai._decideAction = () => ({
-        path: [{ col: 0, row: 0 }, { col: 1, row: 0 }],
+        path: [
+          { col: 0, row: 0 },
+          { col: 1, row: 0 },
+        ],
         target: plannedTarget,
         reason: 'attack_in_range',
       });
 
-      await ai._processOneEnemy(
-        enemy,
-        [enemy],
-        [plannedTarget, fallbackTarget],
-        [],
-        {
-          onDecision: () => {},
-          onMoveUnit: async () => {
-            enemy.col = 3;
-            enemy.row = 0;
-          },
-          onAttack: async (_enemy, target) => attacks.push(target.name),
-          onUnitDone: () => {
-            unitDoneCalled = true;
-          },
-        }
-      );
+      await ai._processOneEnemy(enemy, [enemy], [plannedTarget, fallbackTarget], [], {
+        onDecision: () => {},
+        onMoveUnit: async () => {
+          enemy.col = 3;
+          enemy.row = 0;
+        },
+        onAttack: async (_enemy, target) => attacks.push(target.name),
+        onUnitDone: () => {
+          unitDoneCalled = true;
+        },
+      });
 
       expect(attacks).toEqual(['Fallback']);
       expect(unitDoneCalled).toBe(true);
@@ -562,28 +602,25 @@ describe('AIController', () => {
       let unitDoneCalled = false;
 
       ai._decideAction = () => ({
-        path: [{ col: 0, row: 0 }, { col: 1, row: 0 }],
+        path: [
+          { col: 0, row: 0 },
+          { col: 1, row: 0 },
+        ],
         target: plannedTarget,
         reason: 'attack_in_range',
       });
 
-      await ai._processOneEnemy(
-        enemy,
-        [enemy],
-        [plannedTarget, farTarget],
-        [],
-        {
-          onDecision: () => {},
-          onMoveUnit: async () => {
-            enemy.col = 4;
-            enemy.row = 0;
-          },
-          onAttack: async (_enemy, target) => attacks.push(target.name),
-          onUnitDone: () => {
-            unitDoneCalled = true;
-          },
-        }
-      );
+      await ai._processOneEnemy(enemy, [enemy], [plannedTarget, farTarget], [], {
+        onDecision: () => {},
+        onMoveUnit: async () => {
+          enemy.col = 4;
+          enemy.row = 0;
+        },
+        onAttack: async (_enemy, target) => attacks.push(target.name),
+        onUnitDone: () => {
+          unitDoneCalled = true;
+        },
+      });
 
       expect(attacks).toEqual([]);
       expect(unitDoneCalled).toBe(true);

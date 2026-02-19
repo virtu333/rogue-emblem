@@ -125,12 +125,20 @@ describe('Scene wiring', () => {
         hasShownDialogue: vi.fn(() => false),
         markDialogueShown: vi.fn((key) => order.push(`mark:${key}`)),
       },
-      gameData: { dialogue: { actTransitions: { runStart: [{ speaker: 'Sera', line: 'x', portrait: null }] } } },
+      gameData: {
+        dialogue: {
+          actTransitions: { runStart: [{ speaker: 'Sera', line: 'x', portrait: null }] },
+        },
+      },
       dialogueOverlay: {
-        showSequence: vi.fn(async () => { order.push('story'); }),
+        showSequence: vi.fn(async () => {
+          order.push('story');
+        }),
       },
       persistRunSave: vi.fn(() => order.push('save')),
-      _showPendingNodeMapHints: vi.fn(async () => { order.push('hints'); }),
+      _showPendingNodeMapHints: vi.fn(async () => {
+        order.push('hints');
+      }),
       _consumePendingNodeSelection: vi.fn(() => false),
       _storyDialogueActive: false,
       isSceneReady: false,
@@ -172,8 +180,12 @@ describe('Scene wiring', () => {
 
   it('maps Dark Champion alias to The Lieutenant for boss dialogue lookup', () => {
     const scene = new BattleScene();
-    expect(BattleScene.prototype._resolveBossDialogueName.call(scene, 'Dark Champion')).toBe('The Lieutenant');
-    expect(BattleScene.prototype._resolveBossDialogueName.call(scene, 'The Lieutenant')).toBe('The Lieutenant');
+    expect(BattleScene.prototype._resolveBossDialogueName.call(scene, 'Dark Champion')).toBe(
+      'The Lieutenant',
+    );
+    expect(BattleScene.prototype._resolveBossDialogueName.call(scene, 'The Lieutenant')).toBe(
+      'The Lieutenant',
+    );
   });
 
   it('post-loot fallback does not preempt while story lock is active', async () => {
@@ -220,7 +232,12 @@ describe('Input gate', () => {
       lootSettingsOverlay: null,
       unitDetailOverlay: { visible: false, hide: vi.fn() },
       inspectionPanel: { visible: false, _unit: null, hide: vi.fn() },
-      grid: { mapLayout: [[0]], clearHighlights: vi.fn(), clearAttackHighlights: vi.fn(), clearPath: vi.fn() },
+      grid: {
+        mapLayout: [[0]],
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+        clearPath: vi.fn(),
+      },
       gameData: { terrain: [{}] },
       selectedUnit: null,
       refreshEndTurnControl: vi.fn(),
@@ -257,11 +274,21 @@ describe('Input gate', () => {
 describe('DialogueOverlay lifecycle', () => {
   function createDisplayObject() {
     return {
-      setDepth() { return this; },
-      setInteractive() { return this; },
-      setStrokeStyle() { return this; },
-      setOrigin() { return this; },
-      setDisplaySize() { return this; },
+      setDepth() {
+        return this;
+      },
+      setInteractive() {
+        return this;
+      },
+      setStrokeStyle() {
+        return this;
+      },
+      setOrigin() {
+        return this;
+      },
+      setDisplaySize() {
+        return this;
+      },
       destroy: vi.fn(),
       on: vi.fn(),
     };
@@ -310,7 +337,7 @@ describe('DialogueOverlay lifecycle', () => {
       },
       input: {
         keyboard: {
-          addKey: (key) => ({ ESC: esc, SPACE: space, ENTER: enter }[key]),
+          addKey: (key) => ({ ESC: esc, SPACE: space, ENTER: enter })[key],
         },
       },
     };

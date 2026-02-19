@@ -52,11 +52,17 @@ export class HowToPlayOverlay {
   }
 
   _onLeft() {
-    if (this.currentPage > 0) { this.currentPage--; this._draw(); }
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this._draw();
+    }
   }
 
   _onRight() {
-    if (this.currentPage < HOW_TO_PLAY_PAGES.length - 1) { this.currentPage++; this._draw(); }
+    if (this.currentPage < HOW_TO_PLAY_PAGES.length - 1) {
+      this.currentPage++;
+      this._draw();
+    }
   }
 
   _draw() {
@@ -73,25 +79,40 @@ export class HowToPlayOverlay {
     const page = pages[this.currentPage];
 
     // Dark background
-    const bg = this.scene.add.rectangle(cx, cy, 640, 480, 0x000000, 0.85)
-      .setDepth(DEPTH_BG).setInteractive();
+    const bg = this.scene.add
+      .rectangle(cx, cy, 640, 480, 0x000000, 0.85)
+      .setDepth(DEPTH_BG)
+      .setInteractive();
     this.objects.push(bg);
 
     // Panel
-    const panel = this.scene.add.rectangle(cx, cy, panelW, panelH, 0x1a1a2e, 1)
-      .setDepth(DEPTH_PANEL).setStrokeStyle(2, 0x888888);
+    const panel = this.scene.add
+      .rectangle(cx, cy, panelW, panelH, 0x1a1a2e, 1)
+      .setDepth(DEPTH_PANEL)
+      .setStrokeStyle(2, 0x888888);
     this.objects.push(panel);
 
     // Title
-    const title = this.scene.add.text(left + 20, top + 16, 'HOW TO PLAY', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffdd44', fontStyle: 'bold',
-    }).setDepth(DEPTH_UI);
+    const title = this.scene.add
+      .text(left + 20, top + 16, 'HOW TO PLAY', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setDepth(DEPTH_UI);
     this.objects.push(title);
 
     // Close button [X]
-    const closeBtn = this.scene.add.text(left + panelW - 20, top + 16, '[X]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#888888',
-    }).setOrigin(1, 0).setDepth(DEPTH_UI).setInteractive({ useHandCursor: true });
+    const closeBtn = this.scene.add
+      .text(left + panelW - 20, top + 16, '[X]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#888888',
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH_UI)
+      .setInteractive({ useHandCursor: true });
     closeBtn.on('pointerover', () => closeBtn.setColor('#ffdd44'));
     closeBtn.on('pointerout', () => closeBtn.setColor('#888888'));
     closeBtn.on('pointerdown', () => this.hide());
@@ -108,9 +129,14 @@ export class HowToPlayOverlay {
 
     // Section title
     const contentY = top + 55;
-    const sectionTitle = this.scene.add.text(left + 25, contentY, page.title, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44', fontStyle: 'bold',
-    }).setDepth(DEPTH_UI);
+    const sectionTitle = this.scene.add
+      .text(left + 25, contentY, page.title, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setDepth(DEPTH_UI);
     this.objects.push(sectionTitle);
 
     // Content lines
@@ -120,9 +146,13 @@ export class HowToPlayOverlay {
     for (let i = 0; i < page.lines.length; i++) {
       const line = page.lines[i];
       if (!line.text && line.text !== '') continue;
-      const lineText = this.scene.add.text(left + 25, lineStartY + i * lineHeight, line.text, {
-        fontFamily: 'monospace', fontSize: '11px', color: line.color || '#e0e0e0',
-      }).setDepth(DEPTH_UI);
+      const lineText = this.scene.add
+        .text(left + 25, lineStartY + i * lineHeight, line.text, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: line.color || '#e0e0e0',
+        })
+        .setDepth(DEPTH_UI);
       this.objects.push(lineText);
     }
 
@@ -131,32 +161,56 @@ export class HowToPlayOverlay {
 
     // Prev button
     if (this.currentPage > 0) {
-      const prevBtn = this.scene.add.text(cx - 100, navY, '\u25C0 Prev', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-        backgroundColor: '#333333', padding: { x: 10, y: 4 },
-      }).setOrigin(0.5).setDepth(DEPTH_UI).setInteractive({ useHandCursor: true });
+      const prevBtn = this.scene.add
+        .text(cx - 100, navY, '\u25C0 Prev', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#aaaaaa',
+          backgroundColor: '#333333',
+          padding: { x: 10, y: 4 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_UI)
+        .setInteractive({ useHandCursor: true });
       prevBtn.on('pointerover', () => prevBtn.setColor('#ffdd44'));
       prevBtn.on('pointerout', () => prevBtn.setColor('#aaaaaa'));
-      prevBtn.on('pointerdown', () => { this.currentPage--; this._draw(); });
+      prevBtn.on('pointerdown', () => {
+        this.currentPage--;
+        this._draw();
+      });
       this.objects.push(prevBtn);
     }
 
     // Page indicator
-    const pageInd = this.scene.add.text(cx, navY,
-      `Page ${this.currentPage + 1}/${pages.length}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
-      }).setOrigin(0.5).setDepth(DEPTH_UI);
+    const pageInd = this.scene.add
+      .text(cx, navY, `Page ${this.currentPage + 1}/${pages.length}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setOrigin(0.5)
+      .setDepth(DEPTH_UI);
     this.objects.push(pageInd);
 
     // Next button
     if (this.currentPage < pages.length - 1) {
-      const nextBtn = this.scene.add.text(cx + 100, navY, 'Next \u25B6', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-        backgroundColor: '#333333', padding: { x: 10, y: 4 },
-      }).setOrigin(0.5).setDepth(DEPTH_UI).setInteractive({ useHandCursor: true });
+      const nextBtn = this.scene.add
+        .text(cx + 100, navY, 'Next \u25B6', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#aaaaaa',
+          backgroundColor: '#333333',
+          padding: { x: 10, y: 4 },
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH_UI)
+        .setInteractive({ useHandCursor: true });
       nextBtn.on('pointerover', () => nextBtn.setColor('#ffdd44'));
       nextBtn.on('pointerout', () => nextBtn.setColor('#aaaaaa'));
-      nextBtn.on('pointerdown', () => { this.currentPage++; this._draw(); });
+      nextBtn.on('pointerdown', () => {
+        this.currentPage++;
+        this._draw();
+      });
       this.objects.push(nextBtn);
     }
   }

@@ -8,7 +8,13 @@ import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { signOut } from '../cloud/supabaseClient.js';
 import { pushMeta } from '../cloud/CloudSync.js';
-import { getSlotCount, getNextAvailableSlot, setActiveSlot, getMetaKey, clearAllSlotData } from '../engine/SlotManager.js';
+import {
+  getSlotCount,
+  getNextAvailableSlot,
+  setActiveSlot,
+  getMetaKey,
+  clearAllSlotData,
+} from '../engine/SlotManager.js';
 import { buildTutorialRoster as _buildTutorialRoster } from '../engine/TutorialHelpers.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
@@ -16,7 +22,9 @@ import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 // --- Constants ---
-const W = 640, H = 480, PIXEL = 2;
+const W = 640,
+  H = 480,
+  PIXEL = 2;
 const FONT = '"Press Start 2P", monospace';
 
 // Colors
@@ -41,13 +49,13 @@ function pixelRect(ctx, x, y, w, h, color) {
 
 function drawSky(ctx) {
   const bands = [
-    { stop: 0,    color: [10, 12, 30] },
-    { stop: 0.2,  color: [18, 14, 50] },
+    { stop: 0, color: [10, 12, 30] },
+    { stop: 0.2, color: [18, 14, 50] },
     { stop: 0.35, color: [35, 20, 65] },
     { stop: 0.45, color: [60, 28, 80] },
     { stop: 0.52, color: [90, 40, 70] },
     { stop: 0.56, color: [120, 55, 50] },
-    { stop: 0.6,  color: [80, 35, 60] },
+    { stop: 0.6, color: [80, 35, 60] },
   ];
   const bandHeight = PIXEL * 3;
   for (let y = 0; y < H * 0.65; y += bandHeight) {
@@ -61,7 +69,11 @@ function drawSky(ctx) {
         break;
       }
     }
-    if (!c0) { c0 = bands[bands.length - 1].color; c1 = c0; lt = 0; }
+    if (!c0) {
+      c0 = bands[bands.length - 1].color;
+      c1 = c0;
+      lt = 0;
+    }
     const r = Math.round(c0[0] + (c1[0] - c0[0]) * lt);
     const g = Math.round(c0[1] + (c1[1] - c0[1]) * lt);
     const b = Math.round(c0[2] + (c1[2] - c0[2]) * lt);
@@ -71,16 +83,12 @@ function drawSky(ctx) {
 }
 
 function drawStars(ctx, time, stars) {
-  stars.forEach(s => {
+  stars.forEach((s) => {
     const twinkle = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * s.twinkleSpeed * 0.06 + s.phase));
     const alpha = s.brightness * twinkle;
     ctx.fillStyle = `rgba(220, 210, 255, ${alpha})`;
     const sz = Math.round(s.size / PIXEL) * PIXEL;
-    ctx.fillRect(
-      Math.round(s.x / PIXEL) * PIXEL,
-      Math.round(s.y / PIXEL) * PIXEL,
-      sz, sz
-    );
+    ctx.fillRect(Math.round(s.x / PIXEL) * PIXEL, Math.round(s.y / PIXEL) * PIXEL, sz, sz);
   });
 }
 
@@ -95,7 +103,7 @@ function drawHorizonGlow(ctx) {
 }
 
 function drawClouds(ctx, clouds) {
-  clouds.forEach(c => {
+  clouds.forEach((c) => {
     c.x += c.speed;
     if (c.x > W + c.w) c.x = -c.w * 2;
     const bw = PIXEL * 4;
@@ -162,16 +170,28 @@ function drawCastle(ctx, time) {
 
   // Window lights
   const windows = [
-    [-16, -30], [-16, -22], [-16, -14],
-    [15, -30], [15, -22], [15, -14],
-    [-6, -20], [5, -20],
-    [-6, -14], [5, -14],
+    [-16, -30],
+    [-16, -22],
+    [-16, -14],
+    [15, -30],
+    [15, -22],
+    [15, -14],
+    [-6, -20],
+    [5, -20],
+    [-6, -14],
+    [5, -14],
     [0, -42],
   ];
   windows.forEach(([wx, wy]) => {
     const flicker = 0.7 + 0.3 * Math.sin(time * 0.003 + wx * 0.5 + wy);
-    pixelRect(ctx, cx + wx * p, baseY + wy * p, p * 2, p * 2,
-      `rgba(245, 215, 122, ${0.6 * flicker})`);
+    pixelRect(
+      ctx,
+      cx + wx * p,
+      baseY + wy * p,
+      p * 2,
+      p * 2,
+      `rgba(245, 215, 122, ${0.6 * flicker})`,
+    );
     ctx.fillStyle = `rgba(245, 200, 100, ${0.15 * flicker})`;
     ctx.fillRect(cx + wx * p - p, baseY + wy * p - p, p * 4, p * 4);
   });
@@ -227,7 +247,7 @@ function drawForeground(ctx) {
   const grassColor = '#1a2e1a';
   for (let x = 0; x < W; x += PIXEL * 6) {
     const hash = Math.sin(x * 123.456) * 43758.5453;
-    if ((hash - Math.floor(hash)) > 0.5) {
+    if (hash - Math.floor(hash) > 0.5) {
       const gy = H * 0.82 + Math.sin(x * 0.006 + 1) * H * 0.03 - PIXEL * 2;
       pixelRect(ctx, x, gy, PIXEL, PIXEL * 3, grassColor);
       pixelRect(ctx, x + PIXEL, gy - PIXEL, PIXEL, PIXEL * 2, grassColor);
@@ -236,12 +256,19 @@ function drawForeground(ctx) {
 
   // Tree silhouettes
   const trees = [
-    { x: 0.08, h: 18 }, { x: 0.12, h: 22 }, { x: 0.15, h: 16 },
-    { x: 0.25, h: 14 }, { x: 0.28, h: 20 },
-    { x: 0.7, h: 24 }, { x: 0.73, h: 18 }, { x: 0.76, h: 22 },
-    { x: 0.85, h: 16 }, { x: 0.88, h: 20 }, { x: 0.92, h: 14 },
+    { x: 0.08, h: 18 },
+    { x: 0.12, h: 22 },
+    { x: 0.15, h: 16 },
+    { x: 0.25, h: 14 },
+    { x: 0.28, h: 20 },
+    { x: 0.7, h: 24 },
+    { x: 0.73, h: 18 },
+    { x: 0.76, h: 22 },
+    { x: 0.85, h: 16 },
+    { x: 0.88, h: 20 },
+    { x: 0.92, h: 14 },
   ];
-  trees.forEach(t => {
+  trees.forEach((t) => {
     const tx = W * t.x;
     const hillY = baseY + Math.sin(tx * 0.004) * H * 0.04 + Math.sin(tx * 0.01) * H * 0.015;
     const treeColor = '#0e1610';
@@ -250,13 +277,20 @@ function drawForeground(ctx) {
     pixelRect(ctx, tx, hillY - h * p * 0.4, p * 2, h * p * 0.4, treeColor);
     for (let i = 0; i < 4; i++) {
       const w = (4 - i) * 2;
-      pixelRect(ctx, tx - w * p / 2 + p, hillY - h * p * 0.4 - i * p * 3, w * p, p * 3, treeColor);
+      pixelRect(
+        ctx,
+        tx - (w * p) / 2 + p,
+        hillY - h * p * 0.4 - i * p * 3,
+        w * p,
+        p * 3,
+        treeColor,
+      );
     }
   });
 }
 
 function drawParticles(ctx, time, particles) {
-  particles.forEach(p => {
+  particles.forEach((p) => {
     p.life += p.speed;
     if (p.life > 1) {
       p.life = 0;
@@ -272,11 +306,7 @@ function drawParticles(ctx, time, particles) {
     ctx.fillRect(p.x - glow, p.y - glow, glow * 2, glow * 2);
     ctx.fillStyle = `rgba(230, 240, 150, ${alpha})`;
     const sz = Math.round(p.size / PIXEL) * PIXEL;
-    ctx.fillRect(
-      Math.round(p.x / PIXEL) * PIXEL,
-      Math.round(p.y / PIXEL) * PIXEL,
-      sz, sz
-    );
+    ctx.fillRect(Math.round(p.x / PIXEL) * PIXEL, Math.round(p.y / PIXEL) * PIXEL, sz, sz);
   });
 }
 
@@ -347,16 +377,25 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   container.add(bg);
 
   // Label
-  const text = scene.add.text(0, 0, label, {
-    fontFamily: FONT, fontSize: fontSize, color: '#cccccc',
-    letterSpacing: letterSpacing,
-  }).setOrigin(0.5);
+  const text = scene.add
+    .text(0, 0, label, {
+      fontFamily: FONT,
+      fontSize: fontSize,
+      color: '#cccccc',
+      letterSpacing: letterSpacing,
+    })
+    .setOrigin(0.5);
   container.add(text);
 
   // Cursor arrow (hidden)
-  const cursor = scene.add.text(-btnW / 2 + 12, 0, '\u25b6', {
-    fontFamily: FONT, fontSize: options.fontSize || '10px', color: GOLD,
-  }).setOrigin(0, 0.5).setAlpha(0);
+  const cursor = scene.add
+    .text(-btnW / 2 + 12, 0, '\u25b6', {
+      fontFamily: FONT,
+      fontSize: options.fontSize || '10px',
+      color: GOLD,
+    })
+    .setOrigin(0, 0.5)
+    .setAlpha(0);
   if (btnW < 150) cursor.setVisible(false); // Hide arrow on small buttons
   container.add(cursor);
 
@@ -379,7 +418,8 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
   container.add(corners);
 
   // Hit zone
-  const hitZone = scene.add.rectangle(0, 0, btnW, btnH, 0x000000, 0)
+  const hitZone = scene.add
+    .rectangle(0, 0, btnW, btnH, 0x000000, 0)
     .setInteractive({ useHandCursor: true });
   container.add(hitZone);
 
@@ -412,7 +452,10 @@ function createMenuButton(scene, x, y, label, onClick, delay, options = {}) {
     // Fire action immediately; don't gate scene transitions on tween completion.
     onClick();
     scene.tweens.add({
-      targets: container, scaleX: 0.98, scaleY: 0.98, duration: 60,
+      targets: container,
+      scaleX: 0.98,
+      scaleY: 0.98,
+      duration: 60,
       yoyo: true,
     });
   });
@@ -477,7 +520,7 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Animated background ---
     // Remove stale textures if scene is re-entered
-    ['titleBg', 'titleVignette', 'titleScanlines'].forEach(key => {
+    ['titleBg', 'titleVignette', 'titleScanlines'].forEach((key) => {
       if (this.textures.exists(key)) this.textures.remove(key);
     });
 
@@ -515,30 +558,54 @@ export class TitleScene extends Phaser.Scene {
 
     // --- Title block ---
     // Shadow text (3D emboss)
-    this.add.text(cx, 70 + 4, 'ROGUE EMBLEM', {
-      fontFamily: FONT, fontSize: '28px', color: '#7a5520',
-    }).setOrigin(0.5).setDepth(9).setAlpha(0);
+    this.add
+      .text(cx, 70 + 4, 'ROGUE EMBLEM', {
+        fontFamily: FONT,
+        fontSize: '28px',
+        color: '#7a5520',
+      })
+      .setOrigin(0.5)
+      .setDepth(9)
+      .setAlpha(0);
 
     // Main title
-    const titleText = this.add.text(cx, 70, 'ROGUE EMBLEM', {
-      fontFamily: FONT, fontSize: '28px', color: GOLD,
-      shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.5)', blur: 20, fill: true },
-    }).setOrigin(0.5).setDepth(10).setAlpha(0);
+    const titleText = this.add
+      .text(cx, 70, 'ROGUE EMBLEM', {
+        fontFamily: FONT,
+        fontSize: '28px',
+        color: GOLD,
+        shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.5)', blur: 20, fill: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setAlpha(0);
 
     // Subtitle
-    const subtitleText = this.add.text(cx, 110, 'TACTICAL ROGUELIKE', {
-      fontFamily: FONT, fontSize: '10px', color: TEXT_SUB,
-      letterSpacing: 4,
-      shadow: { offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.8)', blur: 8, fill: true },
-    }).setOrigin(0.5).setDepth(10).setAlpha(0);
+    const subtitleText = this.add
+      .text(cx, 110, 'TACTICAL ROGUELIKE', {
+        fontFamily: FONT,
+        fontSize: '10px',
+        color: TEXT_SUB,
+        letterSpacing: 4,
+        shadow: { offsetX: 0, offsetY: 2, color: 'rgba(0,0,0,0.8)', blur: 8, fill: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setAlpha(0);
 
     // Alpha Testing tag
-    const alphaTag = this.add.text(cx, 132, 'ALPHA TESTING', {
-      fontFamily: FONT, fontSize: '8px', color: '#ff6666',
-      letterSpacing: 2,
-      backgroundColor: '#220000aa',
-      padding: { x: 8, y: 3 },
-    }).setOrigin(0.5).setDepth(10).setAlpha(0);
+    const alphaTag = this.add
+      .text(cx, 132, 'ALPHA TESTING', {
+        fontFamily: FONT,
+        fontSize: '8px',
+        color: '#ff6666',
+        letterSpacing: 2,
+        backgroundColor: '#220000aa',
+        padding: { x: 8, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setAlpha(0);
 
     // Sword divider
     const divider = this.add.graphics().setDepth(10).setAlpha(0);
@@ -555,33 +622,50 @@ export class TitleScene extends Phaser.Scene {
     divider.lineTo(cx + divW / 2, 154);
     divider.strokePath();
 
-    const swordIcon = this.add.text(cx, 154, '\u2694', {
-      fontFamily: FONT, fontSize: '12px', color: GOLD_DARK,
-      shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.3)', blur: 8, fill: true },
-    }).setOrigin(0.5).setDepth(10).setAlpha(0);
+    const swordIcon = this.add
+      .text(cx, 154, '\u2694', {
+        fontFamily: FONT,
+        fontSize: '12px',
+        color: GOLD_DARK,
+        shadow: { offsetX: 0, offsetY: 0, color: 'rgba(232,184,73,0.3)', blur: 8, fill: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setAlpha(0);
 
     // Title shadow (get ref)
     const titleShadow = this.children.list.find(
-      c => c.type === 'Text' && c.text === 'ROGUE EMBLEM' && c.depth === 9
+      (c) => c.type === 'Text' && c.text === 'ROGUE EMBLEM' && c.depth === 9,
     );
 
     // Entry animations
     this.tweens.add({
       targets: [titleText, titleShadow],
-      alpha: 1, y: { from: 50, to: titleText.y },
-      duration: 1500, ease: 'Power2',
+      alpha: 1,
+      y: { from: 50, to: titleText.y },
+      duration: 1500,
+      ease: 'Power2',
     });
     this.tweens.add({
-      targets: subtitleText, alpha: 1,
-      duration: 1000, ease: 'Power2', delay: 500,
+      targets: subtitleText,
+      alpha: 1,
+      duration: 1000,
+      ease: 'Power2',
+      delay: 500,
     });
     this.tweens.add({
-      targets: alphaTag, alpha: 1,
-      duration: 1000, ease: 'Power2', delay: 650,
+      targets: alphaTag,
+      alpha: 1,
+      duration: 1000,
+      ease: 'Power2',
+      delay: 650,
     });
     this.tweens.add({
-      targets: [divider, swordIcon], alpha: 1,
-      duration: 1000, ease: 'Power2', delay: 800,
+      targets: [divider, swordIcon],
+      alpha: 1,
+      duration: 1000,
+      ease: 'Power2',
+      delay: 800,
     });
 
     // --- Menu buttons ---
@@ -590,133 +674,249 @@ export class TitleScene extends Phaser.Scene {
     const btnGap = 42;
     const hasSlots = getSlotCount() > 0;
 
-    createMenuButton(this, cx, menuY, 'NEW GAME', () => this.runMenuTransition(() => this.handleNewGame()), btnDelay);
+    createMenuButton(
+      this,
+      cx,
+      menuY,
+      'NEW GAME',
+      () => this.runMenuTransition(() => this.handleNewGame()),
+      btnDelay,
+    );
     menuY += btnGap;
 
     let delayIdx = 1;
 
     // CONTINUE button (if slots exist)
     if (hasSlots) {
-      createMenuButton(this, cx, menuY, 'CONTINUE', () => this.runMenuTransition(
-        () => transitionToScene(this, 'SlotPicker', { gameData: this.gameData }, { reason: TRANSITION_REASONS.CONTINUE }),
-      ), btnDelay + delayIdx * 150);
+      createMenuButton(
+        this,
+        cx,
+        menuY,
+        'CONTINUE',
+        () =>
+          this.runMenuTransition(() =>
+            transitionToScene(
+              this,
+              'SlotPicker',
+              { gameData: this.gameData },
+              { reason: TRANSITION_REASONS.CONTINUE },
+            ),
+          ),
+        btnDelay + delayIdx * 150,
+      );
       menuY += btnGap;
       delayIdx++;
     }
 
     // HOW TO PLAY button
-    const htpBtn = createMenuButton(this, cx, menuY, 'HOW TO PLAY', () => {
-      if (this.howToPlayOverlay?.visible) return;
-      this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
-        this.howToPlayOverlay = null;
-        try { localStorage.setItem('emblem_rogue_seen_how_to_play', '1'); } catch (_) {}
-      });
-      this.howToPlayOverlay.show();
-    }, btnDelay + delayIdx * 150);
+    const htpBtn = createMenuButton(
+      this,
+      cx,
+      menuY,
+      'HOW TO PLAY',
+      () => {
+        if (this.howToPlayOverlay?.visible) return;
+        this.howToPlayOverlay = new HowToPlayOverlay(this, () => {
+          this.howToPlayOverlay = null;
+          try {
+            localStorage.setItem('emblem_rogue_seen_how_to_play', '1');
+          } catch (_) {}
+        });
+        this.howToPlayOverlay.show();
+      },
+      btnDelay + delayIdx * 150,
+    );
     menuY += btnGap;
     delayIdx++;
 
     // TUTORIAL button
-    const tutBtn = createMenuButton(this, cx, menuY, 'TUTORIAL', () => this.runMenuTransition(() => {
-      const roster = this.buildTutorialRoster();
-      return transitionToScene(this, 'Battle', {
-        gameData: this.gameData,
-        roster,
-        battleParams: {
-          tutorialMode: true,
-          act: 'act1',
-          objective: 'rout',
-          battleSeed: 42,
-          deployCount: 2,
-        },
-      }, { reason: TRANSITION_REASONS.NEW_GAME });
-    }), btnDelay + delayIdx * 150);
+    const tutBtn = createMenuButton(
+      this,
+      cx,
+      menuY,
+      'TUTORIAL',
+      () =>
+        this.runMenuTransition(() => {
+          const roster = this.buildTutorialRoster();
+          return transitionToScene(
+            this,
+            'Battle',
+            {
+              gameData: this.gameData,
+              roster,
+              battleParams: {
+                tutorialMode: true,
+                act: 'act1',
+                objective: 'rout',
+                battleSeed: 42,
+                deployCount: 2,
+              },
+            },
+            { reason: TRANSITION_REASONS.NEW_GAME },
+          );
+        }),
+      btnDelay + delayIdx * 150,
+    );
     menuY += btnGap;
     delayIdx++;
 
-    createMenuButton(this, cx, menuY, 'MORE INFO', () => {
-      if (this.helpOverlay?.visible) return;
-      this.helpOverlay = new HelpOverlay(this, () => {
-        this.helpOverlay = null;
-      });
-      this.helpOverlay.show();
-    }, btnDelay + delayIdx * 150);
+    createMenuButton(
+      this,
+      cx,
+      menuY,
+      'MORE INFO',
+      () => {
+        if (this.helpOverlay?.visible) return;
+        this.helpOverlay = new HelpOverlay(this, () => {
+          this.helpOverlay = null;
+        });
+        this.helpOverlay.show();
+      },
+      btnDelay + delayIdx * 150,
+    );
     menuY += btnGap;
     delayIdx++;
 
     // First-run "NEW" badges
     try {
       if (!localStorage.getItem('emblem_rogue_seen_how_to_play')) {
-        const newBadge = this.add.text(135, 0, 'NEW', {
-          fontFamily: FONT, fontSize: '8px', color: '#ff6666',
-          backgroundColor: '#330000', padding: { x: 4, y: 2 },
-        }).setOrigin(0, 0.5).setDepth(21);
+        const newBadge = this.add
+          .text(135, 0, 'NEW', {
+            fontFamily: FONT,
+            fontSize: '8px',
+            color: '#ff6666',
+            backgroundColor: '#330000',
+            padding: { x: 4, y: 2 },
+          })
+          .setOrigin(0, 0.5)
+          .setDepth(21);
         htpBtn.add(newBadge);
         this.tweens.add({
-          targets: newBadge, alpha: { from: 1, to: 0.3 },
-          duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          targets: newBadge,
+          alpha: { from: 1, to: 0.3 },
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
         });
       }
       if (!localStorage.getItem('emblem_rogue_tutorial_completed')) {
-        const tutBadge = this.add.text(135, 0, 'NEW', {
-          fontFamily: FONT, fontSize: '8px', color: '#ff6666',
-          backgroundColor: '#330000', padding: { x: 4, y: 2 },
-        }).setOrigin(0, 0.5).setDepth(21);
+        const tutBadge = this.add
+          .text(135, 0, 'NEW', {
+            fontFamily: FONT,
+            fontSize: '8px',
+            color: '#ff6666',
+            backgroundColor: '#330000',
+            padding: { x: 4, y: 2 },
+          })
+          .setOrigin(0, 0.5)
+          .setDepth(21);
         tutBtn.add(tutBadge);
         this.tweens.add({
-          targets: tutBadge, alpha: { from: 1, to: 0.3 },
-          duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          targets: tutBadge,
+          alpha: { from: 1, to: 0.3 },
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
         });
       }
     } catch (_) {}
 
-    createMenuButton(this, cx, menuY, 'COMPENDIUM', () => {
-      if (this.compendiumOverlay?.visible) return;
-      this.compendiumOverlay = new CompendiumOverlay(this, this.gameData, () => { this.compendiumOverlay = null; });
-      this.compendiumOverlay.show();
-    }, btnDelay + delayIdx * 150);
+    createMenuButton(
+      this,
+      cx,
+      menuY,
+      'COMPENDIUM',
+      () => {
+        if (this.compendiumOverlay?.visible) return;
+        this.compendiumOverlay = new CompendiumOverlay(this, this.gameData, () => {
+          this.compendiumOverlay = null;
+        });
+        this.compendiumOverlay.show();
+      },
+      btnDelay + delayIdx * 150,
+    );
     menuY += btnGap;
     delayIdx++;
 
     // Settings — small button in top-left corner
-    createMenuButton(this, 78, 30, 'SETTINGS', () => {
-      if (this.settingsOverlay?.visible) return;
-      this.settingsOverlay = new SettingsOverlay(this, null);
-      this.settingsOverlay.show();
-    }, btnDelay, { width: 130, height: 28, fontSize: '8px', letterSpacing: 1 });
+    createMenuButton(
+      this,
+      78,
+      30,
+      'SETTINGS',
+      () => {
+        if (this.settingsOverlay?.visible) return;
+        this.settingsOverlay = new SettingsOverlay(this, null);
+        this.settingsOverlay.show();
+      },
+      btnDelay,
+      { width: 130, height: 28, fontSize: '8px', letterSpacing: 1 },
+    );
 
     const cloud = this.registry.get('cloud');
     if (cloud) {
       // Small Log Out button in top-right
-      createMenuButton(this, W - 70, 30, 'LOG OUT', async () => {
-        try { await signOut(); } catch (_) {}
-        try {
-          clearAllSlotData();
-          localStorage.removeItem('emblem_rogue_settings');
-        } catch (_) {}
-        location.reload();
-      }, btnDelay + delayIdx * 150, { width: 110, height: 28, fontSize: '8px', letterSpacing: 1 });
+      createMenuButton(
+        this,
+        W - 70,
+        30,
+        'LOG OUT',
+        async () => {
+          try {
+            await signOut();
+          } catch (_) {}
+          try {
+            clearAllSlotData();
+            localStorage.removeItem('emblem_rogue_settings');
+          } catch (_) {}
+          location.reload();
+        },
+        btnDelay + delayIdx * 150,
+        { width: 110, height: 28, fontSize: '8px', letterSpacing: 1 },
+      );
 
       // User name near Log Out
-      this.add.text(W - 132, 30, cloud.displayName, {
-        fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.6)',
-      }).setOrigin(1, 0.5).setDepth(30);
+      this.add
+        .text(W - 132, 30, cloud.displayName, {
+          fontFamily: FONT,
+          fontSize: '7px',
+          color: 'rgba(136,136,170,0.6)',
+        })
+        .setOrigin(1, 0.5)
+        .setDepth(30);
     }
     this._refreshCloudSyncStatusNotice();
 
     // --- Footer ---
-    this.add.text(12, H - 16, 'v0.1.0', {
-      fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.3)',
-    }).setDepth(30);
+    this.add
+      .text(12, H - 16, 'v0.1.0', {
+        fontFamily: FONT,
+        fontSize: '7px',
+        color: 'rgba(136,136,170,0.3)',
+      })
+      .setDepth(30);
 
     // Desktop notice
-    this.add.text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
-      fontFamily: FONT, fontSize: '9px', color: 'rgba(100,100,120,0.4)',
-    }).setOrigin(0.5, 0).setDepth(30);
+    this.add
+      .text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
+        fontFamily: FONT,
+        fontSize: '9px',
+        color: 'rgba(100,100,120,0.4)',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(30);
 
-    const moreInfoText = this.add.text(W - 12, H - 16, 'GITHUB', {
-      fontFamily: FONT, fontSize: '7px', color: 'rgba(136,136,170,0.75)',
-    }).setOrigin(1, 0).setDepth(30).setInteractive({ useHandCursor: true });
+    const moreInfoText = this.add
+      .text(W - 12, H - 16, 'GITHUB', {
+        fontFamily: FONT,
+        fontSize: '7px',
+        color: 'rgba(136,136,170,0.75)',
+      })
+      .setOrigin(1, 0)
+      .setDepth(30)
+      .setInteractive({ useHandCursor: true });
     moreInfoText.on('pointerover', () => moreInfoText.setColor(GOLD_LIGHT));
     moreInfoText.on('pointerout', () => moreInfoText.setColor('rgba(136,136,170,0.75)'));
     moreInfoText.on('pointerdown', () => {
@@ -743,12 +943,14 @@ export class TitleScene extends Phaser.Scene {
     const cloud = this.registry.get('cloud');
     const showNotice = !!cloud?.syncStatus?.authExpired;
     if (showNotice && !this.cloudSyncStatusText) {
-      this.cloudSyncStatusText = this.add.text(
-        W - 12,
-        46,
-        'Cloud unavailable - local saves only (re-auth required)',
-        { fontFamily: FONT, fontSize: '6px', color: '#ff9a6a' },
-      ).setOrigin(1, 0.5).setDepth(30);
+      this.cloudSyncStatusText = this.add
+        .text(W - 12, 46, 'Cloud unavailable - local saves only (re-auth required)', {
+          fontFamily: FONT,
+          fontSize: '6px',
+          color: '#ff9a6a',
+        })
+        .setOrigin(1, 0.5)
+        .setDepth(30);
       return;
     }
     if (!showNotice && this.cloudSyncStatusText) {
@@ -798,7 +1000,12 @@ export class TitleScene extends Phaser.Scene {
     setActiveSlot(nextSlot);
     this.registry.set('activeSlot', nextSlot);
 
-    await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.NEW_GAME });
+    await transitionToScene(
+      this,
+      'HomeBase',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.NEW_GAME },
+    );
     return true;
   }
 
@@ -860,14 +1067,23 @@ export class TitleScene extends Phaser.Scene {
   showMessage(text) {
     if (this.msgText) this.msgText.destroy();
     const cx = W / 2;
-    this.msgText = this.add.text(cx, 440, text, {
-      fontFamily: FONT, fontSize: '9px', color: '#ff8888',
-      align: 'center', backgroundColor: '#000000cc', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(50);
+    this.msgText = this.add
+      .text(cx, 440, text, {
+        fontFamily: FONT,
+        fontSize: '9px',
+        color: '#ff8888',
+        align: 'center',
+        backgroundColor: '#000000cc',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(50);
 
     this.time.delayedCall(3000, () => {
-      if (this.msgText) { this.msgText.destroy(); this.msgText = null; }
+      if (this.msgText) {
+        this.msgText.destroy();
+        this.msgText = null;
+      }
     });
   }
-
 }

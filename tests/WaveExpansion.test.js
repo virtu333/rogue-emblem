@@ -42,12 +42,13 @@ function makeUnit(overrides = {}) {
     stats: { HP: 20, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
     currentHP: 20,
     faction: 'player',
-    weapon: structuredClone(data.weapons.find(w => w.name === 'Iron Sword')),
+    weapon: structuredClone(data.weapons.find((w) => w.name === 'Iron Sword')),
     inventory: [],
     proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     skills: [],
     moveType: 'Infantry',
-    col: 0, row: 0,
+    col: 0,
+    row: 0,
     ...overrides,
   };
 }
@@ -60,8 +61,8 @@ beforeAll(() => {
 
 describe('Reaver weapons', () => {
   it('Lancereaver reverses sword vs lance triangle', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
     // Normally sword has advantage vs axe and disadvantage vs lance
     // Lancereaver (sword) should swap: advantage vs lance
     const bonus = getWeaponTriangleBonus(lancereaver, ironLance, 'Prof');
@@ -70,8 +71,8 @@ describe('Reaver weapons', () => {
   });
 
   it('Swordreaver reverses lance vs axe triangle', () => {
-    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     // Normally Lance loses to Axe (Axe>Lance). Swordreaver (Lance) reverses → beats Axe
     // Actually: Axe>Lance, so Lance is disadvantaged vs Axe.
     // With reaver: disadvantage swaps to advantage
@@ -81,8 +82,8 @@ describe('Reaver weapons', () => {
   });
 
   it('Axereaver reverses axe vs sword triangle', () => {
-    const axereaver = data.weapons.find(w => w.name === 'Axereaver');
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     // Normally Axe loses to Sword (Sword>Axe). Axereaver reverses → beats Sword
     const bonus = getWeaponTriangleBonus(axereaver, ironSword, 'Prof');
     expect(bonus.hit).toBeGreaterThan(0);
@@ -92,8 +93,8 @@ describe('Reaver weapons', () => {
 
 describe('Reaver opponent reversal', () => {
   it('Lancereaver attacker gets disadvantage vs Iron Axe (normal advantage flipped)', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     // Sword normally beats Axe → reaver flips to disadvantage
     const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Prof');
     expect(bonus.hit).toBe(-10);
@@ -101,8 +102,8 @@ describe('Reaver opponent reversal', () => {
   });
 
   it('Swordreaver attacker gets disadvantage vs Iron Sword (normal advantage flipped)', () => {
-    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     // Lance normally beats Sword → reaver flips to disadvantage
     const bonus = getWeaponTriangleBonus(swordreaver, ironSword, 'Prof');
     expect(bonus.hit).toBe(-10);
@@ -110,48 +111,48 @@ describe('Reaver opponent reversal', () => {
   });
 
   it('Lancereaver vs Iron Sword is neutral (same effective type)', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     const bonus = getWeaponTriangleBonus(lancereaver, ironSword, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
   it('Lancereaver vs Iron Bow is neutral (non-triangle type)', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironBow = data.weapons.find(w => w.name === 'Iron Bow');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironBow = data.weapons.find((w) => w.name === 'Iron Bow');
     const bonus = getWeaponTriangleBonus(lancereaver, ironBow, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
   it('Axereaver vs Iron Axe is neutral (same type)', () => {
-    const axereaver = data.weapons.find(w => w.name === 'Axereaver');
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     const bonus = getWeaponTriangleBonus(axereaver, ironAxe, 'Prof');
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
   });
 
   it('Lancereaver vs Iron Lance at Mastery gets mastery advantage', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
     const bonus = getWeaponTriangleBonus(lancereaver, ironLance, 'Mast');
     expect(bonus.hit).toBe(15);
     expect(bonus.damage).toBe(2);
   });
 
   it('Lancereaver vs Iron Axe at Mastery gets mastery disadvantage', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
     const bonus = getWeaponTriangleBonus(lancereaver, ironAxe, 'Mast');
     expect(bonus.hit).toBe(-5);
     expect(bonus.damage).toBe(-1);
   });
 
   it('double-reaver cancels out (Lancereaver vs Swordreaver = normal triangle)', () => {
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
-    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
+    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
     // Both are reavers → XOR=false → normal triangle applies
     // Lancereaver is Sword type, Swordreaver is Lance type
     // Sword vs Lance = disadvantage for Sword
@@ -163,8 +164,8 @@ describe('Reaver opponent reversal', () => {
 
 describe('Triangle ignore', () => {
   it('Ruin clamps negative triangle to 0', () => {
-    const ruin = data.weapons.find(w => w.name === 'Ruin');
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const ruin = data.weapons.find((w) => w.name === 'Ruin');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     // Axe vs Sword is normally disadvantage
     const bonus = getWeaponTriangleBonus(ruin, ironSword, 'Prof');
     expect(bonus.hit).toBeGreaterThanOrEqual(0);
@@ -174,16 +175,16 @@ describe('Triangle ignore', () => {
 
 describe('Weapon stat bonuses (array)', () => {
   it('returns array for Stormbreaker with DEF+RES', () => {
-    const storm = data.weapons.find(w => w.name === 'Stormbreaker');
+    const storm = data.weapons.find((w) => w.name === 'Stormbreaker');
     const bonuses = getWeaponStatBonuses(storm);
     expect(Array.isArray(bonuses)).toBe(true);
     expect(bonuses.length).toBe(2);
-    expect(bonuses.find(b => b.stat === 'DEF')?.value).toBe(5);
-    expect(bonuses.find(b => b.stat === 'RES')?.value).toBe(5);
+    expect(bonuses.find((b) => b.stat === 'DEF')?.value).toBe(5);
+    expect(bonuses.find((b) => b.stat === 'RES')?.value).toBe(5);
   });
 
   it('returns array for Ragnarok with DEF only', () => {
-    const ragnarok = data.weapons.find(w => w.name === 'Ragnarok');
+    const ragnarok = data.weapons.find((w) => w.name === 'Ragnarok');
     const bonuses = getWeaponStatBonuses(ragnarok);
     expect(bonuses.length).toBe(1);
     expect(bonuses[0].stat).toBe('DEF');
@@ -191,7 +192,7 @@ describe('Weapon stat bonuses (array)', () => {
   });
 
   it('returns empty array for weapons without specials', () => {
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     const bonuses = getWeaponStatBonuses(ironSword);
     expect(bonuses).toEqual([]);
   });
@@ -199,17 +200,17 @@ describe('Weapon stat bonuses (array)', () => {
 
 describe('Magic sword (Levin Sword)', () => {
   it('usesMagic returns true for Levin Sword', () => {
-    const levin = data.weapons.find(w => w.name === 'Levin Sword');
+    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
     expect(usesMagic(levin)).toBe(true);
   });
 
   it('usesMagic returns false for regular sword', () => {
-    const iron = data.weapons.find(w => w.name === 'Iron Sword');
+    const iron = data.weapons.find((w) => w.name === 'Iron Sword');
     expect(usesMagic(iron)).toBe(false);
   });
 
   it('Levin Sword uses MAG for attack', () => {
-    const levin = data.weapons.find(w => w.name === 'Levin Sword');
+    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
     const unit = makeUnit({ stats: { ...makeUnit().stats, STR: 5, MAG: 15 } });
     const atk = calculateAttack(unit, levin);
     // Should use MAG (15) not STR (5)
@@ -217,7 +218,7 @@ describe('Magic sword (Levin Sword)', () => {
   });
 
   it('Levin Sword targets RES for defense', () => {
-    const levin = data.weapons.find(w => w.name === 'Levin Sword');
+    const levin = data.weapons.find((w) => w.name === 'Levin Sword');
     const defender = makeUnit({ stats: { ...makeUnit().stats, DEF: 10, RES: 2 } });
     const def = calculateDefense(defender, levin);
     // Should use RES (2) not DEF (10)
@@ -229,13 +230,13 @@ describe('Magic sword (Levin Sword)', () => {
 
 describe('Per-battle weapon uses (Bolting)', () => {
   it('Bolting has perBattleUses flag', () => {
-    const bolting = data.weapons.find(w => w.name === 'Bolting');
+    const bolting = data.weapons.find((w) => w.name === 'Bolting');
     expect(bolting.perBattleUses).toBe(true);
     expect(bolting.uses).toBe(1);
   });
 
   it('getPerBattleMaxUses includes MAG bonus', () => {
-    const bolting = structuredClone(data.weapons.find(w => w.name === 'Bolting'));
+    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Bolting'));
     const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 14 } });
     const maxUses = getPerBattleMaxUses(bolting, unit);
     // Base 1 + bonuses at MAG 8 (+1) and MAG 14 (+1) = 3
@@ -243,7 +244,7 @@ describe('Per-battle weapon uses (Bolting)', () => {
   });
 
   it('spendPerBattleUse tracks usage', () => {
-    const bolting = structuredClone(data.weapons.find(w => w.name === 'Bolting'));
+    const bolting = structuredClone(data.weapons.find((w) => w.name === 'Bolting'));
     const unit = makeUnit({ stats: { ...makeUnit().stats, MAG: 5 } });
     expect(getPerBattleRemainingUses(bolting, unit)).toBe(1);
     spendPerBattleUse(bolting);
@@ -282,7 +283,15 @@ describe('isInitiating combat mods', () => {
     const allyFar = makeUnit({ name: 'AllyFar', col: 3, row: 3, faction: 'player' });
     const allyNpc = makeUnit({ name: 'NpcAlly', col: -1, row: 0, faction: 'npc' });
     const enemy = makeUnit({ faction: 'enemy', col: 2, row: 0 });
-    const mods = getSkillCombatMods(unit, enemy, [unit, allyA, allyB, allyFar, allyNpc], [enemy], data.skills, null, true);
+    const mods = getSkillCombatMods(
+      unit,
+      enemy,
+      [unit, allyA, allyB, allyFar, allyNpc],
+      [enemy],
+      data.skills,
+      null,
+      true,
+    );
     expect(mods.atkBonus).toBe(2);
   });
 });
@@ -333,7 +342,10 @@ describe('Cancel on-defend skill', () => {
     let triggered = false;
     for (let i = 0; i < 100; i++) {
       const result = rollDefenseSkills(defender, 10, true, data.skills);
-      if (result.cancelFollowUp) { triggered = true; break; }
+      if (result.cancelFollowUp) {
+        triggered = true;
+        break;
+      }
     }
     expect(triggered).toBe(true);
   });
@@ -346,7 +358,15 @@ describe('Tactical Advantage aura', () => {
     const auraUnit = makeUnit({ name: 'Kira', skills: ['tactical_advantage'], col: 0, row: 0 });
     const ally = makeUnit({ name: 'Ally', skills: [], col: 1, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 3, row: 0 });
-    const mods = getSkillCombatMods(ally, enemy, [auraUnit, ally], [enemy], data.skills, null, true);
+    const mods = getSkillCombatMods(
+      ally,
+      enemy,
+      [auraUnit, ally],
+      [enemy],
+      data.skills,
+      null,
+      true,
+    );
     expect(mods.atkBonus).toBe(3);
     expect(mods.defBonus).toBe(3);
     expect(mods.resBonus).toBe(3);
@@ -401,8 +421,18 @@ describe('generateRandomLegendary', () => {
   });
 
   it('has a name from the legendary name pool', () => {
-    const names = ['Zenith', 'Tempest', 'Eclipse', 'Solstice', 'Exodus',
-      'Apex', 'Nemesis', 'Harbinger', 'Radiance', 'Terminus'];
+    const names = [
+      'Zenith',
+      'Tempest',
+      'Eclipse',
+      'Solstice',
+      'Exodus',
+      'Apex',
+      'Nemesis',
+      'Harbinger',
+      'Radiance',
+      'Terminus',
+    ];
     for (let i = 0; i < 20; i++) {
       const weapon = generateRandomLegendary(data.weapons);
       expect(names).toContain(weapon.name);
@@ -455,10 +485,19 @@ describe('Random legendary in loot', () => {
     let found = false;
     for (let i = 0; i < 500; i++) {
       const choices = generateLootChoices(
-        'act3', data.lootTables, data.weapons, data.consumables,
-        3, 0, data.accessories, data.whetstones, null, false, legend
+        'act3',
+        data.lootTables,
+        data.weapons,
+        data.consumables,
+        3,
+        0,
+        data.accessories,
+        data.whetstones,
+        null,
+        false,
+        legend,
       );
-      if (choices.some(c => c.item?.name === legend.name)) {
+      if (choices.some((c) => c.item?.name === legend.name)) {
         found = true;
         break;
       }
@@ -471,18 +510,18 @@ describe('Random legendary in loot', () => {
 
 describe('Weapon-granted skills in combat', () => {
   it('rollStrikeSkills checks weapon._grantedSkill', () => {
-    const weapon = structuredClone(data.weapons.find(w => w.name === 'Iron Sword'));
+    const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
     const attacker = makeUnit({ weapon, skills: [], stats: { ...makeUnit().stats, SKL: 100 } });
     const target = makeUnit({ faction: 'enemy' });
     // With SKL=100, Sol should always trigger
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
     expect(result.heal).toBe(10);
-    expect(result.activated.some(a => a.id === 'sol')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'sol')).toBe(true);
   });
 
   it('getSkillCombatMods checks weapon._grantedSkill', () => {
-    const weapon = structuredClone(data.weapons.find(w => w.name === 'Iron Sword'));
+    const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'vantage';
     const unit = makeUnit({ weapon, skills: [], currentHP: 5, col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
@@ -491,7 +530,7 @@ describe('Weapon-granted skills in combat', () => {
   });
 
   it('checkAstra checks weapon._grantedSkill', () => {
-    const weapon = structuredClone(data.weapons.find(w => w.name === 'Iron Sword'));
+    const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'astra';
     const attacker = makeUnit({ weapon, skills: [], stats: { ...makeUnit().stats, SKL: 200 } });
     const result = checkAstra(attacker, data.skills);
@@ -499,13 +538,17 @@ describe('Weapon-granted skills in combat', () => {
   });
 
   it('does not duplicate skill if unit already has it', () => {
-    const weapon = structuredClone(data.weapons.find(w => w.name === 'Iron Sword'));
+    const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
-    const attacker = makeUnit({ weapon, skills: ['sol'], stats: { ...makeUnit().stats, SKL: 100 } });
+    const attacker = makeUnit({
+      weapon,
+      skills: ['sol'],
+      stats: { ...makeUnit().stats, SKL: 100 },
+    });
     const target = makeUnit({ faction: 'enemy' });
     // Should trigger once, not twice
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
-    const solCount = result.activated.filter(a => a.id === 'sol').length;
+    const solCount = result.activated.filter((a) => a.id === 'sol').length;
     expect(solCount).toBeLessThanOrEqual(1);
   });
 });
@@ -522,37 +565,37 @@ describe('Level 20 personal skills in lords.json', () => {
   });
 
   it('Edric has commanders_gambit', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
+    const edric = data.lords.find((l) => l.name === 'Edric');
     expect(edric.personalSkillL20.skillId).toBe('commanders_gambit');
   });
 
   it('Kira has tactical_advantage', () => {
-    const kira = data.lords.find(l => l.name === 'Kira');
+    const kira = data.lords.find((l) => l.name === 'Kira');
     expect(kira.personalSkillL20.skillId).toBe('tactical_advantage');
   });
 
   it('Voss has aether', () => {
-    const voss = data.lords.find(l => l.name === 'Voss');
+    const voss = data.lords.find((l) => l.name === 'Voss');
     expect(voss.personalSkillL20.skillId).toBe('aether');
   });
 
   it('Sera has flare', () => {
-    const sera = data.lords.find(l => l.name === 'Sera');
+    const sera = data.lords.find((l) => l.name === 'Sera');
     expect(sera.personalSkillL20.skillId).toBe('flare');
   });
 });
 
 describe('L20 skill learning', () => {
   it('createLordUnit stores _personalSkillL20', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     expect(unit._personalSkillL20).toEqual({ skillId: 'commanders_gambit', level: 20 });
   });
 
   it('checkLevelUpSkills learns personal skill at base class level 20', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.level = 20;
     const learned = checkLevelUpSkills(unit, data.classes);
@@ -561,8 +604,8 @@ describe('L20 skill learning', () => {
   });
 
   it('checkLevelUpSkills learns personal skill at promoted class level 10', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.tier = 'promoted';
     unit.level = 10;
@@ -572,8 +615,8 @@ describe('L20 skill learning', () => {
   });
 
   it('does not learn personal skill below base level 20', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.level = 19;
     const learned = checkLevelUpSkills(unit, data.classes);
@@ -581,8 +624,8 @@ describe('L20 skill learning', () => {
   });
 
   it('does not learn personal skill below promoted level 10', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.tier = 'promoted';
     unit.level = 9;
@@ -591,15 +634,15 @@ describe('L20 skill learning', () => {
   });
 
   it('does not double-learn if already known', () => {
-    const edric = data.lords.find(l => l.name === 'Edric');
-    const cls = data.classes.find(c => c.name === edric.class);
+    const edric = data.lords.find((l) => l.name === 'Edric');
+    const cls = data.classes.find((c) => c.name === edric.class);
     const unit = createLordUnit(edric, cls, data.weapons);
     unit.level = 20;
     unit.skills.push('commanders_gambit');
     const learned = checkLevelUpSkills(unit, data.classes);
     expect(learned).not.toContain('commanders_gambit');
     // Should still only have one copy
-    expect(unit.skills.filter(s => s === 'commanders_gambit').length).toBe(1);
+    expect(unit.skills.filter((s) => s === 'commanders_gambit').length).toBe(1);
   });
 });
 
@@ -613,7 +656,7 @@ describe('Aether skill', () => {
     expect(result.heal).toBe(10); // Sol heal
     expect(result.extraStrike).toBe(true);
     expect(result.aetherLuna).toBe(true);
-    expect(result.activated.some(a => a.id === 'aether')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'aether')).toBe(true);
   });
 });
 
@@ -624,17 +667,20 @@ describe('Flare skill', () => {
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
     expect(result.modifiedDamage).toBe(10 + 8); // normalDamage + target RES
     expect(result.heal).toBe(18); // drain equal to modified damage
-    expect(result.activated.some(a => a.id === 'flare')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'flare')).toBe(true);
   });
 });
 
 describe("Commander's Gambit skill", () => {
   it('sets commandersGambit flag', () => {
-    const attacker = makeUnit({ skills: ['commanders_gambit'], stats: { ...makeUnit().stats, SKL: 200 } });
+    const attacker = makeUnit({
+      skills: ['commanders_gambit'],
+      stats: { ...makeUnit().stats, SKL: 200 },
+    });
     const target = makeUnit({ faction: 'enemy' });
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
     expect(result.commandersGambit).toBe(true);
-    expect(result.activated.some(a => a.id === 'commanders_gambit')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'commanders_gambit')).toBe(true);
   });
 });
 
@@ -642,65 +688,72 @@ describe("Commander's Gambit skill", () => {
 
 describe('Sword hit +5 applied', () => {
   it('Iron Sword has hit 95', () => {
-    const w = data.weapons.find(w => w.name === 'Iron Sword');
+    const w = data.weapons.find((w) => w.name === 'Iron Sword');
     expect(w.hit).toBe(95);
   });
 
   it('Steel Sword has hit 85', () => {
-    const w = data.weapons.find(w => w.name === 'Steel Sword');
+    const w = data.weapons.find((w) => w.name === 'Steel Sword');
     expect(w.hit).toBe(85);
   });
 });
 
 describe('Brave weapon weight increase', () => {
   it('Brave Sword weight is 8', () => {
-    const w = data.weapons.find(w => w.name === 'Brave Sword');
+    const w = data.weapons.find((w) => w.name === 'Brave Sword');
     expect(w.weight).toBe(8);
   });
 
   it('Brave Lance weight is 11', () => {
-    const w = data.weapons.find(w => w.name === 'Brave Lance');
+    const w = data.weapons.find((w) => w.name === 'Brave Lance');
     expect(w.weight).toBe(11);
   });
 });
 
 describe('New standard weapons exist', () => {
-  const expected = ['Wo Dao', 'Wind Sword', 'Tempest Blade', 'Short Axe', 'Killer Axe', 'Killer Bow'];
+  const expected = [
+    'Wo Dao',
+    'Wind Sword',
+    'Tempest Blade',
+    'Short Axe',
+    'Killer Axe',
+    'Killer Bow',
+  ];
   for (const name of expected) {
     it(`${name} exists in weapons data`, () => {
-      expect(data.weapons.find(w => w.name === name)).toBeTruthy();
+      expect(data.weapons.find((w) => w.name === name)).toBeTruthy();
     });
   }
 });
 
 describe('Renamed weapons', () => {
   it('Ragnarok exists with might 14', () => {
-    const w = data.weapons.find(w => w.name === 'Ragnarok');
+    const w = data.weapons.find((w) => w.name === 'Ragnarok');
     expect(w).toBeTruthy();
     expect(w.might).toBe(14);
   });
 
   it('Soulreaver exists', () => {
-    expect(data.weapons.find(w => w.name === 'Soulreaver')).toBeTruthy();
+    expect(data.weapons.find((w) => w.name === 'Soulreaver')).toBeTruthy();
   });
 
   it('Venin Blade exists with might 8', () => {
-    const w = data.weapons.find(w => w.name === 'Venin Blade');
+    const w = data.weapons.find((w) => w.name === 'Venin Blade');
     expect(w).toBeTruthy();
     expect(w.might).toBe(8);
   });
 
   it('Venin Bow exists with poison special', () => {
-    const w = data.weapons.find(w => w.name === 'Venin Bow');
+    const w = data.weapons.find((w) => w.name === 'Venin Bow');
     expect(w).toBeTruthy();
     expect(w.type).toBe('Bow');
     expect(w.special).toBe('Poison: target loses 5 HP after combat');
   });
 
   it('old names do not exist', () => {
-    expect(data.weapons.find(w => w.name === 'Ragnell')).toBeFalsy();
-    expect(data.weapons.find(w => w.name === 'Runesword')).toBeFalsy();
-    expect(data.weapons.find(w => w.name === 'Venin Edge')).toBeFalsy();
+    expect(data.weapons.find((w) => w.name === 'Ragnell')).toBeFalsy();
+    expect(data.weapons.find((w) => w.name === 'Runesword')).toBeFalsy();
+    expect(data.weapons.find((w) => w.name === 'Venin Edge')).toBeFalsy();
   });
 });
 
@@ -708,25 +761,41 @@ describe('Renamed weapons', () => {
 
 describe('Skills data integrity', () => {
   const expectedSkills = [
-    'cancel', 'desperation', 'quick_riposte', 'death_blow', 'darting_blow',
-    'shove', 'pull', 'canto',
-    'commanders_gambit', 'tactical_advantage', 'draconic_aura', 'aether', 'flare', 'spell_harmony',
+    'cancel',
+    'desperation',
+    'quick_riposte',
+    'death_blow',
+    'darting_blow',
+    'shove',
+    'pull',
+    'canto',
+    'commanders_gambit',
+    'tactical_advantage',
+    'draconic_aura',
+    'aether',
+    'flare',
+    'spell_harmony',
   ];
   for (const id of expectedSkills) {
     it(`skill ${id} exists in skills.json`, () => {
-      expect(data.skills.find(s => s.id === id)).toBeTruthy();
+      expect(data.skills.find((s) => s.id === id)).toBeTruthy();
     });
   }
 });
 
 describe('Scroll weapons exist for new skills', () => {
   const expectedScrolls = [
-    'Cancel Scroll', 'Desperation Scroll', 'Quick Riposte Scroll',
-    'Death Blow Scroll', 'Darting Blow Scroll', 'Shove Scroll', 'Pull Scroll',
+    'Cancel Scroll',
+    'Desperation Scroll',
+    'Quick Riposte Scroll',
+    'Death Blow Scroll',
+    'Darting Blow Scroll',
+    'Shove Scroll',
+    'Pull Scroll',
   ];
   for (const name of expectedScrolls) {
     it(`${name} exists as a scroll weapon`, () => {
-      const w = data.weapons.find(w => w.name === name);
+      const w = data.weapons.find((w) => w.name === name);
       expect(w).toBeTruthy();
       expect(w.type).toBe('Scroll');
     });

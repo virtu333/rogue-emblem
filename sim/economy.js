@@ -3,14 +3,34 @@
 
 import { installSeed, restoreMathRandom } from './lib/SeededRNG.js';
 import { getData } from './lib/SimUnitFactory.js';
-import { printTable, toCSV, parseArgs, printRecommendations, printHeader, percentiles, meanStd } from './lib/TableFormatter.js';
+import {
+  printTable,
+  toCSV,
+  parseArgs,
+  printRecommendations,
+  printHeader,
+  percentiles,
+  meanStd,
+} from './lib/TableFormatter.js';
 import { getMetaEffects } from './lib/economyMeta.js';
-import { calculateKillGold, calculateBattleGold, generateLootChoices, generateShopInventory } from '../src/engine/LootSystem.js';
+import {
+  calculateKillGold,
+  calculateBattleGold,
+  generateLootChoices,
+  generateShopInventory,
+} from '../src/engine/LootSystem.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import {
-  STARTING_GOLD, ACT_CONFIG, NODE_TYPES, GOLD_PER_KILL_BASE, GOLD_PER_LEVEL_BONUS,
-  GOLD_BATTLE_BONUS, GOLD_BOSS_BONUS, GOLD_SKIP_LOOT_MULTIPLIER,
-  DEPLOY_LIMITS, ENEMY_COUNT_OFFSET,
+  STARTING_GOLD,
+  ACT_CONFIG,
+  NODE_TYPES,
+  GOLD_PER_KILL_BASE,
+  GOLD_PER_LEVEL_BONUS,
+  GOLD_BATTLE_BONUS,
+  GOLD_BOSS_BONUS,
+  GOLD_SKIP_LOOT_MULTIPLIER,
+  DEPLOY_LIMITS,
+  ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
 const opts = parseArgs({ trials: 500, seed: 42, csv: false, meta: 0 });
@@ -73,10 +93,14 @@ function simulateRunEconomy(strategy, metaLevel) {
 
     while (currentId && !visited.has(currentId)) {
       visited.add(currentId);
-      const node = nodeMap.nodes.find(n => n.id === currentId);
+      const node = nodeMap.nodes.find((n) => n.id === currentId);
       if (!node) break;
 
-      if (node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) {
+      if (
+        node.type === NODE_TYPES.BATTLE ||
+        node.type === NODE_TYPES.BOSS ||
+        node.type === NODE_TYPES.RECRUIT
+      ) {
         battleCount++;
         const isBoss = node.type === NODE_TYPES.BOSS;
         const enemyCount = getEnemyCount(act, node.row, isBoss);
@@ -102,9 +126,8 @@ function simulateRunEconomy(strategy, metaLevel) {
         if (!isBoss) {
           const lootWeaponQualityBonus = meta.lootWeaponQualityBonus || 0;
           const lootCategoryWeightBonuses = meta.lootCategoryWeightBonuses || {};
-          const lootOptions = Object.keys(lootCategoryWeightBonuses).length > 0
-            ? { lootCategoryWeightBonuses }
-            : {};
+          const lootOptions =
+            Object.keys(lootCategoryWeightBonuses).length > 0 ? { lootCategoryWeightBonuses } : {};
           const lootChoices = generateLootChoices(
             act,
             data.lootTables,
@@ -119,12 +142,12 @@ function simulateRunEconomy(strategy, metaLevel) {
             null,
             false,
             null,
-            lootOptions
+            lootOptions,
           );
 
           if (strategy === 'save-for-seal') {
             // Always take gold from loot if available, otherwise skip
-            const goldLoot = lootChoices.find(c => c.type === 'gold');
+            const goldLoot = lootChoices.find((c) => c.type === 'gold');
             if (goldLoot) {
               battleGold += goldLoot.goldAmount;
             } else {
@@ -133,16 +156,16 @@ function simulateRunEconomy(strategy, metaLevel) {
             }
           } else if (strategy === 'buy-weapons') {
             // Take weapon loot if available
-            const weaponLoot = lootChoices.find(c => c.type === 'weapon' || c.type === 'rare');
+            const weaponLoot = lootChoices.find((c) => c.type === 'weapon' || c.type === 'rare');
             if (!weaponLoot) {
-              const goldLoot = lootChoices.find(c => c.type === 'gold');
+              const goldLoot = lootChoices.find((c) => c.type === 'gold');
               if (goldLoot) battleGold += goldLoot.goldAmount;
             }
           } else {
             // balanced: take consumable > weapon > gold
-            const consumableLoot = lootChoices.find(c => c.type === 'consumable');
+            const consumableLoot = lootChoices.find((c) => c.type === 'consumable');
             if (!consumableLoot) {
-              const goldLoot = lootChoices.find(c => c.type === 'gold');
+              const goldLoot = lootChoices.find((c) => c.type === 'gold');
               if (goldLoot) battleGold += goldLoot.goldAmount;
             }
           }
@@ -156,7 +179,7 @@ function simulateRunEconomy(strategy, metaLevel) {
 
         if (strategy === 'save-for-seal') {
           // Only buy Master Seal when affordable
-          const seal = shopInv.find(i => i.item.name === 'Master Seal');
+          const seal = shopInv.find((i) => i.item.name === 'Master Seal');
           if (seal && gold >= seal.price && !masterSealBought) {
             gold -= seal.price;
             shopSpent += seal.price;
@@ -164,7 +187,7 @@ function simulateRunEconomy(strategy, metaLevel) {
           }
         } else if (strategy === 'buy-weapons') {
           // Buy best affordable weapon
-          const affordableWeapons = shopInv.filter(i => i.type === 'weapon' && gold >= i.price);
+          const affordableWeapons = shopInv.filter((i) => i.type === 'weapon' && gold >= i.price);
           if (affordableWeapons.length > 0) {
             const best = affordableWeapons.sort((a, b) => b.price - a.price)[0];
             gold -= best.price;
@@ -172,12 +195,12 @@ function simulateRunEconomy(strategy, metaLevel) {
           }
         } else {
           // balanced: buy vulnerary + maybe a weapon if affordable
-          const vuln = shopInv.find(i => i.item.name === 'Vulnerary');
+          const vuln = shopInv.find((i) => i.item.name === 'Vulnerary');
           if (vuln && gold >= vuln.price) {
             gold -= vuln.price;
             shopSpent += vuln.price;
           }
-          const affordableWeapons = shopInv.filter(i => i.type === 'weapon' && gold >= i.price);
+          const affordableWeapons = shopInv.filter((i) => i.type === 'weapon' && gold >= i.price);
           if (affordableWeapons.length > 0 && gold > 500) {
             const pick = affordableWeapons[0];
             gold -= pick.price;
@@ -204,7 +227,7 @@ function simulateRunEconomy(strategy, metaLevel) {
     masterSealBought,
     finalGold: gold,
     battleCount,
-    canPromoteMidAct2: checkpoints.act1 >= 2500 || (checkpoints.act2 >= 2500),
+    canPromoteMidAct2: checkpoints.act1 >= 2500 || checkpoints.act2 >= 2500,
   };
 }
 
@@ -224,11 +247,15 @@ for (const strategy of strategies) {
 
   // Gold at each checkpoint
   const acts = ['act1', 'act2', 'act3', 'finalBoss'];
-  const cpRows = acts.map(act => {
-    const golds = results.map(r => r.goldByCheckpoint[act] || 0);
+  const cpRows = acts.map((act) => {
+    const golds = results.map((r) => r.goldByCheckpoint[act] || 0);
     const pcts = percentiles(golds);
     const { mean } = meanStd(golds);
-    return { Act: act, Mean: Math.floor(mean), ...Object.fromEntries(Object.entries(pcts).map(([k, v]) => [k, Math.floor(v)])) };
+    return {
+      Act: act,
+      Mean: Math.floor(mean),
+      ...Object.fromEntries(Object.entries(pcts).map(([k, v]) => [k, Math.floor(v)])),
+    };
   });
 
   if (opts.csv) {
@@ -238,14 +265,20 @@ for (const strategy of strategies) {
   }
 
   // Promotion affordability
-  const sealRate = results.filter(r => r.masterSealBought || r.canPromoteMidAct2).length / results.length * 100;
-  const avgBattleGold = meanStd(results.map(r => r.totalBattleGold));
-  const avgShopSpent = meanStd(results.map(r => r.shopSpent));
-  const avgBattles = meanStd(results.map(r => r.battleCount));
+  const sealRate =
+    (results.filter((r) => r.masterSealBought || r.canPromoteMidAct2).length / results.length) *
+    100;
+  const avgBattleGold = meanStd(results.map((r) => r.totalBattleGold));
+  const avgShopSpent = meanStd(results.map((r) => r.shopSpent));
+  const avgBattles = meanStd(results.map((r) => r.battleCount));
 
   console.log(`  Promotion affordable (by Act 2 end): ${sealRate.toFixed(1)}%`);
-  console.log(`  Avg battle gold earned: ${avgBattleGold.mean.toFixed(0)} ± ${avgBattleGold.std.toFixed(0)}`);
-  console.log(`  Avg shop spending: ${avgShopSpent.mean.toFixed(0)} ± ${avgShopSpent.std.toFixed(0)}`);
+  console.log(
+    `  Avg battle gold earned: ${avgBattleGold.mean.toFixed(0)} ± ${avgBattleGold.std.toFixed(0)}`,
+  );
+  console.log(
+    `  Avg shop spending: ${avgShopSpent.mean.toFixed(0)} ± ${avgShopSpent.std.toFixed(0)}`,
+  );
   console.log(`  Avg battles fought: ${avgBattles.mean.toFixed(1)}`);
 
   // Flagging
@@ -285,10 +318,10 @@ if (opts.meta === 0) {
       results.push(simulateRunEconomy('balanced', ml));
     }
 
-    const finalGolds = results.map(r => r.finalGold);
+    const finalGolds = results.map((r) => r.finalGold);
     const { mean } = meanStd(finalGolds);
     const pcts = percentiles(finalGolds);
-    const sealRate = results.filter(r => r.canPromoteMidAct2).length / results.length * 100;
+    const sealRate = (results.filter((r) => r.canPromoteMidAct2).length / results.length) * 100;
 
     compRows.push({
       Meta: `L${ml}`,

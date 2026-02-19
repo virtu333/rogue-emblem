@@ -24,7 +24,9 @@ import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 
 function createDeferred() {
   let resolve;
-  const promise = new Promise((r) => { resolve = r; });
+  const promise = new Promise((r) => {
+    resolve = r;
+  });
   return { promise, resolve };
 }
 
@@ -137,7 +139,10 @@ describe('Async shutdown hardening', () => {
     expect(scene.dialogueOverlay).toBeNull();
     expect(scene._unbindInputHandlers).toHaveBeenCalledTimes(1);
     expect(mobileEvents.off).toHaveBeenCalledTimes(2);
-    expect(mobileEvents.emit).toHaveBeenCalledWith('mobile:setContext', { context: 'none', resetStack: true });
+    expect(mobileEvents.emit).toHaveBeenCalledWith('mobile:setContext', {
+      context: 'none',
+      resetStack: true,
+    });
     expect(scene._sceneShutdownCleanedUp).toBe(true);
     expect(scene._sceneShuttingDown).toBe(true);
   });
@@ -271,7 +276,10 @@ describe('Async shutdown hardening', () => {
     expect(scene.input.keyboard.off).toHaveBeenCalledTimes(1);
     expect(scene.input.off).toHaveBeenCalledTimes(4);
     expect(mobileEvents.off).toHaveBeenCalledTimes(2);
-    expect(mobileEvents.emit).toHaveBeenCalledWith('mobile:setContext', { context: 'none', resetStack: true });
+    expect(mobileEvents.emit).toHaveBeenCalledWith('mobile:setContext', {
+      context: 'none',
+      resetStack: true,
+    });
     expect(audio.releaseMusic).toHaveBeenCalledTimes(1);
     expect(scene._sceneShutdownCleanedUp).toBe(true);
     expect(scene._sceneShuttingDown).toBe(true);

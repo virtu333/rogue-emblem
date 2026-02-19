@@ -30,7 +30,9 @@ export class SettingsManager {
           if (saved[key] !== undefined) this.data[key] = saved[key];
         }
       }
-    } catch (_) { /* incognito / quota exceeded */ }
+    } catch (_) {
+      /* incognito / quota exceeded */
+    }
   }
 
   get(key) {
@@ -42,19 +44,33 @@ export class SettingsManager {
     this._save();
   }
 
-  getMusicVolume() { return this.data.musicVolume; }
-  setMusicVolume(v) { this.set('musicVolume', Math.max(0, Math.min(1, v))); }
+  getMusicVolume() {
+    return this.data.musicVolume;
+  }
+  setMusicVolume(v) {
+    this.set('musicVolume', Math.max(0, Math.min(1, v)));
+  }
 
-  getSFXVolume() { return this.data.sfxVolume; }
-  setSFXVolume(v) { this.set('sfxVolume', Math.max(0, Math.min(1, v))); }
+  getSFXVolume() {
+    return this.data.sfxVolume;
+  }
+  setSFXVolume(v) {
+    this.set('sfxVolume', Math.max(0, Math.min(1, v)));
+  }
 
-  getReducedEffects() { return !!this.data.reducedEffects; }
-  setReducedEffects(v) { this.set('reducedEffects', !!v); }
+  getReducedEffects() {
+    return !!this.data.reducedEffects;
+  }
+  setReducedEffects(v) {
+    this.set('reducedEffects', !!v);
+  }
 
   _save() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
-    } catch (_) { /* incognito / quota exceeded */ }
+    } catch (_) {
+      /* incognito / quota exceeded */
+    }
     if (this.onSave) this.onSave(this.data);
   }
 }

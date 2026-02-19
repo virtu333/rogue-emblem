@@ -26,13 +26,26 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setOrigin() { return this; },
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
     destroy() {},
-    setVisible() { return this; },
+    setVisible() {
+      return this;
+    },
   };
 }
 
@@ -181,7 +194,10 @@ describe('BattleScene loot meta wiring', () => {
 
     expect(scene.runManager.accessories).toHaveLength(1);
     expect(scene.runManager.accessories[0].name).toBe('Goddess Icon');
-    expect(scene.showLootStatus).toHaveBeenCalledWith('Added Goddess Icon to Accessory Pool.', '#88ff88');
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Added Goddess Icon to Accessory Pool.',
+      '#88ff88',
+    );
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
   });
 
@@ -227,7 +243,9 @@ describe('BattleScene loot meta wiring', () => {
 
     lootCard.handlers.pointerdown();
 
-    const unitBtn = [...rectangles].reverse().find((obj) => obj.args?.[2] === 200 && typeof obj.handlers.pointerdown === 'function');
+    const unitBtn = [...rectangles]
+      .reverse()
+      .find((obj) => obj.args?.[2] === 200 && typeof obj.handlers.pointerdown === 'function');
     expect(unitBtn).toBeTruthy();
 
     unitBtn.handlers.pointerdown();
@@ -370,8 +388,8 @@ describe('BattleScene loot meta wiring', () => {
     const expectedSkipGold = Math.floor(skipBaseGold * GOLD_LOOT_REWARD_MULTIPLIER);
     expect(textCalls.some((call) => call[2] === `+${expectedSkipGold}G`)).toBe(true);
 
-    const skipCard = rectangles.find((obj) =>
-      obj.args?.[4] === 0x554433 && typeof obj.handlers.pointerdown === 'function'
+    const skipCard = rectangles.find(
+      (obj) => obj.args?.[4] === 0x554433 && typeof obj.handlers.pointerdown === 'function',
     );
     expect(skipCard).toBeTruthy();
     skipCard.handlers.pointerdown();
@@ -385,15 +403,21 @@ describe('BattleScene loot meta wiring', () => {
 
   it('normalizes and truncates weapon special lines for loot card details', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
-    const detail = BattleScene.prototype.getLootCardDetailLines.call(scene, { type: 'weapon' }, {
-      type: 'Sword',
-      might: 7,
-      hit: 90,
-      crit: 5,
-      weight: 6,
-      range: '1',
-      special: '  Heals HP equal to MAG+5 and grants barrier to allies nearby\r\nSecond line with extra detail that should be wrapped\r\nThird line should be truncated  ',
-    }, 100);
+    const detail = BattleScene.prototype.getLootCardDetailLines.call(
+      scene,
+      { type: 'weapon' },
+      {
+        type: 'Sword',
+        might: 7,
+        hit: 90,
+        crit: 5,
+        weight: 6,
+        range: '1',
+        special:
+          '  Heals HP equal to MAG+5 and grants barrier to allies nearby\r\nSecond line with extra detail that should be wrapped\r\nThird line should be truncated  ',
+      },
+      100,
+    );
 
     expect(detail.lines[0]).toBe('Sword');
     expect(detail.lines[1]).toContain('7Mt 90Hit 5Crt');
@@ -408,7 +432,9 @@ describe('BattleScene loot meta wiring', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
     const cardWidth = 100;
     const maxChars = Math.max(10, Math.floor((cardWidth - 12) / 5));
-    scene.getAccessoryDetailText = vi.fn(() => 'AccessoryPassiveBonusTokenWithoutSpacesABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+    scene.getAccessoryDetailText = vi.fn(
+      () => 'AccessoryPassiveBonusTokenWithoutSpacesABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    );
 
     const cases = [
       {
@@ -421,7 +447,9 @@ describe('BattleScene loot meta wiring', () => {
         item: {
           type: 'Scroll',
           teachesWeaponArtId: 'flare-strike',
-          allowedWeaponTypes: ['SwordLanceAxeBowTomeLightStaffSuperLongTokenWithoutSpaces1234567890'],
+          allowedWeaponTypes: [
+            'SwordLanceAxeBowTomeLightStaffSuperLongTokenWithoutSpaces1234567890',
+          ],
         },
         expectsTruncation: true,
       },
@@ -450,11 +478,18 @@ describe('BattleScene loot meta wiring', () => {
     ];
 
     for (const entry of cases) {
-      const detail = BattleScene.prototype.getLootCardDetailLines.call(scene, entry.choice, entry.item, cardWidth);
+      const detail = BattleScene.prototype.getLootCardDetailLines.call(
+        scene,
+        entry.choice,
+        entry.item,
+        cardWidth,
+      );
       expect(detail.lines.length).toBeGreaterThan(0);
-      const maxLines = (entry.item?.type === 'Scroll' && !entry.item?.teachesWeaponArtId) ? 3 : 2;
+      const maxLines = entry.item?.type === 'Scroll' && !entry.item?.teachesWeaponArtId ? 3 : 2;
       expect(detail.lines.length).toBeLessThanOrEqual(maxLines);
-      expect(detail.lines.every((line) => typeof line === 'string' && line.length <= maxChars)).toBe(true);
+      expect(
+        detail.lines.every((line) => typeof line === 'string' && line.length <= maxChars),
+      ).toBe(true);
       if (entry.expectsTruncation) {
         expect(detail.lines[detail.lines.length - 1].endsWith('...')).toBe(true);
       }
@@ -473,20 +508,59 @@ describe('BattleScene loot meta wiring', () => {
     scene.add.text = (...args) => makeDisplayObject({ args });
 
     const rowCalls = [];
-    scene._makeMenuTextButton = vi.fn((x, y, label, _textStyle, _defaultColor, _onClick, options = {}) => {
-      rowCalls.push({ x, y, label, options });
-      return makeDisplayObject({ x, y, input: { enabled: true } });
-    });
+    scene._makeMenuTextButton = vi.fn(
+      (x, y, label, _textStyle, _defaultColor, _onClick, options = {}) => {
+        rowCalls.push({ x, y, label, options });
+        return makeDisplayObject({ x, y, input: { enabled: true } });
+      },
+    );
 
     const unit = {
       col: 1,
       row: 1,
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
       inventory: [
-        { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', might: 5, hit: 95, crit: 0, weight: 3, range: '1' },
-        { name: 'Steel Sword', type: 'Sword', rankRequired: 'Prof', might: 8, hit: 80, crit: 0, weight: 7, range: '1', special: 'Long special text' },
-        { name: 'Slim Sword', type: 'Sword', rankRequired: 'Prof', might: 4, hit: 100, crit: 5, weight: 2, range: '1' },
-        { name: 'Killing Edge', type: 'Sword', rankRequired: 'Prof', might: 9, hit: 75, crit: 30, weight: 9, range: '1' },
+        {
+          name: 'Iron Sword',
+          type: 'Sword',
+          rankRequired: 'Prof',
+          might: 5,
+          hit: 95,
+          crit: 0,
+          weight: 3,
+          range: '1',
+        },
+        {
+          name: 'Steel Sword',
+          type: 'Sword',
+          rankRequired: 'Prof',
+          might: 8,
+          hit: 80,
+          crit: 0,
+          weight: 7,
+          range: '1',
+          special: 'Long special text',
+        },
+        {
+          name: 'Slim Sword',
+          type: 'Sword',
+          rankRequired: 'Prof',
+          might: 4,
+          hit: 100,
+          crit: 5,
+          weight: 2,
+          range: '1',
+        },
+        {
+          name: 'Killing Edge',
+          type: 'Sword',
+          rankRequired: 'Prof',
+          might: 9,
+          hit: 75,
+          crit: 30,
+          weight: 9,
+          range: '1',
+        },
       ],
     };
     unit.weapon = unit.inventory[0];
@@ -518,7 +592,14 @@ describe('Loot card hover tooltip lifecycle', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
     const delayedCalls = [];
     scene.time.delayedCall = vi.fn((delay, cb) => {
-      const timer = { delay, cb, removed: false, remove() { this.removed = true; } };
+      const timer = {
+        delay,
+        cb,
+        removed: false,
+        remove() {
+          this.removed = true;
+        },
+      };
       delayedCalls.push(timer);
       return timer;
     });
@@ -530,7 +611,19 @@ describe('Loot card hover tooltip lifecycle', () => {
 
   it('wires pointerover/pointerout on item cards', () => {
     generateLootChoicesMock.mockReturnValue([
-      { type: 'weapon', item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 3, range: '1', price: 500 } },
+      {
+        type: 'weapon',
+        item: {
+          name: 'Iron Sword',
+          type: 'Sword',
+          might: 5,
+          hit: 90,
+          crit: 0,
+          weight: 3,
+          range: '1',
+          price: 500,
+        },
+      },
     ]);
     const { scene } = makeTooltipScene();
     BattleScene.prototype.showLootScreen.call(scene);
@@ -543,7 +636,10 @@ describe('Loot card hover tooltip lifecycle', () => {
 
   it('wires pointerover/pointerout on forge cards', () => {
     generateLootChoicesMock.mockReturnValue([
-      { type: 'forge', item: { name: 'Silver Whetstone', type: 'Whetstone', forgeStat: 'choice', price: 0 } },
+      {
+        type: 'forge',
+        item: { name: 'Silver Whetstone', type: 'Whetstone', forgeStat: 'choice', price: 0 },
+      },
     ]);
     const { scene } = makeTooltipScene();
     scene.showForgeLootPicker = vi.fn();
@@ -556,7 +652,10 @@ describe('Loot card hover tooltip lifecycle', () => {
 
   it('pointerdown on item card calls _hideLootTooltip before action', () => {
     generateLootChoicesMock.mockReturnValue([
-      { type: 'accessory', item: { name: 'Power Ring', type: 'Accessory', effects: { STR: 2 }, price: 800 } },
+      {
+        type: 'accessory',
+        item: { name: 'Power Ring', type: 'Accessory', effects: { STR: 2 }, price: 800 },
+      },
     ]);
     const { scene } = makeTooltipScene();
     const hideOrder = [];
@@ -570,7 +669,19 @@ describe('Loot card hover tooltip lifecycle', () => {
 
   it('pointerout cancels pending tooltip timer', () => {
     generateLootChoicesMock.mockReturnValue([
-      { type: 'weapon', item: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 3, range: '1', price: 500 } },
+      {
+        type: 'weapon',
+        item: {
+          name: 'Iron Sword',
+          type: 'Sword',
+          might: 5,
+          hit: 90,
+          crit: 0,
+          weight: 3,
+          range: '1',
+          price: 500,
+        },
+      },
     ]);
     const { scene, delayedCalls } = makeTooltipScene();
     BattleScene.prototype.showLootScreen.call(scene);
@@ -619,20 +730,26 @@ describe('Loot card hover tooltip lifecycle', () => {
   it('_getLootTooltipText returns weapon art details with shared summarizer', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
     scene.gameData.weaponArts = {
-      arts: [{
-        id: 'heavy-blade',
-        name: 'Heavy Blade',
-        weaponType: 'Sword',
-        hpCost: 5,
-        requiredRank: 'Prof',
-        perTurnLimit: 1,
-        perMapLimit: 3,
-        description: 'A powerful overhead strike.',
-        combatMods: { atkBonus: 8, hitBonus: -10 },
-      }],
+      arts: [
+        {
+          id: 'heavy-blade',
+          name: 'Heavy Blade',
+          weaponType: 'Sword',
+          hpCost: 5,
+          requiredRank: 'Prof',
+          perTurnLimit: 1,
+          perMapLimit: 3,
+          description: 'A powerful overhead strike.',
+          combatMods: { atkBonus: 8, hitBonus: -10 },
+        },
+      ],
     };
     const item = { teachesWeaponArtId: 'heavy-blade', type: 'Scroll', name: 'Heavy Blade Scroll' };
-    const result = BattleScene.prototype._getLootTooltipText.call(scene, { type: 'weaponArtScroll' }, item);
+    const result = BattleScene.prototype._getLootTooltipText.call(
+      scene,
+      { type: 'weaponArtScroll' },
+      item,
+    );
 
     expect(result).toContain('Heavy Blade');
     expect(result).toContain('HP Cost: 5');
@@ -645,9 +762,25 @@ describe('Loot card hover tooltip lifecycle', () => {
 
   it('_getLootTooltipText returns skill scroll details', () => {
     const scene = makeScene({ lootWeaponQualityBonus: 0 });
-    scene.gameData.skills = [{ id: 'vantage', name: 'Vantage', description: 'Strike first when below 50% HP.', trigger: 'on-combat-start' }];
-    const item = { type: 'Scroll', skillId: 'vantage', name: 'Vantage Scroll', special: 'Teaches Vantage' };
-    const result = BattleScene.prototype._getLootTooltipText.call(scene, { type: 'skillScroll' }, item);
+    scene.gameData.skills = [
+      {
+        id: 'vantage',
+        name: 'Vantage',
+        description: 'Strike first when below 50% HP.',
+        trigger: 'on-combat-start',
+      },
+    ];
+    const item = {
+      type: 'Scroll',
+      skillId: 'vantage',
+      name: 'Vantage Scroll',
+      special: 'Teaches Vantage',
+    };
+    const result = BattleScene.prototype._getLootTooltipText.call(
+      scene,
+      { type: 'skillScroll' },
+      item,
+    );
 
     expect(result).toContain('Vantage Scroll');
     expect(result).toContain('Strike first when below 50% HP.');

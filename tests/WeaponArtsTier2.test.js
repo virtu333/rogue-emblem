@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
 import { getWeaponArtTier2Effects } from '../src/engine/WeaponArtSystem.js';
-import { getPostCombatPipelineSteps, resolvePostCombatMove } from '../src/engine/WeaponArtPostCombat.js';
+import {
+  getPostCombatPipelineSteps,
+  resolvePostCombatMove,
+} from '../src/engine/WeaponArtPostCombat.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
@@ -47,7 +50,9 @@ describe('Tier 2 weapon arts', () => {
       if (expectation.afterCombatDamage) {
         expect(effects.afterCombatDamage).toHaveLength(1);
         expect(effects.afterCombatDamage[0].amount).toBe(expectation.afterCombatDamage[0].amount);
-        expect(effects.afterCombatDamage[0].nonLethal).toBe(expectation.afterCombatDamage[0].nonLethal);
+        expect(effects.afterCombatDamage[0].nonLethal).toBe(
+          expectation.afterCombatDamage[0].nonLethal,
+        );
       }
       if (expectation.afterCombatDebuff) {
         expect(effects.afterCombatDebuff).toHaveLength(1);
@@ -108,9 +113,7 @@ describe('Tier 2 weapon arts', () => {
       },
     };
     const result = {
-      events: [
-        { type: 'strike', attackerSide: 'attacker', miss: false },
-      ],
+      events: [{ type: 'strike', attackerSide: 'attacker', miss: false }],
       poisonEffects: [{ target: 'defender', damage: 5 }],
       debuffEvents: [{ target: 'defender', debuffs: { STR: -2 } }],
       divineChargeHeals: [{ side: 'attacker', percent: 30, range: 2, damageDealt: 10 }],

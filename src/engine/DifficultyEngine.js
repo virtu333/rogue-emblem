@@ -127,13 +127,18 @@ export function validateDifficultyConfig(config) {
     for (const key of DIFFICULTY_REQUIRED_KEYS) {
       const value = mode[key];
       if (key === 'actsIncluded') {
-        if (!Array.isArray(value) || value.length === 0 || value.some(v => typeof v !== 'string' || v.length === 0)) {
+        if (
+          !Array.isArray(value) ||
+          value.length === 0 ||
+          value.some((v) => typeof v !== 'string' || v.length === 0)
+        ) {
           errors.push(`modes.${difficultyId}.actsIncluded must be a non-empty string array`);
         }
         continue;
       }
       if (key === 'extendedLevelingEnabled') {
-        if (typeof value !== 'boolean') errors.push(`modes.${difficultyId}.extendedLevelingEnabled must be boolean`);
+        if (typeof value !== 'boolean')
+          errors.push(`modes.${difficultyId}.extendedLevelingEnabled must be boolean`);
         continue;
       }
       if (!isFiniteNumber(value)) {
@@ -152,9 +157,10 @@ export function resolveDifficultyMode(config, difficultyId = 'normal') {
     ...DIFFICULTY_DEFAULTS,
     ...(isObject(mode) ? mode : {}),
   };
-  resolved.actsIncluded = Array.isArray(resolved.actsIncluded) && resolved.actsIncluded.length > 0
-    ? [...resolved.actsIncluded]
-    : [...DIFFICULTY_DEFAULTS.actsIncluded];
+  resolved.actsIncluded =
+    Array.isArray(resolved.actsIncluded) && resolved.actsIncluded.length > 0
+      ? [...resolved.actsIncluded]
+      : [...DIFFICULTY_DEFAULTS.actsIncluded];
   resolved.extendedLevelingEnabled = Boolean(resolved.extendedLevelingEnabled);
   return { id: selectedId, modifiers: resolved };
 }

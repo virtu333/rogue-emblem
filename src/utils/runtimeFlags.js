@@ -44,7 +44,7 @@ function readFlagOverrides() {
     const raw = globalThis?.localStorage?.getItem(FLAG_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return (parsed && typeof parsed === 'object') ? parsed : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch (_) {
     return {};
   }

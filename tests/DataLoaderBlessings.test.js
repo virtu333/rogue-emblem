@@ -130,7 +130,10 @@ describe('DataLoader blessings integration', () => {
     const loader = new DataLoader();
     loader.loadJSON = async (path) => {
       if (path === 'data/mapTemplates.json') {
-        return { rout: [{ id: 'bad_template', zones: [], reinforcementContractVersion: 1 }], seize: [] };
+        return {
+          rout: [{ id: 'bad_template', zones: [], reinforcementContractVersion: 1 }],
+          seize: [],
+        };
       }
       return makeMinimalPayload(path);
     };
@@ -142,7 +145,12 @@ describe('DataLoader blessings integration', () => {
     const loader = new DataLoader();
     loader.loadJSON = async (path) => {
       if (path === 'data/mapTemplates.json') {
-        return { rout: [], seize: [{ id: 'minimal_seize', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }] };
+        return {
+          rout: [],
+          seize: [
+            { id: 'minimal_seize', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] },
+          ],
+        };
       }
       return makeMinimalPayload(path);
     };
@@ -154,7 +162,10 @@ describe('DataLoader blessings integration', () => {
     const loader = new DataLoader();
     loader.loadJSON = async (path) => {
       if (path === 'data/mapTemplates.json') {
-        return { rout: [{ id: 'minimal_rout', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }], seize: [] };
+        return {
+          rout: [{ id: 'minimal_rout', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }],
+          seize: [],
+        };
       }
       return makeMinimalPayload(path);
     };
@@ -190,4 +201,3 @@ describe('DataLoader blessings integration', () => {
     expect(data.weaponArts.arts[0].id).toBe('test_art');
   });
 });
-

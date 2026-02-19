@@ -231,11 +231,21 @@ describe('BattleScene reinforcement reward scaling', () => {
     };
     scene.enemyUnits = [];
     scene.refreshEndTurnControl = vi.fn();
-    scene.processTerrainDamage = vi.fn(async () => { order.push('terrainDamage'); });
-    scene.processTurnStartEffects = vi.fn(async () => { order.push('turnStartEffects'); });
-    scene.applyDueHybridOverridesForTurn = vi.fn((turn) => { order.push(`overrides:${turn}`); });
-    scene.applyReinforcementsForTurn = vi.fn((turn) => { order.push(`reinforcements:${turn}`); });
-    scene.startEnemyPhase = vi.fn(() => { order.push('startEnemyPhase'); });
+    scene.processTerrainDamage = vi.fn(async () => {
+      order.push('terrainDamage');
+    });
+    scene.processTurnStartEffects = vi.fn(async () => {
+      order.push('turnStartEffects');
+    });
+    scene.applyDueHybridOverridesForTurn = vi.fn((turn) => {
+      order.push(`overrides:${turn}`);
+    });
+    scene.applyReinforcementsForTurn = vi.fn((turn) => {
+      order.push(`reinforcements:${turn}`);
+    });
+    scene.startEnemyPhase = vi.fn(() => {
+      order.push('startEnemyPhase');
+    });
 
     let enemyPhaseCallback = null;
     scene.time = {

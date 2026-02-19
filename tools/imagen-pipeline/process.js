@@ -32,19 +32,21 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log([
-    'Usage: node tools/imagen-pipeline/process.js [options]',
-    '',
-    'Options:',
-    '  --manifest <path>     Manifest JSON path',
-    '  --input-dir <path>    Raw input root (default: tools/imagen-pipeline/output/raw)',
-    '  --out-dir <path>      Processed output root (default: tools/imagen-pipeline/output/processed)',
-    '  --category <name>     Process one category only',
-    '  --target-size <n>     Override category target size',
-    '  --remove-bg           Force background removal',
-    '  --palette <file>      Palette file (.json array or newline hex list)',
-    '  --help                Show this message',
-  ].join('\n'));
+  console.log(
+    [
+      'Usage: node tools/imagen-pipeline/process.js [options]',
+      '',
+      'Options:',
+      '  --manifest <path>     Manifest JSON path',
+      '  --input-dir <path>    Raw input root (default: tools/imagen-pipeline/output/raw)',
+      '  --out-dir <path>      Processed output root (default: tools/imagen-pipeline/output/processed)',
+      '  --category <name>     Process one category only',
+      '  --target-size <n>     Override category target size',
+      '  --remove-bg           Force background removal',
+      '  --palette <file>      Palette file (.json array or newline hex list)',
+      '  --help                Show this message',
+    ].join('\n'),
+  );
 }
 
 async function readManifest(filePath) {
@@ -131,7 +133,7 @@ function removeBackgroundByEdgeColor(data, width, height, channels, tolerance = 
     const dr = out[i] - er;
     const dg = out[i + 1] - eg;
     const db = out[i + 2] - eb;
-    if ((dr * dr + dg * dg + db * db) <= tolSq) {
+    if (dr * dr + dg * dg + db * db <= tolSq) {
       out[i + 3] = 0;
     }
   }
@@ -156,7 +158,10 @@ function nearestColor([r, g, b], palette) {
 
 async function applyPalette(buffer, palette) {
   if (!palette || palette.length === 0) return buffer;
-  const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(buffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   const out = Buffer.from(data);
   for (let i = 0; i < out.length; i += info.channels) {
     if (out[i + 3] === 0) continue;
@@ -181,7 +186,10 @@ async function pickRawFile(categoryDir, assetName) {
     throw err;
   }
   const candidates = entries
-    .filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.png') && e.name.startsWith(`${assetName}_v`))
+    .filter(
+      (e) =>
+        e.isFile() && e.name.toLowerCase().endsWith('.png') && e.name.startsWith(`${assetName}_v`),
+    )
     .map((e) => e.name)
     .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
   if (candidates.length === 0) return null;
@@ -192,7 +200,10 @@ async function processOne(rawFile, outFile, targetSize, removeBg, palette) {
   let current = await fs.readFile(rawFile);
 
   if (removeBg) {
-    const { data, info } = await sharp(current).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const { data, info } = await sharp(current)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
     const cut = removeBackgroundByEdgeColor(data, info.width, info.height, info.channels);
     current = await sharp(cut, { raw: info }).png().toBuffer();
   }
@@ -226,9 +237,11 @@ async function main() {
     : categories;
 
   if (filtered.length === 0) {
-    throw new Error(args.category
-      ? `No category '${args.category}' found in manifest`
-      : 'No categories in manifest');
+    throw new Error(
+      args.category
+        ? `No category '${args.category}' found in manifest`
+        : 'No categories in manifest',
+    );
   }
 
   const palette = await readPalette(args.paletteFile);
@@ -241,7 +254,9 @@ async function main() {
     await ensureDir(categoryOut);
 
     const assets = Array.isArray(categoryCfg.assets) ? categoryCfg.assets : [];
-    const targetSize = Number.isInteger(args.targetSize) ? args.targetSize : (categoryCfg.targetSize || 32);
+    const targetSize = Number.isInteger(args.targetSize)
+      ? args.targetSize
+      : categoryCfg.targetSize || 32;
     const removeBg = args.removeBg || Boolean(categoryCfg.removeBg);
 
     console.log(`\n[process] category=${categoryName} target=${targetSize} removeBg=${removeBg}`);

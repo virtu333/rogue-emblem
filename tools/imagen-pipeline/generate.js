@@ -2,7 +2,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict';
+const API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict';
 const DEFAULT_MANIFEST = path.resolve('tools/imagen-pipeline/manifest.json');
 const DEFAULT_OUT = path.resolve('tools/imagen-pipeline/output/raw');
 const REQUEST_DELAY_MS = 2000;
@@ -26,16 +27,18 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log([
-    'Usage: node tools/imagen-pipeline/generate.js [options]',
-    '',
-    'Options:',
-    '  --manifest <path>   Manifest JSON path',
-    '  --out-dir <path>    Raw output root (default: tools/imagen-pipeline/output/raw)',
-    '  --category <name>   Generate only one category',
-    '  --dry-run           Print prompts without API calls',
-    '  --help              Show this message',
-  ].join('\n'));
+  console.log(
+    [
+      'Usage: node tools/imagen-pipeline/generate.js [options]',
+      '',
+      'Options:',
+      '  --manifest <path>   Manifest JSON path',
+      '  --out-dir <path>    Raw output root (default: tools/imagen-pipeline/output/raw)',
+      '  --category <name>   Generate only one category',
+      '  --dry-run           Print prompts without API calls',
+      '  --help              Show this message',
+    ].join('\n'),
+  );
 }
 
 function sleep(ms) {
@@ -43,11 +46,9 @@ function sleep(ms) {
 }
 
 function buildPrompt(globalStyle, categoryCfg, asset) {
-  return [
-    globalStyle || '',
-    categoryCfg.stylePrefix || '',
-    asset.prompt || '',
-  ].filter(Boolean).join('\n\n');
+  return [globalStyle || '', categoryCfg.stylePrefix || '', asset.prompt || '']
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 async function readManifest(filePath) {
@@ -124,9 +125,11 @@ async function main() {
     : categories;
 
   if (filtered.length === 0) {
-    throw new Error(args.category
-      ? `No category '${args.category}' found in manifest`
-      : 'No categories in manifest');
+    throw new Error(
+      args.category
+        ? `No category '${args.category}' found in manifest`
+        : 'No categories in manifest',
+    );
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -171,7 +174,9 @@ async function main() {
   }
 
   console.log('\n[imagen] done');
-  console.log(`[imagen] assets total=${totalAssets} success=${successAssets} failed=${failedAssets}`);
+  console.log(
+    `[imagen] assets total=${totalAssets} success=${successAssets} failed=${failedAssets}`,
+  );
   if (failedAssets > 0) process.exitCode = 1;
 }
 

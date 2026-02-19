@@ -19,7 +19,7 @@ import { applyForge } from '../src/engine/ForgeSystem.js';
 
 const gameData = loadGameData();
 const allArts = gameData.weaponArts.arts;
-const artById = new Map(allArts.map(a => [a.id, a]));
+const artById = new Map(allArts.map((a) => [a.id, a]));
 
 describe('Tier 1 Weapon Arts Expansion', () => {
   it('has exactly 75 arts', () => {
@@ -27,7 +27,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   it('all art IDs are unique', () => {
-    const ids = allArts.map(a => a.id);
+    const ids = allArts.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -47,10 +47,10 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   describe('tier affinity assignments', () => {
-    const ironArts = allArts.filter(a => a.tierAffinity === 'Iron');
-    const steelArts = allArts.filter(a => a.tierAffinity === 'Steel');
-    const silverArts = allArts.filter(a => a.tierAffinity === 'Silver');
-    const legendaryArts = allArts.filter(a => a.tierAffinity === 'Legendary');
+    const ironArts = allArts.filter((a) => a.tierAffinity === 'Iron');
+    const steelArts = allArts.filter((a) => a.tierAffinity === 'Steel');
+    const silverArts = allArts.filter((a) => a.tierAffinity === 'Silver');
+    const legendaryArts = allArts.filter((a) => a.tierAffinity === 'Legendary');
 
     it('iron tier has correct count', () => {
       expect(ironArts.length).toBe(18);
@@ -78,12 +78,29 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('new standard arts', () => {
     const newStandardIds = [
-      'sword_advancing_strike', 'sword_lunge', 'sword_seal_speed', 'sword_poison_strike', 'sword_astra_strike',
-      'lance_hit_and_run', 'lance_shatter_slash', 'lance_overrun',
-      'axe_rushing_blow', 'axe_war_cry', 'axe_rallying_blow',
-      'bow_encloser', 'bow_ward_arrow', 'bow_break_shot', 'bow_waning_shot', 'bow_seal_magic',
-      'bow_all_or_nothing', 'bow_hunters_volley',
-      'magic_healing_light', 'magic_burning_quake', 'magic_radiant_burst', 'magic_silence_strike', 'magic_nosferatu',
+      'sword_advancing_strike',
+      'sword_lunge',
+      'sword_seal_speed',
+      'sword_poison_strike',
+      'sword_astra_strike',
+      'lance_hit_and_run',
+      'lance_shatter_slash',
+      'lance_overrun',
+      'axe_rushing_blow',
+      'axe_war_cry',
+      'axe_rallying_blow',
+      'bow_encloser',
+      'bow_ward_arrow',
+      'bow_break_shot',
+      'bow_waning_shot',
+      'bow_seal_magic',
+      'bow_all_or_nothing',
+      'bow_hunters_volley',
+      'magic_healing_light',
+      'magic_burning_quake',
+      'magic_radiant_burst',
+      'magic_silence_strike',
+      'magic_nosferatu',
     ];
 
     it('all 23 new standard arts exist', () => {
@@ -96,10 +113,17 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       for (const id of newStandardIds) {
         const art = artById.get(id);
         const mods = getWeaponArtCombatMods(art);
-        const hasBonus = mods.atkBonus !== 0 || mods.hitBonus !== 0 || mods.critBonus !== 0
-          || mods.spdBonus !== 0 || mods.avoidBonus !== 0 || mods.defBonus !== 0 || mods.resBonus !== 0;
+        const hasBonus =
+          mods.atkBonus !== 0 ||
+          mods.hitBonus !== 0 ||
+          mods.critBonus !== 0 ||
+          mods.spdBonus !== 0 ||
+          mods.avoidBonus !== 0 ||
+          mods.defBonus !== 0 ||
+          mods.resBonus !== 0;
         const hasTier4 = Boolean(mods.multiHit) || (mods.drainPercent || 0) > 0;
-        const hasStructuredTier2 = Array.isArray(art?.effects?.afterCombat) && art.effects.afterCombat.length > 0;
+        const hasStructuredTier2 =
+          Array.isArray(art?.effects?.afterCombat) && art.effects.afterCombat.length > 0;
         const hasStructuredTier5 = Boolean(art?.effects?.aoeSplash || art?.effects?.allyBuff);
         expect(hasBonus || hasTier4 || hasStructuredTier2 || hasStructuredTier5).toBe(true);
       }
@@ -108,10 +132,19 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('new legendary arts', () => {
     const newLegendaryIds = [
-      'legend_phantom_rush', 'legend_piercing_charge', 'legend_galeforce_assault',
-      'legend_barrage', 'legend_storm_blade', 'legend_life_drain', 'legend_doom_thrust',
-      'legend_blood_lance', 'legend_cataclysm', 'legend_annihilate', 'legend_tempest',
-      'legend_cataclysm_bolt', 'legend_divine_flare',
+      'legend_phantom_rush',
+      'legend_piercing_charge',
+      'legend_galeforce_assault',
+      'legend_barrage',
+      'legend_storm_blade',
+      'legend_life_drain',
+      'legend_doom_thrust',
+      'legend_blood_lance',
+      'legend_cataclysm',
+      'legend_annihilate',
+      'legend_tempest',
+      'legend_cataclysm_bolt',
+      'legend_divine_flare',
     ];
 
     it('all 13 new legendary arts exist', () => {
@@ -144,7 +177,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('weapon art scrolls', () => {
     const weaponArtScrolls = gameData.weapons.filter(
-      w => w.type === 'Scroll' && w.teachesWeaponArtId
+      (w) => w.type === 'Scroll' && w.teachesWeaponArtId,
     );
 
     it('has 22 weapon art scrolls', () => {
@@ -173,8 +206,12 @@ describe('Tier 1 Weapon Arts Expansion', () => {
   });
 
   describe('legendary weapon bindings', () => {
-    const legendaryWeapons = gameData.weapons.filter(w => w.tier === 'Legend' && w.type !== 'Staff');
-    const boundWeapons = legendaryWeapons.filter(w => Array.isArray(w.weaponArtIds) && w.weaponArtIds.length > 0);
+    const legendaryWeapons = gameData.weapons.filter(
+      (w) => w.tier === 'Legend' && w.type !== 'Staff',
+    );
+    const boundWeapons = legendaryWeapons.filter(
+      (w) => Array.isArray(w.weaponArtIds) && w.weaponArtIds.length > 0,
+    );
 
     it('all non-staff legendary weapons except Fortify have bound arts', () => {
       expect(boundWeapons.length).toBe(16);
@@ -199,18 +236,18 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('specific binding: Gae Bolg → Blood Lance', () => {
-      const gaeBolg = gameData.weapons.find(w => w.name === 'Gae Bolg');
+      const gaeBolg = gameData.weapons.find((w) => w.name === 'Gae Bolg');
       expect(gaeBolg.weaponArtIds).toContain('legend_blood_lance');
     });
 
     it('specific binding: Stormbreaker → Cataclysm', () => {
-      const stormbreaker = gameData.weapons.find(w => w.name === 'Stormbreaker');
+      const stormbreaker = gameData.weapons.find((w) => w.name === 'Stormbreaker');
       expect(stormbreaker.weaponArtIds).toContain('legend_cataclysm');
     });
 
     it('Doublebow is bound while Fortify remains unbound', () => {
-      const doublebow = gameData.weapons.find(w => w.name === 'Doublebow');
-      const fortify = gameData.weapons.find(w => w.name === 'Fortify');
+      const doublebow = gameData.weapons.find((w) => w.name === 'Doublebow');
+      const fortify = gameData.weapons.find((w) => w.name === 'Fortify');
       expect(doublebow.weaponArtIds).toContain('legend_starfall_volley');
       expect(fortify.weaponArtIds).toBeUndefined();
     });
@@ -218,7 +255,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('legendary arts excluded from meta innate pools', () => {
     it('legendary arts have legendaryWeaponIds so isPlayerEligibleSpawnArt rejects them', () => {
-      const legendaryArts = allArts.filter(a => a.tierAffinity === 'Legendary');
+      const legendaryArts = allArts.filter((a) => a.tierAffinity === 'Legendary');
       for (const art of legendaryArts) {
         expect(Array.isArray(art.legendaryWeaponIds)).toBe(true);
         expect(art.legendaryWeaponIds.length).toBeGreaterThan(0);
@@ -228,7 +265,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('forged legendary art gate fix', () => {
     it('canUseWeaponArt still works after forging a legendary weapon', () => {
-      const gemini = structuredClone(gameData.weapons.find(w => w.name === 'Gemini'));
+      const gemini = structuredClone(gameData.weapons.find((w) => w.name === 'Gemini'));
       const art = artById.get('legend_gemini_tempest');
       const unit = {
         faction: 'player',
@@ -268,10 +305,14 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
   describe('legacy art exclusion', () => {
     const legacyIds = [
-      'sword_precise_cut', 'sword_comet_edge',
-      'lance_piercing_drive', 'lance_vaulting_thrust',
-      'axe_wild_swing', 'axe_rending_cleave',
-      'bow_longshot', 'bow_hunters_focus',
+      'sword_precise_cut',
+      'sword_comet_edge',
+      'lance_piercing_drive',
+      'lance_vaulting_thrust',
+      'axe_wild_swing',
+      'axe_rending_cleave',
+      'bow_longshot',
+      'bow_hunters_focus',
     ];
 
     it('all 8 legacy arts have legacy: true', () => {
@@ -281,18 +322,20 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('no non-legacy standard art has legacy flag', () => {
-      const nonLegacy = allArts.filter(a => !legacyIds.includes(a.id) && a.tierAffinity !== 'Legendary');
+      const nonLegacy = allArts.filter(
+        (a) => !legacyIds.includes(a.id) && a.tierAffinity !== 'Legendary',
+      );
       for (const art of nonLegacy) {
         expect(art.legacy).toBeUndefined();
       }
     });
 
     it('active Iron pool has 14 arts (18 minus 4 legacy)', () => {
-      expect(allArts.filter(a => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(14);
+      expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(14);
     });
 
     it('active Steel pool has 20 arts (24 minus 4 legacy)', () => {
-      expect(allArts.filter(a => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(20);
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(20);
     });
   });
 

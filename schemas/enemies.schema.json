@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Enemies",
+  "type": "object",
+  "properties": {
+    "pools": {
+      "type": "object",
+      "patternProperties": {
+        "^(act[1-4]|postAct|finalBoss)$": {
+          "type": "object",
+          "properties": {
+            "levelRange": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "base": { "type": "array", "items": { "type": "string" } },
+            "promoted": { "type": "array", "items": { "type": "string" } },
+            "sunderChance": { "type": "number", "minimum": 0, "maximum": 1 },
+            "poisonChance": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "required": ["levelRange", "base", "promoted"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "bosses": {
+      "type": "object",
+      "patternProperties": {
+        "^(act[1-4]|finalBoss)$": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "className": { "type": "string" },
+              "level": { "type": "integer", "minimum": 1 },
+              "name": { "type": "string" }
+            },
+            "required": ["className", "level", "name"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "enemyCountByTiles": {
+      "type": "object",
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["pools", "bosses", "enemyCountByTiles"],
+  "additionalProperties": false
+}

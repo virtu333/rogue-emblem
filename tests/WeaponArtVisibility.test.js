@@ -39,16 +39,22 @@ describe('WeaponArt visibility helpers', () => {
       unlockedIds: [],
       currentAct: 'act1',
     });
-    const prof = resolveWeaponArtStatus(makeArt({ id: 'p', unlockAct: 'act1', requiredRank: 'Prof' }), {
-      unlockedIds: [],
-      currentAct: 'act2',
-      actSequence: ['act1', 'act2', 'act3'],
-    });
-    const mast = resolveWeaponArtStatus(makeArt({ id: 'm', unlockAct: 'act1', requiredRank: 'Mast' }), {
-      unlockedIds: [],
-      currentAct: 'act2',
-      actSequence: ['act1', 'act2', 'act3'],
-    });
+    const prof = resolveWeaponArtStatus(
+      makeArt({ id: 'p', unlockAct: 'act1', requiredRank: 'Prof' }),
+      {
+        unlockedIds: [],
+        currentAct: 'act2',
+        actSequence: ['act1', 'act2', 'act3'],
+      },
+    );
+    const mast = resolveWeaponArtStatus(
+      makeArt({ id: 'm', unlockAct: 'act1', requiredRank: 'Mast' }),
+      {
+        unlockedIds: [],
+        currentAct: 'act2',
+        actSequence: ['act1', 'act2', 'act3'],
+      },
+    );
     const invalid = resolveWeaponArtStatus(makeArt({ id: 'x', unlockAct: 'ac2' }), {
       unlockedIds: [],
       currentAct: 'act2',
@@ -68,21 +74,34 @@ describe('WeaponArt visibility helpers', () => {
   });
 
   it('summarizes combat mods and falls back to description', () => {
-    expect(summarizeWeaponArtEffect(makeArt({ combatMods: { atkBonus: 4, hitBonus: -10 } }))).toBe('Mt +4, Hit -10');
-    expect(summarizeWeaponArtEffect(makeArt({ combatMods: {}, description: 'Fallback text' }))).toBe('Fallback text');
+    expect(summarizeWeaponArtEffect(makeArt({ combatMods: { atkBonus: 4, hitBonus: -10 } }))).toBe(
+      'Mt +4, Hit -10',
+    );
+    expect(
+      summarizeWeaponArtEffect(makeArt({ combatMods: {}, description: 'Fallback text' })),
+    ).toBe('Fallback text');
   });
 
   it('sorts rows by status then unlock act then weapon/name', () => {
-    const rows = buildWeaponArtVisibilityRows([
-      makeArt({ id: 'c', name: 'C', unlockAct: 'act3', weaponType: 'Bow' }),
-      makeArt({ id: 'a', name: 'A', unlockAct: 'act1', weaponType: 'Sword' }),
-      makeArt({ id: 'b', name: 'B', unlockAct: 'act2', weaponType: 'Axe' }),
-      makeArt({ id: 'd', name: 'D', unlockAct: 'unknown', requiredRank: 'Mast', weaponType: 'Lance' }),
-    ], {
-      unlockedIds: ['a'],
-      currentAct: 'act1',
-      actSequence: ['act1', 'act2', 'act3'],
-    });
+    const rows = buildWeaponArtVisibilityRows(
+      [
+        makeArt({ id: 'c', name: 'C', unlockAct: 'act3', weaponType: 'Bow' }),
+        makeArt({ id: 'a', name: 'A', unlockAct: 'act1', weaponType: 'Sword' }),
+        makeArt({ id: 'b', name: 'B', unlockAct: 'act2', weaponType: 'Axe' }),
+        makeArt({
+          id: 'd',
+          name: 'D',
+          unlockAct: 'unknown',
+          requiredRank: 'Mast',
+          weaponType: 'Lance',
+        }),
+      ],
+      {
+        unlockedIds: ['a'],
+        currentAct: 'act1',
+        actSequence: ['act1', 'act2', 'act3'],
+      },
+    );
 
     expect(rows.map((r) => `${r.id}:${r.status}`)).toEqual([
       'a:Unlocked',
@@ -93,9 +112,7 @@ describe('WeaponArt visibility helpers', () => {
   });
 
   it('shows Meta Unlocked precedence and optional act detail when both sources apply', () => {
-    const row = buildWeaponArtVisibilityRows([
-      makeArt({ id: 'meta_both', unlockAct: 'act2' }),
-    ], {
+    const row = buildWeaponArtVisibilityRows([makeArt({ id: 'meta_both', unlockAct: 'act2' })], {
       unlockedIds: ['meta_both'],
       metaUnlockedIds: ['meta_both'],
       actUnlockedIds: ['meta_both'],
@@ -115,18 +132,13 @@ describe('WeaponArt visibility helpers', () => {
       makeArt({ id: 'legend_art', name: 'Legend Art', legendaryWeaponIds: ['Gemini'] }),
     ];
 
-    expect(resolveWeaponArtIds(
-      { name: 'Iron Sword', weaponArtIds: ['explicit_art'] },
-      arts
-    )).toEqual(['explicit_art']);
-    expect(resolveWeaponArtIds(
-      { name: 'Iron Sword', weaponArtId: 'legacy_art' },
-      arts
-    )).toEqual(['legacy_art']);
-    expect(resolveWeaponArtIds(
-      { name: 'Gemini' },
-      arts
-    )).toEqual(['legend_art']);
+    expect(
+      resolveWeaponArtIds({ name: 'Iron Sword', weaponArtIds: ['explicit_art'] }, arts),
+    ).toEqual(['explicit_art']);
+    expect(resolveWeaponArtIds({ name: 'Iron Sword', weaponArtId: 'legacy_art' }, arts)).toEqual([
+      'legacy_art',
+    ]);
+    expect(resolveWeaponArtIds({ name: 'Gemini' }, arts)).toEqual(['legend_art']);
   });
 
   it('resolveWeaponArtIds fails closed for unresolved IDs when catalog is provided', () => {

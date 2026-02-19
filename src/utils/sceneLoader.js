@@ -30,14 +30,16 @@ export function normalizeTransitionReason(reason, context = 'startSceneLazy') {
 }
 
 const SCENE_LOADERS = {
-  Title: () => import('../scenes/TitleScene.js').then(m => m.TitleScene),
-  SlotPicker: () => import('../scenes/SlotPickerScene.js').then(m => m.SlotPickerScene),
-  HomeBase: () => import('../scenes/HomeBaseScene.js').then(m => m.HomeBaseScene),
-  DifficultySelect: () => import('../scenes/DifficultySelectScene.js').then(m => m.DifficultySelectScene),
-  BlessingSelect: () => import('../scenes/BlessingSelectScene.js').then(m => m.BlessingSelectScene),
-  NodeMap: () => import('../scenes/NodeMapScene.js').then(m => m.NodeMapScene),
-  Battle: () => import('../scenes/BattleScene.js').then(m => m.BattleScene),
-  RunComplete: () => import('../scenes/RunCompleteScene.js').then(m => m.RunCompleteScene),
+  Title: () => import('../scenes/TitleScene.js').then((m) => m.TitleScene),
+  SlotPicker: () => import('../scenes/SlotPickerScene.js').then((m) => m.SlotPickerScene),
+  HomeBase: () => import('../scenes/HomeBaseScene.js').then((m) => m.HomeBaseScene),
+  DifficultySelect: () =>
+    import('../scenes/DifficultySelectScene.js').then((m) => m.DifficultySelectScene),
+  BlessingSelect: () =>
+    import('../scenes/BlessingSelectScene.js').then((m) => m.BlessingSelectScene),
+  NodeMap: () => import('../scenes/NodeMapScene.js').then((m) => m.NodeMapScene),
+  Battle: () => import('../scenes/BattleScene.js').then((m) => m.BattleScene),
+  RunComplete: () => import('../scenes/RunCompleteScene.js').then((m) => m.RunCompleteScene),
 };
 let globalStartSceneInFlight = false;
 let globalSceneStartCooldownUntil = 0;
@@ -165,9 +167,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
 
   try {
     await ensureSceneLoaded(scene, key);
-    const isActive = typeof scene.sys?.isActive === 'function'
-      ? scene.sys.isActive()
-      : true;
+    const isActive = typeof scene.sys?.isActive === 'function' ? scene.sys.isActive() : true;
     if (!isActive) {
       markAudioDiag(scene, 'transition_blocked_inactive_source', { targetScene: key });
       return false;

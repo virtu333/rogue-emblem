@@ -14,7 +14,8 @@ describe('retryBooleanAction', () => {
   });
 
   it('retries failed attempts and eventually succeeds', async () => {
-    const action = vi.fn()
+    const action = vi
+      .fn()
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);

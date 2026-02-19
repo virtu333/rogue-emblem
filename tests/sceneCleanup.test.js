@@ -24,8 +24,16 @@ describe('cleanupScene', () => {
 
   it('does not throw when subsystems error', () => {
     const scene = {
-      tweens: { killAll: () => { throw new Error('boom'); } },
-      time: { removeAllEvents: () => { throw new Error('boom'); } },
+      tweens: {
+        killAll: () => {
+          throw new Error('boom');
+        },
+      },
+      time: {
+        removeAllEvents: () => {
+          throw new Error('boom');
+        },
+      },
     };
     expect(() => cleanupScene(scene)).not.toThrow();
   });

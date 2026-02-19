@@ -43,12 +43,20 @@ import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
 
 function makeUnit(overrides = {}) {
   return {
-    col: 1, row: 1, faction: 'player', moveType: 'Infantry',
-    hasMoved: false, hasActed: false,
-    weapon: { range: '1' }, inventory: [], consumables: [], skills: [],
+    col: 1,
+    row: 1,
+    faction: 'player',
+    moveType: 'Infantry',
+    hasMoved: false,
+    hasActed: false,
+    weapon: { range: '1' },
+    inventory: [],
+    consumables: [],
+    skills: [],
     stats: { MOV: 5 },
     graphic: { clearTint: vi.fn(), setTint: vi.fn(), setAlpha: vi.fn() },
-    label: null, hpBar: null,
+    label: null,
+    hpBar: null,
     ...overrides,
   };
 }
@@ -73,7 +81,8 @@ function setupScene() {
     getMovementRange: vi.fn(() => new Map()),
     getAttackRange: vi.fn(() => []),
     gridToPixel: () => ({ x: 64, y: 64 }),
-    cols: 10, rows: 10,
+    cols: 10,
+    rows: 10,
   };
   scene.playerUnits = [unit];
   scene.enemyUnits = [];
@@ -139,10 +148,18 @@ function makeUiObject(seed = {}) {
     ...seed,
     handlers,
     destroyed: false,
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setOrigin() { return this; },
-    setStrokeStyle() { return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
     setColor(color) {
       this.color = color;
       return this;
@@ -151,7 +168,9 @@ function makeUiObject(seed = {}) {
       this.text = text;
       return this;
     },
-    setFillStyle() { return this; },
+    setFillStyle() {
+      return this;
+    },
     on(event, cb) {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(cb);
@@ -319,8 +338,11 @@ describe('BattleScene _movementSpent reset', () => {
   it('onPhaseChange resets _movementSpent for player units', () => {
     const { scene } = setupScene();
     const mockUnit = {
-      hasMoved: true, hasActed: true, _movementSpent: 5,
-      _gambitUsedThisTurn: true, skills: [],
+      hasMoved: true,
+      hasActed: true,
+      _movementSpent: 5,
+      _gambitUsedThisTurn: true,
+      skills: [],
       graphic: { clearTint: vi.fn() },
     };
     scene.playerUnits = [mockUnit];
@@ -432,8 +454,26 @@ describe('BattleScene trade weapon gating', () => {
   it('allows trading an equipped last weapon between one-weapon units', () => {
     const { scene } = setupScene();
     const { texts } = attachUiHarness(scene);
-    const elfire = { name: 'Elfire', type: 'Tome', rankRequired: 'Prof', range: '1-2', might: 8, hit: 85, crit: 0, weight: 6 };
-    const fire = { name: 'Fire', type: 'Tome', rankRequired: 'Prof', range: '1-2', might: 5, hit: 90, crit: 0, weight: 4 };
+    const elfire = {
+      name: 'Elfire',
+      type: 'Tome',
+      rankRequired: 'Prof',
+      range: '1-2',
+      might: 8,
+      hit: 85,
+      crit: 0,
+      weight: 6,
+    };
+    const fire = {
+      name: 'Fire',
+      type: 'Tome',
+      rankRequired: 'Prof',
+      range: '1-2',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 4,
+    };
     const unitA = makeUnit({
       name: 'Iris',
       proficiencies: [{ type: 'Tome', rank: 'Prof' }],
@@ -460,7 +500,9 @@ describe('BattleScene trade weapon gating', () => {
 
     expect(unitA.inventory).toHaveLength(0);
     expect(unitA.weapon).toBeNull();
-    expect(unitB.inventory.map((item) => item.name)).toEqual(expect.arrayContaining(['Fire', 'Elfire']));
+    expect(unitB.inventory.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['Fire', 'Elfire']),
+    );
     expect(scene.tradeMutatedThisSession).toBe(true);
     expect(scene.preMoveLoc).toBeNull();
   });
@@ -468,7 +510,16 @@ describe('BattleScene trade weapon gating', () => {
   it('keeps weapon rows disabled when recipient inventory is full', () => {
     const { scene } = setupScene();
     const { texts } = attachUiHarness(scene);
-    const sword = { name: 'Iron Sword', type: 'Sword', rankRequired: 'Prof', range: '1', might: 5, hit: 90, crit: 0, weight: 5 };
+    const sword = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      rankRequired: 'Prof',
+      range: '1',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+    };
     const filler = Array.from({ length: INVENTORY_MAX }, (_v, idx) => ({
       name: `Filler ${idx + 1}`,
       type: 'Axe',
@@ -495,7 +546,9 @@ describe('BattleScene trade weapon gating', () => {
     });
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
-    const swordRow = texts.find((obj) => typeof obj.text === 'string' && obj.text.startsWith('Iron Sword'));
+    const swordRow = texts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.startsWith('Iron Sword'),
+    );
     expect(swordRow).toBeTruthy();
     expect(swordRow.style?.color).toBe('#666666');
     expect(swordRow.handlers.pointerdown).toBeUndefined();
@@ -520,14 +573,28 @@ describe('BattleScene trade weapon gating', () => {
       name: 'Mora',
       proficiencies: [{ type: 'Tome', rank: 'Prof' }],
       inventory: [],
-      consumables: Array.from({ length: CONSUMABLE_MAX }, (_v, idx) => ({ name: `Item ${idx + 1}`, type: 'Consumable', uses: 1 })),
+      consumables: Array.from({ length: CONSUMABLE_MAX }, (_v, idx) => ({
+        name: `Item ${idx + 1}`,
+        type: 'Consumable',
+        uses: 1,
+      })),
       weapon: null,
     });
 
     BattleScene.prototype.showBattleTradeUI.call(scene, unitA, unitB);
 
-    expect(texts.some((obj) => obj.text === `Inventory 0/${INVENTORY_MAX} | Consumables 1/${CONSUMABLE_MAX}`)).toBe(true);
-    expect(texts.some((obj) => obj.text === `Inventory 0/${INVENTORY_MAX} | Consumables ${CONSUMABLE_MAX}/${CONSUMABLE_MAX}`)).toBe(true);
+    expect(
+      texts.some(
+        (obj) => obj.text === `Inventory 0/${INVENTORY_MAX} | Consumables 1/${CONSUMABLE_MAX}`,
+      ),
+    ).toBe(true);
+    expect(
+      texts.some(
+        (obj) =>
+          obj.text ===
+          `Inventory 0/${INVENTORY_MAX} | Consumables ${CONSUMABLE_MAX}/${CONSUMABLE_MAX}`,
+      ),
+    ).toBe(true);
 
     const consumableRow = texts.find((obj) => obj.text === 'Vulnerary (consumables full)');
     expect(consumableRow).toBeTruthy();
@@ -554,12 +621,7 @@ describe('BattleScene deploy controls', () => {
     scene.gameData = { classes: [], lords: [] };
     const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
 
-    BattleScene.prototype.showDeployScreen.call(
-      scene,
-      roster,
-      { min: 1, max: 2 },
-      vi.fn(),
-    );
+    BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, vi.fn());
 
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
@@ -583,12 +645,7 @@ describe('BattleScene deploy controls', () => {
     scene.gameData = { classes: [], lords: [] };
     const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
 
-    BattleScene.prototype.showDeployScreen.call(
-      scene,
-      roster,
-      { min: 1, max: 2 },
-      vi.fn(),
-    );
+    BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, vi.fn());
 
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
@@ -605,12 +662,7 @@ describe('BattleScene deploy controls', () => {
     const roster = [makeRosterUnit('Edric'), makeRosterUnit('Sera')];
     transitionToSceneMock.mockResolvedValueOnce(false);
 
-    BattleScene.prototype.showDeployScreen.call(
-      scene,
-      roster,
-      { min: 1, max: 2 },
-      vi.fn(),
-    );
+    BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, vi.fn());
 
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
@@ -631,11 +683,7 @@ describe('BattleScene deploy controls', () => {
   it('deploy ROSTER close reopens deploy and restores selected names', () => {
     const { scene } = setupScene();
     const { rectangles, texts } = attachUiHarness(scene);
-    const initialRoster = [
-      makeRosterUnit('Edric'),
-      makeRosterUnit('Sera'),
-      makeRosterUnit('Brom'),
-    ];
+    const initialRoster = [makeRosterUnit('Edric'), makeRosterUnit('Sera'), makeRosterUnit('Brom')];
     const refreshedRoster = [
       makeRosterUnit('Edric'),
       makeRosterUnit('Brom'),
@@ -653,7 +701,9 @@ describe('BattleScene deploy controls', () => {
     );
 
     // Select "Sera" on the first deploy overlay.
-    const seraRowBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 400 && obj.y === 134);
+    const seraRowBg = rectangles.find(
+      (obj) => obj.kind === 'rectangle' && obj.width === 400 && obj.y === 134,
+    );
     expect(seraRowBg).toBeTruthy();
     seraRowBg.trigger('pointerdown');
 
@@ -687,14 +737,11 @@ describe('BattleScene deploy controls', () => {
       ...Array.from({ length: 12 }, (_v, idx) => makeRosterUnit(`Unit${idx + 1}`)),
     ];
 
-    BattleScene.prototype.showDeployScreen.call(
-      scene,
-      roster,
-      { min: 6, max: 6 },
-      vi.fn(),
-    );
+    BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 6, max: 6 }, vi.fn());
 
-    const confirmBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32);
+    const confirmBg = rectangles.find(
+      (obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32,
+    );
     expect(confirmBg).toBeTruthy();
     expect(confirmBg.y).toBe(426);
     expect(confirmBg.y).toBeLessThan(scene.cameras.main.height);
@@ -722,23 +769,19 @@ describe('BattleScene deploy controls', () => {
       ...Array.from({ length: 12 }, (_v, idx) => makeRosterUnit(`Unit${idx + 1}`)),
     ];
 
-    BattleScene.prototype.showDeployScreen.call(
-      scene,
-      roster,
-      { min: 1, max: 6 },
-      vi.fn(),
-    );
+    BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 6 }, vi.fn());
 
     expect(scene.input.on).toHaveBeenCalledTimes(1);
     const [eventName, wheelHandler] = scene.input.on.mock.calls[0];
     expect(eventName).toBe('wheel');
     expect(typeof wheelHandler).toBe('function');
 
-    const confirmBg = rectangles.find((obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32);
+    const confirmBg = rectangles.find(
+      (obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32,
+    );
     expect(confirmBg).toBeTruthy();
     confirmBg.trigger('pointerdown');
 
     expect(scene.input.off).toHaveBeenCalledWith('wheel', wheelHandler);
   });
 });
-

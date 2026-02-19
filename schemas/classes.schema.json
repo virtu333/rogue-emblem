@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Classes",
+  "type": "array",
+  "items": {
+    "oneOf": [{ "$ref": "#/$defs/baseClass" }, { "$ref": "#/$defs/promotedClass" }]
+  },
+  "$defs": {
+    "statBlock": {
+      "type": "object",
+      "properties": {
+        "HP": { "type": "integer" },
+        "STR": { "type": "integer" },
+        "MAG": { "type": "integer" },
+        "SKL": { "type": "integer" },
+        "SPD": { "type": "integer" },
+        "DEF": { "type": "integer" },
+        "RES": { "type": "integer" },
+        "LCK": { "type": "integer" },
+        "MOV": { "type": "integer" }
+      },
+      "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK", "MOV"],
+      "additionalProperties": false
+    },
+    "growthRanges": {
+      "type": "object",
+      "properties": {
+        "HP": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "STR": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "MAG": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "SKL": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "SPD": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "DEF": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "RES": { "type": "string", "pattern": "^\\d+-\\d+$" },
+        "LCK": { "type": "string", "pattern": "^\\d+-\\d+$" }
+      },
+      "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK"],
+      "additionalProperties": false
+    },
+    "partialStatBlock": {
+      "type": "object",
+      "properties": {
+        "HP": { "type": "integer" },
+        "STR": { "type": "integer" },
+        "MAG": { "type": "integer" },
+        "SKL": { "type": "integer" },
+        "SPD": { "type": "integer" },
+        "DEF": { "type": "integer" },
+        "RES": { "type": "integer" },
+        "LCK": { "type": "integer" },
+        "MOV": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "learnableSkill": {
+      "type": "object",
+      "properties": {
+        "skillId": { "type": "string" },
+        "level": { "type": "integer" }
+      },
+      "required": ["skillId", "level"],
+      "additionalProperties": false
+    },
+    "moveType": {
+      "type": "string",
+      "enum": ["Infantry", "Cavalry", "Flying", "Armored"]
+    },
+    "baseClass": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tier": { "type": "string", "const": "base" },
+        "description": { "type": "string" },
+        "baseStats": { "$ref": "#/$defs/statBlock" },
+        "moveType": { "$ref": "#/$defs/moveType" },
+        "weaponProficiencies": { "type": "string" },
+        "role": { "type": "string" },
+        "growthRanges": { "$ref": "#/$defs/growthRanges" },
+        "promotesTo": {
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
+        },
+        "learnableSkills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/learnableSkill" }
+        }
+      },
+      "required": [
+        "name",
+        "tier",
+        "baseStats",
+        "moveType",
+        "weaponProficiencies",
+        "role",
+        "growthRanges",
+        "promotesTo"
+      ],
+      "additionalProperties": false
+    },
+    "promotedClass": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tier": { "type": "string", "const": "promoted" },
+        "description": { "type": "string" },
+        "promotesFrom": { "type": "string" },
+        "promotionBonuses": { "$ref": "#/$defs/statBlock" },
+        "moveType": { "$ref": "#/$defs/moveType" },
+        "weaponProficiencies": { "type": "string" },
+        "roleChange": { "type": "string" },
+        "growthBonuses": { "$ref": "#/$defs/partialStatBlock" },
+        "learnableSkills": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/learnableSkill" }
+        }
+      },
+      "required": [
+        "name",
+        "tier",
+        "promotesFrom",
+        "promotionBonuses",
+        "moveType",
+        "weaponProficiencies"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

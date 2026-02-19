@@ -9,7 +9,12 @@ import {
   addToInventory,
   addToConsumables,
 } from '../../src/engine/UnitManager.js';
-import { CHURCH_PROMOTE_COST, DEPLOY_LIMITS, NODE_TYPES, AMBUSH_SHOP_DISCOUNT } from '../../src/utils/constants.js';
+import {
+  CHURCH_PROMOTE_COST,
+  DEPLOY_LIMITS,
+  NODE_TYPES,
+  AMBUSH_SHOP_DISCOUNT,
+} from '../../src/utils/constants.js';
 import { GameDriver } from '../harness/GameDriver.js';
 import { ScriptedAgent } from '../agents/ScriptedAgent.js';
 import {
@@ -98,7 +103,11 @@ export class RunSimulationDriver {
       };
 
       let nodeResult;
-      if (node.type === NODE_TYPES.BATTLE || node.type === NODE_TYPES.BOSS || node.type === NODE_TYPES.RECRUIT) {
+      if (
+        node.type === NODE_TYPES.BATTLE ||
+        node.type === NODE_TYPES.BOSS ||
+        node.type === NODE_TYPES.RECRUIT
+      ) {
         nodeResult = await this._runBattleNode(node);
       } else if (node.type === NODE_TYPES.SHOP) {
         nodeResult = await this._runShopNode(node);
@@ -150,7 +159,10 @@ export class RunSimulationDriver {
     const battleParams = this.runManager.getBattleParams(node) || {};
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();
-    const deployMax = Math.max(1, Math.min(this.runManager.roster.length, deployLimits.max + deployBonus));
+    const deployMax = Math.max(
+      1,
+      Math.min(this.runManager.roster.length, deployLimits.max + deployBonus),
+    );
     const deployCount = Math.max(deployLimits.min, deployMax);
     battleParams.deployCount = Math.min(deployCount, this.runManager.roster.length);
 
@@ -249,7 +261,10 @@ export class RunSimulationDriver {
     }
 
     if (this.runManager.consumeSkipFirstShop()) {
-      if (node?.isAmbush === true && typeof this.runManager?.clearAmbushPendingNode === 'function') {
+      if (
+        node?.isAmbush === true &&
+        typeof this.runManager?.clearAmbushPendingNode === 'function'
+      ) {
         this.runManager.clearAmbushPendingNode(node.id);
       }
       this.runManager.markNodeComplete(node.id);
@@ -258,16 +273,19 @@ export class RunSimulationDriver {
 
     const roster = this.runManager.roster;
     const shopItemDelta = this.runManager.getShopItemCountDelta();
-    const inventory = this._applyShopPricing(generateShopInventory(
-      this.runManager.currentAct,
-      this.gameData.lootTables,
-      this.gameData.weapons,
-      this.gameData.consumables,
-      this.gameData.accessories,
-      roster,
-      null,
-      { itemCountBonus: shopItemDelta }
-    ), { ambushDiscount: node?.isAmbush === true });
+    const inventory = this._applyShopPricing(
+      generateShopInventory(
+        this.runManager.currentAct,
+        this.gameData.lootTables,
+        this.gameData.weapons,
+        this.gameData.consumables,
+        this.gameData.accessories,
+        roster,
+        null,
+        { itemCountBonus: shopItemDelta },
+      ),
+      { ambushDiscount: node?.isAmbush === true },
+    );
 
     let purchases = 0;
     let spent = 0;
@@ -320,9 +338,13 @@ export class RunSimulationDriver {
     if (!Array.isArray(items)) return [];
     return items.map((entry) => ({
       ...entry,
-      price: Math.max(1, Math.floor(
-        Math.floor((entry?.price || 0) * multiplier) * (ambushDiscount ? AMBUSH_SHOP_DISCOUNT : 1)
-      )),
+      price: Math.max(
+        1,
+        Math.floor(
+          Math.floor((entry?.price || 0) * multiplier) *
+            (ambushDiscount ? AMBUSH_SHOP_DISCOUNT : 1),
+        ),
+      ),
     }));
   }
 
@@ -361,12 +383,12 @@ export class RunSimulationDriver {
   _tryChurchPromotion() {
     if (this.runManager.gold < CHURCH_PROMOTE_COST) return null;
 
-    const target = this.runManager.roster.find(u => canPromote(u));
+    const target = this.runManager.roster.find((u) => canPromote(u));
     if (!target) return null;
 
     const lords = this.gameData.lords || [];
     const classes = this.gameData.classes || [];
-    const lordDef = lords.find(l => l.name === target.name);
+    const lordDef = lords.find((l) => l.name === target.name);
 
     let promotedClassName = null;
     let promotionBonuses = null;
@@ -375,15 +397,15 @@ export class RunSimulationDriver {
       promotedClassName = lordDef.promotedClass;
       promotionBonuses = lordDef.promotionBonuses || {};
     } else {
-      const classDef = classes.find(c => c.name === target.className);
+      const classDef = classes.find((c) => c.name === target.className);
       const promotesTo = classDef?.promotesTo;
-      promotedClassName = Array.isArray(promotesTo) ? promotesTo[0] : (promotesTo || null);
-      const promotedDef = classes.find(c => c.name === promotedClassName);
+      promotedClassName = Array.isArray(promotesTo) ? promotesTo[0] : promotesTo || null;
+      const promotedDef = classes.find((c) => c.name === promotedClassName);
       promotionBonuses = promotedDef?.promotionBonuses || {};
     }
 
     if (!promotedClassName) return null;
-    const promotedClassData = classes.find(c => c.name === promotedClassName);
+    const promotedClassData = classes.find((c) => c.name === promotedClassName);
     if (!promotedClassData) return null;
 
     if (!this.runManager.spendGold(CHURCH_PROMOTE_COST)) return null;
@@ -394,13 +416,13 @@ export class RunSimulationDriver {
   _findBestRecipient(item) {
     if (!item) return null;
     if (item.type === 'Consumable') {
-      return this.runManager.roster.find(u => (u.consumables || []).length < 3) || null;
+      return this.runManager.roster.find((u) => (u.consumables || []).length < 3) || null;
     }
     for (const unit of this.runManager.roster) {
       if ((unit.inventory || []).length >= 5) continue;
       if (canEquip(unit, item)) return unit;
     }
-    return this.runManager.roster.find(u => (u.inventory || []).length < 5) || null;
+    return this.runManager.roster.find((u) => (u.inventory || []).length < 5) || null;
   }
 
   _enableInvincibilityIfConfigured(driver) {

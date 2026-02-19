@@ -41,12 +41,14 @@ export class RunCompleteScene extends Phaser.Scene {
     });
 
     // Title
-    this.add.text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
-      fontFamily: 'monospace',
-      fontSize: '32px',
-      color: isVictory ? '#ffdd44' : '#cc3333',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, cy - 80, isVictory ? 'RUN COMPLETE!' : 'GAME OVER', {
+        fontFamily: 'monospace',
+        fontSize: '32px',
+        color: isVictory ? '#ffdd44' : '#cc3333',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
     let overlay;
     try {
@@ -65,7 +67,9 @@ export class RunCompleteScene extends Phaser.Scene {
     const rm = this.runManager;
     const actReached = rm.actIndex + 1;
     recordBlessingRunOutcome({
-      activeBlessings: rm.getActiveBlessingIds ? rm.getActiveBlessingIds() : (rm.activeBlessings || []),
+      activeBlessings: rm.getActiveBlessingIds
+        ? rm.getActiveBlessingIds()
+        : rm.activeBlessings || [],
       result: this.result,
       actIndex: rm.actIndex,
       completedBattles: rm.completedBattles,
@@ -75,80 +79,124 @@ export class RunCompleteScene extends Phaser.Scene {
     const { valor, supply, currencyMultiplier } = rewards;
 
     // Stats
-    const statsLines = [
-      `Battles Won: ${rm.completedBattles}`,
-      `Act Reached: ${actReached} / 4`,
-    ];
+    const statsLines = [`Battles Won: ${rm.completedBattles}`, `Act Reached: ${actReached} / 4`];
     const statsText = statsLines.join('\n');
 
-    this.add.text(cx, cy - 20, statsText, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#e0e0e0',
-      align: 'center', lineSpacing: 6,
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, cy - 20, statsText, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        align: 'center',
+        lineSpacing: 6,
+      })
+      .setOrigin(0.5);
 
     // Difficulty line (colored separately)
-    const diffLabel = rm.difficultyModifiers?.label || (rm.difficultyId || 'normal');
+    const diffLabel = rm.difficultyModifiers?.label || rm.difficultyId || 'normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
-    this.add.text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
-      fontFamily: 'monospace', fontSize: '13px', color: diffColor,
-      align: 'center',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, cy + 4, `${diffLabel} Mode  (x${currencyMultiplier.toFixed(2)} currency)`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: diffColor,
+        align: 'center',
+      })
+      .setOrigin(0.5);
 
     // Currency earned display
     let curY = cy + 14;
-    this.add.text(cx, curY, `Valor Earned: +${valor}`, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffcc44',
-      align: 'center',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, curY, `Valor Earned: +${valor}`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffcc44',
+        align: 'center',
+      })
+      .setOrigin(0.5);
     curY += 18;
-    this.add.text(cx, curY, `Supply Earned: +${supply}`, {
-      fontFamily: 'monospace', fontSize: '13px', color: '#44ccbb',
-      align: 'center',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, curY, `Supply Earned: +${supply}`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#44ccbb',
+        align: 'center',
+      })
+      .setOrigin(0.5);
 
     if (meta) {
       curY += 20;
-      this.add.text(cx, curY, `Total: ${meta.getTotalValor()} Valor  |  ${meta.getTotalSupply()} Supply`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#888888',
-        align: 'center',
-      }).setOrigin(0.5);
+      this.add
+        .text(
+          cx,
+          curY,
+          `Total: ${meta.getTotalValor()} Valor  |  ${meta.getTotalSupply()} Supply`,
+          {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#888888',
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5);
     }
 
     // Home Base button (primary)
-    const homeBtn = this.add.text(cx - 90, cy + 80, '[ Home Base ]', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#88ccff',
-      backgroundColor: '#000000aa', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const homeBtn = this.add
+      .text(cx - 90, cy + 80, '[ Home Base ]', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#88ccff',
+        backgroundColor: '#000000aa',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     homeBtn.on('pointerover', () => homeBtn.setColor('#ffdd44'));
     homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
     homeBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      await transitionToScene(this, 'HomeBase', { gameData: this.gameData }, { reason: TRANSITION_REASONS.RETURN_HOME });
+      await transitionToScene(
+        this,
+        'HomeBase',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.RETURN_HOME },
+      );
     });
 
     // Back to Title button (secondary)
-    const titleBtn = this.add.text(cx + 90, cy + 80, '[ Title ]', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const titleBtn = this.add
+      .text(cx + 90, cy + 80, '[ Title ]', {
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        color: '#e0e0e0',
+        backgroundColor: '#000000aa',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
     titleBtn.on('pointerdown', async () => {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      await transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.RETURN_TITLE });
+      await transitionToScene(
+        this,
+        'Title',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.RETURN_TITLE },
+      );
     });
   }
 
   _getRunCompleteDialogue() {
     const dialogue = this.gameData?.dialogue?.runComplete;
     if (!dialogue) return null;
-    const key = this.result === 'victory'
-      ? `victory_${this.runManager?.difficultyId || 'normal'}`
-      : 'defeat';
+    const key =
+      this.result === 'victory' ? `victory_${this.runManager?.difficultyId || 'normal'}` : 'defeat';
     const entries = dialogue[key];
     return Array.isArray(entries) && entries.length > 0 ? entries : null;
   }

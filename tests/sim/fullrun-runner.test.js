@@ -25,13 +25,20 @@ describe('fullrun-runner helpers', () => {
 
   it('parses economy window threshold options', () => {
     const opts = parseArgsFrom([
-      '--min-avg-gold', '4000',
-      '--max-avg-gold', '6500',
-      '--min-avg-shop-spent', '1000',
-      '--max-avg-shop-spent', '6500',
-      '--min-promotion-by-act2-rate', '10',
-      '--max-promotion-by-act2-rate', '50',
-      '--min-avg-ambush-battles', '0.5',
+      '--min-avg-gold',
+      '4000',
+      '--max-avg-gold',
+      '6500',
+      '--min-avg-shop-spent',
+      '1000',
+      '--max-avg-shop-spent',
+      '6500',
+      '--min-promotion-by-act2-rate',
+      '10',
+      '--max-promotion-by-act2-rate',
+      '50',
+      '--min-avg-ambush-battles',
+      '0.5',
     ]);
     expect(opts.minAvgGold).toBe(4000);
     expect(opts.maxAvgGold).toBe(6500);

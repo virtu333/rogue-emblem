@@ -41,7 +41,7 @@ function makeUnit(overrides = {}) {
     stats: { HP: 20, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
     currentHP: 20,
     faction: 'player',
-    weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     inventory: [],
     proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     skills: [],
@@ -72,8 +72,8 @@ describe('Combat utilities', () => {
   });
 
   it('isInRange checks weapon range correctly', () => {
-    const sword = data.weapons.find(w => w.name === 'Iron Sword');
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     expect(isInRange(sword, 1)).toBe(true);
     expect(isInRange(sword, 2)).toBe(false);
     expect(isInRange(bow, 2)).toBe(true);
@@ -94,15 +94,19 @@ describe('Combat utilities', () => {
       faction: 'enemy',
       weapon: { ...makeUnit().weapon, range: null },
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
-    expect(() => getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain)).not.toThrow();
-    expect(() => resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain)).not.toThrow();
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    expect(() =>
+      getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain),
+    ).not.toThrow();
+    expect(() =>
+      resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain),
+    ).not.toThrow();
   });
 
   it('classifies weapon types correctly', () => {
-    const sword = data.weapons.find(w => w.name === 'Iron Sword');
-    const tome = data.weapons.find(w => w.name === 'Fire');
-    const staff = data.weapons.find(w => w.name === 'Heal');
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const tome = data.weapons.find((w) => w.name === 'Fire');
+    const staff = data.weapons.find((w) => w.name === 'Heal');
     expect(isPhysical(sword)).toBe(true);
     expect(isMagical(tome)).toBe(true);
     expect(isStaff(staff)).toBe(true);
@@ -112,30 +116,30 @@ describe('Combat utilities', () => {
 
 describe('Weapon triangle', () => {
   it('sword beats axe', () => {
-    const sword = data.weapons.find(w => w.name === 'Iron Sword');
-    const axe = data.weapons.find(w => w.name === 'Iron Axe');
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const axe = data.weapons.find((w) => w.name === 'Iron Axe');
     const bonus = getWeaponTriangleBonus(sword, axe);
     expect(bonus.hit).toBeGreaterThan(0);
     expect(bonus.damage).toBeGreaterThan(0);
   });
 
   it('axe beats lance', () => {
-    const axe = data.weapons.find(w => w.name === 'Iron Axe');
-    const lance = data.weapons.find(w => w.name === 'Iron Lance');
+    const axe = data.weapons.find((w) => w.name === 'Iron Axe');
+    const lance = data.weapons.find((w) => w.name === 'Iron Lance');
     const bonus = getWeaponTriangleBonus(axe, lance);
     expect(bonus.hit).toBeGreaterThan(0);
   });
 
   it('lance beats sword', () => {
-    const lance = data.weapons.find(w => w.name === 'Iron Lance');
-    const sword = data.weapons.find(w => w.name === 'Iron Sword');
+    const lance = data.weapons.find((w) => w.name === 'Iron Lance');
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
     const bonus = getWeaponTriangleBonus(lance, sword);
     expect(bonus.hit).toBeGreaterThan(0);
   });
 
   it('non-reaver gets disadvantage vs opponent Lancereaver', () => {
-    const ironLance = data.weapons.find(w => w.name === 'Iron Lance');
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironLance = data.weapons.find((w) => w.name === 'Iron Lance');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
     // Lance normally beats Sword → reaver on defender flips to disadvantage for lance
     const bonus = getWeaponTriangleBonus(ironLance, lancereaver);
     expect(bonus.hit).toBe(-10);
@@ -143,8 +147,8 @@ describe('Weapon triangle', () => {
   });
 
   it('non-reaver gets disadvantage vs opponent Swordreaver', () => {
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
-    const swordreaver = data.weapons.find(w => w.name === 'Swordreaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
+    const swordreaver = data.weapons.find((w) => w.name === 'Swordreaver');
     // Axe normally beats Lance → reaver on defender flips to disadvantage for axe
     const bonus = getWeaponTriangleBonus(ironAxe, swordreaver);
     expect(bonus.hit).toBe(-10);
@@ -152,25 +156,24 @@ describe('Weapon triangle', () => {
   });
 
   it('non-reaver gets disadvantage vs opponent Axereaver', () => {
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
-    const axereaver = data.weapons.find(w => w.name === 'Axereaver');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const axereaver = data.weapons.find((w) => w.name === 'Axereaver');
     // Sword normally beats Axe → reaver on defender flips to disadvantage for sword
     const bonus = getWeaponTriangleBonus(ironSword, axereaver);
     expect(bonus.hit).toBe(-10);
     expect(bonus.damage).toBe(-1);
   });
 
-
   it('non-reaver gets advantage vs opponent Lancereaver when normally disadvantaged', () => {
-    const ironAxe = data.weapons.find(w => w.name === 'Iron Axe');
-    const lancereaver = data.weapons.find(w => w.name === 'Lancereaver');
+    const ironAxe = data.weapons.find((w) => w.name === 'Iron Axe');
+    const lancereaver = data.weapons.find((w) => w.name === 'Lancereaver');
     const bonus = getWeaponTriangleBonus(ironAxe, lancereaver);
     expect(bonus.hit).toBe(10);
     expect(bonus.damage).toBe(1);
   });
   it('same weapon type = no bonus', () => {
-    const s1 = data.weapons.find(w => w.name === 'Iron Sword');
-    const s2 = data.weapons.find(w => w.name === 'Steel Sword');
+    const s1 = data.weapons.find((w) => w.name === 'Iron Sword');
+    const s2 = data.weapons.find((w) => w.name === 'Steel Sword');
     const bonus = getWeaponTriangleBonus(s1, s2);
     expect(bonus.hit).toBe(0);
     expect(bonus.damage).toBe(0);
@@ -184,7 +187,7 @@ describe('Damage calculation', () => {
       stats: { ...makeUnit().stats, DEF: 6, RES: 3 },
       faction: 'enemy',
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const dmg = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, terrain);
     // Iron Sword might = 5, STR 10, DEF 6, plain defBonus 0 → 10 + 5 - 6 = 9
     expect(dmg).toBe(9);
@@ -196,7 +199,7 @@ describe('Damage calculation', () => {
       stats: { ...makeUnit().stats, DEF: 50 },
       faction: 'enemy',
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const dmg = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, terrain);
     expect(dmg).toBe(0);
   });
@@ -207,8 +210,8 @@ describe('Damage calculation', () => {
       stats: { ...makeUnit().stats, DEF: 6 },
       faction: 'enemy',
     });
-    const plain = data.terrain.find(t => t.name === 'Plain');
-    const fort = data.terrain.find(t => t.name === 'Fort');
+    const plain = data.terrain.find((t) => t.name === 'Plain');
+    const fort = data.terrain.find((t) => t.name === 'Fort');
     const dmgPlain = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, plain);
     const dmgFort = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, fort);
     expect(dmgFort).toBeLessThan(dmgPlain);
@@ -242,7 +245,7 @@ describe('Counter-attack', () => {
   });
 
   it('bow can counter at range 2', () => {
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     const archer = makeUnit({ weapon: bow });
     expect(canCounter(archer, bow, 2)).toBe(true);
     expect(canCounter(archer, bow, 1)).toBe(false);
@@ -251,14 +254,14 @@ describe('Counter-attack', () => {
 
 describe('Effectiveness', () => {
   it('Hammer is effective vs Armored', () => {
-    const hammer = data.weapons.find(w => w.name === 'Hammer');
+    const hammer = data.weapons.find((w) => w.name === 'Hammer');
     if (!hammer) return; // skip if weapon not in data
     const knight = makeUnit({ moveType: 'Armored' });
     expect(getEffectivenessMultiplier(hammer, knight)).toBe(3);
   });
 
   it('Rapier is effective vs Armored and Cavalry', () => {
-    const rapier = data.weapons.find(w => w.name === 'Rapier');
+    const rapier = data.weapons.find((w) => w.name === 'Rapier');
     if (!rapier) return;
     const armored = makeUnit({ moveType: 'Armored' });
     const cavalry = makeUnit({ moveType: 'Cavalry' });
@@ -267,13 +270,13 @@ describe('Effectiveness', () => {
   });
 
   it('bows are globally effective vs Flying (3x)', () => {
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     const flier = makeUnit({ moveType: 'Flying' });
     expect(getEffectivenessMultiplier(bow, flier)).toBe(3);
   });
 
   it('negate-effectiveness accessory overrides bow effectiveness', () => {
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     const flier = makeUnit({
       moveType: 'Flying',
       accessory: { combatEffects: { negateEffectiveness: true } },
@@ -282,7 +285,7 @@ describe('Effectiveness', () => {
   });
 
   it('negateFlierWeakness only blocks bow-vs-flier effectiveness', () => {
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     const flier = makeUnit({
       moveType: 'Flying',
       accessory: { combatEffects: { negateFlierWeakness: true } },
@@ -291,7 +294,7 @@ describe('Effectiveness', () => {
       moveType: 'Armored',
       accessory: { combatEffects: { negateFlierWeakness: true } },
     });
-    const hammer = data.weapons.find(w => w.name === 'Hammer');
+    const hammer = data.weapons.find((w) => w.name === 'Hammer');
     expect(getEffectivenessMultiplier(bow, flier)).toBe(1);
     expect(getEffectivenessMultiplier(hammer, armored)).toBe(3);
   });
@@ -303,10 +306,18 @@ describe('Combat forecast', () => {
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
-    const forecast = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    const forecast = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
     expect(forecast.attacker).toBeDefined();
     expect(forecast.defender).toBeDefined();
     expect(forecast.attacker.damage).toBeGreaterThanOrEqual(0);
@@ -323,14 +334,35 @@ describe('Combat forecast', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 24, DEF: 6, SPD: 8, LCK: 4 },
       currentHP: 24,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { atkBonus: 3, hitBonus: 15, activated: [{ id: 'weapon_art', name: 'Test Art' }] },
-    });
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: {
+          atkBonus: 3,
+          hitBonus: 15,
+          activated: [{ id: 'weapon_art', name: 'Test Art' }],
+        },
+      },
+    );
 
     expect(withArt.attacker.damage).toBeGreaterThanOrEqual(base.attacker.damage + 3);
     expect(withArt.attacker.hit).toBeGreaterThanOrEqual(base.attacker.hit);
@@ -346,23 +378,40 @@ describe('Combat forecast', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 24, DEF: 6, SPD: 8, LCK: 4 },
       currentHP: 24,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: {
-        statScaling: { stat: 'SKL', divisor: 2 },
-        activated: [{ id: 'weapon_art', name: 'Finesse Blade' }],
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: {
+          statScaling: { stat: 'SKL', divisor: 2 },
+          activated: [{ id: 'weapon_art', name: 'Finesse Blade' }],
+        },
       },
-    });
+    );
 
     expect(withArt.attacker.damage).toBe(base.attacker.damage + Math.floor(attacker.stats.SKL / 2));
   });
 
   it('applies stat-scaling damage from magic weapon art (MAG/3)', () => {
-    const fire = data.weapons.find(w => w.name === 'Fire');
+    const fire = data.weapons.find((w) => w.name === 'Fire');
     const attacker = makeUnit({
       weapon: fire,
       stats: { ...makeUnit().stats, STR: 1, MAG: 13, SKL: 10, SPD: 10, LCK: 5 },
@@ -373,17 +422,34 @@ describe('Combat forecast', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 24, RES: 4, SPD: 8, LCK: 4 },
       currentHP: 24,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain, {
-      atkWeaponArtMods: {
-        statScaling: { stat: 'MAG', divisor: 3 },
-        activated: [{ id: 'weapon_art', name: 'Resonance' }],
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      2,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      2,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: {
+          statScaling: { stat: 'MAG', divisor: 3 },
+          activated: [{ id: 'weapon_art', name: 'Resonance' }],
+        },
       },
-    });
+    );
 
     expect(withArt.attacker.damage).toBe(base.attacker.damage + Math.floor(attacker.stats.MAG / 3));
   });
@@ -394,16 +460,33 @@ describe('Combat forecast', () => {
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, SPD: 10 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
     expect(base.attacker.doubles).toBe(true);
 
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
-    });
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
+      },
+    );
     expect(withArt.attacker.doubles).toBe(false);
   });
 
@@ -413,13 +496,22 @@ describe('Combat forecast', () => {
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, SPD: 15 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
-    });
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] },
+      },
+    );
     expect(withArt.attacker.doubles).toBe(false);
     expect(withArt.defender.doubles).toBe(true);
   });
@@ -429,13 +521,25 @@ describe('Combat forecast', () => {
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { preventCounter: true, activated: [{ id: 'weapon_art', name: 'Windsweep' }] },
-    });
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: {
+          preventCounter: true,
+          activated: [{ id: 'weapon_art', name: 'Windsweep' }],
+        },
+      },
+    );
     expect(withArt.defender.canCounter).toBe(false);
     expect(withArt.defender.damage).toBe(0);
   });
@@ -443,20 +547,37 @@ describe('Combat forecast', () => {
   it('targets RES instead of DEF when art has targetsRES', () => {
     const attacker = makeUnit({
       stats: { ...makeUnit().stats, STR: 10 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, DEF: 18, RES: 2 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { targetsRES: true, activated: [{ id: 'weapon_art', name: 'Hexblade' }] },
-    });
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: { targetsRES: true, activated: [{ id: 'weapon_art', name: 'Hexblade' }] },
+      },
+    );
     expect(withArt.attacker.damage).toBeGreaterThan(base.attacker.damage);
   });
 
@@ -469,19 +590,36 @@ describe('Combat forecast', () => {
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      atkWeaponArtMods: { vengeance: true, activated: [{ id: 'weapon_art', name: 'Vengeance' }] },
-    });
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: { vengeance: true, activated: [{ id: 'weapon_art', name: 'Vengeance' }] },
+      },
+    );
     expect(withArt.attacker.damage).toBe(base.attacker.damage + 7);
   });
 
   it('caps stacked weapon+art effectiveness at 5x', () => {
-    const bow = data.weapons.find(w => w.name === 'Iron Bow');
+    const bow = data.weapons.find((w) => w.name === 'Iron Bow');
     const attacker = makeUnit({
       weapon: bow,
       stats: { ...makeUnit().stats, STR: 10, SKL: 10, SPD: 8 },
@@ -492,37 +630,66 @@ describe('Combat forecast', () => {
       faction: 'enemy',
       moveType: 'Flying',
       stats: { ...makeUnit().stats, DEF: 5, RES: 5, SPD: 8 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
     const base = getCombatForecast(attacker, bow, defender, defender.weapon, 2, terrain, terrain);
-    const withArt = getCombatForecast(attacker, bow, defender, defender.weapon, 2, terrain, terrain, {
-      atkWeaponArtMods: {
-        effectiveness: { moveTypes: ['flying'], multiplier: 3 },
-        activated: [{ id: 'weapon_art', name: 'Grounder' }],
+    const withArt = getCombatForecast(
+      attacker,
+      bow,
+      defender,
+      defender.weapon,
+      2,
+      terrain,
+      terrain,
+      {
+        atkWeaponArtMods: {
+          effectiveness: { moveTypes: ['flying'], multiplier: 3 },
+          activated: [{ id: 'weapon_art', name: 'Grounder' }],
+        },
       },
-    });
-    expect(withArt.attacker.damage).toBe(base.attacker.damage + (bow.might * 2));
+    );
+    expect(withArt.attacker.damage).toBe(base.attacker.damage + bow.might * 2);
   });
 
   it('halves incoming physical damage when defender art has halfPhysicalDamage', () => {
     const attacker = makeUnit({
       stats: { ...makeUnit().stats, STR: 12, SPD: 8 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
 
-    const base = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-    const withArt = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain, {
-      defWeaponArtMods: { halfPhysicalDamage: true, activated: [{ id: 'weapon_art', name: 'Pavise Strike' }] },
-    });
+    const base = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
+    const withArt = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+      {
+        defWeaponArtMods: {
+          halfPhysicalDamage: true,
+          activated: [{ id: 'weapon_art', name: 'Pavise Strike' }],
+        },
+      },
+    );
     expect(withArt.attacker.damage).toBe(Math.floor(base.attacker.damage / 2));
   });
 });
@@ -534,17 +701,25 @@ describe('Combat resolution', () => {
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, STR: 5, SPD: 5, DEF: 3 },
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
     expect(result.events.length).toBeGreaterThan(0);
     expect(typeof result.attackerHP).toBe('number');
     expect(typeof result.defenderHP).toBe('number');
   });
 
   it('returns poisonEffects array with both entries when both sides have poison', () => {
-    const veninEdge = data.weapons.find(w => w.name === 'Venin Blade');
+    const veninEdge = data.weapons.find((w) => w.name === 'Venin Blade');
     expect(veninEdge).toBeTruthy();
     // Both combatants have Venin Blade — both survive so both poisons apply
     const attacker = makeUnit({
@@ -555,21 +730,30 @@ describe('Combat resolution', () => {
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     });
     const defender = makeUnit({
-      name: 'Enemy', faction: 'enemy',
+      name: 'Enemy',
+      faction: 'enemy',
       stats: { HP: 50, STR: 5, MAG: 0, SKL: 10, SPD: 10, DEF: 20, RES: 20, LCK: 5 },
       currentHP: 50,
       weapon: veninEdge,
       inventory: [veninEdge],
       proficiencies: [{ type: 'Sword', rank: 'Prof' }],
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
     // Both survived (high DEF), so both poisons fire
     if (result.attackerHP > 0 && result.defenderHP > 0) {
       expect(result.poisonEffects).toBeDefined();
       expect(result.poisonEffects.length).toBe(2);
-      expect(result.poisonEffects.find(p => p.target === 'defender')).toBeTruthy();
-      expect(result.poisonEffects.find(p => p.target === 'attacker')).toBeTruthy();
+      expect(result.poisonEffects.find((p) => p.target === 'defender')).toBeTruthy();
+      expect(result.poisonEffects.find((p) => p.target === 'attacker')).toBeTruthy();
     }
   });
 
@@ -578,7 +762,7 @@ describe('Combat resolution', () => {
       currentHP: 10,
       stats: { ...makeUnit().stats, HP: 20, STR: 20, SPD: 8 },
       weapon: {
-        ...data.weapons.find(w => w.name === 'Iron Sword'),
+        ...data.weapons.find((w) => w.name === 'Iron Sword'),
         might: 10,
         special: 'Drains HP equal to damage dealt',
       },
@@ -591,11 +775,21 @@ describe('Combat resolution', () => {
       stats: { ...makeUnit().stats, HP: 20, DEF: 0, SPD: 12 },
       weapon: null,
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
-      const firstStrike = result.events.find((event) => event.type === 'strike' && event.attacker === attacker.name);
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
+      const firstStrike = result.events.find(
+        (event) => event.type === 'strike' && event.attacker === attacker.name,
+      );
       expect(firstStrike?.heal).toBe(3);
       expect(result.attackerHP).toBe(13);
     } finally {
@@ -627,23 +821,46 @@ describe('Combat resolution', () => {
     const terrain = data.terrain.find((tile) => tile.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 2, terrain, terrain);
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        2,
+        terrain,
+        terrain,
+      );
       expect(result.poisonEffects).toBeDefined();
-      expect(result.poisonEffects.some((effect) => effect.target === 'defender' && effect.damage === 5)).toBe(true);
+      expect(
+        result.poisonEffects.some((effect) => effect.target === 'defender' && effect.damage === 5),
+      ).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }
   });
 
   it('poisonEffects is empty array when no poison weapons used', () => {
-    const attacker = makeUnit({ stats: { ...makeUnit().stats, STR: 5, SPD: 10, DEF: 20 }, currentHP: 50 });
-    const defender = makeUnit({
-      name: 'Enemy', faction: 'enemy',
-      stats: { ...makeUnit().stats, STR: 5, SPD: 10, DEF: 20 }, currentHP: 50,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+    const attacker = makeUnit({
+      stats: { ...makeUnit().stats, STR: 5, SPD: 10, DEF: 20 },
+      currentHP: 50,
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+    const defender = makeUnit({
+      name: 'Enemy',
+      faction: 'enemy',
+      stats: { ...makeUnit().stats, STR: 5, SPD: 10, DEF: 20 },
+      currentHP: 50,
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
+    });
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      terrain,
+      terrain,
+    );
     expect(result.poisonEffects).toBeDefined();
     expect(result.poisonEffects.length).toBe(0);
   });
@@ -658,12 +875,20 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 40, STR: 1, SPD: 5, DEF: 20 },
       currentHP: 40,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const base = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
       const withArt = resolveCombat(
         attacker,
         attacker.weapon,
@@ -672,11 +897,15 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] } }
+        { atkWeaponArtMods: { activated: [{ id: 'weapon_art', name: 'Test Art' }] } },
       );
 
-      const baseAttackerStrikes = base.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
-      const artAttackerStrikes = withArt.events.filter((e) => e.type === 'strike' && e.attacker === attacker.name).length;
+      const baseAttackerStrikes = base.events.filter(
+        (e) => e.type === 'strike' && e.attacker === attacker.name,
+      ).length;
+      const artAttackerStrikes = withArt.events.filter(
+        (e) => e.type === 'strike' && e.attacker === attacker.name,
+      ).length;
       expect(baseAttackerStrikes).toBeGreaterThan(artAttackerStrikes);
     } finally {
       randomSpy.mockRestore();
@@ -694,9 +923,9 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 25, RES: 25, LCK: 30 },
       currentHP: 80,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
       const result = resolveCombat(
@@ -707,13 +936,20 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } }
+        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } },
       );
-      const strikeOrder = result.events
-        .filter((e) => e.type === 'strike')
-        .map((e) => e.attacker);
-      expect(strikeOrder.slice(0, 4)).toEqual([attacker.name, defender.name, defender.name, attacker.name]);
-      expect(result.events).toContainEqual({ type: 'skill', name: 'Desperation', unit: defender.name });
+      const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
+      expect(strikeOrder.slice(0, 4)).toEqual([
+        attacker.name,
+        defender.name,
+        defender.name,
+        attacker.name,
+      ]);
+      expect(result.events).toContainEqual({
+        type: 'skill',
+        name: 'Desperation',
+        unit: defender.name,
+      });
     } finally {
       randomSpy.mockRestore();
     }
@@ -730,9 +966,9 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { HP: 80, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 25, RES: 25, LCK: 30 },
       currentHP: 80,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
       const result = resolveCombat(
@@ -743,13 +979,18 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkMods: { desperation: true }, defMods: { quickRiposte: true, desperation: true } }
+        { atkMods: { desperation: true }, defMods: { quickRiposte: true, desperation: true } },
       );
-      const strikeOrder = result.events
-        .filter((e) => e.type === 'strike')
-        .map((e) => e.attacker);
-      expect(strikeOrder.slice(0, 4)).toEqual([attacker.name, attacker.name, defender.name, defender.name]);
-      const desperationEvents = result.events.filter((e) => e.type === 'skill' && e.name === 'Desperation');
+      const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
+      expect(strikeOrder.slice(0, 4)).toEqual([
+        attacker.name,
+        attacker.name,
+        defender.name,
+        defender.name,
+      ]);
+      const desperationEvents = result.events.filter(
+        (e) => e.type === 'skill' && e.name === 'Desperation',
+      );
       expect(desperationEvents.length).toBe(1);
       expect(desperationEvents[0].unit).toBe(attacker.name);
     } finally {
@@ -768,9 +1009,9 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { HP: 10, STR: 1, MAG: 0, SKL: 0, SPD: 10, DEF: 0, RES: 0, LCK: 0 },
       currentHP: 10,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
       const result = resolveCombat(
@@ -781,10 +1022,10 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } }
+        { atkMods: {}, defMods: { quickRiposte: true, desperation: true } },
       );
       const defenderDesperationEvents = result.events.filter(
-        (e) => e.type === 'skill' && e.name === 'Desperation' && e.unit === defender.name
+        (e) => e.type === 'skill' && e.name === 'Desperation' && e.unit === defender.name,
       );
       expect(defenderDesperationEvents.length).toBe(0);
     } finally {
@@ -802,9 +1043,9 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, STR: 12, SPD: 8 },
       currentHP: 24,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
       const result = resolveCombat(
@@ -815,9 +1056,16 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkWeaponArtMods: { preventCounter: true, activated: [{ id: 'weapon_art', name: 'Windsweep' }] } }
+        {
+          atkWeaponArtMods: {
+            preventCounter: true,
+            activated: [{ id: 'weapon_art', name: 'Windsweep' }],
+          },
+        },
       );
-      const defenderStrikes = result.events.filter((e) => e.type === 'strike' && e.attacker === defender.name);
+      const defenderStrikes = result.events.filter(
+        (e) => e.type === 'strike' && e.attacker === defender.name,
+      );
       expect(defenderStrikes.length).toBe(0);
     } finally {
       randomSpy.mockRestore();
@@ -834,12 +1082,20 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 28, DEF: 8, SPD: 8 },
       currentHP: 28,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const base = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
       const withArt = resolveCombat(
         attacker,
         attacker.weapon,
@@ -848,7 +1104,12 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkWeaponArtMods: { vengeance: true, activated: [{ id: 'weapon_art', name: 'Vengeance' }] } }
+        {
+          atkWeaponArtMods: {
+            vengeance: true,
+            activated: [{ id: 'weapon_art', name: 'Vengeance' }],
+          },
+        },
       );
       const missingHp = attacker.stats.HP - attacker.currentHP;
       expect(withArt.defenderHP).toBe(base.defenderHP - missingHp);
@@ -861,19 +1122,27 @@ describe('Combat resolution', () => {
     const attacker = makeUnit({
       stats: { ...makeUnit().stats, STR: 10, SPD: 8 },
       currentHP: 24,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
     const defender = makeUnit({
       name: 'Enemy',
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 28, DEF: 18, RES: 2, SPD: 8 },
       currentHP: 28,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const base = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
       const withArt = resolveCombat(
         attacker,
         attacker.weapon,
@@ -882,7 +1151,12 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkWeaponArtMods: { targetsRES: true, activated: [{ id: 'weapon_art', name: 'Hexblade' }] } }
+        {
+          atkWeaponArtMods: {
+            targetsRES: true,
+            activated: [{ id: 'weapon_art', name: 'Hexblade' }],
+          },
+        },
       );
       expect(withArt.defenderHP).toBeLessThan(base.defenderHP);
     } finally {
@@ -900,12 +1174,20 @@ describe('Combat resolution', () => {
       faction: 'enemy',
       stats: { ...makeUnit().stats, HP: 30, STR: 15, SPD: 8, DEF: 6 },
       currentHP: 30,
-      weapon: data.weapons.find(w => w.name === 'Iron Sword'),
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
     });
-    const terrain = data.terrain.find(t => t.name === 'Plain');
+    const terrain = data.terrain.find((t) => t.name === 'Plain');
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      const base = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, terrain, terrain);
+      const base = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        terrain,
+        terrain,
+      );
       const withArt = resolveCombat(
         attacker,
         attacker.weapon,
@@ -914,7 +1196,12 @@ describe('Combat resolution', () => {
         1,
         terrain,
         terrain,
-        { atkWeaponArtMods: { halfPhysicalDamage: true, activated: [{ id: 'weapon_art', name: 'Pavise Strike' }] } }
+        {
+          atkWeaponArtMods: {
+            halfPhysicalDamage: true,
+            activated: [{ id: 'weapon_art', name: 'Pavise Strike' }],
+          },
+        },
       );
       expect(withArt.attackerHP).toBeGreaterThan(base.attackerHP);
     } finally {
@@ -931,8 +1218,8 @@ function makeHealer(magOverride = 5) {
     className: 'Cleric',
     stats: { HP: 18, STR: 1, MAG: magOverride, SKL: 6, SPD: 6, DEF: 2, RES: 8, LCK: 5 },
     currentHP: 18,
-    weapon: data.weapons.find(w => w.name === 'Heal'),
-    inventory: [data.weapons.find(w => w.name === 'Heal')],
+    weapon: data.weapons.find((w) => w.name === 'Heal'),
+    inventory: [data.weapons.find((w) => w.name === 'Heal')],
     proficiencies: [{ type: 'Staff', rank: 'Prof' }],
   });
 }
@@ -947,7 +1234,7 @@ function makeTarget(currentHP = 10) {
 
 describe('Staff healing (MAG-based)', () => {
   it('calculateHealAmount uses MAG + healBase', () => {
-    const staff = data.weapons.find(w => w.name === 'Heal');
+    const staff = data.weapons.find((w) => w.name === 'Heal');
     const healer = makeHealer(5); // MAG 5
     const target = makeTarget(10); // 10 missing HP
     // MAG 5 + healBase 5 = 10
@@ -955,14 +1242,14 @@ describe('Staff healing (MAG-based)', () => {
   });
 
   it('calculateHealAmount caps at missing HP', () => {
-    const staff = data.weapons.find(w => w.name === 'Mend');
+    const staff = data.weapons.find((w) => w.name === 'Mend');
     const healer = makeHealer(10); // MAG 10 + healBase 10 = 20
     const target = makeTarget(17); // only 3 missing HP
     expect(calculateHealAmount(staff, healer, target)).toBe(3);
   });
 
   it('calculateHealAmount with high MAG heals more', () => {
-    const staff = data.weapons.find(w => w.name === 'Heal');
+    const staff = data.weapons.find((w) => w.name === 'Heal');
     const healer5 = makeHealer(5);
     const healer10 = makeHealer(10);
     const target = makeTarget(1); // 19 missing HP
@@ -971,7 +1258,7 @@ describe('Staff healing (MAG-based)', () => {
   });
 
   it('resolveHeal returns correct structure', () => {
-    const staff = data.weapons.find(w => w.name === 'Heal');
+    const staff = data.weapons.find((w) => w.name === 'Heal');
     const healer = makeHealer(5);
     const target = makeTarget(10);
     const result = resolveHeal(staff, healer, target);
@@ -980,7 +1267,7 @@ describe('Staff healing (MAG-based)', () => {
   });
 
   it('Recover heals MAG + 15', () => {
-    const staff = data.weapons.find(w => w.name === 'Recover');
+    const staff = data.weapons.find((w) => w.name === 'Recover');
     const healer = makeHealer(8);
     const target = makeTarget(1); // 19 missing HP
     // MAG 8 + healBase 15 = 23, capped at 19
@@ -1010,15 +1297,15 @@ describe('Staff bonus uses', () => {
   });
 
   it('getStaffMaxUses adds bonus uses to base', () => {
-    const staff = data.weapons.find(w => w.name === 'Heal'); // base 3
-    expect(getStaffMaxUses(staff, makeHealer(5))).toBe(3);   // 3 + 0
-    expect(getStaffMaxUses(staff, makeHealer(8))).toBe(4);   // 3 + 1
-    expect(getStaffMaxUses(staff, makeHealer(14))).toBe(5);  // 3 + 2
-    expect(getStaffMaxUses(staff, makeHealer(20))).toBe(6);  // 3 + 3
+    const staff = data.weapons.find((w) => w.name === 'Heal'); // base 3
+    expect(getStaffMaxUses(staff, makeHealer(5))).toBe(3); // 3 + 0
+    expect(getStaffMaxUses(staff, makeHealer(8))).toBe(4); // 3 + 1
+    expect(getStaffMaxUses(staff, makeHealer(14))).toBe(5); // 3 + 2
+    expect(getStaffMaxUses(staff, makeHealer(20))).toBe(6); // 3 + 3
   });
 
   it('getStaffRemainingUses tracks spent uses', () => {
-    const staff = { ...data.weapons.find(w => w.name === 'Heal') }; // clone
+    const staff = { ...data.weapons.find((w) => w.name === 'Heal') }; // clone
     const healer = makeHealer(5); // max 3
     expect(getStaffRemainingUses(staff, healer)).toBe(3);
     spendStaffUse(staff);
@@ -1029,38 +1316,38 @@ describe('Staff bonus uses', () => {
   });
 
   it('getStaffRemainingUses floors at 0', () => {
-    const staff = { ...data.weapons.find(w => w.name === 'Heal'), _usesSpent: 99 };
+    const staff = { ...data.weapons.find((w) => w.name === 'Heal'), _usesSpent: 99 };
     expect(getStaffRemainingUses(staff, makeHealer(5))).toBe(0);
   });
 });
 
 describe('Staff effective range', () => {
   it('normal staff has no range bonus', () => {
-    const staff = data.weapons.find(w => w.name === 'Heal');
+    const staff = data.weapons.find((w) => w.name === 'Heal');
     const range = getEffectiveStaffRange(staff, makeHealer(20));
     expect(range).toEqual({ min: 1, max: 1 });
   });
 
   it('Physic base range is 2', () => {
-    const physic = data.weapons.find(w => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Physic');
     const range = getEffectiveStaffRange(physic, makeHealer(5));
     expect(range).toEqual({ min: 2, max: 2 });
   });
 
   it('Physic gains +1 range at MAG 10', () => {
-    const physic = data.weapons.find(w => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Physic');
     const range = getEffectiveStaffRange(physic, makeHealer(10));
     expect(range).toEqual({ min: 2, max: 3 });
   });
 
   it('Physic gains +2 range at MAG 18', () => {
-    const physic = data.weapons.find(w => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Physic');
     const range = getEffectiveStaffRange(physic, makeHealer(18));
     expect(range).toEqual({ min: 2, max: 4 });
   });
 
   it('Fortify has range 2 with healAll flag', () => {
-    const fortify = data.weapons.find(w => w.name === 'Fortify');
+    const fortify = data.weapons.find((w) => w.name === 'Fortify');
     expect(fortify.healAll).toBe(true);
     const range = getEffectiveStaffRange(fortify, makeHealer(5));
     expect(range).toEqual({ min: 2, max: 2 });
@@ -1069,7 +1356,7 @@ describe('Staff effective range', () => {
 
 describe('Staff data integrity', () => {
   it('all staves have healBase and uses fields', () => {
-    const staves = data.weapons.filter(w => w.type === 'Staff');
+    const staves = data.weapons.filter((w) => w.type === 'Staff');
     expect(staves.length).toBe(5);
     for (const staff of staves) {
       expect(staff.healBase).toBeDefined();
@@ -1080,14 +1367,14 @@ describe('Staff data integrity', () => {
   });
 
   it('all staves have perBattleUses flag', () => {
-    const staves = data.weapons.filter(w => w.type === 'Staff');
+    const staves = data.weapons.filter((w) => w.type === 'Staff');
     for (const staff of staves) {
       expect(staff.perBattleUses).toBe(true);
     }
   });
 
   it('_usesSpent resets to 0 when perBattleUses flag is set (battle-start reset)', () => {
-    const heal = structuredClone(data.weapons.find(w => w.name === 'Heal'));
+    const heal = structuredClone(data.weapons.find((w) => w.name === 'Heal'));
     heal._usesSpent = 3; // fully depleted
     expect(getStaffRemainingUses(heal, makeHealer(5))).toBe(0);
 
@@ -1103,15 +1390,15 @@ describe('Staff data integrity', () => {
   });
 
   it('Physic has rangeBonuses array', () => {
-    const physic = data.weapons.find(w => w.name === 'Physic');
+    const physic = data.weapons.find((w) => w.name === 'Physic');
     expect(physic.rangeBonuses).toBeDefined();
     expect(physic.rangeBonuses.length).toBe(2);
   });
 
   it('Mend/Physic/Recover have updated balance patch prices', () => {
-    const mend = data.weapons.find(w => w.name === 'Mend');
-    const physic = data.weapons.find(w => w.name === 'Physic');
-    const recover = data.weapons.find(w => w.name === 'Recover');
+    const mend = data.weapons.find((w) => w.name === 'Mend');
+    const physic = data.weapons.find((w) => w.name === 'Physic');
+    const recover = data.weapons.find((w) => w.name === 'Recover');
     expect(mend.price).toBe(1500);
     expect(physic.price).toBe(4000);
     expect(recover.price).toBe(4000);
@@ -1140,11 +1427,11 @@ describe('Weight mechanic', () => {
     const heavy = { weight: 9 };
     const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5 } }); // 1 reduction (5/5)
     const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 10, STR: 5 } }); // 1 reduction
-    
+
     // Without weight: SPD 15 vs 10 → doubles (diff = 5)
     // With light weapons (3 - 1 = 2 effective each): SPD 13 vs 8 → doubles (diff = 5)
     expect(canDouble(fastUnit, slowUnit, light, light)).toBe(true);
-    
+
     // With heavy on fast unit (9 - 1 = 8): SPD 7 vs 8 → no double (diff = -1)
     expect(canDouble(fastUnit, slowUnit, heavy, light)).toBe(false);
   });
@@ -1153,34 +1440,40 @@ describe('Weight mechanic', () => {
     const heavy = { weight: 9 };
     const fastHeavy = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 20 } }); // 4 reduction (20/5)
     const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 10, STR: 5 } }); // 1 reduction
-    
+
     // Heavy weapon effective weight: 9 - 4 = 5
     // fastHeavy effective SPD: 15 - 5 = 10
     // slowUnit effective SPD: 10 - 0 = 10 (no weapon)
     // Diff = 0, threshold = 5 → no double
     expect(canDouble(fastHeavy, slowUnit, heavy, null)).toBe(false);
-    
+
     // But if slowUnit also has heavy weapon: 10 - (9 - 1) = 2
     // fastHeavy: 10, slowUnit: 2 → diff = 8 → doubles
     expect(canDouble(fastHeavy, slowUnit, heavy, heavy)).toBe(true);
   });
 
   it('getCombatForecast shows weight impact on doubling', () => {
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
-    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe');
-    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction
-    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction
-    
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe');
+    const fastUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 },
+      currentHP: 30,
+    }); // 1 reduction
+    const slowUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 },
+      currentHP: 30,
+    }); // 1 reduction
+
     // Iron Sword weight 3: effective 2 each
     // SPD: 18 vs 13 → diff = 5 → doubles
     let forecast = getCombatForecast(fastUnit, ironSword, slowUnit, ironSword, 1, null, null);
     expect(forecast.attacker.doubles).toBe(true);
-    
+
     // Brave Axe weight 11: effective 10 each
     // SPD: 10 vs 5 → diff = 5 → doubles
     forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
     expect(forecast.attacker.doubles).toBe(true);
-    
+
     // Mixed: fastUnit with Brave (10 eff), slowUnit with Iron (2 eff)
     // SPD: 10 vs 13 → diff = -3 → no double
     forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, ironSword, 1, null, null);
@@ -1188,53 +1481,74 @@ describe('Weight mechanic', () => {
   });
 
   it('resolveCombat applies weight penalties to both combatants', () => {
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
-    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe');
-    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 15, HP: 40 }, currentHP: 40 });
-    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 15, HP: 40 }, currentHP: 40 });
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe');
+    const fastUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 20, STR: 15, HP: 40 },
+      currentHP: 40,
+    });
+    const slowUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 15, STR: 15, HP: 40 },
+      currentHP: 40,
+    });
 
     // Both with Iron Sword (weight 3, 3 reduction = 0 eff): no weight penalty
     // SPD 20 vs 15 → diff = 5 → doubles
     let result = resolveCombat(fastUnit, ironSword, slowUnit, ironSword, 1, null, null);
-    const fastUnitStrikes = result.events.filter(e => e.attacker === fastUnit.name).length;
+    const fastUnitStrikes = result.events.filter((e) => e.attacker === fastUnit.name).length;
     expect(fastUnitStrikes).toBeGreaterThan(1); // Should double
 
     // Both with Brave Axe (weight 11, 3 reduction = 8 eff)
     // SPD 12 vs 7 → diff = 5 → doubles
     result = resolveCombat(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null);
-    const fastUnitStrikesAxe = result.events.filter(e => e.attacker === fastUnit.name).length;
+    const fastUnitStrikesAxe = result.events.filter((e) => e.attacker === fastUnit.name).length;
     expect(fastUnitStrikesAxe).toBeGreaterThan(1); // Should double
   });
 
   it('weight penalty stacks with skill SPD bonuses', () => {
-    const braveAxe = data.weapons.find(w => w.name === 'Brave Axe'); // weight 11
-    const fastUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 }, currentHP: 30 }); // 1 reduction → eff weight 10
-    const slowUnit = makeUnit({ stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 }, currentHP: 30 });
-    
+    const braveAxe = data.weapons.find((w) => w.name === 'Brave Axe'); // weight 11
+    const fastUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 20, STR: 5, HP: 30 },
+      currentHP: 30,
+    }); // 1 reduction → eff weight 10
+    const slowUnit = makeUnit({
+      stats: { ...makeUnit().stats, SPD: 15, STR: 5, HP: 30 },
+      currentHP: 30,
+    });
+
     // Death Blow: -5 SPD when initiating
     const skillCtx = {
       atkMods: { spdBonus: -5 }, // Death Blow active
       defMods: {},
     };
-    
+
     // Weight: SPD 20 - 10 = 10
     // Death Blow: 10 - 5 = 5
     // vs SPD 15 - 10 = 5
     // Diff = 0 → no double
-    const forecast = getCombatForecast(fastUnit, braveAxe, slowUnit, braveAxe, 1, null, null, skillCtx);
+    const forecast = getCombatForecast(
+      fastUnit,
+      braveAxe,
+      slowUnit,
+      braveAxe,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     expect(forecast.attacker.doubles).toBe(false);
   });
 });
 
 describe('Sunder effect', () => {
   it('hasSunderEffect returns true for Sunder weapons', () => {
-    const sunder = data.weapons.find(w => w.name === 'Sunder Sword');
+    const sunder = data.weapons.find((w) => w.name === 'Sunder Sword');
     expect(sunder).toBeDefined();
     expect(hasSunderEffect(sunder)).toBe(true);
   });
 
   it('hasSunderEffect returns false for normal weapons', () => {
-    const iron = data.weapons.find(w => w.name === 'Iron Sword');
+    const iron = data.weapons.find((w) => w.name === 'Iron Sword');
     expect(hasSunderEffect(iron)).toBe(false);
   });
 
@@ -1245,10 +1559,14 @@ describe('Sunder effect', () => {
   });
 
   it('calculateDamage halves DEF when attacker has Sunder weapon', () => {
-    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
-    const ironSword = data.weapons.find(w => w.name === 'Iron Sword');
+    const sunderSword = data.weapons.find((w) => w.name === 'Sunder Sword');
+    const ironSword = data.weapons.find((w) => w.name === 'Iron Sword');
     const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
-    const defender = { stats: { DEF: 12, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+    const defender = {
+      stats: { DEF: 12, SPD: 5, LCK: 5, HP: 30 },
+      currentHP: 30,
+      moveType: 'Infantry',
+    };
 
     const sunderDmg = calculateDamage(attacker, sunderSword, defender, null, null);
     const normalDmg = calculateDamage(attacker, ironSword, defender, null, null);
@@ -1260,9 +1578,13 @@ describe('Sunder effect', () => {
   });
 
   it('Sunder halves DEF with floor rounding on odd DEF', () => {
-    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
+    const sunderSword = data.weapons.find((w) => w.name === 'Sunder Sword');
     const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
-    const defender = { stats: { DEF: 11, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+    const defender = {
+      stats: { DEF: 11, SPD: 5, LCK: 5, HP: 30 },
+      currentHP: 30,
+      moveType: 'Infantry',
+    };
 
     const dmg = calculateDamage(attacker, sunderSword, defender, null, null);
     // (10+4) - floor(11/2) = 14-5 = 9
@@ -1270,9 +1592,13 @@ describe('Sunder effect', () => {
   });
 
   it('Sunder does not apply to magic damage (RES not halved)', () => {
-    const sunderSword = data.weapons.find(w => w.name === 'Sunder Sword');
+    const sunderSword = data.weapons.find((w) => w.name === 'Sunder Sword');
     const attacker = { stats: { STR: 10, SKL: 10, SPD: 5, LCK: 5 }, weaponRank: 'Prof' };
-    const defender = { stats: { DEF: 20, RES: 20, SPD: 5, LCK: 5, HP: 30 }, currentHP: 30, moveType: 'Infantry' };
+    const defender = {
+      stats: { DEF: 20, RES: 20, SPD: 5, LCK: 5, HP: 30 },
+      currentHP: 30,
+      moveType: 'Infantry',
+    };
 
     const dmg = calculateDamage(attacker, sunderSword, defender, null, null);
     // (10+4) - floor(20/2) = 14-10 = 4
@@ -1307,7 +1633,7 @@ describe('Combat mod merging', () => {
         drainPercent: 0.3,
         multiHit: { count: 3, damageMultiplier: 0.5 },
         activated: [{ id: 'b', name: 'B' }],
-      }
+      },
     );
     expect(merged.atkBonus).toBe(5);
     expect(merged.hitBonus).toBe(10);
@@ -1327,29 +1653,41 @@ describe('Combat mod merging', () => {
   });
 
   it('preserves resBonus through normalize and merge', () => {
-    const merged = mergeCombatMods(
-      { resBonus: 3 },
-      { resBonus: 2 }
-    );
+    const merged = mergeCombatMods({ resBonus: 3 }, { resBonus: 2 });
     expect(merged.resBonus).toBe(5);
   });
 });
 
 describe('resBonus reduces magic damage in forecast and resolution', () => {
   it('resBonus reduces magic damage in forecast', () => {
-    const attacker = makeUnit({ stats: { HP: 20, STR: 0, MAG: 12, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 } });
+    const attacker = makeUnit({
+      stats: { HP: 20, STR: 0, MAG: 12, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+    });
     const defender = makeUnit();
-    const magicWeapon = data.weapons.find(w => w.type === 'Tome');
+    const magicWeapon = data.weapons.find((w) => w.type === 'Tome');
 
     // Forecast without resBonus
     const forecastBase = getCombatForecast(
-      attacker, magicWeapon, defender, defender.weapon, 1, null, null, null
+      attacker,
+      magicWeapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      null,
     );
 
     // Forecast with resBonus on defender
     const forecastWithRes = getCombatForecast(
-      attacker, magicWeapon, defender, defender.weapon, 1, null, null,
-      { defMods: { resBonus: 3 } }
+      attacker,
+      magicWeapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      { defMods: { resBonus: 3 } },
     );
 
     expect(forecastWithRes.attacker.damage).toBe(forecastBase.attacker.damage - 3);
@@ -1360,12 +1698,25 @@ describe('resBonus reduces magic damage in forecast and resolution', () => {
     const defender = makeUnit();
 
     const forecastBase = getCombatForecast(
-      attacker, attacker.weapon, defender, defender.weapon, 1, null, null, null
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      null,
     );
 
     const forecastWithRes = getCombatForecast(
-      attacker, attacker.weapon, defender, defender.weapon, 1, null, null,
-      { defMods: { resBonus: 5 } }
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      { defMods: { resBonus: 5 } },
     );
 
     expect(forecastWithRes.attacker.damage).toBe(forecastBase.attacker.damage);
@@ -1377,26 +1728,42 @@ describe('resBonus reduces magic damage in forecast and resolution', () => {
       stats: { HP: 20, STR: 0, MAG: 15, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
       currentHP: 20,
     });
-    const magicWeapon = data.weapons.find(w => w.type === 'Tome');
-    const defender = makeUnit({ currentHP: 50, stats: { HP: 50, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 } });
+    const magicWeapon = data.weapons.find((w) => w.type === 'Tome');
+    const defender = makeUnit({
+      currentHP: 50,
+      stats: { HP: 50, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+    });
 
     // Resolve without resBonus — hit rate 100% for deterministic check
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const resultBase = resolveCombat(
-      attacker, magicWeapon, defender, defender.weapon, 1, null, null, null
+      attacker,
+      magicWeapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      null,
     );
     vi.restoreAllMocks();
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
     const resultWithRes = resolveCombat(
-      attacker, magicWeapon, defender, defender.weapon, 1, null, null,
-      { defMods: { resBonus: 3 } }
+      attacker,
+      magicWeapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      { defMods: { resBonus: 3 } },
     );
     vi.restoreAllMocks();
 
     // Each hit should deal 3 less damage with resBonus
-    const baseStrike = resultBase.events.find(e => e.type === 'strike' && !e.miss);
-    const resStrike = resultWithRes.events.find(e => e.type === 'strike' && !e.miss);
+    const baseStrike = resultBase.events.find((e) => e.type === 'strike' && !e.miss);
+    const resStrike = resultWithRes.events.find((e) => e.type === 'strike' && !e.miss);
     expect(resStrike.damage).toBe(baseStrike.damage - 3);
   });
 });
@@ -1417,33 +1784,71 @@ describe('Intimidate debuff target mapping', () => {
   }
 
   it('defender with Intimidate debuffs the attacker (initiator hit path)', () => {
-    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
-    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: [],
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: ['intimidate'],
+    });
     const skillCtx = makeSkillCtx([], ['intimidate'], data.skills);
 
     // Force all rolls to hit + trigger intimidate (activation: always → 100%)
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     // Intimidate should debuff the ATTACKER, not the defender
     expect(result.debuffEvents.length).toBeGreaterThan(0);
-    const atkDebuff = result.debuffEvents.find(d => d.target === 'attacker');
+    const atkDebuff = result.debuffEvents.find((d) => d.target === 'attacker');
     expect(atkDebuff).toBeTruthy();
     expect(atkDebuff.debuffs).toHaveProperty('STR');
   });
 
   it('attacker with Intimidate debuffs the defender on counter path', () => {
-    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
-    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: ['intimidate'],
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: [],
+    });
     const skillCtx = makeSkillCtx(['intimidate'], [], data.skills);
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     // Intimidate should debuff the DEFENDER (counter-striker), not the attacker
-    const defDebuff = result.debuffEvents.find(d => d.target === 'defender');
+    const defDebuff = result.debuffEvents.find((d) => d.target === 'defender');
     expect(defDebuff).toBeTruthy();
     expect(defDebuff.debuffs).toHaveProperty('STR');
   });
@@ -1462,16 +1867,35 @@ describe('Activation surfacing for trigger-only skills', () => {
   }
 
   it('intimidate appears in strike skillActivations', () => {
-    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
-    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: ['intimidate'] });
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: [],
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: ['intimidate'],
+    });
     const skillCtx = makeSkillCtx(data.skills);
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
-    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss);
-    expect(strikeEvent.skillActivations.some(a => a.id === 'intimidate')).toBe(true);
+    const strikeEvent = result.events.find((e) => e.type === 'strike' && !e.miss);
+    expect(strikeEvent.skillActivations.some((a) => a.id === 'intimidate')).toBe(true);
   });
 
   it('divine_charge appears in strike skillActivations on proc', () => {
@@ -1481,22 +1905,43 @@ describe('Activation surfacing for trigger-only skills', () => {
       currentHP: 30,
       skills: ['divine_charge'],
     });
-    const defender = makeUnit({ name: 'Def', stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 }, currentHP: 30, skills: [] });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+      currentHP: 30,
+      skills: [],
+    });
     const skillCtx = makeSkillCtx(data.skills);
 
     // SKL 99 → activation chance 99%. Roll 0.0 triggers it.
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
-    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss && e.attacker === 'Atk');
-    expect(strikeEvent.skillActivations.some(a => a.id === 'divine_charge')).toBe(true);
+    const strikeEvent = result.events.find(
+      (e) => e.type === 'strike' && !e.miss && e.attacker === 'Atk',
+    );
+    expect(strikeEvent.skillActivations.some((a) => a.id === 'divine_charge')).toBe(true);
   });
 
   it('cancel appears in skillActivations when triggered', () => {
     // Attacker SPD 15 doubles defender SPD 10 (15 >= 10+5). Cancel activation = SPD% = 10%.
     // High LCK zeroes crit rate. Math.random = 0.0 → 0 < 10 → cancel fires.
-    const attacker = makeUnit({ name: 'Atk', stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 50 }, currentHP: 30, skills: [] });
+    const attacker = makeUnit({
+      name: 'Atk',
+      stats: { HP: 30, STR: 12, MAG: 0, SKL: 10, SPD: 15, DEF: 5, RES: 3, LCK: 50 },
+      currentHP: 30,
+      skills: [],
+    });
     const defender = makeUnit({
       name: 'Def',
       stats: { HP: 30, STR: 8, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 50 },
@@ -1506,11 +1951,20 @@ describe('Activation surfacing for trigger-only skills', () => {
     const skillCtx = makeSkillCtx(data.skills);
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
-    const strikeEvent = result.events.find(e => e.type === 'strike' && !e.miss);
-    expect(strikeEvent.skillActivations.some(a => a.id === 'cancel')).toBe(true);
+    const strikeEvent = result.events.find((e) => e.type === 'strike' && !e.miss);
+    expect(strikeEvent.skillActivations.some((a) => a.id === 'cancel')).toBe(true);
   });
 });
 
@@ -1542,11 +1996,20 @@ describe('Divine Charge defender proc and dual proc', () => {
     const skillCtx = makeSkillCtx(data.skills);
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     // Defender counters and procs divine_charge
-    const defHeal = result.divineChargeHeals.find(h => h.side === 'defender');
+    const defHeal = result.divineChargeHeals.find((h) => h.side === 'defender');
     expect(defHeal).toBeTruthy();
     expect(defHeal.damageDealt).toBeGreaterThan(0);
   });
@@ -1568,13 +2031,22 @@ describe('Divine Charge defender proc and dual proc', () => {
     const skillCtx = makeSkillCtx(data.skills);
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     // Both should have entries
     expect(result.divineChargeHeals.length).toBe(2);
-    expect(result.divineChargeHeals.some(h => h.side === 'attacker')).toBe(true);
-    expect(result.divineChargeHeals.some(h => h.side === 'defender')).toBe(true);
+    expect(result.divineChargeHeals.some((h) => h.side === 'attacker')).toBe(true);
+    expect(result.divineChargeHeals.some((h) => h.side === 'defender')).toBe(true);
   });
 });
 
@@ -1606,10 +2078,21 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
     const skillCtx = makeSkillCtx(data.skills, { hitBonus: 1000 });
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
-    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    const firstStrike = result.events.find(
+      (e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss,
+    );
     const procIds = firstStrike.skillActivations
       .map((a) => a.id)
       .filter((id) => ['aether', 'flare', 'luna', 'sol'].includes(id));
@@ -1634,10 +2117,21 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
     const skillCtx = makeSkillCtx(data.skills, { hitBonus: 1000 });
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
-    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    const firstStrike = result.events.find(
+      (e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss,
+    );
     const procIds = firstStrike.skillActivations
       .map((a) => a.id)
       .filter((id) => ['aether', 'flare', 'luna', 'sol'].includes(id));
@@ -1661,12 +2155,23 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
     const skillCtx = makeSkillCtx(data.skills, { desperation: true, hitBonus: 1000 });
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
     expect(strikeOrder).toEqual([attacker.name, defender.name]);
-    const firstStrike = result.events.find((e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss);
+    const firstStrike = result.events.find(
+      (e) => e.type === 'strike' && e.attacker === attacker.name && !e.miss,
+    );
     expect(firstStrike.skillActivations.some((a) => a.id === 'cancel')).toBe(true);
   });
 
@@ -1686,11 +2191,20 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
     const skillCtx = makeSkillCtx(
       data.skills,
       { hitBonus: 1000 },
-      { vantage: true, quickRiposte: true, hitBonus: 1000 }
+      { vantage: true, quickRiposte: true, hitBonus: 1000 },
     );
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
@@ -1713,11 +2227,20 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
     const skillCtx = makeSkillCtx(
       data.skills,
       { hitBonus: 1000 },
-      { vantage: true, quickRiposte: true, hitBonus: 1000 }
+      { vantage: true, quickRiposte: true, hitBonus: 1000 },
     );
 
     vi.spyOn(Math, 'random').mockReturnValue(0.0);
-    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx);
+    const result = resolveCombat(
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
     vi.restoreAllMocks();
 
     const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);

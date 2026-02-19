@@ -17,15 +17,41 @@ function makeDisplayObject(seed = {}) {
   return {
     ...seed,
     handlers: {},
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setInteractive(opts) { this._interactive = opts || true; return this; },
-    setOrigin() { return this; },
-    setDisplaySize() { return this; },
-    setColor(color) { this.color = color; return this; },
-    setText(text) { this.text = text; this.width = String(text).length * 6; return this; },
-    setSize(width, height) { this.width = width; this.height = height; return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setInteractive(opts) {
+      this._interactive = opts || true;
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setColor(color) {
+      this.color = color;
+      return this;
+    },
+    setText(text) {
+      this.text = text;
+      this.width = String(text).length * 6;
+      return this;
+    },
+    setSize(width, height) {
+      this.width = width;
+      this.height = height;
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
     on(event, cb) {
       if (!this.handlers[event]) this.handlers[event] = [];
       this.handlers[event].push(cb);
@@ -34,7 +60,9 @@ function makeDisplayObject(seed = {}) {
     trigger(event, ...args) {
       for (const cb of this.handlers[event] || []) cb(...args);
     },
-    destroy() { this._destroyed = true; },
+    destroy() {
+      this._destroyed = true;
+    },
   };
 }
 
@@ -52,7 +80,14 @@ function makeSceneStub() {
         return obj;
       },
       text: (x, y, text, style) => {
-        const obj = makeDisplayObject({ kind: 'text', x, y, text, style, width: String(text).length * 6 });
+        const obj = makeDisplayObject({
+          kind: 'text',
+          x,
+          y,
+          text,
+          style,
+          width: String(text).length * 6,
+        });
         created.texts.push(obj);
         return obj;
       },
@@ -124,26 +159,34 @@ describe('Roster trade weapon gating', () => {
     const unitB = makeUnit({ name: 'Mora', type: 'Tome', inventory: [fire], weapon: fire });
 
     overlay._showTradeScreen(unitA, unitB);
-    const leftRowHit = scene.created.rectangles.find((obj) => obj._interactive && obj.alpha === 0 && obj.x < 360);
+    const leftRowHit = scene.created.rectangles.find(
+      (obj) => obj._interactive && obj.alpha === 0 && obj.x < 360,
+    );
     expect(leftRowHit).toBeTruthy();
 
     leftRowHit.trigger('pointerdown');
 
     expect(unitA.inventory).toHaveLength(0);
     expect(unitA.weapon).toBeNull();
-    expect(unitB.inventory.map((item) => item.name)).toEqual(expect.arrayContaining(['Fire', 'Elfire']));
+    expect(unitB.inventory.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['Fire', 'Elfire']),
+    );
   });
 
   it('keeps weapon rows disabled when recipient inventory is full', () => {
     const { overlay, scene } = makeOverlay();
     const sword = makeWeapon('Iron Sword', 'Sword');
-    const filler = Array.from({ length: INVENTORY_MAX }, (_v, idx) => makeWeapon(`Filler ${idx + 1}`, 'Axe'));
+    const filler = Array.from({ length: INVENTORY_MAX }, (_v, idx) =>
+      makeWeapon(`Filler ${idx + 1}`, 'Axe'),
+    );
     const unitA = makeUnit({ name: 'Edric', type: 'Sword', inventory: [sword], weapon: sword });
     const unitB = makeUnit({ name: 'Bran', type: 'Axe', inventory: filler, weapon: filler[0] });
 
     overlay._showTradeScreen(unitA, unitB);
 
-    const leftRowHit = scene.created.rectangles.find((obj) => obj._interactive && obj.alpha === 0 && obj.x < 360);
+    const leftRowHit = scene.created.rectangles.find(
+      (obj) => obj._interactive && obj.alpha === 0 && obj.x < 360,
+    );
     expect(leftRowHit).toBeUndefined();
 
     const row = scene.created.texts.find((obj) => obj.text === 'Iron Sword');
@@ -223,7 +266,9 @@ describe('Roster trade copy', () => {
 
     overlay._showTradePicker(unitA);
 
-    const row = scene.created.texts.find((obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'));
+    const row = scene.created.texts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('(Inventory'),
+    );
     expect(row).toBeTruthy();
     expect(row.text).toContain(`Inventory 1/${INVENTORY_MAX} | Consumables 0/${CONSUMABLE_MAX}`);
     expect(row.text).toContain('...');

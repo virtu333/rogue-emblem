@@ -11,9 +11,15 @@ function mockBattleScene(overrides = {}) {
     add: {
       rectangle: (_x, _y, _w, _h, _c, _a) => {
         const obj = {
-          setDepth: function () { return this; },
-          setInteractive: function () { return this; },
-          setStrokeStyle: function () { return this; },
+          setDepth: function () {
+            return this;
+          },
+          setInteractive: function () {
+            return this;
+          },
+          setStrokeStyle: function () {
+            return this;
+          },
           destroy: vi.fn(),
           type: 'rectangle',
         };
@@ -23,12 +29,25 @@ function mockBattleScene(overrides = {}) {
       text: (_x, _y, label, _style) => {
         const obj = {
           text: label,
-          setOrigin: function () { return this; },
-          setDepth: function () { return this; },
-          setInteractive: function () { return this; },
-          disableInteractive: function () { return this; },
-          setColor: function () { return this; },
-          setText: function (t) { this.text = t; return this; },
+          setOrigin: function () {
+            return this;
+          },
+          setDepth: function () {
+            return this;
+          },
+          setInteractive: function () {
+            return this;
+          },
+          disableInteractive: function () {
+            return this;
+          },
+          setColor: function () {
+            return this;
+          },
+          setText: function (t) {
+            this.text = t;
+            return this;
+          },
           on: vi.fn().mockReturnThis(),
           destroy: vi.fn(),
           type: 'text',
@@ -67,7 +86,8 @@ describe('transitionToRunCompleteWithRetry (via retryBooleanAction)', () => {
   });
 
   it('retries on failure and succeeds on later attempt', async () => {
-    const action = vi.fn()
+    const action = vi
+      .fn()
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
@@ -116,28 +136,48 @@ describe('showDefeatTransitionRecovery', () => {
     const cam = scene.cameras.main;
     const group = [];
 
-    const blocker = scene.add.rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
-      .setDepth(910).setInteractive();
+    const blocker = scene.add
+      .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
+      .setDepth(910)
+      .setInteractive();
     group.push(blocker);
 
-    const panel = scene.add.rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
-      .setDepth(911).setStrokeStyle(2, 0x777777).setInteractive();
+    const panel = scene.add
+      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+      .setDepth(911)
+      .setStrokeStyle(2, 0x777777)
+      .setInteractive();
     group.push(panel);
 
-    const title = scene.add.text(cam.centerX, cam.centerY - 42, 'Transition failed', {})
-      .setOrigin(0.5).setDepth(912);
+    const title = scene.add
+      .text(cam.centerX, cam.centerY - 42, 'Transition failed', {})
+      .setOrigin(0.5)
+      .setDepth(912);
     group.push(title);
 
-    const msg = scene.add.text(cam.centerX, cam.centerY - 12, 'Could not open Run Complete.\nRetry or return to title.', {})
-      .setOrigin(0.5).setDepth(912);
+    const msg = scene.add
+      .text(
+        cam.centerX,
+        cam.centerY - 12,
+        'Could not open Run Complete.\nRetry or return to title.',
+        {},
+      )
+      .setOrigin(0.5)
+      .setDepth(912);
     group.push(msg);
 
-    const retryBtn = scene.add.text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {})
-      .setOrigin(0.5).setDepth(912).setInteractive();
+    const retryBtn = scene.add
+      .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {})
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive();
     group.push(retryBtn);
 
-    const titleBtn = scene.add.text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {})
-      .setOrigin(0.5).setDepth(912).setInteractive();
+    const titleBtn = scene.add
+      .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {})
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive();
     group.push(titleBtn);
 
     scene.defeatRecoveryPrompt = group;

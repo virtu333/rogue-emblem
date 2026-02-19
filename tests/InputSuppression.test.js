@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi } from 'vitest';
 
 // We mock a minimal BattleScene context to test the pointer suppression logic.
@@ -86,9 +85,12 @@ describe('Input Suppression (onPointerUp Guard)', () => {
 
     scene.simulateUiPointerDown();
     scene.onPointerUp(rightPointer);
-    
+
     // Right click returns early before even checking the guard
-    expect(scene._uiClickBlocked).toBe(true, 'Guard should still be active because right click returned early');
+    expect(scene._uiClickBlocked).toBe(
+      true,
+      'Guard should still be active because right click returned early',
+    );
     expect(scene.onClickCalled).toBe(false);
   });
 });

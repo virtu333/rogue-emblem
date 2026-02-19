@@ -39,13 +39,15 @@ describe('ReinforcementScheduler', () => {
     it('varies due-turn timing across seed samples when jitter range is non-zero', () => {
       const observed = new Set();
       for (let seed = 1; seed <= 16; seed++) {
-        observed.add(resolveScheduledTurn({
-          baseTurn: 5,
-          totalOffset: 0,
-          seed,
-          waveIndex: 0,
-          turnJitter: [-1, 1],
-        }));
+        observed.add(
+          resolveScheduledTurn({
+            baseTurn: 5,
+            totalOffset: 0,
+            seed,
+            waveIndex: 0,
+            turnJitter: [-1, 1],
+          }),
+        );
       }
       expect(observed.size).toBeGreaterThan(1);
     });
@@ -120,8 +122,10 @@ describe('ReinforcementScheduler', () => {
       const passA = [];
       const passB = [];
       for (let turn = 1; turn <= 8; turn++) {
-        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0) passA.push(turn);
-        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0) passB.push(turn);
+        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0)
+          passA.push(turn);
+        if (getDueReinforcementWaves({ turn, seed: 321, reinforcements }).length > 0)
+          passB.push(turn);
       }
       expect(passA).toEqual(passB);
       expect(passA).toHaveLength(1);
@@ -300,7 +304,10 @@ describe('ReinforcementScheduler', () => {
         reinforcements,
         mapLayout,
         terrain: terrainData,
-        occupied: [{ col: 1, row: 0 }, { col: 1, row: 1 }],
+        occupied: [
+          { col: 1, row: 0 },
+          { col: 1, row: 1 },
+        ],
       });
 
       // Only one of (0,0) top and (0,1) bottom may spawn:
@@ -324,7 +331,14 @@ describe('ReinforcementScheduler', () => {
             xpMultiplier: 0.4,
             spawns: [
               { col: 0, row: 0, className: 'Fighter', level: 9, poisonWeapon: true },
-              { col: 1, row: 0, className: 'Archer', level: 8, aiMode: 'guard', affixes: ['test_affix'] },
+              {
+                col: 1,
+                row: 0,
+                className: 'Archer',
+                level: 8,
+                aiMode: 'guard',
+                affixes: ['test_affix'],
+              },
               { col: 2, row: 0, className: 'Knight', level: 10 },
             ],
           },
@@ -355,12 +369,14 @@ describe('ReinforcementScheduler', () => {
         }),
       ]);
       expect(result.blockedSpawns).toBe(2);
-      expect(result.dueWaves[0]).toEqual(expect.objectContaining({
-        waveType: 'scripted',
-        requestedCount: 3,
-        spawnedCount: 1,
-        blockedCount: 2,
-      }));
+      expect(result.dueWaves[0]).toEqual(
+        expect.objectContaining({
+          waveType: 'scripted',
+          requestedCount: 3,
+          spawnedCount: 1,
+          blockedCount: 2,
+        }),
+      );
     });
 
     it('applies shared difficulty turn offset to scripted waves', () => {
@@ -406,7 +422,10 @@ describe('ReinforcementScheduler', () => {
         scriptedWaves: [
           {
             turn: 1,
-            spawns: [{ col: 0, row: 0 }, { col: 0, row: 1 }],
+            spawns: [
+              { col: 0, row: 0 },
+              { col: 0, row: 1 },
+            ],
           },
         ],
         difficultyScaling: false,
@@ -428,11 +447,13 @@ describe('ReinforcementScheduler', () => {
       ]);
       expect(result.blockedSpawns).toBe(1);
       expect(result.dueWaves.map((wave) => wave.waveType)).toEqual(['scripted', 'procedural']);
-      expect(result.dueWaves[1]).toEqual(expect.objectContaining({
-        requestedCount: 1,
-        spawnedCount: 0,
-        blockedCount: 1,
-      }));
+      expect(result.dueWaves[1]).toEqual(
+        expect.objectContaining({
+          requestedCount: 1,
+          spawnedCount: 0,
+          blockedCount: 1,
+        }),
+      );
     });
   });
 });

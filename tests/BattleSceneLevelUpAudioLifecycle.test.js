@@ -33,8 +33,12 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 
 function makeTextStub() {
   return {
-    setOrigin() { return this; },
-    setDepth() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
     destroy() {},
   };
 }
@@ -50,7 +54,11 @@ function makeScene() {
   scene.sound = { stopByKey: vi.fn((key) => lifecycle.push(`stop:${key}`)) };
   scene.grid = { gridToPixel: () => ({ x: 0, y: 0 }) };
   scene.add = { text: () => makeTextStub() };
-  scene.tweens = { add: ({ onComplete }) => { if (onComplete) onComplete(); } };
+  scene.tweens = {
+    add: ({ onComplete }) => {
+      if (onComplete) onComplete();
+    },
+  };
   scene.updateHPBar = vi.fn();
   scene.gameData = { classes: [], skills: [] };
   scene.battleParams = { xpMultiplier: 1 };

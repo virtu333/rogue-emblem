@@ -2,17 +2,24 @@
 
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
-import { MAX_STARTING_SKILLS, STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS, CATEGORY_CURRENCY, REFUND_FEE, SAFE_BOTTOM_Y } from '../utils/constants.js';
+import {
+  MAX_STARTING_SKILLS,
+  STARTING_ACCESSORY_TIERS,
+  STARTING_STAFF_TIERS,
+  CATEGORY_CURRENCY,
+  REFUND_FEE,
+  SAFE_BOTTOM_Y,
+} from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 
 const CATEGORIES = [
-  { key: 'recruit_stats',      label: 'Recruits' },
-  { key: 'lord_bonuses',       label: 'Lords' },
-  { key: 'economy',            label: 'Economy' },
-  { key: 'capacity',           label: 'Battalion' },
+  { key: 'recruit_stats', label: 'Recruits' },
+  { key: 'lord_bonuses', label: 'Lords' },
+  { key: 'economy', label: 'Economy' },
+  { key: 'capacity', label: 'Battalion' },
   { key: 'starting_equipment', label: 'Equip' },
-  { key: 'starting_skills',    label: 'Skills' },
+  { key: 'starting_skills', label: 'Skills' },
 ];
 
 const GROWTH_SUFFIX = '_growth';
@@ -27,8 +34,8 @@ const BAR_FILLED_MAX = 0xffdd44;
 const BAR_EMPTY = 0x333344;
 
 // Row heights
-const ROW_H = 28;        // stat rows (label + desc on same line area)
-const ROW_H_NAMED = 34;  // economy/capacity rows (name + desc needs more room)
+const ROW_H = 28; // stat rows (label + desc on same line area)
+const ROW_H_NAMED = 34; // economy/capacity rows (name + desc needs more room)
 const TAB_CONTENT_TOP_Y = 72;
 const TAB_CONTENT_BOTTOM_Y = 392;
 const TAB_CONTENT_LEFT_X = 30;
@@ -54,7 +61,7 @@ const LOOT_CATEGORY_LABELS = {
 };
 
 const STAT_GAMEPLAY_HINTS = {
-  HP:  'Hit Points — how much damage a unit can take.',
+  HP: 'Hit Points — how much damage a unit can take.',
   STR: 'Strength — adds to physical attack damage.',
   MAG: 'Magic — adds to magical damage and healing.',
   SKL: 'Skill — improves hit rate, crit chance, and skill activation.',
@@ -68,9 +75,8 @@ const FLAT_HINT_RECRUIT = 'Recruits start with this bonus at recruitment.';
 const FLAT_HINT_LORD = 'Lords begin each run with this bonus.';
 
 function beginSceneLifecycle(scene) {
-  const nextGeneration = (Number.isInteger(scene?._sceneLifecycleGeneration)
-    ? scene._sceneLifecycleGeneration
-    : 0) + 1;
+  const nextGeneration =
+    (Number.isInteger(scene?._sceneLifecycleGeneration) ? scene._sceneLifecycleGeneration : 0) + 1;
   scene._sceneLifecycleGeneration = nextGeneration;
   scene._sceneShuttingDown = false;
   scene._sceneShutdownCleanedUp = false;
@@ -83,7 +89,11 @@ function isSceneLifecycleActive(scene, generation = scene?._sceneLifecycleGenera
   const currentGeneration = Number.isInteger(scene._sceneLifecycleGeneration)
     ? scene._sceneLifecycleGeneration
     : null;
-  if (Number.isInteger(generation) && Number.isInteger(currentGeneration) && generation !== currentGeneration) {
+  if (
+    Number.isInteger(generation) &&
+    Number.isInteger(currentGeneration) &&
+    generation !== currentGeneration
+  ) {
     return false;
   }
   return scene.sys?.isActive?.() !== false;
@@ -151,7 +161,8 @@ export class HomeBaseScene extends Phaser.Scene {
     };
     this._onPointerMove = (pointer) => this.onPointerMove(pointer);
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
-    this._onWheelHandler = (pointer, gameObjects, deltaX, deltaY) => this.onWheel(pointer, deltaX, deltaY);
+    this._onWheelHandler = (pointer, gameObjects, deltaX, deltaY) =>
+      this.onWheel(pointer, deltaX, deltaY);
 
     this.input.keyboard.on('keydown-ESC', this._onEsc);
     this.input.on('pointerdown', this._onPointerDown);
@@ -236,7 +247,10 @@ export class HomeBaseScene extends Phaser.Scene {
     try {
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_intro')) {
-        await showImportantHint(this, 'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.');
+        await showImportantHint(
+          this,
+          'Spend Valor and Supply to upgrade your army.\nUpgrades persist across all runs.',
+        );
       }
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       if (hints.shouldShow('homebase_begin')) {
@@ -270,28 +284,46 @@ export class HomeBaseScene extends Phaser.Scene {
     this.drawBottomButtons();
 
     if (this.refundMode) {
-      this.add.text(w / 2, TAB_CONTENT_BOTTOM_Y + 4, '-- REFUND MODE: Select an upgrade to refund --', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#cc8844',
-      }).setOrigin(0.5, 0).setDepth(911);
+      this.add
+        .text(w / 2, TAB_CONTENT_BOTTOM_Y + 4, '-- REFUND MODE: Select an upgrade to refund --', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#cc8844',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(911);
     }
   }
 
   drawHeader() {
     const w = this.cameras.main.width;
     this.add.text(20, 12, 'HOME BASE', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffdd44', fontStyle: 'bold',
+      fontFamily: 'monospace',
+      fontSize: '20px',
+      color: '#ffdd44',
+      fontStyle: 'bold',
     });
 
     // Show both currencies — highlight the one used by the active tab
     const activeCurrency = CATEGORY_CURRENCY[this.activeTab] || null;
-    const valorColor = activeCurrency === 'valor' ? '#ffcc44' : (activeCurrency ? '#665522' : '#6b728f');
-    const supplyColor = activeCurrency === 'supply' ? '#44ccbb' : (activeCurrency ? '#225544' : '#6b728f');
-    this.add.text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
-      fontFamily: 'monospace', fontSize: '12px', color: valorColor,
-    }).setOrigin(1, 0);
-    this.add.text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
-      fontFamily: 'monospace', fontSize: '12px', color: supplyColor,
-    }).setOrigin(1, 0);
+    const valorColor =
+      activeCurrency === 'valor' ? '#ffcc44' : activeCurrency ? '#665522' : '#6b728f';
+    const supplyColor =
+      activeCurrency === 'supply' ? '#44ccbb' : activeCurrency ? '#225544' : '#6b728f';
+    this.add
+      .text(w - 20, 8, `Valor: ${this.meta.getTotalValor()}`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: valorColor,
+      })
+      .setOrigin(1, 0);
+    this.add
+      .text(w - 20, 24, `Supply: ${this.meta.getTotalSupply()}`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: supplyColor,
+      })
+      .setOrigin(1, 0);
   }
 
   drawContentViewportChrome() {
@@ -303,12 +335,20 @@ export class HomeBaseScene extends Phaser.Scene {
     const contentCy = TAB_CONTENT_TOP_Y + contentH / 2;
 
     // Frame around scrollable tab content.
-    this.add.rectangle(contentCx, contentCy, contentW, contentH, 0x000000, 0)
+    this.add
+      .rectangle(contentCx, contentCy, contentW, contentH, 0x000000, 0)
       .setStrokeStyle(1, 0x1b2744, 0.9);
 
     // Occlusion strips hide scrolled content outside the viewport.
     this.add.rectangle(w / 2, TAB_CONTENT_TOP_Y / 2, w, TAB_CONTENT_TOP_Y, 0x000622, 1);
-    this.add.rectangle(w / 2, TAB_CONTENT_BOTTOM_Y + (h - TAB_CONTENT_BOTTOM_Y) / 2, w, h - TAB_CONTENT_BOTTOM_Y, 0x000622, 1);
+    this.add.rectangle(
+      w / 2,
+      TAB_CONTENT_BOTTOM_Y + (h - TAB_CONTENT_BOTTOM_Y) / 2,
+      w,
+      h - TAB_CONTENT_BOTTOM_Y,
+      0x000622,
+      1,
+    );
   }
 
   drawScrollIndicators() {
@@ -321,13 +361,16 @@ export class HomeBaseScene extends Phaser.Scene {
     const x = TAB_CONTENT_RIGHT_X - 12;
 
     const makeArrow = (y, label, enabled, onClick) => {
-      const btn = this.add.text(x, y, label, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: enabled ? '#a8cfff' : '#44506e',
-        backgroundColor: '#0f1730',
-        padding: { x: 6, y: 3 },
-      }).setOrigin(0.5).setDepth(910);
+      const btn = this.add
+        .text(x, y, label, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: enabled ? '#a8cfff' : '#44506e',
+          backgroundColor: '#0f1730',
+          padding: { x: 6, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setDepth(910);
       if (!enabled) return;
       btn.setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
@@ -338,11 +381,14 @@ export class HomeBaseScene extends Phaser.Scene {
     makeArrow(TAB_CONTENT_TOP_Y + 14, '[^]', canUp, () => this._scrollTab(-TAB_SCROLL_STEP));
     makeArrow(TAB_CONTENT_BOTTOM_Y - 14, '[v]', canDown, () => this._scrollTab(TAB_SCROLL_STEP));
 
-    this.add.text(TAB_CONTENT_RIGHT_X - 12, TAB_CONTENT_TOP_Y + 34, 'Scroll', {
-      fontFamily: 'monospace',
-      fontSize: '9px',
-      color: '#556287',
-    }).setOrigin(0.5, 0).setDepth(910);
+    this.add
+      .text(TAB_CONTENT_RIGHT_X - 12, TAB_CONTENT_TOP_Y + 34, 'Scroll', {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#556287',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(910);
   }
 
   _scrollTab(delta) {
@@ -364,26 +410,38 @@ export class HomeBaseScene extends Phaser.Scene {
       const isActive = cat.key === this.activeTab;
       const color = isActive ? '#ffdd44' : '#aaaaaa';
 
-      const tab = this.add.text(tabX, tabY, cat.label, {
-        fontFamily: 'monospace', fontSize: '13px', color,
-        fontStyle: isActive ? 'bold' : '',
-      }).setInteractive({ useHandCursor: true });
+      const tab = this.add
+        .text(tabX, tabY, cat.label, {
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          color,
+          fontStyle: isActive ? 'bold' : '',
+        })
+        .setInteractive({ useHandCursor: true });
 
       if (isActive) {
         const bounds = tab.getBounds();
         this.add.rectangle(
-          bounds.x + bounds.width / 2, bounds.y + bounds.height + 2,
-          bounds.width, 2, 0xffdd44
+          bounds.x + bounds.width / 2,
+          bounds.y + bounds.height + 2,
+          bounds.width,
+          2,
+          0xffdd44,
         );
       }
 
-      tab.on('pointerover', () => { if (!isActive) tab.setColor('#ffffff'); });
-      tab.on('pointerout', () => { if (!isActive) tab.setColor('#aaaaaa'); });
+      tab.on('pointerover', () => {
+        if (!isActive) tab.setColor('#ffffff');
+      });
+      tab.on('pointerout', () => {
+        if (!isActive) tab.setColor('#aaaaaa');
+      });
       tab.on('pointerdown', () => {
         if (this.activeTab !== cat.key) {
           this._hideUpgradeTooltip();
           this.activeTab = cat.key;
-          if (this.tabScrollOffsets[this.activeTab] === undefined) this.tabScrollOffsets[this.activeTab] = 0;
+          if (this.tabScrollOffsets[this.activeTab] === undefined)
+            this.tabScrollOffsets[this.activeTab] = 0;
           this.drawUI();
         }
       });
@@ -398,18 +456,21 @@ export class HomeBaseScene extends Phaser.Scene {
       return;
     }
 
-    const upgrades = this.meta.upgradesData.filter(u => u.category === category);
+    const upgrades = this.meta.upgradesData.filter((u) => u.category === category);
     const hasSubgroups = category === 'recruit_stats' || category === 'lord_bonuses';
 
     const offset = this._getTabScrollOffset(category);
     let y = TAB_CONTENT_TOP_Y - offset;
 
     if (hasSubgroups) {
-      const growthUpgrades = upgrades.filter(u => u.id.endsWith(GROWTH_SUFFIX));
-      const flatUpgrades = upgrades.filter(u => u.id.endsWith(FLAT_SUFFIX));
+      const growthUpgrades = upgrades.filter((u) => u.id.endsWith(GROWTH_SUFFIX));
+      const flatUpgrades = upgrades.filter((u) => u.id.endsWith(FLAT_SUFFIX));
 
       this.add.text(40, y, 'Growth Bonuses', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        fontStyle: 'bold',
       });
       y += 18;
 
@@ -421,7 +482,10 @@ export class HomeBaseScene extends Phaser.Scene {
       y += 6;
 
       this.add.text(40, y, 'Stat Bonuses', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+        fontStyle: 'bold',
       });
       y += 18;
 
@@ -454,7 +518,9 @@ export class HomeBaseScene extends Phaser.Scene {
       const costX = 530;
 
       const statLabel = this.add.text(labelX, y, this._getStatLabel(upgrade), {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
       });
       const tooltipTab = this.activeTab;
       statLabel.setInteractive({ useHandCursor: true });
@@ -471,7 +537,9 @@ export class HomeBaseScene extends Phaser.Scene {
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
 
       this.add.text(descX, y, this._getActionDesc(upgrade), {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
       });
 
       this._drawValueText(valuesX, y, current, next, maxed);
@@ -489,7 +557,9 @@ export class HomeBaseScene extends Phaser.Scene {
       const costX = 530;
 
       const nameLabel = this.add.text(labelX, y, upgrade.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#e0e0e0',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#e0e0e0',
       });
       const tooltipTab = this.activeTab;
       nameLabel.setInteractive({ useHandCursor: true });
@@ -508,7 +578,9 @@ export class HomeBaseScene extends Phaser.Scene {
       this._drawValueText(valuesX, y, current, next, maxed);
 
       this.add.text(labelX + 10, y + 16, this._getActionDesc(upgrade), {
-        fontFamily: 'monospace', fontSize: '9px', color: '#666666',
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#666666',
       });
 
       if (this.refundMode) {
@@ -522,7 +594,9 @@ export class HomeBaseScene extends Phaser.Scene {
   _drawCostButton(x, y, upgrade, maxed, affordable) {
     if (maxed) {
       this.add.text(x, y, 'MAX', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffdd44',
       });
       return;
     }
@@ -530,22 +604,32 @@ export class HomeBaseScene extends Phaser.Scene {
     const prereqsMet = this.meta.meetsPrerequisites(upgrade.id);
 
     if (!prereqsMet) {
-      const lockText = this.add.text(x, y, 'LOCKED', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aa4444',
-        backgroundColor: '#221111', padding: { x: 6, y: 2 },
-      }).setInteractive();
+      const lockText = this.add
+        .text(x, y, 'LOCKED', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#aa4444',
+          backgroundColor: '#221111',
+          padding: { x: 6, y: 2 },
+        })
+        .setInteractive();
       const tooltipTab = this.activeTab;
 
       // Tooltip on hover showing missing prerequisites
       lockText.on('pointerover', () => {
         if (this.activeTab !== tooltipTab) return;
         const info = this.meta.getPrerequisiteInfo(upgrade.id);
-        const tipText = 'Requires:\n' + info.missing.map(m => '  ' + m).join('\n');
-        this._prereqTooltip = this.add.text(x - 120, y + 18, tipText, {
-          fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
-          backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
-          wordWrap: { width: 200 },
-        }).setDepth(950);
+        const tipText = 'Requires:\n' + info.missing.map((m) => '  ' + m).join('\n');
+        this._prereqTooltip = this.add
+          .text(x - 120, y + 18, tipText, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#dddddd',
+            backgroundColor: '#111122ee',
+            padding: { x: 6, y: 4 },
+            wordWrap: { width: 200 },
+          })
+          .setDepth(950);
       });
       lockText.on('pointerout', () => {
         if (this._prereqTooltip) {
@@ -561,7 +645,9 @@ export class HomeBaseScene extends Phaser.Scene {
     const suffix = currency === 'valor' ? 'V' : 'S';
     const btnColor = affordable ? '#88ff88' : '#555555';
     const btn = this.add.text(x, y, `${cost}${suffix}`, {
-      fontFamily: 'monospace', fontSize: '11px', color: btnColor,
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: btnColor,
       backgroundColor: affordable ? '#334433' : '#222222',
       padding: { x: 6, y: 2 },
     });
@@ -587,7 +673,9 @@ export class HomeBaseScene extends Phaser.Scene {
       const rect = this.add.rectangle(
         x + i * (BAR_SEGMENT_W + BAR_GAP) + BAR_SEGMENT_W / 2,
         y + BAR_SEGMENT_H / 2,
-        BAR_SEGMENT_W, BAR_SEGMENT_H, color
+        BAR_SEGMENT_W,
+        BAR_SEGMENT_H,
+        color,
       );
 
       if (upgrade) {
@@ -603,14 +691,13 @@ export class HomeBaseScene extends Phaser.Scene {
           const tierNum = tierIndex + 1;
           const owned = tierIndex < level;
           const isNext = tierIndex === level;
-          const status = owned ? ' (Owned)' : (isNext ? ' (Next)' : '');
+          const status = owned ? ' (Owned)' : isNext ? ' (Next)' : '';
           const effect = this._formatEffectValue(upgrade.effects[tierIndex]);
           const cost = upgrade.costs?.[tierIndex];
           const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
           const suffix = currency === 'valor' ? 'V' : 'S';
-          const costLine = cost != null
-            ? (owned ? `Paid: ${cost}${suffix}` : `Cost: ${cost}${suffix}`)
-            : '';
+          const costLine =
+            cost != null ? (owned ? `Paid: ${cost}${suffix}` : `Cost: ${cost}${suffix}`) : '';
           const lines = [`Tier ${tierNum}/${maxLevel}${status}`, effect, costLine].filter(Boolean);
           const tipText = lines.join('\n');
 
@@ -619,12 +706,19 @@ export class HomeBaseScene extends Phaser.Scene {
           const above = y - tipH - 2;
           const below = y + BAR_SEGMENT_H + 6;
           let tipY = above >= TAB_CONTENT_TOP_Y ? above : below;
-          if (tipY + tipH > TAB_CONTENT_BOTTOM_Y) tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
+          if (tipY + tipH > TAB_CONTENT_BOTTOM_Y)
+            tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
 
-          this._tierTooltip = this.add.text(tipX, tipY, tipText, {
-            fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
-            backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
-          }).setOrigin(0.5, 0).setDepth(950);
+          this._tierTooltip = this.add
+            .text(tipX, tipY, tipText, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#dddddd',
+              backgroundColor: '#111122ee',
+              padding: { x: 6, y: 4 },
+            })
+            .setOrigin(0.5, 0)
+            .setDepth(950);
         });
         rect.on('pointerout', () => {
           if (this._tierTooltip) {
@@ -646,10 +740,12 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   _formatEffectValue(effect) {
-    if (effect.recruitGrowth !== undefined || effect.lordGrowth !== undefined) return `+${effect.growthValue}%`;
+    if (effect.recruitGrowth !== undefined || effect.lordGrowth !== undefined)
+      return `+${effect.growthValue}%`;
     if (effect.stat !== undefined || effect.lordStat !== undefined) return `+${effect.value}`;
     if (effect.goldBonus !== undefined) return `+${effect.goldBonus}G`;
-    if (effect.battleGoldMultiplier !== undefined) return `+${Math.round(effect.battleGoldMultiplier * 100)}%`;
+    if (effect.battleGoldMultiplier !== undefined)
+      return `+${Math.round(effect.battleGoldMultiplier * 100)}%`;
     if (effect.extraVulnerary !== undefined) return `+${effect.extraVulnerary}`;
     if (effect.lootWeaponQualityBonus !== undefined) return `+${effect.lootWeaponQualityBonus}%`;
     if (effect.lootWeaponWeightBonus !== undefined) return `+${effect.lootWeaponWeightBonus}%`;
@@ -657,18 +753,25 @@ export class HomeBaseScene extends Phaser.Scene {
       const display = this._formatLootCategoryBonuses(effect.lootCategoryWeightBonuses);
       if (display) return display;
     }
-    if (effect.lordRecruitChanceBonus !== undefined) return `+${Math.round(effect.lordRecruitChanceBonus * 100)}%`;
+    if (effect.lordRecruitChanceBonus !== undefined)
+      return `+${Math.round(effect.lordRecruitChanceBonus * 100)}%`;
     if (effect.deployBonus !== undefined) return `+${effect.deployBonus}`;
     if (effect.rosterCapBonus !== undefined) return `+${effect.rosterCapBonus}`;
     if (effect.recruitStartingVulnerary !== undefined) return `+${effect.recruitStartingVulnerary}`;
-    if (effect.extraStartingUnitTier !== undefined) return EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] || `Tier ${effect.extraStartingUnitTier}`;
+    if (effect.extraStartingUnitTier !== undefined)
+      return (
+        EXTRA_STARTER_TIER_LABELS[effect.extraStartingUnitTier] ||
+        `Tier ${effect.extraStartingUnitTier}`
+      );
     if (effect.lethalArmoryTier !== undefined) return `Tier ${effect.lethalArmoryTier}`;
     if (effect.startingWeaponForge !== undefined) return `+${effect.startingWeaponForge}`;
     if (effect.deadlyArsenalTier !== undefined) return `Tier ${effect.deadlyArsenalTier}`;
     if (effect.deadlyArsenal !== undefined) return 'Tier 2';
     if (effect.recruitRandomSkill) return '+1 random combat skill';
-    if (effect.startingAccessoryTier !== undefined) return STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] || '?';
-    if (effect.startingStaffTier !== undefined) return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
+    if (effect.startingAccessoryTier !== undefined)
+      return STARTING_ACCESSORY_TIERS[effect.startingAccessoryTier] || '?';
+    if (effect.startingStaffTier !== undefined)
+      return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
     if (effect.unlockSkill !== undefined) return 'Unlocked';
     return '?';
   }
@@ -682,30 +785,40 @@ export class HomeBaseScene extends Phaser.Scene {
   _drawValueText(x, y, current, next, maxed) {
     if (maxed) {
       this.add.text(x, y, current, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#ffdd44',
       });
     } else if (current) {
       // current → next
       const curText = this.add.text(x, y, current, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aaaaaa',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#aaaaaa',
       });
       const arrowX = x + curText.width + 4;
       const arrowText = this.add.text(arrowX, y, '\u2192', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#666666',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#666666',
       });
       this.add.text(arrowX + arrowText.width + 4, y, next, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#88ff88',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#88ff88',
       });
     } else {
       // unpurchased — show next only
       this.add.text(x, y, next, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#88ff88',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#88ff88',
       });
     }
   }
 
   _getActionDesc(upgrade) {
-    const effect = upgrade?.effects ? upgrade.effects[0] : (upgrade || {});
+    const effect = upgrade?.effects ? upgrade.effects[0] : upgrade || {};
     const weaponArtUnlockText = this._getWeaponArtUnlockText(effect);
     if (effect.recruitGrowth !== undefined) return `${effect.recruitGrowth} growth rate`;
     if (effect.lordGrowth !== undefined) return `${effect.lordGrowth} growth rate`;
@@ -727,7 +840,8 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.extraStartingUnitTier !== undefined) return 'Extra random starting unit class pool';
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
-    if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined) return 'Edric starting sword upgrades';
+    if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined)
+      return 'Edric starting sword upgrades';
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
     if (effect.steelArms !== undefined) return 'Steel weapons can spawn with arts';
     if (effect.artAdept !== undefined) return 'Extra art on a lord starting weapon';
@@ -750,8 +864,9 @@ export class HomeBaseScene extends Phaser.Scene {
     if (Array.isArray(effect.unlockWeaponArts)) {
       for (const id of effect.unlockWeaponArts) pushId(id);
     }
-    const hasBundleUnlock = effect.unlockWeaponArtsByWeaponType !== undefined
-      && effect.unlockWeaponArtsByWeaponType !== null;
+    const hasBundleUnlock =
+      effect.unlockWeaponArtsByWeaponType !== undefined &&
+      effect.unlockWeaponArtsByWeaponType !== null;
 
     if (hasBundleUnlock && ids.size > 0) return `Unlocks ${ids.size}+ weapon arts`;
     if (hasBundleUnlock) return 'Unlocks weapon-art bundles';
@@ -801,17 +916,23 @@ export class HomeBaseScene extends Phaser.Scene {
     const tipX = Math.min(x, TAB_CONTENT_RIGHT_X - 290);
 
     // Render off-screen first to measure actual height (accounts for word wrap)
-    const tip = this.add.text(tipX, -9999, text, {
-      fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
-      backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
-      wordWrap: { width: 280 },
-    }).setDepth(950);
+    const tip = this.add
+      .text(tipX, -9999, text, {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#dddddd',
+        backgroundColor: '#111122ee',
+        padding: { x: 6, y: 4 },
+        wordWrap: { width: 280 },
+      })
+      .setDepth(950);
 
     const tipH = tip.height;
     const above = y - tipH - 4;
     const below = y + 20;
     let tipY = above >= TAB_CONTENT_TOP_Y ? above : below;
-    if (tipY + tipH > TAB_CONTENT_BOTTOM_Y) tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
+    if (tipY + tipH > TAB_CONTENT_BOTTOM_Y)
+      tipY = Math.max(TAB_CONTENT_TOP_Y, TAB_CONTENT_BOTTOM_Y - tipH);
     tip.setY(tipY);
 
     this._upgradeTooltip = tip;
@@ -827,8 +948,12 @@ export class HomeBaseScene extends Phaser.Scene {
   _formatLootCategoryBonuses(weightBonuses) {
     if (!weightBonuses || typeof weightBonuses !== 'object') return null;
     const SHORT_LABELS = {
-      skillScroll: 'Scroll', weaponArtScroll: 'W.Art', accessory: 'Accessory',
-      weapon: 'Weapon', forge: 'Forge', legendaryWeapon: 'Legendary',
+      skillScroll: 'Scroll',
+      weaponArtScroll: 'W.Art',
+      accessory: 'Accessory',
+      weapon: 'Weapon',
+      forge: 'Forge',
+      legendaryWeapon: 'Legendary',
     };
     const entries = Object.entries(weightBonuses)
       .filter(([, value]) => Number(value) > 0)
@@ -844,7 +969,7 @@ export class HomeBaseScene extends Phaser.Scene {
   // --- Skills tab custom layout ---
 
   _drawSkillsTab() {
-    const lords = this.gameData.lords.filter(l => l.name === 'Edric' || l.name === 'Sera');
+    const lords = this.gameData.lords.filter((l) => l.name === 'Edric' || l.name === 'Sera');
     const assignments = this.meta.getSkillAssignments();
     const unlocked = this.meta.getUnlockedSkills();
     const skillsData = this.gameData.skills || [];
@@ -854,7 +979,10 @@ export class HomeBaseScene extends Phaser.Scene {
 
     // --- Lord viewer section ---
     this.add.text(40, y, 'Lord Skills', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#888888',
+      fontStyle: 'bold',
     });
     y += 18;
 
@@ -869,19 +997,26 @@ export class HomeBaseScene extends Phaser.Scene {
       // Portrait
       const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
       if (this.textures.exists(portraitKey)) {
-        this.add.image(cx + 20, y + 20, portraitKey)
-          .setDisplaySize(40, 40).setOrigin(0);
+        this.add
+          .image(cx + 20, y + 20, portraitKey)
+          .setDisplaySize(40, 40)
+          .setOrigin(0);
       }
 
       // Name
       this.add.text(cx + 66, y, lord.name, {
-        fontFamily: 'monospace', fontSize: '13px', color: '#ffdd44', fontStyle: 'bold',
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
       });
 
       // Personal skill (locked)
       const personalName = lord.personalSkill.split(':')[0].trim();
       this.add.text(cx + 66, y + 16, `\u2605 ${personalName}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#ffcc66',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#ffcc66',
       });
 
       // Assignable skill slots
@@ -890,17 +1025,24 @@ export class HomeBaseScene extends Phaser.Scene {
         const skillId = assigned[s];
 
         if (skillId) {
-          const skill = skillsData.find(sk => sk.id === skillId);
+          const skill = skillsData.find((sk) => sk.id === skillId);
           const skillName = skill ? skill.name : skillId;
           this.add.text(cx + 66, slotY, `\u25CB ${skillName}`, {
-            fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#88ccff',
           });
 
           // [x] remove button
-          const removeBtn = this.add.text(cx + 200, slotY, '[x]', {
-            fontFamily: 'monospace', fontSize: '10px', color: '#cc6666',
-            backgroundColor: '#331111', padding: { x: 2, y: 1 },
-          }).setInteractive({ useHandCursor: true });
+          const removeBtn = this.add
+            .text(cx + 200, slotY, '[x]', {
+              fontFamily: 'monospace',
+              fontSize: '10px',
+              color: '#cc6666',
+              backgroundColor: '#331111',
+              padding: { x: 2, y: 1 },
+            })
+            .setInteractive({ useHandCursor: true });
           removeBtn.on('pointerover', () => removeBtn.setColor('#ff8888'));
           removeBtn.on('pointerout', () => removeBtn.setColor('#cc6666'));
           removeBtn.on('pointerdown', () => {
@@ -911,15 +1053,22 @@ export class HomeBaseScene extends Phaser.Scene {
           });
         } else {
           this.add.text(cx + 66, slotY, '\u25CB (empty)', {
-            fontFamily: 'monospace', fontSize: '10px', color: '#555555',
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#555555',
           });
 
           // [+] assign button — only if there are unlocked skills to assign
           if (unlocked.length > 0) {
-            const addBtn = this.add.text(cx + 200, slotY, '[+]', {
-              fontFamily: 'monospace', fontSize: '10px', color: '#88ff88',
-              backgroundColor: '#113311', padding: { x: 2, y: 1 },
-            }).setInteractive({ useHandCursor: true });
+            const addBtn = this.add
+              .text(cx + 200, slotY, '[+]', {
+                fontFamily: 'monospace',
+                fontSize: '10px',
+                color: '#88ff88',
+                backgroundColor: '#113311',
+                padding: { x: 2, y: 1 },
+              })
+              .setInteractive({ useHandCursor: true });
             addBtn.on('pointerover', () => addBtn.setColor('#ccffcc'));
             addBtn.on('pointerout', () => addBtn.setColor('#88ff88'));
             addBtn.on('pointerdown', () => {
@@ -934,11 +1083,14 @@ export class HomeBaseScene extends Phaser.Scene {
 
     // --- Skill unlock section ---
     this.add.text(40, y, 'Unlock Skills', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#888888', fontStyle: 'bold',
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#888888',
+      fontStyle: 'bold',
     });
     y += 18;
 
-    const skillUpgrades = this.meta.upgradesData.filter(u => u.category === 'starting_skills');
+    const skillUpgrades = this.meta.upgradesData.filter((u) => u.category === 'starting_skills');
     for (const upgrade of skillUpgrades) {
       const level = this.meta.getUpgradeLevel(upgrade.id);
       const maxed = this.meta.isMaxed(upgrade.id);
@@ -951,14 +1103,16 @@ export class HomeBaseScene extends Phaser.Scene {
       // Skill name — interactive with tooltip
       const baseColor = maxed ? '#88ccff' : '#e0e0e0';
       const skillLabel = this.add.text(labelX, y, upgrade.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: baseColor,
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: baseColor,
       });
       const tooltipTab = this.activeTab;
 
       // Look up skill details for tooltip
       const skillEffect = upgrade.effects?.[0];
       const skillId = skillEffect?.unlockSkill || skillEffect?.skillUnlock;
-      const skillInfo = skillId ? skillsData.find(s => s.id === skillId) : null;
+      const skillInfo = skillId ? skillsData.find((s) => s.id === skillId) : null;
       skillLabel.setInteractive({ useHandCursor: true });
       skillLabel.on('pointerover', () => {
         skillLabel.setColor('#ffdd44');
@@ -979,7 +1133,9 @@ export class HomeBaseScene extends Phaser.Scene {
 
       // Short description
       this.add.text(descX, y, upgrade.description, {
-        fontFamily: 'monospace', fontSize: '9px', color: '#666666',
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#666666',
       });
 
       // Cost / Unlocked / Refund
@@ -991,7 +1147,9 @@ export class HomeBaseScene extends Phaser.Scene {
         }
       } else if (maxed) {
         this.add.text(costX, y, 'UNLOCKED', {
-          fontFamily: 'monospace', fontSize: '11px', color: '#ffdd44',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#ffdd44',
         });
       } else {
         const cost = this.meta.getNextCost(upgrade.id);
@@ -999,7 +1157,9 @@ export class HomeBaseScene extends Phaser.Scene {
         const suffix = currency === 'valor' ? 'V' : 'S';
         const btnColor = affordable ? '#88ff88' : '#555555';
         const btn = this.add.text(costX, y, `${cost}${suffix}`, {
-          fontFamily: 'monospace', fontSize: '11px', color: btnColor,
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: btnColor,
           backgroundColor: affordable ? '#334433' : '#222222',
           padding: { x: 6, y: 2 },
         });
@@ -1024,7 +1184,7 @@ export class HomeBaseScene extends Phaser.Scene {
   _showSkillPicker(lordName, px, py) {
     // Destroy existing picker if any
     if (this._skillPickerObjects) {
-      this._skillPickerObjects.forEach(o => o.destroy());
+      this._skillPickerObjects.forEach((o) => o.destroy());
       this._skillPickerObjects = null;
     }
 
@@ -1034,7 +1194,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const skillsData = this.gameData.skills || [];
 
     // Skills available to assign: unlocked and not already on this lord
-    const available = unlocked.filter(id => !assigned.includes(id));
+    const available = unlocked.filter((id) => !assigned.includes(id));
     if (available.length === 0) return;
 
     const objects = [];
@@ -1044,18 +1204,26 @@ export class HomeBaseScene extends Phaser.Scene {
     const bgY = py + 14;
 
     // Background panel
-    const bg = this.add.rectangle(bgX + bgW / 2, bgY + bgH / 2, bgW, bgH, 0x222233, 0.95)
-      .setStrokeStyle(1, 0x4444aa).setDepth(900);
+    const bg = this.add
+      .rectangle(bgX + bgW / 2, bgY + bgH / 2, bgW, bgH, 0x222233, 0.95)
+      .setStrokeStyle(1, 0x4444aa)
+      .setDepth(900);
     objects.push(bg);
 
     let iy = bgY + 5;
     for (const skillId of available) {
-      const skill = skillsData.find(s => s.id === skillId);
+      const skill = skillsData.find((s) => s.id === skillId);
       const name = skill ? skill.name : skillId;
-      const entry = this.add.text(bgX + 8, iy, name, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#88ccff',
-        backgroundColor: '#222233', padding: { x: 4, y: 2 },
-      }).setDepth(901).setInteractive({ useHandCursor: true });
+      const entry = this.add
+        .text(bgX + 8, iy, name, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#88ccff',
+          backgroundColor: '#222233',
+          padding: { x: 4, y: 2 },
+        })
+        .setDepth(901)
+        .setInteractive({ useHandCursor: true });
 
       entry.on('pointerover', () => entry.setColor('#ffdd44'));
       entry.on('pointerout', () => entry.setColor('#88ccff'));
@@ -1071,9 +1239,15 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // Cancel button
-    const cancel = this.add.text(bgX + bgW - 8, bgY + 2, 'x', {
-      fontFamily: 'monospace', fontSize: '10px', color: '#cc6666',
-    }).setOrigin(1, 0).setDepth(901).setInteractive({ useHandCursor: true });
+    const cancel = this.add
+      .text(bgX + bgW - 8, bgY + 2, 'x', {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#cc6666',
+      })
+      .setOrigin(1, 0)
+      .setDepth(901)
+      .setInteractive({ useHandCursor: true });
     cancel.on('pointerdown', () => this._destroySkillPicker());
     objects.push(cancel);
 
@@ -1082,7 +1256,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _destroySkillPicker() {
     if (this._skillPickerObjects) {
-      this._skillPickerObjects.forEach(o => o.destroy());
+      this._skillPickerObjects.forEach((o) => o.destroy());
       this._skillPickerObjects = null;
     }
   }
@@ -1092,13 +1266,20 @@ export class HomeBaseScene extends Phaser.Scene {
     const btnY = SAFE_BOTTOM_Y;
 
     // Refund button — label is currency-neutral; per-row buttons show V/S
-    const canRefundAnything = this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;
+    const canRefundAnything =
+      this.meta.getTotalValor() >= REFUND_FEE || this.meta.getTotalSupply() >= REFUND_FEE;
 
     if (this.refundMode) {
-      const cancelRefundBtn = this.add.text(cx - 190, btnY, '[ Cancel Refund ]', {
-        fontFamily: 'monospace', fontSize: '14px', color: '#ffdd44',
-        backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const cancelRefundBtn = this.add
+        .text(cx - 190, btnY, '[ Cancel Refund ]', {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#ffdd44',
+          backgroundColor: '#000000aa',
+          padding: { x: 10, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
       cancelRefundBtn.on('pointerover', () => cancelRefundBtn.setColor('#ffffff'));
       cancelRefundBtn.on('pointerout', () => cancelRefundBtn.setColor('#ffdd44'));
       cancelRefundBtn.on('pointerdown', () => {
@@ -1107,10 +1288,15 @@ export class HomeBaseScene extends Phaser.Scene {
       });
     } else {
       const refundColor = canRefundAnything ? '#cc8844' : '#555555';
-      const refundBtn = this.add.text(cx - 190, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
-        fontFamily: 'monospace', fontSize: '14px', color: refundColor,
-        backgroundColor: '#000000aa', padding: { x: 10, y: 8 },
-      }).setOrigin(0.5);
+      const refundBtn = this.add
+        .text(cx - 190, btnY, `[ Refund (${REFUND_FEE} fee) ]`, {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: refundColor,
+          backgroundColor: '#000000aa',
+          padding: { x: 10, y: 8 },
+        })
+        .setOrigin(0.5);
       if (canRefundAnything) {
         refundBtn.setInteractive({ useHandCursor: true });
         refundBtn.on('pointerover', () => refundBtn.setColor('#ffdd44'));
@@ -1123,22 +1309,41 @@ export class HomeBaseScene extends Phaser.Scene {
     }
 
     // Begin Run button
-    const beginBtn = this.add.text(cx, btnY, '[ Begin Run ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const beginBtn = this.add
+      .text(cx, btnY, '[ Begin Run ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#88ff88',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     beginBtn.on('pointerover', () => beginBtn.setColor('#ffdd44'));
     beginBtn.on('pointerout', () => beginBtn.setColor('#88ff88'));
     beginBtn.on('pointerdown', async () => {
-      await this.runTransition(() => transitionToScene(this, 'DifficultySelect', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BEGIN_RUN }));
+      await this.runTransition(() =>
+        transitionToScene(
+          this,
+          'DifficultySelect',
+          { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.BEGIN_RUN },
+        ),
+      );
     });
 
     // Back to Title button
-    const backBtn = this.add.text(cx + 190, btnY, '[ Back to Title ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cx + 190, btnY, '[ Back to Title ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
@@ -1146,7 +1351,12 @@ export class HomeBaseScene extends Phaser.Scene {
       await this.runTransition(async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.stopMusic(this, 0);
-        return transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
+        return transitionToScene(
+          this,
+          'Title',
+          { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.BACK },
+        );
       });
     });
   }
@@ -1219,17 +1429,26 @@ export class HomeBaseScene extends Phaser.Scene {
     if (this.transientMessage) this.transientMessage.destroy();
     clearTrackedSceneTimer(this, this._transientMessageTimer);
     this._transientMessageTimer = null;
-    this.transientMessage = this.add.text(this.cameras.main.centerX, 414, text, {
-      fontFamily: 'monospace', fontSize: '11px', color,
-      backgroundColor: '#000000cc', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(950);
-    this._transientMessageTimer = trackSceneTimer(this, this.time?.delayedCall?.(2200, () => {
-      this._transientMessageTimer = null;
-      if (this.transientMessage) {
-        this.transientMessage.destroy();
-        this.transientMessage = null;
-      }
-    }));
+    this.transientMessage = this.add
+      .text(this.cameras.main.centerX, 414, text, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(950);
+    this._transientMessageTimer = trackSceneTimer(
+      this,
+      this.time?.delayedCall?.(2200, () => {
+        this._transientMessageTimer = null;
+        if (this.transientMessage) {
+          this.transientMessage.destroy();
+          this.transientMessage = null;
+        }
+      }),
+    );
   }
 
   onWheel(pointer, deltaX, deltaY) {
@@ -1282,16 +1501,16 @@ export class HomeBaseScene extends Phaser.Scene {
 
   _estimateTabContentHeight(category) {
     if (category === 'starting_skills') {
-      const skillUpgrades = this.meta.upgradesData.filter(u => u.category === 'starting_skills');
-      return 18 + 80 + 18 + (skillUpgrades.length * 22);
+      const skillUpgrades = this.meta.upgradesData.filter((u) => u.category === 'starting_skills');
+      return 18 + 80 + 18 + skillUpgrades.length * 22;
     }
 
-    const upgrades = this.meta.upgradesData.filter(u => u.category === category);
+    const upgrades = this.meta.upgradesData.filter((u) => u.category === category);
     const hasSubgroups = category === 'recruit_stats' || category === 'lord_bonuses';
     if (hasSubgroups) {
-      const growthUpgrades = upgrades.filter(u => u.id.endsWith(GROWTH_SUFFIX));
-      const flatUpgrades = upgrades.filter(u => u.id.endsWith(FLAT_SUFFIX));
-      return 18 + (growthUpgrades.length * ROW_H) + 6 + 18 + (flatUpgrades.length * ROW_H);
+      const growthUpgrades = upgrades.filter((u) => u.id.endsWith(GROWTH_SUFFIX));
+      const flatUpgrades = upgrades.filter((u) => u.id.endsWith(FLAT_SUFFIX));
+      return 18 + growthUpgrades.length * ROW_H + 6 + 18 + flatUpgrades.length * ROW_H;
     }
     return upgrades.length * ROW_H_NAMED;
   }
@@ -1314,7 +1533,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (pointer.pointerType === 'touch' && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
-      if ((dx * dx + dy * dy) > (this._tapMoveThreshold * this._tapMoveThreshold)) {
+      if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
         this._touchTapDown = null;
         return;
       }
@@ -1332,11 +1551,9 @@ export class HomeBaseScene extends Phaser.Scene {
     } else if (this.input.manager?.hitTest) {
       hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
     }
-    return Array.isArray(hit) && hit.some(obj =>
-      obj
-      && obj.visible !== false
-      && obj.active !== false
-      && obj.input?.enabled
+    return (
+      Array.isArray(hit) &&
+      hit.some((obj) => obj && obj.visible !== false && obj.active !== false && obj.input?.enabled)
     );
   }
 
@@ -1344,27 +1561,43 @@ export class HomeBaseScene extends Phaser.Scene {
     const level = this.meta.getUpgradeLevel(upgrade.id);
     if (level <= 0) {
       this.add.text(x, y, '---', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#444444',
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#444444',
       });
       return;
     }
 
     const check = this.meta.canRefund(upgrade.id);
     if (!check.success) {
-      const reason = check.reason === 'blocked_by_dependent' ? 'BLOCKED'
-        : check.reason === 'insufficient_fee' ? 'NO FEE' : 'BLOCKED';
-      const blockText = this.add.text(x, y, reason, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#aa4444',
-        backgroundColor: '#221111', padding: { x: 6, y: 2 },
-      }).setInteractive();
+      const reason =
+        check.reason === 'blocked_by_dependent'
+          ? 'BLOCKED'
+          : check.reason === 'insufficient_fee'
+            ? 'NO FEE'
+            : 'BLOCKED';
+      const blockText = this.add
+        .text(x, y, reason, {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#aa4444',
+          backgroundColor: '#221111',
+          padding: { x: 6, y: 2 },
+        })
+        .setInteractive();
 
       blockText.on('pointerover', () => {
         const tipMsg = check.detail || check.reason;
-        this._prereqTooltip = this.add.text(x - 120, y + 18, tipMsg, {
-          fontFamily: 'monospace', fontSize: '9px', color: '#dddddd',
-          backgroundColor: '#111122ee', padding: { x: 6, y: 4 },
-          wordWrap: { width: 200 },
-        }).setDepth(950);
+        this._prereqTooltip = this.add
+          .text(x - 120, y + 18, tipMsg, {
+            fontFamily: 'monospace',
+            fontSize: '9px',
+            color: '#dddddd',
+            backgroundColor: '#111122ee',
+            padding: { x: 6, y: 4 },
+            wordWrap: { width: 200 },
+          })
+          .setDepth(950);
       });
       blockText.on('pointerout', () => {
         if (this._prereqTooltip) {
@@ -1378,10 +1611,15 @@ export class HomeBaseScene extends Phaser.Scene {
     const currency = this.meta.getCurrencyForUpgrade(upgrade.id);
     const suffix = currency === 'valor' ? 'V' : 'S';
     const tierCost = check.refundAmount;
-    const btn = this.add.text(x, y, `[-1] +${tierCost}${suffix}`, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#cc8844',
-      backgroundColor: '#332211', padding: { x: 6, y: 2 },
-    }).setInteractive({ useHandCursor: true });
+    const btn = this.add
+      .text(x, y, `[-1] +${tierCost}${suffix}`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#cc8844',
+        backgroundColor: '#332211',
+        padding: { x: 6, y: 2 },
+      })
+      .setInteractive({ useHandCursor: true });
 
     btn.on('pointerover', () => btn.setColor('#ffdd44'));
     btn.on('pointerout', () => btn.setColor('#cc8844'));
@@ -1397,30 +1635,50 @@ export class HomeBaseScene extends Phaser.Scene {
     const suffix = currency === 'valor' ? 'V' : 'S';
 
     // Full-screen blocker
-    const blocker = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6)
-      .setDepth(850).setInteractive();
+    const blocker = this.add
+      .rectangle(w / 2, h / 2, w, h, 0x000000, 0.6)
+      .setDepth(850)
+      .setInteractive();
     this.confirmOverlayObjects.push(blocker);
 
     // Panel
     const panelW = 360;
     const panelH = 100;
-    const panel = this.add.rectangle(w / 2, h / 2, panelW, panelH, 0x111122, 0.95)
-      .setStrokeStyle(2, 0xcc8844).setDepth(851);
+    const panel = this.add
+      .rectangle(w / 2, h / 2, panelW, panelH, 0x111122, 0.95)
+      .setStrokeStyle(2, 0xcc8844)
+      .setDepth(851);
     this.confirmOverlayObjects.push(panel);
 
     // Message
-    const msg = this.add.text(w / 2, h / 2 - 24,
-      `Refund ${upgrade.name} tier ${level}?\nGet back ${tierCost}${suffix} (fee: ${REFUND_FEE}${suffix})`, {
-        fontFamily: 'monospace', fontSize: '11px', color: '#dddddd',
-        align: 'center',
-      }).setOrigin(0.5).setDepth(851);
+    const msg = this.add
+      .text(
+        w / 2,
+        h / 2 - 24,
+        `Refund ${upgrade.name} tier ${level}?\nGet back ${tierCost}${suffix} (fee: ${REFUND_FEE}${suffix})`,
+        {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#dddddd',
+          align: 'center',
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(851);
     this.confirmOverlayObjects.push(msg);
 
     // Refund button
-    const confirmBtn = this.add.text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#cc8844',
-      backgroundColor: '#332211', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    const confirmBtn = this.add
+      .text(w / 2 - 60, h / 2 + 20, '[ Refund ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#cc8844',
+        backgroundColor: '#332211',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(851)
+      .setInteractive({ useHandCursor: true });
     confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
     confirmBtn.on('pointerout', () => confirmBtn.setColor('#cc8844'));
     confirmBtn.on('pointerdown', () => {
@@ -1435,10 +1693,17 @@ export class HomeBaseScene extends Phaser.Scene {
     this.confirmOverlayObjects.push(confirmBtn);
 
     // Cancel button
-    const cancelBtn = this.add.text(w / 2 + 60, h / 2 + 20, '[ Cancel ]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#aaaaaa',
-      backgroundColor: '#222222', padding: { x: 8, y: 4 },
-    }).setOrigin(0.5).setDepth(851).setInteractive({ useHandCursor: true });
+    const cancelBtn = this.add
+      .text(w / 2 + 60, h / 2 + 20, '[ Cancel ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#aaaaaa',
+        backgroundColor: '#222222',
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setDepth(851)
+      .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffffff'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#aaaaaa'));
     cancelBtn.on('pointerdown', () => {
@@ -1481,7 +1746,12 @@ export class HomeBaseScene extends Phaser.Scene {
     if (allowExit) {
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
-      void transitionToScene(this, 'Title', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
+      void transitionToScene(
+        this,
+        'Title',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.BACK },
+      );
       return true;
     }
     return false;

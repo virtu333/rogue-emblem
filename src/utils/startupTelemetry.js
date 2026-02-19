@@ -55,8 +55,9 @@ export function logStartupSummary({ reason = 'startup_complete', force = false }
   if (!telemetry) return;
   if (telemetry.summaryLogged && !force) return;
 
-  const isDev = !!globalThis?.location?.hostname
-    && ['localhost', '127.0.0.1'].includes(globalThis.location.hostname);
+  const isDev =
+    !!globalThis?.location?.hostname &&
+    ['localhost', '127.0.0.1'].includes(globalThis.location.hostname);
   if (!isDev && !force) return;
 
   const start = telemetry.startedAt || 0;

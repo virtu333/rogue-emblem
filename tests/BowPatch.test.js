@@ -11,11 +11,11 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 
 function findWeapon(name) {
-  return data.weapons.find(w => w.name === name);
+  return data.weapons.find((w) => w.name === name);
 }
 
 function findClass(name) {
-  return data.classes.find(c => c.name === name);
+  return data.classes.find((c) => c.name === name);
 }
 
 function makeUnit(overrides = {}) {
@@ -84,7 +84,7 @@ describe('Bow Patch — Data Validation', () => {
   });
 
   it('total bow count includes the 3 new bows (at least 11)', () => {
-    const bows = data.weapons.filter(w => w.type === 'Bow');
+    const bows = data.weapons.filter((w) => w.type === 'Bow');
     expect(bows.length).toBeGreaterThanOrEqual(11);
   });
 });
@@ -110,7 +110,7 @@ describe('Bow Patch — Proficiency Changes', () => {
   });
 
   it('Voss lord has Bows (P) in weapon field', () => {
-    const voss = data.lords.find(l => l.name === 'Voss');
+    const voss = data.lords.find((l) => l.name === 'Voss');
     expect(voss.weapon).toContain('Bows (P)');
     expect(voss.weapon).toContain('Swords (P)');
   });
@@ -241,7 +241,15 @@ describe('Bow Patch — Combat Integration', () => {
     });
     const ally = makeUnit({ name: 'Ally', col: 5, row: 6 });
     const opponent = makeUnit({ name: 'Enemy', col: 5, row: 4, faction: 'enemy' });
-    const mods = getSkillCombatMods(unit, opponent, [unit, ally], [opponent], data.skills, null, true);
+    const mods = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit, ally],
+      [opponent],
+      data.skills,
+      null,
+      true,
+    );
     expect(mods.atkBonus).toBe(0);
     expect(mods.spdBonus).toBe(0);
   });
@@ -261,15 +269,21 @@ describe('Bow Patch — Combat Integration', () => {
       faction: 'enemy',
       weapon: findWeapon('Iron Sword'),
     });
-    const plain = data.terrain.find(t => t.name === 'Plain');
+    const plain = data.terrain.find((t) => t.name === 'Plain');
     const skillCtx = {
       atkMods: getSkillCombatMods(unit, enemy, [unit], [enemy], data.skills, plain, true),
       defMods: getSkillCombatMods(enemy, unit, [enemy], [unit], data.skills, plain, false),
     };
 
     const forecast = getCombatForecast(
-      unit, doublebow, enemy, enemy.weapon,
-      1, plain, plain, skillCtx
+      unit,
+      doublebow,
+      enemy,
+      enemy.weapon,
+      1,
+      plain,
+      plain,
+      skillCtx,
     );
     // Doublebow: STR(8) + bonus(4) + might(11) = 23, minus enemy DEF(5) = 18
     expect(forecast.attacker.damage).toBe(18);

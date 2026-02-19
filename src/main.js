@@ -6,7 +6,11 @@ import { supabase, signUp, signIn, getSession } from './cloud/supabaseClient.js'
 import { fetchAllToLocalStorage, getCloudSyncStatus } from './cloud/CloudSync.js';
 import { getStartupFlags } from './utils/runtimeFlags.js';
 import { MobileControls } from './utils/MobileControls.js';
-import { getStartupTelemetry, initStartupTelemetry, markStartup } from './utils/startupTelemetry.js';
+import {
+  getStartupTelemetry,
+  initStartupTelemetry,
+  markStartup,
+} from './utils/startupTelemetry.js';
 import { reportAsyncError } from './utils/errorReporter.js';
 import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 
@@ -84,9 +88,10 @@ function installDevDiagnostics() {
       return null;
     }
     const markers = Array.isArray(telemetry.markers) ? telemetry.markers : [];
-    const filtered = typeof filter === 'string' && filter.length > 0
-      ? markers.filter((m) => String(m?.name || '').includes(filter))
-      : markers;
+    const filtered =
+      typeof filter === 'string' && filter.length > 0
+        ? markers.filter((m) => String(m?.name || '').includes(filter))
+        : markers;
     const rows = filtered.map((m, idx) => ({
       idx,
       name: m?.name || null,
@@ -194,7 +199,9 @@ function hideBootRecoveryOverlay() {
 function hasReachedStartupTarget() {
   const telemetry = getStartupTelemetry();
   const markers = telemetry?.markers || [];
-  const reachedTitle = markers.some((m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame');
+  const reachedTitle = markers.some(
+    (m) => m.name === 'title_scene_create' || m.name === 'first_interactive_frame',
+  );
   if (reachedTitle) return true;
   if (!devStartupRequested) return false;
 
@@ -256,8 +263,8 @@ installStartupErrorHooks();
 // Create Web Audio context early so Phaser always reuses it (starts suspended).
 // Call unlockAudio() during a user gesture to resume it before Phaser boots.
 const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-const sharedAudioContext = window[SHARED_AUDIO_CTX_KEY]
-  || (AudioContextCtor ? new AudioContextCtor() : null);
+const sharedAudioContext =
+  window[SHARED_AUDIO_CTX_KEY] || (AudioContextCtor ? new AudioContextCtor() : null);
 if (sharedAudioContext) window[SHARED_AUDIO_CTX_KEY] = sharedAudioContext;
 
 function unlockAudio() {
@@ -312,12 +319,12 @@ function bootGame(user) {
     scene: [BootScene],
     audio: sharedAudioContext
       ? {
-        disableWebAudio: false,
-        context: sharedAudioContext,
-      }
+          disableWebAudio: false,
+          context: sharedAudioContext,
+        }
       : {
-        disableWebAudio: true,
-      },
+          disableWebAudio: true,
+        },
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -353,36 +360,40 @@ if (!supabase) {
   bootGame(null);
 } else {
   // Check existing session
-  getSession().then(async (session) => {
-    if (session) {
-      if (shouldIgnoreLateSessionRestore()) {
-        markStartup('session_restore_ignored_after_boot');
-        return;
+  getSession()
+    .then(async (session) => {
+      if (session) {
+        if (shouldIgnoreLateSessionRestore()) {
+          markStartup('session_restore_ignored_after_boot');
+          return;
+        }
+        activateStartupViewportGuard('session_restore');
+        try {
+          await startCloudPull(session.user.id, 'session');
+        } catch (_) {
+          markStartup('cloud_sync_gate_fallback', { mode: 'session' });
+        }
+        if (shouldIgnoreLateSessionRestore()) {
+          markStartup('session_restore_ignored_after_boot');
+          return;
+        }
+        const didBoot = bootGame(session.user);
+        if (!didBoot) {
+          markStartup('session_restore_ignored_after_boot');
+          return;
+        }
+        fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(
+          (err) => {
+            reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
+          },
+        );
       }
-      activateStartupViewportGuard('session_restore');
-      try {
-        await startCloudPull(session.user.id, 'session');
-      } catch (_) {
-        markStartup('cloud_sync_gate_fallback', { mode: 'session' });
-      }
-      if (shouldIgnoreLateSessionRestore()) {
-        markStartup('session_restore_ignored_after_boot');
-        return;
-      }
-      const didBoot = bootGame(session.user);
-      if (!didBoot) {
-        markStartup('session_restore_ignored_after_boot');
-        return;
-      }
-      fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
-        reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
-      });
-    }
-    // else: show auth overlay (already visible)
-  }).catch(() => {
-    // Supabase unreachable - show auth overlay
-    markStartup('session_check_failed');
-  });
+      // else: show auth overlay (already visible)
+    })
+    .catch(() => {
+      // Supabase unreachable - show auth overlay
+      markStartup('session_check_failed');
+    });
 }
 
 authToggle.addEventListener('click', () => {

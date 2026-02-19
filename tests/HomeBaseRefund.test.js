@@ -13,13 +13,27 @@ import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 
 function createDisplayObject() {
   return {
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor() { return this; },
-    setVisible() { return this; },
-    setText() { return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setVisible() {
+      return this;
+    },
+    setText() {
+      return this;
+    },
     on: vi.fn(),
     destroy: vi.fn(),
     width: 50,

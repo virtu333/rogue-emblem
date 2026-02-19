@@ -22,17 +22,44 @@ const SHEETS = [
   },
   {
     file: 'sheet2v2_base_mounted.png',
-    names: ['cavalier', 'knight', 'mage', 'cleric', 'light_sage', 'ranger', 'pegasus_knight', 'wyvern_rider'],
+    names: [
+      'cavalier',
+      'knight',
+      'mage',
+      'cleric',
+      'light_sage',
+      'ranger',
+      'pegasus_knight',
+      'wyvern_rider',
+    ],
     grid: { rows: 1, cols: 8 },
   },
   {
     file: 'sheet3v2_promoted_infantry.png',
-    names: ['great_lord', 'swordmaster', 'warrior', 'sniper', 'assassin', 'hero', 'bard', 'grandmaster'],
+    names: [
+      'great_lord',
+      'swordmaster',
+      'warrior',
+      'sniper',
+      'assassin',
+      'hero',
+      'bard',
+      'grandmaster',
+    ],
     grid: { rows: 2, cols: 4 },
   },
   {
     file: 'sheet4v2_promoted_mounted.png',
-    names: ['paladin', 'general', 'sage', 'bishop', 'light_priestess', 'vanguard', 'falcon_knight', 'wyvern_lord'],
+    names: [
+      'paladin',
+      'general',
+      'sage',
+      'bishop',
+      'light_priestess',
+      'vanguard',
+      'falcon_knight',
+      'wyvern_lord',
+    ],
     grid: { rows: 2, cols: 4 },
   },
   {
@@ -51,7 +78,9 @@ const SHEETS = [
 function removeBackground(raw, tolerance) {
   const threshold = 255 - tolerance;
   for (let i = 0; i < raw.length; i += 4) {
-    const r = raw[i], g = raw[i + 1], b = raw[i + 2];
+    const r = raw[i],
+      g = raw[i + 1],
+      b = raw[i + 2];
     if (r >= threshold && g >= threshold && b >= threshold) {
       raw[i + 3] = 0;
     }
@@ -131,8 +160,8 @@ for (const sheet of SHEETS) {
   allResults.push(...results);
 }
 
-const ok = allResults.filter(r => r.ok).length;
-const fail = allResults.filter(r => !r.ok).length;
+const ok = allResults.filter((r) => r.ok).length;
+const fail = allResults.filter((r) => !r.ok).length;
 console.log(`\n=== Summary ===`);
 console.log(`  ✓ ${ok} sprites processed`);
 if (fail > 0) console.log(`  ✗ ${fail} failures`);

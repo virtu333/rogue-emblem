@@ -11,8 +11,12 @@ import { XP_BASE_DANCE } from '../src/utils/constants.js';
 
 function makeTextStub() {
   return {
-    setOrigin() { return this; },
-    setDepth() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
     destroy() {},
   };
 }
@@ -23,11 +27,20 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
     registry: { get: () => ({ playSFX() {} }) },
     grid: { gridToPixel: () => ({ x: 0, y: 0 }) },
     add: {
-      circle: () => ({ setDepth() { return this; }, destroy() {} }),
+      circle: () => ({
+        setDepth() {
+          return this;
+        },
+        destroy() {},
+      }),
       text: () => makeTextStub(),
     },
     time: { delayedCall: (_ms, cb) => cb() },
-    tweens: { add: ({ onComplete }) => { if (onComplete) onComplete(); } },
+    tweens: {
+      add: ({ onComplete }) => {
+        if (onComplete) onComplete();
+      },
+    },
     _isReducedEffects: () => true,
     hideActionMenu() {},
     undimUnit() {},
@@ -58,7 +71,9 @@ describe('BattleScene Dance XP', () => {
 
   it('executeDance still calls finishUnitAction if awardScaledXP rejects', async () => {
     const ctx = makeSceneCtx();
-    ctx.awardScaledXP = vi.fn(async () => { throw new Error('popup failed'); });
+    ctx.awardScaledXP = vi.fn(async () => {
+      throw new Error('popup failed');
+    });
     ctx.finishUnitAction = vi.fn();
 
     const dancer = { col: 1, row: 1 };
@@ -78,4 +93,3 @@ describe('BattleScene Dance XP', () => {
     expect(unit.xp).toBe(10);
   });
 });
-

@@ -33,9 +33,15 @@ beforeEach(() => {
 function makeDisplayObject(seed = {}) {
   return {
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setColor() { return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
     on: vi.fn().mockReturnThis(),
     destroy() {},
   };
@@ -45,11 +51,21 @@ function makeHandlerCapturingObject(seed = {}) {
   const handlers = {};
   return {
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setColor() { return this; },
-    setOrigin() { return this; },
-    setInteractive() { return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
     on(event, cb) {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(cb);
@@ -121,7 +137,8 @@ describe('BattleScene equip menu text', () => {
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, secondary],
     };
@@ -149,7 +166,9 @@ describe('BattleScene equip menu text', () => {
 
     // Auto-show tooltip fires for equipped weapon
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      equipped, expect.any(Object), expect.any(Number),
+      equipped,
+      expect.any(Object),
+      expect.any(Number),
     );
   });
 
@@ -191,7 +210,8 @@ describe('BattleScene equip menu text', () => {
     hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, noProfWeapon],
       consumables: [],
@@ -217,14 +237,27 @@ describe('BattleScene equip menu text', () => {
     };
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       className: 'Myrmidon',
       tier: 'base',
       weapon: equipped,
       inventory: [equipped],
       consumables: [
-        { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', subEffect: 'infantry', uses: 1 },
-        { name: 'Mounted Seal', type: 'Consumable', effect: 'reclass', subEffect: 'mounted', uses: 1 },
+        {
+          name: 'Infantry Seal',
+          type: 'Consumable',
+          effect: 'reclass',
+          subEffect: 'infantry',
+          uses: 1,
+        },
+        {
+          name: 'Mounted Seal',
+          type: 'Consumable',
+          effect: 'reclass',
+          subEffect: 'mounted',
+          uses: 1,
+        },
       ],
       skills: [],
     };
@@ -248,10 +281,23 @@ describe('BattleScene equip menu text', () => {
       lords: [],
     };
 
-    const infantrySeal = { name: 'Infantry Seal', type: 'Consumable', effect: 'reclass', subEffect: 'infantry', uses: 1 };
-    const mountedSeal = { name: 'Mounted Seal', type: 'Consumable', effect: 'reclass', subEffect: 'mounted', uses: 1 };
+    const infantrySeal = {
+      name: 'Infantry Seal',
+      type: 'Consumable',
+      effect: 'reclass',
+      subEffect: 'infantry',
+      uses: 1,
+    };
+    const mountedSeal = {
+      name: 'Mounted Seal',
+      type: 'Consumable',
+      effect: 'reclass',
+      subEffect: 'mounted',
+      uses: 1,
+    };
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       className: 'Myrmidon',
       tier: 'base',
       weapon: equipped,
@@ -281,10 +327,13 @@ describe('BattleScene equip menu text', () => {
     const ally = { name: 'Ally' };
 
     scene.getUsableStaves = vi.fn(() => [heal, physic]);
-    scene.findHealTargets = vi.fn((_unit, staffOverride) => (staffOverride === physic ? [ally] : []));
+    scene.findHealTargets = vi.fn((_unit, staffOverride) =>
+      staffOverride === physic ? [ally] : [],
+    );
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: heal,
       inventory: [heal, physic],
       stats: { MAG: 18 },
@@ -311,10 +360,13 @@ describe('BattleScene equip menu text', () => {
     const ally = { name: 'Ally' };
 
     scene.getUsableStaves = vi.fn(() => [heal, physic]);
-    scene.findHealTargets = vi.fn((_unit, staffOverride) => (staffOverride === physic ? [ally] : []));
+    scene.findHealTargets = vi.fn((_unit, staffOverride) =>
+      staffOverride === physic ? [ally] : [],
+    );
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: heal,
       inventory: [heal, physic],
       stats: { MAG: 18 },
@@ -323,7 +375,9 @@ describe('BattleScene equip menu text', () => {
     };
 
     BattleScene.prototype.showActionMenu.call(scene, unit);
-    const healCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].startsWith('Heal ('));
+    const healCall = scene._makeMenuTextButton.mock.calls.find((call) =>
+      call[2].startsWith('Heal ('),
+    );
     expect(healCall).toBeTruthy();
     healCall[5]();
 
@@ -339,14 +393,17 @@ describe('BattleScene equip menu text', () => {
     hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, noProfWeapon],
     };
 
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
-    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].includes('Iron Axe'));
+    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) =>
+      call[2].includes('Iron Axe'),
+    );
     expect(noProfCall).toBeTruthy();
     expect(noProfCall[2]).toContain('(no prof)');
     expect(noProfCall[3].color).toBe('#888888');
@@ -360,13 +417,16 @@ describe('BattleScene equip menu text', () => {
     hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, noProfWeapon],
     };
 
     BattleScene.prototype.showEquipMenu.call(scene, unit);
-    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2].includes('Iron Axe'));
+    const noProfCall = scene._makeMenuTextButton.mock.calls.find((call) =>
+      call[2].includes('Iron Axe'),
+    );
     const onClick = noProfCall[5];
     onClick();
 
@@ -387,7 +447,8 @@ describe('BattleScene equip menu text', () => {
     hasProficiencyMock.mockImplementation((_unit, weapon) => weapon !== noProfWeapon);
 
     const unit = {
-      col: 1, row: 1,
+      col: 1,
+      row: 1,
       weapon: equipped,
       inventory: [equipped, noProfWeapon],
     };
@@ -400,7 +461,9 @@ describe('BattleScene equip menu text', () => {
     overHandlers[overHandlers.length - 1]();
 
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      noProfWeapon, expect.any(Object), expect.any(Number),
+      noProfWeapon,
+      expect.any(Object),
+      expect.any(Number),
     );
   });
 });
@@ -427,7 +490,9 @@ describe('BattleScene equip menu tooltip lifecycle', () => {
     const overHandlers = textObjects[1].handlers.pointerover;
     overHandlers[overHandlers.length - 1]();
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      secondary, expect.any(Object), expect.any(Number),
+      secondary,
+      expect.any(Object),
+      expect.any(Number),
     );
 
     const outHandlers = textObjects[1].handlers.pointerout;
@@ -517,7 +582,7 @@ describe('equip menu overflow', () => {
     BattleScene.prototype.showEquipMenu.call(scene, unit);
 
     // Get the wheel handler and simulate a scroll
-    const wheelCall = scene.input.on.mock.calls.find(c => c[0] === 'wheel');
+    const wheelCall = scene.input.on.mock.calls.find((c) => c[0] === 'wheel');
     const wheelHandler = wheelCall[1];
     scene.inEquipMenu = true;
     scene.battleState = 'UNIT_ACTION_MENU';
@@ -533,7 +598,9 @@ describe('equip menu overflow', () => {
     overHandlers[overHandlers.length - 1]();
 
     expect(scene._showWeaponDetailTooltip).toHaveBeenCalledWith(
-      equipped, expect.any(Object), updatedY,
+      equipped,
+      expect.any(Object),
+      updatedY,
     );
   });
 });
@@ -548,20 +615,34 @@ describe('BattleScene weapon detail tooltip', () => {
         return {
           width: 140,
           height: 48,
-          setDepth() { return this; },
-          setPosition() { return this; },
+          setDepth() {
+            return this;
+          },
+          setPosition() {
+            return this;
+          },
         };
       },
       rectangle: () => ({
         width: 152,
         height: 60,
-        setOrigin() { return this; },
-        setStrokeStyle() { return this; },
-        setDepth() { return this; },
+        setOrigin() {
+          return this;
+        },
+        setStrokeStyle() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
       }),
       container: () => ({
-        setDepth() { return this; },
-        setPosition() { return this; },
+        setDepth() {
+          return this;
+        },
+        setPosition() {
+          return this;
+        },
         destroy() {},
       }),
     };
@@ -569,13 +650,15 @@ describe('BattleScene weapon detail tooltip', () => {
     scene._pinToScreen = vi.fn();
     scene._formatSpecialLinesForUi = BattleScene.prototype._formatSpecialLinesForUi;
     scene._hideWeaponDetailTooltip = BattleScene.prototype._hideWeaponDetailTooltip;
-    scene._getWeaponArtCatalog = () => [{ id: 'sword_art', name: 'Sword Art', combatMods: { hitBonus: 10 } }];
+    scene._getWeaponArtCatalog = () => [
+      { id: 'sword_art', name: 'Sword Art', combatMods: { hitBonus: 10 } },
+    ];
 
     BattleScene.prototype._showWeaponDetailTooltip.call(
       scene,
       { ...equipped, weaponArtId: 'sword_art' },
       { x: 20, y: 20, width: 100, height: 80 },
-      50
+      50,
     );
 
     expect(tooltipText).toContain('Art: Sword Art - Hit +10');

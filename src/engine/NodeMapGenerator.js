@@ -77,12 +77,16 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   // Backward pass: ensure penultimate row can reach the boss at CENTER_COL
   if (rows > 2) {
     const penultimate = rowCols[rows - 2];
-    if (!penultimate.some(c => Math.abs(c - CENTER_COL) <= 1)) {
+    if (!penultimate.some((c) => Math.abs(c - CENTER_COL) <= 1)) {
       // Add a column reachable from the row before AND within ±1 of boss
       const rowBefore = rowCols[rows - 3]; // exists because rows > 2 means rows >= 3
-      const candidates = [CENTER_COL - 1, CENTER_COL, CENTER_COL + 1]
-        .filter(c => c >= 0 && c < NUM_COLUMNS && !penultimate.includes(c)
-          && rowBefore.some(pc => Math.abs(pc - c) <= 1));
+      const candidates = [CENTER_COL - 1, CENTER_COL, CENTER_COL + 1].filter(
+        (c) =>
+          c >= 0 &&
+          c < NUM_COLUMNS &&
+          !penultimate.includes(c) &&
+          rowBefore.some((pc) => Math.abs(pc - c) <= 1),
+      );
       if (candidates.length > 0) {
         penultimate.push(candidates[Math.floor(Math.random() * candidates.length)]);
         penultimate.sort((a, b) => a - b);
@@ -110,7 +114,12 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       // Assign template for combat nodes (BATTLE and BOSS)
       if (type === NODE_TYPES.BATTLE || type === NODE_TYPES.BOSS) {
         const objective = node.battleParams?.objective || 'rout';
-        const template = pickTemplateForNode(objective, mapTemplates, actId, type === NODE_TYPES.BOSS);
+        const template = pickTemplateForNode(
+          objective,
+          mapTemplates,
+          actId,
+          type === NODE_TYPES.BOSS,
+        );
         if (template) {
           node.templateId = template.id;
           node.battleParams.templateId = template.id;
@@ -118,9 +127,10 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
         // Fog roll only for BATTLE nodes (boss nodes never get fog)
         if (type === NODE_TYPES.BATTLE) {
-          const fogChance = (template && template.fogChance !== undefined)
-            ? template.fogChance
-            : (FOG_CHANCE_BY_ACT[actId] || 0);
+          const fogChance =
+            template && template.fogChance !== undefined
+              ? template.fogChance
+              : FOG_CHANCE_BY_ACT[actId] || 0;
           let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
           if (halfFogChance) {
             adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
@@ -130,7 +140,9 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
             node.fogEnabled = true;
           }
           if (DEBUG_MAP_GEN) {
-            nodeMapLog.debug(`Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${adjustedFogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`);
+            nodeMapLog.debug(
+              `Fog roll: node=${node.id} template=${template?.id || 'none'} fogChance=${adjustedFogChance} roll=${fogRoll.toFixed(3)} fog=${!!node.fogEnabled}`,
+            );
           }
         }
       }
@@ -150,11 +162,11 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const convertibleTypes = [NODE_TYPES.BATTLE, NODE_TYPES.SHOP];
   const targetRecruits = 2; // guaranteed minimum
   for (let i = 0; i < targetRecruits; i++) {
-    const remaining = nodes.filter(n =>
-      n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type)
+    const remaining = nodes.filter(
+      (n) => n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type),
     );
     if (remaining.length === 0) break;
-    const battleFirst = remaining.filter(n => n.type === NODE_TYPES.BATTLE);
+    const battleFirst = remaining.filter((n) => n.type === NODE_TYPES.BATTLE);
     const candidates = battleFirst.length > 0 ? battleFirst : remaining;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.type = NODE_TYPES.RECRUIT;
@@ -162,8 +174,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   }
   // 50% chance for a 3rd recruit
   if (Math.random() < 0.5) {
-    const remaining = nodes.filter(n =>
-      n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type)
+    const remaining = nodes.filter(
+      (n) => n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type),
     );
     if (remaining.length > 0) {
       const pick = remaining[Math.floor(Math.random() * remaining.length)];
@@ -200,9 +212,10 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         node.battleParams.templateId = template.id;
       }
 
-      const fogChance = (template && template.fogChance !== undefined)
-        ? template.fogChance
-        : (FOG_CHANCE_BY_ACT[actId] || 0);
+      const fogChance =
+        template && template.fogChance !== undefined
+          ? template.fogChance
+          : FOG_CHANCE_BY_ACT[actId] || 0;
       let adjustedFogChance = Math.max(0, Math.min(0.9, fogChance + fogChanceBonus));
       if (halfFogChance) {
         adjustedFogChance = Math.floor((adjustedFogChance * 100) / 2) / 100;
@@ -241,22 +254,22 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
   const cols = new Set();
 
   // Guarantee a center-band column that is also reachable (for boss connectivity)
-  const reachableCenter = [1, 2, 3].filter(c => reachable.has(c));
+  const reachableCenter = [1, 2, 3].filter((c) => reachable.has(c));
   if (reachableCenter.length > 0) {
     cols.add(reachableCenter[Math.floor(Math.random() * reachableCenter.length)]);
   }
 
   // Ensure every prevCol has a ±1 neighbor in this row
   for (const pc of prevCols) {
-    if ([...cols].some(c => Math.abs(c - pc) <= 1)) continue;
-    const neighbors = [pc - 1, pc, pc + 1].filter(c => c >= 0 && c < NUM_COLUMNS);
+    if ([...cols].some((c) => Math.abs(c - pc) <= 1)) continue;
+    const neighbors = [pc - 1, pc, pc + 1].filter((c) => c >= 0 && c < NUM_COLUMNS);
     cols.add(neighbors[Math.floor(Math.random() * neighbors.length)]);
   }
 
   // Fill up to desiredCount from reachable columns only
   const reachableArr = [...reachable];
   while (cols.size < desiredCount) {
-    const available = reachableArr.filter(c => !cols.has(c));
+    const available = reachableArr.filter((c) => !cols.has(c));
     if (available.length === 0) break;
     cols.add(available[Math.floor(Math.random() * available.length)]);
   }
@@ -274,7 +287,7 @@ function pickNodeType(row, totalRows) {
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
-  if (roll < 0.60) return NODE_TYPES.BATTLE;
+  if (roll < 0.6) return NODE_TYPES.BATTLE;
   if (roll < 0.85) return NODE_TYPES.SHOP;
   return NODE_TYPES.CHURCH; // 0.85-1.0
 }
@@ -338,7 +351,7 @@ function buildBattleParams(actId, type, row, totalRows) {
 }
 
 function rollBattleSeed() {
-  return (Math.floor(Math.random() * 0xFFFFFFFF) >>> 0);
+  return Math.floor(Math.random() * 0xffffffff) >>> 0;
 }
 
 /**
@@ -358,7 +371,7 @@ function pickTemplateForNode(objective, mapTemplates, actId = null, isBossNode =
     return allowedRout[0];
   }
   const filteredByAct = actId
-    ? pool.filter(template => !Array.isArray(template.acts) || template.acts.includes(actId))
+    ? pool.filter((template) => !Array.isArray(template.acts) || template.acts.includes(actId))
     : pool;
   const bossFiltered = filteredByAct.filter((template) => !template?.bossOnly || isBossNode);
   const fallbackBossFiltered = pool.filter((template) => !template?.bossOnly || isBossNode);
@@ -384,8 +397,7 @@ function connectRows(currentRow, nextRow) {
   function wouldCross(sourceCol, targetCol) {
     if (skipConstraints) return false;
     for (const [sCol, tCol] of edgePairs) {
-      if ((sCol < sourceCol && tCol > targetCol) ||
-          (sCol > sourceCol && tCol < targetCol)) {
+      if ((sCol < sourceCol && tCol > targetCol) || (sCol > sourceCol && tCol < targetCol)) {
         return true;
       }
     }
@@ -406,8 +418,8 @@ function connectRows(currentRow, nextRow) {
 
   // Step 1: Each current-row node connects to at least 1 valid non-crossing next-row node
   for (const node of currentRow) {
-    const candidates = nextRow.filter(n =>
-      isValidTarget(node.col, n.col) && !wouldCross(node.col, n.col)
+    const candidates = nextRow.filter(
+      (n) => isValidTarget(node.col, n.col) && !wouldCross(node.col, n.col),
     );
     if (candidates.length > 0) {
       // Prefer same column, then closest
@@ -418,10 +430,10 @@ function connectRows(currentRow, nextRow) {
 
   // Step 2: Ensure every next-row node has at least 1 incoming edge (non-crossing)
   for (const nextNode of nextRow) {
-    const hasIncoming = currentRow.some(n => n.edges.includes(nextNode.id));
+    const hasIncoming = currentRow.some((n) => n.edges.includes(nextNode.id));
     if (!hasIncoming) {
-      const candidates = currentRow.filter(n =>
-        isValidTarget(n.col, nextNode.col) && !wouldCross(n.col, nextNode.col)
+      const candidates = currentRow.filter(
+        (n) => isValidTarget(n.col, nextNode.col) && !wouldCross(n.col, nextNode.col),
       );
       if (candidates.length > 0) {
         candidates.sort((a, b) => Math.abs(a.col - nextNode.col) - Math.abs(b.col - nextNode.col));
@@ -433,10 +445,11 @@ function connectRows(currentRow, nextRow) {
   // Step 3: Add extra edges for branching (up to 2 per node, non-crossing)
   for (const node of currentRow) {
     if (node.edges.length < 2 && Math.random() < 0.5) {
-      const candidates = nextRow.filter(n =>
-        isValidTarget(node.col, n.col) &&
-        !node.edges.includes(n.id) &&
-        !wouldCross(node.col, n.col)
+      const candidates = nextRow.filter(
+        (n) =>
+          isValidTarget(node.col, n.col) &&
+          !node.edges.includes(n.id) &&
+          !wouldCross(node.col, n.col),
       );
       if (candidates.length > 0) {
         const pick = candidates[Math.floor(Math.random() * candidates.length)];

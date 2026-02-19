@@ -51,7 +51,7 @@ export function startDeferredAssetWarmup(scene, options = {}) {
     markStartup('deferred_asset_batch_start', {
       count: batch.length,
       pendingBefore: pending.length,
-      groups: Array.from(new Set(batch.map(a => a.group).filter(Boolean))),
+      groups: Array.from(new Set(batch.map((a) => a.group).filter(Boolean))),
     });
     scene.load.once('complete', () => {
       markStartup('deferred_asset_batch_complete', { count: batch.length });

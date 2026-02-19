@@ -36,20 +36,48 @@ function createMockEvents() {
 
 function createDisplayObject() {
   return {
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setFillStyle() { return this; },
-    setSize() { return this; },
-    setPosition() { return this; },
-    setVisible() { return this; },
-    setColor() { return this; },
-    setAlpha() { return this; },
-    setTint() { return this; },
-    setDisplaySize() { return this; },
-    setScale() { return this; },
-    setText() { return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setFillStyle() {
+      return this;
+    },
+    setSize() {
+      return this;
+    },
+    setPosition() {
+      return this;
+    },
+    setVisible() {
+      return this;
+    },
+    setColor() {
+      return this;
+    },
+    setAlpha() {
+      return this;
+    },
+    setTint() {
+      return this;
+    },
+    setDisplaySize() {
+      return this;
+    },
+    setScale() {
+      return this;
+    },
+    setText() {
+      return this;
+    },
     destroy: vi.fn(),
     on: vi.fn(),
     width: 50,
@@ -67,11 +95,21 @@ function createMockScene(game) {
       text: () => createDisplayObject(),
       graphics: () => ({
         ...createDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       }),
       image: () => createDisplayObject(),
     },
@@ -125,7 +163,11 @@ function createDomElement(tagName = 'div') {
     },
     querySelectorAll(selector) {
       if (selector !== '.mobile-btn') return [];
-      return this.children.filter((c) => String(c.className || '').split(/\s+/).includes('mobile-btn'));
+      return this.children.filter((c) =>
+        String(c.className || '')
+          .split(/\s+/)
+          .includes('mobile-btn'),
+      );
     },
     _listeners: listeners,
   };
@@ -176,11 +218,21 @@ function createNodeMapDrawSceneStub(events) {
       image: vi.fn(() => textObj),
       graphics: vi.fn(() => ({
         ...createDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       })),
     },
     cameras: { main: { width: 640, height: 480, centerX: 320 } },
@@ -230,8 +282,12 @@ describe('MobileControls context stack', () => {
     controls.show();
     events.emit('mobile:setContext', { context: 'battle_idle' });
     expect(controls._currentContext).toBe('battle_idle');
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'danger',
+      'roster',
+      'objective',
+      'endTurn',
+    ]);
 
     events.emit('mobile:pushContext', { context: 'overlay_tabs' });
     expect(controls._currentContext).toBe('overlay_tabs');
@@ -239,8 +295,12 @@ describe('MobileControls context stack', () => {
 
     events.emit('mobile:popContext');
     expect(controls._currentContext).toBe('battle_idle');
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'danger',
+      'roster',
+      'objective',
+      'endTurn',
+    ]);
   });
 
   it('pop on empty stack resolves to base context', () => {
@@ -266,8 +326,13 @@ describe('MobileControls context stack', () => {
     controls.show();
     events.emit('mobile:setContext', { context: 'battle_player_idle' });
 
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['danger', 'roster', 'objective', 'inspect', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'danger',
+      'roster',
+      'objective',
+      'inspect',
+      'endTurn',
+    ]);
   });
 
   it('battle_unit_selected excludes inspect action on right panel', () => {
@@ -280,8 +345,12 @@ describe('MobileControls context stack', () => {
     controls.show();
     events.emit('mobile:setContext', { context: 'battle_unit_selected' });
 
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'danger',
+      'roster',
+      'objective',
+      'endTurn',
+    ]);
   });
 
   it('battle_selected keeps inspect hidden', () => {
@@ -322,12 +391,19 @@ describe('MobileControls context stack', () => {
 
     events.emit('mobile:setButtonVisible', { action: 'danger', visible: false });
     events.emit('mobile:setContext', { context: 'battle_idle' });
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['roster', 'objective', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'roster',
+      'objective',
+      'endTurn',
+    ]);
 
     events.emit('mobile:setButtonVisible', { action: 'danger', visible: true });
-    expect(rightPanel.children.map((c) => c.dataset.action))
-      .toEqual(['danger', 'roster', 'objective', 'endTurn']);
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'danger',
+      'roster',
+      'objective',
+      'endTurn',
+    ]);
   });
 });
 
@@ -339,7 +415,9 @@ describe('Overlay show/hide idempotency', () => {
   beforeEach(() => {
     events = createMockEvents();
     popCount = 0;
-    events.on('mobile:popContext', () => { popCount++; });
+    events.on('mobile:popContext', () => {
+      popCount++;
+    });
     scene = createMockScene({ events });
   });
 
@@ -384,9 +462,16 @@ describe('Overlay show/hide idempotency', () => {
     const { UnitDetailOverlay } = await import('../src/ui/UnitDetailOverlay.js');
     const overlay = new UnitDetailOverlay(scene, null);
     const unit = {
-      name: 'Test', faction: 'player', className: 'Myrmidon', tier: 'base',
-      level: 1, currentHP: 20, stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 7, DEF: 3, RES: 2, LCK: 5, MOV: 5 },
-      inventory: [], consumables: [], skills: [],
+      name: 'Test',
+      faction: 'player',
+      className: 'Myrmidon',
+      tier: 'base',
+      level: 1,
+      currentHP: 20,
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 7, DEF: 3, RES: 2, LCK: 5, MOV: 5 },
+      inventory: [],
+      consumables: [],
+      skills: [],
     };
     overlay.show(unit, null);
     overlay.hide();
@@ -413,7 +498,9 @@ describe('Ghost-click double-fire prevention', () => {
     const cancelBtn = leftPanel.children.find((c) => c.dataset.action === 'cancel');
 
     let fireCount = 0;
-    events.on('mobile:cancel', () => { fireCount++; });
+    events.on('mobile:cancel', () => {
+      fireCount++;
+    });
 
     const evt = { preventDefault() {}, stopPropagation() {} };
     cancelBtn.dispatch('touchstart', evt);
@@ -431,9 +518,25 @@ describe('BattleScene refreshEndTurnControl mobile guard', () => {
   it('does not re-show canvas buttons when isMobileInput is true', () => {
     const scene = {
       isMobileInput: true,
-      inspectButton: { setVisible: vi.fn(), setText: vi.fn(), setColor: vi.fn(), setInteractive: vi.fn(), disableInteractive: vi.fn() },
-      endTurnButton: { setVisible: vi.fn(), setColor: vi.fn(), setInteractive: vi.fn(), disableInteractive: vi.fn() },
-      cancelButton: { setVisible: vi.fn(), setColor: vi.fn(), setInteractive: vi.fn(), disableInteractive: vi.fn() },
+      inspectButton: {
+        setVisible: vi.fn(),
+        setText: vi.fn(),
+        setColor: vi.fn(),
+        setInteractive: vi.fn(),
+        disableInteractive: vi.fn(),
+      },
+      endTurnButton: {
+        setVisible: vi.fn(),
+        setColor: vi.fn(),
+        setInteractive: vi.fn(),
+        disableInteractive: vi.fn(),
+      },
+      cancelButton: {
+        setVisible: vi.fn(),
+        setColor: vi.fn(),
+        setInteractive: vi.fn(),
+        disableInteractive: vi.fn(),
+      },
       _emitMobileContext: vi.fn(),
       canForceEndTurn: () => true,
       canRequestCancel: () => true,
@@ -522,7 +625,9 @@ describe('Cancel vs Menu semantic parity', () => {
       shopOverlay: null,
       churchOverlay: null,
       showPauseMenu: vi.fn(),
-      canRequestCancel(opts) { return NodeMapScene.prototype.canRequestCancel.call(this, opts); },
+      canRequestCancel(opts) {
+        return NodeMapScene.prototype.canRequestCancel.call(this, opts);
+      },
     };
 
     const handled = NodeMapScene.prototype.requestCancel.call(scene, { allowPause: false });
@@ -592,7 +697,9 @@ describe('Cancel vs Menu semantic parity', () => {
     };
 
     HomeBaseScene.prototype.create.call(scene);
-    const shutdownHandler = scene.events.once.mock.calls.find(([eventName]) => eventName === 'shutdown')?.[1];
+    const shutdownHandler = scene.events.once.mock.calls.find(
+      ([eventName]) => eventName === 'shutdown',
+    )?.[1];
     expect(typeof shutdownHandler).toBe('function');
 
     shutdownHandler();

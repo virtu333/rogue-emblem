@@ -10,7 +10,10 @@ import { loadGameData } from './testData.js';
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { HeadlessBattle } from './harness/HeadlessBattle.js';
 import { getWeaponArtTier5Effects } from '../src/engine/WeaponArtSystem.js';
-import { getFirstLandedStrikeDamage, getPostCombatPipelineSteps } from '../src/engine/WeaponArtPostCombat.js';
+import {
+  getFirstLandedStrikeDamage,
+  getPostCombatPipelineSteps,
+} from '../src/engine/WeaponArtPostCombat.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
@@ -103,12 +106,7 @@ describe('Tier 5 weapon art data + parsing', () => {
   });
 
   it('standard Tier 5 arts have balance-pass combat bonuses (no crit)', () => {
-    const ids = [
-      'axe_war_cry',
-      'axe_rallying_blow',
-      'magic_burning_quake',
-      'magic_radiant_burst',
-    ];
+    const ids = ['axe_war_cry', 'axe_rallying_blow', 'magic_burning_quake', 'magic_radiant_burst'];
     for (const id of ids) {
       const combatMods = artById.get(id)?.combatMods || {};
       expect(combatMods.critBonus || 0).toBe(0);
@@ -123,7 +121,12 @@ describe('Tier 5 post-combat steps', () => {
     const art = {
       id: 'test_t5',
       effects: {
-        aoeSplash: { radius: 1, damageKind: 'scaled', damageMultiplier: 0.5, basis: 'first_landed_strike' },
+        aoeSplash: {
+          radius: 1,
+          damageKind: 'scaled',
+          damageMultiplier: 0.5,
+          basis: 'first_landed_strike',
+        },
         allyBuff: { range: 2, durationPhases: 1, stats: { STR: 3 }, includeSelf: false },
       },
     };
@@ -176,9 +179,30 @@ describe('Tier 5 scene/headless parity', () => {
 
   it('radiant burst single-target splash is deterministic (lowest HP%, tie row/col)', () => {
     const source = makeUnit({ name: 'Caster', faction: 'player', col: 0, row: 0 });
-    const primary = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, stats: { HP: 30 }, currentHP: 20 });
-    const enemyA = makeUnit({ name: 'A', faction: 'enemy', col: 1, row: 1, stats: { HP: 20 }, currentHP: 4 });
-    const enemyB = makeUnit({ name: 'B', faction: 'enemy', col: 2, row: 0, stats: { HP: 10 }, currentHP: 2 });
+    const primary = makeUnit({
+      name: 'Primary',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 20,
+    });
+    const enemyA = makeUnit({
+      name: 'A',
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      stats: { HP: 20 },
+      currentHP: 4,
+    });
+    const enemyB = makeUnit({
+      name: 'B',
+      faction: 'enemy',
+      col: 2,
+      row: 0,
+      stats: { HP: 10 },
+      currentHP: 2,
+    });
     const step = { radius: 1, maxTargets: 1 };
 
     scene.playerUnits = [source];
@@ -195,14 +219,42 @@ describe('Tier 5 scene/headless parity', () => {
 
   it('burning quake style splash damage matches scene/headless outcomes', async () => {
     const sourceScene = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryScene = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, stats: { HP: 30 }, currentHP: 20 });
-    const splashScene = makeUnit({ name: 'Splash', faction: 'enemy', col: 1, row: 1, stats: { HP: 30 }, currentHP: 19 });
+    const primaryScene = makeUnit({
+      name: 'Primary',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 20,
+    });
+    const splashScene = makeUnit({
+      name: 'Splash',
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      stats: { HP: 30 },
+      currentHP: 19,
+    });
     scene.playerUnits = [sourceScene];
     scene.enemyUnits = [primaryScene, splashScene];
 
     const sourceHeadless = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryHeadless = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, stats: { HP: 30 }, currentHP: 20 });
-    const splashHeadless = makeUnit({ name: 'Splash', faction: 'enemy', col: 1, row: 1, stats: { HP: 30 }, currentHP: 19 });
+    const primaryHeadless = makeUnit({
+      name: 'Primary',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 20,
+    });
+    const splashHeadless = makeUnit({
+      name: 'Splash',
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      stats: { HP: 30 },
+      currentHP: 19,
+    });
     headless.playerUnits = [sourceHeadless];
     headless.enemyUnits = [primaryHeadless, splashHeadless];
 
@@ -224,14 +276,42 @@ describe('Tier 5 scene/headless parity', () => {
 
   it('splash still resolves when the primary target is already at 0 HP', async () => {
     const sourceScene = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryScene = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, stats: { HP: 30 }, currentHP: 0 });
-    const splashScene = makeUnit({ name: 'Splash', faction: 'enemy', col: 1, row: 1, stats: { HP: 30 }, currentHP: 19 });
+    const primaryScene = makeUnit({
+      name: 'Primary',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 0,
+    });
+    const splashScene = makeUnit({
+      name: 'Splash',
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      stats: { HP: 30 },
+      currentHP: 19,
+    });
     scene.playerUnits = [sourceScene];
     scene.enemyUnits = [primaryScene, splashScene];
 
     const sourceHeadless = makeUnit({ name: 'Mage', faction: 'player', col: 0, row: 0 });
-    const primaryHeadless = makeUnit({ name: 'Primary', faction: 'enemy', col: 1, row: 0, stats: { HP: 30 }, currentHP: 0 });
-    const splashHeadless = makeUnit({ name: 'Splash', faction: 'enemy', col: 1, row: 1, stats: { HP: 30 }, currentHP: 19 });
+    const primaryHeadless = makeUnit({
+      name: 'Primary',
+      faction: 'enemy',
+      col: 1,
+      row: 0,
+      stats: { HP: 30 },
+      currentHP: 0,
+    });
+    const splashHeadless = makeUnit({
+      name: 'Splash',
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      stats: { HP: 30 },
+      currentHP: 19,
+    });
     headless.playerUnits = [sourceHeadless];
     headless.enemyUnits = [primaryHeadless, splashHeadless];
 
@@ -252,15 +332,43 @@ describe('Tier 5 scene/headless parity', () => {
   });
 
   it('ally buff applies, uses strongest stat value, and expires at source faction next phase', async () => {
-    const sourceScene = makeUnit({ name: 'Edric', faction: 'player', col: 0, row: 0, stats: { HP: 30, STR: 12, MOV: 5 }, currentHP: 30 });
-    const allyScene = makeUnit({ name: 'Ally', faction: 'player', col: 1, row: 0, stats: { HP: 24, STR: 9, MOV: 5 }, currentHP: 24 });
+    const sourceScene = makeUnit({
+      name: 'Edric',
+      faction: 'player',
+      col: 0,
+      row: 0,
+      stats: { HP: 30, STR: 12, MOV: 5 },
+      currentHP: 30,
+    });
+    const allyScene = makeUnit({
+      name: 'Ally',
+      faction: 'player',
+      col: 1,
+      row: 0,
+      stats: { HP: 24, STR: 9, MOV: 5 },
+      currentHP: 24,
+    });
     const enemyScene = makeUnit({ name: 'Enemy', faction: 'enemy', col: 2, row: 2 });
     scene.playerUnits = [sourceScene, allyScene];
     scene.enemyUnits = [enemyScene];
     scene.turnManager.turnNumber = 1;
 
-    const sourceHeadless = makeUnit({ name: 'Edric', faction: 'player', col: 0, row: 0, stats: { HP: 30, STR: 12, MOV: 5 }, currentHP: 30 });
-    const allyHeadless = makeUnit({ name: 'Ally', faction: 'player', col: 1, row: 0, stats: { HP: 24, STR: 9, MOV: 5 }, currentHP: 24 });
+    const sourceHeadless = makeUnit({
+      name: 'Edric',
+      faction: 'player',
+      col: 0,
+      row: 0,
+      stats: { HP: 30, STR: 12, MOV: 5 },
+      currentHP: 30,
+    });
+    const allyHeadless = makeUnit({
+      name: 'Ally',
+      faction: 'player',
+      col: 1,
+      row: 0,
+      stats: { HP: 24, STR: 9, MOV: 5 },
+      currentHP: 24,
+    });
     const enemyHeadless = makeUnit({ name: 'Enemy', faction: 'enemy', col: 2, row: 2 });
     headless.playerUnits = [sourceHeadless, allyHeadless];
     headless.enemyUnits = [enemyHeadless];

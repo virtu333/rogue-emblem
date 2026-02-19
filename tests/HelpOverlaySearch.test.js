@@ -7,12 +7,26 @@ function makeDisplayObject(extra = {}) {
   return {
     handlers: {},
     style: {},
-    setDepth() { return this; },
-    setInteractive() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setColor(color) { this.style.color = color; return this; },
-    on(event, handler) { this.handlers[event] = handler; return this; },
+    setDepth() {
+      return this;
+    },
+    setInteractive() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setColor(color) {
+      this.style.color = color;
+      return this;
+    },
+    on(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
     destroy: vi.fn(),
     ...extra,
   };
@@ -25,11 +39,21 @@ function makeScene() {
       rectangle: (_x, _y, _w, _h, _color, _alpha) => makeDisplayObject(),
       graphics: () => ({
         ...makeDisplayObject(),
-        lineStyle() { return this; },
-        beginPath() { return this; },
-        moveTo() { return this; },
-        lineTo() { return this; },
-        strokePath() { return this; },
+        lineStyle() {
+          return this;
+        },
+        beginPath() {
+          return this;
+        },
+        moveTo() {
+          return this;
+        },
+        lineTo() {
+          return this;
+        },
+        strokePath() {
+          return this;
+        },
       }),
       text: (_x, _y, text, style = {}) => makeDisplayObject({ text, style: { ...style } }),
     },
@@ -62,7 +86,9 @@ describe('HelpOverlay search', () => {
     expect(overlay.activeTabIndex).toBe(overlay.searchResults[0].tabIndex);
     expect(overlay.currentPage).toBe(overlay.searchResults[0].pageIndex);
 
-    const parLine = overlay.objects.find((obj) => String(obj?.text || '').includes('Par: target turns'));
+    const parLine = overlay.objects.find((obj) =>
+      String(obj?.text || '').includes('Par: target turns'),
+    );
     expect(parLine).toBeTruthy();
     expect(parLine.style.color).toBe('#66ff66');
   });
@@ -87,7 +113,9 @@ describe('HelpOverlay search', () => {
 
     const nextTab = (overlay.activeTabIndex + 1) % HELP_TABS.length;
     const nextLabel = HELP_TABS[nextTab].label;
-    const tabText = overlay.objects.find((obj) => obj?.text === nextLabel && obj.handlers?.pointerdown);
+    const tabText = overlay.objects.find(
+      (obj) => obj?.text === nextLabel && obj.handlers?.pointerdown,
+    );
     expect(tabText).toBeTruthy();
 
     tabText.handlers.pointerdown();

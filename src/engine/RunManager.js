@@ -2,9 +2,17 @@
 // No Phaser deps.
 
 import {
-  ACT_SEQUENCE, ACT_CONFIG, STARTING_GOLD, MAX_SKILLS, ROSTER_CAP,
-  STARTING_ACCESSORY_TIERS, STARTING_STAFF_TIERS,
-  ELITE_GOLD_MULTIPLIER, XP_STAT_NAMES, CONVOY_WEAPON_CAPACITY, CONVOY_CONSUMABLE_CAPACITY,
+  ACT_SEQUENCE,
+  ACT_CONFIG,
+  STARTING_GOLD,
+  MAX_SKILLS,
+  ROSTER_CAP,
+  STARTING_ACCESSORY_TIERS,
+  STARTING_STAFF_TIERS,
+  ELITE_GOLD_MULTIPLIER,
+  XP_STAT_NAMES,
+  CONVOY_WEAPON_CAPACITY,
+  CONVOY_CONSUMABLE_CAPACITY,
   RECRUIT_SKILL_POOL,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
@@ -32,7 +40,11 @@ import {
   selectBlessingOptionsWithTelemetry,
 } from './BlessingEngine.js';
 import { resolveDifficultyMode, DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
-import { normalizeWeaponArtBinding, getWeaponArtBindings, getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
+import {
+  normalizeWeaponArtBinding,
+  getWeaponArtBindings,
+  getWeaponArtAllowedTypes,
+} from './WeaponArtSystem.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
@@ -49,7 +61,9 @@ const EXTRA_STARTER_CLASS_POOLS = {
 
 function sanitizeActSequence(sequence, fallback = ACT_SEQUENCE) {
   const source = Array.isArray(sequence) ? sequence : fallback;
-  const normalized = source.filter((actId) => typeof actId === 'string' && KNOWN_ACT_IDS.has(actId));
+  const normalized = source.filter(
+    (actId) => typeof actId === 'string' && KNOWN_ACT_IDS.has(actId),
+  );
   if (normalized.length > 0) return [...new Set(normalized)];
   return [...fallback.filter((actId) => KNOWN_ACT_IDS.has(actId))];
 }
@@ -58,7 +72,6 @@ export function getActTransitionKey(fromAct, toAct) {
   if (fromAct === 'act3' && toAct === 'finalBoss') return 'act3_to_finalBoss_normal';
   return `${fromAct}_to_${toAct}`;
 }
-
 
 function getConvoyBucket(item) {
   if (!item || typeof item !== 'object') return null;
@@ -148,9 +161,9 @@ function relinkWeapon(unit) {
   if (unit.inventory.includes(unit.weapon) && canEquip(unit, unit.weapon)) return;
   // Try JSON match that is also proficient
   const weaponStr = JSON.stringify(unit.weapon);
-  const match = unit.inventory.find(w => JSON.stringify(w) === weaponStr && canEquip(unit, w));
+  const match = unit.inventory.find((w) => JSON.stringify(w) === weaponStr && canEquip(unit, w));
   // Fallback: first proficient weapon in inventory
-  unit.weapon = match || unit.inventory.find(w => canEquip(unit, w)) || null;
+  unit.weapon = match || unit.inventory.find((w) => canEquip(unit, w)) || null;
 }
 
 function parsePersonalSkillId(personalSkillStr) {
@@ -200,7 +213,7 @@ export function serializeUnit(unit) {
 function ensureSeraBaseStaffProficiency(unit) {
   if (!unit || unit.name !== 'Sera' || unit.className !== 'Light Sage') return;
   if (!Array.isArray(unit.proficiencies)) unit.proficiencies = [];
-  if (unit.proficiencies.some(p => p.type === 'Staff')) return;
+  if (unit.proficiencies.some((p) => p.type === 'Staff')) return;
   unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
 }
 
@@ -212,16 +225,16 @@ export class RunManager {
   constructor(gameData, metaEffects = null) {
     this.gameData = gameData;
     this.metaEffects = metaEffects;
-    this.status = 'active';       // 'active' | 'victory' | 'defeat'
+    this.status = 'active'; // 'active' | 'victory' | 'defeat'
     this.actIndex = 0;
     this.roster = [];
-    this.fallenUnits = [];  // Serialized units that died in battle
+    this.fallenUnits = []; // Serialized units that died in battle
     this.nodeMap = null;
-    this.currentNodeId = null;    // last completed node (null = start of act)
+    this.currentNodeId = null; // last completed node (null = start of act)
     this.completedBattles = 0;
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
-    this.accessories = [];  // team accessory pool (unequipped accessories)
-    this.scrolls = [];      // team scroll pool (skill teaching items)
+    this.accessories = []; // team accessory pool (unequipped accessories)
+    this.scrolls = []; // team scroll pool (skill teaching items)
     this.convoy = { weapons: [], consumables: [] };
     this.activeBlessings = [];
     this.blessingHistory = [];
@@ -235,7 +248,10 @@ export class RunManager {
     this.usedRecruitNames = {}; // Track used names per class: { Fighter: ['Galvin', 'Bjorn'] }
     this.battleConfigsByNodeId = {};
     this.difficultyId = 'normal';
-    this.difficultyModifiers = { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] };
+    this.difficultyModifiers = {
+      ...DIFFICULTY_DEFAULTS,
+      actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded],
+    };
     this.actSequence = [...ACT_SEQUENCE];
     this.pendingAmbushNodeId = null;
     this.endRunRewards = null;
@@ -246,15 +262,22 @@ export class RunManager {
   }
 
   _isValidSerializedUnit(unit) {
-    return !!(unit && typeof unit === 'object' && unit.name && unit.stats && typeof unit.stats === 'object');
+    return !!(
+      unit &&
+      typeof unit === 'object' &&
+      unit.name &&
+      unit.stats &&
+      typeof unit.stats === 'object'
+    );
   }
 
   _sanitizeUnitPools() {
     if (!Array.isArray(this.roster)) this.roster = [];
     if (!Array.isArray(this.fallenUnits)) this.fallenUnits = [];
-    this.roster = this.roster.filter(u => this._isValidSerializedUnit(u));
-    this.fallenUnits = this.fallenUnits.filter(u => this._isValidSerializedUnit(u));
-    if (!this.convoy || typeof this.convoy !== 'object') this.convoy = { weapons: [], consumables: [] };
+    this.roster = this.roster.filter((u) => this._isValidSerializedUnit(u));
+    this.fallenUnits = this.fallenUnits.filter((u) => this._isValidSerializedUnit(u));
+    if (!this.convoy || typeof this.convoy !== 'object')
+      this.convoy = { weapons: [], consumables: [] };
     if (!Array.isArray(this.convoy.weapons)) this.convoy.weapons = [];
     if (!Array.isArray(this.convoy.consumables)) this.convoy.consumables = [];
   }
@@ -299,11 +322,16 @@ export class RunManager {
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
     this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-      halfFogChance: this.difficultyId === 'normal',
-      villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-    });
+    this.nodeMap = generateNodeMap(
+      this.currentAct,
+      this.currentActConfig,
+      this.gameData.mapTemplates,
+      {
+        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+        halfFogChance: this.difficultyId === 'normal',
+        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+      },
+    );
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
@@ -346,15 +374,18 @@ export class RunManager {
 
     const resolvedSeed = Number(blessingSeed ?? this.runSeed);
     const rng = createSeededRng(resolvedSeed);
-    const { selected, telemetry } = selectBlessingOptionsWithTelemetry(
-      catalog,
-      rng,
-      { count: blessingOptionCount, forceTier1: true, allowTier4: true }
-    );
+    const { selected, telemetry } = selectBlessingOptionsWithTelemetry(catalog, rng, {
+      count: blessingOptionCount,
+      forceTier1: true,
+      allowTier4: true,
+    });
 
     const offeredBlessings = selected.map((blessing) => structuredClone(blessing));
     const chosenBlessings = autoSelectBlessing
-      ? offeredBlessings.slice(0, 1).map((blessing) => this._buildActiveBlessingEntryFromOffer(blessing)).filter(Boolean)
+      ? offeredBlessings
+          .slice(0, 1)
+          .map((blessing) => this._buildActiveBlessingEntryFromOffer(blessing))
+          .filter(Boolean)
       : [];
     const chosenIds = chosenBlessings.map((entry) => entry.id);
     this.activeBlessings = chosenBlessings;
@@ -378,7 +409,9 @@ export class RunManager {
     const offeredBlessings = this.blessingSelectionTelemetry?.offeredBlessings;
     if (Array.isArray(offeredBlessings)) {
       return offeredBlessings
-        .map((blessing, index) => this._resolveBlessingOfferForSelection(blessing, index, 'telemetry'))
+        .map((blessing, index) =>
+          this._resolveBlessingOfferForSelection(blessing, index, 'telemetry'),
+        )
         .filter(Boolean);
     }
 
@@ -389,7 +422,9 @@ export class RunManager {
     return offeredIds
       .map((id) => index.get(id))
       .filter(Boolean)
-      .map((blessing, offerIndex) => this._resolveBlessingOfferForSelection(blessing, offerIndex, 'legacy_ids'))
+      .map((blessing, offerIndex) =>
+        this._resolveBlessingOfferForSelection(blessing, offerIndex, 'legacy_ids'),
+      )
       .filter(Boolean);
   }
 
@@ -422,7 +457,9 @@ export class RunManager {
     });
     if (this.blessingSelectionTelemetry) {
       this.blessingSelectionTelemetry.chosenIds = chosenIds;
-      this.blessingSelectionTelemetry.chosenBlessings = chosenBlessings.map((entry) => structuredClone(entry));
+      this.blessingSelectionTelemetry.chosenBlessings = chosenBlessings.map((entry) =>
+        structuredClone(entry),
+      );
     }
     if (chosenIds.length === 0) {
       this._runStartBlessingsApplied = true;
@@ -455,7 +492,7 @@ export class RunManager {
         continue;
       }
       const rolledCost = normalizeBlessingCostEntry(activeBlessing?.rolledCost);
-      const costEffects = rolledCost?.effects?.length ? rolledCost.effects : (blessing.costs || []);
+      const costEffects = rolledCost?.effects?.length ? rolledCost.effects : blessing.costs || [];
       const effects = [...(blessing.boons || []), ...costEffects];
       for (const effect of effects) {
         this._applySingleRunStartBlessingEffect(blessingId, effect);
@@ -523,7 +560,8 @@ export class RunManager {
   }
 
   _applyTargetedGrowthDeltaToUnits(units, stats, value) {
-    if (!Array.isArray(units) || !Array.isArray(stats) || !Number.isFinite(value) || value === 0) return;
+    if (!Array.isArray(units) || !Array.isArray(stats) || !Number.isFinite(value) || value === 0)
+      return;
     for (const unit of units) {
       if (!unit.growths) unit.growths = {};
       for (const stat of stats) {
@@ -549,14 +587,23 @@ export class RunManager {
   _resolveBlessingOfferForSelection(blessing, offerIndex = 0, contextKey = 'selection') {
     const blessingId = typeof blessing?.id === 'string' ? blessing.id.trim() : '';
     if (!blessingId) return null;
-    const catalogBlessing = this.gameData?.blessings?.blessings?.find((entry) => entry.id === blessingId) || null;
+    const catalogBlessing =
+      this.gameData?.blessings?.blessings?.find((entry) => entry.id === blessingId) || null;
     const resolved = catalogBlessing
       ? { ...structuredClone(catalogBlessing), ...structuredClone(blessing), id: blessingId }
       : { ...structuredClone(blessing), id: blessingId };
     resolved.rolledCost = normalizeBlessingCostEntry(blessing?.rolledCost);
-    const needsV2Cost = resolved.tier >= 2 && !resolved.rolledCost && Array.isArray(resolved.costs) && resolved.costs.length === 0;
+    const needsV2Cost =
+      resolved.tier >= 2 &&
+      !resolved.rolledCost &&
+      Array.isArray(resolved.costs) &&
+      resolved.costs.length === 0;
     if (needsV2Cost) {
-      resolved.rolledCost = this._rollCostForBlessingWithSeed(resolved, blessingId, `${contextKey}:${offerIndex}`);
+      resolved.rolledCost = this._rollCostForBlessingWithSeed(
+        resolved,
+        blessingId,
+        `${contextKey}:${offerIndex}`,
+      );
     }
     return resolved;
   }
@@ -583,7 +630,11 @@ export class RunManager {
       }
 
       let rolledCost = normalizeBlessingCostEntry(entry?.rolledCost);
-      const needsV2Cost = blessing.tier >= 2 && !rolledCost && Array.isArray(blessing.costs) && blessing.costs.length === 0;
+      const needsV2Cost =
+        blessing.tier >= 2 &&
+        !rolledCost &&
+        Array.isArray(blessing.costs) &&
+        blessing.costs.length === 0;
       if (needsV2Cost) {
         rolledCost = this._rollCostForBlessingWithSeed(blessing, id, `migrate:${index}`);
       }
@@ -602,14 +653,19 @@ export class RunManager {
     }
     const personalSkillIds = this._getPersonalSkillIdSet();
     if (personalSkillIds.size === 0) return { applied: false, removedByUnit: {} };
-    if (!this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
+    if (
+      !this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit ||
+      typeof this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object'
+    ) {
       this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
     }
     const blockedByUnit = this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit;
     const removedByUnit = {};
     for (const unit of this.roster) {
       if (!Array.isArray(unit?.skills) || unit.skills.length === 0) continue;
-      const blocked = new Set(Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : []);
+      const blocked = new Set(
+        Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : [],
+      );
       const nextSkills = [];
       const removed = [];
       for (const skillId of unit.skills) {
@@ -654,7 +710,7 @@ export class RunManager {
       stage,
       null,
       { type: 'disable_personal_skills_until_act', params: { act: targetAct } },
-      { restoredInAct: this.currentAct, restoredByUnit }
+      { restoredInAct: this.currentAct, restoredByUnit },
     );
   }
 
@@ -746,14 +802,15 @@ export class RunManager {
       const allWeapons = Array.isArray(this.gameData?.weapons) ? this.gameData.weapons : [];
       for (const unit of this.roster) {
         if (granted >= count) break;
-        const profTypes = new Set((unit.proficiencies || []).map(p => p.type));
-        const candidate = allWeapons.find(w =>
-          w?.tier === requestedTier &&
-          profTypes.has(w.type) &&
-          w.type !== 'Staff' &&
-          w.type !== 'Consumable' &&
-          w.type !== 'Scroll' &&
-          canEquip(unit, w)
+        const profTypes = new Set((unit.proficiencies || []).map((p) => p.type));
+        const candidate = allWeapons.find(
+          (w) =>
+            w?.tier === requestedTier &&
+            profTypes.has(w.type) &&
+            w.type !== 'Staff' &&
+            w.type !== 'Consumable' &&
+            w.type !== 'Scroll' &&
+            canEquip(unit, w),
         );
         if (!candidate) continue;
         if (!addToInventory(unit, candidate)) continue;
@@ -820,7 +877,10 @@ export class RunManager {
         });
         return;
       }
-      if (!this.blessingRuntimeModifiers.actHitBonusByAct || typeof this.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
+      if (
+        !this.blessingRuntimeModifiers.actHitBonusByAct ||
+        typeof this.blessingRuntimeModifiers.actHitBonusByAct !== 'object'
+      ) {
         this.blessingRuntimeModifiers.actHitBonusByAct = {};
       }
       this.blessingRuntimeModifiers.actHitBonusByAct[targetAct] =
@@ -842,12 +902,12 @@ export class RunManager {
         });
         return;
       }
-      const lords = this.roster.filter(unit => unit.isLord);
+      const lords = this.roster.filter((unit) => unit.isLord);
       this._applyStatDeltaToUnits(lords, stat, value);
       this._recordBlessingEvent('run_start', blessingId, effect, {
         stat,
         appliedValue: value,
-        appliedUnits: lords.map(u => u.name),
+        appliedUnits: lords.map((u) => u.name),
       });
       return;
     }
@@ -865,7 +925,7 @@ export class RunManager {
       this._recordBlessingEvent('run_start', blessingId, effect, {
         stat,
         appliedValue: value,
-        appliedUnits: this.roster.map(u => u.name),
+        appliedUnits: this.roster.map((u) => u.name),
       });
       return;
     }
@@ -903,18 +963,23 @@ export class RunManager {
       this._recordBlessingEvent('run_start', blessingId, effect, {
         appliedValue: delta,
         total: this.blessingRuntimeModifiers.allGrowthsDelta,
-        appliedUnits: this.roster.map(u => u.name),
+        appliedUnits: this.roster.map((u) => u.name),
       });
       return;
     }
 
     if (effect.type === 'targeted_growths_delta') {
       const delta = Math.trunc(value);
-      const scope = typeof effect.params.scope === 'string' ? effect.params.scope.trim().toLowerCase() : 'all';
-      const stats = [...new Set((Array.isArray(effect.params.stats) ? effect.params.stats : [])
-        .filter((stat) => typeof stat === 'string')
-        .map((stat) => stat.trim())
-        .filter((stat) => XP_STAT_NAMES.includes(stat)))];
+      const scope =
+        typeof effect.params.scope === 'string' ? effect.params.scope.trim().toLowerCase() : 'all';
+      const stats = [
+        ...new Set(
+          (Array.isArray(effect.params.stats) ? effect.params.stats : [])
+            .filter((stat) => typeof stat === 'string')
+            .map((stat) => stat.trim())
+            .filter((stat) => XP_STAT_NAMES.includes(stat)),
+        ),
+      ];
       if (delta === 0 || stats.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -962,8 +1027,10 @@ export class RunManager {
 
     if (effect.type === 'starting_consumable_all') {
       const itemName = String(effect.params.name || '').trim();
-      const consumables = Array.isArray(this.gameData?.consumables) ? this.gameData.consumables : [];
-      const template = consumables.find(c => c.name === itemName);
+      const consumables = Array.isArray(this.gameData?.consumables)
+        ? this.gameData.consumables
+        : [];
+      const template = consumables.find((c) => c.name === itemName);
       if (!template) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -994,8 +1061,12 @@ export class RunManager {
         });
         return;
       }
-      const consumables = Array.isArray(this.gameData?.consumables) ? this.gameData.consumables : [];
-      const vulnerary = consumables.find((item) => item?.name === 'Vulnerary' && item.type === 'Consumable');
+      const consumables = Array.isArray(this.gameData?.consumables)
+        ? this.gameData.consumables
+        : [];
+      const vulnerary = consumables.find(
+        (item) => item?.name === 'Vulnerary' && item.type === 'Consumable',
+      );
       if (!vulnerary) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1032,7 +1103,10 @@ export class RunManager {
 
     if (effect.type === 'starting_random_skill') {
       const count = Math.max(0, Math.trunc(Number(effect.params.count ?? 1)));
-      const scope = typeof effect.params.scope === 'string' ? effect.params.scope.trim().toLowerCase() : 'lords';
+      const scope =
+        typeof effect.params.scope === 'string'
+          ? effect.params.scope.trim().toLowerCase()
+          : 'lords';
       if (count <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1041,7 +1115,9 @@ export class RunManager {
         return;
       }
 
-      const validSkills = new Set((this.gameData?.skills || []).map((skill) => skill?.id).filter(Boolean));
+      const validSkills = new Set(
+        (this.gameData?.skills || []).map((skill) => skill?.id).filter(Boolean),
+      );
       const skillPool = RECRUIT_SKILL_POOL.filter((skillId) => validSkills.has(skillId));
       if (skillPool.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
@@ -1059,7 +1135,11 @@ export class RunManager {
           if (unit.skills.length >= MAX_SKILLS) break;
           const candidates = skillPool.filter((skillId) => !unit.skills.includes(skillId));
           if (candidates.length <= 0) break;
-          const picked = this._pickDeterministicBlessingItem(candidates, blessingId, `starting_random_skill:${unit.name}:${i}`);
+          const picked = this._pickDeterministicBlessingItem(
+            candidates,
+            blessingId,
+            `starting_random_skill:${unit.name}:${i}`,
+          );
           if (!picked) break;
           unit.skills.push(picked);
           if (!grantedByUnit[unit.name]) grantedByUnit[unit.name] = [];
@@ -1099,11 +1179,16 @@ export class RunManager {
         for (const unit of this.roster) {
           if (!unit.isLord) continue;
           const weapons = [];
-          for (const weapon of (unit.inventory || [])) {
-            if (!weapon || ['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(weapon.type)) continue;
+          for (const weapon of unit.inventory || []) {
+            if (!weapon || ['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(weapon.type))
+              continue;
             if (!weapons.includes(weapon)) weapons.push(weapon);
           }
-          if (unit.weapon && !['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(unit.weapon.type) && !weapons.includes(unit.weapon)) {
+          if (
+            unit.weapon &&
+            !['Staff', 'Consumable', 'Scroll', 'Whetstone'].includes(unit.weapon.type) &&
+            !weapons.includes(unit.weapon)
+          ) {
             weapons.push(unit.weapon);
           }
 
@@ -1126,7 +1211,11 @@ export class RunManager {
         }
 
         if (options.length <= 0) break;
-        const choice = this._pickDeterministicBlessingItem(options, blessingId, `starting_whetstones:${rollIndex}`);
+        const choice = this._pickDeterministicBlessingItem(
+          options,
+          blessingId,
+          `starting_whetstones:${rollIndex}`,
+        );
         if (!choice) break;
         const result = applyForge(choice.weapon, choice.stat);
         if (!result.success) continue;
@@ -1156,8 +1245,9 @@ export class RunManager {
         return;
       }
 
-      const allScrolls = (this.gameData?.weapons || [])
-        .filter((item) => item?.type === 'Scroll' && typeof item.teachesWeaponArtId === 'string');
+      const allScrolls = (this.gameData?.weapons || []).filter(
+        (item) => item?.type === 'Scroll' && typeof item.teachesWeaponArtId === 'string',
+      );
       if (allScrolls.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1166,7 +1256,9 @@ export class RunManager {
         return;
       }
       const artById = new Map((this.gameData?.weaponArts?.arts || []).map((art) => [art?.id, art]));
-      const validScrolls = allScrolls.filter((scroll) => this._isScrollValidForCurrentLords(scroll, artById));
+      const validScrolls = allScrolls.filter((scroll) =>
+        this._isScrollValidForCurrentLords(scroll, artById),
+      );
       if (validScrolls.length <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1177,7 +1269,11 @@ export class RunManager {
       if (!Array.isArray(this.scrolls)) this.scrolls = [];
       const granted = [];
       for (let i = 0; i < count; i++) {
-        const picked = this._pickDeterministicBlessingItem(validScrolls, blessingId, `starting_scroll:${i}`);
+        const picked = this._pickDeterministicBlessingItem(
+          validScrolls,
+          blessingId,
+          `starting_scroll:${i}`,
+        );
         if (!picked) break;
         this.scrolls.push(structuredClone(picked));
         granted.push(picked.name);
@@ -1191,11 +1287,16 @@ export class RunManager {
     }
 
     if (effect.type === 'starting_forge_lords' || effect.type === 'starting_weapon_forge_delta') {
-      const forgeStat = String(effect.params.stat || 'might').trim().toLowerCase();
-      const resolvedForgeStat = ['might', 'crit', 'hit', 'weight'].includes(forgeStat) ? forgeStat : 'might';
-      const requestedDelta = effect.type === 'starting_forge_lords'
-        ? Math.max(0, Math.trunc(Number(effect.params.count ?? 1)))
-        : Math.trunc(value);
+      const forgeStat = String(effect.params.stat || 'might')
+        .trim()
+        .toLowerCase();
+      const resolvedForgeStat = ['might', 'crit', 'hit', 'weight'].includes(forgeStat)
+        ? forgeStat
+        : 'might';
+      const requestedDelta =
+        effect.type === 'starting_forge_lords'
+          ? Math.max(0, Math.trunc(Number(effect.params.count ?? 1)))
+          : Math.trunc(value);
       if (!Number.isFinite(requestedDelta) || requestedDelta === 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
@@ -1208,11 +1309,15 @@ export class RunManager {
       for (const unit of this.roster) {
         if (!unit.isLord) continue;
         const candidates = [];
-        for (const weapon of (unit.inventory || [])) {
+        for (const weapon of unit.inventory || []) {
           if (!weapon || ['Staff', 'Consumable', 'Scroll'].includes(weapon.type)) continue;
           if (!candidates.includes(weapon)) candidates.push(weapon);
         }
-        if (unit.weapon && !['Staff', 'Consumable', 'Scroll'].includes(unit.weapon.type) && !candidates.includes(unit.weapon)) {
+        if (
+          unit.weapon &&
+          !['Staff', 'Consumable', 'Scroll'].includes(unit.weapon.type) &&
+          !candidates.includes(unit.weapon)
+        ) {
           candidates.push(unit.weapon);
         }
         for (const weapon of candidates) {
@@ -1222,11 +1327,21 @@ export class RunManager {
               if (!canForgeStat(weapon, targetStat)) break;
               const result = applyForge(weapon, targetStat);
               if (!result.success) break;
-              changedWeapons.push({ unit: unit.name, weapon: weapon.name, stat: targetStat, direction: 'forge' });
+              changedWeapons.push({
+                unit: unit.name,
+                weapon: weapon.name,
+                stat: targetStat,
+                direction: 'forge',
+              });
             } else {
               const result = deforgeWeapon(weapon);
               if (!result.success) break;
-              changedWeapons.push({ unit: unit.name, weapon: weapon.name, stat: result.stat || null, direction: 'deforge' });
+              changedWeapons.push({
+                unit: unit.name,
+                weapon: weapon.name,
+                stat: result.stat || null,
+                direction: 'deforge',
+              });
             }
           }
         }
@@ -1278,7 +1393,9 @@ export class RunManager {
     }
 
     if (effect.type === 'terrain_combat_bonus') {
-      const terrains = Array.isArray(effect.params.terrains) ? effect.params.terrains.filter(t => typeof t === 'string') : [];
+      const terrains = Array.isArray(effect.params.terrains)
+        ? effect.params.terrains.filter((t) => typeof t === 'string')
+        : [];
       const avoidBonus = Math.trunc(Number(effect.params.avoidBonus) || 0);
       const defBonus = Math.trunc(Number(effect.params.defBonus) || 0);
       if (terrains.length === 0 || (avoidBonus === 0 && defBonus === 0)) {
@@ -1300,7 +1417,10 @@ export class RunManager {
       return;
     }
 
-    this._recordBlessingEvent('run_start', blessingId, effect, { skipped: true, reason: 'unhandled_effect_type' });
+    this._recordBlessingEvent('run_start', blessingId, effect, {
+      skipped: true,
+      reason: 'unhandled_effect_type',
+    });
   }
 
   getBattleGoldMultiplier() {
@@ -1383,7 +1503,7 @@ export class RunManager {
   getEffectiveRecruitGrowthBonuses() {
     const blessingBonuses = this._mergeGrowthBonuses(
       this._buildBlessingAllGrowthBonus(),
-      this._buildBlessingTargetedGrowthBonus('recruits')
+      this._buildBlessingTargetedGrowthBonus('recruits'),
     );
     return this._mergeGrowthBonuses(this.metaEffects?.growthBonuses || null, blessingBonuses);
   }
@@ -1391,7 +1511,7 @@ export class RunManager {
   getEffectiveLordGrowthBonuses() {
     const blessingBonuses = this._mergeGrowthBonuses(
       this._buildBlessingAllGrowthBonus(),
-      this._buildBlessingTargetedGrowthBonus('lords')
+      this._buildBlessingTargetedGrowthBonus('lords'),
     );
     return this._mergeGrowthBonuses(this.metaEffects?.lordGrowthBonuses || null, blessingBonuses);
   }
@@ -1408,9 +1528,14 @@ export class RunManager {
   consumeSkipFirstShop() {
     if (!this.blessingRuntimeModifiers?.skipFirstShop) return false;
     this.blessingRuntimeModifiers.skipFirstShop = false;
-    this._recordBlessingEvent('node_shop', null, { type: 'skip_first_shop', params: { enabled: true } }, {
-      consumed: true,
-    });
+    this._recordBlessingEvent(
+      'node_shop',
+      null,
+      { type: 'skip_first_shop', params: { enabled: true } },
+      {
+        consumed: true,
+      },
+    );
     return true;
   }
 
@@ -1425,9 +1550,12 @@ export class RunManager {
 
   _resolveWeaponArtSpawnTier(art) {
     if (!art) return null;
-    const explicitTier = typeof art.spawnTier === 'string'
-      ? art.spawnTier.trim().toLowerCase()
-      : (typeof art.tierAffinity === 'string' ? art.tierAffinity.trim().toLowerCase() : '');
+    const explicitTier =
+      typeof art.spawnTier === 'string'
+        ? art.spawnTier.trim().toLowerCase()
+        : typeof art.tierAffinity === 'string'
+          ? art.tierAffinity.trim().toLowerCase()
+          : '';
     if (explicitTier === 'iron') return 'Iron';
     if (explicitTier === 'steel') return 'Steel';
     if (explicitTier === 'silver') return 'Silver';
@@ -1439,7 +1567,11 @@ export class RunManager {
     return null;
   }
 
-  _buildWeaponArtSpawnPools({ includeIron = false, includeSteel = false, includeSilver = false } = {}) {
+  _buildWeaponArtSpawnPools({
+    includeIron = false,
+    includeSteel = false,
+    includeSilver = false,
+  } = {}) {
     const enabledTiers = new Set();
     if (includeIron) enabledTiers.add('Iron');
     if (includeSteel) enabledTiers.add('Steel');
@@ -1454,8 +1586,9 @@ export class RunManager {
       if (!art?.id) continue;
       if (art.legacy === true) continue;
       if (Array.isArray(art.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0) continue;
-      const weaponTypes = getWeaponArtAllowedTypes(art)
-        .filter((weaponType) => WEAPON_ART_SPAWN_WEAPON_TYPES.has(weaponType));
+      const weaponTypes = getWeaponArtAllowedTypes(art).filter((weaponType) =>
+        WEAPON_ART_SPAWN_WEAPON_TYPES.has(weaponType),
+      );
       if (weaponTypes.length <= 0) continue;
       const tier = this._resolveWeaponArtSpawnTier(art);
       if (!tier || !enabledTiers.has(tier)) continue;
@@ -1491,7 +1624,11 @@ export class RunManager {
     const includeSteel = Boolean(this.metaEffects?.steelArms);
     const addExtraArt = Boolean(this.metaEffects?.artAdept);
 
-    const poolsByTier = this._buildWeaponArtSpawnPools({ includeIron, includeSteel, includeSilver: true });
+    const poolsByTier = this._buildWeaponArtSpawnPools({
+      includeIron,
+      includeSteel,
+      includeSilver: true,
+    });
     if (!poolsByTier) return;
 
     const rollFromPool = (pool) => {
@@ -1529,7 +1666,9 @@ export class RunManager {
     const picked = candidatesForAdept[Math.floor(Math.random() * candidatesForAdept.length)];
     if (!picked?.weapon || !Array.isArray(picked.pool) || picked.pool.length <= 0) return;
 
-    const existingIds = new Set(getWeaponArtBindings(picked.weapon, { maxSlots: 3 }).map((binding) => binding.id));
+    const existingIds = new Set(
+      getWeaponArtBindings(picked.weapon, { maxSlots: 3 }).map((binding) => binding.id),
+    );
     const available = picked.pool.filter((id) => !existingIds.has(id));
     const extraArtId = rollFromPool(available);
     if (!extraArtId) return;
@@ -1540,16 +1679,28 @@ export class RunManager {
     const numericTier = Math.max(0, Math.trunc(Number(tier) || 0));
     const clampedTier = Math.min(4, numericTier);
     const requestedPool = EXTRA_STARTER_CLASS_POOLS[clampedTier] || [];
-    const validClasses = new Set((this.gameData?.classes || []).map(c => c?.name).filter(Boolean));
-    return requestedPool.filter(className => validClasses.has(className));
+    const validClasses = new Set(
+      (this.gameData?.classes || []).map((c) => c?.name).filter(Boolean),
+    );
+    return requestedPool.filter((className) => validClasses.has(className));
   }
 
   _toRomanNumeral(value) {
     let n = Math.max(1, Math.trunc(Number(value) || 1));
     const map = [
-      [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
-      [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
-      [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+      [1000, 'M'],
+      [900, 'CM'],
+      [500, 'D'],
+      [400, 'CD'],
+      [100, 'C'],
+      [90, 'XC'],
+      [50, 'L'],
+      [40, 'XL'],
+      [10, 'X'],
+      [9, 'IX'],
+      [5, 'V'],
+      [4, 'IV'],
+      [1, 'I'],
     ];
     let out = '';
     for (const [amount, glyph] of map) {
@@ -1563,9 +1714,10 @@ export class RunManager {
 
   _getTrackedRecruitNames() {
     const tracked = new Set();
-    const tracker = (this.usedRecruitNames && typeof this.usedRecruitNames === 'object')
-      ? this.usedRecruitNames
-      : {};
+    const tracker =
+      this.usedRecruitNames && typeof this.usedRecruitNames === 'object'
+        ? this.usedRecruitNames
+        : {};
 
     for (const value of Object.values(tracker)) {
       if (!Array.isArray(value)) continue;
@@ -1574,7 +1726,7 @@ export class RunManager {
       }
     }
 
-    for (const unit of (this.roster || [])) {
+    for (const unit of this.roster || []) {
       const name = typeof unit?.name === 'string' ? unit.name.trim() : '';
       if (name) tracked.add(name);
     }
@@ -1583,9 +1735,8 @@ export class RunManager {
   }
 
   _makeUniqueRecruitName(baseName, takenNames) {
-    const safeBase = (typeof baseName === 'string' && baseName.trim().length > 0)
-      ? baseName.trim()
-      : 'Recruit';
+    const safeBase =
+      typeof baseName === 'string' && baseName.trim().length > 0 ? baseName.trim() : 'Recruit';
     if (!takenNames.has(safeBase)) return safeBase;
 
     for (let i = 2; i <= 99; i++) {
@@ -1606,9 +1757,8 @@ export class RunManager {
       this.usedRecruitNames = {};
     }
 
-    const classKey = (typeof className === 'string' && className.trim().length > 0)
-      ? className.trim()
-      : 'Recruit';
+    const classKey =
+      typeof className === 'string' && className.trim().length > 0 ? className.trim() : 'Recruit';
 
     if (!Array.isArray(this.usedRecruitNames[classKey])) this.usedRecruitNames[classKey] = [];
     if (!this.usedRecruitNames[classKey].includes(name)) {
@@ -1646,16 +1796,18 @@ export class RunManager {
   _pickRecruitNameForClass(className) {
     const namePool = this.gameData?.recruits?.namePool || {};
     const classNames = Array.isArray(namePool[className]) ? namePool[className] : [];
-    const usedByClass = Array.isArray(this.usedRecruitNames?.[className]) ? this.usedRecruitNames[className] : [];
+    const usedByClass = Array.isArray(this.usedRecruitNames?.[className])
+      ? this.usedRecruitNames[className]
+      : [];
     const usedGlobal = this._getTrackedRecruitNames();
 
     let name = className;
     if (classNames.length > 0) {
-      const available = classNames.filter(n => !usedByClass.includes(n) && !usedGlobal.has(n));
+      const available = classNames.filter((n) => !usedByClass.includes(n) && !usedGlobal.has(n));
       if (available.length > 0) {
         name = available[Math.floor(Math.random() * available.length)];
       } else {
-        const globallyAvailable = classNames.filter(n => !usedGlobal.has(n));
+        const globallyAvailable = classNames.filter((n) => !usedGlobal.has(n));
         if (globallyAvailable.length > 0) {
           name = globallyAvailable[Math.floor(Math.random() * globallyAvailable.length)];
         } else {
@@ -1673,17 +1825,18 @@ export class RunManager {
 
   _applyExtraStarterPaladinLoadout(unit) {
     const allWeapons = this.gameData?.weapons || [];
-    const ironSword = allWeapons.find(w => w.name === 'Iron Sword');
-    const steelLance = allWeapons.find(w => w.name === 'Steel Lance');
+    const ironSword = allWeapons.find((w) => w.name === 'Iron Sword');
+    const steelLance = allWeapons.find((w) => w.name === 'Steel Lance');
 
     unit.inventory = [];
     unit.weapon = null;
     if (ironSword) addToInventory(unit, ironSword);
     if (steelLance) addToInventory(unit, steelLance);
 
-    unit.weapon = unit.inventory.find(w => w.name === 'Steel Lance' && canEquip(unit, w))
-      || unit.inventory.find(w => canEquip(unit, w))
-      || null;
+    unit.weapon =
+      unit.inventory.find((w) => w.name === 'Steel Lance' && canEquip(unit, w)) ||
+      unit.inventory.find((w) => canEquip(unit, w)) ||
+      null;
   }
 
   _removeWeaponByName(unit, weaponName) {
@@ -1697,7 +1850,10 @@ export class RunManager {
   }
 
   _applyDeadlyArsenalLoadout(edricUnit) {
-    const tierFromNewEffect = Math.max(0, Math.trunc(Number(this.metaEffects?.deadlyArsenalTier) || 0));
+    const tierFromNewEffect = Math.max(
+      0,
+      Math.trunc(Number(this.metaEffects?.deadlyArsenalTier) || 0),
+    );
     const legacyDeadlyArsenal = Number(this.metaEffects?.deadlyArsenal) > 0;
     const deadlyArsenalTier = Math.max(tierFromNewEffect, legacyDeadlyArsenal ? 2 : 0);
     if (deadlyArsenalTier <= 0) return;
@@ -1721,7 +1877,7 @@ export class RunManager {
 
   _createExtraStartingUnit(className) {
     const classes = this.gameData?.classes || [];
-    const classData = classes.find(c => c.name === className);
+    const classData = classes.find((c) => c.name === className);
     if (!classData) return null;
 
     const recruitDef = {
@@ -1735,7 +1891,7 @@ export class RunManager {
     const hasRecruitTemplate = classData?.baseStats && classData?.growthRanges;
     const recruitClassData = hasRecruitTemplate
       ? classData
-      : classes.find(c => c.name === classData.promotesFrom);
+      : classes.find((c) => c.name === classData.promotesFrom);
     if (!recruitClassData?.baseStats || !recruitClassData?.growthRanges) return null;
 
     const unit = createRecruitUnit(
@@ -1745,15 +1901,10 @@ export class RunManager {
       statBonuses,
       growthBonuses,
       randomSkillPool,
-      classes
+      classes,
     );
     if (!hasRecruitTemplate) {
-      promoteUnit(
-        unit,
-        classData,
-        classData.promotionBonuses || {},
-        this.gameData?.skills || []
-      );
+      promoteUnit(unit, classData, classData.promotionBonuses || {}, this.gameData?.skills || []);
     }
     unit.faction = 'player';
 
@@ -1762,11 +1913,11 @@ export class RunManager {
     }
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
     if (this.metaEffects?.recruitStartingVulnerary) {
-      const vulnerary = this.gameData?.consumables?.find(c => c.name === 'Vulnerary');
+      const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Vulnerary');
       if (vulnerary) addToConsumables(unit, vulnerary);
     }
     if (unit.weapon && !canEquip(unit, unit.weapon)) {
-      unit.weapon = unit.inventory.find(w => canEquip(unit, w)) || null;
+      unit.weapon = unit.inventory.find((w) => canEquip(unit, w)) || null;
     }
     return serializeUnit(unit);
   }
@@ -1777,24 +1928,38 @@ export class RunManager {
     const me = this.metaEffects;
 
     // Edric — Lord
-    const edric = lords.find(l => l.name === 'Edric');
-    const edricClass = classes.find(c => c.name === edric.class);
+    const edric = lords.find((l) => l.name === 'Edric');
+    const edricClass = classes.find((c) => c.name === edric.class);
     const edricUnit = createLordUnit(edric, edricClass, weapons);
     this._applyLordMetaBonuses(edricUnit);
 
     // Edric's extra combat sword defaults to Steel Sword, then Deadly Arsenal tiers adjust this loadout.
-    const edricSteelSword = weapons.find(w => w.name === 'Steel Sword');
+    const edricSteelSword = weapons.find((w) => w.name === 'Steel Sword');
     if (edricSteelSword) addToInventory(edricUnit, edricSteelSword);
     this._applyDeadlyArsenalLoadout(edricUnit);
 
-    edricUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
+    edricUnit.consumables.push({
+      name: 'Vulnerary',
+      type: 'Consumable',
+      effect: 'heal',
+      value: 10,
+      uses: 3,
+      price: 300,
+    });
     if (me?.extraVulnerary) {
-      edricUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
+      edricUnit.consumables.push({
+        name: 'Vulnerary',
+        type: 'Consumable',
+        effect: 'heal',
+        value: 10,
+        uses: 3,
+        price: 300,
+      });
     }
 
     // Sera — Light Sage
-    const sera = lords.find(l => l.name === 'Sera');
-    const seraClass = classes.find(c => c.name === sera.class);
+    const sera = lords.find((l) => l.name === 'Sera');
+    const seraClass = classes.find((c) => c.name === sera.class);
     const seraUnit = createLordUnit(sera, seraClass, weapons);
     this._applyLordMetaBonuses(seraUnit);
     seraUnit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
@@ -1802,10 +1967,17 @@ export class RunManager {
     // Sera's staff — tier upgrade
     const staffTier = me?.startingStaffTier || 0;
     const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
-    const staff = weapons.find(w => w.name === staffName);
+    const staff = weapons.find((w) => w.name === staffName);
     if (staff) addToInventory(seraUnit, staff);
 
-    seraUnit.consumables.push({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3, price: 300 });
+    seraUnit.consumables.push({
+      name: 'Vulnerary',
+      type: 'Consumable',
+      effect: 'heal',
+      value: 10,
+      uses: 3,
+      price: 300,
+    });
 
     // Meta weapon-art spawns for starting weapons (Iron/Steel + Art Adept extra slot).
     this._assignMetaWeaponArtsToStartingWeapons([edricUnit, seraUnit]);
@@ -1825,13 +1997,13 @@ export class RunManager {
     const accTier = me?.startingAccessoryTier || 0;
     if (accTier > 0 && accessories) {
       const accName = STARTING_ACCESSORY_TIERS[accTier];
-      const acc = accessories.find(a => a.name === accName);
+      const acc = accessories.find((a) => a.name === accName);
       if (acc) equipAccessory(edricUnit, structuredClone(acc));
     }
 
     // Starting reclass seal from meta upgrade
     if (me?.startingReclassSeal) {
-      const reclassSeal = this.gameData?.consumables?.find(c => c.name === 'Infantry Seal');
+      const reclassSeal = this.gameData?.consumables?.find((c) => c.name === 'Infantry Seal');
       if (reclassSeal) this.addToConvoy(reclassSeal);
     }
 
@@ -1881,21 +2053,19 @@ export class RunManager {
 
     // If no node completed yet, only the start node is available
     if (this.currentNodeId === null) {
-      const start = this.nodeMap.nodes.find(n => n.id === this.nodeMap.startNodeId);
+      const start = this.nodeMap.nodes.find((n) => n.id === this.nodeMap.startNodeId);
       return start ? [start] : [];
     }
 
     // Otherwise, edges from the completed node
-    const current = this.nodeMap.nodes.find(n => n.id === this.currentNodeId);
+    const current = this.nodeMap.nodes.find((n) => n.id === this.currentNodeId);
     if (!current) return [];
-    return current.edges
-      .map(id => this.nodeMap.nodes.find(n => n.id === id))
-      .filter(Boolean);
+    return current.edges.map((id) => this.nodeMap.nodes.find((n) => n.id === id)).filter(Boolean);
   }
 
   /** Mark a node as the current destination. Returns the node. */
   selectNode(nodeId) {
-    const node = this.nodeMap.nodes.find(n => n.id === nodeId);
+    const node = this.nodeMap.nodes.find((n) => n.id === nodeId);
     if (!node) return null;
     return node;
   }
@@ -1924,9 +2094,8 @@ export class RunManager {
   }
 
   getAmbushPendingNode() {
-    const pendingNodeId = typeof this.pendingAmbushNodeId === 'string'
-      ? this.pendingAmbushNodeId
-      : null;
+    const pendingNodeId =
+      typeof this.pendingAmbushNodeId === 'string' ? this.pendingAmbushNodeId : null;
     if (!pendingNodeId) return null;
     if (!Array.isArray(this.nodeMap?.nodes)) return null;
     return this.nodeMap.nodes.find((node) => node?.id === pendingNodeId) || null;
@@ -1954,7 +2123,7 @@ export class RunManager {
     if (!this.battleConfigsByNodeId[nodeId]) {
       this.battleConfigsByNodeId[nodeId] = structuredClone(battleConfig);
     }
-    const node = this.nodeMap?.nodes?.find(n => n.id === nodeId);
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (node) node.encounterLocked = true;
   }
 
@@ -1962,7 +2131,7 @@ export class RunManager {
   getRoster() {
     this._sanitizeUnitPools();
     const cloned = JSON.parse(JSON.stringify(this.roster));
-    cloned.forEach(u => relinkWeapon(u));
+    cloned.forEach((u) => relinkWeapon(u));
     return cloned;
   }
 
@@ -1996,8 +2165,8 @@ export class RunManager {
   getConvoyItems() {
     this._sanitizeUnitPools();
     return {
-      weapons: this.convoy.weapons.map(item => structuredClone(item)),
-      consumables: this.convoy.consumables.map(item => structuredClone(item)),
+      weapons: this.convoy.weapons.map((item) => structuredClone(item)),
+      consumables: this.convoy.consumables.map((item) => structuredClone(item)),
     };
   }
 
@@ -2109,22 +2278,22 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
-    const node = this.nodeMap?.nodes?.find(n => n.id === nodeId);
+    const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (!node || node.completed) return false;
 
     this._sanitizeUnitPools();
     // Track newly fallen units before overwriting roster
-    const survivingNames = new Set(survivingUnits.map(u => u.name));
-    const newlyFallen = this.roster.filter(u => !survivingNames.has(u.name));
+    const survivingNames = new Set(survivingUnits.map((u) => u.name));
+    const newlyFallen = this.roster.filter((u) => !survivingNames.has(u.name));
     for (const fallen of newlyFallen) {
-      if (!this.fallenUnits.find(f => f.name === fallen.name)) {
+      if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
         const serializedFallen = serializeUnit(fallen);
         this._transferFallenUnitItems(serializedFallen);
         this.fallenUnits.push(serializedFallen);
       }
     }
 
-    this.roster = survivingUnits.map(u => serializeUnit(u));
+    this.roster = survivingUnits.map((u) => serializeUnit(u));
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.completedBattles++;
     const completionGold = Number.isFinite(options?.completionGoldOverride)
@@ -2139,7 +2308,10 @@ export class RunManager {
     this.awardGold(finalGold);
 
     const isRewardBossNode = node.id === this.nodeMap?.bossNodeId && node.type === 'boss';
-    const isRewardAct = this.nodeMap?.actId === 'act2' || this.nodeMap?.actId === 'act3' || this.nodeMap?.actId === 'act4';
+    const isRewardAct =
+      this.nodeMap?.actId === 'act2' ||
+      this.nodeMap?.actId === 'act3' ||
+      this.nodeMap?.actId === 'act4';
     if (isRewardBossNode && isRewardAct) {
       const currentVision = Number.isFinite(this.visionChargesRemaining)
         ? Math.max(0, Math.trunc(this.visionChargesRemaining))
@@ -2177,7 +2349,7 @@ export class RunManager {
     if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
     if (!this.spendGold(cost)) return false;
 
-    const idx = this.fallenUnits.findIndex(u => u.name === unitName);
+    const idx = this.fallenUnits.findIndex((u) => u.name === unitName);
     if (idx === -1) return false;
 
     const unit = this.fallenUnits.splice(idx, 1)[0];
@@ -2188,7 +2360,7 @@ export class RunManager {
 
   /** Mark a node as completed and update currentNodeId. */
   markNodeComplete(nodeId) {
-    const node = this.nodeMap.nodes.find(n => n.id === nodeId);
+    const node = this.nodeMap.nodes.find((n) => n.id === nodeId);
     if (node) node.completed = true;
     this.currentNodeId = nodeId;
   }
@@ -2196,7 +2368,7 @@ export class RunManager {
   /** True if the boss node of the current act is completed. */
   isActComplete() {
     if (!this.nodeMap) return false;
-    const boss = this.nodeMap.nodes.find(n => n.id === this.nodeMap.bossNodeId);
+    const boss = this.nodeMap.nodes.find((n) => n.id === this.nodeMap.bossNodeId);
     return boss ? boss.completed : false;
   }
 
@@ -2206,11 +2378,16 @@ export class RunManager {
     this.actIndex++;
     if (this.actIndex >= this.actSequence.length) return []; // shouldn't happen, use isRunComplete
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
-    this.nodeMap = generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-      fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-      halfFogChance: this.difficultyId === 'normal',
-      villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-    });
+    this.nodeMap = generateNodeMap(
+      this.currentAct,
+      this.currentActConfig,
+      this.gameData.mapTemplates,
+      {
+        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
+        halfFogChance: this.difficultyId === 'normal',
+        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+      },
+    );
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
@@ -2232,8 +2409,11 @@ export class RunManager {
       this._recordBlessingEvent(
         'act_transition',
         tracker.blessingId,
-        { type: 'act_stat_delta_all_units', params: { act: tracker.act, stat: tracker.stat, value: tracker.value } },
-        { revertedInAct: expiredAct, stat: tracker.stat, revertedValue: -tracker.value }
+        {
+          type: 'act_stat_delta_all_units',
+          params: { act: tracker.act, stat: tracker.stat, value: tracker.value },
+        },
+        { revertedInAct: expiredAct, stat: tracker.stat, revertedValue: -tracker.value },
       );
     }
   }
@@ -2355,7 +2535,9 @@ export class RunManager {
   getUnlockedWeaponArts(catalog = null) {
     const source = Array.isArray(catalog)
       ? catalog
-      : (Array.isArray(this.gameData?.weaponArts?.arts) ? this.gameData.weaponArts.arts : []);
+      : Array.isArray(this.gameData?.weaponArts?.arts)
+        ? this.gameData.weaponArts.arts
+        : [];
     if (!Array.isArray(source) || source.length === 0) return [];
     const unlocked = new Set(this.getUnlockedWeaponArtIds());
     return source.filter((art) => art?.id && unlocked.has(art.id));
@@ -2368,7 +2550,7 @@ export class RunManager {
       ...resolved.modifiers,
       actsIncluded: sanitizeActSequence(
         resolved.modifiers.actsIncluded || DIFFICULTY_DEFAULTS.actsIncluded,
-        DIFFICULTY_DEFAULTS.actsIncluded
+        DIFFICULTY_DEFAULTS.actsIncluded,
       ),
     };
     this.actSequence = sanitizeActSequence(this.difficultyModifiers.actsIncluded, ACT_SEQUENCE);
@@ -2417,7 +2599,7 @@ export class RunManager {
       this.actIndex,
       this.completedBattles,
       normalizedResult === 'victory',
-      currencyMultiplier
+      currencyMultiplier,
     );
 
     this.endRunRewards = {
@@ -2466,7 +2648,10 @@ export class RunManager {
       usedRecruitNames: this.usedRecruitNames || {},
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
-      difficultyModifiers: this.difficultyModifiers || { ...DIFFICULTY_DEFAULTS, actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded] },
+      difficultyModifiers: this.difficultyModifiers || {
+        ...DIFFICULTY_DEFAULTS,
+        actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded],
+      },
       actSequence: this.actSequence || [...ACT_SEQUENCE],
       pendingAmbushNodeId: this.pendingAmbushNodeId || null,
       endRunRewards: this.endRunRewards || null,
@@ -2518,7 +2703,7 @@ export class RunManager {
     const classes = runManager.gameData?.classes || [];
     const skillsData = runManager.gameData?.skills || [];
     if (!classes.length || !skillsData.length) return;
-    const classByName = new Map(classes.map(c => [c.name, c]));
+    const classByName = new Map(classes.map((c) => [c.name, c]));
     const applyInnates = (unit) => {
       if (!unit) return;
       if (!Array.isArray(unit.skills)) unit.skills = [];
@@ -2543,7 +2728,7 @@ export class RunManager {
   static migrateClassLearnableSkills(runManager) {
     const classes = runManager.gameData?.classes || [];
     if (!classes.length) return;
-    const classByName = new Map(classes.map(c => [c.name, c]));
+    const classByName = new Map(classes.map((c) => [c.name, c]));
 
     const applyLearnables = (unit) => {
       if (!unit) return;
@@ -2582,7 +2767,7 @@ export class RunManager {
    * Normalize loaded units against current class schema to prevent stale class-state drift.
    */
   static migrateUnitClassState(runManager) {
-    const classByName = new Map((runManager.gameData?.classes || []).map(c => [c.name, c]));
+    const classByName = new Map((runManager.gameData?.classes || []).map((c) => [c.name, c]));
     if (classByName.size <= 0) return;
     const normalize = (unit) => {
       if (!unit || !unit.className) return;
@@ -2603,18 +2788,17 @@ export class RunManager {
     const validArtIds = new Set(
       Array.isArray(runManager.gameData?.weaponArts?.arts)
         ? runManager.gameData.weaponArts.arts.map((art) => art?.id).filter(Boolean)
-        : []
+        : [],
     );
     const canonicalWeaponTypeByLower = new Map(
-      [...CONVOY_WEAPON_TYPES].map((type) => [type.toLowerCase(), type])
+      [...CONVOY_WEAPON_TYPES].map((type) => [type.toLowerCase(), type]),
     );
 
     const normalizeScrollMetadata = (item) => {
       if (!item || typeof item !== 'object') return;
       if (item.type !== 'Scroll') return;
-      const teachesId = typeof item.teachesWeaponArtId === 'string'
-        ? item.teachesWeaponArtId.trim()
-        : '';
+      const teachesId =
+        typeof item.teachesWeaponArtId === 'string' ? item.teachesWeaponArtId.trim() : '';
       if (!teachesId || !validArtIds.has(teachesId)) {
         delete item.teachesWeaponArtId;
       } else {
@@ -2622,12 +2806,16 @@ export class RunManager {
       }
 
       if (Array.isArray(item.allowedWeaponTypes)) {
-        const clean = [...new Set(item.allowedWeaponTypes
-          .filter((type) => typeof type === 'string')
-          .map((type) => type.trim())
-          .filter(Boolean)
-          .map((type) => canonicalWeaponTypeByLower.get(type.toLowerCase()))
-          .filter(Boolean))];
+        const clean = [
+          ...new Set(
+            item.allowedWeaponTypes
+              .filter((type) => typeof type === 'string')
+              .map((type) => type.trim())
+              .filter(Boolean)
+              .map((type) => canonicalWeaponTypeByLower.get(type.toLowerCase()))
+              .filter(Boolean),
+          ),
+        ];
         if (clean.length > 0) item.allowedWeaponTypes = clean;
         else delete item.allowedWeaponTypes;
       } else {
@@ -2663,7 +2851,7 @@ export class RunManager {
    */
   static migrateSkillIds(runManager) {
     const skillsData = runManager.gameData?.skills || [];
-    const validSkillIds = new Set(skillsData.map(s => s.id).filter(Boolean));
+    const validSkillIds = new Set(skillsData.map((s) => s.id).filter(Boolean));
     if (!validSkillIds.size) return;
 
     const toCanonicalSkillId = (raw) => {
@@ -2672,11 +2860,12 @@ export class RunManager {
       if (!value) return value;
       if (validSkillIds.has(value)) return value;
 
-      const toSnake = (input) => input
-        .toLowerCase()
-        .replace(/[:].*$/, '')
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+      const toSnake = (input) =>
+        input
+          .toLowerCase()
+          .replace(/[:].*$/, '')
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
 
       const normalized = toSnake(value);
       if (validSkillIds.has(normalized)) return normalized;
@@ -2704,15 +2893,16 @@ export class RunManager {
   static fromJSON(saved, gameData) {
     const rm = new RunManager(gameData, saved.metaEffects || null);
     if (
-      rm.metaEffects
-      && rm.metaEffects.lootWeaponQualityBonus === undefined
-      && rm.metaEffects.lootWeaponWeightBonus !== undefined
+      rm.metaEffects &&
+      rm.metaEffects.lootWeaponQualityBonus === undefined &&
+      rm.metaEffects.lootWeaponWeightBonus !== undefined
     ) {
       const legacyLootBonus = Number(rm.metaEffects.lootWeaponWeightBonus);
       if (Number.isFinite(legacyLootBonus)) {
         rm.metaEffects.lootWeaponQualityBonus = legacyLootBonus;
         const existingCategoryBonuses =
-          rm.metaEffects.lootCategoryWeightBonuses && typeof rm.metaEffects.lootCategoryWeightBonuses === 'object'
+          rm.metaEffects.lootCategoryWeightBonuses &&
+          typeof rm.metaEffects.lootCategoryWeightBonuses === 'object'
             ? rm.metaEffects.lootCategoryWeightBonuses
             : {};
         const currentWeaponBonus = Number(existingCategoryBonuses.weapon);
@@ -2723,8 +2913,12 @@ export class RunManager {
     }
     rm.status = saved.status;
     rm.actIndex = saved.actIndex;
-    rm.roster = Array.isArray(saved.roster) ? saved.roster.filter(u => rm._isValidSerializedUnit(u)) : [];
-    rm.fallenUnits = Array.isArray(saved.fallenUnits) ? saved.fallenUnits.filter(u => rm._isValidSerializedUnit(u)) : [];
+    rm.roster = Array.isArray(saved.roster)
+      ? saved.roster.filter((u) => rm._isValidSerializedUnit(u))
+      : [];
+    rm.fallenUnits = Array.isArray(saved.fallenUnits)
+      ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
+      : [];
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
@@ -2737,12 +2931,17 @@ export class RunManager {
     rm.blessingHistory = saved.blessingHistory || [];
     rm.blessingSelectionTelemetry = saved.blessingSelectionTelemetry || null;
     if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
-      rm.blessingSelectionTelemetry.offeredIds = Array.isArray(rm.blessingSelectionTelemetry.chosenIds)
+      rm.blessingSelectionTelemetry.offeredIds = Array.isArray(
+        rm.blessingSelectionTelemetry.chosenIds,
+      )
         ? [...rm.blessingSelectionTelemetry.chosenIds]
         : [];
       rm.blessingSelectionTelemetry.chosenIds = [];
     }
-    if (rm.blessingSelectionTelemetry && !Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)) {
+    if (
+      rm.blessingSelectionTelemetry &&
+      !Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)
+    ) {
       const catalog = gameData?.blessings;
       if (catalog?.blessings?.length && Array.isArray(rm.blessingSelectionTelemetry.offeredIds)) {
         const index = buildBlessingIndex(catalog);
@@ -2754,20 +2953,24 @@ export class RunManager {
         rm.blessingSelectionTelemetry.offeredBlessings = [];
       }
     }
-    if (rm.blessingSelectionTelemetry && Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)) {
-      rm.blessingSelectionTelemetry.offeredBlessings = rm.blessingSelectionTelemetry.offeredBlessings
-        .filter((blessing) => isPlainObject(blessing) && typeof blessing.id === 'string')
-        .map((blessing) => ({
-          ...structuredClone(blessing),
-          rolledCost: normalizeBlessingCostEntry(blessing.rolledCost),
-        }));
+    if (
+      rm.blessingSelectionTelemetry &&
+      Array.isArray(rm.blessingSelectionTelemetry.offeredBlessings)
+    ) {
+      rm.blessingSelectionTelemetry.offeredBlessings =
+        rm.blessingSelectionTelemetry.offeredBlessings
+          .filter((blessing) => isPlainObject(blessing) && typeof blessing.id === 'string')
+          .map((blessing) => ({
+            ...structuredClone(blessing),
+            rolledCost: normalizeBlessingCostEntry(blessing.rolledCost),
+          }));
     }
     if (rm.blessingSelectionTelemetry) {
       const rawChosenBlessings = Array.isArray(rm.blessingSelectionTelemetry.chosenBlessings)
         ? rm.blessingSelectionTelemetry.chosenBlessings
-        : (Array.isArray(rm.blessingSelectionTelemetry.chosenIds)
+        : Array.isArray(rm.blessingSelectionTelemetry.chosenIds)
           ? rm.blessingSelectionTelemetry.chosenIds
-          : []);
+          : [];
       rm.blessingSelectionTelemetry.chosenBlessings = rawChosenBlessings
         .map((entry) => {
           const id = getBlessingEntryId(entry);
@@ -2776,47 +2979,70 @@ export class RunManager {
         })
         .filter(Boolean);
     }
-    rm.blessingRuntimeModifiers = saved.blessingRuntimeModifiers || createBlessingRuntimeModifiers();
-    if (!rm.blessingRuntimeModifiers.actHitBonusByAct || typeof rm.blessingRuntimeModifiers.actHitBonusByAct !== 'object') {
+    rm.blessingRuntimeModifiers =
+      saved.blessingRuntimeModifiers || createBlessingRuntimeModifiers();
+    if (
+      !rm.blessingRuntimeModifiers.actHitBonusByAct ||
+      typeof rm.blessingRuntimeModifiers.actHitBonusByAct !== 'object'
+    ) {
       rm.blessingRuntimeModifiers.actHitBonusByAct = {};
     }
     if (!Array.isArray(rm.blessingRuntimeModifiers.actStatDeltaAllUnits)) {
       rm.blessingRuntimeModifiers.actStatDeltaAllUnits = [];
     }
     rm.blessingRuntimeModifiers.skipFirstShop = Boolean(rm.blessingRuntimeModifiers.skipFirstShop);
-    rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(rm.blessingRuntimeModifiers.shopItemCountDelta || 0);
-    rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(rm.blessingRuntimeModifiers.allGrowthsDelta || 0);
+    rm.blessingRuntimeModifiers.shopItemCountDelta = Math.trunc(
+      rm.blessingRuntimeModifiers.shopItemCountDelta || 0,
+    );
+    rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(
+      rm.blessingRuntimeModifiers.allGrowthsDelta || 0,
+    );
     if (!Array.isArray(rm.blessingRuntimeModifiers.targetedGrowthsDeltas)) {
       rm.blessingRuntimeModifiers.targetedGrowthsDeltas = [];
     } else {
-      rm.blessingRuntimeModifiers.targetedGrowthsDeltas = rm.blessingRuntimeModifiers.targetedGrowthsDeltas
-        .map((entry) => {
-          if (!isPlainObject(entry)) return null;
-          const stats = [...new Set((Array.isArray(entry.stats) ? entry.stats : [])
-            .filter((stat) => typeof stat === 'string')
-            .map((stat) => stat.trim())
-            .filter((stat) => XP_STAT_NAMES.includes(stat)))];
-          const delta = Math.trunc(Number(entry.value) || 0);
-          if (stats.length <= 0 || delta === 0) return null;
-          const scope = typeof entry.scope === 'string' ? entry.scope : 'all';
-          return { stats, value: delta, scope };
-        })
-        .filter(Boolean);
+      rm.blessingRuntimeModifiers.targetedGrowthsDeltas =
+        rm.blessingRuntimeModifiers.targetedGrowthsDeltas
+          .map((entry) => {
+            if (!isPlainObject(entry)) return null;
+            const stats = [
+              ...new Set(
+                (Array.isArray(entry.stats) ? entry.stats : [])
+                  .filter((stat) => typeof stat === 'string')
+                  .map((stat) => stat.trim())
+                  .filter((stat) => XP_STAT_NAMES.includes(stat)),
+              ),
+            ];
+            const delta = Math.trunc(Number(entry.value) || 0);
+            if (stats.length <= 0 || delta === 0) return null;
+            const scope = typeof entry.scope === 'string' ? entry.scope : 'all';
+            return { stats, value: delta, scope };
+          })
+          .filter(Boolean);
     }
-    if (!rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit || typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object') {
+    if (
+      !rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit ||
+      typeof rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit !== 'object'
+    ) {
       rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
     }
-    rm.blessingRuntimeModifiers.xpMultiplierDelta = Number(rm.blessingRuntimeModifiers.xpMultiplierDelta) || 0;
-    rm.blessingRuntimeModifiers.forgeCostDiscount = Number(rm.blessingRuntimeModifiers.forgeCostDiscount) || 0;
-    rm.blessingRuntimeModifiers.shopPriceDiscount = Number(rm.blessingRuntimeModifiers.shopPriceDiscount) || 0;
-    rm.blessingRuntimeModifiers.recruitLevelBonus = Math.trunc(Number(rm.blessingRuntimeModifiers.recruitLevelBonus) || 0);
+    rm.blessingRuntimeModifiers.xpMultiplierDelta =
+      Number(rm.blessingRuntimeModifiers.xpMultiplierDelta) || 0;
+    rm.blessingRuntimeModifiers.forgeCostDiscount =
+      Number(rm.blessingRuntimeModifiers.forgeCostDiscount) || 0;
+    rm.blessingRuntimeModifiers.shopPriceDiscount =
+      Number(rm.blessingRuntimeModifiers.shopPriceDiscount) || 0;
+    rm.blessingRuntimeModifiers.recruitLevelBonus = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.recruitLevelBonus) || 0,
+    );
     if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
       rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
     }
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.rngSeed = Number.isFinite(saved.rngSeed)
       ? Number(saved.rngSeed) >>> 0
-      : (Number.isFinite(rm.runSeed) ? (Number(rm.runSeed) >>> 0) : null);
+      : Number.isFinite(rm.runSeed)
+        ? Number(rm.runSeed) >>> 0
+        : null;
     rm.activeBlessings = rm._normalizeActiveBlessingsForLoad(rawActiveBlessings);
     const defaultVisionCharges = rm.getBaseVisionCharges();
     rm.visionChargesRemaining = Number.isFinite(saved.visionChargesRemaining)
@@ -2837,26 +3063,29 @@ export class RunManager {
           Array.isArray(saved.difficultyModifiers.actsIncluded)
             ? saved.difficultyModifiers.actsIncluded
             : rm.difficultyModifiers.actsIncluded,
-          rm.difficultyModifiers.actsIncluded
+          rm.difficultyModifiers.actsIncluded,
         ),
       };
     }
     const hasSavedActSequence = Array.isArray(saved.actSequence) && saved.actSequence.length > 0;
-    const hasSavedActsIncluded = Array.isArray(saved?.difficultyModifiers?.actsIncluded)
-      && saved.difficultyModifiers.actsIncluded.length > 0;
-    const legacySafeFallback = hasSavedActSequence || hasSavedActsIncluded
-      ? (rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE)
-      : DIFFICULTY_DEFAULTS.actsIncluded;
+    const hasSavedActsIncluded =
+      Array.isArray(saved?.difficultyModifiers?.actsIncluded) &&
+      saved.difficultyModifiers.actsIncluded.length > 0;
+    const legacySafeFallback =
+      hasSavedActSequence || hasSavedActsIncluded
+        ? rm.difficultyModifiers?.actsIncluded || ACT_SEQUENCE
+        : DIFFICULTY_DEFAULTS.actsIncluded;
     const sequenceSource = hasSavedActSequence
       ? saved.actSequence
-      : (hasSavedActsIncluded ? saved.difficultyModifiers.actsIncluded : legacySafeFallback);
+      : hasSavedActsIncluded
+        ? saved.difficultyModifiers.actsIncluded
+        : legacySafeFallback;
     rm.actSequence = sanitizeActSequence(sequenceSource, legacySafeFallback);
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }
-    rm.pendingAmbushNodeId = typeof saved.pendingAmbushNodeId === 'string'
-      ? saved.pendingAmbushNodeId
-      : null;
+    rm.pendingAmbushNodeId =
+      typeof saved.pendingAmbushNodeId === 'string' ? saved.pendingAmbushNodeId : null;
     rm.endRunRewards = saved.endRunRewards || null;
     rm.metaUnlockedWeaponArts = Array.isArray(saved.metaUnlockedWeaponArts)
       ? rm._normalizeUnlockedWeaponArtIds(saved.metaUnlockedWeaponArts)
@@ -2872,15 +3101,17 @@ export class RunManager {
       : [];
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(
-        saved.currentNodeId
-        || Number(saved.completedBattles || 0) > 0
-        || Number(saved.actIndex || 0) > 0
-        || (typeof saved.status === 'string' && saved.status !== 'active')
+        saved.currentNodeId ||
+        Number(saved.completedBattles || 0) > 0 ||
+        Number(saved.actIndex || 0) > 0 ||
+        (typeof saved.status === 'string' && saved.status !== 'active'),
       );
       if (isInProgress) rm.markDialogueShown('runStart');
     }
     rm._syncMetaWeaponArtUnlocks();
-    rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct)
+    rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = rm.actSequence.includes(
+      rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct,
+    )
       ? rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct
       : null;
     rm._runStartBlessingsApplied = true;
@@ -2901,8 +3132,8 @@ export class RunManager {
     RunManager.migrateWeaponArtItemState(rm);
     RunManager.migrateClassLearnableSkills(rm);
 
-    rm.roster.forEach(u => relinkWeapon(u));
-    rm.fallenUnits.forEach(u => relinkWeapon(u));
+    rm.roster.forEach((u) => relinkWeapon(u));
+    rm.fallenUnits.forEach((u) => relinkWeapon(u));
     rm._restoreDisabledPersonalSkillsIfReady('load');
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();
@@ -2926,7 +3157,9 @@ export function saveRun(runManager, onSave, slotNumber) {
   const key = resolveRunKey(slotNumber);
   try {
     localStorage.setItem(key, JSON.stringify(json));
-  } catch (_) { /* incognito / quota exceeded */ }
+  } catch (_) {
+    /* incognito / quota exceeded */
+  }
   if (onSave) onSave(json);
 }
 
@@ -2955,6 +3188,8 @@ export function clearSavedRun(onClear, slotNumber) {
   const key = resolveRunKey(slotNumber);
   try {
     localStorage.removeItem(key);
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   if (onClear) onClear();
 }

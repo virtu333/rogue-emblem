@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createLordUnit, createUnit, promoteUnit, calculateCombatXP } from '../src/engine/UnitManager.js';
+import {
+  createLordUnit,
+  createUnit,
+  promoteUnit,
+  calculateCombatXP,
+} from '../src/engine/UnitManager.js';
 import { LOOT_GOLD_TEAM_XP } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
@@ -55,7 +60,9 @@ describe('Chunk E balance and rules guards', () => {
     try {
       const unit = createLordUnit(edric, edricClass, data.weapons);
       for (const [stat, personal] of Object.entries(edric.personalGrowths || {})) {
-        const minClassGrowth = Number(String(edricClass.growthRanges?.[stat] || '0-0').split('-')[0]);
+        const minClassGrowth = Number(
+          String(edricClass.growthRanges?.[stat] || '0-0').split('-')[0],
+        );
         expect(unit.growths[stat]).toBe(minClassGrowth + Number(personal || 0));
       }
     } finally {
@@ -68,9 +75,11 @@ describe('Chunk E balance and rules guards', () => {
     const normalDefender = { level: 8, tier: 'base', isBoss: false, stats: {} };
     const bossDefender = { level: 8, tier: 'base', isBoss: true, stats: {} };
 
-    expect(calculateCombatXP(attacker, normalDefender, false))
-      .toBe(calculateCombatXP(attacker, bossDefender, false));
-    expect(calculateCombatXP(attacker, normalDefender, true))
-      .toBe(calculateCombatXP(attacker, bossDefender, true));
+    expect(calculateCombatXP(attacker, normalDefender, false)).toBe(
+      calculateCombatXP(attacker, bossDefender, false),
+    );
+    expect(calculateCombatXP(attacker, normalDefender, true)).toBe(
+      calculateCombatXP(attacker, bossDefender, true),
+    );
   });
 });

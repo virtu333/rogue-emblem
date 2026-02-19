@@ -2,28 +2,28 @@
 // Pure DOM, no Phaser imports. Communicates via game.events bridge.
 
 const BUTTON_DEFS = {
-  danger:     { icon: '\u26A0',  label: 'Danger' },
-  roster:     { icon: '\uD83D\uDCCB', label: 'Roster' },
-  objective:  { icon: '\u2139',  label: 'Vision' },
-  endTurn:    { icon: '\u23ED',  label: 'End Turn' },
-  inspect:    { icon: '\uD83D\uDC41', label: 'Inspect' },
-  prevWeapon: { icon: '\u25C0',  label: 'Prev Wpn' },
-  nextWeapon: { icon: '\u25B6',  label: 'Next Wpn' },
-  prevTab:    { icon: '\u25C0',  label: 'Prev' },
-  nextTab:    { icon: '\u25B6',  label: 'Next' },
+  danger: { icon: '\u26A0', label: 'Danger' },
+  roster: { icon: '\uD83D\uDCCB', label: 'Roster' },
+  objective: { icon: '\u2139', label: 'Vision' },
+  endTurn: { icon: '\u23ED', label: 'End Turn' },
+  inspect: { icon: '\uD83D\uDC41', label: 'Inspect' },
+  prevWeapon: { icon: '\u25C0', label: 'Prev Wpn' },
+  nextWeapon: { icon: '\u25B6', label: 'Next Wpn' },
+  prevTab: { icon: '\u25C0', label: 'Prev' },
+  nextTab: { icon: '\u25B6', label: 'Next' },
 };
 
 const CONTEXTS = {
   battle_player_idle: ['danger', 'roster', 'objective', 'inspect', 'endTurn'],
   battle_unit_selected: ['danger', 'roster', 'objective', 'endTurn'],
-  battle_idle:     ['danger', 'roster', 'objective', 'endTurn'],
+  battle_idle: ['danger', 'roster', 'objective', 'endTurn'],
   battle_selected: ['danger'],
   battle_forecast: ['prevWeapon', 'nextWeapon'],
-  battle_end:      ['roster'],
-  nodemap:         ['roster'],
-  homebase:        [],
-  overlay_tabs:    ['prevTab', 'nextTab'],
-  none:            [],
+  battle_end: ['roster'],
+  nodemap: ['roster'],
+  homebase: [],
+  overlay_tabs: ['prevTab', 'nextTab'],
+  none: [],
 };
 
 const MAX_CONTEXT_STACK_DEPTH = 8;
@@ -93,7 +93,8 @@ export class MobileControls {
       this._onRotateTap = () => {
         const doc = document.documentElement;
         if (doc.requestFullscreen) {
-          doc.requestFullscreen()
+          doc
+            .requestFullscreen()
             .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
             .catch(() => {});
         }

@@ -62,26 +62,47 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     else if (arg === '--difficulty' && args[i + 1]) opts.difficulty = args[++i];
     else if (arg === '--invincibility') opts.invincibility = true;
     else if (arg === '--max-nodes' && args[i + 1]) opts.maxNodes = parseInt(args[++i], 10);
-    else if (arg === '--max-battle-actions' && args[i + 1]) opts.maxBattleActions = parseInt(args[++i], 10);
+    else if (arg === '--max-battle-actions' && args[i + 1])
+      opts.maxBattleActions = parseInt(args[++i], 10);
     else if (arg === '--mode' && args[i + 1]) opts.mode = args[++i];
-    else if (arg === '--timeout-rate-threshold' && args[i + 1]) opts.timeoutRateThreshold = parseFloat(args[++i]);
-    else if (arg === '--max-timeout-rate' && args[i + 1]) opts.maxTimeoutRate = parseOptionalNumber(args[++i], '--max-timeout-rate');
+    else if (arg === '--timeout-rate-threshold' && args[i + 1])
+      opts.timeoutRateThreshold = parseFloat(args[++i]);
+    else if (arg === '--max-timeout-rate' && args[i + 1])
+      opts.maxTimeoutRate = parseOptionalNumber(args[++i], '--max-timeout-rate');
     else if (arg === '--agent' && args[i + 1]) opts.agent = args[++i];
-    else if (arg === '--min-win-rate' && args[i + 1]) opts.minWinRate = parseOptionalNumber(args[++i], '--min-win-rate');
-    else if (arg === '--max-defeat-rate' && args[i + 1]) opts.maxDefeatRate = parseOptionalNumber(args[++i], '--max-defeat-rate');
-    else if (arg === '--min-avg-nodes' && args[i + 1]) opts.minAvgNodes = parseOptionalNumber(args[++i], '--min-avg-nodes');
-    else if (arg === '--max-avg-nodes' && args[i + 1]) opts.maxAvgNodes = parseOptionalNumber(args[++i], '--max-avg-nodes');
-    else if (arg === '--min-avg-gold' && args[i + 1]) opts.minAvgGold = parseOptionalNumber(args[++i], '--min-avg-gold');
-    else if (arg === '--max-avg-gold' && args[i + 1]) opts.maxAvgGold = parseOptionalNumber(args[++i], '--max-avg-gold');
-    else if (arg === '--min-avg-shop-spent' && args[i + 1]) opts.minAvgShopSpent = parseOptionalNumber(args[++i], '--min-avg-shop-spent');
-    else if (arg === '--max-avg-shop-spent' && args[i + 1]) opts.maxAvgShopSpent = parseOptionalNumber(args[++i], '--max-avg-shop-spent');
-    else if (arg === '--min-avg-recruits' && args[i + 1]) opts.minAvgRecruits = parseOptionalNumber(args[++i], '--min-avg-recruits');
-    else if (arg === '--max-avg-units-lost' && args[i + 1]) opts.maxAvgUnitsLost = parseOptionalNumber(args[++i], '--max-avg-units-lost');
-    else if (arg === '--max-avg-turns' && args[i + 1]) opts.maxAvgTurns = parseOptionalNumber(args[++i], '--max-avg-turns');
-    else if (arg === '--min-promotion-by-act2-rate' && args[i + 1]) opts.minPromotionByAct2Rate = parseOptionalNumber(args[++i], '--min-promotion-by-act2-rate');
-    else if (arg === '--max-promotion-by-act2-rate' && args[i + 1]) opts.maxPromotionByAct2Rate = parseOptionalNumber(args[++i], '--max-promotion-by-act2-rate');
-    else if (arg === '--max-avg-invalid-shop-entries' && args[i + 1]) opts.maxAvgInvalidShopEntries = parseOptionalNumber(args[++i], '--max-avg-invalid-shop-entries');
-    else if (arg === '--min-avg-ambush-battles' && args[i + 1]) opts.minAvgAmbushBattles = parseOptionalNumber(args[++i], '--min-avg-ambush-battles');
+    else if (arg === '--min-win-rate' && args[i + 1])
+      opts.minWinRate = parseOptionalNumber(args[++i], '--min-win-rate');
+    else if (arg === '--max-defeat-rate' && args[i + 1])
+      opts.maxDefeatRate = parseOptionalNumber(args[++i], '--max-defeat-rate');
+    else if (arg === '--min-avg-nodes' && args[i + 1])
+      opts.minAvgNodes = parseOptionalNumber(args[++i], '--min-avg-nodes');
+    else if (arg === '--max-avg-nodes' && args[i + 1])
+      opts.maxAvgNodes = parseOptionalNumber(args[++i], '--max-avg-nodes');
+    else if (arg === '--min-avg-gold' && args[i + 1])
+      opts.minAvgGold = parseOptionalNumber(args[++i], '--min-avg-gold');
+    else if (arg === '--max-avg-gold' && args[i + 1])
+      opts.maxAvgGold = parseOptionalNumber(args[++i], '--max-avg-gold');
+    else if (arg === '--min-avg-shop-spent' && args[i + 1])
+      opts.minAvgShopSpent = parseOptionalNumber(args[++i], '--min-avg-shop-spent');
+    else if (arg === '--max-avg-shop-spent' && args[i + 1])
+      opts.maxAvgShopSpent = parseOptionalNumber(args[++i], '--max-avg-shop-spent');
+    else if (arg === '--min-avg-recruits' && args[i + 1])
+      opts.minAvgRecruits = parseOptionalNumber(args[++i], '--min-avg-recruits');
+    else if (arg === '--max-avg-units-lost' && args[i + 1])
+      opts.maxAvgUnitsLost = parseOptionalNumber(args[++i], '--max-avg-units-lost');
+    else if (arg === '--max-avg-turns' && args[i + 1])
+      opts.maxAvgTurns = parseOptionalNumber(args[++i], '--max-avg-turns');
+    else if (arg === '--min-promotion-by-act2-rate' && args[i + 1])
+      opts.minPromotionByAct2Rate = parseOptionalNumber(args[++i], '--min-promotion-by-act2-rate');
+    else if (arg === '--max-promotion-by-act2-rate' && args[i + 1])
+      opts.maxPromotionByAct2Rate = parseOptionalNumber(args[++i], '--max-promotion-by-act2-rate');
+    else if (arg === '--max-avg-invalid-shop-entries' && args[i + 1])
+      opts.maxAvgInvalidShopEntries = parseOptionalNumber(
+        args[++i],
+        '--max-avg-invalid-shop-entries',
+      );
+    else if (arg === '--min-avg-ambush-battles' && args[i + 1])
+      opts.minAvgAmbushBattles = parseOptionalNumber(args[++i], '--min-avg-ambush-battles');
     else if (arg === '--no-artifacts') opts.writeArtifactsOnFailure = false;
   }
 
@@ -92,7 +113,9 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     throw new Error(`Unknown agent "${opts.agent}". Expected scripted|fuzz.`);
   }
   if (opts.seedStart !== null && opts.seedEnd !== null && opts.seedStart > opts.seedEnd) {
-    throw new Error(`Invalid seed range: --seed-start (${opts.seedStart}) is greater than --seed-end (${opts.seedEnd}).`);
+    throw new Error(
+      `Invalid seed range: --seed-start (${opts.seedStart}) is greater than --seed-end (${opts.seedEnd}).`,
+    );
   }
   return opts;
 }
@@ -193,16 +216,22 @@ export function evaluateThresholdBreaches(summary, opts) {
     if (threshold === null || threshold === undefined) continue;
     const hit = kind === 'min' ? metricValue < threshold : metricValue > threshold;
     if (hit) {
-      breaches.push(`${metricName}=${metricValue.toFixed(2)} ${kind === 'min' ? '<' : '>'} threshold=${threshold.toFixed(2)}`);
+      breaches.push(
+        `${metricName}=${metricValue.toFixed(2)} ${kind === 'min' ? '<' : '>'} threshold=${threshold.toFixed(2)}`,
+      );
     }
   }
 
   if (opts.maxTimeoutRate !== null && opts.maxTimeoutRate !== undefined) {
     if (summary.timeoutRate > opts.maxTimeoutRate) {
-      breaches.push(`timeout_rate_pct=${summary.timeoutRate.toFixed(2)} > threshold=${opts.maxTimeoutRate.toFixed(2)}`);
+      breaches.push(
+        `timeout_rate_pct=${summary.timeoutRate.toFixed(2)} > threshold=${opts.maxTimeoutRate.toFixed(2)}`,
+      );
     }
   } else if (opts.mode === 'reporting' && summary.timeoutRate > opts.timeoutRateThreshold) {
-    breaches.push(`timeout_rate_pct=${summary.timeoutRate.toFixed(2)} > threshold=${opts.timeoutRateThreshold.toFixed(2)}`);
+    breaches.push(
+      `timeout_rate_pct=${summary.timeoutRate.toFixed(2)} > threshold=${opts.timeoutRateThreshold.toFixed(2)}`,
+    );
   }
 
   return breaches;
@@ -254,11 +283,14 @@ export async function runBatch(opts, gameDataOverride = null) {
     totals.totalInvalidShopEntries += replay.metrics.invalidShopEntries || 0;
     totals.totalAmbushBattles += replay.metrics.ambushBattles || 0;
 
-    const promotedByAct2 = Array.isArray(replay.trace) && replay.trace.some((event) =>
-      event?.nodeType === 'church'
-        && Boolean(event.promoted)
-        && (event.act === 'act1' || event.act === 'act2')
-    );
+    const promotedByAct2 =
+      Array.isArray(replay.trace) &&
+      replay.trace.some(
+        (event) =>
+          event?.nodeType === 'church' &&
+          Boolean(event.promoted) &&
+          (event.act === 'act1' || event.act === 'act2'),
+      );
     if (promotedByAct2) totals.promotionsByAct2Runs++;
 
     if (replay.result === 'victory') totals.victories++;
@@ -275,7 +307,9 @@ export async function runBatch(opts, gameDataOverride = null) {
         artifactPath = ensureArtifact(replay);
       }
       failures.push({ seed, result: replay.result, artifactPath });
-      console.log(`  [FAIL] seed=${seed} result=${replay.result}${artifactPath ? ` replay=${artifactPath}` : ''}`);
+      console.log(
+        `  [FAIL] seed=${seed} result=${replay.result}${artifactPath ? ` replay=${artifactPath}` : ''}`,
+      );
     } else {
       const mark = replay.result === 'victory' ? 'V' : replay.result === 'timeout' ? 'T' : 'D';
       process.stdout.write(`  [${mark}]`);
@@ -287,16 +321,16 @@ export async function runBatch(opts, gameDataOverride = null) {
 
   console.log('--- Summary ---');
   console.log(
-    `runs=${totals.runs} victories=${totals.victories} defeats=${totals.defeats} stuck=${totals.stuck} timeouts=${totals.timeouts}`
+    `runs=${totals.runs} victories=${totals.victories} defeats=${totals.defeats} stuck=${totals.stuck} timeouts=${totals.timeouts}`,
   );
   console.log(
-    `win_rate_pct=${summary.winRate.toFixed(2)} defeat_rate_pct=${summary.defeatRate.toFixed(2)} timeout_rate_pct=${summary.timeoutRate.toFixed(2)} avg_nodes=${summary.avgNodes.toFixed(2)} avg_battles=${summary.avgBattles.toFixed(2)}`
+    `win_rate_pct=${summary.winRate.toFixed(2)} defeat_rate_pct=${summary.defeatRate.toFixed(2)} timeout_rate_pct=${summary.timeoutRate.toFixed(2)} avg_nodes=${summary.avgNodes.toFixed(2)} avg_battles=${summary.avgBattles.toFixed(2)}`,
   );
   console.log(
-    `avg_turns=${summary.avgTurns.toFixed(2)} avg_gold=${summary.avgGold.toFixed(0)} avg_shop_spent=${summary.avgShopSpent.toFixed(0)} avg_recruits=${summary.avgRecruits.toFixed(2)} avg_units_lost=${summary.avgUnitsLost.toFixed(2)}`
+    `avg_turns=${summary.avgTurns.toFixed(2)} avg_gold=${summary.avgGold.toFixed(0)} avg_shop_spent=${summary.avgShopSpent.toFixed(0)} avg_recruits=${summary.avgRecruits.toFixed(2)} avg_units_lost=${summary.avgUnitsLost.toFixed(2)}`,
   );
   console.log(
-    `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)} avg_ambush_battles=${summary.avgAmbushBattles.toFixed(2)}`
+    `promotion_by_act2_rate_pct=${summary.promotionByAct2Rate.toFixed(2)} avg_invalid_shop_entries=${summary.avgInvalidShopEntries.toFixed(2)} avg_ambush_battles=${summary.avgAmbushBattles.toFixed(2)}`,
   );
 
   const thresholdBreaches = evaluateThresholdBreaches(summary, opts);
@@ -309,7 +343,9 @@ export async function runBatch(opts, gameDataOverride = null) {
   if (failures.length > 0) {
     console.log('\n--- Failures ---');
     for (const f of failures) {
-      console.log(`seed=${f.seed} result=${f.result}${f.artifactPath ? ` replay=${f.artifactPath}` : ''}`);
+      console.log(
+        `seed=${f.seed} result=${f.result}${f.artifactPath ? ` replay=${f.artifactPath}` : ''}`,
+      );
     }
   }
 

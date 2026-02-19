@@ -55,12 +55,16 @@ function withTimeout(promise, ms) {
 function migrateCloudData(cloudData) {
   if (!cloudData || typeof cloudData !== 'object') return {};
   // If it already has slot keys, return as-is
-  if (cloudData['1'] !== undefined || cloudData['2'] !== undefined || cloudData['3'] !== undefined) {
+  if (
+    cloudData['1'] !== undefined ||
+    cloudData['2'] !== undefined ||
+    cloudData['3'] !== undefined
+  ) {
     return cloudData;
   }
   // Old flat format — wrap as slot 1 (only if non-empty object)
   if (Object.keys(cloudData).length > 0) {
-    return { '1': cloudData };
+    return { 1: cloudData };
   }
   return {};
 }
@@ -170,7 +174,7 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     reportCloudFailure('cloud_fetch_table', settingsRes.reason, { table: TABLES.settings });
   }
 
-  const rejected = [runRes, metaRes, settingsRes].filter(r => r.status === 'rejected');
+  const rejected = [runRes, metaRes, settingsRes].filter((r) => r.status === 'rejected');
   const hasAuthExpiryFailure = rejected.some((r) => isAuthExpiryError(r.reason));
   if (!hasAuthExpiryFailure && rejected.length === 0) {
     clearAuthExpiredStatusOnSuccess();
@@ -230,7 +234,8 @@ export function pushSettings(userId, settingsData) {
   const next = prev
     .catch(() => {})
     .then(async () => {
-      const { error } = await supabase.from(TABLES.settings)
+      const { error } = await supabase
+        .from(TABLES.settings)
         .upsert({ user_id: userId, data: settingsData, updated_at: new Date().toISOString() });
       if (error) throw error;
       clearAuthExpiredStatusOnSuccess();
@@ -441,7 +446,7 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
       slotMap[String(slot)] = slotData;
     }
 
-    const hasData = Object.values(slotMap).some(v => v != null);
+    const hasData = Object.values(slotMap).some((v) => v != null);
     let writeResult;
     if (!row.exists) {
       if (!hasData) return;

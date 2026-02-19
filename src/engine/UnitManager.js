@@ -19,8 +19,13 @@ import {
 
 // Map plural proficiency names → weapon.type singular
 const PROF_TO_TYPE = {
-  Swords: 'Sword', Lances: 'Lance', Axes: 'Axe',
-  Bows: 'Bow', Tomes: 'Tome', Light: 'Light', Staves: 'Staff',
+  Swords: 'Sword',
+  Lances: 'Lance',
+  Axes: 'Axe',
+  Bows: 'Bow',
+  Tomes: 'Tome',
+  Light: 'Light',
+  Staves: 'Staff',
 };
 
 // Weapon/staff item types that participate in proficiency checks.
@@ -48,16 +53,19 @@ function getCanonicalClassMove(classData, fallbackMove = 4) {
  */
 export function parseWeaponProficiencies(profString) {
   if (!profString || profString === 'None') return [];
-  return profString.split(',').map(s => {
-    const trimmed = s.trim();
-    const match = trimmed.match(/^(\w+(?:\s\w+)?)\s*\((\w)\)$/);
-    if (!match) return null;
-    const rawName = match[1].trim();
-    const rankChar = match[2];
-    const type = PROF_TO_TYPE[rawName] || rawName;
-    const rank = RANK_ABBREV[rankChar] || 'Prof';
-    return { type, rank };
-  }).filter(Boolean);
+  return profString
+    .split(',')
+    .map((s) => {
+      const trimmed = s.trim();
+      const match = trimmed.match(/^(\w+(?:\s\w+)?)\s*\((\w)\)$/);
+      if (!match) return null;
+      const rawName = match[1].trim();
+      const rankChar = match[2];
+      const type = PROF_TO_TYPE[rawName] || rawName;
+      const rank = RANK_ABBREV[rankChar] || 'Prof';
+      return { type, rank };
+    })
+    .filter(Boolean);
 }
 
 // --- Growth rate helpers ---
@@ -70,7 +78,10 @@ export function rollGrowthRates(growthRanges) {
   const growths = {};
   for (const stat of XP_STAT_NAMES) {
     const range = growthRanges[stat];
-    if (!range) { growths[stat] = 0; continue; }
+    if (!range) {
+      growths[stat] = 0;
+      continue;
+    }
     const [min, max] = range.split('-').map(Number);
     growths[stat] = min + Math.floor(Math.random() * (max - min + 1));
   }
@@ -97,11 +108,11 @@ function parsePersonalSkillId(personalSkillStr) {
 export function getClassInnateSkills(className, skillsData) {
   if (!skillsData) return [];
   return skillsData
-    .filter(s => {
+    .filter((s) => {
       if (Array.isArray(s.classInnate)) return s.classInnate.includes(className);
       return s.classInnate === className;
     })
-    .map(s => s.id);
+    .map((s) => s.id);
 }
 
 // --- Skill learning ---
@@ -118,7 +129,7 @@ export function learnSkill(unit, skillId) {
 export function checkLevelUpSkills(unit, classesData) {
   const learned = [];
 
-  const cls = classesData.find(c => c.name === unit.className);
+  const cls = classesData.find((c) => c.name === unit.className);
   const tryLearn = (skillId) => {
     const result = learnSkill(unit, skillId);
     if (result.learned) learned.push(skillId);
@@ -135,7 +146,7 @@ export function checkLevelUpSkills(unit, classesData) {
 
   // Promoted units can still learn missed base-class class skills at promoted level 10+.
   if (unit.tier === 'promoted' && unit.level >= 10 && cls?.promotesFrom) {
-    const baseClass = classesData.find(c => c.name === cls.promotesFrom);
+    const baseClass = classesData.find((c) => c.name === cls.promotesFrom);
     if (baseClass?.learnableSkills) {
       for (const entry of baseClass.learnableSkills) {
         tryLearn(entry.skillId);
@@ -144,10 +155,10 @@ export function checkLevelUpSkills(unit, classesData) {
   }
 
   // Lord personal skill: base class level 20 OR promoted class level 10
-  if (unit._personalSkillL20 && (
-    (unit.tier === 'base' && unit.level >= 20) ||
-    (unit.tier === 'promoted' && unit.level >= 10)
-  )) {
+  if (
+    unit._personalSkillL20 &&
+    ((unit.tier === 'base' && unit.level >= 20) || (unit.tier === 'promoted' && unit.level >= 10))
+  ) {
     const result = learnSkill(unit, unit._personalSkillL20.skillId);
     if (result.learned) learned.push(unit._personalSkillL20.skillId);
   }
@@ -194,7 +205,8 @@ export function createLordUnit(lordData, classData, allWeapons) {
     growths,
     proficiencies,
     skills,
-    col: 0, row: 0,
+    col: 0,
+    row: 0,
     mov: lordData.baseStats.MOV,
     moveType: lordData.moveType,
     stats: { ...lordData.baseStats },
@@ -222,7 +234,7 @@ export function createLordUnit(lordData, classData, allWeapons) {
 export function createUnit(classData, level, allWeapons, options = {}) {
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
-    classData.tier || 'base'
+    classData.tier || 'base',
   );
   const growths = rollGrowthRates(classData.growthRanges);
   const weapon = getDefaultWeapon(proficiencies, allWeapons);
@@ -263,7 +275,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
   const SECONDARY_THROWABLE = { Knight: 'Javelin', Fighter: 'Hand Axe' };
   const secondaryName = SECONDARY_THROWABLE[classData.name];
   if (secondaryName) {
-    const secondary = allWeapons.find(w => w.name === secondaryName);
+    const secondary = allWeapons.find((w) => w.name === secondaryName);
     if (secondary) addToInventory(unit, secondary);
   }
 
@@ -283,10 +295,17 @@ export function createUnit(classData, level, allWeapons, options = {}) {
  * level 5+ enemies get 1 random combat skill (chance scaled by act).
  * act: 'act1'/'act2'/'act3'/'act4'/'finalBoss' — determines skill assignment probability.
  */
-export function createEnemyUnit(classData, level, allWeapons, difficultyConfig = 1.0, skillsData = null, act = 'act1') {
+export function createEnemyUnit(
+  classData,
+  level,
+  allWeapons,
+  difficultyConfig = 1.0,
+  skillsData = null,
+  act = 'act1',
+) {
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
-    classData.tier || 'base'
+    classData.tier || 'base',
   );
   const growths = rollGrowthRates(classData.growthRanges);
 
@@ -308,7 +327,8 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
     growths,
     proficiencies,
     skills: [],
-    col: 0, row: 0,
+    col: 0,
+    row: 0,
     mov: classData.baseStats.MOV,
     moveType: classData.moveType,
     stats: { ...classData.baseStats },
@@ -335,8 +355,12 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
 
   // Legacy multiplier path and Wave 8 flat bonus path both supported.
   const isConfigObject = difficultyConfig && typeof difficultyConfig === 'object';
-  const difficultyMod = isConfigObject ? Number(difficultyConfig.multiplier ?? 1.0) : Number(difficultyConfig ?? 1.0);
-  const enemyStatBonus = isConfigObject ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0)) : 0;
+  const difficultyMod = isConfigObject
+    ? Number(difficultyConfig.multiplier ?? 1.0)
+    : Number(difficultyConfig ?? 1.0);
+  const enemyStatBonus = isConfigObject
+    ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0))
+    : 0;
 
   // Apply multiplier first for backward compatibility with harness fixtures.
   if (Number.isFinite(difficultyMod) && difficultyMod !== 1.0) {
@@ -367,10 +391,10 @@ export function createEnemyUnit(classData, level, allWeapons, difficultyConfig =
 
     // Act-scaled combat skill chance
     const SKILL_CHANCE_BY_ACT = {
-      act1: 0.10,
+      act1: 0.1,
       act2: 0.25,
-      act3: 0.50,
-      act4: 0.60,
+      act3: 0.5,
+      act4: 0.6,
       finalBoss: 0.65,
     };
     const chance = SKILL_CHANCE_BY_ACT[act] || 0.0;
@@ -402,7 +426,7 @@ export function createRecruitUnit(
 ) {
   const proficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
-    classData.tier || 'base'
+    classData.tier || 'base',
   );
   const growths = rollGrowthRates(classData.growthRanges);
 
@@ -423,7 +447,8 @@ export function createRecruitUnit(
     growths,
     proficiencies,
     skills: [],
-    col: 0, row: 0,
+    col: 0,
+    row: 0,
     mov: classData.baseStats.MOV,
     moveType: classData.moveType,
     stats: { ...classData.baseStats },
@@ -473,7 +498,7 @@ export function createRecruitUnit(
   // Keep this scoped to dedicated bow classes (not all classes with Bow proficiency).
   const isArcherTypeRecruit = classData.name === 'Archer' || classData.name === 'Sniper';
   if (isArcherTypeRecruit) {
-    const longbow = allWeapons.find(w => w.name === 'Longbow');
+    const longbow = allWeapons.find((w) => w.name === 'Longbow');
     if (longbow) addToInventory(unit, longbow);
   }
 
@@ -527,9 +552,9 @@ function isStaffOnlyProficiencyList(proficiencies) {
 }
 
 function selectLethalArmoryType(proficiencies) {
-  const types = Array.from(new Set((proficiencies || [])
-    .map((p) => p?.type)
-    .filter((type) => type && type !== 'Staff')));
+  const types = Array.from(
+    new Set((proficiencies || []).map((p) => p?.type).filter((type) => type && type !== 'Staff')),
+  );
   if (types.length === 0) return null;
   return types[Math.floor(Math.random() * types.length)] || null;
 }
@@ -729,7 +754,7 @@ export function normalizeUnitClassState(unit, classData) {
 
   const canonicalProficiencies = applyPromotedMastery(
     parseWeaponProficiencies(classData.weaponProficiencies),
-    canonicalTier
+    canonicalTier,
   );
   if (canonicalProficiencies.length > 0) {
     unit.proficiencies = canonicalProficiencies;
@@ -756,19 +781,19 @@ export function isPromotionClassBlocked(className) {
  */
 export function resolvePromotionTargets(unit, classesData, lordsData = []) {
   if (!canPromote(unit)) return null;
-  const lordData = lordsData.find(l => l.name === unit.name);
+  const lordData = lordsData.find((l) => l.name === unit.name);
   if (lordData) {
-    const cls = classesData.find(c => c.name === lordData.promotedClass);
+    const cls = classesData.find((c) => c.name === lordData.promotedClass);
     return cls ? [cls] : null;
   }
-  const baseClass = classesData.find(c => c.name === unit.className);
+  const baseClass = classesData.find((c) => c.name === unit.className);
   if (!baseClass?.promotesTo) return null;
   const targets = Array.isArray(baseClass.promotesTo)
     ? baseClass.promotesTo
     : [baseClass.promotesTo];
   const resolved = targets
-    .filter(name => !isPromotionClassBlocked(name))
-    .map(name => classesData.find(c => c.name === name))
+    .filter((name) => !isPromotionClassBlocked(name))
+    .map((name) => classesData.find((c) => c.name === name))
     .filter(Boolean);
   return resolved.length > 0 ? resolved : null;
 }
@@ -828,10 +853,22 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
 
 // Classes excluded from reclass targets (lord-exclusive + Dancer/Bard line).
 const RECLASS_EXCLUDED_CLASSES = new Set([
-  'Lord', 'Great Lord', 'Tactician', 'Grandmaster',
-  'Ranger', 'Vanguard', 'Light Sage', 'Light Priestess',
-  'Chevalier', 'Holy Knight', 'Sky Lancer', 'Seraph Knight',
-  'Sentinel', 'Champion', 'Dancer', 'Bard',
+  'Lord',
+  'Great Lord',
+  'Tactician',
+  'Grandmaster',
+  'Ranger',
+  'Vanguard',
+  'Light Sage',
+  'Light Priestess',
+  'Chevalier',
+  'Holy Knight',
+  'Sky Lancer',
+  'Seraph Knight',
+  'Sentinel',
+  'Champion',
+  'Dancer',
+  'Bard',
 ]);
 
 // Seal subEffect → allowed moveTypes.
@@ -857,11 +894,12 @@ export function getReclassTargets(unit, classesData, sealSubEffect) {
   if (!canReclass(unit) || !classesData || !sealSubEffect) return [];
   const allowedMoves = RECLASS_SEAL_MOVE_TYPES[sealSubEffect];
   if (!allowedMoves) return [];
-  return classesData.filter(c =>
-    c.tier === unit.tier &&
-    allowedMoves.has(c.moveType) &&
-    c.name !== unit.className &&
-    !RECLASS_EXCLUDED_CLASSES.has(c.name)
+  return classesData.filter(
+    (c) =>
+      c.tier === unit.tier &&
+      allowedMoves.has(c.moveType) &&
+      c.name !== unit.className &&
+      !RECLASS_EXCLUDED_CLASSES.has(c.name),
   );
 }
 
@@ -892,7 +930,10 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // Preserve HP ratio
   const newMaxHP = unit.stats.HP;
   if (oldMaxHP > 0 && newMaxHP > 0) {
-    unit.currentHP = Math.max(1, Math.min(newMaxHP, Math.ceil(unit.currentHP * newMaxHP / oldMaxHP)));
+    unit.currentHP = Math.max(
+      1,
+      Math.min(newMaxHP, Math.ceil((unit.currentHP * newMaxHP) / oldMaxHP)),
+    );
   } else {
     unit.currentHP = Math.max(1, newMaxHP);
   }
@@ -901,7 +942,7 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   // For promoted targets without growthRanges, look up the promotesFrom base class.
   let growthSource = newClassData;
   if (!newClassData.growthRanges && newClassData.promotesFrom) {
-    growthSource = classesData?.find(c => c.name === newClassData.promotesFrom) || newClassData;
+    growthSource = classesData?.find((c) => c.name === newClassData.promotesFrom) || newClassData;
   }
   if (growthSource.growthRanges) {
     const newGrowths = rollGrowthRates(growthSource.growthRanges);
@@ -942,14 +983,14 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
 export function canEquip(unit, weapon) {
   if (weapon.type === 'Scroll') return false;
   const rankOrder = { Prof: 0, Mast: 1 };
-  return unit.proficiencies.some(p =>
-    p.type === weapon.type && rankOrder[p.rank] >= rankOrder[weapon.rankRequired]
+  return unit.proficiencies.some(
+    (p) => p.type === weapon.type && rankOrder[p.rank] >= rankOrder[weapon.rankRequired],
   );
 }
 
 /** Get all equippable weapons for a unit. */
 export function getAvailableWeapons(unit, allWeapons) {
-  return allWeapons.filter(w => canEquip(unit, w));
+  return allWeapons.filter((w) => canEquip(unit, w));
 }
 
 /** Get the default weapon (Iron-tier of first proficiency). */
@@ -958,11 +999,11 @@ export function getDefaultWeapon(proficiencies, allWeapons) {
   const primaryType = proficiencies[0].type;
 
   // Try Iron tier first
-  const iron = allWeapons.find(w => w.type === primaryType && w.tier === 'Iron');
+  const iron = allWeapons.find((w) => w.type === primaryType && w.tier === 'Iron');
   if (iron) return iron;
 
   // Fallback: any weapon of this type
-  return allWeapons.find(w => w.type === primaryType) || null;
+  return allWeapons.find((w) => w.type === primaryType) || null;
 }
 
 /** Get weapon by specific tier for enemy scaling. */
@@ -971,13 +1012,13 @@ function getWeaponByTier(proficiencies, allWeapons, targetTier) {
   const primaryType = proficiencies[0].type;
 
   // Try requested tier
-  const weapon = allWeapons.find(w =>
-    w.type === primaryType && w.tier === targetTier && !w.special
+  const weapon = allWeapons.find(
+    (w) => w.type === primaryType && w.tier === targetTier && !w.special,
   );
   if (weapon) return weapon;
 
   // Fallback: Iron
-  return allWeapons.find(w => w.type === primaryType && w.tier === 'Iron') || null;
+  return allWeapons.find((w) => w.type === primaryType && w.tier === 'Iron') || null;
 }
 
 // --- Inventory helpers ---
@@ -1034,23 +1075,24 @@ export function isLastCombatWeapon(unit, weapon) {
 /** True if the unit has proficiency for the given weapon's type. */
 export function hasProficiency(unit, weapon) {
   if (!unit.proficiencies || !weapon?.type) return false;
-  return unit.proficiencies.some(p => p.type === weapon.type);
+  return unit.proficiencies.some((p) => p.type === weapon.type);
 }
 
 /** Does the unit have any proficiency-valid Staff in inventory? */
 export function hasStaff(unit) {
-  return unit.inventory.some(w => w.type === 'Staff' && canEquip(unit, w));
+  return unit.inventory.some((w) => w.type === 'Staff' && canEquip(unit, w));
 }
 
 /** Get the first proficiency-valid Staff weapon in inventory. */
 export function getStaffWeapon(unit) {
-  return unit.inventory.find(w => w.type === 'Staff' && canEquip(unit, w)) || null;
+  return unit.inventory.find((w) => w.type === 'Staff' && canEquip(unit, w)) || null;
 }
 
 /** Get all combat-usable weapons in inventory (excludes Staff, Scroll, Consumable, non-proficient). */
 export function getCombatWeapons(unit) {
-  return unit.inventory.filter(w =>
-    w.type !== 'Staff' && w.type !== 'Scroll' && w.type !== 'Consumable' && canEquip(unit, w)
+  return unit.inventory.filter(
+    (w) =>
+      w.type !== 'Staff' && w.type !== 'Scroll' && w.type !== 'Consumable' && canEquip(unit, w),
   );
 }
 
@@ -1090,7 +1132,9 @@ export function equipAccessory(unit, accessory) {
 /** Apply a stat booster consumable to a unit (permanent +value to stat). */
 export function applyStatBoost(unit, item) {
   if (!unit || !item) return;
-  const stat = String(item.stat || '').trim().toUpperCase();
+  const stat = String(item.stat || '')
+    .trim()
+    .toUpperCase();
   const value = Math.trunc(Number(item.value) || 0);
   if (!stat || value === 0) return;
   if (!unit.stats || typeof unit.stats !== 'object') unit.stats = {};

@@ -28,7 +28,13 @@ function createInspectionScene(battleState, units = []) {
     grid: {
       pixelToGrid: vi.fn(() => ({ col: 2, row: 3 })),
       getTerrainAt: vi.fn(() => ({ name: 'Plain' })),
-      getMovementRange: vi.fn(() => new Map([['2,3', 0], ['3,3', 1]])),
+      getMovementRange: vi.fn(
+        () =>
+          new Map([
+            ['2,3', 0],
+            ['3,3', 1],
+          ]),
+      ),
       getAttackRange: vi.fn(() => [{ col: 4, row: 3 }]),
       showMovementRange,
       showAttackRange,
@@ -36,7 +42,7 @@ function createInspectionScene(battleState, units = []) {
       clearAttackHighlights: vi.fn(),
     },
     inspectionPanel: { show: vi.fn() },
-    getUnitAt: vi.fn((c, r) => units.find(u => u.col === c && u.row === r) || null),
+    getUnitAt: vi.fn((c, r) => units.find((u) => u.col === c && u.row === r) || null),
     buildUnitPositionMap: vi.fn(() => new Map()),
     refreshEndTurnControl: vi.fn(),
     _showInspectionAtPixel: BattleScene.prototype._showInspectionAtPixel,
@@ -51,9 +57,7 @@ describe('BattleScene inspection range overlays', () => {
 
     scene._showInspectionAtPixel(100, 100);
 
-    expect(scene.grid.showMovementRange).toHaveBeenCalledWith(
-      expect.any(Map), 2, 3, 0x3366cc, 0.4
-    );
+    expect(scene.grid.showMovementRange).toHaveBeenCalledWith(expect.any(Map), 2, 3, 0x3366cc, 0.4);
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
   });
 
@@ -64,7 +68,11 @@ describe('BattleScene inspection range overlays', () => {
     scene._showInspectionAtPixel(100, 100);
 
     expect(scene.grid.showMovementRange).toHaveBeenCalledWith(
-      expect.any(Map), 2, 3, 0xcc3333, 0.35
+      expect.any(Map),
+      2,
+      3,
+      0xcc3333,
+      0.35,
     );
     expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
   });

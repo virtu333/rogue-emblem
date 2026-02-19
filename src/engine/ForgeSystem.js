@@ -117,7 +117,8 @@ export function applyForge(weapon, stat, discountRatio = 0) {
   if (!canForgeStat(weapon, stat)) return { success: false };
   const baseCost = getForgeCost(weapon, stat);
   if (baseCost < 0) return { success: false };
-  const cost = discountRatio !== 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
+  const cost =
+    discountRatio !== 0 ? Math.max(1, Math.floor(baseCost * (1 - discountRatio))) : baseCost;
 
   const level = weapon._forgeLevel || 0;
 
@@ -158,7 +159,8 @@ export function deforgeWeapon(weapon) {
   } else {
     const legacyStat = getLegacyDeforgeStat(weapon);
     if (!legacyStat) return { success: false };
-    const refundCost = FORGE_COSTS[legacyStat]?.[Math.max(0, getStatForgeCount(weapon, legacyStat) - 1)] || 0;
+    const refundCost =
+      FORGE_COSTS[legacyStat]?.[Math.max(0, getStatForgeCount(weapon, legacyStat) - 1)] || 0;
     step = { stat: legacyStat, cost: refundCost };
     if (!Array.isArray(weapon._forgeHistory)) weapon._forgeHistory = [];
   }

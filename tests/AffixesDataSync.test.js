@@ -8,4 +8,3 @@ describe('affixes data sync guard', () => {
     expect(publicCopy).toEqual(source);
   });
 });
-

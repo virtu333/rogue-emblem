@@ -34,7 +34,9 @@ export function getOccupiedSlots() {
       if (localStorage.getItem(getMetaKey(i)) !== null) {
         occupied.push(i);
       }
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
   return occupied;
 }
@@ -44,7 +46,9 @@ export function getNextAvailableSlot() {
   for (let i = 1; i <= MAX_SLOTS; i++) {
     try {
       if (localStorage.getItem(getMetaKey(i)) === null) return i;
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -86,7 +90,9 @@ export function deleteSlot(slot) {
   try {
     localStorage.removeItem(getMetaKey(slot));
     localStorage.removeItem(getRunKey(slot));
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
   HintManager.deleteForSlot(slot);
 }
 
@@ -104,7 +110,9 @@ export function getActiveSlot() {
 export function setActiveSlot(slot) {
   try {
     localStorage.setItem(ACTIVE_SLOT_KEY, String(slot));
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 /**
@@ -129,7 +137,9 @@ export function migrateOldSaves() {
     if (oldMeta || oldRun) {
       setActiveSlot(1);
     }
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 /** Clear all slot data + active slot key. Used by logout. */
@@ -139,5 +149,7 @@ export function clearAllSlotData() {
   }
   try {
     localStorage.removeItem(ACTIVE_SLOT_KEY);
-  } catch (_) { /* ignore */ }
+  } catch (_) {
+    /* ignore */
+  }
 }

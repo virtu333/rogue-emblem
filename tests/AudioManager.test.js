@@ -7,9 +7,13 @@ function makeLoopingSound(key) {
     loop: true,
     isPlaying: true,
     volume: 1,
-    stop: vi.fn(function stop() { this.isPlaying = false; }),
+    stop: vi.fn(function stop() {
+      this.isPlaying = false;
+    }),
     destroy: vi.fn(),
-    setVolume: vi.fn(function setVolume(v) { this.volume = v; }),
+    setVolume: vi.fn(function setVolume(v) {
+      this.volume = v;
+    }),
   };
 }
 
@@ -45,7 +49,10 @@ function createLoader(loaded, { autoComplete = true } = {}) {
     }),
     off: vi.fn((event, fn) => {
       const list = onListeners.get(event) || [];
-      onListeners.set(event, list.filter(cb => cb !== fn));
+      onListeners.set(
+        event,
+        list.filter((cb) => cb !== fn),
+      );
     }),
     audio: vi.fn((key) => {
       queuedKeys.push(key);
@@ -68,20 +75,26 @@ function makeSoundManager({ sounds = [], loadedKeys = [], autoCompleteLoader = t
   const scene = { load: loader, tweens: { add: vi.fn() } };
   const audioCache = {
     has: vi.fn((key) => loaded.has(key)),
-    add: vi.fn((key) => { loaded.add(key); }),
-    remove: vi.fn((key) => { loaded.delete(key); }),
+    add: vi.fn((key) => {
+      loaded.add(key);
+    }),
+    remove: vi.fn((key) => {
+      loaded.delete(key);
+    }),
   };
 
   return {
     locked: false,
     sounds,
     scene,
-    get: vi.fn((key) => sounds.find(s => s.key === key) || null),
+    get: vi.fn((key) => sounds.find((s) => s.key === key) || null),
     add: vi.fn((key, opts) => {
       const s = makeLoopingSound(key);
       s.loop = Boolean(opts?.loop);
       s.volume = opts?.volume ?? 1;
-      s.play = vi.fn(() => { s.isPlaying = true; });
+      s.play = vi.fn(() => {
+        s.isPlaying = true;
+      });
       sounds.push(s);
       return s;
     }),
@@ -136,7 +149,13 @@ describe('AudioManager', () => {
 
   it('stopMusic also clears looping tracks when currentMusic handle is missing', () => {
     const orphan = makeLoopingSound('music_explore_act3');
-    const oneShot = { key: 'sfx_heal', loop: false, isPlaying: true, stop: vi.fn(), destroy: vi.fn() };
+    const oneShot = {
+      key: 'sfx_heal',
+      loop: false,
+      isPlaying: true,
+      stop: vi.fn(),
+      destroy: vi.fn(),
+    };
     const sound = makeSoundManager({ sounds: [orphan, oneShot] });
     const audio = new AudioManager(sound);
 
@@ -153,7 +172,9 @@ describe('AudioManager', () => {
     const staleMusic = {
       key: 'music_explore_act1',
       isPlaying: true,
-      stop: vi.fn(function stop() { this.isPlaying = false; }),
+      stop: vi.fn(function stop() {
+        this.isPlaying = false;
+      }),
       destroy: vi.fn(),
     };
     Object.defineProperty(staleMusic, 'loop', {
@@ -244,7 +265,10 @@ describe('AudioManager', () => {
     expect(current.destroy.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(orphan.stop.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(orphan.destroy.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(sound.add).toHaveBeenCalledWith('music_battle_act2_1', expect.objectContaining({ loop: true }));
+    expect(sound.add).toHaveBeenCalledWith(
+      'music_battle_act2_1',
+      expect.objectContaining({ loop: true }),
+    );
     expect(audio.currentMusicKey).toBe('music_battle_act2_1');
   });
 
@@ -349,7 +373,10 @@ describe('AudioManager', () => {
       expect(fetchMock).toHaveBeenCalled();
       expect(sound.context.decodeAudioData).toHaveBeenCalled();
       expect(sound.game.cache.audio.add).toHaveBeenCalledWith('music_title', expect.any(Object));
-      expect(sound.add).toHaveBeenCalledWith('music_title', expect.objectContaining({ loop: true }));
+      expect(sound.add).toHaveBeenCalledWith(
+        'music_title',
+        expect.objectContaining({ loop: true }),
+      );
       expect(audio.currentMusicKey).toBe('music_title');
     } finally {
       globalThis.fetch = originalFetch;
@@ -399,7 +426,9 @@ describe('AudioManager', () => {
 
   it('setMusicVolume continues when one sound throws', () => {
     const bad = makeLoopingSound('music_title');
-    bad.setVolume = vi.fn(() => { throw new Error('destroyed'); });
+    bad.setVolume = vi.fn(() => {
+      throw new Error('destroyed');
+    });
     const good = makeLoopingSound('music_home_base');
     const sound = makeSoundManager({ sounds: [bad, good] });
     const audio = new AudioManager(sound);

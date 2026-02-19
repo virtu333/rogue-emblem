@@ -35,15 +35,14 @@ export function getMetaEffects(level, metaUpgrades = []) {
   const purchases = META_TIER_PURCHASES[level];
 
   for (const upgrade of econUpgrades) {
-    const buyLevel = purchases
-      ? (purchases[upgrade.id] || 0)
-      : Math.min(level, upgrade.maxLevel); // L3+: all maxed
+    const buyLevel = purchases ? purchases[upgrade.id] || 0 : Math.min(level, upgrade.maxLevel); // L3+: all maxed
     if (buyLevel <= 0) continue;
     const effect = upgrade.effects?.[buyLevel - 1];
     if (!effect) continue;
 
     if (effect.goldBonus !== undefined) effects.goldBonus = effect.goldBonus;
-    if (effect.battleGoldMultiplier !== undefined) effects.battleGoldMultiplier = effect.battleGoldMultiplier;
+    if (effect.battleGoldMultiplier !== undefined)
+      effects.battleGoldMultiplier = effect.battleGoldMultiplier;
     const lootBonus = effect.lootWeaponQualityBonus ?? effect.lootWeaponWeightBonus;
     if (lootBonus !== undefined) {
       const normalizedLootBonus = Number(lootBonus);
@@ -59,7 +58,8 @@ export function getMetaEffects(level, metaUpgrades = []) {
       for (const [key, rawValue] of Object.entries(effect.lootCategoryWeightBonuses)) {
         const value = Number(rawValue);
         if (!Number.isFinite(value) || value === 0) continue;
-        effects.lootCategoryWeightBonuses[key] = (effects.lootCategoryWeightBonuses[key] || 0) + value;
+        effects.lootCategoryWeightBonuses[key] =
+          (effects.lootCategoryWeightBonuses[key] || 0) + value;
       }
     }
   }

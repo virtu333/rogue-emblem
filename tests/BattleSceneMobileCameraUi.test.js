@@ -17,9 +17,15 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 
 function makeTextObject() {
   return {
-    setOrigin() { return this; },
-    setDepth() { return this; },
-    setAlpha() { return this; },
+    setOrigin() {
+      return this;
+    },
+    setDepth() {
+      return this;
+    },
+    setAlpha() {
+      return this;
+    },
     destroy: vi.fn(),
   };
 }
@@ -202,8 +208,14 @@ describe('BattleScene UI camera dirty tracking', () => {
 
     BattleScene.prototype._teardownBattleCameraSystem.call(scene);
 
-    expect(scene.events.off).toHaveBeenCalledWith(Phaser.Scenes.Events.ADDED_TO_SCENE, dirtyHandler);
-    expect(scene.events.off).toHaveBeenCalledWith(Phaser.Scenes.Events.REMOVED_FROM_SCENE, dirtyHandler);
+    expect(scene.events.off).toHaveBeenCalledWith(
+      Phaser.Scenes.Events.ADDED_TO_SCENE,
+      dirtyHandler,
+    );
+    expect(scene.events.off).toHaveBeenCalledWith(
+      Phaser.Scenes.Events.REMOVED_FROM_SCENE,
+      dirtyHandler,
+    );
     expect(scene.cameras.remove).toHaveBeenCalledWith(uiCamera);
     expect(battleCamera.destroy).toHaveBeenCalledTimes(1);
     expect(scene._displayListDirtyHandler).toBeNull();

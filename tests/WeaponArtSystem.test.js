@@ -48,27 +48,31 @@ describe('WeaponArtSystem', () => {
   });
 
   it('normalizes statScaling in combat mods', () => {
-    const mods = getWeaponArtCombatMods(makeArt({
-      combatMods: {
-        statScaling: { stat: 'skl', divisor: 2 },
-        activated: [{ id: 'weapon_art', name: 'Precise Cut' }],
-      },
-    }));
+    const mods = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: {
+          statScaling: { stat: 'skl', divisor: 2 },
+          activated: [{ id: 'weapon_art', name: 'Precise Cut' }],
+        },
+      }),
+    );
     expect(mods.statScaling).toEqual({ stat: 'SKL', divisor: 2 });
   });
 
   it('normalizes tactical-depth combat mod fields', () => {
-    const mods = getWeaponArtCombatMods(makeArt({
-      combatMods: {
-        preventCounter: true,
-        targetsRES: true,
-        effectiveness: { moveType: 'Flying', multiplier: 3 },
-        rangeBonus: 2,
-        rangeOverride: 2,
-        halfPhysicalDamage: true,
-        vengeance: true,
-      },
-    }));
+    const mods = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: {
+          preventCounter: true,
+          targetsRES: true,
+          effectiveness: { moveType: 'Flying', multiplier: 3 },
+          rangeBonus: 2,
+          rangeOverride: 2,
+          halfPhysicalDamage: true,
+          vengeance: true,
+        },
+      }),
+    );
     expect(mods.preventCounter).toBe(true);
     expect(mods.targetsRES).toBe(true);
     expect(mods.effectiveness).toEqual({ moveTypes: ['flying'], multiplier: 3 });
@@ -79,48 +83,64 @@ describe('WeaponArtSystem', () => {
   });
 
   it('normalizes multiHit in combat mods', () => {
-    const mods = getWeaponArtCombatMods(makeArt({
-      combatMods: {
-        multiHit: { count: 3, damageMultiplier: 0.5 },
-      },
-    }));
+    const mods = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: {
+          multiHit: { count: 3, damageMultiplier: 0.5 },
+        },
+      }),
+    );
     expect(mods.multiHit).toEqual({ count: 3, damageMultiplier: 0.5 });
   });
 
   it('normalizes drainPercent in combat mods', () => {
-    const mods = getWeaponArtCombatMods(makeArt({
-      combatMods: {
-        drainPercent: 0.3,
-      },
-    }));
+    const mods = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: {
+          drainPercent: 0.3,
+        },
+      }),
+    );
     expect(mods.drainPercent).toBe(0.3);
   });
 
   it('rejects invalid multiHit values in combat mods', () => {
-    const countTooLow = getWeaponArtCombatMods(makeArt({
-      combatMods: { multiHit: { count: 1, damageMultiplier: 0.5 } },
-    }));
-    const zeroMultiplier = getWeaponArtCombatMods(makeArt({
-      combatMods: { multiHit: { count: 3, damageMultiplier: 0 } },
-    }));
-    const nonObject = getWeaponArtCombatMods(makeArt({
-      combatMods: { multiHit: 3 },
-    }));
+    const countTooLow = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { multiHit: { count: 1, damageMultiplier: 0.5 } },
+      }),
+    );
+    const zeroMultiplier = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { multiHit: { count: 3, damageMultiplier: 0 } },
+      }),
+    );
+    const nonObject = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { multiHit: 3 },
+      }),
+    );
     expect(countTooLow.multiHit).toBeNull();
     expect(zeroMultiplier.multiHit).toBeNull();
     expect(nonObject.multiHit).toBeNull();
   });
 
   it('rejects invalid drainPercent values in combat mods', () => {
-    const zero = getWeaponArtCombatMods(makeArt({
-      combatMods: { drainPercent: 0 },
-    }));
-    const negative = getWeaponArtCombatMods(makeArt({
-      combatMods: { drainPercent: -0.3 },
-    }));
-    const nan = getWeaponArtCombatMods(makeArt({
-      combatMods: { drainPercent: Number.NaN },
-    }));
+    const zero = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { drainPercent: 0 },
+      }),
+    );
+    const negative = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { drainPercent: -0.3 },
+      }),
+    );
+    const nan = getWeaponArtCombatMods(
+      makeArt({
+        combatMods: { drainPercent: Number.NaN },
+      }),
+    );
     expect(zero.drainPercent).toBeNull();
     expect(negative.drainPercent).toBeNull();
     expect(nan.drainPercent).toBeNull();
@@ -238,10 +258,12 @@ describe('WeaponArtSystem', () => {
     const unit = makeUnit({ faction: 'player' });
     const weapon = { type: 'Sword' };
 
-    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedOwners: { bad: true } })).reason)
-      .toBe('invalid_owner_scope_config');
-    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedFactions: ['players'] })).reason)
-      .toBe('invalid_faction_config');
+    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedOwners: { bad: true } })).reason).toBe(
+      'invalid_owner_scope_config',
+    );
+    expect(canUseWeaponArt(unit, weapon, makeArt({ allowedFactions: ['players'] })).reason).toBe(
+      'invalid_faction_config',
+    );
   });
 
   it('rejects malformed unlockAct config', () => {
@@ -266,14 +288,23 @@ describe('WeaponArtSystem', () => {
   });
 
   it('applies AI-specific guardrails when context.isAI is true', () => {
-    const unit = makeUnit({ faction: 'enemy', currentHP: 10, stats: { ...makeUnit().stats, HP: 20 } });
+    const unit = makeUnit({
+      faction: 'enemy',
+      currentHP: 10,
+      stats: { ...makeUnit().stats, HP: 20 },
+    });
     const weapon = { type: 'Sword' };
 
     const disabled = canUseWeaponArt(unit, weapon, makeArt({ aiEnabled: false }), { isAI: true });
     expect(disabled.ok).toBe(false);
     expect(disabled.reason).toBe('ai_disabled');
 
-    const disabledZeroCost = canUseWeaponArt(unit, weapon, makeArt({ hpCost: 0, aiEnabled: false }), { isAI: true });
+    const disabledZeroCost = canUseWeaponArt(
+      unit,
+      weapon,
+      makeArt({ hpCost: 0, aiEnabled: false }),
+      { isAI: true },
+    );
     expect(disabledZeroCost.ok).toBe(false);
     expect(disabledZeroCost.reason).toBe('ai_disabled');
 
@@ -281,7 +312,7 @@ describe('WeaponArtSystem', () => {
       makeUnit({ faction: 'enemy', currentHP: 6, stats: { ...makeUnit().stats, HP: 20 } }),
       weapon,
       makeArt({ hpCost: 2 }),
-      { isAI: true }
+      { isAI: true },
     );
     expect(defaultFloorBlocked.ok).toBe(false);
     expect(defaultFloorBlocked.reason).toBe('ai_hp_floor');
@@ -290,7 +321,7 @@ describe('WeaponArtSystem', () => {
       unit,
       weapon,
       makeArt({ hpCost: 3, aiMinHpAfterCostPercent: 0.5 }),
-      { isAI: true }
+      { isAI: true },
     );
     expect(floorBlocked.ok).toBe(false);
     expect(floorBlocked.reason).toBe('ai_hp_floor');

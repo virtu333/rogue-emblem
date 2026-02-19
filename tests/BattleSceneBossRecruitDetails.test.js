@@ -32,16 +32,37 @@ function makeDisplayObject(seed = {}) {
     list: null,
     ...seed,
     handlers: {},
-    setOrigin(x = 0, y = x) { this.originX = x; this.originY = y; return this; },
-    setDepth(depth) { this.depth = depth; return this; },
-    setInteractive() { this.interactive = true; return this; },
-    setStrokeStyle() { return this; },
-    setPosition(x, y) { this.x = x; this.y = y; return this; },
-    setScrollFactor() { return this; },
-    on(event, cb) { this.handlers[event] = cb; return this; },
+    setOrigin(x = 0, y = x) {
+      this.originX = x;
+      this.originY = y;
+      return this;
+    },
+    setDepth(depth) {
+      this.depth = depth;
+      return this;
+    },
+    setInteractive() {
+      this.interactive = true;
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setPosition(x, y) {
+      this.x = x;
+      this.y = y;
+      return this;
+    },
+    setScrollFactor() {
+      return this;
+    },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
     getBounds() {
-      const left = this.x - (this.width * this.originX);
-      const top = this.y - (this.height * this.originY);
+      const left = this.x - this.width * this.originX;
+      const top = this.y - this.height * this.originY;
       return {
         left,
         top,
@@ -102,7 +123,10 @@ function makeScene(textCalls) {
   };
   scene.gameData = {
     classes: [
-      { name: 'Wyvern Rider', description: 'A flying juggernaut — tough and strong in the air, but magic cuts deep.' },
+      {
+        name: 'Wyvern Rider',
+        description: 'A flying juggernaut — tough and strong in the air, but magic cuts deep.',
+      },
     ],
   };
   return scene;

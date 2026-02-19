@@ -30,7 +30,7 @@ export class TurnManager {
     unit.hasActed = true;
 
     // Check if all player units have acted
-    const allActed = this.playerUnits.every(u => u.hasActed);
+    const allActed = this.playerUnits.every((u) => u.hasActed);
     if (allActed) {
       this.endPlayerPhase();
     }
@@ -64,7 +64,7 @@ export class TurnManager {
 
   getAvailableUnits(faction) {
     const units = faction === 'player' ? this.playerUnits : this.enemyUnits;
-    return units.filter(u => !u.hasActed);
+    return units.filter((u) => !u.hasActed);
   }
 
   _checkBattleEnd() {

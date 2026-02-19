@@ -51,9 +51,11 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Create RunManager — not committed until we transition to NodeMap
     const meta = this.registry.get('meta');
-    const metaEffects = meta ? meta.getActiveEffects({
-      weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
-    }) : null;
+    const metaEffects = meta
+      ? meta.getActiveEffects({
+          weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+        })
+      : null;
     this.runManager = new RunManager(this.gameData, metaEffects);
     this.runManager.startRun({ difficultyId: this.difficultyId, applyBlessingsAtStart: false });
 
@@ -98,10 +100,15 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void transitionToScene(this, 'NodeMap', {
-      gameData: this.gameData,
-      runManager: this.runManager,
-    }, { reason: TRANSITION_REASONS.BEGIN_RUN });
+    void transitionToScene(
+      this,
+      'NodeMap',
+      {
+        gameData: this.gameData,
+        runManager: this.runManager,
+      },
+      { reason: TRANSITION_REASONS.BEGIN_RUN },
+    );
   }
 
   _back() {
@@ -109,7 +116,12 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.runManager = null;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void transitionToScene(this, 'DifficultySelect', { gameData: this.gameData }, { reason: TRANSITION_REASONS.BACK });
+    void transitionToScene(
+      this,
+      'DifficultySelect',
+      { gameData: this.gameData },
+      { reason: TRANSITION_REASONS.BACK },
+    );
   }
 
   _draw() {
@@ -127,21 +139,28 @@ export class BlessingSelectScene extends Phaser.Scene {
     const panelH = Math.min(410, h - 60);
     const panelTop = (h - panelH) / 2;
     const panelBottom = panelTop + panelH;
-    this.add.rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96)
-      .setStrokeStyle(2, 0xffdd44, 0.9);
+    this.add.rectangle(cx, h / 2, panelW, panelH, 0x0e1322, 0.96).setStrokeStyle(2, 0xffdd44, 0.9);
 
     // Header
     const headerY = panelTop + 24;
-    this.add.rectangle(cx, headerY, panelW - 24, 30, 0x1a2138)
-      .setStrokeStyle(1, 0x3d4a77);
-    this.add.text(cx, headerY, 'Shrine Blessing', {
-      fontFamily: 'monospace', fontSize: '17px', color: '#ffdd44', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    this.add.rectangle(cx, headerY, panelW - 24, 30, 0x1a2138).setStrokeStyle(1, 0x3d4a77);
+    this.add
+      .text(cx, headerY, 'Shrine Blessing', {
+        fontFamily: 'monospace',
+        fontSize: '17px',
+        color: '#ffdd44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
 
     const subtitleY = panelTop + 52;
-    this.add.text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#b7bfd9',
-    }).setOrigin(0.5);
+    this.add
+      .text(cx, subtitleY, 'Select one blessing to shape this run. Or skip for a neutral start.', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#b7bfd9',
+      })
+      .setOrigin(0.5);
 
     const dividerY = panelTop + 68;
     this.add.rectangle(cx, dividerY, panelW - 28, 1, 0x364166);
@@ -153,8 +172,11 @@ export class BlessingSelectScene extends Phaser.Scene {
     const cardsBottom = skipY - 18;
     const cardGap = 10;
     const slotCount = Math.max(this.options.length, 1);
-    const cardH = Math.min(86, Math.max(68, Math.floor((cardsBottom - cardsTop - (cardGap * (slotCount - 1))) / slotCount)));
-    const totalCardsH = (cardH * slotCount) + (cardGap * (slotCount - 1));
+    const cardH = Math.min(
+      86,
+      Math.max(68, Math.floor((cardsBottom - cardsTop - cardGap * (slotCount - 1)) / slotCount)),
+    );
+    const totalCardsH = cardH * slotCount + cardGap * (slotCount - 1);
     let y = cardsTop + Math.floor((cardsBottom - cardsTop - totalCardsH) / 2);
 
     for (let i = 0; i < this.options.length; i++) {
@@ -163,7 +185,8 @@ export class BlessingSelectScene extends Phaser.Scene {
       const tierStyle = TIER_COLORS[blessing.tier] || TIER_COLORS[1];
       const cardCY = y + cardH / 2;
 
-      const card = this.add.rectangle(cx, cardCY, cardW, cardH, tierStyle.bg)
+      const card = this.add
+        .rectangle(cx, cardCY, cardW, cardH, tierStyle.bg)
         .setStrokeStyle(isSelected ? 2 : 1, isSelected ? 0xffdd44 : tierStyle.border);
 
       card.setInteractive({ useHandCursor: true });
@@ -172,27 +195,38 @@ export class BlessingSelectScene extends Phaser.Scene {
         this._draw();
       });
 
-      const left = cx - (cardW / 2) + 12;
-      const right = cx + (cardW / 2) - 12;
+      const left = cx - cardW / 2 + 12;
+      const right = cx + cardW / 2 - 12;
       const row1Y = y + 10;
 
       // Tier badge
       this.add.text(left, row1Y, `T${blessing.tier}`, {
-        fontFamily: 'monospace', fontSize: '10px', color: '#0b101f',
-        backgroundColor: tierStyle.label, padding: { x: 5, y: 2 }, fontStyle: 'bold',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#0b101f',
+        backgroundColor: tierStyle.label,
+        padding: { x: 5, y: 2 },
+        fontStyle: 'bold',
       });
 
       // Name
       const nameX = left + 38;
       this.add.text(nameX, row1Y + 1, blessing.name, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#edf1ff', fontStyle: 'bold',
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#edf1ff',
+        fontStyle: 'bold',
       });
 
       // Description
       const descWrapWidth = Math.max(150, cardW - 38 - 80);
-      const hasCostLine = typeof blessing?.rolledCost?.label === 'string' && blessing.rolledCost.label.trim().length > 0;
+      const hasCostLine =
+        typeof blessing?.rolledCost?.label === 'string' &&
+        blessing.rolledCost.label.trim().length > 0;
       const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
-        fontFamily: 'monospace', fontSize: '10px', color: '#aeb8dc',
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#aeb8dc',
         wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
       });
       // Truncate if too tall
@@ -213,12 +247,16 @@ export class BlessingSelectScene extends Phaser.Scene {
       }
 
       // Select button
-      const pickBtn = this.add.text(right, cardCY, isSelected ? '\u25b6 Selected' : '[Select]', {
-        fontFamily: 'monospace', fontSize: '11px',
-        color: isSelected ? '#ffdd44' : '#cbffd5',
-        backgroundColor: isSelected ? '#2f5d39' : '#21442a',
-        padding: { x: 8, y: 4 },
-      }).setOrigin(1, 0.5).setInteractive({ useHandCursor: true });
+      const pickBtn = this.add
+        .text(right, cardCY, isSelected ? '\u25b6 Selected' : '[Select]', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: isSelected ? '#ffdd44' : '#cbffd5',
+          backgroundColor: isSelected ? '#2f5d39' : '#21442a',
+          padding: { x: 8, y: 4 },
+        })
+        .setOrigin(1, 0.5)
+        .setInteractive({ useHandCursor: true });
 
       pickBtn.on('pointerover', () => {
         pickBtn.setColor('#ffdd44');
@@ -240,12 +278,16 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Skip option
     const isSkipSelected = this.selectedIndex >= this.options.length;
-    const skipBtn = this.add.text(cx, skipY, isSkipSelected ? '\u25b6 Skip Blessing (Selected)' : '[Skip Blessing]', {
-      fontFamily: 'monospace', fontSize: '12px',
-      color: isSkipSelected ? '#ffdd44' : '#d7dbe8',
-      backgroundColor: isSkipSelected ? '#3a4053' : '#2a2f3f',
-      padding: { x: 10, y: 4 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const skipBtn = this.add
+      .text(cx, skipY, isSkipSelected ? '\u25b6 Skip Blessing (Selected)' : '[Skip Blessing]', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: isSkipSelected ? '#ffdd44' : '#d7dbe8',
+        backgroundColor: isSkipSelected ? '#3a4053' : '#2a2f3f',
+        padding: { x: 10, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     skipBtn.on('pointerover', () => skipBtn.setColor('#ffdd44'));
     skipBtn.on('pointerout', () => {
       if (!isSkipSelected) skipBtn.setColor('#d7dbe8');
@@ -257,21 +299,32 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Bottom buttons
     const bottomY = panelBottom - 30;
-    const confirmBtn = this.add.text(cx - 80, bottomY, '[ Confirm ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#88ff88',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const confirmBtn = this.add
+      .text(cx - 80, bottomY, '[ Confirm ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#88ff88',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     confirmBtn.on('pointerover', () => confirmBtn.setColor('#ffdd44'));
     confirmBtn.on('pointerout', () => confirmBtn.setColor('#88ff88'));
     confirmBtn.on('pointerdown', () => this._confirm());
 
-    const backBtn = this.add.text(cx + 80, bottomY, '[ Back ]', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#e0e0e0',
-      backgroundColor: '#000000aa', padding: { x: 14, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const backBtn = this.add
+      .text(cx + 80, bottomY, '[ Back ]', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#e0e0e0',
+        backgroundColor: '#000000aa',
+        padding: { x: 14, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', () => this._back());
-
   }
 }

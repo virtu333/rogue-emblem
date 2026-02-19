@@ -48,9 +48,10 @@ function getDueTurnSearchUpperBound(battle) {
     ? battle.difficultyModel.reinforcementTurnOffset
     : 0;
   const turnJitter = battle?.battleConfig?.reinforcements?.turnJitter;
-  const maxJitter = (Array.isArray(turnJitter) && turnJitter.length === 2 && Number.isInteger(turnJitter[1]))
-    ? turnJitter[1]
-    : 0;
+  const maxJitter =
+    Array.isArray(turnJitter) && turnJitter.length === 2 && Number.isInteger(turnJitter[1])
+      ? turnJitter[1]
+      : 0;
 
   return Math.max(1, maxWaveTurn + reinforcementTurnOffset + maxJitter + 5);
 }
@@ -92,8 +93,8 @@ describe('HeadlessBattle', () => {
     battle.init();
     // Fallback lords: should have 2 (Edric + Sera)
     expect(battle.playerUnits.length).toBe(2);
-    expect(battle.playerUnits.some(u => u.name === 'Edric')).toBe(true);
-    expect(battle.playerUnits.some(u => u.name === 'Sera')).toBe(true);
+    expect(battle.playerUnits.some((u) => u.name === 'Edric')).toBe(true);
+    expect(battle.playerUnits.some((u) => u.name === 'Sera')).toBe(true);
   });
 
   it('init resets reinforcement caches when reusing the same battle instance', () => {
@@ -108,7 +109,12 @@ describe('HeadlessBattle', () => {
     battle.reinforcementTemplatePool = [{ className: '__stale__', level: 1 }];
     battle.lastReinforcementSchedule = { spawns: [{ col: 0, row: 0 }] };
     battle.appliedHybridOverrideTurns = new Set([2]);
-    battle.lastHybridOverrideResult = { turn: 2, dueOverrides: 1, appliedOverrides: 1, changedTiles: 1 };
+    battle.lastHybridOverrideResult = {
+      turn: 2,
+      dueOverrides: 1,
+      appliedOverrides: 1,
+      changedTiles: 1,
+    };
 
     battle.init();
 
@@ -169,7 +175,7 @@ describe('HeadlessBattle', () => {
 
     // Find a reachable tile
     const keys = [...battle.movementRange.keys()];
-    const target = keys.find(k => k !== `${origCol},${origRow}`);
+    const target = keys.find((k) => k !== `${origCol},${origRow}`);
     if (target) {
       const [col, row] = target.split(',').map(Number);
       battle.moveTo(col, row);
@@ -193,7 +199,7 @@ describe('HeadlessBattle', () => {
     // Move in place
     battle.moveTo(battle.selectedUnit.col, battle.selectedUnit.row);
     const actions = battle.getAvailableActions();
-    expect(actions.some(a => a.label === 'Wait')).toBe(true);
+    expect(actions.some((a) => a.label === 'Wait')).toBe(true);
   });
 
   it('getAvailableActions marks deferred actions as unsupported', () => {
@@ -202,10 +208,12 @@ describe('HeadlessBattle', () => {
     battle.selectUnit('Edric');
     battle.moveTo(battle.selectedUnit.col, battle.selectedUnit.row);
     const actions = battle.getAvailableActions();
-    const unsupported = actions.filter(a => !a.supported);
+    const unsupported = actions.filter((a) => !a.supported);
     // All unsupported actions should have known labels
     for (const a of unsupported) {
-      expect(['Equip', 'Promote', 'Item', 'Shove', 'Pull', 'Trade', 'Swap', 'Dance']).toContain(a.label);
+      expect(['Equip', 'Promote', 'Item', 'Shove', 'Pull', 'Trade', 'Swap', 'Dance']).toContain(
+        a.label,
+      );
     }
   });
 
@@ -216,7 +224,7 @@ describe('HeadlessBattle', () => {
     battle.moveTo(battle.selectedUnit.col, battle.selectedUnit.row);
     battle.chooseAction('Wait');
     expect(battle.battleState).toBe(HEADLESS_STATES.PLAYER_IDLE);
-    expect(battle.playerUnits.find(u => u.name === 'Edric').hasActed).toBe(true);
+    expect(battle.playerUnits.find((u) => u.name === 'Edric').hasActed).toBe(true);
   });
 
   it('chooseAction throws for unsupported action', () => {
@@ -235,7 +243,7 @@ describe('HeadlessBattle', () => {
     const origRow = battle.selectedUnit.row;
 
     const keys = [...battle.movementRange.keys()];
-    const target = keys.find(k => k !== `${origCol},${origRow}`);
+    const target = keys.find((k) => k !== `${origCol},${origRow}`);
     if (target) {
       const [col, row] = target.split(',').map(Number);
       battle.moveTo(col, row);
@@ -256,18 +264,23 @@ describe('HeadlessBattle', () => {
 
     battle.moveTo(edric.col, edric.row);
     let actions = battle.getAvailableActions();
-    expect(actions.some(a => a.label === 'Promote')).toBe(false);
+    expect(actions.some((a) => a.label === 'Promote')).toBe(false);
 
-    const seal = gameData.consumables.find(c => c.name === 'Master Seal');
+    const seal = gameData.consumables.find((c) => c.name === 'Master Seal');
     expect(seal).toBeTruthy();
     edric.consumables.push(structuredClone(seal));
 
     actions = battle.getAvailableActions();
-    expect(actions.some(a => a.label === 'Promote')).toBe(true);
+    expect(actions.some((a) => a.label === 'Promote')).toBe(true);
   });
 
   it('undoMove on fog maps reverts revealed tiles to pre-move visibility', () => {
-    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2, fogEnabled: true });
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act1',
+      objective: 'rout',
+      row: 2,
+      fogEnabled: true,
+    });
     battle.init();
     battle.selectUnit('Edric');
 
@@ -379,7 +392,9 @@ describe('HeadlessBattle', () => {
     battle.init();
 
     const occupied = new Set(
-      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map((unit) => `${unit.col},${unit.row}`)
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map(
+        (unit) => `${unit.col},${unit.row}`,
+      ),
     );
     let spawnTile = null;
     for (let row = 0; row < battle.battleConfig.rows && !spawnTile; row++) {
@@ -402,14 +417,16 @@ describe('HeadlessBattle', () => {
         {
           turn: 1,
           xpMultiplier: 0.5,
-          spawns: [{
-            col: spawnTile.col,
-            row: spawnTile.row,
-            className: 'Fighter',
-            level: 7,
-            aiMode: 'guard',
-            affixes: ['scripted_affix'],
-          }],
+          spawns: [
+            {
+              col: spawnTile.col,
+              row: spawnTile.row,
+              className: 'Fighter',
+              level: 7,
+              aiMode: 'guard',
+              affixes: ['scripted_affix'],
+            },
+          ],
         },
       ],
       difficultyScaling: true,
@@ -421,17 +438,21 @@ describe('HeadlessBattle', () => {
     const schedule = battle._applyReinforcementsForTurn(1);
 
     expect(schedule.spawned).toBe(1);
-    expect(schedule.spawns[0]).toEqual(expect.objectContaining({
-      waveType: 'scripted',
-      className: 'Fighter',
-      level: 7,
-      col: spawnTile.col,
-      row: spawnTile.row,
-      xpMultiplier: 0.5,
-    }));
+    expect(schedule.spawns[0]).toEqual(
+      expect.objectContaining({
+        waveType: 'scripted',
+        className: 'Fighter',
+        level: 7,
+        col: spawnTile.col,
+        row: spawnTile.row,
+        xpMultiplier: 0.5,
+      }),
+    );
     expect(battle.enemyUnits.length).toBe(before + 1);
 
-    const spawned = battle.enemyUnits.find((unit) => unit.col === spawnTile.col && unit.row === spawnTile.row);
+    const spawned = battle.enemyUnits.find(
+      (unit) => unit.col === spawnTile.col && unit.row === spawnTile.row,
+    );
     expect(spawned).toBeTruthy();
     expect(spawned.className).toBe('Fighter');
     expect(spawned.level).toBe(7);
@@ -501,7 +522,9 @@ describe('HeadlessBattle', () => {
       const traceB = collectDueTrace(battleB);
 
       expect(traceA.length).toBeGreaterThan(0);
-      expect(traceA.every((entry) => entry.dueWaves.every((wave) => wave.waveType === 'scripted'))).toBe(true);
+      expect(
+        traceA.every((entry) => entry.dueWaves.every((wave) => wave.waveType === 'scripted')),
+      ).toBe(true);
       expect(traceA).toEqual(traceB);
     }
   });
@@ -519,7 +542,9 @@ describe('HeadlessBattle', () => {
     battle.aiController.processEnemyPhase = async () => {};
 
     const occupied = new Set(
-      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map((unit) => `${unit.col},${unit.row}`)
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map(
+        (unit) => `${unit.col},${unit.row}`,
+      ),
     );
     const passable = [];
     for (let row = 0; row < battle.battleConfig.rows; row++) {
@@ -612,14 +637,16 @@ describe('HeadlessBattle', () => {
         const turn = wave.turn;
         battle._applyDueHybridOverridesForTurn(turn);
         const schedule = battle._resolveReinforcementsForTurn(turn);
-        const due = (schedule.dueWaves || []).find((entry) => entry.waveType === 'scripted' && entry.waveIndex === waveIndex);
+        const due = (schedule.dueWaves || []).find(
+          (entry) => entry.waveType === 'scripted' && entry.waveIndex === waveIndex,
+        );
         expect(due).toBeTruthy();
         if (due) {
           expect(due.spawnedCount).toBeGreaterThanOrEqual(1);
         }
         if (scenario.templateId === ACT4_BOSS_INTENT_TEMPLATE_ID) {
-          const spawnedForWave = (schedule.spawns || []).filter((spawn) =>
-            spawn.waveType === 'scripted' && spawn.waveIndex === waveIndex
+          const spawnedForWave = (schedule.spawns || []).filter(
+            (spawn) => spawn.waveType === 'scripted' && spawn.waveIndex === waveIndex,
           );
           if (spawnedForWave.some((spawn) => spawn.col < halfCol)) {
             hasPlayerHalfSpawnOpportunity = true;
@@ -641,23 +668,28 @@ describe('HeadlessBattle', () => {
       difficultyMod: 1.0,
     });
     battle.init();
-    battle.reinforcementTemplatePool = [{
-      className: 'Fighter',
-      level: 3,
-      sunderWeapon: false,
-      poisonWeapon: false,
-      aiMode: 'rush',
-      affixes: ['template_affix'],
-    }];
+    battle.reinforcementTemplatePool = [
+      {
+        className: 'Fighter',
+        level: 3,
+        sunderWeapon: false,
+        poisonWeapon: false,
+        aiMode: 'rush',
+        affixes: ['template_affix'],
+      },
+    ];
 
-    const spec = battle._buildReinforcementSpawnSpec({
-      col: 1,
-      row: 1,
-      level: 9,
-      sunderWeapon: true,
-      aiMode: 'guard',
-      affixes: ['scripted_affix'],
-    }, 0);
+    const spec = battle._buildReinforcementSpawnSpec(
+      {
+        col: 1,
+        row: 1,
+        level: 9,
+        sunderWeapon: true,
+        aiMode: 'guard',
+        affixes: ['scripted_affix'],
+      },
+      0,
+    );
 
     expect(spec).toEqual({
       className: 'Fighter',
@@ -755,8 +787,8 @@ describe('GameDriver', () => {
     const driver = new GameDriver(gameData, { act: 'act1', objective: 'rout', row: 2 });
     driver.init();
     const actions = driver.listLegalActions();
-    expect(actions.some(a => a.type === 'select_unit')).toBe(true);
-    expect(actions.some(a => a.type === 'end_turn')).toBe(true);
+    expect(actions.some((a) => a.type === 'select_unit')).toBe(true);
+    expect(actions.some((a) => a.type === 'end_turn')).toBe(true);
   });
 
   it('snapshot returns valid state', () => {
@@ -857,9 +889,7 @@ describe('Fixture roster building', () => {
     const fixture = loadFixture('healer_heavy');
     const roster = fixture.buildRoster(gameData);
     expect(roster).not.toBeNull();
-    const staffCount = roster.filter(u =>
-      u.inventory.some(w => w.type === 'Staff')
-    ).length;
+    const staffCount = roster.filter((u) => u.inventory.some((w) => w.type === 'Staff')).length;
     expect(staffCount).toBeGreaterThanOrEqual(2);
   });
 
@@ -875,9 +905,30 @@ describe('NPC Divine Charge routing', () => {
 
   it('_getDivineChargeAllies routes NPC to player+npc pool, not enemies', () => {
     const battle = new HeadlessBattle(gd, { act: 'act1', objective: 'rout' });
-    const playerUnit = { name: 'Player1', faction: 'player', currentHP: 20, stats: { HP: 30 }, col: 0, row: 0 };
-    const npcUnit = { name: 'NpcRowan', faction: 'npc', currentHP: 15, stats: { HP: 25 }, col: 1, row: 0 };
-    const enemyUnit = { name: 'Enemy1', faction: 'enemy', currentHP: 20, stats: { HP: 25 }, col: 3, row: 0 };
+    const playerUnit = {
+      name: 'Player1',
+      faction: 'player',
+      currentHP: 20,
+      stats: { HP: 30 },
+      col: 0,
+      row: 0,
+    };
+    const npcUnit = {
+      name: 'NpcRowan',
+      faction: 'npc',
+      currentHP: 15,
+      stats: { HP: 25 },
+      col: 1,
+      row: 0,
+    };
+    const enemyUnit = {
+      name: 'Enemy1',
+      faction: 'enemy',
+      currentHP: 20,
+      stats: { HP: 25 },
+      col: 3,
+      row: 0,
+    };
     battle.playerUnits = [playerUnit];
     battle.npcUnits = [npcUnit];
     battle.enemyUnits = [enemyUnit];
@@ -907,7 +958,9 @@ describe('ScenarioRunner RNG safety', () => {
     const origRandom = Math.random;
     const fixture = loadFixture('act1_rout_basic');
     const brokenAgent = () => ({
-      chooseAction: () => { throw new Error('broken agent'); },
+      chooseAction: () => {
+        throw new Error('broken agent');
+      },
     });
     const runner = new ScenarioRunner(99, fixture, brokenAgent);
     const replay = await runner.run(10);

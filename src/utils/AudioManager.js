@@ -77,7 +77,10 @@ export class AudioManager {
       this._touchMusicCacheKey(key);
       this._enforceMusicCacheBudget({ preserveKeys: [key] });
 
-      this.currentMusic = this.sound.add(key, { loop: true, volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume) });
+      this.currentMusic = this.sound.add(key, {
+        loop: true,
+        volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume),
+      });
       this.currentMusicKey = key;
       this.currentMusicOwner = owner;
       this._trackMusicSound(this.currentMusic);
@@ -126,10 +129,10 @@ export class AudioManager {
 
   _canUseWebAudioFetchDecode() {
     return Boolean(
-      this.sound?.context
-      && this.sound?.game?.cache?.audio
-      && typeof this.sound.game.cache.audio.add === 'function'
-      && typeof fetch === 'function',
+      this.sound?.context &&
+      this.sound?.game?.cache?.audio &&
+      typeof this.sound.game.cache.audio.add === 'function' &&
+      typeof fetch === 'function',
     );
   }
 
@@ -146,7 +149,9 @@ export class AudioManager {
     for (const src of sources) {
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const timeoutHandle = setTimeout(() => {
-        try { controller?.abort(); } catch (_) {}
+        try {
+          controller?.abort();
+        } catch (_) {}
       }, timeoutMs);
       try {
         const response = await fetch(src, { signal: controller?.signal });
@@ -202,9 +207,15 @@ export class AudioManager {
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timeoutHandle);
-        try { loader.off(completeEvent, onFileComplete); } catch (_) {}
-        try { loader.off('loaderror', onLoadError); } catch (_) {}
-        try { if (scene?.events) scene.events.off('shutdown', onSceneShutdown); } catch (_) {}
+        try {
+          loader.off(completeEvent, onFileComplete);
+        } catch (_) {}
+        try {
+          loader.off('loaderror', onLoadError);
+        } catch (_) {}
+        try {
+          if (scene?.events) scene.events.off('shutdown', onSceneShutdown);
+        } catch (_) {}
       };
       const onFileComplete = () => {
         this._markMusicCached(key);
@@ -226,9 +237,8 @@ export class AudioManager {
       if (scene?.events) scene.events.once('shutdown', onSceneShutdown);
       loader.audio(key, this._getMusicSources(key));
 
-      const currentlyLoading = typeof loader.isLoading === 'function'
-        ? loader.isLoading()
-        : Boolean(loader.isLoading);
+      const currentlyLoading =
+        typeof loader.isLoading === 'function' ? loader.isLoading() : Boolean(loader.isLoading);
       if (!currentlyLoading) loader.start();
     });
   }
@@ -273,7 +283,10 @@ export class AudioManager {
     this._musicRequestSeq += 1;
     const looping = this._getLoopingMusicSounds();
     if (this.debugMusic && looping.length > 1) {
-      console.warn('[AudioManager] overlapping looping tracks detected:', looping.map(s => s.key));
+      console.warn(
+        '[AudioManager] overlapping looping tracks detected:',
+        looping.map((s) => s.key),
+      );
     }
     for (const sound of looping) {
       this._stopSound(sound, scene, fadeMs);
@@ -285,7 +298,7 @@ export class AudioManager {
 
   /** Return active looping music keys for diagnostics. */
   getActiveMusicKeys() {
-    return this._getLoopingMusicSounds().map(s => s.key);
+    return this._getLoopingMusicSounds().map((s) => s.key);
   }
 
   _getLoopingMusicSounds() {
@@ -295,10 +308,10 @@ export class AudioManager {
     return Array.from(uniqueSounds).filter((s) => {
       if (!s) return false;
       const isDestroyed = Boolean(
-        this._safeRead(s, 'pendingDestroy')
-        || this._safeRead(s, 'pendingRemove')
-        || this._safeRead(s, '_destroyed')
-        || this._safeRead(s, 'destroyed'),
+        this._safeRead(s, 'pendingDestroy') ||
+        this._safeRead(s, 'pendingRemove') ||
+        this._safeRead(s, '_destroyed') ||
+        this._safeRead(s, 'destroyed'),
       );
       if (isDestroyed) {
         if (this._trackedMusicSounds) this._trackedMusicSounds.delete(s);
@@ -310,7 +323,9 @@ export class AudioManager {
       // report them as active; this lets stopAllMusic clean up stale
       // instances that can otherwise overlap after scene transitions.
       if (this._isMusicKey(key)) return true;
-      const isLooping = Boolean(this._safeRead(s, 'loop') || this._safeRead(this._safeRead(s, 'config'), 'loop'));
+      const isLooping = Boolean(
+        this._safeRead(s, 'loop') || this._safeRead(this._safeRead(s, 'config'), 'loop'),
+      );
       const isActive = Boolean(this._safeRead(s, 'isPlaying') || this._safeRead(s, 'isPaused'));
       const matchesCurrent = s === this.currentMusic || key === this.currentMusicKey;
       return isActive && (isLooping || matchesCurrent);
@@ -396,8 +411,9 @@ export class AudioManager {
     if (!ownerOrScene) return null;
     if (typeof ownerOrScene === 'string') return ownerOrScene;
     const sceneObj = this._safeRead(ownerOrScene, 'scene');
-    const key = this._safeRead(sceneObj, 'key')
-      || this._safeRead(this._safeRead(ownerOrScene, 'sys'), 'settings')?.key;
+    const key =
+      this._safeRead(sceneObj, 'key') ||
+      this._safeRead(this._safeRead(ownerOrScene, 'sys'), 'settings')?.key;
     return typeof key === 'string' ? key : null;
   }
 
@@ -432,30 +448,32 @@ export class AudioManager {
         if (fadeCompleted) return;
         fadeCompleted = true;
         if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
-        try { sound.stop(); } catch (_) {}
-        try { sound.destroy(); } catch (_) {}
+        try {
+          sound.stop();
+        } catch (_) {}
+        try {
+          sound.destroy();
+        } catch (_) {}
       };
-      this._tweenSoundVolume(
-        scene,
-        sound,
-        startVolume,
-        0,
-        fadeMs,
-        cleanup,
-      );
+      this._tweenSoundVolume(scene, sound, startVolume, 0, fadeMs, cleanup);
       // Safety net: force-destroy if tween's onComplete never fires (e.g. scene destroyed mid-fade)
       setTimeout(cleanup, fadeMs + 500);
       return;
     }
     if (this._trackedMusicSounds) this._trackedMusicSounds.delete(sound);
-    try { sound.stop(); } catch (_) {}
-    try { sound.destroy(); } catch (_) {}
+    try {
+      sound.stop();
+    } catch (_) {}
+    try {
+      sound.destroy();
+    } catch (_) {}
   }
 
   _readSoundVolume(sound) {
     try {
       if (typeof sound.volume === 'number' && Number.isFinite(sound.volume)) return sound.volume;
-      if (typeof sound.config?.volume === 'number' && Number.isFinite(sound.config.volume)) return sound.config.volume;
+      if (typeof sound.config?.volume === 'number' && Number.isFinite(sound.config.volume))
+        return sound.config.volume;
     } catch (_) {}
     return 1;
   }
@@ -477,7 +495,9 @@ export class AudioManager {
     this._killSoundTweens(scene, sound);
     const proxy = { value: from };
     sound.__audioFadeProxy = proxy;
-    try { sound.setVolume(from); } catch (_) {}
+    try {
+      sound.setVolume(from);
+    } catch (_) {}
     scene.tweens.add({
       targets: proxy,
       value: to,

@@ -26,7 +26,9 @@ describe('weapon arts data guards', () => {
     expect(longshot.combatMods?.critBonus ?? 0).toBeLessThanOrEqual(8);
 
     // Legendary arts should carry meaningful HP risk and remain Mast-gated.
-    const legendaryArts = arts.filter((art) => Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0);
+    const legendaryArts = arts.filter(
+      (art) => Array.isArray(art?.legendaryWeaponIds) && art.legendaryWeaponIds.length > 0,
+    );
     expect(legendaryArts.length).toBeGreaterThan(0);
     const lightLegendaryIds = ['legend_gemini_tempest', 'legend_starfall_volley'];
     for (const art of legendaryArts) {
@@ -40,8 +42,8 @@ describe('weapon arts data guards', () => {
     }
 
     // Non-legendary arts should now be Prof-gated.
-    const nonLegendaryArts = arts.filter((art) =>
-      !Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0
+    const nonLegendaryArts = arts.filter(
+      (art) => !Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0,
     );
     expect(nonLegendaryArts.length).toBeGreaterThan(0);
     for (const art of nonLegendaryArts) {
@@ -59,9 +61,10 @@ describe('weapon arts data guards', () => {
     const profArts = arts.filter((art) => art?.requiredRank === 'Prof');
     expect(profArts.length).toBe(60);
 
-    const nonLegendaryMastArts = arts.filter((art) =>
-      art?.requiredRank === 'Mast'
-      && (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0)
+    const nonLegendaryMastArts = arts.filter(
+      (art) =>
+        art?.requiredRank === 'Mast' &&
+        (!Array.isArray(art?.legendaryWeaponIds) || art.legendaryWeaponIds.length === 0),
     );
     expect(nonLegendaryMastArts.length).toBe(0);
   });

@@ -1,5 +1,9 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-import { __resetSceneLoaderForTests, startSceneLazy, TRANSITION_REASONS } from '../src/utils/sceneLoader.js';
+import {
+  __resetSceneLoaderForTests,
+  startSceneLazy,
+  TRANSITION_REASONS,
+} from '../src/utils/sceneLoader.js';
 
 function makeScene({ active = true, key = null } = {}) {
   const lifecycleOnce = {};
@@ -194,7 +198,9 @@ describe('sceneLoader.startSceneLazy', () => {
 
   it('cleans up meta when scene start throws', async () => {
     const scene = makeScene({ active: true, key: 'A' });
-    scene.scene.start.mockImplementation(() => { throw new Error('boom'); });
+    scene.scene.start.mockImplementation(() => {
+      throw new Error('boom');
+    });
 
     await startSceneLazy(scene, 'Title', {}, { reason: TRANSITION_REASONS.BACK });
 

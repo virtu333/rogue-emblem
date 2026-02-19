@@ -50,7 +50,11 @@ export function restartScene(scene, data = undefined, { reason = TRANSITION_REAS
   const key = scene?.sys?.settings?.key;
   if (!key) return false;
 
-  const token = setPendingTransitionMeta(scene, key, normalizeTransitionReason(reason, 'restartScene'));
+  const token = setPendingTransitionMeta(
+    scene,
+    key,
+    normalizeTransitionReason(reason, 'restartScene'),
+  );
   try {
     scene.scene.restart(data);
     return true;
@@ -74,7 +78,11 @@ export function sleepScene(scene, key) {
     else scene.scene.sleep();
     return true;
   } catch (err) {
-    console.error('[SceneRouter] sleepScene failed:', key || scene?.sys?.settings?.key || 'current', err);
+    console.error(
+      '[SceneRouter] sleepScene failed:',
+      key || scene?.sys?.settings?.key || 'current',
+      err,
+    );
     return false;
   }
 }

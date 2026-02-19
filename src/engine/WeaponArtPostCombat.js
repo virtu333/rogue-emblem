@@ -78,7 +78,7 @@ export function getPostCombatPipelineSteps({
     { type: 'affix', sourceSide: 'defender' },
   ];
 
-  for (const effect of (result?.poisonEffects || [])) {
+  for (const effect of result?.poisonEffects || []) {
     if (!effect || (effect.target !== 'attacker' && effect.target !== 'defender')) continue;
     const damage = Math.max(0, Math.trunc(Number(effect.damage) || 0));
     if (damage <= 0) continue;
@@ -89,7 +89,7 @@ export function getPostCombatPipelineSteps({
     });
   }
 
-  for (const event of (result?.debuffEvents || [])) {
+  for (const event of result?.debuffEvents || []) {
     if (!event || (event.target !== 'attacker' && event.target !== 'defender')) continue;
     if (!event.debuffs || typeof event.debuffs !== 'object') continue;
     steps.push({
@@ -99,7 +99,7 @@ export function getPostCombatPipelineSteps({
     });
   }
 
-  for (const heal of (result?.divineChargeHeals || [])) {
+  for (const heal of result?.divineChargeHeals || []) {
     if (!heal || (heal.side !== 'attacker' && heal.side !== 'defender')) continue;
     steps.push({
       type: 'divine_charge',
@@ -125,9 +125,10 @@ export function getPostCombatPipelineSteps({
       if (hitGated && !hitBySide[side]) continue;
       const effects = getWeaponArtTier2Effects(artsBySide[side])[effectType] || [];
       if (effects.length <= 0) continue;
-      const landedDamages = effectType === 'pierceThrough'
-        ? getLandedStrikeDamages(result?.events, side, attacker, defender)
-        : null;
+      const landedDamages =
+        effectType === 'pierceThrough'
+          ? getLandedStrikeDamages(result?.events, side, attacker, defender)
+          : null;
       for (const effect of effects) {
         if (effectType === 'afterCombatDamage') {
           steps.push({
@@ -185,9 +186,10 @@ export function getPostCombatPipelineSteps({
     const tier5Effects = getWeaponArtTier5Effects(art);
     if (tier5Effects.aoeSplash) {
       const splash = tier5Effects.aoeSplash;
-      const basisDamage = splash.basis === 'first_landed_strike'
-        ? getFirstLandedStrikeDamage(result?.events, side, attacker, defender)
-        : 0;
+      const basisDamage =
+        splash.basis === 'first_landed_strike'
+          ? getFirstLandedStrikeDamage(result?.events, side, attacker, defender)
+          : 0;
       steps.push({
         type: 'tier5_aoe_splash',
         sourceSide: side,
@@ -232,7 +234,16 @@ function isCardinalAdjacent(sourceUnit, targetUnit) {
   return { dc, dr };
 }
 
-function canOccupyTile(unit, col, row, cols, rows, getMoveCost, getUnitAt, allowedOccupants = null) {
+function canOccupyTile(
+  unit,
+  col,
+  row,
+  cols,
+  rows,
+  getMoveCost,
+  getUnitAt,
+  allowedOccupants = null,
+) {
   if (!isInBounds(col, row, cols, rows)) return false;
   if (!Number.isFinite(getMoveCost(col, row, unit.moveType))) return false;
   const occupant = getUnitAt(col, row);
@@ -262,7 +273,8 @@ function traceLinearDestination({
   for (let i = 0; i < distance; i++) {
     col += dc;
     row += dr;
-    if (!canOccupyTile(unit, col, row, cols, rows, getMoveCost, getUnitAt, allowedOccupants)) return null;
+    if (!canOccupyTile(unit, col, row, cols, rows, getMoveCost, getUnitAt, allowedOccupants))
+      return null;
   }
   return { col, row };
 }
@@ -282,15 +294,19 @@ export function resolvePostCombatMove({
   }
   if (sourceUnit.currentHP <= 0) return { ok: false, reason: 'source_dead' };
 
-  const normalizedMode = String(mode || '').trim().toLowerCase();
+  const normalizedMode = String(mode || '')
+    .trim()
+    .toLowerCase();
   if (!VALID_MOVE_MODES.has(normalizedMode)) return { ok: false, reason: 'invalid_mode' };
   const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
   const direction = isCardinalAdjacent(sourceUnit, targetUnit);
   if (!direction) return { ok: false, reason: 'not_adjacent' };
 
   const targetAlive = targetUnit?.currentHP > 0;
-  const targetStillAtExpectedTile = targetUnit && getUnitAt(targetUnit.col, targetUnit.row) === targetUnit;
-  const requiresLiveTarget = normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'through';
+  const targetStillAtExpectedTile =
+    targetUnit && getUnitAt(targetUnit.col, targetUnit.row) === targetUnit;
+  const requiresLiveTarget =
+    normalizedMode === 'swap' || normalizedMode === 'push' || normalizedMode === 'through';
   if (requiresLiveTarget && (!targetAlive || !targetStillAtExpectedTile)) {
     return { ok: false, reason: 'invalid_target' };
   }
@@ -336,10 +352,32 @@ export function resolvePostCombatMove({
     const targetDestRow = sourceUnit.row;
     const sourceAllowed = new Set([targetUnit]);
     const targetAllowed = new Set([sourceUnit]);
-    if (!canOccupyTile(sourceUnit, sourceDestCol, sourceDestRow, cols, rows, getMoveCost, getUnitAt, sourceAllowed)) {
+    if (
+      !canOccupyTile(
+        sourceUnit,
+        sourceDestCol,
+        sourceDestRow,
+        cols,
+        rows,
+        getMoveCost,
+        getUnitAt,
+        sourceAllowed,
+      )
+    ) {
       return { ok: false, reason: 'blocked' };
     }
-    if (!canOccupyTile(targetUnit, targetDestCol, targetDestRow, cols, rows, getMoveCost, getUnitAt, targetAllowed)) {
+    if (
+      !canOccupyTile(
+        targetUnit,
+        targetDestCol,
+        targetDestRow,
+        cols,
+        rows,
+        getMoveCost,
+        getUnitAt,
+        targetAllowed,
+      )
+    ) {
       return { ok: false, reason: 'blocked' };
     }
     return {

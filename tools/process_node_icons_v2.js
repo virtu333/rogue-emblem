@@ -21,7 +21,9 @@ const DARK_THRESHOLD = 40; // default: R,G,B all below this → transparent
 // Remove near-black pixels from raw RGBA buffer
 function removeDarkBg(buf, threshold = DARK_THRESHOLD) {
   for (let i = 0; i < buf.length; i += 4) {
-    const r = buf[i], g = buf[i + 1], b = buf[i + 2];
+    const r = buf[i],
+      g = buf[i + 1],
+      b = buf[i + 2];
     if (r < threshold && g < threshold && b < threshold) {
       buf[i + 3] = 0;
     }
@@ -87,7 +89,12 @@ async function processComposite(plainsSrc, charSrc, outName, tintGreen) {
   // Plains tile centered (offset 8,8 in 48x48), character centered on top (offset 13,13)
   const outPath = resolve(OUT_DIR, outName);
   await sharp({
-    create: { width: TARGET_SIZE, height: TARGET_SIZE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    create: {
+      width: TARGET_SIZE,
+      height: TARGET_SIZE,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
   })
     .composite([
       { input: plainsTile, left: 8, top: 8 },

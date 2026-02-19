@@ -57,7 +57,7 @@ export class DialogueOverlay {
           onSkip: () => {
             this._sequenceSkipRequested = true;
           },
-        }
+        },
       );
     }
     this._sequenceSkipRequested = false;
@@ -74,14 +74,11 @@ export class DialogueOverlay {
     const cx = cam.centerX;
     const cy = cam.centerY;
     const hasSpeaker = typeof name === 'string' && name.trim().length > 0;
-    const hasPortrait = Boolean(
-      hasSpeaker
-      && portraitKey
-      && scene.textures?.exists?.(portraitKey)
-    );
+    const hasPortrait = Boolean(hasSpeaker && portraitKey && scene.textures?.exists?.(portraitKey));
 
     // Blocking background (nearly invisible but intercepts input).
-    const blocker = scene.add.rectangle(cx, cy, cam.width, cam.height, 0x000000, 0.01)
+    const blocker = scene.add
+      .rectangle(cx, cy, cam.width, cam.height, 0x000000, 0.01)
       .setDepth(DEPTH)
       .setInteractive();
     this.objects.push(blocker);
@@ -90,7 +87,8 @@ export class DialogueOverlay {
     const boxW = 360;
     const boxH = 96;
     const boxY = cy + 100;
-    const bg = scene.add.rectangle(cx, boxY, boxW, boxH, 0x000000, 0.9)
+    const bg = scene.add
+      .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.9)
       .setStrokeStyle(2, 0x4466aa)
       .setDepth(DEPTH + 1);
     this.objects.push(bg);
@@ -99,7 +97,8 @@ export class DialogueOverlay {
     const textLeft = cx - boxW / 2 + 14;
 
     if (hasPortrait) {
-      const portrait = scene.add.image(cx - boxW / 2 + 40, boxY, portraitKey)
+      const portrait = scene.add
+        .image(cx - boxW / 2 + 40, boxY, portraitKey)
         .setDisplaySize(64, 64)
         .setDepth(DEPTH + 2);
       this.objects.push(portrait);
@@ -107,52 +106,67 @@ export class DialogueOverlay {
 
     if (hasSpeaker) {
       const nameX = hasPortrait ? cx - boxW / 2 + 80 : textLeft;
-      const nameText = scene.add.text(nameX, boxY - boxH / 2 + 10, name, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      }).setDepth(DEPTH + 2);
+      const nameText = scene.add
+        .text(nameX, boxY - boxH / 2 + 10, name, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ffdd44',
+          fontStyle: 'bold',
+        })
+        .setDepth(DEPTH + 2);
       this.objects.push(nameText);
     }
 
     if (hasSpeaker) {
       const lineX = hasPortrait ? cx - boxW / 2 + 80 : textLeft;
       const lineWrap = hasPortrait ? boxW - 100 : boxW - 28;
-      const lineText = scene.add.text(lineX, lineTop, String(line || ''), {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#ffffff',
-        wordWrap: { width: lineWrap },
-        lineSpacing: 2,
-      }).setDepth(DEPTH + 2);
+      const lineText = scene.add
+        .text(lineX, lineTop, String(line || ''), {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#ffffff',
+          wordWrap: { width: lineWrap },
+          lineSpacing: 2,
+        })
+        .setDepth(DEPTH + 2);
       this.objects.push(lineText);
     } else {
-      const lineText = scene.add.text(cx, boxY, String(line || ''), {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#ffffff',
-        align: 'center',
-        wordWrap: { width: boxW - 28 },
-        lineSpacing: 2,
-      }).setOrigin(0.5).setDepth(DEPTH + 2);
+      const lineText = scene.add
+        .text(cx, boxY, String(line || ''), {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#ffffff',
+          align: 'center',
+          wordWrap: { width: boxW - 28 },
+          lineSpacing: 2,
+        })
+        .setOrigin(0.5)
+        .setDepth(DEPTH + 2);
       this.objects.push(lineText);
     }
 
-    const closeHint = scene.add.text(cx + boxW / 2 - 10, boxY - boxH / 2 + 10, 'X', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888',
-    }).setOrigin(1, 0).setDepth(DEPTH + 2).setInteractive({ useHandCursor: true });
+    const closeHint = scene.add
+      .text(cx + boxW / 2 - 10, boxY - boxH / 2 + 10, 'X', {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#888888',
+      })
+      .setOrigin(1, 0)
+      .setDepth(DEPTH + 2)
+      .setInteractive({ useHandCursor: true });
     this.objects.push(closeHint);
 
     let skipText = null;
     if (allowSkip) {
-      skipText = scene.add.text(cx + boxW / 2 - 10, boxY + boxH / 2 - 10, '[Skip]', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#999999',
-      }).setOrigin(1, 1).setDepth(DEPTH + 2).setInteractive({ useHandCursor: true });
+      skipText = scene.add
+        .text(cx + boxW / 2 - 10, boxY + boxH / 2 - 10, '[Skip]', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#999999',
+        })
+        .setOrigin(1, 1)
+        .setDepth(DEPTH + 2)
+        .setInteractive({ useHandCursor: true });
       this.objects.push(skipText);
     }
 

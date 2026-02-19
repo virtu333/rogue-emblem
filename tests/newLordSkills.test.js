@@ -30,7 +30,16 @@ function makeUnit(overrides = {}) {
     stats: { HP: 30, STR: 10, MAG: 5, SKL: 20, SPD: 10, DEF: 8, RES: 6, LCK: 50, MOV: 5 },
     currentHP: 30,
     level: 5,
-    weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1', tier: 'Iron' },
+    weapon: {
+      name: 'Iron Sword',
+      type: 'Sword',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+      range: '1',
+      tier: 'Iron',
+    },
     col: 0,
     row: 0,
     ...overrides,
@@ -45,7 +54,16 @@ function makeEnemy(overrides = {}) {
     stats: { HP: 25, STR: 8, MAG: 4, SKL: 6, SPD: 7, DEF: 6, RES: 10, LCK: 50, MOV: 5 },
     currentHP: 25,
     level: 3,
-    weapon: { name: 'Iron Lance', type: 'Lance', might: 7, hit: 80, crit: 0, weight: 8, range: '1', tier: 'Iron' },
+    weapon: {
+      name: 'Iron Lance',
+      type: 'Lance',
+      might: 7,
+      hit: 80,
+      crit: 0,
+      weight: 8,
+      range: '1',
+      tier: 'Iron',
+    },
     col: 1,
     row: 0,
     ...overrides,
@@ -78,7 +96,7 @@ describe('Ride Down (ride_down)', () => {
     const enemy = makeEnemy();
     const mods = getSkillCombatMods(unit, enemy, [unit], [enemy], skillsData, null, true);
     expect(mods.atkBonus).toBe(3);
-    expect(mods.activated.some(a => a.id === 'ride_down')).toBe(true);
+    expect(mods.activated.some((a) => a.id === 'ride_down')).toBe(true);
   });
 
   it('no bonus with less than 3 movement spent', () => {
@@ -145,7 +163,15 @@ describe('Draconic Aura (draconic_aura)', () => {
     const unit = makeUnit({ col: 1, row: 0 });
     const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
     const enemy = makeEnemy({ col: 4, row: 0 });
-    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemy, enemy], skillsData, null, true);
+    const mods = getSkillCombatMods(
+      unit,
+      enemy,
+      [unit],
+      [auraEnemy, enemy],
+      skillsData,
+      null,
+      true,
+    );
     expect(mods.hitBonus).toBe(-10);
   });
 
@@ -153,7 +179,15 @@ describe('Draconic Aura (draconic_aura)', () => {
     const unit = makeUnit({ col: 2, row: 0 });
     const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
     const enemy = makeEnemy({ col: 4, row: 0 });
-    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemy, enemy], skillsData, null, true);
+    const mods = getSkillCombatMods(
+      unit,
+      enemy,
+      [unit],
+      [auraEnemy, enemy],
+      skillsData,
+      null,
+      true,
+    );
     expect(mods.hitBonus).toBe(-10);
   });
 
@@ -163,8 +197,24 @@ describe('Draconic Aura (draconic_aura)', () => {
     const auraEnemy = makeEnemy({ skills: ['draconic_aura'], col: 0, row: 0 });
     const enemy = makeEnemy({ col: 4, row: 0 });
 
-    const onTileMods = getSkillCombatMods(onTileUnit, enemy, [onTileUnit], [auraEnemy, enemy], skillsData, null, true);
-    const farMods = getSkillCombatMods(farUnit, enemy, [farUnit], [auraEnemy, enemy], skillsData, null, true);
+    const onTileMods = getSkillCombatMods(
+      onTileUnit,
+      enemy,
+      [onTileUnit],
+      [auraEnemy, enemy],
+      skillsData,
+      null,
+      true,
+    );
+    const farMods = getSkillCombatMods(
+      farUnit,
+      enemy,
+      [farUnit],
+      [auraEnemy, enemy],
+      skillsData,
+      null,
+      true,
+    );
 
     expect(onTileMods.hitBonus).toBe(0);
     expect(farMods.hitBonus).toBe(0);
@@ -175,7 +225,15 @@ describe('Draconic Aura (draconic_aura)', () => {
     const auraEnemyA = makeEnemy({ name: 'AuraA', skills: ['draconic_aura'], col: 0, row: 0 });
     const auraEnemyB = makeEnemy({ name: 'AuraB', skills: ['draconic_aura'], col: 2, row: 0 });
     const enemy = makeEnemy({ col: 4, row: 0 });
-    const mods = getSkillCombatMods(unit, enemy, [unit], [auraEnemyA, auraEnemyB, enemy], skillsData, null, true);
+    const mods = getSkillCombatMods(
+      unit,
+      enemy,
+      [unit],
+      [auraEnemyA, auraEnemyB, enemy],
+      skillsData,
+      null,
+      true,
+    );
     expect(mods.hitBonus).toBe(-20);
   });
 });
@@ -191,7 +249,7 @@ describe('Intimidate (intimidate)', () => {
     expect(result.debuffAttacker.STR).toBe(-1);
     expect(result.debuffAttacker.MAG).toBe(-2);
     expect(result.debuffAttacker.SPD).toBe(-1);
-    expect(result.activated.some(a => a.id === 'intimidate')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'intimidate')).toBe(true);
   });
 
   it('returns debuffEvents in resolveCombat', () => {
@@ -199,17 +257,25 @@ describe('Intimidate (intimidate)', () => {
     const attacker = makeEnemy({ col: 0, row: 0 });
     const defender = makeUnit({
       skills: ['intimidate'],
-      col: 1, row: 0,
+      col: 1,
+      row: 0,
       stats: { HP: 30, STR: 10, MAG: 5, SKL: 20, SPD: 10, DEF: 8, RES: 6, LCK: 99, MOV: 5 },
       currentHP: 30,
     });
     const skillCtx = makeSkillCtx([], ['intimidate'], skillsData);
     const result = resolveCombat(
-      attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
     );
     expect(result.debuffEvents).toBeDefined();
     expect(result.debuffEvents.length).toBeGreaterThanOrEqual(1);
-    const de = result.debuffEvents.find(d => d.target === 'attacker');
+    const de = result.debuffEvents.find((d) => d.target === 'attacker');
     expect(de).toBeTruthy();
     expect(de.debuffs.STR).toBe(-1);
     expect(de.debuffs.MAG).toBe(-2);
@@ -220,28 +286,48 @@ describe('Intimidate (intimidate)', () => {
     forceProc();
     // Attacker too weak to deal damage: STR 1 + might 5 = 6 atk vs DEF 20
     const attacker = makeEnemy({
-      col: 0, row: 0,
+      col: 0,
+      row: 0,
       stats: { HP: 25, STR: 1, MAG: 4, SKL: 6, SPD: 7, DEF: 6, RES: 10, LCK: 50, MOV: 5 },
-      weapon: { name: 'Iron Lance', type: 'Lance', might: 5, hit: 90, crit: 0, weight: 8, range: '1', tier: 'Iron' },
+      weapon: {
+        name: 'Iron Lance',
+        type: 'Lance',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 8,
+        range: '1',
+        tier: 'Iron',
+      },
     });
     const defender = makeUnit({
       skills: ['intimidate'],
-      col: 1, row: 0,
+      col: 1,
+      row: 0,
       stats: { HP: 30, STR: 10, MAG: 5, SKL: 20, SPD: 10, DEF: 20, RES: 6, LCK: 99, MOV: 5 },
       currentHP: 30,
     });
     const skillCtx = makeSkillCtx([], ['intimidate'], skillsData);
     const result = resolveCombat(
-      attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
     );
     // Verify 0 damage was dealt
-    const strikes = result.events.filter(e => e.type === 'strike' && e.attacker === attacker.name);
+    const strikes = result.events.filter(
+      (e) => e.type === 'strike' && e.attacker === attacker.name,
+    );
     expect(strikes.length).toBeGreaterThan(0);
     expect(strikes[0].damage).toBe(0);
     // Intimidate should still fire
     expect(result.debuffEvents).toBeDefined();
     expect(result.debuffEvents.length).toBeGreaterThanOrEqual(1);
-    const de = result.debuffEvents.find(d => d.target === 'attacker');
+    const de = result.debuffEvents.find((d) => d.target === 'attacker');
     expect(de).toBeTruthy();
     expect(de.debuffs.STR).toBe(-1);
   });
@@ -261,22 +347,41 @@ describe('Unyielding (unyielding)', () => {
     forceNoProc();
     // Fast enemy should normally double — 15 SPD vs 5 SPD (diff >= 5)
     const attacker = makeEnemy({
-      col: 0, row: 0,
+      col: 0,
+      row: 0,
       stats: { HP: 25, STR: 8, MAG: 4, SKL: 6, SPD: 15, DEF: 6, RES: 10, LCK: 50, MOV: 5 },
     });
     const defender = makeUnit({
       skills: ['unyielding'],
-      col: 1, row: 0,
+      col: 1,
+      row: 0,
       stats: { HP: 30, STR: 10, MAG: 5, SKL: 10, SPD: 5, DEF: 8, RES: 6, LCK: 50, MOV: 5 },
       currentHP: 30,
     });
     // defMods carries preventEnemyDouble from the skill
-    const defMods = getSkillCombatMods(defender, attacker, [defender], [attacker], skillsData, null, false);
+    const defMods = getSkillCombatMods(
+      defender,
+      attacker,
+      [defender],
+      [attacker],
+      skillsData,
+      null,
+      false,
+    );
     const skillCtx = { atkMods: null, defMods, rollStrikeSkills, rollDefenseSkills, skillsData };
     const result = resolveCombat(
-      attacker, attacker.weapon, defender, defender.weapon, 1, null, null, skillCtx
+      attacker,
+      attacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
     );
-    const attackerStrikes = result.events.filter(e => e.type === 'strike' && e.attacker === attacker.name);
+    const attackerStrikes = result.events.filter(
+      (e) => e.type === 'strike' && e.attacker === attacker.name,
+    );
     expect(attackerStrikes.length).toBe(1); // no double
   });
 
@@ -284,21 +389,23 @@ describe('Unyielding (unyielding)', () => {
     forceNoProc();
     const unit = makeUnit({
       skills: ['unyielding'],
-      col: 0, row: 0,
+      col: 0,
+      row: 0,
       stats: { HP: 30, STR: 10, MAG: 5, SKL: 10, SPD: 20, DEF: 8, RES: 6, LCK: 50, MOV: 5 },
       currentHP: 30,
     });
     const enemy = makeEnemy({
-      col: 1, row: 0,
+      col: 1,
+      row: 0,
       stats: { HP: 25, STR: 8, MAG: 4, SKL: 6, SPD: 5, DEF: 6, RES: 10, LCK: 50, MOV: 5 },
     });
     // atkMods has preventEnemyDouble — but that only prevents the OPPONENT from doubling the unit
     const atkMods = getSkillCombatMods(unit, enemy, [unit], [enemy], skillsData, null, true);
     const skillCtx = { atkMods, defMods: null, rollStrikeSkills, rollDefenseSkills, skillsData };
-    const result = resolveCombat(
-      unit, unit.weapon, enemy, enemy.weapon, 1, null, null, skillCtx
+    const result = resolveCombat(unit, unit.weapon, enemy, enemy.weapon, 1, null, null, skillCtx);
+    const unitStrikes = result.events.filter(
+      (e) => e.type === 'strike' && e.attacker === unit.name,
     );
-    const unitStrikes = result.events.filter(e => e.type === 'strike' && e.attacker === unit.name);
     expect(unitStrikes.length).toBe(2); // doubles normally
   });
 });
@@ -314,7 +421,7 @@ describe('Divine Charge (divine_charge)', () => {
     expect(result.divineCharge).toBeTruthy();
     expect(result.divineCharge.percent).toBe(50);
     expect(result.divineCharge.range).toBe(3);
-    expect(result.activated.some(a => a.id === 'divine_charge')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'divine_charge')).toBe(true);
   });
 
   it('no proc when roll fails', () => {
@@ -329,17 +436,26 @@ describe('Divine Charge (divine_charge)', () => {
     forceProc();
     const attacker = makeUnit({
       skills: ['divine_charge'],
-      col: 0, row: 0,
+      col: 0,
+      row: 0,
       stats: { HP: 30, STR: 15, MAG: 5, SKL: 50, SPD: 10, DEF: 8, RES: 6, LCK: 99, MOV: 5 },
       currentHP: 30,
     });
     const enemy = makeEnemy({
-      col: 1, row: 0,
+      col: 1,
+      row: 0,
       stats: { HP: 25, STR: 8, MAG: 4, SKL: 6, SPD: 7, DEF: 6, RES: 10, LCK: 99, MOV: 5 },
     });
     const skillCtx = makeSkillCtx(['divine_charge'], [], skillsData);
     const result = resolveCombat(
-      attacker, attacker.weapon, enemy, enemy.weapon, 1, null, null, skillCtx
+      attacker,
+      attacker.weapon,
+      enemy,
+      enemy.weapon,
+      1,
+      null,
+      null,
+      skillCtx,
     );
     expect(result.divineChargeHeals).toBeDefined();
     expect(result.divineChargeHeals.length).toBeGreaterThanOrEqual(1);
@@ -369,7 +485,7 @@ describe('Seraph Strike (seraph_strike)', () => {
     const result = rollStrikeSkills(attacker, baseDamage, enemy, skillsData);
     // modifiedDamage should be baseDamage + (DEF - min(DEF,RES)) = 10 + 15 = 25
     expect(result.modifiedDamage).toBe(25);
-    expect(result.activated.some(a => a.id === 'seraph_strike')).toBe(true);
+    expect(result.activated.some((a) => a.id === 'seraph_strike')).toBe(true);
   });
 
   it('no bonus when DEF equals RES', () => {
@@ -390,7 +506,16 @@ describe('Seraph Strike (seraph_strike)', () => {
     // Magic weapon → normally uses RES. If DEF < RES, seraph_strike uses DEF instead → bonus
     const attacker = makeUnit({
       skills: ['seraph_strike'],
-      weapon: { name: 'Fire', type: 'Tome', might: 5, hit: 90, crit: 0, weight: 4, range: '1-2', tier: 'Iron' },
+      weapon: {
+        name: 'Fire',
+        type: 'Tome',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 4,
+        range: '1-2',
+        tier: 'Iron',
+      },
       stats: { HP: 30, STR: 5, MAG: 10, SKL: 30, SPD: 10, DEF: 8, RES: 6, LCK: 50, MOV: 5 },
     });
     const enemy = makeEnemy({
@@ -430,7 +555,7 @@ describe('New lord skills exist in skills.json', () => {
 
   for (const { id, trigger } of expectedSkills) {
     it(`${id} exists with trigger "${trigger}"`, () => {
-      const skill = skillsData.find(s => s.id === id);
+      const skill = skillsData.find((s) => s.id === id);
       expect(skill).toBeTruthy();
       expect(skill.trigger).toBe(trigger);
       expect(skill.personal).toBe(true);

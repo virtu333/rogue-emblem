@@ -24,8 +24,8 @@ function buildRoster(rosterSpec, gameData) {
   for (const entry of rosterSpec) {
     let unit;
     if (entry.type === 'lord') {
-      const lordData = gameData.lords.find(l => l.name === entry.name);
-      const classData = gameData.classes.find(c => c.name === lordData.class);
+      const lordData = gameData.lords.find((l) => l.name === entry.name);
+      const classData = gameData.classes.find((c) => c.name === lordData.class);
       unit = createLordUnit(lordData, classData, gameData.weapons);
 
       // Level up to target
@@ -36,42 +36,42 @@ function buildRoster(rosterSpec, gameData) {
       // Add extra weapons
       if (entry.extraWeapons) {
         for (const wName of entry.extraWeapons) {
-          const w = gameData.weapons.find(wp => wp.name === wName);
+          const w = gameData.weapons.find((wp) => wp.name === wName);
           if (w) addToInventory(unit, w);
         }
       }
 
       // Add staff proficiency + Heal staff
       if (entry.staff) {
-        const hasStaffProf = unit.proficiencies.some(p => p.type === 'Staff');
+        const hasStaffProf = unit.proficiencies.some((p) => p.type === 'Staff');
         if (!hasStaffProf) {
           unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
         }
-        const heal = gameData.weapons.find(w => w.name === 'Heal');
+        const heal = gameData.weapons.find((w) => w.name === 'Heal');
         if (heal) addToInventory(unit, heal);
       }
     } else {
       // recruit
-      const classData = gameData.classes.find(c => c.name === entry.className);
+      const classData = gameData.classes.find((c) => c.name === entry.className);
       unit = createRecruitUnit(
         { name: entry.name, level: entry.level },
         classData,
-        gameData.weapons
+        gameData.weapons,
       );
 
       // Add staff proficiency + Heal for staff-flagged recruits
       if (entry.staff) {
-        const hasStaffProf = unit.proficiencies.some(p => p.type === 'Staff');
+        const hasStaffProf = unit.proficiencies.some((p) => p.type === 'Staff');
         if (!hasStaffProf) {
           unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
         }
-        const heal = gameData.weapons.find(w => w.name === 'Heal');
+        const heal = gameData.weapons.find((w) => w.name === 'Heal');
         if (heal) addToInventory(unit, heal);
       }
     }
 
     // Give everyone a Vulnerary
-    const vuln = gameData.consumables.find(c => c.name === 'Vulnerary');
+    const vuln = gameData.consumables.find((c) => c.name === 'Vulnerary');
     if (vuln) addToConsumables(unit, vuln);
 
     // Ensure player faction

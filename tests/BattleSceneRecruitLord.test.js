@@ -51,7 +51,13 @@ function makeLordRestrictedRoster(gameData, availableLordName) {
       if (lord.name !== availableLordName) recruited.push(lord.name);
     }
   }
-  return recruited.map(name => ({ name, className: 'Lord', isLord: true, level: 5, faction: 'player' }));
+  return recruited.map((name) => ({
+    name,
+    className: 'Lord',
+    isLord: true,
+    level: 5,
+    faction: 'player',
+  }));
 }
 
 function makeBattleSceneWithLords({
@@ -92,7 +98,7 @@ function makeBattleSceneWithLords({
     getRecruitLevelBonus: vi.fn(() => 0),
   };
 
-  scene.gameData = gameData;  // includes lords data with Kira/Voss
+  scene.gameData = gameData; // includes lords data with Kira/Voss
   scene.runManager = runManager;
   scene.battleParams = { act, tutorialMode: false, fogEnabled: false, isRecruitBattle: true };
   scene.nodeId = 'battle-recruit-node';
@@ -163,13 +169,13 @@ describe('BattleScene recruit-node lord meta bonus', () => {
       // Call 1: recruit level roll (< 0.5 check)
       // Call 2: lord chance check — 0.30 should pass with bonus
       // Call 3+: lord selection and other shuffles
-      if (callCount === 2) return 0.30;
+      if (callCount === 2) return 0.3;
       return 0.1;
     });
     try {
       const scene = makeBattleSceneWithLords({ lordRecruitChanceBonus: 0.16 });
       BattleScene.prototype.beginBattle.call(scene, scene.roster);
-      expect(scene.npcUnits.some(u => u.isLord)).toBe(true);
+      expect(scene.npcUnits.some((u) => u.isLord)).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }
@@ -180,13 +186,13 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     let callCount = 0;
     const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
       callCount++;
-      if (callCount === 2) return 0.30;
+      if (callCount === 2) return 0.3;
       return 0.1;
     });
     try {
       const scene = makeBattleSceneWithLords({ lordRecruitChanceBonus: 0 });
       BattleScene.prototype.beginBattle.call(scene, scene.roster);
-      expect(scene.npcUnits.every(u => !u.isLord)).toBe(true);
+      expect(scene.npcUnits.every((u) => !u.isLord)).toBe(true);
     } finally {
       randomSpy.mockRestore();
     }
@@ -203,7 +209,7 @@ describe('BattleScene recruit-node lord meta bonus', () => {
         runRoster,
       });
       BattleScene.prototype.beginBattle.call(scene, scene.roster);
-      const lordNpc = scene.npcUnits.find(u => u.isLord);
+      const lordNpc = scene.npcUnits.find((u) => u.isLord);
       expect(lordNpc).toBeTruthy();
       expect(lordNpc.name).toBe('Voss');
       expect(lordNpc.tier).toBe('promoted');
@@ -213,4 +219,3 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     }
   });
 });
-
