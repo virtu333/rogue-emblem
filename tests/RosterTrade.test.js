@@ -100,21 +100,30 @@ function makeSceneStub() {
     textures: {
       exists: () => false,
     },
+    time: {
+      delayedCall: (_delayMs, cb) => {
+        cb();
+        return { remove() {} };
+      },
+    },
+    events: {
+      on() {},
+    },
     created,
   };
   return scene;
 }
 
-function makeOverlay() {
-  const rm = new RunManager(gameData);
+function makeOverlay(data = gameData) {
+  const rm = new RunManager(data);
   rm.startRun();
   const scene = makeSceneStub();
   const overlay = new RosterOverlay(scene, rm, {
-    lords: gameData.lords || [],
-    classes: gameData.classes || [],
-    skills: gameData.skills || [],
-    accessories: gameData.accessories || [],
-    weaponArts: gameData.weaponArts || { arts: [] },
+    lords: data.lords || [],
+    classes: data.classes || [],
+    skills: data.skills || [],
+    accessories: data.accessories || [],
+    weaponArts: data.weaponArts || { arts: [] },
   });
   return { overlay, rm, scene };
 }
@@ -273,5 +282,76 @@ describe('Roster trade copy', () => {
     expect(row.text).toContain(`Inventory 1/${INVENTORY_MAX} | Consumables 0/${CONSUMABLE_MAX}`);
     expect(row.text).toContain('...');
     expect(row.text.includes(`${longName} (`)).toBe(false);
+  });
+});
+
+describe('Roster gear tooltips', () => {
+  it('keeps weapon row tooltip hit zones from overlapping action buttons', () => {
+    const { overlay, scene } = makeOverlay();
+    const longSword = {
+      ...makeWeapon('This Is A Very Very Very Very Long Weapon Name', 'Sword'),
+      might: 12,
+      hit: 120,
+      crit: 25,
+      weight: 8,
+      range: '1-2',
+    };
+    const ironSword = makeWeapon('Iron Sword', 'Sword');
+    const unit = makeUnit({
+      name: 'Edric',
+      type: 'Sword',
+      inventory: [longSword, ironSword],
+      weapon: ironSword,
+    });
+
+    overlay._drawGearTab(40, 60, unit);
+
+    const rowY = 74;
+    const hitZone = scene.created.rectangles.find(
+      (obj) => obj._interactive && obj.alpha === 0 && obj.y === rowY,
+    );
+    const equipButton = scene.created.texts.find((obj) => obj.text === '[Equip]' && obj.y === rowY);
+
+    expect(hitZone).toBeTruthy();
+    expect(equipButton).toBeTruthy();
+    expect(hitZone.width).toBeGreaterThan(20);
+    expect(hitZone.x + hitZone.width).toBeLessThanOrEqual(equipButton.x);
+  });
+
+  it('suppresses duplicate weapon-art mods text when summary falls back to description', () => {
+    const testData = structuredClone(gameData);
+    const art = {
+      id: 'test_fallback_summary_art',
+      name: 'Fallback Blade',
+      weaponType: 'Sword',
+      requiredRank: 'Prof',
+      unlockAct: 'act1',
+      description: 'Fallback text',
+      combatMods: {},
+    };
+    testData.weaponArts = {
+      ...(testData.weaponArts || {}),
+      arts: [...(testData.weaponArts?.arts || []), art],
+    };
+
+    const { overlay, scene } = makeOverlay(testData);
+    const weapon = { ...makeWeapon('Iron Sword', 'Sword'), weaponArtId: art.id };
+    const unit = makeUnit({ name: 'Edric', type: 'Sword', inventory: [weapon], weapon });
+    overlay._showSkillTooltip = vi.fn();
+
+    overlay._drawGearTab(40, 60, unit);
+
+    const artRow = scene.created.texts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.startsWith(`${art.name} (`),
+    );
+    expect(artRow).toBeTruthy();
+
+    artRow.trigger('pointerover');
+
+    expect(overlay._showSkillTooltip).toHaveBeenCalledTimes(1);
+    expect(overlay._showSkillTooltip).toHaveBeenCalledWith(
+      artRow,
+      `${art.name} [Iron Sword]\n${art.description}`,
+    );
   });
 });

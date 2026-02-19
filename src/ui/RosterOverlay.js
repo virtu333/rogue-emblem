@@ -52,6 +52,7 @@ import {
   hasWeaponArt,
   getWeaponArtTooltipLines,
   resolveWeaponArtIds,
+  summarizeWeaponArtEffect,
 } from './WeaponArtVisibility.js';
 
 const WEAPON_ART_RANK_ORDER = { Prof: 0, Mast: 1 };
@@ -946,6 +947,7 @@ export class RosterOverlay {
         const isEquipped = item === unit.weapon;
         const marker = isEquipped ? '\u25b6 ' : '  ';
         let tooltipAnchor = null;
+        let tooltipLine = null;
         const usableNow = canEquip(unit, item);
         const lineColor = usableNow ? '#e0e0e0' : '#777777';
         const nameColor = usableNow ? this._getWeaponNameColor(item, lineColor) : lineColor;
@@ -975,6 +977,7 @@ export class RosterOverlay {
             '9px',
           );
           tooltipAnchor = line.anchor;
+          tooltipLine = line;
         } else if (item.might !== undefined) {
           const rng = parseRange(item.range);
           const rngStr = rng.min === rng.max ? `Rng${rng.max}` : `Rng${rng.min}-${rng.max}`;
@@ -1011,6 +1014,7 @@ export class RosterOverlay {
             '9px',
           );
           tooltipAnchor = line.anchor;
+          tooltipLine = line;
         } else {
           const line = this._textSegments(
             x,
@@ -1023,14 +1027,27 @@ export class RosterOverlay {
             '9px',
           );
           tooltipAnchor = line.anchor;
+          tooltipLine = line;
         }
-        if (tooltipAnchor)
-          this._wireTooltipTarget(tooltipAnchor, () =>
-            this._showWeaponSpecialTooltip(item, tooltipAnchor),
-          );
-
         const btnX = x + 280;
         const storeX = x + 340;
+        if (tooltipAnchor && tooltipLine) {
+          // Keep hover hit area over row text, but never over action buttons.
+          const maxHitWidth = Math.max(0, btnX - x - 4);
+          const hitWidth = Math.min(tooltipLine.width, maxHitWidth);
+          if (hitWidth > 0) {
+            const hitZone = this.scene.add
+              .rectangle(x, y, hitWidth, 12, 0x000000, 0)
+              .setOrigin(0, 0)
+              .setDepth(DEPTH_TEXT + 1)
+              .setInteractive();
+            this.detailObjects.push(hitZone);
+            this._wireTooltipTarget(hitZone, () =>
+              this._showWeaponSpecialTooltip(item, tooltipAnchor),
+            );
+          }
+        }
+
         if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
             equipWeapon(unit, item);
@@ -1170,10 +1187,11 @@ export class RosterOverlay {
           color,
           '9px',
         );
-        const effect = art?.description || 'No description';
-        this._wireTooltipTarget(row, () =>
-          this._showSkillTooltip(row, `${art.name} [${weaponName}]: ${effect}`),
-        );
+        const desc = art?.description || '';
+        const mods = summarizeWeaponArtEffect(art);
+        const modsLine = mods && mods !== desc ? `\n${mods}` : '';
+        const tooltipText = `${art.name} [${weaponName}]\n${desc}${modsLine}`;
+        this._wireTooltipTarget(row, () => this._showSkillTooltip(row, tooltipText));
         y += 12;
       }
     }
