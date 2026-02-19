@@ -383,6 +383,25 @@ describe('NodeMapScene Slice 4', () => {
     expect(canCancel).toBe(true);
   });
 
+  it('showNodeTooltip labels colosseum nodes explicitly', () => {
+    const scene = {
+      hideNodeTooltip: vi.fn(),
+      cameras: { main: { width: 640 } },
+      add: {
+        text: (x, y, text, style) => makeDisplayObject({ x, y, text, style, width: 200 }),
+      },
+    };
+
+    NodeMapScene.prototype.showNodeTooltip.call(
+      scene,
+      { type: NODE_TYPES.COLOSSEUM },
+      { x: 120, y: 160 },
+    );
+
+    expect(scene.hideNodeTooltip).toHaveBeenCalledTimes(1);
+    expect(scene.nodeTooltip.text).toBe('Colosseum - Arena and Mercenary Board');
+  });
+
   it('view-map mode blocks shop touch and wheel scrolling mutations', () => {
     const scene = {
       _storyDialogueActive: false,

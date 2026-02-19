@@ -293,8 +293,17 @@ export class BootScene extends Phaser.Scene {
       }
     }
 
-    // Node map icons (6) - keyed as node_{type}
-    const nodeIcons = ['battle', 'rest', 'boss', 'boss_final', 'shop', 'recruit', 'elite'];
+    // Node map icons (8) - keyed as node_{type}
+    const nodeIcons = [
+      'battle',
+      'rest',
+      'boss',
+      'boss_final',
+      'shop',
+      'recruit',
+      'elite',
+      'colosseum',
+    ];
     for (const name of nodeIcons) {
       this.load.image(`node_${name}`, `assets/sprites/nodes/node_${name}.png`);
     }

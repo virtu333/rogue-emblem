@@ -1306,6 +1306,8 @@ export class NodeMapScene extends Phaser.Scene {
       label = 'Village — Buy, sell, and forge';
     } else if (node.type === NODE_TYPES.RECRUIT) {
       label = 'Recruit — Battle with potential ally';
+    } else if (node.type === NODE_TYPES.COLOSSEUM) {
+      label = 'Colosseum - Arena and Mercenary Board';
     } else if (node.battleParams?.isElite) {
       label = 'Elite Battle (Seize) — Harder fight, better loot';
     } else {
