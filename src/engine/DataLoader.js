@@ -26,6 +26,7 @@ export class DataLoader {
     this.affixes = null;
     this.dialogue = null;
     this.weaponArts = null;
+    this.colosseum = null;
   }
 
   async loadAll() {
@@ -50,6 +51,7 @@ export class DataLoader {
       affixes,
       dialogue,
       weaponArts,
+      colosseum,
     ] = await Promise.all([
       this.loadJSON('data/terrain.json'),
       this.loadJSON('data/lords.json'),
@@ -71,6 +73,7 @@ export class DataLoader {
       this.loadOptionalJSON('data/affixes.json'),
       this.loadOptionalJSON('data/dialogue.json'),
       this.loadOptionalJSON('data/weaponArts.json'),
+      this.loadOptionalJSON('data/colosseum.json'),
     ]);
     this.terrain = terrain;
     this.lords = lords;
@@ -92,6 +95,7 @@ export class DataLoader {
     this.affixes = affixes;
     this.dialogue = dialogue;
     this.weaponArts = weaponArts;
+    this.colosseum = colosseum;
     if (this.blessings) {
       const validation = validateBlessingsConfig(this.blessings);
       if (!validation.valid) {
@@ -127,6 +131,7 @@ export class DataLoader {
       affixes,
       dialogue,
       weaponArts,
+      colosseum,
     };
   }
 

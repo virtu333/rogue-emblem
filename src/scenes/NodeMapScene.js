@@ -55,6 +55,7 @@ import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
+import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -70,6 +71,7 @@ const COLOR_BOSS = 0xcc3333;
 const COLOR_SHOP = 0xddaa33;
 const COLOR_RECRUIT = 0x44ccaa;
 const COLOR_CHURCH = 0xcccccc; // Light gray
+const COLOR_COLOSSEUM = 0x9966cc; // Purple
 const COLOR_ELITE = 0xcc5500; // Dark orange for elite seize battles
 const COLOR_COMPLETED = 0x555555;
 const COLOR_AVAILABLE = 0xffdd44;
@@ -176,6 +178,7 @@ const NODE_ICONS = {
   [NODE_TYPES.SHOP]: '$',
   [NODE_TYPES.RECRUIT]: '!',
   [NODE_TYPES.CHURCH]: '\u271D', // ✝
+  [NODE_TYPES.COLOSSEUM]: '\u039B', // Λ
 };
 
 const NODE_COLORS = {
@@ -184,6 +187,7 @@ const NODE_COLORS = {
   [NODE_TYPES.SHOP]: COLOR_SHOP,
   [NODE_TYPES.RECRUIT]: COLOR_RECRUIT,
   [NODE_TYPES.CHURCH]: COLOR_CHURCH,
+  [NODE_TYPES.COLOSSEUM]: COLOR_COLOSSEUM,
 };
 
 export class NodeMapScene extends Phaser.Scene {
@@ -402,7 +406,7 @@ export class NodeMapScene extends Phaser.Scene {
   async finalizeSceneReady(lifecycleGeneration = this._sceneLifecycleGeneration) {
     try {
       // Give audio a short unlock window before we accept battle-node interactions.
-      await this.ensureAudioUnlocked();
+      await ensureAudioUnlocked(this);
     } catch (_) {}
     if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
     if (this.input) this.input.enabled = true;
@@ -753,6 +757,7 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.pauseOverlay?.visible) return true;
     if (this.shopOverlay) return true;
     if (this.churchOverlay) return true;
+    if (this.colosseumOverlay?.visible) return true;
     if (allowPause) return true;
     return false;
   }
@@ -851,6 +856,10 @@ export class NodeMapScene extends Phaser.Scene {
         return true;
       }
       this.leaveChurchNode();
+      return true;
+    }
+    if (this.colosseumOverlay?.visible) {
+      this.colosseumOverlay.hide();
       return true;
     }
     if (allowPause) {
@@ -1350,12 +1359,15 @@ export class NodeMapScene extends Phaser.Scene {
     if (
       this.shopOverlay ||
       this.churchOverlay ||
+      this.colosseumOverlay ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible
     )
       return;
     if (node.type === NODE_TYPES.CHURCH) {
       this.handleChurch(node);
+    } else if (node.type === NODE_TYPES.COLOSSEUM) {
+      this.handleColosseum(node);
     } else if (node.type === NODE_TYPES.SHOP) {
       if (node?.isAmbush === true && node?.ambushCleared !== true) {
         this.battleLaunchInFlight = true;
@@ -1401,7 +1413,7 @@ export class NodeMapScene extends Phaser.Scene {
   async handleBattle(node, lifecycleGeneration = this._sceneLifecycleGeneration) {
     if (!this.battleLaunchInFlight) return;
     try {
-      await this.ensureAudioUnlocked();
+      await ensureAudioUnlocked(this);
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return;
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
@@ -1446,30 +1458,21 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
-  async ensureAudioUnlocked(timeoutMs = 200) {
-    const sound = this.sound;
-    if (!sound?.locked) return;
-    await new Promise((resolve) => {
-      let settled = false;
-      let unlockHandler = null;
-      let timeoutEvent = null;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        if (unlockHandler && typeof sound.off === 'function') {
-          sound.off('unlocked', unlockHandler);
-        }
-        clearTrackedSceneTimer(this, timeoutEvent);
-        resolve();
-      };
-      if (typeof sound.once === 'function') {
-        unlockHandler = finish;
-        sound.once('unlocked', unlockHandler);
-      }
-      try {
-        if (typeof sound.unlock === 'function') sound.unlock();
-      } catch (_) {}
-      timeoutEvent = trackSceneTimer(this, this.time?.delayedCall?.(timeoutMs, finish));
+  handleColosseum(node) {
+    const audio = this.registry.get('audio');
+    if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
+
+    // Import and show ColosseumOverlay dynamically to avoid circular deps at module top
+    import('../ui/ColosseumOverlay.js').then(({ ColosseumOverlay }) => {
+      this.colosseumOverlay = new ColosseumOverlay(this, this.runManager, this.gameData);
+      this.colosseumOverlay.show(node, () => {
+        this.colosseumOverlay = null;
+        this.runManager.markNodeComplete(node.id);
+        this.checkActComplete();
+        const audio = this.registry.get('audio');
+        if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+        this.drawMap();
+      });
     });
   }
 

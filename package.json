@@ -27,6 +27,7 @@
     "sim:matchups": "node sim/matchups.js",
     "sim:economy": "node sim/economy.js",
     "sim:fullrun": "node sim/fullrun.js",
+    "sim:colosseum": "node sim/colosseum.js",
     "test:harness": "vitest run tests/harness",
     "test:harness:watch": "vitest watch tests/harness",
     "test:harness:pr": "node tests/agents/fuzz-runner.js --seeds 10 --all-scenarios --mode strict --use-default-scenario-budgets",

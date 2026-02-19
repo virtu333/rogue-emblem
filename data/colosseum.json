@@ -1,0 +1,73 @@
+{
+  "arena": {
+    "maxFightsPerUnit": 3,
+    "diminishingReturnsAfterLevels": 2,
+    "diminishingReturnsFactor": 0.5,
+    "tiers": {
+      "bronze": {
+        "levelOffset": [-1, 0],
+        "entryFee": 50,
+        "goldReward": 80,
+        "xpMultiplier": 0.8,
+        "minAct": "act1"
+      },
+      "silver": {
+        "levelOffset": [0, 2],
+        "entryFee": 100,
+        "goldReward": 200,
+        "xpMultiplier": 1.0,
+        "minAct": "act1"
+      },
+      "gold": {
+        "levelOffset": [2, 4],
+        "entryFee": 200,
+        "goldReward": 450,
+        "xpMultiplier": 1.3,
+        "minAct": "act2"
+      },
+      "platinum": {
+        "levelOffset": [4, 6],
+        "entryFee": 350,
+        "goldReward": 800,
+        "xpMultiplier": 1.5,
+        "minAct": "act3"
+      }
+    },
+    "defeatHP": 1,
+    "lordXpMultiplierOverride": null
+  },
+  "mercenaries": {
+    "candidateCount": [2, 3],
+    "statBonus": { "count": 2, "value": 1 },
+    "skillChance": 0.5,
+    "weaponTierBonus": 1,
+    "pricing": {
+      "act1": [300, 500],
+      "act2": [500, 800],
+      "act3": [800, 1200],
+      "act4": [1000, 1500]
+    },
+    "promotedMultiplier": 1.5,
+    "crossActPoolAccess": true,
+    "maxHiresPerVisit": 1
+  },
+  "difficulty": {
+    "hard": {
+      "challengerLevelBonus": 1,
+      "mercenaryPriceMultiplier": 1.2
+    },
+    "lunatic": {
+      "challengerLevelBonus": 2,
+      "challengerMinSkills": 1,
+      "platinumMaxSkills": 2,
+      "mercenaryPriceMultiplier": 1.4,
+      "maxFightsPerUnit": 2
+    }
+  },
+  "nodeGeneration": {
+    "maxPerAct": 1,
+    "spawnChance": 0.4,
+    "preferredRows": [2, 3, 4],
+    "excludedRows": [0]
+  }
+}

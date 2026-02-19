@@ -341,6 +341,7 @@ export class RunManager {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
       },
     );
     this.currentNodeId = null;
@@ -1755,12 +1756,15 @@ export class RunManager {
       if (!takenNames.has(candidate)) return candidate;
     }
 
-    let i = 2;
-    while (true) {
+    const MAX_NAME_ATTEMPTS = 10000;
+    for (let i = 2; i < MAX_NAME_ATTEMPTS; i++) {
       const candidate = `${safeBase} ${i}`;
       if (!takenNames.has(candidate)) return candidate;
-      i++;
     }
+    console.warn(
+      `[RunManager] Name exhaustion for "${safeBase}" after ${MAX_NAME_ATTEMPTS} attempts`,
+    );
+    return `${safeBase} ${Date.now()}`;
   }
 
   _trackRecruitNameUse(className, name) {
@@ -2280,6 +2284,10 @@ export class RunManager {
     return true;
   }
 
+  getRosterCap() {
+    return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
+  }
+
   /**
    * Called after a battle victory. Serializes surviving units back to roster.
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
@@ -2356,7 +2364,7 @@ export class RunManager {
    * @returns {boolean} true if revived, false if roster full or insufficient gold
    */
   reviveFallenUnit(unitName, cost) {
-    const rosterCap = ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
+    const rosterCap = this.getRosterCap();
     if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
     if (!this.spendGold(cost)) return false;
 
@@ -2397,6 +2405,7 @@ export class RunManager {
         fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
         halfFogChance: this.difficultyId === 'normal',
         villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
+        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
       },
     );
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();

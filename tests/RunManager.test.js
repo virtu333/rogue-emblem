@@ -8,8 +8,9 @@ import {
   hasSavedRun,
   clearSavedRun,
 } from '../src/engine/RunManager.js';
+import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
-import { NODE_TYPES, ELITE_GOLD_MULTIPLIER } from '../src/utils/constants.js';
+import { NODE_TYPES, ELITE_GOLD_MULTIPLIER, ROSTER_CAP } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
 
 // Mock localStorage
@@ -202,6 +203,18 @@ describe('RunManager', () => {
       expect(rmWithMeta.getMetaUnlockedWeaponArtIds()).toEqual(['legend_gemini_tempest']);
       expect(rmWithMeta.isWeaponArtUnlocked('legend_gemini_tempest')).toBe(true);
       expect(rmWithMeta.isWeaponArtUnlocked('not_real_art')).toBe(false);
+    });
+
+    it('forwards colosseum node generation config to generateNodeMap in startRun', () => {
+      const spy = vi.spyOn(NodeMapGenerator, 'generateNodeMap');
+      try {
+        rm.startRun();
+        expect(spy).toHaveBeenCalled();
+        const options = spy.mock.calls.at(-1)?.[3];
+        expect(options?.colosseumConfig).toEqual(gameData.colosseum?.nodeGeneration ?? null);
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 
@@ -765,6 +778,20 @@ describe('RunManager', () => {
       expect(rm.actIndex).toBe(1);
       expect(rm.nodeMap.actId).toBe('act2');
       expect(rm.currentNodeId).toBeNull();
+    });
+
+    it('forwards colosseum node generation config to generateNodeMap in advanceAct', () => {
+      const spy = vi.spyOn(NodeMapGenerator, 'generateNodeMap');
+      try {
+        rm.startRun();
+        spy.mockClear();
+        rm.advanceAct();
+        expect(spy).toHaveBeenCalledTimes(1);
+        const options = spy.mock.calls[0]?.[3];
+        expect(options?.colosseumConfig).toEqual(gameData.colosseum?.nodeGeneration ?? null);
+      } finally {
+        spy.mockRestore();
+      }
     });
 
     it('isRunComplete is false until final boss defeated', () => {
@@ -1835,6 +1862,33 @@ describe('Fallen unit tracking and revival', () => {
     expect(success).toBe(false);
   });
 
+  it('getRosterCap includes meta roster cap bonus', () => {
+    const baseRm = new RunManager(gameData, null);
+    const boostedRm = new RunManager(gameData, { rosterCapBonus: 3 });
+
+    expect(baseRm.getRosterCap()).toBe(ROSTER_CAP);
+    expect(boostedRm.getRosterCap()).toBe(ROSTER_CAP + 3);
+  });
+
+  it('reviveFallenUnit consults getRosterCap for capacity checks', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+
+    const fallen = rm.roster[0];
+    const fallenName = fallen.name;
+    rm.roster = rm.roster.slice(1);
+    rm.fallenUnits.push(fallen);
+    rm.gold = 2000;
+
+    const capSpy = vi.spyOn(rm, 'getRosterCap').mockReturnValue(1);
+    const success = rm.reviveFallenUnit(fallenName, 1000);
+
+    expect(success).toBe(false);
+    expect(capSpy).toHaveBeenCalled();
+    expect(rm.gold).toBe(2000);
+    capSpy.mockRestore();
+  });
+
   it('getReviveCost scales with level for base class units', () => {
     expect(getReviveCost({ level: 1, tier: 'base' })).toBe(800);
     expect(getReviveCost({ level: 5, tier: 'base' })).toBe(2000);
@@ -1856,7 +1910,7 @@ describe('Fallen unit tracking and revival', () => {
   it('getReviveCost handles non-numeric level values safely', () => {
     expect(getReviveCost({ level: 'abc' })).toBe(800); // falls back to L1
     expect(getReviveCost({ level: NaN })).toBe(800);
-    expect(getReviveCost({ level: -3 })).toBe(800); // below 1 -> L1
+    expect(getReviveCost({ level: -3 })).toBe(800); // below 1 → L1
     expect(getReviveCost({ level: 0 })).toBe(800);
   });
 

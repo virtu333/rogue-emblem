@@ -184,6 +184,28 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
     }
   }
 
+  // Post-process: place at most 1 Colosseum node per act (rows 2-4, from BATTLE nodes)
+  if (options.colosseumConfig) {
+    const cfg = options.colosseumConfig;
+    const preferredRows = cfg.preferredRows || [2, 3, 4];
+    const excludedRows = new Set(cfg.excludedRows || [0]);
+    const bossRow = rows - 1;
+    if (Math.random() < (cfg.spawnChance || 0.4)) {
+      const eligible = nodes.filter(
+        (n) =>
+          n.type === NODE_TYPES.BATTLE &&
+          preferredRows.includes(n.row) &&
+          !excludedRows.has(n.row) &&
+          n.row < bossRow,
+      );
+      if (eligible.length > 0) {
+        const pick = eligible[Math.floor(Math.random() * eligible.length)];
+        pick.type = NODE_TYPES.COLOSSEUM;
+        pick.battleParams = null;
+      }
+    }
+  }
+
   // Post-process: mark a subset of remaining shops as village ambush encounters.
   // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
   if (villageAmbushChance > 0) {

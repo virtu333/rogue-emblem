@@ -5796,11 +5796,13 @@ export class BattleScene extends Phaser.Scene {
     // Talk: Lord adjacent to NPC, roster not full
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this.findTalkTarget(unit);
-      const rosterCapBonus = this.runManager?.metaEffects?.rosterCapBonus || 0;
+      const rosterCap =
+        this.runManager?.getRosterCap?.() ??
+        ROSTER_CAP + (this.runManager?.metaEffects?.rosterCapBonus || 0);
       const fullRosterCount =
         (this.runManager?.roster?.length ?? this.playerUnits.length) -
         (this._playerDeathsThisBattle || 0);
-      if (talkTarget && fullRosterCount < ROSTER_CAP + rosterCapBonus) {
+      if (talkTarget && fullRosterCount < rosterCap) {
         items.push('Talk');
       }
     }

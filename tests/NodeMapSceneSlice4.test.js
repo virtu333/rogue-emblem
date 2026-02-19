@@ -100,6 +100,7 @@ function makeCancelableScene(overrides = {}) {
     shopContentGroup: null,
     shopTabObjects: null,
     churchOverlay: null,
+    colosseumOverlay: null,
     _shopViewingMap: false,
     _churchViewingMap: false,
     showPauseMenu: vi.fn(),
@@ -355,6 +356,31 @@ describe('NodeMapScene Slice 4', () => {
 
     expect(shopScene.leaveShopNode).toHaveBeenCalledTimes(1);
     expect(churchScene.leaveChurchNode).toHaveBeenCalledTimes(1);
+  });
+
+  it('requestCancel hides visible colosseum overlay before pause fallback', () => {
+    const hide = vi.fn();
+    const scene = makeCancelableScene({
+      colosseumOverlay: { visible: true, hide },
+    });
+
+    const handled = NodeMapScene.prototype.requestCancel.call(scene);
+
+    expect(handled).toBe(true);
+    expect(hide).toHaveBeenCalledTimes(1);
+    expect(scene.showPauseMenu).not.toHaveBeenCalled();
+  });
+
+  it('canRequestCancel returns true for visible colosseum overlay when allowPause is false', () => {
+    const scene = makeCancelableScene({
+      colosseumOverlay: { visible: true, hide: vi.fn() },
+    });
+
+    const canCancel = NodeMapScene.prototype.canRequestCancel.call(scene, {
+      allowPause: false,
+    });
+
+    expect(canCancel).toBe(true);
   });
 
   it('view-map mode blocks shop touch and wheel scrolling mutations', () => {

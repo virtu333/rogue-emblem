@@ -127,6 +127,7 @@ export const NODE_TYPES = {
   SHOP: 'shop',
   RECRUIT: 'recruit',
   CHURCH: 'church',
+  COLOSSEUM: 'colosseum',
 };
 
 // Gold multiplier per node type (applied to kill gold subtotal in calculateBattleGold)
@@ -136,6 +137,7 @@ export const NODE_GOLD_MULTIPLIER = {
   boss: 1.5, // Already has GOLD_BOSS_BONUS; this stacks on kill gold
   church: 0, // No combat
   shop: 0, // No combat
+  colosseum: 0, // No standard combat
 };
 export const ROSTER_CAP = 12;
 

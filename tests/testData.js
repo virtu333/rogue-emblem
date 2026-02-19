@@ -31,5 +31,6 @@ export function loadGameData() {
     difficulty: loadJSON('difficulty.json'),
     affixes: loadJSON('affixes.json'),
     weaponArts: loadJSON('weaponArts.json'),
+    colosseum: loadJSON('colosseum.json'),
   };
 }

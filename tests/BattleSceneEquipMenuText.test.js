@@ -224,6 +224,34 @@ describe('BattleScene equip menu text', () => {
     expect(labels).toContain('Equip');
   });
 
+  it('Talk gating uses runManager.getRosterCap when available', () => {
+    const scene = makeBaseScene();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    scene.findTalkTarget = vi.fn(() => ({ id: 'npc_1' }));
+    scene.npcUnits = [{ id: 'npc_1' }];
+    const getRosterCap = vi.fn(() => 15);
+    scene.runManager = {
+      roster: new Array(12).fill({}),
+      getRosterCap,
+    };
+
+    const unit = {
+      col: 1,
+      row: 1,
+      isLord: true,
+      weapon: equipped,
+      inventory: [equipped],
+      consumables: [],
+      skills: [],
+    };
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(getRosterCap).toHaveBeenCalled();
+    expect(labels).toContain('Talk');
+  });
+
   it('hides top-level Reclass when multiple reclass seals are usable', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
