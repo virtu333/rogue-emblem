@@ -341,12 +341,6 @@
         ]
       },
       {
-        "label": "Lose 100 gold at run start",
-        "effects": [
-          { "type": "gold_delta", "params": { "value": -100 } }
-        ]
-      },
-      {
         "label": "Deploy -1 unit",
         "effects": [
           { "type": "deploy_cap_delta", "params": { "value": -1 } }
@@ -379,12 +373,6 @@
         ]
       },
       {
-        "label": "Lose 150 gold at run start",
-        "effects": [
-          { "type": "gold_delta", "params": { "value": -150 } }
-        ]
-      },
-      {
         "label": "-1 DEF to all units in Act 1",
         "effects": [
           { "type": "act_stat_delta_all_units", "params": { "act": "act1", "stat": "DEF", "value": -1 } }
@@ -414,12 +402,6 @@
         "label": "-30% battle gold",
         "effects": [
           { "type": "battle_gold_multiplier_delta", "params": { "value": -0.30 } }
-        ]
-      },
-      {
-        "label": "Lose 250 gold at run start",
-        "effects": [
-          { "type": "gold_delta", "params": { "value": -250 } }
         ]
       },
       {
