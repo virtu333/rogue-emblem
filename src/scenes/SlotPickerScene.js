@@ -14,6 +14,7 @@ import { loadRun } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -279,7 +280,7 @@ export class SlotPickerScene extends Phaser.Scene {
     this.registry.set('hints', new HintManager(slot));
 
     try {
-      await this.ensureAudioUnlocked();
+      await ensureAudioUnlocked(this);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
 
@@ -328,7 +329,7 @@ export class SlotPickerScene extends Phaser.Scene {
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
     try {
-      await this.ensureAudioUnlocked();
+      await ensureAudioUnlocked(this);
       const transitioned = await action();
       if (transitioned === false) {
         this.isTransitioning = false;
@@ -341,26 +342,6 @@ export class SlotPickerScene extends Phaser.Scene {
       if (this.input) this.input.enabled = true;
       return false;
     }
-  }
-
-  async ensureAudioUnlocked(timeoutMs = 200) {
-    const sound = this.sound;
-    if (!sound?.locked) return;
-    await new Promise((resolve) => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        resolve();
-      };
-      if (typeof sound.once === 'function') {
-        sound.once('unlocked', finish);
-      }
-      try {
-        if (typeof sound.unlock === 'function') sound.unlock();
-      } catch (_) {}
-      this.time.delayedCall(timeoutMs, finish);
-    });
   }
 
   confirmDelete(slot) {

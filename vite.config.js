@@ -5,6 +5,11 @@ export default defineConfig({
   publicDir: 'public',
   test: {
     exclude: ['tests/e2e/**', 'node_modules/**'],
+    coverage: {
+      thresholds: {
+        lines: 70,
+      },
+    },
   },
   build: {
     outDir: 'dist',

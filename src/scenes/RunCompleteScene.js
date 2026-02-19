@@ -20,6 +20,9 @@ export class RunCompleteScene extends Phaser.Scene {
   }
 
   async create() {
+    this.isTransitioning = false;
+    this._resultMusicKey = this.result === 'victory' ? MUSIC.runWin : MUSIC.defeat;
+
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
     clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
@@ -31,8 +34,7 @@ export class RunCompleteScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) {
-      const key = isVictory ? MUSIC.runWin : MUSIC.defeat;
-      audio.playMusic(key, this, 500);
+      audio.playMusic(this._resultMusicKey, this, 500);
     }
 
     this.events.once('shutdown', () => {
@@ -155,15 +157,8 @@ export class RunCompleteScene extends Phaser.Scene {
 
     homeBtn.on('pointerover', () => homeBtn.setColor('#ffdd44'));
     homeBtn.on('pointerout', () => homeBtn.setColor('#88ccff'));
-    homeBtn.on('pointerdown', async () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      await transitionToScene(
-        this,
-        'HomeBase',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.RETURN_HOME },
-      );
+    homeBtn.on('pointerdown', () => {
+      void this._attemptSceneTransition('HomeBase', TRANSITION_REASONS.RETURN_HOME);
     });
 
     // Back to Title button (secondary)
@@ -180,16 +175,56 @@ export class RunCompleteScene extends Phaser.Scene {
 
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', async () => {
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      await transitionToScene(
-        this,
-        'Title',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.RETURN_TITLE },
-      );
+    titleBtn.on('pointerdown', () => {
+      void this._attemptSceneTransition('Title', TRANSITION_REASONS.RETURN_TITLE);
     });
+  }
+
+  async _attemptSceneTransition(targetScene, reason) {
+    if (this.isTransitioning) return false;
+    this.isTransitioning = true;
+    const audio = this.registry.get('audio');
+    if (audio) audio.stopMusic(this, 0);
+
+    try {
+      const transitioned =
+        reason === TRANSITION_REASONS.RETURN_HOME
+          ? await transitionToScene(
+              this,
+              targetScene,
+              { gameData: this.gameData },
+              { reason: TRANSITION_REASONS.RETURN_HOME },
+            )
+          : await transitionToScene(
+              this,
+              targetScene,
+              { gameData: this.gameData },
+              { reason: TRANSITION_REASONS.RETURN_TITLE },
+            );
+      if (transitioned === true) return true;
+      this.isTransitioning = false;
+      if (audio && this._resultMusicKey) audio.playMusic(this._resultMusicKey, this, 0);
+      if (import.meta?.env?.DEV) {
+        console.debug(
+          '[RunCompleteScene] Transition blocked, ready for retry:',
+          targetScene,
+          reason,
+        );
+      }
+      return false;
+    } catch (err) {
+      this.isTransitioning = false;
+      if (audio && this._resultMusicKey) audio.playMusic(this._resultMusicKey, this, 0);
+      if (import.meta?.env?.DEV) {
+        console.debug(
+          '[RunCompleteScene] Transition failed, ready for retry:',
+          targetScene,
+          reason,
+          err,
+        );
+      }
+      return false;
+    }
   }
 
   _getRunCompleteDialogue() {

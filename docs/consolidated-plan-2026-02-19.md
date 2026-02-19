@@ -1,64 +1,79 @@
-# Consolidated Execution Plan - Feb 19, 2026 (Delivered Scope Closeout)
+# Consolidated Execution Plan - Feb 19, 2026 (Track A/B Closeout)
 
-## Snapshot (main)
+## Snapshot
 
 | Metric | Value |
 | --- | --- |
 | Baseline commit | `a30ebde` |
 | Branch | `main` |
-| Full test run before commit | `2412/2412` passing across `143` files |
-| Track A (Colosseum) | Closed for delivered overlay scope |
-| Track B (Quality) | Partially complete; follow-up spec required |
+| Track A status | Closed (Path A approved: overlay architecture retained, A2/A3 deferred) |
+| Track B status | Closed by local closeout patch (pending merge) |
+| Unit test gate | `npm test` -> `2415/2415` passing across `143` files |
+| Journey E2E gate | `tests/e2e/journey-run-loop.spec.js` passes 3 consecutive runs with `--retries=0` |
 
-## Delivered in `a30ebde`
+## Delivered In `a30ebde`
 
-### Track A
-
-- Added Colosseum data contract and runtime copy:
+- Colosseum data contract and runtime copy:
   - `data/colosseum.json`
   - `public/data/colosseum.json`
-- Added pure Colosseum engine module:
+- Pure Colosseum engine module:
   - `src/engine/ColosseumEngine.js`
-- Integrated node type and run-generation wiring:
+- Node type and run-generation wiring:
   - `src/utils/constants.js`
   - `src/engine/DataLoader.js`
   - `src/engine/NodeMapGenerator.js`
-  - `src/engine/RunManager.js` (Colosseum node config forwarded in map generation)
-- Implemented Colosseum UX as a NodeMap overlay:
+  - `src/engine/RunManager.js`
+- Overlay-based Colosseum UX from NodeMap:
   - `src/ui/ColosseumOverlay.js`
   - `src/scenes/NodeMapScene.js`
-- Added economy simulation:
+- Colosseum sim harness:
   - `sim/colosseum.js`
-- Added regression and behavior tests:
+- Regression coverage:
   - `tests/ColosseumEngine.test.js`
   - `tests/ColosseumOverlay.test.js`
   - `tests/RunManager.test.js`
   - `tests/NodeMapSceneSlice4.test.js`
   - `tests/BattleSceneEquipMenuText.test.js`
 
-### Track B items included in the same commit
+## Local Closeout Patch Scope (Pending Merge)
 
-- Added shared audio unlock utility:
-  - `src/utils/audioUnlock.js`
-- Added safety bound for unique recruit-name generation in `RunManager`.
-- Added targeted test coverage around Colosseum integration fixes.
+- AI terrain lookup hardening in `src/engine/AIController.js`:
+  - terrain indices now resolve by terrain name with safe fallback values.
+- Shared audio unlock utility usage in:
+  - `src/scenes/TitleScene.js`
+  - `src/scenes/SlotPickerScene.js`
+  - `src/scenes/HomeBaseScene.js`
+  - utility source: `src/utils/audioUnlock.js`
+- RunComplete transition guard in `src/scenes/RunCompleteScene.js`:
+  - prevents double-fire transitions on repeated clicks.
+- Coverage floor in `vite.config.js`:
+  - `coverage.thresholds.lines = 70`.
+- Journey E2E conversion in `tests/e2e/journey-run-loop.spec.js`:
+  - starts from `/` (no `devScene`),
+  - drives `Title -> HomeBase -> DifficultySelect -> BlessingSelect -> NodeMap -> Battle -> Title`,
+  - uses pause `Save & Return to Title`,
+  - asserts ordered scene history and no unignored page/console errors.
+- Roster-cap runtime source-of-truth consistency:
+  - Battle recruit/talk gating consumes `runManager.getRosterCap()` with fallback only when `runManager` is absent in scaffolding.
 
-## Not closed yet (vs the original consolidated plan)
+## Path A Reconciliation (Approved)
 
-- Phase A2 module extraction work is not delivered:
-  - `src/ui/CombatForecastDisplay.js`
-  - `src/engine/CombatResolutionFlow.js`
-  - `src/ui/XPGoldAwardFlow.js`
-- Phase A3 `ColosseumScene` is not delivered. Current architecture is overlay-based (`ColosseumOverlay`) from `NodeMapScene`.
-- Track B2 full end-to-end journey from Title is not delivered in `main` (current E2E is smoke/dev-scene style).
-- Track B3 coverage-threshold config and remaining B1 quick-fix edits are local-only and not included in `a30ebde`.
-- One low-priority consistency cleanup remains: route BattleScene roster-cap checks through `RunManager.getRosterCap()`.
+- Chosen path: **Path A** (defer A2/A3).
+- Overlay architecture (`ColosseumOverlay` from `NodeMapScene`) is the accepted endpoint for this phase.
+- Deferred items moved to explicit backlog:
+  - `docs/issues/track-a2-a3-deferred-backlog-2026-02-19.md`
 
-## Closeout decision
+## Deferred Backlog (A2/A3)
 
-- `Track A`: closed for delivered scope on `main` (overlay architecture accepted).
-- `Track B`: not fully closed against the original plan; finish via `docs/specs/track-ab-remaining-work-spec-2026-02-19.md`.
+- Combat forecast extraction to `src/ui/CombatForecastDisplay.js`.
+- Combat resolution extraction to `src/engine/CombatResolutionFlow.js`.
+- XP/Gold award extraction to `src/ui/XPGoldAwardFlow.js`.
+- Optional future migration from overlay to `src/scenes/ColosseumScene.js`.
 
-## Remaining-work spec
+## Acceptance Summary
 
-See `docs/specs/track-ab-remaining-work-spec-2026-02-19.md` for phases, acceptance criteria, and test gates.
+- Workstream 1: complete.
+- Workstream 2: complete.
+- Workstream 3: complete.
+- Track B closeout gate (`npm test`): complete.
+- Track A closeout reconciliation gate (Path A documented + deferred backlog captured): complete.

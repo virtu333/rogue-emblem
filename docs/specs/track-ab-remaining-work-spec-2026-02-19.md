@@ -1,5 +1,16 @@
 # Track A/B Remaining Work Spec - Feb 19, 2026
 
+## Status Update (Closeout)
+
+- Workstream 1: complete in local closeout patch.
+- Workstream 2: complete (`tests/e2e/journey-run-loop.spec.js` now runs from `/` with required ordered scene assertions).
+- Workstream 2 stability gate: passed 3 consecutive local runs with `--retries=0`.
+- Workstream 3: complete (`BattleScene` recruit/talk gating uses `runManager.getRosterCap()` with fallback only for missing test scaffolding).
+- Workstream 4 decision: **Path A selected** (A2/A3 deferred and captured in backlog).
+- Reconciliation docs:
+  - `docs/consolidated-plan-2026-02-19.md`
+  - `docs/issues/track-a2-a3-deferred-backlog-2026-02-19.md`
+
 ## Context
 
 - Baseline in `main`: `a30ebde` (`feat(colosseum): add arena/mercenary node flow and follow-up fixes`)
@@ -94,7 +105,8 @@
 
 ## Workstream 4: Track A2/A3 reconciliation decision
 
-The original plan expected BattleScene extractions plus a dedicated `ColosseumScene`. Shipping architecture is overlay-based. Choose one path and document it.
+The original plan expected BattleScene extractions plus a dedicated `ColosseumScene`. Shipping architecture is overlay-based.
+This closeout resolves Workstream 4 with Path A.
 
 ### Path A (recommended): Officially defer A2/A3
 

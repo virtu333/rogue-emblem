@@ -12,6 +12,7 @@ import {
 } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats', label: 'Recruits' },
@@ -1368,7 +1369,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
     try {
-      await this.ensureAudioUnlocked();
+      await ensureAudioUnlocked(this);
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
       const transitioned = await action();
       if (!isSceneLifecycleActive(this, lifecycleGeneration)) return false;
@@ -1396,33 +1397,6 @@ export class HomeBaseScene extends Phaser.Scene {
       if (audio) audio.playSFX('sfx_cancel');
       return false;
     }
-  }
-
-  async ensureAudioUnlocked(timeoutMs = 200) {
-    const sound = this.sound;
-    if (!sound?.locked) return;
-    await new Promise((resolve) => {
-      let settled = false;
-      let unlockHandler = null;
-      let timeoutEvent = null;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        if (unlockHandler && typeof sound.off === 'function') {
-          sound.off('unlocked', unlockHandler);
-        }
-        clearTrackedSceneTimer(this, timeoutEvent);
-        resolve();
-      };
-      if (typeof sound.once === 'function') {
-        unlockHandler = finish;
-        sound.once('unlocked', unlockHandler);
-      }
-      try {
-        if (typeof sound.unlock === 'function') sound.unlock();
-      } catch (_) {}
-      timeoutEvent = trackSceneTimer(this, this.time?.delayedCall?.(timeoutMs, finish));
-    });
   }
 
   showTransientMessage(text, color = '#ff8888') {

@@ -10,9 +10,18 @@ import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
 const aiLog = createScopedLogger('AI', { debug: DEBUG_AI });
-const TERRAIN_FORT = 3;
-const TERRAIN_THRONE = 4;
 const NO_MOVE_STREAK_RECOVERY_THRESHOLD = 2;
+
+// Well-known terrain indices from constants.js (used as fallback when terrain data unavailable)
+const FALLBACK_TERRAIN = { Fort: 3, Throne: 4 };
+
+function getTerrainIndexByName(terrainData, name) {
+  if (Array.isArray(terrainData)) {
+    const idx = terrainData.findIndex((t) => t.name === name);
+    if (idx >= 0) return idx;
+  }
+  return FALLBACK_TERRAIN[name] ?? -1;
+}
 
 export class AIController {
   constructor(grid, gameData, options = {}) {
@@ -501,9 +510,11 @@ export class AIController {
     }
 
     if (this.aggressiveMode) {
+      const fortIdx = getTerrainIndexByName(this.gameData?.terrain, 'Fort');
+      const throneIdx = getTerrainIndexByName(this.gameData?.terrain, 'Throne');
       const rank = (unit) => {
         const terrainIdx = this.grid?.mapLayout?.[unit.row]?.[unit.col];
-        if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) return 0;
+        if (terrainIdx === fortIdx || terrainIdx === throneIdx) return 0;
         if (unit.weapon?.type === 'Staff') return 1;
         return 2;
       };
@@ -558,7 +569,9 @@ export class AIController {
     }
     if (this.aggressiveMode) {
       const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
-      if (terrainIdx === TERRAIN_FORT || terrainIdx === TERRAIN_THRONE) score += 35;
+      const fortIdx = getTerrainIndexByName(this.gameData?.terrain, 'Fort');
+      const throneIdx = getTerrainIndexByName(this.gameData?.terrain, 'Throne');
+      if (terrainIdx === fortIdx || terrainIdx === throneIdx) score += 35;
       if (target.weapon?.type === 'Staff') score += 25;
     }
     return score;
