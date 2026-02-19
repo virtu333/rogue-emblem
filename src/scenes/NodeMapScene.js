@@ -1,7 +1,7 @@
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
-import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
+import { RunManager, saveRun, clearSavedRun, getReviveCost } from '../engine/RunManager.js';
 import {
   ACT_CONFIG,
   NODE_TYPES,
@@ -1599,13 +1599,13 @@ export class NodeMapScene extends Phaser.Scene {
     if (rm.fallenUnits.length > 0) {
       items.push({
         type: 'label',
-        text: 'Revive Fallen Unit (1000G):',
+        text: 'Revive Fallen Unit:',
         color: '#cccccc',
         y: localY,
       });
       localY += 25;
       for (const fallen of rm.fallenUnits) {
-        items.push({ type: 'revive', unit: fallen, y: localY });
+        items.push({ type: 'revive', unit: fallen, cost: getReviveCost(fallen), y: localY });
         localY += CHURCH_ITEM_HEIGHT;
       }
       localY += 10;
@@ -1682,8 +1682,9 @@ export class NodeMapScene extends Phaser.Scene {
         this.churchContentGroup.push(noneText);
       } else if (item.type === 'revive') {
         const fallen = item.unit;
+        const cost = item.cost;
         const unitBtn = this.add
-          .text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className})`, {
+          .text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className}) — ${cost}G`, {
             fontFamily: 'monospace',
             fontSize: '14px',
             color: '#e0e0e0',
@@ -1694,7 +1695,7 @@ export class NodeMapScene extends Phaser.Scene {
           .setDepth(OVERLAY_CONTENT_DEPTH)
           .setInteractive({ useHandCursor: true });
         unitBtn.on('pointerover', () => {
-          if (rm.gold >= 1000) unitBtn.setColor('#ffdd44');
+          if (rm.gold >= cost) unitBtn.setColor('#ffdd44');
           unitBtn.setBackgroundColor('#333333');
         });
         unitBtn.on('pointerout', () => {
@@ -1702,7 +1703,7 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setBackgroundColor('#222222');
         });
         unitBtn.on('pointerdown', () => {
-          if (rm.reviveFallenUnit(fallen.name, 1000)) {
+          if (rm.reviveFallenUnit(fallen.name, cost)) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_heal');
             this.showChurchMessage(`${fallen.name} revived!`, '#44ff44');

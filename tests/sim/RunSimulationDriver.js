@@ -1,6 +1,6 @@
 // RunSimulationDriver.js - Full run simulation driver (node traversal + battles + economy).
 
-import { RunManager } from '../../src/engine/RunManager.js';
+import { RunManager, getReviveCost } from '../../src/engine/RunManager.js';
 import { generateShopInventory } from '../../src/engine/LootSystem.js';
 import {
   canPromote,
@@ -39,7 +39,7 @@ export class RunSimulationDriver {
       runOptions: {},
       maxNodes: 300,
       maxBattleActions: 2600,
-      reviveCost: 1000,
+      // reviveCost removed — now computed per-unit via getReviveCost()
       invincibility: false,
       battleAgentFactory: (driver) => new ScriptedAgent(driver),
       ...options,
@@ -352,16 +352,20 @@ export class RunSimulationDriver {
     this.metrics.churchNodes++;
 
     const plan = chooseChurchPlan(this.runManager, {
-      reviveCost: this.options.reviveCost,
       promoteCost: CHURCH_PROMOTE_COST,
     });
 
     let revived = null;
     if (plan.revive && this.runManager.fallenUnits.length > 0) {
-      const pick = this.runManager.fallenUnits[0];
-      if (this.runManager.reviveFallenUnit(pick.name, this.options.reviveCost)) {
-        revived = pick.name;
-        this.metrics.churchGoldSpent += this.options.reviveCost;
+      const fallenWithCost = this.runManager.fallenUnits.map((unit) => ({
+        unit,
+        cost: getReviveCost(unit),
+      }));
+      const affordable = fallenWithCost.filter((entry) => entry.cost <= this.runManager.gold);
+      const pick = affordable.sort((a, b) => a.cost - b.cost)[0] || null;
+      if (pick && this.runManager.reviveFallenUnit(pick.unit.name, pick.cost)) {
+        revived = pick.unit.name;
+        this.metrics.churchGoldSpent += pick.cost;
       }
     }
 

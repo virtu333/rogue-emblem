@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   RunManager,
   serializeUnit,
+  getReviveCost,
   saveRun,
   loadRun,
   hasSavedRun,
@@ -1832,6 +1833,31 @@ describe('Fallen unit tracking and revival', () => {
       .map((_, i) => ({ name: `Unit${i}`, stats: { HP: 30 }, currentHP: 30 }));
     success = rm.reviveFallenUnit(fallenName, 1000);
     expect(success).toBe(false);
+  });
+
+  it('getReviveCost scales with level for base class units', () => {
+    expect(getReviveCost({ level: 1, tier: 'base' })).toBe(800);
+    expect(getReviveCost({ level: 5, tier: 'base' })).toBe(2000);
+    expect(getReviveCost({ level: 10, tier: 'base' })).toBe(3500);
+  });
+
+  it('getReviveCost applies promotion multiplier', () => {
+    expect(getReviveCost({ level: 1, tier: 'promoted' })).toBe(2000);
+    expect(getReviveCost({ level: 5, tier: 'promoted' })).toBe(5000);
+    expect(getReviveCost({ level: 10, tier: 'promoted' })).toBe(8750);
+  });
+
+  it('getReviveCost defaults to L1 base for missing/null unit', () => {
+    expect(getReviveCost(null)).toBe(800);
+    expect(getReviveCost(undefined)).toBe(800);
+    expect(getReviveCost({})).toBe(800);
+  });
+
+  it('getReviveCost handles non-numeric level values safely', () => {
+    expect(getReviveCost({ level: 'abc' })).toBe(800); // falls back to L1
+    expect(getReviveCost({ level: NaN })).toBe(800);
+    expect(getReviveCost({ level: -3 })).toBe(800); // below 1 -> L1
+    expect(getReviveCost({ level: 0 })).toBe(800);
   });
 
   it('fallenUnits serializes and deserializes correctly', () => {

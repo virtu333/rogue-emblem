@@ -14,6 +14,9 @@ import {
   CONVOY_WEAPON_CAPACITY,
   CONVOY_CONSUMABLE_CAPACITY,
   RECRUIT_SKILL_POOL,
+  REVIVE_BASE_COST,
+  REVIVE_COST_PER_LEVEL,
+  REVIVE_PROMOTION_MULTIPLIER,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
@@ -215,6 +218,14 @@ function ensureSeraBaseStaffProficiency(unit) {
   if (!Array.isArray(unit.proficiencies)) unit.proficiencies = [];
   if (unit.proficiencies.some((p) => p.type === 'Staff')) return;
   unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+}
+
+/** Calculate level-scaled revive cost for a fallen unit. */
+export function getReviveCost(unit) {
+  const raw = Number(unit?.level);
+  const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
+  const base = REVIVE_BASE_COST + level * REVIVE_COST_PER_LEVEL;
+  return Math.round(unit?.tier === 'promoted' ? base * REVIVE_PROMOTION_MULTIPLIER : base);
 }
 
 export class RunManager {
@@ -2341,7 +2352,7 @@ export class RunManager {
   /**
    * Revive a fallen unit, restore to roster at 1 HP.
    * @param {string} unitName - name of fallen unit to revive
-   * @param {number} cost - gold cost (1000g)
+   * @param {number} cost - gold cost (scales with level/promotion)
    * @returns {boolean} true if revived, false if roster full or insufficient gold
    */
   reviveFallenUnit(unitName, cost) {

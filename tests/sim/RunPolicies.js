@@ -1,6 +1,7 @@
 // RunPolicies.js - Deterministic policy helpers for full-run simulations.
 
 import { NODE_TYPES, ROSTER_CAP } from '../../src/utils/constants.js';
+import { getReviveCost } from '../../src/engine/RunManager.js';
 
 const NODE_PRIORITY = {
   [NODE_TYPES.RECRUIT]: 5,
@@ -33,9 +34,11 @@ export function chooseDeployRoster(roster, deployCount) {
 }
 
 export function chooseChurchPlan(runManager, options = {}) {
-  const { reviveCost = 1000, promoteCost = 2000 } = options;
+  const { promoteCost = 2000 } = options;
 
-  const canRevive = runManager.fallenUnits.length > 0 && runManager.gold >= reviveCost;
+  const fallen = runManager.fallenUnits;
+  const cheapest = fallen.length > 0 ? Math.min(...fallen.map((u) => getReviveCost(u))) : Infinity;
+  const canRevive = fallen.length > 0 && runManager.gold >= cheapest;
   const canPromote = runManager.gold >= promoteCost;
 
   return {

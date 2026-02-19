@@ -170,4 +170,28 @@ describe('RunSimulationDriver', () => {
     expect(driver.metrics.ambushBattles).toBe(1);
     expect(result.result).toBe('timeout');
   });
+
+  it('revives the cheapest affordable fallen unit at church', () => {
+    const gameData = loadGameData();
+    const driver = new RunSimulationDriver(gameData);
+    driver.runManager = {
+      gold: 1000,
+      fallenUnits: [
+        { name: 'Expensive', level: 10, tier: 'promoted' },
+        { name: 'Cheap', level: 1, tier: 'base' },
+      ],
+      reviveFallenUnit: vi.fn((name, cost) => name === 'Cheap' && cost === 800),
+      rest: vi.fn(),
+      roster: [],
+    };
+    driver._tryChurchPromotion = vi.fn(() => null);
+
+    const node = { id: 'church_test_1', type: NODE_TYPES.CHURCH };
+    const result = driver._runChurchNode(node);
+
+    expect(driver.runManager.reviveFallenUnit).toHaveBeenCalledWith('Cheap', 800);
+    expect(result).toEqual({ result: 'church_done', revived: 'Cheap', promoted: null });
+    expect(driver.metrics.churchGoldSpent).toBe(800);
+    expect(driver.runManager.rest).toHaveBeenCalledWith(node.id);
+  });
 });
