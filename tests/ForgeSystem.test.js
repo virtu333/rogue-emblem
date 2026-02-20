@@ -444,7 +444,7 @@ describe('ForgeSystem', () => {
       // 2. Call applyForge with same discount
       // 3. Verify result.cost === display cost
       const wpn = makeWeapon({ price: 500 });
-      const discount = 0.2; // frugal_smith blessing
+      const discount = 0.3; // frugal_smith blessing
 
       // Step 1: Display cost (NodeMapScene line ~1735)
       const baseCost = getForgeCost(wpn, 'might');
@@ -471,7 +471,7 @@ describe('ForgeSystem', () => {
 
     it('display/charge parity holds across multiple forge levels', () => {
       const wpn = makeWeapon({ price: 500 });
-      const discount = 0.2;
+      const discount = 0.3;
 
       for (let i = 0; i < FORGE_STAT_CAP; i++) {
         const baseCost = getForgeCost(wpn, 'might');

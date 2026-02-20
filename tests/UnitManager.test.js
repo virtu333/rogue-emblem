@@ -179,6 +179,34 @@ describe('createEnemyUnit', () => {
   });
 });
 
+describe('enemyEquipTierShift', () => {
+  it('act1 ignores tierShift — always Iron for low-level enemies', () => {
+    const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
+    const diffCfg = { multiplier: 1.0, enemyStatBonus: 0, enemyEquipTierShift: 1 };
+    const enemy = createEnemyUnit(myrmidon, 1, data.weapons, diffCfg, data.skills, 'act1');
+    expect(enemy.weapon.tier).toBe('Iron');
+  });
+
+  it('act2 with tierShift=1 upgrades weapon tier', () => {
+    const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
+    const diffCfg = { multiplier: 1.0, enemyStatBonus: 0, enemyEquipTierShift: 1 };
+    // level 1 + shift*5 = effective 6 → Steel
+    const lowEnemy = createEnemyUnit(myrmidon, 1, data.weapons, diffCfg, data.skills, 'act2');
+    expect(lowEnemy.weapon.tier).toBe('Steel');
+    // level 8 + shift*5 = effective 13 → Silver
+    const highEnemy = createEnemyUnit(myrmidon, 8, data.weapons, diffCfg, data.skills, 'act2');
+    expect(highEnemy.weapon.tier).toBe('Silver');
+  });
+
+  it('act2 with tierShift=0 keeps baseline weapon tier', () => {
+    const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
+    const diffCfg = { multiplier: 1.0, enemyStatBonus: 0, enemyEquipTierShift: 0 };
+    // level 1 + 0 = effective 1 → Iron
+    const enemy = createEnemyUnit(myrmidon, 1, data.weapons, diffCfg, data.skills, 'act2');
+    expect(enemy.weapon.tier).toBe('Iron');
+  });
+});
+
 describe('promoted enemy creation pattern', () => {
   it('creates promoted enemy via base class + promoteUnit', () => {
     const general = data.classes.find((c) => c.name === 'General');

@@ -6,8 +6,8 @@
     "category": "recruit_stats",
     "maxLevel": 5,
     "costs": [
-      35,
-      35,
+      50,
+      50,
       53,
       70,
       105
@@ -426,7 +426,7 @@
     "category": "lord_bonuses",
     "maxLevel": 5,
     "costs": [
-      35,
+      50,
       53,
       70,
       88,
@@ -858,7 +858,7 @@
     "category": "economy",
     "maxLevel": 3,
     "costs": [
-      50,
+      75,
       100,
       150
     ],
@@ -1060,7 +1060,7 @@
     "id": "vision_charges_2",
     "name": "Prophet's Glimpse",
     "description": "+1 Vision charge per run",
-    "category": "capacity",
+    "category": "lord_bonuses",
     "maxLevel": 1,
     "costs": [
       200
@@ -1075,7 +1075,7 @@
     "id": "vision_charges_3",
     "name": "Sera's Revelation",
     "description": "+1 Vision charge per run",
-    "category": "capacity",
+    "category": "lord_bonuses",
     "maxLevel": 1,
     "costs": [
       350
@@ -1364,7 +1364,7 @@
     "category": "starting_equipment",
     "maxLevel": 2,
     "costs": [
-      100,
+      250,
       250
     ],
     "effects": [

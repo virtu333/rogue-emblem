@@ -277,3 +277,41 @@ describe('HomeBaseScene tab switching tooltip cleanup', () => {
     expect(hideSpy.mock.invocationCallOrder[0]).toBeLessThan(drawSpy.mock.invocationCallOrder[0]);
   });
 });
+
+describe('HomeBaseScene "Other" subgroup for lord_bonuses', () => {
+  it('_estimateTabContentHeight includes Other upgrades that match neither _growth nor _flat', () => {
+    const scene = new HomeBaseScene();
+    scene.meta = {
+      upgradesData: [
+        { id: 'lord_hp_growth', category: 'lord_bonuses', maxLevel: 5 },
+        { id: 'lord_str_flat', category: 'lord_bonuses', maxLevel: 3 },
+        { id: 'vision_charges_2', category: 'lord_bonuses', maxLevel: 2 },
+      ],
+      getUpgradeLevel: () => 0,
+      isMaxed: () => false,
+      canAfford: () => true,
+    };
+
+    const height = scene._estimateTabContentHeight('lord_bonuses');
+    // Growth header (18) + 1 growth row (28) + gap (6) + Stat header (18) + 1 flat row (28)
+    // + gap (6) + Other header (18) + 1 named row (34) = 156
+    expect(height).toBe(18 + 1 * 28 + 6 + 18 + 1 * 28 + 6 + 18 + 1 * 34);
+  });
+
+  it('_estimateTabContentHeight omits Other section when all upgrades match _growth or _flat', () => {
+    const scene = new HomeBaseScene();
+    scene.meta = {
+      upgradesData: [
+        { id: 'lord_hp_growth', category: 'lord_bonuses', maxLevel: 5 },
+        { id: 'lord_str_flat', category: 'lord_bonuses', maxLevel: 3 },
+      ],
+      getUpgradeLevel: () => 0,
+      isMaxed: () => false,
+      canAfford: () => true,
+    };
+
+    const height = scene._estimateTabContentHeight('lord_bonuses');
+    // Growth header (18) + 1 growth row (28) + gap (6) + Stat header (18) + 1 flat row (28) = 98
+    expect(height).toBe(18 + 1 * 28 + 6 + 18 + 1 * 28);
+  });
+});

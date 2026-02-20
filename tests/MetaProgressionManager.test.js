@@ -479,9 +479,9 @@ describe('MetaProgressionManager', () => {
       byCategory[u.category] = (byCategory[u.category] || 0) + 1;
     }
     expect(byCategory.recruit_stats).toBe(12);
-    expect(byCategory.lord_bonuses).toBe(12);
+    expect(byCategory.lord_bonuses).toBe(14);
     expect(byCategory.economy).toBe(7);
-    expect(byCategory.capacity).toBe(10);
+    expect(byCategory.capacity).toBe(8);
     expect(byCategory.starting_equipment).toBe(8);
     expect(byCategory.starting_skills).toBe(9);
   });
@@ -1143,7 +1143,7 @@ describe('MetaProgressionManager', () => {
 
     it('chain blocks: vision_charges_2 blocked by vision_charges_3', () => {
       const meta = new MetaProgressionManager(upgradesData);
-      meta.totalSupply = 500;
+      meta.totalValor = 500;
       meta.purchasedUpgrades.vision_charges_2 = 1;
       meta.purchasedUpgrades.vision_charges_3 = 1;
       meta.recordMilestone('beatAct2');

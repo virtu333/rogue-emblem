@@ -2710,7 +2710,7 @@ describe('blessing run-start effect application', () => {
     ).toBe(true);
   });
 
-  it('act_hit_bonus blessing applies to player units in target act only', () => {
+  it('all_act_hit_bonus blessing applies to player units in all acts including finalBoss', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -2719,14 +2719,17 @@ describe('blessing run-start effect application', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(5);
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(3);
     expect(rm.getActHitBonusForUnit({ faction: 'enemy' })).toBe(0);
 
     rm.advanceAct(); // act2
-    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(0);
+    expect(rm.getActHitBonusForUnit({ faction: 'player' })).toBe(3);
+
+    // Verify finalBoss act is covered (regression guard — was previously omitted)
+    expect(rm.getActHitBonusForUnit({ faction: 'player' }, 'finalBoss')).toBe(3);
   });
 
-  it('battle_gold_multiplier_delta blessing applies run-gold multiplier for coin_of_fate', () => {
+  it('gold_delta blessing grants starting gold for coin_of_fate', () => {
     const gameData = loadGameData();
     const rm = new RunManager(gameData);
     rm.startRun();
@@ -2735,8 +2738,8 @@ describe('blessing run-start effect application', () => {
     rm.activeBlessings = ['coin_of_fate'];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
-    expect(rm.gold).toBe(baseGold);
-    expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier + 0.15);
+    expect(rm.gold).toBe(baseGold + 500);
+    expect(rm.getBattleGoldMultiplier()).toBe(baseMultiplier);
   });
 
   it('battle_gold_multiplier_delta blessing applies run-gold multiplier penalties for scout_blessing', () => {

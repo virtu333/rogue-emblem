@@ -20,6 +20,7 @@ import {
   rollStrikeSkills,
   rollDefenseSkills,
   checkAstra,
+  getActivationChance,
 } from '../src/engine/SkillSystem.js';
 import {
   getClassInnateSkills,
@@ -292,7 +293,7 @@ describe('isInitiating combat mods', () => {
       null,
       true,
     );
-    expect(mods.atkBonus).toBe(2);
+    expect(mods.atkBonus).toBe(4);
   });
 });
 
@@ -348,6 +349,27 @@ describe('Cancel on-defend skill', () => {
       }
     }
     expect(triggered).toBe(true);
+  });
+});
+
+describe('LCK_THIRD activation chance', () => {
+  it('returns floor(LCK / 3)', () => {
+    expect(getActivationChance({ stats: { LCK: 12 } }, 'LCK_THIRD')).toBe(4);
+    expect(getActivationChance({ stats: { LCK: 7 } }, 'LCK_THIRD')).toBe(2);
+    expect(getActivationChance({ stats: { LCK: 0 } }, 'LCK_THIRD')).toBe(0);
+  });
+});
+
+describe('Pavise 5% floor', () => {
+  it('procs even with SKL 0 due to minimum 5% activation', () => {
+    const defender = makeUnit({ skills: ['pavise'], stats: { ...makeUnit().stats, SKL: 0 } });
+    let procCount = 0;
+    for (let i = 0; i < 2000; i++) {
+      const result = rollDefenseSkills(defender, 10, true, data.skills);
+      if (result.modifiedDamage < 10) procCount++;
+    }
+    // 5% floor over 2000 trials ≈ 100 expected; assert > 20 for statistical safety
+    expect(procCount).toBeGreaterThan(20);
   });
 });
 

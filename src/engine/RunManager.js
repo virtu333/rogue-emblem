@@ -101,6 +101,7 @@ function createBlessingRuntimeModifiers() {
     blockedPersonalSkillsByUnit: {},
     xpMultiplierDelta: 0,
     forgeCostDiscount: 0,
+    forgeLimitDelta: 0,
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
     terrainCombatBonuses: [],
@@ -905,6 +906,34 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'all_act_hit_bonus') {
+      const delta = Math.trunc(value);
+      if (delta === 0) {
+        this._recordBlessingEvent('run_start', blessingId, effect, {
+          skipped: true,
+          reason: 'zero_all_act_hit_bonus',
+        });
+        return;
+      }
+      if (
+        !this.blessingRuntimeModifiers.actHitBonusByAct ||
+        typeof this.blessingRuntimeModifiers.actHitBonusByAct !== 'object'
+      ) {
+        this.blessingRuntimeModifiers.actHitBonusByAct = {};
+      }
+      const acts = ACT_SEQUENCE;
+      for (const act of acts) {
+        this.blessingRuntimeModifiers.actHitBonusByAct[act] =
+          Math.trunc(this.blessingRuntimeModifiers.actHitBonusByAct[act] || 0) + delta;
+      }
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        acts,
+        totals: { ...this.blessingRuntimeModifiers.actHitBonusByAct },
+      });
+      return;
+    }
+
     if (effect.type === 'lord_stat_bonus') {
       const stat = String(effect.params.stat || '').trim();
       if (!stat || value === 0) {
@@ -1063,26 +1092,29 @@ export class RunManager {
       return;
     }
 
-    if (effect.type === 'extra_vulnerary') {
+    if (effect.type === 'extra_consumable' || effect.type === 'extra_vulnerary') {
+      const itemName =
+        typeof effect.params.itemName === 'string' ? effect.params.itemName : 'Vulnerary';
       const configuredCount = effect.params.count ?? effect.params.value ?? value;
       const count = Math.max(0, Math.trunc(Number(configuredCount || 0)));
       if (count <= 0) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
-          reason: 'invalid_extra_vulnerary_params',
+          reason: 'invalid_extra_consumable_params',
         });
         return;
       }
       const consumables = Array.isArray(this.gameData?.consumables)
         ? this.gameData.consumables
         : [];
-      const vulnerary = consumables.find(
-        (item) => item?.name === 'Vulnerary' && item.type === 'Consumable',
+      const template = consumables.find(
+        (item) => item?.name === itemName && item.type === 'Consumable',
       );
-      if (!vulnerary) {
+      if (!template) {
         this._recordBlessingEvent('run_start', blessingId, effect, {
           skipped: true,
-          reason: 'missing_vulnerary_template',
+          reason: 'missing_consumable_template',
+          itemName,
         });
         return;
       }
@@ -1092,11 +1124,11 @@ export class RunManager {
       const lords = this.roster.filter((unit) => unit.isLord);
       for (const unit of lords) {
         for (let i = 0; i < count; i++) {
-          if (addToConsumables(unit, vulnerary)) {
+          if (addToConsumables(unit, template)) {
             grantedToUnits++;
             continue;
           }
-          if (this.addToConvoy(vulnerary)) {
+          if (this.addToConvoy(template)) {
             grantedToConvoy++;
           } else {
             overflow++;
@@ -1381,6 +1413,17 @@ export class RunManager {
       this._recordBlessingEvent('run_start', blessingId, effect, {
         appliedValue: discountDelta,
         total: this.blessingRuntimeModifiers.forgeCostDiscount,
+      });
+      return;
+    }
+
+    if (effect.type === 'forge_limit_delta') {
+      const delta = Math.trunc(value);
+      this.blessingRuntimeModifiers.forgeLimitDelta =
+        (this.blessingRuntimeModifiers.forgeLimitDelta || 0) + delta;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: delta,
+        total: this.blessingRuntimeModifiers.forgeLimitDelta,
       });
       return;
     }
@@ -3053,6 +3096,9 @@ export class RunManager {
       Number(rm.blessingRuntimeModifiers.shopPriceDiscount) || 0;
     rm.blessingRuntimeModifiers.recruitLevelBonus = Math.trunc(
       Number(rm.blessingRuntimeModifiers.recruitLevelBonus) || 0,
+    );
+    rm.blessingRuntimeModifiers.forgeLimitDelta = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.forgeLimitDelta) || 0,
     );
     if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
       rm.blessingRuntimeModifiers.terrainCombatBonuses = [];

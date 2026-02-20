@@ -106,9 +106,9 @@
   {
     "id": "lethality",
     "name": "Lethality",
-    "description": "LCK/4% chance to instantly defeat enemy on hit",
+    "description": "LCK/3% chance to instantly defeat enemy on hit",
     "trigger": "on-attack",
-    "activation": "LCK_QUARTER",
+    "activation": "LCK_THIRD",
     "classInnate": "Assassin"
   },
   {
@@ -171,7 +171,7 @@
   {
     "id": "spell_harmony",
     "name": "Spell Harmony",
-    "description": "If unit initiates combat, grants Atk equal to adjacent allied player units",
+    "description": "If unit initiates combat, +2 Atk per adjacent allied player unit",
     "trigger": "on-combat-start",
     "condition": "initiating",
     "classInnate": "Sage"
@@ -302,13 +302,14 @@
   {
     "id": "draconic_aura",
     "name": "Draconic Aura",
-    "description": "Enemies within 1-2 tiles suffer -10 Hit",
+    "description": "Enemies within 1-2 tiles suffer -10 Hit, -1 ATK",
     "trigger": "passive-aura",
     "auraTarget": "enemy",
     "rangeMin": 1,
     "range": 2,
     "effects": {
-      "hitBonus": -10
+      "hitBonus": -10,
+      "atkBonus": -1
     },
     "classInnate": "Wyvern Lord"
   },

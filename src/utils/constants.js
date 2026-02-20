@@ -184,10 +184,10 @@ export const FORGE_MAX_LEVEL = 15;
 export const FORGE_STAT_CAP = 5;
 export const FORGE_BONUSES = { might: 1, crit: 5, hit: 5, weight: -1 };
 export const FORGE_COSTS = {
-  might: [400, 700, 1100, 1600, 2200],
-  crit: [300, 550, 900, 1200, 1700],
-  hit: [250, 450, 750, 1000, 1400],
-  weight: [250, 450, 750, 1000, 1400],
+  might: [400, 800, 1400, 2200, 3500],
+  crit: [300, 600, 1100, 1800, 2800],
+  hit: [250, 500, 900, 1500, 2400],
+  weight: [250, 500, 900, 1500, 2400],
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
 

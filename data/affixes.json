@@ -160,6 +160,7 @@
     "exclusions": [
       { "rule": "mutually_exclusive", "affixes": ["regenerator", "deathburst"], "reason": "Conflicting fantasy" },
       { "rule": "mutually_exclusive", "affixes": ["teleporter", "anchored"], "reason": "Cannot be both mobile and immovable" },
+      { "rule": "mutually_exclusive", "affixes": ["shielded", "regenerator"], "reason": "Stacking damage negation with regen is too strong" },
       { "rule": "class_exclude", "affix": "haste", "classes": ["Cavalier", "Paladin", "Pegasus Knight", "Falcon Knight"], "reason": "Already high mobility" },
       { "rule": "class_exclude", "affix": "teleporter", "classes": ["Knight", "General"], "reason": "Fantasy mismatch" }
     ],

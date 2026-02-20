@@ -15,7 +15,7 @@ function isBelow50(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 2);
 }
 
-function getActivationChance(unit, activation) {
+export function getActivationChance(unit, activation) {
   switch (activation) {
     case 'SKL':
       return unit.stats.SKL;
@@ -23,6 +23,8 @@ function getActivationChance(unit, activation) {
       return Math.floor(unit.stats.SKL / 2);
     case 'LCK_QUARTER':
       return Math.floor(unit.stats.LCK / 4);
+    case 'LCK_THIRD':
+      return Math.floor(unit.stats.LCK / 3);
     case 'SPD':
       return unit.stats.SPD;
     case 'LCK':
@@ -300,7 +302,7 @@ export function getSkillCombatMods(
               gridDistance(unit.col, unit.row, a.col, a.row) === 1,
           ).length;
           if (adjacentPlayerAllies > 0) {
-            mods.atkBonus += adjacentPlayerAllies;
+            mods.atkBonus += adjacentPlayerAllies * 2;
             mods.activated.push({ id: skill.id, name: skill.name });
           }
         }
@@ -514,8 +516,10 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     if (!skill || skill.trigger !== 'on-defend') continue;
 
     const chance = getActivationChance(defender, skill.activation);
+    // Pavise gets a minimum 5% proc floor so it stays relevant on low-SKL units
+    const effectiveChance = skill.id === 'pavise' ? Math.max(chance, 5) : chance;
     const roll = Math.random() * 100;
-    if (roll >= chance) continue;
+    if (roll >= effectiveChance) continue;
 
     if (skill.id === 'cancel') {
       result.cancelFollowUp = true;

@@ -33,14 +33,14 @@ describe('Blessing Expansion v2 � data validation', () => {
     expect(gameData.blessings.blessings).toHaveLength(23);
   });
 
-  it('tier distribution is 5/6/6/6', () => {
+  it('tier distribution is 5/6/5/7', () => {
     const gameData = loadGameData();
     const tiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
     for (const blessing of gameData.blessings.blessings) tiers[blessing.tier]++;
     expect(tiers[1]).toBe(5);
     expect(tiers[2]).toBe(6);
-    expect(tiers[3]).toBe(6);
-    expect(tiers[4]).toBe(6);
+    expect(tiers[3]).toBe(5);
+    expect(tiers[4]).toBe(7);
   });
 
   it('tier2+ blessings use runtime rolled costs only', () => {
@@ -97,7 +97,8 @@ describe('Blessing Expansion v2 � effect handlers', () => {
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    expect(rm.getForgeCostDiscount()).toBeCloseTo(0.2, 5);
+    expect(rm.getForgeCostDiscount()).toBeCloseTo(0.3, 5);
+    expect(rm.blessingRuntimeModifiers.forgeLimitDelta).toBe(1);
     const weapon = rm.roster[0].weapon;
     if (weapon) {
       const baseCost = getForgeCost(weapon, 'might');

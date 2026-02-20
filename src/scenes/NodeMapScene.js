@@ -2436,7 +2436,8 @@ export class NodeMapScene extends Phaser.Scene {
     const startY = 105;
     const lineH = 20;
     const rm = this.runManager;
-    const forgeLimit = SHOP_FORGE_LIMITS[rm.currentAct] || 2;
+    const baseForgeLimit = SHOP_FORGE_LIMITS[rm.currentAct] || 2;
+    const forgeLimit = baseForgeLimit + (rm.blessingRuntimeModifiers?.forgeLimitDelta || 0);
     let row = 0;
     let rowTotal = 1.5;
     for (const unit of rm.roster) {

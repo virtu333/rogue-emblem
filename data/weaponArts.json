@@ -700,7 +700,7 @@
       "description": "A brutal swing with high damage but shaky aim.",
       "combatMods": {
         "atkBonus": 6,
-        "hitBonus": -15,
+        "hitBonus": -8,
         "activated": [
           {
             "id": "weapon_art",
@@ -744,7 +744,7 @@
       "description": "A high-risk strike trading accuracy for power.",
       "combatMods": {
         "atkBonus": 10,
-        "hitBonus": -30,
+        "hitBonus": -15,
         "activated": [
           {
             "id": "weapon_art",
@@ -794,7 +794,7 @@
       "description": "A savage overhead cleave with heavy momentum.",
       "combatMods": {
         "atkBonus": 7,
-        "hitBonus": -10,
+        "hitBonus": -5,
         "critBonus": 5,
         "activated": [
           {
@@ -817,7 +817,7 @@
       "description": "A crushing blow with huge power but reduced accuracy.",
       "combatMods": {
         "atkBonus": 14,
-        "hitBonus": -20,
+        "hitBonus": -10,
         "activated": [
           {
             "id": "weapon_art",
@@ -839,7 +839,7 @@
       "description": "A feral strike with immense risk-reward profile.",
       "combatMods": {
         "atkBonus": 10,
-        "hitBonus": -30,
+        "hitBonus": -15,
         "critBonus": 30,
         "activated": [
           {
@@ -1095,14 +1095,14 @@
       "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Prof",
-      "hpCost": 6,
+      "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A pinning shot that roots the target in place for 1 turn. (Placeholder: +15 Hit, +2 Atk until inflictStatus lands.)",
+      "description": "A pinning shot that roots the target in place for 1 turn. (Placeholder: +15 Hit, +5 Atk until inflictStatus lands.)",
       "_deferredMechanic": "inflictStatus(Root)",
       "combatMods": {
         "hitBonus": 15,
-        "atkBonus": 2,
+        "atkBonus": 5,
         "activated": [
           {
             "id": "weapon_art",
@@ -1118,14 +1118,14 @@
       "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Prof",
-      "hpCost": 6,
+      "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A warding shot that silences the target's magic for 1 turn. (Placeholder: +15 Hit, +2 Atk until inflictStatus lands.)",
+      "description": "A warding shot that silences the target's magic for 1 turn. (Placeholder: +15 Hit, +5 Atk until inflictStatus lands.)",
       "_deferredMechanic": "inflictStatus(Silence)",
       "combatMods": {
         "hitBonus": 15,
-        "atkBonus": 2,
+        "atkBonus": 5,
         "activated": [
           {
             "id": "weapon_art",

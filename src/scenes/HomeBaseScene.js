@@ -494,6 +494,24 @@ export class HomeBaseScene extends Phaser.Scene {
         this.drawUpgradeRow(upgrade, y);
         y += ROW_H;
       }
+
+      const otherUpgrades = upgrades.filter(
+        (u) => !u.id.endsWith(GROWTH_SUFFIX) && !u.id.endsWith(FLAT_SUFFIX),
+      );
+      if (otherUpgrades.length > 0) {
+        y += 6;
+        this.add.text(40, y, 'Other', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#888888',
+          fontStyle: 'bold',
+        });
+        y += 18;
+        for (const upgrade of otherUpgrades) {
+          this.drawUpgradeRow(upgrade, y);
+          y += ROW_H_NAMED;
+        }
+      }
     } else {
       for (const upgrade of upgrades) {
         this.drawUpgradeRow(upgrade, y);
@@ -1484,7 +1502,14 @@ export class HomeBaseScene extends Phaser.Scene {
     if (hasSubgroups) {
       const growthUpgrades = upgrades.filter((u) => u.id.endsWith(GROWTH_SUFFIX));
       const flatUpgrades = upgrades.filter((u) => u.id.endsWith(FLAT_SUFFIX));
-      return 18 + growthUpgrades.length * ROW_H + 6 + 18 + flatUpgrades.length * ROW_H;
+      const otherUpgrades = upgrades.filter(
+        (u) => !u.id.endsWith(GROWTH_SUFFIX) && !u.id.endsWith(FLAT_SUFFIX),
+      );
+      let h = 18 + growthUpgrades.length * ROW_H + 6 + 18 + flatUpgrades.length * ROW_H;
+      if (otherUpgrades.length > 0) {
+        h += 6 + 18 + otherUpgrades.length * ROW_H_NAMED;
+      }
+      return h;
     }
     return upgrades.length * ROW_H_NAMED;
   }

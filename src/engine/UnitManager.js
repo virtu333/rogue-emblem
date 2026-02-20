@@ -304,7 +304,10 @@ function parseEnemyDifficultyConfig(difficultyConfig = 1.0) {
   const enemyStatBonus = isConfigObject
     ? Math.trunc(Number(difficultyConfig.enemyStatBonus ?? 0))
     : 0;
-  return { difficultyMod, enemyStatBonus };
+  const enemyEquipTierShift = isConfigObject
+    ? Math.trunc(Number(difficultyConfig.enemyEquipTierShift ?? 0))
+    : 0;
+  return { difficultyMod, enemyStatBonus, enemyEquipTierShift };
 }
 
 export function applyEnemyDifficultyModifiers(unit, difficultyConfig = 1.0) {
@@ -375,8 +378,11 @@ export function createEnemyUnit(
   );
   const growths = rollGrowthRates(classData.growthRanges);
 
-  // Pick weapon tier by level
-  const weaponTier = enemyLevel >= 13 ? 'Silver' : enemyLevel >= 6 ? 'Steel' : 'Iron';
+  // Pick weapon tier by level, with optional difficulty-driven tier shift (act2+ only)
+  const { enemyEquipTierShift } = parseEnemyDifficultyConfig(difficultyConfig);
+  const tierShift = act !== 'act1' ? enemyEquipTierShift : 0;
+  const effectiveLevel = enemyLevel + tierShift * 5;
+  const weaponTier = effectiveLevel >= 13 ? 'Silver' : effectiveLevel >= 6 ? 'Steel' : 'Iron';
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
 
   // Clone weapon to avoid shared state

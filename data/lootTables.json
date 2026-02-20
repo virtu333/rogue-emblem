@@ -31,7 +31,7 @@
     "skillScroll": ["Sol Scroll", "Luna Scroll", "Guard Scroll", "Cancel Scroll", "Desperation Scroll"],
     "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll"],
     "legendaryWeapon": [],
-    "accessories": ["Power Ring", "Speed Ring", "Barrier Ring", "Skill Ring", "Life Ring", "Veteran's Crest", "Vanguard Crest", "Diamond Medallion", "Moontide Amulet", "Bounty Hunter's Mark", "Vampire's Bloodshard"],
+    "accessories": ["Power Ring", "Speed Ring", "Barrier Ring", "Skill Ring", "Life Ring", "Veteran's Crest", "Vanguard Crest", "Diamond Medallion", "Moontide Amulet", "Bounty Hunter's Mark", "Vampire's Bloodshard", "Boots"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": {
       "weapon": 20,
@@ -55,7 +55,7 @@
     "skillScroll": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll"],
     "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll", "Dragonhaze Scroll", "Longearche Scroll", "Glowing Ember Scroll", "Armored Strike Scroll", "Deadeye Scroll", "Hunter's Volley Scroll", "Burning Quake Scroll", "Nosferatu Scroll", "Silence Strike Scroll"],
     "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin", "Doublebow", "Brave Sword", "Brave Lance", "Brave Axe", "Brave Bow", "Excalibur", "Luce"],
-    "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring", "Blood Gem", "Recoil Guard", "Phoenix Brooch", "Duelist's Glove"],
+    "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Blood Gem", "Recoil Guard", "Phoenix Brooch", "Duelist's Glove"],
     "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
     "weights": {
       "weapon": 25,

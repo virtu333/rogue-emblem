@@ -113,7 +113,7 @@
       "type": "Accessory",
       "effects": {},
       "combatEffects": {
-        "goldPerKill": 500
+        "goldPerKill": 300
       },
       "price": 2000
     },
@@ -125,7 +125,7 @@
         "hitBonus": 10,
         "avoidBonus": 10,
         "critBonus": 5,
-        "condition": "isolated_duel"
+        "condition": "no_ally_within_2"
       },
       "price": 2500
     },

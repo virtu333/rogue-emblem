@@ -5,12 +5,12 @@
       "id": "steady_hands",
       "name": "Steady Hands",
       "tier": 1,
-      "description": "+5 Hit for all units in Act 1.",
+      "description": "+3 Hit for all units in every act.",
       "weight": 1.0,
       "boons": [
         {
-          "type": "act_hit_bonus",
-          "params": { "act": "act1", "value": 5 }
+          "type": "all_act_hit_bonus",
+          "params": { "value": 3 }
         }
       ],
       "costs": []
@@ -19,12 +19,12 @@
       "id": "coin_of_fate",
       "name": "Coin of Fate",
       "tier": 1,
-      "description": "+15% battle gold during run.",
+      "description": "+500 gold at run start.",
       "weight": 1.0,
       "boons": [
         {
-          "type": "battle_gold_multiplier_delta",
-          "params": { "value": 0.15 }
+          "type": "gold_delta",
+          "params": { "value": 500 }
         }
       ],
       "costs": []
@@ -104,12 +104,12 @@
       "id": "scholar_vow",
       "name": "Scholar's Vow",
       "tier": 2,
-      "description": "All growths +10%.",
+      "description": "All growths +5%.",
       "weight": 0.85,
       "boons": [
         {
           "type": "all_growths_delta",
-          "params": { "value": 10 }
+          "params": { "value": 5 }
         }
       ],
       "costs": []
@@ -146,12 +146,16 @@
       "id": "frugal_smith",
       "name": "Frugal Smith",
       "tier": 2,
-      "description": "Forge costs reduced by 20%.",
+      "description": "Forge costs reduced by 30%, +1 forge per shop.",
       "weight": 0.85,
       "boons": [
         {
           "type": "forge_cost_multiplier",
-          "params": { "value": -0.20 }
+          "params": { "value": -0.30 }
+        },
+        {
+          "type": "forge_limit_delta",
+          "params": { "value": 1 }
         }
       ],
       "costs": [],
@@ -160,7 +164,7 @@
     {
       "id": "arsenal_pact",
       "name": "Arsenal Pact",
-      "tier": 3,
+      "tier": 4,
       "description": "Start with a silver weapon.",
       "weight": 0.65,
       "boons": [
@@ -237,12 +241,12 @@
       "id": "quartermaster_cache",
       "name": "Quartermaster Cache",
       "tier": 3,
-      "description": "Lords gain +1 Vulnerary at run start.",
+      "description": "Lords gain +1 Elixir at run start.",
       "weight": 0.55,
       "boons": [
         {
-          "type": "extra_vulnerary",
-          "params": { "value": 1 }
+          "type": "extra_consumable",
+          "params": { "itemName": "Elixir", "value": 1 }
         }
       ],
       "costs": []
@@ -265,12 +269,12 @@
       "id": "blood_forge",
       "name": "Blood Forge",
       "tier": 4,
-      "description": "All lord weapons gain +1 forge level.",
+      "description": "All lord weapons gain +2 forge levels.",
       "weight": 0.2,
       "boons": [
         {
           "type": "starting_weapon_forge_delta",
-          "params": { "value": 1 }
+          "params": { "value": 2 }
         }
       ],
       "costs": []
@@ -307,12 +311,12 @@
       "id": "scroll_archive",
       "name": "Scroll Archive",
       "tier": 4,
-      "description": "Gain 1 random weapon-art scroll at run start.",
+      "description": "Gain 2 random weapon-art scrolls at run start.",
       "weight": 0.2,
       "boons": [
         {
           "type": "starting_scroll",
-          "params": { "count": 1 }
+          "params": { "count": 2 }
         }
       ],
       "costs": []
@@ -338,12 +342,6 @@
         "label": "-15% battle gold",
         "effects": [
           { "type": "battle_gold_multiplier_delta", "params": { "value": -0.15 } }
-        ]
-      },
-      {
-        "label": "Deploy -1 unit",
-        "effects": [
-          { "type": "deploy_cap_delta", "params": { "value": -1 } }
         ]
       },
       {
@@ -379,15 +377,15 @@
         ]
       },
       {
-        "label": "-5 Hit for all units in Act 1",
+        "label": "-8 Hit for all units in Act 1",
         "effects": [
-          { "type": "act_hit_bonus", "params": { "act": "act1", "value": -5 } }
+          { "type": "act_hit_bonus", "params": { "act": "act1", "value": -8 } }
         ]
       },
       {
-        "label": "All growths -2%",
+        "label": "All growths -5%",
         "effects": [
-          { "type": "all_growths_delta", "params": { "value": -2 } }
+          { "type": "all_growths_delta", "params": { "value": -5 } }
         ]
       },
       {
