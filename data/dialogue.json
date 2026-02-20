@@ -22,6 +22,15 @@
     "Sky Lancer": ["The wind answers to no one. Neither do I.", "From up here, I see everything. Point me at the real threat."],
     "Sentinel": ["I don't move. I don't flinch. Come at me.", "They'll break against me like waves on stone."]
   },
+  "lordRecruitLines": {
+    "Edric": ["Rally to me. We're stronger together."],
+    "Kira": ["I see the line to win. Do you?"],
+    "Voss": ["Still standing. That's all that matters."],
+    "Sera": ["I dreamt of this moment. Stay close."],
+    "Rowan": ["My lance is blessed. My aim? That's all me."],
+    "Astrid": ["The sky sees what the ground misses. I'll be your sight."],
+    "Cael": ["I'll hold the line. Don't have too much fun back there."]
+  },
   "actTransitions": {
     "runStart": [
       {

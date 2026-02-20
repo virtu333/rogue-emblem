@@ -112,6 +112,37 @@ describe('Narrative data', () => {
       expect(dialogue.bossEncounters?.[resolved]).toBeTruthy();
     }
   });
+
+  it('has lord recruit dialogue for all lords', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    const lords = JSON.parse(fs.readFileSync('data/lords.json', 'utf8'));
+    expect(dialogue.lordRecruitLines).toBeTypeOf('object');
+    for (const lord of lords) {
+      const lines = dialogue.lordRecruitLines[lord.name];
+      expect(lines, `missing lordRecruitLines for ${lord.name}`).toBeTruthy();
+      expect(Array.isArray(lines)).toBe(true);
+      expect(lines.length).toBeGreaterThan(0);
+      for (const line of lines) expect(typeof line).toBe('string');
+    }
+  });
+
+  it('lord recruit lookup prefers lordRecruitLines over class recruitLines', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    // Simulate the BattleScene lookup logic (BattleScene.js:6032-6038)
+    const lordNpc = { isLord: true, name: 'Edric', className: 'Lord' };
+    const lordLines = lordNpc.isLord ? dialogue.lordRecruitLines?.[lordNpc.name] : null;
+    const result = lordLines || dialogue.recruitLines?.[lordNpc.className] || ['Joined the army!'];
+    expect(result).toEqual(dialogue.lordRecruitLines['Edric']);
+
+    // Non-lord falls back to class lines
+    const regularNpc = { isLord: false, name: 'Bob', className: 'Fighter' };
+    const regularLordLines = regularNpc.isLord
+      ? dialogue.lordRecruitLines?.[regularNpc.name]
+      : null;
+    const regularResult = regularLordLines ||
+      dialogue.recruitLines?.[regularNpc.className] || ['Joined the army!'];
+    expect(regularResult).toEqual(dialogue.recruitLines['Fighter']);
+  });
 });
 
 describe('Scene wiring', () => {

@@ -1042,3 +1042,110 @@ describe('BattleScene deploy controls', () => {
     expect(scene.input.off).toHaveBeenCalledWith('wheel', wheelHandler);
   });
 });
+
+describe('updateEnemyVisibility hides affix pips in fog', () => {
+  it('toggles affixPips visibility based on fog', () => {
+    const scene = new BattleScene();
+    const pip1 = { setVisible: vi.fn() };
+    const pip2 = { setVisible: vi.fn() };
+    const enemy = {
+      col: 2,
+      row: 3,
+      graphic: { setVisible: vi.fn() },
+      label: { setVisible: vi.fn() },
+      factionIndicator: { setVisible: vi.fn() },
+      hpBar: { bg: { setVisible: vi.fn() }, fill: { setVisible: vi.fn() } },
+      affixPips: [pip1, pip2],
+    };
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: vi.fn(() => false),
+    };
+    scene.enemyUnits = [enemy];
+    scene.npcUnits = [];
+    scene.dangerZoneStale = false;
+
+    BattleScene.prototype.updateEnemyVisibility.call(scene);
+
+    expect(pip1.setVisible).toHaveBeenCalledWith(false);
+    expect(pip2.setVisible).toHaveBeenCalledWith(false);
+    expect(enemy.graphic.setVisible).toHaveBeenCalledWith(false);
+  });
+
+  it('shows affixPips when tile is visible', () => {
+    const scene = new BattleScene();
+    const pip = { setVisible: vi.fn() };
+    const enemy = {
+      col: 1,
+      row: 1,
+      graphic: { setVisible: vi.fn() },
+      label: null,
+      factionIndicator: null,
+      hpBar: null,
+      affixPips: [pip],
+    };
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: vi.fn(() => true),
+    };
+    scene.enemyUnits = [enemy];
+    scene.npcUnits = [];
+    scene.dangerZoneStale = false;
+
+    BattleScene.prototype.updateEnemyVisibility.call(scene);
+
+    expect(pip.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('shows NPC affixPips on visible tiles', () => {
+    const scene = new BattleScene();
+    const pip = { setVisible: vi.fn() };
+    const npc = {
+      col: 3,
+      row: 3,
+      graphic: { setVisible: vi.fn() },
+      label: null,
+      factionIndicator: null,
+      hpBar: null,
+      affixPips: [pip],
+    };
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: vi.fn(() => true),
+    };
+    scene.enemyUnits = [];
+    scene.npcUnits = [npc];
+    scene.recruitFogMarker = null;
+    scene.dangerZoneStale = false;
+
+    BattleScene.prototype.updateEnemyVisibility.call(scene);
+
+    expect(pip.setVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('hides NPC affixPips in fog too', () => {
+    const scene = new BattleScene();
+    const pip = { setVisible: vi.fn() };
+    const npc = {
+      col: 3,
+      row: 3,
+      graphic: { setVisible: vi.fn() },
+      label: null,
+      factionIndicator: null,
+      hpBar: null,
+      affixPips: [pip],
+    };
+    scene.grid = {
+      fogEnabled: true,
+      isVisible: vi.fn(() => false),
+    };
+    scene.enemyUnits = [];
+    scene.npcUnits = [npc];
+    scene.recruitFogMarker = null;
+    scene.dangerZoneStale = false;
+
+    BattleScene.prototype.updateEnemyVisibility.call(scene);
+
+    expect(pip.setVisible).toHaveBeenCalledWith(false);
+  });
+});

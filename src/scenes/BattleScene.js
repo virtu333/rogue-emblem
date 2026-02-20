@@ -6028,10 +6028,10 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    // Show recruitment dialogue
-    const recruitLines = this.gameData.dialogue?.recruitLines?.[npc.className] || [
-      'Joined the army!',
-    ];
+    // Show recruitment dialogue — lords get personal lines, others use class-based
+    const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
+    const recruitLines = lordLines ||
+      this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
     const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
     const portraitKey = this._getPortraitKey(npc);
     await this.dialogueOverlay.show(npc.name, line, portraitKey);
@@ -10208,6 +10208,9 @@ export class BattleScene extends Phaser.Scene {
         enemy.hpBar.bg.setVisible(vis);
         enemy.hpBar.fill.setVisible(vis);
       }
+      if (enemy.affixPips) {
+        enemy.affixPips.forEach((p) => p.setVisible(vis));
+      }
     }
     for (const npc of this.npcUnits) {
       const vis = this.grid.isVisible(npc.col, npc.row);
@@ -10217,6 +10220,9 @@ export class BattleScene extends Phaser.Scene {
       if (npc.hpBar) {
         npc.hpBar.bg.setVisible(vis);
         npc.hpBar.fill.setVisible(vis);
+      }
+      if (npc.affixPips) {
+        npc.affixPips.forEach((p) => p.setVisible(vis));
       }
       // D1: Destroy recruit fog marker once NPC tile is in player vision
       if (vis && this.recruitFogMarker) {

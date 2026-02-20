@@ -35,6 +35,7 @@ export function generateBattle(params, deps) {
     firstBattleFightersOnly = false,
     usedRecruitNames = {},
     enemyPoisonChance = 0,
+    isAmbush = false,
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
@@ -102,6 +103,7 @@ export function generateBattle(params, deps) {
     tiles: sizeEntry.tiles,
     densityCap: enemies.enemyCountByTiles,
     enemyCountBonus,
+    isAmbush,
   });
   const recruitBonus = isRecruitBattle ? 1 : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
@@ -1105,7 +1107,16 @@ function generateEnemies(
   return spawns;
 }
 
-function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap, enemyCountBonus = 0 }) {
+function rollEnemyCount({
+  deployCount,
+  act,
+  row,
+  isBoss,
+  tiles,
+  densityCap,
+  enemyCountBonus = 0,
+  isAmbush = false,
+}) {
   const actOffsets = ENEMY_COUNT_OFFSET[act];
   let offset;
   if (actOffsets) {
@@ -1121,6 +1132,14 @@ function rollEnemyCount({ deployCount, act, row, isBoss, tiles, densityCap, enem
     minOff +
     Math.floor(Math.random() * (maxOff - minOff + 1)) +
     Math.trunc(enemyCountBonus);
+
+  // Village ambush cap: surprise fights should be lighter than regular battles
+  // Act 1: deployCount + 1; later acts: deployCount + 2
+  if (isAmbush) {
+    const ambushCap = deployCount + (act === 'act1' ? 1 : 2);
+    const densityMax = getEnemyDensityCapByTiles(tiles, densityCap);
+    return Math.min(count, ambushCap, densityMax);
+  }
 
   // Density safety cap from tile table (prevents overcrowding)
   const cap = getEnemyDensityCapByTiles(tiles, densityCap);

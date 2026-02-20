@@ -837,6 +837,46 @@ describe('MapGenerator', () => {
     });
   });
 
+  describe('village ambush enemy cap', () => {
+    it('act1 ambush caps enemies at deployCount + 1', () => {
+      for (let i = 0; i < 20; i++) {
+        const deployCount = 3;
+        const config = generateBattle(
+          { act: 'act1', objective: 'rout', deployCount, row: 4, isAmbush: true },
+          data,
+        );
+        expect(config.enemySpawns.length).toBeLessThanOrEqual(deployCount + 1);
+        expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount);
+      }
+    });
+
+    it('act2+ ambush caps enemies at deployCount + 2', () => {
+      for (let i = 0; i < 20; i++) {
+        const deployCount = 4;
+        const config = generateBattle(
+          { act: 'act2', objective: 'rout', deployCount, row: 4, isAmbush: true },
+          data,
+        );
+        expect(config.enemySpawns.length).toBeLessThanOrEqual(deployCount + 2);
+        expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount);
+      }
+    });
+
+    it('non-ambush battles are not affected by ambush cap', () => {
+      // act2 row 5 with default offset [2,3] should allow deployCount + 2..3
+      let sawAboveCap = false;
+      for (let i = 0; i < 30; i++) {
+        const deployCount = 4;
+        const config = generateBattle(
+          { act: 'act2', objective: 'rout', deployCount, row: 5 },
+          data,
+        );
+        if (config.enemySpawns.length > deployCount + 2) sawAboveCap = true;
+      }
+      expect(sawAboveCap).toBe(true);
+    });
+  });
+
   describe('final boss tuning', () => {
     it('finalBoss support enemy count within [3,5] offset', () => {
       for (let i = 0; i < 20; i++) {
