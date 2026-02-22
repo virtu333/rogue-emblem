@@ -161,7 +161,7 @@ export const GOLD_LOOT_REWARD_MULTIPLIER = 1.2;
 export const GOLD_PAR_BONUS_MULTIPLIER = 2.5;
 export const GOLD_SKIP_LOOT_MULTIPLIER = 1.5;
 export const SHOP_SELL_RATIO = 0.5;
-export const CHURCH_PROMOTE_COST = 2000;
+export const CHURCH_PROMOTE_COST = 5000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
@@ -211,6 +211,17 @@ export const CATEGORY_CURRENCY = {
 
 // Flat fee to refund one upgrade tier (deducted from the upgrade's currency)
 export const REFUND_FEE = 20;
+
+// Status conditions (Sleep / Silence)
+export const STATUS_STAFF_ELIGIBLE_CLASSES = new Set(['Mage', 'Sage', 'Bishop']);
+export const STATUS_CONDITIONS = {
+  sleep: { maxTurns: 3, recoveryChance: 0.5, wakesOnDamage: true },
+  silence: { maxTurns: 3, recoveryChance: 0.5 },
+};
+export const STATUS_HIT_MIN = 15;
+export const STATUS_HIT_MAX = 90;
+export const STATUS_MAG_MULT = 3;
+export const STATUS_RES_MULT = 3;
 
 // Staff mechanics
 export const STAFF_BONUS_USE_THRESHOLDS = [8, 14, 20]; // MAG thresholds for +1 use each

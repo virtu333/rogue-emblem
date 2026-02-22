@@ -1326,7 +1326,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      250
     ],
     "effects": [
       {
@@ -1398,7 +1398,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      400
     ],
     "effects": [
       {
@@ -1413,7 +1413,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      300
     ],
     "effects": [
       {
@@ -1428,7 +1428,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      300
     ],
     "effects": [
       {
@@ -1443,7 +1443,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      300
     ],
     "effects": [
       {
@@ -1458,7 +1458,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      175
+      300
     ],
     "effects": [
       {
@@ -1473,7 +1473,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      200
+      300
     ],
     "effects": [
       {
@@ -1488,7 +1488,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      100
+      175
     ],
     "effects": [
       {
@@ -1503,7 +1503,7 @@
     "category": "starting_skills",
     "maxLevel": 1,
     "costs": [
-      100
+      175
     ],
     "effects": [
       {
