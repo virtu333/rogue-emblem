@@ -9,8 +9,8 @@ import {
   SUPPLY_PER_BATTLE,
   SUPPLY_VICTORY_BONUS,
   CATEGORY_CURRENCY,
-  MAX_STARTING_SKILLS,
   REFUND_FEE,
+  MAX_STARTING_SKILLS,
 } from '../utils/constants.js';
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
@@ -150,7 +150,8 @@ export class MetaProgressionManager {
   }
 
   getUpgradeLevel(id) {
-    return this.purchasedUpgrades[id] || 0;
+    const raw = this.purchasedUpgrades[id];
+    return Math.max(0, Number.isFinite(raw) ? Math.floor(raw) : 0);
   }
 
   getNextCost(id) {
@@ -271,7 +272,7 @@ export class MetaProgressionManager {
     } else {
       this.totalSupply -= cost;
     }
-    this.purchasedUpgrades[id] = (this.purchasedUpgrades[id] || 0) + 1;
+    this.purchasedUpgrades[id] = this.getUpgradeLevel(id) + 1;
     this._save();
     return true;
   }
@@ -348,11 +349,16 @@ export class MetaProgressionManager {
     return this.skillAssignments;
   }
 
-  /** Assign a skill to a lord (max MAX_STARTING_SKILLS per lord). Returns true on success. */
+  /** Number of starting skill slots available (1 base + extra_skill_slot upgrade). */
+  getStartingSkillSlots() {
+    return Math.min(1 + this.getUpgradeLevel('extra_skill_slot'), MAX_STARTING_SKILLS);
+  }
+
+  /** Assign a skill to a lord (max getStartingSkillSlots() per lord). Returns true on success. */
   assignSkill(lordName, skillId) {
     if (!this.skillAssignments[lordName]) this.skillAssignments[lordName] = [];
     const slots = this.skillAssignments[lordName];
-    if (slots.length >= MAX_STARTING_SKILLS) return false;
+    if (slots.length >= this.getStartingSkillSlots()) return false;
     if (slots.includes(skillId)) return false;
     // Must be an unlocked skill
     if (!this.getUnlockedSkills().includes(skillId)) return false;
@@ -412,7 +418,8 @@ export class MetaProgressionManager {
       startingAccessoryTier: 0,
       startingStaffTier: 0,
       startingReclassSeal: 0,
-      startingSkills: this.getSkillAssignments(),
+      extraSkillSlot: 0,
+      startingSkills: {},
       metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
     };
 
@@ -509,6 +516,16 @@ export class MetaProgressionManager {
         effects.startingStaffTier = effect.startingStaffTier;
       if (effect.startingReclassSeal !== undefined)
         effects.startingReclassSeal = effect.startingReclassSeal;
+      if (effect.extraSkillSlot !== undefined) effects.extraSkillSlot = effect.extraSkillSlot;
+    }
+
+    // Trim startingSkills per lord to available slot count
+    const maxSlots = this.getStartingSkillSlots();
+    const rawAssignments = this.getSkillAssignments();
+    for (const [lord, skills] of Object.entries(rawAssignments)) {
+      if (Array.isArray(skills) && skills.length > 0) {
+        effects.startingSkills[lord] = skills.slice(0, maxSlots);
+      }
     }
 
     return effects;

@@ -469,8 +469,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 58 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(58);
+  it('has 59 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(59);
   });
 
   it('has correct category distribution', () => {
@@ -483,7 +483,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.economy).toBe(7);
     expect(byCategory.capacity).toBe(8);
     expect(byCategory.starting_equipment).toBe(8);
-    expect(byCategory.starting_skills).toBe(9);
+    expect(byCategory.starting_skills).toBe(10);
   });
 
   // --- Starting Equipment effects ---
@@ -617,11 +617,22 @@ describe('MetaProgressionManager', () => {
     expect(result).toBe(false);
   });
 
-  it('assignSkill fails if lord already has max starting skills', () => {
+  it('assignSkill rejects 2nd skill without extra_skill_slot purchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.purchasedUpgrades.unlock_luna = 1;
+    meta.assignSkill('Edric', 'sol');
+    const result = meta.assignSkill('Edric', 'luna');
+    expect(result).toBe(false);
+    expect(meta.getSkillAssignments().Edric.length).toBe(1);
+  });
+
+  it('assignSkill allows 2nd skill after extra_skill_slot purchased', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.unlock_sol = 1;
     meta.purchasedUpgrades.unlock_luna = 1;
     meta.purchasedUpgrades.unlock_vantage = 1;
+    meta.purchasedUpgrades.extra_skill_slot = 1;
     meta.assignSkill('Edric', 'sol');
     meta.assignSkill('Edric', 'luna');
     const result = meta.assignSkill('Edric', 'vantage');
@@ -679,12 +690,76 @@ describe('MetaProgressionManager', () => {
     expect(meta.getSkillAssignments().Edric).toEqual(['sol']);
   });
 
+  it('getStartingSkillSlots returns 1 by default, 2 after purchase', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getStartingSkillSlots()).toBe(1);
+    meta.purchasedUpgrades.extra_skill_slot = 1;
+    expect(meta.getStartingSkillSlots()).toBe(2);
+  });
+
+  it('getStartingSkillSlots clamps corrupted save data to MAX_STARTING_SKILLS', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    // Oversized positive values
+    meta.purchasedUpgrades.extra_skill_slot = 5;
+    expect(meta.getStartingSkillSlots()).toBe(2);
+    meta.purchasedUpgrades.extra_skill_slot = 99;
+    expect(meta.getStartingSkillSlots()).toBe(2);
+    // Negative values
+    meta.purchasedUpgrades.extra_skill_slot = -5;
+    expect(meta.getStartingSkillSlots()).toBe(1);
+    // Non-numeric strings
+    meta.purchasedUpgrades.extra_skill_slot = 'abc';
+    expect(meta.getStartingSkillSlots()).toBe(1);
+    meta.purchasedUpgrades.extra_skill_slot = '-1';
+    expect(meta.getStartingSkillSlots()).toBe(1);
+    // Other non-finite values
+    meta.purchasedUpgrades.extra_skill_slot = NaN;
+    expect(meta.getStartingSkillSlots()).toBe(1);
+    meta.purchasedUpgrades.extra_skill_slot = Infinity;
+    expect(meta.getStartingSkillSlots()).toBe(1);
+  });
+
+  it('purchaseUpgrade normalizes corrupted stored value before incrementing', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.totalSupply = 9999;
+    // Corrupt the stored value to a string
+    meta.purchasedUpgrades.recruit_hp_growth = '1';
+    // getUpgradeLevel treats non-finite as 0
+    expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(0);
+    // Purchase should normalize to 0 then increment to 1, not concatenate to '11'
+    meta.purchaseUpgrade('recruit_hp_growth');
+    expect(meta.purchasedUpgrades.recruit_hp_growth).toBe(1);
+    expect(meta.getUpgradeLevel('recruit_hp_growth')).toBe(1);
+  });
+
   it('getActiveEffects includes startingSkills from assignments', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.unlock_sol = 1;
     meta.assignSkill('Edric', 'sol');
     const effects = meta.getActiveEffects();
     expect(effects.startingSkills.Edric).toEqual(['sol']);
+  });
+
+  it('getActiveEffects trims startingSkills to slot count', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.unlock_sol = 1;
+    meta.purchasedUpgrades.unlock_luna = 1;
+    meta.purchasedUpgrades.extra_skill_slot = 1;
+    // Assign 2 skills
+    meta.assignSkill('Edric', 'sol');
+    meta.assignSkill('Edric', 'luna');
+    expect(meta.getActiveEffects().startingSkills.Edric).toEqual(['sol', 'luna']);
+    // Now remove the upgrade — raw assignments preserved, but effects trimmed to 1
+    delete meta.purchasedUpgrades.extra_skill_slot;
+    expect(meta.getSkillAssignments().Edric).toEqual(['sol', 'luna']); // raw preserved
+    expect(meta.getActiveEffects().startingSkills.Edric).toEqual(['sol']); // trimmed
+  });
+
+  it('getActiveEffects includes extraSkillSlot when purchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getActiveEffects().extraSkillSlot).toBe(0);
+    meta.purchasedUpgrades.extra_skill_slot = 1;
+    expect(meta.getActiveEffects().extraSkillSlot).toBe(1);
   });
 
   it('getActiveEffects includes metaUnlockedWeaponArts when catalog is provided', () => {

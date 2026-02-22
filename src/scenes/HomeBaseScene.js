@@ -1038,8 +1038,9 @@ export class HomeBaseScene extends Phaser.Scene {
         color: '#ffcc66',
       });
 
-      // Assignable skill slots
-      for (let s = 0; s < MAX_STARTING_SKILLS; s++) {
+      // Assignable skill slots (dynamic based on meta upgrade)
+      const availableSlots = this.meta.getStartingSkillSlots();
+      for (let s = 0; s < availableSlots; s++) {
         const slotY = y + 34 + s * 18;
         const skillId = assigned[s];
 
@@ -1095,6 +1096,21 @@ export class HomeBaseScene extends Phaser.Scene {
             });
           }
         }
+      }
+
+      // Locked slot hint when 2nd slot not yet purchased
+      if (availableSlots < MAX_STARTING_SKILLS) {
+        const lockedSlotY = y + 34 + availableSlots * 18;
+        this.add.text(
+          cx + 66,
+          lockedSlotY,
+          '\u25CB Slot 2 (locked \u2014 requires Extra Skill Slot)',
+          {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: '#444444',
+          },
+        );
       }
     }
 
