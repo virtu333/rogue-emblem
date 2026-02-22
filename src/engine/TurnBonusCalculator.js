@@ -18,7 +18,14 @@ export function calculatePar(mapParams, config) {
   const adjustment = config.objectiveAdjustments[objective] || 0;
   const area = cols * rows;
   const areaPenalty = area * config.areaPenaltyPerTile;
-  const enemyPenalty = enemyCount * config.enemyWeight;
+  const linearPenalty = enemyCount * (config.enemyWeight ?? 0.6);
+  let enemyPenalty;
+  if (config.enemyScaling?.type === 'sqrt') {
+    const sqrtPenalty = Math.sqrt(enemyCount) * (config.enemyScaling.coefficient ?? 1.3);
+    enemyPenalty = Math.min(linearPenalty, sqrtPenalty);
+  } else {
+    enemyPenalty = linearPenalty;
+  }
 
   // Count difficult terrain tiles
   const difficultSet = new Set(config.difficultTerrainTypes);
@@ -173,4 +180,42 @@ export function isBossEnrageActive(turnsTaken, par, config) {
 export function calculateBonusGold(rating, actId, config) {
   const baseGold = config.baseBonusGold[actId] || 0;
   return Math.floor(baseGold * rating.bonusMultiplier * GOLD_PAR_BONUS_MULTIPLIER);
+}
+
+/**
+ * Build tooltip text showing par rating, XP/gold multipliers, and late pressure.
+ * Shows effective combined multipliers when pressure is active.
+ * @param {number} turnsTaken
+ * @param {number|null} par
+ * @param {object} config - turnBonus.json data
+ * @returns {string|null} tooltip text, or null if config/par unusable
+ */
+export function formatParTooltip(turnsTaken, par, config) {
+  if (!config || !Number.isFinite(par)) return null;
+  const { rating } = getRating(turnsTaken, par, config);
+  const xpMult = config.parXpMultipliers?.[rating] ?? 1;
+  const goldBracket = config.brackets?.find((b) => b.rating === rating);
+  const goldMult = goldBracket ? goldBracket.bonusMultiplier : 0;
+  const pressure = getLatePressureState(turnsTaken, par, config);
+
+  let text = `${rating}-rank \u00b7 XP \u00d7${xpMult.toFixed(2)} \u00b7 Par Gold \u00d7${goldMult.toFixed(2)}`;
+  if (pressure.active) {
+    const effXp = xpMult * pressure.xpMultiplier;
+    const effGold = goldMult * pressure.goldMultiplier;
+    text += `\nLate: eff XP \u00d7${effXp.toFixed(2)} \u00b7 eff gold \u00d7${effGold.toFixed(2)} \u00b7 kill gold \u00d7${pressure.goldMultiplier.toFixed(2)}`;
+  }
+  return text;
+}
+
+/**
+ * Get XP multiplier based on par rating for the current turn.
+ * @param {number} turnsTaken
+ * @param {number|null} par
+ * @param {object} config - turnBonus.json data
+ * @returns {number} multiplier (defaults to 1 when config missing or par invalid)
+ */
+export function getParXpMultiplier(turnsTaken, par, config) {
+  if (!config?.parXpMultipliers || !Number.isFinite(par)) return 1;
+  const { rating } = getRating(turnsTaken, par, config);
+  return config.parXpMultipliers[rating] ?? 1;
 }

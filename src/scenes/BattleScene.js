@@ -123,6 +123,18 @@ import {
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
+import {
+  isSleeping,
+  isSilenced,
+  removeCondition,
+  clearAllConditions,
+  resolveStatusStaff,
+  processConditionRecovery,
+  isStatusStaff,
+  isHealStaff,
+  hasCondition,
+  parseStaffRange,
+} from '../engine/StatusConditionSystem.js';
 import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
 import {
   calculateKillReward,
@@ -142,6 +154,8 @@ import {
   calculateBonusGold,
   getLatePressureState,
   isBossEnrageActive,
+  getParXpMultiplier,
+  formatParTooltip,
 } from '../engine/TurnBonusCalculator.js';
 import { deleteRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
@@ -225,6 +239,18 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
 const POST_LOOT_TRANSITION_RECHECK_MS = 250;
+/** Reset per-battle state on a unit at deploy time. */
+export function resetUnitForBattle(unit) {
+  unit.hasMoved = false;
+  unit.hasActed = false;
+  unit._miracleUsed = false;
+  unit._gambitUsedThisTurn = false;
+  unit._conditions = [];
+  for (const w of unit.inventory || []) {
+    if (w.perBattleUses) w._usesSpent = 0;
+  }
+}
+
 export class BattleScene extends Phaser.Scene {
   constructor() {
     super('Battle');
@@ -567,13 +593,7 @@ export class BattleScene extends Phaser.Scene {
           const unit = tutorialRoster[i];
           unit.col = bc.playerSpawns[i].col;
           unit.row = bc.playerSpawns[i].row;
-          unit.hasMoved = false;
-          unit.hasActed = false;
-          unit._miracleUsed = false;
-          unit._gambitUsedThisTurn = false;
-          for (const w of unit.inventory || []) {
-            if (w.perBattleUses) w._usesSpent = 0;
-          }
+          resetUnitForBattle(unit);
           this.playerUnits.push(unit);
           this.addUnitGraphic(unit);
         }
@@ -582,14 +602,7 @@ export class BattleScene extends Phaser.Scene {
           const unit = deployedRoster[i];
           unit.col = bc.playerSpawns[i].col;
           unit.row = bc.playerSpawns[i].row;
-          unit.hasMoved = false;
-          unit.hasActed = false;
-          unit._miracleUsed = false;
-          unit._gambitUsedThisTurn = false;
-          // Reset per-battle weapon uses (e.g. Bolting)
-          for (const w of unit.inventory || []) {
-            if (w.perBattleUses) w._usesSpent = 0;
-          }
+          resetUnitForBattle(unit);
           this.playerUnits.push(unit);
           this.addUnitGraphic(unit);
         }
@@ -901,6 +914,34 @@ export class BattleScene extends Phaser.Scene {
         })
         .setOrigin(0, 0)
         .setDepth(100);
+
+      // Par tooltip on hover (desktop only)
+      this.turnCounterText.setInteractive({ useHandCursor: false });
+      this.parTooltipText = this.add
+        .text(8, 0, '', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#e0e0e0',
+          backgroundColor: '#000000cc',
+          padding: { x: 4, y: 2 },
+        })
+        .setOrigin(0, 0)
+        .setDepth(140)
+        .setVisible(false);
+      this.turnCounterText.on('pointerover', () => {
+        if (this.turnPar == null || !this.turnBonusConfig) return;
+        const turn = this.getCurrentTurnNumber();
+        const text = formatParTooltip(turn, this.turnPar, this.turnBonusConfig);
+        if (!text) return;
+        this.parTooltipText.setText(text);
+        const tcY = this.turnCounterText.y + this.turnCounterText.height + 2;
+        this.parTooltipText.setY(tcY);
+        this.parTooltipText.setVisible(true);
+      });
+      this.turnCounterText.on('pointerout', () => {
+        this.parTooltipText.setVisible(false);
+      });
+
       this.updateTopLeftHudLayout();
 
       // Bottom command bar -- Row 1: clickable action buttons, Row 2: info text
@@ -959,6 +1000,7 @@ export class BattleScene extends Phaser.Scene {
         this.infoText,
         this.objectiveText,
         this.turnCounterText,
+        this.parTooltipText,
         this.dangerButton,
         this.rosterButton,
         this.endTurnButton,
@@ -1717,6 +1759,15 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    // Status staff assignment (enemy-only, separate from combat weapon)
+    if (spawn.statusStaff) {
+      const staffName = spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff';
+      const staffData = this.gameData.weapons.find((w) => w.name === staffName);
+      if (staffData) {
+        enemy.statusStaff = structuredClone(staffData);
+      }
+    }
+
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
 
     const reinforcementMeta = options.reinforcementMeta || null;
@@ -1968,6 +2019,7 @@ export class BattleScene extends Phaser.Scene {
         const unit = structuredClone(unitData);
         targetArr.push(unit);
         this.addUnitGraphic(unit);
+        // TODO: rehydrate condition icons from unit._conditions (same gap as affix pips)
       }
     };
 
@@ -2089,6 +2141,7 @@ export class BattleScene extends Phaser.Scene {
       'SHOWING_FORECAST',
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
+      'SELECTING_CURE_TARGET',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',
@@ -2929,6 +2982,7 @@ export class BattleScene extends Phaser.Scene {
     if (unit.factionIndicator) unit.factionIndicator.setPosition(pos.x, pos.y + 6);
     this.updateHPBar(unit);
     this.updateAffixPips(unit);
+    this._updateConditionIconPositions(unit);
   }
 
   updateHPBar(unit) {
@@ -2959,6 +3013,7 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.forEach((p) => p.destroy());
       unit.affixPips = [];
     }
+    this._removeAllConditionIcons(unit);
   }
 
   dimUnit(unit) {
@@ -3611,6 +3666,9 @@ export class BattleScene extends Phaser.Scene {
       case 'SELECTING_HEAL_TARGET':
         this.handleHealTargetClick(gp);
         break;
+      case 'SELECTING_CURE_TARGET':
+        this._handleCureTargetClick(gp);
+        break;
       case 'SELECTING_SHOVE_TARGET':
         this.handleShoveTargetClick(gp);
         break;
@@ -3679,6 +3737,7 @@ export class BattleScene extends Phaser.Scene {
       'SELECTING_TARGET',
       'SHOWING_FORECAST',
       'SELECTING_HEAL_TARGET',
+      'SELECTING_CURE_TARGET',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',
@@ -3788,6 +3847,12 @@ export class BattleScene extends Phaser.Scene {
       this.grid.clearAttackHighlights();
       this.healTargets = [];
       this.showActionMenu(this.selectedUnit);
+    } else if (this.battleState === 'SELECTING_CURE_TARGET') {
+      this.grid.clearAttackHighlights();
+      this.healTargets = [];
+      this._pendingCureItem = null;
+      this._pendingCureUser = null;
+      this.showActionMenu(this.selectedUnit);
     } else if (this.battleState === 'SELECTING_SHOVE_TARGET') {
       this.grid.clearAttackHighlights();
       this.shoveTargets = [];
@@ -3857,6 +3922,7 @@ export class BattleScene extends Phaser.Scene {
       'SHOWING_FORECAST',
       'SELECTING_TARGET',
       'SELECTING_HEAL_TARGET',
+      'SELECTING_CURE_TARGET',
       'SELECTING_SHOVE_TARGET',
       'SELECTING_PULL_TARGET',
       'SELECTING_TRADE_TARGET',
@@ -3890,6 +3956,7 @@ export class BattleScene extends Phaser.Scene {
       s === 'UNIT_ACTION_MENU' ||
       s === 'SELECTING_TARGET' ||
       s === 'SELECTING_HEAL_TARGET' ||
+      s === 'SELECTING_CURE_TARGET' ||
       s === 'SELECTING_SHOVE_TARGET' ||
       s === 'SELECTING_PULL_TARGET' ||
       s === 'SELECTING_TRADE_TARGET' ||
@@ -4161,7 +4228,7 @@ export class BattleScene extends Phaser.Scene {
   handleIdleClick(gp) {
     if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
     const unit = this.getUnitAt(gp.col, gp.row);
-    if (unit && unit.faction === 'player' && !unit.hasActed) {
+    if (unit && unit.faction === 'player' && !unit.hasActed && !isSleeping(unit)) {
       this.inspectionPanel.hide();
       this.grid.clearHighlights();
       this.grid.clearAttackHighlights();
@@ -4232,6 +4299,16 @@ export class BattleScene extends Phaser.Scene {
   confirmForecastCombat() {
     if (!this.forecastTarget || !this.selectedUnit || this.battleState !== 'SHOWING_FORECAST')
       return;
+    // Final legality guard: silenced units cannot confirm with a magic weapon
+    const w = this.selectedUnit.weapon;
+    if (
+      isSilenced(this.selectedUnit) &&
+      w &&
+      (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff')
+    ) {
+      this.hideForecast();
+      return;
+    }
     const target = this.forecastTarget;
     this.commitVisionSnapshotIfPending();
     this.hideForecast();
@@ -4621,7 +4698,13 @@ export class BattleScene extends Phaser.Scene {
     const targets = [];
     const selectedWeapon = options.weapon || null;
     const selectedArt = options.weaponArt || null;
-    const combatWeapons = selectedWeapon ? [selectedWeapon] : getCombatWeapons(unit);
+    let combatWeapons = selectedWeapon ? [selectedWeapon] : getCombatWeapons(unit);
+    // Silenced units cannot attack with magic weapons
+    if (isSilenced(unit)) {
+      combatWeapons = combatWeapons.filter(
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+      );
+    }
     if (combatWeapons.length === 0) return targets;
     const enemies = unit.faction === 'player' ? this.enemyUnits : this.playerUnits;
     // Check all combat weapons in inventory for range (with skill bonuses)
@@ -4649,13 +4732,28 @@ export class BattleScene extends Phaser.Scene {
   /** Auto-swap to a combat weapon that can reach the given distance. */
   ensureValidWeaponForRange(unit, dist, options = {}) {
     const selectedArt = options.weaponArt || null;
-    if (unit.weapon && this._isDistanceInWeaponRange(unit, unit.weapon, dist, selectedArt)) return;
+    const magicBlocked =
+      isSilenced(unit) &&
+      unit.weapon &&
+      (unit.weapon.type === 'Tome' || unit.weapon.type === 'Light' || unit.weapon.type === 'Staff');
+    if (
+      !magicBlocked &&
+      unit.weapon &&
+      this._isDistanceInWeaponRange(unit, unit.weapon, dist, selectedArt)
+    )
+      return;
     if (selectedArt) return;
-    if (unit.weapon) {
+    if (!magicBlocked && unit.weapon) {
       if (this._isDistanceInWeaponRange(unit, unit.weapon, dist)) return;
     }
-    // Find first combat weapon that can reach
-    const validWeapon = getCombatWeapons(unit).find((w) => {
+    // Find first combat weapon that can reach (skip magic if silenced)
+    let swapCandidates = getCombatWeapons(unit);
+    if (isSilenced(unit)) {
+      swapCandidates = swapCandidates.filter(
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+      );
+    }
+    const validWeapon = swapCandidates.find((w) => {
       return this._isDistanceInWeaponRange(unit, w, dist);
     });
     if (validWeapon) equipWeapon(unit, validWeapon);
@@ -5767,14 +5865,24 @@ export class BattleScene extends Phaser.Scene {
 
     // Build dynamic item list
     const items = [];
-    if (normalAttackTargets.length > 0) items.push('Attack');
+    const silenced = isSilenced(unit);
+    // Silence blocks Attack if unit only has magic weapons (Tome/Light)
+    if (normalAttackTargets.length > 0) {
+      const combatWeapons = getCombatWeapons(unit);
+      const hasPhysical = combatWeapons.some(
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+      );
+      if (!silenced || hasPhysical) items.push('Attack');
+    }
     const artWeapon =
       unit.weapon && !isStaff(unit.weapon) ? unit.weapon : getCombatWeapons(unit)[0];
-    if (this._hasUsableWeaponArtTargets(unit, artWeapon, { isInitiating: true })) {
+    // Silence blocks weapon arts
+    if (!silenced && this._hasUsableWeaponArtTargets(unit, artWeapon, { isInitiating: true })) {
       const activeArt = this._getSelectedWeaponArtForUnit(unit, { isInitiating: true });
       items.push(activeArt ? `Weapon Art: ${activeArt.name}` : 'Weapon Art');
     }
-    if (preferredHealOption) {
+    // Silence blocks staff healing
+    if (!silenced && preferredHealOption) {
       const staff = preferredHealOption.staff;
       const rem = getStaffRemainingUses(staff, unit);
       const max = getStaffMaxUses(staff, unit);
@@ -6184,6 +6292,56 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SELECTING_HEAL_TARGET';
   }
 
+  _handleCureTargetClick(gp) {
+    const target = (this.healTargets || []).find((t) => t.col === gp.col && t.row === gp.row);
+    if (!target) return;
+    this.grid.clearAttackHighlights();
+    this.healTargets = [];
+    const item = this._pendingCureItem;
+    const user = this._pendingCureUser;
+    this._pendingCureItem = null;
+    this._pendingCureUser = null;
+    if (!item || !user) return;
+    this._pendingCureTarget = target;
+    this.useConsumable(user, item);
+  }
+
+  _startCureTargetSelection(unit, item) {
+    this.hideActionMenu();
+    this.inEquipMenu = false;
+    // Find valid cure targets: self (if has conditions) + adjacent allies with conditions
+    const targets = [];
+    if ((unit._conditions || []).length > 0) targets.push(unit);
+    for (const ally of this.playerUnits) {
+      if (
+        ally !== unit &&
+        ally.currentHP > 0 &&
+        !ally._removing &&
+        gridDistance(unit.col, unit.row, ally.col, ally.row) === 1 &&
+        (ally._conditions || []).length > 0
+      ) {
+        targets.push(ally);
+      }
+    }
+    if (targets.length === 0) {
+      this.showActionMenu(unit);
+      return;
+    }
+    if (targets.length === 1) {
+      // Single target — use immediately
+      this._pendingCureTarget = targets[0];
+      this.useConsumable(unit, item);
+      return;
+    }
+    // Multiple targets — show selection highlights
+    this._pendingCureItem = item;
+    this._pendingCureUser = unit;
+    this.healTargets = targets;
+    const healTiles = targets.map((a) => ({ col: a.col, row: a.row }));
+    this.grid.showHealRange(healTiles);
+    this.battleState = 'SELECTING_CURE_TARGET';
+  }
+
   showStaffPicker(unit, usableStaves) {
     this.hideActionMenu();
     this.inEquipMenu = true;
@@ -6479,7 +6637,19 @@ export class BattleScene extends Phaser.Scene {
     this.inEquipMenu = true;
     this.battleState = 'UNIT_ACTION_MENU';
 
-    const combatWeapons = getCombatWeapons(unit);
+    let combatWeapons = getCombatWeapons(unit);
+    // Silenced units cannot use magic weapons
+    if (isSilenced(unit)) {
+      combatWeapons = combatWeapons.filter(
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+      );
+    }
+    // Edge case: if silence filtering removed all weapons, return to action menu
+    if (combatWeapons.length === 0) {
+      this.inEquipMenu = false;
+      this.showActionMenu(unit);
+      return;
+    }
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     const menuWidth = 130;
     const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
@@ -6768,6 +6938,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Check usability
       const isHeal = item.effect === 'heal' || item.effect === 'healFull';
+      const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
       const isPromote = item.effect === 'promote';
       const isReclass = item.effect === 'reclass';
       const canUsePromote =
@@ -6777,8 +6948,23 @@ export class BattleScene extends Phaser.Scene {
       const canUseReclass =
         canReclass(unit) &&
         getReclassTargets(unit, this.gameData.classes, item.subEffect).length > 0;
+      // Cure usability: self or adjacent allies have conditions
+      let canUseCure = false;
+      if (isCure) {
+        const hasSelfCond = (unit._conditions || []).length > 0;
+        const adjAllies = this.playerUnits.filter(
+          (a) =>
+            a !== unit &&
+            a.currentHP > 0 &&
+            !a._removing &&
+            gridDistance(unit.col, unit.row, a.col, a.row) === 1 &&
+            (a._conditions || []).length > 0,
+        );
+        canUseCure = hasSelfCond || adjAllies.length > 0;
+      }
       const usable =
         !(isHeal && unit.currentHP >= unit.stats.HP) &&
+        !(isCure && !canUseCure) &&
         !(isPromote && !canUsePromote) &&
         !(isReclass && !canUseReclass);
 
@@ -6808,7 +6994,12 @@ export class BattleScene extends Phaser.Scene {
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor('#88ff88'));
         text.on('pointerdown', () => {
-          this.useConsumable(unit, item);
+          const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
+          if (isCure) {
+            this._startCureTargetSelection(unit, item);
+          } else {
+            this.useConsumable(unit, item);
+          }
         });
       }
       this.actionMenu.push(text);
@@ -6862,6 +7053,22 @@ export class BattleScene extends Phaser.Scene {
       unit.currentHP = unit.stats.HP;
       this.updateHPBar(unit);
       await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
+    } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
+      // Use on the cure target (self or adjacent ally)
+      const target = this._pendingCureTarget || unit;
+      this._pendingCureTarget = null;
+      clearAllConditions(target);
+      this._removeAllConditionIcons(target);
+      this.undimUnit(target);
+      if (item.effect === 'cureHeal' && item.value > 0) {
+        const oldHP = target.currentHP;
+        target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
+        const healed = target.currentHP - oldHP;
+        this.updateHPBar(target);
+        await this.showBriefBanner(`${target.name} cured and healed ${healed} HP!`, '#88ff88');
+      } else {
+        await this.showBriefBanner(`${target.name}'s conditions cured!`, '#88ff88');
+      }
     }
 
     // Decrement uses, remove if depleted
@@ -8269,7 +8476,14 @@ export class BattleScene extends Phaser.Scene {
     // Compute valid weapons for cycling (weapons that can reach this target)
     const validWeapons = selectedEntry
       ? [selectedEntry.weapon]
-      : getCombatWeapons(attacker).filter((w) => this._isDistanceInWeaponRange(attacker, w, dist));
+      : getCombatWeapons(attacker).filter((w) => {
+          if (
+            isSilenced(attacker) &&
+            (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff')
+          )
+            return false;
+          return this._isDistanceInWeaponRange(attacker, w, dist);
+        });
     this._forecastValidWeapons = validWeapons;
 
     // Build graphical forecast panel (FE GBA-style split layout)
@@ -9170,6 +9384,12 @@ export class BattleScene extends Phaser.Scene {
     target.currentHP = event.targetHPAfter;
     this.updateHPBar(target);
 
+    // Sleep: wake on damage — remove Zzz icon and un-dim immediately
+    if (event.wokeFromSleep) {
+      this._removeConditionIcon(target, 'sleep');
+      this.undimUnit(target);
+    }
+
     if (event.heal > 0 && event.strikerHealTo !== undefined) {
       striker.currentHP = event.strikerHealTo;
       this.updateHPBar(striker);
@@ -9387,11 +9607,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async awardScaledXP(playerUnit, baseXp) {
+    const hasTurnInfo = typeof this.getCurrentTurnNumber === 'function';
+    const turnsTaken = hasTurnInfo ? this.getCurrentTurnNumber() : 0;
+    const parXpMult = hasTurnInfo
+      ? getParXpMultiplier(turnsTaken, this.turnPar, this.turnBonusConfig)
+      : 1;
     const xpMultiplier = Number.isFinite(this.battleParams?.xpMultiplier)
       ? this.battleParams.xpMultiplier
       : 1;
     const blessingXpDelta = this.runManager?.getXpMultiplierDelta?.() || 0;
-    const xp = Math.max(1, Math.floor(baseXp * (xpMultiplier + blessingXpDelta)));
+    const xp = Math.max(1, Math.floor(baseXp * parXpMult * (xpMultiplier + blessingXpDelta)));
 
     // Show floating XP text
     const pos = this.grid.gridToPixel(playerUnit.col, playerUnit.row);
@@ -9534,6 +9759,30 @@ export class BattleScene extends Phaser.Scene {
       }
       this.battleState = 'PLAYER_IDLE';
 
+      // Condition recovery runs FIRST so sleeping/silenced units get their chance
+      // before the all-sleeping auto-advance check
+      const earlyRecovery = processConditionRecovery(this.playerUnits);
+      for (const evt of earlyRecovery) {
+        const label = evt.conditionId === 'sleep' ? 'woke up' : 'recovered from Silence';
+        this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
+        this._removeConditionIcon(evt.unit, evt.conditionId);
+        this.undimUnit(evt.unit);
+      }
+
+      // Sleeping units stay dimmed / can't act
+      for (const u of this.playerUnits) {
+        if (isSleeping(u)) this.dimUnit(u);
+      }
+
+      // All-sleeping auto-advance: skip player phase entirely
+      const allSleeping = this.playerUnits.every((u) => !u || u.currentHP <= 0 || isSleeping(u));
+      if (allSleeping && this.playerUnits.some((u) => u && u.currentHP > 0)) {
+        this.time.delayedCall(300, () => {
+          if (this.battleState === 'PLAYER_IDLE') this.endPlayerPhase();
+        });
+        return;
+      }
+
       // Reset first-hit flag for Shielded affix
       for (const enemy of this.enemyUnits) {
         enemy._hitByPlayerThisPhase = false;
@@ -9568,7 +9817,9 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Process turn-start effects (skills + affixes) (after banner settles)
-      this.time.delayedCall(1200, () => this.processTurnStartEffects(this.playerUnits));
+      this.time.delayedCall(1200, () =>
+        this.processTurnStartEffects(this.playerUnits, { skipRecovery: true }),
+      );
 
       // Tutorial hints (after phase banner fades)
       if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
@@ -9652,7 +9903,19 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Apply all turn-start effects (skills, affixes, terrain) in unified sequence */
-  async processTurnStartEffects(units) {
+  async processTurnStartEffects(units, { skipRecovery = false } = {}) {
+    // 0. Status condition recovery (sleep/silence)
+    // Player-phase recovery runs early (before all-sleeping check), so skip here
+    if (!skipRecovery) {
+      const recoveryEvents = processConditionRecovery(units);
+      for (const evt of recoveryEvents) {
+        const label = evt.conditionId === 'sleep' ? 'woke up' : 'recovered from Silence';
+        await this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
+        this._removeConditionIcon(evt.unit, evt.conditionId);
+        this.undimUnit(evt.unit);
+      }
+    }
+
     // 1. Skill effects (e.g. Renewal)
     const skillEffects = getTurnStartEffects(units, this.gameData.skills);
     for (const effect of skillEffects) {
@@ -9824,6 +10087,13 @@ export class BattleScene extends Phaser.Scene {
       unit.currentHP = nextHP;
       this.updateHPBar(unit);
       await this.showTerrainDamage(unit, appliedDamage);
+      // Lava damage wakes sleeping units
+      if (isSleeping(unit)) {
+        removeCondition(unit, 'sleep');
+        this._removeConditionIcon(unit, 'sleep');
+        this.undimUnit(unit);
+        await this.showBriefBanner(`${unit.name} woke up from lava damage!`, '#ff8844');
+      }
       await this._checkPhoenixBrooch(unit);
     }
   }
@@ -9889,6 +10159,10 @@ export class BattleScene extends Phaser.Scene {
             onMoveUnit: (enemy, path) => {
               if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
               return this.animateEnemyMove(enemy, path);
+            },
+            onStatusStaff: (enemy, target) => {
+              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              return this.executeEnemyStatusStaff(enemy, target);
             },
             onAttack: (enemy, target) => {
               if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
@@ -9971,6 +10245,76 @@ export class BattleScene extends Phaser.Scene {
       };
       animateStep(1);
     });
+  }
+
+  async executeEnemyStatusStaff(enemy, target) {
+    const staff = enemy.statusStaff;
+    if (!staff) return;
+    const result = resolveStatusStaff(staff, enemy, target);
+    spendStaffUse(staff);
+    const hitPct = Math.round(result.hitChance);
+    if (result.hit) {
+      const statusText =
+        result.conditionId === 'sleep'
+          ? `${target.name} fell asleep!`
+          : `${target.name} was silenced!`;
+      await this.showBriefBanner(
+        `${enemy.name} used ${staff.name}! ${statusText} (${hitPct}%)`,
+        '#ff6666',
+      );
+      this._addConditionIcon(target, result.conditionId);
+    } else {
+      await this.showBriefBanner(`${enemy.name} used ${staff.name}! Miss! (${hitPct}%)`, '#aaaaaa');
+    }
+  }
+
+  _addConditionIcon(unit, conditionId) {
+    if (!unit?.graphic) return;
+    // Remove existing icon for this condition
+    this._removeConditionIcon(unit, conditionId);
+    if (!unit._conditionIcons) unit._conditionIcons = {};
+    const x = unit.graphic.x;
+    const y = unit.graphic.y - 20;
+    const label = conditionId === 'sleep' ? 'Zzz' : 'X';
+    const color = conditionId === 'sleep' ? '#6688ff' : '#cc66cc';
+    const icon = this.add
+      .text(x, y, label, { fontSize: '10px', fontFamily: 'monospace', color })
+      .setOrigin(0.5)
+      .setDepth(200);
+    unit._conditionIcons[conditionId] = icon;
+    // Reflow all icons so multi-status doesn't overlap
+    this._updateConditionIconPositions(unit);
+  }
+
+  _removeConditionIcon(unit, conditionId) {
+    const icon = unit?._conditionIcons?.[conditionId];
+    if (icon) {
+      icon.destroy();
+      delete unit._conditionIcons[conditionId];
+      // Reflow remaining icons so spacing stays correct
+      this._updateConditionIconPositions(unit);
+    }
+  }
+
+  _removeAllConditionIcons(unit) {
+    if (!unit?._conditionIcons) return;
+    for (const key of Object.keys(unit._conditionIcons)) {
+      unit._conditionIcons[key]?.destroy();
+    }
+    unit._conditionIcons = {};
+  }
+
+  _updateConditionIconPositions(unit) {
+    if (!unit?.graphic || !unit?._conditionIcons) return;
+    const x = unit.graphic.x;
+    const y = unit.graphic.y - 20;
+    let offset = 0;
+    for (const icon of Object.values(unit._conditionIcons)) {
+      if (icon) {
+        icon.setPosition(x + offset, y);
+        offset += 14;
+      }
+    }
   }
 
   async executeEnemyCombat(enemy, target) {
