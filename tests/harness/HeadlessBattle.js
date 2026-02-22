@@ -149,6 +149,7 @@ export class HeadlessBattle {
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
     this.runManager = null;
+    this._reinforcementsPendingThisTurn = false;
   }
 
   // Initialize battle — mirrors BattleScene.beginBattle
@@ -188,6 +189,7 @@ export class HeadlessBattle {
     this.appliedHybridOverrideTurns = new Set();
     this.lastHybridOverrideResult = null;
     this._combatRollSession = null;
+    this._reinforcementsPendingThisTurn = false;
 
     // Create player units
     if (this.roster && this.roster.length > 0) {
@@ -2110,6 +2112,7 @@ export class HeadlessBattle {
       return true;
     }
     if (this.battleConfig.objective === 'rout' && this.enemyUnits.length === 0) {
+      if (this._reinforcementsPendingThisTurn) return false;
       this._onVictory();
       return true;
     }
@@ -2117,37 +2120,49 @@ export class HeadlessBattle {
   }
 
   async _processEnemyPhase() {
-    this._processTerrainDamage(this.playerUnits);
-    this._processTurnStartEffects(this.enemyUnits);
-    this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
-    this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
-    this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
+    this._reinforcementsPendingThisTurn = true;
     try {
-      await this.aiController.processEnemyPhase(this.enemyUnits, this.playerUnits, this.npcUnits, {
-        onMoveUnit: (enemy, path) => {
-          if (path && path.length >= 2) {
-            const dest = path[path.length - 1];
-            enemy.col = dest.col;
-            enemy.row = dest.row;
-          }
-          return Promise.resolve();
-        },
-        onAttack: (enemy, target) => {
-          this._executeEnemyCombat(enemy, target);
-          return Promise.resolve();
-        },
-        onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
-        onUnitDone: (enemy) => {
-          enemy.hasActed = true;
-        },
-      });
-    } finally {
-      this._finalizeEnemyPhaseAiStats();
-    }
+      this._processTerrainDamage(this.playerUnits);
+      this._processTurnStartEffects(this.enemyUnits);
+      this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
+      this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
+      try {
+        await this.aiController.processEnemyPhase(
+          this.enemyUnits,
+          this.playerUnits,
+          this.npcUnits,
+          {
+            onMoveUnit: (enemy, path) => {
+              if (path && path.length >= 2) {
+                const dest = path[path.length - 1];
+                enemy.col = dest.col;
+                enemy.row = dest.row;
+              }
+              return Promise.resolve();
+            },
+            onAttack: (enemy, target) => {
+              this._executeEnemyCombat(enemy, target);
+              return Promise.resolve();
+            },
+            onDecision: (enemy, decision) => this._recordEnemyAiDecision(enemy, decision),
+            onUnitDone: (enemy) => {
+              enemy.hasActed = true;
+            },
+          },
+        );
+      } finally {
+        this._finalizeEnemyPhaseAiStats();
+      }
 
-    if (this.battleState !== HEADLESS_STATES.BATTLE_END) {
-      this._processTerrainDamage(this.enemyUnits);
-      this.turnManager.endEnemyPhase();
+      if (this.battleState !== HEADLESS_STATES.BATTLE_END) {
+        this._processTerrainDamage(this.enemyUnits);
+        this._applyReinforcementsForTurn(this.turnManager?.turnNumber || 0);
+        this._reinforcementsPendingThisTurn = false;
+        this._checkBattleEnd();
+        if (this.battleState !== HEADLESS_STATES.BATTLE_END) this.turnManager.endEnemyPhase();
+      }
+    } finally {
+      this._reinforcementsPendingThisTurn = false;
     }
   }
 

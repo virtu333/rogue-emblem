@@ -415,6 +415,26 @@ describe('HeadlessBattle', () => {
     expect(battle.lastReinforcementSchedule?.spawns?.length || 0).toBeGreaterThan(0);
   });
 
+  it('clears deferred rout flag when enemy AI throws in headless enemy phase', async () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act4',
+      objective: 'rout',
+      row: 3,
+      templateId: 'frozen_pass',
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+    });
+    battle.init();
+    battle.turnManager.currentPhase = 'enemy';
+    battle.battleState = HEADLESS_STATES.ENEMY_PHASE;
+    battle.aiController.processEnemyPhase = async () => {
+      throw new Error('ai boom');
+    };
+
+    await expect(battle._processEnemyPhase()).rejects.toThrow('ai boom');
+    expect(battle._reinforcementsPendingThisTurn).toBe(false);
+  });
+
   it('scripted reinforcement waves spawn exact configured units in headless flow', () => {
     const battle = new HeadlessBattle(gameData, {
       act: 'act1',

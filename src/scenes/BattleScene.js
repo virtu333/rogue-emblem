@@ -288,6 +288,7 @@ export class BattleScene extends Phaser.Scene {
     this._onDevToggleKeyDown = null;
     this._mobileHandlers = null;
     this._lootCleanupTimeout = null;
+    this._reinforcementsPendingThisTurn = false;
   }
 
   create() {
@@ -9644,7 +9645,6 @@ export class BattleScene extends Phaser.Scene {
         await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
         this.applyDueHybridOverridesForTurn(turn);
-        this.applyReinforcementsForTurn(turn);
         this.startEnemyPhase();
       });
     }
@@ -9864,42 +9864,61 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async startEnemyPhase() {
-    // Debug: skip enemy phase entirely
-    if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
-      this._debugSkipEnemyPhase = false;
-      if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
-      return;
-    }
-
-    this.currentEnemyPhaseAiStats = this.createEnemyPhaseAiStats();
+    // Defer rout victory until after reinforcements are applied (cleared below)
+    this._reinforcementsPendingThisTurn = true;
     try {
-      await this.aiController.processEnemyPhase(this.enemyUnits, this.playerUnits, this.npcUnits, {
-        onMoveUnit: (enemy, path) => {
-          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-          return this.animateEnemyMove(enemy, path);
-        },
-        onAttack: (enemy, target) => {
-          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-          return this.executeEnemyCombat(enemy, target);
-        },
-        onBreak: (enemy, tile) => {
-          if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
-          return this.executeEnemyBreak(enemy, tile);
-        },
-        onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
-        onUnitDone: (enemy) => {
-          enemy.hasActed = true;
-          this.dimUnit(enemy);
-        },
-      });
-    } finally {
-      this.finalizeEnemyPhaseAiStats();
-    }
+      // Debug: skip enemy phase entirely
+      if (this.isDevToolsEnabled() && this._debugSkipEnemyPhase) {
+        this._debugSkipEnemyPhase = false;
+        if (this.battleState !== 'BATTLE_END') {
+          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          this._reinforcementsPendingThisTurn = false;
+          this.checkBattleEnd();
+          if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+        }
+        return;
+      }
 
-    // End enemy phase (skip if battle already ended during combat)
-    if (this.battleState !== 'BATTLE_END') {
-      await this.processTerrainDamage(this.enemyUnits);
-      this.turnManager.endEnemyPhase();
+      this.currentEnemyPhaseAiStats = this.createEnemyPhaseAiStats();
+      try {
+        await this.aiController.processEnemyPhase(
+          this.enemyUnits,
+          this.playerUnits,
+          this.npcUnits,
+          {
+            onMoveUnit: (enemy, path) => {
+              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              return this.animateEnemyMove(enemy, path);
+            },
+            onAttack: (enemy, target) => {
+              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              return this.executeEnemyCombat(enemy, target);
+            },
+            onBreak: (enemy, tile) => {
+              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              return this.executeEnemyBreak(enemy, tile);
+            },
+            onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
+            onUnitDone: (enemy) => {
+              enemy.hasActed = true;
+              this.dimUnit(enemy);
+            },
+          },
+        );
+      } finally {
+        this.finalizeEnemyPhaseAiStats();
+      }
+
+      // End enemy phase (skip if battle already ended during combat)
+      if (this.battleState !== 'BATTLE_END') {
+        await this.processTerrainDamage(this.enemyUnits);
+        this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+        this._reinforcementsPendingThisTurn = false;
+        this.checkBattleEnd();
+        if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+      }
+    } finally {
+      this._reinforcementsPendingThisTurn = false;
     }
   }
 
@@ -10133,7 +10152,9 @@ export class BattleScene extends Phaser.Scene {
       return true;
     }
     // Rout: all enemies dead = victory
+    // Defer during enemy phase until reinforcements have been applied
     if (this.battleConfig.objective === 'rout' && this.enemyUnits.length === 0) {
+      if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
       return true;
     }
@@ -10234,6 +10255,7 @@ export class BattleScene extends Phaser.Scene {
 
   onVictory() {
     if (this.battleState === 'BATTLE_END') return;
+    this._reinforcementsPendingThisTurn = false;
     this.battleState = 'BATTLE_END';
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.victory, this, 0);
@@ -12787,6 +12809,7 @@ export class BattleScene extends Phaser.Scene {
 
   onDefeat() {
     if (this.battleState === 'BATTLE_END') return;
+    this._reinforcementsPendingThisTurn = false;
     this.battleState = 'BATTLE_END';
     this.clearInspectionVisuals();
     this.hideActionMenu();
