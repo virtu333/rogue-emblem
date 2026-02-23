@@ -24,6 +24,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'currencyMultiplier',
   'actsIncluded',
   'extendedLevelingEnabled',
+  'churchPromotionLimit',
+  'growthBonusMultiplier',
 ];
 
 export const DIFFICULTY_DEFAULTS = Object.freeze({
@@ -48,6 +50,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   currencyMultiplier: 1,
   actsIncluded: ['act1', 'act2', 'act3', 'finalBoss'],
   extendedLevelingEnabled: false,
+  churchPromotionLimit: -1,
+  growthBonusMultiplier: 1,
 });
 
 /**
@@ -100,6 +104,12 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
       const actNum = firstAct.replace('act', '');
       lines.push(`Status staves from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
     }
+  }
+  if (Number.isFinite(mode.churchPromotionLimit) && mode.churchPromotionLimit >= 0) {
+    lines.push(`Church promotions limited to ${mode.churchPromotionLimit} per visit`);
+  }
+  if (Number.isFinite(mode.growthBonusMultiplier) && mode.growthBonusMultiplier < 1) {
+    lines.push(`Growth bonuses ×${mode.growthBonusMultiplier}`);
   }
   return lines;
 }

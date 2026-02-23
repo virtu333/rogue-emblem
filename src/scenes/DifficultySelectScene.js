@@ -67,8 +67,10 @@ export class DifficultySelectScene extends Phaser.Scene {
         lockReason = 'Beat the game to unlock';
       }
       const lunaticUnlocked = Boolean(
-        this.meta?.hasMilestone?.('beatHard') || this.meta?.hasMilestone?.('beatLunatic')
-        || hasAnySlotMilestone('beatHard') || hasAnySlotMilestone('beatLunatic')
+        this.meta?.hasMilestone?.('beatHard') ||
+        this.meta?.hasMilestone?.('beatLunatic') ||
+        hasAnySlotMilestone('beatHard') ||
+        hasAnySlotMilestone('beatLunatic'),
       );
       if (id === 'lunatic' && !lunaticUnlocked) {
         locked = true;

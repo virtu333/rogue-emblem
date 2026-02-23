@@ -22,7 +22,9 @@
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1,
       "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
-      "extendedLevelingEnabled": false
+      "extendedLevelingEnabled": false,
+      "churchPromotionLimit": -1,
+      "growthBonusMultiplier": 1.0
     },
     "hard": {
       "label": "Hard",
@@ -50,7 +52,9 @@
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.25,
       "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
-      "extendedLevelingEnabled": false
+      "extendedLevelingEnabled": false,
+      "churchPromotionLimit": 3,
+      "growthBonusMultiplier": 0.8
     },
     "lunatic": {
       "label": "Lunatic",
@@ -78,7 +82,9 @@
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.5,
       "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
-      "extendedLevelingEnabled": true
+      "extendedLevelingEnabled": true,
+      "churchPromotionLimit": 2,
+      "growthBonusMultiplier": 0.5
     }
   }
 }

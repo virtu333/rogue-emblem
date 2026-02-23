@@ -299,7 +299,12 @@ export class ColosseumOverlay {
 
     const unit = this._selectedUnit;
     const info = this.scene.add
-      .text(CX, 95, `Fighter: ${unit.name} (Lv ${getDisplayLevel(unit)} ${unit.className})`, BODY_STYLE)
+      .text(
+        CX,
+        95,
+        `Fighter: ${unit.name} (Lv ${getDisplayLevel(unit)} ${unit.className})`,
+        BODY_STYLE,
+      )
       .setOrigin(0.5)
       .setDepth(CONTENT_DEPTH);
     this.objects.push(info);
@@ -742,20 +747,21 @@ export class ColosseumOverlay {
     let levelUpInfo = null;
     if (reward.xpGained > 0) {
       const prevLevel = unit.level;
-      const extendedLevelingEnabled = this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
+      const extendedLevelingEnabled =
+        this.runManager?.getDifficultyModifier?.('extendedLevelingEnabled', false) || false;
       const xpResult = gainExperience(unit, reward.xpGained, { extendedLevelingEnabled });
-      const extendedGain = xpResult.levelUps?.some(lu => lu.isExtended);
+      const extendedGain = xpResult.levelUps?.some((lu) => lu.isExtended);
       if (unit.level > prevLevel || extendedGain) {
         const actualLevelUps = xpResult.levelUps?.length || 0;
         this._levelsGainedThisVisit[unit.name] = levelsGained + actualLevelUps;
         const firstLvUp = xpResult.levelUps[0];
         const lastLvUp = xpResult.levelUps[xpResult.levelUps.length - 1];
         const fromStr = firstLvUp?.isExtended
-          ? ((firstLvUp.extendedLevel - 1) === 0 ? '20' : `20+${firstLvUp.extendedLevel - 1}`)
+          ? firstLvUp.extendedLevel - 1 === 0
+            ? '20'
+            : `20+${firstLvUp.extendedLevel - 1}`
           : String(prevLevel);
-        const toStr = lastLvUp?.isExtended
-          ? `20+${lastLvUp.extendedLevel}`
-          : String(unit.level);
+        const toStr = lastLvUp?.isExtended ? `20+${lastLvUp.extendedLevel}` : String(unit.level);
         levelUpInfo = {
           from: fromStr,
           to: toStr,

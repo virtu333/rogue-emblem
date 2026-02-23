@@ -150,7 +150,9 @@ export function hasAnySlotMilestone(milestone) {
       if (!raw) continue;
       const saved = JSON.parse(raw);
       if (Array.isArray(saved.milestones) && saved.milestones.includes(milestone)) return true;
-    } catch (_) { /* ignore */ }
+    } catch (_) {
+      /* ignore */
+    }
   }
   return false;
 }

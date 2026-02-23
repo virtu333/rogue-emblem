@@ -596,6 +596,10 @@ export class NodeMapScene extends Phaser.Scene {
       }
     }
     this._touchTapDown = null;
+    if (this._churchMapViewSuppressCancel) {
+      this._churchMapViewSuppressCancel = false;
+      return;
+    }
     if (this._isPointerOverInteractive(pointer)) return;
     this.requestCancel({ allowPause: false });
   }
@@ -809,6 +813,32 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchScrollDrag = null;
     this._setChurchOverlayVisibility(false);
     this._churchViewingMap = true;
+    this._churchMapViewSuppressCancel = true;
+    // Persistent "Return to Church" button (not in churchOverlay so it stays visible)
+    this._churchReturnBtn = this.add
+      .text(320, CHURCH_VIEW_MAP_Y, '[ Return to Church ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#aaddff',
+        backgroundColor: '#222222',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
+    this._churchReturnBtn.on('pointerover', () => this._churchReturnBtn.setColor('#ffdd44'));
+    this._churchReturnBtn.on('pointerout', () => this._churchReturnBtn.setColor('#aaddff'));
+    this._churchReturnBtn.on('pointerdown', () => this._exitChurchMapView());
+  }
+
+  _exitChurchMapView() {
+    if (!this._churchViewingMap) return;
+    if (this._churchReturnBtn) {
+      this._churchReturnBtn.destroy();
+      this._churchReturnBtn = null;
+    }
+    this._setChurchOverlayVisibility(true);
+    this._churchViewingMap = false;
   }
 
   requestCancel({ allowPause = true } = {}) {
@@ -852,8 +882,7 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (this.churchOverlay) {
       if (this._churchViewingMap) {
-        this._setChurchOverlayVisibility(true);
-        this._churchViewingMap = false;
+        this._exitChurchMapView();
         return true;
       }
       this.leaveChurchNode();
@@ -1210,7 +1239,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   _openRoster() {
     if (this.rosterOverlay?.visible) return;
-    if (this.shopOverlay || this.churchOverlay) return;
+    if (this.shopOverlay || (this.churchOverlay && !this._churchViewingMap)) return;
     if (this.pauseOverlay?.visible || this.settingsOverlay?.visible) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
@@ -1483,6 +1512,8 @@ export class NodeMapScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(pickTrack(MUSIC.rest), this, 300); // Peaceful music
 
+    this._churchPromotionsThisVisit = this.runManager.getChurchPromotionCount(node.id);
+    this._currentChurchNodeId = node.id;
     this.showChurchOverlay(node);
   }
 
@@ -1618,16 +1649,23 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     // Service 3: Promote Unit
+    const promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
+    const promoRemaining =
+      promoLimit >= 0 ? promoLimit - (this._churchPromotionsThisVisit || 0) : -1;
+    const promoLimitText = promoRemaining >= 0 ? ` [${promoRemaining} left]` : '';
     items.push({
       type: 'label',
-      text: `Promote Unit (${CHURCH_PROMOTE_COST}G):`,
+      text: `Promote Unit (${CHURCH_PROMOTE_COST}G):${promoLimitText}`,
       color: '#cccccc',
       y: localY,
     });
     localY += 25;
 
     const eligibleUnits = rm.roster.filter((u) => canPromote(u));
-    if (eligibleUnits.length === 0) {
+    if (promoRemaining === 0) {
+      items.push({ type: 'none', text: '(Promotion limit reached)', y: localY });
+      localY += CHURCH_ITEM_HEIGHT;
+    } else if (eligibleUnits.length === 0) {
       items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
       localY += CHURCH_ITEM_HEIGHT;
     } else {
@@ -1717,7 +1755,15 @@ export class NodeMapScene extends Phaser.Scene {
           if (rm.reviveFallenUnit(fallen.name, cost)) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_heal');
-            this.showChurchMessage(`${fallen.name} revived!`, '#44ff44');
+            if (!rm.hasShownDialogue('revive_convoy_hint')) {
+              rm.markDialogueShown('revive_convoy_hint');
+              this.showChurchMessage(
+                `${fallen.name} revived! (Gear stored in convoy \u2014 re-equip via Roster)`,
+                '#44ff44',
+              );
+            } else {
+              this.showChurchMessage(`${fallen.name} revived!`, '#44ff44');
+            }
             this.churchGoldText.setText(`Gold: ${rm.gold}G`);
             this.refreshChurchOverlay(node);
           } else {
@@ -1749,6 +1795,13 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setBackgroundColor('#222222');
         });
         unitBtn.on('pointerdown', async () => {
+          const _promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
+          if (_promoLimit >= 0 && (this._churchPromotionsThisVisit || 0) >= _promoLimit) {
+            const audio = this.registry.get('audio');
+            if (audio) audio.playSFX('sfx_cancel');
+            this.showChurchMessage('Promotion limit reached!', '#ff4444');
+            return;
+          }
           if (rm.gold < CHURCH_PROMOTE_COST) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_cancel');
@@ -1796,6 +1849,11 @@ export class NodeMapScene extends Phaser.Scene {
           }
 
           promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+          this._churchPromotionsThisVisit = (this._churchPromotionsThisVisit || 0) + 1;
+          this.runManager.setChurchPromotionCount(
+            this._currentChurchNodeId,
+            this._churchPromotionsThisVisit,
+          );
 
           if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
           const audio = this.registry.get('audio');
@@ -1915,6 +1973,11 @@ export class NodeMapScene extends Phaser.Scene {
     this.churchGoldText = null;
     this._churchNode = null;
     this._churchViewingMap = false;
+    if (this._churchReturnBtn) {
+      this._churchReturnBtn.destroy();
+      this._churchReturnBtn = null;
+    }
+    this._churchMapViewSuppressCancel = false;
     this.churchScrollOffset = 0;
     this.churchScrollMax = 0;
     this._churchScrollItems = null;

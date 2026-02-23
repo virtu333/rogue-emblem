@@ -30,20 +30,42 @@ function makeDisplayObject(seed = {}) {
     handlers: {},
     style: {},
     ...seed,
-    setDepth() { return this; },
-    setStrokeStyle() { return this; },
-    setOrigin() { return this; },
-    setAlpha(alpha) { this.alpha = alpha; return this; },
-    setColor(color) { this.style = { ...this.style, color }; return this; },
-    setBackgroundColor(bg) { this.style = { ...this.style, backgroundColor: bg }; return this; },
+    setDepth() {
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    setOrigin() {
+      return this;
+    },
+    setAlpha(alpha) {
+      this.alpha = alpha;
+      return this;
+    },
+    setColor(color) {
+      this.style = { ...this.style, color };
+      return this;
+    },
+    setBackgroundColor(bg) {
+      this.style = { ...this.style, backgroundColor: bg };
+      return this;
+    },
     setInteractive(options) {
       this.interactive = true;
       this._interactiveOptions = options || null;
       this.input = { enabled: true };
       return this;
     },
-    on(event, cb) { this.handlers[event] = cb; return this; },
-    destroy() { this.destroyed = true; this.active = false; if (this.input) this.input.enabled = false; },
+    on(event, cb) {
+      this.handlers[event] = cb;
+      return this;
+    },
+    destroy() {
+      this.destroyed = true;
+      this.active = false;
+      if (this.input) this.input.enabled = false;
+    },
   };
 }
 
@@ -53,7 +75,15 @@ function makeScene() {
   return {
     add: {
       rectangle: (x, y, w, h, color, alpha) => {
-        const obj = makeDisplayObject({ kind: 'rectangle', x, y, width: w, height: h, color, alpha });
+        const obj = makeDisplayObject({
+          kind: 'rectangle',
+          x,
+          y,
+          width: w,
+          height: h,
+          color,
+          alpha,
+        });
         objects.push(obj);
         return obj;
       },
@@ -65,7 +95,12 @@ function makeScene() {
     },
     time: {
       delayedCall: (delay, callback) => {
-        const timer = makeDisplayObject({ kind: 'timer', delay, callback, remove: vi.fn(() => timer.destroy()) });
+        const timer = makeDisplayObject({
+          kind: 'timer',
+          delay,
+          callback,
+          remove: vi.fn(() => timer.destroy()),
+        });
         timers.push(timer);
         objects.push(timer);
         return timer;
@@ -95,9 +130,17 @@ function makeRunManager(overrides = {}) {
     difficultyMode: null,
     metaEffects: {},
     roster: [],
-    getRosterCap() { return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0); },
-    awardGold(amount) { this.gold += amount; },
-    spendGold(amount) { if (this.gold < amount) return false; this.gold -= amount; return true; },
+    getRosterCap() {
+      return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
+    },
+    awardGold(amount) {
+      this.gold += amount;
+    },
+    spendGold(amount) {
+      if (this.gold < amount) return false;
+      this.gold -= amount;
+      return true;
+    },
     markNodeComplete: vi.fn(),
     getDifficultyModifier: () => true,
     ...overrides,
@@ -115,7 +158,15 @@ function makeExtendedUnit() {
     xp: 0,
     faction: 'player',
     stats: { HP: 40, STR: 18, MAG: 2, SKL: 20, SPD: 22, DEF: 10, RES: 8, LCK: 12, MOV: 6 },
-    weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, weight: 5, range: [1] },
+    weapon: {
+      name: 'Iron Sword',
+      type: 'Sword',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+      range: [1],
+    },
     skills: [],
     accessory: null,
   };
@@ -177,7 +228,9 @@ describe('Colosseum extended leveling (mock-driven)', () => {
     // Production code should have incremented DR counter by 2
     expect(overlay._levelsGainedThisVisit[unit.name]).toBe(2);
     // Verify gainExperience was called with extendedLevelingEnabled flag
-    expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), { extendedLevelingEnabled: true });
+    expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), {
+      extendedLevelingEnabled: true,
+    });
   });
 
   it('banner shows full jump on multi-level extended gains', () => {
@@ -214,6 +267,8 @@ describe('Colosseum extended leveling (mock-driven)', () => {
     // Should NOT show partial "20+1 → 20+2"
     expect(hasText(scene, '20+1 → 20+2')).toBe(false);
     // Verify gainExperience was called with extendedLevelingEnabled flag
-    expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), { extendedLevelingEnabled: true });
+    expect(gainExperienceMock).toHaveBeenCalledWith(unit, expect.any(Number), {
+      extendedLevelingEnabled: true,
+    });
   });
 });

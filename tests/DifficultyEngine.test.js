@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import {
   resolveDifficultyMode,
   validateDifficultyConfig,
+  generateModifierSummary,
   DIFFICULTY_CONTRACT_VERSION,
 } from '../src/engine/DifficultyEngine.js';
 
@@ -54,5 +55,36 @@ describe('DifficultyEngine', () => {
     const result = resolveDifficultyMode(stripped, 'normal');
     expect(result.modifiers.label).toBe('Normal');
     expect(result.modifiers.color).toBe('#44cc44');
+  });
+
+  it('includes churchPromotionLimit and growthBonusMultiplier in all modes', () => {
+    for (const mode of ['normal', 'hard', 'lunatic']) {
+      const resolved = resolveDifficultyMode(difficulty, mode);
+      expect(resolved.modifiers).toHaveProperty('churchPromotionLimit');
+      expect(resolved.modifiers).toHaveProperty('growthBonusMultiplier');
+      expect(Number.isFinite(resolved.modifiers.churchPromotionLimit)).toBe(true);
+      expect(Number.isFinite(resolved.modifiers.growthBonusMultiplier)).toBe(true);
+    }
+  });
+
+  it('hard/lunatic have reduced growthBonusMultiplier and limited church promotions', () => {
+    const hard = resolveDifficultyMode(difficulty, 'hard');
+    const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
+    expect(hard.modifiers.growthBonusMultiplier).toBeLessThan(1);
+    expect(lunatic.modifiers.growthBonusMultiplier).toBeLessThan(
+      hard.modifiers.growthBonusMultiplier,
+    );
+    expect(hard.modifiers.churchPromotionLimit).toBeGreaterThan(0);
+    expect(lunatic.modifiers.churchPromotionLimit).toBeGreaterThan(0);
+    expect(lunatic.modifiers.churchPromotionLimit).toBeLessThan(
+      hard.modifiers.churchPromotionLimit,
+    );
+  });
+
+  it('generateModifierSummary includes church and growth lines for hard', () => {
+    const hard = resolveDifficultyMode(difficulty, 'hard');
+    const lines = generateModifierSummary(hard.modifiers);
+    expect(lines.some((l) => l.includes('Church promotions'))).toBe(true);
+    expect(lines.some((l) => l.includes('Growth bonuses'))).toBe(true);
   });
 });

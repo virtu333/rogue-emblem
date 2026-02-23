@@ -49,6 +49,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import {
   hasWeaponArt,
   getWeaponArtTooltipLines,
@@ -893,8 +894,24 @@ export class RosterOverlay {
       const rs = rightStats[s];
       const lVal = ls === 'MOV' ? unit.mov || unit.stats.MOV : unit.stats[ls];
       const rVal = rs === 'MOV' ? unit.mov || unit.stats.MOV : unit.stats[rs];
-      this._text(x, y, `${ls.padEnd(4)}${String(lVal).padStart(3)}`, STAT_COLORS[ls], '10px');
-      this._text(col2X, y, `${rs.padEnd(4)}${String(rVal).padStart(3)}`, STAT_COLORS[rs], '10px');
+      const lText = this._text(
+        x,
+        y,
+        `${ls.padEnd(4)}${String(lVal).padStart(3)}`,
+        STAT_COLORS[ls],
+        '10px',
+      );
+      const rText = this._text(
+        col2X,
+        y,
+        `${rs.padEnd(4)}${String(rVal).padStart(3)}`,
+        STAT_COLORS[rs],
+        '10px',
+      );
+      if (STAT_DESCRIPTIONS[ls])
+        this._wireTooltipTarget(lText, () => this._showSkillTooltip(lText, STAT_DESCRIPTIONS[ls]));
+      if (STAT_DESCRIPTIONS[rs])
+        this._wireTooltipTarget(rText, () => this._showSkillTooltip(rText, STAT_DESCRIPTIONS[rs]));
       y += 13;
     }
 

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generateModifierSummary, DIFFICULTY_DEFAULTS, DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
+import {
+  generateModifierSummary,
+  DIFFICULTY_DEFAULTS,
+  DIFFICULTY_IDS,
+} from '../src/engine/DifficultyEngine.js';
 import { hasAnySlotMilestone, getMetaKey } from '../src/engine/SlotManager.js';
 import { loadGameData } from './testData.js';
 
@@ -24,8 +28,10 @@ function buildModes(gd, meta) {
       lockReason = 'Beat the game to unlock';
     }
     const lunaticUnlocked = Boolean(
-      meta?.hasMilestone?.('beatHard') || meta?.hasMilestone?.('beatLunatic')
-      || hasAnySlotMilestone('beatHard') || hasAnySlotMilestone('beatLunatic')
+      meta?.hasMilestone?.('beatHard') ||
+      meta?.hasMilestone?.('beatLunatic') ||
+      hasAnySlotMilestone('beatHard') ||
+      hasAnySlotMilestone('beatLunatic'),
     );
     if (id === 'lunatic' && !lunaticUnlocked) {
       locked = true;

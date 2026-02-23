@@ -109,6 +109,8 @@ function makeCancelableScene(overrides = {}) {
     _setOverlayVisibility: NodeMapScene.prototype._setOverlayVisibility,
     _setShopOverlayVisibility: NodeMapScene.prototype._setShopOverlayVisibility,
     _setChurchOverlayVisibility: NodeMapScene.prototype._setChurchOverlayVisibility,
+    _exitChurchMapView: NodeMapScene.prototype._exitChurchMapView,
+    _churchReturnBtn: null,
     canRequestCancel(opts) {
       return NodeMapScene.prototype.canRequestCancel.call(this, opts);
     },
@@ -800,18 +802,31 @@ describe('NodeMapScene Slice 4', () => {
   });
 
   it('no stale drag after church map-view entry', () => {
+    const btnObj = makeDisplayObject().setInteractive({ useHandCursor: true });
+    btnObj.on = vi.fn().mockReturnThis();
     const scene = {
       churchOverlay: [makeDisplayObject()],
       churchContentGroup: [makeDisplayObject()],
       _churchViewingMap: false,
+      _churchReturnBtn: null,
       _touchScrollDrag: { type: 'church', startY: 200, startOffset: 0 },
       _setOverlayVisibility: NodeMapScene.prototype._setOverlayVisibility,
       _setChurchOverlayVisibility: NodeMapScene.prototype._setChurchOverlayVisibility,
+      add: {
+        text: vi.fn().mockReturnValue({
+          ...btnObj,
+          setOrigin: vi.fn().mockReturnThis(),
+          setDepth: vi.fn().mockReturnThis(),
+          setInteractive: vi.fn().mockReturnThis(),
+          on: vi.fn().mockReturnThis(),
+        }),
+      },
     };
 
     NodeMapScene.prototype._enterChurchMapView.call(scene);
     expect(scene._touchScrollDrag).toBeNull();
     expect(scene._churchViewingMap).toBe(true);
+    expect(scene._churchReturnBtn).not.toBeNull();
   });
 
   it('requestCancel restores both churchOverlay and churchContentGroup from map-view', () => {

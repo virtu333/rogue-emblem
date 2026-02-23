@@ -10,6 +10,18 @@ const GREEN = '#66ff66';
 const RED = '#ff6666';
 const GRAY = '#888888';
 
+export const STAT_DESCRIPTIONS = {
+  HP: 'Hit Points. Unit dies at 0.',
+  STR: 'Strength. Physical attack power.',
+  MAG: 'Magic. Magical attack power.',
+  SKL: 'Skill. Affects hit rate and crit.',
+  SPD: 'Speed. Affects avoid and doubling.',
+  DEF: 'Defense. Reduces physical damage.',
+  RES: 'Resistance. Reduces magic damage.',
+  LCK: 'Luck. Affects hit, avoid, and crit.',
+  MOV: 'Movement. Tiles moved per turn.',
+};
+
 const STATIC_HELP_TABS = [
   {
     label: 'Stats',

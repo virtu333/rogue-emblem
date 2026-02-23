@@ -54,6 +54,8 @@ function makeMinimalPayload(path) {
           currencyMultiplier: 1,
           actsIncluded: ['act1'],
           extendedLevelingEnabled: false,
+          churchPromotionLimit: -1,
+          growthBonusMultiplier: 1,
         },
         hard: {
           enemyStatBonus: 1,
@@ -75,6 +77,8 @@ function makeMinimalPayload(path) {
           currencyMultiplier: 1,
           actsIncluded: ['act1'],
           extendedLevelingEnabled: false,
+          churchPromotionLimit: 3,
+          growthBonusMultiplier: 0.8,
         },
         lunatic: {
           enemyStatBonus: 2,
@@ -96,6 +100,8 @@ function makeMinimalPayload(path) {
           currencyMultiplier: 1,
           actsIncluded: ['act1'],
           extendedLevelingEnabled: false,
+          churchPromotionLimit: 2,
+          growthBonusMultiplier: 0.5,
         },
       },
     },

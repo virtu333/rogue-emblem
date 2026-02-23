@@ -3173,3 +3173,187 @@ describe('blessing run-start effect application', () => {
     expect(rm.blessingHistory.some((e) => e.details?.reason === 'unknown_blessing_id')).toBe(true);
   });
 });
+
+describe('RunManager growth bonus scaling', () => {
+  it('_scaleGrowthBonuses scales values by multiplier and rounds', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    const bonuses = { HP: 10, STR: 5, SPD: 3 };
+    const scaled = rm._scaleGrowthBonuses(bonuses, 0.5);
+    expect(scaled).toEqual({ HP: 5, STR: 3, SPD: 2 });
+  });
+
+  it('_scaleGrowthBonuses returns original when multiplier is 1', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    const bonuses = { HP: 10 };
+    expect(rm._scaleGrowthBonuses(bonuses, 1)).toBe(bonuses);
+  });
+
+  it('_scaleGrowthBonuses returns null when all values round to 0', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    const bonuses = { HP: 1 };
+    // 1 * 0.3 rounds to 0
+    expect(rm._scaleGrowthBonuses(bonuses, 0.3)).toBeNull();
+  });
+
+  it('_getGrowthBonusMultiplier reads from difficulty modifiers', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.difficultyModifiers = { growthBonusMultiplier: 0.8 };
+    expect(rm._getGrowthBonusMultiplier()).toBe(0.8);
+  });
+
+  it('_getGrowthBonusMultiplier defaults to 1 without modifiers', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    expect(rm._getGrowthBonusMultiplier()).toBe(1);
+  });
+
+  it('getEffectiveRecruitGrowthBonuses applies difficulty scaling', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData, {
+      growthBonuses: { HP: 10, STR: 10, MAG: 10, SKL: 10, SPD: 10, DEF: 10, RES: 10, LCK: 10 },
+    });
+    rm.startRun();
+    rm.difficultyModifiers.growthBonusMultiplier = 0.5;
+    const bonuses = rm.getEffectiveRecruitGrowthBonuses();
+    expect(bonuses.HP).toBe(5);
+    expect(bonuses.STR).toBe(5);
+  });
+
+  it('getEffectiveLordGrowthBonuses applies difficulty scaling', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData, {
+      lordGrowthBonuses: { HP: 10, STR: 10, MAG: 10, SKL: 10, SPD: 10, DEF: 10, RES: 10, LCK: 10 },
+    });
+    rm.startRun();
+    rm.difficultyModifiers.growthBonusMultiplier = 0.8;
+    const bonuses = rm.getEffectiveLordGrowthBonuses();
+    expect(bonuses.HP).toBe(8);
+    expect(bonuses.STR).toBe(8);
+  });
+
+  it('lord growth parity: run-start mutations match getEffective at 0.5x', () => {
+    const gameData = loadGameData();
+    // Meta lord growth +5 STR, blessing all_growths +5
+    const rm = new RunManager(gameData, {
+      lordGrowthBonuses: { STR: 5 },
+    });
+    rm.startRun();
+    // Set multiplier AFTER startRun (startRun resets difficultyModifiers)
+    rm.difficultyModifiers.growthBonusMultiplier = 0.5;
+    rm.blessingRuntimeModifiers.allGrowthsDelta = 5;
+
+    // getEffective should scale each source independently:
+    // meta STR: round(5 * 0.5) = 3, blessing all STR: round(5 * 0.5) = 3 => 6
+    const effective = rm.getEffectiveLordGrowthBonuses();
+    expect(effective.STR).toBe(Math.round(5 * 0.5) + Math.round(5 * 0.5));
+    expect(effective.STR).toBe(6);
+  });
+
+  it('recruit growth parity: scale-then-merge matches per-source rounding at 0.5x', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData, {
+      growthBonuses: { STR: 5, SPD: 3 },
+    });
+    rm.difficultyModifiers = { growthBonusMultiplier: 0.5 };
+    rm.blessingRuntimeModifiers.allGrowthsDelta = 5;
+
+    const effective = rm.getEffectiveRecruitGrowthBonuses();
+    // Meta STR: round(5 * 0.5) = 3, blessing all STR: round(5 * 0.5) = 3 => 6
+    expect(effective.STR).toBe(Math.round(5 * 0.5) + Math.round(5 * 0.5));
+    // Meta SPD: round(3 * 0.5) = 2, blessing all SPD: round(5 * 0.5) = 3 => 5
+    expect(effective.SPD).toBe(Math.round(3 * 0.5) + Math.round(5 * 0.5));
+  });
+
+  it('growth parity: divergence case that old merge-then-scale got wrong', () => {
+    // With values 5+5 at 0.5x: merge-then-scale = round(10*0.5) = 5
+    // scale-then-merge = round(5*0.5) + round(5*0.5) = 3 + 3 = 6
+    // The new code should produce 6 (matching run-start per-source rounding)
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData, {
+      lordGrowthBonuses: { STR: 5 },
+    });
+    rm.difficultyModifiers = { growthBonusMultiplier: 0.5 };
+    rm.blessingRuntimeModifiers.allGrowthsDelta = 5;
+
+    const effective = rm.getEffectiveLordGrowthBonuses();
+    // Per-source: round(5*0.5)=3 + round(5*0.5)=3 = 6 (NOT round(10*0.5)=5)
+    expect(effective.STR).toBe(6);
+  });
+
+  it('growth parity: stacked all_growths_delta entries scale per effect at 0.5x', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.difficultyModifiers = { growthBonusMultiplier: 0.5 };
+    rm.blessingRuntimeModifiers.allGrowthsDelta = 2;
+    rm.blessingRuntimeModifiers.allGrowthsDeltas = [1, 1];
+
+    const effective = rm.getEffectiveRecruitGrowthBonuses();
+    // Two +1 entries should round independently: round(1*0.5)+round(1*0.5)=2
+    expect(effective.STR).toBe(2);
+  });
+
+  it('growth parity: stacked targeted_growths_delta entries scale per effect at 0.5x', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.difficultyModifiers = { growthBonusMultiplier: 0.5 };
+    rm.blessingRuntimeModifiers.targetedGrowthsDeltas = [
+      { stats: ['STR'], value: 1, scope: 'recruits' },
+      { stats: ['STR'], value: 1, scope: 'recruits' },
+    ];
+
+    const effective = rm.getEffectiveRecruitGrowthBonuses();
+    // Two +1 entries should round independently: round(1*0.5)+round(1*0.5)=2
+    expect(effective.STR).toBe(2);
+  });
+});
+
+describe('RunManager church promotion tracker', () => {
+  it('getChurchPromotionCount returns 0 for unknown node', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    expect(rm.getChurchPromotionCount('node_1')).toBe(0);
+  });
+
+  it('setChurchPromotionCount persists and getChurchPromotionCount retrieves', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.setChurchPromotionCount('node_1', 2);
+    expect(rm.getChurchPromotionCount('node_1')).toBe(2);
+  });
+
+  it('getChurchPromotionCount returns 0 for different node', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.setChurchPromotionCount('node_1', 2);
+    expect(rm.getChurchPromotionCount('node_2')).toBe(0);
+  });
+
+  it('church counter survives toJSON/fromJSON', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    rm.setChurchPromotionCount('node_1', 2);
+
+    const saved = rm.toJSON();
+    expect(saved.churchPromotionTracker).toEqual({ nodeId: 'node_1', count: 2 });
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.getChurchPromotionCount('node_1')).toBe(2);
+    expect(rm2.getChurchPromotionCount('node_2')).toBe(0);
+  });
+
+  it('fromJSON handles missing churchPromotionTracker gracefully', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+    delete saved.churchPromotionTracker;
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.getChurchPromotionCount('any_node')).toBe(0);
+  });
+});

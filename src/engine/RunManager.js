@@ -96,6 +96,7 @@ function createBlessingRuntimeModifiers() {
     skipFirstShop: false,
     shopItemCountDelta: 0,
     allGrowthsDelta: 0,
+    allGrowthsDeltas: [],
     targetedGrowthsDeltas: [],
     disablePersonalSkillsUntilAct: null,
     blockedPersonalSkillsByUnit: {},
@@ -271,6 +272,7 @@ export class RunManager {
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
     this.shownDialogueKeys = [];
+    this._churchPromotionTracker = null; // { nodeId: string, count: number }
   }
 
   _isValidSerializedUnit(unit) {
@@ -564,10 +566,12 @@ export class RunManager {
 
   _applyGrowthDeltaToUnits(units, value) {
     if (!Array.isArray(units) || !Number.isFinite(value) || value === 0) return;
+    const scaled = Math.round(value * this._getGrowthBonusMultiplier());
+    if (scaled === 0) return;
     for (const unit of units) {
       if (!unit.growths) unit.growths = {};
       for (const stat of XP_STAT_NAMES) {
-        unit.growths[stat] = (unit.growths[stat] || 0) + value;
+        unit.growths[stat] = (unit.growths[stat] || 0) + scaled;
       }
     }
   }
@@ -575,10 +579,12 @@ export class RunManager {
   _applyTargetedGrowthDeltaToUnits(units, stats, value) {
     if (!Array.isArray(units) || !Array.isArray(stats) || !Number.isFinite(value) || value === 0)
       return;
+    const scaled = Math.round(value * this._getGrowthBonusMultiplier());
+    if (scaled === 0) return;
     for (const unit of units) {
       if (!unit.growths) unit.growths = {};
       for (const stat of stats) {
-        unit.growths[stat] = (unit.growths[stat] || 0) + value;
+        unit.growths[stat] = (unit.growths[stat] || 0) + scaled;
       }
     }
   }
@@ -1000,6 +1006,10 @@ export class RunManager {
         return;
       }
       this.blessingRuntimeModifiers.allGrowthsDelta += delta;
+      if (!Array.isArray(this.blessingRuntimeModifiers.allGrowthsDeltas)) {
+        this.blessingRuntimeModifiers.allGrowthsDeltas = [];
+      }
+      this.blessingRuntimeModifiers.allGrowthsDeltas.push(delta);
       this._applyGrowthDeltaToUnits(this.roster, delta);
       this._recordBlessingEvent('run_start', blessingId, effect, {
         appliedValue: delta,
@@ -1531,6 +1541,28 @@ export class RunManager {
     return bonus;
   }
 
+  _buildScaledBlessingAllGrowthBonus(multiplier) {
+    const merged = {};
+    const entriesRaw = this.blessingRuntimeModifiers?.allGrowthsDeltas;
+    const hasEntryArray = Array.isArray(entriesRaw) && entriesRaw.length > 0;
+    const entries = hasEntryArray
+      ? entriesRaw
+      : Number.isFinite(this.blessingRuntimeModifiers?.allGrowthsDelta) &&
+          Math.trunc(this.blessingRuntimeModifiers.allGrowthsDelta) !== 0
+        ? [Math.trunc(this.blessingRuntimeModifiers.allGrowthsDelta)]
+        : [];
+    for (const rawDelta of entries) {
+      const delta = Math.trunc(Number(rawDelta) || 0);
+      if (delta === 0) continue;
+      const scaled = Math.round(delta * multiplier);
+      if (scaled === 0) continue;
+      for (const stat of XP_STAT_NAMES) {
+        merged[stat] = (merged[stat] || 0) + scaled;
+      }
+    }
+    return Object.keys(merged).length > 0 ? merged : null;
+  }
+
   _buildBlessingTargetedGrowthBonus(scope = 'all') {
     const entries = this.blessingRuntimeModifiers?.targetedGrowthsDeltas;
     if (!Array.isArray(entries) || entries.length <= 0) return null;
@@ -1546,6 +1578,25 @@ export class RunManager {
     return Object.keys(bonus).length > 0 ? bonus : null;
   }
 
+  _buildScaledBlessingTargetedGrowthBonus(scope = 'all', multiplier = 1) {
+    const entries = this.blessingRuntimeModifiers?.targetedGrowthsDeltas;
+    if (!Array.isArray(entries) || entries.length <= 0) return null;
+    const bonus = {};
+    const allowScope = new Set(scope === 'lords' ? ['all', 'lords'] : ['all', 'recruits']);
+    for (const entry of entries) {
+      if (!entry || !allowScope.has(entry.scope || 'all')) continue;
+      const delta = Math.trunc(Number(entry.value) || 0);
+      if (delta === 0) continue;
+      const scaled = Math.round(delta * multiplier);
+      if (scaled === 0) continue;
+      for (const stat of entry.stats || []) {
+        if (!XP_STAT_NAMES.includes(stat)) continue;
+        bonus[stat] = (bonus[stat] || 0) + scaled;
+      }
+    }
+    return Object.keys(bonus).length > 0 ? bonus : null;
+  }
+
   _mergeGrowthBonuses(baseBonuses, blessingBonuses) {
     const merged = {};
     for (const stat of XP_STAT_NAMES) {
@@ -1556,19 +1607,29 @@ export class RunManager {
   }
 
   getEffectiveRecruitGrowthBonuses() {
-    const blessingBonuses = this._mergeGrowthBonuses(
-      this._buildBlessingAllGrowthBonus(),
-      this._buildBlessingTargetedGrowthBonus('recruits'),
+    // Scale each source independently before merging. For blessings, scale each effect entry
+    // before accumulation to match run-start application order.
+    const mult = this._getGrowthBonusMultiplier();
+    const scaledMeta = this._scaleGrowthBonuses(this.metaEffects?.growthBonuses || null, mult);
+    const scaledAll = this._buildScaledBlessingAllGrowthBonus(mult);
+    const scaledTargeted = this._buildScaledBlessingTargetedGrowthBonus('recruits', mult);
+    return this._mergeGrowthBonuses(
+      this._mergeGrowthBonuses(scaledMeta, scaledAll),
+      scaledTargeted,
     );
-    return this._mergeGrowthBonuses(this.metaEffects?.growthBonuses || null, blessingBonuses);
   }
 
   getEffectiveLordGrowthBonuses() {
-    const blessingBonuses = this._mergeGrowthBonuses(
-      this._buildBlessingAllGrowthBonus(),
-      this._buildBlessingTargetedGrowthBonus('lords'),
+    // Scale each source independently before merging. For blessings, scale each effect entry
+    // before accumulation to match run-start application order.
+    const mult = this._getGrowthBonusMultiplier();
+    const scaledMeta = this._scaleGrowthBonuses(this.metaEffects?.lordGrowthBonuses || null, mult);
+    const scaledAll = this._buildScaledBlessingAllGrowthBonus(mult);
+    const scaledTargeted = this._buildScaledBlessingTargetedGrowthBonus('lords', mult);
+    return this._mergeGrowthBonuses(
+      this._mergeGrowthBonuses(scaledMeta, scaledAll),
+      scaledTargeted,
     );
-    return this._mergeGrowthBonuses(this.metaEffects?.lordGrowthBonuses || null, blessingBonuses);
   }
 
   getEffectiveMetaEffects() {
@@ -1592,6 +1653,17 @@ export class RunManager {
       },
     );
     return true;
+  }
+
+  getChurchPromotionCount(nodeId) {
+    if (this._churchPromotionTracker?.nodeId === nodeId) {
+      return this._churchPromotionTracker.count;
+    }
+    return 0;
+  }
+
+  setChurchPromotionCount(nodeId, count) {
+    this._churchPromotionTracker = { nodeId, count };
   }
 
   getWeaponArtSpawnConfig() {
@@ -1943,7 +2015,10 @@ export class RunManager {
       level: 1,
     };
     const statBonuses = this.metaEffects?.statBonuses || null;
-    const growthBonuses = this.metaEffects?.growthBonuses || null;
+    const growthBonuses = this._scaleGrowthBonuses(
+      this.metaEffects?.growthBonuses || null,
+      this._getGrowthBonusMultiplier(),
+    );
     const randomSkillPool = this.metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
 
     const hasRecruitTemplate = classData?.baseStats && classData?.growthRanges;
@@ -2099,8 +2174,9 @@ export class RunManager {
       }
     }
     if (this.metaEffects?.lordGrowthBonuses) {
+      const mult = this._getGrowthBonusMultiplier();
       for (const [stat, bonus] of Object.entries(this.metaEffects.lordGrowthBonuses)) {
-        unit.growths[stat] = (unit.growths[stat] || 0) + bonus;
+        unit.growths[stat] = (unit.growths[stat] || 0) + Math.round(bonus * mult);
       }
     }
   }
@@ -2631,6 +2707,21 @@ export class RunManager {
     return Number.isFinite(value) ? value : fallback;
   }
 
+  _getGrowthBonusMultiplier() {
+    return this.getDifficultyModifier('growthBonusMultiplier', 1);
+  }
+
+  _scaleGrowthBonuses(bonuses, multiplier) {
+    if (!bonuses || multiplier === 1) return bonuses;
+    const scaled = {};
+    for (const [stat, val] of Object.entries(bonuses)) {
+      if (!Number.isFinite(val) || val === 0) continue;
+      const sv = Math.round(val * multiplier);
+      if (sv !== 0) scaled[stat] = sv;
+    }
+    return Object.keys(scaled).length > 0 ? scaled : null;
+  }
+
   /** Mark the run as a defeat. */
   failRun() {
     this.status = 'defeat';
@@ -2728,6 +2819,7 @@ export class RunManager {
       actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
       unlockedWeaponArts: this.unlockedWeaponArts || [],
       shownDialogueKeys: this.shownDialogueKeys || [],
+      churchPromotionTracker: this._churchPromotionTracker || null,
     };
   }
 
@@ -3066,6 +3158,16 @@ export class RunManager {
     rm.blessingRuntimeModifiers.allGrowthsDelta = Math.trunc(
       rm.blessingRuntimeModifiers.allGrowthsDelta || 0,
     );
+    if (!Array.isArray(rm.blessingRuntimeModifiers.allGrowthsDeltas)) {
+      rm.blessingRuntimeModifiers.allGrowthsDeltas =
+        rm.blessingRuntimeModifiers.allGrowthsDelta !== 0
+          ? [rm.blessingRuntimeModifiers.allGrowthsDelta]
+          : [];
+    } else {
+      rm.blessingRuntimeModifiers.allGrowthsDeltas = rm.blessingRuntimeModifiers.allGrowthsDeltas
+        .map((entry) => Math.trunc(Number(entry) || 0))
+        .filter((entry) => entry !== 0);
+    }
     if (!Array.isArray(rm.blessingRuntimeModifiers.targetedGrowthsDeltas)) {
       rm.blessingRuntimeModifiers.targetedGrowthsDeltas = [];
     } else {
@@ -3189,6 +3291,11 @@ export class RunManager {
     rm.shownDialogueKeys = Array.isArray(saved.shownDialogueKeys)
       ? [...new Set(saved.shownDialogueKeys.filter((key) => typeof key === 'string' && key))]
       : [];
+    const rawTracker = saved.churchPromotionTracker;
+    rm._churchPromotionTracker =
+      rawTracker && typeof rawTracker.nodeId === 'string' && Number.isFinite(rawTracker.count)
+        ? { nodeId: rawTracker.nodeId, count: Math.max(0, Math.trunc(rawTracker.count)) }
+        : null;
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(
         saved.currentNodeId ||

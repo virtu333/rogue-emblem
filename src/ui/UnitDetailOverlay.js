@@ -23,6 +23,7 @@ import {
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
+import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 
 const OVERLAY_W = 400;
 const OVERLAY_H = 370;
@@ -452,8 +453,24 @@ export class UnitDetailOverlay {
       const rs = rightStats[i];
       const lv = ls === 'MOV' ? (unit.mov ?? unit.stats.MOV) : unit.stats[ls];
       const rv = rs === 'MOV' ? (unit.mov ?? unit.stats.MOV) : unit.stats[rs];
-      this._tabText(lx, y, `${ls.padEnd(4)}${String(lv).padStart(3)}`, STAT_COLORS[ls], '10px');
-      this._tabText(rx, y, `${rs.padEnd(4)}${String(rv).padStart(3)}`, STAT_COLORS[rs], '10px');
+      const lt = this._tabText(
+        lx,
+        y,
+        `${ls.padEnd(4)}${String(lv).padStart(3)}`,
+        STAT_COLORS[ls],
+        '10px',
+      );
+      const rt = this._tabText(
+        rx,
+        y,
+        `${rs.padEnd(4)}${String(rv).padStart(3)}`,
+        STAT_COLORS[rs],
+        '10px',
+      );
+      if (STAT_DESCRIPTIONS[ls])
+        this._wireTooltipTarget(lt, () => this._showSkillTooltip(lt, STAT_DESCRIPTIONS[ls]));
+      if (STAT_DESCRIPTIONS[rs])
+        this._wireTooltipTarget(rt, () => this._showSkillTooltip(rt, STAT_DESCRIPTIONS[rs]));
       y += 13;
     }
 
