@@ -1013,6 +1013,57 @@ describe('RunManager', () => {
       expect(meta.addSupply).toHaveBeenCalledWith(settled.supply);
       expect(meta.incrementRunsCompleted).toHaveBeenCalledTimes(1);
     });
+
+    it('records beatHard milestone on Hard victory', () => {
+      rm.startRun();
+      rm.status = 'victory';
+      rm.actIndex = 3;
+      rm.completedBattles = 6;
+      rm.difficultyId = 'hard';
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      rm.settleEndRunRewards(meta, 'victory');
+      expect(meta.recordMilestone).toHaveBeenCalledWith('beatHard');
+      expect(meta.recordMilestone).not.toHaveBeenCalledWith('beatLunatic');
+    });
+
+    it('does NOT record beatHard on Normal victory', () => {
+      rm.startRun();
+      rm.status = 'victory';
+      rm.actIndex = 3;
+      rm.completedBattles = 6;
+      rm.difficultyId = 'normal';
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      rm.settleEndRunRewards(meta, 'victory');
+      expect(meta.recordMilestone).not.toHaveBeenCalledWith('beatHard');
+      expect(meta.recordMilestone).not.toHaveBeenCalledWith('beatLunatic');
+    });
+
+    it('records beatLunatic milestone on Lunatic victory', () => {
+      rm.startRun();
+      rm.status = 'victory';
+      rm.actIndex = 3;
+      rm.completedBattles = 6;
+      rm.difficultyId = 'lunatic';
+      const meta = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      rm.settleEndRunRewards(meta, 'victory');
+      expect(meta.recordMilestone).toHaveBeenCalledWith('beatLunatic');
+      expect(meta.recordMilestone).not.toHaveBeenCalledWith('beatHard');
+    });
   });
 
   describe('getRoster', () => {

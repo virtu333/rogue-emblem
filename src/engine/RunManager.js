@@ -2643,6 +2643,10 @@ export class RunManager {
     if (this.actIndex >= 2) meta.recordMilestone('beatAct2');
     if (this.actIndex >= 3) meta.recordMilestone('beatAct3');
     if (summary.result === 'victory' && this.actIndex >= 3) meta.recordMilestone('beatGame');
+    if (summary.result === 'victory' && this.difficultyId === 'hard')
+      meta.recordMilestone('beatHard');
+    if (summary.result === 'victory' && this.difficultyId === 'lunatic')
+      meta.recordMilestone('beatLunatic');
     summary.appliedToMeta = true;
   }
 
