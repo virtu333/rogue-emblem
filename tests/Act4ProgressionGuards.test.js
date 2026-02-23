@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import {
   ACT_CONFIG,
   DEPLOY_LIMITS,
@@ -9,7 +9,24 @@ import {
 } from '../src/utils/constants.js';
 import { MUSIC, getMusicKey } from '../src/utils/musicConfig.js';
 import { pickTemplate } from '../src/engine/MapGenerator.js';
+import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
+
+// Mock localStorage for RunManager tests — reset per test to avoid coupling
+let store;
+beforeEach(() => {
+  store = {};
+  const localStorageMock = {
+    getItem: vi.fn((key) => store[key] ?? null),
+    setItem: vi.fn((key, val) => {
+      store[key] = val;
+    }),
+    removeItem: vi.fn((key) => {
+      delete store[key];
+    }),
+  };
+  Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+});
 
 const data = loadGameData();
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
@@ -162,5 +179,91 @@ describe('Act4 progression guards', () => {
     const key = getMusicKey('battle', 'unknown_act');
     expect(typeof key).toBe('string');
     expect(key.length).toBeGreaterThan(0);
+  });
+
+  describe('stale Lunatic save migration', () => {
+    let gameData;
+    let rm;
+
+    beforeEach(() => {
+      gameData = loadGameData();
+      rm = new RunManager(gameData);
+    });
+
+    it('stale Lunatic save at act3 gets act4 restored', () => {
+      rm.startRun({ difficultyId: 'lunatic' });
+      const json = rm.toJSON();
+      // Simulate a stale save created before act4 was added to Lunatic
+      json.difficultyId = 'lunatic';
+      json.actSequence = ['act1', 'act2', 'act3', 'finalBoss'];
+      json.difficultyModifiers = {
+        ...json.difficultyModifiers,
+        actsIncluded: ['act1', 'act2', 'act3', 'finalBoss'],
+      };
+      json.actIndex = 2; // at act3
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
+      expect(restored.actIndex).toBe(2);
+      expect(restored.currentAct).toBe('act3');
+    });
+
+    it('stale Lunatic save at finalBoss preserves position and nodeMap identity', () => {
+      rm.startRun({ difficultyId: 'lunatic' });
+      const json = rm.toJSON();
+      json.difficultyId = 'lunatic';
+      json.actSequence = ['act1', 'act2', 'act3', 'finalBoss'];
+      json.difficultyModifiers = {
+        ...json.difficultyModifiers,
+        actsIncluded: ['act1', 'act2', 'act3', 'finalBoss'],
+      };
+      json.actIndex = 3; // at finalBoss in old 4-act sequence
+      json.nodeMap = {
+        actId: 'finalBoss',
+        nodes: [
+          {
+            id: 'finalBoss_0_0',
+            row: 0,
+            col: 0,
+            type: 'BOSS',
+            edges: [],
+            battleParams: { act: 'finalBoss', objective: 'seize', battleSeed: 1 },
+            completed: false,
+          },
+        ],
+        startNodeId: 'finalBoss_0_0',
+        bossNodeId: 'finalBoss_0_0',
+      };
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
+      expect(restored.actIndex).toBe(4);
+      expect(restored.currentAct).toBe('finalBoss');
+      expect(restored.nodeMap?.actId).toBe('finalBoss');
+    });
+
+    it('stale Lunatic save without actSequence but stale actsIncluded gets act4 restored', () => {
+      rm.startRun({ difficultyId: 'lunatic' });
+      const json = rm.toJSON();
+      json.difficultyId = 'lunatic';
+      delete json.actSequence; // no saved actSequence — fromJSON falls through to actsIncluded
+      json.difficultyModifiers = {
+        ...json.difficultyModifiers,
+        actsIncluded: ['act1', 'act2', 'act3', 'finalBoss'],
+      };
+      json.actIndex = 1; // at act2
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
+      expect(restored.actIndex).toBe(1);
+      expect(restored.currentAct).toBe('act2');
+    });
+
+    it('legacy Hard save without metadata stays 4-act', () => {
+      rm.startRun({ difficultyId: 'hard' });
+      const json = rm.toJSON();
+      json.difficultyId = 'hard';
+      delete json.difficultyModifiers;
+      delete json.actSequence;
+      const restored = RunManager.fromJSON(json, gameData);
+      expect(restored.actSequence).toEqual(['act1', 'act2', 'act3', 'finalBoss']);
+    });
   });
 });

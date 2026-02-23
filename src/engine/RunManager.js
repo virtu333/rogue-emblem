@@ -3153,6 +3153,24 @@ export class RunManager {
         ? saved.difficultyModifiers.actsIncluded
         : legacySafeFallback;
     rm.actSequence = sanitizeActSequence(sequenceSource, legacySafeFallback);
+    // Migrate stale Lunatic saves that are missing act4
+    if (
+      saved.difficultyId === 'lunatic' &&
+      !rm.actSequence.includes('act4') &&
+      gameData?.difficulty
+    ) {
+      const currentActId = rm.actSequence[rm.actIndex];
+      const canonical = sanitizeActSequence(
+        resolveDifficultyMode(gameData.difficulty, 'lunatic').modifiers.actsIncluded,
+        ACT_SEQUENCE,
+      );
+      if (canonical.includes('act4')) {
+        rm.actSequence = canonical;
+        rm.difficultyModifiers = { ...rm.difficultyModifiers, actsIncluded: [...canonical] };
+        const newIndex = canonical.indexOf(currentActId);
+        if (newIndex >= 0) rm.actIndex = newIndex;
+      }
+    }
     if (rm.actIndex >= rm.actSequence.length) {
       rm.actIndex = Math.max(0, rm.actSequence.length - 1);
     }

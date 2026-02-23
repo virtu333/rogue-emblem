@@ -52,7 +52,7 @@ Work is intentionally split across parallel agents. Roadmap source of truth rema
 
 1. ~~**Blessings stabilization stream**~~ [complete] Contract validated end-to-end; telemetry + act hit bonus integration landed.
 2. ~~**Harness/regression stream**~~ [complete] Deterministic harness stable through all Wave 2-4 + Act 4 merges.
-3. ~~**Difficulty follow-up stream**~~ [complete for Part A] Normal/Hard shipped with unlock gating. Lunatic rollout deferred to Part B+.
+3. ~~**Difficulty follow-up stream**~~ [complete] Normal/Hard/Lunatic all shipped with unlock gating.
 4. **Integration cadence** - Small PRs, frequent rebase on `main`, no cross-stream contract breaks (harness/Wave 2 surfaces treated as external).
 5. ~~**Economy rebalance stream**~~ [complete] Turn bonus payout correction, kill-gold tuning, church promote pricing, and late-game forge sink expansion landed.
 
@@ -182,7 +182,7 @@ All phases complete on `main` as of Feb 15, 2026.
 **Status:** Complete on `main` (Feb 11, 2026)
 
 1. Source of truth remains `docs/specs/difficulty_spec.md` Part A and `docs/wave8_difficulty_kickoff.md`.
-2. Delivered scope: Normal/Hard selectable, Lunatic visible but disabled, `difficulty.json` data contract, run-state persistence, deterministic modifier wiring, and test gates.
+2. Delivered scope: Normal/Hard/Lunatic selectable (Lunatic requires Hard victory). Full 5-act sequence. `difficulty.json` data contract, run-state persistence, deterministic modifier wiring, and test gates.
 3. Latest hardening: Hard unlock now requires true run victory; startup/watchdog flow updated for reliability.
 
 ---
