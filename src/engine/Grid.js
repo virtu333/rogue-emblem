@@ -99,59 +99,131 @@ export function computeEffectivePath(
   rows,
   moveType,
   occupiedTiles = new Set(),
+  costModifier = 0,
 ) {
-  if (!Array.isArray(path) || path.length < 2 || moveType === 'Flying') {
-    return {
-      effectivePath: path || [],
-      slideStartIndex: -1,
-      slidePath: [],
-      pathEndIndex: Array.isArray(path) && path.length > 0 ? path.length - 1 : -1,
-    };
+  const noSlideResult = (p) => ({
+    effectivePath: p || [],
+    slideSegments: [],
+    movementCost: 0,
+    // Legacy compat fields (deprecated)
+    slideStartIndex: -1,
+    slidePath: [],
+    pathEndIndex: Array.isArray(p) && p.length > 0 ? p.length - 1 : -1,
+  });
+
+  if (!Array.isArray(path) || path.length < 2) {
+    return noSlideResult(path);
   }
 
-  for (let i = 1; i < path.length; i++) {
-    const step = path[i];
-    const stepKey = `${step.col},${step.row}`;
-    const stepTerrain = getTerrainAtLayout(mapLayout, terrainData, step.col, step.row, cols, rows);
-    if (stepTerrain?.name !== 'Ice') continue;
+  const effectivePath = [path[0]];
+  const slideSegments = [];
+  let movementCost = 0;
+  let i = 1;
 
-    // Pathfinding can traverse ally tiles; if first Ice entry is occupied, force-stop
-    // at the nearest prior unoccupied tile (never end on an occupied tile).
-    if (occupiedTiles.has(stepKey)) {
-      let stopIndex = i - 1;
-      while (stopIndex >= 0) {
-        const stopStep = path[stopIndex];
-        const stopKey = `${stopStep.col},${stopStep.row}`;
-        if (!occupiedTiles.has(stopKey)) break;
-        stopIndex -= 1;
+  while (i < path.length) {
+    const step = path[i];
+    const stepTerrain = getTerrainAtLayout(mapLayout, terrainData, step.col, step.row, cols, rows);
+
+    if (stepTerrain?.name === 'Ice' && moveType !== 'Flying') {
+      const stepKey = `${step.col},${step.row}`;
+      // If ice entry is occupied, force-stop at prior unoccupied tile
+      if (occupiedTiles.has(stepKey)) {
+        let stopIndex = effectivePath.length - 1;
+        while (stopIndex >= 0) {
+          const s = effectivePath[stopIndex];
+          if (!occupiedTiles.has(`${s.col},${s.row}`)) break;
+          stopIndex -= 1;
+        }
+        if (stopIndex < 0) stopIndex = 0;
+        const trimmed = effectivePath.slice(0, stopIndex + 1);
+        return {
+          effectivePath: trimmed,
+          slideSegments,
+          movementCost,
+          slideStartIndex: slideSegments.length > 0 ? slideSegments[0].startIndex : -1,
+          slidePath: slideSegments.length > 0 ? slideSegments[0].slidePath : [],
+          pathEndIndex: stopIndex,
+        };
       }
-      if (stopIndex < 0) stopIndex = 0;
-      return {
-        effectivePath: path.slice(0, stopIndex + 1),
-        slideStartIndex: -1,
-        slidePath: [],
-        pathEndIndex: stopIndex,
-      };
+
+      // Add the walk-onto-ice cost
+      const iceCost = getTerrainAtLayout(mapLayout, terrainData, step.col, step.row, cols, rows);
+      const rawIceCost = iceCost ? parseInt(iceCost.moveCost?.[moveType] || '1', 10) : 1;
+      const iceMoveCost = costModifier ? Math.max(1, rawIceCost - costModifier) : rawIceCost;
+      movementCost += Number.isFinite(iceMoveCost) ? iceMoveCost : 1;
+
+      const prev = effectivePath[effectivePath.length - 1];
+      const entryDir = { dc: step.col - prev.col, dr: step.row - prev.row };
+      const slide = resolveIceSlide(
+        step.col,
+        step.row,
+        entryDir,
+        mapLayout,
+        terrainData,
+        cols,
+        rows,
+        moveType,
+        occupiedTiles,
+      );
+
+      const startIndex = effectivePath.length;
+      for (const s of slide.slidePath) {
+        const last = effectivePath[effectivePath.length - 1];
+        if (last.col === s.col && last.row === s.row) continue;
+        effectivePath.push({ col: s.col, row: s.row });
+      }
+      slideSegments.push({ startIndex, slidePath: slide.slidePath });
+
+      // Skip any original path tiles the slide already covered.
+      // If no remaining step connects to the landing, the path is broken by the slide — stop.
+      const landCol = slide.col;
+      const landRow = slide.row;
+      let pathBroken = true;
+      i++;
+      while (i < path.length) {
+        const next = path[i];
+        // If the original path goes through the slide landing, continue from there
+        if (next.col === landCol && next.row === landRow) {
+          i++;
+          pathBroken = false;
+          break;
+        }
+        // Check if this path tile was part of the slide (between entry and landing)
+        const isOnSlide = slide.slidePath.some((sp) => sp.col === next.col && sp.row === next.row);
+        if (isOnSlide) {
+          i++;
+          continue;
+        }
+        // Check if remaining path step is adjacent to landing
+        const dx = Math.abs(next.col - landCol);
+        const dy = Math.abs(next.row - landRow);
+        if (dx + dy === 1) {
+          pathBroken = false;
+        }
+        break;
+      }
+      if (pathBroken) break; // slide diverted us — stop processing remaining path
+      continue;
     }
 
-    const prev = path[i - 1];
-    const entryDir = { dc: step.col - prev.col, dr: step.row - prev.row };
-    const slide = resolveIceSlide(
-      step.col,
-      step.row,
-      entryDir,
-      mapLayout,
-      terrainData,
-      cols,
-      rows,
-      moveType,
-      occupiedTiles,
-    );
-    const effectivePath = path.slice(0, i).concat(slide.slidePath);
-    return { effectivePath, slideStartIndex: i, slidePath: slide.slidePath, pathEndIndex: i };
+    // Normal walk step
+    const terrain = getTerrainAtLayout(mapLayout, terrainData, step.col, step.row, cols, rows);
+    const rawCost = terrain ? parseInt(terrain.moveCost?.[moveType] || '1', 10) : 1;
+    const cost = costModifier ? Math.max(1, rawCost - costModifier) : rawCost;
+    movementCost += Number.isFinite(cost) ? cost : 1;
+    effectivePath.push({ col: step.col, row: step.row });
+    i++;
   }
 
-  return { effectivePath: path, slideStartIndex: -1, slidePath: [], pathEndIndex: path.length - 1 };
+  return {
+    effectivePath,
+    slideSegments,
+    movementCost,
+    // Legacy compat fields
+    slideStartIndex: slideSegments.length > 0 ? slideSegments[0].startIndex : -1,
+    slidePath: slideSegments.length > 0 ? slideSegments[0].slidePath : [],
+    pathEndIndex: effectivePath.length - 1,
+  };
 }
 
 export class Grid {
@@ -309,13 +381,14 @@ export class Grid {
 
   /**
    * Dijkstra flood-fill: all tiles reachable within `mov` movement points.
+   * Ice-aware: when stepping onto Ice, resolves the slide and enqueues the landing tile.
    * @param {number} startCol
    * @param {number} startRow
    * @param {number} mov - movement points
    * @param {string} moveType - e.g. "Infantry", "Cavalry"
    * @param {Map} [unitPositions] - Map of "col,row" -> { faction } for occupied tiles
    * @param {string} [moverFaction] - faction of the moving unit
-   * @returns {Map} "col,row" -> { cost, parent }
+   * @returns {Map} "col,row" -> { cost, parent, slidePath? }
    */
   getMovementRange(
     startCol,
@@ -330,6 +403,17 @@ export class Grid {
     const queue = [{ col: startCol, row: startRow, cost: 0 }];
     reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
 
+    // Build occupied set for ice slide blocking (all units except mover).
+    // Both allies AND enemies block slides.
+    const occupiedTilesSet = new Set();
+    if (unitPositions) {
+      for (const key of unitPositions.keys()) {
+        occupiedTilesSet.add(key);
+      }
+    }
+    // Exclude mover's own tile from blocking
+    occupiedTilesSet.delete(`${startCol},${startRow}`);
+
     while (queue.length > 0) {
       queue.sort((a, b) => a.cost - b.cost);
       const current = queue.shift();
@@ -342,7 +426,7 @@ export class Grid {
         const moveCost = this.getMoveCost(nc, nr, moveType, costModifier);
         if (moveCost === Infinity) continue;
 
-        // Check unit occupancy
+        // Check unit occupancy for walk-through
         const key = `${nc},${nr}`;
         if (unitPositions) {
           const occupant = unitPositions.get(key);
@@ -358,6 +442,38 @@ export class Grid {
         const newCost = current.cost + moveCost;
         if (newCost > mov) continue;
 
+        // Ice slide handling: when stepping onto Ice, resolve the full slide
+        const neighborTerrain = this.getTerrainAt(nc, nr);
+        if (neighborTerrain?.name === 'Ice' && moveType !== 'Flying') {
+          // If an ally (or other unit) occupies the ice entry tile, treat as normal
+          // passable tile — can't initiate a slide from an occupied tile.
+          if (!occupiedTilesSet.has(key)) {
+            const slide = resolveIceSlide(
+              nc,
+              nr,
+              { dc, dr },
+              this.mapLayout,
+              this.terrainData,
+              this.cols,
+              this.rows,
+              moveType,
+              occupiedTilesSet,
+            );
+            const landKey = `${slide.col},${slide.row}`;
+            const existing = reachable.get(landKey);
+            if (!existing || newCost < existing.cost) {
+              reachable.set(landKey, {
+                cost: newCost,
+                parent: `${current.col},${current.row}`,
+                slidePath: slide.slidePath,
+              });
+              queue.push({ col: slide.col, row: slide.row, cost: newCost });
+            }
+            continue;
+          }
+          // Fall through to normal tile handling below
+        }
+
         const existing = reachable.get(key);
         if (!existing || newCost < existing.cost) {
           reachable.set(key, { cost: newCost, parent: `${current.col},${current.row}` });
@@ -366,18 +482,70 @@ export class Grid {
       }
     }
 
-    // Remove ally-occupied tiles from final results (can pass through but not stop on)
+    // Mark ally-occupied tiles as non-stoppable (can pass through but not stop on).
+    // We keep them in the map so parent chains stay intact for path reconstruction.
     if (unitPositions && moverFaction) {
-      for (const [key] of reachable) {
+      for (const [key, entry] of reachable) {
         if (key === `${startCol},${startRow}`) continue; // own tile is fine
         const occupant = unitPositions.get(key);
         if (occupant && occupant.faction === moverFaction) {
-          reachable.delete(key);
+          entry.stoppable = false;
         }
       }
     }
 
     return reachable;
+  }
+
+  /**
+   * Reconstruct a path from Dijkstra reachable data, inserting slide segments.
+   * This is the primary path-building method for any tile in the movement range.
+   * @param {Map} reachable - from getMovementRange()
+   * @param {number} startCol
+   * @param {number} startRow
+   * @param {number} goalCol
+   * @param {number} goalRow
+   * @returns {Array<{col, row}>|null} - path from start to goal, or null if not in reachable
+   */
+  reconstructIcePath(reachable, startCol, startRow, goalCol, goalRow) {
+    const goalKey = `${goalCol},${goalRow}`;
+    if (!reachable.has(goalKey)) return null;
+
+    // Walk parent chain from goal to start
+    const chain = [];
+    let key = goalKey;
+    while (key) {
+      const entry = reachable.get(key);
+      if (!entry) break;
+      chain.unshift({ key, entry });
+      key = entry.parent;
+    }
+
+    // Build path, inserting slide segments where present
+    const path = [];
+    for (const { key: nodeKey, entry } of chain) {
+      const [c, r] = nodeKey.split(',').map(Number);
+      if (entry.slidePath && entry.slidePath.length > 1) {
+        // Insert all slide tiles (slidePath includes the entry ice tile through landing)
+        for (const step of entry.slidePath) {
+          // Avoid duplicating the tile that's already the last in path
+          if (path.length > 0) {
+            const last = path[path.length - 1];
+            if (last.col === step.col && last.row === step.row) continue;
+          }
+          path.push({ col: step.col, row: step.row });
+        }
+      } else {
+        // Normal walk step
+        if (path.length > 0) {
+          const last = path[path.length - 1];
+          if (last.col === c && last.row === r) continue;
+        }
+        path.push({ col: c, row: r });
+      }
+    }
+
+    return path.length >= 2 ? path : null;
   }
 
   // A* pathfinding from (startCol,startRow) to (goalCol,goalRow)
@@ -468,11 +636,12 @@ export class Grid {
     return tiles;
   }
 
-  // Display blue movement range overlay (skip unit's own tile)
+  // Display blue movement range overlay (skip unit's own tile and non-stoppable tiles)
   showMovementRange(reachable, unitCol, unitRow, color = 0x3366cc, alpha = 0.4) {
     this.clearHighlights();
-    for (const [key] of reachable) {
+    for (const [key, entry] of reachable) {
       if (key === `${unitCol},${unitRow}`) continue;
+      if (entry.stoppable === false) continue;
       const [col, row] = key.split(',').map(Number);
       const { x, y } = this.gridToPixel(col, row);
       const highlight = this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha);
