@@ -49,6 +49,7 @@ import {
   canReclass,
   getReclassTargets,
   reclassUnit,
+  getDisplayLevel,
 } from '../engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -2566,7 +2567,7 @@ export class BattleScene extends Phaser.Scene {
       deployGroup.push(checkText);
 
       // Unit info
-      const lvl = unit.level || 1;
+      const lvl = getDisplayLevel(unit);
       const cls = unit.className || '';
       const hp =
         unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
@@ -3128,7 +3129,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Unit info (skip hidden units in fog)
     if (hovered && this.grid.isVisible(gp.col, gp.row)) {
-      const lvl = hovered.level || 1;
+      const lvl = getDisplayLevel(hovered);
       const cls = hovered.className || '';
       info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}`;
       if (hovered.weapon) info += ` | ${hovered.weapon.name}`;
@@ -9639,7 +9640,8 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Apply XP and check for level-ups
-    const result = gainExperience(playerUnit, xp);
+    const extendedLevelingEnabled = this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
+    const result = gainExperience(playerUnit, xp, { extendedLevelingEnabled });
 
     // Show level-up popups sequentially
     for (const lvUp of result.levelUps) {
@@ -10929,7 +10931,7 @@ export class BattleScene extends Phaser.Scene {
       // Level
       const lvl = applyTextResolution(
         this.add
-          .text(cx, yOff, `Lv ${u.level}`, {
+          .text(cx, yOff, `Lv ${getDisplayLevel(u)}`, {
             fontFamily: 'monospace',
             fontSize: '10px',
             color: '#66ddff',
@@ -11389,8 +11391,9 @@ export class BattleScene extends Phaser.Scene {
           awardGoldNow(scaledGoldAmount);
           // Distribute team XP to entire roster
           if (choice.xpAmount && this.runManager.roster) {
+            const extOpt = { extendedLevelingEnabled: this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false };
             for (const unit of this.runManager.roster) {
-              gainExperience(unit, choice.xpAmount);
+              gainExperience(unit, choice.xpAmount, extOpt);
               checkLevelUpSkills(unit, this.gameData.classes);
             }
           }
@@ -13015,7 +13018,7 @@ export class BattleScene extends Phaser.Scene {
       const accName = u.accessory?.name || '-';
       const consumeNames = (u.consumables || []).map((c) => c.name).join(', ') || '-';
       const invCount = (u.inventory || []).length;
-      const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(u.level).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
+      const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
       const txt = this.add
         .text(leftX, y, line, {
           fontFamily: 'monospace',

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
 import { getAvailableTiers } from '../src/engine/ColosseumEngine.js';
-import { createRecruitUnit } from '../src/engine/UnitManager.js';
+import { createRecruitUnit, getDisplayLevel } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 import { ROSTER_CAP } from '../src/utils/constants.js';
 
@@ -455,6 +455,30 @@ describe('ColosseumOverlay', () => {
     expect(spendSpy).not.toHaveBeenCalled();
     expect(runManager.roster).toHaveLength(ROSTER_CAP);
     expect(merc._hired).not.toBe(true);
+  });
+
+  it('unit select list uses getDisplayLevel for extended levels', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'ExtDispUnit', 5);
+    unit.level = 20;
+    unit.tier = 'promoted';
+    unit.className = 'Swordmaster';
+    unit.extendedLevels = 3;
+    const runManager = makeRunManager({ gold: 1000, roster: [unit] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-ext-disp' }, vi.fn());
+    overlay._showUnitSelect();
+
+    // getDisplayLevel should return "20+3" for this unit
+    expect(getDisplayLevel(unit)).toBe('20+3');
+    // The unit select list should contain the display level
+    expect(hasText(scene, '20+3')).toBe(true);
+    // Unit line should include the extended display level
+    const texts = activeTexts(scene);
+    const unitLine = texts.find((obj) => String(obj.text).includes('ExtDispUnit'));
+    expect(unitLine).toBeTruthy();
+    expect(String(unitLine.text)).toContain('20+3');
   });
 
   it('state transitions are MENU -> UNIT_SELECT -> TIER_SELECT and reset on hide/reshow', () => {
