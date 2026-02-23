@@ -45,6 +45,7 @@ describe('meta upgrades rebalance patch guards', () => {
         upgrades: [{ id: 'starting_vulnerary', level: 1 }],
       },
     },
+    { id: 'extra_skill_slot', costs: [750] },
   ];
 
   it('validates all targeted upgrade costs/effects/prerequisites', () => {

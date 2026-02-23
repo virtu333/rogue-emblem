@@ -534,9 +534,9 @@ describe('Weapon-granted skills in combat', () => {
   it('rollStrikeSkills checks weapon._grantedSkill', () => {
     const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
-    const attacker = makeUnit({ weapon, skills: [], stats: { ...makeUnit().stats, SKL: 100 } });
+    // Sol uses SKL_HALF activation, so SKL=200 → 100% proc
+    const attacker = makeUnit({ weapon, skills: [], stats: { ...makeUnit().stats, SKL: 200 } });
     const target = makeUnit({ faction: 'enemy' });
-    // With SKL=100, Sol should always trigger
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
     expect(result.heal).toBe(10);
     expect(result.activated.some((a) => a.id === 'sol')).toBe(true);
@@ -562,10 +562,11 @@ describe('Weapon-granted skills in combat', () => {
   it('does not duplicate skill if unit already has it', () => {
     const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
+    // Sol uses SKL_HALF activation, so SKL=200 → 100% proc
     const attacker = makeUnit({
       weapon,
       skills: ['sol'],
-      stats: { ...makeUnit().stats, SKL: 100 },
+      stats: { ...makeUnit().stats, SKL: 200 },
     });
     const target = makeUnit({ faction: 'enemy' });
     // Should trigger once, not twice
@@ -672,7 +673,8 @@ describe('L20 skill learning', () => {
 
 describe('Aether skill', () => {
   it('triggers Sol heal + extra strike flag', () => {
-    const attacker = makeUnit({ skills: ['aether'], stats: { ...makeUnit().stats, SKL: 100 } });
+    // Aether uses SKL_HALF activation, so SKL=200 → 100% proc
+    const attacker = makeUnit({ skills: ['aether'], stats: { ...makeUnit().stats, SKL: 200 } });
     const target = makeUnit({ faction: 'enemy' });
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
     expect(result.heal).toBe(10); // Sol heal

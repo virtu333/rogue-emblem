@@ -36,10 +36,17 @@
           { "turn": 8, "count": [2, 3], "edges": ["top", "right"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["right"] },
+            { "turn": 14, "count": [3, 4], "edges": ["top", "right"] }
+          ]
+        }
       }
     },
     {
@@ -93,10 +100,17 @@
           { "turn": 8, "count": [2, 2], "edges": ["right"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["right"] },
+            { "turn": 14, "count": [3, 4], "edges": ["right"] }
+          ]
+        }
       }
     },
     {
@@ -137,10 +151,17 @@
           { "turn": 7, "count": [2, 3], "edges": ["top", "bottom"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["top"] },
+            { "turn": 14, "count": [3, 4], "edges": ["top", "bottom"] }
+          ]
+        }
       }
     },
     {
@@ -197,10 +218,17 @@
           { "turn": 8, "count": [2, 2], "edges": ["right"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["right"] },
+            { "turn": 14, "count": [3, 4], "edges": ["right"] }
+          ]
+        }
       }
     },
     {
@@ -248,9 +276,15 @@
           { "turn": 8, "count": [2, 3], "edges": ["top"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "actTurnOffset": { "hard": { "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [3, 4], "edges": ["top", "right"] }
+          ]
+        }
       }
     },
     {
@@ -298,9 +332,15 @@
           { "turn": 9, "count": [2, 3], "edges": ["bottom"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "actTurnOffset": { "hard": { "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 12, "count": [3, 4], "edges": ["bottom", "right"] }
+          ]
+        }
       }
     }
   ],
@@ -353,10 +393,17 @@
           { "turn": 8, "count": [2, 3], "edges": ["left", "bottom"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["left"] },
+            { "turn": 14, "count": [3, 4], "edges": ["left", "bottom"] }
+          ]
+        }
       }
     },
     {
@@ -405,10 +452,17 @@
           { "turn": 8, "count": [2, 3], "edges": ["right", "bottom"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5],
-        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [2, 3], "edges": ["right"] },
+            { "turn": 14, "count": [3, 4], "edges": ["right", "bottom"] }
+          ]
+        }
       }
     },
     {
@@ -460,9 +514,15 @@
           { "turn": 9, "count": [2, 2], "edges": ["top", "right"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "actTurnOffset": { "hard": { "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 12, "count": [2, 3], "edges": ["top", "right"] }
+          ]
+        }
       }
     },
     {
@@ -514,9 +574,15 @@
           { "turn": 8, "count": [2, 3], "edges": ["top"] }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "xpDecay": [1.0, 0.75, 0.5, 0.25],
+        "actTurnOffset": { "hard": { "act4": -1 } },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            { "turn": 11, "count": [3, 4], "edges": ["top", "right"] }
+          ]
+        }
       }
     },
     {

@@ -341,10 +341,60 @@ function cloneReinforcementConfig(template, { act = null, difficultyId = 'normal
     }
   }
 
-  return {
+  const clone = {
     reinforcementContractVersion: template.reinforcementContractVersion,
     reinforcements: JSON.parse(JSON.stringify(template.reinforcements)),
   };
+
+  const r = clone.reinforcements;
+
+  // Merge act-specific turn offset (e.g. hard act3 gets extra -1)
+  if (r.actTurnOffset !== undefined) {
+    if (!r.actTurnOffset || typeof r.actTurnOffset !== 'object' || Array.isArray(r.actTurnOffset)) {
+      console.warn('[MapGenerator] actTurnOffset is not an object — skipping merge');
+    } else {
+      const perAct = r.actTurnOffset[difficultyId];
+      if (perAct !== undefined) {
+        if (!perAct || typeof perAct !== 'object' || Array.isArray(perAct)) {
+          console.warn(
+            `[MapGenerator] actTurnOffset["${difficultyId}"] is not an object — skipping merge`,
+          );
+        } else {
+          const extra = perAct[act];
+          if (typeof extra === 'number' && r.turnOffsetByDifficulty) {
+            r.turnOffsetByDifficulty[difficultyId] =
+              (r.turnOffsetByDifficulty[difficultyId] || 0) + extra;
+          }
+        }
+      }
+    }
+  }
+
+  // Merge extra waves for this difficulty
+  if (r.extraWavesByDifficulty !== undefined) {
+    if (
+      !r.extraWavesByDifficulty ||
+      typeof r.extraWavesByDifficulty !== 'object' ||
+      Array.isArray(r.extraWavesByDifficulty)
+    ) {
+      console.warn('[MapGenerator] extraWavesByDifficulty is not an object — skipping merge');
+    } else {
+      const extras = r.extraWavesByDifficulty[difficultyId];
+      if (extras !== undefined && !Array.isArray(extras)) {
+        console.warn(
+          `[MapGenerator] extraWavesByDifficulty["${difficultyId}"] is not an array — skipping merge`,
+        );
+      } else if (Array.isArray(extras)) {
+        r.waves = r.waves.concat(extras);
+      }
+    }
+  }
+
+  // Strip merge-only fields from returned config
+  delete r.actTurnOffset;
+  delete r.extraWavesByDifficulty;
+
+  return clone;
 }
 
 function cloneHybridConfig(template, resolvedHybridAnchors) {

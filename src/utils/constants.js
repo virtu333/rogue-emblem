@@ -194,10 +194,10 @@ export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss
 // Dual currency economy (Valor = lord-focused, Supply = army-focused)
 export const VALOR_PER_ACT = 50;
 export const VALOR_PER_BATTLE = 15;
-export const VALOR_VICTORY_BONUS = 200;
+export const VALOR_VICTORY_BONUS = 100;
 export const SUPPLY_PER_ACT = 50;
 export const SUPPLY_PER_BATTLE = 15;
-export const SUPPLY_VICTORY_BONUS = 200;
+export const SUPPLY_VICTORY_BONUS = 100;
 
 // Maps upgrade category → currency type
 export const CATEGORY_CURRENCY = {

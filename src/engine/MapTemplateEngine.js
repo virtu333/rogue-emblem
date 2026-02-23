@@ -252,7 +252,14 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     'turnOffsetByDifficulty',
     'xpDecay',
   ]);
-  const knownKeys = new Set([...requiredKeys, 'turnJitter', 'scriptedWaves', 'minActByDifficulty']);
+  const knownKeys = new Set([
+    ...requiredKeys,
+    'turnJitter',
+    'scriptedWaves',
+    'minActByDifficulty',
+    'actTurnOffset',
+    'extraWavesByDifficulty',
+  ]);
   for (const key of requiredKeys) {
     if (!(key in reinforcements)) {
       errors.push(`${path}.reinforcements missing required key: ${key}`);
@@ -307,6 +314,66 @@ function validateReinforcements(path, template, strict, errors, warnings) {
         if (!validActs.has(value)) {
           errors.push(`${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act`);
         }
+      }
+    }
+  }
+  if (reinforcements.actTurnOffset !== undefined) {
+    const ato = reinforcements.actTurnOffset;
+    if (!isObject(ato)) {
+      errors.push(`${path}.reinforcements.actTurnOffset must be an object`);
+    } else {
+      const validDiffs = new Set(DIFFICULTY_IDS);
+      const validActs = new Set(['act1', 'act2', 'act3', 'act4']);
+      for (const [diff, perAct] of Object.entries(ato)) {
+        if (!validDiffs.has(diff)) {
+          errors.push(
+            `${path}.reinforcements.actTurnOffset contains unknown difficulty key "${diff}"`,
+          );
+          continue;
+        }
+        if (!isObject(perAct)) {
+          errors.push(`${path}.reinforcements.actTurnOffset["${diff}"] must be an object`);
+          continue;
+        }
+        for (const [act, val] of Object.entries(perAct)) {
+          if (!validActs.has(act)) {
+            errors.push(
+              `${path}.reinforcements.actTurnOffset["${diff}"] contains unknown act key "${act}"`,
+            );
+          } else if (!isInteger(val)) {
+            errors.push(
+              `${path}.reinforcements.actTurnOffset["${diff}"]["${act}"] must be an integer`,
+            );
+          }
+        }
+      }
+    }
+  }
+  if (reinforcements.extraWavesByDifficulty !== undefined) {
+    const ewd = reinforcements.extraWavesByDifficulty;
+    if (!isObject(ewd)) {
+      errors.push(`${path}.reinforcements.extraWavesByDifficulty must be an object`);
+    } else {
+      const validDiffs = new Set(DIFFICULTY_IDS);
+      for (const [diff, waves] of Object.entries(ewd)) {
+        if (!validDiffs.has(diff)) {
+          errors.push(
+            `${path}.reinforcements.extraWavesByDifficulty contains unknown difficulty key "${diff}"`,
+          );
+          continue;
+        }
+        if (!Array.isArray(waves)) {
+          errors.push(`${path}.reinforcements.extraWavesByDifficulty["${diff}"] must be an array`);
+          continue;
+        }
+        waves.forEach((wave, i) => {
+          validateReinforcementWave(
+            `${path}.reinforcements.extraWavesByDifficulty["${diff}"][${i}]`,
+            wave,
+            spawnEdges,
+            errors,
+          );
+        });
       }
     }
   }

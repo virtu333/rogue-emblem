@@ -1254,15 +1254,15 @@ describe('calculateCurrencies', () => {
 
   it('awards victory bonus to both currencies', () => {
     const { valor, supply } = calculateCurrencies(0, 0, true);
-    expect(valor).toBe(200);
-    expect(supply).toBe(200);
+    expect(valor).toBe(100);
+    expect(supply).toBe(100);
   });
 
   it('combines all components', () => {
-    // 3 acts * 50 + 10 battles * 15 + 200 victory = 150 + 150 + 200 = 500
+    // 3 acts * 50 + 10 battles * 15 + 100 victory = 150 + 150 + 100 = 400
     const { valor, supply } = calculateCurrencies(3, 10, true);
-    expect(valor).toBe(500);
-    expect(supply).toBe(500);
+    expect(valor).toBe(400);
+    expect(supply).toBe(400);
   });
 
   it('returns 0 for act 0, 0 battles, no victory', () => {

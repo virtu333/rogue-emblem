@@ -381,4 +381,38 @@ describe('MapTemplateEngine', () => {
       true,
     );
   });
+
+  it('rejects non-object actTurnOffset', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].reinforcements.actTurnOffset = 'bad';
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('actTurnOffset must be an object'))).toBe(true);
+  });
+
+  it('rejects actTurnOffset with non-integer values', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].reinforcements.actTurnOffset = { hard: { act3: 'two' } };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('must be an integer'))).toBe(true);
+  });
+
+  it('rejects non-object extraWavesByDifficulty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].reinforcements.extraWavesByDifficulty = [1, 2];
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('extraWavesByDifficulty must be an object'))).toBe(
+      true,
+    );
+  });
+
+  it('rejects extraWavesByDifficulty with invalid wave shapes', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].reinforcements.extraWavesByDifficulty = { lunatic: [{ turn: 'late' }] };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('extraWavesByDifficulty'))).toBe(true);
+  });
 });

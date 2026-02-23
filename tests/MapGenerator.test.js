@@ -1051,13 +1051,22 @@ describe('MapGenerator', () => {
       }
     });
 
-    it('strips reinforcements when minActByDifficulty gate not met (hard + act2)', () => {
+    it('strips reinforcements when minActByDifficulty gate not met (hard + act1)', () => {
       const config = generateBattle(
-        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        { act: 'act1', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
         data,
       );
       expect(config.reinforcements).toBeUndefined();
       expect(config.reinforcementContractVersion).toBeUndefined();
+    });
+
+    it('includes reinforcements when minActByDifficulty gate met (hard + act2)', () => {
+      const config = generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      );
+      expect(config.reinforcements).toBeDefined();
+      expect(config.reinforcementContractVersion).toBe(1);
     });
 
     it('includes reinforcements when minActByDifficulty gate met (hard + act3)', () => {
@@ -1110,6 +1119,95 @@ describe('MapGenerator', () => {
       );
       expect(config.reinforcements).toBeDefined();
       expect(config.reinforcementContractVersion).toBe(1);
+    });
+
+    it('merges actTurnOffset into turnOffsetByDifficulty for hard+act3', () => {
+      const config = generateBattle(
+        { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      );
+      // Base hard offset is -1, actTurnOffset.hard.act3 adds -1 → total -2
+      expect(config.reinforcements.turnOffsetByDifficulty.hard).toBe(-2);
+    });
+
+    it('lunatic standard template has 4 waves (2 base + 2 extra)', () => {
+      const config = generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'lunatic' },
+        data,
+      );
+      expect(config.reinforcements.waves.length).toBe(4);
+    });
+
+    it('strips merge-only fields (actTurnOffset, extraWavesByDifficulty) from returned config', () => {
+      const config = generateBattle(
+        { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      );
+      expect(config.reinforcements.actTurnOffset).toBeUndefined();
+      expect(config.reinforcements.extraWavesByDifficulty).toBeUndefined();
+    });
+
+    it('does not mutate source template data during cloneReinforcementConfig', () => {
+      const template = data.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const origOffset = template.reinforcements.turnOffsetByDifficulty.hard;
+      const origWaveCount = template.reinforcements.waves.length;
+      generateBattle(
+        { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        data,
+      );
+      expect(template.reinforcements.turnOffsetByDifficulty.hard).toBe(origOffset);
+      expect(template.reinforcements.waves.length).toBe(origWaveCount);
+      expect(template.reinforcements.actTurnOffset).toBeDefined();
+      expect(template.reinforcements.extraWavesByDifficulty).toBeDefined();
+    });
+
+    it('degrades gracefully when actTurnOffset is malformed (top-level)', () => {
+      const mutated = JSON.parse(JSON.stringify(data));
+      const tpl = mutated.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const origOffset = tpl.reinforcements.turnOffsetByDifficulty.hard;
+      tpl.reinforcements.actTurnOffset = 'bad';
+      const config = generateBattle(
+        { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        mutated,
+      );
+      // Should not merge — base offset unchanged
+      expect(config.reinforcements.turnOffsetByDifficulty.hard).toBe(origOffset);
+    });
+
+    it('degrades gracefully when actTurnOffset[difficulty] is malformed', () => {
+      const mutated = JSON.parse(JSON.stringify(data));
+      const tpl = mutated.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const origOffset = tpl.reinforcements.turnOffsetByDifficulty.hard;
+      tpl.reinforcements.actTurnOffset = { hard: 'not-an-object' };
+      const config = generateBattle(
+        { act: 'act3', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+        mutated,
+      );
+      expect(config.reinforcements.turnOffsetByDifficulty.hard).toBe(origOffset);
+    });
+
+    it('degrades gracefully when extraWavesByDifficulty is malformed (top-level)', () => {
+      const mutated = JSON.parse(JSON.stringify(data));
+      const tpl = mutated.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const origWaveCount = tpl.reinforcements.waves.length;
+      tpl.reinforcements.extraWavesByDifficulty = 42;
+      const config = generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'lunatic' },
+        mutated,
+      );
+      expect(config.reinforcements.waves.length).toBe(origWaveCount);
+    });
+
+    it('degrades gracefully when extraWavesByDifficulty[difficulty] is malformed', () => {
+      const mutated = JSON.parse(JSON.stringify(data));
+      const tpl = mutated.mapTemplates.rout.find((t) => t.id === 'open_field');
+      const origWaveCount = tpl.reinforcements.waves.length;
+      tpl.reinforcements.extraWavesByDifficulty = { lunatic: 'not-an-array' };
+      const config = generateBattle(
+        { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'lunatic' },
+        mutated,
+      );
+      expect(config.reinforcements.waves.length).toBe(origWaveCount);
     });
 
     it('passes hybrid arena fields through and deep-clones returned hybrid config', () => {

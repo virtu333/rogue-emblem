@@ -47,9 +47,9 @@
   {
     "id": "sol",
     "name": "Sol",
-    "description": "SKL% chance to heal damage dealt on hit",
+    "description": "SKL/2% chance to heal damage dealt on hit",
     "trigger": "on-attack",
-    "activation": "SKL"
+    "activation": "SKL_HALF"
   },
   {
     "id": "luna",
@@ -316,9 +316,9 @@
   {
     "id": "aether",
     "name": "Aether",
-    "description": "SKL%: strike twice — first Sol, then Luna",
+    "description": "SKL/2%: strike twice — first Sol, then Luna",
     "trigger": "on-attack",
-    "activation": "SKL",
+    "activation": "SKL_HALF",
     "personal": true
   },
   {
