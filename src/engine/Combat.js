@@ -8,6 +8,7 @@ import {
   STAFF_BONUS_USE_THRESHOLDS,
 } from '../utils/constants.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
+import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
 
 // --- Weapon classification ---
 
@@ -725,6 +726,14 @@ export function getCombatForecast(
   let atkCrit = calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
 
+  // Silenced attackers cannot initiate with magic weapons (defensive guard)
+  const fSilencedAttacker =
+    isSilenced(attacker) && atkWeapon && (isMagical(atkWeapon) || isStaff(atkWeapon));
+  if (fSilencedAttacker) {
+    atkDmg = 0;
+    atkHit = 0;
+  }
+
   // Doubling with accessory + skill + weight modifiers
   const fAtkPursuit = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
   const fDefPursuit = defender.accessory?.combatEffects?.doubleThresholdReduction || 0;
@@ -747,7 +756,14 @@ export function getCombatForecast(
   const atkBaseCount = atkMultiHit ? atkMultiHit.count : atkBrave ? 2 : 1;
   const atkCount = atkBaseCount * (atkDoubles ? 2 : 1);
 
-  const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
+  // Silenced defenders cannot counter with magic weapons
+  const fSilencedNoCounter =
+    isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
+  const defCanCounter =
+    !atkMods?.preventCounter &&
+    !fSilencedNoCounter &&
+    !isSleeping(defender) &&
+    canCounter(defender, defWeapon, distance);
   const combatSkillState = { adeptUsed: new Set() };
   let defDmg = 0,
     defHit = 0,
@@ -1108,7 +1124,22 @@ export function resolveCombat(
     Math.min(100, calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)),
   );
 
-  const defCanCounter = !atkMods?.preventCounter && canCounter(defender, defWeapon, distance);
+  // Silenced attackers cannot initiate with magic weapons (defensive guard — UI should prevent this)
+  const silencedAttacker =
+    isSilenced(attacker) && atkWeapon && (isMagical(atkWeapon) || isStaff(atkWeapon));
+  if (silencedAttacker) {
+    atkDmg = 0;
+    atkHit = 0;
+  }
+
+  // Silenced defenders cannot counter with magic weapons (Tome/Light/Staff)
+  const silencedNoCounter =
+    isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
+  const defCanCounter =
+    !atkMods?.preventCounter &&
+    !silencedNoCounter &&
+    !isSleeping(defender) &&
+    canCounter(defender, defWeapon, distance);
 
   // Doubling: apply accessory + skill + weight modifiers
   const atkPursuitReduction = attacker.accessory?.combatEffects?.doubleThresholdReduction || 0;
@@ -1262,6 +1293,15 @@ export function resolveCombat(
           evt.strikerHealTo = defHP;
         }
       }
+      // Sleep: wake on damage
+      if (!evt.miss && evt.damage > 0) {
+        const target = isAttackingDefender ? defender : attacker;
+        if (isSleeping(target)) {
+          removeCondition(target, 'sleep');
+          evt.wokeFromSleep = true;
+        }
+      }
+
       events.push(evt);
 
       // Update first-hit flag for Shielded consumption

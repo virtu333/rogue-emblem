@@ -17,9 +17,9 @@ function makeUnit() {
 }
 
 describe('Accessories', () => {
-  it('data includes 29 accessories and 13 consumables after PR1 additions', () => {
+  it('data includes 29 accessories and 15 consumables after PR1 additions', () => {
     expect(gameData.accessories.length).toBe(29);
-    expect(gameData.consumables.length).toBe(13);
+    expect(gameData.consumables.length).toBe(15);
   });
 
   describe('equipAccessory / unequipAccessory', () => {

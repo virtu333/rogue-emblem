@@ -41,6 +41,7 @@
           "additionalProperties": false
         }
       },
+      "statusEffect": { "type": "string" },
       "skillId": { "type": "string" },
       "weaponArtIds": { "type": "array", "items": { "type": "string" } },
       "weaponArtSources": { "type": "array", "items": { "type": "string" } },

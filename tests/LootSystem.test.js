@@ -1015,6 +1015,69 @@ describe('LootSystem', () => {
     });
   });
 
+  describe('act4 loot table integrity', () => {
+    it('act4 entry exists with all required keys', () => {
+      const act4 = gameData.lootTables.act4;
+      expect(act4).toBeDefined();
+      const requiredKeys = [
+        'weapons',
+        'healing',
+        'statBooster',
+        'promotion',
+        'skillScroll',
+        'weaponArtScroll',
+        'legendaryWeapon',
+        'accessories',
+        'forge',
+        'weights',
+        'goldRange',
+      ];
+      for (const key of requiredKeys) {
+        expect(act4[key]).toBeDefined();
+      }
+    });
+
+    it('act4 goldRange is [1400, 2000]', () => {
+      expect(gameData.lootTables.act4.goldRange).toEqual([1400, 2000]);
+    });
+
+    it('act4 legendary weapon weight is 10', () => {
+      expect(gameData.lootTables.act4.weights.legendaryWeapon).toBe(10);
+    });
+
+    it('act4 weapons pool includes Fortify', () => {
+      expect(gameData.lootTables.act4.weapons).toContain('Fortify');
+    });
+
+    it('act4 accessories pool includes Nullify Ring', () => {
+      expect(gameData.lootTables.act4.accessories).toContain('Nullify Ring');
+    });
+
+    it('act4 inherits act3 weapon pools plus additions', () => {
+      const act3Weapons = gameData.lootTables.act3.weapons;
+      const act4Weapons = gameData.lootTables.act4.weapons;
+      for (const weapon of act3Weapons) {
+        expect(act4Weapons).toContain(weapon);
+      }
+      expect(act4Weapons).toContain('Fortify');
+    });
+
+    it('act4 accessories include Nullify Ring', () => {
+      const act4Accessories = gameData.lootTables.act4.accessories;
+      expect(act4Accessories).toContain('Nullify Ring');
+    });
+
+    it('act4 loot generation produces valid choices', () => {
+      const choices = generateLootChoices(
+        'act4',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+      );
+      expect(choices.length).toBe(LOOT_CHOICES);
+    });
+  });
+
   describe('stat booster shop exclusion', () => {
     it('shop never sells stat boosters in act2', () => {
       const statBoosterNames = [
@@ -1576,6 +1639,70 @@ describe('LootSystem', () => {
         );
         expect(inv.length).toBeGreaterThanOrEqual(1);
       }
+    });
+  });
+
+  describe('shopCureGating', () => {
+    it('adds Herb and Remedy when shopCureGating[act] is true', () => {
+      const shopCureGating = { act1: false, act2: false, act3: true, act4: true, finalBoss: true };
+      const inv = generateShopInventory(
+        'act3',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+        null,
+        null,
+        null,
+        { shopCureGating },
+      );
+      const names = inv.map((i) => i.item.name);
+      expect(names).toContain('Herb');
+      expect(names).toContain('Remedy');
+    });
+
+    it('does NOT add Herb/Remedy when shopCureGating[act] is false', () => {
+      const shopCureGating = { act1: false, act2: false, act3: true, act4: true, finalBoss: true };
+      const inv = generateShopInventory(
+        'act1',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+        null,
+        null,
+        null,
+        { shopCureGating },
+      );
+      const names = inv.map((i) => i.item.name);
+      expect(names).not.toContain('Herb');
+      expect(names).not.toContain('Remedy');
+    });
+
+    it('does NOT add cures when shopCureGating is null', () => {
+      const inv = generateShopInventory(
+        'act3',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+        null,
+        null,
+        null,
+        { shopCureGating: null },
+      );
+      const names = inv.map((i) => i.item.name);
+      expect(names).not.toContain('Herb');
+      expect(names).not.toContain('Remedy');
+    });
+
+    it('does NOT add cures when shopCureGating is omitted', () => {
+      const inv = generateShopInventory(
+        'act3',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+      );
+      const names = inv.map((i) => i.item.name);
+      expect(names).not.toContain('Herb');
+      expect(names).not.toContain('Remedy');
     });
   });
 });

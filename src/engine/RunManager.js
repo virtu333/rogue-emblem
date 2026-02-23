@@ -50,7 +50,7 @@ import {
 } from './WeaponArtSystem.js';
 
 // Phaser-specific fields that must be stripped for serialization
-const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator'];
+const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
 const CONVOY_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff']);
 const WEAPON_ART_SPAWN_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 const WEAPON_ART_SPAWN_WEAPON_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light']);
@@ -2146,6 +2146,8 @@ export class RunManager {
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
     );
     battleParams.difficultyId = this.difficultyId || 'normal';
+    // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
+    battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
     this._repairDuplicateRosterNames();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;

@@ -3,7 +3,7 @@
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
   "expectedTotals": {
     "accessories": 29,
-    "consumables": 13
+    "consumables": 15
   },
   "accessories": [
     {
@@ -160,9 +160,10 @@
         "Bounty Hunter's Mark",
         "Vampire's Bloodshard"
       ],
-      "act3": ["Blood Gem", "Recoil Guard", "Phoenix Brooch", "Duelist's Glove"]
+      "act3": ["Blood Gem", "Recoil Guard", "Phoenix Brooch", "Duelist's Glove"],
+      "act4": ["Nullify Ring"]
     },
-    "swiftsolesStatBoosterActs": ["act2", "act3"],
+    "swiftsolesStatBoosterActs": ["act2", "act3", "act4"],
     "swiftsolesExcludedStatBoosterActs": ["act1"]
   }
 }

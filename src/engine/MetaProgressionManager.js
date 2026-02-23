@@ -251,6 +251,8 @@ export class MetaProgressionManager {
         beatAct2: 'Beat Act 2',
         beatAct3: 'Beat Act 3',
         beatGame: 'Beat the Game',
+        beatHard: 'Beat the Game on Hard',
+        beatLunatic: 'Beat the Game on Lunatic',
       };
       for (const m of reqs.milestones) {
         if (!this.milestones.has(m)) {

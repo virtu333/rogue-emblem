@@ -2,6 +2,7 @@
 // Extracted from src/engine/Grid.js for headless battle testing.
 
 import { parseRange } from '../../src/engine/Combat.js';
+import { resolveIceSlide } from '../../src/engine/Grid.js';
 import { VISION_RANGES } from '../../src/utils/constants.js';
 
 const DIRECTIONS = [
@@ -37,6 +38,7 @@ export class HeadlessGrid {
   }
 
   // Dijkstra flood-fill: all tiles reachable within `mov` movement points.
+  // Ice-aware: when stepping onto Ice, resolves the slide and enqueues the landing tile.
   getMovementRange(
     startCol,
     startRow,
@@ -49,6 +51,15 @@ export class HeadlessGrid {
     const reachable = new Map();
     const queue = [{ col: startCol, row: startRow, cost: 0 }];
     reachable.set(`${startCol},${startRow}`, { cost: 0, parent: null });
+
+    // Build occupied set for ice slide blocking (all units except mover)
+    const occupiedTilesSet = new Set();
+    if (unitPositions) {
+      for (const key of unitPositions.keys()) {
+        occupiedTilesSet.add(key);
+      }
+    }
+    occupiedTilesSet.delete(`${startCol},${startRow}`);
 
     while (queue.length > 0) {
       queue.sort((a, b) => a.cost - b.cost);
@@ -65,11 +76,45 @@ export class HeadlessGrid {
         const key = `${nc},${nr}`;
         if (unitPositions) {
           const occupant = unitPositions.get(key);
-          if (occupant && occupant.faction !== moverFaction) continue;
+          if (occupant) {
+            if (occupant.faction !== moverFaction) continue;
+          }
         }
 
         const newCost = current.cost + moveCost;
         if (newCost > mov) continue;
+
+        // Ice slide handling
+        const neighborTerrain = this.getTerrainAt(nc, nr);
+        if (neighborTerrain?.name === 'Ice' && moveType !== 'Flying') {
+          // If an ally (or other unit) occupies the ice entry tile, treat as normal
+          // passable tile — can't initiate a slide from an occupied tile.
+          if (!occupiedTilesSet.has(key)) {
+            const slide = resolveIceSlide(
+              nc,
+              nr,
+              { dc, dr },
+              this.mapLayout,
+              this.terrainData,
+              this.cols,
+              this.rows,
+              moveType,
+              occupiedTilesSet,
+            );
+            const landKey = `${slide.col},${slide.row}`;
+            const existing = reachable.get(landKey);
+            if (!existing || newCost < existing.cost) {
+              reachable.set(landKey, {
+                cost: newCost,
+                parent: `${current.col},${current.row}`,
+                slidePath: slide.slidePath,
+              });
+              queue.push({ col: slide.col, row: slide.row, cost: newCost });
+            }
+            continue;
+          }
+          // Fall through to normal tile handling below
+        }
 
         const existing = reachable.get(key);
         if (!existing || newCost < existing.cost) {
@@ -79,18 +124,57 @@ export class HeadlessGrid {
       }
     }
 
-    // Remove ally-occupied tiles from final results
+    // Mark ally-occupied tiles as non-stoppable
     if (unitPositions && moverFaction) {
-      for (const [key] of reachable) {
+      for (const [key, entry] of reachable) {
         if (key === `${startCol},${startRow}`) continue;
         const occupant = unitPositions.get(key);
         if (occupant && occupant.faction === moverFaction) {
-          reachable.delete(key);
+          entry.stoppable = false;
         }
       }
     }
 
     return reachable;
+  }
+
+  /**
+   * Reconstruct a path from Dijkstra reachable data, inserting slide segments.
+   */
+  reconstructIcePath(reachable, startCol, startRow, goalCol, goalRow) {
+    const goalKey = `${goalCol},${goalRow}`;
+    if (!reachable.has(goalKey)) return null;
+
+    const chain = [];
+    let key = goalKey;
+    while (key) {
+      const entry = reachable.get(key);
+      if (!entry) break;
+      chain.unshift({ key, entry });
+      key = entry.parent;
+    }
+
+    const path = [];
+    for (const { key: nodeKey, entry } of chain) {
+      const [c, r] = nodeKey.split(',').map(Number);
+      if (entry.slidePath && entry.slidePath.length > 1) {
+        for (const step of entry.slidePath) {
+          if (path.length > 0) {
+            const last = path[path.length - 1];
+            if (last.col === step.col && last.row === step.row) continue;
+          }
+          path.push({ col: step.col, row: step.row });
+        }
+      } else {
+        if (path.length > 0) {
+          const last = path[path.length - 1];
+          if (last.col === c && last.row === r) continue;
+        }
+        path.push({ col: c, row: r });
+      }
+    }
+
+    return path.length >= 2 ? path : null;
   }
 
   // A* pathfinding — returns array of {col, row} or null.

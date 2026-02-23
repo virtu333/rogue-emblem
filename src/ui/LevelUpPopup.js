@@ -37,13 +37,22 @@ export class LevelUpPopup {
       const cx = cam.width / 2;
       const cy = cam.height / 2;
 
-      const oldLevel = this.levelUpResult.newLevel - 1;
-      const newLevel = this.levelUpResult.newLevel;
       const gains = this.levelUpResult.gains;
+
+      // Compute display-friendly level strings (extended: "20+N")
+      let oldLevelStr, newLevelStr;
+      if (this.levelUpResult.isExtended) {
+        const extLv = this.levelUpResult.extendedLevel;
+        newLevelStr = `20+${extLv}`;
+        oldLevelStr = extLv - 1 === 0 ? '20' : `20+${extLv - 1}`;
+      } else {
+        oldLevelStr = String(this.levelUpResult.newLevel - 1);
+        newLevelStr = String(this.levelUpResult.newLevel);
+      }
 
       // Build text lines
       const lines = [];
-      lines.push(`  LEVEL UP!  Lv ${oldLevel} → Lv ${newLevel}`);
+      lines.push(`  LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`);
       lines.push('');
 
       const statLines = [];
@@ -95,7 +104,7 @@ export class LevelUpPopup {
       let y = cy - panelHeight / 2 + 14;
       const titleStr = this.isPromotion
         ? `PROMOTION!  ${this.unit.className}`
-        : `LEVEL UP!  Lv ${oldLevel} → Lv ${newLevel}`;
+        : `LEVEL UP!  Lv ${oldLevelStr} → Lv ${newLevelStr}`;
       const titleColor = this.isPromotion ? '#88ffff' : '#ffdd44';
       const title = this.scene.add
         .text(cx, y, titleStr, {

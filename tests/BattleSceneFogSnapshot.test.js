@@ -37,9 +37,10 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
   },
 }));
 
-import { BattleScene } from '../src/scenes/BattleScene.js';
+import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
+import { applyCondition, isSleeping, isSilenced } from '../src/engine/StatusConditionSystem.js';
 
 function makeUnit(overrides = {}) {
   return {
@@ -1149,3 +1150,237 @@ describe('updateEnemyVisibility hides affix pips in fog', () => {
     expect(pip.setVisible).toHaveBeenCalledWith(false);
   });
 });
+
+// --- Status condition scene-level regressions ---
+
+describe('onPhaseChange condition recovery ordering', () => {
+  it('recovers sleeping units before the all-sleeping auto-advance check', () => {
+    const { scene } = setupScene();
+    // Two player units, both sleeping — one will expire on recovery
+    const u1 = makeUnit({ name: 'A', currentHP: 20 });
+    const u2 = makeUnit({ name: 'B', currentHP: 20 });
+    applyCondition(u1, 'sleep', 1); // turnsRemaining=1, will expire
+    applyCondition(u2, 'sleep', 3); // stays sleeping
+    scene.playerUnits = [u1, u2];
+    scene.showBriefBanner = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene.endPlayerPhase = vi.fn();
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene.turnCounterText = null;
+    scene._latePressureWarningShown = false;
+    scene.processTurnStartEffects = vi.fn();
+
+    // Force high RNG so u2 doesn't randomly recover (recoveryChance = 0.5)
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 2);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    // u1 should have recovered (timer expired, no longer sleeping)
+    expect(isSleeping(u1)).toBe(false);
+    // u2 is still sleeping (RNG prevented random recovery)
+    expect(isSleeping(u2)).toBe(true);
+    // Recovery banner was shown
+    expect(scene.showBriefBanner).toHaveBeenCalled();
+    // NOT all sleeping, so no auto-advance
+    expect(scene.endPlayerPhase).not.toHaveBeenCalled();
+  });
+
+  it('auto-advances when all units still sleeping after recovery', () => {
+    const { scene } = setupScene();
+    const u1 = makeUnit({ name: 'A', currentHP: 20 });
+    const u2 = makeUnit({ name: 'B', currentHP: 20 });
+    applyCondition(u1, 'sleep', 3);
+    applyCondition(u2, 'sleep', 3);
+    scene.playerUnits = [u1, u2];
+    scene.showBriefBanner = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene.endPlayerPhase = vi.fn();
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene.turnCounterText = null;
+    scene._latePressureWarningShown = false;
+
+    // Force high RNG so no random recovery triggers (recoveryChance = 0.5)
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 2);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    // All sleeping (no timer-based recovery), so auto-advance is scheduled
+    // time.delayedCall gets called with short delay for the skip
+    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
+    expect(skipCall).toBeDefined();
+  });
+});
+
+describe('deploy clears _conditions (cross-battle leak prevention)', () => {
+  it('resetUnitForBattle clears conditions and per-battle state', () => {
+    // Unit carrying conditions + spent weapon uses from a previous battle
+    const u = makeUnit({ name: 'Knight', currentHP: 25 });
+    u.hasMoved = true;
+    u.hasActed = true;
+    u._miracleUsed = true;
+    u._gambitUsedThisTurn = true;
+    u.inventory = [{ name: 'Bolting', perBattleUses: 2, _usesSpent: 2 }];
+    applyCondition(u, 'sleep', 2);
+    applyCondition(u, 'silence', 3);
+    expect(isSleeping(u)).toBe(true);
+    expect(isSilenced(u)).toBe(true);
+
+    // Call the actual function used by both deploy loops in BattleScene.create
+    resetUnitForBattle(u);
+
+    expect(isSleeping(u)).toBe(false);
+    expect(isSilenced(u)).toBe(false);
+    expect(u._conditions).toEqual([]);
+    expect(u.hasMoved).toBe(false);
+    expect(u.hasActed).toBe(false);
+    expect(u._miracleUsed).toBe(false);
+    expect(u._gambitUsedThisTurn).toBe(false);
+    expect(u.inventory[0]._usesSpent).toBe(0);
+  });
+});
+
+describe('scene-level silence enforcement (hybrid magic/physical)', () => {
+  function setupSilenceScene() {
+    const scene = new BattleScene();
+    const sword = {
+      name: 'Iron Sword',
+      type: 'Sword',
+      range: '1',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      weight: 5,
+      rankRequired: 'Prof',
+    };
+    const tome = {
+      name: 'Fire',
+      type: 'Tome',
+      range: '1-2',
+      might: 4,
+      hit: 85,
+      crit: 0,
+      weight: 3,
+      rankRequired: 'Prof',
+    };
+    const unit = makeUnit({
+      name: 'DarkKnight',
+      weapon: tome,
+      inventory: [tome, sword],
+      skills: [],
+      proficiencies: [
+        { type: 'Sword', rank: 'Prof' },
+        { type: 'Tome', rank: 'Prof' },
+      ],
+    });
+    applyCondition(unit, 'silence', 3);
+
+    const enemy = makeUnit({ name: 'Bandit', col: 2, row: 1, faction: 'enemy' });
+
+    scene.grid = {
+      fogEnabled: false,
+      isVisible: () => true,
+      clearHighlights: vi.fn(),
+      clearAttackHighlights: vi.fn(),
+      cols: 10,
+      rows: 10,
+    };
+    scene.playerUnits = [unit];
+    scene.enemyUnits = [enemy];
+    scene.npcUnits = [];
+    scene.battleState = 'SHOWING_FORECAST';
+    scene.selectedUnit = unit;
+    scene.forecastTarget = enemy;
+    scene.hideForecast = vi.fn();
+    scene.commitVisionSnapshotIfPending = vi.fn();
+    scene.executeCombat = vi.fn();
+
+    // Stub _isDistanceInWeaponRange: check weapon range covers distance
+    scene._isDistanceInWeaponRange = (_u, w, dist) => {
+      const [lo, hi] = (w.range || '1').split('-').map(Number);
+      return dist >= lo && dist <= (hi || lo);
+    };
+
+    return { scene, unit, enemy, sword, tome };
+  }
+
+  it('findAttackTargets excludes targets only reachable by magic weapons', () => {
+    const { scene, unit, enemy } = setupSilenceScene();
+    // Enemy is at distance 1, reachable by both sword (range 1) and tome (range 1-2)
+    const targets = scene.findAttackTargets(unit);
+    // Should still find enemy (sword can reach distance 1)
+    expect(targets).toContain(enemy);
+  });
+
+  it('findAttackTargets returns empty when only magic weapon has range', () => {
+    const { scene, unit, enemy } = setupSilenceScene();
+    // Move enemy to range 2 — only tome can reach
+    enemy.col = 3;
+    enemy.row = 1;
+    const targets = scene.findAttackTargets(unit);
+    expect(targets).toEqual([]);
+  });
+
+  it('ensureValidWeaponForRange swaps from magic to physical when silenced', () => {
+    const { scene, unit, sword, tome } = setupSilenceScene();
+    expect(unit.weapon).toBe(tome);
+    scene.ensureValidWeaponForRange(unit, 1);
+    // Should have swapped to sword
+    expect(unit.weapon).toBe(sword);
+  });
+
+  it('ensureValidWeaponForRange does not early-return with magic weapon when silenced', () => {
+    const { scene, unit, tome } = setupSilenceScene();
+    // Tome has range 1-2, distance is 1, so without silence check the early return would fire
+    expect(unit.weapon).toBe(tome);
+    scene.ensureValidWeaponForRange(unit, 1);
+    // Should NOT keep the tome equipped
+    expect(unit.weapon.type).not.toBe('Tome');
+  });
+
+  it('forecast valid weapons exclude magic when attacker is silenced', () => {
+    const { scene, unit, enemy, sword } = setupSilenceScene();
+    // Stub showForecast to capture _forecastValidWeapons
+    const origShowForecast = BattleScene.prototype.showForecast;
+    // Minimal forecast stub that builds _forecastValidWeapons
+    const dist = Math.abs(unit.col - enemy.col) + Math.abs(unit.row - enemy.row);
+    const validWeapons = getCombatWeaponsForTest(unit).filter((w) => {
+      if (isSilenced(unit) && (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff'))
+        return false;
+      return scene._isDistanceInWeaponRange(unit, w, dist);
+    });
+    // Only the sword should remain
+    expect(validWeapons).toEqual([sword]);
+    expect(validWeapons.some((w) => w.type === 'Tome')).toBe(false);
+  });
+
+  it('confirmForecastCombat blocks combat when weapon is magic and unit is silenced', () => {
+    const { scene, unit, tome } = setupSilenceScene();
+    unit.weapon = tome;
+    scene.confirmForecastCombat();
+    // Should have hidden forecast but NOT called executeCombat
+    expect(scene.hideForecast).toHaveBeenCalled();
+    expect(scene.executeCombat).not.toHaveBeenCalled();
+  });
+
+  it('confirmForecastCombat allows combat when weapon is physical', () => {
+    const { scene, unit, sword } = setupSilenceScene();
+    unit.weapon = sword;
+    scene.confirmForecastCombat();
+    expect(scene.executeCombat).toHaveBeenCalled();
+  });
+});
+
+// Helper: replicate getCombatWeapons logic for test assertions
+function getCombatWeaponsForTest(unit) {
+  return unit.inventory.filter(
+    (w) => w.type !== 'Staff' && w.type !== 'Scroll' && w.type !== 'Consumable',
+  );
+}

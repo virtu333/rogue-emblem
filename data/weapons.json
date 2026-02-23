@@ -717,6 +717,38 @@
     "price": 0
   },
   {
+    "name": "Sleep Staff",
+    "type": "Staff",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 40,
+    "crit": 0,
+    "weight": 2,
+    "range": "3-5",
+    "uses": 1,
+    "perBattleUses": true,
+    "statusEffect": "sleep",
+    "special": "Puts target to sleep (3 turns, 50% wake/turn, wakes on damage)",
+    "price": 0
+  },
+  {
+    "name": "Silence Staff",
+    "type": "Staff",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 40,
+    "crit": 0,
+    "weight": 2,
+    "range": "3-7",
+    "uses": 2,
+    "perBattleUses": true,
+    "statusEffect": "silence",
+    "special": "Silences target (3 turns, 50% recovery/turn, blocks magic/skills)",
+    "price": 0
+  },
+  {
     "name": "Armorslayer",
     "type": "Sword",
     "tier": "Steel",

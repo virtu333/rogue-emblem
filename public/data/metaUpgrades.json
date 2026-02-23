@@ -1392,6 +1392,15 @@
     ]
   },
   {
+    "id": "extra_skill_slot",
+    "name": "Extra Skill Slot",
+    "description": "Each lord can equip a second starting skill",
+    "category": "starting_skills",
+    "maxLevel": 1,
+    "costs": [300],
+    "effects": [{ "extraSkillSlot": 1 }]
+  },
+  {
     "id": "unlock_sol",
     "name": "Sol",
     "description": "SKL% chance to heal damage dealt",

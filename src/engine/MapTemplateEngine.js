@@ -252,7 +252,7 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     'turnOffsetByDifficulty',
     'xpDecay',
   ]);
-  const knownKeys = new Set([...requiredKeys, 'turnJitter', 'scriptedWaves']);
+  const knownKeys = new Set([...requiredKeys, 'turnJitter', 'scriptedWaves', 'minActByDifficulty']);
   for (const key of requiredKeys) {
     if (!(key in reinforcements)) {
       errors.push(`${path}.reinforcements missing required key: ${key}`);
@@ -293,6 +293,23 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     validateTurnJitter(`${path}.reinforcements.turnJitter`, reinforcements.turnJitter, errors);
   }
   validateXpDecay(`${path}.reinforcements.xpDecay`, reinforcements.xpDecay, errors);
+  if (reinforcements.minActByDifficulty !== undefined) {
+    const gating = reinforcements.minActByDifficulty;
+    if (!isObject(gating)) {
+      errors.push(`${path}.reinforcements.minActByDifficulty must be an object`);
+    } else {
+      const validDifficultyKeys = new Set(DIFFICULTY_IDS);
+      if (!hasOnlyKnownKeys(gating, validDifficultyKeys)) {
+        errors.push(`${path}.reinforcements.minActByDifficulty contains unknown difficulty keys`);
+      }
+      const validActs = new Set(['act1', 'act2', 'act3', 'act4']);
+      for (const [key, value] of Object.entries(gating)) {
+        if (!validActs.has(value)) {
+          errors.push(`${path}.reinforcements.minActByDifficulty["${key}"] must be a valid act`);
+        }
+      }
+    }
+  }
   validateScriptedWaves(
     `${path}.reinforcements.scriptedWaves`,
     reinforcements.scriptedWaves,

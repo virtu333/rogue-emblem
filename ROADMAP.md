@@ -217,7 +217,7 @@ All phases complete on `main` as of Feb 15, 2026.
 - [ ] Lord Weapon Mastery - upgrade primary to Mastery pre-promotion (400 Valor)
 - [ ] Base Class Innate Skill unlocks (10 upgrades, 150-250 Supply each)
 - [ ] Promoted Class Innate Skill unlocks (10 upgrades, 200-350 Supply each)
-- [ ] Equipped Skill Slots - increase max from 2->3->4 (400->600 Valor)
+- [x] Extra Skill Slot - gate 2nd lord skill slot behind 300 Valor upgrade (shipped)
 - [ ] Better Shop Inventory - higher tier items 1 act earlier (2 tiers, 200->400 Supply)
 - [ ] Extra Node Events - +1 RECRUIT guaranteed per act (350 Supply)
 - [ ] NPC Warriors - recruit battle NPCs gain +2 all stats (200 Supply)

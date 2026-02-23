@@ -40,7 +40,7 @@ describe('Act4 progression guards', () => {
     expect(data.enemies.bosses.finalBoss).toBeDefined();
   });
 
-  it('difficulty mode act sequences keep normal/lunatic unchanged and add act4 to hard', () => {
+  it('difficulty mode act sequences include act4 for hard and lunatic', () => {
     expect(data.difficulty.modes.normal.actsIncluded).toEqual([
       'act1',
       'act2',
@@ -58,6 +58,7 @@ describe('Act4 progression guards', () => {
       'act1',
       'act2',
       'act3',
+      'act4',
       'finalBoss',
     ]);
   });

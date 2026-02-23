@@ -313,3 +313,56 @@ describe('SkillSystem Fury crit scaling edge cases', () => {
     expect(Number.isFinite(mods.critBonus)).toBe(true);
   });
 });
+
+describe('SkillSystem silence blocking', () => {
+  it('silenced unit gets no skill combat mods', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const gameData = loadGameData();
+    const unit = {
+      name: 'Silenced',
+      col: 5,
+      row: 5,
+      skills: ['wrath', 'vantage'],
+      stats: { HP: 30, STR: 10, MAG: 5, SKL: 10, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      currentHP: 12,
+      weapon: gameData.weapons.find((w) => w.type === 'Sword'),
+      accessory: null,
+    };
+    const enemy = {
+      name: 'Enemy',
+      col: 5,
+      row: 6,
+      skills: [],
+      stats: { HP: 30, STR: 10, MAG: 0, SKL: 10, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      currentHP: 30,
+      weapon: gameData.weapons.find((w) => w.type === 'Sword'),
+      accessory: null,
+    };
+    applyCondition(unit, 'silence', 3);
+
+    const mods = getSkillCombatMods(unit, enemy, [], [], gameData.skills, null);
+    // Wrath would normally give crit bonus below 50% HP, but silence blocks it
+    expect(mods.critBonus || 0).toBe(0);
+  });
+
+  it('silenced unit skipped in getTurnStartEffects', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const gameData = loadGameData();
+    const unit = {
+      name: 'Silenced',
+      col: 3,
+      row: 3,
+      skills: ['renewal'],
+      stats: { HP: 30, STR: 10, MAG: 5, SKL: 10, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      currentHP: 20,
+      weapon: null,
+      accessory: null,
+    };
+    applyCondition(unit, 'silence', 3);
+
+    const effects = getTurnStartEffects([unit], gameData.skills);
+    // Renewal heals at turn start, but silence blocks skill effects
+    const healEffect = effects.find((e) => e.unit === unit && e.hpChange > 0);
+    expect(healEffect).toBeUndefined();
+  });
+});

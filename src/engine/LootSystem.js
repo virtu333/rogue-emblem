@@ -1090,5 +1090,22 @@ export function generateShopInventory(
     });
   }
 
+  // Append cure items (Herb + Remedy) if shop cure gating is active for this act
+  const shopCureGating = generateOptions?.shopCureGating;
+  if (shopCureGating && shopCureGating[actId]) {
+    for (const cureName of ['Herb', 'Remedy']) {
+      if (usedNames.has(cureName)) continue;
+      const cureItem = consumables?.find((c) => c.name === cureName);
+      if (cureItem && cureItem.price > 0) {
+        usedNames.add(cureName);
+        inventory.push({
+          item: structuredClone(cureItem),
+          price: cureItem.price,
+          type: 'consumable',
+        });
+      }
+    }
+  }
+
   return inventory;
 }

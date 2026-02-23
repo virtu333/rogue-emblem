@@ -16,7 +16,8 @@ import {
   getWeaponArtIds,
   isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
-import { canEquip } from '../engine/UnitManager.js';
+import { canEquip, getDisplayLevel } from '../engine/UnitManager.js';
+import { isStatusStaff, parseStaffRange } from '../engine/StatusConditionSystem.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
@@ -225,7 +226,7 @@ export class UnitDetailOverlay {
     this._unitText(
       lx,
       y,
-      `Lv ${unit.level || 1}  ${unit.className || ''}  (${tierStr})`,
+      `Lv ${getDisplayLevel(unit)}  ${unit.className || ''}  (${tierStr})`,
       UI_COLORS.white,
       '10px',
     );
@@ -617,6 +618,16 @@ export class UnitDetailOverlay {
         this._tabText(lx, y, ` ${item.name} (${item.uses})`, '#88ff88', '9px');
         y += 12;
       }
+    }
+
+    // Status Staff (enemy-only)
+    if (unit.statusStaff && isStatusStaff(unit.statusStaff)) {
+      const staff = unit.statusStaff;
+      const rng = parseStaffRange(staff.range);
+      const rngStr = rng ? `Rng${rng.min}-${rng.max}` : '';
+      const uses = (staff.uses || 0) - (staff._usesSpent || 0);
+      this._tabText(lx, y, ` ${staff.name} (${uses}/${staff.uses}) ${rngStr}`, '#ff8888', '9px');
+      y += 12;
     }
 
     // Accessory

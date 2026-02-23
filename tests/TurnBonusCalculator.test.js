@@ -5,6 +5,8 @@ import {
   calculateBonusGold,
   getLatePressureState,
   isBossEnrageActive,
+  getParXpMultiplier,
+  formatParTooltip,
 } from '../src/engine/TurnBonusCalculator.js';
 import { loadGameData } from './testData.js';
 import { GOLD_PAR_BONUS_MULTIPLIER } from '../src/utils/constants.js';
@@ -114,8 +116,11 @@ describe('TurnBonusCalculator', () => {
         config,
       );
 
-      // basePar=4 + 14*0.6=8.4 + 120*0.01=1.2 + (diffCount/120)*1.0 + adj=1
-      const expected = Math.ceil((4 + 8.4 + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8);
+      // sqrt scaling: min(14*0.6=8.4, sqrt(14)*1.3≈4.86) = 4.86
+      const linearPenalty = 14 * 0.6;
+      const sqrtPenalty = Math.sqrt(14) * 1.3;
+      const enemyPenalty = Math.min(linearPenalty, sqrtPenalty);
+      const expected = Math.ceil((4 + enemyPenalty + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8);
       expect(par).toBe(expected);
     });
 
@@ -432,5 +437,141 @@ describe('TurnBonusCalculator', () => {
         expect(scRatio).toBeGreaterThanOrEqual(1.7);
       });
     }
+  });
+
+  describe('sqrt enemy scaling (min of linear and sqrt)', () => {
+    it('uses linear penalty for small enemy counts (≤4)', () => {
+      // 3 enemies: linear=1.8, sqrt=sqrt(3)*1.3≈2.25 → min=1.8 (linear)
+      const par3 = calculatePar(
+        makeMapParams({ cols: 8, rows: 6, enemyCount: 3, objective: 'rout' }),
+        config,
+      );
+      // Same config without sqrt: enemyPenalty=1.8 either way
+      const noSqrtConfig = { ...config };
+      delete noSqrtConfig.enemyScaling;
+      const par3Linear = calculatePar(
+        makeMapParams({ cols: 8, rows: 6, enemyCount: 3, objective: 'rout' }),
+        noSqrtConfig,
+      );
+      expect(par3).toBe(par3Linear);
+    });
+
+    it('uses sqrt penalty for larger enemy counts', () => {
+      // 12 enemies: linear=7.2, sqrt=sqrt(12)*1.3≈4.50 → min=4.50 (sqrt wins)
+      const par12 = calculatePar(
+        makeMapParams({ cols: 12, rows: 10, enemyCount: 12, objective: 'rout' }),
+        config,
+      );
+      const noSqrtConfig = { ...config };
+      delete noSqrtConfig.enemyScaling;
+      const par12Linear = calculatePar(
+        makeMapParams({ cols: 12, rows: 10, enemyCount: 12, objective: 'rout' }),
+        noSqrtConfig,
+      );
+      expect(par12).toBeLessThan(par12Linear);
+    });
+
+    it('never increases par compared to linear-only scaling', () => {
+      const noSqrtConfig = { ...config };
+      delete noSqrtConfig.enemyScaling;
+      for (const count of [1, 2, 3, 4, 5, 8, 12, 15, 20]) {
+        const params = makeMapParams({ cols: 10, rows: 8, enemyCount: count, objective: 'rout' });
+        const sqrtPar = calculatePar(params, config);
+        const linearPar = calculatePar(params, noSqrtConfig);
+        expect(sqrtPar).toBeLessThanOrEqual(linearPar);
+      }
+    });
+
+    it('compresses par significantly for 15 enemies', () => {
+      // 15 enemies: linear=9.0, sqrt=sqrt(15)*1.3≈5.03 → saves ~4 turns of penalty
+      const par15 = calculatePar(
+        makeMapParams({ cols: 13, rows: 20, enemyCount: 15, objective: 'seize' }),
+        config,
+      );
+      const noSqrtConfig = { ...config };
+      delete noSqrtConfig.enemyScaling;
+      const par15Linear = calculatePar(
+        makeMapParams({ cols: 13, rows: 20, enemyCount: 15, objective: 'seize' }),
+        noSqrtConfig,
+      );
+      expect(par15Linear - par15).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('getParXpMultiplier', () => {
+    it('returns S-rank multiplier when at par', () => {
+      expect(getParXpMultiplier(5, 5, config)).toBe(1.25);
+    });
+
+    it('returns A-rank multiplier when 1-3 turns over par', () => {
+      expect(getParXpMultiplier(8, 5, config)).toBe(1.1);
+    });
+
+    it('returns B-rank multiplier when 4-6 turns over par', () => {
+      expect(getParXpMultiplier(10, 5, config)).toBe(1.0);
+    });
+
+    it('returns C-rank multiplier when 7+ turns over par', () => {
+      expect(getParXpMultiplier(15, 5, config)).toBe(0.9);
+    });
+
+    it('returns 1 when config has no parXpMultipliers', () => {
+      const noXpConfig = { ...config };
+      delete noXpConfig.parXpMultipliers;
+      expect(getParXpMultiplier(5, 5, noXpConfig)).toBe(1);
+    });
+
+    it('returns 1 when par is null or NaN', () => {
+      expect(getParXpMultiplier(5, null, config)).toBe(1);
+      expect(getParXpMultiplier(5, NaN, config)).toBe(1);
+    });
+
+    it('returns 1 when config is null', () => {
+      expect(getParXpMultiplier(5, 5, null)).toBe(1);
+    });
+  });
+
+  describe('formatParTooltip', () => {
+    it('shows S-rank values without pressure line when under par', () => {
+      const text = formatParTooltip(3, 5, config);
+      expect(text).toBe('S-rank \u00b7 XP \u00d71.25 \u00b7 Par Gold \u00d71.00');
+      expect(text).not.toContain('Late');
+    });
+
+    it('shows C-rank values without pressure when config suppresses pressure', () => {
+      // Default config: C-rank at >6 over, pressure at >5 over → always overlap.
+      // Use custom config with high startOverPar to isolate C-rank without pressure.
+      const noPressureConfig = {
+        ...config,
+        latePressure: { ...config.latePressure, startOverPar: 999 },
+      };
+      const text = formatParTooltip(15, 5, noPressureConfig);
+      expect(text).toBe('C-rank \u00b7 XP \u00d70.90 \u00b7 Par Gold \u00d70.00');
+      expect(text).not.toContain('Late');
+    });
+
+    it('shows two-line output with effective combined multipliers under pressure', () => {
+      // turn 20, par 5 → 15 over → C-rank + pressure active
+      const text = formatParTooltip(20, 5, config);
+      const lines = text.split('\n');
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toBe('C-rank \u00b7 XP \u00d70.90 \u00b7 Par Gold \u00d70.00');
+      // Pressure step: (15-5)/2 = 5 → xpMult[5]=0.1, goldMult[5]=0.1
+      // eff XP: 0.90*0.1=0.09, eff gold: 0.00*0.1=0.00, kill gold: 0.10
+      expect(lines[1]).toContain('eff XP');
+      expect(lines[1]).toContain('kill gold');
+      expect(lines[1]).toContain('0.10');
+    });
+
+    it('returns null when config is missing', () => {
+      expect(formatParTooltip(5, 5, null)).toBeNull();
+      expect(formatParTooltip(5, 5, undefined)).toBeNull();
+    });
+
+    it('returns null when par is not finite', () => {
+      expect(formatParTooltip(5, null, config)).toBeNull();
+      expect(formatParTooltip(5, NaN, config)).toBeNull();
+      expect(formatParTooltip(5, Infinity, config)).toBeNull();
+    });
   });
 });

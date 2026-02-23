@@ -1355,13 +1355,19 @@ describe('Staff effective range', () => {
 });
 
 describe('Staff data integrity', () => {
-  it('all staves have healBase and uses fields', () => {
+  it('all staves have uses field; heal staves have healBase', () => {
     const staves = data.weapons.filter((w) => w.type === 'Staff');
-    expect(staves.length).toBe(5);
-    for (const staff of staves) {
+    expect(staves.length).toBe(7);
+    const healStaves = staves.filter((s) => !s.statusEffect);
+    const statusStaves = staves.filter((s) => s.statusEffect);
+    expect(healStaves.length).toBe(5);
+    expect(statusStaves.length).toBe(2);
+    for (const staff of healStaves) {
       expect(staff.healBase).toBeDefined();
-      expect(staff.uses).toBeDefined();
       expect(typeof staff.healBase).toBe('number');
+    }
+    for (const staff of staves) {
+      expect(staff.uses).toBeDefined();
       expect(typeof staff.uses).toBe('number');
     }
   });
@@ -2245,5 +2251,137 @@ describe('Proc precedence and Cancel follow-up ownership', () => {
 
     const strikeOrder = result.events.filter((e) => e.type === 'strike').map((e) => e.attacker);
     expect(strikeOrder).toEqual([defender.name, attacker.name, defender.name]);
+  });
+});
+
+// --- Status condition combat integration ---
+describe('Status conditions in combat', () => {
+  it('sleeping defender wakes on damage (wokeFromSleep flag)', () => {
+    const { applyCondition, isSleeping } = require('../src/engine/StatusConditionSystem.js');
+    const attacker = makeUnit({ name: 'Atk', stats: { ...makeUnit().stats, STR: 15, SPD: 12 } });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
+      currentHP: 30,
+    });
+    applyCondition(defender, 'sleep', 3);
+    expect(isSleeping(defender)).toBe(true);
+
+    // Force all hits to land for deterministic wake behavior
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1);
+    vi.restoreAllMocks();
+
+    const strikes = result.events.filter((e) => e.type === 'strike');
+    const firstHit = strikes.find((s) => !s.miss && s.damage > 0);
+    expect(firstHit).toBeDefined();
+    expect(firstHit.wokeFromSleep).toBe(true);
+    expect(isSleeping(defender)).toBe(false);
+  });
+
+  it('sleeping defender cannot counter-attack', () => {
+    const { applyCondition, isSleeping } = require('../src/engine/StatusConditionSystem.js');
+    const attacker = makeUnit({ name: 'Atk', stats: { ...makeUnit().stats, STR: 15, SPD: 12 } });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { ...makeUnit().stats, DEF: 5, SPD: 8 },
+      currentHP: 30,
+    });
+    applyCondition(defender, 'sleep', 3);
+
+    // Force all hits to land
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1);
+    vi.restoreAllMocks();
+
+    // Defender should never strike back — wakes on damage but cannot retaliate this combat
+    const defStrikes = result.events.filter(
+      (e) => e.type === 'strike' && e.attackerSide === 'defender',
+    );
+    expect(defStrikes).toHaveLength(0);
+    // Attacker should have struck and woken the defender
+    const atkStrikes = result.events.filter(
+      (e) => e.type === 'strike' && e.attackerSide === 'attacker',
+    );
+    expect(atkStrikes.length).toBeGreaterThan(0);
+    expect(atkStrikes[0].wokeFromSleep).toBe(true);
+    expect(isSleeping(defender)).toBe(false);
+  });
+
+  it('forecast shows sleeping defender cannot counter', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const attacker = makeUnit({ name: 'Atk', stats: { ...makeUnit().stats, STR: 15 } });
+    const defender = makeUnit({
+      name: 'Def',
+      stats: { ...makeUnit().stats, DEF: 5 },
+      currentHP: 30,
+    });
+    applyCondition(defender, 'sleep', 3);
+    const fc = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1);
+    expect(fc.defender.canCounter).toBe(false);
+    expect(fc.defender.attackCount).toBe(0);
+  });
+
+  it('silenced defender cannot counter with magic weapon', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const tome = data.weapons.find((w) => w.type === 'Tome');
+    const attacker = makeUnit({
+      name: 'Atk',
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
+    });
+    const defender = makeUnit({
+      name: 'Def',
+      weapon: tome,
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      className: 'Mage',
+    });
+    applyCondition(defender, 'silence', 3);
+
+    const forecast = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1);
+    expect(forecast.defender.canCounter).toBe(false);
+    expect(forecast.defender.attackCount).toBe(0);
+  });
+
+  it('silenced defender CAN counter with physical weapon', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const attacker = makeUnit({ name: 'Atk' });
+    const defender = makeUnit({
+      name: 'Def',
+      weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
+    });
+    applyCondition(defender, 'silence', 3);
+
+    const forecast = getCombatForecast(attacker, attacker.weapon, defender, defender.weapon, 1);
+    expect(forecast.defender.canCounter).toBe(true);
+    expect(forecast.defender.attackCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('silenced attacker with magic weapon gets 0 hit and 0 damage in forecast', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const tome = data.weapons.find((w) => w.type === 'Tome');
+    const attacker = makeUnit({
+      name: 'Silenced Mage',
+      weapon: tome,
+      proficiencies: [{ type: 'Tome', rank: 'Prof' }],
+      className: 'Mage',
+    });
+    const defender = makeUnit({ name: 'Target' });
+    applyCondition(attacker, 'silence', 3);
+
+    const forecast = getCombatForecast(attacker, tome, defender, defender.weapon, 1);
+    expect(forecast.attacker.damage).toBe(0);
+    expect(forecast.attacker.hit).toBe(0);
+  });
+
+  it('silenced attacker with physical weapon is unaffected', () => {
+    const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+    const sword = data.weapons.find((w) => w.name === 'Iron Sword');
+    const attacker = makeUnit({ name: 'Paladin', weapon: sword });
+    const defender = makeUnit({ name: 'Target' });
+    applyCondition(attacker, 'silence', 3);
+
+    const forecast = getCombatForecast(attacker, sword, defender, defender.weapon, 1);
+    expect(forecast.attacker.damage).toBeGreaterThan(0);
+    expect(forecast.attacker.hit).toBeGreaterThan(0);
   });
 });

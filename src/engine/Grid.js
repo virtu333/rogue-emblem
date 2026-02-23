@@ -128,22 +128,14 @@ export function computeEffectivePath(
       const stepKey = `${step.col},${step.row}`;
       // If ice entry is occupied, force-stop at prior unoccupied tile
       if (occupiedTiles.has(stepKey)) {
-        let stopIndex = effectivePath.length - 1;
-        while (stopIndex >= 0) {
-          const s = effectivePath[stopIndex];
-          if (!occupiedTiles.has(`${s.col},${s.row}`)) break;
-          stopIndex -= 1;
-        }
-        if (stopIndex < 0) stopIndex = 0;
-        const trimmed = effectivePath.slice(0, stopIndex + 1);
-        return {
-          effectivePath: trimmed,
-          slideSegments,
-          movementCost,
-          slideStartIndex: slideSegments.length > 0 ? slideSegments[0].startIndex : -1,
-          slidePath: slideSegments.length > 0 ? slideSegments[0].slidePath : [],
-          pathEndIndex: stopIndex,
-        };
+        // Occupied ice entry — walk through normally, no slide.
+        // Mirrors getMovementRange which allows ally traversal on ice.
+        const rawCost = parseInt(stepTerrain.moveCost?.[moveType] || '1', 10);
+        const cost = costModifier ? Math.max(1, rawCost - costModifier) : rawCost;
+        movementCost += Number.isFinite(cost) ? cost : 1;
+        effectivePath.push({ col: step.col, row: step.row });
+        i++;
+        continue;
       }
 
       // Add the walk-onto-ice cost

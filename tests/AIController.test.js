@@ -679,4 +679,101 @@ describe('AIController', () => {
       expect(ai.thronePos).toEqual(tp);
     });
   });
+
+  describe('Status staff targeting', () => {
+    it('enemy with status staff targets player in range', () => {
+      const player = makePlayer({ col: 7, row: 5, isLord: true });
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+        { col: 4, row: 5 },
+        { col: 5, row: 4 },
+        { col: 5, row: 6 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 0,
+        },
+      });
+      const grid = createMockGrid(moveTiles);
+      const occupancy = {};
+      const ai = new AIController(grid, occupancy);
+
+      const decision = ai._decideAction(enemy, [], [player]);
+      // Staff range 3-5: tiles (4,5), (5,4), (5,6) are all dist 3 from player at (7,5).
+      expect(decision).toBeDefined();
+      expect(decision.statusStaffTarget).toBeDefined();
+      expect(decision.reason).toBe('status_staff');
+    });
+
+    it('skips already-afflicted targets', () => {
+      const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+      const player = makePlayer({ col: 7, row: 5 });
+      applyCondition(player, 'sleep', 3);
+
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 0,
+        },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+
+      const decision = ai._decideAction(enemy, [], [player]);
+      // Already sleeping — should not pick status staff
+      expect(decision.statusStaffTarget).toBeUndefined();
+    });
+
+    it('falls through to normal attack when staff uses exhausted', () => {
+      const player = makePlayer({ col: 6, row: 5 });
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 1, // exhausted
+        },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      // Should not pick status staff since uses exhausted; should fall back to normal attack
+      expect(decision.statusStaffTarget).toBeUndefined();
+      expect(decision.target).toBeDefined();
+      expect(decision.reason).toBe('attack_in_range');
+    });
+  });
 });

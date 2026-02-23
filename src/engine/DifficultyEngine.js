@@ -11,6 +11,8 @@ export const DIFFICULTY_REQUIRED_KEYS = [
   'enemySkillChance',
   'enemyPoisonChance',
   'enemyStatusStaffChance',
+  'statusStaffConfig',
+  'shopCureGating',
   'goldMultiplier',
   'shopPriceMultiplier',
   'lootQualityShift',
@@ -33,6 +35,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   enemySkillChance: 0,
   enemyPoisonChance: 0,
   enemyStatusStaffChance: 0,
+  statusStaffConfig: null,
+  shopCureGating: null,
   goldMultiplier: 1,
   shopPriceMultiplier: 1,
   lootQualityShift: 0,
@@ -81,13 +85,21 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
     lines.push(`+${Math.round((mode.currencyMultiplier - 1) * 100)}% meta currency`);
   }
   if (mode.extendedLevelingEnabled && !defaults.extendedLevelingEnabled) {
-    lines.push('Extended enemy leveling');
+    lines.push('Extended leveling past Lv 20');
   }
   if (mode.enemyPoisonChance > (defaults.enemyPoisonChance || 0)) {
     lines.push(`+${Math.round(mode.enemyPoisonChance * 100)}% enemy poison chance`);
   }
   if (mode.enemyEquipTierShift > (defaults.enemyEquipTierShift || 0)) {
     lines.push(`Enemy weapon tier +${mode.enemyEquipTierShift}`);
+  }
+  if (mode.statusStaffConfig) {
+    const cfg = mode.statusStaffConfig;
+    const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
+    if (firstAct) {
+      const actNum = firstAct.replace('act', '');
+      lines.push(`Status staves from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
+    }
   }
   return lines;
 }
@@ -139,6 +151,12 @@ export function validateDifficultyConfig(config) {
       if (key === 'extendedLevelingEnabled') {
         if (typeof value !== 'boolean')
           errors.push(`modes.${difficultyId}.extendedLevelingEnabled must be boolean`);
+        continue;
+      }
+      if (key === 'statusStaffConfig' || key === 'shopCureGating') {
+        if (value !== null && !isObject(value)) {
+          errors.push(`modes.${difficultyId}.${key} must be null or an object`);
+        }
         continue;
       }
       if (!isFiniteNumber(value)) {

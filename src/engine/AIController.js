@@ -6,6 +6,7 @@
 import { gridDistance, isInRange } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
+import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
@@ -67,6 +68,13 @@ export class AIController {
     // Move if we have a path
     if (decision.path && decision.path.length >= 2) {
       await callbacks.onMoveUnit(enemy, decision.path);
+    }
+
+    // Status staff use (separate from normal attack)
+    if (decision.statusStaffTarget) {
+      await callbacks.onStatusStaff?.(enemy, decision.statusStaffTarget);
+      callbacks.onUnitDone(enemy);
+      return;
     }
 
     // Attack if we have a target in range. If movement/terrain changed state and the
@@ -157,7 +165,8 @@ export class AIController {
 
     // Add current position to candidates
     let candidates = [{ col: enemy.col, row: enemy.row }];
-    for (const [key] of moveRange) {
+    for (const [key, entry] of moveRange) {
+      if (entry.stoppable === false) continue;
       const [col, row] = key.split(',').map(Number);
       // Exclude tiles occupied by other units
       if (unitPositions.has(key)) continue;
@@ -184,11 +193,69 @@ export class AIController {
     for (const tile of candidates) {
       let path = null;
       if (tile.col !== enemy.col || tile.row !== enemy.row) {
-        path = this._buildPath(enemy, tile, unitPositions);
+        path = this._buildPath(enemy, tile, unitPositions, moveRange);
         if (!path || path.length < 2) continue;
       }
       const { finalTile } = this._predictFinalTileFromPath(enemy, tile, path, occupiedTiles);
       candidatePlans.push({ tile, path, finalTile });
+    }
+
+    // --- Status staff targeting (checked before normal attack) ---
+    const staff = enemy.statusStaff;
+    const staffUsesLeft = staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses;
+    if (staffUsesLeft) {
+      const staffRange = parseStaffRange(staff.range);
+      const condId = staff.statusEffect;
+      const playerTargets = playerUnits.filter(
+        (u) => u && u.currentHP > 0 && !u._removing && !hasCondition(u, condId),
+      );
+      let bestStaffTarget = null;
+      let bestStaffScore = -Infinity;
+      let bestStaffCandidate = null;
+      for (const candidate of candidatePlans) {
+        for (const target of playerTargets) {
+          const dist = gridDistance(
+            candidate.finalTile.col,
+            candidate.finalTile.row,
+            target.col,
+            target.row,
+          );
+          if (dist < staffRange.min || dist > staffRange.max) continue;
+          // Score: prefer high-threat targets
+          let score = 0;
+          if (condId === 'sleep') {
+            // Sleep: lord > high ATK > hasn't acted
+            score += target.isLord ? 100 : 0;
+            score += (target.stats?.STR || 0) + (target.stats?.MAG || 0);
+            score += target.hasActed ? 0 : 10;
+          } else {
+            // Silence: magic users > units with skills
+            const hasMagicProf = target.proficiencies?.some(
+              (p) => p.type === 'Tome' || p.type === 'Light' || p.type === 'Staff',
+            );
+            score += hasMagicProf ? 100 : 0;
+            score += (target.skills?.length || 0) * 5;
+          }
+          if (score > bestStaffScore) {
+            bestStaffScore = score;
+            bestStaffTarget = target;
+            bestStaffCandidate = candidate;
+          }
+        }
+      }
+      if (bestStaffTarget) {
+        return this._finalizeDecision(enemy, {
+          path: bestStaffCandidate.path,
+          target: null,
+          statusStaffTarget: bestStaffTarget,
+          reason: 'status_staff',
+          detail: {
+            staffName: staff.name,
+            conditionId: condId,
+            targetName: bestStaffTarget.name || null,
+          },
+        });
+      }
     }
 
     // Find best attack opportunity
@@ -260,9 +327,15 @@ export class AIController {
       });
     }
 
-    const pathAwareTile = this._findPathAwareChaseTile(enemy, nearest, candidates, unitPositions);
+    const pathAwareTile = this._findPathAwareChaseTile(
+      enemy,
+      nearest,
+      candidates,
+      unitPositions,
+      moveRange,
+    );
     if (pathAwareTile) {
-      const path = this._buildPath(enemy, pathAwareTile, unitPositions);
+      const path = this._buildPath(enemy, pathAwareTile, unitPositions, moveRange);
       if (path && path.length >= 2) {
         return this._finalizeDecision(enemy, {
           path,
@@ -284,7 +357,7 @@ export class AIController {
         bestWallMove &&
         (bestWallMove.tile.col !== enemy.col || bestWallMove.tile.row !== enemy.row)
       ) {
-        const path = this._buildPath(enemy, bestWallMove.tile, unitPositions);
+        const path = this._buildPath(enemy, bestWallMove.tile, unitPositions, moveRange);
         if (path && path.length >= 2) {
           return this._finalizeDecision(enemy, {
             path,
@@ -311,7 +384,7 @@ export class AIController {
     }
 
     if (closestTile && (closestTile.col !== enemy.col || closestTile.row !== enemy.row)) {
-      const path = this._buildPath(enemy, closestTile, unitPositions);
+      const path = this._buildPath(enemy, closestTile, unitPositions, moveRange);
       if (path && path.length >= 2) {
         return this._finalizeDecision(enemy, {
           path,
@@ -333,9 +406,10 @@ export class AIController {
         [...playerUnits, ...(npcUnits || [])],
         candidates,
         unitPositions,
+        moveRange,
       );
       if (recoveryTile) {
-        const path = this._buildPath(enemy, recoveryTile.tile, unitPositions);
+        const path = this._buildPath(enemy, recoveryTile.tile, unitPositions, moveRange);
         if (path && path.length >= 2) {
           return this._finalizeDecision(enemy, {
             path,
@@ -373,23 +447,19 @@ export class AIController {
     });
   }
 
-  _findPathAwareChaseTile(enemy, target, candidates, unitPositions) {
+  _findPathAwareChaseTile(enemy, target, candidates, unitPositions, moveRange = null) {
     const candidateSet = new Set(candidates.map((t) => `${t.col},${t.row}`));
     const approachTiles = this._getApproachTilesForTarget(enemy, target);
     if (approachTiles.length === 0) return null;
 
     let bestPath = null;
     for (const tile of approachTiles) {
-      const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
-      const path = this.grid.findPath(
-        enemy.col,
-        enemy.row,
+      const path = this._findPathWithIceFallback(
+        enemy,
         tile.col,
         tile.row,
-        enemy.moveType,
         unitPositions,
-        enemy.faction,
-        costMod,
+        moveRange,
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -420,7 +490,7 @@ export class AIController {
     return passable;
   }
 
-  _findRecoveryFallbackTile(enemy, targets, candidates, unitPositions) {
+  _findRecoveryFallbackTile(enemy, targets, candidates, unitPositions, moveRange = null) {
     if (!targets || targets.length === 0) return null;
     const sortedTargets = [...targets].sort(
       (a, b) =>
@@ -432,7 +502,7 @@ export class AIController {
     let best = null;
     for (const target of sortedTargets) {
       const recoveryTiles = this._getRecoveryTilesForTarget(enemy, target);
-      const path = this._findShortestPathToTiles(enemy, recoveryTiles, unitPositions);
+      const path = this._findShortestPathToTiles(enemy, recoveryTiles, unitPositions, moveRange);
       if (!path || path.length < 2) continue;
 
       let chosenTile = null;
@@ -470,19 +540,15 @@ export class AIController {
     return tiles;
   }
 
-  _findShortestPathToTiles(enemy, tiles, unitPositions) {
-    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+  _findShortestPathToTiles(enemy, tiles, unitPositions, moveRange = null) {
     let bestPath = null;
     for (const tile of tiles) {
-      const path = this.grid.findPath(
-        enemy.col,
-        enemy.row,
+      const path = this._findPathWithIceFallback(
+        enemy,
         tile.col,
         tile.row,
-        enemy.moveType,
         unitPositions,
-        enemy.faction,
-        costMod,
+        moveRange,
       );
       if (!path || path.length < 2) continue;
       if (!bestPath || path.length < bestPath.length) bestPath = path;
@@ -542,20 +608,50 @@ export class AIController {
     return nearest;
   }
 
-  _buildPath(enemy, destTile, unitPositions) {
+  _buildPath(enemy, destTile, unitPositions, moveRange = null) {
     if (destTile.col === enemy.col && destTile.row === enemy.row) return null;
+    return this._findPathWithIceFallback(
+      enemy,
+      destTile.col,
+      destTile.row,
+      unitPositions,
+      moveRange,
+    );
+  }
+
+  /**
+   * Shared helper: try A* first, then fall back to Dijkstra ice-aware reconstruction.
+   * Used by _buildPath, _findPathAwareChaseTile, and _findShortestPathToTiles.
+   */
+  _findPathWithIceFallback(enemy, goalCol, goalRow, unitPositions, moveRange = null) {
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const path = this.grid.findPath(
       enemy.col,
       enemy.row,
-      destTile.col,
-      destTile.row,
+      goalCol,
+      goalRow,
       enemy.moveType,
       unitPositions,
       enemy.faction,
       costMod,
     );
-    return path;
+    if (path) return path;
+    // A* failed — try Dijkstra ice-aware reconstruction
+    if (typeof this.grid.reconstructIcePath !== 'function') return null;
+    const range =
+      moveRange ||
+      this.grid.getMovementRange(
+        enemy.col,
+        enemy.row,
+        enemy.mov || enemy.stats?.MOV || 5,
+        enemy.moveType,
+        unitPositions,
+        enemy.faction,
+        costMod,
+      );
+    const key = `${goalCol},${goalRow}`;
+    if (!range.has(key)) return null;
+    return this.grid.reconstructIcePath(range, enemy.col, enemy.row, goalCol, goalRow);
   }
 
   _scoreAttackTarget(enemy, target, forceLowestHpTargeting = false) {
@@ -611,6 +707,7 @@ export class AIController {
       return { finalTile: { col: fallback.col, row: fallback.row } };
     }
 
+    const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
     const effective = computeEffectivePath(
       path,
       this.grid.mapLayout,
@@ -619,6 +716,7 @@ export class AIController {
       this.grid.rows,
       enemy.moveType,
       occupiedTiles,
+      costMod,
     );
     const effectivePath = effective?.effectivePath;
     if (Array.isArray(effectivePath) && effectivePath.length > 0) {

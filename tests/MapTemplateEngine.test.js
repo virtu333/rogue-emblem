@@ -44,6 +44,7 @@ describe('MapTemplateEngine', () => {
 
   it('rejects templates that define reinforcement version without reinforcements object', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
+    delete bad.rout[0].reinforcements;
     bad.rout[0].reinforcementContractVersion = REINFORCEMENT_CONTRACT_VERSION;
     const result = validateMapTemplatesConfig(bad);
     expect(result.valid).toBe(false);
@@ -308,6 +309,59 @@ describe('MapTemplateEngine', () => {
         error.includes('phaseTerrainOverrides[0].setTiles contains duplicate target tile'),
       ),
     ).toBe(true);
+  });
+
+  it('accepts minActByDifficulty as a known reinforcement key', () => {
+    const good = JSON.parse(JSON.stringify(mapTemplates));
+    // open_field now has minActByDifficulty — should pass validation
+    const template = good.rout.find((entry) => entry.id === 'open_field');
+    expect(template.reinforcements.minActByDifficulty).toBeDefined();
+    const result = validateMapTemplatesConfig(good);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects non-object minActByDifficulty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.rout.find((entry) => entry.id === 'open_field');
+    template.reinforcements.minActByDifficulty = 'hard';
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) => error.includes('minActByDifficulty must be an object')),
+    ).toBe(true);
+  });
+
+  it('rejects unknown difficulty keys in minActByDifficulty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.rout.find((entry) => entry.id === 'open_field');
+    template.reinforcements.minActByDifficulty = { hrd: 'act3' };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) =>
+        error.includes('minActByDifficulty contains unknown difficulty keys'),
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects invalid act values in minActByDifficulty', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    const template = bad.rout.find((entry) => entry.id === 'open_field');
+    template.reinforcements.minActByDifficulty = { hard: 'act5' };
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((error) => error.includes('must be a valid act'))).toBe(true);
+  });
+
+  it('rejects postAct/finalBoss act values in minActByDifficulty (runtime unsupported)', () => {
+    for (const unsupportedAct of ['postAct', 'finalBoss']) {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      const template = bad.rout.find((entry) => entry.id === 'open_field');
+      template.reinforcements.minActByDifficulty = { hard: unsupportedAct };
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((error) => error.includes('must be a valid act'))).toBe(true);
+    }
   });
 
   it('reports malformed hybridArena with overrides without throwing', () => {

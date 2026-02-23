@@ -48,7 +48,7 @@ emblem-rogue/
 │   ├── mapSizes.json      # 10 map size templates by act/phase ✅
 │   ├── mapTemplates.json  # 12 zone-based map templates (6 rout, 6 seize) including tundra + volcanic biomes ✅
 │   ├── mechanicsReference.json # Advanced mechanics help content for in-game reference ✅
-│   ├── metaUpgrades.json  # 58 tiered upgrades in 6 categories (recruit_stats, lord_bonuses, economy, capacity, starting_equipment, starting_skills) ✅
+│   ├── metaUpgrades.json  # 59 tiered upgrades in 6 categories (recruit_stats, lord_bonuses, economy, capacity, starting_equipment, starting_skills) ✅
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool ✅
 │   ├── referenceViewer.json # Reference viewer config: combat formulas, weapon ranks, game version ✅
 │   ├── skills.json        # 50 skills across 7 trigger types: passive, passive-aura, on-combat-start, on-attack, on-turn-start, on-defend, action ✅
@@ -141,7 +141,7 @@ emblem-rogue/
 │       ├── startupTelemetry.js # Boot timing and startup health telemetry ✅
 │       ├── tooltipTiming.js # Tooltip show/hide timing coordination ✅
 │       └── uiStyles.js    # Centralized UI constants (fonts, colors, stat colors, HP bar gradient) ✅
-├── tests/                 # Vitest test suite (2450 tests across 147 files, Feb 19 2026)
+├── tests/                 # Vitest test suite (2590 tests across 149 files, Feb 22 2026)
 │   ├── testData.js        # Shared data loader for tests
 │   ├── *.test.js          # 134 unit/integration test files covering: combat, map gen, run state,
 │   │                      #   loot/forge, skills, accessories, fog, affixes, weapon arts, blessings,
@@ -289,7 +289,7 @@ Follow this order — each phase should be testable:
 5. **Map Generation** ✅ — procedural maps from templates, randomized terrain, Rout + Seize objectives, enemy pools by act, boss enemies, reachability checks
 6. **Node Map** ✅ — branching node map per act, battle/rest/boss nodes, unit persistence between battles, act progression (act1→act2→act3→finalBoss), RunManager run state, victory/defeat end screen
 7. **Run Loop** ✅ — gold economy, shops, loot drops ✅ | recruit nodes ✅ | deploy selection ✅ | title screen, settings, pause, run save ✅
-8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 58 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→DifficultySelect→BlessingSelect→NodeMap), Save & Exit, localStorage persistence
+8. **Meta-Progression** ✅ — Home Base scene (6-tab UI: Recruits/Lords/Economy/Battalion/Equip/Skills), meta currency (Valor/Supply, earned per run), 59 tiered upgrades (split growth/flat, lord SPD/RES, starting equipment, starting skills, recruit skills, deadly arsenal), Begin Run flow (Title→HomeBase→DifficultySelect→BlessingSelect→NodeMap), Save & Exit, localStorage persistence
 9. **Polish & Art** — Music & SFX ✅ | Per-act music expansion (21 tracks) ✅ | UI inspection panel ✅ | Danger zone ✅ | HP bar gradient ✅ | Dynamic objectives ✅ | Accessories (29 items, combatEffects system) ✅ | Fog of war ✅ | Expanded weapons (106 total, throwables, effectiveness, specials) ✅ | Expanded skills (50 total, 7 trigger types) ✅ | Lord classes + Wyvern classes in classes.json (47 total) ✅ | **3 save slots + user flow rework** ✅ | Enemy affixes (12) ✅ | Weapon arts (75) ✅ | Blessings (23) ✅ | Difficulty modes (Normal/Hard/Lunatic) ✅ | Terrain hazards (Ice/Lava Crack) ✅ | Convoy ✅ | Wyvern classes ✅ | Reinforcements ✅ | Boss recruit events ✅ | Tutorial hints ✅ | Scene Router/Guard ✅ | Dialogue scaffold ✅
 10. **Deployment** ✅ — Supabase auth (username/password) + cloud saves (3 tables with RLS) + Netlify static hosting. Auto-deploys via Netlify GitHub integration (push to `main` → build + publish). Auth gate in `index.html` before Phaser boots. Cloud sync is callback-driven via `onSave` with hardening against write races/older-meta overwrite. Offline play supported.
 
@@ -320,7 +320,7 @@ See `ROADMAP.md` (repo root) for all planned post-MVP features. Key architectura
 ## Testing
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
-- **Coverage (2450 tests across 147 files, Feb 19 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, affixes, weapon arts, blessings, difficulty, terrain hazards, reinforcements, scene router/guard, convoy, wyverns, tutorial, campaign map, mobile controls, cloud-sync guard tests, and deterministic run hooks
+- **Coverage (2590 tests across 149 files, Feb 22 2026):** Includes map generation, combat, run-state/save migration, AI, fog, wave expansion, loot/forge, accessories, affixes, weapon arts, blessings, difficulty, terrain hazards, reinforcements, scene router/guard, convoy, wyverns, tutorial, campaign map, mobile controls, cloud-sync guard tests, and deterministic run hooks
 - **Residual testing gap:** Scene-level integration assertions for some menu/UX states (for example difficulty unlock messaging and certain mobile touch parity paths) still rely on behavior tests + manual verification.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 

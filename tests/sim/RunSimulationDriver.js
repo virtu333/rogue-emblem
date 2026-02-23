@@ -282,7 +282,10 @@ export class RunSimulationDriver {
         this.gameData.accessories,
         roster,
         null,
-        { itemCountBonus: shopItemDelta },
+        {
+          itemCountBonus: shopItemDelta,
+          shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,
+        },
       ),
       { ambushDiscount: node?.isAmbush === true },
     );

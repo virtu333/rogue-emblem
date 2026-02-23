@@ -28,6 +28,7 @@ import {
   canReclass,
   getReclassTargets,
   reclassUnit,
+  getDisplayLevel,
 } from '../engine/UnitManager.js';
 import { isForged } from '../engine/ForgeSystem.js';
 import {
@@ -542,7 +543,7 @@ export class RosterOverlay {
         nameY + NAME_LINE_HEIGHT <= layout.unitViewportBottom
       ) {
         nameText = this.scene.add
-          .text(LIST_X + 8, nameY, `${unit.name}  Lv${unit.level}`, {
+          .text(LIST_X + 8, nameY, `${unit.name}  Lv${getDisplayLevel(unit)}`, {
             fontFamily: 'monospace',
             fontSize: '11px',
             color: nameColor,
@@ -736,7 +737,7 @@ export class RosterOverlay {
     this._text(
       x,
       y,
-      `${unit.name}  Lv${unit.level} ${unit.className}  (${tierLabel})`,
+      `${unit.name}  Lv${getDisplayLevel(unit)} ${unit.className}  (${tierLabel})`,
       '#ffdd44',
       '12px',
     );

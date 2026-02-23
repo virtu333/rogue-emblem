@@ -31,8 +31,9 @@ export class GameDriver {
         break;
       }
       case HEADLESS_STATES.UNIT_SELECTED: {
-        // All reachable tiles (including current position)
-        for (const [key] of this.battle.movementRange) {
+        // All reachable tiles (including current position), excluding ally-occupied (stoppable: false)
+        for (const [key, entry] of this.battle.movementRange) {
+          if (entry && entry.stoppable === false) continue;
           const [col, row] = key.split(',').map(Number);
           actions.push({ type: 'move_to', payload: { col, row } });
         }

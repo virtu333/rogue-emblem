@@ -27,6 +27,19 @@
       "anchors": [],
       "enemyWeights": {
         "cavalry": 1.3
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right", "top"],
+        "waves": [
+          { "turn": 5, "count": [2, 3], "edges": ["right"] },
+          { "turn": 8, "count": [2, 3], "edges": ["top", "right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -66,6 +79,19 @@
         "archer": 1.5,
         "mage": 1.2,
         "cavalry": 0.7
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right"],
+        "waves": [
+          { "turn": 5, "count": [1, 2], "edges": ["right"] },
+          { "turn": 8, "count": [2, 2], "edges": ["right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -97,6 +123,19 @@
         "infantry": 1.5,
         "cavalry": 0.5,
         "archer": 1.3
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["top", "bottom"],
+        "waves": [
+          { "turn": 4, "count": [1, 2], "edges": ["top"] },
+          { "turn": 7, "count": [2, 3], "edges": ["top", "bottom"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -144,6 +183,19 @@
       "enemyWeights": {
         "knight": 1.5,
         "lance": 1.3
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right"],
+        "waves": [
+          { "turn": 5, "count": [1, 2], "edges": ["right"] },
+          { "turn": 8, "count": [2, 2], "edges": ["right"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -155,23 +207,23 @@
       "zones": [
         {
           "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 45, "Ice": 35, "Mountain": 20 },
+          "terrain": { "Plain": 55, "Ice": 20, "Mountain": 20, "Forest": 5 },
           "priority": 0
         },
         {
           "rect": [0.25, 0.2, 0.75, 0.8],
-          "terrain": { "Ice": 80, "Plain": 20 },
+          "terrain": { "Ice": 50, "Plain": 35, "Forest": 15 },
           "priority": 2
         },
         {
           "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
           "rect": [0.7, 0, 1, 1],
-          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
           "priority": 1,
           "role": "enemySpawn"
         }
@@ -187,7 +239,8 @@
         "spawnEdges": ["right", "top"],
         "waves": [
           { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 5, "count": [2, 4], "edges": ["top", "right"] }
+          { "turn": 5, "count": [3, 4], "edges": ["top", "right"] },
+          { "turn": 8, "count": [2, 3], "edges": ["top"] }
         ],
         "difficultyScaling": true,
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
@@ -236,7 +289,8 @@
         "spawnEdges": ["right", "bottom"],
         "waves": [
           { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 6, "count": [3, 4], "edges": ["bottom", "right"] }
+          { "turn": 6, "count": [3, 5], "edges": ["bottom", "right"] },
+          { "turn": 9, "count": [2, 3], "edges": ["bottom"] }
         ],
         "difficultyScaling": true,
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
@@ -285,6 +339,19 @@
         "knight": 1.5,
         "archer": 1.3,
         "mage": 1.2
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["left", "bottom"],
+        "waves": [
+          { "turn": 5, "count": [1, 2], "edges": ["left"] },
+          { "turn": 8, "count": [2, 3], "edges": ["left", "bottom"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -324,6 +391,19 @@
       "enemyWeights": {
         "archer": 1.3,
         "armored": 1.5
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["right", "bottom"],
+        "waves": [
+          { "turn": 5, "count": [1, 2], "edges": ["right"] },
+          { "turn": 8, "count": [2, 3], "edges": ["right", "bottom"] }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "turnJitter": [-1, 1],
+        "xpDecay": [1.0, 0.75, 0.5],
+        "minActByDifficulty": { "hard": "act3", "lunatic": "act2" }
       }
     },
     {
@@ -335,23 +415,23 @@
       "zones": [
         {
           "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 40, "Ice": 40, "Mountain": 20 },
+          "terrain": { "Plain": 50, "Ice": 25, "Mountain": 20, "Forest": 5 },
           "priority": 0
         },
         {
           "rect": [0.55, 0.2, 0.95, 0.8],
-          "terrain": { "Wall": 35, "Fort": 30, "Ice": 20, "Plain": 15 },
+          "terrain": { "Wall": 40, "Fort": 30, "Ice": 10, "Plain": 20 },
           "priority": 2
         },
         {
           "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 45, "Ice": 35, "Fort": 20 },
+          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
           "rect": [0.6, 0.25, 0.9, 0.75],
-          "terrain": { "Fort": 35, "Ice": 35, "Plain": 20, "Wall": 10 },
+          "terrain": { "Fort": 40, "Ice": 20, "Plain": 25, "Wall": 15 },
           "priority": 3,
           "role": "enemySpawn"
         }
@@ -368,10 +448,11 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right"],
+        "spawnEdges": ["right", "top"],
         "waves": [
           { "turn": 4, "count": [2, 2], "edges": ["right"] },
-          { "turn": 7, "count": [2, 3], "edges": ["right"] }
+          { "turn": 7, "count": [2, 3], "edges": ["right"] },
+          { "turn": 9, "count": [2, 2], "edges": ["top", "right"] }
         ],
         "difficultyScaling": true,
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
@@ -424,7 +505,8 @@
         "spawnEdges": ["right", "top"],
         "waves": [
           { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 5, "count": [2, 4], "edges": ["top", "right"] }
+          { "turn": 5, "count": [3, 4], "edges": ["top", "right"] },
+          { "turn": 8, "count": [2, 3], "edges": ["top"] }
         ],
         "difficultyScaling": true,
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
@@ -442,23 +524,23 @@
       "zones": [
         {
           "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 35, "Ice": 40, "Mountain": 25 },
+          "terrain": { "Plain": 45, "Ice": 25, "Mountain": 25, "Forest": 5 },
           "priority": 0
         },
         {
           "rect": [0.55, 0.15, 0.95, 0.85],
-          "terrain": { "Wall": 35, "Fort": 30, "Ice": 20, "Plain": 15 },
+          "terrain": { "Wall": 40, "Fort": 30, "Ice": 10, "Plain": 20 },
           "priority": 2
         },
         {
           "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 50, "Ice": 30, "Fort": 20 },
+          "terrain": { "Plain": 60, "Ice": 15, "Fort": 20, "Forest": 5 },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
           "rect": [0.45, 0.2, 0.95, 0.8],
-          "terrain": { "Fort": 35, "Wall": 25, "Ice": 25, "Plain": 15 },
+          "terrain": { "Fort": 40, "Wall": 25, "Ice": 15, "Plain": 20 },
           "priority": 3,
           "role": "enemySpawn"
         }

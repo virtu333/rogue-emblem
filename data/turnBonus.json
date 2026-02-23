@@ -1,5 +1,7 @@
 {
   "enemyWeight": 0.6,
+  "enemyScaling": { "type": "sqrt", "coefficient": 1.3 },
+  "parXpMultipliers": { "S": 1.25, "A": 1.10, "B": 1.00, "C": 0.90 },
   "areaPenaltyPerTile": 0.01,
   "terrainMultiplier": 1,
   "difficultTerrainTypes": [

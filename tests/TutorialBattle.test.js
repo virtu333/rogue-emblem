@@ -312,7 +312,10 @@ describe('TutorialBattle', () => {
       const { scene, edric } = createTutorialGateScene();
       scene.tutorialStep = 3;
       scene.selectedUnit = edric;
-      scene.movementRange = new Set(['3,3', '2,2']);
+      scene.movementRange = new Map([
+        ['3,3', { cost: 1, parent: null }],
+        ['2,2', { cost: 1, parent: null }],
+      ]);
 
       BattleScene.prototype.handleSelectedClick.call(scene, { col: 2, row: 2 });
       await Promise.resolve();
@@ -331,7 +334,7 @@ describe('TutorialBattle', () => {
       scene.selectedUnit = edric;
       const fort = BattleScene.prototype._getTutorialFortTile.call(scene);
       expect(fort).toBeTruthy();
-      scene.movementRange = new Set([`${fort.col},${fort.row}`]);
+      scene.movementRange = new Map([[`${fort.col},${fort.row}`, { cost: 1, parent: null }]]);
 
       BattleScene.prototype.handleSelectedClick.call(scene, { col: fort.col, row: fort.row });
 

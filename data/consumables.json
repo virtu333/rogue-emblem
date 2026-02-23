@@ -112,5 +112,21 @@
     "value": 0,
     "uses": 1,
     "price": 2500
+  },
+  {
+    "name": "Herb",
+    "type": "Consumable",
+    "effect": "cure",
+    "value": 0,
+    "uses": 2,
+    "price": 400
+  },
+  {
+    "name": "Remedy",
+    "type": "Consumable",
+    "effect": "cureHeal",
+    "value": 10,
+    "uses": 1,
+    "price": 800
   }
 ]

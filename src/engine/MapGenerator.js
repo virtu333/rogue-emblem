@@ -7,6 +7,7 @@ import {
   ENEMY_COUNT_OFFSET,
   SUNDER_ELIGIBLE_PROFS,
   POISON_ELIGIBLE_PROFS,
+  STATUS_STAFF_ELIGIBLE_CLASSES,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { createScopedLogger } from '../utils/logger.js';
@@ -35,6 +36,7 @@ export function generateBattle(params, deps) {
     firstBattleFightersOnly = false,
     usedRecruitNames = {},
     enemyPoisonChance = 0,
+    statusStaffConfig = null,
     isAmbush = false,
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
@@ -122,7 +124,7 @@ export function generateBattle(params, deps) {
     thronePos,
     levelRange,
     classes,
-    { enemyPoisonChance },
+    { enemyPoisonChance, statusStaffConfig },
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     affixConfig: deps.affixes,
@@ -213,7 +215,10 @@ export function generateBattle(params, deps) {
     thronePos,
   });
 
-  const reinforcementConfig = cloneReinforcementConfig(template);
+  const reinforcementConfig = cloneReinforcementConfig(template, {
+    act,
+    difficultyId: params.difficultyId || 'normal',
+  });
   const hybridConfig = cloneHybridConfig(template, resolvedHybridAnchors);
 
   return {
@@ -298,8 +303,25 @@ function findTemplateById(templateId, mapTemplates) {
   return null;
 }
 
-function cloneReinforcementConfig(template) {
+const ACT_GATE_ORDER = ['act1', 'act2', 'act3', 'act4'];
+
+function meetsActThreshold(currentAct, requiredAct) {
+  const ci = ACT_GATE_ORDER.indexOf(currentAct);
+  const ri = ACT_GATE_ORDER.indexOf(requiredAct);
+  return ci !== -1 && ri !== -1 && ci >= ri;
+}
+
+function cloneReinforcementConfig(template, { act = null, difficultyId = 'normal' } = {}) {
   if (!template || !template.reinforcements) return {};
+
+  const gating = template.reinforcements.minActByDifficulty;
+  if (gating) {
+    const minAct = gating[difficultyId];
+    if (!minAct || !meetsActThreshold(act, minAct)) {
+      return {};
+    }
+  }
+
   return {
     reinforcementContractVersion: template.reinforcementContractVersion,
     reinforcements: JSON.parse(JSON.stringify(template.reinforcements)),
@@ -1050,11 +1072,14 @@ function generateEnemies(
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
     // Roll for Sunder weapon
+    // Always draw exactly one Math.random() per spawn for RNG stability,
+    // regardless of class eligibility for sunder/poison/status staves.
     const cd = classes?.find((c) => c.name === className);
     const primaryProf = cd?.weaponProficiencies?.split(',')[0]?.trim()?.split(' ')[0];
     const canHaveSunder = primaryProf && SUNDER_ELIGIBLE_PROFS.has(primaryProf);
     const sunderChance = Number(pool.sunderChance || 0);
-    const sunderRoll = canHaveSunder && sunderChance > 0 ? Math.random() : null;
+    const baseRoll = Math.random();
+    const sunderRoll = canHaveSunder && sunderChance > 0 ? baseRoll : null;
     const sunderWeapon = sunderRoll !== null && sunderRoll < sunderChance;
     const canHavePoison = !sunderWeapon && primaryProf && POISON_ELIGIBLE_PROFS.has(primaryProf);
     const rawPoisonChance =
@@ -1062,10 +1087,26 @@ function generateEnemies(
     const poisonChance = Math.max(0, Math.min(1, rawPoisonChance));
     let poisonWeapon = false;
     if (canHavePoison && poisonChance > 0) {
-      // Derive poison roll from the sunder roll when available to avoid adding
-      // extra RNG draws that would perturb existing seeded map-generation paths.
-      const poisonRoll = sunderRoll !== null ? deriveSecondaryRoll(sunderRoll) : Math.random();
+      // Derive poison roll from the base roll to avoid additional RNG draws
+      const poisonRoll = deriveSecondaryRoll(baseRoll);
       poisonWeapon = poisonRoll < poisonChance;
+    }
+
+    // Status staff assignment (enemy-only, difficulty-gated)
+    let statusStaff;
+    const ssCfg = extraOptions.statusStaffConfig;
+    if (ssCfg && STATUS_STAFF_ELIGIBLE_CLASSES.has(className)) {
+      const ssChance = Number(ssCfg[act] || 0);
+      const ssMaxPerBattle = ssCfg.maxPerBattle || 0;
+      const ssCount = spawns.filter((s) => s.statusStaff).length;
+      if (ssChance > 0 && ssCount < ssMaxPerBattle) {
+        // Derive status staff roll from base roll chain
+        const ssRoll = deriveSecondaryRoll(deriveSecondaryRoll(baseRoll));
+        if (ssRoll < ssChance) {
+          // 50/50 split: use fractional part of derived roll
+          statusStaff = deriveSecondaryRoll(ssRoll) < 0.5 ? 'sleep' : 'silence';
+        }
+      }
     }
 
     if (DEBUG_MAP_GEN) {
@@ -1084,6 +1125,7 @@ function generateEnemies(
       isBoss: false,
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
+      statusStaff: statusStaff || undefined,
     });
   }
 

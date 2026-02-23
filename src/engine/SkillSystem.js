@@ -4,6 +4,7 @@
 
 import { gridDistance, getConditionalWeaponBonuses, usesMagic } from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
+import { isSilenced } from './StatusConditionSystem.js';
 
 // --- Helpers ---
 
@@ -223,8 +224,11 @@ export function getSkillCombatMods(
   const unitSkills = [...(unit.skills || [])];
   const grantedSkill = unit.weapon?._grantedSkill;
   if (grantedSkill && !unitSkills.includes(grantedSkill)) unitSkills.push(grantedSkill);
+  // Silenced units contribute no skill effects (but accessory/aura from others still apply)
+  const unitSilenced = isSilenced(unit);
   // Unit's own skills + weapon granted skill
   for (const skillId of unitSkills) {
+    if (unitSilenced) break;
     const skill = getSkill(skillId, skillsData);
     if (!skill) continue;
 
@@ -329,9 +333,9 @@ export function getSkillCombatMods(
     }
   }
 
-  // Aura effects from allies (buffs by default)
+  // Aura effects from allies (buffs by default) — silenced units don't project auras
   for (const ally of allies) {
-    if (ally === unit || !ally.skills) continue;
+    if (ally === unit || !ally.skills || isSilenced(ally)) continue;
     for (const skillId of ally.skills) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
@@ -342,9 +346,9 @@ export function getSkillCombatMods(
     }
   }
 
-  // Enemy aura effects (debuffs)
+  // Enemy aura effects (debuffs) — silenced enemies don't project auras
   for (const enemy of enemies) {
-    if (!enemy || !enemy.skills) continue;
+    if (!enemy || !enemy.skills || isSilenced(enemy)) continue;
     for (const skillId of enemy.skills) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
@@ -385,7 +389,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     activated: [],
   };
 
-  if (!skillsData) return result;
+  if (!skillsData || isSilenced(attacker)) return result;
 
   // Combine unit skills + weapon granted skill (deduped)
   const skillIds = [...(attacker.skills || [])];
@@ -504,7 +508,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     activated: [],
   };
 
-  if (!skillsData) return result;
+  if (!skillsData || isSilenced(defender)) return result;
 
   const defSkills = [...(defender.skills || [])];
   const grantedSkill = defender.weapon?._grantedSkill;
@@ -561,7 +565,7 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
  * Returns: { triggered, strikeCount, damageMult, name }
  */
 export function checkAstra(attacker, skillsData) {
-  if (!skillsData) return { triggered: false };
+  if (!skillsData || isSilenced(attacker)) return { triggered: false };
 
   const hasAstra = attacker.skills?.includes('astra') || attacker.weapon?._grantedSkill === 'astra';
   if (!hasAstra) return { triggered: false };
@@ -587,7 +591,8 @@ export function getTurnStartEffects(units, skillsData) {
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
 
   for (const unit of units) {
-    if (Array.isArray(unit.skills)) {
+    // Silenced units get no turn-start skill effects
+    if (Array.isArray(unit.skills) && !isSilenced(unit)) {
       for (const skillId of unit.skills) {
         const skill = getSkill(skillId, resolvedSkillsData);
         if (!skill || skill.trigger !== 'on-turn-start') continue;

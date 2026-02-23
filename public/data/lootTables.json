@@ -71,6 +71,30 @@
     },
     "goldRange": [1100, 1700]
   },
+  "act4": {
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify"],
+    "healing": ["Elixir"],
+    "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
+    "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],
+    "skillScroll": ["Astra Scroll", "Vantage Scroll", "Wrath Scroll", "Adept Scroll", "Miracle Scroll", "Quick Riposte Scroll", "Death Blow Scroll", "Darting Blow Scroll", "Shove Scroll", "Pull Scroll"],
+    "weaponArtScroll": ["Windsweep Scroll", "Lunge Scroll", "Grounder Scroll", "Hexblade Scroll", "Knightkneeler Scroll", "Vengeance Scroll", "Helm Splitter Scroll", "Wild Abandon Scroll", "Rushing Blow Scroll", "Encloser Scroll", "Ward Arrow Scroll", "Healing Light Scroll", "Seraphim Scroll", "Dragonhaze Scroll", "Longearche Scroll", "Glowing Ember Scroll", "Armored Strike Scroll", "Deadeye Scroll", "Hunter's Volley Scroll", "Burning Quake Scroll", "Nosferatu Scroll", "Silence Strike Scroll"],
+    "legendaryWeapon": ["Ragnarok", "Soulreaver", "Bolting", "Gemini", "Doomblade", "Gae Bolg", "Starfall", "Stormbreaker", "Ruin", "Doublebow", "Brave Sword", "Brave Lance", "Brave Axe", "Brave Bow", "Excalibur", "Luce"],
+    "accessories": ["Seraph Robe", "Magic Ring", "Boots", "Delphi Shield", "Wrath Band", "Counter Seal", "Pursuit Ring", "Nullify Ring"],
+    "forge": ["Silver Whetstone", "Might Whetstone", "Crit Whetstone", "Hit Whetstone", "Weight Whetstone"],
+    "weights": {
+      "weapon": 25,
+      "healing": 2,
+      "statBooster": 11,
+      "promotion": 2,
+      "skillScroll": 5,
+      "weaponArtScroll": 5,
+      "legendaryWeapon": 10,
+      "accessory": 15,
+      "forge": 15,
+      "gold": 10
+    },
+    "goldRange": [1400, 2000]
+  },
   "finalBoss": {
     "weapons": [],
     "healing": [],

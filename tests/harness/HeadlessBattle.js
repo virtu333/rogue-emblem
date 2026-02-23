@@ -347,16 +347,18 @@ export class HeadlessBattle {
       throw new Error(`Cannot move in state: ${this.battleState}`);
     }
     const key = `${col},${row}`;
+    const rangeEntry = this.movementRange.get(key);
     // Allow staying in place (current tile always in movementRange)
+    // Reject tiles marked stoppable: false (ally-occupied)
     if (
-      !this.movementRange.has(key) &&
-      !(col === this.selectedUnit.col && row === this.selectedUnit.row)
+      !(col === this.selectedUnit.col && row === this.selectedUnit.row) &&
+      (!rangeEntry || rangeEntry.stoppable === false)
     ) {
       throw new Error(`Tile (${col},${row}) not reachable`);
     }
 
     // Track movement spent for Canto (deferred, but track anyway)
-    const costEntry = this.movementRange.get(key);
+    const costEntry = rangeEntry;
     this.selectedUnit._movementSpent = costEntry ? costEntry.cost : 0;
 
     this.selectedUnit.col = col;

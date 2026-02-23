@@ -52,8 +52,8 @@ function makeSceneCtx({ xpMultiplier = 1 } = {}) {
 }
 
 describe('Heal XP', () => {
-  it('XP_BASE_HEAL constant equals 25', () => {
-    expect(XP_BASE_HEAL).toBe(25);
+  it('XP_BASE_HEAL constant equals 20', () => {
+    expect(XP_BASE_HEAL).toBe(20);
   });
 
   it('executeHeal awards XP_BASE_HEAL to the healer', async () => {
@@ -137,6 +137,6 @@ describe('Heal XP', () => {
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, XP_BASE_HEAL);
 
-    expect(unit.xp).toBe(12); // floor(25 * 0.5) = 12
+    expect(unit.xp).toBe(10); // floor(20 * 0.5) = 10
   });
 });

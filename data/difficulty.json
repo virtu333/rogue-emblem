@@ -10,6 +10,8 @@
       "enemySkillChance": 0,
       "enemyPoisonChance": 0,
       "enemyStatusStaffChance": 0,
+      "statusStaffConfig": null,
+      "shopCureGating": null,
       "goldMultiplier": 1,
       "shopPriceMultiplier": 1,
       "lootQualityShift": 0,
@@ -31,6 +33,13 @@
       "enemySkillChance": 0.2,
       "enemyPoisonChance": 0.08,
       "enemyStatusStaffChance": 0,
+      "statusStaffConfig": {
+        "act1": 0, "act2": 0, "act3": 0.08, "act4": 0.08, "finalBoss": 0.15,
+        "maxPerBattle": 1
+      },
+      "shopCureGating": {
+        "act1": false, "act2": false, "act3": true, "act4": true, "finalBoss": true
+      },
       "goldMultiplier": 0.9,
       "shopPriceMultiplier": 1.15,
       "lootQualityShift": 0,
@@ -52,6 +61,13 @@
       "enemySkillChance": 0.4,
       "enemyPoisonChance": 0.2,
       "enemyStatusStaffChance": 0.15,
+      "statusStaffConfig": {
+        "act1": 0, "act2": 0.08, "act3": 0.15, "act4": 0.15, "finalBoss": 0.25,
+        "maxPerBattle": 2
+      },
+      "shopCureGating": {
+        "act1": false, "act2": true, "act3": true, "act4": true, "finalBoss": true
+      },
       "goldMultiplier": 0.8,
       "shopPriceMultiplier": 1.25,
       "lootQualityShift": 0,
@@ -61,7 +77,7 @@
       "villageAmbushChance": 0.25,
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.5,
-      "actsIncluded": ["act1", "act2", "act3", "finalBoss"],
+      "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
       "extendedLevelingEnabled": true
     }
   }

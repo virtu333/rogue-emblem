@@ -29,6 +29,7 @@ import {
   canPromote,
   promoteUnit,
   resolvePromotionTargets,
+  getDisplayLevel,
 } from '../engine/UnitManager.js';
 import {
   canForge,
@@ -1249,8 +1250,8 @@ export class NodeMapScene extends Phaser.Scene {
 
       // Name and class — truncate in compact mode
       const label = compact
-        ? `${unit.name} Lv${unit.level}`
-        : `${unit.name} Lv${unit.level} ${unit.className}`;
+        ? `${unit.name} Lv${getDisplayLevel(unit)}`
+        : `${unit.name} Lv${getDisplayLevel(unit)} ${unit.className}`;
       this.add.text(x, ROSTER_Y, label, {
         fontFamily: 'monospace',
         fontSize: '12px',
@@ -1689,13 +1690,18 @@ export class NodeMapScene extends Phaser.Scene {
         const fallen = item.unit;
         const cost = item.cost;
         const unitBtn = this.add
-          .text(320, y, `${fallen.name} (Lv${fallen.level} ${fallen.className}) — ${cost}G`, {
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            color: '#e0e0e0',
-            backgroundColor: '#222222',
-            padding: { x: 10, y: 4 },
-          })
+          .text(
+            320,
+            y,
+            `${fallen.name} (Lv${getDisplayLevel(fallen)} ${fallen.className}) — ${cost}G`,
+            {
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              color: '#e0e0e0',
+              backgroundColor: '#222222',
+              padding: { x: 10, y: 4 },
+            },
+          )
           .setOrigin(0.5)
           .setDepth(OVERLAY_CONTENT_DEPTH)
           .setInteractive({ useHandCursor: true });
@@ -1724,7 +1730,7 @@ export class NodeMapScene extends Phaser.Scene {
       } else if (item.type === 'promote') {
         const unit = item.unit;
         const unitBtn = this.add
-          .text(320, y, `${unit.name} (Lv${unit.level} ${unit.className})`, {
+          .text(320, y, `${unit.name} (Lv${getDisplayLevel(unit)} ${unit.className})`, {
             fontFamily: 'monospace',
             fontSize: '14px',
             color: '#e0e0e0',
@@ -1942,7 +1948,10 @@ export class NodeMapScene extends Phaser.Scene {
       this.gameData.accessories,
       rm.roster,
       rm.getWeaponArtSpawnConfig(),
-      { itemCountBonus: shopItemDelta },
+      {
+        itemCountBonus: shopItemDelta,
+        shopCureGating: rm.difficultyModifiers?.shopCureGating,
+      },
     );
     shopItems = this.applyDifficultyShopPricing(shopItems);
     if (ambushDiscount) {
@@ -2928,6 +2937,9 @@ export class NodeMapScene extends Phaser.Scene {
             this.gameData.accessories,
             this.runManager.roster,
             this.runManager.getWeaponArtSpawnConfig(),
+            {
+              shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,
+            },
           );
           let priced = this.applyDifficultyShopPricing(generated);
           if (this._currentShopHasAmbushDiscount) {
