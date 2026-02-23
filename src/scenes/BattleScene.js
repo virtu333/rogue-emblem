@@ -9851,7 +9851,7 @@ export class BattleScene extends Phaser.Scene {
       const allSleeping = this.playerUnits.every((u) => !u || u.currentHP <= 0 || isSleeping(u));
       if (allSleeping && this.playerUnits.some((u) => u && u.currentHP > 0)) {
         this.time.delayedCall(300, () => {
-          if (this.battleState === 'PLAYER_IDLE') this.endPlayerPhase();
+          if (this.battleState === 'PLAYER_IDLE') this.turnManager.endPlayerPhase();
         });
         return;
       }

@@ -1164,7 +1164,6 @@ describe('onPhaseChange condition recovery ordering', () => {
     scene.playerUnits = [u1, u2];
     scene.showBriefBanner = vi.fn();
     scene._removeConditionIcon = vi.fn();
-    scene.endPlayerPhase = vi.fn();
     scene._expireTimedWeaponArtBuffs = vi.fn();
     scene.turnCounterText = null;
     scene._latePressureWarningShown = false;
@@ -1186,7 +1185,9 @@ describe('onPhaseChange condition recovery ordering', () => {
     // Recovery banner was shown
     expect(scene.showBriefBanner).toHaveBeenCalled();
     // NOT all sleeping, so no auto-advance
-    expect(scene.endPlayerPhase).not.toHaveBeenCalled();
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
+    expect(skipCall).toBeUndefined();
   });
 
   it('auto-advances when all units still sleeping after recovery', () => {
@@ -1198,7 +1199,6 @@ describe('onPhaseChange condition recovery ordering', () => {
     scene.playerUnits = [u1, u2];
     scene.showBriefBanner = vi.fn();
     scene._removeConditionIcon = vi.fn();
-    scene.endPlayerPhase = vi.fn();
     scene._expireTimedWeaponArtBuffs = vi.fn();
     scene.turnCounterText = null;
     scene._latePressureWarningShown = false;
@@ -1216,6 +1216,11 @@ describe('onPhaseChange condition recovery ordering', () => {
     // time.delayedCall gets called with short delay for the skip
     const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
     expect(skipCall).toBeDefined();
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+
+    const [, onSkip] = skipCall;
+    expect(() => onSkip()).not.toThrow();
+    expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
   });
 });
 
