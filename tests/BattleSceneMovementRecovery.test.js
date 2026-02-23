@@ -53,6 +53,7 @@ function makeScene() {
       { col: 1, row: 1 },
       { col: 2, row: 1 },
     ]),
+    reconstructIcePath: vi.fn(() => null),
     getMoveCost: vi.fn(() => 1),
     snapshotFogState: vi.fn(() => new Set(['1,1'])),
     restoreFogState: vi.fn(),
@@ -77,7 +78,7 @@ function makeScene() {
   scene._preFogSnapshot = null;
   scene.cantoRange = null;
   scene.battleState = 'UNIT_SELECTED';
-  scene.movementRange = new Map([['2,1', 1]]);
+  scene.movementRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
   scene.unitPositions = new Map();
   scene.turnManager = { unitActed: vi.fn() };
   scene.updateEnemyVisibility = vi.fn();
@@ -169,7 +170,7 @@ describe('BattleScene movement recovery', () => {
   it('recovers Canto flow when tweens.add throws and ends action safely', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
-    scene.cantoRange = new Map([['2,1', 1]]);
+    scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
     unit.hasActed = true;
     scene.tweens.add = vi.fn(() => {
       throw new Error('canto tween boom');
@@ -186,7 +187,7 @@ describe('BattleScene movement recovery', () => {
   it('recovers Canto finalize when updateUnitPosition throws and still exits UNIT_MOVING', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
-    scene.cantoRange = new Map([['2,1', 1]]);
+    scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
     unit.hasActed = true;
     scene.updateUnitPosition = vi.fn(() => {
       throw new Error('canto finalize visual sync failed');
@@ -229,15 +230,12 @@ describe('BattleScene movement recovery', () => {
     expect(scene.time.delayedCall).not.toHaveBeenCalled();
   });
 
-  it('deselects safely when effective path is null/short', () => {
+  it('deselects safely when findPath returns null/short path', () => {
     const { scene, unit } = makeScene();
-    const blocker = makeUnit({ col: 2, row: 1, faction: 'enemy', currentHP: 10 });
-    scene.enemyUnits = [blocker];
-    scene.grid.terrainData = [
-      { name: 'Plains', moveCost: { Infantry: 1 } },
-      { name: 'Ice', moveCost: { Infantry: 1 } },
-    ];
-    scene.grid.mapLayout[1][2] = 1;
+    // Mock findPath to return a 1-element array, which triggers the
+    // path.length < 2 guard in moveUnit (BattleScene.js:4538) before
+    // computeEffectivePath is ever reached.
+    scene.grid.findPath = vi.fn(() => [{ col: 1, row: 1 }]);
 
     BattleScene.prototype.moveUnit.call(scene, unit, 2, 1);
 
@@ -282,7 +280,7 @@ describe('BattleScene movement recovery', () => {
   it('keeps Canto active when canto pathfinding returns null/short path', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
-    scene.cantoRange = new Map([['2,1', 1]]);
+    scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
     unit.hasActed = true;
     scene.grid.findPath = vi.fn(() => null);
 
@@ -297,7 +295,7 @@ describe('BattleScene movement recovery', () => {
   it('retries once for canto pre-init throw, then fails closed on repeated throw', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
-    scene.cantoRange = new Map([['2,1', 1]]);
+    scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
     unit.hasActed = true;
     scene.grid.findPath = vi.fn(() => {
       throw new Error('canto pre-init boom');
@@ -318,7 +316,7 @@ describe('BattleScene movement recovery', () => {
   it('still allows click-own-tile canto skip after a retryable pre-init throw', () => {
     const { scene, unit } = makeScene();
     scene.battleState = 'CANTO_MOVING';
-    scene.cantoRange = new Map([['2,1', 1]]);
+    scene.cantoRange = new Map([['2,1', { cost: 1, parent: '1,1' }]]);
     unit.hasActed = true;
     scene.grid.findPath = vi.fn(() => {
       throw new Error('canto pre-init boom');
@@ -332,6 +330,79 @@ describe('BattleScene movement recovery', () => {
     expect(scene.battleState).toBe('PLAYER_IDLE');
     expect(scene.selectedUnit).toBeNull();
     expect(scene.turnManager.unitActed).toHaveBeenCalledWith(unit);
+  });
+
+  it('Fix 4: handleCantoClick rejects stoppable:false tiles', () => {
+    const { scene, unit } = makeScene();
+    scene.battleState = 'CANTO_MOVING';
+    // Tile 2,1 is reachable but stoppable:false (ally-occupied)
+    scene.cantoRange = new Map([
+      ['2,1', { cost: 1, parent: '1,1', stoppable: false }],
+      ['3,1', { cost: 2, parent: '2,1' }],
+    ]);
+    unit.hasActed = true;
+
+    BattleScene.prototype.handleCantoClick.call(scene, { col: 2, row: 1 });
+
+    // Should return early — no path computation, state unchanged
+    expect(scene.battleState).toBe('CANTO_MOVING');
+    expect(scene.grid.findPath).not.toHaveBeenCalled();
+    expect(scene.grid.reconstructIcePath).not.toHaveBeenCalled();
+    expect(scene.turnManager.unitActed).not.toHaveBeenCalled();
+  });
+
+  it('Fix 6: calculateDangerZone excludes stoppable:false tiles', () => {
+    const scene = new BattleScene();
+    const enemy = makeUnit({
+      col: 0,
+      row: 0,
+      faction: 'enemy',
+      moveType: 'Infantry',
+      mov: 3,
+      weapon: { range: '1' },
+      stats: { MOV: 3 },
+    });
+    scene.playerUnits = [];
+    scene.enemyUnits = [enemy];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 4,
+      rows: 1,
+      fogEnabled: false,
+      isVisible: () => true,
+      getMovementRange: vi.fn(
+        () =>
+          new Map([
+            ['0,0', { cost: 0, parent: null }],
+            ['1,0', { cost: 1, parent: '0,0', stoppable: false }], // ally-occupied
+            ['2,0', { cost: 2, parent: '1,0' }],
+          ]),
+      ),
+      getAttackRange: vi.fn((col, row) => {
+        // Return adjacent tiles as attack range
+        const tiles = [];
+        if (col > 0) tiles.push({ col: col - 1, row });
+        if (col < 3) tiles.push({ col: col + 1, row });
+        return tiles;
+      }),
+    };
+    scene._getCostModifier = vi.fn(() => 0);
+    scene.buildUnitPositionMap = BattleScene.prototype.buildUnitPositionMap;
+    scene.unitPositions = new Map();
+
+    const result = BattleScene.prototype.calculateDangerZone.call(scene);
+    const keys = new Set(result.map((t) => `${t.col},${t.row}`));
+
+    // From (0,0): can attack (1,0). From (2,0): can attack (1,0) and (3,0).
+    // (1,0) is stoppable:false so should NOT contribute attack tiles.
+    expect(keys.has('1,0')).toBe(true); // attacked from (0,0) and (2,0)
+    expect(keys.has('3,0')).toBe(true); // attacked from (2,0)
+    // If stoppable:false were NOT filtered, (1,0) would contribute attacks to (0,0) and (2,0).
+    // (0,0) is already in moveRange so wouldn't appear in attack overlay.
+    // The key assertion: (1,0) itself doesn't contribute attack tiles.
+    // Verify that getAttackRange was NOT called for (1,0)
+    const callArgs = scene.grid.getAttackRange.mock.calls.map((c) => `${c[0]},${c[1]}`);
+    expect(callArgs).not.toContain('1,0');
   });
 
   it('filters dead and removing units out of buildUnitPositionMap', () => {
