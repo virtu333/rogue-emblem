@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('phaser', () => ({
   default: {
@@ -96,5 +96,230 @@ describe('BattleScene onVictory', () => {
       { gameData: scene.gameData, runManager: scene.runManager },
       { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
     );
+  });
+});
+
+/* ─── Transition recovery tests ─── */
+
+/** Helper: minimal scene mock for transition-path tests. */
+function makeTransitionScene(overrides = {}) {
+  const scene = new BattleScene();
+  scene.isTransitioningOut = false;
+  scene.gameData = {};
+  scene.runManager = {
+    isActComplete: vi.fn(() => false),
+    isRunComplete: vi.fn(() => false),
+    settleEndRunRewards: vi.fn(),
+    currentAct: 1,
+    ...overrides.runManager,
+  };
+  scene.registry = { get: () => null };
+  scene.showLootStatus = vi.fn();
+  scene.reportLootError = vi.fn();
+  scene._postLootTransitionCompleted = false;
+  scene._postLootTransitionTimer = null;
+  scene._clearPostLootTransitionFallback = vi.fn();
+  return scene;
+}
+
+describe('transitionAfterBattle recovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns false on re-entrant call (isTransitioningOut=true)', async () => {
+    const scene = makeTransitionScene();
+    scene.isTransitioningOut = true;
+    const result = await scene.transitionAfterBattle();
+    expect(result).toBe(false);
+    expect(transitionToScene).not.toHaveBeenCalled();
+  });
+
+  it('calls forceTransitionAfterBattle when transition returns false', async () => {
+    transitionToScene.mockResolvedValueOnce(false);
+    const scene = makeTransitionScene();
+    scene.forceTransitionAfterBattle = vi.fn();
+    const result = await scene.transitionAfterBattle();
+    expect(result).toBe(false);
+    expect(scene.isTransitioningOut).toBe(false);
+    expect(scene.forceTransitionAfterBattle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('forceTransitionAfterBattle recovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows error UI when transition to NodeMap returns false', async () => {
+    transitionToScene.mockResolvedValueOnce(false);
+    const scene = makeTransitionScene();
+    await scene.forceTransitionAfterBattle();
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Transition failed. Refresh and continue run.',
+      '#ff8888',
+    );
+  });
+
+  it('shows error UI when transition to RunComplete returns false', async () => {
+    transitionToScene.mockResolvedValueOnce(false);
+    const scene = makeTransitionScene({
+      runManager: { isRunComplete: vi.fn(() => true), settleEndRunRewards: vi.fn() },
+    });
+    await scene.forceTransitionAfterBattle();
+    expect(transitionToScene).toHaveBeenCalledWith(
+      scene,
+      'RunComplete',
+      expect.objectContaining({ result: 'victory' }),
+      expect.any(Object),
+    );
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Transition failed. Refresh and continue run.',
+      '#ff8888',
+    );
+  });
+
+  it('shows error UI when transition throws', async () => {
+    transitionToScene.mockRejectedValueOnce(new Error('boom'));
+    const scene = makeTransitionScene();
+    await scene.forceTransitionAfterBattle();
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Transition failed. Refresh and continue run.',
+      '#ff8888',
+    );
+  });
+});
+
+describe('completeBattle no-op double-failure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows error UI when retry transition also returns false', async () => {
+    // Both calls return false (initial + retry)
+    transitionToScene.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+
+    const scene = new BattleScene();
+    scene.battleState = 'PLAYER_IDLE';
+    scene.battleParams = { tutorialMode: false };
+    scene.scene = { isActive: () => true };
+    scene.cameras = { main: { centerX: 320, centerY: 240 } };
+    scene.add = {
+      text: vi.fn(() => ({
+        setOrigin() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
+      })),
+    };
+    const pending = [];
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        pending.push(cb());
+      }),
+    };
+    const audio = { playMusic: vi.fn() };
+    scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+    scene.clearBattleScopedDeltas = vi.fn();
+    scene.playerUnits = [{ name: 'Edric', stats: { HP: 20 } }];
+    scene.nonDeployedUnits = [];
+    scene.getTurnPressureState = vi.fn(() => ({ goldMultiplier: 1 }));
+    scene.goldEarned = 50;
+    scene.nodeId = 'node_1';
+    scene.gameData = {};
+    scene.isBoss = false;
+    scene.showLootStatus = vi.fn();
+    scene.runManager = {
+      completeBattle: vi.fn(() => false),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    // First call fails, retry also fails
+    expect(transitionToScene).toHaveBeenCalledTimes(2);
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Transition failed. Refresh and continue run.',
+      '#ff8888',
+    );
+  });
+
+  it('shows error UI when no-op transition throws', async () => {
+    transitionToScene.mockRejectedValueOnce(new Error('scene destroyed'));
+
+    const scene = new BattleScene();
+    scene.battleState = 'PLAYER_IDLE';
+    scene.battleParams = { tutorialMode: false };
+    scene.scene = { isActive: () => true };
+    scene.cameras = { main: { centerX: 320, centerY: 240 } };
+    scene.add = {
+      text: vi.fn(() => ({
+        setOrigin() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
+      })),
+    };
+    const pending = [];
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        pending.push(cb());
+      }),
+    };
+    const audio = { playMusic: vi.fn() };
+    scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+    scene.clearBattleScopedDeltas = vi.fn();
+    scene.playerUnits = [{ name: 'Edric', stats: { HP: 20 } }];
+    scene.nonDeployedUnits = [];
+    scene.getTurnPressureState = vi.fn(() => ({ goldMultiplier: 1 }));
+    scene.goldEarned = 50;
+    scene.nodeId = 'node_1';
+    scene.gameData = {};
+    scene.isBoss = false;
+    scene.showLootStatus = vi.fn();
+    scene.runManager = {
+      completeBattle: vi.fn(() => false),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    expect(scene.showLootStatus).toHaveBeenCalledWith(
+      'Transition failed. Refresh and continue run.',
+      '#ff8888',
+    );
+  });
+});
+
+describe('_startPostLootTransition fallback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('does not clear fallback timer when transitionAfterBattle returns false', async () => {
+    transitionToScene.mockResolvedValueOnce(false);
+    const scene = makeTransitionScene();
+    scene.forceTransitionAfterBattle = vi.fn();
+    scene.isStoryInputLocked = vi.fn(() => false);
+
+    scene._startPostLootTransition();
+
+    // Let the promise chain settle
+    await vi.advanceTimersByTimeAsync(0);
+
+    // Fallback timer should NOT have been cleared
+    expect(scene._postLootTransitionCompleted).toBe(false);
+    // The real _clearPostLootTransitionFallback was replaced by our mock,
+    // so check the timer field is still set (not cleared)
+    expect(scene._postLootTransitionTimer).not.toBeNull();
   });
 });

@@ -1328,12 +1328,16 @@ export class BattleScene extends Phaser.Scene {
 
     this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_TIMEOUT_MS);
     this._transitionAfterBattlePromise = Promise.resolve(this.transitionAfterBattle())
+      .then((ok) => {
+        if (ok === true) {
+          this._postLootTransitionCompleted = true;
+          this._clearPostLootTransitionFallback();
+        }
+        // If failed or undefined, leave the fallback timer running
+      })
       .catch((err) => {
         console.warn('[BattleScene] transitionAfterBattle rejected:', err);
-      })
-      .finally(() => {
-        this._postLootTransitionCompleted = true;
-        this._clearPostLootTransitionFallback();
+        // Don't clear fallback — let it fire forceTransitionAfterBattle
       });
   }
 
@@ -3143,21 +3147,33 @@ export class BattleScene extends Phaser.Scene {
     // Path preview when unit selected and hovering a reachable tile
     if (this.battleState === 'UNIT_SELECTED' && this.selectedUnit && this.movementRange) {
       const key = `${gp.col},${gp.row}`;
+      const previewEntry = this.movementRange.get(key);
       if (
-        this.movementRange.has(key) &&
+        previewEntry &&
+        previewEntry.stoppable !== false &&
         key !== `${this.selectedUnit.col},${this.selectedUnit.row}`
       ) {
         if (this._lastPathPreviewKey === key) return;
-        const path = this.grid.findPath(
+        // Use Dijkstra reconstruction for consistent ice-aware paths
+        const icePath = this.grid.reconstructIcePath(
+          this.movementRange,
           this.selectedUnit.col,
           this.selectedUnit.row,
           gp.col,
           gp.row,
-          this.selectedUnit.moveType,
-          this.unitPositions,
-          this.selectedUnit.faction,
-          this._getCostModifier(this.selectedUnit),
         );
+        const path =
+          icePath ||
+          this.grid.findPath(
+            this.selectedUnit.col,
+            this.selectedUnit.row,
+            gp.col,
+            gp.row,
+            this.selectedUnit.moveType,
+            this.unitPositions,
+            this.selectedUnit.faction,
+            this._getCostModifier(this.selectedUnit),
+          );
         if (path) {
           const occupied = this.buildOccupiedSet(this.selectedUnit);
           const effective = computeEffectivePath(
@@ -3168,9 +3184,12 @@ export class BattleScene extends Phaser.Scene {
             this.grid.rows,
             this.selectedUnit.moveType,
             occupied,
+            this._getCostModifier(this.selectedUnit),
           );
           this.grid.showPath(effective.effectivePath);
-          this.grid.showSlidePath(effective.slidePath);
+          for (const seg of effective.slideSegments) {
+            this.grid.showSlidePath(seg.slidePath);
+          }
         }
         this._lastPathPreviewKey = key;
       } else {
@@ -3272,7 +3291,8 @@ export class BattleScene extends Phaser.Scene {
 
       if (unit.weapon) {
         const attackTiles = new Set();
-        for (const [key] of moveRange) {
+        for (const [key, entry] of moveRange) {
+          if (entry.stoppable === false) continue;
           const [mc, mr] = key.split(',').map(Number);
           for (const t of this.grid.getAttackRange(mc, mr, unit.weapon)) {
             const tk = `${t.col},${t.row}`;
@@ -4247,7 +4267,8 @@ export class BattleScene extends Phaser.Scene {
       const fort = this._getTutorialFortTile();
       const isFortTile = Boolean(fort && gp.col === fort.col && gp.row === fort.row);
       const key = `${gp.col},${gp.row}`;
-      const canMoveToTile = Boolean(this.movementRange && this.movementRange.has(key));
+      const rangeEntry = this.movementRange?.get(key);
+      const canMoveToTile = Boolean(rangeEntry && rangeEntry.stoppable !== false);
       if (!isFortTile || !canMoveToTile) {
         void this._showTutorialBlockingInstruction(
           'Move Edric to the highlighted Fort tile to continue.',
@@ -4268,7 +4289,8 @@ export class BattleScene extends Phaser.Scene {
 
     // Click a reachable tile to move
     const key = `${gp.col},${gp.row}`;
-    if (this.movementRange && this.movementRange.has(key)) {
+    const moveEntry = this.movementRange?.get(key);
+    if (moveEntry && moveEntry.stoppable !== false) {
       this.moveUnit(this.selectedUnit, gp.col, gp.row);
     } else {
       // Click unreachable tile -> deselect (FE standard behavior)
@@ -4488,16 +4510,20 @@ export class BattleScene extends Phaser.Scene {
     const to = { col: toCol, row: toRow };
     let path;
     try {
-      path = this.grid.findPath(
-        unit.col,
-        unit.row,
-        toCol,
-        toRow,
-        unit.moveType,
-        this.unitPositions,
-        unit.faction,
-        this._getCostModifier(unit),
-      );
+      // Prefer Dijkstra reconstruction for ice-aware paths
+      path = this.grid.reconstructIcePath(this.movementRange, unit.col, unit.row, toCol, toRow);
+      if (!path) {
+        path = this.grid.findPath(
+          unit.col,
+          unit.row,
+          toCol,
+          toRow,
+          unit.moveType,
+          this.unitPositions,
+          unit.faction,
+          this._getCostModifier(unit),
+        );
+      }
     } catch (err) {
       console.error('[moveUnit] Error during path initialization', {
         unit: unit?.name || unit?.id || '<unknown>',
@@ -4529,6 +4555,7 @@ export class BattleScene extends Phaser.Scene {
         this.grid.rows,
         unit.moveType,
         occupied,
+        this._getCostModifier(unit),
       );
     } catch (err) {
       console.error('[moveUnit] Error during effective path initialization', {
@@ -4551,11 +4578,6 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const finalDest = finalPath[finalPath.length - 1];
-
-    // Forced slide tiles do not consume movement for Canto.
-    const moveCostEndIndex = Number.isInteger(effective.pathEndIndex)
-      ? effective.pathEndIndex
-      : path.length - 1;
     const rollbackLoc = { col: unit.col, row: unit.row };
     const rollbackMovementSpent = unit._movementSpent;
 
@@ -4601,8 +4623,10 @@ export class BattleScene extends Phaser.Scene {
       }
       try {
         const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-        const duration =
-          effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
+        const isSlide = effective.slideSegments.some(
+          (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
+        );
+        const duration = isSlide ? 60 : 80;
         this.tweens.add({
           targets,
           x: pos.x,
@@ -4627,12 +4651,7 @@ export class BattleScene extends Phaser.Scene {
       this.preMoveLoc = { ...rollbackLoc };
       this._preFogSnapshot = null;
       this._preFogSnapshot = this.grid.snapshotFogState();
-      unit._movementSpent = this.calculatePathMovementCost(
-        path,
-        unit.moveType,
-        moveCostEndIndex,
-        this._getCostModifier(unit),
-      );
+      unit._movementSpent = effective.movementCost;
 
       this.grid.clearHighlights();
       if (unit.graphic.clearTint) unit.graphic.clearTint();
@@ -5424,23 +5443,29 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     const key = `${gp.col},${gp.row}`;
-    if (!this.cantoRange?.has(key)) return;
+    const cantoEntry = this.cantoRange?.get(key);
+    if (!cantoEntry || cantoEntry.stoppable === false) return;
     // Animate Canto movement
     const from = { col: unit.col, row: unit.row };
     const to = { col: gp.col, row: gp.row };
     let path;
     try {
-      const positions = this.buildUnitPositionMap(unit.faction);
-      path = this.grid.findPath(
-        unit.col,
-        unit.row,
-        gp.col,
-        gp.row,
-        unit.moveType,
-        positions,
-        unit.faction,
-        this._getCostModifier(unit),
-      );
+      // Prefer Dijkstra reconstruction from cantoRange (ice-aware)
+      path = this.grid.reconstructIcePath(this.cantoRange, unit.col, unit.row, gp.col, gp.row);
+      if (!path || path.length < 2) {
+        // Fallback to A* for non-ice paths
+        const positions = this.buildUnitPositionMap(unit.faction);
+        path = this.grid.findPath(
+          unit.col,
+          unit.row,
+          gp.col,
+          gp.row,
+          unit.moveType,
+          positions,
+          unit.faction,
+          this._getCostModifier(unit),
+        );
+      }
     } catch (err) {
       const retryCount = this._recordCantoPreInitFault(unit);
       console.error('[handleCantoClick] Error during canto path initialization', {
@@ -5480,10 +5505,28 @@ export class BattleScene extends Phaser.Scene {
       });
       return;
     }
+    // Apply computeEffectivePath for ice slides
+    const cantoOccupied = this.buildOccupiedSet(unit);
+    const cantoEffective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      unit.moveType,
+      cantoOccupied,
+      this._getCostModifier(unit),
+    );
+    const cantoFinalPath = cantoEffective.effectivePath;
+    if (!cantoFinalPath || cantoFinalPath.length < 2) {
+      console.warn('[handleCantoClick] effectivePath returned null/short path', { from, to });
+      return;
+    }
     this.battleState = 'UNIT_MOVING';
     const targets = unit.label ? [unit.graphic, unit.label] : [unit.graphic];
-    const destCol = gp.col;
-    const destRow = gp.row;
+    const cantoDest = cantoFinalPath[cantoFinalPath.length - 1];
+    const destCol = cantoDest.col;
+    const destRow = cantoDest.row;
     let recoveryTriggered = false;
     let finalizeTriggered = false;
     const failCantoMove = (reason, error = null) => {
@@ -5518,17 +5561,24 @@ export class BattleScene extends Phaser.Scene {
     };
     const animateStep = (stepIndex) => {
       if (recoveryTriggered) return;
-      if (stepIndex >= path.length) {
+      if (stepIndex >= cantoFinalPath.length) {
         finalizeCantoMove();
         return;
       }
       try {
-        const pos = this.grid.gridToPixel(path[stepIndex].col, path[stepIndex].row);
+        const pos = this.grid.gridToPixel(
+          cantoFinalPath[stepIndex].col,
+          cantoFinalPath[stepIndex].row,
+        );
+        const isSlide = cantoEffective.slideSegments.some(
+          (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
+        );
+        const duration = isSlide ? 60 : 80;
         this.tweens.add({
           targets,
           x: pos.x,
           y: pos.y,
-          duration: 80,
+          duration,
           ease: 'Linear',
           onComplete: () => {
             try {
@@ -9640,7 +9690,8 @@ export class BattleScene extends Phaser.Scene {
     });
 
     // Apply XP and check for level-ups
-    const extendedLevelingEnabled = this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
+    const extendedLevelingEnabled =
+      this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false;
     const result = gainExperience(playerUnit, xp, { extendedLevelingEnabled });
 
     // Show level-up popups sequentially
@@ -10214,6 +10265,7 @@ export class BattleScene extends Phaser.Scene {
         this.grid.rows,
         enemy.moveType,
         occupied,
+        this._getCostModifier(enemy),
       );
       const finalPath = effective.effectivePath;
       if (!finalPath || finalPath.length < 2) {
@@ -10234,8 +10286,10 @@ export class BattleScene extends Phaser.Scene {
           return;
         }
         const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-        const duration =
-          effective.slideStartIndex >= 0 && stepIndex >= effective.slideStartIndex ? 60 : 80;
+        const isSlide = effective.slideSegments.some(
+          (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
+        );
+        const duration = isSlide ? 60 : 80;
         this.tweens.add({
           targets,
           x: pos.x,
@@ -10545,7 +10599,8 @@ export class BattleScene extends Phaser.Scene {
         enemy.faction,
         this._getCostModifier(enemy),
       );
-      for (const [key] of moveRange) {
+      for (const [key, entry] of moveRange) {
+        if (entry.stoppable === false) continue;
         const [mc, mr] = key.split(',').map(Number);
         // Get attack tiles from this position based on enemy weapon
         if (enemy.weapon) {
@@ -10659,15 +10714,36 @@ export class BattleScene extends Phaser.Scene {
         if (!this.scene?.isActive?.()) return;
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
-          await transitionToScene(
-            this,
-            'NodeMap',
-            {
-              gameData: this.gameData,
-              runManager: this.runManager,
-            },
-            { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-          );
+          try {
+            const ok = await transitionToScene(
+              this,
+              'NodeMap',
+              {
+                gameData: this.gameData,
+                runManager: this.runManager,
+              },
+              { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+            );
+            if (!ok) {
+              console.warn('[BattleScene] completeBattle no-op transition blocked; retrying.');
+              resetTransitionLocks(this);
+              const retryOk = await transitionToScene(
+                this,
+                'NodeMap',
+                {
+                  gameData: this.gameData,
+                  runManager: this.runManager,
+                },
+                { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+              );
+              if (!retryOk) {
+                this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+              }
+            }
+          } catch (err) {
+            console.warn('[BattleScene] completeBattle no-op transition failed:', err);
+            this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
+          }
           return;
         }
         try {
@@ -10698,14 +10774,14 @@ export class BattleScene extends Phaser.Scene {
 
   /** Transition to the next scene after loot selection. */
   async transitionAfterBattle() {
-    if (this.isTransitioningOut) return;
+    if (this.isTransitioningOut) return false;
     this.isTransitioningOut = true;
     try {
       if (this.runManager.isActComplete()) {
         if (this.runManager.isRunComplete()) {
           this.runManager.status = 'victory';
           this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-          await transitionToScene(
+          const ok = await transitionToScene(
             this,
             'RunComplete',
             {
@@ -10715,6 +10791,7 @@ export class BattleScene extends Phaser.Scene {
             },
             { reason: TRANSITION_REASONS.VICTORY },
           );
+          if (!ok) throw new Error('Scene transition to RunComplete blocked');
         } else {
           const fromAct = this.runManager.currentAct;
           this.runManager.advanceAct();
@@ -10726,7 +10803,7 @@ export class BattleScene extends Phaser.Scene {
           } catch (err) {
             console.warn('[BattleScene] act transition dialogue failed:', err);
           }
-          await transitionToScene(
+          const ok2 = await transitionToScene(
             this,
             'NodeMap',
             {
@@ -10735,9 +10812,10 @@ export class BattleScene extends Phaser.Scene {
             },
             { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
           );
+          if (!ok2) throw new Error('Scene transition to NodeMap blocked (act advance)');
         }
       } else {
-        await transitionToScene(
+        const ok3 = await transitionToScene(
           this,
           'NodeMap',
           {
@@ -10746,7 +10824,9 @@ export class BattleScene extends Phaser.Scene {
           },
           { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
         );
+        if (!ok3) throw new Error('Scene transition to NodeMap blocked');
       }
+      return true;
     } catch (err) {
       this.isTransitioningOut = false;
       this.reportLootError('transitionAfterBattle', err, {
@@ -10755,16 +10835,19 @@ export class BattleScene extends Phaser.Scene {
         nodeId: this.nodeId,
       });
       this.forceTransitionAfterBattle();
+      return false;
     }
   }
 
-  forceTransitionAfterBattle() {
+  async forceTransitionAfterBattle() {
     this._postLootTransitionCompleted = true;
     this._clearPostLootTransitionFallback();
+    resetTransitionLocks(this);
     try {
+      let ok;
       if (this.runManager?.isRunComplete?.()) {
         this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        void transitionToScene(
+        ok = await transitionToScene(
           this,
           'RunComplete',
           {
@@ -10774,17 +10857,23 @@ export class BattleScene extends Phaser.Scene {
           },
           { reason: TRANSITION_REASONS.VICTORY },
         );
-        return;
+      } else {
+        ok = await transitionToScene(
+          this,
+          'NodeMap',
+          {
+            gameData: this.gameData,
+            runManager: this.runManager,
+          },
+          { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
+        );
       }
-      void transitionToScene(
-        this,
-        'NodeMap',
-        {
-          gameData: this.gameData,
-          runManager: this.runManager,
-        },
-        { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-      );
+      if (!ok) {
+        console.error(
+          '[BattleScene][LootFlow] forceTransitionAfterBattle: transition returned false',
+        );
+        this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+      }
     } catch (err) {
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
       this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
@@ -11391,7 +11480,10 @@ export class BattleScene extends Phaser.Scene {
           awardGoldNow(scaledGoldAmount);
           // Distribute team XP to entire roster
           if (choice.xpAmount && this.runManager.roster) {
-            const extOpt = { extendedLevelingEnabled: this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false };
+            const extOpt = {
+              extendedLevelingEnabled:
+                this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false,
+            };
             for (const unit of this.runManager.roster) {
               gainExperience(unit, choice.xpAmount, extOpt);
               checkLevelUpSkills(unit, this.gameData.classes);
