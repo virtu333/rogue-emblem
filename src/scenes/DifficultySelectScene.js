@@ -4,6 +4,7 @@ import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
 import { DIFFICULTY_IDS, generateModifierSummary } from '../engine/DifficultyEngine.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 
 export class DifficultySelectScene extends Phaser.Scene {
   constructor() {
@@ -65,9 +66,13 @@ export class DifficultySelectScene extends Phaser.Scene {
         locked = true;
         lockReason = 'Beat the game to unlock';
       }
-      if (id === 'lunatic') {
+      const lunaticUnlocked = Boolean(
+        this.meta?.hasMilestone?.('beatHard') || this.meta?.hasMilestone?.('beatLunatic')
+        || hasAnySlotMilestone('beatHard') || hasAnySlotMilestone('beatLunatic')
+      );
+      if (id === 'lunatic' && !lunaticUnlocked) {
         locked = true;
-        lockReason = 'Coming Soon';
+        lockReason = 'Beat the game on Hard to unlock';
       }
       return { id, label, color, summary, locked, lockReason };
     });

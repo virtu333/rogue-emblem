@@ -142,6 +142,19 @@ export function migrateOldSaves() {
   }
 }
 
+/** Check if any slot (1-3) contains the given milestone. */
+export function hasAnySlotMilestone(milestone) {
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    try {
+      const raw = localStorage.getItem(getMetaKey(i));
+      if (!raw) continue;
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved.milestones) && saved.milestones.includes(milestone)) return true;
+    } catch (_) { /* ignore */ }
+  }
+  return false;
+}
+
 /** Clear all slot data + active slot key. Used by logout. */
 export function clearAllSlotData() {
   for (let i = 1; i <= MAX_SLOTS; i++) {

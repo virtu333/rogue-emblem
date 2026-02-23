@@ -1,8 +1,39 @@
-import { describe, it, expect } from 'vitest';
-import { generateModifierSummary, DIFFICULTY_DEFAULTS } from '../src/engine/DifficultyEngine.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { generateModifierSummary, DIFFICULTY_DEFAULTS, DIFFICULTY_IDS } from '../src/engine/DifficultyEngine.js';
+import { hasAnySlotMilestone, getMetaKey } from '../src/engine/SlotManager.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
+
+/**
+ * Mirrors DifficultySelectScene._buildModes lock logic for testability
+ * without importing Phaser. Keep in sync with the scene method.
+ */
+function buildModes(gd, meta) {
+  const config = gd?.difficulty?.modes || {};
+  const hardUnlocked = Boolean(meta?.hasMilestone?.('beatGame'));
+  return DIFFICULTY_IDS.map((id) => {
+    const mode = config[id] || {};
+    const label = mode.label || id.charAt(0).toUpperCase() + id.slice(1);
+    const color = mode.color || '#aaaaaa';
+    const summary = generateModifierSummary(mode);
+    let locked = false;
+    let lockReason = null;
+    if (id === 'hard' && !hardUnlocked) {
+      locked = true;
+      lockReason = 'Beat the game to unlock';
+    }
+    const lunaticUnlocked = Boolean(
+      meta?.hasMilestone?.('beatHard') || meta?.hasMilestone?.('beatLunatic')
+      || hasAnySlotMilestone('beatHard') || hasAnySlotMilestone('beatLunatic')
+    );
+    if (id === 'lunatic' && !lunaticUnlocked) {
+      locked = true;
+      lockReason = 'Beat the game on Hard to unlock';
+    }
+    return { id, label, color, summary, locked, lockReason };
+  });
+}
 
 describe('generateModifierSummary', () => {
   it('includes village ambush chance for Normal mode', () => {
@@ -27,7 +58,7 @@ describe('generateModifierSummary', () => {
   it('includes extended leveling for Lunatic mode', () => {
     const lunaticMode = gameData.difficulty.modes.lunatic;
     const result = generateModifierSummary(lunaticMode);
-    expect(result.some((l) => l.includes('Extended enemy leveling'))).toBe(true);
+    expect(result.some((l) => l.includes('Extended leveling past Lv 20'))).toBe(true);
     expect(result.some((l) => l.includes('Enemy stats +2'))).toBe(true);
     expect(result.some((l) => l.includes('weapon tier'))).toBe(true);
     expect(result.some((l) => l.includes('25% village ambush chance'))).toBe(true);
@@ -53,5 +84,88 @@ describe('generateModifierSummary', () => {
     const mode = { ...DIFFICULTY_DEFAULTS, fogChanceBonus: 0.2 };
     const result = generateModifierSummary(mode);
     expect(result.some((l) => l.includes('+20% fog chance'))).toBe(true);
+  });
+});
+
+describe('Lunatic unlock gate', () => {
+  function makeMeta(milestones) {
+    const set = new Set(milestones);
+    return { hasMilestone: (m) => set.has(m) };
+  }
+
+  it('Lunatic is locked with reason when beatHard is absent', () => {
+    const modes = buildModes(gameData, makeMeta(['beatGame']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(true);
+    expect(lunatic.lockReason).toBe('Beat the game on Hard to unlock');
+  });
+
+  it('Lunatic is unlocked when beatHard milestone is present', () => {
+    const modes = buildModes(gameData, makeMeta(['beatGame', 'beatHard']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(false);
+    expect(lunatic.lockReason).toBeNull();
+  });
+
+  it('Lunatic is unlocked when beatLunatic milestone is present', () => {
+    const modes = buildModes(gameData, makeMeta(['beatGame', 'beatLunatic']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(false);
+    expect(lunatic.lockReason).toBeNull();
+  });
+});
+
+describe('Cross-slot Lunatic unlock', () => {
+  const store = new Map();
+  let origLS;
+
+  beforeEach(() => {
+    origLS = globalThis.localStorage;
+    store.clear();
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      writable: true,
+      value: {
+        getItem: (key) => (store.has(key) ? store.get(key) : null),
+        setItem: (key, val) => store.set(key, String(val)),
+        removeItem: (key) => store.delete(key),
+        clear: () => store.clear(),
+      },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      writable: true,
+      value: origLS,
+    });
+  });
+
+  function makeMeta(milestones) {
+    const set = new Set(milestones);
+    return { hasMilestone: (m) => set.has(m) };
+  }
+
+  it('Lunatic unlocks via beatHard on a different slot', () => {
+    store.set(getMetaKey(2), JSON.stringify({ milestones: ['beatGame', 'beatHard'] }));
+    const modes = buildModes(gameData, makeMeta(['beatGame']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(false);
+  });
+
+  it('Lunatic unlocks via beatLunatic on a different slot', () => {
+    store.set(getMetaKey(3), JSON.stringify({ milestones: ['beatGame', 'beatLunatic'] }));
+    const modes = buildModes(gameData, makeMeta(['beatGame']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(false);
+  });
+
+  it('Lunatic stays locked when no slot has beatHard or beatLunatic', () => {
+    // All slots empty
+    const modes = buildModes(gameData, makeMeta(['beatGame']));
+    const lunatic = modes.find((m) => m.id === 'lunatic');
+    expect(lunatic.locked).toBe(true);
+    expect(lunatic.lockReason).toBe('Beat the game on Hard to unlock');
   });
 });
