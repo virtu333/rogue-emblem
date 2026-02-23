@@ -213,7 +213,6 @@ export function getSkillCombatMods(
     mods.resBonus += affixMods.resBonus;
     mods.hitBonus += affixMods.hitBonus;
     mods.avoidBonus += affixMods.avoidBonus;
-    mods.spdBonus += affixMods.movBonus || 0; // Note: haste adds MOV but we can map it to light stat if needed? Actually haste is just MOV.
     mods.immuneToDisplacement = affixMods.immuneToDisplacement;
     if (affixMods.activated.length > 0) {
       mods.activated.push(...affixMods.activated);

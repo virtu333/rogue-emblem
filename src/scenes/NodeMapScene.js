@@ -902,7 +902,13 @@ export class NodeMapScene extends Phaser.Scene {
   persistRunSave() {
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
-    saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
+    const result = saveRun(
+      this.runManager,
+      cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+    );
+    if (!result.ok) {
+      showMinorHint(this, 'Save failed — storage may be full');
+    }
   }
 
   showPauseMenu() {
@@ -1246,7 +1252,13 @@ export class NodeMapScene extends Phaser.Scene {
         this.rosterOverlay = null;
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
-        saveRun(this.runManager, cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null);
+        const result = saveRun(
+          this.runManager,
+          cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+        );
+        if (!result.ok) {
+          showMinorHint(this, 'Save failed — storage may be full');
+        }
         if (!this.shopOverlay && !this.churchOverlay) {
           this.drawMap();
         }

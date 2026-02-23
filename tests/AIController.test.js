@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { AIController } from '../src/engine/AIController.js';
+import * as GridModule from '../src/engine/Grid.js';
 
 // Minimal grid mock: returns movement range as a Map of "col,row" -> cost
 function createMockGrid(moveTiles = []) {
@@ -556,6 +557,185 @@ describe('AIController', () => {
       const decision = ai._decideAction(enemy, [enemy], [player], []);
       expect(decision.reason).not.toBe('attack_in_range');
       expect(decision.target).toBeNull();
+    });
+  });
+
+  describe('H4 — A* ice sliding validation in _findPathWithIceFallback', () => {
+    function createIceGrid() {
+      const terrainData = [
+        { name: 'Plain', moveCost: { Infantry: '1', Armored: '1', Cavalry: '1', Flying: '1' } },
+        { name: 'Ice', moveCost: { Infantry: '1', Armored: '1', Cavalry: '1', Flying: '1' } },
+      ];
+      return {
+        cols: 6,
+        rows: 3,
+        terrainData,
+        mapLayout: [
+          [0, 1, 1, 0, 0, 0], // row 0: plain, ice, ice, plain, ...
+          [0, 0, 0, 0, 0, 0], // row 1: all plain
+          [0, 0, 0, 0, 0, 0], // row 2: all plain
+        ],
+        getMoveCost: (col, row, moveType) => {
+          const idx = terrainData[0]; // Everything costs 1
+          return 1;
+        },
+        getAttackRange: (col, row, weapon) => {
+          const range = weapon?.range || '1';
+          const [minS, maxS] = String(range).split('-');
+          const min = Number(minS);
+          const max = Number(maxS || minS);
+          const tiles = [];
+          for (let dr = -max; dr <= max; dr++) {
+            for (let dc = -max; dc <= max; dc++) {
+              const dist = Math.abs(dr) + Math.abs(dc);
+              if (dist < min || dist > max) continue;
+              tiles.push({ col: col + dc, row: row + dr });
+            }
+          }
+          return tiles;
+        },
+        getMovementRange: (col, row, mov) => {
+          const map = new Map();
+          for (let dr = -mov; dr <= mov; dr++) {
+            for (let dc = -mov; dc <= mov; dc++) {
+              if (Math.abs(dr) + Math.abs(dc) > mov) continue;
+              const c = col + dc;
+              const r = row + dr;
+              if (c >= 0 && c < 6 && r >= 0 && r < 3) {
+                map.set(`${c},${r}`, Math.abs(dr) + Math.abs(dc));
+              }
+            }
+          }
+          return map;
+        },
+        findPath: (fromCol, fromRow, toCol, toRow) => {
+          // Simple straight-line path
+          const path = [{ col: fromCol, row: fromRow }];
+          let c = fromCol,
+            r = fromRow;
+          while (c !== toCol || r !== toRow) {
+            if (c < toCol) c++;
+            else if (c > toCol) c--;
+            if (r < toRow) r++;
+            else if (r > toRow) r--;
+            path.push({ col: c, row: r });
+          }
+          return path;
+        },
+        reconstructIcePath: (range, fromCol, fromRow, toCol, toRow) => {
+          // Simple fallback: return path if destination in range
+          const key = `${toCol},${toRow}`;
+          if (!range.has(key)) return null;
+          return [
+            { col: fromCol, row: fromRow },
+            { col: toCol, row: toRow },
+          ];
+        },
+      };
+    }
+
+    it('no ice on path returns A* path directly', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 1, mov: 3 });
+      // Path from (0,1) to (2,1) is all plain (row 1)
+      const path = ai._findPathWithIceFallback(enemy, 2, 1, null);
+      expect(path).not.toBeNull();
+      expect(path[path.length - 1]).toEqual({ col: 2, row: 1 });
+    });
+
+    it('Flying units bypass ice validation entirely', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 0, mov: 3, moveType: 'Flying' });
+      // Path crosses ice at (1,0) and (2,0) but Flying is immune
+      const path = ai._findPathWithIceFallback(enemy, 3, 0, null);
+      expect(path).not.toBeNull();
+      expect(path[path.length - 1]).toEqual({ col: 3, row: 0 });
+    });
+
+    it('_pathCrossesIce detects ice tiles in path', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const pathWithIce = [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+      ];
+      expect(ai._pathCrossesIce(pathWithIce, 'Infantry')).toBe(true);
+    });
+
+    it('_pathCrossesIce returns false for all-plain path', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const plainPath = [
+        { col: 0, row: 1 },
+        { col: 1, row: 1 },
+        { col: 2, row: 1 },
+      ];
+      expect(ai._pathCrossesIce(plainPath, 'Infantry')).toBe(false);
+    });
+
+    it('_pathCrossesIce returns false for Flying moveType', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const pathWithIce = [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+        { col: 2, row: 0 },
+      ];
+      expect(ai._pathCrossesIce(pathWithIce, 'Flying')).toBe(false);
+    });
+
+    it('A* crosses ice, effective landing diverts → falls back to Dijkstra', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 0, mov: 5 });
+
+      // Mock computeEffectivePath to simulate ice diverting landing to (5,0) instead of goal (3,0)
+      const spy = vi.spyOn(GridModule, 'computeEffectivePath').mockReturnValueOnce({
+        effectivePath: [
+          { col: 0, row: 0 },
+          { col: 1, row: 0 },
+          { col: 5, row: 0 },
+        ],
+        slideSegments: [],
+      });
+
+      const path = ai._findPathWithIceFallback(enemy, 3, 0, null);
+      expect(spy).toHaveBeenCalled();
+      // Should have fallen back to Dijkstra reconstructIcePath — returns 2-step path
+      expect(path).not.toBeNull();
+      expect(path[path.length - 1]).toEqual({ col: 3, row: 0 });
+      expect(path.length).toBe(2); // reconstructIcePath returns [start, goal]
+
+      spy.mockRestore();
+    });
+
+    it('A* crosses ice, effective landing matches goal → A* path accepted', () => {
+      const grid = createIceGrid();
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+      const enemy = makeEnemy({ col: 0, row: 0, mov: 5 });
+
+      // Mock computeEffectivePath so effective landing matches the goal at (3,0)
+      const spy = vi.spyOn(GridModule, 'computeEffectivePath').mockReturnValueOnce({
+        effectivePath: [
+          { col: 0, row: 0 },
+          { col: 1, row: 0 },
+          { col: 2, row: 0 },
+          { col: 3, row: 0 },
+        ],
+        slideSegments: [],
+      });
+
+      const path = ai._findPathWithIceFallback(enemy, 3, 0, null);
+      expect(spy).toHaveBeenCalled();
+      // A* path should be returned directly (not the 2-step Dijkstra stub)
+      expect(path).not.toBeNull();
+      expect(path[path.length - 1]).toEqual({ col: 3, row: 0 });
+      expect(path.length).toBeGreaterThan(2); // A* multi-step path, not 2-step Dijkstra
+
+      spy.mockRestore();
     });
   });
 

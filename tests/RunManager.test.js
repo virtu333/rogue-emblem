@@ -1064,6 +1064,39 @@ describe('RunManager', () => {
       expect(meta.recordMilestone).toHaveBeenCalledWith('beatLunatic');
       expect(meta.recordMilestone).not.toHaveBeenCalledWith('beatHard');
     });
+
+    it('H1 regression: two different meta objects across scene transitions get rewards applied exactly once', () => {
+      rm.startRun();
+      rm.status = 'victory';
+      rm.actIndex = 3;
+      rm.completedBattles = 8;
+
+      // First call simulates BattleScene settling rewards
+      const meta1 = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      const first = rm.settleEndRunRewards(meta1, 'victory');
+      expect(first.valor).toBeGreaterThan(0);
+      expect(meta1.addValor).toHaveBeenCalledTimes(1);
+      expect(meta1.incrementRunsCompleted).toHaveBeenCalledTimes(1);
+
+      // Second call simulates RunCompleteScene with a fresh meta reference
+      const meta2 = {
+        addValor: vi.fn(),
+        addSupply: vi.fn(),
+        incrementRunsCompleted: vi.fn(),
+        recordMilestone: vi.fn(),
+      };
+      const second = rm.settleEndRunRewards(meta2, 'victory');
+      expect(second).toEqual(first); // Returns cached rewards
+      // meta2 should NOT receive rewards — appliedToMeta was set to true by first call
+      expect(meta2.addValor).not.toHaveBeenCalled();
+      expect(meta2.addSupply).not.toHaveBeenCalled();
+      expect(meta2.incrementRunsCompleted).not.toHaveBeenCalled();
+    });
   });
 
   describe('getRoster', () => {

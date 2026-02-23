@@ -69,6 +69,7 @@ import {
   getAttackAffixes,
   rollDefenseAffixes,
   getWarpCandidates,
+  getAffixMovBonus,
 } from '../engine/AffixSystem.js';
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import {
@@ -874,6 +875,7 @@ export class BattleScene extends Phaser.Scene {
         onPhaseChange: (phase, turn) => this.onPhaseChange(phase, turn),
         onVictory: () => this.onVictory(),
         onDefeat: () => this.onDefeat(),
+        checkBattleEnd: () => this.checkBattleEnd(),
       });
       this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 
@@ -1742,6 +1744,12 @@ export class BattleScene extends Phaser.Scene {
     enemy.isElite = Boolean(spawn.isElite || this.isElite);
     if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
       enemy.affixes = [...spawn.affixes];
+      // Apply MOV bonus from passive affixes to authoritative stats.MOV at spawn
+      const affixMovBonus = getAffixMovBonus(enemy.affixes, this.gameData.affixes);
+      if (affixMovBonus !== 0) {
+        enemy.stats.MOV = Math.max(1, (enemy.stats.MOV || 0) + affixMovBonus);
+        enemy.mov = enemy.stats.MOV;
+      }
     }
     if (spawn.isBoss) {
       enemy.isBoss = true;

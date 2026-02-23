@@ -90,8 +90,8 @@ export function deleteSlot(slot) {
   try {
     localStorage.removeItem(getMetaKey(slot));
     localStorage.removeItem(getRunKey(slot));
-  } catch (_) {
-    /* ignore */
+  } catch (err) {
+    console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }
   HintManager.deleteForSlot(slot);
 }
@@ -110,8 +110,8 @@ export function getActiveSlot() {
 export function setActiveSlot(slot) {
   try {
     localStorage.setItem(ACTIVE_SLOT_KEY, String(slot));
-  } catch (_) {
-    /* ignore */
+  } catch (err) {
+    console.warn('[SlotManager] setActiveSlot failed:', err?.message || err);
   }
 }
 
@@ -137,8 +137,8 @@ export function migrateOldSaves() {
     if (oldMeta || oldRun) {
       setActiveSlot(1);
     }
-  } catch (_) {
-    /* ignore */
+  } catch (err) {
+    console.warn('[SlotManager] migrateOldSaves failed:', err?.message || err);
   }
 }
 
@@ -164,7 +164,7 @@ export function clearAllSlotData() {
   }
   try {
     localStorage.removeItem(ACTIVE_SLOT_KEY);
-  } catch (_) {
-    /* ignore */
+  } catch (err) {
+    console.warn('[SlotManager] clearAllSlotData failed:', err?.message || err);
   }
 }

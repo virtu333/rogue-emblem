@@ -4,7 +4,10 @@ import {
   rollDefenseAffixes,
   getWarpCandidates,
   getAffixCombatMods,
+  getAffixMovBonus,
 } from '../src/engine/AffixSystem.js';
+import { getSkillCombatMods } from '../src/engine/SkillSystem.js';
+import { loadGameData } from './testData.js';
 
 describe('Affix Combat Interactions', () => {
   const mockSkills = [];
@@ -127,5 +130,74 @@ describe('Affix Combat Interactions', () => {
       const match = bestPicks.find((bp) => bp.col === p.col && bp.row === p.row);
       expect(match).toBeDefined();
     }
+  });
+});
+
+describe('H5 — Haste MOV bonus (not SPD)', () => {
+  const hasteAffixData = {
+    affixes: [
+      { id: 'haste', name: 'Haste', trigger: 'passive', effects: { movBonus: 2 } },
+      { id: 'fury', name: 'Fury', trigger: 'passive', effects: { atkBonus: 3 } },
+    ],
+  };
+
+  it('getAffixMovBonus returns correct total for Haste affix', () => {
+    expect(getAffixMovBonus(['haste'], hasteAffixData)).toBe(2);
+  });
+
+  it('getAffixMovBonus returns 0 for non-MOV affixes', () => {
+    expect(getAffixMovBonus(['fury'], hasteAffixData)).toBe(0);
+  });
+
+  it('getAffixMovBonus sums multiple MOV affixes', () => {
+    const multiData = {
+      affixes: [
+        { id: 'haste', name: 'Haste', trigger: 'passive', effects: { movBonus: 2 } },
+        { id: 'swift', name: 'Swift', trigger: 'passive', effects: { movBonus: 1 } },
+      ],
+    };
+    expect(getAffixMovBonus(['haste', 'swift'], multiData)).toBe(3);
+  });
+
+  it('getAffixMovBonus handles null/missing gracefully', () => {
+    expect(getAffixMovBonus(null, hasteAffixData)).toBe(0);
+    expect(getAffixMovBonus(['haste'], null)).toBe(0);
+    expect(getAffixMovBonus(['haste'], { affixes: null })).toBe(0);
+  });
+
+  it('getAffixCombatMods does NOT return movBonus field', () => {
+    const unit = {
+      col: 0,
+      row: 0,
+      affixes: ['haste'],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+    };
+    const mods = getAffixCombatMods(unit, {}, [], hasteAffixData, null);
+    expect(mods).not.toHaveProperty('movBonus');
+  });
+
+  it('getSkillCombatMods with Haste affix does NOT boost spdBonus', () => {
+    const gameData = loadGameData();
+    const unit = {
+      col: 0,
+      row: 0,
+      skills: [],
+      affixes: ['haste'],
+      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1' },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+    };
+    const opponent = {
+      col: 1,
+      row: 0,
+      skills: [],
+      weapon: { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1' },
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+    };
+    const mods = getSkillCombatMods(unit, opponent, [], [], gameData.skills, hasteAffixData, null);
+    expect(mods.spdBonus).toBe(0);
   });
 });

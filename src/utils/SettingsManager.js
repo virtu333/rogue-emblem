@@ -66,11 +66,22 @@ export class SettingsManager {
   }
 
   _save() {
+    let localOk = false;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
-    } catch (_) {
-      /* incognito / quota exceeded */
+      localOk = true;
+    } catch (err) {
+      console.warn('[Settings] localStorage write failed:', err?.message || err);
     }
-    if (this.onSave) this.onSave(this.data);
+
+    if (localOk && this.onSave) {
+      try {
+        this.onSave(this.data);
+      } catch (err) {
+        console.warn('[Settings] onSave callback error:', err?.message || err);
+      }
+    }
+
+    return { ok: localOk };
   }
 }

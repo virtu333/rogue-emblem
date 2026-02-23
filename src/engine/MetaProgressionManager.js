@@ -653,12 +653,23 @@ export class MetaProgressionManager {
       milestones: [...this.milestones],
       savedAt: this.savedAt,
     };
+    let localOk = false;
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(payload));
-    } catch (_) {
-      /* incognito / quota exceeded */
+      localOk = true;
+    } catch (err) {
+      console.warn('[MetaProgression] localStorage write failed:', err?.message || err);
     }
-    if (this.onSave) this.onSave(payload);
+
+    if (localOk && this.onSave) {
+      try {
+        this.onSave(payload);
+      } catch (err) {
+        console.warn('[MetaProgression] onSave callback error:', err?.message || err);
+      }
+    }
+
+    return { ok: localOk };
   }
 }
 

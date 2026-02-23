@@ -306,6 +306,7 @@ export class HeadlessBattle {
       onPhaseChange: (phase, turn) => this._onPhaseChange(phase, turn),
       onVictory: () => this._onVictory(),
       onDefeat: () => this._onDefeat(),
+      checkBattleEnd: () => this._checkBattleEnd(),
     });
     this.turnManager.init(this.playerUnits, this.enemyUnits, this.npcUnits, bc.objective);
 

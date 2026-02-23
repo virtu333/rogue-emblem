@@ -1,10 +1,11 @@
 // TurnManager — Player/enemy phase state machine (no Phaser dependencies)
 
 export class TurnManager {
-  constructor({ onPhaseChange, onVictory, onDefeat }) {
+  constructor({ onPhaseChange, onVictory, onDefeat, checkBattleEnd }) {
     this.onPhaseChange = onPhaseChange;
     this.onVictory = onVictory;
     this.onDefeat = onDefeat;
+    this._externalCheckBattleEnd = checkBattleEnd || null;
 
     this.playerUnits = [];
     this.enemyUnits = [];
@@ -68,6 +69,10 @@ export class TurnManager {
   }
 
   _checkBattleEnd() {
+    if (this._externalCheckBattleEnd) {
+      return this._externalCheckBattleEnd();
+    }
+    // Fallback for standalone/test usage
     if (this.playerUnits.length === 0) {
       this.onDefeat();
       return true;

@@ -23,7 +23,6 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
     resBonus: 0,
     hitBonus: 0,
     avoidBonus: 0,
-    movBonus: 0,
     terrainDefBonus: 0,
     immuneToDisplacement: false,
     activated: [], // [{id, name}] for UI
@@ -40,7 +39,6 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
       const fx = affix.effects;
       if (fx.atkBonus) mods.atkBonus += fx.atkBonus;
       if (fx.defPenalty) mods.defBonus += fx.defPenalty; // negative
-      if (fx.movBonus) mods.movBonus += fx.movBonus;
       if (fx.immuneToDisplacement) mods.immuneToDisplacement = true;
       if (fx.terrainDefBonus && terrain && fx.terrainDefBonus[terrain.name]) {
         mods.terrainDefBonus += fx.terrainDefBonus[terrain.name];
@@ -210,6 +208,23 @@ export function getOnDeathAffixes(unit, affixData) {
     }
   }
   return effects;
+}
+
+/**
+ * Get total MOV bonus from passive affixes (applied at spawn, not combat-time).
+ * @param {string[]} affixIds
+ * @param {object} affixData
+ * @returns {number}
+ */
+export function getAffixMovBonus(affixIds, affixData) {
+  if (!affixData?.affixes || !Array.isArray(affixIds)) return 0;
+  let total = 0;
+  for (const aid of affixIds) {
+    const affix = getAffix(aid, affixData);
+    if (!affix || affix.trigger !== 'passive') continue;
+    if (affix.effects?.movBonus) total += affix.effects.movBonus;
+  }
+  return total;
 }
 
 /**

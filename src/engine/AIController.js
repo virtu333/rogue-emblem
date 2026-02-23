@@ -635,8 +635,35 @@ export class AIController {
       enemy.faction,
       costMod,
     );
-    if (path) return path;
-    // A* failed — try Dijkstra ice-aware reconstruction
+
+    if (path) {
+      if (!this._pathCrossesIce(path, enemy.moveType)) {
+        return path; // No ice — A* is trustworthy
+      }
+      // Validate ice-affected path via computeEffectivePath
+      const occupiedTiles = new Set(unitPositions ? unitPositions.keys() : []);
+      const effective = computeEffectivePath(
+        path,
+        this.grid.mapLayout,
+        this.grid.terrainData,
+        this.grid.cols,
+        this.grid.rows,
+        enemy.moveType,
+        occupiedTiles,
+        costMod,
+      );
+      const ep = effective?.effectivePath;
+      if (
+        ep?.length > 0 &&
+        ep[ep.length - 1].col === goalCol &&
+        ep[ep.length - 1].row === goalRow
+      ) {
+        return path; // Ice present but landing matches goal
+      }
+      // Ice diverted — fall through to Dijkstra
+    }
+
+    // A* failed or ice-diverted — try Dijkstra ice-aware reconstruction
     if (typeof this.grid.reconstructIcePath !== 'function') return null;
     const range =
       moveRange ||
@@ -652,6 +679,19 @@ export class AIController {
     const key = `${goalCol},${goalRow}`;
     if (!range.has(key)) return null;
     return this.grid.reconstructIcePath(range, enemy.col, enemy.row, goalCol, goalRow);
+  }
+
+  /** Check if any step in a path crosses an ice tile. Flying units are immune. */
+  _pathCrossesIce(path, moveType) {
+    if (moveType === 'Flying') return false;
+    if (!this.grid?.mapLayout || !this.grid?.terrainData) return false;
+    for (let i = 1; i < path.length; i++) {
+      const step = path[i];
+      const terrainIdx = this.grid.mapLayout[step.row]?.[step.col];
+      if (terrainIdx == null) continue;
+      if (this.grid.terrainData[terrainIdx]?.name === 'Ice') return true;
+    }
+    return false;
   }
 
   _scoreAttackTarget(enemy, target, forceLowestHpTargeting = false) {

@@ -3355,12 +3355,23 @@ export function saveRun(runManager, onSave, slotNumber) {
     savedAt: Date.now(),
   };
   const key = resolveRunKey(slotNumber);
+  let localOk = false;
   try {
     localStorage.setItem(key, JSON.stringify(json));
-  } catch (_) {
-    /* incognito / quota exceeded */
+    localOk = true;
+  } catch (err) {
+    console.warn('[RunManager] localStorage write failed:', err?.message || err);
   }
-  if (onSave) onSave(json);
+
+  if (localOk && onSave) {
+    try {
+      onSave(json);
+    } catch (err) {
+      console.warn('[RunManager] onSave callback error:', err?.message || err);
+    }
+  }
+
+  return { ok: localOk };
 }
 
 export function loadRun(gameData, slotNumber) {
