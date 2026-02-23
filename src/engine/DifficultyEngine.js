@@ -7,6 +7,8 @@ export const DIFFICULTY_IDS = ['normal', 'hard', 'lunatic'];
 export const DIFFICULTY_REQUIRED_KEYS = [
   'enemyStatBonus',
   'enemyCountBonus',
+  'enemyLevelBonus',
+  'enemyCountBase',
   'enemyEquipTierShift',
   'enemySkillChance',
   'enemyPoisonChance',
@@ -33,6 +35,8 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   color: '#44cc44',
   enemyStatBonus: 0,
   enemyCountBonus: 0,
+  enemyLevelBonus: 0,
+  enemyCountBase: 0,
   enemyEquipTierShift: 0,
   enemySkillChance: 0,
   enemyPoisonChance: 0,
@@ -66,6 +70,12 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (mode.enemyCountBonus > (defaults.enemyCountBonus || 0)) {
     lines.push(`+${mode.enemyCountBonus} extra enemies per map`);
+  }
+  if (mode.enemyLevelBonus > (defaults.enemyLevelBonus || 0)) {
+    lines.push(`Enemy levels +${mode.enemyLevelBonus}`);
+  }
+  if (mode.enemyCountBase > (defaults.enemyCountBase || 0)) {
+    lines.push(`Base enemy count: ${mode.enemyCountBase}`);
   }
   if (mode.enemySkillChance > (defaults.enemySkillChance || 0)) {
     lines.push(`+${Math.round(mode.enemySkillChance * 100)}% enemy skill chance`);

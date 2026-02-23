@@ -2213,6 +2213,9 @@ export class RunManager {
     battleParams.firstBattleFightersOnly = isFirstBattle;
     battleParams.enemyStatBonus = this.getDifficultyModifier('enemyStatBonus', 0);
     battleParams.enemyCountBonus = this.getDifficultyModifier('enemyCountBonus', 0);
+    battleParams.enemyLevelBonus = this.getDifficultyModifier('enemyLevelBonus', 0);
+    battleParams.enemyCountBase = this.getDifficultyModifier('enemyCountBase', 0);
+    battleParams.enemyEquipTierShift = this.getDifficultyModifier('enemyEquipTierShift', 0);
     battleParams.xpMultiplier = this.getDifficultyModifier('xpMultiplier', 1);
     battleParams.goldMultiplier = this.getDifficultyModifier('goldMultiplier', 1);
     battleParams.enemyPoisonChance = this.getDifficultyModifier('enemyPoisonChance', 0);

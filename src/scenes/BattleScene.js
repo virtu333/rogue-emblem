@@ -168,7 +168,7 @@ import {
   getAvailableLords,
   createBossLordUnit,
 } from '../engine/BossRecruitSystem.js';
-import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
+import { resolveRecruitScalingTargets, resolveTeamAverageLevel } from '../engine/RecruitScaling.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -651,11 +651,16 @@ export class BattleScene extends Phaser.Scene {
       if (bc.npcSpawn) {
         const npcSpawn = bc.npcSpawn;
         const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
-        const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
-          resolveRecruitScalingTargets(this.playerUnits);
+        const teamAvgLevel = resolveTeamAverageLevel(this.playerUnits);
+        const { dynamicPromotionLevel, promotedLevelTarget } = resolveRecruitScalingTargets(
+          this.playerUnits,
+        );
+        const act = this.battleParams?.act || 'act1';
+        const actPool = this.gameData?.enemies?.pools?.[act];
+        const actMinLevel = actPool?.levelRange?.[0] || 1;
         const nodeTargetLevel = Math.max(
-          1,
-          recruitTargetLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
+          actMinLevel,
+          teamAvgLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
         );
         npcSpawn.level = nodeTargetLevel;
 
@@ -1529,6 +1534,7 @@ export class BattleScene extends Phaser.Scene {
     return {
       multiplier: this.battleParams.difficultyMod || 1.0,
       enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+      enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
     };
   }
 
@@ -4317,8 +4323,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleForecastClick(gp) {
-    // Any click confirms combat (ESC / right-click to cancel)
-    if (this.forecastTarget) {
+    if (
+      this.forecastTarget &&
+      gp.col === this.forecastTarget.col &&
+      gp.row === this.forecastTarget.row
+    ) {
       this.confirmForecastCombat();
     }
   }
@@ -8343,7 +8352,10 @@ export class BattleScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
       leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
-      leftArrow.on('pointerdown', () => this._cycleForecastWeapon(-1));
+      leftArrow.on('pointerdown', () => {
+        this._uiClickBlocked = true;
+        this._cycleForecastWeapon(-1);
+      });
       this.forecastObjects.push(leftArrow);
 
       // Current weapon name (centered between arrows)
@@ -8367,7 +8379,10 @@ export class BattleScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
       rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
-      rightArrow.on('pointerdown', () => this._cycleForecastWeapon(1));
+      rightArrow.on('pointerdown', () => {
+        this._uiClickBlocked = true;
+        this._cycleForecastWeapon(1);
+      });
       this.forecastObjects.push(rightArrow);
 
       // Next weapon preview (right arrow direction)
@@ -8656,6 +8671,7 @@ export class BattleScene extends Phaser.Scene {
       confirmBtnText.setColor('#d8ffe1');
     });
     confirmBtnBg.on('pointerdown', () => {
+      this._uiClickBlocked = true;
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
       this.confirmForecastCombat();

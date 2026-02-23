@@ -75,6 +75,11 @@
         { "position": "bridge_ends", "unit": "lance_user", "count": 2 }
       ],
       "minBridges": 2,
+      "minBridgesByAct": {
+        "act2": [2, 3],
+        "act3": [3, 4],
+        "act4": [3, 4]
+      },
       "enemyWeights": {
         "archer": 1.5,
         "mage": 1.2,

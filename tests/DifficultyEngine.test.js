@@ -87,4 +87,28 @@ describe('DifficultyEngine', () => {
     expect(lines.some((l) => l.includes('Church promotions'))).toBe(true);
     expect(lines.some((l) => l.includes('Growth bonuses'))).toBe(true);
   });
+
+  it('includes enemyLevelBonus and enemyCountBase in all modes', () => {
+    for (const mode of ['normal', 'hard', 'lunatic']) {
+      const resolved = resolveDifficultyMode(difficulty, mode);
+      expect(resolved.modifiers).toHaveProperty('enemyLevelBonus');
+      expect(resolved.modifiers).toHaveProperty('enemyCountBase');
+      expect(Number.isFinite(resolved.modifiers.enemyLevelBonus)).toBe(true);
+      expect(Number.isFinite(resolved.modifiers.enemyCountBase)).toBe(true);
+    }
+  });
+
+  it('lunatic has higher enemyLevelBonus and enemyCountBase than normal', () => {
+    const normal = resolveDifficultyMode(difficulty, 'normal');
+    const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
+    expect(lunatic.modifiers.enemyLevelBonus).toBeGreaterThan(normal.modifiers.enemyLevelBonus);
+    expect(lunatic.modifiers.enemyCountBase).toBeGreaterThan(normal.modifiers.enemyCountBase);
+  });
+
+  it('generateModifierSummary includes level and count lines for lunatic', () => {
+    const lunatic = resolveDifficultyMode(difficulty, 'lunatic');
+    const lines = generateModifierSummary(lunatic.modifiers);
+    expect(lines.some((l) => l.includes('Enemy levels'))).toBe(true);
+    expect(lines.some((l) => l.includes('Base enemy count'))).toBe(true);
+  });
 });

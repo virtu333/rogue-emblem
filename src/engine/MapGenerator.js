@@ -38,6 +38,8 @@ export function generateBattle(params, deps) {
     enemyPoisonChance = 0,
     statusStaffConfig = null,
     isAmbush = false,
+    enemyLevelBonus = 0,
+    enemyCountBase = 0,
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
@@ -105,11 +107,21 @@ export function generateBattle(params, deps) {
     tiles: sizeEntry.tiles,
     densityCap: enemies.enemyCountByTiles,
     enemyCountBonus,
+    enemyCountBase,
     isAmbush,
   });
   const recruitBonus = isRecruitBattle ? 1 : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
   const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
+  // Apply difficulty-driven level bonus (supports positive and negative offsets)
+  const baseLevelRange = levelRange || pool.levelRange;
+  const adjustedLevelRange =
+    enemyLevelBonus !== 0
+      ? [
+          Math.max(1, baseLevelRange[0] + enemyLevelBonus),
+          Math.max(1, baseLevelRange[1] + enemyLevelBonus),
+        ]
+      : baseLevelRange;
   let enemySpawns = generateEnemies(
     mapLayout,
     template,
@@ -122,7 +134,7 @@ export function generateBattle(params, deps) {
     act,
     enemies.bosses,
     thronePos,
-    levelRange,
+    adjustedLevelRange,
     classes,
     { enemyPoisonChance, statusStaffConfig },
   );
@@ -199,8 +211,15 @@ export function generateBattle(params, deps) {
   ensureReachability(mapLayout, cols, rows, terrain, playerSpawns[0], reachTargets, thronePos);
 
   // Ensure bridges if river template
-  if (template.minBridges) {
-    ensureBridges(mapLayout, cols, rows, terrain, template.minBridges);
+  if (template.minBridges || template.minBridgesByAct) {
+    let bridgeCount = template.minBridges || 2;
+    const actOverride = template.minBridgesByAct?.[act];
+    if (actOverride != null) {
+      bridgeCount = Array.isArray(actOverride)
+        ? actOverride[0] + Math.floor(Math.random() * (actOverride[1] - actOverride[0] + 1))
+        : actOverride;
+    }
+    ensureBridges(mapLayout, cols, rows, terrain, bridgeCount);
   }
 
   ensureCavalryAdvanceGuarantees({
@@ -1157,6 +1176,7 @@ function rollEnemyCount({
   tiles,
   densityCap,
   enemyCountBonus = 0,
+  enemyCountBase = 0,
   isAmbush = false,
 }) {
   const actOffsets = ENEMY_COUNT_OFFSET[act];
@@ -1169,11 +1189,9 @@ function rollEnemyCount({
     offset = [2, 3]; // fallback for unmapped acts (postAct)
   }
   const [minOff, maxOff] = offset;
+  const base = enemyCountBase > 0 ? enemyCountBase : deployCount;
   const count =
-    deployCount +
-    minOff +
-    Math.floor(Math.random() * (maxOff - minOff + 1)) +
-    Math.trunc(enemyCountBonus);
+    base + minOff + Math.floor(Math.random() * (maxOff - minOff + 1)) + Math.trunc(enemyCountBonus);
 
   // Village ambush cap: surprise fights should be lighter than regular battles
   // Act 1: deployCount + 1; later acts: deployCount + 2
@@ -1538,31 +1556,49 @@ function getCardinalNeighbors(col, row, cols, rows) {
 // --- Bridge enforcement for river templates ---
 
 function ensureBridges(mapLayout, cols, rows, terrainData, minBridges) {
-  // Find all water tiles in the river zone (middle columns)
   const midStartCol = Math.floor(cols * 0.35);
   const midEndCol = Math.ceil(cols * 0.65);
 
-  // Count existing bridges in the river zone
-  let bridgeCount = 0;
-  const waterTiles = [];
+  // A "crossing row" = no Water tiles remain in the river zone (all passable).
+  // A "candidate row" = has at least one Water tile that can be converted.
+  const crossingRows = [];
+  const candidateRows = [];
   for (let r = 0; r < rows; r++) {
+    let hasWater = false;
     for (let c = midStartCol; c < midEndCol; c++) {
-      if (mapLayout[r][c] === TERRAIN.Bridge) bridgeCount++;
-      if (mapLayout[r][c] === TERRAIN.Water) waterTiles.push({ col: c, row: r });
+      if (mapLayout[r][c] === TERRAIN.Water) {
+        hasWater = true;
+        break;
+      }
+    }
+    if (!hasWater) {
+      // Check that row actually has bridge tiles (not just land with no river)
+      let hasBridge = false;
+      for (let c = midStartCol; c < midEndCol; c++) {
+        if (mapLayout[r][c] === TERRAIN.Bridge) {
+          hasBridge = true;
+          break;
+        }
+      }
+      if (hasBridge) crossingRows.push(r);
+    } else {
+      candidateRows.push(r);
     }
   }
 
-  // Add bridges if needed, spacing them vertically
-  while (bridgeCount < minBridges && waterTiles.length > 0) {
-    // Pick a water tile roughly evenly spaced
-    const targetRow = Math.floor((rows * (bridgeCount + 1)) / (minBridges + 1));
-    // Find closest water tile to target row
-    waterTiles.sort((a, b) => Math.abs(a.row - targetRow) - Math.abs(b.row - targetRow));
-    const tile = waterTiles.shift();
-    if (tile) {
-      mapLayout[tile.row][tile.col] = TERRAIN.Bridge;
-      bridgeCount++;
+  // Add full-row bridge crossings until we reach minBridges
+  while (crossingRows.length < minBridges && candidateRows.length > 0) {
+    const targetRow = Math.floor((rows * (crossingRows.length + 1)) / (minBridges + 1));
+    // Find closest candidate row to evenly-spaced target
+    candidateRows.sort((a, b) => Math.abs(a - targetRow) - Math.abs(b - targetRow));
+    const bestRow = candidateRows.shift();
+    // Convert ALL water tiles in this row within river zone to Bridge
+    for (let c = midStartCol; c < midEndCol; c++) {
+      if (mapLayout[bestRow][c] === TERRAIN.Water) {
+        mapLayout[bestRow][c] = TERRAIN.Bridge;
+      }
     }
+    crossingRows.push(bestRow);
   }
 }
 

@@ -69,7 +69,10 @@ import {
 } from '../../src/engine/WeaponArtPostCombat.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
-import { resolveRecruitScalingTargets } from '../../src/engine/RecruitScaling.js';
+import {
+  resolveRecruitScalingTargets,
+  resolveTeamAverageLevel,
+} from '../../src/engine/RecruitScaling.js';
 import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
@@ -222,11 +225,16 @@ export class HeadlessBattle {
     if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
       const recruitLevelBonus = Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0);
-      const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
-        resolveRecruitScalingTargets(this.playerUnits);
+      const teamAvgLevel = resolveTeamAverageLevel(this.playerUnits);
+      const { dynamicPromotionLevel, promotedLevelTarget } = resolveRecruitScalingTargets(
+        this.playerUnits,
+      );
+      const act = this.battleParams?.act || 'act1';
+      const actPool = this.gameData?.enemies?.pools?.[act];
+      const actMinLevel = actPool?.levelRange?.[0] || 1;
       const nodeTargetLevel = Math.max(
-        1,
-        recruitTargetLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
+        actMinLevel,
+        teamAvgLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
       );
       npcSpawn.level = nodeTargetLevel;
       const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
@@ -574,6 +582,7 @@ export class HeadlessBattle {
     return {
       multiplier: this.battleParams.difficultyMod || 1.0,
       enemyStatBonus: Math.trunc(this.battleParams.enemyStatBonus || 0),
+      enemyEquipTierShift: Math.trunc(this.battleParams.enemyEquipTierShift || 0),
     };
   }
 

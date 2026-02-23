@@ -37,6 +37,8 @@ function makeMinimalPayload(path) {
         normal: {
           enemyStatBonus: 0,
           enemyCountBonus: 0,
+          enemyLevelBonus: 0,
+          enemyCountBase: 0,
           enemyEquipTierShift: 0,
           enemySkillChance: 0,
           enemyPoisonChance: 0,
@@ -60,6 +62,8 @@ function makeMinimalPayload(path) {
         hard: {
           enemyStatBonus: 1,
           enemyCountBonus: 1,
+          enemyLevelBonus: 0,
+          enemyCountBase: 0,
           enemyEquipTierShift: 0,
           enemySkillChance: 0,
           enemyPoisonChance: 0,
@@ -83,6 +87,8 @@ function makeMinimalPayload(path) {
         lunatic: {
           enemyStatBonus: 2,
           enemyCountBonus: 2,
+          enemyLevelBonus: 0,
+          enemyCountBase: 0,
           enemyEquipTierShift: 0,
           enemySkillChance: 0,
           enemyPoisonChance: 0,

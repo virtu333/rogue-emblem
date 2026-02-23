@@ -2408,3 +2408,62 @@ describe('status staff spawn assignment', () => {
     }
   });
 });
+
+describe('enemyLevelBonus', () => {
+  it('increases enemy levels by the bonus amount', () => {
+    const bonus = 2;
+    for (let seed = 1; seed <= 20; seed++) {
+      const baseline = withSeed(seed, () =>
+        generateBattle({ act: 'act2', objective: 'rout' }, data),
+      );
+      const boosted = withSeed(seed, () =>
+        generateBattle({ act: 'act2', objective: 'rout', enemyLevelBonus: bonus }, data),
+      );
+      // Non-boss enemies should have their levels increased by bonus
+      const baseNonBoss = baseline.enemySpawns.filter((e) => !e.isBoss);
+      const boostNonBoss = boosted.enemySpawns.filter((e) => !e.isBoss);
+      for (let i = 0; i < Math.min(baseNonBoss.length, boostNonBoss.length); i++) {
+        expect(boostNonBoss[i].level).toBe(baseNonBoss[i].level + bonus);
+      }
+    }
+  });
+});
+
+describe('river crossing bridges', () => {
+  function countCrossingRows(config) {
+    const midStartCol = Math.floor(config.cols * 0.35);
+    const midEndCol = Math.ceil(config.cols * 0.65);
+    let crossings = 0;
+    for (let r = 0; r < config.rows; r++) {
+      let hasWater = false;
+      let hasBridge = false;
+      for (let c = midStartCol; c < midEndCol; c++) {
+        if (config.mapLayout[r][c] === TERRAIN.Water) {
+          hasWater = true;
+          break;
+        }
+        if (config.mapLayout[r][c] === TERRAIN.Bridge) hasBridge = true;
+      }
+      if (!hasWater && hasBridge) crossings++;
+    }
+    return crossings;
+  }
+
+  it('act1 river_crossing produces >= 2 distinct crossing rows', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle({ act: 'act1', objective: 'rout', templateId: 'river_crossing' }, data),
+      );
+      expect(countCrossingRows(config)).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('act3 river_crossing produces >= 3 distinct crossing rows', () => {
+    for (let seed = 1; seed <= 50; seed++) {
+      const config = withSeed(seed, () =>
+        generateBattle({ act: 'act3', objective: 'rout', templateId: 'river_crossing' }, data),
+      );
+      expect(countCrossingRows(config)).toBeGreaterThanOrEqual(3);
+    }
+  });
+});

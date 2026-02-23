@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { resolveRecruitScalingTargets } from '../src/engine/RecruitScaling.js';
+import {
+  resolveRecruitScalingTargets,
+  resolveTeamAverageLevel,
+} from '../src/engine/RecruitScaling.js';
 
 describe('RecruitScaling', () => {
   it('returns full recruit scaling targets for unpromoted Edric', () => {
@@ -71,5 +74,56 @@ describe('RecruitScaling', () => {
       },
     ];
     expect(resolveRecruitScalingTargets(serialized)).toEqual(resolveRecruitScalingTargets(live));
+  });
+});
+
+describe('resolveTeamAverageLevel', () => {
+  it('returns single base unit level', () => {
+    expect(resolveTeamAverageLevel([{ tier: 'base', level: 8 }])).toBe(8);
+  });
+
+  it('averages mixed base and promoted units', () => {
+    // base 10 = 10, promoted 3 = 10+3 = 13, average = 11.5 → floor = 11
+    const result = resolveTeamAverageLevel([
+      { tier: 'base', level: 10 },
+      { tier: 'promoted', level: 3 },
+    ]);
+    expect(result).toBe(11);
+  });
+
+  it('averages all promoted units', () => {
+    // promoted 2 = 12, promoted 4 = 14, average = 13
+    const result = resolveTeamAverageLevel([
+      { tier: 'promoted', level: 2 },
+      { tier: 'promoted', level: 4 },
+    ]);
+    expect(result).toBe(13);
+  });
+
+  it('returns 1 for empty input', () => {
+    expect(resolveTeamAverageLevel([])).toBe(1);
+  });
+
+  it('returns 1 for null/undefined input', () => {
+    expect(resolveTeamAverageLevel(null)).toBe(1);
+    expect(resolveTeamAverageLevel(undefined)).toBe(1);
+  });
+
+  it('floors fractional averages', () => {
+    // base 5 = 5, base 6 = 6, base 7 = 7 → average = 6.0
+    expect(
+      resolveTeamAverageLevel([
+        { tier: 'base', level: 5 },
+        { tier: 'base', level: 6 },
+        { tier: 'base', level: 7 },
+      ]),
+    ).toBe(6);
+    // base 5 = 5, base 8 = 8 → average = 6.5 → floor = 6
+    expect(
+      resolveTeamAverageLevel([
+        { tier: 'base', level: 5 },
+        { tier: 'base', level: 8 },
+      ]),
+    ).toBe(6);
   });
 });
