@@ -86,12 +86,12 @@ function hasInlineReason(callSource) {
   // Kept as safety net for future refactors that pass reason through helper params.
   return (
     /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource) ||
-    /,\s*\{\s*reason\s*\}\s*\)/s.test(callSource)
+    /,\s*\{\s*reason\s*\}\s*,?\s*\)/s.test(callSource)
   );
 }
 
 const ALLOWED_BYPASS_COUNT = {
-  'BattleScene.js': 4, // 2 defeat recovery + 2 pause abandon/save-exit fallback
+  'BattleScene.js': 5, // 2 defeat recovery + 1 victory recovery + 2 pause abandon/save-exit fallback
   'NodeMapScene.js': 2, // save-exit + abandon callback fallback
 };
 

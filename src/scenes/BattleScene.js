@@ -180,7 +180,7 @@ import {
   buildTutorialRoster as _buildTutorialRoster,
 } from '../engine/TutorialHelpers.js';
 import { retryBooleanAction } from '../utils/retry.js';
-import { resetTransitionLocks } from '../utils/sceneLoader.js';
+import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
@@ -339,6 +339,10 @@ export class BattleScene extends Phaser.Scene {
         this.beginBattle(selectedRoster);
       });
     }
+
+    // Opportunistic preload — cache RunComplete chunk while player fights.
+    // Errors swallowed; real recovery happens at transition time (Layer 1/2).
+    ensureSceneLoaded(this, 'RunComplete').catch(() => {});
   }
 
   _registerSceneShutdownCleanup() {
@@ -10670,6 +10674,7 @@ export class BattleScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(600);
+    this._victoryBanner = victoryBanner;
     this._pinToScreen(victoryBanner);
 
     if (this.battleParams.tutorialMode) {
@@ -10737,11 +10742,19 @@ export class BattleScene extends Phaser.Scene {
                 { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
               );
               if (!retryOk) {
+                if (this._victoryBanner) {
+                  this._victoryBanner.destroy();
+                  this._victoryBanner = null;
+                }
                 this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
               }
             }
           } catch (err) {
             console.warn('[BattleScene] completeBattle no-op transition failed:', err);
+            if (this._victoryBanner) {
+              this._victoryBanner.destroy();
+              this._victoryBanner = null;
+            }
             this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
           }
           return;
@@ -10845,7 +10858,8 @@ export class BattleScene extends Phaser.Scene {
     resetTransitionLocks(this);
     try {
       let ok;
-      if (this.runManager?.isRunComplete?.()) {
+      const isRunComplete = this.runManager?.isRunComplete?.();
+      if (isRunComplete) {
         this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
         ok = await transitionToScene(
           this,
@@ -10872,11 +10886,19 @@ export class BattleScene extends Phaser.Scene {
         console.error(
           '[BattleScene][LootFlow] forceTransitionAfterBattle: transition returned false',
         );
-        this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+        if (isRunComplete) {
+          this.showVictoryTransitionRecovery();
+        } else {
+          this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+        }
       }
     } catch (err) {
       console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
-      this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+      if (this.runManager?.isRunComplete?.()) {
+        this.showVictoryTransitionRecovery();
+      } else {
+        this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
+      }
     }
   }
 
@@ -13297,6 +13319,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async transitionToRunCompleteWithRetry(result = 'defeat') {
+    const reason = result === 'victory' ? TRANSITION_REASONS.VICTORY : TRANSITION_REASONS.DEFEAT;
     return retryBooleanAction(
       (attempt) => {
         const ok = transitionToScene(
@@ -13307,11 +13330,11 @@ export class BattleScene extends Phaser.Scene {
             runManager: this.runManager,
             result,
           },
-          { reason: TRANSITION_REASONS.DEFEAT },
+          { reason },
         );
         return ok.then((success) => {
           if (!success) {
-            console.warn('[BattleScene] defeat transition attempt failed', { attempt, result });
+            console.warn(`[BattleScene] ${result} transition attempt failed`, { attempt, result });
           }
           return success;
         });
@@ -13447,6 +13470,132 @@ export class BattleScene extends Phaser.Scene {
 
     this._pinToScreen(group);
     this.defeatRecoveryPrompt = group;
+  }
+
+  showVictoryTransitionRecovery() {
+    if (this.victoryRecoveryPrompt?.length) return;
+
+    // Clear the victory banner so recovery UI is visible
+    if (this._victoryBanner) {
+      this._victoryBanner.destroy();
+      this._victoryBanner = null;
+    }
+
+    const cam = this.cameras.main;
+    const group = [];
+
+    const blocker = this.add
+      .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
+      .setDepth(910)
+      .setInteractive();
+    group.push(blocker);
+
+    const panel = this.add
+      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
+      .setDepth(911)
+      .setStrokeStyle(2, 0x777777)
+      .setInteractive();
+    group.push(panel);
+
+    const title = this.add
+      .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: '#ff8888',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(912);
+    group.push(title);
+
+    const msg = this.add
+      .text(
+        cam.centerX,
+        cam.centerY - 12,
+        'Could not open Run Complete.\nRetry or return to title.',
+        {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#dddddd',
+          align: 'center',
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(912);
+    group.push(msg);
+
+    const retryBtn = this.add
+      .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive({ useHandCursor: true });
+    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
+    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
+    retryBtn.on('pointerdown', async () => {
+      retryBtn.disableInteractive();
+      retryBtn.setText('[ Retrying... ]');
+      resetTransitionLocks(this);
+      const transitioned = await this.transitionToRunCompleteWithRetry('victory');
+      if (!transitioned) {
+        // RunCompleteScene class may not be loaded — reload page as last resort
+        try {
+          globalThis.location?.reload();
+        } catch (err) {
+          console.error('[BattleScene] victory reload fallback failed:', err);
+          retryBtn.setText('[ Retry ]');
+          retryBtn.setInteractive({ useHandCursor: true });
+        }
+      }
+    });
+    group.push(retryBtn);
+
+    const titleBtn = this.add
+      .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#e0e0e0',
+        backgroundColor: '#333333',
+        padding: { x: 10, y: 5 },
+      })
+      .setOrigin(0.5)
+      .setDepth(912)
+      .setInteractive({ useHandCursor: true });
+    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
+    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
+    titleBtn.on('pointerdown', () => {
+      titleBtn.disableInteractive();
+      const cloud = this.registry.get('cloud');
+      const slot = this.registry.get('activeSlot');
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(this, 0);
+      resetTransitionLocks(this);
+      transitionToScene(
+        this,
+        'Title',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.RETURN_TITLE },
+      ).then((ok) => {
+        if (!ok) {
+          try {
+            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
+          } catch (err) {
+            console.error('[BattleScene] victory Title fallback failed:', err);
+            titleBtn.setInteractive({ useHandCursor: true });
+          }
+        }
+      });
+    });
+    group.push(titleBtn);
+
+    this._pinToScreen(group);
+    this.victoryRecoveryPrompt = group;
   }
 
   showPauseTransitionRecovery(reason = TRANSITION_REASONS.SAVE_EXIT) {

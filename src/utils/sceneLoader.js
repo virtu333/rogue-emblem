@@ -185,6 +185,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
     started = true;
     globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
     markAudioDiag(scene, 'transition_started', { targetScene: key });
+    clearStaleChunkFlag();
     scheduleRelease();
     return true;
   } catch (err) {
@@ -194,6 +195,9 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
       message: err?.message || String(err),
     });
     console.error('[SceneLoader] startSceneLazy failed:', key, err);
+    // Stale chunk recovery: reload the page once to get fresh chunk hashes.
+    // Only in startSceneLazy (transition path), never in ensureSceneLoaded (preload path).
+    if (tryStaleChunkReload(err)) return false;
     return false;
   } finally {
     if (!started) {
@@ -208,6 +212,56 @@ export function resetTransitionLocks(scene) {
   globalStartSceneInFlight = false;
   globalSceneStartCooldownUntil = 0;
   if (scene) scene.__startSceneLazyInFlight = false;
+}
+
+const CHUNK_RELOAD_KEY = '__er_chunk_reload';
+
+/**
+ * Heuristic: does this error look like a stale Vite chunk import failure?
+ * Requires message-level matching to avoid false positives on unrelated
+ * TypeErrors (null refs) and SyntaxErrors (parse bugs).
+ */
+export function isLikelyStaleChunkError(err) {
+  if (!err) return false;
+  const msg = String(err?.message || '').toLowerCase();
+  // SyntaxError from HTML parsed as JS (e.g., "Unexpected token '<'")
+  if (err instanceof SyntaxError && msg.includes('unexpected token')) return true;
+  // TypeError/Error from failed dynamic import or module fetch
+  return (
+    msg.includes('dynamically imported module') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('failed to load module') ||
+    msg.includes('loading chunk') ||
+    msg.includes('mime type')
+  );
+}
+
+/**
+ * If this looks like a stale chunk error and we haven't already reloaded this session,
+ * reload the page once so fresh index.html pulls new chunk hashes.
+ * Returns true if a reload was triggered (caller should bail out).
+ * Allows at most 1 reload per session (sessionStorage resets on tab close).
+ */
+export function tryStaleChunkReload(err) {
+  if (!isLikelyStaleChunkError(err)) return false;
+  try {
+    const count = parseInt(globalThis.sessionStorage?.getItem(CHUNK_RELOAD_KEY) || '0', 10);
+    if (count >= 1) return false; // Already reloaded once this session
+    if (typeof globalThis.location?.reload !== 'function') return false;
+    if (typeof globalThis.sessionStorage?.setItem !== 'function') return false;
+    globalThis.sessionStorage.setItem(CHUNK_RELOAD_KEY, String(count + 1));
+    globalThis.location.reload();
+    return true;
+  } catch (_) {
+    // sessionStorage unavailable (private browsing, etc.) — skip auto-reload
+    return false;
+  }
+}
+
+function clearStaleChunkFlag() {
+  try {
+    globalThis.sessionStorage?.removeItem(CHUNK_RELOAD_KEY);
+  } catch (_) {}
 }
 
 // Backward-compat alias for existing tests

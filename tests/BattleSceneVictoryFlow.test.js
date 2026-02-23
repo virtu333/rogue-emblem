@@ -59,6 +59,7 @@ describe('BattleScene onVictory', () => {
         setDepth() {
           return this;
         },
+        destroy: vi.fn(),
       })),
     };
     const pending = [];
@@ -161,11 +162,12 @@ describe('forceTransitionAfterBattle recovery', () => {
     );
   });
 
-  it('shows error UI when transition to RunComplete returns false', async () => {
+  it('shows victory recovery UI when transition to RunComplete returns false', async () => {
     transitionToScene.mockResolvedValueOnce(false);
     const scene = makeTransitionScene({
       runManager: { isRunComplete: vi.fn(() => true), settleEndRunRewards: vi.fn() },
     });
+    scene.showVictoryTransitionRecovery = vi.fn();
     await scene.forceTransitionAfterBattle();
     expect(transitionToScene).toHaveBeenCalledWith(
       scene,
@@ -173,10 +175,8 @@ describe('forceTransitionAfterBattle recovery', () => {
       expect.objectContaining({ result: 'victory' }),
       expect.any(Object),
     );
-    expect(scene.showLootStatus).toHaveBeenCalledWith(
-      'Transition failed. Refresh and continue run.',
-      '#ff8888',
-    );
+    expect(scene.showVictoryTransitionRecovery).toHaveBeenCalledTimes(1);
+    expect(scene.showLootStatus).not.toHaveBeenCalled();
   });
 
   it('shows error UI when transition throws', async () => {
@@ -212,6 +212,7 @@ describe('completeBattle no-op double-failure', () => {
         setDepth() {
           return this;
         },
+        destroy: vi.fn(),
       })),
     };
     const pending = [];
@@ -262,6 +263,7 @@ describe('completeBattle no-op double-failure', () => {
         setDepth() {
           return this;
         },
+        destroy: vi.fn(),
       })),
     };
     const pending = [];
@@ -292,6 +294,119 @@ describe('completeBattle no-op double-failure', () => {
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
       '#ff8888',
+    );
+  });
+});
+
+/* ─── Integration tests for real showVictoryTransitionRecovery ─── */
+
+/** Helper: scene mock with add.rectangle + add.text stubs for recovery UI. */
+function makeRecoveryScene(overrides = {}) {
+  const scene = new BattleScene();
+  scene.cameras = { main: { centerX: 320, centerY: 240, width: 640, height: 480 } };
+  scene.add = {
+    rectangle: vi.fn(() => ({
+      setDepth() {
+        return this;
+      },
+      setInteractive() {
+        return this;
+      },
+      setStrokeStyle() {
+        return this;
+      },
+      destroy: vi.fn(),
+    })),
+    text: vi.fn(() => ({
+      setOrigin() {
+        return this;
+      },
+      setDepth() {
+        return this;
+      },
+      setInteractive() {
+        return this;
+      },
+      disableInteractive() {
+        return this;
+      },
+      setColor() {
+        return this;
+      },
+      setText(t) {
+        this.text = t;
+        return this;
+      },
+      on: vi.fn().mockReturnThis(),
+      destroy: vi.fn(),
+    })),
+  };
+  scene._pinToScreen = vi.fn();
+  scene.victoryRecoveryPrompt = null;
+  scene._victoryBanner = null;
+  scene.registry = { get: () => null };
+  Object.assign(scene, overrides);
+  return scene;
+}
+
+describe('showVictoryTransitionRecovery (integration)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates UI group with 6 elements on real BattleScene', () => {
+    const scene = makeRecoveryScene();
+    scene.showVictoryTransitionRecovery();
+    expect(scene.victoryRecoveryPrompt).not.toBeNull();
+    expect(scene.victoryRecoveryPrompt.length).toBe(6);
+    expect(scene.add.rectangle).toHaveBeenCalledTimes(2); // blocker + panel
+    expect(scene.add.text).toHaveBeenCalledTimes(4); // title + msg + retry + title btn
+  });
+
+  it('dedup guard prevents duplicate UI on second call', () => {
+    const scene = makeRecoveryScene();
+    scene.showVictoryTransitionRecovery();
+    const firstGroup = scene.victoryRecoveryPrompt;
+    scene.showVictoryTransitionRecovery();
+    expect(scene.victoryRecoveryPrompt).toBe(firstGroup);
+    // Should not have created additional elements
+    expect(scene.add.rectangle).toHaveBeenCalledTimes(2);
+    expect(scene.add.text).toHaveBeenCalledTimes(4);
+  });
+
+  it('destroys victory banner before showing recovery UI', () => {
+    const banner = { destroy: vi.fn() };
+    const scene = makeRecoveryScene({ _victoryBanner: banner });
+    scene.showVictoryTransitionRecovery();
+    expect(banner.destroy).toHaveBeenCalledTimes(1);
+    expect(scene._victoryBanner).toBeNull();
+    expect(scene.victoryRecoveryPrompt.length).toBe(6);
+  });
+
+  it('Retry button calls transitionToRunCompleteWithRetry on click', async () => {
+    const scene = makeRecoveryScene();
+    scene.transitionToRunCompleteWithRetry = vi.fn().mockResolvedValue(true);
+    scene.showVictoryTransitionRecovery();
+    const retryBtn = scene.victoryRecoveryPrompt[4];
+    const pointerdownCall = retryBtn.on.mock.calls.find((c) => c[0] === 'pointerdown');
+    expect(pointerdownCall).toBeDefined();
+    await pointerdownCall[1](); // invoke the handler
+    expect(scene.transitionToRunCompleteWithRetry).toHaveBeenCalledWith('victory');
+  });
+
+  it('Title button calls transitionToScene with Title target on click', async () => {
+    const scene = makeRecoveryScene();
+    scene.showVictoryTransitionRecovery();
+    const titleBtn = scene.victoryRecoveryPrompt[5];
+    const pointerdownCall = titleBtn.on.mock.calls.find((c) => c[0] === 'pointerdown');
+    expect(pointerdownCall).toBeDefined();
+    pointerdownCall[1](); // invoke the handler (sync, fires .then internally)
+    await new Promise((r) => setTimeout(r, 0)); // flush microtask for .then
+    expect(transitionToScene).toHaveBeenCalledWith(
+      scene,
+      'Title',
+      expect.objectContaining({ gameData: scene.gameData }),
+      expect.objectContaining({ reason: TRANSITION_REASONS.RETURN_TITLE }),
     );
   });
 });
