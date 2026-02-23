@@ -709,9 +709,35 @@ export function levelUp(unit) {
   return { gains, newLevel: unit.level + 1 };
 }
 
+/**
+ * Roll an extended level-up for promoted units past the level cap.
+ * Grants exactly +1 to a random stat (uniform from XP_STAT_NAMES).
+ * Does NOT use growth rates — purely random.
+ * Returns { gains, newLevel, extendedLevel, isExtended: true }.
+ */
+export function extendedLevelUp(unit) {
+  const gains = {};
+  for (const stat of XP_STAT_NAMES) {
+    gains[stat] = 0;
+  }
+  const pick = XP_STAT_NAMES[Math.floor(Math.random() * XP_STAT_NAMES.length)];
+  gains[pick] = 1;
+
+  return {
+    gains,
+    newLevel: unit.level,
+    extendedLevel: (unit.extendedLevels || 0) + 1,
+    isExtended: true,
+  };
+}
+
 /** Apply level-up gains to a unit (mutates in-place). */
-function applyLevelUpGains(unit, levelUpResult) {
-  unit.level = levelUpResult.newLevel;
+export function applyLevelUpGains(unit, levelUpResult) {
+  if (levelUpResult.isExtended) {
+    unit.extendedLevels = levelUpResult.extendedLevel;
+  } else {
+    unit.level = levelUpResult.newLevel;
+  }
   for (const stat of XP_STAT_NAMES) {
     unit.stats[stat] += levelUpResult.gains[stat];
   }
@@ -720,24 +746,44 @@ function applyLevelUpGains(unit, levelUpResult) {
 }
 
 /**
+ * Format a unit's level for UI display.
+ * Returns "20+3" when extendedLevels > 0, otherwise the plain level string.
+ */
+export function getDisplayLevel(unit) {
+  if (unit.extendedLevels > 0) {
+    return `${unit.level}+${unit.extendedLevels}`;
+  }
+  return String(unit.level);
+}
+
+/**
  * Add XP to a unit. May trigger one or more level-ups.
  * Returns { levelUps: [{gains, newLevel}, ...] } — empty array if no level-up.
  * Mutates unit in-place.
  */
-export function gainExperience(unit, xpAmount) {
+export function gainExperience(unit, xpAmount, options = {}) {
   const cap = unit.tier === 'promoted' ? PROMOTED_CLASS_LEVEL_CAP : BASE_CLASS_LEVEL_CAP;
   const levelUps = [];
+  const extendedEnabled = options.extendedLevelingEnabled === true && unit.tier === 'promoted';
 
-  // Don't gain XP at level cap
-  if (unit.level >= cap) return { levelUps };
+  // Don't gain XP at level cap (unless extended leveling is enabled for promoted units)
+  if (unit.level >= cap && !extendedEnabled) return { levelUps };
 
   unit.xp += xpAmount;
 
   while (unit.xp >= XP_PER_LEVEL) {
     unit.xp -= XP_PER_LEVEL;
+    // Try normal level-up first
     const result = levelUp(unit);
     if (!result) {
-      // Hit cap — clamp XP
+      // At cap — use extended level-up if enabled
+      if (extendedEnabled) {
+        const extResult = extendedLevelUp(unit);
+        applyLevelUpGains(unit, extResult);
+        levelUps.push(extResult);
+        continue;
+      }
+      // Otherwise clamp XP and stop
       unit.xp = Math.min(unit.xp, XP_PER_LEVEL - 1);
       break;
     }
