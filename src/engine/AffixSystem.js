@@ -49,7 +49,7 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
 
   // Aura buffs from allies
   for (const ally of allies) {
-    if (ally === unit || !ally.affixes) continue;
+    if (ally === unit || !ally.affixes || ally.currentHP <= 0) continue;
     for (const aid of ally.affixes) {
       const affix = getAffix(aid, affixData);
       if (!affix || affix.trigger !== 'passive-aura') continue;

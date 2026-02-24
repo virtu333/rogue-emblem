@@ -166,6 +166,28 @@ describe('Combat property tests', () => {
         prevCrit = crit;
       }
     });
+
+    it('reduces crit rate by 15 against boss defenders (T2)', () => {
+      const attacker = makeUnit({ SKL: 40 }); // high SKL so boss crit stays above 0
+      const normalDef = makeUnit({ LCK: 0 });
+      const bossDef = { ...makeUnit({ LCK: 0 }), isBoss: true };
+      const normalCrit = calculateCritRate(attacker, ironSword, normalDef);
+      const bossCrit = calculateCritRate(attacker, ironSword, bossDef);
+      expect(normalCrit - bossCrit).toBe(15);
+    });
+
+    it('boss crit reduction does not go below 0', () => {
+      const attacker = makeUnit({ SKL: 2 });
+      const bossDef = { ...makeUnit({ LCK: 10 }), isBoss: true };
+      expect(calculateCritRate(attacker, ironSword, bossDef)).toBe(0);
+    });
+
+    it('non-boss defenders are unaffected by boss crit reduction', () => {
+      const attacker = makeUnit({ SKL: 10 });
+      const defender = makeUnit({ LCK: 0 });
+      // SKL/2=5 + weapon crit (0) - LCK (0) = 5
+      expect(calculateCritRate(attacker, ironSword, defender)).toBe(5);
+    });
   });
 
   describe('getCombatForecast', () => {

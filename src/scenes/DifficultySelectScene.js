@@ -13,6 +13,7 @@ export class DifficultySelectScene extends Phaser.Scene {
 
   init(data) {
     this.gameData = data.gameData;
+    this.isTransitioning = false;
   }
 
   create() {
@@ -118,9 +119,11 @@ export class DifficultySelectScene extends Phaser.Scene {
       if (audio) audio.playSFX('sfx_cancel');
       return;
     }
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void transitionToScene(
+    transitionToScene(
       this,
       'BlessingSelect',
       {
@@ -128,18 +131,24 @@ export class DifficultySelectScene extends Phaser.Scene {
         difficultyId: mode.id,
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN },
-    );
+    ).then((ok) => {
+      if (!ok) this.isTransitioning = false;
+    });
   }
 
   _back() {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void transitionToScene(
+    transitionToScene(
       this,
       'HomeBase',
       { gameData: this.gameData },
       { reason: TRANSITION_REASONS.BACK },
-    );
+    ).then((ok) => {
+      if (!ok) this.isTransitioning = false;
+    });
   }
 
   _draw() {

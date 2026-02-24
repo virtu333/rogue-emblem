@@ -100,6 +100,113 @@ describe('BattleScene onVictory', () => {
   });
 });
 
+describe('BattleScene onVictory — final boss skips loot (Q2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('skips loot screen and calls transitionAfterBattle when run is complete', async () => {
+    const scene = new BattleScene();
+    scene.battleState = 'PLAYER_IDLE';
+    scene.battleParams = { tutorialMode: false };
+    scene.scene = { isActive: () => true };
+    scene.cameras = { main: { centerX: 320, centerY: 240 } };
+    scene.add = {
+      text: vi.fn(() => ({
+        setOrigin() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
+        destroy: vi.fn(),
+      })),
+    };
+    const pending = [];
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        pending.push(cb());
+      }),
+    };
+    const audio = { playMusic: vi.fn() };
+    scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+    scene.clearBattleScopedDeltas = vi.fn();
+    scene.playerUnits = [{ name: 'Edric', stats: { HP: 20 } }];
+    scene.nonDeployedUnits = [];
+    scene.getTurnPressureState = vi.fn(() => ({ goldMultiplier: 1 }));
+    scene.goldEarned = 50;
+    scene.nodeId = 'node_1';
+    scene.gameData = {};
+    scene.isBoss = true;
+    scene.showBossRecruitScreen = vi.fn();
+    scene.showLootScreen = vi.fn();
+    scene._awardTurnBonusGold = vi.fn(() => 100);
+    scene.transitionAfterBattle = vi.fn(async () => true);
+    scene.runManager = {
+      completeBattle: vi.fn(() => true),
+      isRunComplete: vi.fn(() => true),
+      isActComplete: vi.fn(() => true),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.runManager.isRunComplete).toHaveBeenCalled();
+    expect(scene.showLootScreen).not.toHaveBeenCalled();
+    expect(scene.showBossRecruitScreen).not.toHaveBeenCalled();
+    expect(scene._awardTurnBonusGold).toHaveBeenCalled();
+    expect(scene.transitionAfterBattle).toHaveBeenCalled();
+  });
+
+  it('shows boss recruit screen when run is NOT complete but is boss', async () => {
+    const scene = new BattleScene();
+    scene.battleState = 'PLAYER_IDLE';
+    scene.battleParams = { tutorialMode: false };
+    scene.scene = { isActive: () => true };
+    scene.cameras = { main: { centerX: 320, centerY: 240 } };
+    scene.add = {
+      text: vi.fn(() => ({
+        setOrigin() {
+          return this;
+        },
+        setDepth() {
+          return this;
+        },
+        destroy: vi.fn(),
+      })),
+    };
+    const pending = [];
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        pending.push(cb());
+      }),
+    };
+    const audio = { playMusic: vi.fn() };
+    scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+    scene.clearBattleScopedDeltas = vi.fn();
+    scene.playerUnits = [{ name: 'Edric', stats: { HP: 20 } }];
+    scene.nonDeployedUnits = [];
+    scene.getTurnPressureState = vi.fn(() => ({ goldMultiplier: 1 }));
+    scene.goldEarned = 50;
+    scene.nodeId = 'node_1';
+    scene.gameData = {};
+    scene.isBoss = true;
+    scene.showBossRecruitScreen = vi.fn();
+    scene.showLootScreen = vi.fn();
+    scene.runManager = {
+      completeBattle: vi.fn(() => true),
+      isRunComplete: vi.fn(() => false),
+      isActComplete: vi.fn(() => false),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.showBossRecruitScreen).toHaveBeenCalled();
+    expect(scene.showLootScreen).not.toHaveBeenCalled();
+  });
+});
+
 /* ─── Transition recovery tests ─── */
 
 /** Helper: minimal scene mock for transition-path tests. */

@@ -7,9 +7,10 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
  * @param {object} mapParams - { cols, rows, enemyCount, objective, mapLayout, terrainData }
  *   mapLayout: 2D array of terrain indices, terrainData: array from terrain.json
  * @param {object} config - turnBonus.json data
+ * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
  */
-export function calculatePar(mapParams, config) {
+export function calculatePar(mapParams, config, difficultyId = null) {
   const { cols, rows, enemyCount, objective, mapLayout, terrainData } = mapParams;
 
   const basePar = config.objectiveBasePar[objective];
@@ -44,7 +45,12 @@ export function calculatePar(mapParams, config) {
   const difficultRatio = area > 0 ? difficultCount / area : 0;
   const terrainPenalty = difficultRatio * config.terrainMultiplier;
 
-  return Math.ceil((basePar + enemyPenalty + areaPenalty + terrainPenalty + adjustment) * 0.8);
+  const rawPar = Math.ceil(
+    (basePar + enemyPenalty + areaPenalty + terrainPenalty + adjustment) * 0.8,
+  );
+  const diffMult = config.difficultyParMultiplier?.[difficultyId] ?? 1;
+  if (diffMult >= 1) return rawPar;
+  return Math.max(1, Math.floor(rawPar * diffMult));
 }
 
 /**

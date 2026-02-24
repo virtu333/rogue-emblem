@@ -840,7 +840,11 @@ export class BattleScene extends Phaser.Scene {
           mapLayout: this.battleConfig.mapLayout,
           terrainData: this.gameData.terrain,
         };
-        this.turnPar = calculatePar(mapParams, this.turnBonusConfig);
+        this.turnPar = calculatePar(
+          mapParams,
+          this.turnBonusConfig,
+          this.battleParams?.difficultyId,
+        );
       }
 
       // Battle state machine
@@ -3012,15 +3016,22 @@ export class BattleScene extends Phaser.Scene {
   }
 
   removeUnitGraphic(unit) {
-    if (unit.graphic) unit.graphic.destroy();
-    if (unit.label) unit.label.destroy();
+    if (unit.graphic) {
+      unit.graphic.destroy();
+      unit.graphic = null;
+    }
+    if (unit.label) {
+      unit.label.destroy();
+      unit.label = null;
+    }
     if (unit.factionIndicator) {
       unit.factionIndicator.destroy();
       unit.factionIndicator = null;
     }
     if (unit.hpBar) {
-      unit.hpBar.bg.destroy();
-      unit.hpBar.fill.destroy();
+      if (unit.hpBar.bg) unit.hpBar.bg.destroy();
+      if (unit.hpBar.fill) unit.hpBar.fill.destroy();
+      unit.hpBar = null;
     }
     if (unit.affixPips) {
       unit.affixPips.forEach((p) => p.destroy());
@@ -10793,7 +10804,11 @@ export class BattleScene extends Phaser.Scene {
         }
 
         if (!this.scene?.isActive?.()) return;
-        if (this.isBoss && !this.runManager.isRunComplete()) {
+        if (this.runManager.isRunComplete()) {
+          // Final boss: award turn-bonus gold silently, skip loot screen
+          this._awardTurnBonusGold();
+          this.transitionAfterBattle();
+        } else if (this.isBoss) {
           this.showBossRecruitScreen();
         } else {
           this.showLootScreen();
@@ -10805,6 +10820,22 @@ export class BattleScene extends Phaser.Scene {
         restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
       });
     }
+  }
+
+  /** Award turn-bonus gold without showing the loot UI. */
+  _awardTurnBonusGold() {
+    if (this.turnPar == null || !this.turnBonusConfig) return 0;
+    const turnPressure = this._victoryPressureState || this.getTurnPressureState();
+    const pressureGoldMultiplier = Number.isFinite(turnPressure?.goldMultiplier)
+      ? turnPressure.goldMultiplier
+      : 1;
+    const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
+    const rawBonus = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
+    const scaled = Math.max(0, Math.floor(rawBonus * pressureGoldMultiplier));
+    if (scaled > 0 && typeof this.runManager?.awardGold === 'function') {
+      this.runManager.awardGold(scaled);
+    }
+    return scaled;
   }
 
   /** Transition to the next scene after loot selection. */

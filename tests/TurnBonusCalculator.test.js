@@ -200,6 +200,51 @@ describe('TurnBonusCalculator', () => {
     });
   });
 
+  describe('difficulty par scaling (Q6)', () => {
+    it('normal difficulty returns unchanged par', () => {
+      const par = calculatePar(
+        makeMapParams({ cols: 8, rows: 6, enemyCount: 6, objective: 'rout' }),
+        config,
+        'normal',
+      );
+      const parDefault = calculatePar(
+        makeMapParams({ cols: 8, rows: 6, enemyCount: 6, objective: 'rout' }),
+        config,
+      );
+      expect(par).toBe(parDefault);
+    });
+
+    it('hard difficulty (0.85) tightens par: par 5 → 4', () => {
+      // Force a known par=5 by using null difficultyId first
+      const params = makeMapParams({ cols: 8, rows: 6, enemyCount: 6, objective: 'rout' });
+      const normalPar = calculatePar(params, config, 'normal');
+      const hardPar = calculatePar(params, config, 'hard');
+      expect(hardPar).toBe(Math.max(1, Math.floor(normalPar * 0.85)));
+      expect(hardPar).toBeLessThan(normalPar);
+    });
+
+    it('lunatic difficulty (0.8) tightens par more than hard', () => {
+      const params = makeMapParams({ cols: 10, rows: 8, enemyCount: 8, objective: 'rout' });
+      const hardPar = calculatePar(params, config, 'hard');
+      const lunaticPar = calculatePar(params, config, 'lunatic');
+      expect(lunaticPar).toBeLessThanOrEqual(hardPar);
+    });
+
+    it('par never goes below 1', () => {
+      // Tiny map with 0 enemies → small par, should still be >= 1 after scaling
+      const params = makeMapParams({ cols: 1, rows: 1, enemyCount: 0, objective: 'rout' });
+      const lunaticPar = calculatePar(params, config, 'lunatic');
+      expect(lunaticPar).toBeGreaterThanOrEqual(1);
+    });
+
+    it('unknown difficulty ID returns unchanged par', () => {
+      const params = makeMapParams({ cols: 8, rows: 6, enemyCount: 6, objective: 'rout' });
+      const unknownPar = calculatePar(params, config, 'nightmare');
+      const normalPar = calculatePar(params, config, 'normal');
+      expect(unknownPar).toBe(normalPar);
+    });
+  });
+
   describe('getRating', () => {
     it('returns S when at par', () => {
       const result = getRating(10, 10, config);

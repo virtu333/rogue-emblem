@@ -313,7 +313,11 @@ export function generateBossRecruitCandidates(
 
   // Pick candidates
   const candidates = [];
-  const shuffled = [...availablePool].sort(() => Math.random() - 0.5);
+  const shuffled = [...availablePool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   const regularCount = chosenLord ? BOSS_RECRUIT_COUNT - 1 : BOSS_RECRUIT_COUNT;
 
   // Regular recruit candidates

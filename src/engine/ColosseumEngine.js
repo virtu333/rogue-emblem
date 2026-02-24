@@ -296,7 +296,11 @@ export function generateMercenaryCandidates(
     // Apply stat bonuses: +value to N random stats
     const bonusCount = mercConfig.statBonus?.count || 2;
     const bonusValue = mercConfig.statBonus?.value || 1;
-    const shuffled = [...BOOSTABLE_STATS].sort(() => rng() - 0.5);
+    const shuffled = [...BOOSTABLE_STATS];
+    for (let si = shuffled.length - 1; si > 0; si--) {
+      const sj = Math.floor(rng() * (si + 1));
+      [shuffled[si], shuffled[sj]] = [shuffled[sj], shuffled[si]];
+    }
     for (let j = 0; j < bonusCount && j < shuffled.length; j++) {
       unit.stats[shuffled[j]] = (unit.stats[shuffled[j]] || 0) + bonusValue;
     }

@@ -577,9 +577,11 @@ export function calculateHitRate(
   return Math.max(0, Math.min(100, rawHit - avoid));
 }
 
-/** Crit rate, clamped [0, 100] */
+/** Crit rate, clamped [0, 100]. Bosses get a flat crit reduction. */
 export function calculateCritRate(attacker, weapon, defender) {
-  const rawCrit = Math.floor(attacker.stats.SKL / 2) + weapon.crit;
+  const BOSS_CRIT_REDUCTION = 15;
+  let rawCrit = Math.floor(attacker.stats.SKL / 2) + weapon.crit;
+  if (defender.isBoss) rawCrit -= BOSS_CRIT_REDUCTION;
   return Math.max(0, Math.min(100, rawCrit - defender.stats.LCK));
 }
 

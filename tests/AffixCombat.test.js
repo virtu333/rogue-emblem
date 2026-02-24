@@ -377,4 +377,50 @@ describe('H5 — Haste MOV bonus (not SPD)', () => {
     const mods = getSkillCombatMods(unit, opponent, [], [], gameData.skills, hasteAffixData, null);
     expect(mods.spdBonus).toBe(0);
   });
+
+  it('dead ally aura does not apply to living units (M5)', () => {
+    const auraAffixData = {
+      affixes: [
+        {
+          id: 'war_cry',
+          name: 'War Cry',
+          trigger: 'passive-aura',
+          range: 2,
+          effects: { atkBonus: 3 },
+        },
+      ],
+    };
+    const unit = {
+      name: 'Target',
+      col: 0,
+      row: 0,
+      affixes: [],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+    };
+    const deadAlly = {
+      name: 'DeadAura',
+      col: 1,
+      row: 0,
+      affixes: ['war_cry'],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 0,
+    };
+    const livingAlly = {
+      name: 'LivingAura',
+      col: 1,
+      row: 0,
+      affixes: ['war_cry'],
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 15,
+    };
+
+    // Dead ally's aura should NOT apply
+    const modsWithDead = getAffixCombatMods(unit, null, [deadAlly], auraAffixData);
+    expect(modsWithDead.atkBonus).toBe(0);
+
+    // Living ally's aura SHOULD apply
+    const modsWithLiving = getAffixCombatMods(unit, null, [livingAlly], auraAffixData);
+    expect(modsWithLiving.atkBonus).toBe(3);
+  });
 });
