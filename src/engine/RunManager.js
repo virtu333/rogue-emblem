@@ -2492,13 +2492,22 @@ export class RunManager {
   reviveFallenUnit(unitName, cost) {
     const rosterCap = this.getRosterCap();
     if (this.roster.length >= rosterCap) return false; // Can't revive if roster full
-    if (!this.spendGold(cost)) return false;
 
+    // Verify unit exists before spending gold (prevents burning currency on stale names)
     const idx = this.fallenUnits.findIndex((u) => u.name === unitName);
     if (idx === -1) return false;
 
+    if (!this.spendGold(cost)) return false;
+
     const unit = this.fallenUnits.splice(idx, 1)[0];
     unit.currentHP = 1; // Revive at 1 HP (risky if re-deployed)
+
+    // Normalize class state after serialization round-trip (fixes promotion eligibility)
+    const classData = (this.gameData?.classes || []).find((c) => c.name === unit.className);
+    if (classData) normalizeUnitClassState(unit, classData);
+    ensureSeraBaseStaffProficiency(unit);
+    relinkWeapon(unit);
+
     this.roster.push(unit);
     return true;
   }

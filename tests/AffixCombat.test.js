@@ -133,6 +133,183 @@ describe('Affix Combat Interactions', () => {
   });
 });
 
+describe('B3 — Teleport affix: once per combat + full escape', () => {
+  const teleportAffixData = {
+    affixes: [
+      { id: 'teleporter', name: 'Teleporter', trigger: 'on-defend', effects: { warpRange: 3 } },
+    ],
+  };
+
+  const weapon = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, range: '1' };
+
+  it('fast attacker doubles a teleporter — only 1 strike, warp ends combat', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1); // Always hit
+
+    const fastAtk = {
+      name: 'FastAtk',
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 20, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+      weapon,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+    };
+    const teleDefender = {
+      name: 'TeleDef',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 8, SPD: 5, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 30,
+      weapon,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      affixes: ['teleporter'],
+    };
+
+    const skillCtx = {
+      atkMods: {},
+      defMods: {},
+      rollStrikeSkills: (s, d, t, sd) => ({ modifiedDamage: d, activated: [] }),
+      rollDefenseAffixes: rollDefenseAffixes,
+      affixData: teleportAffixData,
+      skillsData: [],
+    };
+
+    const result = resolveCombat(fastAtk, weapon, teleDefender, weapon, 1, null, null, skillCtx);
+    const strikes = result.events.filter((e) => e.type === 'strike');
+
+    // Only 1 strike lands (warp cancels the double follow-up)
+    expect(strikes.length).toBe(1);
+    expect(strikes[0].attacker).toBe('FastAtk');
+    // Warp event is on the strike
+    expect(strikes[0].warpRange).toBe(3);
+
+    // Temp flags cleaned up
+    expect(fastAtk._teleportUsedThisCombat).toBeUndefined();
+    expect(teleDefender._teleportUsedThisCombat).toBeUndefined();
+
+    vi.restoreAllMocks();
+  });
+
+  it('teleport fires only once even with brave weapon', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    const braveWeapon = {
+      name: 'Brave Sword',
+      type: 'Sword',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      range: '1',
+      special: 'twice consecutively',
+    };
+
+    const braveAtk = {
+      name: 'BraveAtk',
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+      weapon: braveWeapon,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+    };
+    const teleDefender = {
+      name: 'TeleDef',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 8, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 30,
+      weapon,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      affixes: ['teleporter'],
+    };
+
+    const skillCtx = {
+      atkMods: {},
+      defMods: {},
+      rollStrikeSkills: (s, d, t, sd) => ({ modifiedDamage: d, activated: [] }),
+      rollDefenseAffixes: rollDefenseAffixes,
+      affixData: teleportAffixData,
+      skillsData: [],
+    };
+
+    const result = resolveCombat(
+      braveAtk,
+      braveWeapon,
+      teleDefender,
+      weapon,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
+    const strikes = result.events.filter((e) => e.type === 'strike');
+
+    // First brave strike triggers warp, second brave strike is cancelled
+    expect(strikes.length).toBe(1);
+    expect(strikes[0].warpRange).toBe(3);
+
+    vi.restoreAllMocks();
+  });
+  it('warp suppresses defender poison but attacker poison still applies', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+
+    const poisonSword = {
+      name: 'Venin Blade',
+      type: 'Sword',
+      might: 5,
+      hit: 90,
+      crit: 0,
+      range: '1',
+      special: 'Poison: target loses 5 HP after combat',
+    };
+
+    const atkWithPoison = {
+      name: 'PoisonAtk',
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 20,
+      weapon: poisonSword,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+    };
+    const teleDefWithPoison = {
+      name: 'TelePoison',
+      stats: { HP: 30, STR: 8, MAG: 0, SKL: 8, SPD: 5, DEF: 5, RES: 5, LCK: 5 },
+      currentHP: 30,
+      weapon: poisonSword,
+      proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+      skills: [],
+      affixes: ['teleporter'],
+    };
+
+    const skillCtx = {
+      atkMods: {},
+      defMods: {},
+      rollStrikeSkills: (s, d, t, sd) => ({ modifiedDamage: d, activated: [] }),
+      rollDefenseAffixes: rollDefenseAffixes,
+      affixData: teleportAffixData,
+      skillsData: [],
+    };
+
+    const result = resolveCombat(
+      atkWithPoison,
+      poisonSword,
+      teleDefWithPoison,
+      poisonSword,
+      1,
+      null,
+      null,
+      skillCtx,
+    );
+
+    // Attacker poison still applies (hit landed before warp)
+    const atkPoison = result.poisonEffects.find((p) => p.target === 'defender');
+    expect(atkPoison).toBeDefined();
+    expect(atkPoison.damage).toBe(5);
+
+    // Defender poison suppressed (they escaped, never struck)
+    const defPoison = result.poisonEffects.find((p) => p.target === 'attacker');
+    expect(defPoison).toBeUndefined();
+
+    vi.restoreAllMocks();
+  });
+});
+
 describe('H5 — Haste MOV bonus (not SPD)', () => {
   const hasteAffixData = {
     affixes: [

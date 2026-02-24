@@ -2473,16 +2473,6 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(701);
     deployGroup.push(title);
 
-    const subtitle = this.add
-      .text(cam.centerX, 52, `Select ${limits.min}-${limits.max} units`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    deployGroup.push(subtitle);
-
     const cleanupDeployOverlay = () => {
       if (deployOverlayClosed) return;
       deployOverlayClosed = true;
@@ -2535,7 +2525,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Counter text
     const counterText = this.add
-      .text(cam.centerX, 74, '', {
+      .text(cam.centerX, 52, '', {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#88ccff',
@@ -3864,9 +3854,17 @@ export class BattleScene extends Phaser.Scene {
   openUnitDetailOverlay() {
     const { _unit, _terrain, _gameData } = this.inspectionPanel;
     if (!_unit) return;
-    const living = (this.playerUnits || []).filter((u) => u.currentHP > 0);
-    const rosterIndex = living.includes(_unit) ? living.indexOf(_unit) : 0;
-    const rosterOptions = living.length > 0 ? { rosterUnits: living, rosterIndex } : undefined;
+    // Cycle through the inspected unit's faction
+    let pool;
+    if (this.enemyUnits?.includes(_unit)) {
+      pool = this.enemyUnits.filter((u) => u.currentHP > 0);
+    } else if (this.npcUnits?.includes(_unit)) {
+      pool = this.npcUnits.filter((u) => u.currentHP > 0);
+    } else {
+      pool = (this.playerUnits || []).filter((u) => u.currentHP > 0);
+    }
+    const rosterIndex = pool.indexOf(_unit) !== -1 ? pool.indexOf(_unit) : 0;
+    const rosterOptions = pool.length > 0 ? { rosterUnits: pool, rosterIndex } : undefined;
     this.unitDetailOverlay.show(_unit, _terrain, _gameData, rosterOptions);
     this.refreshEndTurnControl();
   }

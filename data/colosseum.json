@@ -7,28 +7,28 @@
       "bronze": {
         "levelOffset": [-1, 0],
         "entryFee": 50,
-        "goldReward": 80,
+        "goldReward": 150,
         "xpMultiplier": 0.8,
         "minAct": "act1"
       },
       "silver": {
         "levelOffset": [0, 2],
         "entryFee": 100,
-        "goldReward": 200,
+        "goldReward": 400,
         "xpMultiplier": 1.0,
         "minAct": "act1"
       },
       "gold": {
         "levelOffset": [2, 4],
         "entryFee": 200,
-        "goldReward": 450,
+        "goldReward": 800,
         "xpMultiplier": 1.3,
         "minAct": "act2"
       },
       "platinum": {
         "levelOffset": [4, 6],
         "entryFee": 350,
-        "goldReward": 800,
+        "goldReward": 1500,
         "xpMultiplier": 1.5,
         "minAct": "act3"
       }
@@ -42,10 +42,10 @@
     "skillChance": 0.5,
     "weaponTierBonus": 1,
     "pricing": {
-      "act1": [300, 500],
-      "act2": [500, 800],
-      "act3": [800, 1200],
-      "act4": [1000, 1500]
+      "act1": [400, 650],
+      "act2": [700, 1050],
+      "act3": [1050, 1550],
+      "act4": [1300, 1900]
     },
     "promotedMultiplier": 1.5,
     "crossActPoolAccess": true,

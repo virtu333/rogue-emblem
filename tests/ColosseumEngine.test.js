@@ -251,13 +251,13 @@ describe('ColosseumEngine', () => {
 
     it('awards gold and XP on win', () => {
       const reward = calculateArenaReward(silverTier, 'win', 50, 0, colosseumData);
-      expect(reward.goldDelta).toBe(200);
-      expect(reward.xpGained).toBe(50); // 50 * 1.0 = 50
+      expect(reward.goldDelta).toBe(silverTier.goldReward);
+      expect(reward.xpGained).toBe(Math.round(50 * silverTier.xpMultiplier));
     });
 
     it('loses entry fee on defeat', () => {
       const reward = calculateArenaReward(silverTier, 'lose', 50, 0, colosseumData);
-      expect(reward.goldDelta).toBe(-100);
+      expect(reward.goldDelta).toBe(-silverTier.entryFee);
       expect(reward.xpGained).toBe(0);
     });
 
@@ -511,11 +511,12 @@ describe('ColosseumEngine', () => {
 
   describe('getMercenaryPrice', () => {
     it('returns price within act range', () => {
+      const [lo, hi] = colosseumData.mercenaries.pricing.act1;
       for (let i = 0; i < 50; i++) {
         const rng = makeRng(i);
         const price = getMercenaryPrice('act1', false, null, colosseumData, rng);
-        expect(price).toBeGreaterThanOrEqual(300);
-        expect(price).toBeLessThanOrEqual(500);
+        expect(price).toBeGreaterThanOrEqual(lo);
+        expect(price).toBeLessThanOrEqual(hi);
       }
     });
 
@@ -536,10 +537,11 @@ describe('ColosseumEngine', () => {
     });
 
     it('act4 pricing works', () => {
+      const [lo, hi] = colosseumData.mercenaries.pricing.act4;
       const rng = makeRng(42);
       const price = getMercenaryPrice('act4', false, null, colosseumData, rng);
-      expect(price).toBeGreaterThanOrEqual(1000);
-      expect(price).toBeLessThanOrEqual(1500);
+      expect(price).toBeGreaterThanOrEqual(lo);
+      expect(price).toBeLessThanOrEqual(hi);
     });
   });
 

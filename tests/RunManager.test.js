@@ -2008,6 +2008,50 @@ describe('Fallen unit tracking and revival', () => {
     capSpy.mockRestore();
   });
 
+  it('reviveFallenUnit does not spend gold if unit name not found', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    rm.gold = 2000;
+    rm.fallenUnits = [{ name: 'Bob', stats: { HP: 20 }, currentHP: 0 }];
+    const success = rm.reviveFallenUnit('NonExistent', 1000);
+    expect(success).toBe(false);
+    expect(rm.gold).toBe(2000); // Gold untouched
+  });
+
+  it('reviveFallenUnit normalizes stale class state after revival', () => {
+    const rm = new RunManager(gameData, null);
+    rm.startRun();
+    rm.gold = 5000;
+
+    // Create a fallen unit with deliberately stale class state
+    const myrmidonClass = gameData.classes.find((c) => c.name === 'Myrmidon');
+    const fallen = {
+      name: 'StaleUnit',
+      className: 'Myrmidon',
+      tier: undefined, // stale: should be 'base'
+      proficiencies: [], // stale: should have Sword
+      moveType: 'Cavalry', // stale: Myrmidon is Infantry
+      stats: { HP: 20, STR: 8, MAG: 1, SKL: 10, SPD: 12, DEF: 4, RES: 3, LCK: 6, MOV: 5 },
+      currentHP: 0,
+      level: 3,
+      weapon: null,
+      inventory: [],
+      skills: [],
+    };
+    rm.fallenUnits = [fallen];
+
+    const success = rm.reviveFallenUnit('StaleUnit', 1000);
+    expect(success).toBe(true);
+
+    const revived = rm.roster.find((u) => u.name === 'StaleUnit');
+    expect(revived).toBeDefined();
+    expect(revived.currentHP).toBe(1);
+    expect(revived.tier).toBe(myrmidonClass.tier);
+    expect(revived.moveType).toBe(myrmidonClass.moveType);
+    expect(revived.proficiencies.length).toBeGreaterThan(0);
+    expect(revived.proficiencies.some((p) => p.type === 'Sword')).toBe(true);
+  });
+
   it('getReviveCost scales with level for base class units', () => {
     expect(getReviveCost({ level: 1, tier: 'base' })).toBe(800);
     expect(getReviveCost({ level: 5, tier: 'base' })).toBe(2000);

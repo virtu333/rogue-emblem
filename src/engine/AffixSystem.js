@@ -101,9 +101,10 @@ export function rollDefenseAffixes(defender, damage, isMelee, isFirstHitPerPhase
       result.activated.push({ id: aid, name: affix.name });
     }
 
-    // Teleporter: warp after taking damage (condition: after_taking_damage)
-    if (aid === 'teleporter' && result.modifiedDamage > 0) {
+    // Teleporter: warp after taking damage (once per combat, cancels remaining strikes)
+    if (aid === 'teleporter' && result.modifiedDamage > 0 && !defender._teleportUsedThisCombat) {
       result.warpRange = affix.effects?.warpRange || 0;
+      if (result.warpRange > 0) defender._teleportUsedThisCombat = true;
       result.activated.push({ id: aid, name: affix.name });
     }
   }

@@ -1073,6 +1073,10 @@ export function resolveCombat(
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
 
+  // Reset teleport warp flag for this combat
+  attacker._teleportUsedThisCombat = false;
+  defender._teleportUsedThisCombat = false;
+
   const atkMods = mergeCombatMods(skillCtx?.atkMods, skillCtx?.atkWeaponArtMods);
   const defMods = mergeCombatMods(skillCtx?.defMods, skillCtx?.defWeaponArtMods);
 
@@ -1304,6 +1308,9 @@ export function resolveCombat(
 
       events.push(evt);
 
+      // Teleport warp: defender escaped, cancel remaining strikes in this phase
+      if (evt.warpRange > 0) break;
+
       // Update first-hit flag for Shielded consumption
       if (!evt.miss && strikeSkills) {
         strikeSkills.isFirstHit = false;
@@ -1391,6 +1398,12 @@ export function resolveCombat(
   const attackerDesperation = atkMods?.desperation || false;
   const defenderDesperation = defCanCounter && (defMods?.desperation || false);
 
+  // Teleport warp: returns the side that escaped (targetSide on the warp event), or null
+  const warpedSide = () => {
+    const warpEvt = events.find((e) => e.warpRange > 0);
+    return warpEvt ? warpEvt.targetSide : null;
+  };
+
   if (defenderVantage) {
     // Vantage: defender strikes first
     events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
@@ -1406,19 +1419,20 @@ export function resolveCombat(
       defender,
       defWeapon,
     );
-    strikePhase(
-      attacker.name,
-      defender.name,
-      atkHit,
-      atkDmg,
-      atkCrit,
-      true,
-      atkBrave ? 2 : 1,
-      atkStrikeSkills,
-      attacker,
-      atkWeapon,
-    );
-    if (defDoubles && !defenderFollowUpCancelled)
+    if (!warpedSide())
+      strikePhase(
+        attacker.name,
+        defender.name,
+        atkHit,
+        atkDmg,
+        atkCrit,
+        true,
+        atkBrave ? 2 : 1,
+        atkStrikeSkills,
+        attacker,
+        atkWeapon,
+      );
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
       strikePhase(
         defender.name,
         attacker.name,
@@ -1431,7 +1445,7 @@ export function resolveCombat(
         defender,
         defWeapon,
       );
-    if (atkDoubles && !attackerFollowUpCancelled)
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
       strikePhase(
         attacker.name,
         defender.name,
@@ -1459,7 +1473,7 @@ export function resolveCombat(
       attacker,
       atkWeapon,
     );
-    if (!attackerFollowUpCancelled)
+    if (!attackerFollowUpCancelled && !warpedSide())
       strikePhase(
         attacker.name,
         defender.name,
@@ -1472,7 +1486,7 @@ export function resolveCombat(
         attacker,
         atkWeapon,
       );
-    if (defCanCounter) {
+    if (defCanCounter && !warpedSide()) {
       strikePhase(
         defender.name,
         attacker.name,
@@ -1486,7 +1500,7 @@ export function resolveCombat(
         defWeapon,
       );
     }
-    if (defDoubles && !defenderFollowUpCancelled)
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
       strikePhase(
         defender.name,
         attacker.name,
@@ -1513,7 +1527,7 @@ export function resolveCombat(
       attacker,
       atkWeapon,
     );
-    if (atkHP > 0 && defHP > 0) {
+    if (atkHP > 0 && defHP > 0 && !warpedSide()) {
       events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
       if (defCanCounter) {
         strikePhase(
@@ -1529,7 +1543,7 @@ export function resolveCombat(
           defWeapon,
         );
       }
-      if (!defenderFollowUpCancelled)
+      if (!defenderFollowUpCancelled && !warpedSide())
         strikePhase(
           defender.name,
           attacker.name,
@@ -1543,7 +1557,7 @@ export function resolveCombat(
           defWeapon,
         );
     }
-    if (atkDoubles && !attackerFollowUpCancelled)
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
       strikePhase(
         attacker.name,
         defender.name,
@@ -1570,7 +1584,7 @@ export function resolveCombat(
       attacker,
       atkWeapon,
     );
-    if (defCanCounter) {
+    if (defCanCounter && !warpedSide()) {
       strikePhase(
         defender.name,
         attacker.name,
@@ -1584,7 +1598,7 @@ export function resolveCombat(
         defWeapon,
       );
     }
-    if (atkDoubles && !attackerFollowUpCancelled)
+    if (atkDoubles && !attackerFollowUpCancelled && !warpedSide())
       strikePhase(
         attacker.name,
         defender.name,
@@ -1597,7 +1611,7 @@ export function resolveCombat(
         attacker,
         atkWeapon,
       );
-    if (defDoubles && !defenderFollowUpCancelled)
+    if (defDoubles && !defenderFollowUpCancelled && !warpedSide())
       strikePhase(
         defender.name,
         attacker.name,
@@ -1612,33 +1626,41 @@ export function resolveCombat(
       );
   }
 
-  // Post-combat: Poison damage (both sides can apply independently)
+  // Post-combat effects: suppress effects originating FROM the escaped side.
+  // The side that warped away never completed combat, so their poison/debuffs/heals don't fire.
+  // The other side's effects still apply — their hit already landed before the warp.
+  // e.g. attacker has poison + defender warps → attacker poison applies, defender poison suppressed.
+  const escapedSide = warpedSide(); // 'attacker' | 'defender' | null
   const poisonEffects = [];
   if (atkHP > 0 && defHP > 0) {
-    const atkPoison = parsePoisonDamage(atkWeapon);
-    if (atkPoison > 0) {
-      defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
-      poisonEffects.push({ target: 'defender', damage: atkPoison });
+    if (escapedSide !== 'attacker') {
+      const atkPoison = parsePoisonDamage(atkWeapon);
+      if (atkPoison > 0) {
+        defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
+        poisonEffects.push({ target: 'defender', damage: atkPoison });
+      }
     }
-    const defPoison = defCanCounter && defWeapon ? parsePoisonDamage(defWeapon) : 0;
-    if (defPoison > 0) {
-      atkHP = Math.max(1, atkHP - defPoison);
-      poisonEffects.push({ target: 'attacker', damage: defPoison });
+    if (escapedSide !== 'defender') {
+      const defPoison = defCanCounter && defWeapon ? parsePoisonDamage(defWeapon) : 0;
+      if (defPoison > 0) {
+        atkHP = Math.max(1, atkHP - defPoison);
+        poisonEffects.push({ target: 'attacker', damage: defPoison });
+      }
     }
   }
 
-  // Post-combat: Intimidate debuff — _debuffAttackerData debuffs the striker of that context
+  // Post-combat: Intimidate debuff — suppress if the debuffing side escaped
   const debuffEvents = [];
-  if (atkStrikeSkills?._debuffAttackerData && atkHP > 0) {
+  if (escapedSide !== 'attacker' && atkStrikeSkills?._debuffAttackerData && atkHP > 0) {
     debuffEvents.push({ target: 'attacker', debuffs: atkStrikeSkills._debuffAttackerData });
   }
-  if (defStrikeSkills?._debuffAttackerData && defHP > 0) {
+  if (escapedSide !== 'defender' && defStrikeSkills?._debuffAttackerData && defHP > 0) {
     debuffEvents.push({ target: 'defender', debuffs: defStrikeSkills._debuffAttackerData });
   }
 
-  // Post-combat: Divine Charge heal — collect from both sides
+  // Post-combat: Divine Charge heal — suppress if the healing side escaped
   const divineChargeHeals = [];
-  if (atkStrikeSkills?._divineChargeData && atkHP > 0) {
+  if (escapedSide !== 'attacker' && atkStrikeSkills?._divineChargeData && atkHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
       if (
         e.type === 'strike' &&
@@ -1657,7 +1679,7 @@ export function resolveCombat(
       });
     }
   }
-  if (defStrikeSkills?._divineChargeData && defHP > 0) {
+  if (escapedSide !== 'defender' && defStrikeSkills?._divineChargeData && defHP > 0) {
     const totalDmg = events.reduce((sum, e) => {
       if (
         e.type === 'strike' &&
@@ -1676,6 +1698,10 @@ export function resolveCombat(
       });
     }
   }
+
+  // Clean up teleport combat flags
+  delete attacker._teleportUsedThisCombat;
+  delete defender._teleportUsedThisCombat;
 
   return {
     events,

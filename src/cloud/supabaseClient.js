@@ -10,6 +10,7 @@ export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, s
 const EMAIL_DOMAIN = '@emblem-rogue.local';
 
 export async function signUp(username, password) {
+  if (!supabase) throw new Error('Cloud services unavailable');
   const { data, error } = await supabase.auth.signUp({
     email: username.toLowerCase() + EMAIL_DOMAIN,
     password,
@@ -20,6 +21,7 @@ export async function signUp(username, password) {
 }
 
 export async function signIn(username, password) {
+  if (!supabase) throw new Error('Cloud services unavailable');
   const { data, error } = await supabase.auth.signInWithPassword({
     email: username.toLowerCase() + EMAIL_DOMAIN,
     password,
