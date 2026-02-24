@@ -352,6 +352,39 @@ describe('RunManager', () => {
       expect(serialized.skills[0]).toBe('charisma');
     });
 
+    it('deep-clones inventory so original mutations do not affect serialized copy (M6)', () => {
+      const weapon = { name: 'Iron Sword', might: 5 };
+      const unit = {
+        name: 'Test',
+        stats: { HP: 20 },
+        inventory: [weapon],
+        weapon: weapon,
+        skills: ['sol'],
+        consumables: [{ name: 'Vulnerary', uses: 3 }],
+        proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        accessory: { name: 'Power Ring', effects: { STR: 2 } },
+        graphic: null,
+        label: null,
+        hpBar: null,
+        hasMoved: false,
+        hasActed: false,
+      };
+      const serialized = serializeUnit(unit);
+
+      // Mutate originals — serialized should be unaffected
+      unit.inventory.push({ name: 'Steel Sword' });
+      unit.skills.push('luna');
+      unit.consumables[0].uses = 0;
+      weapon.might = 99;
+
+      expect(serialized.inventory).toHaveLength(1);
+      expect(serialized.inventory[0].might).toBe(5);
+      expect(serialized.skills).toEqual(['sol']);
+      expect(serialized.consumables[0].uses).toBe(3);
+      // Weapon identity: serialized weapon should be in serialized inventory
+      expect(serialized.inventory.includes(serialized.weapon)).toBe(true);
+    });
+
     it('is safe to structuredClone after stripping Phaser fields', () => {
       const unit = {
         name: 'Test',
@@ -1582,11 +1615,9 @@ describe('RunManager', () => {
       const rmMeta = new RunManager(gameData, metaEffects);
       rmMeta.startRun();
       const edric = rmMeta.roster[0];
-      // Edric has default Iron Sword (5 might) + Steel Sword (8 might)
-      // Both get +2 forges of might
+      // Edric has default Iron Sword + Steel Sword — both get 2 forges (random stats)
       const steelSword = edric.inventory.find((w) => w._baseName === 'Steel Sword');
       expect(steelSword._forgeLevel).toBe(2);
-      expect(steelSword.might).toBe(10); // 8 + 2
     });
 
     it('deadlyArsenalTier 1 replaces Edric Steel Sword with Rapier', () => {
@@ -2871,6 +2902,39 @@ describe('blessing run-start effect application', () => {
     expect(
       rm.blessingHistory.some((e) => e.eventType === 'selection' && e.blessingId === selected),
     ).toBe(true);
+  });
+
+  it('chooseBlessing is idempotent — second call returns true without re-applying effects', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ blessingSeed: 1, autoSelectBlessing: false, blessingOptionCount: 3 });
+    const offered = rm.blessingSelectionTelemetry.offeredIds;
+    expect(offered.length).toBeGreaterThan(0);
+    const selected = offered[0];
+
+    expect(rm.chooseBlessing(selected)).toBe(true);
+    const historyLen = rm.blessingHistory.length;
+    const mods = JSON.stringify(rm.blessingRuntimeModifiers);
+
+    // Second call should be a no-op
+    expect(rm.chooseBlessing(selected)).toBe(true);
+    expect(rm.blessingHistory.length).toBe(historyLen);
+    expect(JSON.stringify(rm.blessingRuntimeModifiers)).toBe(mods);
+  });
+
+  it('startRun resets _blessingChosen so subsequent chooseBlessing works', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun({ blessingSeed: 1, autoSelectBlessing: false, blessingOptionCount: 3 });
+    const offered = rm.blessingSelectionTelemetry.offeredIds;
+    rm.chooseBlessing(offered[0]);
+    expect(rm.activeBlessings.length).toBeGreaterThan(0);
+
+    // Second run
+    rm.startRun({ blessingSeed: 2, autoSelectBlessing: false, blessingOptionCount: 3 });
+    const offered2 = rm.blessingSelectionTelemetry.offeredIds;
+    rm.chooseBlessing(offered2[0]);
+    expect(rm.activeBlessings.length).toBeGreaterThan(0);
   });
 
   it('all_act_hit_bonus blessing applies to player units in all acts including finalBoss', () => {

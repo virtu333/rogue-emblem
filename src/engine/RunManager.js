@@ -186,6 +186,26 @@ export function serializeUnit(unit) {
   if (unit?.stats && typeof unit.stats === 'object') {
     data.stats = { ...unit.stats };
   }
+  // Deep-clone mutable collection fields to prevent shared-reference mutations
+  if (Array.isArray(data.inventory)) data.inventory = data.inventory.map((i) => structuredClone(i));
+  if (Array.isArray(data.skills)) data.skills = [...data.skills];
+  if (Array.isArray(data.consumables))
+    data.consumables = data.consumables.map((c) => structuredClone(c));
+  if (Array.isArray(data.proficiencies))
+    data.proficiencies = data.proficiencies.map((p) => ({ ...p }));
+  if (data.accessory) data.accessory = structuredClone(data.accessory);
+  // Relink weapon to cloned inventory item (preserves identity invariant)
+  if (data.weapon && Array.isArray(data.inventory) && Array.isArray(unit.inventory)) {
+    const origIdx = unit.inventory.indexOf(unit.weapon);
+    if (origIdx >= 0 && origIdx < data.inventory.length) {
+      data.weapon = data.inventory[origIdx];
+    } else {
+      // Weapon not in inventory (legacy/edge case) — deep-clone independently
+      data.weapon = structuredClone(unit.weapon);
+    }
+  } else if (data.weapon) {
+    data.weapon = structuredClone(unit.weapon);
+  }
   for (const key of PHASER_FIELDS) data[key] = null;
   data.hasMoved = false;
   data.hasActed = false;
@@ -359,6 +379,7 @@ export class RunManager {
     this._syncActWeaponArtUnlocksForCurrentAct();
     this.blessingHistory = [];
     this._runStartBlessingsApplied = false;
+    this._blessingChosen = false;
     this.initializeBlessingsAtRunStart(options);
     if (applyBlessingsAtStart && this.activeBlessings.length > 0) {
       this.applyRunStartBlessingEffects();
@@ -444,6 +465,7 @@ export class RunManager {
   }
 
   chooseBlessing(blessingId = null) {
+    if (this._blessingChosen) return true; // idempotent — already committed
     const offeredBlessings = this.getBlessingOptions();
     const offeredIds = offeredBlessings.map((blessing) => blessing.id);
     if (blessingId !== null && !offeredIds.includes(blessingId)) return false;
@@ -478,10 +500,12 @@ export class RunManager {
     }
     if (chosenIds.length === 0) {
       this._runStartBlessingsApplied = true;
+      this._blessingChosen = true;
       return true;
     }
     this._runStartBlessingsApplied = false;
     this.applyRunStartBlessingEffects();
+    this._blessingChosen = true;
     return true;
   }
 
@@ -2115,13 +2139,17 @@ export class RunManager {
     // Meta weapon-art spawns for starting weapons (Iron/Steel + Art Adept extra slot).
     this._assignMetaWeaponArtsToStartingWeapons([edricUnit, seraUnit]);
 
-    // Apply weapon forges (Might) to all lords' combat weapons
+    // Apply weapon forges (random stat) to all lords' combat weapons
     const forgeLevels = me?.startingWeaponForge || 0;
     if (forgeLevels > 0) {
+      const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
       for (const unit of [edricUnit, seraUnit]) {
         for (const w of unit.inventory) {
           if (w.type === 'Staff') continue;
-          for (let i = 0; i < forgeLevels; i++) applyForge(w, 'might');
+          for (let i = 0; i < forgeLevels; i++) {
+            const stat = FORGE_STATS[Math.floor(Math.random() * FORGE_STATS.length)];
+            applyForge(w, stat);
+          }
         }
       }
     }

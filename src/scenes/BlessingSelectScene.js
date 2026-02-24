@@ -22,6 +22,8 @@ export class BlessingSelectScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData;
     this.difficultyId = data.difficultyId || 'normal';
+    this.isTransitioning = false;
+    this._blessingCommitted = false;
   }
 
   create() {
@@ -70,37 +72,49 @@ export class BlessingSelectScene extends Phaser.Scene {
     this._draw();
   }
 
-  _navigate(dir) {
-    // +1 for skip option at the end
-    const max = this.options.length; // 0..options.length where options.length = skip
-    const next = this.selectedIndex + dir;
-    if (next < 0 || next > max) return;
-    this.selectedIndex = next;
+  _select(index) {
+    if (this._blessingCommitted) return; // selection locked after commit
+    if (index === this.selectedIndex) return;
+    this.selectedIndex = index;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cursor');
     this._draw();
   }
 
+  _navigate(dir) {
+    // +1 for skip option at the end
+    const max = this.options.length; // 0..options.length where options.length = skip
+    const next = this.selectedIndex + dir;
+    if (next < 0 || next > max) return;
+    this._select(next);
+  }
+
   _confirm() {
-    const isSkip = this.selectedIndex >= this.options.length;
-    const blessing = isSkip ? null : this.options[this.selectedIndex];
-    const blessingId = blessing ? blessing.id : null;
+    if (this.isTransitioning) return;
 
-    if (!this.runManager.chooseBlessing(blessingId)) return;
+    if (!this._blessingCommitted) {
+      const isSkip = this.selectedIndex >= this.options.length;
+      const blessing = isSkip ? null : this.options[this.selectedIndex];
+      const blessingId = blessing ? blessing.id : null;
 
-    recordBlessingSelection({
-      offeredIds: this.runManager.blessingSelectionTelemetry?.offeredIds || [],
-      chosenId: blessingId,
-    });
+      if (!this.runManager.chooseBlessing(blessingId)) return;
+      this._blessingCommitted = true;
 
-    // Clear any stale run save before starting fresh
-    const cloud = this.registry.get('cloud');
-    const slot = this.registry.get('activeSlot');
-    clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      recordBlessingSelection({
+        offeredIds: this.runManager.blessingSelectionTelemetry?.offeredIds || [],
+        chosenId: blessingId,
+      });
 
+      // Clear any stale run save before starting fresh
+      const cloud = this.registry.get('cloud');
+      const slot = this.registry.get('activeSlot');
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+    }
+
+    this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
-    void transitionToScene(
+    transitionToScene(
       this,
       'NodeMap',
       {
@@ -108,20 +122,24 @@ export class BlessingSelectScene extends Phaser.Scene {
         runManager: this.runManager,
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN },
-    );
+    ).then((ok) => {
+      if (!ok) this.isTransitioning = false;
+    });
   }
 
   _back() {
-    // Discard RunManager — nothing persisted yet
-    this.runManager = null;
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_cancel');
-    void transitionToScene(
+    transitionToScene(
       this,
       'DifficultySelect',
       { gameData: this.gameData },
       { reason: TRANSITION_REASONS.BACK },
-    );
+    ).then((ok) => {
+      if (!ok) this.isTransitioning = false;
+    });
   }
 
   _draw() {
@@ -190,10 +208,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         .setStrokeStyle(isSelected ? 2 : 1, isSelected ? 0xffdd44 : tierStyle.border);
 
       card.setInteractive({ useHandCursor: true });
-      card.on('pointerdown', () => {
-        this.selectedIndex = i;
-        this._draw();
-      });
+      card.on('pointerdown', () => this._select(i));
 
       const left = cx - cardW / 2 + 12;
       const right = cx + cardW / 2 - 12;
@@ -268,10 +283,7 @@ export class BlessingSelectScene extends Phaser.Scene {
           card.setStrokeStyle(1, tierStyle.border);
         }
       });
-      pickBtn.on('pointerdown', () => {
-        this.selectedIndex = i;
-        this._draw();
-      });
+      pickBtn.on('pointerdown', () => this._select(i));
 
       y += cardH + cardGap;
     }
@@ -292,10 +304,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     skipBtn.on('pointerout', () => {
       if (!isSkipSelected) skipBtn.setColor('#d7dbe8');
     });
-    skipBtn.on('pointerdown', () => {
-      this.selectedIndex = this.options.length;
-      this._draw();
-    });
+    skipBtn.on('pointerdown', () => this._select(this.options.length));
 
     // Bottom buttons
     const bottomY = panelBottom - 30;
