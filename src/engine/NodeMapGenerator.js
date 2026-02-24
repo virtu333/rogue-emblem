@@ -100,7 +100,7 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   for (let r = 0; r < rows; r++) {
     const rowList = [];
     for (const c of rowCols[r]) {
-      const type = pickNodeType(r, rows);
+      const type = pickNodeType(r, rows, actId);
       const node = {
         id: `${actId}_${r}_${c}`,
         row: r,
@@ -300,18 +300,24 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
 }
 
 /**
- * Pick node type based on row position.
+ * Pick node type based on row position and act.
  * Row 0 = battle (opening), last row = boss, row 1 = battle (no church/shop yet).
- * Middle rows: 60% battle, 25% shop, 15% church.
+ * Act 1: 80% battle, 15% shop, 5% church (fewer distractions early).
+ * Acts 2+: 60% battle, 25% shop, 15% church.
  */
-function pickNodeType(row, totalRows) {
+function pickNodeType(row, totalRows, actId) {
   if (row === 0) return NODE_TYPES.BATTLE;
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1
   const roll = Math.random();
+  if (actId === 'act1') {
+    if (roll < 0.8) return NODE_TYPES.BATTLE;
+    if (roll < 0.95) return NODE_TYPES.SHOP;
+    return NODE_TYPES.CHURCH;
+  }
   if (roll < 0.6) return NODE_TYPES.BATTLE;
   if (roll < 0.85) return NODE_TYPES.SHOP;
-  return NODE_TYPES.CHURCH; // 0.85-1.0
+  return NODE_TYPES.CHURCH;
 }
 
 /**

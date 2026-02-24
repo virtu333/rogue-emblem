@@ -2191,9 +2191,11 @@ export class RunManager {
       return start ? [start] : [];
     }
 
-    // Otherwise, edges from the completed node
     const current = this.nodeMap.nodes.find((n) => n.id === this.currentNodeId);
     if (!current) return [];
+    // If current node isn't completed yet, only it is available (re-entry)
+    if (!current.completed) return [current];
+    // Otherwise, forward edges from the completed node
     return current.edges.map((id) => this.nodeMap.nodes.find((n) => n.id === id)).filter(Boolean);
   }
 

@@ -511,19 +511,25 @@ describe('ESC priority model', () => {
     const scene = createNodeMapEscScene();
     scene.churchOverlay = [makeDisplayObject()];
     scene._promotionChoicePanelOpen = 1;
+    scene.sound = { stopByKey: vi.fn() };
+    scene.registry = { get: () => null };
+    scene.runManager = { currentAct: 'act1' };
+    scene.closeChurchOverlay = vi.fn();
+    scene.drawMap = vi.fn();
 
     const handledWhileOpen = NodeMapScene.prototype.requestCancel.call(scene, {
       allowPause: false,
     });
     expect(handledWhileOpen).toBe(false);
-    expect(scene.leaveChurchNode).not.toHaveBeenCalled();
+    expect(scene.closeChurchOverlay).not.toHaveBeenCalled();
 
     scene._promotionChoicePanelOpen = 0;
     const handledAfterClose = NodeMapScene.prototype.requestCancel.call(scene, {
       allowPause: false,
     });
     expect(handledAfterClose).toBe(true);
-    expect(scene.leaveChurchNode).toHaveBeenCalledTimes(1);
+    expect(scene.closeChurchOverlay).toHaveBeenCalledTimes(1);
+    expect(scene.drawMap).toHaveBeenCalledTimes(1);
   });
 
   it('NodeMap shutdown clears PromotionChoicePanel open counter', () => {

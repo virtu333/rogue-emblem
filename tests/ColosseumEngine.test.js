@@ -600,7 +600,7 @@ describe('ColosseumEngine', () => {
       }
     });
 
-    it('spawns colosseum with ~40% frequency', () => {
+    it('spawns colosseum with ~55% frequency', () => {
       let spawned = 0;
       const trials = 500;
       for (let i = 0; i < trials; i++) {
@@ -610,9 +610,9 @@ describe('ColosseumEngine', () => {
         if (map.nodes.some((n) => n.type === NODE_TYPES.COLOSSEUM)) spawned++;
       }
       const rate = spawned / trials;
-      // Should be around 40% but with variance due to eligible node availability
-      expect(rate).toBeGreaterThan(0.1);
-      expect(rate).toBeLessThan(0.7);
+      // 0.55 config ± variance; bounds reject old 0.40 value reliably
+      expect(rate).toBeGreaterThan(0.45);
+      expect(rate).toBeLessThan(0.68);
     });
   });
 });

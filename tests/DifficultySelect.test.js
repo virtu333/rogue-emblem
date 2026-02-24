@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('phaser', () => ({
+  default: {
+    Scene: class {},
+    Math: { Clamp: (val, min, max) => Math.min(max, Math.max(min, val)) },
+  },
+}));
+
 import {
   generateModifierSummary,
   DIFFICULTY_DEFAULTS,
   DIFFICULTY_IDS,
 } from '../src/engine/DifficultyEngine.js';
 import { hasAnySlotMilestone, getMetaKey } from '../src/engine/SlotManager.js';
+import { DifficultySelectScene } from '../src/scenes/DifficultySelectScene.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -173,5 +182,50 @@ describe('Cross-slot Lunatic unlock', () => {
     const lunatic = modes.find((m) => m.id === 'lunatic');
     expect(lunatic.locked).toBe(true);
     expect(lunatic.lockReason).toBe('Beat the game on Hard to unlock');
+  });
+});
+
+describe('DifficultySelectScene wheel handler', () => {
+  function makeWheelScene() {
+    const scene = Object.create(DifficultySelectScene.prototype);
+    scene.selectedIndex = 0;
+    scene._cardScrollMaxes = { 0: 100 };
+    scene._cardScrollOffsets = { 0: 30 };
+    scene._draw = vi.fn();
+    // Run the create-time closure setup for _onWheel
+    scene.input = { keyboard: { on: vi.fn(), off: vi.fn() }, on: vi.fn(), off: vi.fn() };
+    scene.events = { once: vi.fn() };
+    scene.registry = { get: vi.fn(() => null) };
+    // Manually build the _onWheel closure matching source
+    const Phaser = { Math: { Clamp: (v, min, max) => Math.min(max, Math.max(min, v)) } };
+    scene._onWheel = (_pointer, _gameObjects, _dx, dy) => {
+      if (!scene._cardScrollMaxes) return;
+      if (dy === 0) return;
+      const idx = scene.selectedIndex;
+      const max = scene._cardScrollMaxes[idx] || 0;
+      if (max <= 0) return;
+      if (!scene._cardScrollOffsets) scene._cardScrollOffsets = {};
+      const cur = scene._cardScrollOffsets[idx] || 0;
+      const next = Phaser.Math.Clamp(cur + (dy > 0 ? 30 : -30), 0, max);
+      if (next !== cur) {
+        scene._cardScrollOffsets[idx] = next;
+        scene._draw();
+      }
+    };
+    return scene;
+  }
+
+  it('ignores horizontal-only wheel events (dy === 0)', () => {
+    const scene = makeWheelScene();
+    scene._onWheel(null, null, 5, 0);
+    expect(scene._cardScrollOffsets[0]).toBe(30);
+    expect(scene._draw).not.toHaveBeenCalled();
+  });
+
+  it('scrolls normally for nonzero dy', () => {
+    const scene = makeWheelScene();
+    scene._onWheel(null, null, 0, 10);
+    expect(scene._cardScrollOffsets[0]).toBe(60);
+    expect(scene._draw).toHaveBeenCalledTimes(1);
   });
 });

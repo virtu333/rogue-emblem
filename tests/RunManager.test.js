@@ -391,6 +391,41 @@ describe('RunManager', () => {
         expect(startNode.edges).toContain(node.id);
       }
     });
+
+    it('returns only the uncommitted current node when it is not completed', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.markNodeComplete(startNode.id);
+      const siblings = rm.getAvailableNodes();
+      expect(siblings.length).toBeGreaterThan(0);
+
+      // Simulate clicking a non-battle node (shop/church): set currentNodeId without completing
+      const target = siblings[0];
+      rm.currentNodeId = target.id;
+      const available = rm.getAvailableNodes();
+      expect(available).toHaveLength(1);
+      expect(available[0].id).toBe(target.id);
+    });
+
+    it('returns forward edges once the uncommitted node is completed', () => {
+      rm.startRun();
+      const startNode = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.startNodeId);
+      rm.markNodeComplete(startNode.id);
+      const siblings = rm.getAvailableNodes();
+      const target = siblings[0];
+
+      // Commit without completing
+      rm.currentNodeId = target.id;
+      expect(rm.getAvailableNodes()).toHaveLength(1);
+
+      // Now complete it
+      rm.markNodeComplete(target.id);
+      const forward = rm.getAvailableNodes();
+      // Should return forward edges (or empty if boss), not the node itself
+      for (const node of forward) {
+        expect(target.edges).toContain(node.id);
+      }
+    });
   });
 
   describe('ambush pending state', () => {

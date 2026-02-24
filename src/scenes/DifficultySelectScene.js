@@ -24,6 +24,21 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._onKeyEnter = () => this._confirm();
     this._onKeyEsc = () => this._back();
 
+    this._onWheel = (_pointer, _gameObjects, _dx, dy) => {
+      if (!this._cardScrollMaxes) return;
+      if (dy === 0) return;
+      const idx = this.selectedIndex;
+      const max = this._cardScrollMaxes[idx] || 0;
+      if (max <= 0) return;
+      if (!this._cardScrollOffsets) this._cardScrollOffsets = {};
+      const cur = this._cardScrollOffsets[idx] || 0;
+      const next = Phaser.Math.Clamp(cur + (dy > 0 ? 30 : -30), 0, max);
+      if (next !== cur) {
+        this._cardScrollOffsets[idx] = next;
+        this._draw();
+      }
+    };
+
     this.events.once('shutdown', () => {
       const keyboard = this.input?.keyboard;
       if (keyboard?.off) {
@@ -32,10 +47,16 @@ export class DifficultySelectScene extends Phaser.Scene {
         keyboard.off('keydown-ENTER', this._onKeyEnter);
         keyboard.off('keydown-ESC', this._onKeyEsc);
       }
+      if (this.input) this.input.off('wheel', this._onWheel);
       this._onKeyLeft = null;
       this._onKeyRight = null;
       this._onKeyEnter = null;
       this._onKeyEsc = null;
+      this._onWheel = null;
+      if (this._maskGraphics) {
+        this._maskGraphics.forEach((g) => g.destroy());
+        this._maskGraphics = [];
+      }
       const audio = this.registry.get('audio');
       if (audio) audio.releaseMusic(this, 0);
     });
@@ -48,6 +69,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-RIGHT', this._onKeyRight);
     this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
     this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
+    this.input.on('wheel', this._onWheel);
 
     this._draw();
   }
@@ -121,7 +143,13 @@ export class DifficultySelectScene extends Phaser.Scene {
   }
 
   _draw() {
+    // Destroy mask graphics before removing children (masks aren't auto-destroyed)
+    if (this._maskGraphics) {
+      this._maskGraphics.forEach((g) => g.destroy());
+      this._maskGraphics = [];
+    }
     this.children.removeAll(true);
+    this._cardScrollMaxes = {};
 
     const w = this.cameras.main.width;
     const cx = w / 2;
@@ -208,15 +236,86 @@ export class DifficultySelectScene extends Phaser.Scene {
           .setOrigin(0.5, 0);
       } else {
         const summaryText = mode.summary.map((s) => `\u2022 ${s}`).join('\n');
-        this.add
-          .text(mx, cardTopY + 50, summaryText, {
+        const textTopY = cardTopY + 50;
+        const viewportH = cardH - 80; // room for title + "Selected" label
+        // Create text to measure
+        const measurer = this.add.text(0, 0, summaryText, {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#cccccc',
+          wordWrap: { width: cardW - 20 },
+          lineSpacing: 3,
+        });
+        const textH = measurer.height;
+        measurer.destroy();
+
+        if (!this._cardScrollOffsets) this._cardScrollOffsets = {};
+        const scrollOffset = this._cardScrollOffsets[i] || 0;
+        const scrollMax = Math.max(0, textH - viewportH);
+        this._cardScrollMaxes[i] = scrollMax;
+
+        if (scrollMax <= 0) {
+          // Fits without scroll
+          this.add
+            .text(mx, textTopY, summaryText, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#cccccc',
+              wordWrap: { width: cardW - 20 },
+              lineSpacing: 3,
+            })
+            .setOrigin(0.5, 0);
+        } else {
+          // Needs scroll — use Container + GeometryMask
+          const textObj = this.add.text(0, -scrollOffset, summaryText, {
             fontFamily: 'monospace',
             fontSize: '9px',
             color: '#cccccc',
             wordWrap: { width: cardW - 20 },
             lineSpacing: 3,
-          })
-          .setOrigin(0.5, 0);
+          });
+          textObj.setOrigin(0.5, 0);
+
+          const container = this.add.container(mx, textTopY, [textObj]);
+
+          // Mask to clip text within card bounds
+          const maskGfx = this.make.graphics();
+          maskGfx.fillRect(mx - cardW / 2 + 4, textTopY, cardW - 8, viewportH);
+          const mask = maskGfx.createGeometryMask();
+          container.setMask(mask);
+          if (!this._maskGraphics) this._maskGraphics = [];
+          this._maskGraphics.push(maskGfx);
+
+          // Scroll arrows
+          if (scrollOffset > 0) {
+            const upArrow = this.add
+              .text(mx + cardW / 2 - 14, textTopY - 2, '\u25b2', {
+                fontFamily: 'monospace',
+                fontSize: '10px',
+                color: '#ffdd44',
+              })
+              .setOrigin(0.5)
+              .setInteractive({ useHandCursor: true });
+            upArrow.on('pointerdown', () => {
+              this._cardScrollOffsets[i] = Math.max(0, scrollOffset - 30);
+              this._draw();
+            });
+          }
+          if (scrollOffset < scrollMax) {
+            const downArrow = this.add
+              .text(mx + cardW / 2 - 14, textTopY + viewportH - 4, '\u25bc', {
+                fontFamily: 'monospace',
+                fontSize: '10px',
+                color: '#ffdd44',
+              })
+              .setOrigin(0.5)
+              .setInteractive({ useHandCursor: true });
+            downArrow.on('pointerdown', () => {
+              this._cardScrollOffsets[i] = Math.min(scrollMax, scrollOffset + 30);
+              this._draw();
+            });
+          }
+        }
       }
 
       // Selection indicator

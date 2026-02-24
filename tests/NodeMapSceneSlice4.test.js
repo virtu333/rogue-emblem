@@ -349,15 +349,36 @@ describe('NodeMapScene Slice 4', () => {
     expect(scene.leaveChurchNode).not.toHaveBeenCalled();
   });
 
-  it('requestCancel keeps normal shop/church leave behavior when not viewing map', () => {
-    const shopScene = makeCancelableScene({ shopOverlay: [makeDisplayObject()] });
-    const churchScene = makeCancelableScene({ churchOverlay: [makeDisplayObject()] });
+  it('requestCancel closes shop/church without marking node complete (ESC re-entry)', () => {
+    const shopScene = makeCancelableScene({
+      shopOverlay: [makeDisplayObject()],
+      shopRerollCount: 3,
+      registry: { get: () => null },
+      runManager: { currentAct: 'act1' },
+      closeShopOverlay: vi.fn(),
+      drawMap: vi.fn(),
+    });
+    const churchScene = makeCancelableScene({
+      churchOverlay: [makeDisplayObject()],
+      sound: { stopByKey: vi.fn() },
+      registry: { get: () => null },
+      runManager: { currentAct: 'act1' },
+      closeChurchOverlay: vi.fn(),
+      drawMap: vi.fn(),
+    });
 
     NodeMapScene.prototype.requestCancel.call(shopScene);
     NodeMapScene.prototype.requestCancel.call(churchScene);
 
-    expect(shopScene.leaveShopNode).toHaveBeenCalledTimes(1);
-    expect(churchScene.leaveChurchNode).toHaveBeenCalledTimes(1);
+    // Should close overlays but NOT call leaveShopNode/leaveChurchNode
+    expect(shopScene.closeShopOverlay).toHaveBeenCalledTimes(1);
+    expect(shopScene.drawMap).toHaveBeenCalledTimes(1);
+    expect(shopScene.shopRerollCount).toBe(0);
+    expect(shopScene.leaveShopNode).not.toHaveBeenCalled();
+
+    expect(churchScene.closeChurchOverlay).toHaveBeenCalledTimes(1);
+    expect(churchScene.drawMap).toHaveBeenCalledTimes(1);
+    expect(churchScene.leaveChurchNode).not.toHaveBeenCalled();
   });
 
   it('requestCancel hides visible colosseum overlay before pause fallback', () => {
@@ -626,21 +647,30 @@ describe('NodeMapScene Slice 4', () => {
       battleLaunchInFlight: false,
       isSceneReady: true,
       shopOverlay: [shopObj],
+      shopRerollCount: 2,
       _shopViewingMap: true,
       handleShop: vi.fn(),
       handleChurch: vi.fn(),
       handleBattle: vi.fn(),
+      registry: { get: () => null },
+      runManager: { currentAct: 'act1' },
+      closeShopOverlay: vi.fn(),
+      drawMap: vi.fn(),
     });
 
     NodeMapScene.prototype.onNodeClick.call(scene, { id: 'shop1', type: NODE_TYPES.SHOP });
     expect(scene.handleShop).not.toHaveBeenCalled();
 
+    // First ESC restores from map view
     NodeMapScene.prototype.requestCancel.call(scene);
     expect(scene._shopViewingMap).toBe(false);
-    expect(scene.leaveShopNode).not.toHaveBeenCalled();
+    expect(scene.closeShopOverlay).not.toHaveBeenCalled();
 
+    // Second ESC closes shop without marking complete (ESC re-entry)
     NodeMapScene.prototype.requestCancel.call(scene);
-    expect(scene.leaveShopNode).toHaveBeenCalledTimes(1);
+    expect(scene.closeShopOverlay).toHaveBeenCalledTimes(1);
+    expect(scene.drawMap).toHaveBeenCalledTimes(1);
+    expect(scene.leaveShopNode).not.toHaveBeenCalled();
   });
 
   it('close overlays reset viewing flags', () => {
@@ -851,6 +881,70 @@ describe('NodeMapScene Slice 4', () => {
     expect(scrollObj.visible).toBe(true);
     expect(scrollObj.input.enabled).toBe(true);
     expect(scene.leaveChurchNode).not.toHaveBeenCalled();
+  });
+
+  it('onNodeClick commits currentNodeId for shop before opening overlay', () => {
+    const node = { id: 'shop-1', type: NODE_TYPES.SHOP };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      colosseumOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: { currentNodeId: null },
+      handleShop: vi.fn(),
+      _isPendingAmbushNode: vi.fn(() => false),
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.runManager.currentNodeId).toBe('shop-1');
+    expect(scene.handleShop).toHaveBeenCalled();
+  });
+
+  it('onNodeClick commits currentNodeId for church before opening overlay', () => {
+    const node = { id: 'church-1', type: NODE_TYPES.CHURCH };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      colosseumOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: { currentNodeId: null },
+      handleChurch: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.runManager.currentNodeId).toBe('church-1');
+    expect(scene.handleChurch).toHaveBeenCalled();
+  });
+
+  it('onNodeClick commits currentNodeId for colosseum before opening overlay', () => {
+    const node = { id: 'colo-1', type: NODE_TYPES.COLOSSEUM };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      colosseumOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      runManager: { currentNodeId: null },
+      handleColosseum: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onNodeClick.call(scene, node);
+
+    expect(scene.runManager.currentNodeId).toBe('colo-1');
+    expect(scene.handleColosseum).toHaveBeenCalled();
   });
 
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {

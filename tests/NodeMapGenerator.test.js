@@ -548,13 +548,26 @@ describe('NodeMapGenerator', () => {
 });
 
 describe('Church node generation', () => {
-  it('pickNodeType generates CHURCH nodes in middle rows', () => {
-    // Generate 1000 maps, count CHURCH nodes, expect ~15% of middle-row nodes
+  it('pickNodeType generates CHURCH nodes in act1 middle rows (~5%)', () => {
     let totalMiddle = 0;
     let totalChurch = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act1', ACT_CONFIG.act1);
       const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      totalMiddle += middleNodes.length;
+      totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
+    }
+    const churchPercent = (totalChurch / totalMiddle) * 100;
+    expect(churchPercent).toBeGreaterThan(2); // 5% ± margin
+    expect(churchPercent).toBeLessThan(10);
+  });
+
+  it('pickNodeType generates CHURCH nodes in act2 middle rows (~15%)', () => {
+    let totalMiddle = 0;
+    let totalChurch = 0;
+    for (let i = 0; i < 1000; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 1);
       totalMiddle += middleNodes.length;
       totalChurch += middleNodes.filter((n) => n.type === NODE_TYPES.CHURCH).length;
     }
@@ -575,13 +588,27 @@ describe('Church node generation', () => {
   });
 });
 
-describe('Shop node frequency (25%)', () => {
-  it('shop frequency is ~25% of middle rows', () => {
+describe('Shop node frequency', () => {
+  it('act1 shop frequency is ~15% of middle rows', () => {
     let totalMiddle = 0;
     let totalShop = 0;
     for (let i = 0; i < 1000; i++) {
       const map = generateNodeMap('act1', ACT_CONFIG.act1);
       const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act1.rows - 1);
+      totalMiddle += middleNodes.length;
+      totalShop += middleNodes.filter((n) => n.type === NODE_TYPES.SHOP).length;
+    }
+    const shopPercent = (totalShop / totalMiddle) * 100;
+    expect(shopPercent).toBeGreaterThan(10); // 15% ± margin
+    expect(shopPercent).toBeLessThan(20);
+  });
+
+  it('act2 shop frequency is ~25% of middle rows', () => {
+    let totalMiddle = 0;
+    let totalShop = 0;
+    for (let i = 0; i < 1000; i++) {
+      const map = generateNodeMap('act2', ACT_CONFIG.act2);
+      const middleNodes = map.nodes.filter((n) => n.row > 1 && n.row < ACT_CONFIG.act2.rows - 1);
       totalMiddle += middleNodes.length;
       totalShop += middleNodes.filter((n) => n.type === NODE_TYPES.SHOP).length;
     }

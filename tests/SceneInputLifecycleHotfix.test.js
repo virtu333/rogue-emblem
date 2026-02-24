@@ -248,7 +248,7 @@ describe('Menu scene keyboard listener lifecycle', () => {
           if (eventName === 'shutdown') shutdownHandler = handler;
         }),
       },
-      input: { keyboard },
+      input: { keyboard, on: vi.fn(), off: vi.fn() },
       gameData: { difficulty: { modes: { normal: {}, hard: {}, lunatic: {} } } },
       _draw: vi.fn(),
       _navigate: vi.fn(),

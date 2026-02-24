@@ -68,12 +68,20 @@ function makeBuyListScene({ gold, entry, gameData = {} }) {
   return { scene, createdTexts };
 }
 
-function makeSellListScene({ unit, gameData = {} }) {
+function makeSellListScene({ unit, convoy, gameData = {} }) {
   const createdTexts = [];
   const scene = {
     runManager: {
       roster: [unit],
       addGold: vi.fn(),
+      convoy: convoy || { weapons: [], consumables: [] },
+      takeFromConvoy: vi.fn((type, idx) => {
+        const arr =
+          type === 'consumable'
+            ? scene.runManager.convoy.consumables
+            : scene.runManager.convoy.weapons;
+        return arr.splice(idx, 1)[0] || null;
+      }),
     },
     gameData,
     shopScrollOffsets: { buy: 0, sell: 0, forge: 0 },
@@ -93,12 +101,13 @@ function makeSellListScene({ unit, gameData = {} }) {
   return { scene, createdTexts };
 }
 
-function makeForgeListScene({ unit, gameData = {} }) {
+function makeForgeListScene({ unit, convoy, gameData = {} }) {
   const createdTexts = [];
   const scene = {
     runManager: {
       roster: [unit],
       currentAct: 1,
+      convoy: convoy || { weapons: [], consumables: [] },
     },
     gameData,
     shopForgesUsed: 0,
@@ -321,6 +330,67 @@ describe('NodeMap shop hover details', () => {
     ).toBe(false);
   });
 
+  it('renders convoy weapons in sell list and sells on click', () => {
+    const convoyWeapon = { name: 'Steel Lance', type: 'Lance', price: 1000, range: '1' };
+    const unit = {
+      name: 'Edric',
+      proficiencies: [],
+      inventory: [],
+      consumables: [],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({
+      unit,
+      convoy: { weapons: [convoyWeapon], consumables: [] },
+    });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    // Should have a "Convoy:" header
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Convoy:')),
+    ).toBe(true);
+    // Should have the weapon row
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('Steel Lance'),
+    );
+    expect(row).toBeTruthy();
+    expect(row._interactive).toEqual({ useHandCursor: true });
+
+    // Sell it
+    row.handlers.pointerdown();
+    expect(scene.runManager.takeFromConvoy).toHaveBeenCalledWith('weapon', 0);
+    expect(scene.runManager.addGold).toHaveBeenCalled();
+    expect(scene.refreshShop).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders convoy consumables in sell list and sells on click', () => {
+    const convoyConsumable = { name: 'Vulnerary', type: 'Consumable', price: 300, uses: 3 };
+    const unit = {
+      name: 'Edric',
+      proficiencies: [],
+      inventory: [],
+      consumables: [],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeSellListScene({
+      unit,
+      convoy: { weapons: [], consumables: [convoyConsumable] },
+    });
+
+    NodeMapScene.prototype.drawShopSellList.call(scene);
+
+    const row = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text.includes('Vulnerary'),
+    );
+    expect(row).toBeTruthy();
+
+    row.handlers.pointerdown();
+    expect(scene.runManager.takeFromConvoy).toHaveBeenCalledWith('consumable', 0);
+    expect(scene.runManager.addGold).toHaveBeenCalled();
+    expect(scene.refreshShop).toHaveBeenCalledTimes(1);
+  });
+
   it('unit picker only shows no prof for proficiency-relevant items', () => {
     const createdTexts = [];
     const makePickerScene = () => ({
@@ -477,6 +547,43 @@ describe('NodeMap shop hover details', () => {
     ).toBe(true);
   });
 
+  it('renders convoy weapons in forge list with Forge button', () => {
+    const convoyWeapon = {
+      name: 'Silver Sword',
+      type: 'Sword',
+      rankRequired: 'Mast',
+      might: 13,
+      hit: 80,
+      crit: 0,
+      weight: 8,
+      range: '1',
+    };
+    const unit = {
+      name: 'Edric',
+      inventory: [],
+      weapon: null,
+    };
+    const { scene, createdTexts } = makeForgeListScene({
+      unit,
+      convoy: { weapons: [convoyWeapon], consumables: [] },
+    });
+
+    NodeMapScene.prototype.drawShopForgeList.call(scene);
+
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Convoy:')),
+    ).toBe(true);
+    expect(
+      createdTexts.some((obj) => typeof obj.text === 'string' && obj.text.includes('Silver Sword')),
+    ).toBe(true);
+    const forgeBtn = createdTexts.find(
+      (obj) => typeof obj.text === 'string' && obj.text === '[ Forge ]',
+    );
+    expect(forgeBtn).toBeTruthy();
+    forgeBtn.handlers.pointerdown();
+    expect(scene.showForgeStatPicker).toHaveBeenCalledWith(convoyWeapon);
+  });
+
   it('formats detail text for accessory and weapon shop entries', () => {
     const accessoryText = NodeMapScene.prototype._getShopItemDetailText.call(
       {},
@@ -556,6 +663,28 @@ describe('NodeMap shop hover details', () => {
     expect(text).toContain('Teaches Adept');
     expect(text).toContain('SPD% chance');
     expect(text.split('\n')).toHaveLength(2);
+  });
+
+  it('formats detail text for cure consumable (Herb)', () => {
+    const text = NodeMapScene.prototype._getShopItemDetailText.call(
+      {},
+      {
+        type: 'consumable',
+        item: { name: 'Herb', type: 'Consumable', effect: 'cure', uses: 2 },
+      },
+    );
+    expect(text).toBe('Cures all conditions (2 uses)');
+  });
+
+  it('formats detail text for cureHeal consumable (Remedy)', () => {
+    const text = NodeMapScene.prototype._getShopItemDetailText.call(
+      {},
+      {
+        type: 'consumable',
+        item: { name: 'Remedy', type: 'Consumable', effect: 'cureHeal', value: 15, uses: 1 },
+      },
+    );
+    expect(text).toBe('Cures conditions & heals 15 HP (1 use)');
   });
 
   it('includes weapon type in detail text', () => {

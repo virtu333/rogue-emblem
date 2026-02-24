@@ -877,7 +877,12 @@ export class NodeMapScene extends Phaser.Scene {
         this._shopViewingMap = false;
         return true;
       }
-      this.leaveShopNode();
+      // ESC closes shop without marking node complete — player can re-enter
+      const audio = this.registry.get('audio');
+      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.shopRerollCount = 0;
+      this.closeShopOverlay();
+      this.drawMap();
       return true;
     }
     if (this.churchOverlay) {
@@ -885,7 +890,12 @@ export class NodeMapScene extends Phaser.Scene {
         this._exitChurchMapView();
         return true;
       }
-      this.leaveChurchNode();
+      // ESC closes church without marking node complete — player can re-enter
+      if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
+      const audio = this.registry.get('audio');
+      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.closeChurchOverlay();
+      this.drawMap();
       return true;
     }
     if (this.colosseumOverlay?.visible) {
@@ -1409,8 +1419,10 @@ export class NodeMapScene extends Phaser.Scene {
     )
       return;
     if (node.type === NODE_TYPES.CHURCH) {
+      this.runManager.currentNodeId = node.id;
       this.handleChurch(node);
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
+      this.runManager.currentNodeId = node.id;
       this.handleColosseum(node);
     } else if (node.type === NODE_TYPES.SHOP) {
       if (node?.isAmbush === true && node?.ambushCleared !== true) {
@@ -1421,6 +1433,7 @@ export class NodeMapScene extends Phaser.Scene {
         this.showAmbushFlash(node, this._sceneLifecycleGeneration);
         return;
       }
+      this.runManager.currentNodeId = node.id;
       const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
       this.handleShop(node, {
         ambushDiscount: Boolean(node?.isAmbush && (node?.ambushCleared === true || pendingAmbush)),
@@ -2414,6 +2427,27 @@ export class NodeMapScene extends Phaser.Scene {
         rowModel.push({ kind: 'consumable', unit, item, sellPrice });
       }
     }
+    // Convoy items
+    const convoyWeapons = rm.convoy?.weapons || [];
+    const convoyConsumables = rm.convoy?.consumables || [];
+    const hasConvoySellable =
+      convoyWeapons.some((w) => getSellPrice(w) > 0) ||
+      convoyConsumables.some((c) => getSellPrice(c) > 0);
+    if (hasConvoySellable) {
+      rowModel.push({ kind: 'convoy_header' });
+      for (let ci = 0; ci < convoyWeapons.length; ci++) {
+        const item = convoyWeapons[ci];
+        const sellPrice = getSellPrice(item);
+        if (sellPrice <= 0) continue;
+        rowModel.push({ kind: 'convoy_weapon', item, sellPrice, convoyIndex: ci });
+      }
+      for (let ci = 0; ci < convoyConsumables.length; ci++) {
+        const item = convoyConsumables[ci];
+        const sellPrice = getSellPrice(item);
+        if (sellPrice <= 0) continue;
+        rowModel.push({ kind: 'convoy_consumable', item, sellPrice, convoyIndex: ci });
+      }
+    }
     const rowTotal = rowModel.length;
     this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
@@ -2484,34 +2518,111 @@ export class NodeMapScene extends Phaser.Scene {
         continue;
       }
 
-      const item = rowData.item;
-      const sellPrice = rowData.sellPrice;
-      const awardedSellPrice = previewAwardedSellGold(sellPrice);
-      const unit = rowData.unit;
-      const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
-      const baseColor = '#88ff88';
-      const text = this.add
-        .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: baseColor,
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
-      text.setInteractive({ useHandCursor: true });
-      text.on('pointerover', () => text.setColor('#ffdd44'));
-      text.on('pointerout', () => text.setColor(baseColor));
-      text.on('pointerdown', () => {
-        if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
-        else rm.addGold(sellPrice);
-        removeFromConsumables(unit, item);
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        this.refreshShop();
-        this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
-      });
+      if (rowData.kind === 'consumable') {
+        const item = rowData.item;
+        const sellPrice = rowData.sellPrice;
+        const awardedSellPrice = previewAwardedSellGold(sellPrice);
+        const unit = rowData.unit;
+        const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
+        const baseColor = '#88ff88';
+        const text = this.add
+          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: baseColor,
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        text.setInteractive({ useHandCursor: true });
+        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerout', () => text.setColor(baseColor));
+        text.on('pointerdown', () => {
+          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
+          else rm.addGold(sellPrice);
+          removeFromConsumables(unit, item);
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          this.refreshShop();
+          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+        });
 
-      this.shopContentGroup.push(text);
-      this.shopOverlay.push(text);
+        this.shopContentGroup.push(text);
+        this.shopOverlay.push(text);
+        continue;
+      }
+
+      if (rowData.kind === 'convoy_header') {
+        const hdr = this.add
+          .text(60, y, 'Convoy:', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#aaaaaa',
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        this.shopContentGroup.push(hdr);
+        this.shopOverlay.push(hdr);
+        continue;
+      }
+
+      if (rowData.kind === 'convoy_weapon') {
+        const item = rowData.item;
+        const sellPrice = rowData.sellPrice;
+        const awardedSellPrice = previewAwardedSellGold(sellPrice);
+        const convoyIdx = rowData.convoyIndex;
+        const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
+        const wpnColor = isForged(item) ? '#44ff88' : '#e0e0e0';
+        const text = this.add
+          .text(70, y, ` ${item.name}${marker}  +${awardedSellPrice}G`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: wpnColor,
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        text.setInteractive({ useHandCursor: true });
+        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerout', () => text.setColor(wpnColor));
+        text.on('pointerdown', () => {
+          rm.takeFromConvoy('weapon', convoyIdx);
+          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
+          else rm.addGold(sellPrice);
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          this.refreshShop();
+          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+        });
+        this.shopContentGroup.push(text);
+        this.shopOverlay.push(text);
+        continue;
+      }
+
+      if (rowData.kind === 'convoy_consumable') {
+        const item = rowData.item;
+        const sellPrice = rowData.sellPrice;
+        const awardedSellPrice = previewAwardedSellGold(sellPrice);
+        const convoyIdx = rowData.convoyIndex;
+        const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
+        const baseColor = '#88ff88';
+        const text = this.add
+          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: baseColor,
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        text.setInteractive({ useHandCursor: true });
+        text.on('pointerover', () => text.setColor('#ffdd44'));
+        text.on('pointerout', () => text.setColor(baseColor));
+        text.on('pointerdown', () => {
+          rm.takeFromConvoy('consumable', convoyIdx);
+          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
+          else rm.addGold(sellPrice);
+          const audio = this.registry.get('audio');
+          if (audio) audio.playSFX('sfx_gold');
+          this.refreshShop();
+          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
+        });
+        this.shopContentGroup.push(text);
+        this.shopOverlay.push(text);
+      }
     }
   }
 
@@ -2529,6 +2640,8 @@ export class NodeMapScene extends Phaser.Scene {
       if (forgeableWeapons.length === 0) continue;
       rowTotal += 1 + forgeableWeapons.length;
     }
+    const convoyForgeWeapons = (rm.convoy?.weapons || []).filter((w) => canForge(w));
+    if (convoyForgeWeapons.length > 0) rowTotal += 1 + convoyForgeWeapons.length;
     this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
     if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollOffsets.forge = Phaser.Math.Clamp(
@@ -2642,7 +2755,91 @@ export class NodeMapScene extends Phaser.Scene {
       }
     }
 
-    if (row <= 1.5) {
+    // Convoy forgeable weapons
+    if (convoyForgeWeapons.length > 0) {
+      const convoyHeaderY = startY + row * lineH - offset;
+      if (convoyHeaderY >= SHOP_LIST_TOP_Y - lineH && convoyHeaderY <= SHOP_LIST_BOTTOM_Y) {
+        const hdr = this.add
+          .text(60, convoyHeaderY, 'Convoy:', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#aaaaaa',
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        this.shopContentGroup.push(hdr);
+        this.shopOverlay.push(hdr);
+      }
+      row++;
+
+      for (const wpn of convoyForgeWeapons) {
+        const y = startY + row * lineH - offset;
+        const level = wpn._forgeLevel || 0;
+        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
+        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
+        const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
+        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
+          row++;
+          continue;
+        }
+        const wpnText = this.add
+          .text(70, y, label, {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: wpnColor,
+          })
+          .setDepth(OVERLAY_CONTENT_DEPTH);
+        this.shopContentGroup.push(wpnText);
+        this.shopOverlay.push(wpnText);
+
+        wpnText.setInteractive({ useHandCursor: false });
+        wpnText.on('pointerover', () => {
+          this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
+        });
+        wpnText.on('pointerout', () => this._hideForgeTooltip());
+
+        if (level >= FORGE_MAX_LEVEL) {
+          const maxLabel = this.add
+            .text(350, y, 'MAX', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#888888',
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH);
+          this.shopContentGroup.push(maxLabel);
+          this.shopOverlay.push(maxLabel);
+        } else if (limitReached) {
+          const limitLabel = this.add
+            .text(350, y, '(limit)', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#666666',
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH);
+          this.shopContentGroup.push(limitLabel);
+          this.shopOverlay.push(limitLabel);
+        } else {
+          const forgeBtn = this.add
+            .text(350, y, '[ Forge ]', {
+              fontFamily: 'monospace',
+              fontSize: '11px',
+              color: '#ff8844',
+              backgroundColor: '#333333',
+              padding: { x: 4, y: 1 },
+            })
+            .setDepth(OVERLAY_CONTENT_DEPTH)
+            .setInteractive({ useHandCursor: true });
+          forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
+          forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
+          forgeBtn.on('pointerdown', () => this.showForgeStatPicker(wpn));
+          this.shopContentGroup.push(forgeBtn);
+          this.shopOverlay.push(forgeBtn);
+        }
+
+        row++;
+      }
+    }
+
+    if (row <= 1.5 && convoyForgeWeapons.length === 0) {
       const emptyY = startY + row * lineH - offset;
       if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
         const emptyText = this.add
@@ -2702,6 +2899,14 @@ export class NodeMapScene extends Phaser.Scene {
       if (item.effect === 'reclass') {
         const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
         return `Reclass a unit to a ${label} class`;
+      }
+      if (item.effect === 'cure') {
+        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
+        return `Cures all conditions (${uses} use${uses === 1 ? '' : 's'})`;
+      }
+      if (item.effect === 'cureHeal') {
+        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
+        return `Cures conditions & heals ${Number(item.value) || 0} HP (${uses} use${uses === 1 ? '' : 's'})`;
       }
       return item.special || 'Consumable';
     }
