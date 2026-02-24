@@ -106,6 +106,8 @@ function createBlessingRuntimeModifiers() {
     shopPriceDiscount: 0,
     recruitLevelBonus: 0,
     terrainCombatBonuses: [],
+    healingEffectivenessMultiplier: 1,
+    weaponArtHpCostDelta: 0,
   };
 }
 
@@ -1506,6 +1508,24 @@ export class RunManager {
       return;
     }
 
+    if (effect.type === 'healing_effectiveness_delta') {
+      this.blessingRuntimeModifiers.healingEffectivenessMultiplier += value;
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: value,
+        total: this.blessingRuntimeModifiers.healingEffectivenessMultiplier,
+      });
+      return;
+    }
+
+    if (effect.type === 'weapon_art_hp_cost_delta') {
+      this.blessingRuntimeModifiers.weaponArtHpCostDelta += Math.trunc(value);
+      this._recordBlessingEvent('run_start', blessingId, effect, {
+        appliedValue: Math.trunc(value),
+        total: this.blessingRuntimeModifiers.weaponArtHpCostDelta,
+      });
+      return;
+    }
+
     this._recordBlessingEvent('run_start', blessingId, effect, {
       skipped: true,
       reason: 'unhandled_effect_type',
@@ -2139,16 +2159,22 @@ export class RunManager {
     // Meta weapon-art spawns for starting weapons (Iron/Steel + Art Adept extra slot).
     this._assignMetaWeaponArtsToStartingWeapons([edricUnit, seraUnit]);
 
-    // Apply weapon forges (random stat) to all lords' combat weapons
+    // Apply weapon forges (unique stats via shuffle) to all lords' combat weapons
     const forgeLevels = me?.startingWeaponForge || 0;
     if (forgeLevels > 0) {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
       for (const unit of [edricUnit, seraUnit]) {
         for (const w of unit.inventory) {
           if (w.type === 'Staff') continue;
-          for (let i = 0; i < forgeLevels; i++) {
-            const stat = FORGE_STATS[Math.floor(Math.random() * FORGE_STATS.length)];
-            applyForge(w, stat);
+          // Fisher-Yates shuffle to pick unique stats (max forgeLevels is 3, FORGE_STATS has 4)
+          const shuffled = [...FORGE_STATS];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          const forgeCount = Math.min(forgeLevels, shuffled.length);
+          for (let i = 0; i < forgeCount; i++) {
+            applyForge(w, shuffled[i]);
           }
         }
       }
@@ -2257,6 +2283,7 @@ export class RunManager {
     battleParams.difficultyId = this.difficultyId || 'normal';
     // statusStaffConfig is an object — read directly (getDifficultyModifier coerces objects)
     battleParams.statusStaffConfig = this.difficultyModifiers?.statusStaffConfig ?? null;
+    battleParams.siegeWeaponConfig = this.difficultyModifiers?.siegeWeaponConfig ?? null;
     this._repairDuplicateRosterNames();
     battleParams.usedRecruitNames = this.usedRecruitNames || {};
     return battleParams;
@@ -3253,6 +3280,14 @@ export class RunManager {
     if (!Array.isArray(rm.blessingRuntimeModifiers.terrainCombatBonuses)) {
       rm.blessingRuntimeModifiers.terrainCombatBonuses = [];
     }
+    rm.blessingRuntimeModifiers.healingEffectivenessMultiplier = Number.isFinite(
+      rm.blessingRuntimeModifiers.healingEffectivenessMultiplier,
+    )
+      ? rm.blessingRuntimeModifiers.healingEffectivenessMultiplier
+      : 1;
+    rm.blessingRuntimeModifiers.weaponArtHpCostDelta = Math.trunc(
+      Number(rm.blessingRuntimeModifiers.weaponArtHpCostDelta) || 0,
+    );
     rm.runSeed = Number.isFinite(saved.runSeed) ? Number(saved.runSeed) : null;
     rm.rngSeed = Number.isFinite(saved.rngSeed)
       ? Number(saved.rngSeed) >>> 0

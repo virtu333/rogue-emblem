@@ -56,6 +56,7 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   extendedLevelingEnabled: false,
   churchPromotionLimit: -1,
   growthBonusMultiplier: 1,
+  siegeWeaponConfig: null,
 });
 
 /**
@@ -120,6 +121,14 @@ export function generateModifierSummary(mode, defaults = DIFFICULTY_DEFAULTS) {
   }
   if (Number.isFinite(mode.growthBonusMultiplier) && mode.growthBonusMultiplier < 1) {
     lines.push(`Growth bonuses ×${mode.growthBonusMultiplier}`);
+  }
+  if (mode.siegeWeaponConfig) {
+    const cfg = mode.siegeWeaponConfig;
+    const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
+    if (firstAct) {
+      const actNum = firstAct.replace('act', '');
+      lines.push(`Siege magic from Act ${actNum}+ (max ${cfg.maxPerBattle}/battle)`);
+    }
   }
   return lines;
 }

@@ -345,9 +345,9 @@
         ]
       },
       {
-        "label": "Villages offer -1 item",
+        "label": "Staff healing -20% effective",
         "effects": [
-          { "type": "shop_item_count_delta", "params": { "value": -1 } }
+          { "type": "healing_effectiveness_delta", "params": { "value": -0.20 } }
         ]
       },
       {
@@ -392,6 +392,12 @@
         "label": "Recruits join -1 level",
         "effects": [
           { "type": "recruit_level_bonus", "params": { "value": -1 } }
+        ]
+      },
+      {
+        "label": "Weapon arts cost +2 HP",
+        "effects": [
+          { "type": "weapon_art_hp_cost_delta", "params": { "value": 2 } }
         ]
       }
     ],

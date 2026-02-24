@@ -511,7 +511,9 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
     return { ok: false, reason: 'ai_disabled' };
   }
 
-  const hpCost = getEffectiveWeaponArtHpCost(unit, art);
+  const hpCost = getEffectiveWeaponArtHpCost(unit, art, {
+    weaponArtHpCostDelta: context.weaponArtHpCostDelta,
+  });
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   const maxHp = Math.max(0, toFiniteNumber(unit?.stats?.HP, hp));
   if (hpCost > 0) {
@@ -566,7 +568,7 @@ export function recordWeaponArtUse(unit, art, context = {}) {
   }
 }
 
-export function getEffectiveWeaponArtHpCost(unit, art) {
+export function getEffectiveWeaponArtHpCost(unit, art, opts = {}) {
   const baseCost = Math.max(0, toFiniteNumber(art?.hpCost, 0));
   if (baseCost <= 0) return 0;
   const combatEffects = unit?.accessory?.combatEffects || null;
@@ -581,11 +583,11 @@ export function getEffectiveWeaponArtHpCost(unit, art) {
   );
   const fallbackReduction = combatEffects?.bloodGem ? 5 : 0;
   const reduction = Math.max(explicitReduction, fallbackReduction);
-  return Math.max(1, baseCost - reduction);
+  return Math.max(1, baseCost - reduction + toFiniteNumber(opts.weaponArtHpCostDelta, 0));
 }
 
-export function applyWeaponArtCost(unit, art) {
-  const hpCost = getEffectiveWeaponArtHpCost(unit, art);
+export function applyWeaponArtCost(unit, art, opts = {}) {
+  const hpCost = getEffectiveWeaponArtHpCost(unit, art, opts);
   if (!unit || hpCost <= 0) return;
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   unit.currentHP = Math.max(1, hp - hpCost);

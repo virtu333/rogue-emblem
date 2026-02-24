@@ -1786,6 +1786,15 @@ export class BattleScene extends Phaser.Scene {
         }
       }
     }
+    // Siege weapon assignment (enemy-only, replaces combat weapon)
+    if (spawn.siegeWeapon) {
+      const siegeData = this.gameData.weapons.find((w) => w.name === spawn.siegeWeapon);
+      if (siegeData) {
+        const siegeClone = structuredClone(siegeData);
+        enemy.weapon = siegeClone;
+        enemy.inventory = [siegeClone];
+      }
+    }
     // Status staff assignment (enemy-only, separate from combat weapon)
     if (spawn.statusStaff) {
       const staffName = spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff';
@@ -6506,7 +6515,11 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
 
     const staff = healer.weapon; // Should already be equipped
-    const result = resolveHeal(staff, healer, target);
+    const healOpts = {
+      healingMultiplier:
+        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+    };
+    const result = resolveHeal(staff, healer, target, healOpts);
 
     // Apply heal
     target.currentHP = result.targetHPAfter;
@@ -6534,9 +6547,13 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
 
     const staff = healer.weapon;
+    const healOpts = {
+      healingMultiplier:
+        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+    };
 
     for (const target of targets) {
-      const result = resolveHeal(staff, healer, target);
+      const result = resolveHeal(staff, healer, target, healOpts);
       target.currentHP = result.targetHPAfter;
       this.updateHPBar(target);
       await this.animateHeal(target, result.healAmount);
@@ -6685,6 +6702,8 @@ export class BattleScene extends Phaser.Scene {
           const latest = canUseWeaponArt(unit, weapon, art, {
             turnNumber: this.turnManager?.turnNumber,
             isInitiating: true,
+            weaponArtHpCostDelta:
+              this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
           });
           if (!latest.ok) {
             this.showWeaponArtPicker(unit);
@@ -7564,7 +7583,10 @@ export class BattleScene extends Phaser.Scene {
 
   _resolveWeaponArtCostValues(unit, art) {
     const baseCost = Math.max(0, Number(art?.hpCost) || 0);
-    const effectiveCost = getEffectiveWeaponArtHpCost(unit, art);
+    const artOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const effectiveCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
     return { baseCost, effectiveCost };
   }
 
@@ -7766,7 +7788,10 @@ export class BattleScene extends Phaser.Scene {
   _getWeaponArtHpAfterCost(unit, art) {
     if (!unit || !art) return unit?.currentHP;
     const hp = Number(unit.currentHP) || 0;
-    const cost = getEffectiveWeaponArtHpCost(unit, art);
+    const artOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const cost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
     return Math.max(1, hp - cost);
   }
 
@@ -7819,6 +7844,7 @@ export class BattleScene extends Phaser.Scene {
     const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       ...context,
     });
     if (!valid.ok) return null;
@@ -7839,6 +7865,7 @@ export class BattleScene extends Phaser.Scene {
     const valid = canUseWeaponArt(unit, selectedEntry.weapon, selectedEntry.art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       ...context,
     });
     if (!valid.ok) this._clearSelectedWeaponArt();
@@ -7857,6 +7884,8 @@ export class BattleScene extends Phaser.Scene {
           turnNumber: this.turnManager?.turnNumber,
           isInitiating: true,
           actorFaction: unit.faction,
+          weaponArtHpCostDelta:
+            this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
           ...context,
         });
         return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
@@ -7876,7 +7905,10 @@ export class BattleScene extends Phaser.Scene {
 
   _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art);
+    const artOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
     const effectivenessScore =
       mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
     const rangeOverrideScore = mods.rangeOverride
@@ -7930,8 +7962,11 @@ export class BattleScene extends Phaser.Scene {
     if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art);
+      const sortArtOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
+      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
       if (aCost !== bCost) return aCost - bCost;
       const aId = String(a.art?.id || '');
       const bId = String(b.art?.id || '');
@@ -8004,6 +8039,7 @@ export class BattleScene extends Phaser.Scene {
       canUseWeaponArt(unit, unit?.weapon, art, {
         turnNumber: this.turnManager?.turnNumber,
         isInitiating: true,
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       });
     if (check?.ok === false || check?.canUse === false)
       return this._weaponArtReasonLabel(check.reason);
@@ -8743,7 +8779,10 @@ export class BattleScene extends Phaser.Scene {
         ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
         : null;
     if (selectedArt) {
-      applyWeaponArtCost(attacker, selectedArt);
+      const artCostOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       this.updateHPBar(attacker);
@@ -9817,6 +9856,9 @@ export class BattleScene extends Phaser.Scene {
       await new Promise((resolve) => this.time.delayedCall(150, resolve));
     }
 
+    // Clear any temporary walls owned by this unit (waller affix cleanup)
+    this.grid?.clearTemporaryTerrainsBySource?.(unit);
+
     unit._removing = false;
   }
 
@@ -10047,6 +10089,7 @@ export class BattleScene extends Phaser.Scene {
   async executeWallerSpawn(effect) {
     const unit = effect.sourceUnit;
     const range = effect.range || 1;
+    const moveType = unit.moveType || 'Infantry';
 
     // Find valid adjacent tiles: empty, no combat stats (Plain/Floor usually)
     const candidates = [];
@@ -10077,10 +10120,39 @@ export class BattleScene extends Phaser.Scene {
 
     if (candidates.length === 0) return;
 
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    // We'll implement this.grid.setTemporaryTerrain in 6.4
+    // Anti-self-trap: filter out candidates that would leave waller with 0 walkable neighbors
+    const safeCandidates = candidates.filter((c) => {
+      // Simulate placing a wall at this candidate — count remaining walkable neighbors
+      let walkable = 0;
+      for (const [dc, dr] of [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ]) {
+        const nc = unit.col + dc;
+        const nr = unit.row + dr;
+        if (nc < 0 || nc >= this.grid.cols || nr < 0 || nr >= this.grid.rows) continue;
+        // This candidate would become a wall
+        if (nc === c.col && nr === c.row) continue;
+        const neighbor = this.grid.getTerrainAt(nc, nr);
+        if (!neighbor) continue;
+        const cost = neighbor.moveCost?.[moveType];
+        if (cost === '--') continue;
+        // Check occupancy (another unit blocking), but waller itself is OK
+        const occupant = this.getUnitAt(nc, nr);
+        if (occupant && occupant !== unit) continue;
+        walkable++;
+      }
+      return walkable > 0;
+    });
+
+    const pool = safeCandidates.length > 0 ? safeCandidates : [];
+    if (pool.length === 0) return;
+
+    const pick = pool[Math.floor(Math.random() * pool.length)];
     if (this.grid.setTemporaryTerrain) {
-      this.grid.setTemporaryTerrain(pick.col, pick.row, effect.terrainType, effect.duration);
+      this.grid.setTemporaryTerrain(pick.col, pick.row, effect.terrainType, effect.duration, unit);
       // Visual feedback
       const pos = this.grid.gridToPixel(pick.col, pick.row);
       this.showMinorHintAt(pos.x, pos.y, 'Wall!', '#ffffff');
@@ -10419,7 +10491,10 @@ export class BattleScene extends Phaser.Scene {
     this._ensureCombatRollSession(enemy, target);
     const selectedArt = this._selectEnemyWeaponArt(enemy, target);
     if (selectedArt) {
-      applyWeaponArtCost(enemy, selectedArt);
+      const artCostOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      applyWeaponArtCost(enemy, selectedArt, artCostOpts);
       recordWeaponArtUse(enemy, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(enemy, selectedArt);
       this.updateHPBar(enemy);

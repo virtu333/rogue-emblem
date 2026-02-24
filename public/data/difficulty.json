@@ -90,7 +90,11 @@
       "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
       "extendedLevelingEnabled": true,
       "churchPromotionLimit": 2,
-      "growthBonusMultiplier": 0.5
+      "growthBonusMultiplier": 0.5,
+      "siegeWeaponConfig": {
+        "act1": 0, "act2": 0, "act3": 0.10, "act4": 0.12, "finalBoss": 0.15,
+        "maxPerBattle": 1, "weaponName": "Bolting"
+      }
     }
   }
 }

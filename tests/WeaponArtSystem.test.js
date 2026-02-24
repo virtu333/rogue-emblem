@@ -197,6 +197,38 @@ describe('WeaponArtSystem', () => {
     expect(getEffectiveWeaponArtHpCost(unit, makeArt({ hpCost: 1 }))).toBe(1);
   });
 
+  it('getEffectiveWeaponArtHpCost with weaponArtHpCostDelta increases cost (T1)', () => {
+    const unit = makeUnit();
+    const art = makeArt({ hpCost: 5 });
+    expect(getEffectiveWeaponArtHpCost(unit, art, { weaponArtHpCostDelta: 2 })).toBe(7);
+  });
+
+  it('canUseWeaponArt applies weaponArtHpCostDelta to HP legality check', () => {
+    // Base cost 3, unit has 4 HP → normally allowed
+    const unit = makeUnit({ currentHP: 4 });
+    const weapon = { type: 'Sword' };
+    const art = makeArt({ hpCost: 3 });
+    expect(canUseWeaponArt(unit, weapon, art).ok).toBe(true);
+
+    // Positive delta (+2) makes effective cost 5; 4 <= 5 → blocked
+    const blocked = canUseWeaponArt(unit, weapon, art, { weaponArtHpCostDelta: 2 });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.reason).toBe('insufficient_hp');
+
+    // Negative delta (-2) makes effective cost 1; unit with 2 HP can use (2 > 1)
+    const lowUnit = makeUnit({ currentHP: 2 });
+    expect(canUseWeaponArt(lowUnit, weapon, art).ok).toBe(false); // base cost 3, HP 2 → blocked
+    const unblocked = canUseWeaponArt(lowUnit, weapon, art, { weaponArtHpCostDelta: -2 });
+    expect(unblocked.ok).toBe(true); // effective cost 1, HP 2 → allowed
+  });
+
+  it('getEffectiveWeaponArtHpCost with no opts returns unchanged result', () => {
+    const unit = makeUnit();
+    const art = makeArt({ hpCost: 5 });
+    expect(getEffectiveWeaponArtHpCost(unit, art)).toBe(5);
+    expect(getEffectiveWeaponArtHpCost(unit, art, {})).toBe(5);
+  });
+
   it('uses effective HP cost for legality, AI floor checks, and application', () => {
     const unit = makeUnit({
       currentHP: 2,

@@ -852,6 +852,8 @@ export class UnitDetailOverlay {
         turnNumber: this.scene?.turnManager?.turnNumber,
         isInitiating: true,
         actorFaction: unit.faction,
+        weaponArtHpCostDelta:
+          this.scene?.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       });
       if (!check.ok && HIDDEN_WEAPON_ART_REASONS.has(check.reason)) continue;
       choices.push({ art, canUse: check.ok, reason: check.reason });

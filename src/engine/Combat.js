@@ -361,9 +361,11 @@ export function calculateHealAmount(staff, healer, target) {
 /**
  * Resolve a heal action (pure — mutates nothing).
  * Returns { healAmount, targetHPAfter }.
+ * @param {object} opts - Optional. `healingMultiplier` scales heal (default 1).
  */
-export function resolveHeal(staff, healer, target) {
-  const healAmount = calculateHealAmount(staff, healer, target);
+export function resolveHeal(staff, healer, target, opts = {}) {
+  const baseHealAmount = calculateHealAmount(staff, healer, target);
+  const healAmount = Math.max(0, Math.floor(baseHealAmount * (opts.healingMultiplier ?? 1)));
   return {
     healAmount,
     targetHPAfter: target.currentHP + healAmount,

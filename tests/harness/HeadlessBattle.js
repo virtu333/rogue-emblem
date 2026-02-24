@@ -1217,6 +1217,7 @@ export class HeadlessBattle {
     const valid = canUseWeaponArt(unit, weapon, art, {
       turnNumber: this.turnManager?.turnNumber,
       isInitiating: true,
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
       ...context,
     });
     if (!valid.ok) return null;
@@ -1240,6 +1241,8 @@ export class HeadlessBattle {
           turnNumber: this.turnManager?.turnNumber,
           isInitiating: true,
           actorFaction: unit.faction,
+          weaponArtHpCostDelta:
+            this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
           ...context,
         });
         return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
@@ -1346,7 +1349,10 @@ export class HeadlessBattle {
 
   _scoreEnemyWeaponArt(unit, art) {
     const mods = getWeaponArtCombatMods(art);
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art);
+    const artOpts = {
+      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+    };
+    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
     const effectivenessScore =
       mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
     const rangeOverrideScore = mods.rangeOverride
@@ -1409,8 +1415,11 @@ export class HeadlessBattle {
     if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art);
+      const sortArtOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
+      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
       if (aCost !== bCost) return aCost - bCost;
       const aId = String(a.art?.id || '');
       const bId = String(b.art?.id || '');
@@ -1943,7 +1952,10 @@ export class HeadlessBattle {
         ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
         : null;
     if (selectedArt) {
-      applyWeaponArtCost(attacker, selectedArt);
+      const artCostOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       this._checkPhoenixBrooch(attacker);
@@ -2033,7 +2045,11 @@ export class HeadlessBattle {
   _executeHeal(healer, target) {
     const staff = this._getActiveHealStaff(healer);
     if (!staff) return;
-    const result = resolveHeal(staff, healer, target);
+    const healOpts = {
+      healingMultiplier:
+        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+    };
+    const result = resolveHeal(staff, healer, target, healOpts);
     target.currentHP = result.targetHPAfter;
     spendStaffUse(staff);
 
@@ -2222,7 +2238,10 @@ export class HeadlessBattle {
     this._ensureCombatRollSession(attacker, defender);
     const selectedArt = this._selectEnemyWeaponArt(attacker, defender);
     if (selectedArt) {
-      applyWeaponArtCost(attacker, selectedArt);
+      const artCostOpts = {
+        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
+      };
+      applyWeaponArtCost(attacker, selectedArt, artCostOpts);
       recordWeaponArtUse(attacker, selectedArt, { turnNumber: this.turnManager?.turnNumber });
       this._applyRecoilGuardAfterArtUse(attacker, selectedArt);
       this._checkPhoenixBrooch(attacker);

@@ -1266,6 +1266,25 @@ describe('Staff healing (MAG-based)', () => {
     expect(result.targetHPAfter).toBe(20);
   });
 
+  it('resolveHeal with healingMultiplier scales heal amount (T1)', () => {
+    const staff = data.weapons.find((w) => w.name === 'Heal');
+    const healer = makeHealer(5);
+    const target = makeTarget(10); // 10 missing HP
+    // Base heal: MAG 5 + healBase 5 = 10, capped at 10 missing
+    const result = resolveHeal(staff, healer, target, { healingMultiplier: 0.8 });
+    expect(result.healAmount).toBe(8); // floor(10 * 0.8) = 8
+    expect(result.targetHPAfter).toBe(18);
+  });
+
+  it('resolveHeal with no opts returns unchanged result (backwards compat)', () => {
+    const staff = data.weapons.find((w) => w.name === 'Heal');
+    const healer = makeHealer(5);
+    const target = makeTarget(10);
+    const result = resolveHeal(staff, healer, target);
+    expect(result.healAmount).toBe(10);
+    expect(result.targetHPAfter).toBe(20);
+  });
+
   it('Recover heals MAG + 15', () => {
     const staff = data.weapons.find((w) => w.name === 'Recover');
     const healer = makeHealer(8);

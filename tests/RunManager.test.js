@@ -1650,6 +1650,31 @@ describe('RunManager', () => {
       expect(silverSword._forgeLevel).toBe(3);
     });
 
+    it('weapon_forge at level 3 applies 3 unique stats (T3)', () => {
+      const metaEffects = { startingWeaponForge: 3 };
+      const rmMeta = new RunManager(gameData, metaEffects);
+      rmMeta.startRun();
+      const edric = rmMeta.roster[0];
+      const sword = edric.inventory.find((w) => w.type === 'Sword' && w._forgeLevel === 3);
+      expect(sword).toBeTruthy();
+      // _forgeHistory entries are { stat, cost } objects
+      const history = sword._forgeHistory;
+      expect(history).toHaveLength(3);
+      const stats = history.map((h) => h.stat);
+      // All 3 stats should be unique
+      expect(new Set(stats).size).toBe(3);
+    });
+
+    it('weapon_forge at level 1 still works (single stat)', () => {
+      const metaEffects = { startingWeaponForge: 1 };
+      const rmMeta = new RunManager(gameData, metaEffects);
+      rmMeta.startRun();
+      const edric = rmMeta.roster[0];
+      const sword = edric.inventory.find((w) => w.type === 'Sword' && w._forgeLevel === 1);
+      expect(sword).toBeTruthy();
+      expect(sword._forgeHistory).toHaveLength(1);
+    });
+
     it('deadlyArsenalTier does not grant Sera a random Light combat weapon', () => {
       const metaEffects = { deadlyArsenalTier: 2 };
       const rmMeta = new RunManager(gameData, metaEffects);
@@ -3138,6 +3163,46 @@ describe('blessing run-start effect application', () => {
 
     expect(rm.getShopPriceDiscount()).toBeCloseTo(0.15);
     expect(rm.getShopItemCountDelta()).toBe(1);
+  });
+
+  it('healing_effectiveness_delta blessing sets healingEffectivenessMultiplier (T1)', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = [
+      {
+        id: 'merchant_bane',
+        rolledCost: {
+          label: 'Staff healing -20% effective',
+          effects: [{ type: 'healing_effectiveness_delta', params: { value: -0.2 } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.blessingRuntimeModifiers.healingEffectivenessMultiplier).toBeCloseTo(0.8);
+  });
+
+  it('weapon_art_hp_cost_delta blessing sets weaponArtHpCostDelta (T1)', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    rm.activeBlessings = [
+      {
+        id: 'merchant_bane',
+        rolledCost: {
+          label: 'Weapon arts cost +2 HP',
+          effects: [{ type: 'weapon_art_hp_cost_delta', params: { value: 2 } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.blessingRuntimeModifiers.weaponArtHpCostDelta).toBe(2);
   });
 
   it('all_growths_delta blessing applies to roster growths and recruit growth accessor', () => {

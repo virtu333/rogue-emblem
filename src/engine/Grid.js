@@ -292,7 +292,7 @@ export class Grid {
     return true;
   }
 
-  setTemporaryTerrain(col, row, terrainName, duration = 1) {
+  setTemporaryTerrain(col, row, terrainName, duration = 1, sourceUnit = null) {
     if (col < 0 || col >= this.cols || row < 0 || row >= this.rows) return false;
     const terrainIndex = this.terrainData.findIndex((t) => t?.name === terrainName);
     if (terrainIndex < 0) return false;
@@ -300,6 +300,8 @@ export class Grid {
     const existing = this.temporaryTerrains.find((t) => t.key === key);
     if (existing) {
       existing.remainingTurns = Math.max(existing.remainingTurns, Math.max(1, duration | 0));
+      // Transfer ownership to the new caller on refresh
+      if (sourceUnit) existing.sourceUnit = sourceUnit;
       return this.setTerrainAt(col, row, terrainIndex);
     }
     this.temporaryTerrains.push({
@@ -309,6 +311,7 @@ export class Grid {
       originalIndex: this.mapLayout[row][col],
       temporaryIndex: terrainIndex,
       remainingTurns: Math.max(1, duration | 0),
+      sourceUnit: sourceUnit || null,
     });
     return this.setTerrainAt(col, row, terrainIndex);
   }
@@ -319,6 +322,15 @@ export class Grid {
     if (idx < 0) return false;
     const entry = this.temporaryTerrains.splice(idx, 1)[0];
     return this.setTerrainAt(entry.col, entry.row, entry.originalIndex);
+  }
+
+  clearTemporaryTerrainsBySource(sourceUnit) {
+    if (!sourceUnit) return 0;
+    const toRemove = this.temporaryTerrains.filter((t) => t.sourceUnit === sourceUnit);
+    for (const entry of toRemove) {
+      this.clearTemporaryTerrainAt(entry.col, entry.row);
+    }
+    return toRemove.length;
   }
 
   isTemporaryTerrainAt(col, row, terrainIndex = null) {

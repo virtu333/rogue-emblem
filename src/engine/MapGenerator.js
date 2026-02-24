@@ -8,6 +8,7 @@ import {
   SUNDER_ELIGIBLE_PROFS,
   POISON_ELIGIBLE_PROFS,
   STATUS_STAFF_ELIGIBLE_CLASSES,
+  SIEGE_ELIGIBLE_CLASSES,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { createScopedLogger } from '../utils/logger.js';
@@ -37,6 +38,7 @@ export function generateBattle(params, deps) {
     usedRecruitNames = {},
     enemyPoisonChance = 0,
     statusStaffConfig = null,
+    siegeWeaponConfig = null,
     isAmbush = false,
     enemyLevelBonus = 0,
     enemyCountBase = 0,
@@ -136,7 +138,7 @@ export function generateBattle(params, deps) {
     thronePos,
     adjustedLevelRange,
     classes,
-    { enemyPoisonChance, statusStaffConfig },
+    { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig },
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     affixConfig: deps.affixes,
@@ -1178,6 +1180,22 @@ function generateEnemies(
       }
     }
 
+    // Siege weapon assignment (Lunatic-only, promoted Tome users)
+    let siegeWeapon;
+    const swCfg = extraOptions.siegeWeaponConfig;
+    if (swCfg && SIEGE_ELIGIBLE_CLASSES.has(className)) {
+      const swChance = Number(swCfg[act] || 0);
+      const swMaxPerBattle = swCfg.maxPerBattle || 0;
+      const swCount = spawns.filter((s) => s.siegeWeapon).length;
+      if (swChance > 0 && swCount < swMaxPerBattle) {
+        // Derive siege roll from the status staff roll chain
+        const siegeRoll = deriveSecondaryRoll(deriveSecondaryRoll(deriveSecondaryRoll(baseRoll)));
+        if (siegeRoll < swChance) {
+          siegeWeapon = swCfg.weaponName;
+        }
+      }
+    }
+
     if (DEBUG_MAP_GEN) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
       const chosenScore = scored.find((s) => s.item === pos)?.weight;
@@ -1195,6 +1213,7 @@ function generateEnemies(
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
       statusStaff: statusStaff || undefined,
+      siegeWeapon: siegeWeapon || undefined,
     });
   }
 

@@ -212,6 +212,9 @@ export const CATEGORY_CURRENCY = {
 // Flat fee to refund one upgrade tier (deducted from the upgrade's currency)
 export const REFUND_FEE = 20;
 
+// Siege weapon eligibility (promoted Tome users — NOT Battle Monk which has no Tome)
+export const SIEGE_ELIGIBLE_CLASSES = new Set(['Sage', 'Warlock', 'Dark Knight', 'Grandmaster']);
+
 // Status conditions (Sleep / Silence)
 export const STATUS_STAFF_ELIGIBLE_CLASSES = new Set(['Mage', 'Sage', 'Bishop']);
 export const STATUS_CONDITIONS = {
