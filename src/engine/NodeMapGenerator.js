@@ -306,6 +306,7 @@ function pickColumnsWithCoverage(desiredCount, prevCols) {
  * Acts 2+: 60% battle, 25% shop, 15% church.
  */
 function pickNodeType(row, totalRows, actId) {
+  if (actId === 'finalBoss' && row === 0) return NODE_TYPES.SHOP;
   if (row === 0) return NODE_TYPES.BATTLE;
   if (row === totalRows - 1) return NODE_TYPES.BOSS;
   if (row === 1) return NODE_TYPES.BATTLE; // no non-combat nodes row 1

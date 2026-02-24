@@ -79,6 +79,7 @@ async function fetchTable(userId, table) {
 }
 
 async function fetchTableRow(userId, table) {
+  if (!supabase) return { exists: false, data: null, updatedAt: null };
   const { data, error } = await supabase
     .from(table)
     .select('data,updated_at')
@@ -387,6 +388,7 @@ function withRevisionFilter(query, expectedUpdatedAt) {
 }
 
 async function insertTableRow(userId, table, slotMap) {
+  if (!supabase) throw new Error('Cloud unavailable');
   const payload = {
     user_id: userId,
     data: slotMap,
@@ -406,6 +408,7 @@ async function insertTableRow(userId, table, slotMap) {
 }
 
 async function updateTableRowWithRevision(userId, table, expectedUpdatedAt, slotMap) {
+  if (!supabase) throw new Error('Cloud unavailable');
   let query = supabase
     .from(table)
     .update({
@@ -424,6 +427,7 @@ async function updateTableRowWithRevision(userId, table, expectedUpdatedAt, slot
 }
 
 async function deleteTableRowWithRevision(userId, table, expectedUpdatedAt) {
+  if (!supabase) throw new Error('Cloud unavailable');
   let query = supabase.from(table).delete().eq('user_id', userId);
   query = withRevisionFilter(query, expectedUpdatedAt);
   const { data, error } = await query.select('user_id').maybeSingle();
@@ -436,6 +440,7 @@ async function deleteTableRowWithRevision(userId, table, expectedUpdatedAt) {
 }
 
 async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
+  if (!supabase) throw new Error('Cloud unavailable');
   let lastConflict = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const row = await fetchTableRow(userId, table);

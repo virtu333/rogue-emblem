@@ -1046,6 +1046,28 @@ export class NodeMapScene extends Phaser.Scene {
         .setOrigin(1, 0);
     }
 
+    // No Meta indicator
+    if (rm.noMetaMode === true) {
+      this.add
+        .text(this.cameras.main.width - 20, 50, 'NO META', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#ff8800',
+        })
+        .setOrigin(1, 0);
+    }
+
+    // Win streak display (only when >= 2)
+    if (rm.winStreak >= 2) {
+      this.add
+        .text(this.cameras.main.width - 20, 64, `Streak: ${rm.winStreak}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#88ccff',
+        })
+        .setOrigin(1, 0);
+    }
+
     // Gear icon — opens settings
     const gear = this.add
       .text(20, 16, '\u2699', {

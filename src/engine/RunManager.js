@@ -293,6 +293,9 @@ export class RunManager {
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
+    this.winStreak = 0;
+    this.maxWinStreak = 0;
+    this.noMetaMode = false;
     this.shownDialogueKeys = [];
     this._churchPromotionTracker = null; // { nodeId: string, count: number }
   }
@@ -2496,6 +2499,8 @@ export class RunManager {
     this.roster = survivingUnits.map((u) => serializeUnit(u));
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.completedBattles++;
+    this.winStreak++;
+    if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -2794,6 +2799,7 @@ export class RunManager {
   /** Mark the run as a defeat. */
   failRun() {
     this.status = 'defeat';
+    this.winStreak = 0;
   }
 
   _applySettledRewardsToMeta(meta, summary) {
@@ -2854,6 +2860,8 @@ export class RunManager {
       nodeMap: this.nodeMap,
       currentNodeId: this.currentNodeId,
       completedBattles: this.completedBattles,
+      winStreak: this.winStreak || 0,
+      maxWinStreak: this.maxWinStreak || 0,
       gold: this.gold,
       metaEffects: this.metaEffects,
       accessories: this.accessories,
@@ -2889,6 +2897,7 @@ export class RunManager {
       unlockedWeaponArts: this.unlockedWeaponArts || [],
       shownDialogueKeys: this.shownDialogueKeys || [],
       churchPromotionTracker: this._churchPromotionTracker || null,
+      noMetaMode: this.noMetaMode || false,
     };
   }
 
@@ -3152,6 +3161,10 @@ export class RunManager {
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
+    const ws = saved.winStreak;
+    rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
+    const mws = saved.maxWinStreak;
+    rm.maxWinStreak = Number.isFinite(mws) && mws >= 0 ? Math.trunc(mws) : 0;
     rm.gold = saved.gold;
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
@@ -3373,6 +3386,7 @@ export class RunManager {
       rawTracker && typeof rawTracker.nodeId === 'string' && Number.isFinite(rawTracker.count)
         ? { nodeId: rawTracker.nodeId, count: Math.max(0, Math.trunc(rawTracker.count)) }
         : null;
+    rm.noMetaMode = saved.noMetaMode === true;
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(
         saved.currentNodeId ||

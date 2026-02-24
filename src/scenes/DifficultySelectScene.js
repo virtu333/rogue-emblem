@@ -14,6 +14,7 @@ export class DifficultySelectScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData;
     this.isTransitioning = false;
+    this._noMetaUpgrades = data.noMetaUpgrades === true;
   }
 
   create() {
@@ -24,6 +25,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._onKeyRight = () => this._navigate(1);
     this._onKeyEnter = () => this._confirm();
     this._onKeyEsc = () => this._back();
+    this._onKeyM = () => this._toggleMetaMode();
 
     this._onWheel = (_pointer, _gameObjects, _dx, dy) => {
       if (!this._cardScrollMaxes) return;
@@ -47,12 +49,14 @@ export class DifficultySelectScene extends Phaser.Scene {
         keyboard.off('keydown-RIGHT', this._onKeyRight);
         keyboard.off('keydown-ENTER', this._onKeyEnter);
         keyboard.off('keydown-ESC', this._onKeyEsc);
+        keyboard.off('keydown-M', this._onKeyM);
       }
       if (this.input) this.input.off('wheel', this._onWheel);
       this._onKeyLeft = null;
       this._onKeyRight = null;
       this._onKeyEnter = null;
       this._onKeyEsc = null;
+      this._onKeyM = null;
       this._onWheel = null;
       if (this._maskGraphics) {
         this._maskGraphics.forEach((g) => g.destroy());
@@ -70,6 +74,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-RIGHT', this._onKeyRight);
     this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
     this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
+    this.input.keyboard.on('keydown-M', this._onKeyM);
     this.input.on('wheel', this._onWheel);
 
     this._draw();
@@ -112,6 +117,13 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._draw();
   }
 
+  _toggleMetaMode() {
+    this._noMetaUpgrades = !this._noMetaUpgrades;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_cursor');
+    this._draw();
+  }
+
   _confirm() {
     const mode = this.modes[this.selectedIndex];
     if (!mode || mode.locked) {
@@ -129,6 +141,7 @@ export class DifficultySelectScene extends Phaser.Scene {
       {
         gameData: this.gameData,
         difficultyId: mode.id,
+        noMetaUpgrades: this._noMetaUpgrades || false,
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN },
     ).then((ok) => {
@@ -375,5 +388,22 @@ export class DifficultySelectScene extends Phaser.Scene {
     backBtn.on('pointerover', () => backBtn.setColor('#ffdd44'));
     backBtn.on('pointerout', () => backBtn.setColor('#e0e0e0'));
     backBtn.on('pointerdown', () => this._back());
+
+    // Meta upgrades toggle
+    const metaLabel = this._noMetaUpgrades ? 'Meta Upgrades: OFF' : 'Meta Upgrades: ON';
+    const metaColor = this._noMetaUpgrades ? '#ff8800' : '#88cc88';
+    const metaToggle = this.add
+      .text(cx, btnY + 36, metaLabel, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: metaColor,
+        backgroundColor: '#000000aa',
+        padding: { x: 10, y: 4 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    metaToggle.on('pointerover', () => metaToggle.setColor('#ffdd44'));
+    metaToggle.on('pointerout', () => metaToggle.setColor(metaColor));
+    metaToggle.on('pointerdown', () => this._toggleMetaMode());
   }
 }

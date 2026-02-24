@@ -22,6 +22,7 @@ export class BlessingSelectScene extends Phaser.Scene {
   init(data) {
     this.gameData = data.gameData;
     this.difficultyId = data.difficultyId || 'normal';
+    this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.isTransitioning = false;
     this._blessingCommitted = false;
   }
@@ -53,12 +54,14 @@ export class BlessingSelectScene extends Phaser.Scene {
 
     // Create RunManager — not committed until we transition to NodeMap
     const meta = this.registry.get('meta');
-    const metaEffects = meta
-      ? meta.getActiveEffects({
-          weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
-        })
-      : null;
+    const metaEffects =
+      !this.noMetaUpgrades && meta
+        ? meta.getActiveEffects({
+            weaponArtCatalog: this.gameData?.weaponArts?.arts || [],
+          })
+        : null;
     this.runManager = new RunManager(this.gameData, metaEffects);
+    this.runManager.noMetaMode = this.noMetaUpgrades;
     this.runManager.startRun({ difficultyId: this.difficultyId, applyBlessingsAtStart: false });
 
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
@@ -135,7 +138,7 @@ export class BlessingSelectScene extends Phaser.Scene {
     transitionToScene(
       this,
       'DifficultySelect',
-      { gameData: this.gameData },
+      { gameData: this.gameData, noMetaUpgrades: this.noMetaUpgrades === true },
       { reason: TRANSITION_REASONS.BACK },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;

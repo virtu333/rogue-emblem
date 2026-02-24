@@ -3598,3 +3598,162 @@ describe('RunManager church promotion tracker', () => {
     expect(rm2.getChurchPromotionCount('any_node')).toBe(0);
   });
 });
+
+describe('RunManager win streak', () => {
+  let gameData;
+  let rm;
+
+  beforeEach(() => {
+    gameData = loadGameData();
+    rm = new RunManager(gameData);
+    rm.startRun();
+  });
+
+  function completeBattleOnNode(runMgr, nodeId) {
+    const node = runMgr.nodeMap.nodes.find((n) => n.id === nodeId);
+    if (!node) throw new Error(`Node ${nodeId} not found`);
+    return runMgr.completeBattle(runMgr.roster, nodeId, 100);
+  }
+
+  it('starts at 0', () => {
+    expect(rm.winStreak).toBe(0);
+    expect(rm.maxWinStreak).toBe(0);
+  });
+
+  it('increments on completeBattle', () => {
+    const available = rm.getAvailableNodes();
+    completeBattleOnNode(rm, available[0].id);
+    expect(rm.winStreak).toBe(1);
+    expect(rm.maxWinStreak).toBe(1);
+  });
+
+  it('increments across multiple battles', () => {
+    const first = rm.getAvailableNodes();
+    completeBattleOnNode(rm, first[0].id);
+    const second = rm.getAvailableNodes();
+    if (second.length > 0 && second[0].type !== 'shop' && second[0].type !== 'church') {
+      completeBattleOnNode(rm, second[0].id);
+      expect(rm.winStreak).toBe(2);
+      expect(rm.maxWinStreak).toBe(2);
+    }
+  });
+
+  it('resets to 0 on failRun', () => {
+    const available = rm.getAvailableNodes();
+    completeBattleOnNode(rm, available[0].id);
+    expect(rm.winStreak).toBe(1);
+    rm.failRun();
+    expect(rm.winStreak).toBe(0);
+    expect(rm.maxWinStreak).toBe(1); // maxWinStreak preserved
+  });
+
+  it('roundtrips through toJSON/fromJSON', () => {
+    const available = rm.getAvailableNodes();
+    completeBattleOnNode(rm, available[0].id);
+    const saved = rm.toJSON();
+    expect(saved.winStreak).toBe(1);
+    expect(saved.maxWinStreak).toBe(1);
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.winStreak).toBe(1);
+    expect(rm2.maxWinStreak).toBe(1);
+  });
+
+  it('defaults to 0 for old saves without streak', () => {
+    const saved = rm.toJSON();
+    delete saved.winStreak;
+    delete saved.maxWinStreak;
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.winStreak).toBe(0);
+    expect(rm2.maxWinStreak).toBe(0);
+  });
+
+  it('defaults malformed values to 0', () => {
+    const saved = rm.toJSON();
+    const badValues = [-1, NaN, 'three', null, undefined];
+    for (const bad of badValues) {
+      saved.winStreak = bad;
+      saved.maxWinStreak = bad;
+      const rm2 = RunManager.fromJSON(saved, gameData);
+      expect(rm2.winStreak).toBe(0);
+      expect(rm2.maxWinStreak).toBe(0);
+    }
+    // Fractional values get truncated
+    saved.winStreak = 1.5;
+    saved.maxWinStreak = 2.7;
+    const rm3 = RunManager.fromJSON(saved, gameData);
+    expect(rm3.winStreak).toBe(1);
+    expect(rm3.maxWinStreak).toBe(2);
+  });
+});
+
+describe('RunManager noMetaMode', () => {
+  let gameData;
+
+  beforeEach(() => {
+    gameData = loadGameData();
+  });
+
+  it('defaults to false', () => {
+    const rm = new RunManager(gameData);
+    expect(rm.noMetaMode).toBe(false);
+  });
+
+  it('can be set post-construction', () => {
+    const rm = new RunManager(gameData);
+    rm.noMetaMode = true;
+    expect(rm.noMetaMode).toBe(true);
+  });
+
+  it('with metaEffects=null has no meta bonuses', () => {
+    const rm = new RunManager(gameData, null);
+    rm.noMetaMode = true;
+    rm.startRun();
+    expect(rm.metaEffects).toBeNull();
+    expect(rm.gold).toBe(200); // STARTING_GOLD only, no goldBonus
+  });
+
+  it('roundtrips through toJSON/fromJSON with true', () => {
+    const rm = new RunManager(gameData);
+    rm.noMetaMode = true;
+    rm.startRun();
+    const saved = rm.toJSON();
+    expect(saved.noMetaMode).toBe(true);
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.noMetaMode).toBe(true);
+  });
+
+  it('roundtrips through toJSON/fromJSON with false', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+    expect(saved.noMetaMode).toBe(false);
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.noMetaMode).toBe(false);
+  });
+
+  it('defaults to false for old saves without noMetaMode', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+    delete saved.noMetaMode;
+
+    const rm2 = RunManager.fromJSON(saved, gameData);
+    expect(rm2.noMetaMode).toBe(false);
+  });
+
+  it('rejects non-boolean values in fromJSON', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+
+    for (const bad of ['true', 1, {}, [], 'yes']) {
+      saved.noMetaMode = bad;
+      const rm2 = RunManager.fromJSON(saved, gameData);
+      expect(rm2.noMetaMode).toBe(false);
+    }
+  });
+});

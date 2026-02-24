@@ -171,16 +171,37 @@ describe('NodeMapGenerator', () => {
   });
 
   describe('generateNodeMap — finalBoss', () => {
-    it('produces single boss node', () => {
+    it('produces shop + boss nodes', () => {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
-      expect(map.nodes.length).toBe(1);
-      expect(map.nodes[0].type).toBe(NODE_TYPES.BOSS);
-      expect(map.startNodeId).toBe(map.bossNodeId);
+      expect(map.nodes.length).toBe(2);
+      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
+      const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
+      expect(shopNode).toBeDefined();
+      expect(bossNode).toBeDefined();
+      expect(shopNode.row).toBe(0);
+      expect(bossNode.row).toBe(1);
+      expect(map.startNodeId).toBe(shopNode.id);
+      expect(map.bossNodeId).toBe(bossNode.id);
+      expect(map.startNodeId).not.toBe(map.bossNodeId);
     });
 
     it('final boss has seize objective', () => {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
-      expect(map.nodes[0].battleParams.objective).toBe('seize');
+      const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
+      expect(bossNode.battleParams.objective).toBe('seize');
+    });
+
+    it('shop node connects to boss node', () => {
+      const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
+      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
+      const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
+      expect(shopNode.edges).toContain(bossNode.id);
+    });
+
+    it('shop node has no battleParams', () => {
+      const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss);
+      const shopNode = map.nodes.find((n) => n.type === NODE_TYPES.SHOP);
+      expect(shopNode.battleParams).toBeNull();
     });
   });
 
@@ -776,8 +797,9 @@ describe('Template-driven fog', () => {
     };
     for (let i = 0; i < 25; i++) {
       const map = generateNodeMap('finalBoss', ACT_CONFIG.finalBoss, customTemplates);
-      expect(map.nodes[0].templateId).toBe('fallback_first');
-      expect(map.nodes[0].battleParams.templateId).toBe('fallback_first');
+      const bossNode = map.nodes.find((n) => n.type === NODE_TYPES.BOSS);
+      expect(bossNode.templateId).toBe('fallback_first');
+      expect(bossNode.battleParams.templateId).toBe('fallback_first');
     }
   });
 

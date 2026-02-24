@@ -7,6 +7,12 @@ vi.mock('phaser', () => ({
   },
 }));
 
+vi.mock('../src/utils/SceneRouter.js', () => ({
+  transitionToScene: vi.fn(() => Promise.resolve(true)),
+  TRANSITION_REASONS: { BEGIN_RUN: 'begin_run', BACK: 'back' },
+}));
+
+import { transitionToScene } from '../src/utils/SceneRouter.js';
 import {
   generateModifierSummary,
   DIFFICULTY_DEFAULTS,
@@ -182,6 +188,65 @@ describe('Cross-slot Lunatic unlock', () => {
     const lunatic = modes.find((m) => m.id === 'lunatic');
     expect(lunatic.locked).toBe(true);
     expect(lunatic.lockReason).toBe('Beat the game on Hard to unlock');
+  });
+});
+
+describe('DifficultySelectScene No Meta toggle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeDiffScene(initData = {}) {
+    const scene = Object.create(DifficultySelectScene.prototype);
+    scene.init({ gameData, ...initData });
+    scene.registry = { get: vi.fn(() => null) };
+    scene.children = { removeAll: vi.fn() };
+    scene._maskGraphics = [];
+    scene.cameras = { main: { width: 480, height: 320 } };
+    scene.add = {
+      text: vi.fn(() => ({
+        setOrigin: vi.fn(() => ({ setInteractive: vi.fn(() => ({ on: vi.fn() })) })),
+      })),
+      rectangle: vi.fn(() => ({ setOrigin: vi.fn() })),
+    };
+    scene.modes = [{ id: 'normal', label: 'Normal', locked: false }];
+    scene.selectedIndex = 0;
+    scene._cardScrollMaxes = {};
+    scene._draw = vi.fn();
+    return scene;
+  }
+
+  it('defaults _noMetaUpgrades to false when not passed', () => {
+    const scene = makeDiffScene();
+    expect(scene._noMetaUpgrades).toBe(false);
+  });
+
+  it('_toggleMetaMode flips the flag', () => {
+    const scene = makeDiffScene();
+    scene._toggleMetaMode();
+    expect(scene._noMetaUpgrades).toBe(true);
+    scene._toggleMetaMode();
+    expect(scene._noMetaUpgrades).toBe(false);
+  });
+
+  it('restores _noMetaUpgrades from init data (back-navigation persistence)', () => {
+    const scene = makeDiffScene({ noMetaUpgrades: true });
+    expect(scene._noMetaUpgrades).toBe(true);
+  });
+
+  it('rejects non-boolean noMetaUpgrades in init', () => {
+    const scene = makeDiffScene({ noMetaUpgrades: 'yes' });
+    expect(scene._noMetaUpgrades).toBe(false);
+  });
+
+  it('_confirm passes noMetaUpgrades in transition data', () => {
+    const scene = makeDiffScene();
+    scene._noMetaUpgrades = true;
+    scene.isTransitioning = false;
+    scene._confirm();
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    const callArgs = transitionToScene.mock.calls[0];
+    expect(callArgs[2].noMetaUpgrades).toBe(true);
   });
 });
 

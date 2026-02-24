@@ -121,7 +121,7 @@ export const ACT_CONFIG = {
   act2: { name: 'Occupied Territory', rows: 8 },
   act3: { name: 'Enemy Stronghold', rows: 8 },
   act4: { name: 'Ashen Summit', rows: 8 },
-  finalBoss: { name: 'Final Battle', rows: 1 },
+  finalBoss: { name: 'Final Battle', rows: 2 },
 };
 
 export const NODE_TYPES = {

@@ -43,6 +43,52 @@ function makeScene() {
   return scene;
 }
 
+describe('BlessingSelectScene No Meta back-navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    transitionPromiseResolve = null;
+  });
+
+  it('init stores noMetaUpgrades from data', () => {
+    const scene = Object.create(BlessingSelectScene.prototype);
+    scene.init({ gameData: {}, noMetaUpgrades: true });
+    expect(scene.noMetaUpgrades).toBe(true);
+  });
+
+  it('init defaults noMetaUpgrades to false when absent', () => {
+    const scene = Object.create(BlessingSelectScene.prototype);
+    scene.init({ gameData: {} });
+    expect(scene.noMetaUpgrades).toBe(false);
+  });
+
+  it('init rejects non-boolean noMetaUpgrades values', () => {
+    for (const bad of ['true', 'false', 1, 0, {}, []]) {
+      const scene = Object.create(BlessingSelectScene.prototype);
+      scene.init({ gameData: {}, noMetaUpgrades: bad });
+      expect(scene.noMetaUpgrades).toBe(false);
+    }
+  });
+
+  it('_back passes noMetaUpgrades in transition data', () => {
+    const scene = makeScene();
+    scene.noMetaUpgrades = true;
+    scene.gameData = {};
+    scene._back();
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    const callArgs = transitionToScene.mock.calls[0];
+    expect(callArgs[2]).toEqual({ gameData: {}, noMetaUpgrades: true });
+  });
+
+  it('_back passes noMetaUpgrades=false when not set', () => {
+    const scene = makeScene();
+    scene.noMetaUpgrades = false;
+    scene.gameData = {};
+    scene._back();
+    const callArgs = transitionToScene.mock.calls[0];
+    expect(callArgs[2]).toEqual({ gameData: {}, noMetaUpgrades: false });
+  });
+});
+
 describe('BlessingSelectScene transition guards', () => {
   beforeEach(() => {
     vi.clearAllMocks();

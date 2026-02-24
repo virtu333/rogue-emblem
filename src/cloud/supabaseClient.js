@@ -11,10 +11,14 @@ const EMAIL_DOMAIN = '@emblem-rogue.local';
 
 export async function signUp(username, password) {
   if (!supabase) throw new Error('Cloud services unavailable');
+  if (!username || typeof username !== 'string' || !username.trim()) {
+    throw new Error('Username is required');
+  }
+  const normalized = username.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
-    email: username.toLowerCase() + EMAIL_DOMAIN,
+    email: normalized + EMAIL_DOMAIN,
     password,
-    options: { data: { display_name: username } },
+    options: { data: { display_name: normalized } },
   });
   if (error) throw error;
   return data;
@@ -22,8 +26,12 @@ export async function signUp(username, password) {
 
 export async function signIn(username, password) {
   if (!supabase) throw new Error('Cloud services unavailable');
+  if (!username || typeof username !== 'string' || !username.trim()) {
+    throw new Error('Username is required');
+  }
+  const normalized = username.trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: username.toLowerCase() + EMAIL_DOMAIN,
+    email: normalized + EMAIL_DOMAIN,
     password,
   });
   if (error) throw error;
