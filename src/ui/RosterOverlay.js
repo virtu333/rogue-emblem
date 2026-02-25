@@ -926,6 +926,13 @@ export class RosterOverlay {
       combat.as < unit.stats.SPD ? '#ff6666' : '#ffffff',
       '10px',
     );
+    y += 13;
+    this._text(x, y, `Hit ${String(combat.hit).padStart(3)}`, '#ffffff', '10px');
+    const avo = unit.stats.SPD * 2 + unit.stats.LCK;
+    this._text(col2X, y, `Avo ${String(avo).padStart(3)}`, '#ffffff', '10px');
+    y += 13;
+    this._text(x, y, `Crt ${String(combat.crit).padStart(3)}`, '#ffffff', '10px');
+    this._text(col2X, y, `Wt  ${String(combat.weight).padStart(3)}`, '#ffffff', '10px');
     y += 16;
 
     // Proficiencies

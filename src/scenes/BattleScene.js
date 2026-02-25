@@ -974,7 +974,8 @@ export class BattleScene extends Phaser.Scene {
           .setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor('#e0e0e0'));
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           this._uiClickBlocked = true;
           handler();
         });
@@ -1041,7 +1042,8 @@ export class BattleScene extends Phaser.Scene {
           .setInteractive({ useHandCursor: true });
         skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
         skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
-        skipBtn.on('pointerdown', () => {
+        skipBtn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           this._handleTutorialSkipRequested();
         });
         this._pinToScreen(skipBtn);
@@ -2288,7 +2290,8 @@ export class BattleScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', () => {
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this._uiClickBlocked = true;
         callback();
       });
@@ -2640,7 +2643,8 @@ export class BattleScene extends Phaser.Scene {
 
       // Click handler (skip Edric -- always locked)
       if (!isEdric) {
-        rowBg.on('pointerdown', () => {
+        rowBg.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           const audio = this.registry.get('audio');
           if (selected.has(i)) {
             selected.delete(i);
@@ -2734,8 +2738,14 @@ export class BattleScene extends Phaser.Scene {
     if (canScrollRows) {
       scrollUp.setInteractive({ useHandCursor: true });
       scrollDown.setInteractive({ useHandCursor: true });
-      scrollUp.on('pointerdown', () => setScrollOffset(scrollOffset - 1));
-      scrollDown.on('pointerdown', () => setScrollOffset(scrollOffset + 1));
+      scrollUp.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        setScrollOffset(scrollOffset - 1);
+      });
+      scrollDown.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        setScrollOffset(scrollOffset + 1);
+      });
 
       if (this.input?.on && this.input?.off) {
         const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
@@ -2768,7 +2778,8 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(702);
     deployGroup.push(confirmText);
 
-    confirmBg.on('pointerdown', () => {
+    confirmBg.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       if (selected.size < limits.min || selected.size > limits.max) return;
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
@@ -2792,7 +2803,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     backText.on('pointerover', () => backText.setColor('#ffdd44'));
     backText.on('pointerout', () => backText.setColor('#aaaaaa'));
-    backText.on('pointerdown', async () => {
+    backText.on('pointerdown', async (pointer) => {
+      if (pointer?.button !== 0) return;
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_cancel');
       if (!this.runManager) {
@@ -2833,7 +2845,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
     rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
-    rosterText.on('pointerdown', () => {
+    rosterText.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       if (!this.runManager || !this.gameData) return;
       if (this.rosterOverlay?.visible) return;
       const audio = this.registry.get('audio');
@@ -5202,7 +5215,8 @@ export class BattleScene extends Phaser.Scene {
           btn.setInteractive({ useHandCursor: true });
           btn.on('pointerover', () => btn.setColor('#ffdd44'));
           btn.on('pointerout', () => btn.setColor(color));
-          btn.on('pointerdown', () => {
+          btn.on('pointerdown', (pointer) => {
+            if (pointer?.button !== 0) return;
             if ((otherUnit.inventory?.length || 0) < INVENTORY_MAX) {
               removeFromInventory(unit, item);
               addToInventory(otherUnit, item);
@@ -5240,7 +5254,8 @@ export class BattleScene extends Phaser.Scene {
           btn.setInteractive({ useHandCursor: true });
           btn.on('pointerover', () => btn.setColor('#ffdd44'));
           btn.on('pointerout', () => btn.setColor(color));
-          btn.on('pointerdown', () => {
+          btn.on('pointerdown', (pointer) => {
+            if (pointer?.button !== 0) return;
             const idx = unit.consumables.indexOf(item);
             if (idx !== -1) unit.consumables.splice(idx, 1);
             if (!otherUnit.consumables) otherUnit.consumables = [];
@@ -5275,7 +5290,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     doneBtn.on('pointerover', () => doneBtn.setColor('#ffdd44'));
     doneBtn.on('pointerout', () => doneBtn.setColor('#e0e0e0'));
-    doneBtn.on('pointerdown', () => {
+    doneBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this.cleanupTradeUI();
       const tradeMutated = this.tradeMutatedThisSession;
       this.showActionMenu(unitA);
@@ -5690,14 +5706,16 @@ export class BattleScene extends Phaser.Scene {
     text.on('pointerout', () => text.setColor(defaultColor));
     if (clickOnPointerUp) {
       text._armedPointerUpClick = false;
-      text.on('pointerdown', () => {
+      text.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this._uiClickBlocked = true;
         text._armedPointerUpClick = true;
       });
       text.on('pointerout', () => {
         text._armedPointerUpClick = false;
       });
-      text.on('pointerup', () => {
+      text.on('pointerup', (pointer) => {
+        if (pointer?.button !== 0) return;
         if (!text._armedPointerUpClick) return;
         text._armedPointerUpClick = false;
         if (text._suppressNextClick) {
@@ -5707,7 +5725,8 @@ export class BattleScene extends Phaser.Scene {
         onClick();
       });
     } else {
-      text.on('pointerdown', () => {
+      text.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this._uiClickBlocked = true;
         onClick();
       });
@@ -5831,7 +5850,8 @@ export class BattleScene extends Phaser.Scene {
       });
     });
     text.on('pointerout', () => this._hideMenuTooltip());
-    text.on('pointerdown', () => {
+    text.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this._clearMenuTooltipTimer('_menuTooltipPressTimer');
       this._menuTooltipPressTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
         this._menuTooltipPressTimer = null;
@@ -5895,6 +5915,7 @@ export class BattleScene extends Phaser.Scene {
       this._hideMenuTooltip();
     });
     text.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this._clearMenuTooltipTimer('_menuTooltipPressTimer');
       text._bossRecruitPressed = {
         id: pointer?.id,
@@ -5919,7 +5940,8 @@ export class BattleScene extends Phaser.Scene {
         this._clearMenuTooltipTimer('_menuTooltipPressTimer');
       }
     });
-    text.on('pointerup', () => {
+    text.on('pointerup', (pointer) => {
+      if (pointer?.button !== 0) return;
       this._clearMenuTooltipTimer('_menuTooltipPressTimer');
       const longPressShown = !!text._bossRecruitPressed?.longPressShown;
       text._bossRecruitPressed = null;
@@ -7093,7 +7115,8 @@ export class BattleScene extends Phaser.Scene {
         );
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor('#88ff88'));
-        text.on('pointerdown', () => {
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
           if (isCure) {
             this._startCureTargetSelection(unit, item);
@@ -8405,7 +8428,8 @@ export class BattleScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
       leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
-      leftArrow.on('pointerdown', () => {
+      leftArrow.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this._uiClickBlocked = true;
         this._cycleForecastWeapon(-1);
       });
@@ -8432,7 +8456,8 @@ export class BattleScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
       rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
-      rightArrow.on('pointerdown', () => {
+      rightArrow.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this._uiClickBlocked = true;
         this._cycleForecastWeapon(1);
       });
@@ -8738,7 +8763,8 @@ export class BattleScene extends Phaser.Scene {
       confirmBtnBg.setFillStyle(0x1d5f2a, 0.95);
       confirmBtnText.setColor('#d8ffe1');
     });
-    confirmBtnBg.on('pointerdown', () => {
+    confirmBtnBg.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this._uiClickBlocked = true;
       const audio = this.registry.get('audio');
       if (audio) audio.playSFX('sfx_confirm');
@@ -11305,7 +11331,10 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Click handler
-      card.on('pointerdown', selectRecruit);
+      card.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        selectRecruit();
+      });
 
       // Hover effect
       card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
@@ -11359,7 +11388,8 @@ export class BattleScene extends Phaser.Scene {
     );
     recruitGroup.push(skipDesc);
 
-    skipCard.on('pointerdown', () => {
+    skipCard.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       if (audio) audio.playSFX('sfx_confirm');
       cleanupAndLoot();
     });
@@ -11637,7 +11667,8 @@ export class BattleScene extends Phaser.Scene {
           .setDepth(702);
         lootGroup.push(typeLabel);
 
-        card.on('pointerdown', () => {
+        card.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) {
@@ -11696,7 +11727,8 @@ export class BattleScene extends Phaser.Scene {
         );
         lootGroup.push(detailLabel);
 
-        card.on('pointerdown', () => {
+        card.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
@@ -11752,7 +11784,8 @@ export class BattleScene extends Phaser.Scene {
           lootGroup.push(detailLabel);
         }
 
-        card.on('pointerdown', () => {
+        card.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           this._hideLootTooltip();
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_confirm');
@@ -11831,7 +11864,8 @@ export class BattleScene extends Phaser.Scene {
       .setDepth(702);
     lootGroup.push(skipDesc);
 
-    skipCard.on('pointerdown', () => {
+    skipCard.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this._hideLootTooltip();
       const audio = this.registry.get('audio');
       if (audio) {
@@ -12313,8 +12347,14 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(713);
       pickerGroup.push(scrollUp, scrollDown, hint);
 
-      scrollUp.on('pointerdown', () => setScrollOffset(scrollOffset - 1));
-      scrollDown.on('pointerdown', () => setScrollOffset(scrollOffset + 1));
+      scrollUp.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        setScrollOffset(scrollOffset - 1);
+      });
+      scrollDown.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        setScrollOffset(scrollOffset + 1);
+      });
 
       if (this.input?.on && this.input?.off) {
         const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
@@ -12477,7 +12517,8 @@ export class BattleScene extends Phaser.Scene {
         },
       });
 
-      btn.on('pointerdown', () => {
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         try {
           closePicker(() => this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx));
         } catch (err) {
@@ -12522,7 +12563,10 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', handleBack);
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      handleBack();
+    });
 
     const setupScroller =
       this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
@@ -12608,7 +12652,8 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(712);
       pickerGroup.push(detail);
 
-      btn.on('pointerdown', () => {
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         try {
           for (const obj of pickerGroup) obj.destroy();
           if (whetstone.forgeStat === 'choice') {
@@ -12663,7 +12708,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       for (const obj of pickerGroup) obj.destroy();
       this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
@@ -12726,7 +12772,8 @@ export class BattleScene extends Phaser.Scene {
 
       if (!atStatCap) {
         btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           applyForge(weapon, stat.key);
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
@@ -12750,7 +12797,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', () => {
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       for (const obj of pickerGroup) obj.destroy();
       this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
     });
@@ -12854,7 +12902,8 @@ export class BattleScene extends Phaser.Scene {
       });
 
       if (!full && !cannotEquip) {
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           addToInventory(unit, { ...item });
           closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
         });
@@ -12880,7 +12929,8 @@ export class BattleScene extends Phaser.Scene {
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
-      convoyBtn.on('pointerdown', () => {
+      convoyBtn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         if (!this.runManager.addToConvoy(item)) {
           this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
           return;
@@ -12911,7 +12961,10 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', handleBack);
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      handleBack();
+    });
 
     const setupScroller =
       this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
@@ -13020,7 +13073,8 @@ export class BattleScene extends Phaser.Scene {
         },
       });
 
-      btn.on('pointerdown', () => {
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         applyStatBoost(unit, item);
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_gold');
@@ -13048,7 +13102,10 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', handleBack);
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      handleBack();
+    });
 
     const setupScroller =
       this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
@@ -13159,7 +13216,8 @@ export class BattleScene extends Phaser.Scene {
       });
 
       if (!full) {
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           addToConsumables(unit, { ...item });
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_gold');
@@ -13187,7 +13245,8 @@ export class BattleScene extends Phaser.Scene {
     if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
     pickerGroup.push(convoyBtn);
     if (convoyCanStore) {
-      convoyBtn.on('pointerdown', () => {
+      convoyBtn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         if (!this.runManager.addToConvoy(item)) {
           this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
           return;
@@ -13218,7 +13277,10 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     pickerGroup.push(backBtn);
 
-    backBtn.on('pointerdown', handleBack);
+    backBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      handleBack();
+    });
 
     const setupScroller =
       this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
@@ -13555,7 +13617,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
     retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
-    retryBtn.on('pointerdown', async () => {
+    retryBtn.on('pointerdown', async (pointer) => {
+      if (pointer?.button !== 0) return;
       retryBtn.disableInteractive();
       retryBtn.setText('[ Retrying... ]');
       resetTransitionLocks(this);
@@ -13587,7 +13650,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', () => {
+    titleBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
@@ -13682,7 +13746,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
     retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
-    retryBtn.on('pointerdown', async () => {
+    retryBtn.on('pointerdown', async (pointer) => {
+      if (pointer?.button !== 0) return;
       retryBtn.disableInteractive();
       retryBtn.setText('[ Retrying... ]');
       resetTransitionLocks(this);
@@ -13713,7 +13778,8 @@ export class BattleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
     titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', () => {
+    titleBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');

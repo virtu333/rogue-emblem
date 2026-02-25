@@ -59,7 +59,7 @@ describe('BattleScene clickOnPointerUp guard', () => {
   it('ignores pointerup when there was no prior pointerdown on the button', () => {
     const { text, onClick } = makePointerUpButton();
 
-    text.handlers.pointerup[0]();
+    text.handlers.pointerup[0]({ button: 0 });
 
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -67,10 +67,10 @@ describe('BattleScene clickOnPointerUp guard', () => {
   it('fires exactly once for a normal pointerdown -> pointerup click', () => {
     const { scene, text, onClick } = makePointerUpButton();
 
-    text.handlers.pointerdown[0]();
+    text.handlers.pointerdown[0]({ button: 0 });
     expect(scene._uiClickBlocked).toBe(true);
 
-    text.handlers.pointerup[0]();
+    text.handlers.pointerup[0]({ button: 0 });
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -78,10 +78,24 @@ describe('BattleScene clickOnPointerUp guard', () => {
   it('disarms click if pointer leaves before release', () => {
     const { text, onClick } = makePointerUpButton();
 
-    text.handlers.pointerdown[0]();
+    text.handlers.pointerdown[0]({ button: 0 });
     const outHandlers = text.handlers.pointerout;
     outHandlers[outHandlers.length - 1]();
-    text.handlers.pointerup[0]();
+    text.handlers.pointerup[0]({ button: 0 });
+
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('ignores right-click (button 2) on pointerdown', () => {
+    const { scene, text, onClick } = makePointerUpButton();
+
+    text.handlers.pointerdown[0]({ button: 2 });
+
+    // Right-click should not arm the click or set _uiClickBlocked
+    expect(text._armedPointerUpClick).toBe(false);
+    expect(scene._uiClickBlocked).toBeFalsy();
+
+    text.handlers.pointerup[0]({ button: 2 });
 
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -90,8 +104,8 @@ describe('BattleScene clickOnPointerUp guard', () => {
     const { text, onClick } = makePointerUpButton();
 
     text._suppressNextClick = true;
-    text.handlers.pointerdown[0]();
-    text.handlers.pointerup[0]();
+    text.handlers.pointerdown[0]({ button: 0 });
+    text.handlers.pointerup[0]({ button: 0 });
 
     expect(onClick).not.toHaveBeenCalled();
     expect(text._suppressNextClick).toBe(false);

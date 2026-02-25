@@ -36,7 +36,7 @@ _Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part
 14. **Secret Act + Narrative** - Void terrain, Warp Tiles, Null Zones, Chronophage boss, dialogue system, true ending (See `docs/specs/difficulty_spec.md` section 5-6)
 15. **Elite/Miniboss Nodes + Post-Act** - Endgame content and difficulty curve (seize maps already cover much of this niche)
 16. **Meta-Progression Expansion** - Full GDD section 9.2 vision + Act 4/Lunatic-specific sinks
-17. **QoL** - Undo movement, battle log, battle speed (ongoing)
+17. **QoL** - Undo movement, battle log, battle speed (ongoing). **TODO:** Right-click guard remaining in overlay files (~77 sites across RosterOverlay, HelpOverlay, UnitDetailOverlay, SettingsOverlay, PauseOverlay, DialogueOverlay, etc.)
 18. **Acts 2 & 3 content tuning** + Post-Act + Final Boss design
 19. **Special Characters** + Lord selection
 20. **Full battle animations**

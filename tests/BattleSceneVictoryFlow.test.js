@@ -497,7 +497,7 @@ describe('showVictoryTransitionRecovery (integration)', () => {
     const retryBtn = scene.victoryRecoveryPrompt[4];
     const pointerdownCall = retryBtn.on.mock.calls.find((c) => c[0] === 'pointerdown');
     expect(pointerdownCall).toBeDefined();
-    await pointerdownCall[1](); // invoke the handler
+    await pointerdownCall[1]({ button: 0 }); // invoke the handler
     expect(scene.transitionToRunCompleteWithRetry).toHaveBeenCalledWith('victory');
   });
 
@@ -507,7 +507,7 @@ describe('showVictoryTransitionRecovery (integration)', () => {
     const titleBtn = scene.victoryRecoveryPrompt[5];
     const pointerdownCall = titleBtn.on.mock.calls.find((c) => c[0] === 'pointerdown');
     expect(pointerdownCall).toBeDefined();
-    pointerdownCall[1](); // invoke the handler (sync, fires .then internally)
+    pointerdownCall[1]({ button: 0 }); // invoke the handler (sync, fires .then internally)
     await new Promise((r) => setTimeout(r, 0)); // flush microtask for .then
     expect(transitionToScene).toHaveBeenCalledWith(
       scene,

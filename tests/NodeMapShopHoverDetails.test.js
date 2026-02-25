@@ -173,7 +173,7 @@ describe('NodeMap shop hover details', () => {
     row.handlers.pointerover();
     expect(scene._showShopItemTooltip).toHaveBeenCalledWith(entry, 60 + row.width + 10, row.y);
 
-    row.handlers.pointerdown();
+    row.handlers.pointerdown({ button: 0 });
     expect(scene.onBuyItem).toHaveBeenCalledWith(entry);
   });
 
@@ -279,7 +279,7 @@ describe('NodeMap shop hover details', () => {
     expect(row._interactive).toEqual({ useHandCursor: true });
     expect(row.handlers.pointerdown).toBeTypeOf('function');
 
-    row.handlers.pointerdown();
+    row.handlers.pointerdown({ button: 0 });
     expect(scene.runManager.addGold).toHaveBeenCalledWith(expect.any(Number));
     expect(unit.consumables).toHaveLength(0);
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
@@ -358,7 +358,7 @@ describe('NodeMap shop hover details', () => {
     expect(row._interactive).toEqual({ useHandCursor: true });
 
     // Sell it
-    row.handlers.pointerdown();
+    row.handlers.pointerdown({ button: 0 });
     expect(scene.runManager.takeFromConvoy).toHaveBeenCalledWith('weapon', 0);
     expect(scene.runManager.addGold).toHaveBeenCalled();
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
@@ -385,7 +385,7 @@ describe('NodeMap shop hover details', () => {
     );
     expect(row).toBeTruthy();
 
-    row.handlers.pointerdown();
+    row.handlers.pointerdown({ button: 0 });
     expect(scene.runManager.takeFromConvoy).toHaveBeenCalledWith('consumable', 0);
     expect(scene.runManager.addGold).toHaveBeenCalled();
     expect(scene.refreshShop).toHaveBeenCalledTimes(1);
@@ -580,7 +580,7 @@ describe('NodeMap shop hover details', () => {
       (obj) => typeof obj.text === 'string' && obj.text === '[ Forge ]',
     );
     expect(forgeBtn).toBeTruthy();
-    forgeBtn.handlers.pointerdown();
+    forgeBtn.handlers.pointerdown({ button: 0 });
     expect(scene.showForgeStatPicker).toHaveBeenCalledWith(convoyWeapon);
   });
 

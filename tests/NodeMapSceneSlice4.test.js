@@ -9,6 +9,14 @@ const { showImportantHintMock, showMinorHintMock } = vi.hoisted(() => ({
   showMinorHintMock: vi.fn(() => Promise.resolve()),
 }));
 
+const { RosterOverlayMock } = vi.hoisted(() => {
+  const cls = vi.fn(function () {
+    this.show = vi.fn();
+    this.onClose = null;
+  });
+  return { RosterOverlayMock: cls };
+});
+
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
@@ -26,6 +34,10 @@ vi.mock('../src/engine/LootSystem.js', () => ({
 vi.mock('../src/ui/HintDisplay.js', () => ({
   showImportantHint: showImportantHintMock,
   showMinorHint: showMinorHintMock,
+}));
+
+vi.mock('../src/ui/RosterOverlay.js', () => ({
+  RosterOverlay: RosterOverlayMock,
 }));
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
@@ -269,7 +281,7 @@ describe('NodeMapScene Slice 4', () => {
     expect(priced[0].price).toBe(97);
   });
 
-  it('blocks opening roster while shop/church overlay is active', () => {
+  it('blocks opening roster while shop/church overlay is active without viewing flags', () => {
     const withShopOverlay = {
       rosterOverlay: null,
       shopOverlay: [makeDisplayObject()],
@@ -289,6 +301,44 @@ describe('NodeMapScene Slice 4', () => {
     expect(() => NodeMapScene.prototype._openRoster.call(withChurchOverlay)).not.toThrow();
     expect(withShopOverlay.rosterOverlay).toBeNull();
     expect(withChurchOverlay.rosterOverlay).toBeNull();
+  });
+
+  it('allows opening roster from shop/church when viewing flags are set', () => {
+    RosterOverlayMock.mockClear();
+
+    // _shopViewingRoster flag bypasses shop guard
+    const withShopFlag = {
+      rosterOverlay: null,
+      shopOverlay: [makeDisplayObject()],
+      churchOverlay: null,
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _shopViewingRoster: true,
+      runManager: {},
+      gameData: {},
+      registry: { get: () => null },
+    };
+    NodeMapScene.prototype._openRoster.call(withShopFlag);
+    expect(withShopFlag.rosterOverlay).not.toBeNull();
+    expect(RosterOverlayMock).toHaveBeenCalledTimes(1);
+
+    RosterOverlayMock.mockClear();
+
+    // _churchViewingRoster flag bypasses church guard
+    const withChurchFlag = {
+      rosterOverlay: null,
+      shopOverlay: null,
+      churchOverlay: [makeDisplayObject()],
+      pauseOverlay: null,
+      settingsOverlay: null,
+      _churchViewingRoster: true,
+      runManager: {},
+      gameData: {},
+      registry: { get: () => null },
+    };
+    NodeMapScene.prototype._openRoster.call(withChurchFlag);
+    expect(withChurchFlag.rosterOverlay).not.toBeNull();
+    expect(RosterOverlayMock).toHaveBeenCalledTimes(1);
   });
 
   it('blocks opening roster while pause or settings overlay is visible', () => {
@@ -464,7 +514,7 @@ describe('NodeMapScene Slice 4', () => {
     });
 
     NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown();
+    createdTexts[0].handlers.pointerdown({ button: 0 });
 
     const names = scene.shopBuyItems.map((entry) => entry.item.name);
     expect(scene.shopBuyItems).toHaveLength(4);
@@ -487,7 +537,7 @@ describe('NodeMapScene Slice 4', () => {
     });
 
     NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown();
+    createdTexts[0].handlers.pointerdown({ button: 0 });
 
     expect(scene.shopBuyItems).toHaveLength(3);
     expect(scene.shopBuyItems.map((entry) => entry.item.name)).toEqual([
@@ -513,7 +563,7 @@ describe('NodeMapScene Slice 4', () => {
     );
 
     NodeMapScene.prototype.drawRerollButton.call(scene);
-    createdTexts[0].handlers.pointerdown();
+    createdTexts[0].handlers.pointerdown({ button: 0 });
 
     expect(scene.applyAmbushDiscount).toHaveBeenCalled();
     expect(scene.shopBuyItems[0].price).toBe(80);
@@ -566,7 +616,7 @@ describe('NodeMapScene Slice 4', () => {
     const displayedCost = Number(costMatch[1]);
     expect(displayedCost).toBe(240);
 
-    mightButton.handlers.pointerdown();
+    mightButton.handlers.pointerdown({ button: 0 });
 
     expect(spendGold).toHaveBeenCalledWith(displayedCost);
     expect(scene.closeForgeStatPicker).toHaveBeenCalledTimes(1);

@@ -396,7 +396,7 @@ describe('BattleScene deferred vision snapshot commit', () => {
     const swordRow = texts.find((obj) => obj.text === 'Iron Sword');
     expect(swordRow).toBeTruthy();
 
-    swordRow.trigger('pointerdown');
+    swordRow.trigger('pointerdown', { button: 0 });
 
     expect(scene.visionSnapshot).toBe(pending);
     expect(scene.pendingVisionSnapshot).toBeNull();
@@ -700,7 +700,7 @@ describe('BattleScene trade cancel flow', () => {
     const doneBtn = texts.find((obj) => obj.text === '[ Done ]');
     expect(doneBtn).toBeTruthy();
 
-    doneBtn.trigger('pointerdown');
+    doneBtn.trigger('pointerdown', { button: 0 });
 
     expect(scene.showActionMenu).toHaveBeenCalledWith(unitA);
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
@@ -754,7 +754,7 @@ describe('BattleScene trade weapon gating', () => {
     expect(elfireRow).toBeTruthy();
     expect(elfireRow.handlers.pointerdown).toBeTruthy();
 
-    elfireRow.trigger('pointerdown');
+    elfireRow.trigger('pointerdown', { button: 0 });
 
     expect(unitA.inventory).toHaveLength(0);
     expect(unitA.weapon).toBeNull();
@@ -811,7 +811,7 @@ describe('BattleScene trade weapon gating', () => {
     expect(swordRow.style?.color).toBe('#666666');
     expect(swordRow.handlers.pointerdown).toBeUndefined();
 
-    swordRow.trigger('pointerdown');
+    swordRow.trigger('pointerdown', { button: 0 });
     expect(unitA.inventory).toHaveLength(1);
     expect(unitB.inventory).toHaveLength(INVENTORY_MAX);
   });
@@ -883,7 +883,7 @@ describe('BattleScene deploy controls', () => {
 
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
-    backText.trigger('pointerdown');
+    backText.trigger('pointerdown', { button: 0 });
 
     expect(transitionToSceneMock).toHaveBeenCalledWith(
       scene,
@@ -907,7 +907,7 @@ describe('BattleScene deploy controls', () => {
 
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
-    expect(() => backText.trigger('pointerdown')).not.toThrow();
+    expect(() => backText.trigger('pointerdown', { button: 0 })).not.toThrow();
     expect(transitionToSceneMock).not.toHaveBeenCalled();
     expect(backText.destroyed).toBe(false);
   });
@@ -925,13 +925,13 @@ describe('BattleScene deploy controls', () => {
     const backText = texts.find((obj) => obj.text === 'BACK');
     expect(backText).toBeTruthy();
 
-    backText.trigger('pointerdown');
+    backText.trigger('pointerdown', { button: 0 });
     await Promise.resolve();
 
     expect(transitionToSceneMock).toHaveBeenCalledTimes(1);
     expect(backText.destroyed).toBe(false);
 
-    backText.trigger('pointerdown');
+    backText.trigger('pointerdown', { button: 0 });
     await Promise.resolve();
 
     expect(transitionToSceneMock).toHaveBeenCalledTimes(2);
@@ -963,11 +963,11 @@ describe('BattleScene deploy controls', () => {
       (obj) => obj.kind === 'rectangle' && obj.width === 400 && obj.y === 134,
     );
     expect(seraRowBg).toBeTruthy();
-    seraRowBg.trigger('pointerdown');
+    seraRowBg.trigger('pointerdown', { button: 0 });
 
     const rosterText = texts.find((obj) => obj.text === 'ROSTER');
     expect(rosterText).toBeTruthy();
-    rosterText.trigger('pointerdown');
+    rosterText.trigger('pointerdown', { button: 0 });
     expect(rosterOverlayInstances).toHaveLength(1);
 
     // Simulate closing RosterOverlay to trigger deploy reopen with refreshed roster.
@@ -978,7 +978,7 @@ describe('BattleScene deploy controls', () => {
       .filter((obj) => obj.kind === 'rectangle' && obj.width === 120 && !obj.destroyed)
       .at(-1);
     expect(activeConfirm).toBeTruthy();
-    activeConfirm.trigger('pointerdown');
+    activeConfirm.trigger('pointerdown', { button: 0 });
 
     expect(scene.runManager.getRoster).toHaveBeenCalled();
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -1013,7 +1013,7 @@ describe('BattleScene deploy controls', () => {
 
     const scrollDown = texts.find((obj) => obj.text === 'v');
     expect(scrollDown).toBeTruthy();
-    for (let i = 0; i < 12; i++) scrollDown.trigger('pointerdown');
+    for (let i = 0; i < 12; i++) scrollDown.trigger('pointerdown', { button: 0 });
 
     expect(lastRow.visible).toBe(true);
   });
@@ -1038,7 +1038,7 @@ describe('BattleScene deploy controls', () => {
       (obj) => obj.kind === 'rectangle' && obj.width === 120 && obj.height === 32,
     );
     expect(confirmBg).toBeTruthy();
-    confirmBg.trigger('pointerdown');
+    confirmBg.trigger('pointerdown', { button: 0 });
 
     expect(scene.input.off).toHaveBeenCalledWith('wheel', wheelHandler);
   });

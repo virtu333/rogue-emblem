@@ -9,6 +9,7 @@ import {
   getWeaponTriangleBonus,
   calculateAttack,
   calculateDefense,
+  calculateAvoid,
   calculateDamage,
   canDouble,
   canCounter,
@@ -215,6 +216,29 @@ describe('Damage calculation', () => {
     const dmgPlain = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, plain);
     const dmgFort = calculateDamage(attacker, attacker.weapon, defender, defender.weapon, fort);
     expect(dmgFort).toBeLessThan(dmgPlain);
+  });
+
+  it('flying units ignore terrain defense bonus', () => {
+    const attacker = makeUnit({ stats: { ...makeUnit().stats, STR: 10 } });
+    const flier = makeUnit({
+      stats: { ...makeUnit().stats, DEF: 6 },
+      faction: 'enemy',
+      moveType: 'Flying',
+    });
+    const fort = data.terrain.find((t) => t.name === 'Fort');
+    const plain = data.terrain.find((t) => t.name === 'Plain');
+    const dmgFort = calculateDamage(attacker, attacker.weapon, flier, flier.weapon, fort);
+    const dmgPlain = calculateDamage(attacker, attacker.weapon, flier, flier.weapon, plain);
+    expect(dmgFort).toBe(dmgPlain);
+  });
+
+  it('flying units ignore terrain avoid bonus', () => {
+    const fort = data.terrain.find((t) => t.name === 'Fort');
+    const plain = data.terrain.find((t) => t.name === 'Plain');
+    const flier = makeUnit({ moveType: 'Flying' });
+    const infantry = makeUnit({ moveType: 'Infantry' });
+    expect(calculateAvoid(flier, fort)).toBe(calculateAvoid(flier, plain));
+    expect(calculateAvoid(infantry, fort)).toBeGreaterThan(calculateAvoid(infantry, plain));
   });
 });
 

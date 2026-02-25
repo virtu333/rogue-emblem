@@ -560,9 +560,15 @@ export function calculateDefense(unit, incomingWeapon) {
   return usesMagic(incomingWeapon) ? unit.stats.RES : unit.stats.DEF;
 }
 
+/** Terrain bonus lookup — flying units ignore terrain bonuses. */
+function getTerrainBonus(unit, terrain, bonusField) {
+  if (!terrain || unit?.moveType === 'Flying') return 0;
+  return parseInt(terrain[bonusField], 10) || 0;
+}
+
 /** Avoid = SPD×2 + LCK + terrain avoid bonus */
 export function calculateAvoid(unit, terrain) {
-  const terrainAvoid = parseInt(terrain?.avoidBonus, 10) || 0;
+  const terrainAvoid = getTerrainBonus(unit, terrain, 'avoidBonus');
   return unit.stats.SPD * 2 + unit.stats.LCK + terrainAvoid;
 }
 
@@ -614,7 +620,7 @@ export function calculateDamage(
   if (!targetsRES && hasSunderEffect(atkWeapon)) {
     def = Math.floor(def / 2);
   }
-  const terrainDef = parseInt(defenderTerrain?.defBonus, 10) || 0;
+  const terrainDef = getTerrainBonus(defender, defenderTerrain, 'defBonus');
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });

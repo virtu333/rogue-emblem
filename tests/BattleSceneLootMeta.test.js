@@ -211,7 +211,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(lootCard).toBeTruthy();
     expect(typeof lootCard.handlers.pointerdown).toBe('function');
 
-    lootCard.handlers.pointerdown();
+    lootCard.handlers.pointerdown({ button: 0 });
 
     expect(scene.runManager.accessories).toHaveLength(1);
     expect(scene.runManager.accessories[0].name).toBe('Goddess Icon');
@@ -262,14 +262,14 @@ describe('BattleScene loot meta wiring', () => {
     expect(lootCard).toBeTruthy();
     expect(typeof lootCard.handlers.pointerdown).toBe('function');
 
-    lootCard.handlers.pointerdown();
+    lootCard.handlers.pointerdown({ button: 0 });
 
     const unitBtn = [...rectangles]
       .reverse()
       .find((obj) => obj.args?.[2] === 200 && typeof obj.handlers.pointerdown === 'function');
     expect(unitBtn).toBeTruthy();
 
-    unitBtn.handlers.pointerdown();
+    unitBtn.handlers.pointerdown({ button: 0 });
 
     expect(unit.stats.STR).toBe(10);
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
@@ -313,7 +313,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(lastBtn.visible).toBe(true);
     expect(lastBtn.input?.enabled).toBe(true);
 
-    lastBtn.handlers.pointerdown();
+    lastBtn.handlers.pointerdown({ button: 0 });
     expect(scene.runManager.roster[13].stats.RES).toBe(15);
     expect(scene.finalizeLootPick).toHaveBeenCalledTimes(1);
   });
@@ -426,7 +426,7 @@ describe('BattleScene loot meta wiring', () => {
 
     const lootCard = scene._lootCards?.[0]?.bg;
     expect(lootCard).toBeTruthy();
-    lootCard.handlers.pointerdown();
+    lootCard.handlers.pointerdown({ button: 0 });
 
     // goldAmount is already pre-multiplied by LootSystem - no second multiplier at display.
     expect(scene.runManager.addGold).toHaveBeenCalledWith(500);
@@ -453,7 +453,7 @@ describe('BattleScene loot meta wiring', () => {
 
     const lootCard = scene._lootCards?.[0]?.bg;
     expect(lootCard).toBeTruthy();
-    lootCard.handlers.pointerdown();
+    lootCard.handlers.pointerdown({ button: 0 });
 
     expect(scene.runManager.addGold).toHaveBeenCalledWith(300);
     expect(textCalls.some((call) => call[2] === '300G')).toBe(true);
@@ -490,7 +490,7 @@ describe('BattleScene loot meta wiring', () => {
       (obj) => obj.args?.[4] === 0x554433 && typeof obj.handlers.pointerdown === 'function',
     );
     expect(skipCard).toBeTruthy();
-    skipCard.handlers.pointerdown();
+    skipCard.handlers.pointerdown({ button: 0 });
 
     expect(scene.runManager.addGold).toHaveBeenCalledWith(expectedSkipGold);
     expect(scene.cleanupLootScreen).toHaveBeenCalled();
@@ -761,7 +761,7 @@ describe('Loot card hover tooltip lifecycle', () => {
     scene.finalizeLootPick = vi.fn(() => hideOrder.push('finalize'));
     BattleScene.prototype.showLootScreen.call(scene);
 
-    scene._lootCards[0].bg.handlers.pointerdown();
+    scene._lootCards[0].bg.handlers.pointerdown({ button: 0 });
     expect(hideOrder[0]).toBe('hide');
   });
 

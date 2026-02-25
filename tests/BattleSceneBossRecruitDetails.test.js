@@ -212,8 +212,8 @@ describe('BattleScene boss recruit card details', () => {
     const classObj = scene._testTextObjects.find((obj) => obj.text === 'Wyvern Rider');
     expect(classObj).toBeTruthy();
 
-    classObj.handlers.pointerdown({ id: 1, x: 10, y: 10 });
-    classObj.handlers.pointerup({ id: 1, x: 10, y: 10 });
+    classObj.handlers.pointerdown({ button: 0, id: 1, x: 10, y: 10 });
+    classObj.handlers.pointerup({ button: 0, id: 1, x: 10, y: 10 });
 
     expect(scene.runManager.roster).toHaveLength(1);
     expect(scene.runManager.roster[0]?.name).toBe('Rhea');
@@ -245,11 +245,11 @@ describe('BattleScene boss recruit card details', () => {
     const nameObj = scene._testTextObjects.find((obj) => obj.text === 'Rhea');
     expect(nameObj).toBeTruthy();
 
-    nameObj.handlers.pointerdown({ id: 7, x: 120, y: 200 });
+    nameObj.handlers.pointerdown({ button: 0, id: 7, x: 120, y: 200 });
     const pressTimer = scene._testDelayedTimers[scene._testDelayedTimers.length - 1];
     expect(pressTimer).toBeTruthy();
     pressTimer.cb();
-    nameObj.handlers.pointerup({ id: 7, x: 120, y: 200 });
+    nameObj.handlers.pointerup({ button: 0, id: 7, x: 120, y: 200 });
 
     expect(scene.runManager.roster).toHaveLength(0);
     expect(scene.showLootScreen).not.toHaveBeenCalled();

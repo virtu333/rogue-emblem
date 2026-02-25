@@ -6,6 +6,7 @@ import { XP_STAT_NAMES, XP_PER_LEVEL, MAX_SKILLS } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS, getHPBarColor } from '../utils/uiStyles.js';
 import {
   getStaticCombatStats,
+  calculateAvoid,
   getStaffRemainingUses,
   getStaffMaxUses,
   getEffectiveStaffRange,
@@ -482,6 +483,15 @@ export class UnitDetailOverlay {
 
     this._tabText(lx, y, `Atk ${String(combat.atk).padStart(3)}`, '#ffffff', '10px');
     this._tabText(rx, y, `AS  ${String(combat.as).padStart(3)}`, asColor, '10px');
+    y += 13;
+    this._tabText(lx, y, `Hit ${String(combat.hit).padStart(3)}`, '#ffffff', '10px');
+    const avo = this._terrain
+      ? calculateAvoid(unit, this._terrain)
+      : unit.stats.SPD * 2 + unit.stats.LCK;
+    this._tabText(rx, y, `Avo ${String(avo).padStart(3)}`, '#ffffff', '10px');
+    y += 13;
+    this._tabText(lx, y, `Crt ${String(combat.crit).padStart(3)}`, '#ffffff', '10px');
+    this._tabText(rx, y, `Wt  ${String(combat.weight).padStart(3)}`, '#ffffff', '10px');
     y += 15;
 
     // Proficiencies
@@ -534,8 +544,13 @@ export class UnitDetailOverlay {
       this._tabSep(lx, y);
       y += 12;
       let tStr = `Terrain: ${this._terrain.name}`;
-      if (parseInt(this._terrain.avoidBonus)) tStr += `  Avo+${this._terrain.avoidBonus}`;
-      if (parseInt(this._terrain.defBonus)) tStr += `  Def+${this._terrain.defBonus}`;
+      if (unit.moveType === 'Flying') {
+        const hasBonus = parseInt(this._terrain.avoidBonus) || parseInt(this._terrain.defBonus);
+        if (hasBonus) tStr += '  (Flying \u2014 no bonus)';
+      } else {
+        if (parseInt(this._terrain.avoidBonus)) tStr += `  Avo+${this._terrain.avoidBonus}`;
+        if (parseInt(this._terrain.defBonus)) tStr += `  Def+${this._terrain.defBonus}`;
+      }
       this._tabText(lx, y, tStr, '#aabb88', '9px');
       y += 14;
     }

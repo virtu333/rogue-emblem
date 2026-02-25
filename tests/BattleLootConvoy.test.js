@@ -97,7 +97,7 @@ describe('battle loot convoy guard', () => {
 
     const convoyBtn = textObjects.find((t) => t._label === '[ Send to Convoy ]');
     expect(convoyBtn).toBeTruthy();
-    convoyBtn._handlers.pointerdown();
+    convoyBtn._handlers.pointerdown({ button: 0 });
 
     expect(context.runManager.addToConvoy).toHaveBeenCalledWith(item);
     expect(context.finalizeLootPick).not.toHaveBeenCalled();
@@ -117,7 +117,7 @@ describe('battle loot convoy guard', () => {
 
     const convoyBtn = textObjects.find((t) => t._label === '[ Send to Convoy ]');
     expect(convoyBtn).toBeTruthy();
-    convoyBtn._handlers.pointerdown();
+    convoyBtn._handlers.pointerdown({ button: 0 });
 
     expect(context.runManager.addToConvoy).toHaveBeenCalledWith(item);
     expect(context.finalizeLootPick).not.toHaveBeenCalled();

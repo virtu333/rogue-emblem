@@ -254,6 +254,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._touchScrollDrag = null;
     this._shopViewingMap = false;
     this._churchViewingMap = false;
+    this._shopViewingRoster = false;
+    this._churchViewingRoster = false;
     this._shopOriginalSlotCount = 0;
     this._currentShopHasAmbushDiscount = false;
 
@@ -828,7 +830,10 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this._churchReturnBtn.on('pointerover', () => this._churchReturnBtn.setColor('#ffdd44'));
     this._churchReturnBtn.on('pointerout', () => this._churchReturnBtn.setColor('#aaddff'));
-    this._churchReturnBtn.on('pointerdown', () => this._exitChurchMapView());
+    this._churchReturnBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._exitChurchMapView();
+    });
   }
 
   _exitChurchMapView() {
@@ -1083,7 +1088,8 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     gear.on('pointerover', () => gear.setColor('#ffdd44'));
     gear.on('pointerout', () => gear.setColor('#888888'));
-    gear.on('pointerdown', () => {
+    gear.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       if (this.settingsOverlay?.visible) return;
       this.settingsOverlay = new SettingsOverlay(this, () => {
         this.settingsOverlay = null;
@@ -1222,7 +1228,10 @@ export class NodeMapScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         });
 
-        nodeObj.on('pointerdown', () => this.onNodeClick(node));
+        nodeObj.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
+          this.onNodeClick(node);
+        });
         nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
         nodeObj.on('pointerout', () => this.hideNodeTooltip());
       } else if (!isCompleted) {
@@ -1249,7 +1258,10 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this._rosterBtn.on('pointerover', () => this._rosterBtn.setColor('#ffdd44'));
     this._rosterBtn.on('pointerout', () => this._rosterBtn.setColor('#e0e0e0'));
-    this._rosterBtn.on('pointerdown', () => this._openRoster());
+    this._rosterBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._openRoster();
+    });
 
     // Mobile virtual controls
     const flags = this.registry.get('startupFlags');
@@ -1282,7 +1294,8 @@ export class NodeMapScene extends Phaser.Scene {
 
   _openRoster() {
     if (this.rosterOverlay?.visible) return;
-    if (this.shopOverlay || (this.churchOverlay && !this._churchViewingMap)) return;
+    if (this.shopOverlay && !this._shopViewingRoster) return;
+    if (this.churchOverlay && !this._churchViewingMap && !this._churchViewingRoster) return;
     if (this.pauseOverlay?.visible || this.settingsOverlay?.visible) return;
     this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
       onClose: () => {
@@ -1634,7 +1647,8 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
     healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
-    healBtn.on('pointerdown', () => {
+    healBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       for (const unit of rm.roster) {
         unit.currentHP = unit.stats.HP;
       }
@@ -1658,8 +1672,46 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
-    viewMapBtn.on('pointerdown', () => this._enterChurchMapView());
+    viewMapBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._enterChurchMapView();
+    });
     this.churchOverlay.push(viewMapBtn);
+
+    // Roster button — fixed
+    const rosterBtn = this.add
+      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
+    rosterBtn.on('pointerover', () => rosterBtn.setColor('#ffdd44'));
+    rosterBtn.on('pointerout', () => rosterBtn.setColor('#aaddff'));
+    rosterBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._touchScrollDrag = null;
+      this._setChurchOverlayVisibility(false);
+      this._churchViewingRoster = true;
+      this._openRoster();
+      if (this.rosterOverlay) {
+        const baseOnClose = this.rosterOverlay.onClose;
+        this.rosterOverlay.onClose = () => {
+          if (baseOnClose) baseOnClose();
+          this._churchViewingRoster = false;
+          this._setChurchOverlayVisibility(true);
+        };
+      } else {
+        // _openRoster() hit an early return — roll back
+        this._churchViewingRoster = false;
+        this._setChurchOverlayVisibility(true);
+      }
+    });
+    this.churchOverlay.push(rosterBtn);
 
     // Leave button — fixed
     const leaveBtn = this.add
@@ -1675,7 +1727,8 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
-    leaveBtn.on('pointerdown', () => {
+    leaveBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this.leaveChurchNode();
     });
     this.churchOverlay.push(leaveBtn);
@@ -1803,7 +1856,8 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setColor('#e0e0e0');
           unitBtn.setBackgroundColor('#222222');
         });
-        unitBtn.on('pointerdown', () => {
+        unitBtn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           if (rm.reviveFallenUnit(fallen.name, cost)) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_heal');
@@ -1846,7 +1900,8 @@ export class NodeMapScene extends Phaser.Scene {
           unitBtn.setColor('#e0e0e0');
           unitBtn.setBackgroundColor('#222222');
         });
-        unitBtn.on('pointerdown', async () => {
+        unitBtn.on('pointerdown', async (pointer) => {
+          if (pointer?.button !== 0) return;
           const _promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
           if (_promoLimit >= 0 && (this._churchPromotionsThisVisit || 0) >= _promoLimit) {
             const audio = this.registry.get('audio');
@@ -2008,6 +2063,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   closeChurchOverlay() {
+    this._churchViewingRoster = false;
     clearTrackedSceneTimer(this, this._churchMessageTimer);
     this._churchMessageTimer = null;
     if (this.churchOverlay) {
@@ -2163,8 +2219,49 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
     viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
-    viewMapBtn.on('pointerdown', () => this._enterShopMapView());
+    viewMapBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._enterShopMapView();
+    });
     this.shopOverlay.push(viewMapBtn);
+
+    // Roster button
+    const shopRosterBtn = this.add
+      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#aaddff',
+        backgroundColor: '#223344',
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5)
+      .setDepth(OVERLAY_CONTENT_DEPTH)
+      .setInteractive({ useHandCursor: true });
+    shopRosterBtn.on('pointerover', () => shopRosterBtn.setColor('#ffdd44'));
+    shopRosterBtn.on('pointerout', () => shopRosterBtn.setColor('#aaddff'));
+    shopRosterBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this._touchScrollDrag = null;
+      this._hideForgeTooltip();
+      this._hideShopItemTooltip();
+      this._setShopOverlayVisibility(false);
+      this._shopViewingRoster = true;
+      this._openRoster();
+      if (this.rosterOverlay) {
+        const baseOnClose = this.rosterOverlay.onClose;
+        this.rosterOverlay.onClose = () => {
+          if (baseOnClose) baseOnClose();
+          this._shopViewingRoster = false;
+          this._setShopOverlayVisibility(true);
+          this.drawActiveTabContent();
+        };
+      } else {
+        // _openRoster() hit an early return — roll back
+        this._shopViewingRoster = false;
+        this._setShopOverlayVisibility(true);
+      }
+    });
+    this.shopOverlay.push(shopRosterBtn);
 
     this.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
     this._shopOriginalSlotCount = this.shopBuyItems.length;
@@ -2191,7 +2288,8 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
     leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
-    leaveBtn.on('pointerdown', () => {
+    leaveBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
       this.leaveShopNode();
     });
     this.shopOverlay.push(leaveBtn);
@@ -2242,7 +2340,8 @@ export class NodeMapScene extends Phaser.Scene {
         .setDepth(OVERLAY_CONTENT_DEPTH)
         .setInteractive({ useHandCursor: true });
 
-      tabText.on('pointerdown', () => {
+      tabText.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         if (this.activeShopTab === tab.key) return;
         this.activeShopTab = tab.key;
         this.drawShopTabs();
@@ -2317,7 +2416,10 @@ export class NodeMapScene extends Phaser.Scene {
         this._hideShopItemTooltip();
       });
       if (affordable) {
-        text.on('pointerdown', () => this.onBuyItem(entry));
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
+          this.onBuyItem(entry);
+        });
       }
 
       this.shopContentGroup.push(text);
@@ -2529,7 +2631,8 @@ export class NodeMapScene extends Phaser.Scene {
           text.setInteractive({ useHandCursor: true });
           text.on('pointerover', () => text.setColor('#ffdd44'));
           text.on('pointerout', () => text.setColor(wpnColor));
-          text.on('pointerdown', () => {
+          text.on('pointerdown', (pointer) => {
+            if (pointer?.button !== 0) return;
             if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
             else rm.addGold(sellPrice);
             removeFromInventory(unit, item);
@@ -2562,7 +2665,8 @@ export class NodeMapScene extends Phaser.Scene {
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(baseColor));
-        text.on('pointerdown', () => {
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
           else rm.addGold(sellPrice);
           removeFromConsumables(unit, item);
@@ -2607,7 +2711,8 @@ export class NodeMapScene extends Phaser.Scene {
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(wpnColor));
-        text.on('pointerdown', () => {
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           rm.takeFromConvoy('weapon', convoyIdx);
           if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
           else rm.addGold(sellPrice);
@@ -2638,7 +2743,8 @@ export class NodeMapScene extends Phaser.Scene {
         text.setInteractive({ useHandCursor: true });
         text.on('pointerover', () => text.setColor('#ffdd44'));
         text.on('pointerout', () => text.setColor(baseColor));
-        text.on('pointerdown', () => {
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           rm.takeFromConvoy('consumable', convoyIdx);
           if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
           else rm.addGold(sellPrice);
@@ -2773,7 +2879,10 @@ export class NodeMapScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
           forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
-          forgeBtn.on('pointerdown', () => this.showForgeStatPicker(wpn));
+          forgeBtn.on('pointerdown', (pointer) => {
+            if (pointer?.button !== 0) return;
+            this.showForgeStatPicker(wpn);
+          });
           this.shopContentGroup.push(forgeBtn);
           this.shopOverlay.push(forgeBtn);
         }
@@ -2857,7 +2966,10 @@ export class NodeMapScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
           forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
           forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
-          forgeBtn.on('pointerdown', () => this.showForgeStatPicker(wpn));
+          forgeBtn.on('pointerdown', (pointer) => {
+            if (pointer?.button !== 0) return;
+            this.showForgeStatPicker(wpn);
+          });
           this.shopContentGroup.push(forgeBtn);
           this.shopOverlay.push(forgeBtn);
         }
@@ -3085,7 +3197,8 @@ export class NodeMapScene extends Phaser.Scene {
         btn.setInteractive({ useHandCursor: true });
         btn.on('pointerover', () => btn.setColor('#ffdd44'));
         btn.on('pointerout', () => btn.setColor(color));
-        btn.on('pointerdown', () => {
+        btn.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
           const result = applyForge(weapon, stat.key, discount);
           if (result.success) {
             this.runManager.spendGold(result.cost);
@@ -3116,7 +3229,10 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
-    cancelBtn.on('pointerdown', () => this.closeForgeStatPicker());
+    cancelBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this.closeForgeStatPicker();
+    });
     this.forgePicker.push(cancelBtn);
   }
 
@@ -3223,7 +3339,8 @@ export class NodeMapScene extends Phaser.Scene {
       rerollBtn.setInteractive({ useHandCursor: true });
       rerollBtn.on('pointerover', () => rerollBtn.setColor('#ffdd44'));
       rerollBtn.on('pointerout', () => rerollBtn.setColor(color));
-      rerollBtn.on('pointerdown', () => {
+      rerollBtn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         this.runManager.spendGold(cost);
         this.shopRerollCount++;
         const targetCount = Math.max(
@@ -3409,7 +3526,8 @@ export class NodeMapScene extends Phaser.Scene {
 
       btn.on('pointerover', () => btn.setColor('#ffdd44'));
       btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', () => {
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
         const cb = state.callback;
         this.closeUnitPicker();
         cb(i);
@@ -3444,7 +3562,10 @@ export class NodeMapScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
     cancelBtn.on('pointerout', () => cancelBtn.setColor('#bbbbbb'));
-    cancelBtn.on('pointerdown', () => this.closeUnitPicker());
+    cancelBtn.on('pointerdown', (pointer) => {
+      if (pointer?.button !== 0) return;
+      this.closeUnitPicker();
+    });
     this.unitPicker.push(cancelBtn);
   }
 
@@ -3495,6 +3616,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   closeShopOverlay() {
+    this._shopViewingRoster = false;
     this.closeForgeStatPicker();
     this._hideForgeTooltip();
     this._hideShopItemTooltip();
