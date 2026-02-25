@@ -9,6 +9,7 @@ import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { gridDistance } from '../../src/engine/Combat.js';
 import { hasStaff, createPromotedEnemyUnit } from '../../src/engine/UnitManager.js';
+import { RECRUIT_SKILL_POOL } from '../../src/utils/constants.js';
 
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
 const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
@@ -185,6 +186,53 @@ describe('HeadlessBattle', () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+
+  it('recruit-node regular NPC applies meta recruit bonuses and item injections', () => {
+    const recruitData = structuredClone(gameData);
+    recruitData.recruits.act1 = {
+      ...(recruitData.recruits.act1 || {}),
+      classPool: ['Mercenary'],
+    };
+    if (Array.isArray(recruitData.recruits.act1?.pool)) {
+      recruitData.recruits.act1.pool = [];
+    }
+    if (!recruitData.recruits.namePool.Mercenary) {
+      recruitData.recruits.namePool.Mercenary = ['Milo'];
+    }
+    const noLordRoster = buildAllLordRoster(recruitData);
+
+    const runRecruitBattle = (metaEffects) => {
+      installSeed(20260225);
+      const battle = new HeadlessBattle(
+        recruitData,
+        {
+          act: 'act1',
+          objective: 'rout',
+          row: 2,
+          isRecruitBattle: true,
+          metaEffects,
+        },
+        noLordRoster,
+      );
+      battle.init();
+      const npc = battle.npcUnits.find((unit) => !unit.isLord);
+      expect(npc).toBeTruthy();
+      return npc;
+    };
+
+    const controlNpc = runRecruitBattle(null);
+    const metaNpc = runRecruitBattle({
+      statBonuses: { HP: 2 },
+      recruitRandomSkill: 1,
+      lethalArmoryTier: 2,
+      recruitStartingVulnerary: 1,
+    });
+
+    expect(metaNpc.inventory.length).toBeGreaterThan(1);
+    expect(metaNpc.consumables.some((item) => item.name === 'Vulnerary')).toBe(true);
+    expect(metaNpc.skills.some((skillId) => RECRUIT_SKILL_POOL.includes(skillId))).toBe(true);
+    expect(metaNpc.currentHP - controlNpc.currentHP).toBe(2);
   });
 
   it('init resets reinforcement caches when reusing the same battle instance', () => {

@@ -502,12 +502,7 @@ describe('BossRecruitSystem', () => {
 
     it('lordRecruitChanceBonus increases effective lord chance', () => {
       // Math.random returns 0.40 — above 0.25 base, below 0.25+0.16=0.41
-      let callCount = 0;
-      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) return 0.4; // lord chance check — would fail at base 0.25
-        return 0.5;
-      });
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.4);
       const metaEffects = { lordRecruitChanceBonus: 0.16 };
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, metaEffects);
       expect(candidates.some((c) => c.isLord)).toBe(true);
@@ -515,12 +510,7 @@ describe('BossRecruitSystem', () => {
 
     it('no lord bonus when lordRecruitChanceBonus is absent', () => {
       // Same random value 0.40 — should NOT trigger lord at base 0.25
-      let callCount = 0;
-      mathRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) return 0.4;
-        return 0.5;
-      });
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.4);
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
       expect(candidates.every((c) => !c.isLord)).toBe(true);
     });

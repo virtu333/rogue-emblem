@@ -35,6 +35,7 @@ import {
   getClassInnateSkills,
   addToInventory,
   addToConsumables,
+  grantLethalArmoryWeapon,
   checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
 import {
@@ -91,6 +92,7 @@ import {
   ROSTER_CAP,
   BASE_CLASS_LEVEL_CAP,
   RECRUIT_NODE_LORD_CHANCE,
+  RECRUIT_SKILL_POOL,
   XP_STAT_NAMES,
   XP_SPECIAL_ENEMY_MULTIPLIER,
 } from '../../src/utils/constants.js';
@@ -320,6 +322,9 @@ export class HeadlessBattle {
       if (!spawnedLord) {
         const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
         if (npcClassData) {
+          const recruitStatBonuses = metaEffects?.statBonuses || null;
+          const recruitGrowthBonuses = metaEffects?.growthBonuses || null;
+          const recruitSkillPool = metaEffects?.recruitRandomSkill ? RECRUIT_SKILL_POOL : null;
           let npc;
           if (npcClassData.tier === 'promoted') {
             const promotionRoll = rollRecruitPromotion(
@@ -342,9 +347,9 @@ export class HeadlessBattle {
                   baseDef,
                   baseClassData,
                   this.gameData.weapons,
-                  null,
-                  null,
-                  null,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
                   this.gameData.classes,
                 );
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
@@ -366,9 +371,9 @@ export class HeadlessBattle {
                   npcSpawn,
                   npcClassData,
                   this.gameData.weapons,
-                  null,
-                  null,
-                  null,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
                   this.gameData.classes,
                 );
               }
@@ -386,9 +391,9 @@ export class HeadlessBattle {
                   baseDef,
                   baseClassData,
                   this.gameData.weapons,
-                  null,
-                  null,
-                  null,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
                   this.gameData.classes,
                 );
                 for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
@@ -399,9 +404,9 @@ export class HeadlessBattle {
                   npcSpawn,
                   npcClassData,
                   this.gameData.weapons,
-                  null,
-                  null,
-                  null,
+                  recruitStatBonuses,
+                  recruitGrowthBonuses,
+                  recruitSkillPool,
                   this.gameData.classes,
                 );
               }
@@ -415,9 +420,9 @@ export class HeadlessBattle {
                 baseDef,
                 npcClassData,
                 this.gameData.weapons,
-                null,
-                null,
-                null,
+                recruitStatBonuses,
+                recruitGrowthBonuses,
+                recruitSkillPool,
                 this.gameData.classes,
               );
             }
@@ -426,9 +431,9 @@ export class HeadlessBattle {
               npcSpawn,
               npcClassData,
               this.gameData.weapons,
-              null,
-              null,
-              null,
+              recruitStatBonuses,
+              recruitGrowthBonuses,
+              recruitSkillPool,
               this.gameData.classes,
             );
             for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
@@ -436,6 +441,13 @@ export class HeadlessBattle {
             }
           }
           if (npc) {
+            if (metaEffects?.lethalArmoryTier) {
+              grantLethalArmoryWeapon(npc, this.gameData.weapons, metaEffects.lethalArmoryTier);
+            }
+            if (metaEffects?.recruitStartingVulnerary) {
+              const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+              if (vulnerary) addToConsumables(npc, vulnerary);
+            }
             npc.col = npcSpawn.col;
             npc.row = npcSpawn.row;
             npc._phoenixBroochUsed = false;

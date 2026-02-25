@@ -138,6 +138,10 @@ QA evidence (Feb 12, 2026):
   - Context: scene pause callbacks emit uppercase reason labels (`SAVE_EXIT` / `ABANDON_RUN`) while recovery prompt telemetry currently emits normalized values (`save_exit` / `abandon_run`).
   - Accepted for now: pause transition event names are already distinct, so dashboards can disambiguate without reason normalization.
   - Revisit trigger: if telemetry consumers begin keying on `reason` values directly, or if pause transition events are consolidated.
+- [ ] **TICKET: Extract shared recruit-node spawn helper for runtime/headless parity**
+  - Context: `src/scenes/BattleScene.js` and `tests/harness/HeadlessBattle.js` currently duplicate recruit-node spawn logic (regular + lord paths + meta effects).
+  - Goal: centralize recruit-node unit construction in one helper to reduce parity drift risk and test brittleness.
+  - Scope: preserve deterministic RNG behavior for both runtime and headless harness callers.
 
 ### Wave 3-4 Planned Sequence
 - **Wave 3B (Convoy MVP):** core convoy model + persistence, overflow routing, node/deploy access UI, and defensive transaction hardening are now on `main`. Remaining follow-up is cap tuning + incremental UX polish.
