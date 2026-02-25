@@ -241,9 +241,10 @@ export class BlessingSelectScene extends Phaser.Scene {
       const hasCostLine =
         typeof blessing?.rolledCost?.label === 'string' &&
         blessing.rolledCost.label.trim().length > 0;
+      const descFontSize = cardH < 76 ? '9px' : '10px';
       const desc = this.add.text(nameX, row1Y + 20, blessing.description || '-', {
         fontFamily: 'monospace',
-        fontSize: '10px',
+        fontSize: descFontSize,
         color: '#aeb8dc',
         wordWrap: { width: descWrapWidth, useAdvancedWrap: true },
       });

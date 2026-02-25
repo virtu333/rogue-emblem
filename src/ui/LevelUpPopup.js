@@ -80,7 +80,7 @@ export class LevelUpPopup {
 
       // Panel dimensions
       const lineHeight = 18;
-      const panelWidth = 200;
+      const panelWidth = 260;
       const skillLineCount = this.learnedSkills.length > 0 ? this.learnedSkills.length + 1 : 0;
       const growthLineCount = growthLines.length > 0 ? growthLines.length + 1 : 0;
       const panelHeight =

@@ -1024,43 +1024,48 @@ export class NodeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Gold display
+    // Gold display + info labels (dynamic stacking to avoid overlap with MAP_TOP)
+    let infoY = 20;
+    const infoX = this.cameras.main.width - 20;
     this.add
-      .text(this.cameras.main.width - 20, 20, `${rm.gold}G`, {
+      .text(infoX, infoY, `${rm.gold}G`, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#ffdd44',
       })
       .setOrigin(1, 0);
+    infoY += 14;
 
-    // Difficulty label (non-Normal only, below gold)
+    // Difficulty label (non-Normal only)
     const diffLabel = rm.difficultyModifiers?.label || 'Normal';
     const diffColor = rm.difficultyModifiers?.color || '#44cc44';
     if (diffLabel !== 'Normal') {
       this.add
-        .text(this.cameras.main.width - 20, 36, diffLabel, {
+        .text(infoX, infoY, diffLabel, {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: diffColor,
         })
         .setOrigin(1, 0);
+      infoY += 12;
     }
 
     // No Meta indicator
     if (rm.noMetaMode === true) {
       this.add
-        .text(this.cameras.main.width - 20, 50, 'NO META', {
+        .text(infoX, infoY, 'NO META', {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#ff8800',
         })
         .setOrigin(1, 0);
+      infoY += 12;
     }
 
     // Win streak display (only when >= 2)
     if (rm.winStreak >= 2) {
       this.add
-        .text(this.cameras.main.width - 20, 64, `Streak: ${rm.winStreak}`, {
+        .text(infoX, infoY, `Streak: ${rm.winStreak}`, {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#88ccff',
@@ -2883,7 +2888,7 @@ export class NodeMapScene extends Phaser.Scene {
     const offset = this.shopScrollOffsets?.[this.activeShopTab] || 0;
     const percent = this.shopScrollMax > 0 ? Math.round((offset / this.shopScrollMax) * 100) : 0;
     const hint = this.add
-      .text(445, 410, `Scroll: ${percent}%`, {
+      .text(445, 392, `Scroll: ${percent}%`, {
         fontFamily: 'monospace',
         fontSize: '10px',
         color: '#888888',

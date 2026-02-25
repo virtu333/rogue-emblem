@@ -85,7 +85,7 @@ export class DialogueOverlay {
 
     // Main box.
     const boxW = 360;
-    const boxH = 96;
+    const boxH = 110;
     const boxY = cy + 100;
     const bg = scene.add
       .rectangle(cx, boxY, boxW, boxH, 0x000000, 0.9)

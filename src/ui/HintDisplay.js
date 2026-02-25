@@ -1,7 +1,7 @@
 // HintDisplay — Two display functions for tutorial hints
 // Important hints require dismiss (Space/Enter/click). Minor hints auto-fade.
 
-const DEPTH = 960;
+const DEPTH = 965;
 
 /**
  * Show a centered hint box that blocks until the player dismisses it.

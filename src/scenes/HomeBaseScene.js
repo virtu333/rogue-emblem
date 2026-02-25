@@ -559,6 +559,7 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace',
         fontSize: '10px',
         color: '#888888',
+        wordWrap: { width: 160 },
       });
 
       this._drawValueText(valuesX, y, current, next, maxed);
@@ -600,6 +601,7 @@ export class HomeBaseScene extends Phaser.Scene {
         fontFamily: 'monospace',
         fontSize: '9px',
         color: '#666666',
+        wordWrap: { width: 200 },
       });
 
       if (this.refundMode) {
@@ -1236,7 +1238,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const bgW = 180;
     const bgH = available.length * 20 + 10;
     const bgX = Math.min(px, 440); // keep on screen
-    const bgY = py + 14;
+    const bgY = Math.min(py + 14, 480 - bgH - 5);
 
     // Background panel
     const bg = this.add

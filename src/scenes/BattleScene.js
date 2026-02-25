@@ -1180,7 +1180,7 @@ export class BattleScene extends Phaser.Scene {
       // FOG OF WAR indicator
       if (this.grid.fogEnabled) {
         const fogLabel = this.add
-          .text(8, this.cameras.main.height - 36, 'FOG OF WAR', {
+          .text(8, this.cameras.main.height - 72, 'FOG OF WAR', {
             fontFamily: 'monospace',
             fontSize: '10px',
             color: '#ffaa44',
@@ -6841,7 +6841,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'UNIT_ACTION_MENU';
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuWidth = 130;
+    const menuWidth = 155;
     const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - menuWidth;
     const menuY = pos.y - 10;
 
@@ -8612,8 +8612,23 @@ export class BattleScene extends Phaser.Scene {
     // Build graphical forecast panel (FE GBA-style split layout)
     this.forecastObjects = [];
     const depth = 200;
-    const panelW = 380,
-      panelH = 152;
+    const panelW = 380;
+    // Pre-calculate content height for dynamic panel sizing
+    let _atkExtraH = 0;
+    const _atkSkills = forecast.attacker.skills || [];
+    const _hasMiracle = (u) =>
+      u.skills?.some((s) => (typeof s === 'string' ? s : s?.id) === 'miracle');
+    if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 12;
+    if (this._forecastWeaponArt) _atkExtraH += 12;
+    if (this._forecastGamblerLine) _atkExtraH += 12;
+    if (forecast.attacker.warnings?.length)
+      _atkExtraH += 2 + forecast.attacker.warnings.length * 14;
+    let _defExtraH = 0;
+    const _defSkills = forecast.defender.skills || [];
+    if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 12;
+    if (forecast.defender.warnings?.length)
+      _defExtraH += 2 + forecast.defender.warnings.length * 14;
+    const panelH = Math.max(152, 152 + Math.max(_atkExtraH, _defExtraH));
     const panelX = (this.cameras.main.width - panelW) / 2;
     const panelY = this.cameras.main.height - panelH - 10;
     const halfW = (panelW - 8) / 2; // 186 per side
@@ -11475,6 +11490,8 @@ export class BattleScene extends Phaser.Scene {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#aaffaa',
+        wordWrap: { width: 620 },
+        align: 'center',
       })
       .setOrigin(0.5)
       .setDepth(701);

@@ -119,7 +119,7 @@ export class HelpOverlay {
   }
 
   _setSearchQuery(rawQuery) {
-    const query = String(rawQuery || '').slice(0, 40);
+    const query = String(rawQuery || '').slice(0, 26);
     this.searchQuery = query;
     const trimmed = query.trim();
     if (!trimmed) {

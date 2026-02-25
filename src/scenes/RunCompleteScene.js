@@ -145,7 +145,7 @@ export class RunCompleteScene extends Phaser.Scene {
 
     // Home Base button (primary)
     const homeBtn = this.add
-      .text(cx - 90, cy + 80, '[ Home Base ]', {
+      .text(cx - 110, cy + 80, '[ Home Base ]', {
         fontFamily: 'monospace',
         fontSize: '18px',
         color: '#88ccff',
@@ -163,7 +163,7 @@ export class RunCompleteScene extends Phaser.Scene {
 
     // Back to Title button (secondary)
     const titleBtn = this.add
-      .text(cx + 90, cy + 80, '[ Title ]', {
+      .text(cx + 110, cy + 80, '[ Title ]', {
         fontFamily: 'monospace',
         fontSize: '18px',
         color: '#e0e0e0',
