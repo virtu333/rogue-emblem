@@ -245,6 +245,30 @@ describe('BossRecruitSystem', () => {
       expect(candidates[0].unit.tier).toBe('promoted');
     });
 
+    it('multi-entry promoted pool respects dedupe when roster has base fallback class', () => {
+      const localData = structuredClone(gameData);
+      // Pool has two promoted-source classes (actRef=1 → act2 → poolKey=act3)
+      localData.recruits.act3.pool = [
+        { className: 'Hero', name: 'Dante' },
+        { className: 'Sage', name: 'Mira' },
+      ];
+      const roster = [
+        ...makeRosterWithOnlyLordAvailable(null),
+        { name: 'Rook', className: 'Mercenary', isLord: false, level: 8, faction: 'player' },
+        { name: 'Wyn', className: 'Mage', isLord: false, level: 8, faction: 'player' },
+      ];
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      // Deterministic at 0.99: lord fails, both entries resolve → exactly 2
+      expect(candidates.length).toBe(2);
+      const classNames = candidates.map((c) => c.className);
+      expect(new Set(classNames).size).toBe(classNames.length);
+      // Mercenary+Mage in roster, so base fallbacks blocked → promoted classes used
+      for (const name of classNames) {
+        expect(['Hero', 'Sage']).toContain(name);
+      }
+    });
+
     it('skips candidate when both fallback and promoted outcomes conflict after dedupe recheck', () => {
       const localData = structuredClone(gameData);
       localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];

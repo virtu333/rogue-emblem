@@ -398,12 +398,12 @@ describe('Terrain hazards', () => {
       expect(pickTemplate('rout', templates, 'act4').id).toBe('global_template');
     });
 
-    it('pickTemplate falls back to unfiltered pool when act-filtered pool is empty', () => {
+    it('pickTemplate returns null when act-filtered pool is empty (act-gating enforced)', () => {
       const templates = {
         rout: [{ id: 'act4_only', acts: ['act4'] }],
         seize: [],
       };
-      expect(pickTemplate('rout', templates, 'act1').id).toBe('act4_only');
+      expect(pickTemplate('rout', templates, 'act1')).toBeNull();
     });
   });
 

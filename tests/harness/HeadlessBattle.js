@@ -291,9 +291,10 @@ export class HeadlessBattle {
           lordPromotedClassData &&
           (lordDef?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
         );
-        const lordRoll = canPromoteLord
-          ? rollRecruitPromotion(promotionContext, recruitPoolClassData, metaEffects, Math.random)
-          : { eligible: false, promote: false };
+        const lordRoll =
+          canPromoteLord && recruitPoolClassData
+            ? rollRecruitPromotion(promotionContext, recruitPoolClassData, metaEffects, Math.random)
+            : { eligible: false, promote: false };
         if (lordClassData) {
           const npc = createBossLordUnit(
             lordDef,

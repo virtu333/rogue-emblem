@@ -340,7 +340,7 @@ export function pickTemplate(objective, mapTemplates, act = null, options = {}) 
   const bossFilteredPool = biomeFilteredPool.filter((template) =>
     isTemplateAllowedForBoss(template, isBoss),
   );
-  const fallbackBossFilteredPool = pool.filter((template) =>
+  const fallbackBossFilteredPool = filteredPool.filter((template) =>
     isTemplateAllowedForBoss(template, isBoss),
   );
   const sourcePool = bossFilteredPool.length > 0 ? bossFilteredPool : fallbackBossFilteredPool;

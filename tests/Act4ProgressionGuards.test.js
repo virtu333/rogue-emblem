@@ -80,7 +80,7 @@ describe('Act4 progression guards', () => {
     ]);
   });
 
-  it('pickTemplate selects act4-only templates when act4 is requested, then falls back when needed', () => {
+  it('pickTemplate selects act4-only templates when act4 is requested', () => {
     const templates = {
       rout: [
         { id: 'act1_only', acts: ['act1'] },
@@ -89,9 +89,12 @@ describe('Act4 progression guards', () => {
       seize: [],
     };
     expect(pickTemplate('rout', templates, 'act4').id).toBe('act4_only');
+  });
+
+  it('pickTemplate returns null when no act-matching templates exist', () => {
     expect(
-      pickTemplate('rout', { rout: [{ id: 'act4_only', acts: ['act4'] }], seize: [] }, 'act1').id,
-    ).toBe('act4_only');
+      pickTemplate('rout', { rout: [{ id: 'act4_only', acts: ['act4'] }], seize: [] }, 'act1'),
+    ).toBeNull();
   });
 
   it('pickTemplate excludes bossOnly templates unless isBoss is true', () => {

@@ -285,6 +285,51 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     }
   });
 
+  it('recruitPromotionChanceBonus increases regular recruit-node promotion chance', () => {
+    // A/B test: Math.random sequence: call1=level roll, call2=lord chance fail, call3=promotion roll
+    // NODE_RECRUIT_PROMOTION_CHANCE_BASE=0.40, so 0.55 fails without bonus, passes with +0.20
+    const makeSequence = () => {
+      let callCount = 0;
+      return () => {
+        callCount++;
+        if (callCount === 1) return 0.99; // recruit level roll (no -1)
+        if (callCount === 2) return 0.99; // lord chance fails
+        if (callCount === 3) return 0.55; // promotion roll: 0.55 > 0.40 (fail), 0.55 < 0.60 (pass)
+        return 0.5;
+      };
+    };
+
+    // Without bonus: 0.55 > 0.40 → demotes to base
+    const spyA = vi.spyOn(Math, 'random').mockImplementation(makeSequence());
+    try {
+      const sceneA = makeBattleSceneWithLords({ act: 'act4', npcClassName: 'Hero' });
+      BattleScene.prototype.beginBattle.call(sceneA, sceneA.roster);
+      const npcA = sceneA.npcUnits.find((u) => !u.isLord);
+      expect(npcA).toBeTruthy();
+      expect(npcA.tier).toBe('base');
+      expect(npcA.className).toBe('Mercenary');
+    } finally {
+      spyA.mockRestore();
+    }
+
+    // With bonus (+0.20): 0.55 < 0.60 → stays promoted
+    const spyB = vi.spyOn(Math, 'random').mockImplementation(makeSequence());
+    try {
+      const sceneB = makeBattleSceneWithLords({ act: 'act4', npcClassName: 'Hero' });
+      sceneB.runManager.getEffectiveMetaEffects = vi.fn(() => ({
+        lordRecruitChanceBonus: 0,
+        recruitPromotionChanceBonus: 0.2,
+      }));
+      BattleScene.prototype.beginBattle.call(sceneB, sceneB.roster);
+      const npcB = sceneB.npcUnits.find((u) => !u.isLord);
+      expect(npcB).toBeTruthy();
+      expect(npcB.tier).toBe('promoted');
+      expect(npcB.className).toBe('Hero');
+    } finally {
+      spyB.mockRestore();
+    }
+  });
+
   it('uses matching promoted-level targets for recruit-node lord and regular promoted recruit paths', () => {
     const gameData = loadGameData();
 

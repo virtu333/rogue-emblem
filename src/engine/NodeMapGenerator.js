@@ -398,7 +398,7 @@ function rollBattleSeed() {
  * @param {string} [biome] - optional biome to prefer (falls back to full pool if no match)
  * @returns {Object|null} template or null if mapTemplates not provided
  */
-function pickTemplateForNode(
+export function pickTemplateForNode(
   objective,
   mapTemplates,
   actId = null,
@@ -409,7 +409,11 @@ function pickTemplateForNode(
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
     const routPool = mapTemplates.rout || [];
-    const allowedRout = routPool.filter((template) => !template?.bossOnly || isBossNode);
+    const actFilteredRout = actId
+      ? routPool.filter((t) => !Array.isArray(t.acts) || t.acts.includes(actId))
+      : routPool;
+    const routCandidates = actFilteredRout;
+    const allowedRout = routCandidates.filter((template) => !template?.bossOnly || isBossNode);
     if (allowedRout.length === 0) return null;
     return allowedRout[0];
   }
@@ -422,7 +426,9 @@ function pickTemplateForNode(
     : filteredByAct;
   const biomePool = biomeFiltered.length > 0 ? biomeFiltered : filteredByAct;
   const bossFiltered = biomePool.filter((template) => !template?.bossOnly || isBossNode);
-  const fallbackBossFiltered = pool.filter((template) => !template?.bossOnly || isBossNode);
+  const fallbackBossFiltered = filteredByAct.filter(
+    (template) => !template?.bossOnly || isBossNode,
+  );
   const source = bossFiltered.length > 0 ? bossFiltered : fallbackBossFiltered;
   if (source.length === 0) return null;
   return source[Math.floor(Math.random() * source.length)];

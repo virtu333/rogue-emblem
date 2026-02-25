@@ -6,7 +6,7 @@ import {
   pickTemplate,
   generateBattle,
 } from '../src/engine/MapGenerator.js';
-import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
+import { generateNodeMap, pickTemplateForNode } from '../src/engine/NodeMapGenerator.js';
 import { ACT_BIOME_WEIGHTS, ACT_CONFIG, TERRAIN } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
@@ -336,6 +336,12 @@ describe('ACT_BIOME_WEIGHTS', () => {
     expect(ACT_BIOME_WEIGHTS.act2.grassland).toBeGreaterThan(0);
   });
 
+  it('act3 includes castle biome with higher weight than grassland', () => {
+    expect(ACT_BIOME_WEIGHTS.act3.castle).toBeGreaterThan(0);
+    expect(ACT_BIOME_WEIGHTS.act3.grassland).toBeGreaterThan(0);
+    expect(ACT_BIOME_WEIGHTS.act3.castle).toBeGreaterThan(ACT_BIOME_WEIGHTS.act3.grassland);
+  });
+
   it('finalBoss is 100% castle', () => {
     expect(ACT_BIOME_WEIGHTS.finalBoss).toEqual({ castle: 100 });
   });
@@ -369,5 +375,75 @@ describe('ACT_BIOME_WEIGHTS', () => {
         }
       }
     }
+  });
+});
+
+describe('Template fallback act-gating regression (M2)', () => {
+  it('pickTemplate fallback respects act-gating when biome+boss filter yields nothing', () => {
+    const templates = {
+      rout: [
+        { id: 'act2_castle', acts: ['act2'], biome: 'castle', bossOnly: true },
+        { id: 'act1_grass', acts: ['act1'] },
+      ],
+      seize: [],
+    };
+    // Request act1, biome castle, non-boss → biome+boss filter empty,
+    // fallback should still respect act filter → only act1_grass
+    const result = pickTemplate('rout', templates, 'act1', { biome: 'castle', isBoss: false });
+    expect(result).toBeTruthy();
+    expect(result.id).toBe('act1_grass');
+  });
+
+  it('pickTemplate fallback never selects wrong-act template', () => {
+    const templates = {
+      rout: [{ id: 'act3_only', acts: ['act3'], bossOnly: true }],
+      seize: [],
+    };
+    // Request act1, non-boss → act filter removes act3_only, fallback pool also empty
+    const result = pickTemplate('rout', templates, 'act1', { isBoss: false });
+    expect(result).toBeNull();
+  });
+
+  it('pickTemplateForNode fallback respects act-gating when biome+boss filter yields nothing', () => {
+    const templates = {
+      rout: [
+        { id: 'act2_castle', acts: ['act2'], biome: 'castle', bossOnly: true },
+        { id: 'act1_grass', acts: ['act1'] },
+      ],
+      seize: [],
+    };
+    const result = pickTemplateForNode('rout', templates, 'act1', false, 'castle');
+    expect(result).toBeTruthy();
+    expect(result.id).toBe('act1_grass');
+  });
+
+  it('pickTemplateForNode fallback never selects wrong-act template', () => {
+    const templates = {
+      rout: [{ id: 'act3_only', acts: ['act3'], bossOnly: true }],
+      seize: [],
+    };
+    const result = pickTemplateForNode('rout', templates, 'act1', false, null);
+    expect(result).toBeNull();
+  });
+
+  it('pickTemplateForNode objective-missing fallback returns null when no act-matched rout exists', () => {
+    const templates = {
+      rout: [{ id: 'act3_only', acts: ['act3'] }],
+    };
+    const result = pickTemplateForNode('seize', templates, 'act1', false, null);
+    expect(result).toBeNull();
+  });
+
+  it('pickTemplateForNode objective-missing fallback prefers act-matched rout templates', () => {
+    const templates = {
+      rout: [
+        { id: 'act3_rout', acts: ['act3'] },
+        { id: 'act1_rout', acts: ['act1'] },
+      ],
+    };
+    // Request seize (missing pool) for act1 → falls back to rout, act-filtered
+    const result = pickTemplateForNode('seize', templates, 'act1', false, null);
+    expect(result).toBeTruthy();
+    expect(result.id).toBe('act1_rout');
   });
 });
