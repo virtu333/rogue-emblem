@@ -9,6 +9,7 @@ import {
   POISON_ELIGIBLE_PROFS,
   STATUS_STAFF_ELIGIBLE_CLASSES,
   SIEGE_ELIGIBLE_CLASSES,
+  ACT_BIOME_WEIGHTS,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { createScopedLogger } from '../utils/logger.js';
@@ -57,11 +58,11 @@ export function generateBattle(params, deps) {
     preAssignedTemplate &&
     isTemplateAllowedForAct(preAssignedTemplate, act) &&
     isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
-  const template = preAssignedTemplateId
-    ? preAssignedAllowed
+  // Only roll biome when we need to pick a fresh template (preserves RNG for seeded pre-assigned paths)
+  const template =
+    preAssignedTemplateId && preAssignedAllowed
       ? preAssignedTemplate
-      : pickTemplate(objective, mapTemplates, act, { isBoss })
-    : pickTemplate(objective, mapTemplates, act, { isBoss });
+      : pickTemplate(objective, mapTemplates, act, { isBoss, biome: rollBiome(act) });
   if (!template) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
   }
@@ -291,14 +292,52 @@ function isTemplateAllowedForBoss(template, isBoss = false) {
   return !template?.bossOnly || isBoss === true;
 }
 
+/**
+ * Roll a biome from weighted probabilities for a given act.
+ * @param {string} act - e.g. 'act1', 'act2'
+ * @param {Object} [biomeWeights] - override weights, defaults to ACT_BIOME_WEIGHTS[act]
+ * @returns {string} biome name (e.g. 'grassland', 'castle')
+ */
+export function rollBiome(act, biomeWeights = null) {
+  const weights = biomeWeights || ACT_BIOME_WEIGHTS[act];
+  if (!weights) return 'grassland';
+  const entries = Object.entries(weights);
+  const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
+  if (totalWeight <= 0) return 'grassland';
+  let roll = Math.random() * totalWeight;
+  for (const [biome, weight] of entries) {
+    roll -= weight;
+    if (roll <= 0) return biome;
+  }
+  return entries[entries.length - 1][0];
+}
+
+/**
+ * Get the effective biome of a template. Templates without a biome field are 'grassland'.
+ */
+export function getTemplateBiome(template) {
+  return template?.biome || 'grassland';
+}
+
+/**
+ * Filter templates to those matching a target biome.
+ * Falls back to the full pool if no templates match (graceful degradation).
+ */
+function filterByBiome(pool, biome) {
+  if (!biome) return pool;
+  const biomeMatches = pool.filter((t) => getTemplateBiome(t) === biome);
+  return biomeMatches.length > 0 ? biomeMatches : pool;
+}
+
 export function pickTemplate(objective, mapTemplates, act = null, options = {}) {
-  const { isBoss = false } = options;
+  const { isBoss = false, biome = null } = options;
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
     return null;
   }
   const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
-  const bossFilteredPool = filteredPool.filter((template) =>
+  const biomeFilteredPool = filterByBiome(filteredPool, biome);
+  const bossFilteredPool = biomeFilteredPool.filter((template) =>
     isTemplateAllowedForBoss(template, isBoss),
   );
   const fallbackBossFilteredPool = pool.filter((template) =>

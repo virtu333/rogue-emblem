@@ -153,9 +153,13 @@ describe('BossRecruitSystem', () => {
       const candidates = generateBossRecruitCandidates('act4', makeBaseRoster(), gameData, null);
       expect(candidates).not.toBeNull();
       expect(candidates).toHaveLength(BOSS_RECRUIT_COUNT);
-      const validClassNames = getPoolClassNames(gameData.recruits, 'act4');
+      const validClassNames = new Set(getPoolClassNames(gameData.recruits, 'act4'));
+      for (const className of [...validClassNames]) {
+        const classData = gameData.classes.find((entry) => entry.name === className);
+        if (classData?.promotesFrom) validClassNames.add(classData.promotesFrom);
+      }
       for (const c of candidates) {
-        if (!c.isLord) expect(validClassNames).toContain(c.className);
+        if (!c.isLord) expect(validClassNames.has(c.className)).toBe(true);
       }
     });
 
@@ -169,22 +173,55 @@ describe('BossRecruitSystem', () => {
       }
     });
 
-    it('Act 2 boss candidates are promoted', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
+    it('Act 2 promoted-source candidates stay promoted on low roll', () => {
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
       for (const c of candidates) {
         expect(c.isLord).toBe(false);
         expect(c.unit.tier).toBe('promoted');
       }
     });
 
-    it('Act 3 boss candidates are promoted', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      const candidates = generateBossRecruitCandidates(2, makeBaseRoster(), gameData, null);
+    it('Act 3 promoted-source candidates stay promoted on low roll', () => {
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      const candidates = generateBossRecruitCandidates(2, noLordRoster, gameData, null);
       for (const c of candidates) {
         expect(c.isLord).toBe(false);
         expect(c.unit.tier).toBe('promoted');
       }
+    });
+
+    it('Act 2 promoted-source candidates can downgrade to base on high roll', () => {
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
+      expect(candidates.every((c) => c.unit.tier === 'base')).toBe(true);
+    });
+
+    it('recruitPromotionChanceBonus increases promoted outcome frequency for boss recruits', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.8);
+      const withMeta = generateBossRecruitCandidates(1, noLordRoster, localData, {
+        recruitPromotionChanceBonus: 0.24,
+      });
+      expect(withMeta).toHaveLength(1);
+      expect(withMeta[0].className).toBe('Hero');
+      expect(withMeta[0].unit.tier).toBe('promoted');
+    });
+
+    it('promoted outcome uses base chance when recruitPromotionChanceBonus is absent', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.8);
+      const withoutMeta = generateBossRecruitCandidates(1, noLordRoster, localData, null);
+      expect(withoutMeta).toHaveLength(1);
+      expect(withoutMeta[0].className).toBe('Mercenary');
+      expect(withoutMeta[0].unit.tier).toBe('base');
     });
 
     it('candidates have no duplicate classNames', () => {
@@ -192,6 +229,47 @@ describe('BossRecruitSystem', () => {
       const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), gameData, null);
       const classNames = candidates.map((c) => c.className);
       expect(new Set(classNames).size).toBe(classNames.length);
+    });
+
+    it('revalidates class dedupe after fail resolution and keeps promoted source when fallback conflicts', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      const roster = [
+        ...makeRosterWithOnlyLordAvailable(null),
+        { name: 'Rook', className: 'Mercenary', isLord: false, level: 8, faction: 'player' },
+      ];
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Hero');
+      expect(candidates[0].unit.tier).toBe('promoted');
+    });
+
+    it('skips candidate when both fallback and promoted outcomes conflict after dedupe recheck', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      const roster = [
+        ...makeRosterWithOnlyLordAvailable(null),
+        { name: 'Rook', className: 'Mercenary', isLord: false, level: 8, faction: 'player' },
+        { name: 'Dante', className: 'Hero', isLord: false, level: 8, faction: 'player' },
+      ];
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      expect(candidates).toBeNull();
+    });
+
+    it('allows promoted-source entries already in roster to resolve to unique fallback classes', () => {
+      const localData = structuredClone(gameData);
+      localData.recruits.act3.pool = [{ className: 'Hero', name: 'Dante' }];
+      const roster = [
+        ...makeRosterWithOnlyLordAvailable(null),
+        { name: 'Dante', className: 'Hero', isLord: false, level: 8, faction: 'player' },
+      ];
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const candidates = generateBossRecruitCandidates(1, roster, localData, null);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].className).toBe('Mercenary');
+      expect(candidates[0].unit.tier).toBe('base');
     });
 
     it('avoids duplicate recruit names already present in roster', () => {
@@ -574,8 +652,9 @@ describe('BossRecruitSystem', () => {
 
   describe('promoted recruit properties', () => {
     it('promoted candidates have class innate skills', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
       // Act3 pool has promoted classes like Hero, Sage, etc. which have innate skills
       const heroCandidate = candidates.find((c) => c.className === 'Hero');
       if (heroCandidate) {
@@ -589,7 +668,7 @@ describe('BossRecruitSystem', () => {
     });
 
     it('promoted Wyvern Lord candidates learn draconic_aura at promoted level 10', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const localData = structuredClone(gameData);
       localData.recruits.act3.pool = [{ className: 'Wyvern Lord', name: 'Skarn' }];
       const roster = [
@@ -602,6 +681,13 @@ describe('BossRecruitSystem', () => {
           faction: 'player',
         },
         { name: 'Sera', className: 'Light Sage', isLord: true, level: 7, faction: 'player' },
+        ...RECRUITABLE_LORD_NAMES.map((name) => ({
+          name,
+          className: 'Lord',
+          isLord: true,
+          level: 5,
+          faction: 'player',
+        })),
       ];
       const candidates = generateBossRecruitCandidates(1, roster, localData, null);
       expect(candidates).toHaveLength(1);
@@ -611,8 +697,9 @@ describe('BossRecruitSystem', () => {
     });
 
     it('promoted candidates have correct promoted className', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
       const validClassNames = getPoolClassNames(gameData.recruits, 'act3');
       for (const c of candidates) {
         expect(validClassNames).toContain(c.className);
@@ -630,46 +717,50 @@ describe('BossRecruitSystem', () => {
     });
 
     it('promoted recruit from Dancer keeps base dance innate', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const localData = structuredClone(gameData);
       const bard = localData.classes.find((c) => c.name === 'Bard');
       if (!bard) return;
       localData.classes.push({ ...bard, name: 'Stage Bard' });
       localData.recruits.act3.pool = [{ className: 'Stage Bard', name: 'Cadence' }];
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, localData, null);
       expect(candidates).toHaveLength(1);
       expect(candidates[0].className).toBe('Stage Bard');
       expect(candidates[0].unit.skills).toContain('dance');
     });
 
     it('getRecruitPoolEntries falls back to base-class namePool for promoted classPool entries', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const localData = structuredClone(gameData);
       localData.recruits.act3 = { classPool: ['Hero'] };
       localData.recruits.namePool.Hero = [];
       localData.recruits.namePool.Mercenary = ['Gareth'];
 
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, localData, null);
       expect(candidates).toHaveLength(1);
       expect(candidates[0].className).toBe('Hero');
       expect(candidates[0].displayName).toBe('Gareth');
     });
 
     it('pickUniqueRecruitNameForClass falls back to base-class namePool when promoted pool lacks names', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const localData = structuredClone(gameData);
       localData.recruits.act3.pool = [{ className: 'Hero', name: 'Hero' }];
       localData.recruits.namePool.Hero = [];
       localData.recruits.namePool.Mercenary = ['Gareth'];
 
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), localData, null);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, localData, null);
       expect(candidates).toHaveLength(1);
       expect(candidates[0].displayName).toBe('Gareth');
     });
 
     it('Bard is not generated as a boss recruit candidate', () => {
-      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
-      const candidates = generateBossRecruitCandidates(1, makeBaseRoster(), gameData, null);
+      const noLordRoster = makeRosterWithOnlyLordAvailable(null);
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
       expect(candidates.some((c) => c.className === 'Bard')).toBe(false);
     });
   });

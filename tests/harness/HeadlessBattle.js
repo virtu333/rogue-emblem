@@ -74,11 +74,23 @@ import {
   resolveTeamAverageLevel,
 } from '../../src/engine/RecruitScaling.js';
 import {
+  getAvailableLords,
+  createBossLordUnit,
+  getRecruitPoolEntries,
+} from '../../src/engine/BossRecruitSystem.js';
+import {
+  RECRUIT_PROMOTION_CONTEXT,
+  isPromotedRecruitSource,
+  rollRecruitPromotion,
+  getFailBaseLevel,
+} from '../../src/engine/RecruitPromotion.js';
+import {
   BOSS_STAT_BONUS,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   ROSTER_CAP,
   BASE_CLASS_LEVEL_CAP,
+  RECRUIT_NODE_LORD_CHANCE,
   XP_STAT_NAMES,
   XP_SPECIAL_ENEMY_MULTIPLIER,
 } from '../../src/utils/constants.js';
@@ -219,9 +231,7 @@ export class HeadlessBattle {
       this._addEnemyFromSpawn(spawn);
     }
 
-    // Spawn NPC for recruit battles
-    // Note: Headless harness does not roll for lord NPCs at recruit nodes.
-    // Lord recruit behavior is tested via unit tests in RecruitNodeLord.test.js.
+    // Spawn NPC for recruit battles.
     if (bc.npcSpawn) {
       const npcSpawn = bc.npcSpawn;
       const recruitLevelBonus = Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0);
@@ -237,62 +247,200 @@ export class HeadlessBattle {
         teamAvgLevel - (Math.random() < 0.5 ? 1 : 0) + recruitLevelBonus,
       );
       npcSpawn.level = nodeTargetLevel;
-      const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
-      if (npcClassData) {
-        let npc;
-        if (npcClassData.tier === 'promoted') {
-          const baseClassData = this.gameData.classes.find(
-            (c) => c.name === npcClassData.promotesFrom,
+      const metaEffects = this.battleParams?.metaEffects || null;
+      const promotionContext = {
+        type: RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE,
+        classesData: this.gameData.classes || [],
+      };
+
+      let spawnedLord = false;
+      const rosterForLordCheck = Array.isArray(this.roster) ? this.roster : [];
+      const fallenForLordCheck = Array.isArray(this.battleParams?.fallenUnits)
+        ? this.battleParams.fallenUnits
+        : [];
+      const availLords = getAvailableLords(
+        rosterForLordCheck,
+        this.gameData.lords || [],
+        fallenForLordCheck,
+      );
+      const lordChanceBonus = Number(metaEffects?.lordRecruitChanceBonus) || 0;
+      const effectiveLordChance = Math.min(
+        1,
+        Math.max(0, RECRUIT_NODE_LORD_CHANCE + lordChanceBonus),
+      );
+
+      if (availLords.length > 0 && Math.random() < effectiveLordChance) {
+        const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
+        const lordClassData = this.gameData.classes.find((c) => c.name === lordDef.class);
+        const act = this.battleParams?.act || 'act1';
+        const actRecruitPool = getRecruitPoolEntries(
+          this.gameData.recruits,
+          act,
+          this.gameData.classes,
+        );
+        const recruitPoolClassData = actRecruitPool
+          .map((entry) => this.gameData.classes.find((c) => c.name === entry.className))
+          .find((c) => isPromotedRecruitSource(c, this.gameData.classes));
+        const lordPromotedClassData =
+          typeof lordDef?.promotedClass === 'string'
+            ? this.gameData.classes.find((c) => c.name === lordDef.promotedClass)
+            : null;
+        const canPromoteLord = Boolean(
+          lordPromotedClassData &&
+          (lordDef?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
+        );
+        const lordRoll = canPromoteLord
+          ? rollRecruitPromotion(promotionContext, recruitPoolClassData, metaEffects, Math.random)
+          : { eligible: false, promote: false };
+        if (lordClassData) {
+          const npc = createBossLordUnit(
+            lordDef,
+            lordClassData,
+            this.gameData.weapons,
+            npcSpawn.level,
+            metaEffects,
+            {
+              promoteLord: canPromoteLord && lordRoll.promote,
+              classes: this.gameData.classes || [],
+              skills: this.gameData.skills || [],
+              dynamicPromotionLevel,
+              promotedLevelTarget,
+              baseLevelOverride: null,
+            },
           );
-          if (baseClassData) {
-            const baseDef = {
-              ...npcSpawn,
-              className: baseClassData.name,
-              level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
-            };
+          npc.faction = 'npc';
+          npc.col = npcSpawn.col;
+          npc.row = npcSpawn.row;
+          npc._phoenixBroochUsed = false;
+          this.npcUnits.push(npc);
+          spawnedLord = true;
+        }
+      }
+
+      if (!spawnedLord) {
+        const npcClassData = this.gameData.classes.find((c) => c.name === npcSpawn.className);
+        if (npcClassData) {
+          let npc;
+          if (npcClassData.tier === 'promoted') {
+            const promotionRoll = rollRecruitPromotion(
+              promotionContext,
+              npcClassData,
+              metaEffects,
+              Math.random,
+            );
+            if (promotionRoll.eligible && promotionRoll.promote) {
+              const baseClassData = this.gameData.classes.find(
+                (c) => c.name === npcClassData.promotesFrom,
+              );
+              if (baseClassData) {
+                const baseDef = {
+                  ...npcSpawn,
+                  className: baseClassData.name,
+                  level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+                };
+                npc = createRecruitUnit(
+                  baseDef,
+                  baseClassData,
+                  this.gameData.weapons,
+                  null,
+                  null,
+                  null,
+                  this.gameData.classes,
+                );
+                for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+                  if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                }
+                promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
+                const promotedLevels = Math.max(0, promotedLevelTarget - 1);
+                for (let i = 0; i < promotedLevels; i++) {
+                  const result = levelUp(npc);
+                  if (result) {
+                    npc.level = result.newLevel;
+                    for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
+                    npc.currentHP += result.gains.HP;
+                  }
+                }
+                checkLevelUpSkills(npc, this.gameData.classes);
+              } else {
+                npc = createRecruitUnit(
+                  npcSpawn,
+                  npcClassData,
+                  this.gameData.weapons,
+                  null,
+                  null,
+                  null,
+                  this.gameData.classes,
+                );
+              }
+            } else if (promotionRoll.eligible && !promotionRoll.promote) {
+              const baseClassData = this.gameData.classes.find(
+                (c) => c.name === promotionRoll.baseClassName,
+              );
+              if (baseClassData) {
+                const baseDef = {
+                  ...npcSpawn,
+                  className: baseClassData.name,
+                  level: getFailBaseLevel(npcSpawn.level, dynamicPromotionLevel),
+                };
+                npc = createRecruitUnit(
+                  baseDef,
+                  baseClassData,
+                  this.gameData.weapons,
+                  null,
+                  null,
+                  null,
+                  this.gameData.classes,
+                );
+                for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+                  if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                }
+              } else {
+                npc = createRecruitUnit(
+                  npcSpawn,
+                  npcClassData,
+                  this.gameData.weapons,
+                  null,
+                  null,
+                  null,
+                  this.gameData.classes,
+                );
+              }
+            } else {
+              const baseDef = {
+                ...npcSpawn,
+                className: npcClassData.name,
+                level: Math.min(npcSpawn.level, BASE_CLASS_LEVEL_CAP),
+              };
+              npc = createRecruitUnit(
+                baseDef,
+                npcClassData,
+                this.gameData.weapons,
+                null,
+                null,
+                null,
+                this.gameData.classes,
+              );
+            }
+          } else {
             npc = createRecruitUnit(
-              baseDef,
-              baseClassData,
+              npcSpawn,
+              npcClassData,
               this.gameData.weapons,
               null,
               null,
               null,
               this.gameData.classes,
             );
-            for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
+            for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
               if (!npc.skills.includes(sid)) npc.skills.push(sid);
             }
-            promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
-            const promotedLevels = Math.max(0, promotedLevelTarget - 1);
-            for (let i = 0; i < promotedLevels; i++) {
-              const result = levelUp(npc);
-              if (result) {
-                npc.level = result.newLevel;
-                for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
-                npc.currentHP += result.gains.HP;
-              }
-            }
-            checkLevelUpSkills(npc, this.gameData.classes);
           }
-        } else {
-          npc = createRecruitUnit(
-            npcSpawn,
-            npcClassData,
-            this.gameData.weapons,
-            null,
-            null,
-            null,
-            this.gameData.classes,
-          );
-          for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
-            if (!npc.skills.includes(sid)) npc.skills.push(sid);
+          if (npc) {
+            npc.col = npcSpawn.col;
+            npc.row = npcSpawn.row;
+            npc._phoenixBroochUsed = false;
+            this.npcUnits.push(npc);
           }
-        }
-        if (npc) {
-          npc.col = npcSpawn.col;
-          npc.row = npcSpawn.row;
-          npc._phoenixBroochUsed = false;
-          this.npcUnits.push(npc);
         }
       }
     }

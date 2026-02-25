@@ -168,7 +168,14 @@ import {
   generateBossRecruitCandidates,
   getAvailableLords,
   createBossLordUnit,
+  getRecruitPoolEntries,
 } from '../engine/BossRecruitSystem.js';
+import {
+  RECRUIT_PROMOTION_CONTEXT,
+  isPromotedRecruitSource,
+  rollRecruitPromotion,
+  getFailBaseLevel,
+} from '../engine/RecruitPromotion.js';
 import { resolveRecruitScalingTargets, resolveTeamAverageLevel } from '../engine/RecruitScaling.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
@@ -677,6 +684,10 @@ export class BattleScene extends Phaser.Scene {
         );
 
         const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
+        const promotionContext = {
+          type: RECRUIT_PROMOTION_CONTEXT.RECRUIT_NODE,
+          classesData: this.gameData.classes || [],
+        };
         const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
         const effectiveLordChance = Math.min(
           1,
@@ -685,10 +696,25 @@ export class BattleScene extends Phaser.Scene {
         if (availLords.length > 0 && Math.random() < effectiveLordChance) {
           const lordDef = availLords[Math.floor(Math.random() * availLords.length)];
           const lordClassData = this.gameData.classes.find((c) => c.name === lordDef.class);
-          const recruitPoolClassData = this.gameData.classes.find(
-            (c) => c.name === npcSpawn.className,
+          const actRecruitPool = getRecruitPoolEntries(
+            this.gameData.recruits,
+            act,
+            this.gameData.classes,
           );
-          const promoteLord = recruitPoolClassData?.tier === 'promoted';
+          const recruitPoolClassData = actRecruitPool
+            .map((entry) => this.gameData.classes.find((c) => c.name === entry.className))
+            .find((c) => isPromotedRecruitSource(c, this.gameData.classes));
+          const lordPromotedClassData =
+            typeof lordDef?.promotedClass === 'string'
+              ? this.gameData.classes.find((c) => c.name === lordDef.promotedClass)
+              : null;
+          const canPromoteLord = Boolean(
+            lordPromotedClassData &&
+            (lordDef?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
+          );
+          const lordRoll = canPromoteLord
+            ? rollRecruitPromotion(promotionContext, recruitPoolClassData, metaEffects, Math.random)
+            : { eligible: false, promote: false };
           if (lordClassData) {
             const npc = createBossLordUnit(
               lordDef,
@@ -697,11 +723,12 @@ export class BattleScene extends Phaser.Scene {
               npcSpawn.level,
               metaEffects,
               {
-                promoteLord,
+                promoteLord: canPromoteLord && lordRoll.promote,
                 classes: this.gameData.classes || [],
                 skills: this.gameData.skills || [],
                 dynamicPromotionLevel,
                 promotedLevelTarget,
+                baseLevelOverride: null,
               },
             );
             npc.faction = 'npc';
@@ -725,43 +752,121 @@ export class BattleScene extends Phaser.Scene {
 
             let npc;
             if (npcClassData.tier === 'promoted') {
-              // Promoted recruit: create from base class, then promote
-              const baseClassData = this.gameData.classes.find(
-                (c) => c.name === npcClassData.promotesFrom,
+              const promotionRoll = rollRecruitPromotion(
+                promotionContext,
+                npcClassData,
+                metaEffects,
+                Math.random,
               );
-              if (baseClassData) {
+              if (promotionRoll.eligible && promotionRoll.promote) {
+                // Promoted recruit: create from base class, then promote.
+                const baseClassData = this.gameData.classes.find(
+                  (c) => c.name === npcClassData.promotesFrom,
+                );
+                if (baseClassData) {
+                  const baseDef = {
+                    ...npcSpawn,
+                    className: baseClassData.name,
+                    level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+                  };
+                  npc = createRecruitUnit(
+                    baseDef,
+                    baseClassData,
+                    this.gameData.weapons,
+                    recruitStatBonuses,
+                    recruitGrowthBonuses,
+                    recruitSkillPool,
+                    this.gameData.classes,
+                  );
+                  for (const sid of getClassInnateSkills(
+                    baseClassData.name,
+                    this.gameData.skills,
+                  )) {
+                    if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                  }
+                  promoteUnit(
+                    npc,
+                    npcClassData,
+                    npcClassData.promotionBonuses,
+                    this.gameData.skills,
+                  );
+                  const promotedLevels = Math.max(0, promotedLevelTarget - 1);
+                  for (let i = 0; i < promotedLevels; i++) {
+                    const result = levelUp(npc);
+                    if (result) {
+                      npc.level = result.newLevel;
+                      for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
+                      npc.currentHP += result.gains.HP;
+                    }
+                  }
+                  checkLevelUpSkills(npc, this.gameData.classes);
+                } else {
+                  // Safety fallback: create from promoted class directly rather than aborting battle load.
+                  npc = createRecruitUnit(
+                    npcSpawn,
+                    npcClassData,
+                    this.gameData.weapons,
+                    recruitStatBonuses,
+                    recruitGrowthBonuses,
+                    recruitSkillPool,
+                    this.gameData.classes,
+                  );
+                  console.warn(
+                    'Promoted recruit missing base class mapping:',
+                    npcClassData.name,
+                    npcClassData.promotesFrom,
+                  );
+                }
+              } else if (promotionRoll.eligible && !promotionRoll.promote) {
+                const baseClassData = this.gameData.classes.find(
+                  (c) => c.name === promotionRoll.baseClassName,
+                );
+                if (baseClassData) {
+                  const baseDef = {
+                    ...npcSpawn,
+                    className: baseClassData.name,
+                    level: getFailBaseLevel(npcSpawn.level, dynamicPromotionLevel),
+                  };
+                  npc = createRecruitUnit(
+                    baseDef,
+                    baseClassData,
+                    this.gameData.weapons,
+                    recruitStatBonuses,
+                    recruitGrowthBonuses,
+                    recruitSkillPool,
+                    this.gameData.classes,
+                  );
+                  for (const sid of getClassInnateSkills(
+                    baseClassData.name,
+                    this.gameData.skills,
+                  )) {
+                    if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                  }
+                } else {
+                  npc = createRecruitUnit(
+                    npcSpawn,
+                    npcClassData,
+                    this.gameData.weapons,
+                    recruitStatBonuses,
+                    recruitGrowthBonuses,
+                    recruitSkillPool,
+                    this.gameData.classes,
+                  );
+                  console.warn(
+                    'Promoted recruit roll fallback missing base class mapping:',
+                    npcClassData.name,
+                    promotionRoll.baseClassName,
+                  );
+                }
+              } else {
+                // Safety fallback: invalid promoted-source mapping uses direct class spawn.
                 const baseDef = {
                   ...npcSpawn,
-                  className: baseClassData.name,
-                  level: Math.min(npcSpawn.level, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP),
+                  className: npcClassData.name,
+                  level: Math.min(npcSpawn.level, BASE_CLASS_LEVEL_CAP),
                 };
                 npc = createRecruitUnit(
                   baseDef,
-                  baseClassData,
-                  this.gameData.weapons,
-                  recruitStatBonuses,
-                  recruitGrowthBonuses,
-                  recruitSkillPool,
-                  this.gameData.classes,
-                );
-                for (const sid of getClassInnateSkills(baseClassData.name, this.gameData.skills)) {
-                  if (!npc.skills.includes(sid)) npc.skills.push(sid);
-                }
-                promoteUnit(npc, npcClassData, npcClassData.promotionBonuses, this.gameData.skills);
-                const promotedLevels = Math.max(0, promotedLevelTarget - 1);
-                for (let i = 0; i < promotedLevels; i++) {
-                  const result = levelUp(npc);
-                  if (result) {
-                    npc.level = result.newLevel;
-                    for (const stat of XP_STAT_NAMES) npc.stats[stat] += result.gains[stat];
-                    npc.currentHP += result.gains.HP;
-                  }
-                }
-                checkLevelUpSkills(npc, this.gameData.classes);
-              } else {
-                // Safety fallback: create from promoted class directly rather than aborting battle load.
-                npc = createRecruitUnit(
-                  npcSpawn,
                   npcClassData,
                   this.gameData.weapons,
                   recruitStatBonuses,
@@ -770,7 +875,7 @@ export class BattleScene extends Phaser.Scene {
                   this.gameData.classes,
                 );
                 console.warn(
-                  'Promoted recruit missing base class mapping:',
+                  'Promoted recruit source not eligible for promotion roll:',
                   npcClassData.name,
                   npcClassData.promotesFrom,
                 );

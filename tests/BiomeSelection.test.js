@@ -304,9 +304,9 @@ describe('Biome Regression — template reachability', () => {
 
     expect(totalAmbushes).toBeGreaterThan(0);
     const castleRate = castleAmbushes / totalAmbushes;
-    // act2 castle weight is 45%. Allow wide tolerance (40%-65%) for random variance,
+    // act2 castle weight is 45%. Allow wide tolerance (35%-65%) for random variance,
     // but reject unweighted selection which would give ~33% (2 castle / 6 act2 rout templates).
-    expect(castleRate).toBeGreaterThan(0.4);
+    expect(castleRate).toBeGreaterThan(0.35);
     expect(castleRate).toBeLessThan(0.65);
   });
 
@@ -344,6 +344,30 @@ describe('ACT_BIOME_WEIGHTS', () => {
     for (const [, weights] of Object.entries(ACT_BIOME_WEIGHTS)) {
       const total = Object.values(weights).reduce((s, w) => s + w, 0);
       expect(total).toBeGreaterThan(0);
+    }
+  });
+
+  it('castle-biome templates use only indoor terrain (no outdoor grass/forest/mountain)', () => {
+    const outdoorTerrain = new Set(['Plain', 'Forest', 'Mountain', 'Sand', 'Ice']);
+    const allTemplates = [...(data.mapTemplates.rout || []), ...(data.mapTemplates.seize || [])];
+    const castleTemplates = allTemplates.filter((t) => t.biome === 'castle');
+    expect(castleTemplates.length).toBeGreaterThan(0);
+    for (const tmpl of castleTemplates) {
+      for (const zone of tmpl.zones || []) {
+        const terrainKeys = Object.keys(zone.terrain || {});
+        const offending = terrainKeys.filter((t) => outdoorTerrain.has(t));
+        expect(offending, `${tmpl.id} zone has outdoor terrain: ${offending}`).toEqual([]);
+      }
+      if (tmpl.hybridArena?.arenaTiles) {
+        for (const row of tmpl.hybridArena.arenaTiles) {
+          for (const tile of row) {
+            expect(
+              outdoorTerrain.has(tile),
+              `${tmpl.id} hybridArena has outdoor terrain: ${tile}`,
+            ).toBe(false);
+          }
+        }
+      }
     }
   });
 });

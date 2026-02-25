@@ -1133,6 +1133,20 @@
     ]
   },
   {
+    "id": "veteran_recruits",
+    "name": "Veteran Recruits",
+    "description": "+8% chance recruits join promoted per tier",
+    "category": "capacity",
+    "maxLevel": 3,
+    "costs": [250, 450, 700],
+    "requires": { "milestones": ["beatAct1"] },
+    "effects": [
+      { "recruitPromotionChanceBonus": 0.08 },
+      { "recruitPromotionChanceBonus": 0.16 },
+      { "recruitPromotionChanceBonus": 0.24 }
+    ]
+  },
+  {
     "id": "extra_starting_unit_pool",
     "name": "Vanguard Cadre",
     "description": "Start with 1 extra random unit from an expanding class pool",

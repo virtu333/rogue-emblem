@@ -10,6 +10,12 @@ import {
 } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from './RecruitScaling.js';
 import {
+  RECRUIT_PROMOTION_CONTEXT,
+  isPromotedRecruitSource,
+  rollRecruitPromotion,
+  getFailBaseLevel,
+} from './RecruitPromotion.js';
+import {
   createRecruitUnit,
   createLordUnit,
   promoteUnit,
@@ -24,7 +30,7 @@ import { serializeUnit } from './RunManager.js';
 const XP_STAT_NAMES = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 const LEGACY_ACT_ORDER = ['act1', 'act2', 'act3', 'finalBoss'];
 
-function getRecruitPoolEntries(recruits, poolKey, classesData = null) {
+export function getRecruitPoolEntries(recruits, poolKey, classesData = null) {
   const poolData = recruits?.[poolKey];
   if (!poolData) return [];
 
@@ -178,9 +184,13 @@ export function createBossLordUnit(
 
   const dynamicPromotionLevel = recruitContext?.dynamicPromotionLevel ?? BASE_CLASS_LEVEL_CAP;
   const promotedLevelTarget = recruitContext?.promotedLevelTarget ?? 0;
+  const baseLevelOverride = Number.isFinite(recruitContext?.baseLevelOverride)
+    ? Math.max(1, Math.min(BASE_CLASS_LEVEL_CAP, Math.trunc(recruitContext.baseLevelOverride)))
+    : null;
 
   // Auto-level to target (createLordUnit starts at level 1), capped to current promotion target.
-  const cappedLevel = Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
+  const cappedLevel =
+    baseLevelOverride ?? Math.min(targetLevel, dynamicPromotionLevel, BASE_CLASS_LEVEL_CAP);
   for (let i = 1; i < cappedLevel; i++) {
     const result = levelUp(unit);
     if (result) {
@@ -192,7 +202,7 @@ export function createBossLordUnit(
     }
   }
 
-  // Optional boss-recruit promotion path (act2+); default callers remain base-tier.
+  // Optional promotion path for boss/recruit-node lord generation.
   const shouldPromote = Boolean(recruitContext?.promoteLord);
   if (shouldPromote) {
     const promotedClassData = Array.isArray(recruitContext?.classes)
@@ -278,25 +288,26 @@ export function generateBossRecruitCandidates(
   const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
     resolveRecruitScalingTargets(roster);
 
-  // Determine if promoted and which recruit pool to use
-  const usePromoted = actId !== 'act1';
   const poolKey = resolveRecruitPoolKey(actId, recruits);
   const recruitPool = getRecruitPoolEntries(recruits, poolKey, classes);
+  const promotionContext = {
+    type: RECRUIT_PROMOTION_CONTEXT.BOSS,
+    classesData: classes,
+  };
 
-  // Filter pool to classes not already in roster and not temporarily blocked
+  // Keep promoted sources until post-resolution de-dupe checks.
+  // A promoted source can still resolve to a distinct base class on roll fail.
   let availablePool = recruitPool.filter(
-    (r) => !rosterClassNames.has(r.className) && !isPromotionClassBlocked(r.className),
+    (r) => !isPromotionClassBlocked(r.className) && classes.some((c) => c.name === r.className),
   );
 
-  // For promoted recruits, verify class exists and has promotesFrom
-  if (usePromoted) {
-    availablePool = availablePool.filter((r) => {
-      const cls = classes.find((c) => c.name === r.className);
-      return cls && cls.promotesFrom;
-    });
-  } else {
-    availablePool = availablePool.filter((r) => classes.find((c) => c.name === r.className));
-  }
+  // Promoted pool entries must have a valid base-class mapping.
+  availablePool = availablePool.filter((r) => {
+    const cls = classes.find((c) => c.name === r.className);
+    if (!cls) return false;
+    if (cls.tier !== 'promoted') return true;
+    return isPromotedRecruitSource(cls, classes);
+  });
 
   // Lord slot determination
   const availLords = getAvailableLords(roster, lords, fallenUnits);
@@ -310,6 +321,12 @@ export function generateBossRecruitCandidates(
       .filter(Boolean),
   );
   if (chosenLord?.name) takenNames.add(chosenLord.name);
+  const takenClassNames = new Set();
+  const isClassAvailable = (className) =>
+    Boolean(className) &&
+    !rosterClassNames.has(className) &&
+    !takenClassNames.has(className) &&
+    !isPromotionClassBlocked(className);
 
   // Pick candidates
   const candidates = [];
@@ -322,11 +339,51 @@ export function generateBossRecruitCandidates(
 
   // Regular recruit candidates
   for (let i = 0; i < shuffled.length && candidates.length < regularCount; i++) {
-    const r = shuffled[i];
-    const recruitName = pickUniqueRecruitNameForClass(r, recruits, takenNames, classes);
+    const sourceEntry = shuffled[i];
+    const sourceClassData = classes.find((c) => c.name === sourceEntry.className);
+    if (!sourceClassData) continue;
+
+    let resolvedClassName = sourceClassData.name;
+    let usePromotedPath = false;
+    let baseLevelOverride = null;
+
+    if (sourceClassData.tier === 'promoted') {
+      const roll = rollRecruitPromotion(
+        promotionContext,
+        sourceClassData,
+        metaEffects,
+        Math.random,
+      );
+      if (!roll.eligible || !roll.baseClassName) continue;
+
+      const promotedClassName = sourceClassData.name;
+      const fallbackClassName = roll.baseClassName;
+      const fallbackLevel = getFailBaseLevel(recruitTargetLevel, dynamicPromotionLevel);
+
+      if (roll.promote) {
+        if (!isClassAvailable(promotedClassName)) continue;
+        resolvedClassName = promotedClassName;
+        usePromotedPath = true;
+      } else if (isClassAvailable(fallbackClassName)) {
+        resolvedClassName = fallbackClassName;
+        usePromotedPath = false;
+        baseLevelOverride = fallbackLevel;
+      } else if (isClassAvailable(promotedClassName)) {
+        // Preserve class de-dupe if fallback resolves to an already-used class.
+        resolvedClassName = promotedClassName;
+        usePromotedPath = true;
+      } else {
+        continue;
+      }
+    } else if (!isClassAvailable(sourceClassData.name)) {
+      continue;
+    }
+
+    const resolvedEntry = { ...sourceEntry, className: resolvedClassName };
+    const recruitName = pickUniqueRecruitNameForClass(resolvedEntry, recruits, takenNames, classes);
     const unit = createRecruitFromPool(
-      { ...r, name: recruitName },
-      usePromoted,
+      { ...resolvedEntry, name: recruitName },
+      usePromotedPath,
       recruitTargetLevel,
       dynamicPromotionLevel,
       promotedLevelTarget,
@@ -335,10 +392,13 @@ export function generateBossRecruitCandidates(
       consumables,
       skills,
       metaEffects,
+      baseLevelOverride,
     );
     if (unit) {
+      if (!isClassAvailable(unit.className)) continue;
       unit.name = makeUniqueRecruitName(unit.name, takenNames);
       takenNames.add(unit.name);
+      takenClassNames.add(unit.className);
       unit.faction = 'player';
       candidates.push({
         unit: serializeUnit(unit),
@@ -353,6 +413,22 @@ export function generateBossRecruitCandidates(
   if (chosenLord) {
     const lordClassData = classes.find((c) => c.name === chosenLord.class);
     if (lordClassData) {
+      const poolPromotionSource = recruitPool
+        .map((entry) => classes.find((c) => c.name === entry.className))
+        .find((entry) => isPromotedRecruitSource(entry, classes));
+      const lordPromotedClassData =
+        typeof chosenLord?.promotedClass === 'string'
+          ? classes.find((c) => c.name === chosenLord.promotedClass)
+          : null;
+      const canPromoteLord = Boolean(
+        lordPromotedClassData &&
+        (chosenLord?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
+      );
+      const lordRoll =
+        canPromoteLord && poolPromotionSource
+          ? rollRecruitPromotion(promotionContext, poolPromotionSource, metaEffects, Math.random)
+          : { eligible: false, promote: false };
+
       const unit = createBossLordUnit(
         chosenLord,
         lordClassData,
@@ -360,11 +436,12 @@ export function generateBossRecruitCandidates(
         recruitTargetLevel,
         metaEffects,
         {
-          promoteLord: usePromoted,
+          promoteLord: canPromoteLord && lordRoll.promote,
           classes,
           skills,
           dynamicPromotionLevel,
           promotedLevelTarget,
+          baseLevelOverride: null,
         },
       );
       unit.name = chosenLord.name || unit.name;
@@ -398,6 +475,7 @@ function createRecruitFromPool(
   consumables,
   skills,
   metaEffects,
+  baseLevelOverride = null,
 ) {
   const statBonuses = metaEffects?.statBonuses || null;
   const growthBonuses = metaEffects?.growthBonuses || null;
@@ -455,11 +533,13 @@ function createRecruitFromPool(
     maybeAddStartingVulnerary(unit);
     return unit;
   } else {
-    // Act2 pool has base class names — cap at BASE_CLASS_LEVEL_CAP
+    // Base recruit path capped at BASE_CLASS_LEVEL_CAP unless fail fallback overrides level.
     const classData = classes.find((c) => c.name === recruitEntry.className);
     if (!classData) return null;
 
-    const cappedLevel = Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
+    const cappedLevel = Number.isFinite(baseLevelOverride)
+      ? Math.max(1, Math.min(BASE_CLASS_LEVEL_CAP, Math.trunc(baseLevelOverride)))
+      : Math.min(targetLevel, BASE_CLASS_LEVEL_CAP);
     const recruitDef = { className: classData.name, name: recruitEntry.name, level: cappedLevel };
     const unit = createRecruitUnit(
       recruitDef,

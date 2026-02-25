@@ -347,6 +347,7 @@ describe('MetaProgressionManager', () => {
     meta.purchasedUpgrades.roster_cap = 1;
     meta.purchasedUpgrades.vision_charges_2 = 1;
     meta.purchasedUpgrades.recruit_field_supplies = 1;
+    meta.purchasedUpgrades.veteran_recruits = 3;
     meta.purchasedUpgrades.extra_starting_unit_pool = 3;
     meta.purchasedUpgrades.lethal_armory = 1;
     meta.purchasedUpgrades.lethal_armory_killer = 1;
@@ -356,6 +357,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.rosterCapBonus).toBe(3);
     expect(effects.visionChargesBonus).toBe(1);
     expect(effects.recruitStartingVulnerary).toBe(1);
+    expect(effects.recruitPromotionChanceBonus).toBe(0.24);
     expect(effects.extraStartingUnitTier).toBe(3);
     expect(effects.lethalArmoryTier).toBe(3);
   });
@@ -381,6 +383,7 @@ describe('MetaProgressionManager', () => {
     expect(effects.rosterCapBonus).toBe(0);
     expect(effects.visionChargesBonus).toBe(0);
     expect(effects.recruitStartingVulnerary).toBe(0);
+    expect(effects.recruitPromotionChanceBonus).toBe(0);
     expect(effects.extraStartingUnitTier).toBe(0);
     expect(effects.lethalArmoryTier).toBe(0);
     expect(effects.lootCategoryWeightBonuses).toEqual({});
@@ -469,8 +472,8 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 59 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(59);
+  it('has 60 total upgrades in data', () => {
+    expect(upgradesData.length).toBe(60);
   });
 
   it('has correct category distribution', () => {
@@ -481,7 +484,7 @@ describe('MetaProgressionManager', () => {
     expect(byCategory.recruit_stats).toBe(12);
     expect(byCategory.lord_bonuses).toBe(14);
     expect(byCategory.economy).toBe(7);
-    expect(byCategory.capacity).toBe(8);
+    expect(byCategory.capacity).toBe(9);
     expect(byCategory.starting_equipment).toBe(8);
     expect(byCategory.starting_skills).toBe(10);
   });
@@ -530,6 +533,19 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     const effects = meta.getActiveEffects();
     expect(effects.lordRecruitChanceBonus).toBe(0);
+  });
+
+  it('getActiveEffects returns recruitPromotionChanceBonus for veteran_recruits', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.purchasedUpgrades.veteran_recruits = 2;
+    const effects = meta.getActiveEffects();
+    expect(effects.recruitPromotionChanceBonus).toBe(0.16);
+  });
+
+  it('getActiveEffects returns 0 recruitPromotionChanceBonus when unpurchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const effects = meta.getActiveEffects();
+    expect(effects.recruitPromotionChanceBonus).toBe(0);
   });
 
   // --- Skill assignment methods ---

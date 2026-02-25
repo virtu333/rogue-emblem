@@ -3,6 +3,7 @@
 // Uses a fixed column-lane system (like Slay the Spire) to prevent edge crossings.
 
 import { NODE_TYPES, FOG_CHANCE_BY_ACT } from '../utils/constants.js';
+import { rollBiome, getTemplateBiome } from './MapGenerator.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_MAP_GEN = false;
@@ -49,7 +50,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       completed: false,
     };
     // Assign template for single-node boss
-    const template = pickTemplateForNode('seize', mapTemplates, actId, true);
+    const biome = rollBiome(actId);
+    const template = pickTemplateForNode('seize', mapTemplates, actId, true, biome);
     if (template) {
       node.templateId = template.id;
       node.battleParams.templateId = template.id;
@@ -114,11 +116,13 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
       // Assign template for combat nodes (BATTLE and BOSS)
       if (type === NODE_TYPES.BATTLE || type === NODE_TYPES.BOSS) {
         const objective = node.battleParams?.objective || 'rout';
+        const biome = rollBiome(actId);
         const template = pickTemplateForNode(
           objective,
           mapTemplates,
           actId,
           type === NODE_TYPES.BOSS,
+          biome,
         );
         if (template) {
           node.templateId = template.id;
@@ -208,7 +212,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
   // Post-process: mark a subset of remaining shops as village ambush encounters.
   // This runs after recruit conversion so ambush rolls do not interfere with recruit guarantees.
-  if (villageAmbushChance > 0) {
+  // finalBoss act is exempt — the pre-boss shop is the player's last chance to prepare.
+  if (villageAmbushChance > 0 && actId !== 'finalBoss') {
     const scaling = ACT_LEVEL_SCALING[actId];
     for (const node of nodes) {
       if (node.type !== NODE_TYPES.SHOP) continue;
@@ -228,7 +233,8 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
         node.battleParams.levelRange = scaling[node.row] || scaling.default;
       }
 
-      const template = pickTemplateForNode('rout', mapTemplates, actId, false);
+      const ambushBiome = rollBiome(actId);
+      const template = pickTemplateForNode('rout', mapTemplates, actId, false, ambushBiome);
       if (template) {
         node.templateId = template.id;
         node.battleParams.templateId = template.id;
@@ -388,9 +394,17 @@ function rollBattleSeed() {
  * @param {string} objective - 'rout' or 'seize'
  * @param {Object} [mapTemplates] - { rout: [...], seize: [...] }
  * @param {string} [actId] - optional act id for template act filtering
+ * @param {boolean} [isBossNode] - whether this is a boss node
+ * @param {string} [biome] - optional biome to prefer (falls back to full pool if no match)
  * @returns {Object|null} template or null if mapTemplates not provided
  */
-function pickTemplateForNode(objective, mapTemplates, actId = null, isBossNode = false) {
+function pickTemplateForNode(
+  objective,
+  mapTemplates,
+  actId = null,
+  isBossNode = false,
+  biome = null,
+) {
   if (!mapTemplates) return null;
   const pool = mapTemplates[objective];
   if (!pool || pool.length === 0) {
@@ -402,7 +416,12 @@ function pickTemplateForNode(objective, mapTemplates, actId = null, isBossNode =
   const filteredByAct = actId
     ? pool.filter((template) => !Array.isArray(template.acts) || template.acts.includes(actId))
     : pool;
-  const bossFiltered = filteredByAct.filter((template) => !template?.bossOnly || isBossNode);
+  // Filter by biome if provided, fall back to full act-filtered pool
+  const biomeFiltered = biome
+    ? filteredByAct.filter((t) => getTemplateBiome(t) === biome)
+    : filteredByAct;
+  const biomePool = biomeFiltered.length > 0 ? biomeFiltered : filteredByAct;
+  const bossFiltered = biomePool.filter((template) => !template?.bossOnly || isBossNode);
   const fallbackBossFiltered = pool.filter((template) => !template?.bossOnly || isBossNode);
   const source = bossFiltered.length > 0 ? bossFiltered : fallbackBossFiltered;
   if (source.length === 0) return null;

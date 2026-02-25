@@ -291,7 +291,7 @@ describe('MapGenerator', () => {
     });
 
     it('still enforces throne pressure when all unoccupied throne-adjacent tiles are exhausted', () => {
-      const config = withSeed(6890, () =>
+      const config = withSeed(7956, () =>
         generateBattle(
           {
             act: 'act3',

@@ -1,6 +1,6 @@
 // HeadlessBattle.test.js — Core integration tests for the headless battle harness.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { HeadlessBattle, HEADLESS_STATES, CANTO_DISABLED } from './HeadlessBattle.js';
 import { GameDriver } from './GameDriver.js';
 import { ScenarioRunner } from '../agents/ScenarioRunner.js';
@@ -64,6 +64,30 @@ function findFirstDueTurn(battle) {
   return null;
 }
 
+function buildAllLordRoster(data) {
+  return (data.lords || []).map((lord) => ({
+    name: lord.name,
+    className: lord.class,
+    isLord: true,
+    level: 5,
+    tier: 'base',
+    faction: 'player',
+  }));
+}
+
+function buildPromotedRecruitData(data) {
+  const clone = structuredClone(data);
+  clone.recruits.act4 = {
+    ...(clone.recruits.act4 || {}),
+    classPool: ['Hero'],
+  };
+  if (clone.recruits.act4 && Array.isArray(clone.recruits.act4.pool)) {
+    clone.recruits.act4.pool = [];
+  }
+  if (!clone.recruits.namePool.Hero) clone.recruits.namePool.Hero = ['Dante'];
+  return clone;
+}
+
 describe('HeadlessBattle', () => {
   let gameData;
 
@@ -95,6 +119,72 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits.length).toBe(2);
     expect(battle.playerUnits.some((u) => u.name === 'Edric')).toBe(true);
     expect(battle.playerUnits.some((u) => u.name === 'Sera')).toBe(true);
+  });
+
+  it('recruit-node regular promoted source can downgrade to base on high roll', () => {
+    const recruitData = buildPromotedRecruitData(gameData);
+    const noLordRoster = buildAllLordRoster(recruitData);
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.95);
+    try {
+      const battle = new HeadlessBattle(
+        recruitData,
+        {
+          act: 'act4',
+          objective: 'rout',
+          row: 3,
+          isRecruitBattle: true,
+        },
+        noLordRoster,
+      );
+      battle.init();
+      const npc = battle.npcUnits.find((u) => !u.isLord);
+      expect(npc).toBeTruthy();
+      expect(npc.className).toBe('Mercenary');
+      expect(npc.tier).toBe('base');
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('recruit-node lord stays at full level on failed promotion roll', () => {
+    const recruitData = buildPromotedRecruitData(gameData);
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.95);
+    try {
+      const battle = new HeadlessBattle(recruitData, {
+        act: 'act4',
+        objective: 'rout',
+        row: 3,
+        isRecruitBattle: true,
+        metaEffects: { lordRecruitChanceBonus: 1 },
+      });
+      battle.init();
+      const npc = battle.npcUnits.find((u) => u.isLord);
+      expect(npc).toBeTruthy();
+      expect(npc.tier).toBe('base');
+      expect(npc.level).toBe(10);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('recruit-node lord path in headless can promote on low promotion roll', () => {
+    const recruitData = buildPromotedRecruitData(gameData);
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.0);
+    try {
+      const battle = new HeadlessBattle(recruitData, {
+        act: 'act4',
+        objective: 'rout',
+        row: 3,
+        isRecruitBattle: true,
+        metaEffects: { lordRecruitChanceBonus: 1 },
+      });
+      battle.init();
+      const npc = battle.npcUnits.find((u) => u.isLord);
+      expect(npc).toBeTruthy();
+      expect(npc.tier).toBe('promoted');
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 
   it('init resets reinforcement caches when reusing the same battle instance', () => {

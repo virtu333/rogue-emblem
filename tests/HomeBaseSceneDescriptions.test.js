@@ -90,6 +90,16 @@ describe('HomeBaseScene upgrade description helpers', () => {
     expect(scene._formatEffectValue({ lordRecruitChanceBonus: 0.24 })).toBe('+24%');
   });
 
+  it('describes veteran_recruits promotion chance bonus', () => {
+    const scene = new HomeBaseScene();
+    expect(scene._getActionDesc({ effects: [{ recruitPromotionChanceBonus: 0.08 }] })).toBe(
+      'Recruit promotion probability',
+    );
+    expect(scene._formatEffectValue({ recruitPromotionChanceBonus: 0.08 })).toBe('+8%');
+    expect(scene._formatEffectValue({ recruitPromotionChanceBonus: 0.16 })).toBe('+16%');
+    expect(scene._formatEffectValue({ recruitPromotionChanceBonus: 0.24 })).toBe('+24%');
+  });
+
   it('formats and describes recruit field supplies upgrade', () => {
     const scene = new HomeBaseScene();
 

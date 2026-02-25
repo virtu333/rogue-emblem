@@ -103,6 +103,8 @@ export const TERRAIN = {
   Village: 9,
   Ice: 10,
   LavaCrack: 11,
+  Floor: 12,
+  Pillar: 13,
 };
 
 // Boss stat bonus (flat added to all stats)
@@ -112,6 +114,9 @@ export const BOSS_STAT_BONUS = 2;
 export const BOSS_RECRUIT_LORD_CHANCE = 0.25; // 25% chance one slot is a lord
 export const BOSS_RECRUIT_COUNT = 3;
 export const RECRUIT_NODE_LORD_CHANCE = 0.15; // 15% chance recruit node NPC is a lord
+export const BOSS_RECRUIT_PROMOTION_CHANCE_BASE = 0.7;
+export const NODE_RECRUIT_PROMOTION_CHANCE_BASE = 0.4;
+export const RECRUIT_PROMOTION_CHANCE_CAP = 0.95;
 
 // Act sequence and config for node map
 export const ACT_SEQUENCE = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
@@ -278,6 +283,16 @@ export const RECRUIT_SKILL_POOL = [
 export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
 export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 
+// Biome weights per act (used by template selection)
+// Templates without a biome field are treated as 'grassland'.
+export const ACT_BIOME_WEIGHTS = {
+  act1: { grassland: 100 },
+  act2: { grassland: 55, castle: 45 },
+  act3: { grassland: 45, castle: 55 },
+  act4: { grassland: 20, castle: 10, tundra: 35, volcano: 35 },
+  finalBoss: { castle: 100 },
+};
+
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
 export const FOG_CHANCE_BY_ACT = { act1: 0.1, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
@@ -296,4 +311,6 @@ export const TERRAIN_COLORS = {
   Village: 0xc47035,
   Ice: 0x99ccee,
   'Lava Crack': 0xcc4400,
+  Floor: 0x9090a0,
+  Pillar: 0x606878,
 };

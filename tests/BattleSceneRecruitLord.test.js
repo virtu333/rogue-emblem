@@ -219,11 +219,97 @@ describe('BattleScene recruit-node lord meta bonus', () => {
     }
   });
 
+  it('regular promoted recruit-node NPC can stay promoted on low roll', () => {
+    let callCount = 0;
+    const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return 0.99; // recruit level roll (no -1)
+      if (callCount === 2) return 0.99; // lord chance (no lord)
+      if (callCount === 3) return 0.1; // promotion roll success (<= 0.40)
+      return 0.1;
+    });
+    try {
+      const scene = makeBattleSceneWithLords({
+        act: 'act4',
+        npcClassName: 'Hero',
+      });
+      BattleScene.prototype.beginBattle.call(scene, scene.roster);
+      const npc = scene.npcUnits.find((u) => !u.isLord);
+      expect(npc).toBeTruthy();
+      expect(npc.className).toBe('Hero');
+      expect(npc.tier).toBe('promoted');
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('regular promoted recruit-node NPC can downgrade to base on high roll', () => {
+    let callCount = 0;
+    const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return 0.99; // recruit level roll (no -1)
+      if (callCount === 2) return 0.99; // lord chance (no lord)
+      if (callCount === 3) return 0.95; // promotion roll failure (> 0.40)
+      return 0.95;
+    });
+    try {
+      const scene = makeBattleSceneWithLords({
+        act: 'act1',
+        npcClassName: 'Hero',
+      });
+      BattleScene.prototype.beginBattle.call(scene, scene.roster);
+      const npc = scene.npcUnits.find((u) => !u.isLord);
+      expect(npc).toBeTruthy();
+      expect(npc.className).toBe('Mercenary');
+      expect(npc.tier).toBe('base');
+      expect(npc.level).toBe(4);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  it('recruit-node lord stays at full level on failed promotion roll', () => {
+    const gameData = loadGameData();
+    const runRoster = makeLordRestrictedRoster(gameData, 'Voss');
+    let callCount = 0;
+    const randomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) return 0.99; // recruit level roll
+      if (callCount === 2) return 0.0; // force lord slot
+      if (callCount === 3) return 0.0; // select available lord
+      if (callCount === 4) return 0.95; // lord promotion roll fails
+      return 0.0;
+    });
+    try {
+      const scene = makeBattleSceneWithLords({
+        act: 'act4',
+        npcClassName: 'Hero',
+        runRoster,
+      });
+      BattleScene.prototype.beginBattle.call(scene, scene.roster);
+      const lordNpc = scene.npcUnits.find((u) => u.isLord);
+      expect(lordNpc).toBeTruthy();
+      expect(lordNpc.name).toBe('Voss');
+      expect(lordNpc.className).toBe('Ranger');
+      expect(lordNpc.tier).toBe('base');
+      expect(lordNpc.level).toBe(10);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it('uses matching promoted-level targets for recruit-node lord and regular promoted recruit paths', () => {
     const gameData = loadGameData();
 
     // Regular promoted recruit path (no lord slot).
-    const regularRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    let regularCallCount = 0;
+    const regularRandomSpy = vi.spyOn(Math, 'random').mockImplementation(() => {
+      regularCallCount++;
+      if (regularCallCount === 1) return 0.99; // recruit level roll: no -1
+      if (regularCallCount === 2) return 0.99; // no lord spawn
+      if (regularCallCount === 3) return 0.1; // promotion success
+      return 0.1;
+    });
     let regularLevel = null;
     try {
       const regularScene = makeBattleSceneWithLords({
@@ -256,7 +342,9 @@ describe('BattleScene recruit-node lord meta bonus', () => {
       callCount++;
       if (callCount === 1) return 0.99; // recruit level roll: no -1
       if (callCount === 2) return 0.0; // force lord chance
-      return 0.0;
+      if (callCount === 3) return 0.0; // pick lord
+      if (callCount === 4) return 0.1; // lord promotion success
+      return 0.1;
     });
     try {
       const lordScene = makeBattleSceneWithLords({
