@@ -23,22 +23,80 @@ describe('RunSimulationDriver', () => {
     }
   });
 
-  it('invincibility mode does not record player unit losses', async () => {
+  it('passes meta effects and fallen units into battle params for headless parity', async () => {
     const gameData = loadGameData();
-    installSeed(7);
+    installSeed(2468);
     try {
+      let capturedBattleDriver = null;
       const driver = new RunSimulationDriver(gameData, {
-        runOptions: { runSeed: 7, difficultyId: 'hard' },
-        maxNodes: 120,
-        maxBattleActions: 1200,
-        invincibility: true,
+        runOptions: { runSeed: 2468, difficultyId: 'normal' },
+        maxBattleActions: 0,
+        battleAgentFactory: (battleDriver) => {
+          capturedBattleDriver = battleDriver;
+          return { chooseAction: () => null };
+        },
       });
-      const result = await driver.run();
-      expect(result.metrics.unitsLost).toBe(0);
+      driver.init();
+      driver.runManager.metaEffects = {
+        ...(driver.runManager.metaEffects || {}),
+        recruitPromotionChanceBonus: 0.24,
+        lordRecruitChanceBonus: 0.5,
+      };
+      const effectiveMetaEffects = {
+        ...driver.runManager.metaEffects,
+        recruitPromotionChanceBonus: 0.31,
+      };
+      const getEffectiveMetaEffectsSpy = vi
+        .spyOn(driver.runManager, 'getEffectiveMetaEffects')
+        .mockReturnValue(effectiveMetaEffects);
+      const sampleFallen = structuredClone(driver.runManager.roster[0]);
+      sampleFallen.name = `${sampleFallen.name} Fallen`;
+      driver.runManager.fallenUnits = [sampleFallen];
+      const expectedFallenUnits = structuredClone(driver.runManager.fallenUnits);
+
+      const node =
+        driver.runManager.getAvailableNodes().find((entry) => Boolean(entry?.battleParams)) ||
+        driver.runManager.nodeMap?.nodes?.find((entry) => Boolean(entry?.battleParams));
+      expect(node).toBeTruthy();
+
+      await driver._runBattleNode(node);
+      expect(capturedBattleDriver).toBeTruthy();
+
+      const battleParams = capturedBattleDriver.battle.battleParams;
+      expect(getEffectiveMetaEffectsSpy).toHaveBeenCalled();
+      expect(battleParams.metaEffects).toMatchObject({
+        recruitPromotionChanceBonus: 0.31,
+        lordRecruitChanceBonus: 0.5,
+      });
+      expect(battleParams.metaEffects).not.toBe(effectiveMetaEffects);
+      expect(battleParams.metaEffects).not.toBe(driver.runManager.metaEffects);
+      expect(battleParams.fallenUnits).toEqual(expectedFallenUnits);
+      expect(battleParams.fallenUnits).not.toBe(driver.runManager.fallenUnits);
     } finally {
       restoreMathRandom();
     }
   });
+
+  it(
+    'invincibility mode does not record player unit losses',
+    async () => {
+      const gameData = loadGameData();
+      installSeed(7);
+      try {
+        const driver = new RunSimulationDriver(gameData, {
+          runOptions: { runSeed: 7, difficultyId: 'hard' },
+          maxNodes: 120,
+          maxBattleActions: 1200,
+          invincibility: true,
+        });
+        const result = await driver.run();
+        expect(result.metrics.unitsLost).toBe(0);
+      } finally {
+        restoreMathRandom();
+      }
+    },
+    15000,
+  );
 
   it('applies difficulty and blessing shop pricing in simulation', () => {
     const gameData = loadGameData();

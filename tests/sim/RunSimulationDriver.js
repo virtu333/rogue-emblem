@@ -157,6 +157,13 @@ export class RunSimulationDriver {
     this.metrics.battles++;
 
     const battleParams = this.runManager.getBattleParams(node) || {};
+    // Mirror runtime recruit/lord inputs consumed by HeadlessBattle.
+    battleParams.metaEffects = structuredClone(
+      this.runManager.getEffectiveMetaEffects?.() ?? this.runManager.metaEffects ?? null,
+    );
+    battleParams.fallenUnits = Array.isArray(this.runManager.fallenUnits)
+      ? structuredClone(this.runManager.fallenUnits)
+      : [];
     const deployLimits = DEPLOY_LIMITS[this.runManager.currentAct] || { min: 1, max: 4 };
     const deployBonus = this.runManager.getDeployBonus();
     const deployMax = Math.max(
