@@ -30,6 +30,30 @@ function makeTextObject() {
   };
 }
 
+function makeEmitter() {
+  const listeners = new Map();
+  return {
+    on(eventName, handler) {
+      if (!listeners.has(eventName)) listeners.set(eventName, new Set());
+      listeners.get(eventName).add(handler);
+    },
+    off(eventName, handler) {
+      const handlers = listeners.get(eventName);
+      if (!handlers) return;
+      handlers.delete(handler);
+      if (handlers.size === 0) listeners.delete(eventName);
+    },
+    emit(eventName, ...args) {
+      const handlers = listeners.get(eventName);
+      if (!handlers) return;
+      [...handlers].forEach((handler) => handler(...args));
+    },
+    listenerCount(eventName) {
+      return listeners.get(eventName)?.size || 0;
+    },
+  };
+}
+
 function makeBannerScene() {
   const banner = makeTextObject();
   return {
@@ -56,11 +80,14 @@ function makeBannerScene() {
 
 function makeUiCameraScene() {
   const scene = new BattleScene();
+  const scale = makeEmitter();
   const uiCamera = {
     id: 2,
     setRoundPixels: vi.fn().mockReturnThis(),
+    setSize: vi.fn().mockReturnThis(),
   };
   scene.mobileCameraEnabled = true;
+  scene.scale = scale;
   scene.cameras = {
     main: {
       id: 1,
@@ -82,7 +109,7 @@ function makeUiCameraScene() {
     pointer2: null,
   };
   scene._syncPinnedUiCameraFilters = vi.fn();
-  return { scene, uiCamera };
+  return { scene, uiCamera, scale };
 }
 
 describe('BattleScene mobile camera UI pinning', () => {
@@ -219,5 +246,29 @@ describe('BattleScene UI camera dirty tracking', () => {
     expect(scene.cameras.remove).toHaveBeenCalledWith(uiCamera);
     expect(battleCamera.destroy).toHaveBeenCalledTimes(1);
     expect(scene._displayListDirtyHandler).toBeNull();
+  });
+});
+
+describe('BattleScene UI camera resize sync', () => {
+  it('resizes and cleans up the UI camera resize listener', () => {
+    const { scene, uiCamera, scale } = makeUiCameraScene();
+    scene._setBattleCanvasTouchAction = vi.fn();
+    scene._syncMobileResetViewButton = vi.fn();
+    scene.isMobileInput = false;
+
+    BattleScene.prototype._setupBattleCameraSystem.call(scene);
+    expect(scale.listenerCount('resize')).toBe(1);
+
+    scene.cameras.main.width = 800;
+    scene.cameras.main.height = 600;
+    scale.emit('resize');
+    expect(uiCamera.setSize).toHaveBeenCalledWith(800, 600);
+
+    BattleScene.prototype._teardownBattleCameraSystem.call(scene);
+    expect(scale.listenerCount('resize')).toBe(0);
+
+    uiCamera.setSize.mockClear();
+    scale.emit('resize');
+    expect(uiCamera.setSize).not.toHaveBeenCalled();
   });
 });

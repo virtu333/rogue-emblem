@@ -13,6 +13,7 @@ import {
 } from './utils/startupTelemetry.js';
 import { reportAsyncError } from './utils/errorReporter.js';
 import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
+import { createViewportReconciler } from './utils/viewportReconciler.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -336,6 +337,12 @@ function bootGame(user) {
   if (startupFlags.isMobile) {
     new MobileControls(window[GAME_INSTANCE_KEY]).show();
   }
+  const viewportReconciler = createViewportReconciler({
+    enabled: startupFlags.isMobile,
+    gameGetter: () => window[GAME_INSTANCE_KEY],
+    mark: markStartup,
+  });
+  viewportReconciler.start();
   markStartup('phaser_boot_complete');
   return true;
 }

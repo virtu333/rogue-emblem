@@ -287,6 +287,7 @@ export class BattleScene extends Phaser.Scene {
     this._lastChildrenCount = -1;
     this._displayListDirtyHandler = null;
     this._battleCanvasTouchActionPrev = null;
+    this._scaleResizeHandler = null;
     this.inspectMode = false;
     this._touchHoldTimer = null;
     this._touchHoldStart = null;
@@ -3436,10 +3437,23 @@ export class BattleScene extends Phaser.Scene {
     this._battleCamera.resetView();
     this._setBattleCanvasTouchAction(true);
     this._syncMobileResetViewButton();
+    if (!this._scaleResizeHandler && this.scale?.on) {
+      this._scaleResizeHandler = () => {
+        if (!this._uiCamera) return;
+        const worldCam = this.cameras?.main;
+        if (!worldCam) return;
+        this._uiCamera.setSize(worldCam.width, worldCam.height);
+      };
+      this.scale.on('resize', this._scaleResizeHandler);
+    }
   }
 
   _teardownBattleCameraSystem() {
     this._setBattleCanvasTouchAction(false);
+    if (this._scaleResizeHandler) {
+      this.scale?.off?.('resize', this._scaleResizeHandler);
+      this._scaleResizeHandler = null;
+    }
 
     if (this._battleCamera) {
       this._battleCamera.destroy();
