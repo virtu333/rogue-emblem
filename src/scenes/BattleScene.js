@@ -8484,7 +8484,7 @@ export class BattleScene extends Phaser.Scene {
         })
         .setDepth(textDepth);
       this.forecastObjects.push(skillText);
-      y += 12;
+      y += skillText.height + 2;
     }
 
     if (isAttacker && this._forecastWeaponArt) {
@@ -8505,7 +8505,7 @@ export class BattleScene extends Phaser.Scene {
         )
         .setDepth(textDepth);
       this.forecastObjects.push(artText);
-      y += 12;
+      y += artText.height + 2;
     }
 
     if (isAttacker && this._forecastGamblerLine) {
@@ -8518,7 +8518,7 @@ export class BattleScene extends Phaser.Scene {
         })
         .setDepth(textDepth);
       this.forecastObjects.push(gamblerText);
-      y += 12;
+      y += gamblerText.height + 2;
     }
 
     if (info.warnings?.length) {
@@ -8618,14 +8618,14 @@ export class BattleScene extends Phaser.Scene {
     const _atkSkills = forecast.attacker.skills || [];
     const _hasMiracle = (u) =>
       u.skills?.some((s) => (typeof s === 'string' ? s : s?.id) === 'miracle');
-    if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 12;
-    if (this._forecastWeaponArt) _atkExtraH += 12;
-    if (this._forecastGamblerLine) _atkExtraH += 12;
+    if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 24;
+    if (this._forecastWeaponArt) _atkExtraH += 24;
+    if (this._forecastGamblerLine) _atkExtraH += 24;
     if (forecast.attacker.warnings?.length)
       _atkExtraH += 2 + forecast.attacker.warnings.length * 14;
     let _defExtraH = 0;
     const _defSkills = forecast.defender.skills || [];
-    if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 12;
+    if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 24;
     if (forecast.defender.warnings?.length)
       _defExtraH += 2 + forecast.defender.warnings.length * 14;
     const panelH = Math.max(152, 152 + Math.max(_atkExtraH, _defExtraH));

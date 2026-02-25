@@ -1024,17 +1024,17 @@ export class NodeMapScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Gold display + info labels (dynamic stacking to avoid overlap with MAP_TOP)
-    let infoY = 20;
+    // Gold display + info labels (dynamic stacking to stay above MAP_TOP=60)
+    let infoY = 14;
     const infoX = this.cameras.main.width - 20;
     this.add
       .text(infoX, infoY, `${rm.gold}G`, {
         fontFamily: 'monospace',
-        fontSize: '14px',
+        fontSize: '12px',
         color: '#ffdd44',
       })
       .setOrigin(1, 0);
-    infoY += 14;
+    infoY += 12;
 
     // Difficulty label (non-Normal only)
     const diffLabel = rm.difficultyModifiers?.label || 'Normal';
@@ -1047,7 +1047,7 @@ export class NodeMapScene extends Phaser.Scene {
           color: diffColor,
         })
         .setOrigin(1, 0);
-      infoY += 12;
+      infoY += 11;
     }
 
     // No Meta indicator
@@ -1059,7 +1059,7 @@ export class NodeMapScene extends Phaser.Scene {
           color: '#ff8800',
         })
         .setOrigin(1, 0);
-      infoY += 12;
+      infoY += 11;
     }
 
     // Win streak display (only when >= 2)
