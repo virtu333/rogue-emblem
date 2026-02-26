@@ -1249,6 +1249,13 @@ function generateEnemies(
           }
         }
       }
+      // Restore Throne under entity if footprint overwrote it
+      if (thronePos) {
+        const throneIdx = terrainNameToIndex('Throne', terrainData);
+        if (throneIdx >= 0 && mapLayout[thronePos.row]) {
+          mapLayout[thronePos.row][thronePos.col] = throneIdx;
+        }
+      }
       spawns.push({
         className: bossDef.className,
         level: bossDef.level,

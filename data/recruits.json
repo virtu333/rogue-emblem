@@ -18,7 +18,9 @@
     "Sage":           ["Vaelan", "Merric", "Arcanis", "Sage", "Grimoire", "Tomes"],
     "Assassin":       ["Shade", "Phantom", "Whisper", "Null", "Echo", "Wraith"],
     "Sniper":         ["Faye", "Hawkeye", "Bullseye", "Keen", "Vera", "Artemis"],
-    "Bishop":         ["Io", "Lumina", "Aurel", "Clement", "Solace", "Grace"]
+    "Bishop":         ["Io", "Lumina", "Aurel", "Clement", "Solace", "Grace"],
+    "Paladin":        ["Aldric", "Helena", "Marcus", "Rowena", "Cyrus", "Percival"],
+    "Warrior":        ["Galvin", "Bram", "Tormund", "Halvar", "Bjorn", "Theron"]
   },
   "act1": {
     "levelRange": [1, 3],

@@ -52,7 +52,7 @@ export function isPromotedRecruitSource(classData, classesData) {
   if (!classData || classData.tier !== 'promoted') return false;
   const baseClassName = classData.promotesFrom;
   if (typeof baseClassName !== 'string' || baseClassName.trim().length === 0) return false;
-  if (!Array.isArray(classesData) || classesData.length === 0) return true;
+  if (!Array.isArray(classesData) || classesData.length === 0) return false;
   return classesData.some((candidate) => candidate?.name === baseClassName);
 }
 

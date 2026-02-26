@@ -1,5 +1,7 @@
 // MapTemplateEngine.js - Map template contract helpers (including reinforcements).
 
+import { ENTITY_FOOTPRINT } from '../utils/constants.js';
+
 export const REINFORCEMENT_CONTRACT_VERSION = 1;
 
 const TEMPLATE_OBJECTIVES = ['rout', 'seize'];
@@ -735,7 +737,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         ) {
           const [fc, fr] = template.fixedSize;
           const [ec, er] = template.entitySpawn;
-          if (ec + 3 > fc || er + 3 > fr) {
+          if (ec + ENTITY_FOOTPRINT.width > fc || er + ENTITY_FOOTPRINT.height > fr) {
             errors.push(`${path}.entitySpawn 3x3 footprint exceeds fixedSize bounds`);
           }
         }

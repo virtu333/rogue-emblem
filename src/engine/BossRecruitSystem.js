@@ -380,6 +380,7 @@ export function generateBossRecruitCandidates(
     }
 
     const resolvedEntry = { ...sourceEntry, className: resolvedClassName };
+    // Initial name from class pool; makeUniqueRecruitName below is the final authority for dedup
     const recruitName = pickUniqueRecruitNameForClass(resolvedEntry, recruits, takenNames, classes);
     const unit = createRecruitFromPool(
       { ...resolvedEntry, name: recruitName },
@@ -413,9 +414,11 @@ export function generateBossRecruitCandidates(
   if (chosenLord) {
     const lordClassData = classes.find((c) => c.name === chosenLord.class);
     if (lordClassData) {
-      const poolPromotionSource = recruitPool
+      // Gate lord promotion on whether the recruit pool has promoted sources (act-gating).
+      // Use the lord's own promoted class data for the promotion roll instead of a random pool entry.
+      const poolHasPromotedSource = recruitPool
         .map((entry) => classes.find((c) => c.name === entry.className))
-        .find((entry) => isPromotedRecruitSource(entry, classes));
+        .some((entry) => isPromotedRecruitSource(entry, classes));
       const lordPromotedClassData =
         typeof chosenLord?.promotedClass === 'string'
           ? classes.find((c) => c.name === chosenLord.promotedClass)
@@ -425,8 +428,8 @@ export function generateBossRecruitCandidates(
         (chosenLord?.promotionBonuses || lordPromotedClassData?.promotionBonuses),
       );
       const lordRoll =
-        canPromoteLord && poolPromotionSource
-          ? rollRecruitPromotion(promotionContext, poolPromotionSource, metaEffects, Math.random)
+        canPromoteLord && poolHasPromotedSource
+          ? rollRecruitPromotion(promotionContext, lordPromotedClassData, metaEffects, Math.random)
           : { eligible: false, promote: false };
 
       const unit = createBossLordUnit(

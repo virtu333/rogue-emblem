@@ -2604,7 +2604,7 @@ describe('Entity map generation', () => {
     expect(config.thronePos.row).toBe(5);
   });
 
-  it('Entity spawn has Floor on all 9 footprint tiles', () => {
+  it('Entity spawn has Floor on footprint tiles (Throne restored at origin)', () => {
     const config = withSeed(42, () =>
       generateBattle(
         {
@@ -2618,11 +2618,18 @@ describe('Entity map generation', () => {
       ),
     );
     const floorIdx = data.terrain.findIndex((t) => t.name === 'Floor');
+    const throneIdx = data.terrain.findIndex((t) => t.name === 'Throne');
     const entityCol = 11;
     const entityRow = 5;
     for (let dc = 0; dc < 3; dc++) {
       for (let dr = 0; dr < 3; dr++) {
-        expect(config.mapLayout[entityRow + dr][entityCol + dc]).toBe(floorIdx);
+        const tile = config.mapLayout[entityRow + dr][entityCol + dc];
+        if (dc === 0 && dr === 0) {
+          // Throne restored at entity origin (seize target)
+          expect(tile).toBe(throneIdx);
+        } else {
+          expect(tile).toBe(floorIdx);
+        }
       }
     }
   });

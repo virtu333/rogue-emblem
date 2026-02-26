@@ -310,6 +310,7 @@ export const ENTITY_CRIT_DMG_MULT = 1.5;
 export const ENTITY_SPLASH_COUNT = 2;
 export const ENTITY_SPLASH_DAMAGE = [5, 10];
 export const ENTITY_PRIMARY_ATTACK_RANGE = 2;
+export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];
 
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };

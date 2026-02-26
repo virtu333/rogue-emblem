@@ -115,7 +115,9 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   const bossRules = config?.config?.bossAffixRules;
 
   return enemySpawns.map((spawn) => {
-    // Entity boss gets curated affixes from bossAffixRules
+    // Entity bosses use curated affixes when bossAffixRules.enabled is true.
+    // If disabled, they fall through to the regular boss skip (line below) and get no affixes.
+    // This is intentional — entity bosses should only receive curated affixes, never random ones.
     if (spawn?.isBoss && spawn.isEntity && bossRules?.enabled) {
       const entityPool = (config.affixes || []).filter(
         (a) =>

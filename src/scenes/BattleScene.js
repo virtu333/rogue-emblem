@@ -135,6 +135,7 @@ import {
   ENTITY_SPLASH_COUNT,
   ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
+  ENTITY_WEAPON_NAMES,
 } from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
@@ -345,6 +346,13 @@ export class BattleScene extends Phaser.Scene {
     this._mobileHandlers = null;
     this._lootCleanupTimeout = null;
     this._reinforcementsPendingThisTurn = false;
+    this.lootSettingsOverlay = null;
+    this.lootRosterVisible = false;
+    this.defeatRecoveryPrompt = null;
+    this.victoryRecoveryPrompt = null;
+    this.debugOverlay = null;
+    this.lootGroup = null;
+    this.pauseOverlay = null;
   }
 
   create() {
@@ -403,6 +411,11 @@ export class BattleScene extends Phaser.Scene {
       this.dialogueOverlay.destroy();
       this.dialogueOverlay = null;
     }
+
+    if (this.pauseOverlay?.hide) this.pauseOverlay.hide();
+    this.pauseOverlay = null;
+    this.lootSettingsOverlay = null;
+    this.debugOverlay = null;
 
     if (this._mobileHandlers) {
       const ge = this.game?.events;
@@ -1907,9 +1920,11 @@ export class BattleScene extends Phaser.Scene {
       enemy.isEntity = true;
       // Dual weapon assignment — Entity gets both Eldritch Grasp and Twisting Vortex
       const entityWeapons = this.gameData.weapons
-        .filter((w) => ['Eldritch Grasp', 'Twisting Vortex'].includes(w.name))
+        .filter((w) => ENTITY_WEAPON_NAMES.includes(w.name))
         .map((w) => structuredClone(w));
-      if (entityWeapons.length > 0) {
+      if (entityWeapons.length === 0) {
+        console.warn('Entity spawn missing expected weapons:', ENTITY_WEAPON_NAMES);
+      } else if (entityWeapons.length > 0) {
         enemy.inventory = entityWeapons;
         enemy.weapon = entityWeapons[0];
       }
@@ -3234,15 +3249,25 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateHPBar(unit) {
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const barWidth = TILE_SIZE - 6;
-    const barY = pos.y + TILE_SIZE / 2 - 4;
+    let pos, barWidth, barHeight;
+    if (isEntity(unit)) {
+      const center = getEntityCenter(unit);
+      pos = this.grid.gridToPixel(center.col, center.row);
+      barWidth = TILE_SIZE * ENTITY_FOOTPRINT.width - 8;
+      barHeight = 4;
+    } else {
+      pos = this.grid.gridToPixel(unit.col, unit.row);
+      barWidth = TILE_SIZE - 6;
+      barHeight = 3;
+    }
+    const entityH = isEntity(unit) ? TILE_SIZE * ENTITY_FOOTPRINT.height : TILE_SIZE;
+    const barY = pos.y + entityH / 2 - 4;
     const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
     unit.hpBar.bg.setPosition(pos.x, barY);
     unit.hpBar.fill.setPosition(pos.x - barWidth / 2 + fillWidth / 2, barY);
-    unit.hpBar.fill.setSize(fillWidth, 3);
+    unit.hpBar.fill.setSize(fillWidth, barHeight);
     unit.hpBar.fill.setFillStyle(getHPBarColor(ratio));
   }
 
@@ -10277,6 +10302,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Process turn-start effects (skills + affixes) (after banner settles)
       this.time.delayedCall(1200, async () => {
+        if (!this.scene?.isActive?.()) return;
         await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
         await this.processBallistaFire(this.enemyUnits, 'player');
       });
@@ -10284,6 +10310,7 @@ export class BattleScene extends Phaser.Scene {
       // Tutorial hints (after phase banner fades)
       if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
         this.time.delayedCall(1500, async () => {
+          if (!this.scene?.isActive?.()) return;
           const prevState = this.battleState;
           this.battleState = 'TUTORIAL_HINT';
           await showImportantHint(
@@ -10305,6 +10332,7 @@ export class BattleScene extends Phaser.Scene {
       } else if (this.battleParams.tutorialMode && !this._tutorialVisionIntroShown && turn === 3) {
         this._tutorialVisionIntroShown = true;
         this.time.delayedCall(1500, async () => {
+          if (!this.scene?.isActive?.()) return;
           const prevState = this.battleState;
           this.battleState = 'TUTORIAL_HINT';
           await showImportantHint(this, this._getVisionRewindIntroHint());
@@ -10317,6 +10345,7 @@ export class BattleScene extends Phaser.Scene {
         const hints = this.registry.get('hints');
         if (hints && turn === 1) {
           this.time.delayedCall(1500, async () => {
+            if (!this.scene?.isActive?.()) return;
             if (hints.shouldShow('battle_first_turn')) {
               const inspectHint = this.isMobileInput
                 ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
@@ -10353,6 +10382,7 @@ export class BattleScene extends Phaser.Scene {
       }
       // End-of-player-phase terrain hazards, then enemy turn start effects.
       this.time.delayedCall(1400, async () => {
+        if (!this.scene?.isActive?.()) return;
         await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
         await this.processZombieRevival();
@@ -10453,6 +10483,7 @@ export class BattleScene extends Phaser.Scene {
         if (target.currentHP <= 0) {
           await this.removeUnit(target, { killer: null });
           this.checkBattleEnd();
+          if (this.battleState === 'BATTLE_END') return;
         }
       } else if (target.graphic) {
         const pos = this.grid.gridToPixel(target.col, target.row);
@@ -11075,6 +11106,8 @@ export class BattleScene extends Phaser.Scene {
       await new Promise((resolve) => this.time.delayedCall(200, resolve));
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
+        this.checkBattleEnd();
+        if (this.battleState === 'BATTLE_END') return;
       }
     }
   }

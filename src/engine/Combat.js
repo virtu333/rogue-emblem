@@ -1370,6 +1370,7 @@ export function resolveCombat(
           { attackerSide, targetSide },
           drainPct,
           strikePerHitHeal,
+          strikeCritMult,
         );
         bonusEvt.adeptStrike = true;
         if (isAttackingDefender) {

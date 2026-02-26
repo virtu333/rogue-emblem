@@ -231,6 +231,7 @@ describe('BattleScene reinforcement reward scaling', () => {
     const scene = new BattleScene();
     const order = [];
 
+    scene.scene = { isActive: () => true };
     scene.showPhaseBanner = vi.fn();
     scene.dangerZone = { hide: vi.fn() };
     scene.updateAntiTurtlePressure = vi.fn();
