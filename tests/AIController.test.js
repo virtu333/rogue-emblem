@@ -860,6 +860,74 @@ describe('AIController', () => {
     });
   });
 
+  describe('Entity weapon selection', () => {
+    it('picks Tome over Sword vs high-DEF/low-RES target', () => {
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      const entity = {
+        isEntity: true,
+        col: 5,
+        row: 5,
+        stats: { HP: 120, STR: 24, MAG: 22, DEF: 22, RES: 20 },
+        currentHP: 120,
+        faction: 'enemy',
+        inventory: [
+          { name: 'Eldritch Grasp', type: 'Sword', might: 15, range: '1-4' },
+          { name: 'Twisting Vortex', type: 'Tome', might: 14, range: '1-4' },
+        ],
+        weapon: null,
+      };
+      entity.weapon = entity.inventory[0];
+
+      // Target with high DEF, low RES — magic should deal more damage
+      const target = makePlayer({
+        col: 6,
+        row: 5,
+        stats: { HP: 30, STR: 10, MAG: 5, DEF: 30, RES: 5 },
+        currentHP: 30,
+      });
+
+      const decision = ai._decideEntityAction(entity, [target], []);
+      // Should pick Twisting Vortex (Tome): MAG(22)+14-RES(5)=31 vs STR(24)+15-DEF(30)=9
+      expect(entity.weapon.name).toBe('Twisting Vortex');
+      expect(decision.target).not.toBeNull();
+    });
+
+    it('picks Sword over Tome vs high-RES/low-DEF target', () => {
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      const entity = {
+        isEntity: true,
+        col: 5,
+        row: 5,
+        stats: { HP: 120, STR: 24, MAG: 22, DEF: 22, RES: 20 },
+        currentHP: 120,
+        faction: 'enemy',
+        inventory: [
+          { name: 'Eldritch Grasp', type: 'Sword', might: 15, range: '1-4' },
+          { name: 'Twisting Vortex', type: 'Tome', might: 14, range: '1-4' },
+        ],
+        weapon: null,
+      };
+      entity.weapon = entity.inventory[0];
+
+      // Target with low DEF, high RES — physical should deal more damage
+      const target = makePlayer({
+        col: 6,
+        row: 5,
+        stats: { HP: 30, STR: 10, MAG: 5, DEF: 5, RES: 30 },
+        currentHP: 30,
+      });
+
+      const decision = ai._decideEntityAction(entity, [target], []);
+      // Should pick Eldritch Grasp (Sword): STR(24)+15-DEF(5)=34 vs MAG(22)+14-RES(30)=6
+      expect(entity.weapon.name).toBe('Eldritch Grasp');
+      expect(decision.target).not.toBeNull();
+    });
+  });
+
   describe('Status staff targeting', () => {
     it('enemy with status staff targets player in range', () => {
       const player = makePlayer({ col: 7, row: 5, isLord: true });

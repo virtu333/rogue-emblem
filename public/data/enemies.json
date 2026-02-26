@@ -62,7 +62,8 @@
       { "className": "General", "level": 20, "name": "The Emperor" }
     ],
     "finalBoss": [
-      { "className": "Hero", "level": 20, "name": "The Lieutenant" }
+      { "className": "Hero", "level": 20, "name": "The Lieutenant", "difficultyFilter": ["normal"] },
+      { "className": "Entity", "level": 20, "name": "The Entity", "isEntity": true, "difficultyFilter": ["lunatic"] }
     ]
   },
   "enemyCountByTiles": {

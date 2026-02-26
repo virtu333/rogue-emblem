@@ -561,7 +561,7 @@
       "id": "great_hall",
       "name": "Great Hall",
       "fogChance": 0.10,
-      "acts": ["act2", "act3", "act4", "finalBoss"],
+      "acts": ["act2", "act3", "act4"],
       "biome": "castle",
       "zones": [
         {
@@ -1020,6 +1020,42 @@
         ],
         "difficultyScaling": true,
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
+        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+      }
+    },
+    {
+      "id": "eldritch_sanctum",
+      "name": "Eldritch Sanctum",
+      "fogChance": 0,
+      "acts": ["finalBoss"],
+      "biome": "void",
+      "bossOnly": true,
+      "fixedSize": [16, 14],
+      "entitySpawn": [11, 5],
+      "zones": [
+        { "rect": [0, 0, 1, 1], "terrain": {"Floor": 70, "Wall": 20, "Lava Crack": 10}, "priority": 0 },
+        { "rect": [0, 0, 0.5, 1], "terrain": {"Floor": 55, "Wall": 30, "Pillar": 10, "Lava Crack": 5}, "priority": 1 },
+        { "rect": [0.5, 0, 1, 1], "terrain": {"Floor": 80, "Pillar": 15, "Lava Crack": 5}, "priority": 1 },
+        { "rect": [0, 0, 0.15, 1], "terrain": {"Floor": 90, "Pillar": 10}, "priority": 2, "role": "playerSpawn" },
+        { "rect": [0.55, 0.15, 0.95, 0.85], "terrain": {"Floor": 90, "Pillar": 10}, "priority": 2, "role": "enemySpawn" }
+      ],
+      "features": [
+        { "type": "Throne", "position": "entityAnchor" }
+      ],
+      "anchors": [],
+      "structures": [
+        { "type": "pillar_grid", "rect": [0.55, 0.15, 0.95, 0.85], "spacing": 4 }
+      ],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": ["left", "top", "bottom"],
+        "waves": [
+          { "turn": 4, "count": [2, 3], "edges": ["left"] },
+          { "turn": 7, "count": [2, 3], "edges": ["top", "bottom"] },
+          { "turn": 10, "count": [3, 4], "edges": ["left", "top", "bottom"] }
+        ],
+        "difficultyScaling": false,
+        "turnOffsetByDifficulty": { "normal": 0, "hard": 0, "lunatic": 0 },
         "xpDecay": [1.0, 0.75, 0.5, 0.25]
       }
     }

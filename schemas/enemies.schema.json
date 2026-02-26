@@ -36,7 +36,12 @@
             "properties": {
               "className": { "type": "string" },
               "level": { "type": "integer", "minimum": 1 },
-              "name": { "type": "string" }
+              "name": { "type": "string" },
+              "difficultyFilter": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["normal", "hard", "lunatic"] }
+              },
+              "isEntity": { "type": "boolean" }
             },
             "required": ["className", "level", "name"],
             "additionalProperties": false

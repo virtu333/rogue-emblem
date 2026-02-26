@@ -1478,5 +1478,31 @@
     "range": "1-2",
     "special": "",
     "price": 0
+  },
+  {
+    "name": "Eldritch Grasp",
+    "type": "Sword",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 15,
+    "hit": 85,
+    "crit": 5,
+    "weight": 0,
+    "range": "1-4",
+    "special": "",
+    "price": 0
+  },
+  {
+    "name": "Twisting Vortex",
+    "type": "Tome",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 14,
+    "hit": 90,
+    "crit": 5,
+    "weight": 0,
+    "range": "1-4",
+    "special": "",
+    "price": 0
   }
 ]

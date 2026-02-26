@@ -423,4 +423,100 @@ describe('MapTemplateEngine', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.some((e) => e.includes('extraWavesByDifficulty'))).toBe(true);
   });
+
+  describe('fixedSize validation', () => {
+    it('accepts valid fixedSize', () => {
+      const good = JSON.parse(JSON.stringify(mapTemplates));
+      good.rout[0].fixedSize = [20, 15];
+      const result = validateMapTemplatesConfig(good);
+      expect(result.errors.filter((e) => e.includes('fixedSize'))).toEqual([]);
+    });
+
+    it('rejects non-array fixedSize', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = 'big';
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('fixedSize must be [cols, rows]'))).toBe(true);
+    });
+
+    it('rejects fixedSize with wrong length', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = [20];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('fixedSize must be [cols, rows]'))).toBe(true);
+    });
+
+    it('rejects fixedSize with non-integer values', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = [20.5, 15];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('fixedSize must be [cols, rows]'))).toBe(true);
+    });
+
+    it('rejects fixedSize with zero dimension', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = [0, 15];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('fixedSize must be [cols, rows]'))).toBe(true);
+    });
+  });
+
+  describe('entitySpawn validation', () => {
+    it('accepts valid entitySpawn', () => {
+      const good = JSON.parse(JSON.stringify(mapTemplates));
+      good.rout[0].fixedSize = [20, 15];
+      good.rout[0].entitySpawn = [10, 5];
+      const result = validateMapTemplatesConfig(good);
+      expect(result.errors.filter((e) => e.includes('entitySpawn'))).toEqual([]);
+    });
+
+    it('rejects non-array entitySpawn', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].entitySpawn = { col: 5, row: 5 };
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('entitySpawn must be [col, row]'))).toBe(true);
+    });
+
+    it('rejects entitySpawn with negative coordinates', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].entitySpawn = [-1, 5];
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('entitySpawn must be [col, row]'))).toBe(true);
+    });
+
+    it('rejects entitySpawn that exceeds fixedSize bounds', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = [10, 10];
+      bad.rout[0].entitySpawn = [9, 5]; // 9+3=12 > 10
+      const result = validateMapTemplatesConfig(bad);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes('3x3 footprint exceeds fixedSize bounds'))).toBe(
+        true,
+      );
+    });
+
+    it('accepts entitySpawn that fits exactly in fixedSize', () => {
+      const good = JSON.parse(JSON.stringify(mapTemplates));
+      good.rout[0].fixedSize = [10, 10];
+      good.rout[0].entitySpawn = [7, 7]; // 7+3=10 == 10
+      const result = validateMapTemplatesConfig(good);
+      expect(result.errors.filter((e) => e.includes('entitySpawn'))).toEqual([]);
+    });
+
+    it('skips bounds check when fixedSize is invalid', () => {
+      const bad = JSON.parse(JSON.stringify(mapTemplates));
+      bad.rout[0].fixedSize = 'big';
+      bad.rout[0].entitySpawn = [5, 5];
+      const result = validateMapTemplatesConfig(bad);
+      // Should report fixedSize error but not crash on bounds check
+      expect(result.errors.some((e) => e.includes('fixedSize must be'))).toBe(true);
+      expect(result.errors.some((e) => e.includes('3x3 footprint'))).toBe(false);
+    });
+  });
 });

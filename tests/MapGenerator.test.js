@@ -2567,3 +2567,93 @@ describe('river crossing bridges', () => {
     }
   });
 });
+
+describe('Entity map generation', () => {
+  it('eldritch_sanctum template produces fixedSize 16x14', () => {
+    const config = withSeed(42, () =>
+      generateBattle(
+        {
+          act: 'finalBoss',
+          objective: 'seize',
+          templateId: 'eldritch_sanctum',
+          isBoss: true,
+          difficultyId: 'lunatic',
+        },
+        data,
+      ),
+    );
+    expect(config.cols).toBe(16);
+    expect(config.rows).toBe(14);
+  });
+
+  it('eldritch_sanctum has throne at entitySpawn position', () => {
+    const config = withSeed(42, () =>
+      generateBattle(
+        {
+          act: 'finalBoss',
+          objective: 'seize',
+          templateId: 'eldritch_sanctum',
+          isBoss: true,
+          difficultyId: 'lunatic',
+        },
+        data,
+      ),
+    );
+    expect(config.thronePos).toBeDefined();
+    expect(config.thronePos.col).toBe(11);
+    expect(config.thronePos.row).toBe(5);
+  });
+
+  it('Entity spawn has Floor on all 9 footprint tiles', () => {
+    const config = withSeed(42, () =>
+      generateBattle(
+        {
+          act: 'finalBoss',
+          objective: 'seize',
+          templateId: 'eldritch_sanctum',
+          isBoss: true,
+          difficultyId: 'lunatic',
+        },
+        data,
+      ),
+    );
+    const floorIdx = data.terrain.findIndex((t) => t.name === 'Floor');
+    const entityCol = 11;
+    const entityRow = 5;
+    for (let dc = 0; dc < 3; dc++) {
+      for (let dr = 0; dr < 3; dr++) {
+        expect(config.mapLayout[entityRow + dr][entityCol + dc]).toBe(floorIdx);
+      }
+    }
+  });
+
+  it('difficultyFilter selects Entity boss for lunatic', () => {
+    const config = withSeed(42, () =>
+      generateBattle(
+        {
+          act: 'finalBoss',
+          objective: 'seize',
+          templateId: 'eldritch_sanctum',
+          isBoss: true,
+          difficultyId: 'lunatic',
+        },
+        data,
+      ),
+    );
+    const entitySpawn = config.enemySpawns.find((s) => s.isBoss && s.isEntity);
+    expect(entitySpawn).toBeDefined();
+    expect(entitySpawn.className).toBe('Entity');
+  });
+
+  it('difficultyFilter selects Lieutenant boss for normal', () => {
+    const config = withSeed(42, () =>
+      generateBattle(
+        { act: 'finalBoss', objective: 'seize', isBoss: true, difficultyId: 'normal' },
+        data,
+      ),
+    );
+    const bossSpawn = config.enemySpawns.find((s) => s.isBoss);
+    expect(bossSpawn).toBeDefined();
+    expect(bossSpawn.className).toBe('Hero');
+  });
+});

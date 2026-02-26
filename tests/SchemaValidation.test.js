@@ -169,3 +169,50 @@ describe('Schema validation — negative (known-bad fixtures)', () => {
     expect(validate(bad)).toBe(false);
   });
 });
+
+describe('Entity schema validation', () => {
+  it('Entity bossClass entry passes classes schema', () => {
+    const validate = compileSchema('classes.schema.json');
+    const classes = loadData('classes.json');
+    expect(validate(classes)).toBe(true);
+    const entity = classes.find((c) => c.name === 'Entity');
+    expect(entity).toBeDefined();
+    expect(entity.tier).toBe('boss');
+  });
+
+  it('Entity boss definition passes enemies schema', () => {
+    const validate = compileSchema('enemies.schema.json');
+    const enemies = loadData('enemies.json');
+    expect(validate(enemies)).toBe(true);
+    const entityBoss = enemies.bosses.finalBoss.find((b) => b.isEntity);
+    expect(entityBoss).toBeDefined();
+    expect(entityBoss.className).toBe('Entity');
+    expect(entityBoss.difficultyFilter).toContain('lunatic');
+  });
+
+  it('bossClass rejects extra fields', () => {
+    const validate = compileSchema('classes.schema.json');
+    const bad = [
+      {
+        name: 'BadBoss',
+        tier: 'boss',
+        baseStats: {
+          HP: 100,
+          STR: 20,
+          MAG: 20,
+          SKL: 20,
+          SPD: 10,
+          DEF: 20,
+          RES: 20,
+          LCK: 10,
+          MOV: 0,
+        },
+        moveType: 'Infantry',
+        weaponProficiencies: 'Swords (M)',
+        role: 'test',
+        growthRanges: { HP: '50-60' },
+      },
+    ];
+    expect(validate(bad)).toBe(false);
+  });
+});

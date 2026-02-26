@@ -252,24 +252,10 @@ describe('Biome Regression — template reachability', () => {
     expect(seen.has('act3_dark_champion_keep')).toBe(true);
   });
 
-  it('great_hall acts includes finalBoss', () => {
+  it('great_hall acts does NOT include finalBoss', () => {
     const t = data.mapTemplates.seize.find((t) => t.id === 'great_hall');
     expect(t).toBeTruthy();
-    expect(t.acts).toContain('finalBoss');
-  });
-
-  it('finalBoss seize resolves to castle template (not grassland fallback)', () => {
-    const results = new Set();
-    for (let i = 0; i < 50; i++) {
-      const t = pickTemplate('seize', data.mapTemplates, 'finalBoss', { biome: 'castle' });
-      results.add(t.id);
-    }
-    // All results should be castle-biome templates
-    for (const id of results) {
-      const tmpl = data.mapTemplates.seize.find((t) => t.id === id);
-      expect(tmpl).toBeTruthy();
-      expect(getTemplateBiome(tmpl)).toBe('castle');
-    }
+    expect(t.acts).not.toContain('finalBoss');
   });
 
   it('ambush nodes get castle-biome templates at approximate act2 biome weight (integration)', () => {
@@ -342,8 +328,8 @@ describe('ACT_BIOME_WEIGHTS', () => {
     expect(ACT_BIOME_WEIGHTS.act3.castle).toBeGreaterThan(ACT_BIOME_WEIGHTS.act3.grassland);
   });
 
-  it('finalBoss is 100% castle', () => {
-    expect(ACT_BIOME_WEIGHTS.finalBoss).toEqual({ castle: 100 });
+  it('finalBoss is 100% void biome', () => {
+    expect(ACT_BIOME_WEIGHTS.finalBoss).toEqual({ void: 100 });
   });
 
   it('all acts in ACT_BIOME_WEIGHTS have positive total weight', () => {

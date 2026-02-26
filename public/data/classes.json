@@ -1320,5 +1320,16 @@
     "roleChange": "Dragon Scale innate, supreme magical tank",
     "learnableSkills": [{ "skillId": "dragon_scale", "level": 1 }],
     "description": "An ancient dragon lord — Dragon Scale reduces all incoming damage."
+  },
+  {
+    "name": "Entity",
+    "tier": "boss",
+    "baseStats": {
+      "HP": 120, "STR": 24, "MAG": 22, "SKL": 20, "SPD": 12, "DEF": 22, "RES": 20, "LCK": 15, "MOV": 0
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M), Tomes (M)",
+    "role": "Eldritch final boss",
+    "description": "An unknowable eldritch horror — occupies a 3x3 area and attacks at range with dual weapons."
   }
 ]

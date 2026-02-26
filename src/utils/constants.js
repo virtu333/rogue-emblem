@@ -300,8 +300,16 @@ export const ACT_BIOME_WEIGHTS = {
   act2: { grassland: 55, castle: 45 },
   act3: { grassland: 45, castle: 55 },
   act4: { grassland: 20, castle: 10, tundra: 35, volcano: 35 },
-  finalBoss: { castle: 100 },
+  finalBoss: { void: 100 },
 };
+
+// Entity (multi-tile eldritch boss)
+export const ENTITY_FOOTPRINT = { width: 3, height: 3 };
+export const ENTITY_CRIT_RATE_MULT = 0.5;
+export const ENTITY_CRIT_DMG_MULT = 1.5;
+export const ENTITY_SPLASH_COUNT = 2;
+export const ENTITY_SPLASH_DAMAGE = [5, 10];
+export const ENTITY_PRIMARY_ATTACK_RANGE = 2;
 
 // Fog of War
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };

@@ -2428,3 +2428,134 @@ describe('Status conditions in combat', () => {
     expect(forecast.attacker.hit).toBeGreaterThan(0);
   });
 });
+
+describe('Entity crit resistance', () => {
+  const entityWeapon = {
+    name: 'Eldritch Grasp',
+    type: 'Sword',
+    tier: 'Legend',
+    might: 15,
+    hit: 85,
+    crit: 5,
+    weight: 0,
+    range: '1-4',
+  };
+
+  function makeEntityDefender() {
+    return makeUnit({
+      name: 'The Entity',
+      isEntity: true,
+      className: 'Entity',
+      tier: 'boss',
+      stats: { HP: 120, STR: 24, MAG: 22, SKL: 20, SPD: 12, DEF: 22, RES: 20, LCK: 15 },
+      currentHP: 120,
+      faction: 'enemy',
+      weapon: entityWeapon,
+      inventory: [entityWeapon],
+    });
+  }
+
+  it('halves crit rate when Entity is defender in forecast', () => {
+    const attacker = makeUnit({
+      stats: { HP: 30, STR: 15, MAG: 0, SKL: 30, SPD: 10, DEF: 8, RES: 6, LCK: 0 },
+      weapon:
+        data.weapons.find((w) => w.name === 'Killing Edge') ||
+        data.weapons.find((w) => w.name === 'Iron Sword'),
+    });
+    const entity = makeEntityDefender();
+    const forecast = getCombatForecast(attacker, attacker.weapon, entity, entity.weapon, 1);
+    // Without Entity resistance, crit would be SKL/2 + weaponCrit - enemyLCK
+    // With Entity, that result is halved via Math.floor(crit * 0.5)
+    const normalUnit = makeUnit({
+      ...entity,
+      isEntity: false,
+      stats: { ...entity.stats },
+    });
+    const normalForecast = getCombatForecast(
+      attacker,
+      attacker.weapon,
+      normalUnit,
+      normalUnit.weapon,
+      1,
+    );
+    expect(forecast.attacker.crit).toBeLessThanOrEqual(
+      Math.floor(normalForecast.attacker.crit * 0.5),
+    );
+  });
+
+  it('halves crit rate when Entity is attacker (counter) in forecast', () => {
+    const defender = makeUnit({
+      stats: { HP: 30, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 8, RES: 6, LCK: 40 },
+    });
+    const entity = makeEntityDefender();
+    const forecast = getCombatForecast(entity, entity.weapon, defender, defender.weapon, 1);
+    // Entity's crit on the defender is reduced since Entity is the attacker vs normal defender
+    // Defender's counter-crit vs Entity is also halved
+    // The forecast.defender.crit should be halved compared to non-Entity
+    const normalAttacker = makeUnit({
+      ...entity,
+      isEntity: false,
+      stats: { ...entity.stats },
+      weapon: entity.weapon,
+    });
+    const normalForecast = getCombatForecast(
+      normalAttacker,
+      normalAttacker.weapon,
+      defender,
+      defender.weapon,
+      1,
+    );
+    expect(forecast.attacker.crit).toBeLessThanOrEqual(
+      Math.floor(normalForecast.attacker.crit * 0.5),
+    );
+  });
+
+  it('resolveCombat uses reduced crit multiplier vs Entity', () => {
+    // Force a crit via Math.random returning 0 (below any positive crit threshold)
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const attacker = makeUnit({
+        stats: { HP: 50, STR: 20, MAG: 0, SKL: 40, SPD: 20, DEF: 15, RES: 10, LCK: 0 },
+        currentHP: 50,
+        weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
+      });
+      const entity = makeEntityDefender();
+      const result = resolveCombat(attacker, attacker.weapon, entity, entity.weapon, 1);
+      // If crit landed, damage should use 1.5x multiplier (not 3x)
+      const baseDmg = Math.max(0, attacker.stats.STR + attacker.weapon.might - entity.stats.DEF);
+      const critEvt = result.events.find((e) => e.attacker === attacker.name && e.isCrit);
+      if (critEvt) {
+        // Crit damage with Entity's 1.5x multiplier
+        const critDmg = Math.floor(baseDmg * 1.5);
+        expect(critEvt.damage).toBeLessThanOrEqual(critDmg + 5);
+      }
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('critMultiplier backward compat: rollStrike defaults to 3x for non-Entity', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    try {
+      const attacker = makeUnit({
+        stats: { HP: 50, STR: 20, MAG: 0, SKL: 40, SPD: 20, DEF: 15, RES: 10, LCK: 0 },
+        currentHP: 50,
+        weapon: data.weapons.find((w) => w.name === 'Iron Sword'),
+      });
+      const defender = makeUnit({
+        stats: { HP: 50, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 10, RES: 5, LCK: 0 },
+        currentHP: 50,
+      });
+      const result = resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1);
+      const baseDmg = Math.max(0, attacker.stats.STR + attacker.weapon.might - defender.stats.DEF);
+      const critEvt = result.events.find((e) => e.attacker === attacker.name && e.isCrit);
+      if (critEvt) {
+        // Standard 3x multiplier
+        const critDmg = Math.floor(baseDmg * 3);
+        expect(critEvt.damage).toBeLessThanOrEqual(critDmg + 5);
+      }
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+});

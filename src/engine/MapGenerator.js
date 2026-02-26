@@ -47,9 +47,9 @@ export function generateBattle(params, deps) {
   } = params;
   const { terrain, mapSizes, mapTemplates, enemies, recruits, classes, weapons } = deps;
 
-  // 1. Pick map size
-  const sizeEntry = pickMapSize(act, mapSizes);
-  const [cols, rows] = sizeEntry.mapSize.split('x').map(Number);
+  // 1. Pick map size (may be overridden by template fixedSize below)
+  let sizeEntry = pickMapSize(act, mapSizes);
+  let [cols, rows] = sizeEntry.mapSize.split('x').map(Number);
 
   // 2. Pick template (use pre-assigned templateId if available)
   const preAssignedTemplate = preAssignedTemplateId
@@ -68,6 +68,14 @@ export function generateBattle(params, deps) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
   }
 
+  // Override map size if template has fixedSize
+  if (template.fixedSize) {
+    const [fc, fr] = template.fixedSize;
+    sizeEntry = { mapSize: `${fc}x${fr}`, tiles: fc * fr };
+    cols = fc;
+    rows = fr;
+  }
+
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
   applyStructures(mapLayout, template.structures, cols, rows, terrain);
@@ -82,8 +90,8 @@ export function generateBattle(params, deps) {
     for (const feat of template.features) {
       // Ballistas are Hard/Lunatic only — skip on Normal
       if (feat.type === 'Ballista' && diffMode !== 'hard' && diffMode !== 'lunatic') continue;
-      const pos = resolveFeaturePosition(feat.position, cols, rows);
-      const idx = terrainNameToIndex(feat.type, terrain);
+      const pos = resolveFeaturePosition(feat.position, cols, rows, template);
+      const idx = terrainNameToIndex(feat.type || feat.terrain, terrain);
       if (idx !== -1) {
         mapLayout[pos.row][pos.col] = idx;
         if (feat.type === 'Throne') thronePos = pos;
@@ -155,7 +163,7 @@ export function generateBattle(params, deps) {
     thronePos,
     adjustedLevelRange,
     classes,
-    { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig },
+    { enemyPoisonChance, statusStaffConfig, siegeWeaponConfig, difficultyId: params.difficultyId },
   );
   enemySpawns = assignAffixesToEnemySpawns(enemySpawns, {
     affixConfig: deps.affixes,
@@ -763,7 +771,11 @@ function capTerrainCount(map, terrainIdx, maxCount, fallbackTerrain = TERRAIN.Pl
 
 // --- Feature positioning ---
 
-function resolveFeaturePosition(position, cols, rows) {
+function resolveFeaturePosition(position, cols, rows, template) {
+  // entityAnchor resolves to template.entitySpawn coords
+  if (position === 'entityAnchor' && template?.entitySpawn) {
+    return { col: template.entitySpawn[0], row: template.entitySpawn[1] };
+  }
   switch (position) {
     case 'center':
       return { col: Math.floor(cols / 2), row: Math.floor(rows / 2) };
@@ -1213,19 +1225,53 @@ function generateEnemies(
 
   // For Seize: place boss first
   if (objective === 'seize' && bossData[act]?.length > 0) {
-    const bossDef = bossData[act][Math.floor(Math.random() * bossData[act].length)];
-    // Place boss on or adjacent to throne
-    let bossPos = thronePos;
-    if (bossPos) {
-      usedPositions.add(`${bossPos.col},${bossPos.row}`);
+    // Filter by difficulty if difficultyFilter is present on boss defs
+    const difficultyId = extraOptions.difficultyId || null;
+    let candidates = bossData[act];
+    if (difficultyId) {
+      const filtered = candidates.filter(
+        (b) => !b.difficultyFilter || b.difficultyFilter.includes(difficultyId),
+      );
+      if (filtered.length > 0) candidates = filtered;
+    }
+    const bossDef = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Entity boss: place at entitySpawn coords if template provides them
+    if (bossDef.isEntity && template.entitySpawn) {
+      const [ec, er] = template.entitySpawn;
+      // Mark all 9 footprint tiles as used + ensure Floor terrain
+      const floorIdx = terrainNameToIndex('Floor', terrainData);
+      for (let dr = 0; dr < 3; dr++) {
+        for (let dc = 0; dc < 3; dc++) {
+          usedPositions.add(`${ec + dc},${er + dr}`);
+          if (floorIdx >= 0 && mapLayout[er + dr]) {
+            mapLayout[er + dr][ec + dc] = floorIdx;
+          }
+        }
+      }
       spawns.push({
         className: bossDef.className,
         level: bossDef.level,
-        col: bossPos.col,
-        row: bossPos.row,
+        col: ec,
+        row: er,
         isBoss: true,
+        isEntity: true,
         name: bossDef.name,
       });
+    } else {
+      // Standard boss placement on or adjacent to throne
+      let bossPos = thronePos;
+      if (bossPos) {
+        usedPositions.add(`${bossPos.col},${bossPos.row}`);
+        spawns.push({
+          className: bossDef.className,
+          level: bossDef.level,
+          col: bossPos.col,
+          row: bossPos.row,
+          isBoss: true,
+          name: bossDef.name,
+        });
+      }
     }
   }
 

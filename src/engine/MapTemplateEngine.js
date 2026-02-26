@@ -644,6 +644,8 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'structures',
         'minBridges',
         'minBridgesByAct',
+        'fixedSize',
+        'entitySpawn',
       ]);
       if (!hasOnlyKnownKeys(template, knownTemplateKeys)) {
         errors.push(`${path} contains unknown keys`);
@@ -700,6 +702,43 @@ export function validateMapTemplatesConfig(config, options = {}) {
           anchorCoords,
           errors,
         );
+      }
+
+      if (template.fixedSize !== undefined) {
+        if (
+          !Array.isArray(template.fixedSize) ||
+          template.fixedSize.length !== 2 ||
+          !Number.isInteger(template.fixedSize[0]) ||
+          !Number.isInteger(template.fixedSize[1]) ||
+          template.fixedSize[0] < 1 ||
+          template.fixedSize[1] < 1
+        ) {
+          errors.push(`${path}.fixedSize must be [cols, rows] with positive integers`);
+        }
+      }
+
+      if (template.entitySpawn !== undefined) {
+        if (
+          !Array.isArray(template.entitySpawn) ||
+          template.entitySpawn.length !== 2 ||
+          !Number.isInteger(template.entitySpawn[0]) ||
+          !Number.isInteger(template.entitySpawn[1]) ||
+          template.entitySpawn[0] < 0 ||
+          template.entitySpawn[1] < 0
+        ) {
+          errors.push(`${path}.entitySpawn must be [col, row] with non-negative integers`);
+        } else if (
+          Array.isArray(template.fixedSize) &&
+          template.fixedSize.length === 2 &&
+          Number.isInteger(template.fixedSize[0]) &&
+          Number.isInteger(template.fixedSize[1])
+        ) {
+          const [fc, fr] = template.fixedSize;
+          const [ec, er] = template.entitySpawn;
+          if (ec + 3 > fc || er + 3 > fr) {
+            errors.push(`${path}.entitySpawn 3x3 footprint exceeds fixedSize bounds`);
+          }
+        }
       }
 
       if (template.structures !== undefined) {

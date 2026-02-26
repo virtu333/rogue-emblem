@@ -112,7 +112,32 @@ export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
 
   const exclusionMaps = buildExclusionMaps(config);
 
+  const bossRules = config?.config?.bossAffixRules;
+
   return enemySpawns.map((spawn) => {
+    // Entity boss gets curated affixes from bossAffixRules
+    if (spawn?.isBoss && spawn.isEntity && bossRules?.enabled) {
+      const entityPool = (config.affixes || []).filter(
+        (a) =>
+          bossRules.entityAffixPool?.includes(a.id) && !bossRules.excludeFromEntity?.includes(a.id),
+      );
+      if (entityPool.length === 0) return spawn;
+      const count = Math.min(bossRules.entityAffixCount || 2, entityPool.length);
+      const selected = [];
+      const selectedIds = new Set();
+      const entityExclusions = buildExclusionMaps(config);
+      for (let i = 0; i < count; i++) {
+        const available = entityPool
+          .filter((a) => isAffixAllowed(a, selectedIds, spawn.className, entityExclusions))
+          .map((a) => ({ item: a, weight: Math.max(0.01, asNumber(a.weight, 1)) }));
+        if (available.length === 0) break;
+        const picked = weightedPick(available);
+        if (!picked) break;
+        selected.push(picked.id);
+        selectedIds.add(picked.id);
+      }
+      return selected.length > 0 ? { ...spawn, affixes: selected } : spawn;
+    }
     if (!spawn || spawn.isBoss) return spawn;
     if (Math.random() >= chance) return spawn;
 

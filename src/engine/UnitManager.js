@@ -377,7 +377,7 @@ export function createEnemyUnit(
     parseWeaponProficiencies(classData.weaponProficiencies),
     classData.tier || 'base',
   );
-  const growths = rollGrowthRates(classData.growthRanges);
+  const growths = classData.growthRanges ? rollGrowthRates(classData.growthRanges) : {};
 
   // Pick weapon tier by level, with optional difficulty-driven tier shift (act2+ only)
   const { enemyEquipTierShift } = parseEnemyDifficultyConfig(difficultyConfig);
@@ -420,14 +420,18 @@ export function createEnemyUnit(
     hpBar: null,
   };
 
-  // Auto-level to target level
-  for (let i = 1; i < enemyLevel; i++) {
-    const gains = levelUp(unit);
-    if (gains) applyLevelUpGains(unit, gains);
+  // Auto-level to target level (boss-tier classes have final stats, skip leveling)
+  if (classData.tier !== 'boss') {
+    for (let i = 1; i < enemyLevel; i++) {
+      const gains = levelUp(unit);
+      if (gains) applyLevelUpGains(unit, gains);
+    }
   }
 
   applyEnemyDifficultyModifiers(unit, difficultyConfig);
-  assignEnemySkills(unit, classData, enemyLevel, skillsData, act);
+  if (classData.tier !== 'boss') {
+    assignEnemySkills(unit, classData, enemyLevel, skillsData, act);
+  }
 
   return unit;
 }

@@ -20,6 +20,15 @@ import {
   spendStaffUse,
 } from '../engine/Combat.js';
 import {
+  isEntity,
+  getFootprint,
+  getFootprintKeys,
+  combatDistance,
+  rollSplashTiles,
+  rollSplashDamage,
+  getEntityCenter,
+} from '../engine/EntitySystem.js';
+import {
   createLordUnit,
   createEnemyUnit as createEnemyUnitFromClass,
   createPromotedEnemyUnit,
@@ -123,6 +132,9 @@ import {
   RECRUIT_NODE_LORD_CHANCE,
   ZOMBIE_CLASSES,
   filterClassPoolByDifficulty,
+  ENTITY_SPLASH_COUNT,
+  ENTITY_FOOTPRINT,
+  ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
@@ -1891,6 +1903,17 @@ export class BattleScene extends Phaser.Scene {
       }
       enemy.currentHP = enemy.stats.HP;
     }
+    if (spawn.isEntity) {
+      enemy.isEntity = true;
+      // Dual weapon assignment — Entity gets both Eldritch Grasp and Twisting Vortex
+      const entityWeapons = this.gameData.weapons
+        .filter((w) => ['Eldritch Grasp', 'Twisting Vortex'].includes(w.name))
+        .map((w) => structuredClone(w));
+      if (entityWeapons.length > 0) {
+        enemy.inventory = entityWeapons;
+        enemy.weapon = entityWeapons[0];
+      }
+    }
     if (spawn.sunderWeapon) {
       const primaryType = enemy.proficiencies?.[0]?.type;
       const sunderName = primaryType ? SUNDER_WEAPON_BY_TYPE[primaryType] : null;
@@ -1953,9 +1976,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getReinforcementOccupiedTiles() {
-    return [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]
-      .filter((unit) => unit && Number.isFinite(unit.col) && Number.isFinite(unit.row))
-      .map((unit) => ({ col: unit.col, row: unit.row }));
+    const tiles = [];
+    for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+      if (!unit || !Number.isFinite(unit.col) || !Number.isFinite(unit.row)) continue;
+      if (isEntity(unit)) {
+        for (const t of getFootprint(unit)) tiles.push(t);
+      } else {
+        tiles.push({ col: unit.col, row: unit.row });
+      }
+    }
+    return tiles;
   }
 
   resolveReinforcementsForTurn(turn) {
@@ -3066,8 +3096,54 @@ export class BattleScene extends Phaser.Scene {
   }
 
   addUnitGraphic(unit) {
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
     const color = FACTION_COLORS[unit.faction];
+
+    // Entity: 3x3 footprint, center graphic on middle tile
+    if (isEntity(unit)) {
+      const center = getEntityCenter(unit);
+      const cPos = this.grid.gridToPixel(center.col, center.row);
+      const entitySize = TILE_SIZE * ENTITY_FOOTPRINT.width;
+      const spriteKey = this.getSpriteKey(unit);
+      if (this.textures.exists(spriteKey)) {
+        unit.graphic = this.add.image(cPos.x, cPos.y, spriteKey);
+        unit.graphic.setDisplaySize(entitySize - 4, entitySize - 4);
+        unit.label = null;
+      } else {
+        unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
+        unit.label = this.add
+          .text(cPos.x, cPos.y, 'E', {
+            fontFamily: 'monospace',
+            fontSize: '24px',
+            color: '#cc88ff',
+          })
+          .setOrigin(0.5)
+          .setDepth(11);
+      }
+      unit.graphic.setDepth(10);
+      const ringY = cPos.y + entitySize / 2 - 10;
+      unit.factionIndicator = this.add
+        .ellipse(cPos.x, ringY, entitySize - 8, 14, 0x000000, 0)
+        .setStrokeStyle(2, color, 0.7)
+        .setDepth(8);
+      const barWidth = entitySize - 8;
+      const barHeight = 4;
+      const barY = cPos.y + entitySize / 2 - 4;
+      unit.hpBar = {
+        bg: this.add
+          .rectangle(cPos.x, barY, barWidth, barHeight, dimColor(color, 0.3))
+          .setDepth(12),
+        fill: this.add
+          .rectangle(cPos.x, barY, barWidth, barHeight, 0xcc4444)
+          .setOrigin(0.5)
+          .setDepth(13),
+      };
+      this.updateHPBar(unit);
+      unit.affixPips = [];
+      this.updateAffixPips(unit);
+      return;
+    }
+
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
 
     // Try sprite first, fall back to colored rectangle
     const spriteKey = this.getSpriteKey(unit);
@@ -3221,14 +3297,26 @@ export class BattleScene extends Phaser.Scene {
 
   getUnitAt(col, row) {
     const all = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits];
-    return all.find((u) => u.col === col && u.row === row) || null;
+    return (
+      all.find((u) => {
+        if (!u || u.currentHP <= 0 || u._removing) return false;
+        if (isEntity(u)) return getFootprintKeys(u).includes(`${col},${row}`);
+        return u.col === col && u.row === row;
+      }) || null
+    );
   }
 
   buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!u || u._removing || u.currentHP <= 0) continue;
-      map.set(`${u.col},${u.row}`, { faction: u.faction });
+      if (isEntity(u)) {
+        for (const tile of getFootprint(u)) {
+          map.set(`${tile.col},${tile.row}`, { faction: u.faction });
+        }
+      } else {
+        map.set(`${u.col},${u.row}`, { faction: u.faction });
+      }
     }
     return map;
   }
@@ -3237,7 +3325,13 @@ export class BattleScene extends Phaser.Scene {
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
-      occupied.add(`${unit.col},${unit.row}`);
+      if (isEntity(unit)) {
+        for (const tile of getFootprint(unit)) {
+          occupied.add(`${tile.col},${tile.row}`);
+        }
+      } else {
+        occupied.add(`${unit.col},${unit.row}`);
+      }
     }
     return occupied;
   }
@@ -4928,13 +5022,13 @@ export class BattleScene extends Phaser.Scene {
     // Check all combat weapons in inventory for range (with skill bonuses)
     for (const enemy of enemies) {
       // In fog mode, player can only target visible enemies
-      if (
-        this.grid.fogEnabled &&
-        unit.faction === 'player' &&
-        !this.grid.isVisible(enemy.col, enemy.row)
-      )
-        continue;
-      const dist = gridDistance(unit.col, unit.row, enemy.col, enemy.row);
+      if (this.grid.fogEnabled && unit.faction === 'player') {
+        const fogVis = isEntity(enemy)
+          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
+          : this.grid.isVisible(enemy.col, enemy.row);
+        if (!fogVis) continue;
+      }
+      const dist = combatDistance(unit, enemy);
       if (
         combatWeapons.some((w) => {
           const art = selectedWeapon === w ? selectedArt : null;
@@ -5036,10 +5130,7 @@ export class BattleScene extends Phaser.Scene {
       if (destC < 0 || destC >= this.grid.cols || destR < 0 || destR >= this.grid.rows) continue;
       const moveCost = this.grid.getMoveCost(destC, destR, ally.moveType);
       if (moveCost === Infinity) continue;
-      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(
-        (u) => u.col === destC && u.row === destR,
-      );
-      if (occupied) continue;
+      if (this.getUnitAt(destC, destR)) continue;
       targets.push({ ally, destCol: destC, destRow: destR, dc, dr });
     }
     return targets;
@@ -5068,10 +5159,7 @@ export class BattleScene extends Phaser.Scene {
       // Ally moves to unit's old position -- passable for ally?
       const allyDestCost = this.grid.getMoveCost(unit.col, unit.row, ally.moveType);
       if (allyDestCost === Infinity) continue;
-      const occupied = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].some(
-        (u) => u.col === retreatC && u.row === retreatR,
-      );
-      if (occupied) continue;
+      if (this.getUnitAt(retreatC, retreatR)) continue;
       targets.push({ ally, retreatCol: retreatC, retreatRow: retreatR, dc, dr });
     }
     return targets;
@@ -8752,7 +8840,10 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'SHOWING_FORECAST';
     const rollSession = this._ensureCombatRollSession(attacker, defender);
 
-    const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
+    const dist =
+      isEntity(attacker) || isEntity(defender)
+        ? combatDistance(attacker, defender)
+        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     this._clearSelectedWeaponArtIfInvalid(attacker);
     const weaponArt = this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true });
     const selectedEntry = weaponArt ? this._resolveSelectedWeaponArtEntry(attacker) : null;
@@ -8978,7 +9069,10 @@ export class BattleScene extends Phaser.Scene {
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
 
-    const dist = gridDistance(attacker.col, attacker.row, defender.col, defender.row);
+    const dist =
+      isEntity(attacker) || isEntity(defender)
+        ? combatDistance(attacker, defender)
+        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._ensureCombatRollSession(attacker, defender);
@@ -10629,6 +10723,7 @@ export class BattleScene extends Phaser.Scene {
   async processTerrainDamage(units) {
     for (const unit of [...units]) {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
+      if (isEntity(unit)) continue; // Entity immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
       if (!isLavaCrackTerrainIndex(terrainIdx)) continue;
 
@@ -10873,7 +10968,9 @@ export class BattleScene extends Phaser.Scene {
   async executeEnemyCombat(enemy, target) {
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
-    const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
+    const dist = isEntity(enemy)
+      ? combatDistance(enemy, target)
+      : gridDistance(enemy.col, enemy.row, target.col, target.row);
     const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
     const defTerrain = this.grid.getTerrainAt(target.col, target.row);
     this._ensureCombatRollSession(enemy, target);
@@ -10946,8 +11043,40 @@ export class BattleScene extends Phaser.Scene {
 
     if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
     if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+
+    // Entity splash damage on adjacent tiles after primary attack
+    if (isEntity(enemy) && enemy.currentHP > 0) {
+      await this._applyEntitySplash(enemy, target);
+    }
+
     this.checkBattleEnd();
     this._clearCombatRollSession();
+  }
+
+  /** Apply Entity AoE splash — 0-2 random tiles within Manhattan 1 of primary target */
+  async _applyEntitySplash(entity, primaryTarget) {
+    const tiles = rollSplashTiles(
+      primaryTarget.col,
+      primaryTarget.row,
+      entity,
+      this.grid.cols,
+      this.grid.rows,
+      ENTITY_SPLASH_COUNT,
+    );
+    for (const tile of tiles) {
+      const victim = this.getUnitAt(tile.col, tile.row);
+      if (!victim || victim === primaryTarget || victim.currentHP <= 0) continue;
+      if (victim.faction === 'enemy') continue; // Don't splash allies
+      const dmg = rollSplashDamage();
+      victim.currentHP = Math.max(0, victim.currentHP - dmg);
+      this.updateHPBar(victim);
+      const pos = this.grid.gridToPixel(tile.col, tile.row);
+      this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, '#cc66ff');
+      await new Promise((resolve) => this.time.delayedCall(200, resolve));
+      if (victim.currentHP <= 0) {
+        await this.removeUnit(victim, { killer: entity });
+      }
+    }
   }
 
   async executeEnemyBreak(enemy, tile) {
@@ -11096,7 +11225,26 @@ export class BattleScene extends Phaser.Scene {
   calculateDangerZone() {
     const threatened = new Set();
     for (const enemy of this.enemyUnits) {
-      if (this.grid.fogEnabled && !this.grid.isVisible(enemy.col, enemy.row)) continue;
+      if (this.grid.fogEnabled) {
+        const fogVis = isEntity(enemy)
+          ? getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row))
+          : this.grid.isVisible(enemy.col, enemy.row);
+        if (!fogVis) continue;
+      }
+
+      // Entity: stationary, compute attack range from all body tiles using all weapons
+      if (isEntity(enemy)) {
+        for (const tile of getFootprint(enemy)) {
+          const atkTiles = this.grid.getAttackRange(tile.col, tile.row, {
+            range: `1-${ENTITY_PRIMARY_ATTACK_RANGE}`,
+          });
+          for (const t of atkTiles) {
+            threatened.add(`${t.col},${t.row}`);
+          }
+        }
+        continue;
+      }
+
       const positions = this.buildUnitPositionMap(enemy.faction);
       const moveRange = this.grid.getMovementRange(
         enemy.col,
@@ -11130,7 +11278,12 @@ export class BattleScene extends Phaser.Scene {
     if (!this.grid.fogEnabled) return;
     this.dangerZoneStale = true;
     for (const enemy of this.enemyUnits) {
-      const vis = this.grid.isVisible(enemy.col, enemy.row);
+      let vis;
+      if (isEntity(enemy)) {
+        vis = getFootprint(enemy).some((t) => this.grid.isVisible(t.col, t.row));
+      } else {
+        vis = this.grid.isVisible(enemy.col, enemy.row);
+      }
       if (enemy.graphic) enemy.graphic.setVisible(vis);
       if (enemy.label) enemy.label.setVisible(vis);
       if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);

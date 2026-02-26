@@ -3,7 +3,11 @@
   "title": "Classes",
   "type": "array",
   "items": {
-    "oneOf": [{ "$ref": "#/$defs/baseClass" }, { "$ref": "#/$defs/promotedClass" }]
+    "oneOf": [
+      { "$ref": "#/$defs/baseClass" },
+      { "$ref": "#/$defs/promotedClass" },
+      { "$ref": "#/$defs/bossClass" }
+    ]
   },
   "$defs": {
     "statBlock": {
@@ -121,6 +125,20 @@
         "moveType",
         "weaponProficiencies"
       ],
+      "additionalProperties": false
+    },
+    "bossClass": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "tier": { "type": "string", "const": "boss" },
+        "description": { "type": "string" },
+        "baseStats": { "$ref": "#/$defs/statBlock" },
+        "moveType": { "$ref": "#/$defs/moveType" },
+        "weaponProficiencies": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["name", "tier", "baseStats", "moveType", "weaponProficiencies", "role"],
       "additionalProperties": false
     }
   }

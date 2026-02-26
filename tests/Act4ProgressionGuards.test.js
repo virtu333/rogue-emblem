@@ -64,13 +64,7 @@ describe('Act4 progression guards', () => {
       'act3',
       'finalBoss',
     ]);
-    expect(data.difficulty.modes.hard.actsIncluded).toEqual([
-      'act1',
-      'act2',
-      'act3',
-      'act4',
-      'finalBoss',
-    ]);
+    expect(data.difficulty.modes.hard.actsIncluded).toEqual(['act1', 'act2', 'act3', 'act4']);
     expect(data.difficulty.modes.lunatic.actsIncluded).toEqual([
       'act1',
       'act2',

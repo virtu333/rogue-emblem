@@ -55,7 +55,7 @@
       "villageAmbushChance": 0.20,
       "reinforcementTurnOffset": 0,
       "currencyMultiplier": 1.25,
-      "actsIncluded": ["act1", "act2", "act3", "act4", "finalBoss"],
+      "actsIncluded": ["act1", "act2", "act3", "act4"],
       "extendedLevelingEnabled": false,
       "churchPromotionLimit": 3,
       "growthBonusMultiplier": 0.8

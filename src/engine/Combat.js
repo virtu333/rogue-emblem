@@ -7,9 +7,12 @@ import {
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
   ZOMBIE_CLASSES,
+  ENTITY_CRIT_RATE_MULT,
+  ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
+import { isEntity } from './EntitySystem.js';
 
 // --- Weapon classification ---
 
@@ -738,6 +741,7 @@ export function getCombatForecast(
   atkHit = Math.max(0, Math.min(100, atkHit));
   let atkCrit = calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0);
   atkCrit = Math.max(0, Math.min(100, atkCrit));
+  if (isEntity(defender)) atkCrit = Math.floor(atkCrit * ENTITY_CRIT_RATE_MULT);
 
   // Silenced attackers cannot initiate with magic weapons (defensive guard)
   const fSilencedAttacker =
@@ -810,6 +814,7 @@ export function getCombatForecast(
     defHit = Math.max(0, Math.min(100, defHit));
     defCrit = calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0);
     defCrit = Math.max(0, Math.min(100, defCrit));
+    if (isEntity(attacker)) defCrit = Math.floor(defCrit * ENTITY_CRIT_RATE_MULT);
     // Quick Riposte: always double when defending above 50% HP
     const defArtActive = hasWeaponArtActivation(defMods);
     defDoubles =
@@ -909,6 +914,7 @@ function rollStrike(
   strikeSides = null,
   drainPercent = 0,
   perHitHeal = 0,
+  critMultiplier = CRIT_MULTIPLIER,
 ) {
   const attackerSide = strikeSides?.attackerSide || null;
   const targetSide = strikeSides?.targetSide || null;
@@ -930,7 +936,7 @@ function rollStrike(
   }
 
   const isCrit = Math.random() * 100 < critRate;
-  let finalDmg = isCrit ? damage * CRIT_MULTIPLIER : damage;
+  let finalDmg = isCrit ? damage * critMultiplier : damage;
   let heal = 0;
   let extraStrike = false;
   let aetherLuna = false;
@@ -1140,6 +1146,7 @@ export function resolveCombat(
     0,
     Math.min(100, calculateCritRate(attacker, atkWeapon, defender) + (atkMods?.critBonus || 0)),
   );
+  if (isEntity(defender)) atkCrit = Math.floor(atkCrit * ENTITY_CRIT_RATE_MULT);
 
   // Silenced attackers cannot initiate with magic weapons (defensive guard — UI should prevent this)
   const silencedAttacker =
@@ -1223,6 +1230,7 @@ export function resolveCombat(
       0,
       Math.min(100, calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0)),
     );
+    if (isEntity(attacker)) defCrit = Math.floor(defCrit * ENTITY_CRIT_RATE_MULT);
   }
 
   // Build per-strike skill context for attacker and defender
@@ -1265,6 +1273,10 @@ export function resolveCombat(
   const atkPerHitHeal = Math.max(0, Number(attacker?.accessory?.combatEffects?.perHitHeal) || 0);
   const defPerHitHeal = Math.max(0, Number(defender?.accessory?.combatEffects?.perHitHeal) || 0);
 
+  // Determine Entity crit multipliers (halved vs Entity)
+  const atkCritMult = isEntity(defender) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
+  const defCritMult = isEntity(attacker) ? ENTITY_CRIT_DMG_MULT : CRIT_MULTIPLIER;
+
   // Execute N strikes from one combatant against the other
   function strike(
     aName,
@@ -1281,6 +1293,7 @@ export function resolveCombat(
     const targetSide = isAttackingDefender ? 'defender' : 'attacker';
     const drainPct = (isAttackingDefender ? atkMods : defMods)?.drainPercent || 0;
     const strikePerHitHeal = isAttackingDefender ? atkPerHitHeal : defPerHitHeal;
+    const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
       const evt = rollStrike(
@@ -1295,6 +1308,7 @@ export function resolveCombat(
         { attackerSide, targetSide },
         drainPct,
         strikePerHitHeal,
+        strikeCritMult,
       );
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;

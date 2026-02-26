@@ -154,8 +154,11 @@
       "secretAct": { "chanceMultiplier": 1.0 }
     },
     "bossAffixRules": {
-      "enabled": false,
-      "note": "Bosses use hand-crafted skills. Affixes apply to regular and elite enemies."
+      "enabled": true,
+      "entityOnly": true,
+      "entityAffixCount": 2,
+      "entityAffixPool": ["regenerator", "thorns", "venomous", "corrosive", "shielded", "berserker", "rally", "anchored"],
+      "excludeFromEntity": ["teleporter", "deathburst", "haste"]
     },
     "exclusions": [
       { "rule": "mutually_exclusive", "affixes": ["regenerator", "deathburst"], "reason": "Conflicting fantasy" },
