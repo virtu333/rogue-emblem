@@ -2052,7 +2052,11 @@ export class NodeMapScene extends Phaser.Scene {
   _showChurchSuccessMessage(node, functionalMessage, functionalColor, flavorType) {
     this.refreshChurchOverlay(node);
     this.showChurchMessage(functionalMessage, functionalColor);
-    this._scheduleChurchFlavor(flavorType);
+    try {
+      this._scheduleChurchFlavor(flavorType);
+    } catch (_) {
+      /* best-effort flavor — don't block functional message */
+    }
   }
 
   _scheduleChurchFlavor(flavorType, delayMs = 600) {
@@ -2371,12 +2375,16 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay.push(leaveBtn);
 
     // Shop entry flavor
-    const shopAct = this.runManager?.currentAct || 'act1';
-    const shopPool =
-      this.gameData?.dialogue?.shopFlavor?.[shopAct] ||
-      this.gameData?.dialogue?.shopFlavor?.['act3'];
-    if (Array.isArray(shopPool) && shopPool.length > 0) {
-      this.showShopBanner(shopPool[Math.floor(Math.random() * shopPool.length)], '#aabbcc');
+    try {
+      const shopAct = this.runManager?.currentAct || 'act1';
+      const shopPool =
+        this.gameData?.dialogue?.shopFlavor?.[shopAct] ||
+        this.gameData?.dialogue?.shopFlavor?.['act3'];
+      if (Array.isArray(shopPool) && shopPool.length > 0) {
+        this.showShopBanner(shopPool[Math.floor(Math.random() * shopPool.length)], '#aabbcc');
+      }
+    } catch (_) {
+      /* best-effort flavor — don't block overlay */
     }
   }
 
