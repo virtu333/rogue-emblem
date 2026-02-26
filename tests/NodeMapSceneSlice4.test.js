@@ -17,6 +17,10 @@ const { RosterOverlayMock } = vi.hoisted(() => {
   return { RosterOverlayMock: cls };
 });
 
+const { colosseumModuleConfig } = vi.hoisted(() => ({
+  colosseumModuleConfig: { shouldFail: false },
+}));
+
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
@@ -39,6 +43,18 @@ vi.mock('../src/ui/HintDisplay.js', () => ({
 vi.mock('../src/ui/RosterOverlay.js', () => ({
   RosterOverlay: RosterOverlayMock,
 }));
+
+vi.mock('../src/ui/ColosseumOverlay.js', () => {
+  if (colosseumModuleConfig.shouldFail) {
+    throw new Error('chunk load failed');
+  }
+  return {
+    ColosseumOverlay: vi.fn(function () {
+      this.show = vi.fn();
+      this.hide = vi.fn();
+    }),
+  };
+});
 
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { NODE_TYPES } from '../src/utils/constants.js';
@@ -431,16 +447,23 @@ describe('NodeMapScene Slice 4', () => {
     expect(churchScene.leaveChurchNode).not.toHaveBeenCalled();
   });
 
-  it('requestCancel hides visible colosseum overlay before pause fallback', () => {
+  it('requestCancel hides visible colosseum overlay, restores music, and redraws map', () => {
     const hide = vi.fn();
+    const playMusic = vi.fn();
+    const drawMap = vi.fn();
     const scene = makeCancelableScene({
       colosseumOverlay: { visible: true, hide },
+      registry: { get: (key) => (key === 'audio' ? { playMusic } : null) },
+      runManager: { currentAct: 'act1' },
+      drawMap,
     });
 
     const handled = NodeMapScene.prototype.requestCancel.call(scene);
 
     expect(handled).toBe(true);
     expect(hide).toHaveBeenCalledTimes(1);
+    expect(playMusic).toHaveBeenCalledTimes(1);
+    expect(drawMap).toHaveBeenCalledTimes(1);
     expect(scene.showPauseMenu).not.toHaveBeenCalled();
   });
 
@@ -995,6 +1018,87 @@ describe('NodeMapScene Slice 4', () => {
 
     expect(scene.runManager.currentNodeId).toBe('colo-1');
     expect(scene.handleColosseum).toHaveBeenCalled();
+  });
+
+  it('handleColosseum import failure resets loading, restores music, and shows message', async () => {
+    colosseumModuleConfig.shouldFail = true;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const playMusic = vi.fn();
+    const showTransientMessage = vi.fn();
+
+    const scene = {
+      colosseumOverlay: null,
+      _colosseumLoading: false,
+      runManager: { currentAct: 'act1' },
+      registry: { get: vi.fn((key) => (key === 'audio' ? { playMusic } : null)) },
+      scene: { isActive: () => true },
+      leaveColosseumNode: vi.fn(),
+      showTransientMessage,
+    };
+
+    try {
+      NodeMapScene.prototype.handleColosseum.call(scene, { id: 'col-fail' });
+      expect(scene._colosseumLoading).toBe(true);
+
+      // Wait for the rejected import promise chain to settle
+      await vi.waitFor(
+        () => {
+          expect(scene._colosseumLoading).toBe(false);
+        },
+        { timeout: 500 },
+      );
+
+      expect(scene.colosseumOverlay).toBeNull();
+      expect(playMusic).toHaveBeenCalledTimes(2);
+      const lastPlayMusicCall = playMusic.mock.calls.at(-1);
+      expect(lastPlayMusicCall?.[0]).toMatch(/^music_explore_act1/);
+      expect(lastPlayMusicCall?.[1]).toBe(scene);
+      expect(lastPlayMusicCall?.[2]).toBe(300);
+      expect(showTransientMessage).toHaveBeenCalledWith(
+        'Failed to open Colosseum. Please try again.',
+        '#ff6666',
+      );
+    } finally {
+      errorSpy.mockRestore();
+      colosseumModuleConfig.shouldFail = false;
+    }
+  });
+
+  it('handleColosseum import failure skips recovery UI/audio when scene is inactive', async () => {
+    colosseumModuleConfig.shouldFail = true;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const playMusic = vi.fn();
+    const showTransientMessage = vi.fn();
+
+    const scene = {
+      colosseumOverlay: null,
+      _colosseumLoading: false,
+      runManager: { currentAct: 'act1' },
+      registry: { get: vi.fn((key) => (key === 'audio' ? { playMusic } : null)) },
+      scene: { isActive: () => false },
+      leaveColosseumNode: vi.fn(),
+      showTransientMessage,
+    };
+
+    try {
+      NodeMapScene.prototype.handleColosseum.call(scene, { id: 'col-fail-inactive' });
+      expect(scene._colosseumLoading).toBe(true);
+
+      await vi.waitFor(
+        () => {
+          expect(scene._colosseumLoading).toBe(false);
+        },
+        { timeout: 500 },
+      );
+
+      expect(scene.colosseumOverlay).toBeNull();
+      // Initial shop-music call still happens before import; catch-path restore is skipped.
+      expect(playMusic).toHaveBeenCalledTimes(1);
+      expect(showTransientMessage).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+      colosseumModuleConfig.shouldFail = false;
+    }
   });
 
   it('onNodeClick derives pendingAmbush from pending-node state, not isAmbush flag', () => {

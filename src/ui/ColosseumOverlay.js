@@ -90,8 +90,8 @@ export class ColosseumOverlay {
   // Public API
   // ────────────────────────────────────────
 
-  show(node, onClose) {
-    this._onClose = onClose;
+  show(node, onLeave) {
+    this._onLeave = onLeave;
     this._node = node;
     this._actId = this.runManager.currentAct;
     this.visible = true;
@@ -104,11 +104,17 @@ export class ColosseumOverlay {
     this._showMenu();
   }
 
+  /** Close the overlay visually (ESC path). Does NOT invoke the leave callback. */
   hide() {
     if (!this.visible) return;
     this.visible = false;
     this._clearScreen();
-    if (this._onClose) this._onClose();
+  }
+
+  /** Explicitly leave the colosseum (Leave button). Hides overlay and fires leave callback. */
+  leave() {
+    this.hide();
+    if (this._onLeave) this._onLeave();
   }
 
   // ────────────────────────────────────────
@@ -179,7 +185,7 @@ export class ColosseumOverlay {
 
     this._addBtn(CX, 170, '[ Arena ]', '#44ff44', () => this._showUnitSelect());
     this._addBtn(CX, 220, '[ Mercenary Board ]', '#66ddff', () => this._showMercBrowse());
-    this._addBtn(CX, 300, '[ Leave ]', '#ff6666', () => this.hide());
+    this._addBtn(CX, 300, '[ Leave ]', '#ff6666', () => this.leave());
 
     // Flavor text
     const flavor = this.scene.add
@@ -578,19 +584,14 @@ export class ColosseumOverlay {
       skillCtx,
     );
 
-    // Determine outcome (arena rule: nobody dies — clamp to 1 HP)
+    // Determine outcome: KO wins, otherwise draw (no HP% comparison)
     let outcome;
     if (result.defenderDied) {
       outcome = 'win';
     } else if (result.attackerDied) {
       outcome = 'lose';
     } else {
-      // Neither died — whoever has higher HP% wins, else draw
-      const unitPct = result.attackerHP / unit.stats.HP;
-      const challPct = result.defenderHP / challenger.stats.HP;
-      if (unitPct > challPct) outcome = 'win';
-      else if (challPct > unitPct) outcome = 'lose';
-      else outcome = 'draw';
+      outcome = 'draw';
     }
 
     // Apply HP (arena clamp: min 1)
@@ -908,17 +909,26 @@ export class ColosseumOverlay {
 
     // Generate candidates once per visit
     if (!this._mercCandidates) {
-      this._mercCandidates = generateMercenaryCandidates(
-        this._actId,
-        this._getLordLevel(),
-        this.gameData.recruits,
-        this.gameData.classes,
-        this.gameData.weapons,
-        this.gameData.skills,
-        this._getDifficultyId(),
-        this._colosseumData,
-        Math.random,
-      );
+      try {
+        this._mercCandidates = generateMercenaryCandidates(
+          this._actId,
+          this._getLordLevel(),
+          this.gameData.recruits,
+          this.gameData.classes,
+          this.gameData.weapons,
+          this.gameData.skills,
+          this._getDifficultyId(),
+          this._colosseumData,
+          Math.random,
+        );
+      } catch (err) {
+        console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);
+        this._mercCandidates = [];
+      }
+      // Filter out malformed candidates before rendering
+      this._mercCandidates = (
+        Array.isArray(this._mercCandidates) ? this._mercCandidates : []
+      ).filter((c) => c?.unit?.name && c?.unit?.stats && typeof c?.hireCost === 'number');
     }
 
     const candidates = this._mercCandidates;

@@ -7,6 +7,7 @@ import {
   BASE_CLASS_LEVEL_CAP,
   PROMOTED_CLASS_LEVEL_CAP,
   XP_PER_LEVEL,
+  MAX_SKILLS,
   filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import {
@@ -15,6 +16,7 @@ import {
   promoteUnit,
   gainExperience,
   calculateCombatXP,
+  learnSkill,
 } from './UnitManager.js';
 
 /**
@@ -115,9 +117,9 @@ export function generateChallenger(
   // Assign skills per difficulty
   if (diffConfig?.challengerMinSkills) {
     const combatSkills = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
-    while (unit.skills.length < diffConfig.challengerMinSkills) {
+    while (unit.skills.length < Math.min(diffConfig.challengerMinSkills, MAX_SKILLS)) {
       const pick = combatSkills[Math.floor(rng() * combatSkills.length)];
-      if (!unit.skills.includes(pick)) unit.skills.push(pick);
+      learnSkill(unit, pick);
     }
   }
 
@@ -127,9 +129,9 @@ export function generateChallenger(
     tier.xpMultiplier >= 1.5 // platinum tier
   ) {
     const combatSkills = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
-    while (unit.skills.length < diffConfig.platinumMaxSkills) {
+    while (unit.skills.length < Math.min(diffConfig.platinumMaxSkills, MAX_SKILLS)) {
       const pick = combatSkills[Math.floor(rng() * combatSkills.length)];
-      if (!unit.skills.includes(pick)) unit.skills.push(pick);
+      learnSkill(unit, pick);
     }
   }
 
@@ -313,14 +315,18 @@ export function generateMercenaryCandidates(
     if (rng() < (mercConfig.skillChance ?? 0.5)) {
       const skillPool = RECRUIT_SKILL_POOL;
       const pick = skillPool[Math.floor(rng() * skillPool.length)];
-      if (!unit.skills.includes(pick)) unit.skills.push(pick);
+      learnSkill(unit, pick);
     }
 
-    // Weapon tier bonus: equip weapon one tier above current act shops
+    // Weapon tier bonus: equip weapon one tier above current act shops.
+    // Capped by act to prevent Silver weapons appearing in Act 1.
     const tierSequence = ['Iron', 'Steel', 'Silver'];
+    const ACT_WEAPON_TIER_CAP = { act1: 0, act2: 1, act3: 2, act4: 2 };
+    const actCap = ACT_WEAPON_TIER_CAP[actId] ?? 2;
     const baseTierIdx = level >= 13 ? 2 : level >= 6 ? 1 : 0;
     const boostedIdx = Math.min(
       baseTierIdx + (mercConfig.weaponTierBonus || 1),
+      actCap,
       tierSequence.length - 1,
     );
     const targetTier = tierSequence[boostedIdx];

@@ -377,6 +377,10 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.churchOverlay && typeof this.closeChurchOverlay === 'function') {
       this.closeChurchOverlay();
     }
+    if (this.colosseumOverlay) {
+      this.colosseumOverlay.hide?.();
+      this.colosseumOverlay = null;
+    }
     if (this.transientMessage) {
       this.transientMessage.destroy();
       this.transientMessage = null;
@@ -905,6 +909,9 @@ export class NodeMapScene extends Phaser.Scene {
     }
     if (this.colosseumOverlay?.visible) {
       this.colosseumOverlay.hide();
+      const audio = this.registry.get('audio');
+      if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+      this.drawMap();
       return true;
     }
     if (allowPause) {
@@ -1453,7 +1460,8 @@ export class NodeMapScene extends Phaser.Scene {
     if (
       this.shopOverlay ||
       this.churchOverlay ||
-      this.colosseumOverlay ||
+      this.colosseumOverlay?.visible ||
+      this._colosseumLoading ||
       this.rosterOverlay?.visible ||
       this.pauseOverlay?.visible
     )
@@ -1559,18 +1567,52 @@ export class NodeMapScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
 
-    // Import and show ColosseumOverlay dynamically to avoid circular deps at module top
-    import('../ui/ColosseumOverlay.js').then(({ ColosseumOverlay }) => {
-      this.colosseumOverlay = new ColosseumOverlay(this, this.runManager, this.gameData);
-      this.colosseumOverlay.show(node, () => {
-        this.colosseumOverlay = null;
-        this.runManager.markNodeComplete(node.id);
-        this.checkActComplete();
-        const audio = this.registry.get('audio');
-        if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-        this.drawMap();
+    // Reuse existing overlay only if same node + same act (state is still valid)
+    if (
+      this.colosseumOverlay &&
+      this.colosseumOverlay._node?.id === node.id &&
+      this.colosseumOverlay._actId === this.runManager.currentAct
+    ) {
+      this.colosseumOverlay.show(node, () => this.leaveColosseumNode(node));
+      return;
+    }
+
+    // Different node/act or no overlay � destroy old if present, create fresh
+    if (this.colosseumOverlay) {
+      this.colosseumOverlay.hide();
+      this.colosseumOverlay = null;
+    }
+
+    this._colosseumLoading = true;
+    import('../ui/ColosseumOverlay.js')
+      .then(({ ColosseumOverlay }) => {
+        this._colosseumLoading = false;
+        if (!this.scene?.isActive?.()) return;
+        this.colosseumOverlay = new ColosseumOverlay(this, this.runManager, this.gameData);
+        this.colosseumOverlay.show(node, () => this.leaveColosseumNode(node));
+      })
+      .catch((err) => {
+        this._colosseumLoading = false;
+        console.error('[NodeMapScene] Failed to load ColosseumOverlay:', err);
+        if (!this.scene?.isActive?.()) return;
+        const catchAudio = this.registry?.get?.('audio');
+        if (catchAudio) {
+          void catchAudio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+        }
+        this.showTransientMessage?.('Failed to open Colosseum. Please try again.', '#ff6666');
       });
-    });
+  }
+
+  leaveColosseumNode(node) {
+    if (!this.colosseumOverlay) return;
+    this.colosseumOverlay = null;
+    const audio = this.registry.get('audio');
+    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
+    if (node) {
+      this.runManager.markNodeComplete(node.id);
+      this.checkActComplete();
+    }
+    this.drawMap();
   }
 
   handleChurch(node) {

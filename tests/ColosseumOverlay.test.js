@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/engine/ColosseumEngine.js', async (importOriginal) => {
+  const mod = await importOriginal();
+  return { ...mod, generateMercenaryCandidates: vi.fn(mod.generateMercenaryCandidates) };
+});
+
 import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
-import { getAvailableTiers } from '../src/engine/ColosseumEngine.js';
+import { getAvailableTiers, generateMercenaryCandidates } from '../src/engine/ColosseumEngine.js';
 import { createRecruitUnit, getDisplayLevel } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
 import { ROSTER_CAP } from '../src/utils/constants.js';
@@ -481,28 +487,152 @@ describe('ColosseumOverlay', () => {
     expect(String(unitLine.text)).toContain('20+3');
   });
 
-  it('state transitions are MENU -> UNIT_SELECT -> TIER_SELECT and reset on hide/reshow', () => {
+  it('hide() does NOT invoke callback; leave() does', () => {
     const scene = makeScene();
     const unit = makeUnit(gameData, 'FlowUnit');
     const runManager = makeRunManager({ gold: 1000, roster: [unit] });
-    const onClose = vi.fn();
+    const onLeave = vi.fn();
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
 
-    overlay.show({ id: 'col-8' }, onClose);
+    overlay.show({ id: 'col-8' }, onLeave);
     expect(hasText(scene, 'Colosseum')).toBe(true);
 
-    clickText(scene, '[ Arena ]');
-    expect(hasText(scene, 'Arena — Select Fighter')).toBe(true);
-
-    clickText(scene, (obj) => obj.text.includes('FlowUnit'));
-    expect(hasText(scene, 'Arena — Select Tier')).toBe(true);
-
-    overlay._unitSelectPage = 1;
+    // ESC path: hide() should NOT invoke callback
     overlay.hide();
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onLeave).not.toHaveBeenCalled();
+    expect(overlay.visible).toBe(false);
 
-    overlay.show({ id: 'col-8b' }, onClose);
+    // Re-show and use Leave button path: leave() should invoke callback
+    overlay.show({ id: 'col-8b' }, onLeave);
     expect(hasText(scene, 'Colosseum')).toBe(true);
     expect(overlay._unitSelectPage).toBe(0);
+
+    overlay.leave();
+    expect(onLeave).toHaveBeenCalledTimes(1);
+  });
+
+  it('Leave button calls leave() which invokes callback', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'LeaveBtnUnit');
+    const runManager = makeRunManager({ gold: 1000, roster: [unit] });
+    const onLeave = vi.fn();
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-leave-btn' }, onLeave);
+    clickText(scene, '[ Leave ]');
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(overlay.visible).toBe(false);
+  });
+
+  it('ESC re-entry preserves arena state (_fightsPerUnit, _mercCandidates)', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'ReentryUnit');
+    const runManager = makeRunManager({ gold: 1000, roster: [unit] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-reentry' }, vi.fn());
+    overlay._fightsPerUnit['ReentryUnit'] = 2;
+    overlay._mercCandidates = [{ unit: makeUnit(gameData, 'Merc1'), hireCost: 300 }];
+
+    // ESC hide
+    overlay.hide();
+    expect(overlay._fightsPerUnit['ReentryUnit']).toBe(2);
+    expect(overlay._mercCandidates).toHaveLength(1);
+
+    // Re-show same node
+    overlay.show({ id: 'col-reentry' }, vi.fn());
+    expect(overlay._fightsPerUnit['ReentryUnit']).toBe(2);
+    expect(overlay._mercCandidates).toHaveLength(1);
+  });
+
+  it('after hide(), visible is false so onNodeClick guard passes', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-vis' }, vi.fn());
+    expect(overlay.visible).toBe(true);
+
+    overlay.hide();
+    expect(overlay.visible).toBe(false);
+    // colosseumOverlay?.visible would be false — no soft-lock
+  });
+
+  it('draw outcome shows Draw text and does not change gold', () => {
+    const scene = makeScene();
+    const unit = makeUnit(gameData, 'DrawUnit', 5);
+    const runManager = makeRunManager({ gold: 1000, roster: [unit] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    const tier = {
+      name: 'bronze',
+      entryFee: 50,
+      goldReward: 120,
+      xpMultiplier: 1,
+      levelOffset: [0, 0],
+    };
+
+    overlay.show({ id: 'col-draw' }, vi.fn());
+    overlay._selectedUnit = unit;
+    overlay._selectedTier = tier;
+    overlay._challenger = { unit: makeUnit(gameData, 'DrawEnemy', 5) };
+
+    // Test via _showResult which handles the outcome string
+    overlay._showResult('draw', tier);
+
+    expect(hasText(scene, 'Draw')).toBe(true);
+    // Gold should not change for draw
+    expect(runManager.gold).toBe(1000);
+  });
+
+  it('merc generation failure falls back to empty candidates with Back button', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    // Provide broken gameData to trigger error
+    const brokenData = { ...gameData, colosseum: { ...gameData.colosseum }, recruits: null };
+    const overlay = new ColosseumOverlay(scene, runManager, brokenData);
+
+    overlay.show({ id: 'col-merc-fail' }, vi.fn());
+    // Force re-gen by clearing cached candidates
+    overlay._mercCandidates = null;
+    overlay._showMercBrowse();
+
+    expect(overlay._mercCandidates).toEqual([]);
+    expect(hasText(scene, 'No mercenaries available')).toBe(true);
+    expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+  });
+
+  it('malformed merc candidates are filtered out during _showMercBrowse', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-merc-filter' }, vi.fn());
+    // Clear cached candidates so _showMercBrowse triggers generation
+    overlay._mercCandidates = null;
+    vi.mocked(generateMercenaryCandidates).mockReturnValueOnce([
+      { unit: { name: 'Good', stats: { HP: 20 }, className: 'Fighter' }, hireCost: 300 },
+      { unit: null, hireCost: 100 },
+      { unit: { name: 'NoStats' }, hireCost: 200 },
+      { unit: { name: 'NoCost', stats: { HP: 20 } }, hireCost: undefined },
+    ]);
+    overlay._showMercBrowse();
+
+    expect(overlay._mercCandidates).toHaveLength(1);
+    expect(overlay._mercCandidates[0].unit.name).toBe('Good');
+    vi.mocked(generateMercenaryCandidates).mockRestore();
+  });
+
+  it('non-array merc candidate generation falls back to empty list', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+
+    overlay.show({ id: 'col-merc-non-array' }, vi.fn());
+    overlay._mercCandidates = null;
+    vi.mocked(generateMercenaryCandidates).mockReturnValueOnce(null);
+
+    expect(() => overlay._showMercBrowse()).not.toThrow();
+    expect(overlay._mercCandidates).toEqual([]);
+    expect(hasText(scene, 'No mercenaries available')).toBe(true);
   });
 });

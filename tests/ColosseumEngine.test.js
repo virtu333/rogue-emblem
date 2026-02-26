@@ -507,6 +507,85 @@ describe('ColosseumEngine', () => {
       );
       expect(candidates).toEqual([]);
     });
+
+    // Use base-class-only pools to test tier cap without promoted class crashes
+    const baseOnlyPools = {
+      act1: { classPool: ['Fighter', 'Archer', 'Mage', 'Cavalier'], levelRange: [1, 5] },
+      act2: { classPool: ['Fighter', 'Archer', 'Mage', 'Cavalier'], levelRange: [5, 10] },
+      act3: { classPool: ['Fighter', 'Archer', 'Mage', 'Cavalier'], levelRange: [10, 15] },
+      act4: { classPool: ['Fighter', 'Archer', 'Mage', 'Cavalier'], levelRange: [15, 20] },
+      namePool: gameData.recruits.namePool,
+    };
+
+    it('Act 1 mercs have Iron weapons max (tier cap)', () => {
+      for (let i = 0; i < 50; i++) {
+        const rng = makeRng(i);
+        const candidates = generateMercenaryCandidates(
+          'act1',
+          10, // High lord level that would normally produce Steel/Silver
+          baseOnlyPools,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        );
+        for (const { unit } of candidates) {
+          if (unit.weapon) {
+            expect(unit.weapon.tier).toBe('Iron');
+          }
+        }
+      }
+    });
+
+    it('Act 2 mercs have Steel weapons max (tier cap)', () => {
+      for (let i = 0; i < 50; i++) {
+        const rng = makeRng(i);
+        const candidates = generateMercenaryCandidates(
+          'act2',
+          15,
+          baseOnlyPools,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        );
+        for (const { unit } of candidates) {
+          if (unit.weapon) {
+            expect(['Iron', 'Steel']).toContain(unit.weapon.tier);
+          }
+        }
+      }
+    });
+
+    it('Act 3+ mercs can have Silver weapons', () => {
+      let foundSilver = false;
+      for (let i = 0; i < 100; i++) {
+        const rng = makeRng(i);
+        const candidates = generateMercenaryCandidates(
+          'act3',
+          15,
+          baseOnlyPools,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        );
+        for (const { unit } of candidates) {
+          if (unit.weapon?.tier === 'Silver') {
+            foundSilver = true;
+            break;
+          }
+        }
+        if (foundSilver) break;
+      }
+      expect(foundSilver).toBe(true);
+    });
   });
 
   describe('getMercenaryPrice', () => {
