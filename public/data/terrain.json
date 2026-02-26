@@ -166,5 +166,17 @@
     "avoidBonus": "20",
     "defBonus": "1",
     "special": "Indoor cover. Slows all unit types."
+  },
+  {
+    "name": "Ballista",
+    "moveCost": {
+      "Infantry": "1",
+      "Armored": "1",
+      "Cavalry": "1",
+      "Flying": "1"
+    },
+    "avoidBonus": "10",
+    "defBonus": "1",
+    "special": "Fires at enemies in range. Stand on tile to capture."
   }
 ]

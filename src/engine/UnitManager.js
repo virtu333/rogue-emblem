@@ -27,6 +27,7 @@ const PROF_TO_TYPE = {
   Tomes: 'Tome',
   Light: 'Light',
   Staves: 'Staff',
+  Breath: 'Breath',
 };
 
 // Weapon/staff item types that participate in proficiency checks.

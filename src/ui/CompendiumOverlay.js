@@ -11,7 +11,7 @@ const TAB_DEFS = [
   {
     label: 'Arms',
     key: 'weapons',
-    filters: ['All', 'Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff', 'Scroll'],
+    filters: ['All', 'Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff', 'Scroll', 'Breath'],
   },
   {
     label: 'Skills',

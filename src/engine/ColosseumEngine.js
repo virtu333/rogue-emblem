@@ -7,6 +7,7 @@ import {
   BASE_CLASS_LEVEL_CAP,
   PROMOTED_CLASS_LEVEL_CAP,
   XP_PER_LEVEL,
+  filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import {
   createEnemyUnit,
@@ -64,8 +65,9 @@ export function generateChallenger(
   // Act 1-2: base classes only. Act 3+: base + promoted
   const actIdx = ACT_SEQUENCE.indexOf(actId);
   const usePromoted = actIdx >= 2; // act3 = index 2
-  const classPool = [...(pool.base || [])];
+  let classPool = [...(pool.base || [])];
   if (usePromoted && pool.promoted) classPool.push(...pool.promoted);
+  classPool = filterClassPoolByDifficulty(classPool, difficultyMode);
   if (classPool.length === 0) throw new Error(`Empty class pool for act: ${actId}`);
 
   const className = classPool[Math.floor(rng() * classPool.length)];

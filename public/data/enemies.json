@@ -9,22 +9,22 @@
     },
     "act2": {
       "levelRange": [3, 8],
-      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
+      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider", "Zombie"],
       "promoted": [],
       "sunderChance": 0.08,
       "poisonChance": 0
     },
     "act3": {
       "levelRange": [8, 15],
-      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
-      "promoted": ["Swordmaster", "General", "Paladin", "Sniper", "Wyvern Lord", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight"],
+      "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider", "Dragon"],
+      "promoted": ["Swordmaster", "General", "Paladin", "Sniper", "Wyvern Lord", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Revenant"],
       "sunderChance": 0.20,
       "poisonChance": 0.12
     },
     "act4": {
       "levelRange": [11, 17],
       "base": ["Myrmidon", "Fighter", "Knight", "Archer", "Cavalier", "Mage", "Thief", "Pegasus Knight", "Wyvern Rider"],
-      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Warlock", "Battle Monk", "Trickster", "Hunter"],
+      "promoted": ["Swordmaster", "General", "Warrior", "Paladin", "Sniper", "Sage", "Falcon Knight", "Wyvern Lord", "Hero", "Duelist", "Great Knight", "Berserker", "Dark Knight", "Bow Knight", "Warlock", "Battle Monk", "Trickster", "Hunter", "Revenant", "Dragon Lord"],
       "sunderChance": 0.25,
       "poisonChance": 0.15
     },

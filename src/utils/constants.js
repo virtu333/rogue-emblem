@@ -105,6 +105,7 @@ export const TERRAIN = {
   LavaCrack: 11,
   Floor: 12,
   Pillar: 13,
+  Ballista: 14,
 };
 
 // Boss stat bonus (flat added to all stats)
@@ -257,6 +258,15 @@ export const POISON_WEAPON_BY_TYPE = {
 // Proficiency prefixes that have poison variants (used to gate poison rolls)
 export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 
+// Difficulty-gated enemy classes (Hard/Lunatic only)
+export const DIFFICULTY_GATED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
+export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
+
+export function filterClassPoolByDifficulty(classPool, difficultyMode) {
+  if (difficultyMode === 'hard' || difficultyMode === 'lunatic') return classPool;
+  return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
+}
+
 export const DEADLY_ARSENAL_POOL = {
   Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],
   Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance', 'Doomblade'],
@@ -313,4 +323,5 @@ export const TERRAIN_COLORS = {
   'Lava Crack': 0xcc4400,
   Floor: 0x9090a0,
   Pillar: 0x606878,
+  Ballista: 0x8b4513,
 };

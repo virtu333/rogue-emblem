@@ -10,6 +10,7 @@ import {
   STATUS_STAFF_ELIGIBLE_CLASSES,
   SIEGE_ELIGIBLE_CLASSES,
   ACT_BIOME_WEIGHTS,
+  filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
 import { createScopedLogger } from '../utils/logger.js';
@@ -69,24 +70,33 @@ export function generateBattle(params, deps) {
 
   // 3. Generate terrain
   const mapLayout = generateTerrain(template, cols, rows, terrain);
+  applyStructures(mapLayout, template.structures, cols, rows, terrain);
   const resolvedHybridAnchors = resolveHybridAnchors(template.hybridArena, cols, rows);
   applyHybridArenaOverlay(mapLayout, template.hybridArena, cols, rows, terrain);
 
-  // 4. Place features (Throne for Seize)
+  // 4. Place features (Throne for Seize, Ballista for Hard/Lunatic)
   let thronePos = null;
+  const ballistas = [];
+  const diffMode = params.difficultyId || 'normal';
   if (template.features) {
     for (const feat of template.features) {
+      // Ballistas are Hard/Lunatic only — skip on Normal
+      if (feat.type === 'Ballista' && diffMode !== 'hard' && diffMode !== 'lunatic') continue;
       const pos = resolveFeaturePosition(feat.position, cols, rows);
       const idx = terrainNameToIndex(feat.type, terrain);
       if (idx !== -1) {
         mapLayout[pos.row][pos.col] = idx;
         if (feat.type === 'Throne') thronePos = pos;
+        if (feat.type === 'Ballista') {
+          ballistas.push({ col: pos.col, row: pos.row, owner: 'enemy', captured: false });
+        }
       }
     }
   }
 
   // 5. Player spawns
   const spawnCount = deployCount || DEPLOY_LIMITS[act]?.max || 4;
+  const biome = template.biome || null;
   const playerSpawns = placeSpawns(
     mapLayout,
     template,
@@ -95,13 +105,19 @@ export function generateBattle(params, deps) {
     'playerSpawn',
     terrain,
     spawnCount,
+    biome,
   );
 
   // 6. Enemy composition
   const basePool = enemies.pools[act];
+  const filteredPool = {
+    ...basePool,
+    base: filterClassPoolByDifficulty(basePool.base || [], diffMode),
+    promoted: filterClassPoolByDifficulty(basePool.promoted || [], diffMode),
+  };
   const pool = firstBattleFightersOnly
-    ? { ...basePool, base: ['Fighter'], promoted: [] }
-    : basePool;
+    ? { ...filteredPool, base: ['Fighter'], promoted: [] }
+    : filteredPool;
   const rolledEnemyCount = rollEnemyCount({
     deployCount: spawnCount,
     act,
@@ -165,6 +181,7 @@ export function generateBattle(params, deps) {
         classes,
         deps.weapons,
         usedRecruitNames,
+        biome,
       );
     }
   }
@@ -211,7 +228,16 @@ export function generateBattle(params, deps) {
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC
   const reachTargets = [...enemySpawns];
   if (npcSpawn) reachTargets.push(npcSpawn);
-  ensureReachability(mapLayout, cols, rows, terrain, playerSpawns[0], reachTargets, thronePos);
+  ensureReachability(
+    mapLayout,
+    cols,
+    rows,
+    terrain,
+    playerSpawns[0],
+    reachTargets,
+    thronePos,
+    biome,
+  );
 
   // Ensure bridges if river template
   if (template.minBridges || template.minBridgesByAct) {
@@ -235,6 +261,7 @@ export function generateBattle(params, deps) {
     npcSpawn,
     objective,
     thronePos,
+    biome,
   });
 
   const reinforcementConfig = cloneReinforcementConfig(template, {
@@ -253,6 +280,7 @@ export function generateBattle(params, deps) {
     enemySpawns,
     npcSpawn,
     thronePos,
+    ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
     ...reinforcementConfig,
     ...hybridConfig,
@@ -529,6 +557,117 @@ function applyPhaseOverrideToLayout(mapLayout, override, resolvedAnchors, terrai
   }
 }
 
+// --- Biome-aware fallback ---
+
+function getFallbackPassable(biome) {
+  return biome === 'castle' ? TERRAIN.Floor : TERRAIN.Plain;
+}
+
+// --- Structure overlay ---
+
+/**
+ * Apply deterministic architectural structures on top of zone-painted terrain.
+ * Structures are processed in array order — later entries overwrite earlier.
+ * Throws on unknown terrain names (fail-fast for typos in template data).
+ */
+function applyStructures(mapLayout, structures, cols, rows, terrainData) {
+  if (!Array.isArray(structures) || structures.length === 0) return;
+
+  for (const struct of structures) {
+    const bounds = resolveNormalizedRectBounds(struct.rect, cols, rows);
+    if (!bounds) continue;
+    const { startCol, endCol, startRow, endRow } = bounds;
+
+    switch (struct.type) {
+      case 'fill':
+        applyFill(mapLayout, startCol, endCol, startRow, endRow, struct.terrain, terrainData);
+        break;
+      case 'room':
+        applyRoom(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData);
+        break;
+      case 'wall_line':
+        applyFill(
+          mapLayout,
+          startCol,
+          endCol,
+          startRow,
+          endRow,
+          struct.terrain || 'Wall',
+          terrainData,
+        );
+        break;
+      case 'pillar_grid':
+        applyPillarGrid(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData);
+        break;
+      case 'pillar_line':
+        applyPillarLine(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+function resolveTerrainIndex(name, terrainData) {
+  const idx = terrainNameToIndex(name, terrainData);
+  if (idx === -1) {
+    throw new Error(`Unknown terrain name in structure: "${name}"`);
+  }
+  return idx;
+}
+
+function applyFill(mapLayout, startCol, endCol, startRow, endRow, terrainName, terrainData) {
+  const idx = resolveTerrainIndex(terrainName, terrainData);
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      mapLayout[r][c] = idx;
+    }
+  }
+}
+
+function applyRoom(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData) {
+  const wallIdx = resolveTerrainIndex(struct.wallTerrain || 'Wall', terrainData);
+  const interiorIdx = resolveTerrainIndex(struct.interior || 'Floor', terrainData);
+
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const isPerimeter = r === startRow || r === endRow - 1 || c === startCol || c === endCol - 1;
+      mapLayout[r][c] = isPerimeter ? wallIdx : interiorIdx;
+    }
+  }
+}
+
+function applyPillarGrid(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData) {
+  const spacing = struct.spacing || 2;
+  const floorIdx = resolveTerrainIndex(struct.floor || 'Floor', terrainData);
+  const pillarIdx = resolveTerrainIndex(struct.pillar || 'Pillar', terrainData);
+
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const localRow = r - startRow;
+      const localCol = c - startCol;
+      mapLayout[r][c] = localRow % spacing === 0 && localCol % spacing === 0 ? pillarIdx : floorIdx;
+    }
+  }
+}
+
+function applyPillarLine(mapLayout, startCol, endCol, startRow, endRow, struct, terrainData) {
+  const spacing = struct.spacing || 3;
+  const floorIdx = resolveTerrainIndex(struct.floor || 'Floor', terrainData);
+  const pillarIdx = resolveTerrainIndex(struct.pillar || 'Pillar', terrainData);
+
+  const width = endCol - startCol;
+  const height = endRow - startRow;
+  const horizontal = width >= height;
+
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const localPos = horizontal ? c - startCol : r - startRow;
+      mapLayout[r][c] = localPos % spacing === 0 ? pillarIdx : floorIdx;
+    }
+  }
+}
+
 // --- Terrain generation ---
 
 // Max forts per map (Throne excluded — placed by features, not random gen)
@@ -536,10 +675,11 @@ const MAX_FORTS = 4;
 const CAVALRY_CARVE_MAX_CONVERSIONS = 16;
 
 function generateTerrain(template, cols, rows, terrainData) {
-  // Initialize with Plain
+  // Initialize with biome-appropriate passable terrain
+  const fillTerrain = getFallbackPassable(template.biome);
   const map = [];
   for (let r = 0; r < rows; r++) {
-    map[r] = new Array(cols).fill(TERRAIN.Plain);
+    map[r] = new Array(cols).fill(fillTerrain);
   }
 
   const approachBounds = resolveNormalizedRectBounds(
@@ -579,8 +719,8 @@ function generateTerrain(template, cols, rows, terrainData) {
     }
   }
 
-  // Cap fort count — convert excess forts to Plain (random removal)
-  capTerrainCount(map, TERRAIN.Fort, MAX_FORTS);
+  // Cap fort count — convert excess to biome-appropriate passable terrain
+  capTerrainCount(map, TERRAIN.Fort, MAX_FORTS, getFallbackPassable(template.biome));
 
   return map;
 }
@@ -605,7 +745,7 @@ function resolveNormalizedRectBounds(rect, cols, rows) {
   };
 }
 
-function capTerrainCount(map, terrainIdx, maxCount) {
+function capTerrainCount(map, terrainIdx, maxCount, fallbackTerrain = TERRAIN.Plain) {
   const positions = [];
   for (let r = 0; r < map.length; r++) {
     for (let c = 0; c < map[r].length; c++) {
@@ -616,7 +756,7 @@ function capTerrainCount(map, terrainIdx, maxCount) {
   while (positions.length > maxCount) {
     const i = Math.floor(Math.random() * positions.length);
     const { r, c } = positions[i];
-    map[r][c] = TERRAIN.Plain;
+    map[r][c] = fallbackTerrain;
     positions.splice(i, 1);
   }
 }
@@ -633,6 +773,8 @@ function resolveFeaturePosition(position, cols, rows) {
       return { col: cols - 3, row: Math.floor(rows * 0.3) };
     case 'bottomRight':
       return { col: cols - 3, row: Math.floor(rows * 0.7) };
+    case 'centerLeft':
+      return { col: Math.floor(cols * 0.3), row: Math.floor(rows / 2) };
     default:
       return { col: Math.floor(cols / 2), row: Math.floor(rows / 2) };
   }
@@ -640,14 +782,24 @@ function resolveFeaturePosition(position, cols, rows) {
 
 // --- Spawn placement ---
 
-function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count) {
+function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count, biome) {
+  const fallbackPassable = getFallbackPassable(biome);
   // Find the zone for this role
   const zone = template.zones.find((z) => z.role === role);
   if (!zone) {
     // Fallback: leftmost columns for player, rightmost for enemy
     const startCol = role === 'playerSpawn' ? 0 : cols - 3;
     const endCol = role === 'playerSpawn' ? 3 : cols;
-    return findPassableTiles(mapLayout, startCol, endCol, 0, rows, terrainData, count);
+    return findPassableTiles(
+      mapLayout,
+      startCol,
+      endCol,
+      0,
+      rows,
+      terrainData,
+      count,
+      fallbackPassable,
+    );
   }
 
   const [x1, y1, x2, y2] = zone.rect;
@@ -656,10 +808,28 @@ function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count) 
   const startRow = Math.floor(y1 * rows);
   const endRow = Math.min(Math.ceil(y2 * rows), rows);
 
-  return findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrainData, count);
+  return findPassableTiles(
+    mapLayout,
+    startCol,
+    endCol,
+    startRow,
+    endRow,
+    terrainData,
+    count,
+    fallbackPassable,
+  );
 }
 
-function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrainData, count) {
+function findPassableTiles(
+  mapLayout,
+  startCol,
+  endCol,
+  startRow,
+  endRow,
+  terrainData,
+  count,
+  fallbackPassable = TERRAIN.Plain,
+) {
   const zoneWidth = Math.max(0, endCol - startCol);
   const zoneHeight = Math.max(0, endRow - startRow);
   const zoneCapacity = zoneWidth * zoneHeight;
@@ -688,7 +858,7 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
     }
   }
 
-  // Fallback: deterministically fill remaining tiles in-zone by forcing them to Plain.
+  // Fallback: deterministically fill remaining tiles in-zone by forcing them passable.
   if (spawns.length < targetCount) {
     const remainingTiles = [];
     for (let r = startRow; r < endRow; r++) {
@@ -701,7 +871,7 @@ function findPassableTiles(mapLayout, startCol, endCol, startRow, endRow, terrai
     const needed = targetCount - spawns.length;
     for (let i = 0; i < needed && i < remainingTiles.length; i++) {
       const pos = remainingTiles[i];
-      mapLayout[pos.row][pos.col] = TERRAIN.Plain;
+      mapLayout[pos.row][pos.col] = fallbackPassable;
       used.add(`${pos.col},${pos.row}`);
       spawns.push(pos);
     }
@@ -969,10 +1139,10 @@ function resolveClassWeight(className, enemyWeights, classData) {
     composite *= enemyWeights.archer;
     matched.push('archer');
   }
-  // "mage" — has Tomes or Light proficiency
+  // "mage" — has Tomes, Light, or Breath proficiency
   if (
     enemyWeights.mage !== undefined &&
-    (profList.includes('Tomes') || profList.includes('Light'))
+    (profList.includes('Tomes') || profList.includes('Light') || profList.includes('Breath'))
   ) {
     composite *= enemyWeights.mage;
     matched.push('mage');
@@ -1335,6 +1505,7 @@ function ensureReachability(
   playerSpawn,
   enemySpawns,
   thronePos,
+  biome,
 ) {
   // BFS from player spawn using Infantry movement
   const reachable = bfs(mapLayout, cols, rows, terrainData, playerSpawn, 'Infantry');
@@ -1347,7 +1518,7 @@ function ensureReachability(
     if (reachable.has(`${target.col},${target.row}`)) continue;
 
     // Target unreachable — carve a path from the nearest reachable tile
-    carvePath(mapLayout, cols, rows, terrainData, playerSpawn, target, reachable);
+    carvePath(mapLayout, cols, rows, terrainData, playerSpawn, target, reachable, biome);
 
     // Re-run BFS after carving (reachability may have expanded)
     const newReachable = bfs(mapLayout, cols, rows, terrainData, playerSpawn, 'Infantry');
@@ -1389,7 +1560,7 @@ function bfsFromSources(mapLayout, cols, rows, terrainData, sources, moveType) {
   return visited;
 }
 
-function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable) {
+function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable, biome) {
   carvePathForMoveType(
     mapLayout,
     cols,
@@ -1400,6 +1571,7 @@ function carvePath(mapLayout, cols, rows, terrainData, start, target, reachable)
     reachable,
     'Infantry',
     cols + rows,
+    biome,
   );
 }
 
@@ -1413,11 +1585,13 @@ function carvePathForMoveType(
   reachable,
   moveType,
   maxConversions,
+  biome,
 ) {
   if (!start || !target || maxConversions <= 0) return 0;
+  const fallback = getFallbackPassable(biome);
 
   // Simple A*-like greedy carve: step from target toward start,
-  // converting impassable tiles to Plain or Bridge (over water)
+  // converting impassable tiles to passable terrain or Bridge (over water)
   let cur = { col: target.col, row: target.row };
   const maxSteps = cols + rows; // safety limit
   let conversions = 0;
@@ -1433,7 +1607,7 @@ function carvePathForMoveType(
       if (tIdx === TERRAIN.Water) {
         mapLayout[cur.row][cur.col] = TERRAIN.Bridge;
       } else {
-        mapLayout[cur.row][cur.col] = TERRAIN.Plain;
+        mapLayout[cur.row][cur.col] = fallback;
       }
       conversions++;
     }
@@ -1465,8 +1639,9 @@ function ensureCavalryAdvanceGuarantees({
   npcSpawn,
   objective,
   thronePos,
+  biome,
 }) {
-  const cavalrySources = getCavalrySources(mapLayout, terrainData, playerSpawns);
+  const cavalrySources = getCavalrySources(mapLayout, terrainData, playerSpawns, biome);
   if (cavalrySources.length === 0) return;
 
   const occupied = buildOccupiedSet(playerSpawns, enemySpawns, npcSpawn);
@@ -1480,6 +1655,7 @@ function ensureCavalryAdvanceGuarantees({
     terrainData,
     cavalrySources,
     engagementCandidates,
+    biome,
   );
 
   if (objective !== 'seize' || !thronePos) return;
@@ -1494,10 +1670,19 @@ function ensureCavalryAdvanceGuarantees({
     terrainData,
     cavalrySources,
     thronePressureCandidates,
+    biome,
   );
 }
 
-function ensureCavalryCanReachCandidates(mapLayout, cols, rows, terrainData, sources, candidates) {
+function ensureCavalryCanReachCandidates(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  sources,
+  candidates,
+  biome,
+) {
   if (!Array.isArray(sources) || sources.length === 0) return;
   if (!Array.isArray(candidates) || candidates.length === 0) return;
 
@@ -1519,6 +1704,7 @@ function ensureCavalryCanReachCandidates(mapLayout, cols, rows, terrainData, sou
       reachable,
       'Cavalry',
       remainingConversions,
+      biome,
     );
     if (conversions <= 0) break;
 
@@ -1528,7 +1714,7 @@ function ensureCavalryCanReachCandidates(mapLayout, cols, rows, terrainData, sou
   }
 }
 
-function getCavalrySources(mapLayout, terrainData, playerSpawns) {
+function getCavalrySources(mapLayout, terrainData, playerSpawns, biome) {
   const passableSources = (playerSpawns || []).filter((spawn) =>
     isPassable(terrainData, mapLayout[spawn.row][spawn.col], 'Cavalry'),
   );
@@ -1542,7 +1728,7 @@ function getCavalrySources(mapLayout, terrainData, playerSpawns) {
   const tileIndex = mapLayout[fallback.row][fallback.col];
   if (!isPassable(terrainData, tileIndex, 'Cavalry')) {
     mapLayout[fallback.row][fallback.col] =
-      tileIndex === TERRAIN.Water ? TERRAIN.Bridge : TERRAIN.Plain;
+      tileIndex === TERRAIN.Water ? TERRAIN.Bridge : getFallbackPassable(biome);
   }
   return [fallback];
 }
@@ -1792,6 +1978,7 @@ function generateNPCSpawn(
   classesData,
   weaponsData,
   usedRecruitNames = {},
+  biome,
 ) {
   const { classPool, namePool, levelRange } = recruitPool;
   // If we have classPool (new structure), pick from it. Else fall back to pool (old structure).
@@ -1937,10 +2124,10 @@ function generateNPCSpawn(
     if (fallback.length > 0) {
       pos = fallback[Math.floor(Math.random() * fallback.length)];
     } else {
-      // Ultimate fallback: map center forced to Plain
+      // Ultimate fallback: map center forced to passable terrain
       const centerCol = Math.floor(cols / 2);
       const centerRow = Math.floor(rows / 2);
-      mapLayout[centerRow][centerCol] = TERRAIN.Plain;
+      mapLayout[centerRow][centerCol] = getFallbackPassable(biome);
       pos = { col: centerCol, row: centerRow };
     }
     if (DEBUG_MAP_GEN) mapGenLog.debug(`NPC Spawn fallback placement at (${pos.col},${pos.row})`);
@@ -1970,6 +2157,7 @@ function estimateMaxWeaponRange(className, classesData, weaponsData) {
     Tomes: 'Tome',
     Light: 'Light',
     Staves: 'Staff',
+    Breath: 'Breath',
   };
   const weaponType = profToType[primaryProf];
   if (!weaponType) return 1;
@@ -2086,5 +2274,7 @@ export {
   applyHybridArenaOverlay,
   applyPhaseOverrideToLayout,
   findAdjacentPassableTile,
+  applyStructures,
+  getFallbackPassable,
   CAVALRY_CARVE_MAX_CONVERSIONS,
 };

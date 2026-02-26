@@ -77,7 +77,9 @@
           "role": "enemySpawn"
         }
       ],
-      "features": [],
+      "features": [
+        { "type": "Ballista", "position": "topRight" }
+      ],
       "anchors": [
         { "position": "bridge_ends", "unit": "lance_user", "count": 2 }
       ],
@@ -202,7 +204,9 @@
           "role": "enemySpawn"
         }
       ],
-      "features": [],
+      "features": [
+        { "type": "Ballista", "position": "centerLeft" }
+      ],
       "anchors": [
         { "position": "center_gap", "unit": "highest_level" }
       ],
@@ -390,7 +394,9 @@
         { "type": "pillar_line", "rect": [0.3, 0.2, 0.7, 0.3], "spacing": 3 },
         { "type": "pillar_line", "rect": [0.3, 0.7, 0.7, 0.8], "spacing": 3 }
       ],
-      "features": [],
+      "features": [
+        { "type": "Ballista", "position": "centerLeft" }
+      ],
       "anchors": [],
       "enemyWeights": {
         "knight": 1.5,
@@ -664,7 +670,8 @@
         }
       ],
       "features": [
-        { "type": "Throne", "position": "topRight" }
+        { "type": "Throne", "position": "topRight" },
+        { "type": "Ballista", "position": "center" }
       ],
       "anchors": [
         { "position": "throne", "unit": "boss_or_strongest" }

@@ -96,8 +96,8 @@ const STATIC_HELP_TABS = [
           { text: '' },
           { text: 'Disadvantage: -10 Hit, -1 Damage.', color: RED },
           { text: '' },
-          { text: 'Bows, Tomes, Light, and Staves are', color: GRAY },
-          { text: 'outside the triangle.', color: GRAY },
+          { text: 'Bows, Tomes, Light, Breath, and Staves', color: GRAY },
+          { text: 'are outside the triangle.', color: GRAY },
         ],
       },
       {
@@ -150,10 +150,11 @@ const STATIC_HELP_TABS = [
       {
         title: 'Weapon Types',
         lines: [
-          { text: '8 weapon types:', color: GOLD },
+          { text: '9 weapon types:', color: GOLD },
           { text: '  Sword, Lance, Axe - melee (range 1)' },
           { text: '  Bow - ranged only (range 2)' },
           { text: '  Tome, Light - magic (range 1-2)' },
+          { text: '  Breath - dragon magic (range 1-2, enemy only)' },
           { text: '  Staff - healing, limited uses (see next)' },
           { text: '  Scroll - teaches a skill (consumable)' },
           { text: '' },

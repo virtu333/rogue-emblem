@@ -626,6 +626,29 @@ export function validateMapTemplatesConfig(config, options = {}) {
         return;
       }
 
+      const knownTemplateKeys = new Set([
+        'id',
+        'name',
+        'fogChance',
+        'acts',
+        'biome',
+        'zones',
+        'features',
+        'anchors',
+        'enemyWeights',
+        'bossOnly',
+        'hybridArena',
+        'phaseTerrainOverrides',
+        'reinforcementContractVersion',
+        'reinforcements',
+        'structures',
+        'minBridges',
+        'minBridgesByAct',
+      ]);
+      if (!hasOnlyKnownKeys(template, knownTemplateKeys)) {
+        errors.push(`${path} contains unknown keys`);
+      }
+
       if (typeof template.id !== 'string' || template.id.trim() === '') {
         errors.push(`${path}.id must be a non-empty string`);
       } else if (seenIds.has(template.id)) {
@@ -679,9 +702,107 @@ export function validateMapTemplatesConfig(config, options = {}) {
         );
       }
 
+      if (template.structures !== undefined) {
+        validateStructures(`${path}.structures`, template.structures, errors);
+      }
+
       validateReinforcements(path, template, strict, errors, warnings);
     });
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+const VALID_STRUCTURE_TYPES = new Set(['fill', 'room', 'wall_line', 'pillar_grid', 'pillar_line']);
+
+const KNOWN_STRUCTURE_KEYS = {
+  fill: new Set(['type', 'rect', 'terrain']),
+  room: new Set(['type', 'rect', 'interior', 'wallTerrain']),
+  wall_line: new Set(['type', 'rect', 'terrain']),
+  pillar_grid: new Set(['type', 'rect', 'spacing', 'floor', 'pillar']),
+  pillar_line: new Set(['type', 'rect', 'spacing', 'floor', 'pillar']),
+};
+
+function validateStructures(path, structures, errors) {
+  if (!Array.isArray(structures)) {
+    errors.push(`${path} must be an array`);
+    return;
+  }
+
+  structures.forEach((struct, i) => {
+    const sp = `${path}[${i}]`;
+    if (!isObject(struct)) {
+      errors.push(`${sp} must be an object`);
+      return;
+    }
+
+    if (typeof struct.type !== 'string' || !VALID_STRUCTURE_TYPES.has(struct.type)) {
+      errors.push(`${sp}.type must be one of: ${[...VALID_STRUCTURE_TYPES].join(', ')}`);
+    } else {
+      const allowedKeys = KNOWN_STRUCTURE_KEYS[struct.type];
+      if (!hasOnlyKnownKeys(struct, allowedKeys)) {
+        errors.push(`${sp} contains unknown keys for type "${struct.type}"`);
+      }
+    }
+
+    // Validate rect (same rules as zone rects)
+    if (
+      !Array.isArray(struct.rect) ||
+      struct.rect.length !== 4 ||
+      !struct.rect.every(isFiniteNumber)
+    ) {
+      errors.push(`${sp}.rect must be [x1,y1,x2,y2] finite numbers`);
+    } else {
+      const [x1, y1, x2, y2] = struct.rect;
+      if (x1 < 0 || y1 < 0 || x2 > 1 || y2 > 1 || x1 >= x2 || y1 >= y2) {
+        errors.push(`${sp}.rect must satisfy 0 <= x1 < x2 <= 1 and 0 <= y1 < y2 <= 1`);
+      }
+    }
+
+    // Type-specific validation
+    if (struct.type === 'fill') {
+      if (typeof struct.terrain !== 'string' || struct.terrain.trim() === '') {
+        errors.push(`${sp}.terrain must be a non-empty string for fill structures`);
+      }
+    }
+    if (struct.type === 'room') {
+      if (
+        struct.interior !== undefined &&
+        (typeof struct.interior !== 'string' || struct.interior.trim() === '')
+      ) {
+        errors.push(`${sp}.interior must be a non-empty string when provided`);
+      }
+      if (
+        struct.wallTerrain !== undefined &&
+        (typeof struct.wallTerrain !== 'string' || struct.wallTerrain.trim() === '')
+      ) {
+        errors.push(`${sp}.wallTerrain must be a non-empty string when provided`);
+      }
+    }
+    if (struct.type === 'wall_line') {
+      if (
+        struct.terrain !== undefined &&
+        (typeof struct.terrain !== 'string' || struct.terrain.trim() === '')
+      ) {
+        errors.push(`${sp}.terrain must be a non-empty string when provided`);
+      }
+    }
+    if (struct.type === 'pillar_grid' || struct.type === 'pillar_line') {
+      if (struct.spacing !== undefined && (!isInteger(struct.spacing) || struct.spacing <= 0)) {
+        errors.push(`${sp}.spacing must be a positive integer when provided`);
+      }
+      if (
+        struct.floor !== undefined &&
+        (typeof struct.floor !== 'string' || struct.floor.trim() === '')
+      ) {
+        errors.push(`${sp}.floor must be a non-empty string when provided`);
+      }
+      if (
+        struct.pillar !== undefined &&
+        (typeof struct.pillar !== 'string' || struct.pillar.trim() === '')
+      ) {
+        errors.push(`${sp}.pillar must be a non-empty string when provided`);
+      }
+    }
+  });
 }

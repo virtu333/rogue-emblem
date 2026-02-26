@@ -1439,5 +1439,44 @@
     "weaponArtIds": ["legend_starfall_volley"],
     "weaponArtSources": ["innate"],
     "price": 0
+  },
+  {
+    "name": "Fire Breath",
+    "type": "Breath",
+    "tier": "Iron",
+    "rankRequired": "Prof",
+    "might": 8,
+    "hit": 80,
+    "crit": 0,
+    "weight": 1,
+    "range": "1-2",
+    "special": "",
+    "price": 0
+  },
+  {
+    "name": "Toxic Breath",
+    "type": "Breath",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 11,
+    "hit": 75,
+    "crit": 0,
+    "weight": 2,
+    "range": "1-2",
+    "special": "Poison: target loses 5 HP after combat",
+    "price": 0
+  },
+  {
+    "name": "Ancient Breath",
+    "type": "Breath",
+    "tier": "Silver",
+    "rankRequired": "Mast",
+    "might": 15,
+    "hit": 70,
+    "crit": 5,
+    "weight": 3,
+    "range": "1-2",
+    "special": "",
+    "price": 0
   }
 ]

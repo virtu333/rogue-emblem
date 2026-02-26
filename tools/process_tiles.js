@@ -21,6 +21,9 @@ const tiles = [
   'village',
   'ice',
   'lava_crack',
+  'floor',
+  'pillar',
+  'wall_castle',
 ];
 
 // Ensure public dir exists

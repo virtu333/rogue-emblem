@@ -484,5 +484,23 @@
       "terrainCostReduction": 1
     },
     "classInnate": "Hunter"
+  },
+  {
+    "id": "zombie_drain",
+    "name": "Life Drain",
+    "description": "Heals 50% of damage dealt on attack",
+    "trigger": "on-attack",
+    "activation": "always",
+    "effects": { "drainPercent": 50 },
+    "classInnate": "Revenant"
+  },
+  {
+    "id": "dragon_scale",
+    "name": "Dragon Scale",
+    "description": "Reduces incoming damage by 3",
+    "trigger": "on-defend",
+    "activation": "always",
+    "effects": { "damageReduction": 3 },
+    "classInnate": "Dragon Lord"
   }
 ]

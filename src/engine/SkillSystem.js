@@ -463,10 +463,11 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
         break;
       }
 
-      case 'drain': {
+      case 'drain':
+      case 'zombie_drain': {
         const percent = skill.effects?.drainPercent || 25;
         result.heal = Math.max(1, Math.floor((normalDamage * percent) / 100));
-        result.activated.push({ id: 'drain', name: 'Drain' });
+        result.activated.push({ id: skill.id, name: skill.name });
         break;
       }
     }
@@ -537,6 +538,12 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     if (skill.id === 'aegis' && !isPhysicalAttack) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
       result.activated.push({ id: 'aegis', name: 'Aegis' });
+    }
+
+    if (skill.id === 'dragon_scale') {
+      const reduction = skill.effects?.damageReduction || 3;
+      result.modifiedDamage = Math.max(0, result.modifiedDamage - reduction);
+      result.activated.push({ id: 'dragon_scale', name: 'Dragon Scale' });
     }
 
     if (skill.id === 'miracle' && !defender._miracleUsed) {
@@ -763,7 +770,7 @@ export function getWeaponRangeBonus(unit, weapon, skillsData) {
     if (!skill || skill.trigger !== 'passive') continue;
 
     if (skill.id === 'foresight' && skill.effects?.tomeRangeBonus) {
-      if (weapon.type === 'Tome' || weapon.type === 'Light') {
+      if (weapon.type === 'Tome' || weapon.type === 'Light' || weapon.type === 'Breath') {
         bonus += skill.effects.tomeRangeBonus;
       }
     }

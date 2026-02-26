@@ -152,7 +152,7 @@ function normalizeLootArray(value) {
 }
 
 function isCombatWeaponType(type) {
-  return ['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff'].includes(type);
+  return ['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff', 'Breath'].includes(type);
 }
 
 /**
@@ -477,7 +477,8 @@ export function generateRandomLegendary(allWeapons) {
     // Stat boost: +2 to +5 of a random stat when equipped
     const physStats = ['STR', 'SKL', 'SPD', 'DEF'];
     const magStats = ['MAG', 'SKL', 'SPD', 'RES'];
-    const statPool = type === 'Tome' || type === 'Light' ? magStats : physStats;
+    const statPool =
+      type === 'Tome' || type === 'Light' || type === 'Breath' ? magStats : physStats;
     const stat = statPool[Math.floor(Math.random() * statPool.length)];
     const value = 2 + Math.floor(Math.random() * 4); // 2-5
     weapon.special = `+${value} ${stat} when equipped`;

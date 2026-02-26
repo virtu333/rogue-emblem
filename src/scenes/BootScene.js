@@ -206,7 +206,7 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
     }
 
-    // Terrain tiles (12)
+    // Terrain tiles (14 base + 1 biome variant)
     const terrainNames = [
       'plain',
       'forest',
@@ -220,10 +220,14 @@ export class BootScene extends Phaser.Scene {
       'village',
       'ice',
       'lava_crack',
+      'floor',
+      'pillar',
     ];
     for (const name of terrainNames) {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);
     }
+    // Castle biome wall variant
+    this.load.image('terrain_wall_castle', 'assets/sprites/tilesets/wall_castle.png');
 
     // Portraits (34) - keyed as portrait_{name}
     const portraits = [

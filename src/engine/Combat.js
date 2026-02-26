@@ -6,6 +6,7 @@ import {
   DOUBLE_ATTACK_SPD_THRESHOLD,
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
+  ZOMBIE_CLASSES,
 } from '../utils/constants.js';
 import { rollDefenseAffixes } from './AffixSystem.js';
 import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem.js';
@@ -13,7 +14,7 @@ import { isSleeping, isSilenced, removeCondition } from './StatusConditionSystem
 // --- Weapon classification ---
 
 const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
-const MAGICAL_TYPES = new Set(['Tome', 'Light']);
+const MAGICAL_TYPES = new Set(['Tome', 'Light', 'Breath']);
 const IS_DEV = Boolean(import.meta?.env?.DEV);
 
 function normalizeCombatStatScaling(value) {
@@ -225,6 +226,8 @@ export function getEffectivenessMultiplier(weapon, defender) {
   }
   // Global rule: all bows are effective against fliers
   if (weapon?.type === 'Bow' && defender.moveType === 'Flying') return 3;
+  // Light magic is effective against undead (zombie) classes
+  if (weapon?.type === 'Light' && ZOMBIE_CLASSES.has(defender.className)) return 3;
   if (!weapon?.special) return 1;
   const match = weapon.special.match(/Effective vs ([^()]+)\s*\((\d+)x\)/i);
   if (!match) return 1;

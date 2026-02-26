@@ -1264,5 +1264,61 @@
     "weaponProficiencies": "Swords (M), Bows (P)",
     "roleChange": "Gains Bows, Pathfinder innate, terrain master",
     "description": "A wilderness tracker — gains bows, moves through terrain cheaply with Pathfinder."
+  },
+  {
+    "name": "Zombie",
+    "tier": "base",
+    "baseStats": {
+      "HP": 22, "STR": 6, "MAG": 0, "SKL": 2, "SPD": 2, "DEF": 6, "RES": 1, "LCK": 0, "MOV": 4
+    },
+    "growthRanges": {
+      "HP": "50-65", "STR": "40-55", "MAG": "0-5", "SKL": "10-20", "SPD": "5-15", "DEF": "40-55", "RES": "0-10", "LCK": "0-5"
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Axes (P)",
+    "promotesTo": ["Revenant"],
+    "role": "tank",
+    "description": "Slow, resilient undead. Revives once after death unless slain by Light magic."
+  },
+  {
+    "name": "Revenant",
+    "tier": "promoted",
+    "promotesFrom": "Zombie",
+    "promotionBonuses": {
+      "HP": 4, "STR": 2, "MAG": 0, "SKL": 0, "SPD": 1, "DEF": 2, "RES": 0, "LCK": 0, "MOV": 0
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Axes (M), Swords (P)",
+    "roleChange": "Gains Swords, Life Drain innate, stronger undead",
+    "learnableSkills": [{ "skillId": "zombie_drain", "level": 1 }],
+    "description": "An empowered undead — drains life with each strike."
+  },
+  {
+    "name": "Dragon",
+    "tier": "base",
+    "baseStats": {
+      "HP": 28, "STR": 2, "MAG": 8, "SKL": 4, "SPD": 3, "DEF": 10, "RES": 8, "LCK": 2, "MOV": 5
+    },
+    "growthRanges": {
+      "HP": "60-75", "STR": "0-10", "MAG": "50-65", "SKL": "20-35", "SPD": "10-25", "DEF": "45-60", "RES": "35-50", "LCK": "5-15"
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Breath (P)",
+    "promotesTo": ["Dragon Lord"],
+    "role": "tank",
+    "description": "A hulking dragon — high bulk, breath attacks target RES at range 1-2."
+  },
+  {
+    "name": "Dragon Lord",
+    "tier": "promoted",
+    "promotesFrom": "Dragon",
+    "promotionBonuses": {
+      "HP": 5, "STR": 0, "MAG": 3, "SKL": 0, "SPD": 0, "DEF": 3, "RES": 2, "LCK": 0, "MOV": 0
+    },
+    "moveType": "Flying",
+    "weaponProficiencies": "Breath (M)",
+    "roleChange": "Dragon Scale innate, supreme magical tank",
+    "learnableSkills": [{ "skillId": "dragon_scale", "level": 1 }],
+    "description": "An ancient dragon lord — Dragon Scale reduces all incoming damage."
   }
 ]

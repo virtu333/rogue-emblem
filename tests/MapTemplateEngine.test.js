@@ -382,6 +382,14 @@ describe('MapTemplateEngine', () => {
     );
   });
 
+  it('rejects template with unknown top-level keys (typo detection)', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].structure = [{ type: 'fill', rect: [0, 0, 0.5, 0.5], terrain: 'Floor' }];
+    const result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('contains unknown keys'))).toBe(true);
+  });
+
   it('rejects non-object actTurnOffset', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     bad.rout[0].reinforcements.actTurnOffset = 'bad';

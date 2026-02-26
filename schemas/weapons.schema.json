@@ -8,7 +8,7 @@
       "name": { "type": "string" },
       "type": {
         "type": "string",
-        "enum": ["Sword", "Lance", "Axe", "Bow", "Tome", "Light", "Staff", "Scroll"]
+        "enum": ["Sword", "Lance", "Axe", "Bow", "Tome", "Light", "Staff", "Scroll", "Breath"]
       },
       "tier": {
         "type": "string",

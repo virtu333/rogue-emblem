@@ -291,7 +291,8 @@ describe('MapGenerator', () => {
     });
 
     it('still enforces throne pressure when all unoccupied throne-adjacent tiles are exhausted', () => {
-      const config = withSeed(7956, () =>
+      // Seed 1223 produces a layout where spawns fully occupy throne-adjacent tiles
+      const config = withSeed(1223, () =>
         generateBattle(
           {
             act: 'act3',
@@ -299,6 +300,7 @@ describe('MapGenerator', () => {
             templateId: ACT3_DARK_CHAMPION_TEMPLATE_ID,
             deployCount: 6,
             row: 1,
+            isBoss: true,
           },
           data,
         ),

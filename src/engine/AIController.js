@@ -231,7 +231,11 @@ export class AIController {
           } else {
             // Silence: magic users > units with skills
             const hasMagicProf = target.proficiencies?.some(
-              (p) => p.type === 'Tome' || p.type === 'Light' || p.type === 'Staff',
+              (p) =>
+                p.type === 'Tome' ||
+                p.type === 'Light' ||
+                p.type === 'Staff' ||
+                p.type === 'Breath',
             );
             score += hasMagicProf ? 100 : 0;
             score += (target.skills?.length || 0) * 5;

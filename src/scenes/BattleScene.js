@@ -121,6 +121,8 @@ import {
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
   RECRUIT_NODE_LORD_CHANCE,
+  ZOMBIE_CLASSES,
+  filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
@@ -206,6 +208,12 @@ import {
   getWeaponArtTooltipLines,
   resolveWeaponArtIds,
 } from '../ui/WeaponArtVisibility.js';
+import {
+  selectBallistaTarget,
+  resolveBallistaStrike,
+  getBallistaRange,
+  isBallistaTile,
+} from '../engine/BallistaEngine.js';
 
 function dimColor(color, factor = 0.3) {
   const r = Math.floor(((color >> 16) & 0xff) * factor);
@@ -583,6 +591,8 @@ export class BattleScene extends Phaser.Scene {
       this.playerUnits = [];
       this.enemyUnits = [];
       this.npcUnits = [];
+      this.ballistas = (this.battleConfig?.ballistas || []).map((b) => ({ ...b }));
+      this._zombieTombstones = [];
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -1719,7 +1729,11 @@ export class BattleScene extends Phaser.Scene {
         ...(Array.isArray(pool?.base) ? pool.base : []),
         ...(Array.isArray(pool?.promoted) ? pool.promoted : []),
       ];
-      for (const className of classNames) {
+      const filteredNames = filterClassPoolByDifficulty(
+        classNames,
+        this.battleParams?.difficultyId,
+      );
+      for (const className of filteredNames) {
         if (typeof className !== 'string') continue;
         const classData = this.gameData.classes.find((candidate) => candidate.name === className);
         if (!classData) continue;
@@ -2138,6 +2152,8 @@ export class BattleScene extends Phaser.Scene {
         ? this.runManager.rngSeed >>> 0
         : this.visionBaseSeed >>> 0,
       fog,
+      ballistas: this.ballistas?.map((b) => ({ ...b })) || [],
+      zombieTombstones: structuredClone(this._zombieTombstones || []),
     };
     if (!this.visionSnapshot) {
       this.visionSnapshot = snapshot;
@@ -2229,6 +2245,9 @@ export class BattleScene extends Phaser.Scene {
       }
       this.updateEnemyVisibility();
     }
+
+    this.ballistas = (this.visionSnapshot.ballistas || []).map((b) => ({ ...b }));
+    this._zombieTombstones = structuredClone(this.visionSnapshot.zombieTombstones || []);
 
     const sourceSeed = Number.isFinite(this.visionSnapshot.rngSeed)
       ? this.visionSnapshot.rngSeed >>> 0
@@ -3039,6 +3058,8 @@ export class BattleScene extends Phaser.Scene {
         return 'sfx_fire';
       case 'Light':
         return 'sfx_light';
+      case 'Breath':
+        return 'sfx_fire';
       default:
         return 'sfx_hit';
     }
@@ -4504,7 +4525,7 @@ export class BattleScene extends Phaser.Scene {
     if (
       isSilenced(this.selectedUnit) &&
       w &&
-      (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff')
+      (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff' || w.type === 'Breath')
     ) {
       this.hideForecast();
       return;
@@ -4899,7 +4920,7 @@ export class BattleScene extends Phaser.Scene {
     // Silenced units cannot attack with magic weapons
     if (isSilenced(unit)) {
       combatWeapons = combatWeapons.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
       );
     }
     if (combatWeapons.length === 0) return targets;
@@ -4932,7 +4953,10 @@ export class BattleScene extends Phaser.Scene {
     const magicBlocked =
       isSilenced(unit) &&
       unit.weapon &&
-      (unit.weapon.type === 'Tome' || unit.weapon.type === 'Light' || unit.weapon.type === 'Staff');
+      (unit.weapon.type === 'Tome' ||
+        unit.weapon.type === 'Light' ||
+        unit.weapon.type === 'Staff' ||
+        unit.weapon.type === 'Breath');
     if (
       !magicBlocked &&
       unit.weapon &&
@@ -4947,7 +4971,7 @@ export class BattleScene extends Phaser.Scene {
     let swapCandidates = getCombatWeapons(unit);
     if (isSilenced(unit)) {
       swapCandidates = swapCandidates.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
       );
     }
     const validWeapon = swapCandidates.find((w) => {
@@ -6107,7 +6131,7 @@ export class BattleScene extends Phaser.Scene {
     if (normalAttackTargets.length > 0) {
       const combatWeapons = getCombatWeapons(unit);
       const hasPhysical = combatWeapons.some(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
       );
       if (!silenced || hasPhysical) items.push('Attack');
     }
@@ -6176,6 +6200,13 @@ export class BattleScene extends Phaser.Scene {
       if (throne && unit.col === throne.col && unit.row === throne.row && !bossAlive) {
         items.push('Seize');
       }
+    }
+    // Capture: unit on enemy ballista tile
+    if (this.ballistas?.length > 0) {
+      const ballista = this.ballistas.find(
+        (b) => b.col === unit.col && b.row === unit.row && b.owner === 'enemy',
+      );
+      if (ballista) items.push('Capture');
     }
     items.push('Wait');
 
@@ -6266,6 +6297,16 @@ export class BattleScene extends Phaser.Scene {
             this.hideActionMenu();
             this.commitVisionSnapshotIfPending();
             this.onVictory();
+          } else if (label === 'Capture') {
+            this.hideActionMenu();
+            this.commitVisionSnapshotIfPending();
+            const ballista = this.ballistas?.find((b) => b.col === unit.col && b.row === unit.row);
+            if (ballista) {
+              ballista.owner = 'player';
+              ballista.captured = true;
+            }
+            unit.hasActed = true;
+            this.finishUnitAction(unit);
           } else if (label === 'Shove') {
             this.startShoveTargetSelection(unit);
           } else if (label === 'Pull') {
@@ -6888,7 +6929,7 @@ export class BattleScene extends Phaser.Scene {
     // Silenced units cannot use magic weapons
     if (isSilenced(unit)) {
       combatWeapons = combatWeapons.filter(
-        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff',
+        (w) => w.type !== 'Tome' && w.type !== 'Light' && w.type !== 'Staff' && w.type !== 'Breath',
       );
     }
     // Edge case: if silence filtering removed all weapons, return to action menu
@@ -7797,6 +7838,7 @@ export class BattleScene extends Phaser.Scene {
 
   _applyKillRewards(defeatedUnit, killer = null) {
     if (!this.runManager || defeatedUnit?.faction !== 'enemy') return;
+    if (defeatedUnit._noXP) return;
     this.goldEarned += calculateKillReward(defeatedUnit, killer, {
       rewardMultiplier: this.getEnemyRewardMultiplier(defeatedUnit),
       pressureGoldMultiplier: this.getTurnPressureState().goldMultiplier,
@@ -8752,7 +8794,7 @@ export class BattleScene extends Phaser.Scene {
       : getCombatWeapons(attacker).filter((w) => {
           if (
             isSilenced(attacker) &&
-            (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff')
+            (w.type === 'Tome' || w.type === 'Light' || w.type === 'Staff' || w.type === 'Breath')
           )
             return false;
           return this._isDistanceInWeaponRange(attacker, w, dist);
@@ -9980,6 +10022,30 @@ export class BattleScene extends Phaser.Scene {
       const idx = this.enemyUnits.indexOf(unit);
       if (idx !== -1) this.enemyUnits.splice(idx, 1);
       this._applyKillRewards(unit, killer);
+      // Zombie revival: create tombstone if killed by non-Light weapon
+      if (ZOMBIE_CLASSES.has(unit.className) && !unit._revived && !unit.isBoss) {
+        const killerWeaponType = killer?.weapon?.type;
+        if (killerWeaponType !== 'Light') {
+          this._zombieTombstones = this._zombieTombstones || [];
+          this._zombieTombstones.push({
+            col: deathCol,
+            row: deathRow,
+            turnsRemaining: 3,
+            snapshot: {
+              className: unit.className,
+              level: unit.level,
+              weapon: structuredClone(unit.weapon),
+              inventory: structuredClone(unit.inventory || []),
+              skills: [...(unit.skills || [])],
+              stats: { ...unit.stats },
+              moveType: unit.moveType,
+              proficiencies: structuredClone(unit.proficiencies || []),
+              tier: unit.tier || 'base',
+              mov: unit.mov,
+            },
+          });
+        }
+      }
     }
     this.dangerZoneStale = true;
     // Detect boss death on seize maps -- show prominent notification
@@ -10115,9 +10181,10 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Process turn-start effects (skills + affixes) (after banner settles)
-      this.time.delayedCall(1200, () =>
-        this.processTurnStartEffects(this.playerUnits, { skipRecovery: true }),
-      );
+      this.time.delayedCall(1200, async () => {
+        await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
+        await this.processBallistaFire(this.enemyUnits, 'player');
+      });
 
       // Tutorial hints (after phase banner fades)
       if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
@@ -10193,6 +10260,8 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(1400, async () => {
         await this.processTerrainDamage(this.playerUnits);
         await this.processTurnStartEffects(this.enemyUnits);
+        await this.processZombieRevival();
+        await this.processBallistaFire(this.playerUnits, 'enemy');
         this.applyDueHybridOverridesForTurn(turn);
         this.startEnemyPhase();
       });
@@ -10249,6 +10318,152 @@ export class BattleScene extends Phaser.Scene {
   /** Backward-compatible alias for older call sites/cherry-picks. */
   async processTurnStartSkills(units) {
     return this.processTurnStartEffects(units);
+  }
+
+  async processBallistaFire(targetUnits, owner) {
+    if (!this.ballistas || this.ballistas.length === 0) return;
+    const reduced = this._isReducedEffects();
+    for (const ballista of this.ballistas) {
+      if (ballista.owner !== owner) continue;
+      const target = selectBallistaTarget(ballista, targetUnits);
+      if (!target) continue;
+      const result = resolveBallistaStrike(ballista, target);
+      if (result.didHit) {
+        target.currentHP = Math.max(0, target.currentHP - result.damage);
+        this.updateHPBar(target);
+        if (target.graphic) {
+          const pos = this.grid.gridToPixel(target.col, target.row);
+          const txt = this.add
+            .text(pos.x, pos.y - 16, `${result.damage}`, {
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              color: '#ff8844',
+              fontStyle: 'bold',
+            })
+            .setOrigin(0.5)
+            .setDepth(301);
+          await new Promise((resolve) => {
+            this.tweens.add({
+              targets: txt,
+              y: pos.y - 32,
+              alpha: 0,
+              duration: reduced ? 260 : 600,
+              onComplete: () => {
+                txt.destroy();
+                resolve();
+              },
+            });
+          });
+        }
+        if (target.currentHP <= 0) {
+          await this.removeUnit(target, { killer: null });
+          this.checkBattleEnd();
+        }
+      } else if (target.graphic) {
+        const pos = this.grid.gridToPixel(target.col, target.row);
+        const txt = this.add
+          .text(pos.x, pos.y - 16, 'Miss', {
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            color: '#aaaaaa',
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(301);
+        await new Promise((resolve) => {
+          this.tweens.add({
+            targets: txt,
+            y: pos.y - 32,
+            alpha: 0,
+            duration: reduced ? 260 : 600,
+            onComplete: () => {
+              txt.destroy();
+              resolve();
+            },
+          });
+        });
+      }
+    }
+  }
+
+  async processZombieRevival() {
+    if (!this._zombieTombstones || this._zombieTombstones.length === 0) return;
+    const revived = [];
+    this._zombieTombstones = this._zombieTombstones.filter((tomb) => {
+      tomb.turnsRemaining--;
+      if (tomb.turnsRemaining > 0) return true;
+      revived.push(tomb);
+      return false;
+    });
+    for (const tomb of revived) {
+      const snap = tomb.snapshot;
+      // Find spawn position — original tile or nearest empty
+      let spawnCol = tomb.col;
+      let spawnRow = tomb.row;
+      if (this.getUnitAt(spawnCol, spawnRow)) {
+        const dirs = [
+          { dc: -1, dr: 0 },
+          { dc: 1, dr: 0 },
+          { dc: 0, dr: -1 },
+          { dc: 0, dr: 1 },
+        ];
+        let found = false;
+        for (const { dc, dr } of dirs) {
+          const nc = spawnCol + dc;
+          const nr = spawnRow + dr;
+          if (
+            nc >= 0 &&
+            nc < this.battleConfig.cols &&
+            nr >= 0 &&
+            nr < this.battleConfig.rows &&
+            !this.getUnitAt(nc, nr)
+          ) {
+            spawnCol = nc;
+            spawnRow = nr;
+            found = true;
+            break;
+          }
+        }
+        if (!found) continue; // no room — skip revival
+      }
+      const unit = {
+        name: snap.className,
+        className: snap.className,
+        tier: snap.tier || 'base',
+        level: snap.level,
+        xp: 0,
+        isLord: false,
+        personalGrowths: null,
+        growths: {},
+        proficiencies: structuredClone(snap.proficiencies || []),
+        skills: [...snap.skills],
+        col: spawnCol,
+        row: spawnRow,
+        mov: snap.mov || snap.stats.MOV || 4,
+        moveType: snap.moveType || 'Infantry',
+        stats: { ...snap.stats },
+        currentHP: Math.max(1, Math.floor(snap.stats.HP / 2)),
+        faction: 'enemy',
+        weapon: snap.weapon ? structuredClone(snap.weapon) : null,
+        inventory: snap.weapon ? [structuredClone(snap.weapon)] : [],
+        consumables: [],
+        affixes: [],
+        accessory: null,
+        weaponRank: snap.proficiencies?.[0]?.rank || 'Prof',
+        hasMoved: false,
+        hasActed: false,
+        _revived: true,
+        _noXP: true,
+        isBoss: false,
+        graphic: null,
+        label: null,
+        hpBar: null,
+      };
+      this.enemyUnits.push(unit);
+      this.addUnitGraphic(unit);
+      await this.showBriefBanner(`${unit.className} has risen!`, '#cc66cc');
+    }
+    if (revived.length > 0) this.checkBattleEnd();
   }
 
   /** Handle the Waller affix terrain creation */
@@ -10831,7 +11046,11 @@ export class BattleScene extends Phaser.Scene {
     }
     // Rout: all enemies dead = victory
     // Defer during enemy phase until reinforcements have been applied
-    if (this.battleConfig.objective === 'rout' && this.enemyUnits.length === 0) {
+    if (
+      this.battleConfig.objective === 'rout' &&
+      this.enemyUnits.length === 0 &&
+      !(this._zombieTombstones?.length > 0)
+    ) {
       if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
       return true;
@@ -10854,7 +11073,11 @@ export class BattleScene extends Phaser.Scene {
         color = '#66ff66'; // green -- ready to seize
       }
     } else {
-      label = `Rout: ${this.enemyUnits.length} enemies remaining`;
+      const tombCount = this._zombieTombstones?.length || 0;
+      label =
+        tombCount > 0
+          ? `Rout: ${this.enemyUnits.length} enemies + ${tombCount} reviving`
+          : `Rout: ${this.enemyUnits.length} enemies remaining`;
     }
     if (this.npcUnits.length > 0) {
       label += '\nRecruit: Talk to green unit';
