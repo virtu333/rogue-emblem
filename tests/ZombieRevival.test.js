@@ -1,4 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('phaser', () => ({
+  default: {
+    Scene: class {},
+  },
+}));
+
+import { BattleScene } from '../src/scenes/BattleScene.js';
 import { getEffectivenessMultiplier } from '../src/engine/Combat.js';
 import { rollStrikeSkills } from '../src/engine/SkillSystem.js';
 import {
@@ -584,74 +592,77 @@ describe('Spawn position fallback logic', () => {
   });
 });
 
-// --- 11. awardXP respects _noXP flag ---
-describe('awardXP _noXP guard', () => {
-  // Mirrors the guard at the top of BattleScene.awardXP:
-  //   if (opponent?._noXP) return;
-  function shouldAwardXP(opponent) {
-    return !opponent?._noXP;
+// --- 11. awardXP integration: _noXP guard (calls real BattleScene.prototype.awardXP) ---
+describe('awardXP integration — _noXP guard', () => {
+  function makeTextStub() {
+    return {
+      setOrigin() {
+        return this;
+      },
+      setDepth() {
+        return this;
+      },
+      destroy() {},
+    };
   }
 
-  it('blocks XP for revived zombie with _noXP: true', () => {
-    const opponent = { _noXP: true, className: 'Zombie', level: 3 };
-    expect(shouldAwardXP(opponent)).toBe(false);
+  function makeAwardXPCtx() {
+    return {
+      battleParams: { xpMultiplier: 1 },
+      turnPar: undefined,
+      turnBonusConfig: undefined,
+      getCurrentTurnNumber: () => 1,
+      registry: { get: () => ({ playSFX() {} }) },
+      grid: { gridToPixel: () => ({ x: 0, y: 0 }) },
+      add: { text: () => makeTextStub() },
+      time: { delayedCall: (_ms, cb) => cb() },
+      tweens: {
+        add: ({ onComplete }) => {
+          if (onComplete) onComplete();
+        },
+      },
+      _isReducedEffects: () => true,
+      updateHPBar() {},
+      gameData: { classes: [], skills: [] },
+      getEnemyXpMultiplier: () => 1,
+      getTurnPressureState: () => ({ xpMultiplier: 1 }),
+      awardScaledXP: vi.fn(async () => {}),
+    };
+  }
+
+  it('blocks XP for _noXP opponent (real awardXP)', async () => {
+    const ctx = makeAwardXPCtx();
+    const player = { tier: 'base', level: 5, xp: 0, stats: { SKL: 10, LCK: 5 } };
+    const opponent = { _noXP: true, className: 'Zombie', level: 3, tier: 'base' };
+
+    await BattleScene.prototype.awardXP.call(ctx, player, opponent, true);
+
+    expect(ctx.awardScaledXP).not.toHaveBeenCalled();
   });
 
-  it('allows XP for normal enemy without _noXP', () => {
-    const opponent = { className: 'Fighter', level: 5 };
-    expect(shouldAwardXP(opponent)).toBe(true);
+  it('awards XP for normal opponent without _noXP (real awardXP)', async () => {
+    const ctx = makeAwardXPCtx();
+    const player = { tier: 'base', level: 5, xp: 0, stats: { SKL: 10, LCK: 5 } };
+    const opponent = { className: 'Fighter', level: 5, tier: 'base' };
+
+    await BattleScene.prototype.awardXP.call(ctx, player, opponent, true);
+
+    expect(ctx.awardScaledXP).toHaveBeenCalledTimes(1);
   });
 
-  it('allows XP when _noXP is explicitly false', () => {
-    const opponent = { _noXP: false, className: 'Zombie', level: 4 };
-    expect(shouldAwardXP(opponent)).toBe(true);
-  });
+  it('awards XP when _noXP is explicitly false', async () => {
+    const ctx = makeAwardXPCtx();
+    const player = { tier: 'base', level: 5, xp: 0, stats: { SKL: 10, LCK: 5 } };
+    const opponent = { _noXP: false, className: 'Zombie', level: 4, tier: 'base' };
 
-  it('allows XP when opponent is null/undefined (safe guard)', () => {
-    expect(shouldAwardXP(null)).toBe(true);
-    expect(shouldAwardXP(undefined)).toBe(true);
+    await BattleScene.prototype.awardXP.call(ctx, player, opponent, true);
+
+    expect(ctx.awardScaledXP).toHaveBeenCalledTimes(1);
   });
 });
 
-// --- 12. Revival spawn terrain passability ---
-describe('Revival spawn terrain passability', () => {
-  // Mirrors processZombieRevival neighbor search with terrain check
-  function findSpawnWithTerrain(
-    deathCol,
-    deathRow,
-    cols,
-    rows,
-    occupiedSet,
-    terrainGrid,
-    moveType,
-  ) {
-    let spawnCol = deathCol;
-    let spawnRow = deathRow;
-    const key = (c, r) => `${c},${r}`;
-    if (occupiedSet.has(key(spawnCol, spawnRow))) {
-      const dirs = [
-        { dc: -1, dr: 0 },
-        { dc: 1, dr: 0 },
-        { dc: 0, dr: -1 },
-        { dc: 0, dr: 1 },
-      ];
-      for (const { dc, dr } of dirs) {
-        const nc = spawnCol + dc;
-        const nr = spawnRow + dr;
-        if (nc >= 0 && nc < cols && nr >= 0 && nr < rows && !occupiedSet.has(key(nc, nr))) {
-          const t = terrainGrid[nr]?.[nc];
-          const mc = t?.moveCost?.[moveType];
-          if (mc === '--' || mc == null) continue; // impassable → skip
-          spawnCol = nc;
-          spawnRow = nr;
-          return { col: spawnCol, row: spawnRow };
-        }
-      }
-      return null; // no room
-    }
-    return { col: spawnCol, row: spawnRow };
-  }
-
+// --- 12. processZombieRevival integration: terrain passability ---
+describe('processZombieRevival integration — terrain passability', () => {
   const plain = {
     name: 'Plain',
     moveCost: { Infantry: '1', Cavalry: '1', Flying: '1', Armored: '1' },
@@ -669,57 +680,153 @@ describe('Revival spawn terrain passability', () => {
     moveCost: { Infantry: '2', Cavalry: '3', Flying: '1', Armored: '2' },
   };
 
+  function makeTomb(col, row, moveType = 'Infantry') {
+    return {
+      col,
+      row,
+      turnsRemaining: 1,
+      snapshot: {
+        className: 'Zombie',
+        level: 3,
+        tier: 'base',
+        weapon: { name: 'Claws', type: 'Axe', might: 4 },
+        skills: ['zombie_drain'],
+        stats: { HP: 20, STR: 6, MAG: 0, SKL: 4, SPD: 3, DEF: 2, RES: 0, LCK: 0, MOV: 4 },
+        moveType,
+        proficiencies: [{ type: 'Axe', rank: 'Prof' }],
+        mov: 4,
+      },
+    };
+  }
+
+  function makeRevivalCtx(terrainGrid, unitPositions = []) {
+    const unitSet = new Set(unitPositions.map(([c, r]) => `${c},${r}`));
+    return {
+      _zombieTombstones: [],
+      battleConfig: { cols: terrainGrid[0].length, rows: terrainGrid.length },
+      enemyUnits: [],
+      grid: {
+        getTerrainAt(col, row) {
+          return terrainGrid[row]?.[col] ?? null;
+        },
+      },
+      getUnitAt(col, row) {
+        return unitSet.has(`${col},${row}`) ? {} : null;
+      },
+      addUnitGraphic: vi.fn(),
+      showBriefBanner: vi.fn(async () => {}),
+      checkBattleEnd: vi.fn(),
+    };
+  }
+
   function makeGrid(rows, cols, fill) {
     return Array.from({ length: rows }, () => Array.from({ length: cols }, () => fill));
   }
 
-  it('skips Wall tiles when searching for spawn', () => {
-    // 3x3 grid: center occupied, left=Wall, right=Plain, up=Wall, down=Wall
-    const grid = makeGrid(3, 3, wall);
-    grid[1][2] = plain; // right neighbor is passable
-    const occupied = new Set(['1,1']);
-    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
-    expect(result).not.toBeNull();
-    expect(result).toEqual({ col: 2, row: 1 }); // only passable neighbor
-  });
-
-  it('skips Water tiles for Infantry', () => {
-    const grid = makeGrid(3, 3, water);
-    grid[1][2] = plain; // right neighbor passable
-    const occupied = new Set(['1,1']);
-    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
-    expect(result).toEqual({ col: 2, row: 1 });
-  });
-
-  it('allows Water tiles for Flying units', () => {
-    const grid = makeGrid(3, 3, water);
-    const occupied = new Set(['1,1']);
-    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Flying');
-    expect(result).not.toBeNull();
-    // First checked direction is left (0,1)
-    expect(result).toEqual({ col: 0, row: 1 });
-  });
-
-  it('returns null when all neighbors are impassable Wall', () => {
-    const grid = makeGrid(3, 3, wall);
-    grid[1][1] = plain; // center is passable but occupied
-    const occupied = new Set(['1,1']);
-    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
-    expect(result).toBeNull();
-  });
-
-  it('allows Forest tiles (passable but costly)', () => {
-    const grid = makeGrid(3, 3, wall);
-    grid[0][1] = forest; // up neighbor is forest
-    const occupied = new Set(['1,1']);
-    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
-    expect(result).toEqual({ col: 1, row: 0 });
-  });
-
-  it('returns death position directly when unoccupied (no terrain check needed)', () => {
+  it('skips Wall neighbor tiles', async () => {
+    // 3x3, center occupied, left/up/down=Wall, right=Plain
     const grid = makeGrid(3, 3, wall);
     grid[1][1] = plain;
-    const result = findSpawnWithTerrain(1, 1, 3, 3, new Set(), grid, 'Infantry');
-    expect(result).toEqual({ col: 1, row: 1 });
+    grid[1][2] = plain;
+    const ctx = makeRevivalCtx(grid, [[1, 1]]);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.enemyUnits[0].col).toBe(2);
+    expect(ctx.enemyUnits[0].row).toBe(1);
+  });
+
+  it('skips Water neighbor tiles for Infantry', async () => {
+    const grid = makeGrid(3, 3, water);
+    grid[1][1] = plain;
+    grid[1][2] = plain; // only passable neighbor
+    const ctx = makeRevivalCtx(grid, [[1, 1]]);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.enemyUnits[0].col).toBe(2);
+    expect(ctx.enemyUnits[0].row).toBe(1);
+  });
+
+  it('allows Water tiles for Flying moveType', async () => {
+    const grid = makeGrid(3, 3, water);
+    grid[1][1] = plain;
+    const ctx = makeRevivalCtx(grid, [[1, 1]]);
+    ctx._zombieTombstones = [makeTomb(1, 1, 'Flying')];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    // First direction checked is left → (0,1)
+    expect(ctx.enemyUnits[0].col).toBe(0);
+    expect(ctx.enemyUnits[0].row).toBe(1);
+  });
+
+  it('cancels revival when all neighbors are impassable', async () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[1][1] = plain; // death tile passable but occupied
+    const ctx = makeRevivalCtx(grid, [[1, 1]]);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(0);
+    expect(ctx.addUnitGraphic).not.toHaveBeenCalled();
+  });
+
+  it('allows Forest neighbor tiles (passable but costly)', async () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[1][1] = plain;
+    grid[0][1] = forest; // up neighbor passable
+    const ctx = makeRevivalCtx(grid, [[1, 1]]);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.enemyUnits[0].col).toBe(1);
+    expect(ctx.enemyUnits[0].row).toBe(0);
+  });
+
+  it('revives on death tile when unoccupied and passable', async () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[1][1] = plain; // death tile passable, no occupant
+    const ctx = makeRevivalCtx(grid);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.enemyUnits[0].col).toBe(1);
+    expect(ctx.enemyUnits[0].row).toBe(1);
+  });
+
+  it('skips death tile when unoccupied but impassable (Waller scenario)', async () => {
+    const grid = makeGrid(3, 3, plain);
+    grid[1][1] = wall; // death tile became impassable (e.g. Waller placed Wall)
+    const ctx = makeRevivalCtx(grid);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(1);
+    // Should fall through to neighbor search — left neighbor (0,1) is Plain
+    expect(ctx.enemyUnits[0].col).toBe(0);
+    expect(ctx.enemyUnits[0].row).toBe(1);
+  });
+
+  it('cancels when death tile impassable and all neighbors impassable', async () => {
+    const grid = makeGrid(3, 3, wall); // everything impassable
+    const ctx = makeRevivalCtx(grid);
+    ctx._zombieTombstones = [makeTomb(1, 1)];
+
+    await BattleScene.prototype.processZombieRevival.call(ctx);
+
+    expect(ctx.enemyUnits).toHaveLength(0);
+    expect(ctx.addUnitGraphic).not.toHaveBeenCalled();
   });
 });

@@ -10398,10 +10398,13 @@ export class BattleScene extends Phaser.Scene {
     });
     for (const tomb of revived) {
       const snap = tomb.snapshot;
-      // Find spawn position — original tile or nearest empty
+      // Find spawn position — original tile or nearest passable+empty
       let spawnCol = tomb.col;
       let spawnRow = tomb.row;
-      if (this.getUnitAt(spawnCol, spawnRow)) {
+      const deathTerrain = this.grid.getTerrainAt(spawnCol, spawnRow);
+      const deathMc = deathTerrain?.moveCost?.[snap.moveType];
+      const deathImpassable = deathMc === '--' || deathMc == null;
+      if (deathImpassable || this.getUnitAt(spawnCol, spawnRow)) {
         const dirs = [
           { dc: -1, dr: 0 },
           { dc: 1, dr: 0 },
