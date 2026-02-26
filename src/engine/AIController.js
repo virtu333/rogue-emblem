@@ -7,6 +7,8 @@ import { gridDistance, isInRange } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
+import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
+import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
@@ -61,6 +63,18 @@ export class AIController {
   }
 
   async _processOneEnemy(enemy, allEnemies, playerUnits, npcUnits, callbacks) {
+    // Entity boss: stationary, dual weapon, range-2 primary attack
+    if (isEntity(enemy)) {
+      const decision = this._decideEntityAction(enemy, playerUnits, npcUnits);
+      enemy._lastAiDecision = decision;
+      callbacks.onDecision?.(enemy, decision);
+      if (decision?.target) {
+        await callbacks.onAttack(enemy, decision.target);
+      }
+      callbacks.onUnitDone(enemy);
+      return;
+    }
+
     const decision = this._decideAction(enemy, allEnemies, playerUnits, npcUnits);
     enemy._lastAiDecision = decision;
     callbacks.onDecision?.(enemy, decision);
@@ -101,6 +115,39 @@ export class AIController {
     }
 
     callbacks.onUnitDone(enemy);
+  }
+
+  /** Entity AI: stationary, picks best weapon, targets within ENTITY_PRIMARY_ATTACK_RANGE. */
+  _decideEntityAction(entity, playerUnits, npcUnits) {
+    const allTargets = [...(playerUnits || []), ...(npcUnits || [])].filter(
+      (u) => u && u.currentHP > 0 && !u._removing,
+    );
+    if (allTargets.length === 0) return { path: null, target: null, reason: 'no_targets' };
+
+    let bestTarget = null;
+    let bestScore = -Infinity;
+
+    for (const target of allTargets) {
+      const dist = combatDistance(entity, target);
+      if (dist > ENTITY_PRIMARY_ATTACK_RANGE) continue;
+      const score = this._scoreAttackTarget(entity, target, false);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = target;
+      }
+    }
+
+    // Pick best weapon for selected target
+    if (bestTarget && entity.inventory?.length > 1) {
+      const best = pickBestWeapon(entity, bestTarget, (ent, wpn, tgt) => {
+        const atkStat = wpn.type === 'Tome' || wpn.type === 'Light' ? ent.stats.MAG : ent.stats.STR;
+        const defStat = wpn.type === 'Tome' || wpn.type === 'Light' ? tgt.stats.RES : tgt.stats.DEF;
+        return Math.max(0, atkStat + (wpn.might || 0) - defStat);
+      });
+      entity.weapon = best;
+    }
+
+    return { path: null, target: bestTarget, reason: bestTarget ? 'entity_attack' : 'no_in_range' };
   }
 
   /**

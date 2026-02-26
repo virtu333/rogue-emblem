@@ -405,6 +405,64 @@ describe('BattleScene movement recovery', () => {
     expect(callArgs).not.toContain('1,0');
   });
 
+  it('calculateDangerZone uses ENTITY_PRIMARY_ATTACK_RANGE for Entity enemies', () => {
+    const scene = new BattleScene();
+    // Entity at (3,3) — 3x3 body covers (3,3) to (5,5)
+    const entity = makeUnit({
+      col: 3,
+      row: 3,
+      faction: 'enemy',
+      isEntity: true,
+      inventory: [{ name: 'Eldritch Grasp', type: 'Sword', might: 15, range: '1-4' }],
+      weapon: { name: 'Eldritch Grasp', type: 'Sword', might: 15, range: '1-4' },
+    });
+    scene.playerUnits = [];
+    scene.enemyUnits = [entity];
+    scene.npcUnits = [];
+    scene.grid = {
+      cols: 10,
+      rows: 10,
+      fogEnabled: false,
+      isVisible: () => true,
+      getMovementRange: vi.fn(() => new Map()),
+      getAttackRange: vi.fn((col, row, weapon) => {
+        // Return tiles at Manhattan distance 1-N from (col,row) based on weapon.range
+        const tiles = [];
+        const maxR = parseInt(weapon.range.split('-')[1] || weapon.range);
+        for (let dc = -maxR; dc <= maxR; dc++) {
+          for (let dr = -maxR; dr <= maxR; dr++) {
+            const dist = Math.abs(dc) + Math.abs(dr);
+            if (dist >= 1 && dist <= maxR && col + dc >= 0 && row + dr >= 0) {
+              tiles.push({ col: col + dc, row: row + dr });
+            }
+          }
+        }
+        return tiles;
+      }),
+    };
+    scene._getCostModifier = vi.fn(() => 0);
+    scene.buildUnitPositionMap = BattleScene.prototype.buildUnitPositionMap;
+    scene.unitPositions = new Map();
+
+    const result = BattleScene.prototype.calculateDangerZone.call(scene);
+    const keys = new Set(result.map((t) => `${t.col},${t.row}`));
+
+    // Entity body: (3,3)-(5,5). ENTITY_PRIMARY_ATTACK_RANGE = 2.
+    // Max threatened distance from any body tile = 2.
+    // So (1,3) is 2 away from body tile (3,3) — should be IN.
+    expect(keys.has('1,3')).toBe(true);
+    // (0,3) is 3 away from body tile (3,3) — should NOT be in (range capped at 2).
+    expect(keys.has('0,3')).toBe(false);
+
+    // getAttackRange called with range '1-2', NOT '1-4'
+    for (const call of scene.grid.getAttackRange.mock.calls) {
+      expect(call[2].range).toBe('1-2');
+    }
+
+    // getMovementRange should NOT be called for Entity
+    expect(scene.grid.getMovementRange).not.toHaveBeenCalled();
+  });
+
   it('filters dead and removing units out of buildUnitPositionMap', () => {
     const scene = new BattleScene();
     scene.playerUnits = [
