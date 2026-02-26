@@ -72,9 +72,17 @@ export function showImportantHint(scene, message) {
     };
 
     let dismissed = false;
+    const onShutdown = () => {
+      if (dismissed) return;
+      dismissed = true;
+      cleanup();
+    };
+    scene.events.once('shutdown', onShutdown);
+
     const onDismiss = () => {
       if (dismissed) return;
       dismissed = true;
+      scene.events.off('shutdown', onShutdown);
       cleanup();
     };
 

@@ -301,5 +301,278 @@
         "line": "No... this path leads to ruin. We must try again."
       }
     ]
+  },
+  "nodeFlavor": {
+    "battle": {
+      "act1": [
+        "The air tastes of iron here.",
+        "Scouts spotted movement ahead.",
+        "Something stirs beyond the treeline.",
+        "The ground is scarred from old battles."
+      ],
+      "act2": [
+        "Imperial banners hang in tatters.",
+        "The corruption has touched this place.",
+        "Smoke rises from the far ridge.",
+        "Old fortifications, hastily rebuilt."
+      ],
+      "act3": [
+        "The sky darkens without clouds.",
+        "Reality bends at the edges here.",
+        "The earth hums with a low, wrong note.",
+        "Even the wind sounds uncertain."
+      ],
+      "act4": [
+        "The air itself resists each step.",
+        "Shadows move against the light.",
+        "This land remembers what was done to it.",
+        "The corruption runs deep here. Deeper than roots."
+      ],
+      "finalBoss": [
+        "The end of the path. One way or another.",
+        "Everything converges here.",
+        "No more detours. No more preparation.",
+        "The world holds its breath."
+      ]
+    },
+    "elite": {
+      "act1": [
+        "A stronger presence guards this road.",
+        "The scouts fell back. That's never good.",
+        "Something here doesn't want to be found.",
+        "The usual patrols don't come this way."
+      ],
+      "act2": [
+        "An officer commands these troops. Stay sharp.",
+        "Imperial elites. Not conscripts — true believers.",
+        "This garrison was reinforced recently.",
+        "They knew we were coming."
+      ],
+      "act3": [
+        "The corruption has champions of its own.",
+        "Power radiates from this place. Twisted power.",
+        "Whatever guards this place has forgotten mercy.",
+        "The air crackles. Not lightning — something older."
+      ],
+      "act4": [
+        "A fragment of the emperor's will, given form.",
+        "This one was shaped by the ritual itself.",
+        "The corruption's finest soldier stands ready.",
+        "Even the ground trembles at what waits ahead."
+      ],
+      "finalBoss": [
+        "The last guardian. The strongest.",
+        "All that power, concentrated in one vessel.",
+        "This is the price of the final step.",
+        "It knows why we've come."
+      ]
+    },
+    "boss": {
+      "act1": [
+        "A commander holds the line ahead.",
+        "The border's strongest awaits.",
+        "Steel and discipline guard this crossing.",
+        "Their leader won't yield ground easily."
+      ],
+      "act2": [
+        "The lieutenant's chosen blocks our path.",
+        "An imperial champion. Forged in conquest.",
+        "This one answers directly to the throne.",
+        "Command tents and war banners. A true siege."
+      ],
+      "act3": [
+        "The ritual's guardian manifests.",
+        "Something ancient defends this ground.",
+        "The corruption's vessel awaits us.",
+        "Sera can feel it pressing against her visions."
+      ],
+      "act4": [
+        "The emperor's inner circle. The last wall.",
+        "Power like this shouldn't exist in mortal hands.",
+        "This is what the ritual was building toward.",
+        "Beyond this, only the emperor himself."
+      ],
+      "finalBoss": [
+        "The source of everything. Right here.",
+        "All roads led to this moment.",
+        "No visions needed to see what comes next.",
+        "The world's fate rests on what happens here."
+      ]
+    },
+    "recruit": {
+      "act1": [
+        "Someone signals from the roadside.",
+        "A survivor. Still willing to fight.",
+        "Not everyone has given up on this land.",
+        "Another blade for the cause."
+      ],
+      "act2": [
+        "A deserter from the imperial ranks.",
+        "They've seen what the empire really is.",
+        "Courage finds strange vessels sometimes.",
+        "One more soul choosing the harder path."
+      ],
+      "act3": [
+        "Even here, someone still resists.",
+        "The corruption hasn't claimed everyone.",
+        "A fighter, hardened by what they've survived.",
+        "They don't need convincing. They need a direction."
+      ],
+      "act4": [
+        "Survival alone takes strength here.",
+        "To still fight, this deep in — that's something.",
+        "The corruption spat this one out. Their loss.",
+        "Another who refused to break."
+      ],
+      "finalBoss": [
+        "Even at the end, allies find us.",
+        "One last warrior, drawn to the final stand.",
+        "They know the odds. They came anyway.",
+        "Some debts can only be paid in battle."
+      ]
+    }
+  },
+  "lordFarewell": {
+    "Kira": [
+      "I found the winning line... just not for me.",
+      "Don't stop. The path is still there. I can almost see it.",
+      "Heh. Thought I'd be the last one standing."
+    ],
+    "Voss": [
+      "Still standing... for now. Go. Finish this.",
+      "Took more than I expected. Don't waste what's left.",
+      "The shield breaks so the sword can strike. Go."
+    ],
+    "Sera": [
+      "The visions are fading... but I see you, Edric. You'll find the way.",
+      "I couldn't see this path. Maybe that means it's the right one.",
+      "The future isn't written yet. Not even I could see this far."
+    ],
+    "Rowan": [
+      "My lance... it's blessed. Take it. It'll know your hand.",
+      "The sky was beautiful from up there. Keep looking up.",
+      "One last charge. Make it count for both of us."
+    ],
+    "Astrid": [
+      "I could see so far from up there... not far enough, it seems.",
+      "The wind carries on. So should you.",
+      "Don't look down. I never did."
+    ],
+    "Cael": [
+      "The line holds. Even without me, the line holds.",
+      "I said I'd hold. And I did. Now go.",
+      "Every wall falls eventually. Build a better one."
+    ]
+  },
+  "churchFlavor": {
+    "revival": {
+      "act1": [
+        "The light returns to their eyes, slowly.",
+        "A second chance. Don't waste it.",
+        "Breath returns. The wound remembers."
+      ],
+      "act2": [
+        "The altar's power runs deeper than faith.",
+        "Pulled back from the edge. Not gently.",
+        "The old prayers still carry weight here."
+      ],
+      "act3": [
+        "Even the light struggles against what's coming.",
+        "Revival feels different now. Heavier.",
+        "The corruption makes the healing harder."
+      ],
+      "act4": [
+        "The altar burns brighter, as if in defiance.",
+        "Brought back in spite of everything.",
+        "Light and dark, balanced on a knife's edge."
+      ],
+      "finalBoss": [
+        "One more miracle. Perhaps the last.",
+        "The light knows what's at stake.",
+        "Restoration, at the world's end."
+      ]
+    },
+    "promotion": {
+      "act1": [
+        "Growth, earned in blood and resolve.",
+        "The change is visible. Sharper. Stronger.",
+        "A new chapter begins."
+      ],
+      "act2": [
+        "Power awakens where there was only potential.",
+        "The battlefield has forged something new.",
+        "Ready for what lies ahead. Almost.",
+        "The old title falls away. A new one fits better."
+      ],
+      "act3": [
+        "Transformation. Not gentle, but necessary.",
+        "Stronger now. The corruption demands it.",
+        "Ascension in the face of darkness."
+      ],
+      "act4": [
+        "Even the altar seems impressed.",
+        "The power to face what's coming. Finally.",
+        "Reborn for the final march."
+      ],
+      "finalBoss": [
+        "The ultimate form. For the ultimate battle.",
+        "Everything they were, refined to a point.",
+        "One last evolution. Make it matter."
+      ]
+    }
+  },
+  "shopFlavor": {
+    "act1": [
+      "The merchant eyes your coin purse hopefully.",
+      "Frontier goods. Honest prices. Mostly.",
+      "Stock up while you can. The road only gets harder."
+    ],
+    "act2": [
+      "Imperial supply lines make for good scavenging.",
+      "The merchant has seen better days. Haven't we all.",
+      "War is terrible for everything except business."
+    ],
+    "act3": [
+      "The wares have a strange shimmer to them here.",
+      "Even merchants feel the corruption. The prices reflect it.",
+      "Take what you need. Gold won't matter if we fail."
+    ],
+    "act4": [
+      "How this merchant survives here is its own mystery.",
+      "Rare goods, for those who've made it this far.",
+      "The merchant nods. No words needed at this point."
+    ],
+    "finalBoss": [
+      "Last chance to prepare. Choose wisely.",
+      "The merchant's hands tremble as they lay out the wares.",
+      "Everything has a price. Especially what comes next."
+    ]
+  },
+  "eliteVictory": {
+    "act1": [
+      "The stronger ones fall. The road opens.",
+      "That was no ordinary patrol.",
+      "A harder fight. A harder-won peace."
+    ],
+    "act2": [
+      "The empire's best, and it wasn't enough.",
+      "Their commander fell. The rest will scatter.",
+      "Imperial elite. Now imperial dead."
+    ],
+    "act3": [
+      "The corruption's champion is broken.",
+      "Power like that, and still it fell.",
+      "The darkness loses a champion today."
+    ],
+    "act4": [
+      "The emperor's inner guard, shattered.",
+      "That was a fragment of his will. Now it's dust.",
+      "Closer to the source. The resistance weakens."
+    ],
+    "finalBoss": [
+      "The last obstacle, overcome.",
+      "Nothing stands between us and the end now.",
+      "The final guardian falls."
+    ]
   }
 }

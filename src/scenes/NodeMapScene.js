@@ -360,6 +360,7 @@ export class NodeMapScene extends Phaser.Scene {
     this._promotionChoicePanelOpen = 0;
 
     this._churchMessageTimer = null;
+    this._churchFlavorTimer = null;
     this._transientMessageTimer = null;
 
     if (this.pauseOverlay?.visible) this.pauseOverlay.hide?.();
@@ -1488,6 +1489,11 @@ export class NodeMapScene extends Phaser.Scene {
         pendingAmbush,
       });
     } else {
+      try {
+        this._showNodeFlavor?.(node);
+      } catch (_) {
+        /* best-effort flavor */
+      }
       // Immediately lock node interactions before any async work begins.
       this.battleLaunchInFlight = true;
       this.isTransitioning = true;
@@ -1577,7 +1583,7 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
 
-    // Different node/act or no overlay � destroy old if present, create fresh
+    // Different node/act or no overlay — destroy old if present, create fresh
     if (this.colosseumOverlay) {
       this.colosseumOverlay.hide();
       this.colosseumOverlay = null;
@@ -1903,17 +1909,12 @@ export class NodeMapScene extends Phaser.Scene {
           if (rm.reviveFallenUnit(fallen.name, cost)) {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_heal');
+            let functionalMessage = `${fallen.name} revived!`;
             if (!rm.hasShownDialogue('revive_convoy_hint')) {
               rm.markDialogueShown('revive_convoy_hint');
-              this.showChurchMessage(
-                `${fallen.name} revived! (Gear stored in convoy \u2014 re-equip via Roster)`,
-                '#44ff44',
-              );
-            } else {
-              this.showChurchMessage(`${fallen.name} revived!`, '#44ff44');
+              functionalMessage = `${fallen.name} revived! (Gear stored in convoy \u2014 re-equip via Roster)`;
             }
-            this.churchGoldText.setText(`Gold: ${rm.gold}G`);
-            this.refreshChurchOverlay(node);
+            this._showChurchSuccessMessage(node, functionalMessage, '#44ff44', 'revival');
           } else {
             const audio = this.registry.get('audio');
             if (audio) audio.playSFX('sfx_cancel');
@@ -2007,9 +2008,12 @@ export class NodeMapScene extends Phaser.Scene {
           if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_levelup');
-          this.showChurchMessage(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
-          this.churchGoldText.setText(`Gold: ${rm.gold}G`);
-          this.refreshChurchOverlay(node);
+          this._showChurchSuccessMessage(
+            node,
+            `${unit.name} promoted to ${promotedClassData.name}!`,
+            '#ffdd44',
+            'promotion',
+          );
         });
         this.churchContentGroup.push(unitBtn);
       }
@@ -2045,7 +2049,35 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  _showChurchSuccessMessage(node, functionalMessage, functionalColor, flavorType) {
+    this.refreshChurchOverlay(node);
+    this.showChurchMessage(functionalMessage, functionalColor);
+    this._scheduleChurchFlavor(flavorType);
+  }
+
+  _scheduleChurchFlavor(flavorType, delayMs = 600) {
+    clearTrackedSceneTimer(this, this._churchFlavorTimer);
+    this._churchFlavorTimer = null;
+    const act = this.runManager?.currentAct || 'act1';
+    const pool =
+      this.gameData?.dialogue?.churchFlavor?.[flavorType]?.[act] ||
+      this.gameData?.dialogue?.churchFlavor?.[flavorType]?.['act3'];
+    if (!Array.isArray(pool) || pool.length === 0) return;
+    const line = pool[Math.floor(Math.random() * pool.length)];
+    this._churchFlavorTimer = trackSceneTimer(
+      this,
+      this.time?.delayedCall?.(delayMs, () => {
+        this._churchFlavorTimer = null;
+        if (this.scene?.isActive && !this.scene.isActive()) return;
+        if (!Array.isArray(this.churchOverlay)) return;
+        this.showChurchMessage(line, '#aabbcc');
+      }),
+    );
+  }
+
   showChurchMessage(text, color) {
+    if (this.scene?.isActive && !this.scene.isActive()) return;
+    if (!Array.isArray(this.churchOverlay)) return;
     if (this.churchMessage) this.churchMessage.destroy();
     clearTrackedSceneTimer(this, this._churchMessageTimer);
     this._churchMessageTimer = null;
@@ -2108,6 +2140,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._churchViewingRoster = false;
     clearTrackedSceneTimer(this, this._churchMessageTimer);
     this._churchMessageTimer = null;
+    clearTrackedSceneTimer(this, this._churchFlavorTimer);
+    this._churchFlavorTimer = null;
     if (this.churchOverlay) {
       this.churchOverlay.forEach((o) => o.destroy());
       this.churchOverlay = null;
@@ -2335,6 +2369,15 @@ export class NodeMapScene extends Phaser.Scene {
       this.leaveShopNode();
     });
     this.shopOverlay.push(leaveBtn);
+
+    // Shop entry flavor
+    const shopAct = this.runManager?.currentAct || 'act1';
+    const shopPool =
+      this.gameData?.dialogue?.shopFlavor?.[shopAct] ||
+      this.gameData?.dialogue?.shopFlavor?.['act3'];
+    if (Array.isArray(shopPool) && shopPool.length > 0) {
+      this.showShopBanner(shopPool[Math.floor(Math.random() * shopPool.length)], '#aabbcc');
+    }
   }
 
   leaveShopNode() {
@@ -3657,6 +3700,40 @@ export class NodeMapScene extends Phaser.Scene {
     this.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, '#88ddff');
   }
 
+  _showNodeFlavor(node) {
+    try {
+      if (!node?.type) return;
+      const typeKey = node.isElite
+        ? 'elite'
+        : node.type === 'boss'
+          ? 'boss'
+          : node.type === 'recruit'
+            ? 'recruit'
+            : 'battle';
+      const pool = this.gameData?.dialogue?.nodeFlavor?.[typeKey];
+      if (!pool) return;
+      const act = this.runManager?.currentAct || 'act1';
+      const lines = pool[act] || pool['act3'];
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      const line = lines[Math.floor(Math.random() * lines.length)];
+      this.showShopBanner(line, '#aabbcc');
+    } catch (_) {
+      /* best-effort flavor */
+    }
+  }
+
+  async _showSkillDisplacementWarning(displacedSkills) {
+    if (!displacedSkills || Object.keys(displacedSkills).length === 0) return;
+    const skillsData = this.gameData?.skills || [];
+    const getName = (id) => skillsData.find((s) => s.id === id)?.name || id;
+    const lines = Object.entries(displacedSkills).map(
+      ([unitName, { displaced, replacedBy }]) =>
+        `${unitName}: ${getName(replacedBy)} replaced ${getName(displaced)}`,
+    );
+    const message = `Personal skills restored!\n${lines.join('\n')}`;
+    await showImportantHint(this, message);
+  }
+
   closeShopOverlay() {
     this._shopViewingRoster = false;
     this.closeForgeStatPicker();
@@ -3700,10 +3777,11 @@ export class NodeMapScene extends Phaser.Scene {
           { reason: TRANSITION_REASONS.VICTORY },
         );
       } else {
-        this.showActCompleteBanner(() => {
-          const unlockedArtIds = rm.advanceAct();
+        this.showActCompleteBanner(async () => {
+          const { unlockedArtIds, displacedSkills } = rm.advanceAct();
           this.drawMap();
           this.showWeaponArtsUnlockedBanner(unlockedArtIds);
+          await this._showSkillDisplacementWarning(displacedSkills);
         });
       }
     } else {

@@ -72,11 +72,17 @@ export class MetaProgressionManager {
         // Migration: old single-currency saves have totalRenown but no totalValor
         if (typeof saved.totalRenown === 'number' && saved.totalValor === undefined) {
           // Give full renown to BOTH currencies
-          this.totalValor = saved.totalRenown;
-          this.totalSupply = saved.totalRenown;
+          this.totalValor = Number.isFinite(saved.totalRenown)
+            ? Math.max(0, Math.floor(saved.totalRenown))
+            : 0;
+          this.totalSupply = Number.isFinite(saved.totalRenown)
+            ? Math.max(0, Math.floor(saved.totalRenown))
+            : 0;
         } else {
-          if (typeof saved.totalValor === 'number') this.totalValor = saved.totalValor;
-          if (typeof saved.totalSupply === 'number') this.totalSupply = saved.totalSupply;
+          if (Number.isFinite(saved.totalValor))
+            this.totalValor = Math.max(0, Math.floor(saved.totalValor));
+          if (Number.isFinite(saved.totalSupply))
+            this.totalSupply = Math.max(0, Math.floor(saved.totalSupply));
         }
 
         if (saved.purchasedUpgrades) this.purchasedUpgrades = { ...saved.purchasedUpgrades };
@@ -131,12 +137,16 @@ export class MetaProgressionManager {
   }
 
   addValor(amount) {
-    this.totalValor += amount;
+    if (!Number.isFinite(amount)) return;
+    const current = Number.isFinite(this.totalValor) ? this.totalValor : 0;
+    this.totalValor = Math.max(0, Math.floor(current + amount));
     this._save();
   }
 
   addSupply(amount) {
-    this.totalSupply += amount;
+    if (!Number.isFinite(amount)) return;
+    const current = Number.isFinite(this.totalSupply) ? this.totalSupply : 0;
+    this.totalSupply = Math.max(0, Math.floor(current + amount));
     this._save();
   }
 

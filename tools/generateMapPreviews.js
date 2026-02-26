@@ -1,6 +1,9 @@
-// Generate map preview PNGs for castle biome templates
-// Usage: node tools/generateMapPreviews.js [--template <id>] [--all]
+// Generate map preview PNGs for map templates
+// Usage: node tools/generateMapPreviews.js [--template <id>] [--all] [--difficulty <id>]
 // Outputs to test-results/map-previews/
+// Examples:
+//   node tools/generateMapPreviews.js --all
+//   node tools/generateMapPreviews.js --template eldritch_sanctum --difficulty lunatic
 
 import sharp from 'sharp';
 import { readFileSync, mkdirSync, writeFileSync } from 'fs';
@@ -111,6 +114,19 @@ async function makeMarker(color, size = TILE_SIZE) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+// ---------- Entity marker (3x3 boss) ----------
+
+async function makeEntityMarker() {
+  const size = TILE_SIZE * 3;
+  const svg = `<svg width="${size}" height="${size}">
+    <rect x="2" y="2" width="${size - 4}" height="${size - 4}" rx="6" ry="6"
+          fill="#440066" fill-opacity="0.8" stroke="#cc88ff" stroke-width="2"/>
+    <text x="${size / 2}" y="${size / 2 + 10}" text-anchor="middle"
+          font-size="28" font-weight="bold" fill="#cc88ff" font-family="monospace">E</text>
+  </svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 // ---------- Map rendering ----------
 
 async function renderMap(battleConfig, biome, gameData) {
@@ -141,6 +157,7 @@ async function renderMap(battleConfig, biome, gameData) {
   const enemyMarker = await makeMarker('#cc3333');
   const npcMarker = await makeMarker('#33cc66');
   const throneMarker = await makeMarker('#daa520');
+  const entityMarker = await makeEntityMarker();
 
   if (thronePos) {
     composites.push({
@@ -154,8 +171,20 @@ async function renderMap(battleConfig, biome, gameData) {
     composites.push({ input: playerMarker, left: sp.col * TILE_SIZE, top: sp.row * TILE_SIZE });
   }
 
-  for (const sp of enemySpawns || []) {
+  // Separate entity spawns from normal enemy spawns
+  const entitySpawns = (enemySpawns || []).filter((sp) => sp.isEntity);
+  const normalEnemySpawns = (enemySpawns || []).filter((sp) => !sp.isEntity);
+
+  for (const sp of normalEnemySpawns) {
     composites.push({ input: enemyMarker, left: sp.col * TILE_SIZE, top: sp.row * TILE_SIZE });
+  }
+
+  for (const sp of entitySpawns) {
+    composites.push({
+      input: entityMarker,
+      left: sp.col * TILE_SIZE,
+      top: sp.row * TILE_SIZE,
+    });
   }
 
   if (npcSpawn) {
@@ -179,6 +208,9 @@ async function renderMap(battleConfig, biome, gameData) {
 async function main() {
   const args = process.argv.slice(2);
   const templateIdArg = args.includes('--template') ? args[args.indexOf('--template') + 1] : null;
+  const difficultyArg = args.includes('--difficulty')
+    ? args[args.indexOf('--difficulty') + 1]
+    : null;
   const allMode = args.includes('--all');
 
   const gameData = loadGameData();
@@ -225,7 +257,12 @@ async function main() {
     const biome = template.biome || 'grassland';
     const act = template.acts ? template.acts[0] : 'act2';
 
-    console.log(`Generating: ${template.id} (${biome}, ${objective}, act=${act})...`);
+    // Use explicit difficulty if provided, else 'lunatic' for Entity-capable templates, else 'normal'
+    const difficultyId = difficultyArg || (template.entitySpawn ? 'lunatic' : 'normal');
+
+    console.log(
+      `Generating: ${template.id} (${biome}, ${objective}, act=${act}, difficulty=${difficultyId})...`,
+    );
 
     const deps = {
       terrain: gameData.terrain,
@@ -239,10 +276,7 @@ async function main() {
       difficulty: gameData.difficulty,
     };
 
-    const bc = generateBattle(
-      { act, objective, templateId: template.id, difficultyId: 'normal' },
-      deps,
-    );
+    const bc = generateBattle({ act, objective, templateId: template.id, difficultyId }, deps);
 
     const pngBuf = await renderMap(bc, biome, gameData);
     const filename = `${template.id}.png`;
@@ -254,6 +288,7 @@ async function main() {
       templateId: template.id,
       biome,
       objective,
+      difficulty: difficultyId,
       size: `${bc.cols}x${bc.rows}`,
     });
 

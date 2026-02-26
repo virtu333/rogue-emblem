@@ -768,7 +768,7 @@ describe('convoy scene/UI flows', () => {
       runManager: {
         isActComplete: () => true,
         isRunComplete: () => false,
-        advanceAct: () => ['sword_precise_cut'],
+        advanceAct: () => ({ unlockedArtIds: ['sword_precise_cut'], displacedSkills: {} }),
       },
       gameData: {
         weaponArts: { arts: [{ id: 'sword_precise_cut', name: 'Precise Cut' }] },
@@ -779,6 +779,7 @@ describe('convoy scene/UI flows', () => {
       },
       showShopBanner: vi.fn(),
       showWeaponArtsUnlockedBanner: NodeMapScene.prototype.showWeaponArtsUnlockedBanner,
+      _showSkillDisplacementWarning: vi.fn(),
     };
 
     NodeMapScene.prototype.checkActComplete.call(ctx);

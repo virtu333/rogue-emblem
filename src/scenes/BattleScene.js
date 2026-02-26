@@ -823,7 +823,7 @@ export class BattleScene extends Phaser.Scene {
                     baseClassData.name,
                     this.gameData.skills,
                   )) {
-                    if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                    learnSkill(npc, sid);
                   }
                   promoteUnit(
                     npc,
@@ -881,7 +881,7 @@ export class BattleScene extends Phaser.Scene {
                     baseClassData.name,
                     this.gameData.skills,
                   )) {
-                    if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                    learnSkill(npc, sid);
                   }
                 } else {
                   npc = createRecruitUnit(
@@ -933,7 +933,7 @@ export class BattleScene extends Phaser.Scene {
               );
               // Assign base-class innate skills (e.g. Dancer gets 'dance')
               for (const sid of getClassInnateSkills(npcClassData.name, this.gameData.skills)) {
-                if (!npc.skills.includes(sid)) npc.skills.push(sid);
+                learnSkill(npc, sid);
               }
             }
 
@@ -10134,6 +10134,17 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) {
         this.playerUnits.splice(idx, 1);
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
+        // Lord farewell dialogue (non-Edric; Edric death triggers game over elsewhere)
+        if (unit.isLord && unit.name !== 'Edric') {
+          const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
+          if (Array.isArray(farewellPool) && farewellPool.length > 0) {
+            const line = farewellPool[Math.floor(Math.random() * farewellPool.length)];
+            const portraitKey = this._getPortraitKey(unit);
+            try {
+              await this.dialogueOverlay?.show(unit.name, line, portraitKey);
+            } catch (_) {}
+          }
+        }
       }
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);
@@ -11468,6 +11479,20 @@ export class BattleScene extends Phaser.Scene {
         } else if (this.isBoss) {
           this.showBossRecruitScreen();
         } else {
+          // Elite victory flavor
+          if (this.isElite) {
+            try {
+              const act = this.battleParams?.act || 'act1';
+              const elitePool =
+                this.gameData?.dialogue?.eliteVictory?.[act] ||
+                this.gameData?.dialogue?.eliteVictory?.['act3'];
+              if (Array.isArray(elitePool) && elitePool.length > 0) {
+                const line = elitePool[Math.floor(Math.random() * elitePool.length)];
+                await this.dialogueOverlay?.show(null, line, null);
+              }
+            } catch (_) {}
+            if (!this.scene?.isActive?.()) return;
+          }
           this.showLootScreen();
         }
       });

@@ -342,7 +342,7 @@ function assignEnemySkills(unit, classData, level, skillsData, act) {
   if (classData.tier === 'promoted') {
     const innateSkills = getClassInnateSkills(classData.name, skillsData);
     for (const sid of innateSkills) {
-      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+      learnSkill(unit, sid);
     }
   }
 
@@ -360,7 +360,7 @@ function assignEnemySkills(unit, classData, level, skillsData, act) {
   if (level >= 5 && Math.random() < chance) {
     const pool = ['sol', 'luna', 'vantage', 'wrath', 'adept', 'guard'];
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    if (!unit.skills.includes(pick)) unit.skills.push(pick);
+    learnSkill(unit, pick);
   }
 }
 
@@ -559,7 +559,7 @@ export function createRecruitUnit(
   // Random combat skill from meta upgrade
   if (randomSkillPool && randomSkillPool.length > 0) {
     const skill = randomSkillPool[Math.floor(Math.random() * randomSkillPool.length)];
-    if (!unit.skills.includes(skill)) unit.skills.push(skill);
+    learnSkill(unit, skill);
   }
 
   // Give Archer/Sniper recruits a Longbow for tactical range advantage.
@@ -960,9 +960,7 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   // Add class-innate skills
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
   for (const sid of innateSkills) {
-    if (!unit.skills.includes(sid)) {
-      unit.skills.push(sid);
-    }
+    learnSkill(unit, sid);
   }
 }
 

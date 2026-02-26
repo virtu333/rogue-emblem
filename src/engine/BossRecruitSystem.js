@@ -24,6 +24,7 @@ import {
   isPromotionClassBlocked,
   grantLethalArmoryWeapon,
   checkLevelUpSkills,
+  learnSkill,
 } from './UnitManager.js';
 import { serializeUnit } from './RunManager.js';
 
@@ -489,7 +490,7 @@ function createRecruitFromPool(
   };
   const addClassInnates = (unit, className) => {
     for (const sid of getClassInnateSkills(className, skills)) {
-      if (!unit.skills.includes(sid)) unit.skills.push(sid);
+      learnSkill(unit, sid);
     }
   };
 

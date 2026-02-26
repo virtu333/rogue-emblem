@@ -383,3 +383,481 @@ describe('DialogueOverlay lifecycle', () => {
     expect(enter.listeners).toContain(external);
   });
 });
+
+describe('Node flavor (Surface 1)', () => {
+  function makeScene(act, dialogueData) {
+    return {
+      gameData: { dialogue: dialogueData },
+      runManager: { currentAct: act },
+      showShopBanner: vi.fn(),
+      _showNodeFlavor: NodeMapScene.prototype._showNodeFlavor,
+    };
+  }
+
+  it('picks from correct act/type pool', () => {
+    const scene = makeScene('act2', {
+      nodeFlavor: {
+        battle: { act2: ['frontier line'] },
+        elite: { act2: ['elite line'] },
+      },
+    });
+    scene._showNodeFlavor({ type: 'battle' });
+    expect(scene.showShopBanner).toHaveBeenCalledWith('frontier line', '#aabbcc');
+  });
+
+  it('falls back to act3 when act key missing', () => {
+    const scene = makeScene('finalBoss', {
+      nodeFlavor: { battle: { act3: ['fallback line'] } },
+    });
+    scene._showNodeFlavor({ type: 'battle' });
+    expect(scene.showShopBanner).toHaveBeenCalledWith('fallback line', '#aabbcc');
+  });
+
+  it('uses elite pool for elite nodes', () => {
+    const scene = makeScene('act1', {
+      nodeFlavor: {
+        battle: { act1: ['battle line'] },
+        elite: { act1: ['elite line'] },
+      },
+    });
+    scene._showNodeFlavor({ type: 'battle', isElite: true });
+    expect(scene.showShopBanner).toHaveBeenCalledWith('elite line', '#aabbcc');
+  });
+
+  it('swallows errors gracefully', () => {
+    const scene = makeScene('act1', {
+      nodeFlavor: { battle: { act1: ['line'] } },
+    });
+    scene.showShopBanner = vi.fn(() => {
+      throw new Error('boom');
+    });
+    expect(() => scene._showNodeFlavor({ type: 'battle' })).not.toThrow();
+  });
+
+  it('onNodeClick still launches battle when flavor path throws', () => {
+    const node = { id: 'battle-1', type: 'battle' };
+    const scene = {
+      isTransitioning: false,
+      battleLaunchInFlight: false,
+      isSceneReady: true,
+      shopOverlay: null,
+      churchOverlay: null,
+      colosseumOverlay: null,
+      rosterOverlay: null,
+      pauseOverlay: null,
+      input: { enabled: true },
+      _sceneLifecycleGeneration: 9,
+      _showNodeFlavor: vi.fn(() => {
+        throw new Error('flavor failed');
+      }),
+      handleBattle: vi.fn(),
+    };
+
+    expect(() => NodeMapScene.prototype.onNodeClick.call(scene, node)).not.toThrow();
+    expect(scene.battleLaunchInFlight).toBe(true);
+    expect(scene.isTransitioning).toBe(true);
+    expect(scene.isSceneReady).toBe(false);
+    expect(scene.handleBattle).toHaveBeenCalledWith(node, 9);
+  });
+});
+
+describe('Lord farewell (Surface 2)', () => {
+  function makeBattleScene(unitOverrides) {
+    const unit = {
+      faction: 'player',
+      isLord: false,
+      name: 'Bob',
+      className: 'Fighter',
+      col: 0,
+      row: 0,
+      currentHP: 0,
+      ...unitOverrides,
+    };
+    const scene = {
+      registry: { get: () => null },
+      removeUnitGraphic: vi.fn(),
+      playerUnits: [unit],
+      enemyUnits: [],
+      npcUnits: [],
+      _playerDeathsThisBattle: 0,
+      dangerZoneStale: false,
+      battleConfig: { objective: 'rout' },
+      gameData: {
+        dialogue: {
+          lordFarewell: {
+            Kira: ['Farewell line'],
+          },
+        },
+        lords: [{ name: 'Kira' }],
+        classes: [],
+        affixes: { affixes: [] },
+      },
+      dialogueOverlay: { show: vi.fn(async () => {}) },
+      _getPortraitKey: vi.fn(() => 'portrait_lord_kira'),
+      updateObjectiveText: vi.fn(),
+      updateHPBar: vi.fn(),
+      _showBossDefeatedBanner: vi.fn(),
+      grid: { gridToPixel: () => ({ x: 0, y: 0 }) },
+      add: { text: () => ({ setOrigin: () => ({ setDepth: () => ({}) }) }) },
+      tweens: { add: vi.fn() },
+    };
+    return { scene, unit };
+  }
+
+  it('shows farewell for non-Edric lord', async () => {
+    const { scene, unit } = makeBattleScene({ isLord: true, name: 'Kira' });
+    await BattleScene.prototype.removeUnit.call(scene, unit);
+    expect(scene.dialogueOverlay.show).toHaveBeenCalledWith(
+      'Kira',
+      'Farewell line',
+      'portrait_lord_kira',
+    );
+  });
+
+  it('skips farewell for Edric', async () => {
+    const { scene, unit } = makeBattleScene({ isLord: true, name: 'Edric' });
+    await BattleScene.prototype.removeUnit.call(scene, unit);
+    expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+  });
+
+  it('skips farewell for non-lord', async () => {
+    const { scene, unit } = makeBattleScene({ isLord: false, name: 'Kira' });
+    await BattleScene.prototype.removeUnit.call(scene, unit);
+    expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+  });
+});
+
+describe('Church revival flavor (Surface 3)', () => {
+  function makeChurchScene(churchFlavorData) {
+    const shownMessages = [];
+    const scene = {
+      runManager: { currentAct: 'act1' },
+      gameData: { dialogue: { churchFlavor: churchFlavorData } },
+      churchOverlay: [{}],
+      _sceneTimers: new Set(),
+      scene: { isActive: () => true },
+      time: {
+        delayedCall: (ms, cb) => {
+          const id = setTimeout(cb, ms);
+          return { remove: () => clearTimeout(id) };
+        },
+      },
+      refreshChurchOverlay: vi.fn(() => {
+        scene.churchOverlay = [{}];
+      }),
+      showChurchMessage: vi.fn((text) => {
+        shownMessages.push(text);
+      }),
+      _scheduleChurchFlavor: NodeMapScene.prototype._scheduleChurchFlavor,
+    };
+    return { scene, shownMessages };
+  }
+
+  it('revive success shows functional message first, then delayed flavor', async () => {
+    vi.useFakeTimers();
+    const { scene, shownMessages } = makeChurchScene({
+      revival: { act1: ['Light returns.'] },
+    });
+
+    NodeMapScene.prototype._showChurchSuccessMessage.call(
+      scene,
+      { id: 'church-1' },
+      'Kira revived!',
+      '#44ff44',
+      'revival',
+    );
+
+    expect(scene.refreshChurchOverlay).toHaveBeenCalledWith({ id: 'church-1' });
+    expect(shownMessages).toEqual(['Kira revived!']);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(shownMessages).toEqual(['Kira revived!', 'Light returns.']);
+  });
+
+  it('delayed flavor is skipped safely if church overlay closes first', async () => {
+    vi.useFakeTimers();
+    const { scene, shownMessages } = makeChurchScene({
+      revival: { act1: ['Light returns.'] },
+    });
+
+    NodeMapScene.prototype._showChurchSuccessMessage.call(
+      scene,
+      { id: 'church-1' },
+      'Kira revived!',
+      '#44ff44',
+      'revival',
+    );
+    scene.churchOverlay = null;
+
+    await vi.advanceTimersByTimeAsync(600);
+    expect(shownMessages).toEqual(['Kira revived!']);
+  });
+});
+
+describe('Church promotion flavor (Surface 4)', () => {
+  it('promotion success shows functional message first, then delayed flavor', async () => {
+    vi.useFakeTimers();
+    const shownMessages = [];
+    const scene = {
+      runManager: { currentAct: 'act1' },
+      gameData: {
+        dialogue: {
+          churchFlavor: { promotion: { act1: ['Power awakens.'] } },
+        },
+      },
+      churchOverlay: [{}],
+      _sceneTimers: new Set(),
+      scene: { isActive: () => true },
+      time: {
+        delayedCall: (ms, cb) => {
+          const id = setTimeout(cb, ms);
+          return { remove: () => clearTimeout(id) };
+        },
+      },
+      refreshChurchOverlay: vi.fn(() => {
+        scene.churchOverlay = [{}];
+      }),
+      showChurchMessage: vi.fn((text) => {
+        shownMessages.push(text);
+      }),
+      _scheduleChurchFlavor: NodeMapScene.prototype._scheduleChurchFlavor,
+    };
+
+    NodeMapScene.prototype._showChurchSuccessMessage.call(
+      scene,
+      { id: 'church-1' },
+      'Sera promoted to Saint!',
+      '#ffdd44',
+      'promotion',
+    );
+
+    expect(shownMessages).toEqual(['Sera promoted to Saint!']);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(shownMessages).toEqual(['Sera promoted to Saint!', 'Power awakens.']);
+  });
+
+  it('showChurchMessage exits safely when scene is inactive or overlay missing', () => {
+    const addText = vi.fn();
+    const baseScene = {
+      churchOverlay: null,
+      scene: { isActive: () => true },
+      add: { text: addText },
+      time: { delayedCall: vi.fn() },
+    };
+    expect(() =>
+      NodeMapScene.prototype.showChurchMessage.call(baseScene, 'Should not render', '#aabbcc'),
+    ).not.toThrow();
+    expect(addText).not.toHaveBeenCalled();
+
+    const inactiveScene = {
+      churchOverlay: [{}],
+      scene: { isActive: () => false },
+      add: { text: addText },
+      time: { delayedCall: vi.fn() },
+    };
+    expect(() =>
+      NodeMapScene.prototype.showChurchMessage.call(inactiveScene, 'Should not render', '#aabbcc'),
+    ).not.toThrow();
+    expect(addText).not.toHaveBeenCalled();
+  });
+});
+
+describe('Shop entry flavor (Surface 5)', () => {
+  function createOverlayObject() {
+    return {
+      setDepth() {
+        return this;
+      },
+      setOrigin() {
+        return this;
+      },
+      setStrokeStyle() {
+        return this;
+      },
+      setInteractive() {
+        return this;
+      },
+      setColor() {
+        return this;
+      },
+      setBackgroundColor() {
+        return this;
+      },
+      on() {
+        return this;
+      },
+      destroy: vi.fn(),
+    };
+  }
+
+  it('triggers flavor banner from showShopOverlay', () => {
+    const scene = {
+      runManager: { currentAct: 'act1', gold: 120 },
+      gameData: {
+        dialogue: {
+          shopFlavor: { act1: ['Merchant eyes your purse.'] },
+        },
+      },
+      registry: { get: vi.fn(() => null) },
+      add: {
+        rectangle: () => createOverlayObject(),
+        text: () => createOverlayObject(),
+      },
+      drawShopTabs: vi.fn(),
+      drawActiveTabContent: vi.fn(),
+      leaveShopNode: vi.fn(),
+      _enterShopMapView: vi.fn(),
+      _hideForgeTooltip: vi.fn(),
+      _hideShopItemTooltip: vi.fn(),
+      _setShopOverlayVisibility: vi.fn(),
+      _openRoster: vi.fn(),
+      showShopBanner: vi.fn(),
+      shopRerollCount: 0,
+    };
+
+    NodeMapScene.prototype.showShopOverlay.call(scene, { id: 'shop-1' }, []);
+
+    expect(scene.showShopBanner).toHaveBeenCalledWith('Merchant eyes your purse.', '#aabbcc');
+  });
+});
+
+describe('Elite victory flavor (Surface 6)', () => {
+  function makeEliteVictoryScene(overrides = {}) {
+    const order = [];
+    const pending = [];
+    const sceneState = { active: true };
+    const scene = {
+      battleState: 'PLAYER_IDLE',
+      battleParams: { tutorialMode: false, act: 'act1' },
+      scene: { isActive: () => sceneState.active },
+      cameras: { main: { centerX: 320, centerY: 240 } },
+      add: {
+        text: vi.fn(() => ({
+          setOrigin() {
+            return this;
+          },
+          setDepth() {
+            return this;
+          },
+          destroy: vi.fn(),
+        })),
+      },
+      _pinToScreen: vi.fn(),
+      time: {
+        delayedCall: vi.fn((_ms, cb) => {
+          pending.push(cb());
+        }),
+      },
+      registry: { get: vi.fn(() => ({ playMusic: vi.fn() })) },
+      clearBattleScopedDeltas: vi.fn(),
+      playerUnits: [{ name: 'Edric', stats: { HP: 20 } }],
+      nonDeployedUnits: [],
+      getTurnPressureState: vi.fn(() => ({ goldMultiplier: 1 })),
+      goldEarned: 50,
+      nodeId: 'node-1',
+      isBoss: false,
+      isElite: true,
+      gameData: {
+        dialogue: {
+          eliteVictory: { act1: ['Stronger ones fall.'] },
+        },
+      },
+      runManager: {
+        completeBattle: vi.fn(() => true),
+        isRunComplete: vi.fn(() => false),
+      },
+      dialogueOverlay: {
+        show: vi.fn(async () => {
+          order.push('dialogue');
+        }),
+      },
+      showLootScreen: vi.fn(() => {
+        order.push('loot');
+      }),
+    };
+    Object.assign(scene, overrides);
+    return { scene, pending, order, sceneState };
+  }
+
+  it('shows dialogue before loot for elite battles', async () => {
+    const { scene, pending, order } = makeEliteVictoryScene();
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.dialogueOverlay.show).toHaveBeenCalledWith(null, 'Stronger ones fall.', null);
+    expect(order).toEqual(['dialogue', 'loot']);
+  });
+
+  it('skips dialogue for non-elite', async () => {
+    const { scene, pending } = makeEliteVictoryScene({ isElite: false });
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.dialogueOverlay.show).not.toHaveBeenCalled();
+    expect(scene.showLootScreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('guards inactive scene after dialogue', async () => {
+    const { scene, pending, sceneState } = makeEliteVictoryScene();
+    scene.dialogueOverlay = {
+      show: vi.fn(async () => {
+        sceneState.active = false;
+      }),
+    };
+
+    BattleScene.prototype.onVictory.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.dialogueOverlay.show).toHaveBeenCalled();
+    expect(scene.showLootScreen).not.toHaveBeenCalled();
+  });
+});
+
+describe('Narrative data — flavor content', () => {
+  it('dialogue.json has all 5 flavor keys with valid structure', () => {
+    const dialogue = JSON.parse(fs.readFileSync('data/dialogue.json', 'utf8'));
+    const ACTS = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
+
+    // nodeFlavor
+    for (const type of ['battle', 'elite', 'boss', 'recruit']) {
+      for (const act of ACTS) {
+        const lines = dialogue.nodeFlavor?.[type]?.[act];
+        expect(Array.isArray(lines), `nodeFlavor.${type}.${act}`).toBe(true);
+        expect(lines.length, `nodeFlavor.${type}.${act} non-empty`).toBeGreaterThan(0);
+      }
+    }
+
+    // lordFarewell — all non-Edric lords
+    const lords = JSON.parse(fs.readFileSync('data/lords.json', 'utf8'));
+    for (const lord of lords) {
+      if (lord.name === 'Edric') continue;
+      const lines = dialogue.lordFarewell?.[lord.name];
+      expect(Array.isArray(lines), `lordFarewell.${lord.name}`).toBe(true);
+      expect(lines.length).toBeGreaterThan(0);
+    }
+
+    // churchFlavor
+    for (const type of ['revival', 'promotion']) {
+      for (const act of ACTS) {
+        const lines = dialogue.churchFlavor?.[type]?.[act];
+        expect(Array.isArray(lines), `churchFlavor.${type}.${act}`).toBe(true);
+        expect(lines.length).toBeGreaterThan(0);
+      }
+    }
+
+    // shopFlavor
+    for (const act of ACTS) {
+      const lines = dialogue.shopFlavor?.[act];
+      expect(Array.isArray(lines), `shopFlavor.${act}`).toBe(true);
+      expect(lines.length).toBeGreaterThan(0);
+    }
+
+    // eliteVictory
+    for (const act of ACTS) {
+      const lines = dialogue.eliteVictory?.[act];
+      expect(Array.isArray(lines), `eliteVictory.${act}`).toBe(true);
+      expect(lines.length).toBeGreaterThan(0);
+    }
+  });
+});
