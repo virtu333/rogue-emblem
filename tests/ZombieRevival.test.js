@@ -583,3 +583,143 @@ describe('Spawn position fallback logic', () => {
     expect(result).toBeNull();
   });
 });
+
+// --- 11. awardXP respects _noXP flag ---
+describe('awardXP _noXP guard', () => {
+  // Mirrors the guard at the top of BattleScene.awardXP:
+  //   if (opponent?._noXP) return;
+  function shouldAwardXP(opponent) {
+    return !opponent?._noXP;
+  }
+
+  it('blocks XP for revived zombie with _noXP: true', () => {
+    const opponent = { _noXP: true, className: 'Zombie', level: 3 };
+    expect(shouldAwardXP(opponent)).toBe(false);
+  });
+
+  it('allows XP for normal enemy without _noXP', () => {
+    const opponent = { className: 'Fighter', level: 5 };
+    expect(shouldAwardXP(opponent)).toBe(true);
+  });
+
+  it('allows XP when _noXP is explicitly false', () => {
+    const opponent = { _noXP: false, className: 'Zombie', level: 4 };
+    expect(shouldAwardXP(opponent)).toBe(true);
+  });
+
+  it('allows XP when opponent is null/undefined (safe guard)', () => {
+    expect(shouldAwardXP(null)).toBe(true);
+    expect(shouldAwardXP(undefined)).toBe(true);
+  });
+});
+
+// --- 12. Revival spawn terrain passability ---
+describe('Revival spawn terrain passability', () => {
+  // Mirrors processZombieRevival neighbor search with terrain check
+  function findSpawnWithTerrain(
+    deathCol,
+    deathRow,
+    cols,
+    rows,
+    occupiedSet,
+    terrainGrid,
+    moveType,
+  ) {
+    let spawnCol = deathCol;
+    let spawnRow = deathRow;
+    const key = (c, r) => `${c},${r}`;
+    if (occupiedSet.has(key(spawnCol, spawnRow))) {
+      const dirs = [
+        { dc: -1, dr: 0 },
+        { dc: 1, dr: 0 },
+        { dc: 0, dr: -1 },
+        { dc: 0, dr: 1 },
+      ];
+      for (const { dc, dr } of dirs) {
+        const nc = spawnCol + dc;
+        const nr = spawnRow + dr;
+        if (nc >= 0 && nc < cols && nr >= 0 && nr < rows && !occupiedSet.has(key(nc, nr))) {
+          const t = terrainGrid[nr]?.[nc];
+          const mc = t?.moveCost?.[moveType];
+          if (mc === '--' || mc == null) continue; // impassable → skip
+          spawnCol = nc;
+          spawnRow = nr;
+          return { col: spawnCol, row: spawnRow };
+        }
+      }
+      return null; // no room
+    }
+    return { col: spawnCol, row: spawnRow };
+  }
+
+  const plain = {
+    name: 'Plain',
+    moveCost: { Infantry: '1', Cavalry: '1', Flying: '1', Armored: '1' },
+  };
+  const wall = {
+    name: 'Wall',
+    moveCost: { Infantry: '--', Cavalry: '--', Flying: '--', Armored: '--' },
+  };
+  const water = {
+    name: 'Water',
+    moveCost: { Infantry: '--', Cavalry: '--', Flying: '1', Armored: '--' },
+  };
+  const forest = {
+    name: 'Forest',
+    moveCost: { Infantry: '2', Cavalry: '3', Flying: '1', Armored: '2' },
+  };
+
+  function makeGrid(rows, cols, fill) {
+    return Array.from({ length: rows }, () => Array.from({ length: cols }, () => fill));
+  }
+
+  it('skips Wall tiles when searching for spawn', () => {
+    // 3x3 grid: center occupied, left=Wall, right=Plain, up=Wall, down=Wall
+    const grid = makeGrid(3, 3, wall);
+    grid[1][2] = plain; // right neighbor is passable
+    const occupied = new Set(['1,1']);
+    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
+    expect(result).not.toBeNull();
+    expect(result).toEqual({ col: 2, row: 1 }); // only passable neighbor
+  });
+
+  it('skips Water tiles for Infantry', () => {
+    const grid = makeGrid(3, 3, water);
+    grid[1][2] = plain; // right neighbor passable
+    const occupied = new Set(['1,1']);
+    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
+    expect(result).toEqual({ col: 2, row: 1 });
+  });
+
+  it('allows Water tiles for Flying units', () => {
+    const grid = makeGrid(3, 3, water);
+    const occupied = new Set(['1,1']);
+    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Flying');
+    expect(result).not.toBeNull();
+    // First checked direction is left (0,1)
+    expect(result).toEqual({ col: 0, row: 1 });
+  });
+
+  it('returns null when all neighbors are impassable Wall', () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[1][1] = plain; // center is passable but occupied
+    const occupied = new Set(['1,1']);
+    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
+    expect(result).toBeNull();
+  });
+
+  it('allows Forest tiles (passable but costly)', () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[0][1] = forest; // up neighbor is forest
+    const occupied = new Set(['1,1']);
+    const result = findSpawnWithTerrain(1, 1, 3, 3, occupied, grid, 'Infantry');
+    expect(result).toEqual({ col: 1, row: 0 });
+  });
+
+  it('returns death position directly when unoccupied (no terrain check needed)', () => {
+    const grid = makeGrid(3, 3, wall);
+    grid[1][1] = plain;
+    const result = findSpawnWithTerrain(1, 1, 3, 3, new Set(), grid, 'Infantry');
+    expect(result).toEqual({ col: 1, row: 1 });
+  });
+});

@@ -9909,6 +9909,7 @@ export class BattleScene extends Phaser.Scene {
 
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
   async awardXP(playerUnit, opponent, opponentDied, damageDealt = null, defenderHpAtStart = null) {
+    if (opponent?._noXP) return;
     let baseXp = calculateCombatXP(playerUnit, opponent, opponentDied);
     if (!opponentDied && Number.isFinite(damageDealt) && Number.isFinite(defenderHpAtStart)) {
       const safeDamage = Math.max(0, Math.trunc(damageDealt));
@@ -10418,6 +10419,9 @@ export class BattleScene extends Phaser.Scene {
             nr < this.battleConfig.rows &&
             !this.getUnitAt(nc, nr)
           ) {
+            const t = this.grid.getTerrainAt(nc, nr);
+            const mc = t?.moveCost?.[snap.moveType];
+            if (mc === '--' || mc == null) continue; // impassable → skip
             spawnCol = nc;
             spawnRow = nr;
             found = true;
