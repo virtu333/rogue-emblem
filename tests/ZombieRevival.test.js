@@ -659,6 +659,18 @@ describe('awardXP integration — _noXP guard', () => {
 
     expect(ctx.awardScaledXP).toHaveBeenCalledTimes(1);
   });
+
+  it('handles null/undefined opponent safely (real awardXP)', async () => {
+    const player = { tier: 'base', level: 5, xp: 0, stats: { SKL: 10, LCK: 5 } };
+    const nullCtx = makeAwardXPCtx();
+    const undefinedCtx = makeAwardXPCtx();
+
+    await BattleScene.prototype.awardXP.call(nullCtx, player, null, true);
+    await BattleScene.prototype.awardXP.call(undefinedCtx, player, undefined, true);
+
+    expect(nullCtx.awardScaledXP).toHaveBeenCalledTimes(1);
+    expect(undefinedCtx.awardScaledXP).toHaveBeenCalledTimes(1);
+  });
 });
 
 // --- 12. processZombieRevival integration: terrain passability ---
@@ -734,6 +746,8 @@ describe('processZombieRevival integration — terrain passability', () => {
     await BattleScene.prototype.processZombieRevival.call(ctx);
 
     expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.addUnitGraphic).toHaveBeenCalledTimes(1);
+    expect(ctx.addUnitGraphic).toHaveBeenCalledWith(ctx.enemyUnits[0]);
     expect(ctx.enemyUnits[0].col).toBe(2);
     expect(ctx.enemyUnits[0].row).toBe(1);
   });
@@ -801,6 +815,8 @@ describe('processZombieRevival integration — terrain passability', () => {
     await BattleScene.prototype.processZombieRevival.call(ctx);
 
     expect(ctx.enemyUnits).toHaveLength(1);
+    expect(ctx.addUnitGraphic).toHaveBeenCalledTimes(1);
+    expect(ctx.addUnitGraphic).toHaveBeenCalledWith(ctx.enemyUnits[0]);
     expect(ctx.enemyUnits[0].col).toBe(1);
     expect(ctx.enemyUnits[0].row).toBe(1);
   });
