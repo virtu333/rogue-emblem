@@ -383,6 +383,13 @@
           "role": "enemySpawn"
         }
       ],
+      "structures": [
+        { "type": "fill", "rect": [0.3, 0.01, 0.7, 0.99], "terrain": "Floor" },
+        { "type": "wall_line", "rect": [0.3, 0.01, 0.75, 0.2] },
+        { "type": "wall_line", "rect": [0.3, 0.8, 0.75, 0.99] },
+        { "type": "pillar_line", "rect": [0.3, 0.2, 0.7, 0.3], "spacing": 3 },
+        { "type": "pillar_line", "rect": [0.3, 0.7, 0.7, 0.8], "spacing": 3 }
+      ],
       "features": [],
       "anchors": [],
       "enemyWeights": {
@@ -444,6 +451,15 @@
           "priority": 3,
           "role": "enemySpawn"
         }
+      ],
+      "structures": [
+        { "type": "fill", "rect": [0.3, 0.01, 0.7, 0.99], "terrain": "Floor" },
+        { "type": "room", "rect": [0.3, 0.05, 0.6, 0.45] },
+        { "type": "fill", "rect": [0.4, 0.4, 0.5, 0.45], "terrain": "Floor" },
+        { "type": "room", "rect": [0.4, 0.55, 0.7, 0.95] },
+        { "type": "fill", "rect": [0.5, 0.55, 0.6, 0.6], "terrain": "Floor" },
+        { "type": "pillar_grid", "rect": [0.3, 0.5, 0.4, 0.95], "spacing": 2 },
+        { "type": "pillar_grid", "rect": [0.6, 0.05, 0.7, 0.5], "spacing": 3 }
       ],
       "features": [],
       "anchors": [],
@@ -574,6 +590,17 @@
           "priority": 4,
           "role": "enemySpawn"
         }
+      ],
+      "structures": [
+        { "type": "fill", "rect": [0.36, 0.01, 0.5, 0.99], "terrain": "Floor" },
+        { "type": "wall_line", "rect": [0.3, 0.01, 0.95, 0.1] },
+        { "type": "wall_line", "rect": [0.3, 0.9, 0.95, 0.99] },
+        { "type": "room", "rect": [0.36, 0.1, 0.5, 0.4] },
+        { "type": "fill", "rect": [0.45, 0.35, 0.5, 0.4], "terrain": "Floor" },
+        { "type": "room", "rect": [0.36, 0.6, 0.5, 0.9] },
+        { "type": "fill", "rect": [0.45, 0.6, 0.5, 0.65], "terrain": "Floor" },
+        { "type": "pillar_line", "rect": [0.45, 0.25, 0.5, 0.35], "spacing": 2 },
+        { "type": "pillar_line", "rect": [0.45, 0.65, 0.5, 0.75], "spacing": 2 }
       ],
       "features": [
         { "type": "Throne", "position": "right" }
@@ -914,6 +941,14 @@
           "priority": 3,
           "role": "enemySpawn"
         }
+      ],
+      "structures": [
+        { "type": "fill", "rect": [0.35, 0.01, 0.55, 0.99], "terrain": "Floor" },
+        { "type": "wall_line", "rect": [0.35, 0.01, 0.95, 0.1] },
+        { "type": "wall_line", "rect": [0.35, 0.9, 0.95, 0.99] },
+        { "type": "wall_line", "rect": [0.35, 0.1, 0.4, 0.4] },
+        { "type": "wall_line", "rect": [0.35, 0.6, 0.4, 0.9] },
+        { "type": "pillar_grid", "rect": [0.4, 0.15, 0.55, 0.85], "spacing": 3 }
       ],
       "features": [
         { "type": "Throne", "position": "right" }
