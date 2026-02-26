@@ -892,7 +892,7 @@ describe('RunManager', () => {
       const localRm = new RunManager(localData);
       localRm.startRun();
       expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(false);
-      const unlocked = localRm.advanceAct();
+      const { unlockedArtIds: unlocked } = localRm.advanceAct();
       expect(unlocked).toContain('test_act2_art');
       expect(localRm.isWeaponArtUnlocked('test_act2_art')).toBe(true);
     });
@@ -3235,23 +3235,234 @@ describe('blessing run-start effect application', () => {
       skills: [...(u.skills || [])],
     }));
 
-    rm.activeBlessings = ['forbidden_tome'];
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: 'Personal skills disabled until Act 3',
+          effects: [{ type: 'disable_personal_skills_until_act', params: { act: 'act3' } }],
+        },
+      },
+    ];
     rm._runStartBlessingsApplied = false;
     rm.applyRunStartBlessingEffects();
 
-    rm.roster.forEach((unit, idx) => {
-      expect(unit.skills.length).toBeLessThanOrEqual(beforeSkills[idx].skills.length);
+    // Lords should have their personal skill removed
+    const lords = rm.roster.filter((u) => u.isLord);
+    expect(lords.length).toBeGreaterThan(0);
+    lords.forEach((unit) => {
+      const before = beforeSkills.find((b) => b.name === unit.name);
+      expect(unit.skills.length).toBeLessThan(before.skills.length);
     });
 
-    rm.advanceAct(); // act2
-    rm.roster.forEach((unit, idx) => {
-      expect(unit.skills.length).toBeLessThanOrEqual(beforeSkills[idx].skills.length);
+    rm.advanceAct(); // act2 — still suppressed
+    lords.forEach((unit) => {
+      const before = beforeSkills.find((b) => b.name === unit.name);
+      expect(unit.skills.length).toBeLessThan(before.skills.length);
     });
 
-    rm.advanceAct(); // act3
+    rm.advanceAct(); // act3 — restored
     rm.roster.forEach((unit, idx) => {
       expect(unit.skills).toEqual(beforeSkills[idx].skills);
     });
+  });
+
+  it('personal skill restore displaces a non-personal skill when at MAX_SKILLS', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    const lord = rm.roster.find((u) => u.isLord);
+    expect(lord).toBeDefined();
+    const personalSkillId = lord.skills[0]; // personal skill is always first
+
+    // Fill lord to MAX_SKILLS with filler skills
+    const fillerSkills = ['sol', 'luna', 'astra', 'vantage', 'wrath'].filter(
+      (s) => s !== personalSkillId,
+    );
+    lord.skills = [personalSkillId];
+    for (const sid of fillerSkills) {
+      if (lord.skills.length < 5) lord.skills.push(sid);
+    }
+    expect(lord.skills.length).toBe(5);
+    expect(lord.skills).toContain(personalSkillId);
+
+    // Apply disable blessing
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: 'Personal skills disabled until Act 3',
+          effects: [{ type: 'disable_personal_skills_until_act', params: { act: 'act3' } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    // Personal skill removed, now at 4 skills
+    expect(lord.skills).not.toContain(personalSkillId);
+    expect(lord.skills.length).toBe(4);
+
+    // Fill back to MAX_SKILLS with another skill
+    lord.skills.push('adept');
+    expect(lord.skills.length).toBe(5);
+
+    rm.advanceAct(); // act2 — still suppressed
+    expect(lord.skills).not.toContain(personalSkillId);
+
+    const { displacedSkills } = rm.advanceAct(); // act3 — force restore
+    expect(lord.skills).toContain(personalSkillId);
+    expect(lord.skills.length).toBe(5);
+    // A non-personal skill should have been displaced
+    expect(displacedSkills[lord.name]).toBeDefined();
+    expect(displacedSkills[lord.name].replacedBy).toBe(personalSkillId);
+  });
+
+  it('personal skill restore uses per-unit innate set, not global roster innates', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    const lord = rm.roster.find((u) => u.isLord);
+    expect(lord).toBeDefined();
+    const personalSkillId = lord.skills[0];
+
+    // Give the lord one own-class innate at the end, plus other-class innates.
+    // This lets us distinguish first-pass displacement from fallback displacement.
+    lord.className = 'Swordmaster';
+    lord.tier = 'promoted';
+    const ownInnate = 'crit_plus_15';
+    const otherClassInnates = ['pavise', 'aegis', 'colossus', 'sure_shot'].filter(
+      (s) => s !== personalSkillId,
+    );
+    lord.skills = [personalSkillId, 'pavise', 'aegis', 'colossus', ownInnate];
+    expect(lord.skills.length).toBe(5);
+
+    // Add dummy roster classes so a buggy global innate-set would over-protect these skills.
+    rm.roster.push(
+      { name: 'DummyGeneral', className: 'General', skills: [] },
+      { name: 'DummyPaladin', className: 'Paladin', skills: [] },
+      { name: 'DummyWarrior', className: 'Warrior', skills: [] },
+      { name: 'DummySniper', className: 'Sniper', skills: [] },
+    );
+
+    // Apply disable blessing
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: 'Personal skills disabled until Act 3',
+          effects: [{ type: 'disable_personal_skills_until_act', params: { act: 'act3' } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(lord.skills).not.toContain(personalSkillId);
+    // Fill back to MAX_SKILLS while keeping own innate as the last slot.
+    lord.skills = ['pavise', 'aegis', 'colossus', 'sure_shot', ownInnate];
+    expect(lord.skills.length).toBe(5);
+
+    rm.advanceAct(); // act2
+    const { displacedSkills } = rm.advanceAct(); // act3 — force restore
+
+    expect(lord.skills).toContain(personalSkillId);
+    expect(lord.skills.length).toBe(5);
+    // With per-unit protection, first pass should skip own innate and displace sure_shot.
+    // With a buggy global set, first pass would fail and fallback would displace own innate.
+    expect(displacedSkills[lord.name]).toBeDefined();
+    expect(displacedSkills[lord.name].replacedBy).toBe(personalSkillId);
+    const displaced = displacedSkills[lord.name].displaced;
+    expect(displaced).toBe('sure_shot');
+    expect(displaced).not.toBe(ownInnate);
+    expect(otherClassInnates).toContain(displaced);
+  });
+
+  it('personal skill restore falls back to displacing own class innate when no other option', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    const lord = rm.roster.find((u) => u.isLord);
+    expect(lord).toBeDefined();
+    const personalSkillId = lord.skills[0];
+
+    // Promote the lord to a class with known innate skills
+    // Use Swordmaster (innate: crit_plus_15) for a clear test
+    lord.className = 'Swordmaster';
+    lord.tier = 'promoted';
+
+    // Apply disable blessing
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: 'Personal skills disabled until Act 3',
+          effects: [{ type: 'disable_personal_skills_until_act', params: { act: 'act3' } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(lord.skills).not.toContain(personalSkillId);
+    // Force first-pass failure: fill to cap with only personal IDs + own-class innate.
+    // First pass excludes personal + own innate; fallback must displace own innate.
+    lord.skills = ['resolve', 'renewal_aura', 'ride_down', 'skyward', 'crit_plus_15'];
+    expect(lord.skills.length).toBe(5);
+
+    rm.advanceAct(); // act2
+    const { displacedSkills } = rm.advanceAct(); // act3 — force restore
+
+    // Personal skill MUST be restored — never permanently lost
+    expect(lord.skills).toContain(personalSkillId);
+    expect(lord.skills.length).toBe(5);
+    expect(displacedSkills[lord.name]).toBeDefined();
+    expect(displacedSkills[lord.name].replacedBy).toBe(personalSkillId);
+    expect(displacedSkills[lord.name].displaced).toBe('crit_plus_15');
+  });
+
+  it('keeps blocked personal skills pending when only a subset can be restored', () => {
+    const gameData = loadGameData();
+    const rm = new RunManager(gameData);
+    rm.startRun();
+
+    const lord = rm.roster.find((u) => u.isLord);
+    expect(lord).toBeDefined();
+
+    // Corrupted/edge state: unit has two blocked personal skills.
+    lord.skills = ['charisma', 'foresight'];
+    rm.activeBlessings = [
+      {
+        id: 'forbidden_tome',
+        rolledCost: {
+          label: 'Personal skills disabled until Act 3',
+          effects: [{ type: 'disable_personal_skills_until_act', params: { act: 'act3' } }],
+        },
+      },
+    ];
+    rm._runStartBlessingsApplied = false;
+    rm.applyRunStartBlessingEffects();
+
+    expect(rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit[lord.name]).toEqual([
+      'charisma',
+      'foresight',
+    ]);
+
+    // Capacity pattern that allows restoring only one blocked skill right now.
+    lord.skills = ['resolve', 'renewal_aura', 'ride_down', 'skyward', 'sol'];
+
+    rm.advanceAct(); // act2
+    rm.advanceAct(); // act3
+
+    expect(lord.skills).toContain('charisma');
+    expect(lord.skills).not.toContain('foresight');
+    expect(rm.blessingRuntimeModifiers.disablePersonalSkillsUntilAct).toBe('act3');
+    expect(rm.blessingRuntimeModifiers.blockedPersonalSkillsByUnit[lord.name]).toEqual([
+      'foresight',
+    ]);
   });
 
   it('arsenal_pact grants one silver-tier weapon and applies act1 DEF penalty', () => {

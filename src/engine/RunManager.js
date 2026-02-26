@@ -32,6 +32,7 @@ import {
   getClassInnateSkills,
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
+  learnSkill,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -740,25 +741,104 @@ export class RunManager {
     if (targetIndex === -1 || this.actIndex < targetIndex) return;
     const blockedByUnit = this.blessingRuntimeModifiers?.blockedPersonalSkillsByUnit || {};
     const restoredByUnit = {};
+    const displacedByUnit = {};
+
+    // Build protection sets for displacement logic
+    const personalSkillIds = this._getPersonalSkillIdSet();
+    const classByName = new Map((this.gameData?.classes || []).map((c) => [c.name, c]));
+
     for (const unit of this.roster) {
       const blocked = Array.isArray(blockedByUnit[unit.name]) ? blockedByUnit[unit.name] : [];
       if (blocked.length === 0) continue;
       const restored = [];
+      const pending = [];
+
+      // Per-unit innate set: only this unit's class chain is protected
+      const unitInnateIds = new Set();
+      for (const sid of getClassInnateSkills(unit.className, this.gameData?.skills || [])) {
+        unitInnateIds.add(sid);
+      }
+      const unitClass = classByName.get(unit.className);
+      if (unitClass?.promotesFrom) {
+        for (const sid of getClassInnateSkills(
+          unitClass.promotesFrom,
+          this.gameData?.skills || [],
+        )) {
+          unitInnateIds.add(sid);
+        }
+      }
+
       for (const skillId of blocked) {
-        if (Array.isArray(unit.skills) && !unit.skills.includes(skillId)) {
-          unit.skills.push(skillId);
+        if (!Array.isArray(unit.skills)) {
+          pending.push(skillId);
+          continue;
+        }
+        if (unit.skills.includes(skillId)) {
           restored.push(skillId);
+          continue;
+        }
+
+        const result = learnSkill(unit, skillId);
+        if (result.learned) {
+          restored.push(skillId);
+          continue;
+        }
+        if (result.reason !== 'at_cap') {
+          pending.push(skillId);
+          continue;
+        }
+
+        // First pass: displace non-personal, non-innate skill
+        let restoredWithDisplacement = false;
+        for (let i = unit.skills.length - 1; i >= 0; i--) {
+          const sid = unit.skills[i];
+          if (!personalSkillIds.has(sid) && !unitInnateIds.has(sid)) {
+            const displaced = unit.skills.splice(i, 1)[0];
+            unit.skills.push(skillId);
+            restored.push(skillId);
+            displacedByUnit[unit.name] = { displaced, replacedBy: skillId };
+            restoredWithDisplacement = true;
+            break;
+          }
+        }
+        // Fallback: displace class innate (recoverable) over personal (identity)
+        if (!restoredWithDisplacement) {
+          for (let i = unit.skills.length - 1; i >= 0; i--) {
+            const sid = unit.skills[i];
+            if (!personalSkillIds.has(sid)) {
+              const displaced = unit.skills.splice(i, 1)[0];
+              unit.skills.push(skillId);
+              restored.push(skillId);
+              displacedByUnit[unit.name] = { displaced, replacedBy: skillId };
+              restoredWithDisplacement = true;
+              break;
+            }
+          }
+        }
+        if (!restoredWithDisplacement) {
+          pending.push(skillId);
         }
       }
       if (restored.length > 0) restoredByUnit[unit.name] = restored;
+      if (pending.length > 0) {
+        blockedByUnit[unit.name] = pending;
+      } else {
+        delete blockedByUnit[unit.name];
+      }
     }
-    this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = null;
-    this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = {};
+    this.blessingRuntimeModifiers.blockedPersonalSkillsByUnit = blockedByUnit;
+    const hasPendingBlocked = Object.values(blockedByUnit).some(
+      (entries) => Array.isArray(entries) && entries.length > 0,
+    );
+    this.blessingRuntimeModifiers.disablePersonalSkillsUntilAct = hasPendingBlocked
+      ? targetAct
+      : null;
+    this._lastRestorationDisplacements = displacedByUnit;
     this._recordBlessingEvent(
       stage,
       null,
       { type: 'disable_personal_skills_until_act', params: { act: targetAct } },
-      { restoredInAct: this.currentAct, restoredByUnit },
+      { restoredInAct: this.currentAct, restoredByUnit, displacedByUnit },
     );
   }
 
@@ -2586,11 +2666,12 @@ export class RunManager {
     return boss ? boss.completed : false;
   }
 
-  /** Advance to the next act. Generates a new node map. */
+  /** Advance to the next act. Generates a new node map. Returns { unlockedArtIds, displacedSkills }. */
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
     this.actIndex++;
-    if (this.actIndex >= this.actSequence.length) return []; // shouldn't happen, use isRunComplete
+    if (this.actIndex >= this.actSequence.length)
+      return { unlockedArtIds: [], displacedSkills: {} };
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     this.nodeMap = generateNodeMap(
       this.currentAct,
@@ -2604,9 +2685,11 @@ export class RunManager {
       },
     );
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
+    const displacedSkills = this._lastRestorationDisplacements || {};
+    this._lastRestorationDisplacements = null;
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
-    return unlockedNow;
+    return { unlockedArtIds: unlockedNow, displacedSkills };
   }
 
   _revertActScopedBlessingEffects(expiredAct) {
@@ -2948,7 +3031,7 @@ export class RunManager {
       if (!Array.isArray(unit.skills)) unit.skills = [];
       const addInnatesFor = (className) => {
         for (const sid of getClassInnateSkills(className, skillsData)) {
-          if (!unit.skills.includes(sid)) unit.skills.push(sid);
+          learnSkill(unit, sid);
         }
       };
       if (unit.className) addInnatesFor(unit.className);
@@ -3165,7 +3248,7 @@ export class RunManager {
     rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
     const mws = saved.maxWinStreak;
     rm.maxWinStreak = Number.isFinite(mws) && mws >= 0 ? Math.trunc(mws) : 0;
-    rm.gold = saved.gold;
+    rm.gold = Number.isFinite(saved.gold) && saved.gold >= 0 ? Math.floor(saved.gold) : 0;
     rm.accessories = saved.accessories || [];
     rm.scrolls = saved.scrolls || [];
     rm.convoy = saved.convoy || { weapons: [], consumables: [] };
