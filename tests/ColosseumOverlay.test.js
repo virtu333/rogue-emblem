@@ -7,9 +7,9 @@ vi.mock('../src/engine/ColosseumEngine.js', async (importOriginal) => {
 
 import { ColosseumOverlay } from '../src/ui/ColosseumOverlay.js';
 import { getAvailableTiers, generateMercenaryCandidates } from '../src/engine/ColosseumEngine.js';
-import { createRecruitUnit, getDisplayLevel } from '../src/engine/UnitManager.js';
+import { createRecruitUnit, promoteUnit, getDisplayLevel } from '../src/engine/UnitManager.js';
 import { loadGameData } from './testData.js';
-import { ROSTER_CAP } from '../src/utils/constants.js';
+import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../src/utils/constants.js';
 
 function makeDisplayObject(seed = {}) {
   return {
@@ -582,6 +582,46 @@ describe('ColosseumOverlay', () => {
     expect(hasText(scene, 'Draw')).toBe(true);
     // Gold should not change for draw
     expect(runManager.gold).toBe(1000);
+  });
+
+  it('_getLordLevel returns effective level for promoted Edric', () => {
+    const scene = makeScene();
+    const edric = makeUnit(gameData, 'Edric', 5, 'Myrmidon');
+    edric.isLord = true;
+    // Simulate promotion: set tier to promoted and level to promoted level
+    const promotedClass = gameData.classes.find((c) => c.name === 'Swordmaster');
+    if (promotedClass) {
+      promoteUnit(edric, promotedClass, promotedClass.promotionBonuses || {}, gameData.skills);
+    }
+    edric.level = 5; // promoted level 5
+    edric.tier = 'promoted';
+    const runManager = makeRunManager({ roster: [edric] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-lord-promo' }, vi.fn());
+
+    // Should return RECRUIT_PROMOTION_BASE_LEVEL + promoted level
+    expect(overlay._getLordLevel()).toBe(RECRUIT_PROMOTION_BASE_LEVEL + 5);
+  });
+
+  it('_getLordLevel returns raw level for unpromoted Edric', () => {
+    const scene = makeScene();
+    const edric = makeUnit(gameData, 'Edric', 8, 'Myrmidon');
+    edric.isLord = true;
+    const runManager = makeRunManager({ roster: [edric] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-lord-base' }, vi.fn());
+
+    expect(overlay._getLordLevel()).toBe(8);
+  });
+
+  it('_getLordLevel falls back to 1 when Edric is absent', () => {
+    const scene = makeScene();
+    const nonLord = makeUnit(gameData, 'SomeGuy', 10, 'Myrmidon');
+    const runManager = makeRunManager({ roster: [nonLord] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-lord-absent' }, vi.fn());
+
+    expect(overlay._getLordLevel()).toBe(1);
   });
 
   it('merc generation failure falls back to empty candidates with Back button', () => {

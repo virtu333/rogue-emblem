@@ -155,14 +155,14 @@ export class BossRecruitOverlay {
         scene.add
           .text(cx, yOff, u.className, {
             fontFamily: 'monospace',
-            fontSize: '9px',
+            fontSize: '11px',
             color: '#aaaaaa',
           })
           .setOrigin(0.5)
           .setDepth(702),
       );
       recruitGroup.push(cls);
-      yOff += 14;
+      yOff += 16;
 
       const classData = this.gameData.classes?.find((cl) => cl.name === u.className);
       const descText = classData?.description || '';
@@ -172,7 +172,7 @@ export class BossRecruitOverlay {
         scene.add
           .text(cx, yOff, `Lv ${getDisplayLevel(u)}`, {
             fontFamily: 'monospace',
-            fontSize: '10px',
+            fontSize: '11px',
             color: '#66ddff',
           })
           .setOrigin(0.5)
@@ -216,27 +216,27 @@ export class BossRecruitOverlay {
         scene.add
           .text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
             fontFamily: 'monospace',
-            fontSize: '9px',
+            fontSize: '10px',
             color: '#cccccc',
           })
           .setOrigin(0.5)
           .setDepth(702),
       );
       recruitGroup.push(coreA);
-      yOff += 12;
+      yOff += 13;
 
       const coreB = applyTextResolution(
         scene.add
           .text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
             fontFamily: 'monospace',
-            fontSize: '9px',
+            fontSize: '10px',
             color: '#88bbff',
           })
           .setOrigin(0.5)
           .setDepth(702),
       );
       recruitGroup.push(coreB);
-      yOff += 14;
+      yOff += 15;
 
       // Weapon proficiency signal
       if (u.proficiencies && u.proficiencies.length > 0) {
@@ -253,16 +253,18 @@ export class BossRecruitOverlay {
           (p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`,
         );
         const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
-        const prof = scene.add
-          .text(cx, yOff, `Wpn: ${profPreview}`, {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#aaaaaa',
-            wordWrap: { width: cardW - 10 },
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
+        const prof = applyTextResolution(
+          scene.add
+            .text(cx, yOff, `Wpn: ${profPreview}`, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: '#aaaaaa',
+              wordWrap: { width: cardW - 10 },
+              align: 'center',
+            })
+            .setOrigin(0.5)
+            .setDepth(702),
+        );
         recruitGroup.push(prof);
         yOff += 13;
       }
@@ -272,16 +274,18 @@ export class BossRecruitOverlay {
         ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
         : null;
       if (notableSkill) {
-        const sk = scene.add
-          .text(cx, yOff, `Skill: ${notableSkill}`, {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: c.isLord ? '#ffdd44' : '#aaccff',
-            wordWrap: { width: cardW - 10 },
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
+        const sk = applyTextResolution(
+          scene.add
+            .text(cx, yOff, `Skill: ${notableSkill}`, {
+              fontFamily: 'monospace',
+              fontSize: '9px',
+              color: c.isLord ? '#ffdd44' : '#aaccff',
+              wordWrap: { width: cardW - 10 },
+              align: 'center',
+            })
+            .setOrigin(0.5)
+            .setDepth(702),
+        );
         recruitGroup.push(sk);
       }
 

@@ -16,6 +16,7 @@ import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
 import { gainExperience, getDisplayLevel } from '../engine/UnitManager.js';
 import { ROSTER_CAP } from '../utils/constants.js';
+import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 
 // ── Layout constants (match NodeMapScene overlay pattern) ──
 const BG_DEPTH = 300;
@@ -1162,7 +1163,7 @@ export class ColosseumOverlay {
 
   _getLordLevel() {
     const roster = this.runManager.roster || [];
-    const lord = roster.find((u) => u.isLord);
-    return lord?.level || 1;
+    const { recruitTargetLevel } = resolveRecruitScalingTargets(roster);
+    return recruitTargetLevel;
   }
 }

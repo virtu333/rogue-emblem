@@ -508,6 +508,140 @@ describe('ColosseumEngine', () => {
       expect(candidates).toEqual([]);
     });
 
+    it('act3 promoted class mercs are generated successfully (not empty)', () => {
+      // act3 pool is 100% promoted: Hero, Falcon Knight, Wyvern Lord, Sage, Assassin, Sniper, Bishop
+      const rng = makeRng(42);
+      const candidates = generateMercenaryCandidates(
+        'act3',
+        12,
+        gameData.recruits,
+        gameData.classes,
+        gameData.weapons,
+        gameData.skills,
+        null,
+        colosseumData,
+        rng,
+      );
+      expect(candidates.length).toBeGreaterThan(0);
+      for (const { unit } of candidates) {
+        expect(unit.stats).toBeDefined();
+        expect(unit.tier).toBe('promoted');
+        expect(unit.faction).toBe('player');
+      }
+    });
+
+    it('act4 promoted class mercs are generated successfully', () => {
+      // act4 pool: Hero, Sage, Sniper, Paladin, Wyvern Lord, Warrior, Bishop
+      const rng = makeRng(99);
+      const candidates = generateMercenaryCandidates(
+        'act4',
+        15,
+        gameData.recruits,
+        gameData.classes,
+        gameData.weapons,
+        gameData.skills,
+        null,
+        colosseumData,
+        rng,
+      );
+      expect(candidates.length).toBeGreaterThan(0);
+      for (const { unit } of candidates) {
+        expect(unit.tier).toBe('promoted');
+      }
+    });
+
+    it('act2 cross-act access does not crash on act3 promoted classes', () => {
+      // act2 base pool + act3 promoted pool via crossActPoolAccess
+      let totalCandidates = 0;
+      for (let i = 0; i < 50; i++) {
+        const rng = makeRng(i);
+        const candidates = generateMercenaryCandidates(
+          'act2',
+          8,
+          gameData.recruits,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        );
+        totalCandidates += candidates.length;
+      }
+      // Should produce candidates across 50 trials (mix of base + promoted)
+      expect(totalCandidates).toBeGreaterThan(0);
+    });
+
+    it('promoted merc levels are consistent with RECRUIT_PROMOTION_BASE_LEVEL scaling', () => {
+      // Force all-promoted pool
+      const promotedPools = {
+        act3: { classPool: ['Hero', 'Sage', 'Sniper'] },
+        namePool: gameData.recruits.namePool,
+      };
+      const rng = makeRng(42);
+      const lordLevel = 15; // well above RECRUIT_PROMOTION_BASE_LEVEL (10)
+      const candidates = generateMercenaryCandidates(
+        'act3',
+        lordLevel,
+        promotedPools,
+        gameData.classes,
+        gameData.weapons,
+        gameData.skills,
+        null,
+        colosseumData,
+        rng,
+      );
+      expect(candidates.length).toBeGreaterThan(0);
+      for (const { unit } of candidates) {
+        expect(unit.tier).toBe('promoted');
+        // With lordLevel=15, merc level is 14-16.
+        // promotedLevels = max(0, mercLevel - 10 - 1) = 3-5
+        // unit.level after promotion = 1 + promotedLevels = 4-6
+        expect(unit.level).toBeGreaterThanOrEqual(4);
+        expect(unit.level).toBeLessThanOrEqual(6);
+      }
+    });
+
+    it('per-candidate error isolation skips bad candidates without collapsing board', () => {
+      // Mix a valid class with a broken promoted class (missing promotesFrom)
+      const brokenClasses = [
+        ...gameData.classes,
+        { name: 'BrokenPromoted', tier: 'promoted', promotesFrom: 'NonExistentBase' },
+      ];
+      const mixedPools = {
+        act3: { classPool: ['BrokenPromoted', 'Hero', 'Sage'] },
+        namePool: gameData.recruits.namePool,
+      };
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const rng = makeRng(42);
+        const candidates = generateMercenaryCandidates(
+          'act3',
+          12,
+          mixedPools,
+          brokenClasses,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        );
+        // Should still produce some valid candidates despite the broken class
+        expect(candidates.length).toBeGreaterThan(0);
+        for (const { unit } of candidates) {
+          expect(unit.stats).toBeDefined();
+          expect(unit.className).not.toBe('BrokenPromoted');
+        }
+        // Verify the warning path was actually exercised
+        const skipWarns = warnSpy.mock.calls.filter(
+          (args) => typeof args[0] === 'string' && args[0].includes('BrokenPromoted'),
+        );
+        expect(skipWarns.length).toBeGreaterThan(0);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
     // Use base-class-only pools to test tier cap without promoted class crashes
     const baseOnlyPools = {
       act1: { classPool: ['Fighter', 'Archer', 'Mage', 'Cavalier'], levelRange: [1, 5] },

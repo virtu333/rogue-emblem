@@ -5,6 +5,7 @@ import {
   ACT_SEQUENCE,
   RECRUIT_SKILL_POOL,
   BASE_CLASS_LEVEL_CAP,
+  RECRUIT_PROMOTION_BASE_LEVEL,
   PROMOTED_CLASS_LEVEL_CAP,
   XP_PER_LEVEL,
   MAX_SKILLS,
@@ -14,6 +15,9 @@ import {
   createEnemyUnit,
   createRecruitUnit,
   promoteUnit,
+  levelUp,
+  applyLevelUpGains,
+  checkLevelUpSkills,
   gainExperience,
   calculateCombatXP,
   learnSkill,
@@ -274,82 +278,127 @@ export function generateMercenaryCandidates(
 
   const candidates = [];
   for (let i = 0; i < count; i++) {
-    const className = combinedPool[Math.floor(rng() * combinedPool.length)];
-    const classData = classesData.find((c) => c.name === className);
-    if (!classData) continue;
+    let pickedClass = '?';
+    try {
+      const className = combinedPool[Math.floor(rng() * combinedPool.length)];
+      pickedClass = className;
+      const classData = classesData.find((c) => c.name === className);
+      if (!classData) continue;
 
-    // Pick a name from the name pool or use class name as fallback
-    const names = namePool[className] || [className];
-    const name = names[Math.floor(rng() * names.length)];
+      // Pick a name from the name pool or use class name as fallback
+      const names = namePool[className] || [className];
+      const name = names[Math.floor(rng() * names.length)];
 
-    // Level: lord level + random(-1, +1), min 1
-    const levelOffset = Math.floor(rng() * 3) - 1; // -1, 0, or 1
-    const level = Math.max(1, lordLevel + levelOffset);
+      // Level: lord level + random(-1, +1), min 1
+      const levelOffset = Math.floor(rng() * 3) - 1; // -1, 0, or 1
+      const level = Math.max(1, lordLevel + levelOffset);
 
-    const unit = createRecruitUnit(
-      { name, className, level },
-      classData,
-      weaponsData,
-      null,
-      null,
-      null,
-      classesData,
-    );
-    unit.faction = 'player'; // Mercenaries join the player's team
+      let unit;
+      if (classData.tier === 'promoted') {
+        // Promoted path: create as base class, promote, then post-promotion leveling.
+        // Uses RECRUIT_PROMOTION_BASE_LEVEL as promotion threshold (simpler than
+        // BossRecruitSystem's dynamic scaling — mercs are a paid service, not narrative reward).
+        const baseClassName = classData.promotesFrom;
+        const baseClassData = classesData.find((c) => c.name === baseClassName);
+        if (!baseClassData) {
+          console.warn(
+            `[ColosseumEngine] Skipping promoted merc "${className}": base class "${classData.promotesFrom}" not found`,
+          );
+          continue;
+        }
 
-    // Apply stat bonuses: +value to N random stats
-    const bonusCount = mercConfig.statBonus?.count || 2;
-    const bonusValue = mercConfig.statBonus?.value || 1;
-    const shuffled = [...BOOSTABLE_STATS];
-    for (let si = shuffled.length - 1; si > 0; si--) {
-      const sj = Math.floor(rng() * (si + 1));
-      [shuffled[si], shuffled[sj]] = [shuffled[sj], shuffled[si]];
-    }
-    for (let j = 0; j < bonusCount && j < shuffled.length; j++) {
-      unit.stats[shuffled[j]] = (unit.stats[shuffled[j]] || 0) + bonusValue;
-    }
-    // If HP was boosted, update currentHP
-    if (unit.stats.HP > unit.currentHP) unit.currentHP = unit.stats.HP;
+        const baseLevel = Math.min(level, RECRUIT_PROMOTION_BASE_LEVEL, BASE_CLASS_LEVEL_CAP);
+        unit = createRecruitUnit(
+          { name, className: baseClassData.name, level: baseLevel },
+          baseClassData,
+          weaponsData,
+          null,
+          null,
+          null,
+          classesData,
+        );
+        promoteUnit(unit, classData, classData.promotionBonuses || {}, skillsData);
 
-    // 50% chance: assign random combat skill
-    if (rng() < (mercConfig.skillChance ?? 0.5)) {
-      const skillPool = RECRUIT_SKILL_POOL;
-      const pick = skillPool[Math.floor(rng() * skillPool.length)];
-      learnSkill(unit, pick);
-    }
-
-    // Weapon tier bonus: equip weapon one tier above current act shops.
-    // Capped by act to prevent Silver weapons appearing in Act 1.
-    const tierSequence = ['Iron', 'Steel', 'Silver'];
-    const ACT_WEAPON_TIER_CAP = { act1: 0, act2: 1, act3: 2, act4: 2 };
-    const actCap = ACT_WEAPON_TIER_CAP[actId] ?? 2;
-    const baseTierIdx = level >= 13 ? 2 : level >= 6 ? 1 : 0;
-    const boostedIdx = Math.min(
-      baseTierIdx + (mercConfig.weaponTierBonus || 1),
-      actCap,
-      tierSequence.length - 1,
-    );
-    const targetTier = tierSequence[boostedIdx];
-    if (unit.proficiencies?.length > 0) {
-      const primaryType = unit.proficiencies[0].type;
-      const betterWeapon = weaponsData.find(
-        (w) => w.type === primaryType && w.tier === targetTier && !w.special,
-      );
-      if (betterWeapon) {
-        const cloned = structuredClone(betterWeapon);
-        unit.weapon = cloned;
-        unit.inventory = [cloned];
+        // Post-promotion levels: subtract 1 because promotion gives level 1 in promoted tier
+        const promotedLevels = Math.max(0, level - RECRUIT_PROMOTION_BASE_LEVEL - 1);
+        for (let p = 0; p < promotedLevels; p++) {
+          const gains = levelUp(unit);
+          if (gains) applyLevelUpGains(unit, gains);
+        }
+        checkLevelUpSkills(unit, classesData);
+      } else {
+        unit = createRecruitUnit(
+          { name, className, level },
+          classData,
+          weaponsData,
+          null,
+          null,
+          null,
+          classesData,
+        );
       }
-    }
+      unit.faction = 'player'; // Mercenaries join the player's team
 
-    const hireCost = getMercenaryPrice(
-      actId,
-      unit.tier === 'promoted',
-      difficultyMode,
-      colosseumData,
-      rng,
-    );
-    candidates.push({ unit, hireCost });
+      // Apply stat bonuses: +value to N random stats
+      const bonusCount = mercConfig.statBonus?.count || 2;
+      const bonusValue = mercConfig.statBonus?.value || 1;
+      const shuffled = [...BOOSTABLE_STATS];
+      for (let si = shuffled.length - 1; si > 0; si--) {
+        const sj = Math.floor(rng() * (si + 1));
+        [shuffled[si], shuffled[sj]] = [shuffled[sj], shuffled[si]];
+      }
+      for (let j = 0; j < bonusCount && j < shuffled.length; j++) {
+        unit.stats[shuffled[j]] = (unit.stats[shuffled[j]] || 0) + bonusValue;
+      }
+      // If HP was boosted, update currentHP
+      if (unit.stats.HP > unit.currentHP) unit.currentHP = unit.stats.HP;
+
+      // 50% chance: assign random combat skill
+      if (rng() < (mercConfig.skillChance ?? 0.5)) {
+        const skillPool = RECRUIT_SKILL_POOL;
+        const pick = skillPool[Math.floor(rng() * skillPool.length)];
+        learnSkill(unit, pick);
+      }
+
+      // Weapon tier bonus: equip weapon one tier above current act shops.
+      // Capped by act to prevent Silver weapons appearing in Act 1.
+      const tierSequence = ['Iron', 'Steel', 'Silver'];
+      const ACT_WEAPON_TIER_CAP = { act1: 0, act2: 1, act3: 2, act4: 2 };
+      const actCap = ACT_WEAPON_TIER_CAP[actId] ?? 2;
+      const baseTierIdx = level >= 13 ? 2 : level >= 6 ? 1 : 0;
+      const boostedIdx = Math.min(
+        baseTierIdx + (mercConfig.weaponTierBonus || 1),
+        actCap,
+        tierSequence.length - 1,
+      );
+      const targetTier = tierSequence[boostedIdx];
+      if (unit.proficiencies?.length > 0) {
+        const primaryType = unit.proficiencies[0].type;
+        const betterWeapon = weaponsData.find(
+          (w) => w.type === primaryType && w.tier === targetTier && !w.special,
+        );
+        if (betterWeapon) {
+          const cloned = structuredClone(betterWeapon);
+          unit.weapon = cloned;
+          unit.inventory = [cloned];
+        }
+      }
+
+      const hireCost = getMercenaryPrice(
+        actId,
+        unit.tier === 'promoted',
+        difficultyMode,
+        colosseumData,
+        rng,
+      );
+      candidates.push({ unit, hireCost });
+    } catch (err) {
+      console.warn(
+        `[ColosseumEngine] Skipping merc candidate (class: ${pickedClass}):`,
+        err?.message || err,
+      );
+      continue;
+    }
   }
 
   return candidates;
