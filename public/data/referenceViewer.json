@@ -16,17 +16,17 @@
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 91,
+        "totalWeapons": 93,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 17,
-        "legendaryWeapons": 17
+        "totalWeapons": 20,
+        "legendaryWeapons": 19
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 17
+    "legendaryCount": 19
   },
   "legendaryWeapons": [
     {
@@ -114,6 +114,13 @@
       "special": "Attacks twice consecutively"
     },
     {
+      "name": "Eldritch Grasp",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": ""
+    },
+    {
       "name": "Gemini",
       "type": "Sword",
       "rankRequired": "Mast",
@@ -147,6 +154,13 @@
       "rankRequired": "Mast",
       "range": "1-2",
       "special": "Effective vs Flying (3x)"
+    },
+    {
+      "name": "Twisting Vortex",
+      "type": "Tome",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": ""
     }
   ],
   "featuredAffixes": [

@@ -77,26 +77,22 @@ describe('RunSimulationDriver', () => {
     }
   });
 
-  it(
-    'invincibility mode does not record player unit losses',
-    async () => {
-      const gameData = loadGameData();
-      installSeed(7);
-      try {
-        const driver = new RunSimulationDriver(gameData, {
-          runOptions: { runSeed: 7, difficultyId: 'hard' },
-          maxNodes: 120,
-          maxBattleActions: 1200,
-          invincibility: true,
-        });
-        const result = await driver.run();
-        expect(result.metrics.unitsLost).toBe(0);
-      } finally {
-        restoreMathRandom();
-      }
-    },
-    15000,
-  );
+  it('invincibility mode does not record player unit losses', async () => {
+    const gameData = loadGameData();
+    installSeed(7);
+    try {
+      const driver = new RunSimulationDriver(gameData, {
+        runOptions: { runSeed: 7, difficultyId: 'hard' },
+        maxNodes: 120,
+        maxBattleActions: 1200,
+        invincibility: true,
+      });
+      const result = await driver.run();
+      expect(result.metrics.unitsLost).toBe(0);
+    } finally {
+      restoreMathRandom();
+    }
+  }, 15000);
 
   it('applies difficulty and blessing shop pricing in simulation', () => {
     const gameData = loadGameData();

@@ -48,11 +48,11 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 91 weapons (0 legendary)",
+            "text": "Prof: 93 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 17 weapons (17 legendary)",
+            "text": "Mast: 20 weapons (19 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,17 +137,17 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 91,
+        "totalWeapons": 93,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 17,
-        "legendaryWeapons": 17
+        "totalWeapons": 20,
+        "legendaryWeapons": 19
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 17
+    "legendaryCount": 19
   },
   "legendaryWeapons": [
     {
@@ -235,6 +235,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "special": "Attacks twice consecutively"
     },
     {
+      "name": "Eldritch Grasp",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": ""
+    },
+    {
       "name": "Gemini",
       "type": "Sword",
       "rankRequired": "Mast",
@@ -268,6 +275,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "rankRequired": "Mast",
       "range": "1-2",
       "special": "Effective vs Flying (3x)"
+    },
+    {
+      "name": "Twisting Vortex",
+      "type": "Tome",
+      "rankRequired": "Mast",
+      "range": "1-4",
+      "special": ""
     }
   ],
   "featuredAffixes": [
