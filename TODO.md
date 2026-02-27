@@ -11,6 +11,8 @@
 
 **Manual reference cuts** in `References/DaveManual/`: 10 terrain tiles (all deployed ✅), spare cave/water/mountain edge tiles, unsliced `tilesetFE.png`.
 
+Pipeline note: PixelLab MCP is retired. Use the Imagen API workflow under `tools/imagen-pipeline/` with outputs in `References/imagen-output/`.
+
 ## Completed (Summary)
 - **Sprites**: All 21 classes + 8 lord classes labeled and processed. 32 player + 23 enemy sprites at 32x32
 - **Portraits**: 4 lord + 21 generic class portraits at 128x128 via Imagen pipeline
@@ -57,5 +59,5 @@
 | `tools/process_sprite.js` | Resize to 32x32 + white bg removal |
 | `tools/process_tiles.js` | Batch resize terrain tiles to 32x32 |
 | `tools/process_node_icons_v2.js` | Node map icon processing (bg removal, compositing, resize) |
-| `tools/imagen-generate.js` | Batch portrait/icon generation via Imagen API |
-| `tools/imagen-process.js` | Process selected variants (crop/resize/bg removal) |
+| `tools/imagen-pipeline/generate.js` | Canonical batch portrait/icon generation via Imagen API |
+| `tools/imagen-pipeline/process.js` | Canonical selected-variant processing (crop/resize/bg removal) |

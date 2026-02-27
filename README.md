@@ -28,6 +28,8 @@ Core gameplay, run progression, and simulation/harness testing are active.
 npm install
 ```
 
+Node requirement: `>=20.19` (see `package.json` engines).
+
 2. Ensure required game assets are present locally:
 - `assets/`
 - `public/assets/`
@@ -62,6 +64,14 @@ Run tests:
 
 ```bash
 npm test
+```
+
+Recommended pre-PR gates:
+
+```bash
+npm run check:reference
+npm run check:data-parity
+npm run sim:fullrun:harness:pr
 ```
 
 Harness/sim entry points are available in `package.json` scripts.

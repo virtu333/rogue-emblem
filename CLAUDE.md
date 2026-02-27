@@ -30,7 +30,7 @@ emblem-rogue/
 │   ├── accessories.json   # 29 accessories: 10 stat-based + 19 with combatEffects
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules
 │   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers
-│   ├── classes.json       # 52 entries: 21 base + 30 promoted (lord, Wyvern, Zombie/Dragon/Entity)
+│   ├── classes.json       # 52 entries: 21 base + 30 promoted + 1 boss-tier class
 │   ├── colosseum.json     # Mercenary arena config: merc pools, ladder, promotion scaling
 │   ├── consumables.json   # 15 consumable items: 3 core + 8 stat boosters + 2 reclass seals + 2 misc
 │   ├── dialogue.json      # Recruit lines, act transition dialogue, story sequences
@@ -56,7 +56,7 @@ emblem-rogue/
 │   ├── engine/            # 34 pure game systems — Combat, MapGenerator, RunManager, SkillSystem,
 │   │                      #   UnitManager, LootSystem, ForgeSystem, NodeMapGenerator, Grid,
 │   │                      #   AIController, TurnManager, and 23 more (most are pure, no Phaser deps)
-│   ├── data/helpContent.js # HELP_TABS (8 categories) + HOW_TO_PLAY_PAGES (4 pages)
+│   ├── data/helpContent.js # HELP_TABS (9 categories) + HOW_TO_PLAY_PAGES (4 pages)
 │   ├── ui/                # 23 UI components — overlays, panels, controllers
 │   ├── scenes/            # 9 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 28 helpers — AudioManager, constants, SceneRouter, SceneGuard,
@@ -81,6 +81,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **metaUpgrades.json** — Effects cumulative per tier (level 2 shows total bonus, not incremental). Growth and flat stat upgrades are independent tracks.
 - **enemies.json** — Act 1 `levelRange` overridden per-node by `ACT_LEVEL_SCALING` in NodeMapGenerator.js (row 0: `[1,1]`, row 1: `[1,2]`, row 2: `[1,3]`, default: `[2,3]`).
 - **recruits.json** — `levelRange` overridden at spawn. Recruit scaling is Edric-anchored (see `RecruitScaling.js`), not simple lord-level mirroring.
+- **colosseum.json** — `crossActPoolAccess: true` pulls next-act recruit classes into merc generation. This means act2 can draw promoted act3 classes and must use promote-path handling.
 - **mapTemplates.json** — Castle templates (corridor_siege, castle_ruins, great_hall) gated to act2+ via `"acts"` field.
 - **affixes.json** — `difficultyGating`: Normal=0%, Hard=12% chance/1 max, Lunatic=30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
@@ -119,7 +120,7 @@ AI-generated pixel art via Google Imagen 4 API.
 - **Manifest:** `tools/imagen-pipeline/manifest.json` defines all asset prompts/categories
 - **API key:** `GOOGLE_API_KEY` in `.env`
 - **Output dirs:** `References/imagen-output/` — `raw/`, `processed/` (game-ready), `nb2-roster/`, `nb2-test/`
-- **Legacy scripts:** `tools/imagen-generate.js` / `imagen-process.js` exist but npm scripts use `tools/imagen-pipeline/`
+- **Legacy scripts:** `tools/imagen-generate.js` / `tools/imagen-process.js` exist but npm scripts use `tools/imagen-pipeline/`
 
 ## Future Roadmap
 See `ROADMAP.md` for all planned features. Key architectural constraints:
@@ -154,12 +155,12 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~11,400 lines)** — 5 controllers already extracted. Remaining targets: weapon art pipeline (~500 lines), post-combat orchestration (~800 lines), input state machine (~600 lines). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~10,600 lines)** — 5 controllers already extracted. Remaining targets: weapon art pipeline (~500 lines), post-combat orchestration (~800 lines), input state machine (~600 lines). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
-- **NodeMapScene.js (~3,800 lines)** — Church/shop logic are extraction candidates.
-- **RunManager.js (~3,600 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
-- **RosterOverlay.js (~3,200 lines)** — Trade state machine (~450 lines) is top extraction candidate.
+- **NodeMapScene.js (~3,500 lines)** — Church/shop logic are extraction candidates.
+- **RunManager.js (~3,300 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
+- **RosterOverlay.js (~2,900 lines)** — Trade state machine (~450 lines) is top extraction candidate.
 
 ### Extraction pattern
 ```js

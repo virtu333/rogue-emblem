@@ -1,8 +1,12 @@
 # Light Story Scaffolding Spec
 
-Status: Draft (implementation pending)  
-Date: 2026-02-14  
+Status: Historical draft (feature slice shipped on `main`; keep as contract/reference notes)  
+Date: 2026-02-14 (authored)  
 Owner: Gameplay / Narrative
+
+> Note: This spec captures pre-implementation intent as of February 14, 2026.
+> Runtime behavior has since landed in production code and data.
+> Treat this file as historical context, not the authoritative current-state doc.
 
 ## Goal
 

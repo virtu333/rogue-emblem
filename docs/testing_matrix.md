@@ -28,6 +28,8 @@ npm run test:harness
 Pre-push:
 
 ```bash
+npm run check:reference
+npm run check:data-parity
 npm run test:all
 npm run sim:fullrun:pr
 ```
