@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({
   default: {
     Scene: class {},
     Math: { Clamp: (value, min, max) => Math.min(max, Math.max(min, value)) },
+    BlendModes: { ADD: 1 },
   },
 }));
 
@@ -144,7 +145,8 @@ describe('NodeMap shop hover details', () => {
     const row = createdTexts[0];
     expect(row).toBeTruthy();
     expect(row._interactive).toEqual({ useHandCursor: false });
-    expect(row.handlers.pointerdown).toBeUndefined();
+    // pointerdown exists for touch tooltip display on unaffordable items
+    expect(typeof row.handlers.pointerdown).toBe('function');
 
     row.handlers.pointerover();
     expect(scene._showShopItemTooltip).toHaveBeenCalledWith(entry, 60 + row.width + 10, row.y);
@@ -859,5 +861,455 @@ describe('NodeMap shop hover details', () => {
     expect(stale._destroyed).toBe(true);
     expect(scene.drawShopBuyList).toHaveBeenCalledTimes(1);
     expect(scene.drawRerollButton).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('shop touch two-tap buy', () => {
+  const touchPointer = (x = 100, y = 100) => ({
+    button: 0,
+    wasTouch: true,
+    x,
+    y,
+  });
+
+  let realDateNow;
+  let mockNow;
+
+  beforeEach(() => {
+    realDateNow = Date.now;
+    mockNow = 1000;
+    Date.now = () => mockNow;
+  });
+
+  afterEach(() => {
+    Date.now = realDateNow;
+  });
+
+  it('first touch tap shows tooltip only, does not buy', () => {
+    const entry = {
+      type: 'weapon',
+      price: 500,
+      item: { name: 'Iron Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    const row = createdTexts[0];
+    const ptr = touchPointer();
+    // pointerdown records tap start, shows tooltip
+    row.handlers.pointerdown(ptr);
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    expect(scene._showShopItemTooltip).toHaveBeenCalledWith(entry, expect.any(Number), row.y);
+
+    // pointerup on first tap = preview only (not buy)
+    row.handlers.pointerup(ptr);
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+  });
+
+  it('second touch tap within 3s buys', () => {
+    const entry = {
+      type: 'weapon',
+      price: 500,
+      item: { name: 'Iron Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    const row = createdTexts[0];
+    const ptr = touchPointer();
+
+    // First tap cycle: preview
+    row.handlers.pointerdown(ptr);
+    row.handlers.pointerup(ptr);
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+
+    // Advance time within 3s window
+    mockNow = 2500;
+
+    // Second tap cycle: buy
+    row.handlers.pointerdown(ptr);
+    row.handlers.pointerup(ptr);
+    expect(scene.onBuyItem).toHaveBeenCalledWith(entry);
+  });
+
+  it('second touch tap after 3s does not buy (re-previews)', () => {
+    const entry = {
+      type: 'weapon',
+      price: 500,
+      item: { name: 'Iron Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    const row = createdTexts[0];
+    const ptr = touchPointer();
+
+    // First tap cycle
+    row.handlers.pointerdown(ptr);
+    row.handlers.pointerup(ptr);
+
+    // Advance past 3s window
+    mockNow = 4500;
+
+    // Second tap cycle: should re-preview, not buy
+    row.handlers.pointerdown(ptr);
+    row.handlers.pointerup(ptr);
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+  });
+
+  it('tapping unaffordable row disarms buy latch', () => {
+    const affordable = {
+      type: 'weapon',
+      price: 500,
+      item: { name: 'Iron Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+    const unaffordable = {
+      type: 'weapon',
+      price: 9999,
+      item: { name: 'Silver Sword', might: 13, hit: 80, crit: 0, weight: 8, range: '1' },
+    };
+    const createdTexts = [];
+    const scene = {
+      runManager: { gold: 1000 },
+      gameData: {},
+      shopBuyItems: [affordable, unaffordable],
+      shopScrollOffsets: { buy: 0, sell: 0, forge: 0 },
+      shopContentGroup: [],
+      shopOverlay: [],
+      _showShopItemTooltip: vi.fn(),
+      _hideShopItemTooltip: vi.fn(),
+      onBuyItem: vi.fn(),
+      add: {
+        text: (x, y, text, style) => {
+          const obj = makeDisplayObject({ x, y, text, style, width: String(text).length * 6 });
+          createdTexts.push(obj);
+          return obj;
+        },
+      },
+    };
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    const affordableRow = createdTexts[0]; // Iron Sword (affordable)
+    const unaffordableRow = createdTexts[1]; // Silver Sword (unaffordable)
+
+    const ptr = touchPointer();
+
+    // First tap on affordable A → preview latched
+    affordableRow.handlers.pointerdown(ptr);
+    affordableRow.handlers.pointerup(ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(affordable);
+
+    // Tap unaffordable B → latch cleared
+    unaffordableRow.handlers.pointerdown(ptr);
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+
+    // Single tap on A again → should NOT buy (re-previews instead)
+    affordableRow.handlers.pointerdown(ptr);
+    affordableRow.handlers.pointerup(ptr);
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedShopEntry).toBe(affordable);
+  });
+
+  it('scroll gesture (finger moved > 12px) disarms buy latch', () => {
+    const entry = {
+      type: 'weapon',
+      price: 500,
+      item: { name: 'Iron Sword', might: 5, hit: 90, crit: 0, weight: 5, range: '1' },
+    };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+
+    const row = createdTexts[0];
+
+    // First tap cycle to latch preview
+    const ptr = touchPointer(100, 100);
+    row.handlers.pointerdown(ptr);
+    row.handlers.pointerup(ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+
+    mockNow = 2000;
+
+    // Second tap: pointerdown at (100,100) then pointerup at (100,120) — 20px move
+    row.handlers.pointerdown(touchPointer(100, 100));
+    row.handlers.pointerup(touchPointer(100, 120));
+
+    // Latch should be cleared, not bought
+    expect(scene.onBuyItem).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+  });
+});
+
+describe('onPointerUp drag-disarm', () => {
+  it('clears both two-tap latches when touch drag exceeds threshold', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: null,
+      _touchScrollDrag: null,
+      _touchTapDown: { x: 100, y: 100 },
+      _tapMoveThreshold: 12,
+      _touchPreviewedNodeId: 'n1',
+      _touchPreviewedShopEntry: { type: 'weapon', item: { name: 'Iron Sword' } },
+      _churchMapViewSuppressCancel: false,
+      _isPointerOverInteractive: vi.fn(() => false),
+      requestCancel: vi.fn(),
+    };
+
+    // Pointer moved 20px — exceeds threshold
+    const pointer = { wasTouch: true, button: 0, x: 100, y: 120 };
+    NodeMapScene.prototype.onPointerUp.call(scene, pointer);
+
+    expect(scene._touchTapDown).toBeNull();
+    expect(scene._touchPreviewedNodeId).toBeNull();
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+    // Should have returned early — requestCancel not called
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+  });
+});
+
+describe('node touch two-tap navigation', () => {
+  const touchPointer = () => ({ button: 0, wasTouch: true, x: 100, y: 100 });
+
+  let realDateNow;
+  let mockNow;
+
+  beforeEach(() => {
+    realDateNow = Date.now;
+    mockNow = 1000;
+    Date.now = () => mockNow;
+  });
+
+  afterEach(() => {
+    Date.now = realDateNow;
+  });
+
+  function bindNode(scene, node, pos, isAvailable) {
+    const nodeObj = makeDisplayObject();
+    NodeMapScene.prototype._bindNodeTouchHandlers.call(scene, nodeObj, node, pos, isAvailable);
+    return nodeObj;
+  }
+
+  it('first tap shows tooltip, second tap within 3s navigates', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const node = { id: 'n1', type: 'battle' };
+    const pos = { x: 100, y: 200 };
+    const nodeObj = bindNode(scene, node, pos, true);
+
+    // First tap → preview
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene.showNodeTooltip).toHaveBeenCalledWith(node, pos);
+    expect(scene.onNodeClick).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Second tap within 3s → navigate
+    mockNow = 2500;
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).toHaveBeenCalledWith(node);
+    expect(scene._touchPreviewedNodeId).toBeNull();
+  });
+
+  it('second tap after 3s re-previews instead of navigating', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const node = { id: 'n1', type: 'battle' };
+    const nodeObj = bindNode(scene, node, { x: 100, y: 200 }, true);
+
+    nodeObj.handlers.pointerdown(touchPointer());
+    mockNow = 4500;
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+  });
+
+  it('tapping locked node disarms navigation latch', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const nodeA = { id: 'n1', type: 'battle' };
+    const lockedNode = { id: 'n2', type: 'battle' };
+    const nodeObjA = bindNode(scene, nodeA, { x: 100, y: 200 }, true);
+    const nodeObjLocked = bindNode(scene, lockedNode, { x: 200, y: 200 }, false);
+
+    // First tap on available A → preview latched
+    nodeObjA.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Tap locked node → latch cleared
+    nodeObjLocked.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBeNull();
+
+    // Tap A again → should NOT navigate (re-previews instead)
+    mockNow = 2000;
+    nodeObjA.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+  });
+
+  it('tapping a different available node resets latch to new node', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const nodeA = { id: 'n1', type: 'battle' };
+    const nodeB = { id: 'n2', type: 'shop' };
+    const nodeObjA = bindNode(scene, nodeA, { x: 100, y: 200 }, true);
+    const nodeObjB = bindNode(scene, nodeB, { x: 200, y: 200 }, true);
+
+    // Tap A → latched to n1
+    nodeObjA.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Tap B → latched to n2 (not navigate A)
+    mockNow = 2000;
+    nodeObjB.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedNodeId).toBe('n2');
+  });
+
+  it('mouse click navigates immediately without showing tooltip', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const node = { id: 'n1', type: 'battle' };
+    const pos = { x: 100, y: 200 };
+    const nodeObj = bindNode(scene, node, pos, true);
+
+    // Mouse click (no wasTouch) → immediate navigate
+    nodeObj.handlers.pointerdown({ button: 0 });
+    expect(scene.onNodeClick).toHaveBeenCalledWith(node);
+    expect(scene.showNodeTooltip).not.toHaveBeenCalled();
+  });
+
+  it('pointerover shows tooltip and pointerout hides it', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const node = { id: 'n1', type: 'battle' };
+    const pos = { x: 100, y: 200 };
+    const nodeObj = bindNode(scene, node, pos, true);
+
+    nodeObj.handlers.pointerover();
+    expect(scene.showNodeTooltip).toHaveBeenCalledWith(node, pos);
+
+    nodeObj.handlers.pointerout();
+    expect(scene.hideNodeTooltip).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('drawMap node handler delegation', () => {
+  it('calls _bindNodeTouchHandlers for available and locked nodes', () => {
+    const availableNode = {
+      id: 'n0',
+      row: 0,
+      col: 2,
+      type: 'battle',
+      completed: false,
+      edges: ['n1'],
+    };
+    const lockedNode = {
+      id: 'n1',
+      row: 1,
+      col: 2,
+      type: 'battle',
+      completed: false,
+      edges: ['n0'],
+    };
+
+    const chainable = () => {
+      const obj = makeDisplayObject();
+      obj.setDisplaySize = function () {
+        return this;
+      };
+      obj.setTint = function () {
+        return this;
+      };
+      obj.setAlpha = function () {
+        return this;
+      };
+      obj.setBlendMode = function () {
+        return this;
+      };
+      return obj;
+    };
+
+    const scene = {
+      children: { removeAll: vi.fn() },
+      cameras: { main: { centerX: 320, width: 640 } },
+      textures: { exists: vi.fn(() => false) },
+      tweens: { add: vi.fn() },
+      registry: { get: vi.fn(() => null) },
+      add: {
+        text: () => chainable(),
+        graphics: () => ({
+          lineStyle: vi.fn(),
+          lineBetween: vi.fn(),
+        }),
+        rectangle: () => chainable(),
+        circle: () => chainable(),
+        image: () => chainable(),
+      },
+      runManager: {
+        nodeMap: {
+          actId: 'act1',
+          startNodeId: 'n0',
+          nodes: [availableNode, lockedNode],
+        },
+        currentAct: 'act1',
+        actIndex: 0,
+        currentNodeId: null,
+        gold: 500,
+        difficultyModifiers: null,
+        noMetaMode: false,
+        winStreak: 0,
+        getAvailableNodes: () => [availableNode],
+      },
+      _bindNodeTouchHandlers: vi.fn(),
+      drawRoster: vi.fn(),
+    };
+
+    NodeMapScene.prototype.drawMap.call(scene);
+
+    expect(scene._bindNodeTouchHandlers).toHaveBeenCalledTimes(2);
+    // Available node: isAvailable = true
+    expect(scene._bindNodeTouchHandlers).toHaveBeenCalledWith(
+      expect.any(Object),
+      availableNode,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      true,
+    );
+    // Locked node: isAvailable = false
+    expect(scene._bindNodeTouchHandlers).toHaveBeenCalledWith(
+      expect.any(Object),
+      lockedNode,
+      expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      false,
+    );
   });
 });
