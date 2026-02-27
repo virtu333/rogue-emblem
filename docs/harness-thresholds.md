@@ -34,8 +34,8 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=10.00`
-  - `min_avg_gold=4000`, `max_avg_gold=12500`
-  - `min_avg_shop_spent=1000`, `max_avg_shop_spent=6500`
+  - `min_avg_gold=4000`, `max_avg_gold=11000`
+  - `min_avg_shop_spent=1000`, `max_avg_shop_spent=9500`
   - `min_avg_recruits=0.50`
   - `min_promotion_by_act2_rate=0.00`, `max_promotion_by_act2_rate=50.00`
   - `max_avg_units_lost=0.00`
@@ -44,8 +44,8 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
-  - `min_avg_gold=9000`, `max_avg_gold=18000`
-  - `min_avg_shop_spent=8000`, `max_avg_shop_spent=17000`
+  - `min_avg_gold=9000`, `max_avg_gold=26600`
+  - `min_avg_shop_spent=8000`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
   - `min_avg_ambush_battles=0.50`
