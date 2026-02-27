@@ -209,6 +209,11 @@ import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
+import { BossRecruitOverlay } from '../ui/BossRecruitOverlay.js';
+import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
+import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { LootScreenController } from '../ui/LootScreenController.js';
+import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -235,16 +240,6 @@ function dimColor(color, factor = 0.3) {
   return (r << 16) | (g << 8) | b;
 }
 
-function hashRewindSeed(seed, rewindCount) {
-  const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
 const HIDDEN_WEAPON_ART_REASONS = new Set([
   'legendary_weapon_required',
   'owner_scope_mismatch',
@@ -269,6 +264,7 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
 const POST_LOOT_TRANSITION_RECHECK_MS = 250;
+const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   unit.hasMoved = false;
@@ -407,12 +403,20 @@ export class BattleScene extends Phaser.Scene {
     }
     this._unbindGameplayKeyboardHandlers();
 
+    if (this._deployOverlay) {
+      this._deployOverlay._cleanup();
+      this._deployOverlay = null;
+    }
+
+    this.hideForecast();
+    this.closeVisionDialog();
+
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
       this.dialogueOverlay = null;
     }
 
-    if (this.pauseOverlay?.hide) this.pauseOverlay.hide();
+    if (this.pauseOverlay?.hideForTransition) this.pauseOverlay.hideForTransition();
     this.pauseOverlay = null;
     this.lootSettingsOverlay = null;
     this.debugOverlay = null;
@@ -1666,23 +1670,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   initializeVisionState() {
-    if (this.runManager) {
-      const baseSeed = Number.isFinite(this.runManager.rngSeed)
-        ? this.runManager.rngSeed >>> 0
-        : this.deriveBattleSeed() >>> 0;
-      this.runManager.rngSeed = baseSeed;
-      this.visionBaseSeed = baseSeed;
-      if (!Number.isFinite(this.runManager.visionChargesRemaining)) {
-        const getBaseVisionCharges = this.runManager.getBaseVisionCharges;
-        this.runManager.visionChargesRemaining =
-          typeof getBaseVisionCharges === 'function'
-            ? getBaseVisionCharges.call(this.runManager)
-            : 1;
-      }
-      if (!Number.isFinite(this.runManager.visionCount)) this.runManager.visionCount = 0;
-    } else {
-      this.visionBaseSeed = this.deriveBattleSeed() >>> 0;
-    }
+    this._visionController = new VisionRewindController(this, this.runManager);
+    this._visionController.initialize();
   }
 
   getEnemyDifficultyConfig() {
@@ -2132,392 +2121,96 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getVisionChargesRemaining() {
-    if (!this.runManager) return 0;
-    return Math.max(0, Math.trunc(this.runManager.visionChargesRemaining || 0));
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).getChargesRemaining();
   }
 
+  // ── Vision Rewind shims (delegated to VisionRewindController) ──
+
   captureVisionSnapshot() {
-    const stripVisuals = (unit) => {
-      const serialized = serializeUnit(unit);
-      try {
-        return structuredClone(serialized);
-      } catch (err) {
-        // Fallback for rare DataCloneError cases (e.g. non-serializable runtime fields).
-        try {
-          return JSON.parse(JSON.stringify(serialized));
-        } catch {
-          const minimal = {
-            name: serialized.name,
-            className: serialized.className,
-            faction: serialized.faction,
-            level: serialized.level,
-            xp: serialized.xp,
-            stats: serialized.stats,
-            growths: serialized.growths,
-            currentHP: serialized.currentHP,
-            col: serialized.col,
-            row: serialized.row,
-            hasMoved: Boolean(serialized.hasMoved),
-            hasActed: Boolean(serialized.hasActed),
-            weapon: serialized.weapon || null,
-            inventory: Array.isArray(serialized.inventory) ? serialized.inventory : [],
-            consumables: Array.isArray(serialized.consumables) ? serialized.consumables : [],
-            skills: Array.isArray(serialized.skills) ? serialized.skills : [],
-            proficiencies: Array.isArray(serialized.proficiencies) ? serialized.proficiencies : [],
-            accessory: serialized.accessory || null,
-            isLord: Boolean(serialized.isLord),
-            isBoss: Boolean(serialized.isBoss),
-            _miracleUsed: Boolean(serialized._miracleUsed),
-            _gambitUsedThisTurn: Boolean(serialized._gambitUsedThisTurn),
-          };
-          console.warn(
-            'Vision snapshot used minimal fallback clone for unit:',
-            serialized?.name,
-            err,
-          );
-          return minimal;
-        }
-      }
-    };
-    const fog = this.grid?.fogEnabled
-      ? {
-          visible: [...(this.grid.visibleSet || new Set())],
-          everSeen: [...(this.grid.everSeenSet || new Set())],
-        }
-      : null;
-    const snapshot = {
-      playerUnits: this.playerUnits.map(stripVisuals),
-      enemyUnits: this.enemyUnits.map(stripVisuals),
-      npcUnits: this.npcUnits.map(stripVisuals),
-      turnNumber: this.turnManager?.turnNumber || 1,
-      phase: this.turnManager?.currentPhase || 'player',
-      objectiveText: this.objectiveText?.text || '',
-      antiTurtleState: structuredClone(this.antiTurtleState || {}),
-      rngSeed: Number.isFinite(this.runManager?.rngSeed)
-        ? this.runManager.rngSeed >>> 0
-        : this.visionBaseSeed >>> 0,
-      fog,
-      ballistas: this.ballistas?.map((b) => ({ ...b })) || [],
-      zombieTombstones: structuredClone(this._zombieTombstones || []),
-    };
-    if (!this.visionSnapshot) {
-      this.visionSnapshot = snapshot;
-      this.pendingVisionSnapshot = null;
-    } else {
-      this.pendingVisionSnapshot = snapshot;
-    }
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).captureSnapshot();
   }
 
   activatePendingVisionSnapshot() {
-    if (!this.pendingVisionSnapshot) return;
-    this.visionSnapshot = this.pendingVisionSnapshot;
-    this.pendingVisionSnapshot = null;
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    ))._activatePendingSnapshot();
   }
 
   commitVisionSnapshotIfPending() {
-    if (this.turnManager?.currentPhase !== 'player') return false;
-    if (!this.pendingVisionSnapshot) return false;
-    this.activatePendingVisionSnapshot();
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).commitSnapshotIfPending();
   }
 
   applyVisionSnapshot() {
-    if (!this.visionSnapshot) return false;
-    const restoreUnits = (targetArr, sourceUnits) => {
-      for (const unit of targetArr) this.removeUnitGraphic(unit);
-      targetArr.length = 0;
-      for (const unitData of sourceUnits) {
-        const unit = structuredClone(unitData);
-        targetArr.push(unit);
-        this.addUnitGraphic(unit);
-        // TODO: rehydrate condition icons from unit._conditions (same gap as affix pips)
-      }
-    };
-
-    restoreUnits(this.playerUnits, this.visionSnapshot.playerUnits);
-    restoreUnits(this.enemyUnits, this.visionSnapshot.enemyUnits);
-    restoreUnits(this.npcUnits, this.visionSnapshot.npcUnits);
-
-    this.selectedUnit = null;
-    this.preMoveLoc = null;
-    this._preFogSnapshot = null;
-    this.movementRange = null;
-    this.unitPositions = null;
-    this.attackTargets = [];
-    this.healTargets = [];
-    this.shoveTargets = [];
-    this.pullTargets = [];
-    this.tradeTargets = [];
-    this.swapTargets = [];
-    this.danceTargets = [];
-    this.tradeMutatedThisSession = false;
-    this.hideActionMenu();
-    this.hideForecast();
-    this.cleanupTradeUI();
-    this.grid.clearHighlights();
-    this.grid.clearAttackHighlights();
-    this.grid.clearPath();
-    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
-    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-
-    this.turnManager.currentPhase = this.visionSnapshot.phase;
-    this.turnManager.turnNumber = this.visionSnapshot.turnNumber;
-    this.battleState = 'PLAYER_IDLE';
-    this.antiTurtleState = structuredClone(
-      this.visionSnapshot.antiTurtleState || {
-        noProgressTurns: 0,
-        aggressiveMode: false,
-        turnEnrageActive: false,
-        bestEnemyCount: this.enemyUnits.length,
-        bestLordThroneDistance: this.getBestLordThroneDistance(),
-      },
-    );
-    this.aiController?.setAggressiveMode?.(Boolean(this.antiTurtleState.aggressiveMode));
-
-    if (this.grid.fogEnabled) {
-      const fog = this.visionSnapshot.fog || { visible: [], everSeen: [] };
-      this.grid.visibleSet = new Set(fog.visible || []);
-      this.grid.everSeenSet = new Set(fog.everSeen || []);
-      for (let row = 0; row < this.grid.rows; row++) {
-        for (let col = 0; col < this.grid.cols; col++) {
-          const key = `${col},${row}`;
-          const overlay = this.grid.fogOverlays[row]?.[col];
-          if (!overlay) continue;
-          if (this.grid.visibleSet.has(key)) overlay.setAlpha(0);
-          else if (this.grid.everSeenSet.has(key)) overlay.setAlpha(0.3);
-          else overlay.setAlpha(0.7);
-        }
-      }
-      this.updateEnemyVisibility();
-    }
-
-    this.ballistas = (this.visionSnapshot.ballistas || []).map((b) => ({ ...b }));
-    this._zombieTombstones = structuredClone(this.visionSnapshot.zombieTombstones || []);
-
-    const sourceSeed = Number.isFinite(this.visionSnapshot.rngSeed)
-      ? this.visionSnapshot.rngSeed >>> 0
-      : this.visionBaseSeed >>> 0;
-    const rewindCount = this.runManager ? this.runManager.visionCount : 0;
-    const reseed = hashRewindSeed(sourceSeed, rewindCount);
-    this.reseedBattleRng(reseed);
-
-    this.updateObjectiveText();
-    if (this.turnCounterText && this.turnPar !== null) {
-      const rating = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
-      const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
-      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
-      this.turnCounterText.setText(
-        `Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
-      );
-      this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
-    } else if (this.turnCounterText) {
-      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
-      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber}${pressureSuffix}`);
-      this.turnCounterText.setColor('#e0e0e0');
-    }
-    this.updateVisionHud();
-    this.refreshEndTurnControl();
-    this.playVisionRewindEffect();
-    // Re-assert current music to trigger orphan scanner (no-op when clean)
-    const audio = this.registry.get('audio');
-    if (audio && audio.currentMusicKey) {
-      audio.playMusic(audio.currentMusicKey, this, 0);
-    }
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    ))._applySnapshot();
   }
 
   playVisionRewindEffect() {
-    const flash = this.add
-      .rectangle(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY,
-        this.cameras.main.width,
-        this.cameras.main.height,
-        0xa8f2ff,
-        0,
-      )
-      .setDepth(950);
-    this._pinToScreen(flash);
-    this.tweens.add({
-      targets: flash,
-      alpha: 0.22,
-      duration: 140,
-      yoyo: true,
-      onComplete: () => flash.destroy(),
-    });
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).playRewindEffect();
   }
 
   canUseVisionNow() {
-    const allowedStates = new Set([
-      'PLAYER_IDLE',
-      'UNIT_SELECTED',
-      'UNIT_ACTION_MENU',
-      'SHOWING_FORECAST',
-      'SELECTING_TARGET',
-      'SELECTING_HEAL_TARGET',
-      'SELECTING_CURE_TARGET',
-      'SELECTING_SHOVE_TARGET',
-      'SELECTING_PULL_TARGET',
-      'SELECTING_TRADE_TARGET',
-      'SELECTING_SWAP_TARGET',
-      'SELECTING_DANCE_TARGET',
-      'TRADING',
-      'CANTO_MOVING',
-    ]);
-    return (
-      this.turnManager?.currentPhase === 'player' &&
-      allowedStates.has(this.battleState) &&
-      !this.pauseOverlay?.visible &&
-      !this.visionDialog &&
-      this.getVisionChargesRemaining() > 0 &&
-      !!this.visionSnapshot
-    );
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).canUseNow();
   }
 
   requestVisionRewind({ force = false } = {}) {
-    if (this.isStoryInputLocked()) return false;
-    if (!force && !this.canUseVisionNow()) return false;
-    if (!this.visionSnapshot) return false;
-    const remaining = this.getVisionChargesRemaining();
-    if (remaining <= 0) return false;
-
-    this.showVisionDialog({
-      title: 'Foresee a different path?',
-      body: `Spend 1 Vision to rewind this turn?\n(${remaining} remaining)`,
-      confirmLabel: 'Confirm',
-      cancelLabel: 'Cancel',
-      onConfirm: () => this.executeVisionRewind(),
-      onCancel: () => {},
-    });
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).requestRewind({ force });
   }
 
   showLordDeathVisionPrompt() {
-    const remaining = this.getVisionChargesRemaining();
-    if (remaining <= 0 || !this.visionSnapshot) return false;
-    this.showVisionDialog({
-      title: "Sera's vision fractures!",
-      body: `Reveal another path?\n(${remaining} remaining)`,
-      confirmLabel: 'Rewind',
-      cancelLabel: 'Accept Fate',
-      onConfirm: () => this.executeVisionRewind(),
-      onCancel: () => this.onDefeat(),
-      accent: 0xcc6666,
-    });
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).showLordDeathPrompt();
   }
 
-  showVisionDialog({
-    title,
-    body,
-    confirmLabel,
-    cancelLabel,
-    onConfirm,
-    onCancel,
-    accent = 0x66aacc,
-  }) {
-    if (this.visionDialog) this.closeVisionDialog();
-    this.battleState = 'PAUSED';
-    const group = [];
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
-
-    const blocker = this.add
-      .rectangle(cx, cy, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75)
-      .setDepth(900)
-      .setInteractive();
-    group.push(blocker);
-    const panel = this.add
-      .rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
-      .setDepth(901)
-      .setStrokeStyle(2, accent, 1);
-    group.push(panel);
-    const titleText = this.add
-      .text(cx, cy - 54, title, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffdd88',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(902);
-    group.push(titleText);
-    const bodyText = this.add
-      .text(cx, cy - 14, body, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#d0d7e8',
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setDepth(902);
-    group.push(bodyText);
-    const makeButton = (x, y, label, color, callback) => {
-      const btn = this.add
-        .text(x, y, label, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-          backgroundColor: '#223044',
-          padding: { x: 10, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setDepth(902)
-        .setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        this._uiClickBlocked = true;
-        callback();
-      });
-      group.push(btn);
-    };
-    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, '#a6ffb0', () => {
-      this.confirmVisionDialog();
-    });
-    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, '#e0e0e0', () => {
-      this.cancelVisionDialog();
-    });
-    this._pinToScreen(group);
-
-    this.visionDialog = {
-      group,
-      prevState: this.prePauseState || 'PLAYER_IDLE',
-      onConfirm,
-      onCancel,
-    };
+  showVisionDialog(opts) {
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).showDialog(opts);
   }
 
   confirmVisionDialog() {
-    if (!this.visionDialog) return;
-    const onConfirm = this.visionDialog.onConfirm;
-    this.closeVisionDialog();
-    onConfirm?.();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).confirmDialog();
   }
 
   cancelVisionDialog() {
-    if (!this.visionDialog) return;
-    const onCancel = this.visionDialog.onCancel;
-    this.closeVisionDialog();
-    onCancel?.();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).cancelDialog();
   }
 
   closeVisionDialog() {
-    if (!this.visionDialog) return;
-    for (const obj of this.visionDialog.group) obj.destroy();
-    this.visionDialog = null;
-    this.battleState = 'PLAYER_IDLE';
-    this.refreshEndTurnControl();
+    if (this._visionController) {
+      this._visionController.closeDialog();
+    } else if (this.visionDialog) {
+      for (const obj of this.visionDialog.group) obj.destroy();
+      this.visionDialog = null;
+    }
   }
 
   executeVisionRewind() {
-    if (!this.visionSnapshot || !this.runManager) return false;
-    if (this.runManager.visionChargesRemaining <= 0) return false;
-    this.runManager.visionChargesRemaining -= 1;
-    this.runManager.visionCount = Math.max(0, (this.runManager.visionCount || 0) + 1);
-    this.pendingVisionSnapshot = null;
-    return this.applyVisionSnapshot();
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).executeRewind();
   }
 
   initializeAntiTurtleState() {
@@ -2641,420 +2334,9 @@ export class BattleScene extends Phaser.Scene {
 
   showDeployScreen(roster, limits, onConfirm, initialSelectedNames = null) {
     this.battleState = 'DEPLOY_SELECTION';
-    const cam = this.cameras.main;
-    const deployGroup = [];
-    let deployOverlayClosed = false;
-    let detachDeployInputHandlers = null;
-
-    // Dark overlay
-    const overlay = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
-      .setDepth(700)
-      .setInteractive();
-    deployGroup.push(overlay);
-
-    // Title
-    const title = this.add
-      .text(cam.centerX, 28, 'DEPLOY UNITS', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    deployGroup.push(title);
-
-    const cleanupDeployOverlay = () => {
-      if (deployOverlayClosed) return;
-      deployOverlayClosed = true;
-      if (typeof detachDeployInputHandlers === 'function') {
-        try {
-          detachDeployInputHandlers();
-        } catch {
-          // Ignore handler teardown failures during overlay close.
-        }
-        detachDeployInputHandlers = null;
-      }
-      for (const obj of deployGroup) {
-        try {
-          obj.destroy();
-        } catch {
-          // Ignore teardown failures from already-destroyed display objects.
-        }
-      }
-      deployGroup.length = 0;
-    };
-
-    // Track selections
-    const selected = new Set();
-    const rowObjects = [];
-    let scrollOffset = 0;
-
-    const serializeSelectedUnitNames = () => {
-      const names = new Set();
-      for (const idx of selected) {
-        const name = roster[idx]?.name;
-        if (typeof name === 'string' && name.length > 0) names.add(name);
-      }
-      return names;
-    };
-
-    const restoreSelectedUnitNames = (selectedNames) => {
-      if (!(selectedNames instanceof Set) || selectedNames.size <= 0) return;
-      for (let i = 0; i < roster.length; i++) {
-        if (selected.size >= limits.max) break;
-        const unitName = roster[i]?.name;
-        if (!unitName || unitName === 'Edric') continue;
-        if (selectedNames.has(unitName)) selected.add(i);
-      }
-    };
-
-    // Auto-select Edric (locked)
-    const edricIdx = roster.findIndex((u) => u.name === 'Edric');
-    if (edricIdx !== -1) selected.add(edricIdx);
-    restoreSelectedUnitNames(initialSelectedNames);
-
-    // Counter text
-    const counterText = this.add
-      .text(cam.centerX, 52, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    deployGroup.push(counterText);
-
-    const updateCounter = () => {
-      counterText.setText(`${selected.size} / ${limits.max}`);
-      // Update confirm button state
-      const canConfirm = selected.size >= limits.min && selected.size <= limits.max;
-      confirmText.setColor(canConfirm ? '#44ff44' : '#666666');
-    };
-
-    // Roster list
-    const rowHeight = 34;
-    const startY = 100;
-    const listWidth = 400;
-    const confirmY = cam.height - 54;
-    const listBottomY = confirmY - 28;
-    const maxVisibleRows = Math.max(1, Math.floor((listBottomY - startY) / rowHeight) + 1);
-    const maxScrollOffset = Math.max(0, roster.length - maxVisibleRows);
-    const canScrollRows = maxScrollOffset > 0;
-    const listLeft = cam.centerX - listWidth / 2;
-    const listRight = cam.centerX + listWidth / 2;
-    const rowTopBound = startY - rowHeight / 2;
-    const rowBottomBound = listBottomY + rowHeight / 2;
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const ry = startY + i * rowHeight;
-      const isEdric = unit.name === 'Edric';
-
-      // Row background
-      const rowBg = this.add
-        .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
-        .setDepth(701)
-        .setInteractive({ useHandCursor: !isEdric });
-      deployGroup.push(rowBg);
-
-      // Checkbox
-      const checkText = this.add
-        .text(cam.centerX - listWidth / 2 + 16, ry, '', {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5)
-        .setDepth(702);
-      deployGroup.push(checkText);
-
-      // Unit info
-      const lvl = getDisplayLevel(unit);
-      const cls = unit.className || '';
-      const hp =
-        unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
-      const infoStr = `${unit.name}  Lv${lvl} ${cls}  HP ${hp}`;
-      const infoText = this.add
-        .text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#e0e0e0',
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(702);
-      deployGroup.push(infoText);
-
-      // Lock label for Edric
-      let lockLabel = null;
-      if (isEdric) {
-        lockLabel = this.add
-          .text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#ffaa44',
-          })
-          .setOrigin(1, 0.5)
-          .setDepth(702);
-        deployGroup.push(lockLabel);
-      }
-
-      const updateRow = () => {
-        const isSel = selected.has(i);
-        checkText.setText(isSel ? '[X]' : '[ ]');
-        rowBg.setFillStyle(isSel ? 0x334466 : 0x222244, 0.8);
-        infoText.setColor(isSel ? '#ffffff' : '#999999');
-      };
-
-      rowObjects.push({
-        index: i,
-        isEdric,
-        rowBg,
-        checkText,
-        infoText,
-        lockLabel,
-        updateRow,
-      });
-
-      // Click handler (skip Edric -- always locked)
-      if (!isEdric) {
-        rowBg.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          const audio = this.registry.get('audio');
-          if (selected.has(i)) {
-            selected.delete(i);
-            if (audio) audio.playSFX('sfx_cancel');
-          } else if (selected.size < limits.max) {
-            selected.add(i);
-            if (audio) audio.playSFX('sfx_cursor');
-          }
-          for (const ro of rowObjects) ro.updateRow();
-          updateCounter();
-        });
-      }
-
-      updateRow();
-    }
-
-    const setVisibleSafe = (obj, visible) => {
-      if (!obj) return;
-      if (typeof obj.setVisible === 'function') {
-        obj.setVisible(visible);
-      } else {
-        obj.visible = visible;
-      }
-    };
-
-    const setRowInteractive = (rowObj, visible) => {
-      if (!rowObj || rowObj.isEdric) return;
-      if (visible) {
-        if (typeof rowObj.rowBg.setInteractive === 'function') {
-          rowObj.rowBg.setInteractive({ useHandCursor: true });
-        }
-        return;
-      }
-      if (typeof rowObj.rowBg.disableInteractive === 'function') rowObj.rowBg.disableInteractive();
-    };
-
-    const applyRowLayout = () => {
-      for (const rowObj of rowObjects) {
-        const visibleIdx = rowObj.index - scrollOffset;
-        const visible = visibleIdx >= 0 && visibleIdx < maxVisibleRows;
-        const rowY = startY + visibleIdx * rowHeight;
-        rowObj.rowBg.y = rowY;
-        rowObj.checkText.y = rowY;
-        rowObj.infoText.y = rowY;
-        if (rowObj.lockLabel) rowObj.lockLabel.y = rowY;
-        setVisibleSafe(rowObj.rowBg, visible);
-        setVisibleSafe(rowObj.checkText, visible);
-        setVisibleSafe(rowObj.infoText, visible);
-        if (rowObj.lockLabel) setVisibleSafe(rowObj.lockLabel, visible);
-        setRowInteractive(rowObj, visible);
-      }
-    };
-
-    const scrollX = cam.centerX + listWidth / 2 + 26;
-    const scrollUp = this.add
-      .text(scrollX, startY, '^', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    const scrollDown = this.add
-      .text(scrollX, listBottomY, 'v', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    deployGroup.push(scrollUp);
-    deployGroup.push(scrollDown);
-
-    const updateScrollControls = () => {
-      const upEnabled = canScrollRows && scrollOffset > 0;
-      const downEnabled = canScrollRows && scrollOffset < maxScrollOffset;
-      setVisibleSafe(scrollUp, canScrollRows);
-      setVisibleSafe(scrollDown, canScrollRows);
-      scrollUp.setColor(upEnabled ? '#88ccff' : '#555577');
-      scrollDown.setColor(downEnabled ? '#88ccff' : '#555577');
-    };
-
-    const setScrollOffset = (nextOffset) => {
-      const clamped = Math.max(0, Math.min(maxScrollOffset, nextOffset));
-      if (clamped === scrollOffset) return;
-      scrollOffset = clamped;
-      applyRowLayout();
-      updateScrollControls();
-    };
-
-    if (canScrollRows) {
-      scrollUp.setInteractive({ useHandCursor: true });
-      scrollDown.setInteractive({ useHandCursor: true });
-      scrollUp.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        setScrollOffset(scrollOffset - 1);
-      });
-      scrollDown.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        setScrollOffset(scrollOffset + 1);
-      });
-
-      if (this.input?.on && this.input?.off) {
-        const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
-          if (deployOverlayClosed || !pointer || !deltaY) return;
-          if (pointer.x < listLeft || pointer.x > listRight) return;
-          if (pointer.y < rowTopBound || pointer.y > rowBottomBound) return;
-          setScrollOffset(scrollOffset + (deltaY > 0 ? 1 : -1));
-        };
-        this.input.on('wheel', wheelHandler);
-        detachDeployInputHandlers = () => this.input.off('wheel', wheelHandler);
-      }
-    }
-
-    // Confirm button (anchored near bottom so long rosters do not push controls off-screen)
-    const confirmBg = this.add
-      .rectangle(cam.centerX, confirmY, 120, 32, 0x225522, 1)
-      .setStrokeStyle(2, 0x44aa44)
-      .setDepth(701)
-      .setInteractive({ useHandCursor: true });
-    deployGroup.push(confirmBg);
-
-    const confirmText = this.add
-      .text(cam.centerX, confirmY, 'CONFIRM', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#666666',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    deployGroup.push(confirmText);
-
-    confirmBg.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      if (selected.size < limits.min || selected.size > limits.max) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-
-      // Build selectedRoster in original roster order
-      const selectedRoster = roster.filter((_, idx) => selected.has(idx));
-
-      cleanupDeployOverlay();
-
-      onConfirm(selectedRoster);
-    });
-
-    const backText = this.add
-      .text(cam.centerX, confirmY + 22, 'BACK', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      })
-      .setOrigin(0.5)
-      .setDepth(702)
-      .setInteractive({ useHandCursor: true });
-    backText.on('pointerover', () => backText.setColor('#ffdd44'));
-    backText.on('pointerout', () => backText.setColor('#aaaaaa'));
-    backText.on('pointerdown', async (pointer) => {
-      if (pointer?.button !== 0) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_cancel');
-      if (!this.runManager) {
-        console.warn(
-          '[BattleScene] Deploy BACK ignored: missing runManager for NodeMap transition.',
-        );
-        return;
-      }
-      try {
-        const transitioned = await transitionToScene(
-          this,
-          'NodeMap',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          },
-          { reason: TRANSITION_REASONS.BACK },
-        );
-        if (!transitioned) {
-          console.warn('[BattleScene] Deploy BACK transition to NodeMap failed.');
-          return;
-        }
-        cleanupDeployOverlay();
-      } catch (err) {
-        console.error('[BattleScene] Deploy BACK transition error:', err);
-      }
-    });
-    deployGroup.push(backText);
-
-    const rosterText = this.add
-      .text(cam.centerX, confirmY + 38, 'ROSTER', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702)
-      .setInteractive({ useHandCursor: true });
-    rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
-    rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
-    rosterText.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      if (!this.runManager || !this.gameData) return;
-      if (this.rosterOverlay?.visible) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      const selectedNames = serializeSelectedUnitNames();
-      cleanupDeployOverlay();
-      this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
-        onClose: () => {
-          this.rosterOverlay = null;
-          if (!this.scene?.isActive?.()) return;
-          const refreshedRoster = this.runManager?.getRoster?.() || roster;
-          this.roster = refreshedRoster;
-          this.showDeployScreen(refreshedRoster, limits, onConfirm, selectedNames);
-        },
-      });
-      this.rosterOverlay.show();
-    });
-    deployGroup.push(rosterText);
-
-    applyRowLayout();
-    updateScrollControls();
-    updateCounter();
-    this._pinToScreen(deployGroup);
-
-    // Tutorial hint for deploy screen
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('battle_deploy')) {
-      showImportantHint(
-        this,
-        'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.',
-      );
-    }
+    const overlay = new DeployScreenOverlay(this, this.runManager, this.gameData);
+    this._deployOverlay = overlay;
+    overlay.show(roster, limits, onConfirm, initialSelectedNames);
   }
 
   // --- Unit rendering ---
@@ -3637,11 +2919,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateVisionHud() {
-    if (!this.visionHudText) return;
-    const charges = this.getVisionChargesRemaining();
-    this.visionHudText.setText(`Eye: ${charges} (rewind current turn)`);
-    this.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
-    this.updateTopLeftHudLayout();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).updateHud();
   }
 
   update() {
@@ -4464,6 +3742,33 @@ export class BattleScene extends Phaser.Scene {
   showPauseMenu() {
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
+    const transitionToTitleWithWatchdog = async (reason) => {
+      markStartup('pause_transition_attempt', { scene: 'Battle', reason });
+      const timeoutToken = Symbol('pause_transition_timeout');
+      let timeoutHandle = null;
+      const timeoutPromise = new Promise((resolve) => {
+        timeoutHandle = setTimeout(() => resolve(timeoutToken), PAUSE_TRANSITION_TIMEOUT_MS);
+        if (typeof timeoutHandle?.unref === 'function') timeoutHandle.unref();
+      });
+      let result;
+      try {
+        result = await Promise.race([
+          transitionToScene(this, 'Title', { gameData: this.gameData }, { reason }),
+          timeoutPromise,
+        ]);
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      }
+      if (result === timeoutToken) {
+        markStartup('pause_transition_timeout', {
+          scene: 'Battle',
+          reason,
+          timeoutMs: PAUSE_TRANSITION_TIMEOUT_MS,
+        });
+        return false;
+      }
+      return result === true;
+    };
     const abandonCb = this.runManager
       ? async () => {
           try {
@@ -4476,13 +3781,7 @@ export class BattleScene extends Phaser.Scene {
             this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
-            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'ABANDON_RUN' });
-            const ok = await transitionToScene(
-              this,
-              'Title',
-              { gameData: this.gameData },
-              { reason: TRANSITION_REASONS.ABANDON_RUN },
-            );
+            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
             if (!ok) {
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
               resetTransitionLocks(this);
@@ -4510,13 +3809,7 @@ export class BattleScene extends Phaser.Scene {
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
-            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'SAVE_EXIT' });
-            const ok = await transitionToScene(
-              this,
-              'Title',
-              { gameData: this.gameData },
-              { reason: TRANSITION_REASONS.SAVE_EXIT },
-            );
+            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.SAVE_EXIT);
             if (!ok) {
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
               resetTransitionLocks(this);
@@ -6122,94 +5415,6 @@ export class BattleScene extends Phaser.Scene {
       });
     });
     text.on('pointerup', () => this._clearMenuTooltipTimer('_menuTooltipPressTimer'));
-  }
-
-  _showBossRecruitClassTooltip(anchorText, description) {
-    if (!anchorText || typeof description !== 'string') return;
-    const body = description.trim();
-    if (!body) return;
-    this._hideMenuTooltip();
-    const anchorDepth = Number(anchorText?.depth);
-    const tooltipDepth = Number.isFinite(anchorDepth) ? Math.max(703, anchorDepth + 1) : 703;
-    const padding = 8;
-    const maxWidth = 220;
-    const txt = this.add
-      .text(0, 0, body, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#e0e0e0',
-        wordWrap: { width: maxWidth - padding * 2 },
-      })
-      .setDepth(tooltipDepth);
-    const bg = this.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
-      .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
-      .setDepth(tooltipDepth);
-    const box = this.add.container(0, 0, [bg, txt]).setDepth(tooltipDepth);
-    txt.setPosition(padding, padding);
-
-    const b = anchorText.getBounds();
-    let x = b.right + 8;
-    let y = b.top - 4;
-    if (x + bg.width > this.cameras.main.width - 4) x = b.left - bg.width - 8;
-    if (x < 4) x = 4;
-    if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
-    if (y < 4) y = 4;
-    box.setPosition(x, y);
-    this._pinToScreen(box);
-    this._menuTooltip = box;
-  }
-
-  _wireBossRecruitClassTooltip(text, description, onTap) {
-    if (!text || typeof description !== 'string' || !description.trim()) return;
-    text.setInteractive({ useHandCursor: true });
-    text.on('pointerover', () => {
-      this._clearMenuTooltipTimer('_menuTooltipHoverTimer');
-      this._menuTooltipHoverTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
-        this._menuTooltipHoverTimer = null;
-        this._showBossRecruitClassTooltip(text, description);
-      });
-    });
-    text.on('pointerout', () => {
-      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
-      text._bossRecruitPressed = null;
-      this._hideMenuTooltip();
-    });
-    text.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
-      text._bossRecruitPressed = {
-        id: pointer?.id,
-        x: pointer?.x ?? 0,
-        y: pointer?.y ?? 0,
-        longPressShown: false,
-      };
-      this._menuTooltipPressTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
-        this._menuTooltipPressTimer = null;
-        if (!text._bossRecruitPressed) return;
-        text._bossRecruitPressed.longPressShown = true;
-        this._showBossRecruitClassTooltip(text, description);
-      });
-    });
-    text.on('pointermove', (pointer) => {
-      const pressed = text._bossRecruitPressed;
-      if (!pressed || !this._menuTooltipPressTimer) return;
-      if (pressed.id !== pointer?.id) return;
-      const dx = (pointer?.x ?? 0) - pressed.x;
-      const dy = (pointer?.y ?? 0) - pressed.y;
-      if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
-        this._clearMenuTooltipTimer('_menuTooltipPressTimer');
-      }
-    });
-    text.on('pointerup', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
-      const longPressShown = !!text._bossRecruitPressed?.longPressShown;
-      text._bossRecruitPressed = null;
-      if (longPressShown) return;
-      if (typeof onTap === 'function') onTap();
-    });
   }
 
   _isReducedEffects() {
@@ -8493,384 +7698,21 @@ export class BattleScene extends Phaser.Scene {
     return null;
   }
 
-  _drawForecastSide(x, panelY, unit, info, opponent, isAttacker, depth) {
-    const sideW = 186;
-    const textDepth = depth + 1;
-    let y = panelY + 6;
-
-    // Portrait (40x40) -- attacker on left edge, defender on right edge
-    const portraitKey = this._getPortraitKey(unit);
-    if (portraitKey && this.textures.exists(portraitKey)) {
-      const px = isAttacker ? x + 2 : x + sideW - 42;
-      const portrait = this.add
-        .image(px + 20, y + 20, portraitKey)
-        .setDisplaySize(40, 40)
-        .setDepth(textDepth);
-      this.forecastObjects.push(portrait);
-    }
-
-    // Name -- positioned next to portrait
-    const nameX = isAttacker ? x + 48 : x + 2;
-    const name = this.add
-      .text(nameX, y + 6, unit.name, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(name);
-
-    // EFFECTIVE! banner -- below name, beside portrait
-    if (
-      unit.weapon &&
-      getEffectivenessMultiplier(unit.weapon, opponent) > 1 &&
-      (isAttacker || info.canCounter)
-    ) {
-      const eff = this.add
-        .text(nameX, y + 22, 'EFFECTIVE!', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#ff4444',
-          fontStyle: 'bold',
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(eff);
-    }
-
-    // HP row -- below portrait area
-    y += 44;
-    const hpLabel = this.add
-      .text(x + 2, y, 'HP', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#aaaaaa',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(hpLabel);
-
-    const hpVal = this.add
-      .text(x + 22, y, `${unit.currentHP}/${unit.stats.HP}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#ffffff',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(hpVal);
-
-    // HP bar
-    const barX = x + 80;
-    const barW = sideW - 86;
-    const barH = 6;
-    const barY = y + 4;
-    const hpGfx = this.add.graphics().setDepth(textDepth);
-    hpGfx.fillStyle(0x333333);
-    hpGfx.fillRect(barX, barY, barW, barH);
-    const ratio = Math.max(0, unit.currentHP / unit.stats.HP);
-    hpGfx.fillStyle(getHPBarColor(ratio));
-    hpGfx.fillRect(barX, barY, Math.round(barW * ratio), barH);
-    this.forecastObjects.push(hpGfx);
-
-    y += 16;
-
-    // Cannot counter case (defender only)
-    if (!isAttacker && !info.canCounter) {
-      const noCounter = this.add
-        .text(x + sideW / 2, y + 4, '-- No Counter --', {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#cc6666',
-        })
-        .setOrigin(0.5, 0)
-        .setDepth(textDepth);
-      this.forecastObjects.push(noCounter);
-
-      y += 20;
-      const wpnName = unit.weapon?.name || 'Unarmed';
-      const wpn = this.add
-        .text(x + 2, y, wpnName, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#88bbff',
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(wpn);
-      return;
-    }
-
-    // Stat row 1: Dmg + Hit
-    const dmgLabel = this.add
-      .text(x + 2, y, 'Dmg', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(dmgLabel);
-    const dmgVal = this.add
-      .text(x + 32, y, `${info.damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(dmgVal);
-
-    const hitLabel = this.add
-      .text(x + 80, y, 'Hit', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(hitLabel);
-    const hitVal = this.add
-      .text(x + 108, y, `${info.hit}%`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(hitVal);
-
-    y += 14;
-
-    // Stat row 2: Crt + doubling
-    const crtLabel = this.add
-      .text(x + 2, y, 'Crt', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(crtLabel);
-    const crtVal = this.add
-      .text(x + 32, y, `${info.crit}%`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#e0e0e0',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(crtVal);
-
-    // AS display
-    const baseAs = calculateEffectiveSpeed(unit, unit.weapon);
-    let asColor = '#e0e0e0';
-    if (info.as < baseAs) asColor = '#ff6666';
-    else if (info.as > baseAs) asColor = '#44ff88';
-    const asLabel = this.add
-      .text(x + 80, y, 'AS', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(asLabel);
-    const asVal = this.add
-      .text(x + 108, y, `${info.as}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: asColor,
-      })
-      .setDepth(textDepth);
-    this.forecastObjects.push(asVal);
-
-    // Doubling indicator
-    if (info.attackCount > 1) {
-      const countText = this.add
-        .text(x + 134, y, `x${info.attackCount}`, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#ffdd44',
-          fontStyle: 'bold',
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(countText);
-    }
-
-    y += 14;
-
-    // Weapon name (with <- -> arrows + next weapon preview if attacker has 2+ valid weapons)
-    const wpnName = unit.weapon?.name || 'Unarmed';
-    const wpnColor = unit.weapon && isForged(unit.weapon) ? '#44ff88' : '#88bbff';
-    const validWpns = this._forecastValidWeapons;
-    const canCycle = isAttacker && validWpns?.length >= 2;
-
-    if (canCycle) {
-      // Left arrow
-      const leftArrow = this.add
-        .text(x + 1, y - 2, '\u25C4', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#888888',
-        })
-        .setDepth(textDepth)
-        .setInteractive({ useHandCursor: true });
-      leftArrow.on('pointerover', () => leftArrow.setColor('#ffdd44'));
-      leftArrow.on('pointerout', () => leftArrow.setColor('#888888'));
-      leftArrow.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        this._uiClickBlocked = true;
-        this._cycleForecastWeapon(-1);
-      });
-      this.forecastObjects.push(leftArrow);
-
-      // Current weapon name (centered between arrows)
-      const wpn = this.add
-        .text(x + 16, y, wpnName, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: wpnColor,
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(wpn);
-
-      // Right arrow
-      const rightArrow = this.add
-        .text(x + sideW - 14, y - 2, '\u25BA', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#888888',
-        })
-        .setDepth(textDepth)
-        .setInteractive({ useHandCursor: true });
-      rightArrow.on('pointerover', () => rightArrow.setColor('#ffdd44'));
-      rightArrow.on('pointerout', () => rightArrow.setColor('#888888'));
-      rightArrow.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        this._uiClickBlocked = true;
-        this._cycleForecastWeapon(1);
-      });
-      this.forecastObjects.push(rightArrow);
-
-      // Next weapon preview (right arrow direction)
-      const curIdx = validWpns.indexOf(unit.weapon);
-      const nextIdx = (curIdx + 1) % validWpns.length;
-      const nextWpn = validWpns[nextIdx];
-      if (nextWpn) {
-        const preview = this.add
-          .text(x + 2, y + 11, `\u25BA ${nextWpn.name}`, {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#666688',
-          })
-          .setDepth(textDepth);
-        this.forecastObjects.push(preview);
-      }
-    } else {
-      const wpn = this.add
-        .text(x + 2, y, wpnName, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: wpnColor,
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(wpn);
-    }
-
-    y += 12;
-
-    // Skills + Miracle (combined on one line if both present)
-    const parts = [];
-    if (info.skills?.length) {
-      parts.push(info.skills.map((s) => s.name).join(', '));
-    }
-    if (unit.skills?.includes('miracle')) {
-      const used = unit._miracleUsed;
-      parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
-    }
-    if (parts.length) {
-      const skillText = this.add
-        .text(x + 2, y, parts.join('  '), {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#aaddff',
-          wordWrap: { width: sideW - 6 },
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(skillText);
-      y += skillText.height + 2;
-    }
-
-    if (isAttacker && this._forecastWeaponArt) {
-      const hpCost = this._formatWeaponArtCostLabel(unit, this._forecastWeaponArt);
-      const hpNow = Number(unit.currentHP) || 0;
-      const hpAfter = this._getWeaponArtHpAfterCost(unit, this._forecastWeaponArt);
-      const artText = this.add
-        .text(
-          x + 2,
-          y,
-          `ART: ${this._forecastWeaponArt.name}  (HP-${hpCost} ${hpNow}->${hpAfter})`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#ffd98a',
-            wordWrap: { width: sideW - 6 },
-          },
-        )
-        .setDepth(textDepth);
-      this.forecastObjects.push(artText);
-      y += artText.height + 2;
-    }
-
-    if (isAttacker && this._forecastGamblerLine) {
-      const gamblerText = this.add
-        .text(x + 2, y, this._forecastGamblerLine, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#ffb38a',
-          wordWrap: { width: sideW - 6 },
-        })
-        .setDepth(textDepth);
-      this.forecastObjects.push(gamblerText);
-      y += gamblerText.height + 2;
-    }
-
-    if (info.warnings?.length) {
-      y += 2;
-      for (const warn of info.warnings) {
-        let label = warn.toUpperCase();
-        let color = '#ffcc88';
-        if (warn === 'Shielded') {
-          label = '[BLOCK]';
-          color = '#88ccff';
-        }
-        if (warn === 'Thorns') {
-          label = '[REFLECT]';
-          color = '#ff8888';
-        }
-        if (warn === 'Teleporter') {
-          label = '[WARP]';
-          color = '#cc88ff';
-        }
-
-        const warningText = this.add
-          .text(x + 2, y, label, {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color,
-            fontStyle: 'bold',
-            backgroundColor: '#00000088',
-            padding: { x: 4, y: 1 },
-          })
-          .setDepth(textDepth);
-        this.forecastObjects.push(warningText);
-        y += 14;
-      }
-    }
-  }
-
   async showForecast(attacker, defender) {
     this.forecastTarget = defender;
     this.battleState = 'SHOWING_FORECAST';
-    const rollSession = this._ensureCombatRollSession(attacker, defender);
-
-    const dist =
-      isEntity(attacker) || isEntity(defender)
-        ? combatDistance(attacker, defender)
-        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     this._clearSelectedWeaponArtIfInvalid(attacker);
-    const weaponArt = this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true });
+
+    // Shared context: distance, terrain, roll session, weapon art selection
+    const {
+      dist,
+      atkTerrain,
+      defTerrain,
+      selectedArt: weaponArt,
+      rollSession,
+    } = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+
+    // Forecast-specific: weapon entry resolution + auto-swap
     const selectedEntry = weaponArt ? this._resolveSelectedWeaponArtEntry(attacker) : null;
     // Auto-swap only for normal attacks; art attacks stay bound to selected weapon + art range.
     this.ensureValidWeaponForRange(attacker, dist, { weaponArt });
@@ -8878,8 +7720,6 @@ export class BattleScene extends Phaser.Scene {
       equipWeapon(attacker, selectedEntry.weapon);
     }
 
-    const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
-    const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._forecastWeaponArt = weaponArt;
     if (
       attacker?.accessory?.combatEffects?.gambler ||
@@ -8917,152 +7757,17 @@ export class BattleScene extends Phaser.Scene {
         });
     this._forecastValidWeapons = validWeapons;
 
-    // Build graphical forecast panel (FE GBA-style split layout)
-    this.forecastObjects = [];
-    const depth = 200;
-    const panelW = 380;
-    // Pre-calculate content height for dynamic panel sizing
-    let _atkExtraH = 0;
-    const _atkSkills = forecast.attacker.skills || [];
-    const _hasMiracle = (u) =>
-      u.skills?.some((s) => (typeof s === 'string' ? s : s?.id) === 'miracle');
-    if (_atkSkills.length > 0 || _hasMiracle(attacker)) _atkExtraH += 24;
-    if (this._forecastWeaponArt) _atkExtraH += 24;
-    if (this._forecastGamblerLine) _atkExtraH += 24;
-    if (forecast.attacker.warnings?.length)
-      _atkExtraH += 2 + forecast.attacker.warnings.length * 14;
-    let _defExtraH = 0;
-    const _defSkills = forecast.defender.skills || [];
-    if (_defSkills.length > 0 || _hasMiracle(defender)) _defExtraH += 24;
-    if (forecast.defender.warnings?.length)
-      _defExtraH += 2 + forecast.defender.warnings.length * 14;
-    const panelH = Math.max(152, 152 + Math.max(_atkExtraH, _defExtraH));
-    const panelX = (this.cameras.main.width - panelW) / 2;
-    const panelY = this.cameras.main.height - panelH - 10;
-    const halfW = (panelW - 8) / 2; // 186 per side
-
-    // Panel background
-    const bg = this.add
-      .rectangle(panelX + panelW / 2, panelY + panelH / 2, panelW, panelH, 0x111122, 0.95)
-      .setDepth(depth)
-      .setStrokeStyle(2, 0x4466aa);
-    this.forecastObjects.push(bg);
-
-    // Draw attacker (left) and defender (right)
-    this._drawForecastSide(panelX + 4, panelY, attacker, forecast.attacker, defender, true, depth);
-    this._drawForecastSide(
-      panelX + halfW + 8,
-      panelY,
-      defender,
-      forecast.defender,
+    // Delegate rendering to ForecastOverlay
+    this._forecastOverlay = new ForecastOverlay(this);
+    this._forecastOverlay.render({
       attacker,
-      false,
-      depth,
-    );
-
-    // Center divider + VS
-    const divGfx = this.add.graphics().setDepth(depth + 1);
-    divGfx.lineStyle(1, 0x444466);
-    divGfx.lineBetween(panelX + panelW / 2, panelY + 8, panelX + panelW / 2, panelY + panelH - 22);
-    this.forecastObjects.push(divGfx);
-
-    const vs = this.add
-      .text(panelX + panelW / 2, panelY + 28, 'VS', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666688',
-      })
-      .setOrigin(0.5)
-      .setDepth(depth + 1);
-    this.forecastObjects.push(vs);
-
-    // Confirm footer: avoid text/button overlap and fall back to 2-row layout on narrow widths
-    const hintStyle = { fontFamily: 'monospace', fontSize: '8px', color: '#a0a0b8' };
-    const hintPrimary =
-      validWeapons.length >= 2
-        ? 'Click enemy or [CONFIRM ATTACK] | \u25C4 \u25BA weapon | ESC cancel'
-        : 'Click enemy or [CONFIRM ATTACK] | ESC cancel';
-    const hintCompact =
-      validWeapons.length >= 2
-        ? 'Click enemy or button | \u25C4 \u25BA weapon | ESC cancel'
-        : 'Click enemy or button | ESC cancel';
-    const hintUltraCompact =
-      validWeapons.length >= 2 ? '[CONFIRM] | \u25C4 \u25BA weapon | ESC' : '[CONFIRM] | ESC';
-
-    const measureHint = (text) => {
-      const t = this.add.text(-9999, -9999, text, hintStyle).setVisible(false);
-      const w = t.width;
-      t.destroy();
-      return w;
-    };
-
-    const confirmBtnW = 132;
-    const confirmBtnH = 14;
-    const footerLeftPad = 10;
-    const footerRightPad = 8;
-    const btnGap = 8;
-    const hintMaxSingleRow = panelW - footerLeftPad - footerRightPad - confirmBtnW - btnGap - 4;
-
-    let hintText = hintPrimary;
-    if (measureHint(hintText) > hintMaxSingleRow) hintText = hintCompact;
-    if (measureHint(hintText) > hintMaxSingleRow) hintText = hintUltraCompact;
-
-    // Stack hint/button when viewport is narrow or compact hint still does not fit.
-    const useTwoRows = this.cameras.main.width < 460 || measureHint(hintText) > hintMaxSingleRow;
-    const footerH = useTwoRows ? 32 : 16;
-    const footerTop = panelY + panelH - (useTwoRows ? 34 : 18);
-    const hintY = useTwoRows ? footerTop + 8 : footerTop + 9;
-    const confirmBtnY = useTwoRows ? footerTop + 24 : footerTop + 9;
-    const confirmBtnX = useTwoRows
-      ? panelX + panelW / 2
-      : panelX + panelW - footerRightPad - confirmBtnW / 2;
-    const hintX = panelX + footerLeftPad;
-    const hintWrapW = useTwoRows ? panelW - footerLeftPad - footerRightPad - 2 : hintMaxSingleRow;
-
-    const hintBg = this.add
-      .rectangle(panelX + panelW / 2, footerTop + footerH / 2, panelW - 4, footerH, 0x0a0a15, 0.8)
-      .setDepth(depth);
-    this.forecastObjects.push(hintBg);
-
-    const confirmBtnBg = this.add
-      .rectangle(confirmBtnX, confirmBtnY, confirmBtnW, confirmBtnH, 0x1d5f2a, 0.95)
-      .setDepth(depth + 1)
-      .setStrokeStyle(1, 0x4dff77)
-      .setInteractive({ useHandCursor: true });
-    const confirmBtnText = this.add
-      .text(confirmBtnX, confirmBtnY, 'CONFIRM ATTACK', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#d8ffe1',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(depth + 2);
-    confirmBtnBg.on('pointerover', () => {
-      confirmBtnBg.setFillStyle(0x2c7b3a, 1);
-      confirmBtnText.setColor('#ffffff');
+      defender,
+      forecast,
+      weaponArt: this._forecastWeaponArt,
+      gamblerLine: this._forecastGamblerLine,
+      validWeapons,
     });
-    confirmBtnBg.on('pointerout', () => {
-      confirmBtnBg.setFillStyle(0x1d5f2a, 0.95);
-      confirmBtnText.setColor('#d8ffe1');
-    });
-    confirmBtnBg.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._uiClickBlocked = true;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      this.confirmForecastCombat();
-    });
-    this.forecastObjects.push(confirmBtnBg, confirmBtnText);
-
-    const hint = this.add
-      .text(hintX, hintY, hintText, {
-        ...hintStyle,
-        wordWrap: { width: hintWrapW, useAdvancedWrap: false },
-      })
-      .setOrigin(0, 0.5)
-      .setDepth(depth + 1);
-    this.forecastObjects.push(hint);
+    this.forecastObjects = this._forecastOverlay.displayObjects;
     this._pinToScreen(this.forecastObjects);
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 4) {
@@ -9078,33 +7783,53 @@ export class BattleScene extends Phaser.Scene {
   }
 
   hideForecast() {
-    if (this.forecastObjects) {
-      for (const obj of this.forecastObjects) obj.destroy();
-      this.forecastObjects = null;
+    if (this._forecastOverlay) {
+      this._forecastOverlay.destroy();
+      this._forecastOverlay = null;
     }
+    this.forecastObjects = null;
     this.forecastTarget = null;
     this._forecastValidWeapons = null;
     this._forecastWeaponArt = null;
     this._forecastGamblerLine = null;
   }
 
-  async executeCombat(attacker, defender) {
-    this.battleState = 'COMBAT_RESOLVING';
-    this.grid.clearAttackHighlights();
-    this.resetFortHealStreak(attacker);
-    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
-
+  /**
+   * Shared combat context setup: distance, terrain, roll session, weapon art.
+   * Used by executeCombat, executeEnemyCombat, and showForecast.
+   * @param {object} attacker
+   * @param {object} defender
+   * @param {{ isPlayerInitiator?: boolean }} opts
+   * @returns {{ dist: number, atkTerrain: object, defTerrain: object, selectedArt: object|null, rollSession: object }}
+   */
+  _prepareCombatContext(attacker, defender, { isPlayerInitiator = true } = {}) {
     const dist =
       isEntity(attacker) || isEntity(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
-    this._ensureCombatRollSession(attacker, defender);
-    const selectedArt =
-      attacker.faction === 'player'
-        ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
-        : null;
+    const rollSession = this._ensureCombatRollSession(attacker, defender);
+    const selectedArt = isPlayerInitiator
+      ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
+      : this._selectEnemyWeaponArt(attacker, defender);
+    return { dist, atkTerrain, defTerrain, selectedArt, rollSession };
+  }
+
+  /**
+   * Shared combat resolution core: art cost, skill context, resolve, animate,
+   * HP application, debug invincibility, HP bars, post-combat effects, phoenix.
+   * Callers handle pre-resolution (battleState, highlights) and post-resolution
+   * (XP award, unit removal, battle end, gambit, entity splash) themselves.
+   * @param {object} attacker
+   * @param {object} defender
+   * @param {{ dist: number, atkTerrain: object, defTerrain: object, selectedArt: object|null }} ctx
+   * @returns {Promise<{ result: object, selectedArt: object|null }>}
+   */
+  async _runCombatResolution(attacker, defender, ctx) {
+    const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
+
+    // Apply weapon art cost if selected
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
@@ -9115,6 +7840,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(attacker);
       await this._checkPhoenixBrooch(attacker);
     }
+
     const skillCtx = this.buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
@@ -9128,6 +7854,7 @@ export class BattleScene extends Phaser.Scene {
       skillCtx,
     );
 
+    // Animate events
     for (const event of result.events) {
       if (event.type === 'skill') {
         await this.animateSkillActivation(event);
@@ -9139,9 +7866,11 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // Apply final HP
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
+    // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
       if (attacker.faction === 'player') {
         attacker.currentHP = attacker.stats.HP;
@@ -9165,6 +7894,18 @@ export class BattleScene extends Phaser.Scene {
     });
     await this._checkPhoenixBrooch(attacker);
     await this._checkPhoenixBrooch(defender);
+
+    return { result, selectedArt };
+  }
+
+  async executeCombat(attacker, defender) {
+    this.battleState = 'COMBAT_RESOLVING';
+    this.grid.clearAttackHighlights();
+    this.resetFortHealStreak(attacker);
+    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
+
+    const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+    const { result } = await this._runCombatResolution(attacker, defender, ctx);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(
@@ -11010,69 +9751,9 @@ export class BattleScene extends Phaser.Scene {
   async executeEnemyCombat(enemy, target) {
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
-    const dist = isEntity(enemy)
-      ? combatDistance(enemy, target)
-      : gridDistance(enemy.col, enemy.row, target.col, target.row);
-    const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
-    const defTerrain = this.grid.getTerrainAt(target.col, target.row);
-    this._ensureCombatRollSession(enemy, target);
-    const selectedArt = this._selectEnemyWeaponArt(enemy, target);
-    if (selectedArt) {
-      const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      applyWeaponArtCost(enemy, selectedArt, artCostOpts);
-      recordWeaponArtUse(enemy, selectedArt, { turnNumber: this.turnManager?.turnNumber });
-      this._applyRecoilGuardAfterArtUse(enemy, selectedArt);
-      this.updateHPBar(enemy);
-      await this._checkPhoenixBrooch(enemy);
-    }
-    const skillCtx = this.buildSkillCtx(enemy, target, selectedArt);
 
-    const result = resolveCombat(
-      enemy,
-      enemy.weapon,
-      target,
-      target.weapon,
-      dist,
-      atkTerrain,
-      defTerrain,
-      skillCtx,
-    );
-
-    // Animate events
-    for (const event of result.events) {
-      if (event.type === 'skill') {
-        await this.animateSkillActivation(event);
-      } else {
-        await this.animateStrike(event, enemy, target);
-      }
-    }
-
-    // Apply final HP
-    enemy.currentHP = result.attackerHP;
-    target.currentHP = result.defenderHP;
-
-    // Debug: invincibility -- restore player units to full HP
-    if (this.isDevToolsEnabled() && debugState.invincible) {
-      if (target.faction === 'player') {
-        target.currentHP = target.stats.HP;
-        result.defenderDied = false;
-      }
-    }
-
-    this.updateHPBar(enemy);
-    this.updateHPBar(target);
-
-    await this._applyResolvedCombatPostEffects({
-      attacker: enemy,
-      defender: target,
-      result,
-      attackerWeaponArt: selectedArt,
-      defenderWeaponArt: null,
-    });
-    await this._checkPhoenixBrooch(enemy);
-    await this._checkPhoenixBrooch(target);
+    const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
+    const { result } = await this._runCombatResolution(enemy, target, ctx);
 
     // Award XP to player defender if they survived
     if (target.faction === 'player' && target.currentHP > 0) {
@@ -11639,930 +10320,43 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show boss recruit selection: pick 1 of 3 recruits or skip, then proceed to loot. */
   showBossRecruitScreen() {
-    this._hideMenuTooltip();
-    const candidates = generateBossRecruitCandidates(
-      this.runManager.currentAct,
-      this.runManager.roster,
-      this.gameData,
-      this.runManager.getEffectiveMetaEffects(),
-      this.runManager?.fallenUnits || [],
-    );
-    // Fallback to loot if no candidates generated
-    if (!candidates || candidates.length === 0) {
-      this.showLootScreen();
-      return;
-    }
-
-    const audio = this.registry.get('audio');
-    const recruitGroup = [];
-    const cam = this.cameras.main;
-
-    // Dark overlay
-    const overlay = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
-      .setDepth(700)
-      .setInteractive();
-    recruitGroup.push(overlay);
-
-    // Title
-    const title = applyTextResolution(
-      this.add
-        .text(cam.centerX, 28, 'BOSS RECRUIT', {
-          fontFamily: 'monospace',
-          fontSize: '20px',
-          color: '#ffdd44',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(701),
-    );
-    recruitGroup.push(title);
-
-    const subtitle = applyTextResolution(
-      this.add
-        .text(cam.centerX, 54, 'Choose a warrior to join your cause', {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#aaaaaa',
-        })
-        .setOrigin(0.5)
-        .setDepth(701),
-    );
-    recruitGroup.push(subtitle);
-
-    // Card layout: candidates + skip
-    const cardCount = candidates.length + 1;
-    const cardW = 150;
-    const cardH = 220;
-    const gap = 12;
-    const totalW = cardCount * cardW + (cardCount - 1) * gap;
-    const startX = cam.centerX - totalW / 2 + cardW / 2;
-    const cardY = cam.centerY + 20;
-
-    // Helper to clean up and proceed to loot
-    const cleanupAndLoot = () => {
-      this._hideMenuTooltip();
-      this.hideLootRoster();
-      for (const obj of recruitGroup) obj.destroy();
+    const overlay = new BossRecruitOverlay(this, this.runManager, this.gameData);
+    this._bossRecruitOverlay = overlay;
+    this.lootGroup = overlay.displayObjects;
+    overlay.show((selectedUnit) => {
+      if (selectedUnit) this.runManager.roster.push(selectedUnit);
       this.lootGroup = null;
+      this._bossRecruitOverlay = null;
       this.showLootScreen();
-    };
-
-    // Render candidate cards
-    for (let i = 0; i < candidates.length; i++) {
-      const c = candidates[i];
-      const cx = startX + i * (cardW + gap);
-      const u = c.unit;
-
-      const cardColor = c.isLord ? 0x443322 : 0x2a2a44;
-      const strokeColor = c.isLord ? 0xffdd44 : 0x66aacc;
-      const card = this.add
-        .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
-        .setStrokeStyle(2, strokeColor)
-        .setDepth(701)
-        .setInteractive({ useHandCursor: true });
-      recruitGroup.push(card);
-
-      let yOff = cardY - cardH / 2 + 12;
-
-      // Lord tag
-      if (c.isLord) {
-        const tag = applyTextResolution(
-          this.add
-            .text(cx, yOff, '[LORD]', {
-              fontFamily: 'monospace',
-              fontSize: '9px',
-              color: '#ffdd44',
-              fontStyle: 'bold',
-            })
-            .setOrigin(0.5)
-            .setDepth(702),
-        );
-        recruitGroup.push(tag);
-        yOff += 14;
-      }
-
-      // Name
-      const name = applyTextResolution(
-        this.add
-          .text(cx, yOff, c.displayName, {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: '#ffffff',
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(name);
-      yOff += 16;
-
-      // Class
-      const cls = applyTextResolution(
-        this.add
-          .text(cx, yOff, u.className, {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#aaaaaa',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(cls);
-      yOff += 14;
-
-      const classData = this.gameData.classes?.find((cl) => cl.name === u.className);
-      const descText = classData?.description || '';
-
-      // Level
-      const lvl = applyTextResolution(
-        this.add
-          .text(cx, yOff, `Lv ${getDisplayLevel(u)}`, {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#66ddff',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(lvl);
-      yOff += 16;
-
-      // Separator
-      const sep = applyTextResolution(
-        this.add
-          .text(cx, yOff, '-----------------', {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#555555',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(sep);
-      yOff += 12;
-
-      let selected = false;
-      const selectRecruit = () => {
-        if (selected) return;
-        selected = true;
-        if (audio) audio.playSFX('sfx_confirm');
-        this.runManager.roster.push(c.unit);
-        cleanupAndLoot();
-      };
-      this._wireBossRecruitClassTooltip(name, descText, selectRecruit);
-      this._wireBossRecruitClassTooltip(cls, descText, selectRecruit);
-
-      // Core comparison stats
-      const useMag = (u.stats?.MAG || 0) > (u.stats?.STR || 0);
-      const atkStat = useMag ? 'MAG' : 'STR';
-      const hp = Number(u.stats?.HP || 0);
-      const atk = Number(u.stats?.[atkStat] || 0);
-      const spd = Number(u.stats?.SPD || 0);
-      const def = Number(u.stats?.DEF || 0);
-      const res = Number(u.stats?.RES || 0);
-      const mov = Number(u.mov ?? u.stats?.MOV ?? 0);
-
-      const coreA = applyTextResolution(
-        this.add
-          .text(cx, yOff, `HP ${hp} ${atkStat} ${atk} SPD ${spd}`, {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#cccccc',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(coreA);
-      yOff += 12;
-
-      const coreB = applyTextResolution(
-        this.add
-          .text(cx, yOff, `DEF ${def} RES ${res} MOV ${mov}`, {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#88bbff',
-          })
-          .setOrigin(0.5)
-          .setDepth(702),
-      );
-      recruitGroup.push(coreB);
-      yOff += 14;
-
-      // Weapon proficiency signal (trimmed preview so card width stays readable)
-      if (u.proficiencies && u.proficiencies.length > 0) {
-        const profShort = {
-          Sword: 'Swd',
-          Lance: 'Lnc',
-          Axe: 'Axe',
-          Bow: 'Bow',
-          Tome: 'Tom',
-          Light: 'Lgt',
-          Staff: 'Stf',
-        };
-        const profEntries = u.proficiencies.map(
-          (p) => `${profShort[p.type] || p.type}(${(p.rank || '?')[0]})`,
-        );
-        const profPreview = `${profEntries.slice(0, 2).join(' ')}${profEntries.length > 2 ? ` +${profEntries.length - 2}` : ''}`;
-        const prof = this.add
-          .text(cx, yOff, `Wpn: ${profPreview}`, {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: '#aaaaaa',
-            wordWrap: { width: cardW - 10 },
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        recruitGroup.push(prof);
-        yOff += 13;
-      }
-
-      // Notable personal/class skill (if present)
-      const notableSkill = Array.isArray(u.skills)
-        ? u.skills.find((s) => typeof s === 'string' && s.trim().length > 0)
-        : null;
-      if (notableSkill) {
-        const sk = this.add
-          .text(cx, yOff, `Skill: ${notableSkill}`, {
-            fontFamily: 'monospace',
-            fontSize: '8px',
-            color: c.isLord ? '#ffdd44' : '#aaccff',
-            wordWrap: { width: cardW - 10 },
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        recruitGroup.push(sk);
-      }
-
-      // Click handler
-      card.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        selectRecruit();
-      });
-
-      // Hover effect
-      card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
-      card.on('pointerout', () => card.setStrokeStyle(2, strokeColor));
-    }
-
-    // Skip card
-    const skipX = startX + candidates.length * (cardW + gap);
-    const skipCard = this.add
-      .rectangle(skipX, cardY, cardW, cardH, 0x333333, 1)
-      .setStrokeStyle(2, 0x666666)
-      .setDepth(701)
-      .setInteractive({ useHandCursor: true });
-    recruitGroup.push(skipCard);
-
-    const skipIcon = applyTextResolution(
-      this.add
-        .text(skipX, cardY - 30, '>', {
-          fontFamily: 'monospace',
-          fontSize: '28px',
-          color: '#888888',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(702),
-    );
-    recruitGroup.push(skipIcon);
-
-    const skipLabel = applyTextResolution(
-      this.add
-        .text(skipX, cardY + 10, 'SKIP', {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color: '#aaaaaa',
-        })
-        .setOrigin(0.5)
-        .setDepth(702),
-    );
-    recruitGroup.push(skipLabel);
-
-    const skipDesc = applyTextResolution(
-      this.add
-        .text(skipX, cardY + 35, 'Continue\nto Loot', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#777777',
-          align: 'center',
-        })
-        .setOrigin(0.5)
-        .setDepth(702),
-    );
-    recruitGroup.push(skipDesc);
-
-    skipCard.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      if (audio) audio.playSFX('sfx_confirm');
-      cleanupAndLoot();
     });
-    skipCard.on('pointerover', () => skipCard.setStrokeStyle(3, 0xffffff));
-    skipCard.on('pointerout', () => skipCard.setStrokeStyle(2, 0x666666));
-
-    // Footer hints
-    const inst = applyTextResolution(
-      this.add
-        .text(cam.centerX, cardY + cardH / 2 + 24, 'Choose a recruit to add to your roster', {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#888888',
-        })
-        .setOrigin(0.5)
-        .setDepth(701),
-    );
-    recruitGroup.push(inst);
-
-    const hintText = applyTextResolution(
-      this.add
-        .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster', {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#666666',
-        })
-        .setOrigin(0.5)
-        .setDepth(701),
-    );
-    recruitGroup.push(hintText);
-
-    this._pinToScreen(recruitGroup);
-
-    // Store for R key / cleanup
-    this.lootGroup = recruitGroup;
   }
 
   /** Show post-battle loot selection. Normal: pick 1 of 3. Elite: pick 2 of 4. */
   showLootScreen() {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.loot, this, 300);
-    const lootGroup = [];
-    const cam = this.cameras.main;
-
-    // Elite pick-2 state
     this._elitePicksRemaining = this.isElite ? ELITE_MAX_PICKS : 1;
-    this._lootCards = [];
-    this._lootResolving = false;
     this._lootCleanedUp = false;
+    this._lootResolving = false;
 
-    // Dark overlay
-    const overlay = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.85)
-      .setDepth(700)
-      .setInteractive();
-    lootGroup.push(overlay);
-
-    // Title
-    const titleText = this.isElite ? 'ELITE BATTLE REWARDS' : 'BATTLE REWARDS';
-    const title = this.add
-      .text(cam.centerX, 30, titleText, {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    lootGroup.push(title);
-
-    const turnPressure = this._victoryPressureState || this.getTurnPressureState();
-    const pressureGoldMultiplier = Number.isFinite(turnPressure?.goldMultiplier)
-      ? turnPressure.goldMultiplier
-      : 1;
-    const completionGold = Number.isFinite(this._completionGoldAward)
-      ? this._completionGoldAward
-      : Math.max(0, Math.floor(GOLD_BATTLE_BONUS * pressureGoldMultiplier));
-    const battleCompletionGold = Number.isFinite(this._battleCompletionAwardedGold)
-      ? Math.max(0, Math.trunc(this._battleCompletionAwardedGold))
-      : this.goldEarned + completionGold;
-    const previewAwardedGold = (amount) => {
-      const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
-      return normalized;
-    };
-    const awardGoldNow = (amount) => {
-      if (typeof this.runManager?.awardGold === 'function')
-        return this.runManager.awardGold(amount);
-      if (typeof this.runManager?.addGold === 'function') this.runManager.addGold(amount);
-      return Math.max(0, Math.trunc(Number(amount) || 0));
-    };
-
-    // Calculate and award turn bonus gold
-    let turnBonusGold = 0;
-    let turnRating = null;
-    if (this.turnPar != null && this.turnBonusConfig) {
-      const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
-      turnRating = result.rating;
-      const rawTurnBonusGold = calculateBonusGold(
-        result,
-        this.runManager.currentAct,
-        this.turnBonusConfig,
-      );
-      const scaledTurnBonusGold = Math.max(
-        0,
-        Math.floor(rawTurnBonusGold * pressureGoldMultiplier),
-      );
-      if (scaledTurnBonusGold > 0) {
-        turnBonusGold = awardGoldNow(scaledTurnBonusGold);
-      }
-    }
-    const totalGold = this.goldEarned + completionGold + turnBonusGold;
-    const displayedTotalGold = battleCompletionGold + turnBonusGold;
-
-    // Gold summary with breakdown
-    const goldLines = [`Battle+Completion: ${battleCompletionGold}G`];
-    if (turnBonusGold > 0) {
-      goldLines.push(`Turn ${turnRating}: +${turnBonusGold}G`);
-    }
-    if (turnPressure.active) {
-      goldLines.push(
-        `Late pressure: Gold ${this.formatPressureMultiplier(pressureGoldMultiplier)}`,
-      );
-    }
-    goldLines.push(`Total: ${displayedTotalGold}G  |  Vault: ${this.runManager.gold}G`);
-
-    const goldText = this.add
-      .text(cam.centerX, 58, goldLines.join('  |  '), {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaffaa',
-        wordWrap: { width: 620 },
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    lootGroup.push(goldText);
-
-    // Tutorial hint for loot screen
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('battle_loot')) {
-      const hintMsg = this.isElite
-        ? 'Elite battle! Choose 2 rewards. Press [R] for roster.'
-        : 'Choose one reward. Weapons equip to a unit. Press [R] for roster.';
-      showMinorHint(this, hintMsg);
-    }
-
-    // Generate loot choices
-    const lootWeaponQualityBonus =
-      this.runManager?.metaEffects?.lootWeaponQualityBonus ??
-      this.runManager?.metaEffects?.lootWeaponWeightBonus ??
-      0;
-    const metaLootBonuses = this.runManager?.metaEffects?.lootCategoryWeightBonuses;
-    const lootCount = this.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
-    const choices = generateLootChoices(
-      this.runManager.currentAct,
-      this.gameData.lootTables,
-      this.gameData.weapons,
-      this.gameData.consumables,
-      lootCount,
-      lootWeaponQualityBonus,
-      this.gameData.accessories,
-      this.gameData.whetstones,
-      this.runManager.roster,
-      this.isBoss,
-      null,
-      this.isElite,
-      this.runManager.getWeaponArtSpawnConfig(),
-      { lootCategoryWeightBonuses: metaLootBonuses },
-    );
-
-    // Skip bonus gold
-    const skipGold = Math.floor(calculateSkipLootBonus(totalGold) * GOLD_LOOT_REWARD_MULTIPLIER);
-
-    // Render cards: loot choices + 1 skip (dynamic sizing for 4 or 5 cards)
-    const totalCards = choices.length + 1;
-    const cardW = totalCards <= 4 ? 120 : 100;
-    const cardH = 180;
-    const gap = totalCards <= 4 ? 16 : 12;
-    const totalW = totalCards * cardW + (totalCards - 1) * gap;
-    const startX = cam.centerX - totalW / 2 + cardW / 2;
-    const cardY = cam.centerY + 10;
-
-    const typeIcons = {
-      weapon: 'W',
-      consumable: 'H',
-      rare: 'R',
-      gold: '$',
-      accessory: 'A',
-      forge: 'F',
-    };
-    const typeColors = {
-      weapon: '#88bbff',
-      consumable: '#88ff88',
-      rare: '#ffaa55',
-      gold: '#ffdd44',
-      accessory: '#cc88ff',
-      forge: '#ff8844',
-    };
-    const lootTypeDisplayMap = {
-      healing: 'consumable',
-      statBooster: 'consumable',
-      promotion: 'rare',
-      skillScroll: 'rare',
-      weaponArtScroll: 'rare',
-      legendaryWeapon: 'weapon',
-    };
-
-    for (let i = 0; i < choices.length; i++) {
-      const choice = choices[i];
-      const cx = startX + i * (cardW + gap);
-      const cardIdx = i; // capture for closure
-
-      // Card background
-      const cardColor = choice.type === 'forge' ? 0x443322 : 0x333355;
-      const strokeColor = choice.type === 'forge' ? 0xff8844 : 0x8888cc;
-      const card = this.add
-        .rectangle(cx, cardY, cardW, cardH, cardColor, 1)
-        .setStrokeStyle(2, strokeColor)
-        .setDepth(701)
-        .setInteractive({ useHandCursor: true });
-      lootGroup.push(card);
-
-      // Track card ref for elite pick-2 graying
-      this._lootCards.push({ bg: card });
-
-      // Type icon
-      const displayType = lootTypeDisplayMap[choice.type] || choice.type;
-      const icon = this.add
-        .text(cx, cardY - 55, typeIcons[displayType] || '?', {
-          fontFamily: 'monospace',
-          fontSize: '28px',
-          color: typeColors[displayType] || '#ffffff',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(702);
-      lootGroup.push(icon);
-
-      if (choice.type === 'gold') {
-        const scaledGoldAmount = Math.max(
-          0,
-          Math.floor((choice.goldAmount || 0) * pressureGoldMultiplier),
-        );
-        const displayedGoldAmount = previewAwardedGold(scaledGoldAmount);
-        // Gold choice
-        const goldLabel = this.add
-          .text(cx, cardY - 2, `${displayedGoldAmount}G`, {
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            color: '#ffdd44',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        lootGroup.push(goldLabel);
-
-        if (choice.xpAmount) {
-          const xpLabel = this.add
-            .text(cx, cardY + 22, `+${choice.xpAmount} XP All`, {
-              fontFamily: 'monospace',
-              fontSize: '10px',
-              color: '#88ff88',
-            })
-            .setOrigin(0.5)
-            .setDepth(702);
-          lootGroup.push(xpLabel);
-        }
-
-        const typeLabel = this.add
-          .text(cx, cardY + 42, 'Gold', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#aaaaaa',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        lootGroup.push(typeLabel);
-
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          this._hideLootTooltip();
-          const audio = this.registry.get('audio');
-          if (audio) {
-            audio.playSFX('sfx_gold');
-            audio.playSFX('sfx_confirm');
-          }
-          awardGoldNow(scaledGoldAmount);
-          // Distribute team XP to entire roster
-          if (choice.xpAmount && this.runManager.roster) {
-            const extOpt = {
-              extendedLevelingEnabled:
-                this.runManager?.getDifficultyModifier('extendedLevelingEnabled', false) || false,
-            };
-            for (const unit of this.runManager.roster) {
-              gainExperience(unit, choice.xpAmount, extOpt);
-              checkLevelUpSkills(unit, this.gameData.classes);
-            }
-          }
-          this.finalizeLootPick(lootGroup, cardIdx);
-        });
-      } else if (choice.type === 'forge') {
-        // Forge whetstone card
-        const item = choice.item;
-        const nameLines = this.wrapText(item.name, 12);
-        const nameLabel = this.add
-          .text(cx, cardY + 5, nameLines, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#ff8844',
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        lootGroup.push(nameLabel);
-
-        // Detail line
-        let detail =
-          item.forgeStat === 'choice'
-            ? 'Choose stat'
-            : item.forgeStat === 'might'
-              ? '+1 Might'
-              : item.forgeStat === 'crit'
-                ? '+5 Crit'
-                : item.forgeStat === 'hit'
-                  ? '+5 Hit'
-                  : '-1 Weight';
-        const detailLabel = applyTextResolution(
-          this.add
-            .text(cx, cardY + 35, detail, {
-              fontFamily: 'monospace',
-              fontSize: '9px',
-              color: '#cc8844',
-            })
-            .setOrigin(0.5)
-            .setDepth(702),
-        );
-        lootGroup.push(detailLabel);
-
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          this._hideLootTooltip();
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          this.showForgeLootPicker(item, lootGroup, cardIdx);
-        });
-        card.on('pointerover', () => {
-          this._clearLootTooltipTimer();
-          this._lootTooltipTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
-            this._lootTooltipTimer = null;
-            this._showLootTooltip(choice, item, cx, cardY, cardH);
-          });
-        });
-        card.on('pointerout', () => this._hideLootTooltip());
-      } else {
-        // Item choice (weapon, consumable, rare, accessory)
-        const item = choice.item;
-        const nameLines = this.wrapText(item.name, 12);
-        const nameLabel = this.add
-          .text(cx, cardY + 5, nameLines, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#ffffff',
-            align: 'center',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        lootGroup.push(nameLabel);
-
-        const priceLabel = this.add
-          .text(cx, cardY + 35, `${item.price || 0}G`, {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#aaaaaa',
-          })
-          .setOrigin(0.5)
-          .setDepth(702);
-        lootGroup.push(priceLabel);
-
-        // Category-aware detail text for decision quality.
-        const detailInfo = this.getLootCardDetailLines(choice, item, cardW);
-        if (detailInfo.lines.length > 0) {
-          const detailLabel = applyTextResolution(
-            this.add
-              .text(cx, cardY + 46, detailInfo.lines.join('\n'), {
-                fontFamily: 'monospace',
-                fontSize: '9px',
-                color: detailInfo.color,
-                align: 'center',
-              })
-              .setOrigin(0.5, 0)
-              .setDepth(702),
-          );
-          lootGroup.push(detailLabel);
-        }
-
-        card.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          this._hideLootTooltip();
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-
-          if (item.type === 'Scroll') {
-            // Path 1: Scrolls go directly to team pool (like accessories)
-            if (!this.runManager.scrolls) this.runManager.scrolls = [];
-            this.runManager.scrolls.push({ ...item });
-            this.finalizeLootPick(lootGroup, cardIdx);
-          } else if (choice.type === 'accessory') {
-            // Path 2: Accessories go to team pool (existing code)
-            if (!this.runManager.accessories) this.runManager.accessories = [];
-            this.runManager.accessories.push({ ...item });
-            this.showLootStatus(`Added ${item.name} to Accessory Pool.`, '#88ff88');
-            this.finalizeLootPick(lootGroup, cardIdx);
-          } else if (item.type === 'Consumable' && item.effect === 'statBoost') {
-            // Path 3a: Stat boosters -> immediate apply via unit picker
-            this.showStatBoostUnitPicker(item, lootGroup, cardIdx);
-          } else if (item.type === 'Consumable') {
-            // Path 3b: Regular consumables show dedicated picker with consumable limits
-            this.showConsumableUnitPicker(item, lootGroup, cardIdx);
-          } else {
-            // Path 3c: Weapons/staves show standard picker with inventory limits
-            this.showLootUnitPicker(item, lootGroup, cardIdx);
-          }
-        });
-        card.on('pointerover', () => {
-          this._clearLootTooltipTimer();
-          this._lootTooltipTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
-            this._lootTooltipTimer = null;
-            this._showLootTooltip(choice, item, cx, cardY, cardH);
-          });
-        });
-        card.on('pointerout', () => this._hideLootTooltip());
-      }
-    }
-
-    // Skip card (always ends loot screen immediately)
-    const skipX = startX + choices.length * (cardW + gap);
-    const skipCard = this.add
-      .rectangle(skipX, cardY, cardW, cardH, 0x554433, 1)
-      .setStrokeStyle(2, 0xccaa44)
-      .setDepth(701)
-      .setInteractive({ useHandCursor: true });
-    lootGroup.push(skipCard);
-
-    const skipIcon = this.add
-      .text(skipX, cardY - 55, '$', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    lootGroup.push(skipIcon);
-
-    const displayedSkipGold = previewAwardedGold(skipGold);
-    const skipLabel = this.add
-      .text(skipX, cardY + 5, `+${displayedSkipGold}G`, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    lootGroup.push(skipLabel);
-
-    const skipDesc = this.add
-      .text(skipX, cardY + 35, 'Skip Loot', {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#ccaa66',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    lootGroup.push(skipDesc);
-
-    skipCard.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._hideLootTooltip();
-      const audio = this.registry.get('audio');
-      if (audio) {
-        audio.playSFX('sfx_gold');
-        audio.playSFX('sfx_confirm');
-      }
-      awardGoldNow(skipGold);
-      this.cleanupLootScreen(lootGroup);
+    this._lootController = new LootScreenController(this, this.runManager, this.gameData, {
+      isElite: this.isElite,
+      isBoss: this.isBoss,
+      goldEarned: this.goldEarned,
+      turnPar: this.turnPar,
+      turnBonusConfig: this.turnBonusConfig,
+      turnNumber: this.turnManager?.turnNumber,
+      victoryPressureState: this._victoryPressureState,
+      completionGoldAward: this._completionGoldAward,
+      battleCompletionAwardedGold: this._battleCompletionAwardedGold,
+      metaEffects: this.runManager?.metaEffects,
     });
-
-    // Instruction
-    const instText = this.isElite ? 'Choose 2 rewards' : 'Choose a reward';
-    const inst = this.add
-      .text(cam.centerX, cardY + cardH / 2 + 24, instText, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#888888',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    lootGroup.push(inst);
-    this._lootInstruction = inst;
-
-    const hintText = this.add
-      .text(cam.centerX, cardY + cardH / 2 + 42, '[R] Roster  |  [ESC] Settings', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666666',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    lootGroup.push(hintText);
-
-    this._pinToScreen(lootGroup);
-    this.lootGroup = lootGroup;
+    this._lootController.renderCards();
+    this.lootGroup = this._lootController.lootGroup;
   }
 
   getLootCardDetailLines(choice, item, cardWidth = 110) {
-    if (!item) return { lines: [], color: '#999999' };
-
-    const asNum = (value, fallback = 0) => {
-      const num = Number(value);
-      return Number.isFinite(num) ? num : fallback;
-    };
-    const detailWrapChars = Math.max(10, Math.floor((cardWidth - 12) / 5));
-    const wrapDetailLines = (lines, maxLines = 2) => {
-      const text = Array.isArray(lines)
-        ? lines.filter((line) => typeof line === 'string' && line.trim().length > 0).join('\n')
-        : String(lines || '');
-      return this._formatSpecialLinesForUi(text, detailWrapChars, maxLines);
-    };
-    const usesLine =
-      item.uses !== undefined ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}` : '';
-    const type = choice?.type;
-
-    if (
-      (item.might !== undefined && item.type !== 'Scroll') ||
-      type === 'weapon' ||
-      type === 'legendaryWeapon'
-    ) {
-      const range = item.range == null ? '1' : String(item.range);
-      const lines = [];
-      if (item.type) lines.push(item.type);
-      lines.push(`${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`);
-      lines.push(`${asNum(item.weight)}Wt Rng${range}`);
-      lines.push(...this._formatSpecialLinesForUi(item.special, detailWrapChars, 1));
-      return { lines, color: '#88bbff' };
-    }
-
-    if (item.type === 'Accessory' || type === 'accessory') {
-      const detail = this.getAccessoryDetailText(item);
-      return {
-        lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2),
-        color: '#cc88ff',
-      };
-    }
-
-    if (item.type === 'Scroll' || type === 'skillScroll' || type === 'weaponArtScroll') {
-      const typeHint =
-        Array.isArray(item.allowedWeaponTypes) && item.allowedWeaponTypes.length > 0
-          ? `For ${item.allowedWeaponTypes.join('/')}`
-          : '';
-      if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-        return {
-          lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2),
-          color: '#ffaa55',
-        };
-      }
-      const special =
-        typeof item.special === 'string' && item.special.trim().length > 0
-          ? item.special.trim()
-          : 'Teaches a skill';
-      const skillDef = this.gameData?.skills?.find((s) => s.id === item.skillId);
-      const descLine = skillDef?.description || '';
-      return {
-        lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3),
-        color: '#ffaa55',
-      };
-    }
-
-    if (item.effect === 'statBoost' || type === 'statBooster') {
-      const stat = item.stat || 'Stat';
-      return {
-        lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2),
-        color: '#88ff88',
-      };
-    }
-
-    if (item.effect === 'promote' || type === 'promotion') {
-      return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffaa55' };
-    }
-
-    if (item.effect === 'reclass') {
-      const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
-      return { lines: wrapDetailLines([`Reclass to a ${label} class`], 2), color: '#88ffff' };
-    }
-
-    if (item.effect === 'healFull') {
-      return { lines: ['Restore HP to full', ...(usesLine ? [usesLine] : [])], color: '#88ff88' };
-    }
-
-    if (item.effect === 'heal' || type === 'healing') {
-      const amount = asNum(item.value);
-      return {
-        lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])],
-        color: '#88ff88',
-      };
-    }
-
-    if (usesLine) return { lines: [usesLine], color: '#999999' };
-    return { lines: [], color: '#999999' };
+    return LootScreenController.getCardDetailLines(this, choice, item, cardWidth);
   }
 
   /** Format accessory effects for loot card display. */
@@ -12577,108 +10371,7 @@ export class BattleScene extends Phaser.Scene {
   // ── Loot card hover tooltip ────────────────────────────────────
 
   _getLootTooltipText(choice, item) {
-    if (!item) return null;
-    const type = choice?.type;
-    const asNum = (v, fb = 0) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : fb;
-    };
-
-    // Weapons (non-scroll)
-    if (
-      (item.might !== undefined && item.type !== 'Scroll') ||
-      type === 'weapon' ||
-      type === 'legendaryWeapon'
-    ) {
-      const lines = [];
-      if (item.type) lines.push(item.type);
-      const range = item.range == null ? '1' : String(item.range);
-      lines.push(`Mt ${asNum(item.might)}  Hit ${asNum(item.hit)}  Crit ${asNum(item.crit)}`);
-      lines.push(`Wt ${asNum(item.weight)}  Range ${range}  ${item.rankRequired || 'Prof'}`);
-      if (item.special) lines.push('', item.special);
-      return lines.join('\n');
-    }
-
-    // Weapon art scrolls
-    if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
-      const artId = item.teachesWeaponArtId;
-      const art = artId && this.gameData?.weaponArts?.arts?.find((a) => a.id === artId);
-      const lines = [];
-      if (art) {
-        lines.push(art.name || artId);
-        const meta = [];
-        if (art.weaponType) meta.push(art.weaponType);
-        if (art.hpCost) meta.push(`HP Cost: ${art.hpCost}`);
-        if (art.requiredRank) meta.push(art.requiredRank);
-        if (meta.length) lines.push(meta.join('  |  '));
-        const limits = [];
-        if (art.perTurnLimit) limits.push(`${art.perTurnLimit}/turn`);
-        if (art.perMapLimit) limits.push(`${art.perMapLimit}/map`);
-        if (limits.length) lines.push(limits.join('  '));
-        if (art.description) lines.push('', art.description);
-        const summary = summarizeWeaponArtEffect(art);
-        if (summary && summary !== 'No combat modifier' && summary !== art.description) {
-          lines.push('', summary);
-        }
-      } else {
-        lines.push('Teaches Weapon Art');
-        if (artId) lines.push(artId);
-      }
-      return lines.join('\n');
-    }
-
-    // Skill scrolls
-    if (item.type === 'Scroll' || type === 'skillScroll') {
-      const skillDef = item.skillId && this.gameData?.skills?.find((s) => s.id === item.skillId);
-      const lines = [];
-      lines.push(item.name || 'Skill Scroll');
-      if (skillDef) {
-        if (skillDef.description) lines.push('', skillDef.description);
-        if (skillDef.trigger) lines.push(`Trigger: ${skillDef.trigger}`);
-        if (skillDef.activation) lines.push(`Activation: ${skillDef.activation}`);
-      } else if (item.special) {
-        lines.push('', item.special);
-      }
-      return lines.join('\n');
-    }
-
-    // Accessories
-    if (item.type === 'Accessory' || type === 'accessory') {
-      return formatAccessoryDetail(item, {
-        separator: '\n',
-        statSeparator: ', ',
-        fallback: 'Equip for passive bonus',
-      });
-    }
-
-    // Consumables
-    if (item.type === 'Consumable') {
-      const lines = [item.name || 'Consumable'];
-      if (item.effect === 'heal') lines.push(`Restores ${asNum(item.value)} HP`);
-      else if (item.effect === 'healFull') lines.push('Restores HP to full');
-      else if (item.effect === 'promote') lines.push('Promotes a Lv 10+ unit');
-      else if (item.effect === 'reclass')
-        lines.push(`Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`);
-      else if (item.effect === 'statBoost')
-        lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
-      if (item.uses !== undefined)
-        lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
-      return lines.join('\n');
-    }
-
-    // Whetstones
-    if (item.type === 'Whetstone' || type === 'forge') {
-      const lines = [item.name || 'Whetstone'];
-      if (item.forgeStat === 'choice') lines.push('Choose which stat to forge');
-      else if (item.forgeStat === 'might') lines.push('+1 Might to a weapon');
-      else if (item.forgeStat === 'crit') lines.push('+5 Crit to a weapon');
-      else if (item.forgeStat === 'hit') lines.push('+5 Hit to a weapon');
-      else if (item.forgeStat === 'weight') lines.push('-1 Weight on a weapon');
-      lines.push(`Max ${FORGE_MAX_LEVEL} forges, ${FORGE_STAT_CAP}/stat`);
-      return lines.join('\n');
-    }
-
-    return null;
+    return LootScreenController.getTooltipText(this, choice, item);
   }
 
   _showLootTooltip(choice, item, cx, cardY, cardH) {
@@ -12968,184 +10661,8 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  /** Show forge loot picker: unit -> weapon -> (stat for Silver). */
   showForgeLootPicker(whetstone, lootGroup, cardIdx) {
-    for (const obj of lootGroup) obj.setVisible(false);
-
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-    const roster = this.runManager.roster;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 60, `Apply ${whetstone.name}`, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ff8844',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const subtitle = this.add
-      .text(cam.centerX, 82, 'Select a unit:', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(subtitle);
-
-    const btnW = 240;
-    const listTop = 108;
-    const listBottom = cam.height - 62;
-    const rowHeight = 30;
-    const btnH = 22;
-    const labelOffset = -Math.floor(btnH * 0.1);
-    const rows = [];
-    let detachScroll = () => {};
-    let pickerClosed = false;
-    const closePicker = (afterClose) => {
-      if (pickerClosed) return;
-      pickerClosed = true;
-      detachScroll();
-      detachScroll = () => {};
-      for (const obj of pickerGroup) {
-        if (obj && typeof obj.destroy === 'function') obj.destroy();
-      }
-      if (typeof afterClose === 'function') afterClose();
-    };
-    let validCount = 0;
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const forgeableCount = unit.inventory.filter((w) =>
-        whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
-      ).length;
-      const by = listTop + i * rowHeight + rowHeight / 2;
-
-      if (forgeableCount === 0) {
-        const label = this.add
-          .text(cam.centerX, by, `${unit.name}  (no forgeable weapons)`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#666666',
-          })
-          .setOrigin(0.5)
-          .setDepth(712);
-        pickerGroup.push(label);
-        rows.push({
-          objects: [label],
-          selectable: false,
-          inputTarget: null,
-          setCenterY: (centerY) => {
-            label.y = centerY + labelOffset;
-          },
-        });
-        continue;
-      }
-
-      validCount++;
-      const btn = this.add
-        .rectangle(cam.centerX, by, btnW, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844)
-        .setDepth(711)
-        .setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(
-          cam.centerX,
-          by,
-          `${unit.name}  (${forgeableCount} weapon${forgeableCount > 1 ? 's' : ''})`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#e0e0e0',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-      rows.push({
-        objects: [btn, label],
-        selectable: true,
-        inputTarget: btn,
-        setCenterY: (centerY) => {
-          btn.y = centerY;
-          label.y = centerY + labelOffset;
-        },
-      });
-
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        try {
-          closePicker(() => this.showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx));
-        } catch (err) {
-          this.reportLootError('showForgeLootPicker:unitSelect', err, {
-            unit: unit?.name,
-            whetstone: whetstone?.name,
-          });
-          for (const obj of lootGroup) obj.setVisible(true);
-        }
-      });
-    }
-
-    if (validCount === 0) {
-      const noWeapons = this.add
-        .text(cam.centerX, cam.centerY + 10, 'No forgeable weapons in roster!', {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff8888',
-        })
-        .setOrigin(0.5)
-        .setDepth(711);
-      pickerGroup.push(noWeapons);
-    }
-
-    const handleBack = () => {
-      closePicker(() => {
-        for (const obj of lootGroup) obj.setVisible(true);
-      });
-    };
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      handleBack();
-    });
-
-    const setupScroller =
-      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
-    detachScroll = setupScroller.call(this, {
-      pickerGroup,
-      rows,
-      topY: listTop,
-      bottomY: listBottom,
-      rowHeight,
-      listLeft: cam.centerX - btnW / 2,
-      listRight: cam.centerX + btnW / 2,
-      onBack: handleBack,
-    });
+    LootScreenController.renderForgePicker(this, whetstone, lootGroup, cardIdx);
   }
 
   /** Step 2: pick which weapon to forge. */
@@ -13372,494 +10889,16 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show unit picker to give a loot item to a roster unit. */
   showLootUnitPicker(item, lootGroup, cardIdx) {
-    // Hide loot cards temporarily
-    for (const obj of lootGroup) obj.setVisible(false);
-
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 80, `Give ${item.name} to:`, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const roster = this.runManager.roster;
-    const btnW = 200;
-    const listTop = 124;
-    const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
-    const nameOffset = -Math.floor(btnH * 0.22);
-    const detailOffset = Math.floor(btnH * 0.28);
-    const rows = [];
-    let detachScroll = () => {};
-    let pickerClosed = false;
-    const closePicker = (afterClose) => {
-      if (pickerClosed) return;
-      pickerClosed = true;
-      detachScroll();
-      detachScroll = () => {};
-      for (const obj of pickerGroup) {
-        if (obj && typeof obj.destroy === 'function') obj.destroy();
-      }
-      if (typeof afterClose === 'function') afterClose();
-    };
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const invCount = unit.inventory ? unit.inventory.length : 0;
-      const full = invCount >= INVENTORY_MAX;
-      const cannotEquip = !canEquip(unit, item);
-      const by = listTop + i * rowHeight + rowHeight / 2;
-
-      const btnColor = full ? 0x444444 : cannotEquip ? 0x554433 : 0x335566;
-      const borderColor = full ? 0x666666 : cannotEquip ? 0xcc8844 : 0x66aacc;
-      const btn = this.add
-        .rectangle(cam.centerX, by, btnW, btnH, btnColor, 1)
-        .setStrokeStyle(2, borderColor)
-        .setDepth(711);
-      if (!full && !cannotEquip) btn.setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const nameColor = full ? '#666666' : cannotEquip ? '#cc8844' : '#ffffff';
-      const lockSuffix = cannotEquip ? `  (needs ${item.rankRequired || 'rank'})` : '';
-      const label = this.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name + lockSuffix, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: nameColor,
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      const statusText = full ? 'Inventory full' : `${invCount}/${INVENTORY_MAX} items`;
-      const invLabel = this.add
-        .text(cam.centerX, by + Math.floor(btnH * 0.28), statusText, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: full ? '#aa4444' : '#aaaaaa',
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(invLabel);
-
-      const selectable = !full && !cannotEquip;
-      rows.push({
-        objects: [btn, label, invLabel],
-        selectable,
-        inputTarget: btn,
-        setCenterY: (centerY) => {
-          btn.y = centerY;
-          label.y = centerY + nameOffset;
-          invLabel.y = centerY + detailOffset;
-        },
-      });
-
-      if (!full && !cannotEquip) {
-        btn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          addToInventory(unit, { ...item });
-          closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
-        });
-      }
-    }
-
-    const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = this.add
-      .text(
-        cam.centerX,
-        cam.height - 54,
-        convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
-        {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : '#666666',
-          backgroundColor: '#223344',
-          padding: { x: 12, y: 6 },
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(711);
-    if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
-    pickerGroup.push(convoyBtn);
-    if (convoyCanStore) {
-      convoyBtn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        if (!this.runManager.addToConvoy(item)) {
-          this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
-          return;
-        }
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
-      });
-    }
-
-    const handleBack = () => {
-      closePicker(() => {
-        for (const obj of lootGroup) obj.setVisible(true);
-      });
-    };
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      handleBack();
-    });
-
-    const setupScroller =
-      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
-    detachScroll = setupScroller.call(this, {
-      pickerGroup,
-      rows,
-      topY: listTop,
-      bottomY: listBottom,
-      rowHeight,
-      listLeft: cam.centerX - btnW / 2,
-      listRight: cam.centerX + btnW / 2,
-      onBack: handleBack,
-    });
+    LootScreenController.renderUnitPicker(this, item, lootGroup, cardIdx);
   }
 
-  /** Show unit picker for consumables with separate limit checking. */
+  /** Show unit picker for stat boost items. */
   showStatBoostUnitPicker(item, lootGroup, cardIdx) {
-    // Hide loot cards temporarily
-    for (const obj of lootGroup) obj.setVisible(false);
-
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 80, `Use ${item.name} (+${item.value} ${item.stat}) on:`, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#88ff88',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const roster = this.runManager.roster;
-    const btnW = 200;
-    const listTop = 124;
-    const listBottom = cam.height - 52;
-    const rowHeight = 36;
-    const btnH = 24;
-    const nameOffset = -Math.floor(btnH * 0.22);
-    const detailOffset = Math.floor(btnH * 0.28);
-    const rows = [];
-    let detachScroll = () => {};
-    let pickerClosed = false;
-    const closePicker = (afterClose) => {
-      if (pickerClosed) return;
-      pickerClosed = true;
-      detachScroll();
-      detachScroll = () => {};
-      for (const obj of pickerGroup) {
-        if (obj && typeof obj.destroy === 'function') obj.destroy();
-      }
-      if (typeof afterClose === 'function') afterClose();
-    };
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const currentVal = unit.stats[item.stat] || 0;
-      const by = listTop + i * rowHeight + rowHeight / 2;
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, btnW, btnH, 0x335566, 1)
-        .setStrokeStyle(2, 0x66aacc)
-        .setDepth(711)
-        .setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      const statLabel = this.add
-        .text(
-          cam.centerX,
-          by + Math.floor(btnH * 0.28),
-          `${item.stat}: ${currentVal} -> ${currentVal + item.value}`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#88ff88',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(statLabel);
-      rows.push({
-        objects: [btn, label, statLabel],
-        selectable: true,
-        inputTarget: btn,
-        setCenterY: (centerY) => {
-          btn.y = centerY;
-          label.y = centerY + nameOffset;
-          statLabel.y = centerY + detailOffset;
-        },
-      });
-
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        applyStatBoost(unit, item);
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
-      });
-    }
-
-    const handleBack = () => {
-      closePicker(() => {
-        for (const obj of lootGroup) obj.setVisible(true);
-      });
-    };
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      handleBack();
-    });
-
-    const setupScroller =
-      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
-    detachScroll = setupScroller.call(this, {
-      pickerGroup,
-      rows,
-      topY: listTop,
-      bottomY: listBottom,
-      rowHeight,
-      listLeft: cam.centerX - btnW / 2,
-      listRight: cam.centerX + btnW / 2,
-      onBack: handleBack,
-    });
+    LootScreenController.renderStatBoostPicker(this, item, lootGroup, cardIdx);
   }
 
   showConsumableUnitPicker(item, lootGroup, cardIdx) {
-    // Hide loot cards temporarily
-    for (const obj of lootGroup) obj.setVisible(false);
-
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 80, `Give ${item.name} to:`, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const roster = this.runManager.roster;
-    const btnW = 200;
-    const listTop = 124;
-    const listBottom = cam.height - 86;
-    const rowHeight = 36;
-    const btnH = 24;
-    const nameOffset = -Math.floor(btnH * 0.22);
-    const detailOffset = Math.floor(btnH * 0.28);
-    const rows = [];
-    let detachScroll = () => {};
-    let pickerClosed = false;
-    const closePicker = (afterClose) => {
-      if (pickerClosed) return;
-      pickerClosed = true;
-      detachScroll();
-      detachScroll = () => {};
-      for (const obj of pickerGroup) {
-        if (obj && typeof obj.destroy === 'function') obj.destroy();
-      }
-      if (typeof afterClose === 'function') afterClose();
-    };
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const consumableCount = unit.consumables ? unit.consumables.length : 0;
-      const full = consumableCount >= CONSUMABLE_MAX;
-      const by = listTop + i * rowHeight + rowHeight / 2;
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, btnW, btnH, full ? 0x444444 : 0x335566, 1)
-        .setStrokeStyle(2, full ? 0x666666 : 0x66aacc)
-        .setDepth(711);
-      if (!full) btn.setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), unit.name, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: full ? '#666666' : '#ffffff',
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      const invLabel = this.add
-        .text(
-          cam.centerX,
-          by + Math.floor(btnH * 0.28),
-          full ? 'Consumables full' : `${consumableCount}/${CONSUMABLE_MAX} items`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: full ? '#aa4444' : '#aaaaaa',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(invLabel);
-      const selectable = !full;
-      rows.push({
-        objects: [btn, label, invLabel],
-        selectable,
-        inputTarget: btn,
-        setCenterY: (centerY) => {
-          btn.y = centerY;
-          label.y = centerY + nameOffset;
-          invLabel.y = centerY + detailOffset;
-        },
-      });
-
-      if (!full) {
-        btn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          addToConsumables(unit, { ...item });
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
-        });
-      }
-    }
-
-    const convoyCanStore = Boolean(this.runManager?.canAddToConvoy?.(item));
-    const convoyBtn = this.add
-      .text(
-        cam.centerX,
-        cam.height - 54,
-        convoyCanStore ? '[ Send to Convoy ]' : '[ Convoy Full ]',
-        {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: convoyCanStore ? '#88ccff' : '#666666',
-          backgroundColor: '#223344',
-          padding: { x: 12, y: 6 },
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(711);
-    if (convoyCanStore) convoyBtn.setInteractive({ useHandCursor: true });
-    pickerGroup.push(convoyBtn);
-    if (convoyCanStore) {
-      convoyBtn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        if (!this.runManager.addToConvoy(item)) {
-          this.showLootStatus('Convoy is full. Choose another reward.', '#ff8888');
-          return;
-        }
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        closePicker(() => this.finalizeLootPick(lootGroup, cardIdx));
-      });
-    }
-
-    const handleBack = () => {
-      closePicker(() => {
-        for (const obj of lootGroup) obj.setVisible(true);
-      });
-    };
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      handleBack();
-    });
-
-    const setupScroller =
-      this._setupLootPickerScroller || BattleScene.prototype._setupLootPickerScroller;
-    detachScroll = setupScroller.call(this, {
-      pickerGroup,
-      rows,
-      topY: listTop,
-      bottomY: listBottom,
-      rowHeight,
-      listLeft: cam.centerX - btnW / 2,
-      listRight: cam.centerX + btnW / 2,
-      onBack: handleBack,
-    });
+    LootScreenController.renderConsumableUnitPicker(this, item, lootGroup, cardIdx);
   }
 
   /** Show compact read-only roster viewer during loot screen. */
