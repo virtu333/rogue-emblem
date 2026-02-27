@@ -264,6 +264,7 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
 const POST_LOOT_TRANSITION_RECHECK_MS = 250;
+const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   unit.hasMoved = false;
@@ -415,7 +416,7 @@ export class BattleScene extends Phaser.Scene {
       this.dialogueOverlay = null;
     }
 
-    if (this.pauseOverlay?.hide) this.pauseOverlay.hide();
+    if (this.pauseOverlay?.hideForTransition) this.pauseOverlay.hideForTransition();
     this.pauseOverlay = null;
     this.lootSettingsOverlay = null;
     this.debugOverlay = null;
@@ -2197,7 +2198,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   closeVisionDialog() {
-    (this._visionController ||= new VisionRewindController(this, this.runManager)).closeDialog();
+    if (this._visionController) {
+      this._visionController.closeDialog();
+    } else if (this.visionDialog) {
+      for (const obj of this.visionDialog.group) obj.destroy();
+      this.visionDialog = null;
+    }
   }
 
   executeVisionRewind() {
@@ -3736,6 +3742,33 @@ export class BattleScene extends Phaser.Scene {
   showPauseMenu() {
     this.prePauseState = this.battleState;
     this.battleState = 'PAUSED';
+    const transitionToTitleWithWatchdog = async (reason) => {
+      markStartup('pause_transition_attempt', { scene: 'Battle', reason });
+      const timeoutToken = Symbol('pause_transition_timeout');
+      let timeoutHandle = null;
+      const timeoutPromise = new Promise((resolve) => {
+        timeoutHandle = setTimeout(() => resolve(timeoutToken), PAUSE_TRANSITION_TIMEOUT_MS);
+        if (typeof timeoutHandle?.unref === 'function') timeoutHandle.unref();
+      });
+      let result;
+      try {
+        result = await Promise.race([
+          transitionToScene(this, 'Title', { gameData: this.gameData }, { reason }),
+          timeoutPromise,
+        ]);
+      } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      }
+      if (result === timeoutToken) {
+        markStartup('pause_transition_timeout', {
+          scene: 'Battle',
+          reason,
+          timeoutMs: PAUSE_TRANSITION_TIMEOUT_MS,
+        });
+        return false;
+      }
+      return result === true;
+    };
     const abandonCb = this.runManager
       ? async () => {
           try {
@@ -3748,13 +3781,7 @@ export class BattleScene extends Phaser.Scene {
             this.runManager.settleEndRunRewards(this.registry.get('meta'), 'defeat');
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
-            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'ABANDON_RUN' });
-            const ok = await transitionToScene(
-              this,
-              'Title',
-              { gameData: this.gameData },
-              { reason: TRANSITION_REASONS.ABANDON_RUN },
-            );
+            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
             if (!ok) {
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
               resetTransitionLocks(this);
@@ -3782,13 +3809,7 @@ export class BattleScene extends Phaser.Scene {
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             const audio = this.registry.get('audio');
             if (audio) audio.stopMusic(this, 0);
-            markStartup('pause_transition_attempt', { scene: 'Battle', reason: 'SAVE_EXIT' });
-            const ok = await transitionToScene(
-              this,
-              'Title',
-              { gameData: this.gameData },
-              { reason: TRANSITION_REASONS.SAVE_EXIT },
-            );
+            const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.SAVE_EXIT);
             if (!ok) {
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
               resetTransitionLocks(this);

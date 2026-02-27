@@ -28,6 +28,17 @@ vi.mock('../src/engine/LootSystem.js', async () => {
   };
 });
 
+const { transitionToSceneMock } = vi.hoisted(() => ({
+  transitionToSceneMock: vi.fn(async () => true),
+}));
+vi.mock('../src/utils/SceneRouter.js', async () => {
+  const actual = await vi.importActual('../src/utils/SceneRouter.js');
+  return {
+    ...actual,
+    transitionToScene: transitionToSceneMock,
+  };
+});
+
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
@@ -183,6 +194,8 @@ describe('BattleScene shim delegation contracts', () => {
     generateBossRecruitCandidatesMock.mockReset();
     generateLootChoicesMock.mockReset();
     calculateSkipLootBonusMock.mockReset();
+    transitionToSceneMock.mockReset();
+    transitionToSceneMock.mockResolvedValue(true);
   });
 
   // ── Boss recruit contracts ────────────────────────────────
@@ -830,6 +843,61 @@ describe('BattleScene shim delegation contracts', () => {
       scene.runManager = { ...scene.runManager, visionChargesRemaining: 5 };
       const result = BattleScene.prototype.getVisionChargesRemaining.call(scene);
       expect(result).toBe(5);
+    });
+  });
+
+  describe('shutdown cleanup with active pauseOverlay', () => {
+    it('does not invoke onResume or refreshEndTurnControl during shutdown', () => {
+      const scene = makeScene();
+      const onResume = vi.fn();
+      scene.refreshEndTurnControl = vi.fn();
+      scene.pauseOverlay = {
+        visible: true,
+        objects: [makeDisplayObject()],
+        confirmObjects: [],
+        hideForTransition: vi.fn(function () {
+          for (const obj of this.objects) obj.destroy();
+          this.objects = [];
+          this.visible = false;
+        }),
+        hide: vi.fn(function () {
+          this.hideForTransition();
+          onResume();
+        }),
+      };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(scene.pauseOverlay).toBeNull();
+      expect(onResume).not.toHaveBeenCalled();
+      expect(scene.refreshEndTurnControl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('showPauseMenu() transition watchdog', () => {
+    it('Save & Return falls back to scene.start when transitionToScene hangs', async () => {
+      vi.useFakeTimers();
+      try {
+        transitionToSceneMock.mockImplementation(() => new Promise(() => {}));
+        const scene = makeScene();
+        scene.scene = { start: vi.fn() };
+        scene.playerUnits = [];
+        scene.nonDeployedUnits = [];
+        scene.showPauseTransitionRecovery = vi.fn();
+
+        BattleScene.prototype.showPauseMenu.call(scene);
+        expect(typeof scene.pauseOverlay?.onSaveAndExit).toBe('function');
+
+        const exitPromise = scene.pauseOverlay.onSaveAndExit();
+        await vi.advanceTimersByTimeAsync(6100);
+        await exitPromise;
+
+        expect(transitionToSceneMock).toHaveBeenCalledTimes(1);
+        expect(scene.scene.start).toHaveBeenCalledWith('Title', { gameData: scene.gameData });
+        expect(scene.showPauseTransitionRecovery).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });
