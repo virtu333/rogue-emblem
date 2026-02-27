@@ -492,20 +492,38 @@ describe('ColosseumEngine', () => {
       expect(foundCrossAct).toBe(true);
     });
 
-    it('returns empty for missing pools', () => {
+    it('throws for missing pools', () => {
       const rng = makeRng(42);
-      const candidates = generateMercenaryCandidates(
-        'finalBoss',
-        15,
-        gameData.recruits,
-        gameData.classes,
-        gameData.weapons,
-        gameData.skills,
-        null,
-        colosseumData,
-        rng,
-      );
-      expect(candidates).toEqual([]);
+      expect(() =>
+        generateMercenaryCandidates(
+          'finalBoss',
+          15,
+          gameData.recruits,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          colosseumData,
+          rng,
+        ),
+      ).toThrow(/empty mercenary class pool/i);
+    });
+
+    it('throws for missing mercenary config', () => {
+      const rng = makeRng(42);
+      expect(() =>
+        generateMercenaryCandidates(
+          'act1',
+          5,
+          gameData.recruits,
+          gameData.classes,
+          gameData.weapons,
+          gameData.skills,
+          null,
+          null,
+          rng,
+        ),
+      ).toThrow(/missing mercenary config/i);
     });
 
     it('act3 promoted class mercs are generated successfully (not empty)', () => {
@@ -609,30 +627,86 @@ describe('ColosseumEngine', () => {
         { name: 'BrokenPromoted', tier: 'promoted', promotesFrom: 'NonExistentBase' },
       ];
       const mixedPools = {
-        act3: { classPool: ['BrokenPromoted', 'Hero', 'Sage'] },
+        act3: { classPool: ['BrokenPromoted', 'Hero'] },
         namePool: gameData.recruits.namePool,
+      };
+      const deterministicColosseum = structuredClone(colosseumData);
+      deterministicColosseum.mercenaries = {
+        ...deterministicColosseum.mercenaries,
+        candidateCount: [2, 2],
       };
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
-        const rng = makeRng(42);
-        const candidates = generateMercenaryCandidates(
-          'act3',
-          12,
-          mixedPools,
-          brokenClasses,
-          gameData.weapons,
-          gameData.skills,
-          null,
-          colosseumData,
-          rng,
-        );
-        // Should still produce some valid candidates despite the broken class
-        expect(candidates.length).toBeGreaterThan(0);
-        for (const { unit } of candidates) {
-          expect(unit.stats).toBeDefined();
-          expect(unit.className).not.toBe('BrokenPromoted');
+        let successRuns = 0;
+        let failureRuns = 0;
+        for (let seed = 0; seed < 100; seed++) {
+          try {
+            const candidates = generateMercenaryCandidates(
+              'act3',
+              12,
+              mixedPools,
+              brokenClasses,
+              gameData.weapons,
+              gameData.skills,
+              null,
+              deterministicColosseum,
+              makeRng(seed),
+            );
+            successRuns++;
+            expect(candidates.length).toBeGreaterThan(0);
+            for (const { unit } of candidates) {
+              expect(unit.stats).toBeDefined();
+              expect(unit.className).not.toBe('BrokenPromoted');
+            }
+          } catch (err) {
+            failureRuns++;
+            expect(String(err?.message || err)).toMatch(/candidate generation failed/i);
+          }
         }
-        // Verify the warning path was actually exercised
+
+        // With a 50/50 broken/valid pool and two picks per run, success probability
+        // should stay comfortably above half while still exercising failure paths.
+        expect(successRuns).toBeGreaterThanOrEqual(50);
+        expect(failureRuns).toBeGreaterThan(0);
+
+        const skipWarns = warnSpy.mock.calls.filter(
+          (args) => typeof args[0] === 'string' && args[0].includes('BrokenPromoted'),
+        );
+        expect(skipWarns.length).toBeGreaterThan(0);
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it('throws when every candidate fails to generate', () => {
+      const brokenClasses = [
+        ...gameData.classes,
+        { name: 'BrokenPromoted', tier: 'promoted', promotesFrom: 'NonExistentBase' },
+      ];
+      const brokenPools = {
+        act3: { classPool: ['BrokenPromoted'] },
+        namePool: gameData.recruits.namePool,
+      };
+      const deterministicColosseum = structuredClone(colosseumData);
+      deterministicColosseum.mercenaries = {
+        ...deterministicColosseum.mercenaries,
+        candidateCount: [2, 2],
+      };
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        expect(() =>
+          generateMercenaryCandidates(
+            'act3',
+            12,
+            brokenPools,
+            brokenClasses,
+            gameData.weapons,
+            gameData.skills,
+            null,
+            deterministicColosseum,
+            () => 0,
+          ),
+        ).toThrow(/candidate generation failed/i);
         const skipWarns = warnSpy.mock.calls.filter(
           (args) => typeof args[0] === 'string' && args[0].includes('BrokenPromoted'),
         );

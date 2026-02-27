@@ -624,21 +624,77 @@ describe('ColosseumOverlay', () => {
     expect(overlay._getLordLevel()).toBe(1);
   });
 
+  it('_getLordLevel falls back to isLord unit when Edric is absent', () => {
+    const scene = makeScene();
+    const fallbackLord = makeUnit(gameData, 'CustomLord', 7, 'Myrmidon');
+    fallbackLord.isLord = true;
+    fallbackLord.tier = 'promoted';
+    const runManager = makeRunManager({ roster: [fallbackLord] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-lord-custom-fallback' }, vi.fn());
+
+    expect(overlay._getLordLevel()).toBe(RECRUIT_PROMOTION_BASE_LEVEL + 7);
+  });
+
+  it('_getLordLevel uses highest effective fallback lord level when Edric is absent', () => {
+    const scene = makeScene();
+    const lowerPromotedLord = makeUnit(gameData, 'CustomLordA', 3, 'Myrmidon');
+    lowerPromotedLord.isLord = true;
+    lowerPromotedLord.tier = 'promoted';
+    lowerPromotedLord.level = 3; // effective 13
+
+    const higherBaseLord = makeUnit(gameData, 'CustomLordB', 14, 'Myrmidon');
+    higherBaseLord.isLord = true; // effective 14
+
+    const runManager = makeRunManager({ roster: [lowerPromotedLord, higherBaseLord] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    overlay.show({ id: 'col-lord-custom-highest-fallback' }, vi.fn());
+
+    expect(overlay._getLordLevel()).toBe(14);
+  });
+
   it('merc generation failure falls back to empty candidates with Back button', () => {
     const scene = makeScene();
     const runManager = makeRunManager({ gold: 1000, roster: [] });
     // Provide broken gameData to trigger error
     const brokenData = { ...gameData, colosseum: { ...gameData.colosseum }, recruits: null };
     const overlay = new ColosseumOverlay(scene, runManager, brokenData);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    overlay.show({ id: 'col-merc-fail' }, vi.fn());
-    // Force re-gen by clearing cached candidates
-    overlay._mercCandidates = null;
-    overlay._showMercBrowse();
+    try {
+      overlay.show({ id: 'col-merc-fail' }, vi.fn());
+      // Force re-gen by clearing cached candidates
+      overlay._mercCandidates = null;
+      overlay._showMercBrowse();
 
-    expect(overlay._mercCandidates).toEqual([]);
-    expect(hasText(scene, 'No mercenaries available')).toBe(true);
-    expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+      expect(overlay._mercCandidates).toEqual([]);
+      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+      expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('merc generation exception surfaces unavailable-board message', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(generateMercenaryCandidates).mockImplementationOnce(() => {
+      throw new Error('forced merc generation failure');
+    });
+
+    try {
+      overlay.show({ id: 'col-merc-fail-hard' }, vi.fn());
+      overlay._mercCandidates = null;
+      overlay._showMercBrowse();
+
+      expect(overlay._mercCandidates).toEqual([]);
+      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+      expect(activeTexts(scene).some((obj) => obj.text === '[ Back ]')).toBe(true);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it('malformed merc candidates are filtered out during _showMercBrowse', () => {
@@ -666,13 +722,40 @@ describe('ColosseumOverlay', () => {
     const scene = makeScene();
     const runManager = makeRunManager({ gold: 1000, roster: [] });
     const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    overlay.show({ id: 'col-merc-non-array' }, vi.fn());
-    overlay._mercCandidates = null;
-    vi.mocked(generateMercenaryCandidates).mockReturnValueOnce(null);
+    try {
+      overlay.show({ id: 'col-merc-non-array' }, vi.fn());
+      overlay._mercCandidates = null;
+      vi.mocked(generateMercenaryCandidates).mockReturnValueOnce(null);
 
-    expect(() => overlay._showMercBrowse()).not.toThrow();
-    expect(overlay._mercCandidates).toEqual([]);
-    expect(hasText(scene, 'No mercenaries available')).toBe(true);
+      expect(() => overlay._showMercBrowse()).not.toThrow();
+      expect(overlay._mercCandidates).toEqual([]);
+      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('all-malformed merc candidates surface unavailable-board message', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({ gold: 1000, roster: [] });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      overlay.show({ id: 'col-merc-all-malformed' }, vi.fn());
+      overlay._mercCandidates = null;
+      vi.mocked(generateMercenaryCandidates).mockReturnValueOnce([
+        { unit: null, hireCost: 100 },
+        { unit: { name: 'NoStats' }, hireCost: 200 },
+      ]);
+      overlay._showMercBrowse();
+
+      expect(overlay._mercCandidates).toEqual([]);
+      expect(hasText(scene, 'Mercenary board unavailable. Please try again later.')).toBe(true);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

@@ -15,7 +15,7 @@ import {
 import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
 import { gainExperience, getDisplayLevel } from '../engine/UnitManager.js';
-import { ROSTER_CAP } from '../utils/constants.js';
+import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 
 // ── Layout constants (match NodeMapScene overlay pattern) ──
@@ -85,6 +85,7 @@ export class ColosseumOverlay {
     // Mercenary state
     this._mercCandidates = null;
     this._mercHired = false;
+    this._mercGenerationFailed = false;
   }
 
   // ────────────────────────────────────────
@@ -910,6 +911,7 @@ export class ColosseumOverlay {
 
     // Generate candidates once per visit
     if (!this._mercCandidates) {
+      this._mercGenerationFailed = false;
       try {
         this._mercCandidates = generateMercenaryCandidates(
           this._actId,
@@ -924,12 +926,25 @@ export class ColosseumOverlay {
         );
       } catch (err) {
         console.error('[ColosseumOverlay] Failed to generate mercenary candidates:', err);
+        this._mercGenerationFailed = true;
         this._mercCandidates = [];
       }
-      // Filter out malformed candidates before rendering
-      this._mercCandidates = (
-        Array.isArray(this._mercCandidates) ? this._mercCandidates : []
-      ).filter((c) => c?.unit?.name && c?.unit?.stats && typeof c?.hireCost === 'number');
+
+      // Filter out malformed candidates before rendering.
+      const rawCandidates = this._mercCandidates;
+      if (!Array.isArray(rawCandidates)) {
+        console.error('[ColosseumOverlay] Invalid mercenary candidate payload (non-array).');
+        this._mercGenerationFailed = true;
+        this._mercCandidates = [];
+      } else {
+        this._mercCandidates = rawCandidates.filter(
+          (c) => c?.unit?.name && c?.unit?.stats && typeof c?.hireCost === 'number',
+        );
+        if (rawCandidates.length > 0 && this._mercCandidates.length === 0) {
+          console.error('[ColosseumOverlay] All mercenary candidates were malformed.');
+          this._mercGenerationFailed = true;
+        }
+      }
     }
 
     const candidates = this._mercCandidates;
@@ -938,8 +953,11 @@ export class ColosseumOverlay {
     const rosterFull = rosterCount >= rosterCap;
 
     if (candidates.length === 0) {
+      const emptyMsg = this._mercGenerationFailed
+        ? 'Mercenary board unavailable. Please try again later.'
+        : 'No mercenaries available.';
       const t = this.scene.add
-        .text(CX, 200, 'No mercenaries available.', BODY_STYLE)
+        .text(CX, 200, emptyMsg, BODY_STYLE)
         .setOrigin(0.5)
         .setDepth(CONTENT_DEPTH);
       this.objects.push(t);
@@ -1164,6 +1182,23 @@ export class ColosseumOverlay {
   _getLordLevel() {
     const roster = this.runManager.roster || [];
     const { recruitTargetLevel } = resolveRecruitScalingTargets(roster);
-    return recruitTargetLevel;
+    const hasEdric = roster.some(
+      (u) => typeof u?.name === 'string' && u.name.trim().toLowerCase() === 'edric',
+    );
+    if (hasEdric) return recruitTargetLevel;
+
+    // Fallback for custom rosters/campaigns that do not include Edric by name.
+    const fallbackLords = roster.filter((u) => u?.isLord);
+    if (fallbackLords.length === 0) return 1;
+
+    // Use the highest effective lord level so scaling is stable regardless of roster order.
+    let highestEffectiveLevel = 1;
+    for (const lord of fallbackLords) {
+      const rawLevel = Math.max(1, Math.trunc(Number(lord.level) || 1));
+      const effectiveLevel =
+        lord.tier === 'promoted' ? RECRUIT_PROMOTION_BASE_LEVEL + rawLevel : rawLevel;
+      if (effectiveLevel > highestEffectiveLevel) highestEffectiveLevel = effectiveLevel;
+    }
+    return highestEffectiveLevel;
   }
 }

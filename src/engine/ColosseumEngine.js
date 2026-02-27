@@ -251,7 +251,9 @@ export function generateMercenaryCandidates(
   rng,
 ) {
   const mercConfig = colosseumData?.mercenaries;
-  if (!mercConfig) return [];
+  if (!mercConfig) {
+    throw new Error('[ColosseumEngine] Missing mercenary config');
+  }
 
   const [minCount, maxCount] = mercConfig.candidateCount;
   const count = minCount + Math.floor(rng() * (maxCount - minCount + 1));
@@ -268,7 +270,9 @@ export function generateMercenaryCandidates(
     combinedPool = combinedPool.concat(nextPool);
   }
 
-  if (combinedPool.length === 0) return [];
+  if (combinedPool.length === 0) {
+    throw new Error(`[ColosseumEngine] Empty mercenary class pool for act: ${actId}`);
+  }
 
   // Name pool for generating recruit names
   const namePool = recruitPools?.namePool || {};
@@ -277,13 +281,18 @@ export function generateMercenaryCandidates(
   const BOOSTABLE_STATS = ['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK'];
 
   const candidates = [];
+  let skippedCount = 0;
   for (let i = 0; i < count; i++) {
     let pickedClass = '?';
     try {
       const className = combinedPool[Math.floor(rng() * combinedPool.length)];
       pickedClass = className;
       const classData = classesData.find((c) => c.name === className);
-      if (!classData) continue;
+      if (!classData) {
+        skippedCount++;
+        console.warn(`[ColosseumEngine] Skipping merc candidate: class "${className}" not found`);
+        continue;
+      }
 
       // Pick a name from the name pool or use class name as fallback
       const names = namePool[className] || [className];
@@ -301,6 +310,7 @@ export function generateMercenaryCandidates(
         const baseClassName = classData.promotesFrom;
         const baseClassData = classesData.find((c) => c.name === baseClassName);
         if (!baseClassData) {
+          skippedCount++;
           console.warn(
             `[ColosseumEngine] Skipping promoted merc "${className}": base class "${classData.promotesFrom}" not found`,
           );
@@ -393,12 +403,19 @@ export function generateMercenaryCandidates(
       );
       candidates.push({ unit, hireCost });
     } catch (err) {
+      skippedCount++;
       console.warn(
         `[ColosseumEngine] Skipping merc candidate (class: ${pickedClass}):`,
         err?.message || err,
       );
       continue;
     }
+  }
+
+  if (count > 0 && skippedCount > 0 && candidates.length === 0) {
+    throw new Error(
+      `[ColosseumEngine] Mercenary candidate generation failed (act: ${actId}, requested: ${count}, skipped: ${skippedCount})`,
+    );
   }
 
   return candidates;
