@@ -505,6 +505,117 @@ describe('HeadlessBattle', () => {
     expect(actual.stats).toEqual(expected.stats);
   });
 
+  it('enemies get secondary weapons on hard difficulty', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act2',
+      objective: 'rout',
+      row: 1,
+      difficultyId: 'hard',
+      difficultyMod: 1.2,
+    });
+    const enemy = battle._addEnemyFromSpawn({
+      className: 'Ranger',
+      level: 8,
+      col: 0,
+      row: 0,
+      sunderWeapon: false,
+      poisonWeapon: false,
+    });
+    expect(enemy).toBeTruthy();
+    const invTypes = new Set(enemy.inventory.map((w) => w?.type).filter(Boolean));
+    expect(invTypes.has('Sword')).toBe(true);
+    expect(invTypes.has('Bow')).toBe(true);
+  });
+
+  it('enemies do NOT get secondary weapons on normal difficulty', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act2',
+      objective: 'rout',
+      row: 1,
+      difficultyId: 'normal',
+      difficultyMod: 1.0,
+    });
+    const enemy = battle._addEnemyFromSpawn({
+      className: 'Ranger',
+      level: 8,
+      col: 0,
+      row: 0,
+      sunderWeapon: false,
+      poisonWeapon: false,
+    });
+    expect(enemy).toBeTruthy();
+    const invTypes = new Set(enemy.inventory.map((w) => w?.type).filter(Boolean));
+    expect(invTypes.has('Sword')).toBe(true);
+    expect(invTypes.has('Bow')).toBe(false);
+  });
+
+  it('sunder enemies do NOT get secondary weapons on hard', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act2',
+      objective: 'rout',
+      row: 1,
+      difficultyId: 'hard',
+      difficultyMod: 1.2,
+    });
+    const enemy = battle._addEnemyFromSpawn({
+      className: 'Ranger',
+      level: 8,
+      col: 0,
+      row: 0,
+      sunderWeapon: true,
+      poisonWeapon: false,
+    });
+    expect(enemy).toBeTruthy();
+    expect(enemy.weapon?.name?.startsWith('Sunder')).toBe(true);
+    expect(enemy.inventory).toHaveLength(1);
+  });
+
+  it('siege-tagged spawns are excluded from hard secondary-weapon grants', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act2',
+      objective: 'rout',
+      row: 1,
+      difficultyId: 'hard',
+      difficultyMod: 1.2,
+    });
+    const enemy = battle._addEnemyFromSpawn({
+      className: 'Ranger',
+      level: 8,
+      col: 0,
+      row: 0,
+      sunderWeapon: false,
+      poisonWeapon: false,
+      siegeWeapon: 'Meteor',
+    });
+    expect(enemy).toBeTruthy();
+    const invTypes = new Set(enemy.inventory.map((w) => w?.type).filter(Boolean));
+    expect(invTypes.has('Sword')).toBe(true);
+    expect(invTypes.has('Bow')).toBe(false);
+  });
+
+  it('entity-tagged spawns are excluded from hard secondary-weapon grants', () => {
+    const battle = new HeadlessBattle(gameData, {
+      act: 'act2',
+      objective: 'rout',
+      row: 1,
+      difficultyId: 'hard',
+      difficultyMod: 1.2,
+    });
+    const enemy = battle._addEnemyFromSpawn({
+      className: 'Ranger',
+      level: 8,
+      col: 0,
+      row: 0,
+      sunderWeapon: false,
+      poisonWeapon: false,
+      isEntity: true,
+    });
+    expect(enemy).toBeTruthy();
+    const invTypes = new Set(enemy.inventory.map((w) => w?.type).filter(Boolean));
+    expect(invTypes.has('Sword')).toBe(true);
+    expect(invTypes.has('Bow')).toBe(false);
+  });
+
   it('all units have valid grid positions', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();

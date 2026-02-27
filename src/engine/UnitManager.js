@@ -677,6 +677,29 @@ export function grantLethalArmoryWeapon(unit, allWeapons, lethalArmoryTier = 0) 
   return true;
 }
 
+/**
+ * Grant secondary weapons for all non-Staff proficiencies not already in inventory.
+ * Falls back to Iron tier if requested tier unavailable. Respects inventory cap.
+ * Returns the number of weapons granted.
+ */
+export function grantSecondaryWeapons(unit, allWeapons, weaponTier) {
+  if (!unit || !Array.isArray(unit.proficiencies) || !Array.isArray(allWeapons)) return 0;
+  if (!Array.isArray(unit.inventory)) return 0;
+  const existingTypes = new Set(unit.inventory.map((w) => w?.type).filter(Boolean));
+  let granted = 0;
+  for (const prof of unit.proficiencies) {
+    if (!prof?.type || prof.type === 'Staff') continue;
+    if (existingTypes.has(prof.type)) continue;
+    const weapon =
+      allWeapons.find((w) => w.type === prof.type && w.tier === weaponTier && !w.special) ||
+      allWeapons.find((w) => w.type === prof.type && w.tier === 'Iron' && !w.special);
+    if (!weapon || !addToInventory(unit, weapon)) continue;
+    existingTypes.add(prof.type);
+    granted++;
+  }
+  return granted;
+}
+
 // --- Leveling ---
 
 /**

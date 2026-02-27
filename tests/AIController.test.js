@@ -1024,4 +1024,175 @@ describe('AIController', () => {
       expect(decision.reason).toBe('attack_in_range');
     });
   });
+
+  describe('weapon-swap optimization', () => {
+    it('swaps to higher-damage weapon when attacking', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+        { col: 4, row: 5 },
+        { col: 6, row: 5 },
+        { col: 5, row: 6 },
+      ];
+      const axe = { name: 'Iron Axe', type: 'Axe', range: '1', might: 8 };
+      const sword = { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: sword,
+        inventory: [sword, axe],
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.reason).toBe('attack_in_range');
+      // Should swap to axe (might 8 > sword might 5)
+      expect(enemy.weapon.name).toBe('Iron Axe');
+    });
+
+    it('does not swap for single-weapon enemies', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+      ];
+      const sword = { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: sword,
+        inventory: [sword],
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.reason).toBe('attack_in_range');
+      expect(enemy.weapon.name).toBe('Iron Sword');
+    });
+
+    it('does not swap to out-of-range weapon', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+        { col: 5, row: 3 },
+      ];
+      const sword = { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 };
+      const bow = { name: 'Iron Bow', type: 'Bow', range: '2', might: 6 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: sword,
+        inventory: [sword, bow],
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      // Player at distance 1 — bow (range 2) can't reach
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.reason).toBe('attack_in_range');
+      // Should keep sword since bow can't reach at distance 1
+      expect(enemy.weapon.name).toBe('Iron Sword');
+    });
+
+    it('swaps to weapon-triangle advantaged weapon with equal might', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+      ];
+      // Enemy has Sword(5) + Lance(5), target has Sword equipped
+      // Lance beats Sword → should swap to Lance despite equal might
+      const sword = { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 };
+      const lance = { name: 'Iron Lance', type: 'Lance', range: '1', might: 5 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: sword,
+        inventory: [sword, lance],
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        weapon: { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 },
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      ai._decideAction(enemy, [enemy], [player], []);
+      expect(enemy.weapon.name).toBe('Iron Lance');
+    });
+
+    it('raw might can beat triangle disadvantage when gap is large enough', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+      ];
+      // Enemy has Lance(5) + Axe(8), target has Sword equipped.
+      // Lance has triangle advantage (+1), Axe has disadvantage (-1).
+      // Effective scores: Lance=6, Axe=7, so Axe should still be selected.
+      const lance = { name: 'Iron Lance', type: 'Lance', range: '1', might: 5 };
+      const axe = { name: 'Iron Axe', type: 'Axe', range: '1', might: 8 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: lance,
+        inventory: [lance, axe],
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        weapon: { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 },
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      ai._decideAction(enemy, [enemy], [player], []);
+      // Axe wins despite triangle disadvantage due higher raw might.
+      expect(enemy.weapon.name).toBe('Iron Axe');
+    });
+    it('skips weapon-swap for entity enemies', () => {
+      const moveTiles = [
+        { col: 5, row: 4 },
+        { col: 5, row: 5 },
+      ];
+      const sword = { name: 'Iron Sword', type: 'Sword', range: '1', might: 5 };
+      const axe = { name: 'Iron Axe', type: 'Axe', range: '1', might: 8 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        weapon: sword,
+        inventory: [sword, axe],
+        isEntity: true, // entity marker
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 5, LCK: 3 },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.reason).toBe('attack_in_range');
+      // Entity should not get weapon-swapped
+      expect(enemy.weapon.name).toBe('Iron Sword');
+    });
+  });
 });

@@ -32,6 +32,7 @@ import {
   getClassInnateSkills,
   normalizeUnitClassState,
   grantLethalArmoryWeapon,
+  grantSecondaryWeapons,
   learnSkill,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
@@ -2195,7 +2196,11 @@ export class RunManager {
     if (className === 'Paladin') {
       this._applyExtraStarterPaladinLoadout(unit);
     }
+    const cadreSpawnTier = unit.weapon?.tier || 'Iron';
     grantLethalArmoryWeapon(unit, this.gameData?.weapons || [], this.metaEffects?.lethalArmoryTier);
+    if (this.metaEffects?.masterOfArms) {
+      grantSecondaryWeapons(unit, this.gameData?.weapons || [], cadreSpawnTier);
+    }
     if (this.metaEffects?.recruitStartingVulnerary) {
       const vulnerary = this.gameData?.consumables?.find((c) => c.name === 'Vulnerary');
       if (vulnerary) addToConsumables(unit, vulnerary);

@@ -48,6 +48,7 @@ import {
   resolvePromotionTargets,
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
+  grantSecondaryWeapons,
   checkLevelUpSkills,
   learnSkill,
   removeFromInventory,
@@ -942,12 +943,16 @@ export class BattleScene extends Phaser.Scene {
               }
             }
 
+            const npcSpawnTier = npc.weapon?.tier || 'Iron';
             if (this.runManager?.metaEffects?.lethalArmoryTier) {
               grantLethalArmoryWeapon(
                 npc,
                 this.gameData.weapons,
                 this.runManager.metaEffects.lethalArmoryTier,
               );
+            }
+            if (this.runManager?.metaEffects?.masterOfArms) {
+              grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
             }
             if (this.runManager?.metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
@@ -1957,6 +1962,14 @@ export class BattleScene extends Phaser.Scene {
       const staffData = this.gameData.weapons.find((w) => w.name === staffName);
       if (staffData) {
         enemy.statusStaff = structuredClone(staffData);
+      }
+    }
+
+    // Grant secondary weapons for multi-proficiency enemies on Hard/Lunatic
+    if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
+      const diffId = this.battleParams?.difficultyId;
+      if (diffId === 'hard' || diffId === 'lunatic') {
+        grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
       }
     }
 

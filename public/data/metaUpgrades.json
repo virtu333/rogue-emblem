@@ -1250,6 +1250,22 @@
     ]
   },
   {
+    "id": "master_of_arms",
+    "name": "Master of Arms",
+    "description": "Recruits spawn with weapons for all proficiencies",
+    "category": "capacity",
+    "maxLevel": 1,
+    "costs": [600],
+    "requires": {
+      "milestones": ["beatAct1"]
+    },
+    "effects": [
+      {
+        "masterOfArms": true
+      }
+    ]
+  },
+  {
     "id": "weapon_forge",
     "name": "Honed Blades",
     "description": "Lords' starting weapons gain forge levels",

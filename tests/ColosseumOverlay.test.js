@@ -758,4 +758,29 @@ describe('ColosseumOverlay', () => {
       errorSpy.mockRestore();
     }
   });
+
+  it('masterOfArms applies secondary weapons to generated merc candidates in overlay', () => {
+    const scene = makeScene();
+    const runManager = makeRunManager({
+      metaEffects: { masterOfArms: true },
+      roster: [],
+    });
+    const overlay = new ColosseumOverlay(scene, runManager, gameData);
+    const merc = makeUnit(gameData, 'Merc Ranger', 1, 'Ranger');
+    const preTypes = new Set(merc.inventory.map((w) => w?.type).filter(Boolean));
+    expect(preTypes.has('Sword')).toBe(true);
+    expect(preTypes.has('Bow')).toBe(false);
+
+    overlay.show({ id: 'col-merc-master-of-arms' }, vi.fn());
+    overlay._mercCandidates = null;
+    vi.mocked(generateMercenaryCandidates).mockReturnValueOnce([{ unit: merc, hireCost: 100 }]);
+    overlay._showMercBrowse();
+
+    expect(overlay._mercCandidates).toHaveLength(1);
+    const invTypes = new Set(
+      overlay._mercCandidates[0].unit.inventory.map((w) => w?.type).filter(Boolean),
+    );
+    expect(invTypes.has('Sword')).toBe(true);
+    expect(invTypes.has('Bow')).toBe(true);
+  });
 });

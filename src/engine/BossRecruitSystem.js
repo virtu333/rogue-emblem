@@ -23,6 +23,7 @@ import {
   getClassInnateSkills,
   isPromotionClassBlocked,
   grantLethalArmoryWeapon,
+  grantSecondaryWeapons,
   checkLevelUpSkills,
   learnSkill,
 } from './UnitManager.js';
@@ -531,8 +532,12 @@ function createRecruitFromPool(
 
     checkLevelUpSkills(unit, classes);
 
+    const promotedSpawnTier = unit.weapon?.tier || 'Iron';
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
+    }
+    if (metaEffects?.masterOfArms) {
+      grantSecondaryWeapons(unit, weapons, promotedSpawnTier);
     }
     maybeAddStartingVulnerary(unit);
     return unit;
@@ -555,8 +560,12 @@ function createRecruitFromPool(
       classes,
     );
     addClassInnates(unit, classData.name);
+    const baseSpawnTier = unit.weapon?.tier || 'Iron';
     if (metaEffects?.lethalArmoryTier) {
       grantLethalArmoryWeapon(unit, weapons, metaEffects.lethalArmoryTier);
+    }
+    if (metaEffects?.masterOfArms) {
+      grantSecondaryWeapons(unit, weapons, baseSpawnTier);
     }
     maybeAddStartingVulnerary(unit);
     return unit;

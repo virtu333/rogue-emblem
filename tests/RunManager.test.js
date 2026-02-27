@@ -110,6 +110,57 @@ describe('RunManager', () => {
       }
     });
 
+    it('extra starter gets secondary weapons when masterOfArms is active', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, { extraStartingUnitTier: 1, masterOfArms: true });
+        const poolSpy = vi
+          .spyOn(rmMeta, '_resolveExtraStarterClassPoolByTier')
+          .mockReturnValue(['Ranger']);
+        try {
+          rmMeta.startRun();
+          const extra = rmMeta.roster[rmMeta.roster.length - 1];
+          expect(extra.className).toBe('Ranger');
+          const invTypes = new Set(extra.inventory.map((w) => w?.type).filter(Boolean));
+          expect(invTypes.has('Sword')).toBe(true);
+          expect(invTypes.has('Bow')).toBe(true);
+        } finally {
+          poolSpy.mockRestore();
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
+    it('extra starter secondaries use spawn tier, not Lethal Armory tier', () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      try {
+        const rmMeta = new RunManager(gameData, {
+          extraStartingUnitTier: 1,
+          masterOfArms: true,
+          lethalArmoryTier: 1,
+        });
+        const poolSpy = vi
+          .spyOn(rmMeta, '_resolveExtraStarterClassPoolByTier')
+          .mockReturnValue(['Ranger']);
+        try {
+          rmMeta.startRun();
+          const extra = rmMeta.roster[rmMeta.roster.length - 1];
+          expect(extra.className).toBe('Ranger');
+          const bow = extra.inventory.find((w) => w?.type === 'Bow');
+          expect(extra.inventory.some((w) => w?.type === 'Sword' && w?.tier === 'Steel')).toBe(
+            true,
+          );
+          expect(bow).toBeTruthy();
+          expect(bow?.tier).toBe('Iron');
+        } finally {
+          poolSpy.mockRestore();
+        }
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+
     it('extra starter receives a Vulnerary when recruit_field_supplies is active', () => {
       const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
       try {

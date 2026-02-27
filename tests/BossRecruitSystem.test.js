@@ -28,6 +28,27 @@ function makeBaseRoster() {
   ];
 }
 
+function makeLowLevelRoster() {
+  return [
+    { name: 'Edric', className: 'Lord', isLord: true, level: 1, faction: 'player' },
+    { name: 'Sera', className: 'Light Sage', isLord: true, level: 1, faction: 'player' },
+  ];
+}
+
+function makeRangerOnlyAct2PoolData() {
+  const localData = structuredClone(gameData);
+  localData.recruits.act2 = {
+    ...(localData.recruits.act2 || {}),
+    classPool: ['Ranger'],
+    pool: [],
+  };
+  localData.recruits.namePool = {
+    ...(localData.recruits.namePool || {}),
+    Ranger: ['Robin'],
+  };
+  return localData;
+}
+
 function makeRosterWithOnlyLordAvailable(lordName) {
   return [
     ...makeBaseRoster(),
@@ -776,6 +797,37 @@ describe('BossRecruitSystem', () => {
       mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
       const candidates = generateBossRecruitCandidates(1, noLordRoster, gameData, null);
       expect(candidates.some((c) => c.className === 'Bard')).toBe(false);
+    });
+
+    it('grants secondary weapons when masterOfArms is active', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const localData = makeRangerOnlyAct2PoolData();
+      const meta = { masterOfArms: true, lordRecruitChanceBonus: -1 };
+      const candidates = generateBossRecruitCandidates(0, makeBaseRoster(), localData, meta);
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].isLord).toBe(false);
+      expect(candidates[0].className).toBe('Ranger');
+      const invTypes = new Set(candidates[0].unit.inventory.map((w) => w?.type).filter(Boolean));
+      expect(invTypes.has('Sword')).toBe(true);
+      expect(invTypes.has('Bow')).toBe(true);
+    });
+
+    it('masterOfArms uses spawn tier, not Lethal Armory tier', () => {
+      mathRandomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+      const localData = makeRangerOnlyAct2PoolData();
+      const meta = {
+        masterOfArms: true,
+        lethalArmoryTier: 1,
+        lordRecruitChanceBonus: -1,
+      };
+      const candidates = generateBossRecruitCandidates(0, makeLowLevelRoster(), localData, meta);
+      expect(candidates).toHaveLength(1);
+      const unit = candidates[0].unit;
+      const bow = unit.inventory.find((w) => w?.type === 'Bow');
+      expect(bow).toBeTruthy();
+      // Lethal Armory adds a Steel Sword here; secondary should still use spawn tier (Iron).
+      expect(unit.inventory.some((w) => w?.type === 'Sword' && w?.tier === 'Steel')).toBe(true);
+      expect(bow?.tier).toBe('Iron');
     });
   });
 });

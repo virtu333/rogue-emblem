@@ -432,6 +432,7 @@ export class MetaProgressionManager {
       startingStaffTier: 0,
       startingReclassSeal: 0,
       extraSkillSlot: 0,
+      masterOfArms: false,
       thirdLordMode: null,
       startingSkills: {},
       metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
@@ -533,6 +534,7 @@ export class MetaProgressionManager {
       if (effect.startingReclassSeal !== undefined)
         effects.startingReclassSeal = effect.startingReclassSeal;
       if (effect.extraSkillSlot !== undefined) effects.extraSkillSlot = effect.extraSkillSlot;
+      if (effect.masterOfArms) effects.masterOfArms = true;
       if (effect.thirdLordMode !== undefined) effects.thirdLordMode = effect.thirdLordMode;
     }
 

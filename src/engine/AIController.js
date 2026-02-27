@@ -3,7 +3,7 @@
 // Boss enemies on seize maps stay within 1 tile of throne.
 // Guard enemies wait until a player enters trigger range, then permanently switch to chase.
 
-import { gridDistance, isInRange } from './Combat.js';
+import { gridDistance, isInRange, getWeaponTriangleBonus } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
@@ -337,6 +337,30 @@ export class AIController {
     }
 
     if (bestAttack) {
+      // Pick best weapon for selected target (weapon-triangle + damage optimization)
+      if (!isEntity(enemy) && enemy.inventory?.length > 1) {
+        const dist = gridDistance(
+          bestAttack.candidate.finalTile.col,
+          bestAttack.candidate.finalTile.row,
+          bestAttack.target.col,
+          bestAttack.target.row,
+        );
+        const best = pickBestWeapon(enemy, bestAttack.target, (ent, wpn, tgt) => {
+          if (!isInRange(wpn, dist)) return -Infinity;
+          const atkStat =
+            wpn.type === 'Tome' || wpn.type === 'Light' ? ent.stats.MAG : ent.stats.STR;
+          const defStat =
+            wpn.type === 'Tome' || wpn.type === 'Light' ? tgt.stats.RES : tgt.stats.DEF;
+          let score = Math.max(0, atkStat + (wpn.might || 0) - defStat);
+          if (tgt.weapon) {
+            const tri = getWeaponTriangleBonus(wpn, tgt.weapon, ent.weaponRank);
+            score += tri.damage;
+          }
+          return score;
+        });
+        if (best) enemy.weapon = best;
+      }
+
       // Move to attack tile and attack
       const path = bestAttack.candidate.path;
       return this._finalizeDecision(enemy, {

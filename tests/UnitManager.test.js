@@ -24,6 +24,7 @@ import {
   calculateCombatXP,
   hasStaff,
   grantLethalArmoryWeapon,
+  grantSecondaryWeapons,
   getStaffWeapon,
   resolvePromotionTargetClass,
   getDefaultWeapon,
@@ -1286,5 +1287,103 @@ describe('getDefaultWeapon Staff fallback', () => {
     const weapon = getDefaultWeapon(profs, data.weapons);
     expect(weapon).not.toBeNull();
     expect(weapon.type).toBe('Light');
+  });
+});
+
+describe('grantSecondaryWeapons', () => {
+  const weaponPool = [
+    { name: 'Iron Sword', type: 'Sword', tier: 'Iron' },
+    { name: 'Iron Lance', type: 'Lance', tier: 'Iron' },
+    { name: 'Iron Axe', type: 'Axe', tier: 'Iron' },
+    { name: 'Iron Bow', type: 'Bow', tier: 'Iron' },
+    { name: 'Fire', type: 'Tome', tier: 'Iron' },
+    { name: 'Steel Sword', type: 'Sword', tier: 'Steel' },
+    { name: 'Steel Lance', type: 'Lance', tier: 'Steel' },
+    { name: 'Steel Axe', type: 'Axe', tier: 'Steel' },
+    { name: 'Lightning', type: 'Light', tier: 'Iron', special: 'Lightest magic' },
+    { name: 'Heal', type: 'Staff', tier: 'Iron' },
+  ];
+
+  function makeUnit(profTypes, inventoryItems) {
+    return {
+      proficiencies: profTypes.map((t) => ({ type: t, rank: 'Prof' })),
+      inventory: inventoryItems.map((i) => structuredClone(i)),
+      weapon: inventoryItems[0] ? structuredClone(inventoryItems[0]) : null,
+    };
+  }
+
+  it('grants weapons for secondary non-Staff proficiencies', () => {
+    const unit = makeUnit(['Lance', 'Tome'], [weaponPool[1]]); // has Iron Lance
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(1);
+    expect(unit.inventory).toHaveLength(2);
+    expect(unit.inventory[1].type).toBe('Tome');
+  });
+
+  it('handles 3-proficiency classes (grants 2 secondaries)', () => {
+    const unit = makeUnit(['Sword', 'Axe', 'Bow'], [weaponPool[0]]); // has Iron Sword
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(2);
+    expect(unit.inventory).toHaveLength(3);
+    const types = unit.inventory.map((w) => w.type);
+    expect(types).toContain('Axe');
+    expect(types).toContain('Bow');
+  });
+
+  it('skips Staff proficiencies', () => {
+    const unit = makeUnit(['Sword', 'Staff'], [weaponPool[0]]); // has Iron Sword
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(0);
+    expect(unit.inventory).toHaveLength(1);
+  });
+
+  it('uses requested tier when available', () => {
+    const unit = makeUnit(['Lance', 'Sword'], [weaponPool[6]]); // has Steel Lance
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Steel');
+    expect(count).toBe(1);
+    expect(unit.inventory[1].name).toBe('Steel Sword');
+  });
+
+  it('falls back to Iron when requested tier unavailable', () => {
+    const unit = makeUnit(['Lance', 'Bow'], [weaponPool[6]]); // has Steel Lance
+    // No Steel Bow in pool, should fall back to Iron Bow
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Steel');
+    expect(count).toBe(1);
+    expect(unit.inventory[1].name).toBe('Iron Bow');
+  });
+
+  it('Iron fallback skips special weapons', () => {
+    const unit = makeUnit(['Sword', 'Light'], [weaponPool[0]]); // has Iron Sword
+    // Only Light weapon in pool is Lightning which has special — should not be granted
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(0);
+    expect(unit.inventory).toHaveLength(1);
+  });
+
+  it('does not duplicate existing inventory types', () => {
+    const unit = makeUnit(['Sword', 'Lance'], [weaponPool[0], weaponPool[1]]); // already has both
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(0);
+    expect(unit.inventory).toHaveLength(2);
+  });
+
+  it('returns 0 for null/undefined unit or inventory', () => {
+    expect(grantSecondaryWeapons(null, weaponPool, 'Iron')).toBe(0);
+    expect(grantSecondaryWeapons(undefined, weaponPool, 'Iron')).toBe(0);
+    expect(grantSecondaryWeapons({ proficiencies: [{ type: 'Sword' }] }, weaponPool, 'Iron')).toBe(
+      0,
+    );
+  });
+
+  it('returns 0 for single-proficiency units', () => {
+    const unit = makeUnit(['Sword'], [weaponPool[0]]);
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(0);
+  });
+
+  it('returns 0 for staff-only units', () => {
+    const unit = makeUnit(['Staff'], [weaponPool[9]]);
+    const count = grantSecondaryWeapons(unit, weaponPool, 'Iron');
+    expect(count).toBe(0);
   });
 });

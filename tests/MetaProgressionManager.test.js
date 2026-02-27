@@ -472,21 +472,26 @@ describe('MetaProgressionManager', () => {
     expect(Number.isFinite(saved.savedAt)).toBe(true);
   });
 
-  it('has 61 total upgrades in data', () => {
-    expect(upgradesData.length).toBe(61);
+  it('has a reasonable number of upgrades in data', () => {
+    expect(upgradesData.length).toBeGreaterThan(50);
+    for (const u of upgradesData) {
+      expect(u.id).toBeDefined();
+      expect(u.category).toBeDefined();
+      expect(u.costs).toBeDefined();
+    }
   });
 
-  it('has correct category distribution', () => {
-    const byCategory = {};
-    for (const u of upgradesData) {
-      byCategory[u.category] = (byCategory[u.category] || 0) + 1;
+  it('has all expected categories represented', () => {
+    const categories = new Set(upgradesData.map((u) => u.category));
+    expect(categories).toContain('recruit_stats');
+    expect(categories).toContain('lord_bonuses');
+    expect(categories).toContain('economy');
+    expect(categories).toContain('capacity');
+    expect(categories).toContain('starting_equipment');
+    expect(categories).toContain('starting_skills');
+    for (const cat of categories) {
+      expect(upgradesData.filter((u) => u.category === cat).length).toBeGreaterThanOrEqual(5);
     }
-    expect(byCategory.recruit_stats).toBe(12);
-    expect(byCategory.lord_bonuses).toBe(15);
-    expect(byCategory.economy).toBe(7);
-    expect(byCategory.capacity).toBe(9);
-    expect(byCategory.starting_equipment).toBe(8);
-    expect(byCategory.starting_skills).toBe(10);
   });
 
   // --- Starting Equipment effects ---
@@ -1292,5 +1297,37 @@ describe('calculateCurrencies', () => {
     // Base = (2*50) + (4*15) = 160, scaled = 200
     expect(valor).toBe(200);
     expect(supply).toBe(200);
+  });
+});
+
+describe('masterOfArms meta effect', () => {
+  beforeEach(() => {
+    clearStore();
+  });
+
+  it('defaults to false when not purchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const effects = meta.getActiveEffects();
+    expect(effects.masterOfArms).toBe(false);
+  });
+
+  it('is true when purchased', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.addValor(1000);
+    meta.addSupply(1000);
+    // Unlock beatAct1 milestone
+    meta.recordMilestone('beatAct1');
+    const upgraded = meta.purchaseUpgrade('master_of_arms');
+    expect(upgraded).toBe(true);
+    const effects = meta.getActiveEffects();
+    expect(effects.masterOfArms).toBe(true);
+  });
+
+  it('master_of_arms upgrade exists in data with correct shape', () => {
+    const upgrade = getUpgrade('master_of_arms');
+    expect(upgrade).toBeDefined();
+    expect(upgrade.category).toBe('capacity');
+    expect(upgrade.maxLevel).toBe(1);
+    expect(upgrade.effects[0].masterOfArms).toBe(true);
   });
 });

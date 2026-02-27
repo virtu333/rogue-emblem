@@ -796,6 +796,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.startingStaffTier !== undefined)
       return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
     if (effect.unlockSkill !== undefined) return 'Unlocked';
+    if (effect.masterOfArms) return 'Enabled';
     if (effect.thirdLordMode !== undefined) {
       const labels = {
         random: 'Random lord',
@@ -878,6 +879,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
     if (effect.steelArms !== undefined) return 'Steel weapons can spawn with arts';
     if (effect.artAdept !== undefined) return 'Extra art on a lord starting weapon';
+    if (effect.masterOfArms) return 'Recruits equipped for all proficiencies';
     if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for Edric';
     if (effect.startingStaffTier !== undefined) return "Sera's starting staff";

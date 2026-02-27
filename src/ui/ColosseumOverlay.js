@@ -14,7 +14,7 @@ import {
 } from '../engine/ColosseumEngine.js';
 import { resolveCombat, getCombatForecast } from '../engine/Combat.js';
 import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engine/SkillSystem.js';
-import { gainExperience, getDisplayLevel } from '../engine/UnitManager.js';
+import { gainExperience, getDisplayLevel, grantSecondaryWeapons } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
 
@@ -943,6 +943,19 @@ export class ColosseumOverlay {
         if (rawCandidates.length > 0 && this._mercCandidates.length === 0) {
           console.error('[ColosseumOverlay] All mercenary candidates were malformed.');
           this._mercGenerationFailed = true;
+        }
+      }
+
+      // Apply Master of Arms to generated merc candidates
+      if (this.runManager?.metaEffects?.masterOfArms && this._mercCandidates.length > 0) {
+        for (const entry of this._mercCandidates) {
+          if (entry?.unit) {
+            grantSecondaryWeapons(
+              entry.unit,
+              this.gameData.weapons,
+              entry.unit.weapon?.tier || 'Iron',
+            );
+          }
         }
       }
     }

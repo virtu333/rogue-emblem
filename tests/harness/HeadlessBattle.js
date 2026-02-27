@@ -36,6 +36,7 @@ import {
   addToInventory,
   addToConsumables,
   grantLethalArmoryWeapon,
+  grantSecondaryWeapons,
   checkLevelUpSkills,
 } from '../../src/engine/UnitManager.js';
 import {
@@ -442,8 +443,12 @@ export class HeadlessBattle {
             }
           }
           if (npc) {
+            const npcSpawnTier = npc.weapon?.tier || 'Iron';
             if (metaEffects?.lethalArmoryTier) {
               grantLethalArmoryWeapon(npc, this.gameData.weapons, metaEffects.lethalArmoryTier);
+            }
+            if (metaEffects?.masterOfArms) {
+              grantSecondaryWeapons(npc, this.gameData.weapons, npcSpawnTier);
             }
             if (metaEffects?.recruitStartingVulnerary) {
               const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
@@ -994,6 +999,14 @@ export class HeadlessBattle {
         }
       }
     }
+    // Grant secondary weapons for multi-proficiency enemies on Hard/Lunatic
+    if (!spawn.sunderWeapon && !spawn.poisonWeapon && !spawn.siegeWeapon && !spawn.isEntity) {
+      const diffId = this.battleParams?.difficultyId;
+      if (diffId === 'hard' || diffId === 'lunatic') {
+        grantSecondaryWeapons(enemy, this.gameData.weapons, enemy.weapon?.tier || 'Iron');
+      }
+    }
+
     if (spawn.aiMode) enemy.aiMode = spawn.aiMode;
 
     const reinforcementMeta = options.reinforcementMeta || null;
