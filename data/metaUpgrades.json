@@ -1095,6 +1095,21 @@
     ]
   },
   {
+    "id": "legendary_heir",
+    "name": "Power of Friendship",
+    "description": "A third lord joins your party in Act 1 (after 3 battles)",
+    "category": "lord_bonuses",
+    "maxLevel": 4,
+    "costs": [1000, 500, 250, 750],
+    "requires": { "milestones": ["beatHard"] },
+    "effects": [
+      { "thirdLordMode": "random" },
+      { "thirdLordMode": "pick3" },
+      { "thirdLordMode": "pick3_reroll" },
+      { "thirdLordMode": "pick_all" }
+    ]
+  },
+  {
     "id": "recruit_skill",
     "name": "Skilled Recruits",
     "description": "Recruits spawn with 1 random combat skill",

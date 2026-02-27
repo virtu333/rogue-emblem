@@ -764,6 +764,7 @@ describe('Elite victory flavor (Surface 6)', () => {
       runManager: {
         completeBattle: vi.fn(() => true),
         isRunComplete: vi.fn(() => false),
+        shouldTriggerThirdLord: vi.fn(() => false),
       },
       dialogueOverlay: {
         show: vi.fn(async () => {

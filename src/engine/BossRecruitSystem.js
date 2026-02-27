@@ -562,3 +562,65 @@ function createRecruitFromPool(
     return unit;
   }
 }
+
+/**
+ * Generate third lord candidates for the Power of Friendship meta upgrade.
+ * @param {Array} roster - current roster
+ * @param {Object} gameData - { lords, classes, weapons, skills }
+ * @param {Object} metaEffects - effective meta effects (use getEffectiveMetaEffects())
+ * @param {Array} fallenUnits - units that died this run
+ * @param {string} mode - 'random'|'pick3'|'pick3_reroll'|'pick_all'
+ * @returns {{ candidates: Array, mode: string }|null} null if no lords available
+ */
+export function generateThirdLordCandidates(roster, gameData, metaEffects, fallenUnits, mode) {
+  const availLords = getAvailableLords(roster, gameData.lords, fallenUnits);
+  if (!availLords.length) return null;
+
+  const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
+    resolveRecruitScalingTargets(roster);
+
+  const buildLord = (lordDef) => {
+    const lordClassData = gameData.classes.find((c) => c.name === lordDef.class);
+    if (!lordClassData) return null;
+    const shouldPromote =
+      recruitTargetLevel >= dynamicPromotionLevel && Boolean(lordDef.promotedClass);
+    return createBossLordUnit(
+      lordDef,
+      lordClassData,
+      gameData.weapons,
+      recruitTargetLevel,
+      metaEffects,
+      {
+        promoteLord: shouldPromote,
+        classes: gameData.classes,
+        skills: gameData.skills,
+        dynamicPromotionLevel,
+        promotedLevelTarget,
+      },
+    );
+  };
+
+  let selected;
+  if (mode === 'pick_all') {
+    selected = availLords;
+  } else if (mode === 'pick3' || mode === 'pick3_reroll') {
+    const shuffled = [...availLords];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    selected = shuffled.slice(0, 3);
+  } else {
+    // 'random' — single lord
+    selected = [availLords[Math.floor(Math.random() * availLords.length)]];
+  }
+
+  const candidates = selected
+    .map((lordDef) => {
+      const unit = buildLord(lordDef);
+      return { unit: serializeUnit(unit), lordDef, isLord: true };
+    })
+    .filter((c) => c.unit);
+
+  return candidates.length ? { candidates, mode } : null;
+}

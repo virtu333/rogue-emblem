@@ -299,6 +299,8 @@ export class RunManager {
     this.noMetaMode = false;
     this.shownDialogueKeys = [];
     this._churchPromotionTracker = null; // { nodeId: string, count: number }
+    this.thirdLordJoined = false;
+    this.thirdLordRerolled = false;
   }
 
   _isValidSerializedUnit(unit) {
@@ -1768,6 +1770,28 @@ export class RunManager {
     return base;
   }
 
+  // ── Third Lord (Power of Friendship meta upgrade) ──────────────
+
+  shouldTriggerThirdLord() {
+    if (this.thirdLordJoined) return false;
+    if (!this.metaEffects?.thirdLordMode) return false;
+    if (this.completedBattles !== 3) return false;
+    return true;
+  }
+
+  canRerollThirdLord() {
+    return !this.thirdLordRerolled && this.metaEffects?.thirdLordMode === 'pick3_reroll';
+  }
+
+  consumeThirdLordReroll() {
+    this.thirdLordRerolled = true;
+  }
+
+  resolveThirdLord(unit) {
+    this.thirdLordJoined = true;
+    if (unit) this.roster.push(unit);
+  }
+
   consumeSkipFirstShop() {
     if (!this.blessingRuntimeModifiers?.skipFirstShop) return false;
     this.blessingRuntimeModifiers.skipFirstShop = false;
@@ -2981,6 +3005,8 @@ export class RunManager {
       shownDialogueKeys: this.shownDialogueKeys || [],
       churchPromotionTracker: this._churchPromotionTracker || null,
       noMetaMode: this.noMetaMode || false,
+      thirdLordJoined: this.thirdLordJoined || false,
+      thirdLordRerolled: this.thirdLordRerolled || false,
     };
   }
 
@@ -3470,6 +3496,12 @@ export class RunManager {
         ? { nodeId: rawTracker.nodeId, count: Math.max(0, Math.trunc(rawTracker.count)) }
         : null;
     rm.noMetaMode = saved.noMetaMode === true;
+    // Legacy saves without thirdLordJoined that are past battle 3
+    // default to true (already resolved) to prevent unexpected triggers
+    rm.thirdLordJoined =
+      saved.thirdLordJoined === true ||
+      (saved.thirdLordJoined === undefined && Number(saved.completedBattles || 0) >= 3);
+    rm.thirdLordRerolled = saved.thirdLordRerolled === true;
     if (!Array.isArray(saved.shownDialogueKeys)) {
       const isInProgress = Boolean(
         saved.currentNodeId ||

@@ -164,6 +164,7 @@ function makeScene() {
     canAddToConvoy: vi.fn(() => true),
     addToConvoy: vi.fn(() => true),
     getWeaponArtSpawnConfig: vi.fn(() => null),
+    shouldTriggerThirdLord: vi.fn(() => false),
   };
   scene.gameData = { weapons: [], accessories: [], consumables: [], skills: [], classes: [] };
   scene.isElite = false;

@@ -120,6 +120,7 @@ function makeScene(textCalls) {
     currentAct: 'act2',
     roster: [],
     getEffectiveMetaEffects: () => ({}),
+    shouldTriggerThirdLord: () => false,
   };
   scene.gameData = {
     classes: [

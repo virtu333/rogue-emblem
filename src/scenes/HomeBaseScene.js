@@ -796,6 +796,15 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.startingStaffTier !== undefined)
       return STARTING_STAFF_TIERS[effect.startingStaffTier] || '?';
     if (effect.unlockSkill !== undefined) return 'Unlocked';
+    if (effect.thirdLordMode !== undefined) {
+      const labels = {
+        random: 'Random lord',
+        pick3: 'Pick 1 of 3',
+        pick3_reroll: '+ Reroll',
+        pick_all: 'Pick any lord',
+      };
+      return labels[effect.thirdLordMode] || '?';
+    }
     return '?';
   }
 

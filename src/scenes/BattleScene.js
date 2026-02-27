@@ -210,6 +210,7 @@ import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { BossRecruitOverlay } from '../ui/BossRecruitOverlay.js';
+import { LordArrivalOverlay } from '../ui/LordArrivalOverlay.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
@@ -10174,7 +10175,11 @@ export class BattleScene extends Phaser.Scene {
             } catch (_) {}
             if (!this.scene?.isActive?.()) return;
           }
-          this.showLootScreen();
+          if (this.runManager.shouldTriggerThirdLord()) {
+            this._showThirdLordArrival();
+          } else {
+            this.showLootScreen();
+          }
         }
       });
     } else {
@@ -10327,6 +10332,23 @@ export class BattleScene extends Phaser.Scene {
       if (selectedUnit) this.runManager.roster.push(selectedUnit);
       this.lootGroup = null;
       this._bossRecruitOverlay = null;
+      if (this.runManager.shouldTriggerThirdLord()) {
+        this._showThirdLordArrival();
+      } else {
+        this.showLootScreen();
+      }
+    });
+  }
+
+  /** Show third lord arrival overlay (Power of Friendship meta upgrade). */
+  _showThirdLordArrival() {
+    const overlay = new LordArrivalOverlay(this, this.runManager, this.gameData);
+    this._lordArrivalOverlay = overlay;
+    this.lootGroup = overlay.displayObjects;
+    overlay.show((selectedUnit) => {
+      this.runManager.resolveThirdLord(selectedUnit);
+      this.lootGroup = null;
+      this._lordArrivalOverlay = null;
       this.showLootScreen();
     });
   }

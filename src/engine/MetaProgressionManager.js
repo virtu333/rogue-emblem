@@ -432,6 +432,7 @@ export class MetaProgressionManager {
       startingStaffTier: 0,
       startingReclassSeal: 0,
       extraSkillSlot: 0,
+      thirdLordMode: null,
       startingSkills: {},
       metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
     };
@@ -532,6 +533,7 @@ export class MetaProgressionManager {
       if (effect.startingReclassSeal !== undefined)
         effects.startingReclassSeal = effect.startingReclassSeal;
       if (effect.extraSkillSlot !== undefined) effects.extraSkillSlot = effect.extraSkillSlot;
+      if (effect.thirdLordMode !== undefined) effects.thirdLordMode = effect.thirdLordMode;
     }
 
     // Trim startingSkills per lord to available slot count
