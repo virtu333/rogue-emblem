@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 2226 tests across 136 files on `main` baseline (Feb 18, 2026). Deployed to Netlify with Supabase auth + cloud saves. 58 meta upgrades across 6 categories, 106 weapons, 42 skills (7 trigger types), 17 accessories, 38 classes (19 base + 19 promoted, including Wyvern), 12 terrain types, 12 map templates (6 rout + 6 seize), 75 weapon arts configured (60 shipped mechanics + 15 deferred placeholders), 12 enemy affixes, 23 blessings, 12 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 3427 tests across 176 files on `main` baseline (Feb 27, 2026). Deployed to Netlify with Supabase auth + cloud saves. 60 meta upgrades across 6 categories, 113 weapons, 52 skills (7 trigger types), 29 accessories (10 stat + 19 combat), 52 classes (21 base + 30 promoted, including Wyvern, Zombie/Dragon/Entity), 15 terrain types (includes indoor + ballista), 16 map templates (8 rout + 8 seize, 4 biomes), 75 weapon arts, 12 enemy affixes, 23 blessings, 15 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast, colosseum mercenary arena, entity multi-tile boss, ballista siege weapons, castle biome, recruit promotion, BattleScene decomposition (5 extracted controllers), narrative flavor surfaces. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -21,9 +21,16 @@ Organized by impact and logical sequencing:
 6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - now advanced to 60 arts with shipped mechanics; 15 deferred-placeholder arts remain in the 75-art catalog
 6e. ~~**Scene-Router + transition hardening**~~ - SceneRouter, SceneGuard, cleanup audits, leak-gate e2e
 7. ~~**Act 4 Hard-Mode Acceleration**~~ - All 4 phases shipped (contract alignment, terrain hazards, Act 4 progression, reinforcement system). See `docs/act4-hardmode-rollout-plan.md`.
+8. ~~**Recruit Promotion + Castle Biome**~~ - Context-aware recruit promotion at recruit/boss nodes, indoor terrain (Floor/Pillar/Ballista), 3 castle templates, biome selection logic
+9. ~~**Colosseum Mercenary Arena**~~ - New node type with merc generation, promotion scaling, arena ladder, overlay UI
+10. ~~**Entity Multi-Tile Boss**~~ - 3x3 footprint eldritch boss for Lunatic, splash damage, dual weapons, crit resistance
+11. ~~**Ballista Siege Weapons + Zombie Revival**~~ - Mountable ballistas, zombie revival mechanic, dragon breath cone AoE, castle tileset art
+12. ~~**Narrative Scaffolding**~~ - 6 flavor surfaces across combat/loot/recruit/shop/church/boss events
+13. ~~**BattleScene Decomposition**~~ - Extracted 5 controllers (VisionRewindController, ForecastOverlay, DeployScreenOverlay, BossRecruitOverlay, LootScreenController), ~3,600 lines moved out
+14. ~~**P0 Hardening + Playtest Fixes**~~ - Abandon Run freeze, Colosseum overlay flow, class innate protection, UI overflow fixes
 
 ### Now (Current Sprint)
-_Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part B+), or content tuning._
+_Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part B+), content tuning, or further BattleScene decomposition._
 
 ### Next (1-3 Months)
 9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency. Natural follow-on after Act 4 extends the run length.
