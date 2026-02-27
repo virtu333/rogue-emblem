@@ -213,6 +213,7 @@ import { BossRecruitOverlay } from '../ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
+import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
   TOOLTIP_HOVER_DELAY_MS,
@@ -237,16 +238,6 @@ function dimColor(color, factor = 0.3) {
   const g = Math.floor(((color >> 8) & 0xff) * factor);
   const b = Math.floor((color & 0xff) * factor);
   return (r << 16) | (g << 8) | b;
-}
-
-function hashRewindSeed(seed, rewindCount) {
-  const input = `${seed >>> 0}:${Math.max(0, rewindCount | 0)}`;
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
 }
 
 const HIDDEN_WEAPON_ART_REASONS = new Set([
@@ -417,6 +408,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this.hideForecast();
+    this.closeVisionDialog();
 
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
@@ -1677,23 +1669,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   initializeVisionState() {
-    if (this.runManager) {
-      const baseSeed = Number.isFinite(this.runManager.rngSeed)
-        ? this.runManager.rngSeed >>> 0
-        : this.deriveBattleSeed() >>> 0;
-      this.runManager.rngSeed = baseSeed;
-      this.visionBaseSeed = baseSeed;
-      if (!Number.isFinite(this.runManager.visionChargesRemaining)) {
-        const getBaseVisionCharges = this.runManager.getBaseVisionCharges;
-        this.runManager.visionChargesRemaining =
-          typeof getBaseVisionCharges === 'function'
-            ? getBaseVisionCharges.call(this.runManager)
-            : 1;
-      }
-      if (!Number.isFinite(this.runManager.visionCount)) this.runManager.visionCount = 0;
-    } else {
-      this.visionBaseSeed = this.deriveBattleSeed() >>> 0;
-    }
+    this._visionController = new VisionRewindController(this, this.runManager);
+    this._visionController.initialize();
   }
 
   getEnemyDifficultyConfig() {
@@ -2143,392 +2120,91 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getVisionChargesRemaining() {
-    if (!this.runManager) return 0;
-    return Math.max(0, Math.trunc(this.runManager.visionChargesRemaining || 0));
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).getChargesRemaining();
   }
 
+  // ── Vision Rewind shims (delegated to VisionRewindController) ──
+
   captureVisionSnapshot() {
-    const stripVisuals = (unit) => {
-      const serialized = serializeUnit(unit);
-      try {
-        return structuredClone(serialized);
-      } catch (err) {
-        // Fallback for rare DataCloneError cases (e.g. non-serializable runtime fields).
-        try {
-          return JSON.parse(JSON.stringify(serialized));
-        } catch {
-          const minimal = {
-            name: serialized.name,
-            className: serialized.className,
-            faction: serialized.faction,
-            level: serialized.level,
-            xp: serialized.xp,
-            stats: serialized.stats,
-            growths: serialized.growths,
-            currentHP: serialized.currentHP,
-            col: serialized.col,
-            row: serialized.row,
-            hasMoved: Boolean(serialized.hasMoved),
-            hasActed: Boolean(serialized.hasActed),
-            weapon: serialized.weapon || null,
-            inventory: Array.isArray(serialized.inventory) ? serialized.inventory : [],
-            consumables: Array.isArray(serialized.consumables) ? serialized.consumables : [],
-            skills: Array.isArray(serialized.skills) ? serialized.skills : [],
-            proficiencies: Array.isArray(serialized.proficiencies) ? serialized.proficiencies : [],
-            accessory: serialized.accessory || null,
-            isLord: Boolean(serialized.isLord),
-            isBoss: Boolean(serialized.isBoss),
-            _miracleUsed: Boolean(serialized._miracleUsed),
-            _gambitUsedThisTurn: Boolean(serialized._gambitUsedThisTurn),
-          };
-          console.warn(
-            'Vision snapshot used minimal fallback clone for unit:',
-            serialized?.name,
-            err,
-          );
-          return minimal;
-        }
-      }
-    };
-    const fog = this.grid?.fogEnabled
-      ? {
-          visible: [...(this.grid.visibleSet || new Set())],
-          everSeen: [...(this.grid.everSeenSet || new Set())],
-        }
-      : null;
-    const snapshot = {
-      playerUnits: this.playerUnits.map(stripVisuals),
-      enemyUnits: this.enemyUnits.map(stripVisuals),
-      npcUnits: this.npcUnits.map(stripVisuals),
-      turnNumber: this.turnManager?.turnNumber || 1,
-      phase: this.turnManager?.currentPhase || 'player',
-      objectiveText: this.objectiveText?.text || '',
-      antiTurtleState: structuredClone(this.antiTurtleState || {}),
-      rngSeed: Number.isFinite(this.runManager?.rngSeed)
-        ? this.runManager.rngSeed >>> 0
-        : this.visionBaseSeed >>> 0,
-      fog,
-      ballistas: this.ballistas?.map((b) => ({ ...b })) || [],
-      zombieTombstones: structuredClone(this._zombieTombstones || []),
-    };
-    if (!this.visionSnapshot) {
-      this.visionSnapshot = snapshot;
-      this.pendingVisionSnapshot = null;
-    } else {
-      this.pendingVisionSnapshot = snapshot;
-    }
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).captureSnapshot();
   }
 
   activatePendingVisionSnapshot() {
-    if (!this.pendingVisionSnapshot) return;
-    this.visionSnapshot = this.pendingVisionSnapshot;
-    this.pendingVisionSnapshot = null;
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    ))._activatePendingSnapshot();
   }
 
   commitVisionSnapshotIfPending() {
-    if (this.turnManager?.currentPhase !== 'player') return false;
-    if (!this.pendingVisionSnapshot) return false;
-    this.activatePendingVisionSnapshot();
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).commitSnapshotIfPending();
   }
 
   applyVisionSnapshot() {
-    if (!this.visionSnapshot) return false;
-    const restoreUnits = (targetArr, sourceUnits) => {
-      for (const unit of targetArr) this.removeUnitGraphic(unit);
-      targetArr.length = 0;
-      for (const unitData of sourceUnits) {
-        const unit = structuredClone(unitData);
-        targetArr.push(unit);
-        this.addUnitGraphic(unit);
-        // TODO: rehydrate condition icons from unit._conditions (same gap as affix pips)
-      }
-    };
-
-    restoreUnits(this.playerUnits, this.visionSnapshot.playerUnits);
-    restoreUnits(this.enemyUnits, this.visionSnapshot.enemyUnits);
-    restoreUnits(this.npcUnits, this.visionSnapshot.npcUnits);
-
-    this.selectedUnit = null;
-    this.preMoveLoc = null;
-    this._preFogSnapshot = null;
-    this.movementRange = null;
-    this.unitPositions = null;
-    this.attackTargets = [];
-    this.healTargets = [];
-    this.shoveTargets = [];
-    this.pullTargets = [];
-    this.tradeTargets = [];
-    this.swapTargets = [];
-    this.danceTargets = [];
-    this.tradeMutatedThisSession = false;
-    this.hideActionMenu();
-    this.hideForecast();
-    this.cleanupTradeUI();
-    this.grid.clearHighlights();
-    this.grid.clearAttackHighlights();
-    this.grid.clearPath();
-    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
-    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-
-    this.turnManager.currentPhase = this.visionSnapshot.phase;
-    this.turnManager.turnNumber = this.visionSnapshot.turnNumber;
-    this.battleState = 'PLAYER_IDLE';
-    this.antiTurtleState = structuredClone(
-      this.visionSnapshot.antiTurtleState || {
-        noProgressTurns: 0,
-        aggressiveMode: false,
-        turnEnrageActive: false,
-        bestEnemyCount: this.enemyUnits.length,
-        bestLordThroneDistance: this.getBestLordThroneDistance(),
-      },
-    );
-    this.aiController?.setAggressiveMode?.(Boolean(this.antiTurtleState.aggressiveMode));
-
-    if (this.grid.fogEnabled) {
-      const fog = this.visionSnapshot.fog || { visible: [], everSeen: [] };
-      this.grid.visibleSet = new Set(fog.visible || []);
-      this.grid.everSeenSet = new Set(fog.everSeen || []);
-      for (let row = 0; row < this.grid.rows; row++) {
-        for (let col = 0; col < this.grid.cols; col++) {
-          const key = `${col},${row}`;
-          const overlay = this.grid.fogOverlays[row]?.[col];
-          if (!overlay) continue;
-          if (this.grid.visibleSet.has(key)) overlay.setAlpha(0);
-          else if (this.grid.everSeenSet.has(key)) overlay.setAlpha(0.3);
-          else overlay.setAlpha(0.7);
-        }
-      }
-      this.updateEnemyVisibility();
-    }
-
-    this.ballistas = (this.visionSnapshot.ballistas || []).map((b) => ({ ...b }));
-    this._zombieTombstones = structuredClone(this.visionSnapshot.zombieTombstones || []);
-
-    const sourceSeed = Number.isFinite(this.visionSnapshot.rngSeed)
-      ? this.visionSnapshot.rngSeed >>> 0
-      : this.visionBaseSeed >>> 0;
-    const rewindCount = this.runManager ? this.runManager.visionCount : 0;
-    const reseed = hashRewindSeed(sourceSeed, rewindCount);
-    this.reseedBattleRng(reseed);
-
-    this.updateObjectiveText();
-    if (this.turnCounterText && this.turnPar !== null) {
-      const rating = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
-      const colors = { S: '#44ff44', A: '#88ccff', B: '#ffaa55', C: '#cc3333' };
-      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
-      this.turnCounterText.setText(
-        `Turn: ${this.turnManager.turnNumber} / Par: ${this.turnPar} (${rating.rating})${pressureSuffix}`,
-      );
-      this.turnCounterText.setColor(colors[rating.rating] || '#e0e0e0');
-    } else if (this.turnCounterText) {
-      const pressureSuffix = this.getTurnPressureSummary(this.turnManager.turnNumber);
-      this.turnCounterText.setText(`Turn: ${this.turnManager.turnNumber}${pressureSuffix}`);
-      this.turnCounterText.setColor('#e0e0e0');
-    }
-    this.updateVisionHud();
-    this.refreshEndTurnControl();
-    this.playVisionRewindEffect();
-    // Re-assert current music to trigger orphan scanner (no-op when clean)
-    const audio = this.registry.get('audio');
-    if (audio && audio.currentMusicKey) {
-      audio.playMusic(audio.currentMusicKey, this, 0);
-    }
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    ))._applySnapshot();
   }
 
   playVisionRewindEffect() {
-    const flash = this.add
-      .rectangle(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY,
-        this.cameras.main.width,
-        this.cameras.main.height,
-        0xa8f2ff,
-        0,
-      )
-      .setDepth(950);
-    this._pinToScreen(flash);
-    this.tweens.add({
-      targets: flash,
-      alpha: 0.22,
-      duration: 140,
-      yoyo: true,
-      onComplete: () => flash.destroy(),
-    });
+    (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).playRewindEffect();
   }
 
   canUseVisionNow() {
-    const allowedStates = new Set([
-      'PLAYER_IDLE',
-      'UNIT_SELECTED',
-      'UNIT_ACTION_MENU',
-      'SHOWING_FORECAST',
-      'SELECTING_TARGET',
-      'SELECTING_HEAL_TARGET',
-      'SELECTING_CURE_TARGET',
-      'SELECTING_SHOVE_TARGET',
-      'SELECTING_PULL_TARGET',
-      'SELECTING_TRADE_TARGET',
-      'SELECTING_SWAP_TARGET',
-      'SELECTING_DANCE_TARGET',
-      'TRADING',
-      'CANTO_MOVING',
-    ]);
-    return (
-      this.turnManager?.currentPhase === 'player' &&
-      allowedStates.has(this.battleState) &&
-      !this.pauseOverlay?.visible &&
-      !this.visionDialog &&
-      this.getVisionChargesRemaining() > 0 &&
-      !!this.visionSnapshot
-    );
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).canUseNow();
   }
 
   requestVisionRewind({ force = false } = {}) {
-    if (this.isStoryInputLocked()) return false;
-    if (!force && !this.canUseVisionNow()) return false;
-    if (!this.visionSnapshot) return false;
-    const remaining = this.getVisionChargesRemaining();
-    if (remaining <= 0) return false;
-
-    this.showVisionDialog({
-      title: 'Foresee a different path?',
-      body: `Spend 1 Vision to rewind this turn?\n(${remaining} remaining)`,
-      confirmLabel: 'Confirm',
-      cancelLabel: 'Cancel',
-      onConfirm: () => this.executeVisionRewind(),
-      onCancel: () => {},
-    });
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).requestRewind({ force });
   }
 
   showLordDeathVisionPrompt() {
-    const remaining = this.getVisionChargesRemaining();
-    if (remaining <= 0 || !this.visionSnapshot) return false;
-    this.showVisionDialog({
-      title: "Sera's vision fractures!",
-      body: `Reveal another path?\n(${remaining} remaining)`,
-      confirmLabel: 'Rewind',
-      cancelLabel: 'Accept Fate',
-      onConfirm: () => this.executeVisionRewind(),
-      onCancel: () => this.onDefeat(),
-      accent: 0xcc6666,
-    });
-    return true;
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).showLordDeathPrompt();
   }
 
-  showVisionDialog({
-    title,
-    body,
-    confirmLabel,
-    cancelLabel,
-    onConfirm,
-    onCancel,
-    accent = 0x66aacc,
-  }) {
-    if (this.visionDialog) this.closeVisionDialog();
-    this.battleState = 'PAUSED';
-    const group = [];
-    const cx = this.cameras.main.centerX;
-    const cy = this.cameras.main.centerY;
-
-    const blocker = this.add
-      .rectangle(cx, cy, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75)
-      .setDepth(900)
-      .setInteractive();
-    group.push(blocker);
-    const panel = this.add
-      .rectangle(cx, cy, 340, 170, 0x121a2a, 0.96)
-      .setDepth(901)
-      .setStrokeStyle(2, accent, 1);
-    group.push(panel);
-    const titleText = this.add
-      .text(cx, cy - 54, title, {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffdd88',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(902);
-    group.push(titleText);
-    const bodyText = this.add
-      .text(cx, cy - 14, body, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#d0d7e8',
-        align: 'center',
-      })
-      .setOrigin(0.5)
-      .setDepth(902);
-    group.push(bodyText);
-    const makeButton = (x, y, label, color, callback) => {
-      const btn = this.add
-        .text(x, y, label, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-          backgroundColor: '#223044',
-          padding: { x: 10, y: 5 },
-        })
-        .setOrigin(0.5)
-        .setDepth(902)
-        .setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        this._uiClickBlocked = true;
-        callback();
-      });
-      group.push(btn);
-    };
-    makeButton(cx - 74, cy + 52, `[ ${confirmLabel} ]`, '#a6ffb0', () => {
-      this.confirmVisionDialog();
-    });
-    makeButton(cx + 74, cy + 52, `[ ${cancelLabel} ]`, '#e0e0e0', () => {
-      this.cancelVisionDialog();
-    });
-    this._pinToScreen(group);
-
-    this.visionDialog = {
-      group,
-      prevState: this.prePauseState || 'PLAYER_IDLE',
-      onConfirm,
-      onCancel,
-    };
+  showVisionDialog(opts) {
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).showDialog(opts);
   }
 
   confirmVisionDialog() {
-    if (!this.visionDialog) return;
-    const onConfirm = this.visionDialog.onConfirm;
-    this.closeVisionDialog();
-    onConfirm?.();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).confirmDialog();
   }
 
   cancelVisionDialog() {
-    if (!this.visionDialog) return;
-    const onCancel = this.visionDialog.onCancel;
-    this.closeVisionDialog();
-    onCancel?.();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).cancelDialog();
   }
 
   closeVisionDialog() {
-    if (!this.visionDialog) return;
-    for (const obj of this.visionDialog.group) obj.destroy();
-    this.visionDialog = null;
-    this.battleState = 'PLAYER_IDLE';
-    this.refreshEndTurnControl();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).closeDialog();
   }
 
   executeVisionRewind() {
-    if (!this.visionSnapshot || !this.runManager) return false;
-    if (this.runManager.visionChargesRemaining <= 0) return false;
-    this.runManager.visionChargesRemaining -= 1;
-    this.runManager.visionCount = Math.max(0, (this.runManager.visionCount || 0) + 1);
-    this.pendingVisionSnapshot = null;
-    return this.applyVisionSnapshot();
+    return (this._visionController ||= new VisionRewindController(
+      this,
+      this.runManager,
+    )).executeRewind();
   }
 
   initializeAntiTurtleState() {
@@ -3237,11 +2913,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   updateVisionHud() {
-    if (!this.visionHudText) return;
-    const charges = this.getVisionChargesRemaining();
-    this.visionHudText.setText(`Eye: ${charges} (rewind current turn)`);
-    this.visionHudText.setColor(charges > 0 ? '#9ed8ff' : '#777777');
-    this.updateTopLeftHudLayout();
+    (this._visionController ||= new VisionRewindController(this, this.runManager)).updateHud();
   }
 
   update() {

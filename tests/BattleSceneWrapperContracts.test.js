@@ -33,6 +33,7 @@ import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
+import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -718,6 +719,117 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(overlay._closed).toBe(true);
       expect(scene._deployOverlay).toBeNull();
+    });
+  });
+
+  // ── Vision Rewind shims ─────────────────────────────────
+
+  describe('Vision Rewind shims', () => {
+    function makeVisionScene() {
+      const scene = makeScene();
+      scene.turnManager = { currentPhase: 'player', turnNumber: 1 };
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.grid = {
+        fogEnabled: false,
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+        clearPath: vi.fn(),
+      };
+      scene.hideActionMenu = vi.fn();
+      scene.cleanupTradeUI = vi.fn();
+      scene.reseedBattleRng = vi.fn();
+      scene.updateObjectiveText = vi.fn();
+      scene.refreshEndTurnControl = vi.fn();
+      scene.updateTopLeftHudLayout = vi.fn();
+      scene.getTurnPressureSummary = vi.fn(() => '');
+      scene.getBestLordThroneDistance = vi.fn(() => 5);
+      scene.tweens = { add: vi.fn() };
+      scene.deriveBattleSeed = vi.fn(() => 42);
+      scene.isStoryInputLocked = vi.fn(() => false);
+      scene.removeUnitGraphic = vi.fn();
+      scene.addUnitGraphic = vi.fn();
+      scene.antiTurtleState = {};
+      scene.ballistas = [];
+      scene._zombieTombstones = [];
+      scene.inspectionPanel = null;
+      scene.unitDetailOverlay = null;
+      scene.pauseOverlay = null;
+      scene.objectiveText = null;
+      scene.turnPar = null;
+      scene.turnBonusConfig = null;
+      scene.turnCounterText = null;
+      scene.visionHudText = null;
+      return scene;
+    }
+
+    it('captureVisionSnapshot delegates to controller', () => {
+      const scene = makeVisionScene();
+      scene.playerUnits = [{ name: 'A', stats: {}, currentHP: 10, skills: [], col: 0, row: 0 }];
+      BattleScene.prototype.captureVisionSnapshot.call(scene);
+      expect(scene.visionSnapshot).not.toBeNull();
+      expect(scene._visionController).toBeInstanceOf(VisionRewindController);
+    });
+
+    it('commitVisionSnapshotIfPending delegates to controller', () => {
+      const scene = makeVisionScene();
+      scene.pendingVisionSnapshot = { id: 'pending' };
+      scene.visionSnapshot = { id: 'old' };
+      const result = BattleScene.prototype.commitVisionSnapshotIfPending.call(scene);
+      expect(result).toBe(true);
+      expect(scene.visionSnapshot).toEqual({ id: 'pending' });
+    });
+
+    it('requestVisionRewind delegates to controller and returns boolean', () => {
+      const scene = makeVisionScene();
+      scene.visionSnapshot = { id: 'snap' };
+      scene.runManager = {
+        ...scene.runManager,
+        visionChargesRemaining: 2,
+        visionCount: 0,
+      };
+      scene.battleState = 'PLAYER_IDLE';
+      const result = BattleScene.prototype.requestVisionRewind.call(scene);
+      expect(result).toBe(true);
+      expect(scene.visionDialog).not.toBeNull();
+    });
+
+    it('cancelVisionDialog delegates to controller', () => {
+      const scene = makeVisionScene();
+      const obj = makeDisplayObject();
+      const destroySpy = vi.spyOn(obj, 'destroy');
+      scene.visionDialog = {
+        group: [obj],
+        prevState: 'PLAYER_IDLE',
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      };
+      BattleScene.prototype.cancelVisionDialog.call(scene);
+      expect(scene.visionDialog).toBeNull();
+      expect(destroySpy).toHaveBeenCalled();
+    });
+
+    it('scene shutdown calls closeVisionDialog (dialog leak fix)', () => {
+      const scene = makeVisionScene();
+      const obj = makeDisplayObject();
+      const destroySpy = vi.spyOn(obj, 'destroy');
+      scene.visionDialog = {
+        group: [obj],
+        prevState: 'PLAYER_IDLE',
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      };
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+      expect(scene.visionDialog).toBeNull();
+      expect(destroySpy).toHaveBeenCalled();
+    });
+
+    it('getVisionChargesRemaining returns number via controller', () => {
+      const scene = makeVisionScene();
+      scene.runManager = { ...scene.runManager, visionChargesRemaining: 5 };
+      const result = BattleScene.prototype.getVisionChargesRemaining.call(scene);
+      expect(result).toBe(5);
     });
   });
 });
