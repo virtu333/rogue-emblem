@@ -31,6 +31,7 @@ vi.mock('../src/engine/LootSystem.js', async () => {
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
+import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -506,6 +507,152 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(destroySpy).toHaveBeenCalled();
       expect(scene.lootGroup).toBeNull();
+    });
+  });
+
+  // ── Forecast shim contracts ──────────────────────────────────
+
+  describe('showForecast / hideForecast shim', () => {
+    function makeForecastScene() {
+      const scene = makeScene();
+      // Mock methods needed by showForecast orchestration
+      scene._clearSelectedWeaponArtIfInvalid = vi.fn();
+      scene._prepareCombatContext = vi.fn(() => ({
+        dist: 1,
+        atkTerrain: { name: 'Plain' },
+        defTerrain: { name: 'Plain' },
+        selectedArt: null,
+        rollSession: {},
+      }));
+      scene._resolveSelectedWeaponArtEntry = vi.fn(() => null);
+      scene.ensureValidWeaponForRange = vi.fn();
+      scene._buildForecastSkillCtx = vi.fn(() => ({
+        atkMods: {},
+        defMods: {},
+        rollStrikeSkills: vi.fn(() => ({})),
+        rollDefenseSkills: vi.fn(() => ({})),
+        checkAstra: vi.fn(() => false),
+        skillsData: [],
+      }));
+      scene._getGamblerAtkDelta = vi.fn(() => 0);
+      scene._isDistanceInWeaponRange = vi.fn(() => true);
+      scene._getSelectedWeaponArtForUnit = vi.fn(() => null);
+      scene._getPortraitKey = vi.fn(() => null);
+      scene._getWeaponArtHpAfterCost = vi.fn(() => 15);
+      scene._formatWeaponArtCostLabel = vi.fn(() => '5');
+      scene.textures = { exists: vi.fn(() => false) };
+      scene.isStoryInputLocked = vi.fn(() => false);
+      scene.battleParams = {};
+      const ironSword = {
+        name: 'Iron Sword',
+        type: 'Sword',
+        might: 5,
+        hit: 90,
+        crit: 0,
+        weight: 5,
+        rankRequired: 'Prof',
+      };
+      scene.selectedUnit = {
+        name: 'Edric',
+        className: 'Lord',
+        currentHP: 20,
+        stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 7, DEF: 5, RES: 3, LCK: 5 },
+        weapon: ironSword,
+        weapons: [ironSword],
+        inventory: [ironSword],
+        proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        skills: [],
+        faction: 'player',
+        col: 2,
+        row: 2,
+      };
+      // Add graphics mock for divider
+      scene.add.graphics = () => {
+        const g = makeDisplayObject();
+        g.fillStyle = vi.fn();
+        g.fillRect = vi.fn();
+        g.lineStyle = vi.fn();
+        g.lineBetween = vi.fn();
+        return g;
+      };
+      scene.add.image = (x, y, key) => makeDisplayObject({ x, y, textureKey: key });
+      return scene;
+    }
+
+    it('showForecast creates _forecastOverlay and calls render()', async () => {
+      const scene = makeForecastScene();
+      const attacker = scene.selectedUnit;
+      const defender = {
+        name: 'Fighter',
+        className: 'Fighter',
+        currentHP: 18,
+        stats: { HP: 18, STR: 6, MAG: 0, SKL: 4, SPD: 5, DEF: 3, RES: 1, LCK: 3 },
+        weapon: { name: 'Iron Axe', type: 'Axe', might: 8, hit: 75, crit: 0, weight: 8 },
+        skills: [],
+        faction: 'enemy',
+        col: 3,
+        row: 2,
+      };
+
+      await BattleScene.prototype.showForecast.call(scene, attacker, defender);
+
+      expect(scene._forecastOverlay).toBeInstanceOf(ForecastOverlay);
+      expect(scene.forecastObjects).toBe(scene._forecastOverlay.displayObjects);
+      expect(scene.forecastObjects.length).toBeGreaterThan(0);
+    });
+
+    it('hideForecast calls overlay destroy() and nulls _forecastOverlay reference', () => {
+      const scene = makeForecastScene();
+      const mockOverlay = { destroy: vi.fn(), displayObjects: [makeDisplayObject()] };
+      scene._forecastOverlay = mockOverlay;
+      scene.forecastObjects = mockOverlay.displayObjects;
+      scene.forecastTarget = { name: 'Enemy' };
+      scene._forecastValidWeapons = [{}];
+      scene._forecastWeaponArt = {};
+      scene._forecastGamblerLine = 'test';
+
+      BattleScene.prototype.hideForecast.call(scene);
+
+      expect(mockOverlay.destroy).toHaveBeenCalledTimes(1);
+      expect(scene._forecastOverlay).toBeNull();
+    });
+
+    it('hideForecast clears all forecast state fields', () => {
+      const scene = makeForecastScene();
+      scene._forecastOverlay = { destroy: vi.fn(), displayObjects: [] };
+      scene.forecastObjects = [];
+      scene.forecastTarget = { name: 'Enemy' };
+      scene._forecastValidWeapons = [{}];
+      scene._forecastWeaponArt = { name: 'Art' };
+      scene._forecastGamblerLine = 'GAMBLER: ATK +2 (locked)';
+
+      BattleScene.prototype.hideForecast.call(scene);
+
+      expect(scene.forecastObjects).toBeNull();
+      expect(scene.forecastTarget).toBeNull();
+      expect(scene._forecastValidWeapons).toBeNull();
+      expect(scene._forecastWeaponArt).toBeNull();
+      expect(scene._forecastGamblerLine).toBeNull();
+    });
+
+    it('scene shutdown calls hideForecast(), clearing all forecast state', () => {
+      const scene = makeForecastScene();
+      const mockOverlay = { destroy: vi.fn(), displayObjects: [makeDisplayObject()] };
+      scene._forecastOverlay = mockOverlay;
+      scene.forecastObjects = mockOverlay.displayObjects;
+      scene.forecastTarget = { name: 'Enemy' };
+      scene._forecastValidWeapons = [{}];
+      scene._forecastWeaponArt = {};
+      scene._forecastGamblerLine = 'test';
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(mockOverlay.destroy).toHaveBeenCalledTimes(1);
+      expect(scene._forecastOverlay).toBeNull();
+      expect(scene.forecastTarget).toBeNull();
+      expect(scene._forecastValidWeapons).toBeNull();
+      expect(scene._forecastWeaponArt).toBeNull();
+      expect(scene._forecastGamblerLine).toBeNull();
     });
   });
 
