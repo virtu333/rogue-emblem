@@ -210,6 +210,7 @@ import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { BossRecruitOverlay } from '../ui/BossRecruitOverlay.js';
+import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
@@ -408,6 +409,11 @@ export class BattleScene extends Phaser.Scene {
       this._lootCleanupTimeout = null;
     }
     this._unbindGameplayKeyboardHandlers();
+
+    if (this._deployOverlay) {
+      this._deployOverlay._cleanup();
+      this._deployOverlay = null;
+    }
 
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
@@ -2643,420 +2649,9 @@ export class BattleScene extends Phaser.Scene {
 
   showDeployScreen(roster, limits, onConfirm, initialSelectedNames = null) {
     this.battleState = 'DEPLOY_SELECTION';
-    const cam = this.cameras.main;
-    const deployGroup = [];
-    let deployOverlayClosed = false;
-    let detachDeployInputHandlers = null;
-
-    // Dark overlay
-    const overlay = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
-      .setDepth(700)
-      .setInteractive();
-    deployGroup.push(overlay);
-
-    // Title
-    const title = this.add
-      .text(cam.centerX, 28, 'DEPLOY UNITS', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    deployGroup.push(title);
-
-    const cleanupDeployOverlay = () => {
-      if (deployOverlayClosed) return;
-      deployOverlayClosed = true;
-      if (typeof detachDeployInputHandlers === 'function') {
-        try {
-          detachDeployInputHandlers();
-        } catch {
-          // Ignore handler teardown failures during overlay close.
-        }
-        detachDeployInputHandlers = null;
-      }
-      for (const obj of deployGroup) {
-        try {
-          obj.destroy();
-        } catch {
-          // Ignore teardown failures from already-destroyed display objects.
-        }
-      }
-      deployGroup.length = 0;
-    };
-
-    // Track selections
-    const selected = new Set();
-    const rowObjects = [];
-    let scrollOffset = 0;
-
-    const serializeSelectedUnitNames = () => {
-      const names = new Set();
-      for (const idx of selected) {
-        const name = roster[idx]?.name;
-        if (typeof name === 'string' && name.length > 0) names.add(name);
-      }
-      return names;
-    };
-
-    const restoreSelectedUnitNames = (selectedNames) => {
-      if (!(selectedNames instanceof Set) || selectedNames.size <= 0) return;
-      for (let i = 0; i < roster.length; i++) {
-        if (selected.size >= limits.max) break;
-        const unitName = roster[i]?.name;
-        if (!unitName || unitName === 'Edric') continue;
-        if (selectedNames.has(unitName)) selected.add(i);
-      }
-    };
-
-    // Auto-select Edric (locked)
-    const edricIdx = roster.findIndex((u) => u.name === 'Edric');
-    if (edricIdx !== -1) selected.add(edricIdx);
-    restoreSelectedUnitNames(initialSelectedNames);
-
-    // Counter text
-    const counterText = this.add
-      .text(cam.centerX, 52, '', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(701);
-    deployGroup.push(counterText);
-
-    const updateCounter = () => {
-      counterText.setText(`${selected.size} / ${limits.max}`);
-      // Update confirm button state
-      const canConfirm = selected.size >= limits.min && selected.size <= limits.max;
-      confirmText.setColor(canConfirm ? '#44ff44' : '#666666');
-    };
-
-    // Roster list
-    const rowHeight = 34;
-    const startY = 100;
-    const listWidth = 400;
-    const confirmY = cam.height - 54;
-    const listBottomY = confirmY - 28;
-    const maxVisibleRows = Math.max(1, Math.floor((listBottomY - startY) / rowHeight) + 1);
-    const maxScrollOffset = Math.max(0, roster.length - maxVisibleRows);
-    const canScrollRows = maxScrollOffset > 0;
-    const listLeft = cam.centerX - listWidth / 2;
-    const listRight = cam.centerX + listWidth / 2;
-    const rowTopBound = startY - rowHeight / 2;
-    const rowBottomBound = listBottomY + rowHeight / 2;
-
-    for (let i = 0; i < roster.length; i++) {
-      const unit = roster[i];
-      const ry = startY + i * rowHeight;
-      const isEdric = unit.name === 'Edric';
-
-      // Row background
-      const rowBg = this.add
-        .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
-        .setDepth(701)
-        .setInteractive({ useHandCursor: !isEdric });
-      deployGroup.push(rowBg);
-
-      // Checkbox
-      const checkText = this.add
-        .text(cam.centerX - listWidth / 2 + 16, ry, '', {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5)
-        .setDepth(702);
-      deployGroup.push(checkText);
-
-      // Unit info
-      const lvl = getDisplayLevel(unit);
-      const cls = unit.className || '';
-      const hp =
-        unit.currentHP !== undefined ? `${unit.currentHP}/${unit.stats.HP}` : `${unit.stats.HP}`;
-      const infoStr = `${unit.name}  Lv${lvl} ${cls}  HP ${hp}`;
-      const infoText = this.add
-        .text(cam.centerX - listWidth / 2 + 40, ry, infoStr, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#e0e0e0',
-        })
-        .setOrigin(0, 0.5)
-        .setDepth(702);
-      deployGroup.push(infoText);
-
-      // Lock label for Edric
-      let lockLabel = null;
-      if (isEdric) {
-        lockLabel = this.add
-          .text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#ffaa44',
-          })
-          .setOrigin(1, 0.5)
-          .setDepth(702);
-        deployGroup.push(lockLabel);
-      }
-
-      const updateRow = () => {
-        const isSel = selected.has(i);
-        checkText.setText(isSel ? '[X]' : '[ ]');
-        rowBg.setFillStyle(isSel ? 0x334466 : 0x222244, 0.8);
-        infoText.setColor(isSel ? '#ffffff' : '#999999');
-      };
-
-      rowObjects.push({
-        index: i,
-        isEdric,
-        rowBg,
-        checkText,
-        infoText,
-        lockLabel,
-        updateRow,
-      });
-
-      // Click handler (skip Edric -- always locked)
-      if (!isEdric) {
-        rowBg.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          const audio = this.registry.get('audio');
-          if (selected.has(i)) {
-            selected.delete(i);
-            if (audio) audio.playSFX('sfx_cancel');
-          } else if (selected.size < limits.max) {
-            selected.add(i);
-            if (audio) audio.playSFX('sfx_cursor');
-          }
-          for (const ro of rowObjects) ro.updateRow();
-          updateCounter();
-        });
-      }
-
-      updateRow();
-    }
-
-    const setVisibleSafe = (obj, visible) => {
-      if (!obj) return;
-      if (typeof obj.setVisible === 'function') {
-        obj.setVisible(visible);
-      } else {
-        obj.visible = visible;
-      }
-    };
-
-    const setRowInteractive = (rowObj, visible) => {
-      if (!rowObj || rowObj.isEdric) return;
-      if (visible) {
-        if (typeof rowObj.rowBg.setInteractive === 'function') {
-          rowObj.rowBg.setInteractive({ useHandCursor: true });
-        }
-        return;
-      }
-      if (typeof rowObj.rowBg.disableInteractive === 'function') rowObj.rowBg.disableInteractive();
-    };
-
-    const applyRowLayout = () => {
-      for (const rowObj of rowObjects) {
-        const visibleIdx = rowObj.index - scrollOffset;
-        const visible = visibleIdx >= 0 && visibleIdx < maxVisibleRows;
-        const rowY = startY + visibleIdx * rowHeight;
-        rowObj.rowBg.y = rowY;
-        rowObj.checkText.y = rowY;
-        rowObj.infoText.y = rowY;
-        if (rowObj.lockLabel) rowObj.lockLabel.y = rowY;
-        setVisibleSafe(rowObj.rowBg, visible);
-        setVisibleSafe(rowObj.checkText, visible);
-        setVisibleSafe(rowObj.infoText, visible);
-        if (rowObj.lockLabel) setVisibleSafe(rowObj.lockLabel, visible);
-        setRowInteractive(rowObj, visible);
-      }
-    };
-
-    const scrollX = cam.centerX + listWidth / 2 + 26;
-    const scrollUp = this.add
-      .text(scrollX, startY, '^', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    const scrollDown = this.add
-      .text(scrollX, listBottomY, 'v', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    deployGroup.push(scrollUp);
-    deployGroup.push(scrollDown);
-
-    const updateScrollControls = () => {
-      const upEnabled = canScrollRows && scrollOffset > 0;
-      const downEnabled = canScrollRows && scrollOffset < maxScrollOffset;
-      setVisibleSafe(scrollUp, canScrollRows);
-      setVisibleSafe(scrollDown, canScrollRows);
-      scrollUp.setColor(upEnabled ? '#88ccff' : '#555577');
-      scrollDown.setColor(downEnabled ? '#88ccff' : '#555577');
-    };
-
-    const setScrollOffset = (nextOffset) => {
-      const clamped = Math.max(0, Math.min(maxScrollOffset, nextOffset));
-      if (clamped === scrollOffset) return;
-      scrollOffset = clamped;
-      applyRowLayout();
-      updateScrollControls();
-    };
-
-    if (canScrollRows) {
-      scrollUp.setInteractive({ useHandCursor: true });
-      scrollDown.setInteractive({ useHandCursor: true });
-      scrollUp.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        setScrollOffset(scrollOffset - 1);
-      });
-      scrollDown.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        setScrollOffset(scrollOffset + 1);
-      });
-
-      if (this.input?.on && this.input?.off) {
-        const wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
-          if (deployOverlayClosed || !pointer || !deltaY) return;
-          if (pointer.x < listLeft || pointer.x > listRight) return;
-          if (pointer.y < rowTopBound || pointer.y > rowBottomBound) return;
-          setScrollOffset(scrollOffset + (deltaY > 0 ? 1 : -1));
-        };
-        this.input.on('wheel', wheelHandler);
-        detachDeployInputHandlers = () => this.input.off('wheel', wheelHandler);
-      }
-    }
-
-    // Confirm button (anchored near bottom so long rosters do not push controls off-screen)
-    const confirmBg = this.add
-      .rectangle(cam.centerX, confirmY, 120, 32, 0x225522, 1)
-      .setStrokeStyle(2, 0x44aa44)
-      .setDepth(701)
-      .setInteractive({ useHandCursor: true });
-    deployGroup.push(confirmBg);
-
-    const confirmText = this.add
-      .text(cam.centerX, confirmY, 'CONFIRM', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#666666',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(702);
-    deployGroup.push(confirmText);
-
-    confirmBg.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      if (selected.size < limits.min || selected.size > limits.max) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-
-      // Build selectedRoster in original roster order
-      const selectedRoster = roster.filter((_, idx) => selected.has(idx));
-
-      cleanupDeployOverlay();
-
-      onConfirm(selectedRoster);
-    });
-
-    const backText = this.add
-      .text(cam.centerX, confirmY + 22, 'BACK', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#aaaaaa',
-      })
-      .setOrigin(0.5)
-      .setDepth(702)
-      .setInteractive({ useHandCursor: true });
-    backText.on('pointerover', () => backText.setColor('#ffdd44'));
-    backText.on('pointerout', () => backText.setColor('#aaaaaa'));
-    backText.on('pointerdown', async (pointer) => {
-      if (pointer?.button !== 0) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_cancel');
-      if (!this.runManager) {
-        console.warn(
-          '[BattleScene] Deploy BACK ignored: missing runManager for NodeMap transition.',
-        );
-        return;
-      }
-      try {
-        const transitioned = await transitionToScene(
-          this,
-          'NodeMap',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          },
-          { reason: TRANSITION_REASONS.BACK },
-        );
-        if (!transitioned) {
-          console.warn('[BattleScene] Deploy BACK transition to NodeMap failed.');
-          return;
-        }
-        cleanupDeployOverlay();
-      } catch (err) {
-        console.error('[BattleScene] Deploy BACK transition error:', err);
-      }
-    });
-    deployGroup.push(backText);
-
-    const rosterText = this.add
-      .text(cam.centerX, confirmY + 38, 'ROSTER', {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#88ccff',
-      })
-      .setOrigin(0.5)
-      .setDepth(702)
-      .setInteractive({ useHandCursor: true });
-    rosterText.on('pointerover', () => rosterText.setColor('#ffdd44'));
-    rosterText.on('pointerout', () => rosterText.setColor('#88ccff'));
-    rosterText.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      if (!this.runManager || !this.gameData) return;
-      if (this.rosterOverlay?.visible) return;
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_confirm');
-      const selectedNames = serializeSelectedUnitNames();
-      cleanupDeployOverlay();
-      this.rosterOverlay = new RosterOverlay(this, this.runManager, this.gameData, {
-        onClose: () => {
-          this.rosterOverlay = null;
-          if (!this.scene?.isActive?.()) return;
-          const refreshedRoster = this.runManager?.getRoster?.() || roster;
-          this.roster = refreshedRoster;
-          this.showDeployScreen(refreshedRoster, limits, onConfirm, selectedNames);
-        },
-      });
-      this.rosterOverlay.show();
-    });
-    deployGroup.push(rosterText);
-
-    applyRowLayout();
-    updateScrollControls();
-    updateCounter();
-    this._pinToScreen(deployGroup);
-
-    // Tutorial hint for deploy screen
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('battle_deploy')) {
-      showImportantHint(
-        this,
-        'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.',
-      );
-    }
+    const overlay = new DeployScreenOverlay(this, this.runManager, this.gameData);
+    this._deployOverlay = overlay;
+    overlay.show(roster, limits, onConfirm, initialSelectedNames);
   }
 
   // --- Unit rendering ---
@@ -8777,14 +8372,18 @@ export class BattleScene extends Phaser.Scene {
   async showForecast(attacker, defender) {
     this.forecastTarget = defender;
     this.battleState = 'SHOWING_FORECAST';
-    const rollSession = this._ensureCombatRollSession(attacker, defender);
-
-    const dist =
-      isEntity(attacker) || isEntity(defender)
-        ? combatDistance(attacker, defender)
-        : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     this._clearSelectedWeaponArtIfInvalid(attacker);
-    const weaponArt = this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true });
+
+    // Shared context: distance, terrain, roll session, weapon art selection
+    const {
+      dist,
+      atkTerrain,
+      defTerrain,
+      selectedArt: weaponArt,
+      rollSession,
+    } = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+
+    // Forecast-specific: weapon entry resolution + auto-swap
     const selectedEntry = weaponArt ? this._resolveSelectedWeaponArtEntry(attacker) : null;
     // Auto-swap only for normal attacks; art attacks stay bound to selected weapon + art range.
     this.ensureValidWeaponForRange(attacker, dist, { weaponArt });
@@ -8792,8 +8391,6 @@ export class BattleScene extends Phaser.Scene {
       equipWeapon(attacker, selectedEntry.weapon);
     }
 
-    const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
-    const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
     this._forecastWeaponArt = weaponArt;
     if (
       attacker?.accessory?.combatEffects?.gambler ||
@@ -9002,23 +8599,42 @@ export class BattleScene extends Phaser.Scene {
     this._forecastGamblerLine = null;
   }
 
-  async executeCombat(attacker, defender) {
-    this.battleState = 'COMBAT_RESOLVING';
-    this.grid.clearAttackHighlights();
-    this.resetFortHealStreak(attacker);
-    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
-
+  /**
+   * Shared combat context setup: distance, terrain, roll session, weapon art.
+   * Used by executeCombat, executeEnemyCombat, and showForecast.
+   * @param {object} attacker
+   * @param {object} defender
+   * @param {{ isPlayerInitiator?: boolean }} opts
+   * @returns {{ dist: number, atkTerrain: object, defTerrain: object, selectedArt: object|null, rollSession: object }}
+   */
+  _prepareCombatContext(attacker, defender, { isPlayerInitiator = true } = {}) {
     const dist =
       isEntity(attacker) || isEntity(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
     const defTerrain = this.grid.getTerrainAt(defender.col, defender.row);
-    this._ensureCombatRollSession(attacker, defender);
-    const selectedArt =
-      attacker.faction === 'player'
-        ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
-        : null;
+    const rollSession = this._ensureCombatRollSession(attacker, defender);
+    const selectedArt = isPlayerInitiator
+      ? this._getSelectedWeaponArtForUnit(attacker, { isInitiating: true })
+      : this._selectEnemyWeaponArt(attacker, defender);
+    return { dist, atkTerrain, defTerrain, selectedArt, rollSession };
+  }
+
+  /**
+   * Shared combat resolution core: art cost, skill context, resolve, animate,
+   * HP application, debug invincibility, HP bars, post-combat effects, phoenix.
+   * Callers handle pre-resolution (battleState, highlights) and post-resolution
+   * (XP award, unit removal, battle end, gambit, entity splash) themselves.
+   * @param {object} attacker
+   * @param {object} defender
+   * @param {{ dist: number, atkTerrain: object, defTerrain: object, selectedArt: object|null }} ctx
+   * @returns {Promise<{ result: object, selectedArt: object|null }>}
+   */
+  async _runCombatResolution(attacker, defender, ctx) {
+    const { dist, atkTerrain, defTerrain, selectedArt } = ctx;
+
+    // Apply weapon art cost if selected
     if (selectedArt) {
       const artCostOpts = {
         weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
@@ -9029,6 +8645,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(attacker);
       await this._checkPhoenixBrooch(attacker);
     }
+
     const skillCtx = this.buildSkillCtx(attacker, defender, selectedArt);
 
     const result = resolveCombat(
@@ -9042,6 +8659,7 @@ export class BattleScene extends Phaser.Scene {
       skillCtx,
     );
 
+    // Animate events
     for (const event of result.events) {
       if (event.type === 'skill') {
         await this.animateSkillActivation(event);
@@ -9053,9 +8671,11 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // Apply final HP
     attacker.currentHP = result.attackerHP;
     defender.currentHP = result.defenderHP;
 
+    // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
       if (attacker.faction === 'player') {
         attacker.currentHP = attacker.stats.HP;
@@ -9079,6 +8699,18 @@ export class BattleScene extends Phaser.Scene {
     });
     await this._checkPhoenixBrooch(attacker);
     await this._checkPhoenixBrooch(defender);
+
+    return { result, selectedArt };
+  }
+
+  async executeCombat(attacker, defender) {
+    this.battleState = 'COMBAT_RESOLVING';
+    this.grid.clearAttackHighlights();
+    this.resetFortHealStreak(attacker);
+    const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
+
+    const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+    const { result } = await this._runCombatResolution(attacker, defender, ctx);
 
     if (attacker.faction === 'player' && attacker.currentHP > 0) {
       const damageDealt = Math.max(
@@ -10924,69 +10556,9 @@ export class BattleScene extends Phaser.Scene {
   async executeEnemyCombat(enemy, target) {
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
-    const dist = isEntity(enemy)
-      ? combatDistance(enemy, target)
-      : gridDistance(enemy.col, enemy.row, target.col, target.row);
-    const atkTerrain = this.grid.getTerrainAt(enemy.col, enemy.row);
-    const defTerrain = this.grid.getTerrainAt(target.col, target.row);
-    this._ensureCombatRollSession(enemy, target);
-    const selectedArt = this._selectEnemyWeaponArt(enemy, target);
-    if (selectedArt) {
-      const artCostOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      applyWeaponArtCost(enemy, selectedArt, artCostOpts);
-      recordWeaponArtUse(enemy, selectedArt, { turnNumber: this.turnManager?.turnNumber });
-      this._applyRecoilGuardAfterArtUse(enemy, selectedArt);
-      this.updateHPBar(enemy);
-      await this._checkPhoenixBrooch(enemy);
-    }
-    const skillCtx = this.buildSkillCtx(enemy, target, selectedArt);
 
-    const result = resolveCombat(
-      enemy,
-      enemy.weapon,
-      target,
-      target.weapon,
-      dist,
-      atkTerrain,
-      defTerrain,
-      skillCtx,
-    );
-
-    // Animate events
-    for (const event of result.events) {
-      if (event.type === 'skill') {
-        await this.animateSkillActivation(event);
-      } else {
-        await this.animateStrike(event, enemy, target);
-      }
-    }
-
-    // Apply final HP
-    enemy.currentHP = result.attackerHP;
-    target.currentHP = result.defenderHP;
-
-    // Debug: invincibility -- restore player units to full HP
-    if (this.isDevToolsEnabled() && debugState.invincible) {
-      if (target.faction === 'player') {
-        target.currentHP = target.stats.HP;
-        result.defenderDied = false;
-      }
-    }
-
-    this.updateHPBar(enemy);
-    this.updateHPBar(target);
-
-    await this._applyResolvedCombatPostEffects({
-      attacker: enemy,
-      defender: target,
-      result,
-      attackerWeaponArt: selectedArt,
-      defenderWeaponArt: null,
-    });
-    await this._checkPhoenixBrooch(enemy);
-    await this._checkPhoenixBrooch(target);
+    const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
+    const { result } = await this._runCombatResolution(enemy, target, ctx);
 
     // Award XP to player defender if they survived
     if (target.faction === 'player' && target.currentHP > 0) {

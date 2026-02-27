@@ -30,6 +30,7 @@ vi.mock('../src/engine/LootSystem.js', async () => {
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
+import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -88,6 +89,9 @@ function makeDisplayObject(seed = {}) {
     disableInteractive() {
       return this;
     },
+    setColor() {
+      return this;
+    },
     on(event, cb) {
       this.handlers[event] = cb;
       return this;
@@ -104,7 +108,16 @@ function makeDisplayObject(seed = {}) {
 function makeScene() {
   const scene = new BattleScene();
   scene.registry = { get: () => null };
-  scene.cameras = { main: { centerX: 320, centerY: 240, width: 640, height: 480 } };
+  scene.cameras = {
+    main: {
+      centerX: 320,
+      centerY: 240,
+      width: 640,
+      height: 480,
+      setZoom: vi.fn(),
+      setScroll: vi.fn(),
+    },
+  };
   scene.time = {
     delayedCall: vi.fn((ms, cb) => ({ remove: vi.fn(), cb, ms })),
   };
@@ -493,6 +506,71 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(destroySpy).toHaveBeenCalled();
       expect(scene.lootGroup).toBeNull();
+    });
+  });
+
+  // ── Deploy screen shim contracts ────────────────────────────
+
+  describe('showDeployScreen shim', () => {
+    it('sets battleState to DEPLOY_SELECTION and creates DeployScreenOverlay', () => {
+      const scene = makeScene();
+      const roster = [
+        { name: 'Edric', level: 1, className: 'Lord', stats: { HP: 20 }, currentHP: 20 },
+        { name: 'Sera', level: 1, className: 'Myrmidon', stats: { HP: 18 }, currentHP: 18 },
+      ];
+
+      BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, vi.fn());
+
+      expect(scene.battleState).toBe('DEPLOY_SELECTION');
+      expect(scene._deployOverlay).toBeInstanceOf(DeployScreenOverlay);
+    });
+
+    it('confirm callback fires onConfirm with selected roster', () => {
+      const scene = makeScene();
+      const roster = [
+        { name: 'Edric', level: 1, className: 'Lord', stats: { HP: 20 }, currentHP: 20 },
+        { name: 'Sera', level: 1, className: 'Myrmidon', stats: { HP: 18 }, currentHP: 18 },
+      ];
+      const onConfirm = vi.fn();
+
+      BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, onConfirm);
+
+      // Find the confirm button (120x32 rectangle)
+      const overlay = scene._deployOverlay;
+      expect(overlay).toBeTruthy();
+
+      // Find confirm bg among display objects
+      const confirmBg = overlay.displayObjects.find(
+        (obj) => obj.width === 120 && obj.height === 32,
+      );
+      expect(confirmBg).toBeTruthy();
+
+      // Click confirm — Edric is auto-selected so min=1 is satisfied
+      confirmBg.handlers['pointerdown']({ button: 0 });
+
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+      const selectedNames = onConfirm.mock.calls[0][0].map((u) => u.name);
+      expect(selectedNames).toContain('Edric');
+    });
+
+    it('scene shutdown cleans up deploy overlay and nulls reference', () => {
+      const scene = makeScene();
+      const roster = [
+        { name: 'Edric', level: 1, className: 'Lord', stats: { HP: 20 }, currentHP: 20 },
+        { name: 'Sera', level: 1, className: 'Myrmidon', stats: { HP: 18 }, currentHP: 18 },
+      ];
+
+      BattleScene.prototype.showDeployScreen.call(scene, roster, { min: 1, max: 2 }, vi.fn());
+
+      const overlay = scene._deployOverlay;
+      expect(overlay).toBeTruthy();
+      expect(overlay._closed).toBe(false);
+
+      // Simulate scene shutdown cleanup
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(overlay._closed).toBe(true);
+      expect(scene._deployOverlay).toBeNull();
     });
   });
 });
