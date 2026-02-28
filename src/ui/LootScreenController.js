@@ -340,8 +340,8 @@ export class LootScreenController {
           scene.add
             .text(cx, cardY + 35, detail, {
               fontFamily: 'monospace',
-              fontSize: '9px',
-              color: '#cc8844',
+              fontSize: '10px',
+              color: '#ddaa66',
             })
             .setOrigin(0.5)
             .setDepth(702),
@@ -398,7 +398,7 @@ export class LootScreenController {
             scene.add
               .text(cx, cardY + 46, detailInfo.lines.join('\n'), {
                 fontFamily: 'monospace',
-                fontSize: '9px',
+                fontSize: '10px',
                 color: detailInfo.color,
                 align: 'center',
               })
@@ -1214,13 +1214,13 @@ export class LootScreenController {
   // ── Static pure functions ────────────────────────────────────
 
   static getCardDetailLines(scene, choice, item, cardWidth = 110) {
-    if (!item) return { lines: [], color: '#999999' };
+    if (!item) return { lines: [], color: '#bbbbbb' };
 
     const asNum = (value, fallback = 0) => {
       const num = Number(value);
       return Number.isFinite(num) ? num : fallback;
     };
-    const detailWrapChars = Math.max(10, Math.floor((cardWidth - 12) / 5));
+    const detailWrapChars = Math.max(10, Math.floor((cardWidth - 12) / 5.5));
     const wrapDetailLines = (lines, maxLines = 2) => {
       const text = Array.isArray(lines)
         ? lines.filter((line) => typeof line === 'string' && line.trim().length > 0).join('\n')
@@ -1242,14 +1242,14 @@ export class LootScreenController {
       lines.push(`${asNum(item.might)}Mt ${asNum(item.hit)}Hit ${asNum(item.crit)}Crt`);
       lines.push(`${asNum(item.weight)}Wt Rng${range}`);
       lines.push(...scene._formatSpecialLinesForUi(item.special, detailWrapChars, 1));
-      return { lines, color: '#88bbff' };
+      return { lines, color: '#aaccff' };
     }
 
     if (item.type === 'Accessory' || type === 'accessory') {
       const detail = scene.getAccessoryDetailText(item);
       return {
         lines: wrapDetailLines(detail ? detail.split('\n') : ['Equip for passive bonus'], 2),
-        color: '#cc88ff',
+        color: '#ddaaff',
       };
     }
 
@@ -1261,7 +1261,7 @@ export class LootScreenController {
       if (item.teachesWeaponArtId || type === 'weaponArtScroll') {
         return {
           lines: wrapDetailLines(['Teaches Weapon Art', ...(typeHint ? [typeHint] : [])], 2),
-          color: '#ffaa55',
+          color: '#ffbb77',
         };
       }
       const special =
@@ -1272,7 +1272,7 @@ export class LootScreenController {
       const descLine = skillDef?.description || '';
       return {
         lines: wrapDetailLines([special, ...(descLine ? [descLine] : [])], 3),
-        color: '#ffaa55',
+        color: '#ffbb77',
       };
     }
 
@@ -1280,33 +1280,33 @@ export class LootScreenController {
       const stat = item.stat || 'Stat';
       return {
         lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2),
-        color: '#88ff88',
+        color: '#aaffaa',
       };
     }
 
     if (item.effect === 'promote' || type === 'promotion') {
-      return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffaa55' };
+      return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffbb77' };
     }
 
     if (item.effect === 'reclass') {
       const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
-      return { lines: wrapDetailLines([`Reclass to a ${label} class`], 2), color: '#88ffff' };
+      return { lines: wrapDetailLines([`Reclass to a ${label} class`], 2), color: '#aaffff' };
     }
 
     if (item.effect === 'healFull') {
-      return { lines: ['Restore HP to full', ...(usesLine ? [usesLine] : [])], color: '#88ff88' };
+      return { lines: ['Restore HP to full', ...(usesLine ? [usesLine] : [])], color: '#aaffaa' };
     }
 
     if (item.effect === 'heal' || type === 'healing') {
       const amount = asNum(item.value);
       return {
         lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])],
-        color: '#88ff88',
+        color: '#aaffaa',
       };
     }
 
-    if (usesLine) return { lines: [usesLine], color: '#999999' };
-    return { lines: [], color: '#999999' };
+    if (usesLine) return { lines: [usesLine], color: '#bbbbbb' };
+    return { lines: [], color: '#bbbbbb' };
   }
 
   static getTooltipText(scene, choice, item) {

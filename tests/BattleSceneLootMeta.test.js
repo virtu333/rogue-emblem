@@ -403,7 +403,7 @@ describe('BattleScene loot meta wiring', () => {
     expect(labels.some((text) => text.includes('5Mt 95Hit 0Crt'))).toBe(true);
     expect(labels.some((text) => text.includes('3Wt Rng1'))).toBe(true);
     expect(labels.some((text) => text.includes('+2 STR'))).toBe(true);
-    expect(labels.some((text) => text.includes('Negate effectiveness'))).toBe(true);
+    expect(labels.some((text) => /Negate(\s+effectiveness|\.\.\.)/.test(text))).toBe(true);
     expect(labels.some((text) => text.includes('Promote Lv 10+ unit'))).toBe(true);
   });
 

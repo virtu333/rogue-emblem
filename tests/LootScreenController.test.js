@@ -491,7 +491,7 @@ describe('LootScreenController', () => {
 
     it('returns correct detail lines for a gold choice (no item)', () => {
       const result = LootScreenController.getCardDetailLines(stubScene, { type: 'gold' }, null);
-      expect(result).toEqual({ lines: [], color: '#999999' });
+      expect(result).toEqual({ lines: [], color: '#bbbbbb' });
     });
 
     it('returns weapon detail lines with stats', () => {
@@ -513,7 +513,7 @@ describe('LootScreenController', () => {
         120,
       );
 
-      expect(result.color).toBe('#88bbff');
+      expect(result.color).toBe('#aaccff');
       expect(result.lines.length).toBeGreaterThan(0);
       // Should include weapon type
       expect(result.lines).toContain('Sword');
@@ -530,7 +530,7 @@ describe('LootScreenController', () => {
         item,
       );
 
-      expect(result.color).toBe('#88ff88');
+      expect(result.color).toBe('#aaffaa');
       expect(result.lines).toContainEqual(expect.stringContaining('10 HP'));
       expect(result.lines).toContainEqual(expect.stringContaining('3 uses'));
     });
@@ -549,7 +549,7 @@ describe('LootScreenController', () => {
         item,
       );
 
-      expect(result.color).toBe('#88ff88');
+      expect(result.color).toBe('#aaffaa');
       expect(result.lines.length).toBeGreaterThan(0);
     });
 
@@ -561,7 +561,7 @@ describe('LootScreenController', () => {
         item,
       );
 
-      expect(result.color).toBe('#cc88ff');
+      expect(result.color).toBe('#ddaaff');
       expect(result.lines.length).toBeGreaterThan(0);
     });
   });
