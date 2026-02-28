@@ -284,6 +284,7 @@ export class RunManager {
     this.visionCount = 0;
     this.usedRecruitNames = {}; // Track used names per class: { Fighter: ['Galvin', 'Bjorn'] }
     this.battleConfigsByNodeId = {};
+    this.shopStateByNodeId = {};
     this.difficultyId = 'normal';
     this.difficultyModifiers = {
       ...DIFFICULTY_DEFAULTS,
@@ -380,6 +381,7 @@ export class RunManager {
     this.pendingAmbushNodeId = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
+    this.shopStateByNodeId = {};
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -2435,6 +2437,21 @@ export class RunManager {
     if (node) node.encounterLocked = true;
   }
 
+  getShopState(nodeId) {
+    const state = this.shopStateByNodeId?.[nodeId];
+    return state ? structuredClone(state) : null;
+  }
+
+  saveShopState(nodeId, state) {
+    if (!nodeId || !state) return;
+    if (!this.shopStateByNodeId) this.shopStateByNodeId = {};
+    this.shopStateByNodeId[nodeId] = structuredClone(state);
+  }
+
+  clearShopState(nodeId) {
+    if (this.shopStateByNodeId) delete this.shopStateByNodeId[nodeId];
+  }
+
   /** Get a deep copy of the roster for deployment. */
   getRoster() {
     this._sanitizeUnitPools();
@@ -2713,6 +2730,7 @@ export class RunManager {
         colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
       },
     );
+    this.shopStateByNodeId = {};
     const unlockedNow = this._syncActWeaponArtUnlocksForCurrentAct();
     const displacedSkills = this._lastRestorationDisplacements || {};
     this._lastRestorationDisplacements = null;
@@ -2996,6 +3014,7 @@ export class RunManager {
       visionCount: this.visionCount,
       usedRecruitNames: this.usedRecruitNames || {},
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
+      shopStateByNodeId: this.shopStateByNodeId || {},
       difficultyId: this.difficultyId || 'normal',
       difficultyModifiers: this.difficultyModifiers || {
         ...DIFFICULTY_DEFAULTS,
@@ -3432,6 +3451,7 @@ export class RunManager {
     rm.usedRecruitNames = saved.usedRecruitNames || {};
     rm._repairDuplicateRosterNames();
     rm.battleConfigsByNodeId = saved.battleConfigsByNodeId || {};
+    rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     rm.applyDifficultySelection(saved.difficultyId || 'normal');
     if (saved.difficultyModifiers && typeof saved.difficultyModifiers === 'object') {
       rm.difficultyModifiers = {
