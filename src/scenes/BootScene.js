@@ -105,7 +105,7 @@ export class BootScene extends Phaser.Scene {
     });
     this._installPreloadStallWatch();
 
-    // Character sprites (34) - keyed by filename
+    // Character sprites (57) - keyed by filename
     const characterSprites = [
       'lordedric',
       'greatlordedric',
@@ -157,12 +157,19 @@ export class BootScene extends Phaser.Scene {
       'battle_monk',
       'trickster',
       'hunter',
+      'bard',
+      'kira',
+      'sera',
+      'voss',
+      'rowan',
+      'astrid',
+      'cael',
     ];
     for (const name of characterSprites) {
       this.load.image(name, `assets/sprites/characters/${name}.png`);
     }
 
-    // Enemy sprites (28) - keyed as enemy_{name}
+    // Enemy sprites (39) - keyed as enemy_{name}
     const enemySprites = [
       'archer',
       'assassin',
@@ -201,12 +208,14 @@ export class BootScene extends Phaser.Scene {
       'battle_monk',
       'trickster',
       'hunter',
+      'revenant',
+      'dragon_lord',
     ];
     for (const name of enemySprites) {
       this.load.image(`enemy_${name}`, `assets/sprites/enemies/${name}.png`);
     }
 
-    // Terrain tiles (14 base + 1 biome variant)
+    // Terrain tiles (15 base + 1 biome variant)
     const terrainNames = [
       'plain',
       'forest',
@@ -222,6 +231,7 @@ export class BootScene extends Phaser.Scene {
       'lava_crack',
       'floor',
       'pillar',
+      'ballista',
     ];
     for (const name of terrainNames) {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);
