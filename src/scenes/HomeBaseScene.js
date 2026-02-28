@@ -163,6 +163,7 @@ export class HomeBaseScene extends Phaser.Scene {
     };
     this._onPointerMove = (pointer) => this.onPointerMove(pointer);
     this._onPointerUp = (pointer) => this.onPointerUp(pointer);
+    this._onPointerUpOutside = (pointer) => this.onPointerUpOutside(pointer);
     this._onWheelHandler = (pointer, gameObjects, deltaX, deltaY) =>
       this.onWheel(pointer, deltaX, deltaY);
 
@@ -170,7 +171,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input.on('pointerdown', this._onPointerDown);
     this.input.on('pointermove', this._onPointerMove);
     this.input.on('pointerup', this._onPointerUp);
-    this.input.on('pointerupoutside', this._onPointerUp);
+    this.input.on('pointerupoutside', this._onPointerUpOutside);
     this.input.on('wheel', this._onWheelHandler);
 
     const flags = this.registry.get('startupFlags');
@@ -229,7 +230,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input?.off?.('pointerdown', this._onPointerDown);
     this.input?.off?.('pointermove', this._onPointerMove);
     this.input?.off?.('pointerup', this._onPointerUp);
-    this.input?.off?.('pointerupoutside', this._onPointerUp);
+    this.input?.off?.('pointerupoutside', this._onPointerUpOutside);
     this.input?.off?.('wheel', this._onWheelHandler);
 
     if (this.isMobileInput) {
@@ -1575,6 +1576,11 @@ export class HomeBaseScene extends Phaser.Scene {
     this._touchTapDown = null;
     if (this._isPointerOverInteractive(pointer)) return;
     this.requestCancel({ allowExit: false });
+  }
+
+  onPointerUpOutside(_pointer) {
+    this._touchScrollDrag = null;
+    this._touchTapDown = null;
   }
 
   _isPointerOverInteractive(pointer) {
