@@ -1,6 +1,7 @@
 // BattleScene -- Phase 3: multi-unit tactical combat with unit system
 
 import Phaser from 'phaser';
+import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { Grid, computeEffectivePath } from '../engine/Grid.js';
 import { TurnManager } from '../engine/TurnManager.js';
 import { AIController } from '../engine/AIController.js';
@@ -2676,10 +2677,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Pointer / click handling ---
 
   _isTouchPointer(pointer) {
-    if (!pointer || typeof pointer !== 'object') return false;
-    if (pointer.wasTouch === true) return true;
-    const type = pointer.pointerType ?? pointer.event?.pointerType;
-    return typeof type === 'string' && type.toLowerCase() === 'touch';
+    return isTouchPointer(pointer);
   }
 
   onPointerMove(pointer) {

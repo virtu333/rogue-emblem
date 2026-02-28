@@ -15,6 +15,7 @@ import { MUSIC } from '../utils/musicConfig.js';
 import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
+import { isTouchPointer } from '../utils/runtimeFlags.js';
 
 export class SlotPickerScene extends Phaser.Scene {
   constructor() {
@@ -82,7 +83,7 @@ export class SlotPickerScene extends Phaser.Scene {
 
   onPointerUp(pointer) {
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
-    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+    if (isTouchPointer(pointer) && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
       if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {

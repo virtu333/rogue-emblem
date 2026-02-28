@@ -3,6 +3,7 @@ import {
   detectIOSSafariRuntime,
   detectMobileRuntime,
   getStartupFlags,
+  isTouchPointer,
   resolveStartupFlags,
 } from '../src/utils/runtimeFlags.js';
 
@@ -136,5 +137,44 @@ describe('runtimeFlags', () => {
     const second = getStartupFlags();
     expect(second).toBe(first);
     expect(second.isMobile).toBe(false);
+  });
+
+  describe('isTouchPointer', () => {
+    it('returns true for wasTouch pointer', () => {
+      expect(isTouchPointer({ wasTouch: true })).toBe(true);
+    });
+
+    it('returns true for pointerType touch', () => {
+      expect(isTouchPointer({ pointerType: 'touch' })).toBe(true);
+    });
+
+    it('returns true for nested event.pointerType touch', () => {
+      expect(isTouchPointer({ event: { pointerType: 'touch' } })).toBe(true);
+    });
+
+    it('returns true for uppercase Touch', () => {
+      expect(isTouchPointer({ pointerType: 'Touch' })).toBe(true);
+    });
+
+    it('returns false for mouse pointer', () => {
+      expect(isTouchPointer({ pointerType: 'mouse' })).toBe(false);
+    });
+
+    it('returns false for null', () => {
+      expect(isTouchPointer(null)).toBe(false);
+    });
+
+    it('returns false for undefined', () => {
+      expect(isTouchPointer(undefined)).toBe(false);
+    });
+
+    it('returns false for non-object', () => {
+      expect(isTouchPointer('touch')).toBe(false);
+      expect(isTouchPointer(42)).toBe(false);
+    });
+
+    it('returns false for empty object', () => {
+      expect(isTouchPointer({})).toBe(false);
+    });
   });
 });

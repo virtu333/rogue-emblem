@@ -1,3 +1,5 @@
+import { isTouchPointer } from './runtimeFlags.js';
+
 const DEFAULT_MIN_ZOOM = 1;
 const DEFAULT_MAX_ZOOM = 3;
 const DEFAULT_RESET_EPSILON = 0.95;
@@ -17,13 +19,6 @@ function midpoint(a, b) {
     x: (a.x + b.x) / 2,
     y: (a.y + b.y) / 2,
   };
-}
-
-function isTouchPointer(pointer) {
-  if (!pointer || typeof pointer !== 'object') return false;
-  if (pointer.wasTouch === true) return true;
-  const type = pointer.pointerType ?? pointer.event?.pointerType;
-  return typeof type === 'string' && type.toLowerCase() === 'touch';
 }
 
 export class BattleCameraController {

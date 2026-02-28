@@ -87,6 +87,13 @@ export function resolveStartupFlags() {
   };
 }
 
+export function isTouchPointer(pointer) {
+  if (!pointer || typeof pointer !== 'object') return false;
+  if (pointer.wasTouch === true) return true;
+  const type = pointer.pointerType ?? pointer.event?.pointerType;
+  return typeof type === 'string' && type.toLowerCase() === 'touch';
+}
+
 export function getStartupFlags() {
   const existing = globalThis?.[GLOBAL_FLAGS_KEY];
   if (existing && typeof existing === 'object') return existing;

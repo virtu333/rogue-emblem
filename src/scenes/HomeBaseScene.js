@@ -13,6 +13,7 @@ import {
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
+import { isTouchPointer } from '../utils/runtimeFlags.js';
 
 const CATEGORIES = [
   { key: 'recruit_stats', label: 'Recruits' },
@@ -169,6 +170,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input.on('pointerdown', this._onPointerDown);
     this.input.on('pointermove', this._onPointerMove);
     this.input.on('pointerup', this._onPointerUp);
+    this.input.on('pointerupoutside', this._onPointerUp);
     this.input.on('wheel', this._onWheelHandler);
 
     const flags = this.registry.get('startupFlags');
@@ -227,6 +229,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.input?.off?.('pointerdown', this._onPointerDown);
     this.input?.off?.('pointermove', this._onPointerMove);
     this.input?.off?.('pointerup', this._onPointerUp);
+    this.input?.off?.('pointerupoutside', this._onPointerUp);
     this.input?.off?.('wheel', this._onWheelHandler);
 
     if (this.isMobileInput) {
@@ -1492,7 +1495,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   onPointerDown(pointer) {
-    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (!isTouchPointer(pointer)) return;
     if (this._skillPickerObjects) return;
     if ((this.tabScrollMax || 0) <= 0) return;
     if (pointer.y < TAB_CONTENT_TOP_Y || pointer.y > TAB_CONTENT_BOTTOM_Y) return;
@@ -1505,7 +1508,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   onPointerMove(pointer) {
-    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (!isTouchPointer(pointer)) return;
     if (!this._touchScrollDrag) return;
     const drag = this._touchScrollDrag;
     if (drag.key !== this.activeTab) return;
@@ -1561,7 +1564,7 @@ export class HomeBaseScene extends Phaser.Scene {
   onPointerUp(pointer) {
     this._touchScrollDrag = null;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
-    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+    if (isTouchPointer(pointer) && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
       if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
