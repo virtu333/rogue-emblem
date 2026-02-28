@@ -1053,6 +1053,7 @@ describe('onPointerUp drag-disarm', () => {
       _touchPreviewedShopEntry: { type: 'weapon', item: { name: 'Iron Sword' } },
       _churchMapViewSuppressCancel: false,
       _isPointerOverInteractive: vi.fn(() => false),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
       requestCancel: vi.fn(),
     };
 
@@ -1185,6 +1186,60 @@ describe('node touch two-tap navigation', () => {
     expect(scene._touchPreviewedNodeId).toBe('n2');
   });
 
+  it('tapping interactive UI between node taps disarms latch', () => {
+    const scene = {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      _touchDownLatchKind: null,
+      _storyDialogueActive: false,
+      dialogueOverlay: null,
+      _touchScrollDrag: null,
+      _touchTapDown: { x: 100, y: 100 },
+      _tapMoveThreshold: 12,
+      _touchPreviewedShopEntry: null,
+      _churchMapViewSuppressCancel: false,
+      _isPointerOverInteractive: vi.fn(() => true),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
+      requestCancel: vi.fn(),
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+    };
+    const node = { id: 'n1', type: 'battle' };
+    const pos = { x: 100, y: 200 };
+    const nodeObj = bindNode(scene, node, pos, true);
+
+    // First tap on node → game-object pointerdown sets kind + arms latch
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+    expect(scene._touchDownLatchKind).toBe('node');
+
+    // Scene onPointerDown (kind='node') → preserves node latch
+    const ptr1 = { wasTouch: true, button: 0, x: 100, y: 100 };
+    NodeMapScene.prototype.onPointerDown.call(scene, ptr1);
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // onPointerUp over interactive → returns early, latch preserved
+    NodeMapScene.prototype.onPointerUp.call(scene, ptr1);
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Now simulate gear-icon tap (no game-object sets kind → kind=null)
+    // Scene onPointerDown (kind=null) → clears both latches
+    const gearPtr = { wasTouch: true, button: 0, x: 200, y: 200 };
+    NodeMapScene.prototype.onPointerDown.call(scene, gearPtr);
+    expect(scene._touchPreviewedNodeId).toBeNull();
+
+    // onPointerUp over interactive → early return
+    NodeMapScene.prototype.onPointerUp.call(scene, gearPtr);
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+
+    // Second tap on same node within 3s → should NOT navigate (re-previews)
+    mockNow = 2500;
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).not.toHaveBeenCalled();
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+  });
+
   it('mouse click navigates immediately without showing tooltip', () => {
     const scene = {
       _touchPreviewedNodeId: null,
@@ -1220,6 +1275,195 @@ describe('node touch two-tap navigation', () => {
 
     nodeObj.handlers.pointerout();
     expect(scene.hideNodeTooltip).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('two-tap latch lifecycle with full pointerdown-pointerup cycle', () => {
+  const touchPointer = (x = 100, y = 100) => ({ button: 0, wasTouch: true, x, y });
+
+  let realDateNow;
+  let mockNow;
+
+  beforeEach(() => {
+    realDateNow = Date.now;
+    mockNow = 1000;
+    Date.now = () => mockNow;
+  });
+
+  afterEach(() => {
+    Date.now = realDateNow;
+  });
+
+  function bindNode(scene, node, pos, isAvailable) {
+    const nodeObj = makeDisplayObject();
+    NodeMapScene.prototype._bindNodeTouchHandlers.call(scene, nodeObj, node, pos, isAvailable);
+    return nodeObj;
+  }
+
+  function makeLifecycleScene(overrides = {}) {
+    return {
+      _touchPreviewedNodeId: null,
+      _touchPreviewedAt: null,
+      _touchPreviewedShopEntry: null,
+      _touchPreviewedShopAt: null,
+      _touchDownLatchKind: null,
+      _storyDialogueActive: false,
+      dialogueOverlay: null,
+      _touchScrollDrag: null,
+      _touchTapDown: { x: 100, y: 100 },
+      _tapMoveThreshold: 12,
+      _churchMapViewSuppressCancel: false,
+      _isPointerOverInteractive: vi.fn(() => true),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
+      requestCancel: vi.fn(),
+      onNodeClick: vi.fn(),
+      showNodeTooltip: vi.fn(),
+      hideNodeTooltip: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('node two-tap with full pointerdown-pointerup cycle navigates', () => {
+    const scene = makeLifecycleScene();
+    const node = { id: 'n1', type: 'battle' };
+    const nodeObj = bindNode(scene, node, { x: 100, y: 200 }, true);
+
+    // Tap 1: game-object pointerdown → arms latch + sets kind
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+    expect(scene._touchDownLatchKind).toBe('node');
+
+    // Scene onPointerDown (kind='node') → preserves node latch
+    NodeMapScene.prototype.onPointerDown.call(scene, touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // onPointerUp over interactive → early return, latch preserved
+    NodeMapScene.prototype.onPointerUp.call(scene, touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Tap 2: game-object pointerdown → latch matches → navigate
+    mockNow = 2000;
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene.onNodeClick).toHaveBeenCalledWith(node);
+  });
+
+  it('shop two-tap with full pointerdown-pointerup cycle buys', () => {
+    const entry = { type: 'weapon', price: 500, item: { name: 'Iron Sword' } };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+
+    // Add lifecycle properties
+    scene._touchPreviewedNodeId = null;
+    scene._touchPreviewedShopEntry = null;
+    scene._touchPreviewedShopAt = null;
+    scene._touchDownLatchKind = null;
+    scene._storyDialogueActive = false;
+    scene.dialogueOverlay = null;
+    scene._touchScrollDrag = null;
+    scene._touchTapDown = { x: 100, y: 100 };
+    scene._tapMoveThreshold = 12;
+    scene._churchMapViewSuppressCancel = false;
+    scene._isPointerOverInteractive = vi.fn(() => true);
+    scene._clearTouchPreviewLatches = NodeMapScene.prototype._clearTouchPreviewLatches;
+    scene.requestCancel = vi.fn();
+
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+    const row = createdTexts[0];
+
+    // Tap 1: game-object pointerdown (tooltip + kind='shop')
+    const ptr = touchPointer();
+    row.handlers.pointerdown(ptr);
+    expect(scene._touchDownLatchKind).toBe('shop');
+
+    // Scene onPointerDown (kind='shop') → preserves shop latch, clears node
+    NodeMapScene.prototype.onPointerDown.call(scene, ptr);
+    expect(scene._touchPreviewedNodeId).toBeNull();
+
+    // game-object pointerup → arms latch
+    row.handlers.pointerup(ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+
+    // Scene onPointerUp over interactive → early return
+    NodeMapScene.prototype.onPointerUp.call(scene, ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+
+    // Tap 2: game-object pointerdown (kind='shop')
+    mockNow = 2000;
+    const ptr2 = touchPointer();
+    row.handlers.pointerdown(ptr2);
+    expect(scene._touchDownLatchKind).toBe('shop');
+
+    // Scene onPointerDown (kind='shop') → preserves shop latch
+    NodeMapScene.prototype.onPointerDown.call(scene, ptr2);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+
+    // game-object pointerup → latch matches → buy
+    row.handlers.pointerup(ptr2);
+    expect(scene.onBuyItem).toHaveBeenCalledWith(entry);
+  });
+
+  it('cross-type tap clears mismatched latch', () => {
+    const scene = makeLifecycleScene();
+    const node = { id: 'n1', type: 'battle' };
+    const nodeObj = bindNode(scene, node, { x: 100, y: 200 }, true);
+
+    // Arm node latch
+    nodeObj.handlers.pointerdown(touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Scene onPointerDown (kind='node') → preserves
+    NodeMapScene.prototype.onPointerDown.call(scene, touchPointer());
+    expect(scene._touchPreviewedNodeId).toBe('n1');
+
+    // Now simulate shop item tap (kind='shop')
+    scene._touchDownLatchKind = 'shop';
+    NodeMapScene.prototype.onPointerDown.call(scene, touchPointer());
+
+    // Node latch cleared because kind was 'shop', not 'node'
+    expect(scene._touchPreviewedNodeId).toBeNull();
+  });
+
+  it('event-order robustness: shop pointerup before scene onPointerUp', () => {
+    const entry = { type: 'weapon', price: 500, item: { name: 'Iron Sword' } };
+    const { scene, createdTexts } = makeBuyListScene({ gold: 9999, entry });
+
+    scene._touchPreviewedNodeId = null;
+    scene._touchPreviewedShopEntry = null;
+    scene._touchPreviewedShopAt = null;
+    scene._touchDownLatchKind = null;
+    scene._storyDialogueActive = false;
+    scene.dialogueOverlay = null;
+    scene._touchScrollDrag = null;
+    scene._touchTapDown = { x: 100, y: 100 };
+    scene._tapMoveThreshold = 12;
+    scene._churchMapViewSuppressCancel = false;
+    scene._isPointerOverInteractive = vi.fn(() => true);
+    scene._clearTouchPreviewLatches = NodeMapScene.prototype._clearTouchPreviewLatches;
+    scene.requestCancel = vi.fn();
+
+    NodeMapScene.prototype.drawShopBuyList.call(scene);
+    const row = createdTexts[0];
+
+    // Tap 1 cycle
+    const ptr = touchPointer();
+    row.handlers.pointerdown(ptr);
+    NodeMapScene.prototype.onPointerDown.call(scene, ptr);
+    row.handlers.pointerup(ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+    // Scene onPointerUp after game-object pointerup — latch still preserved
+    NodeMapScene.prototype.onPointerUp.call(scene, ptr);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+
+    // Tap 2 — reversed: scene onPointerUp BEFORE game-object pointerup
+    mockNow = 2000;
+    const ptr2 = touchPointer();
+    row.handlers.pointerdown(ptr2);
+    NodeMapScene.prototype.onPointerDown.call(scene, ptr2);
+    // Scene onPointerUp fires first (over interactive → early return)
+    NodeMapScene.prototype.onPointerUp.call(scene, ptr2);
+    expect(scene._touchPreviewedShopEntry).toBe(entry);
+    // Game-object pointerup fires → latch matches → buy
+    row.handlers.pointerup(ptr2);
+    expect(scene.onBuyItem).toHaveBeenCalledWith(entry);
   });
 });
 
@@ -1311,5 +1555,86 @@ describe('drawMap node handler delegation', () => {
       expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
       false,
     );
+  });
+});
+
+describe('pointerupoutside lifecycle', () => {
+  it('resets touch state without calling requestCancel', () => {
+    const scene = {
+      _touchScrollDrag: { type: 'church', startY: 100, startOffset: 0 },
+      _touchTapDown: { x: 50, y: 50 },
+      _touchDownLatchKind: 'node',
+      _churchMapViewSuppressCancel: true,
+      _touchPreviewedNodeId: 'n3',
+      _touchPreviewedShopEntry: { type: 'weapon', item: { name: 'Iron Sword' } },
+      requestCancel: vi.fn(),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
+    };
+
+    NodeMapScene.prototype.onPointerUpOutside.call(scene, { button: 0, x: -10, y: -10 });
+
+    expect(scene._touchScrollDrag).toBeNull();
+    expect(scene._touchTapDown).toBeNull();
+    expect(scene._touchDownLatchKind).toBeNull();
+    expect(scene._churchMapViewSuppressCancel).toBe(false);
+    expect(scene._touchPreviewedNodeId).toBeNull();
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+  });
+
+  it('blank-map tap clears latches and calls requestCancel', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: null,
+      _touchScrollDrag: null,
+      _touchTapDown: null,
+      _tapMoveThreshold: 12,
+      _touchDownLatchKind: null,
+      _churchMapViewSuppressCancel: false,
+      _touchPreviewedNodeId: 'n2',
+      _touchPreviewedShopEntry: { type: 'weapon', item: { name: 'Steel Axe' } },
+      _isPointerOverInteractive: vi.fn(() => false),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
+      requestCancel: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onPointerUp.call(scene, { button: 0, x: 200, y: 200 });
+
+    expect(scene._touchPreviewedNodeId).toBeNull();
+    expect(scene._touchPreviewedShopEntry).toBeNull();
+    expect(scene.requestCancel).toHaveBeenCalledWith({ allowPause: false });
+  });
+
+  it('_touchDownLatchKind is cleared in onPointerUp as safety net', () => {
+    const scene = {
+      _storyDialogueActive: false,
+      dialogueOverlay: null,
+      _touchScrollDrag: null,
+      _touchTapDown: null,
+      _tapMoveThreshold: 12,
+      _touchDownLatchKind: 'node',
+      _churchMapViewSuppressCancel: false,
+      _isPointerOverInteractive: vi.fn(() => true),
+      _clearTouchPreviewLatches: NodeMapScene.prototype._clearTouchPreviewLatches,
+      requestCancel: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onPointerUp.call(scene, { button: 0, x: 100, y: 100 });
+
+    expect(scene._touchDownLatchKind).toBeNull();
+  });
+
+  it('_touchDownLatchKind is cleared on story-dialogue early return', () => {
+    const scene = {
+      _storyDialogueActive: true,
+      dialogueOverlay: null,
+      _touchDownLatchKind: 'shop',
+      requestCancel: vi.fn(),
+    };
+
+    NodeMapScene.prototype.onPointerUp.call(scene, { button: 0, x: 100, y: 100 });
+
+    expect(scene._touchDownLatchKind).toBeNull();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
   });
 });

@@ -57,6 +57,7 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
+import { isTouchPointer } from '../utils/runtimeFlags.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -307,6 +308,8 @@ export class NodeMapScene extends Phaser.Scene {
       input.on('pointerdown', this._onPointerDown);
       input.on('pointermove', this._onPointerMove);
       input.on('pointerup', this._onPointerUp);
+      this._onPointerUpOutside = (pointer) => this.onPointerUpOutside(pointer);
+      input.on('pointerupoutside', this._onPointerUpOutside);
       input.on('wheel', this._onWheel);
     }
   }
@@ -342,6 +345,7 @@ export class NodeMapScene extends Phaser.Scene {
       if (this._onPointerDown) input.off('pointerdown', this._onPointerDown);
       if (this._onPointerMove) input.off('pointermove', this._onPointerMove);
       if (this._onPointerUp) input.off('pointerup', this._onPointerUp);
+      if (this._onPointerUpOutside) input.off('pointerupoutside', this._onPointerUpOutside);
       if (this._onWheel) input.off('wheel', this._onWheel);
     }
   }
@@ -591,14 +595,19 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
-    if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
+    if (this._storyDialogueActive || this.dialogueOverlay?.visible) {
+      this._touchDownLatchKind = null;
+      return;
+    }
     this._touchScrollDrag = null;
+    this._touchDownLatchKind = null;
     if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
-    if (pointer.pointerType === 'touch' && this._touchTapDown) {
+    if (isTouchPointer(pointer) && this._touchTapDown) {
       const dx = pointer.x - this._touchTapDown.x;
       const dy = pointer.y - this._touchTapDown.y;
       if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
         this._touchTapDown = null;
+        this._clearTouchPreviewLatches();
         return;
       }
     }
@@ -608,12 +617,29 @@ export class NodeMapScene extends Phaser.Scene {
       return;
     }
     if (this._isPointerOverInteractive(pointer)) return;
+    this._clearTouchPreviewLatches();
     this.requestCancel({ allowPause: false });
+  }
+
+  onPointerUpOutside(_pointer) {
+    this._touchScrollDrag = null;
+    this._touchTapDown = null;
+    this._touchDownLatchKind = null;
+    this._churchMapViewSuppressCancel = false;
+    this._clearTouchPreviewLatches();
   }
 
   onPointerDown(pointer) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (!isTouchPointer(pointer)) return;
+
+    // Kind-based latch clearing: game-object pointerdown fires BEFORE scene
+    // pointerdown, so _touchDownLatchKind is set by node/shop handlers.
+    // Clear only mismatched latches — preserve the one that matches this tap.
+    const kind = this._touchDownLatchKind;
+    this._touchDownLatchKind = null;
+    if (kind !== 'node') this._touchPreviewedNodeId = null;
+    if (kind !== 'shop') this._touchPreviewedShopEntry = null;
 
     if (this.unitPickerState) {
       const state = this.unitPickerState;
@@ -656,7 +682,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   onPointerMove(pointer) {
     if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
-    if (!pointer || pointer.pointerType !== 'touch') return;
+    if (!isTouchPointer(pointer)) return;
     const drag = this._touchScrollDrag;
     if (!drag) return;
 
@@ -757,6 +783,11 @@ export class NodeMapScene extends Phaser.Scene {
       Array.isArray(hit) &&
       hit.some((obj) => obj && obj.visible !== false && obj.active !== false && obj.input?.enabled)
     );
+  }
+
+  _clearTouchPreviewLatches() {
+    this._touchPreviewedNodeId = null;
+    this._touchPreviewedShopEntry = null;
   }
 
   canRequestCancel({ allowPause = true } = {}) {
@@ -1236,17 +1267,11 @@ export class NodeMapScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         });
 
-        nodeObj.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          this.onNodeClick(node);
-        });
-        nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
-        nodeObj.on('pointerout', () => this.hideNodeTooltip());
+        this._bindNodeTouchHandlers(nodeObj, node, pos, true);
       } else if (!isCompleted) {
         // Non-available, non-completed: hover tooltip for route planning (not clickable)
         nodeObj.setInteractive();
-        nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
-        nodeObj.on('pointerout', () => this.hideNodeTooltip());
+        this._bindNodeTouchHandlers(nodeObj, node, pos, false);
       }
     }
 
@@ -1443,6 +1468,45 @@ export class NodeMapScene extends Phaser.Scene {
     if (this.nodeTooltip) {
       this.nodeTooltip.destroy();
       this.nodeTooltip = null;
+    }
+  }
+
+  _bindNodeTouchHandlers(nodeObj, node, pos, isAvailable) {
+    if (isAvailable) {
+      nodeObj.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0) return;
+        if (isTouchPointer(pointer)) {
+          this._touchDownLatchKind = 'node';
+          // Two-tap: first tap = preview tooltip, second tap = navigate
+          const now = Date.now();
+          if (
+            this._touchPreviewedNodeId === node.id &&
+            now - (this._touchPreviewedAt || 0) < 3000
+          ) {
+            this._touchPreviewedNodeId = null;
+            this.onNodeClick(node);
+          } else {
+            this._touchPreviewedNodeId = node.id;
+            this._touchPreviewedAt = now;
+            this.showNodeTooltip(node, pos);
+          }
+          return;
+        }
+        this.onNodeClick(node);
+      });
+      nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
+      nodeObj.on('pointerout', () => this.hideNodeTooltip());
+    } else {
+      nodeObj.on('pointerover', () => this.showNodeTooltip(node, pos));
+      nodeObj.on('pointerout', () => this.hideNodeTooltip());
+      // Explicit touch tooltip — pointerover may not fire reliably on all touch devices
+      nodeObj.on('pointerdown', (pointer) => {
+        if (isTouchPointer(pointer)) {
+          this._touchDownLatchKind = 'node';
+          this._touchPreviewedNodeId = null; // disarm navigation latch on locked-node tap
+          this.showNodeTooltip(node, pos);
+        }
+      });
     }
   }
 
@@ -2447,7 +2511,8 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   drawActiveTabContent() {
-    // Clear previous tab content
+    // Clear previous tab content + reset touch preview latch
+    this._touchPreviewedShopEntry = null;
     this._hideForgeTooltip();
     this._hideShopItemTooltip();
     if (this.shopContentGroup) this.shopContentGroup.forEach((o) => o.destroy());
@@ -2511,7 +2576,48 @@ export class NodeMapScene extends Phaser.Scene {
       if (affordable) {
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
+          if (isTouchPointer(pointer)) {
+            this._touchDownLatchKind = 'shop';
+            this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
+            // Record tap start for scroll-vs-tap validation on pointerup
+            text._touchBuyStart = { x: pointer.x, y: pointer.y };
+            return;
+          }
           this.onBuyItem(entry);
+        });
+        text.on('pointerup', (pointer) => {
+          if (!isTouchPointer(pointer)) return;
+          const start = text._touchBuyStart;
+          text._touchBuyStart = null;
+          if (!start) return;
+          // Reject if finger moved (scroll gesture) — also disarm buy latch
+          const dx = pointer.x - start.x;
+          const dy = pointer.y - start.y;
+          if (dx * dx + dy * dy > 144) {
+            this._touchPreviewedShopEntry = null;
+            return;
+          }
+          // Two-tap: first tap = preview, second tap = buy
+          const now = Date.now();
+          if (
+            this._touchPreviewedShopEntry === entry &&
+            now - (this._touchPreviewedShopAt || 0) < 3000
+          ) {
+            this._touchPreviewedShopEntry = null;
+            this.onBuyItem(entry);
+          } else {
+            this._touchPreviewedShopEntry = entry;
+            this._touchPreviewedShopAt = now;
+          }
+        });
+      } else {
+        text.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
+          if (isTouchPointer(pointer)) {
+            this._touchDownLatchKind = 'shop';
+            this._touchPreviewedShopEntry = null; // disarm buy latch on unaffordable tap
+            this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
+          }
         });
       }
 
@@ -2932,12 +3038,17 @@ export class NodeMapScene extends Phaser.Scene {
         this.shopContentGroup.push(wpnText);
         this.shopOverlay.push(wpnText);
 
-        // Hover tooltip for weapon stats
+        // Hover tooltip for weapon stats (+ touch tap)
         wpnText.setInteractive({ useHandCursor: false });
         wpnText.on('pointerover', () => {
           this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
         });
         wpnText.on('pointerout', () => this._hideForgeTooltip());
+        wpnText.on('pointerdown', (pointer) => {
+          if (isTouchPointer(pointer)) {
+            this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
+          }
+        });
 
         if (level >= FORGE_MAX_LEVEL) {
           const maxLabel = this.add
@@ -3025,6 +3136,11 @@ export class NodeMapScene extends Phaser.Scene {
           this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
         });
         wpnText.on('pointerout', () => this._hideForgeTooltip());
+        wpnText.on('pointerdown', (pointer) => {
+          if (isTouchPointer(pointer)) {
+            this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
+          }
+        });
 
         if (level >= FORGE_MAX_LEVEL) {
           const maxLabel = this.add
@@ -3407,6 +3523,7 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   refreshShop() {
+    this._touchPreviewedShopEntry = null;
     this.shopGoldText.setText(`Gold: ${this.runManager.gold}G`);
     this.drawActiveTabContent();
     this.drawShopTabs();
@@ -3744,6 +3861,7 @@ export class NodeMapScene extends Phaser.Scene {
 
   closeShopOverlay() {
     this._shopViewingRoster = false;
+    this._touchPreviewedShopEntry = null;
     this.closeForgeStatPicker();
     this._hideForgeTooltip();
     this._hideShopItemTooltip();

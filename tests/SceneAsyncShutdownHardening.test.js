@@ -274,7 +274,7 @@ describe('Async shutdown hardening', () => {
     expect(scene._hideUpgradeTooltip).toHaveBeenCalledTimes(1);
     expect(scene._destroySkillPicker).toHaveBeenCalledTimes(1);
     expect(scene.input.keyboard.off).toHaveBeenCalledTimes(1);
-    expect(scene.input.off).toHaveBeenCalledTimes(4);
+    expect(scene.input.off).toHaveBeenCalledTimes(5);
     expect(mobileEvents.off).toHaveBeenCalledTimes(2);
     expect(mobileEvents.emit).toHaveBeenCalledWith('mobile:setContext', {
       context: 'none',
@@ -283,5 +283,104 @@ describe('Async shutdown hardening', () => {
     expect(audio.releaseMusic).toHaveBeenCalledTimes(1);
     expect(scene._sceneShutdownCleanedUp).toBe(true);
     expect(scene._sceneShuttingDown).toBe(true);
+  });
+});
+
+describe('pointerupoutside binding and cleanup', () => {
+  it('NodeMapScene binds pointerupoutside to a dedicated handler separate from pointerup', () => {
+    const scene = new NodeMapScene();
+    const inputEmitter = createEmitter();
+    const keyboard = createEmitter();
+    keyboard.addKey = vi.fn(() => createEmitter());
+    scene.input = Object.assign(inputEmitter, { keyboard, enabled: false });
+    scene.sys = { isActive: () => true };
+    scene.registry = { get: vi.fn(() => null) };
+    scene._storyDialogueActive = false;
+    scene.dialogueOverlay = null;
+    scene._sceneShuttingDown = false;
+    scene._sceneShutdownCleanedUp = false;
+    scene._sceneTimers = new Set();
+
+    scene._bindInputHandlers();
+
+    // Both pointerup and pointerupoutside should have exactly 1 listener each
+    expect(inputEmitter.listenerCount('pointerup')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(1);
+
+    // Verify dedicated handlers exist and are distinct references
+    expect(scene._onPointerUp).toBeTruthy();
+    expect(scene._onPointerUpOutside).toBeTruthy();
+    expect(scene._onPointerUp).not.toBe(scene._onPointerUpOutside);
+
+    // Cleanup unbinds both
+    scene._unbindInputHandlers();
+    expect(inputEmitter.listenerCount('pointerup')).toBe(0);
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(0);
+  });
+
+  it('NodeMapScene _onSceneShutdown unbinds pointerupoutside', () => {
+    const inputEmitter = createEmitter();
+    const keyboard = createEmitter();
+    keyboard.addKey = vi.fn(() => createEmitter());
+    const mobileEvents = createEmitter();
+    const audio = { releaseMusic: vi.fn() };
+
+    const scene = new NodeMapScene();
+    scene.input = Object.assign(inputEmitter, { keyboard, enabled: false });
+    scene.sys = { isActive: () => true };
+    scene.registry = { get: vi.fn((key) => (key === 'audio' ? audio : null)) };
+    scene._storyDialogueActive = false;
+    scene.dialogueOverlay = null;
+    scene._sceneShuttingDown = false;
+    scene._sceneShutdownCleanedUp = false;
+    scene._sceneTimers = new Set();
+    scene.isMobileInput = false;
+    scene.sound = { stopByKey: vi.fn() };
+
+    scene._bindInputHandlers();
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(1);
+
+    scene._onSceneShutdown();
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(0);
+    expect(inputEmitter.listenerCount('pointerup')).toBe(0);
+  });
+
+  it('HomeBaseScene _onSceneShutdown unbinds pointerupoutside', () => {
+    const inputEmitter = createEmitter();
+    const keyboard = createEmitter();
+    const mobileEvents = createEmitter();
+    const audio = { releaseMusic: vi.fn() };
+
+    // Simulate the input binding done in HomeBaseScene.create()
+    const onPointerUp = vi.fn();
+    inputEmitter.on('pointerup', onPointerUp);
+    inputEmitter.on('pointerupoutside', onPointerUp);
+
+    expect(inputEmitter.listenerCount('pointerup')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(1);
+
+    // Simulate shutdown cleanup matching HomeBaseScene._onSceneShutdown
+    const scene = {
+      _sceneShutdownCleanedUp: false,
+      _sceneTimers: new Set(),
+      _transientMessageTimer: null,
+      refundMode: false,
+      _hideRefundConfirm: vi.fn(),
+      _hideUpgradeTooltip: vi.fn(),
+      _destroySkillPicker: vi.fn(),
+      input: Object.assign(inputEmitter, { keyboard }),
+      _onEsc: vi.fn(),
+      _onPointerDown: vi.fn(),
+      _onPointerMove: vi.fn(),
+      _onPointerUp: onPointerUp,
+      _onWheelHandler: vi.fn(),
+      isMobileInput: false,
+      registry: { get: vi.fn((key) => (key === 'audio' ? audio : null)) },
+    };
+
+    HomeBaseScene.prototype._onSceneShutdown.call(scene);
+
+    expect(inputEmitter.listenerCount('pointerup')).toBe(0);
+    expect(inputEmitter.listenerCount('pointerupoutside')).toBe(0);
   });
 });
