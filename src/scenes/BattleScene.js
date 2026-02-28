@@ -5284,6 +5284,7 @@ export class BattleScene extends Phaser.Scene {
       text._armedPointerUpClick = false;
       text.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
+        text.setColor(hoverColor);
         this._uiClickBlocked = true;
         text._armedPointerUpClick = true;
       });
@@ -5303,6 +5304,7 @@ export class BattleScene extends Phaser.Scene {
     } else {
       text.on('pointerdown', (pointer) => {
         if (pointer?.button !== 0) return;
+        text.setColor(hoverColor);
         this._uiClickBlocked = true;
         onClick();
       });
@@ -5551,8 +5553,16 @@ export class BattleScene extends Phaser.Scene {
 
     const longestLabel = Math.max(...items.map((l) => l.length));
     const menuWidth = Math.max(70, longestLabel * 8 + 16);
-    const itemHeight = 28;
-    const menuHeight = items.length * itemHeight + 8;
+    let itemHeight = this.isMobileInput ? 38 : 28;
+    let menuHeight = items.length * itemHeight + 8;
+    // Overflow guard: shrink rows if menu exceeds viewport
+    if (this.isMobileInput) {
+      const maxMenuH = this.cameras.main.height - 16;
+      if (menuHeight > maxMenuH) {
+        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / items.length));
+        menuHeight = items.length * itemHeight + 8;
+      }
+    }
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
     const bg = this.add
@@ -5970,7 +5980,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.actionMenu = [];
     const menuWidth = 210;
-    const itemHeight = 36;
+    const itemHeight = this.isMobileInput ? 42 : 36;
     const menuHeight = usableStaves.length * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
@@ -6155,7 +6165,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.actionMenu = [];
     const menuWidth = 280;
-    const itemHeight = 42;
+    const itemHeight = this.isMobileInput ? 46 : 42;
     const menuHeight = (choices.length + 1) * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
 
@@ -6284,7 +6294,8 @@ export class BattleScene extends Phaser.Scene {
 
     this.actionMenu = [];
 
-    const itemHeight = 20;
+    const itemHeight = this.isMobileInput ? 36 : 20;
+    const wpnFontSize = this.isMobileInput ? '13px' : '11px';
     const menuHeight = combatWeapons.length * itemHeight + 12;
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
     const menuRect = { x: menuPos.x, y: menuPos.y, width: menuWidth, height: menuHeight };
@@ -6316,7 +6327,7 @@ export class BattleScene extends Phaser.Scene {
         label,
         {
           fontFamily: 'monospace',
-          fontSize: '11px',
+          fontSize: wpnFontSize,
           color: defaultColor,
           lineSpacing: 1,
         },
@@ -6380,7 +6391,7 @@ export class BattleScene extends Phaser.Scene {
         item.type !== 'Scroll' &&
         (canEquip(unit, item) || !hasProficiency(unit, item)),
     );
-    const itemHeight = 20;
+    const itemHeight = this.isMobileInput ? 36 : 20;
     const menuPadding = 8;
     const contentHeight = displayWeapons.length * itemHeight;
     const fullMenuHeight = contentHeight + menuPadding;
@@ -6417,13 +6428,14 @@ export class BattleScene extends Phaser.Scene {
           ? '#ffdd44'
           : '#e0e0e0';
 
+      const equipFontSize = this.isMobileInput ? '13px' : '9px';
       const text = this._makeMenuTextButton(
         itemX,
         itemY,
         label,
         {
           fontFamily: 'monospace',
-          fontSize: '9px',
+          fontSize: equipFontSize,
           color: defaultColor,
           lineSpacing: 1,
         },
@@ -6541,7 +6553,7 @@ export class BattleScene extends Phaser.Scene {
     const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 120;
     const menuY = pos.y - 10;
 
-    const itemHeight = 28;
+    const itemHeight = this.isMobileInput ? 38 : 28;
     const menuWidth = 120;
     const menuHeight = (consumables.length + 1) * itemHeight + 8; // +1 for Back
     const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
@@ -6622,6 +6634,7 @@ export class BattleScene extends Phaser.Scene {
         text.on('pointerout', () => text.setColor('#88ff88'));
         text.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
+          text.setColor('#ffdd44');
           const isCure = item.effect === 'cure' || item.effect === 'cureHeal';
           if (isCure) {
             this._startCureTargetSelection(unit, item);
@@ -6949,8 +6962,17 @@ export class BattleScene extends Phaser.Scene {
     this.hideActionMenu();
 
     const menuWidth = 200;
-    const itemHeight = 24;
-    const menuHeight = targets.length * itemHeight + itemHeight + 8; // +1 for Back row
+    const totalRows = targets.length + 1; // +1 for Back row
+    let itemHeight = this.isMobileInput ? 38 : 24;
+    let menuHeight = totalRows * itemHeight + 8;
+    // Overflow guard: shrink rows if menu exceeds viewport
+    if (this.isMobileInput) {
+      const maxMenuH = this.cameras.main.height - 16;
+      if (menuHeight > maxMenuH) {
+        itemHeight = Math.max(24, Math.floor((maxMenuH - 8) / totalRows));
+        menuHeight = totalRows * itemHeight + 8;
+      }
+    }
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;
     const menuPos = this._clampMenuPosition(
