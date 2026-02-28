@@ -17,6 +17,7 @@ const CONTEXTS = {
   battle_player_idle: ['danger', 'roster', 'objective', 'inspect', 'endTurn'],
   battle_unit_selected: ['danger', 'roster', 'objective', 'endTurn'],
   battle_idle: ['danger', 'roster', 'objective', 'endTurn'],
+  battle_action: ['danger', 'roster'],
   battle_selected: ['danger'],
   battle_forecast: ['prevWeapon', 'nextWeapon'],
   battle_end: ['roster'],

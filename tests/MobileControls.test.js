@@ -707,3 +707,181 @@ describe('Cancel vs Menu semantic parity', () => {
     expect(contexts.at(-1)).toEqual({ context: 'none', resetStack: true });
   });
 });
+
+describe('battle_action context (Fix 5)', () => {
+  const originalDocument = globalThis.document;
+  const originalScreen = globalThis.screen;
+
+  afterEach(() => {
+    globalThis.document = originalDocument;
+    globalThis.screen = originalScreen;
+  });
+
+  it('battle_action context includes danger and roster', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_action' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger', 'roster']);
+  });
+
+  it('battle_selected context has only danger (no roster)', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_selected' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual(['danger']);
+  });
+});
+
+describe('BattleScene shutdown mobile context reset (Fix 1)', () => {
+  function makeBattleShutdownScene(events, mobileHandlers = null) {
+    return {
+      isMobileInput: true,
+      _mobileHandlers: mobileHandlers,
+      game: { events },
+      pauseOverlay: null,
+      lootSettingsOverlay: null,
+      debugOverlay: null,
+      dialogueOverlay: null,
+      registry: { get: vi.fn(() => null) },
+      _stopLevelUpSfx: vi.fn(),
+      _clearTutorialGuideHighlights: vi.fn(),
+      cancelTouchInspectHold: vi.fn(),
+      _hideMenuTooltip: vi.fn(),
+      _restoreBattleRng: vi.fn(),
+      _clearPostLootTransitionFallback: vi.fn(),
+      _unbindGameplayKeyboardHandlers: vi.fn(),
+      _deployOverlay: null,
+      hideForecast: vi.fn(),
+      closeVisionDialog: vi.fn(),
+      _teardownBattleCameraSystem: vi.fn(),
+    };
+  }
+
+  it('emits context reset even when _mobileHandlers is null', () => {
+    const events = createMockEvents();
+    const contexts = [];
+    events.on('mobile:setContext', (payload) => contexts.push(payload));
+
+    const scene = makeBattleShutdownScene(events, null);
+    BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+    expect(contexts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ context: 'none', resetStack: true })]),
+    );
+  });
+
+  it('emits context reset after unbinding _mobileHandlers', () => {
+    const events = createMockEvents();
+    const contexts = [];
+    events.on('mobile:setContext', (payload) => contexts.push(payload));
+
+    const handler = vi.fn();
+    const scene = makeBattleShutdownScene(events, { danger: handler });
+    BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+    expect(scene._mobileHandlers).toBeNull();
+    expect(contexts.at(-1)).toEqual({ context: 'none', resetStack: true });
+  });
+});
+
+describe('Overlay shutdown mobile cleanup (Fix 8)', () => {
+  let events;
+  let scene;
+  let popCount;
+
+  beforeEach(() => {
+    events = createMockEvents();
+    popCount = 0;
+    events.on('mobile:popContext', () => popCount++);
+    scene = createMockScene({ events });
+  });
+
+  it('HelpOverlay shutdown cleans up mobile listeners', async () => {
+    const { HelpOverlay } = await import('../src/ui/HelpOverlay.js');
+    const overlay = new HelpOverlay(scene, vi.fn());
+    overlay.show();
+    expect(overlay._mobileContextPushed).toBe(true);
+
+    // Simulate scene shutdown instead of normal hide
+    const shutdownCb = scene.events.on.mock.calls.find(([ev]) => ev === 'shutdown')?.[1];
+    expect(typeof shutdownCb).toBe('function');
+    shutdownCb();
+
+    expect(overlay._mobilePrev).toBeNull();
+    expect(overlay._mobileNext).toBeNull();
+    expect(overlay._mobileContextPushed).toBe(false);
+    expect(popCount).toBe(1);
+  });
+
+  it('HowToPlayOverlay shutdown cleans up mobile listeners', async () => {
+    const { HowToPlayOverlay } = await import('../src/ui/HowToPlayOverlay.js');
+    const overlay = new HowToPlayOverlay(scene, vi.fn());
+    overlay.show();
+    expect(overlay._mobileContextPushed).toBe(true);
+
+    const shutdownCb = scene.events.on.mock.calls.find(([ev]) => ev === 'shutdown')?.[1];
+    expect(typeof shutdownCb).toBe('function');
+    shutdownCb();
+
+    expect(overlay._mobilePrev).toBeNull();
+    expect(overlay._mobileNext).toBeNull();
+    expect(overlay._mobileContextPushed).toBe(false);
+    expect(popCount).toBe(1);
+  });
+
+  it('CompendiumOverlay shutdown cleans up mobile listeners', async () => {
+    const { CompendiumOverlay } = await import('../src/ui/CompendiumOverlay.js');
+    const overlay = new CompendiumOverlay(scene, null, vi.fn());
+    overlay.show();
+    expect(overlay._mobileContextPushed).toBe(true);
+
+    const shutdownCb = scene.events.on.mock.calls.find(([ev]) => ev === 'shutdown')?.[1];
+    expect(typeof shutdownCb).toBe('function');
+    shutdownCb();
+
+    expect(overlay._mobilePrev).toBeNull();
+    expect(overlay._mobileNext).toBeNull();
+    expect(overlay._mobileContextPushed).toBe(false);
+    expect(popCount).toBe(1);
+  });
+
+  it('UnitDetailOverlay shutdown cleans up mobile listeners', async () => {
+    const { UnitDetailOverlay } = await import('../src/ui/UnitDetailOverlay.js');
+    const overlay = new UnitDetailOverlay(scene, null);
+    const unit = {
+      name: 'Test',
+      faction: 'player',
+      className: 'Myrmidon',
+      tier: 'base',
+      level: 1,
+      currentHP: 20,
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 7, DEF: 3, RES: 2, LCK: 5, MOV: 5 },
+      inventory: [],
+      consumables: [],
+      skills: [],
+    };
+    overlay.show(unit, null);
+    expect(overlay._mobileContextPushed).toBe(true);
+
+    const shutdownCb = scene.events.on.mock.calls.find(([ev]) => ev === 'shutdown')?.[1];
+    expect(typeof shutdownCb).toBe('function');
+    shutdownCb();
+
+    expect(overlay._mobilePrev).toBeNull();
+    expect(overlay._mobileNext).toBeNull();
+    expect(overlay._mobileContextPushed).toBe(false);
+    expect(popCount).toBe(1);
+  });
+});

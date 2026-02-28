@@ -44,6 +44,24 @@ export class HowToPlayOverlay {
       game.events.on('mobile:prevTab', this._mobilePrev);
       game.events.on('mobile:nextTab', this._mobileNext);
     }
+
+    // Guard against scene shutdown while overlay is open
+    if (!this._shutdownBound && this.scene?.events?.on) {
+      this._shutdownBound = true;
+      this.scene.events.on('shutdown', () => {
+        const g = this.scene?.game;
+        if (g?.events) {
+          if (this._mobilePrev) g.events.off('mobile:prevTab', this._mobilePrev);
+          if (this._mobileNext) g.events.off('mobile:nextTab', this._mobileNext);
+          this._mobilePrev = null;
+          this._mobileNext = null;
+          if (this._mobileContextPushed) {
+            this._mobileContextPushed = false;
+            g.events.emit('mobile:popContext');
+          }
+        }
+      });
+    }
   }
 
   _onEsc(_key, event) {

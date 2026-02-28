@@ -433,6 +433,11 @@ export class BattleScene extends Phaser.Scene {
       }
       this._mobileHandlers = null;
     }
+    // Always reset mobile context on shutdown to prevent stale buttons surviving scene transition
+    if (this.isMobileInput) {
+      const ge = this.game?.events;
+      if (ge?.emit) ge.emit('mobile:setContext', { context: 'none', resetStack: true });
+    }
 
     this._teardownBattleCameraSystem();
   }
@@ -3576,11 +3581,12 @@ export class BattleScene extends Phaser.Scene {
     let ctx = 'none';
     if (s === 'PLAYER_IDLE') ctx = 'battle_player_idle';
     else if (s === 'UNIT_SELECTED') ctx = 'battle_unit_selected';
+    // States where roster IS allowed (matches _onRosterClick rosterStates)
+    else if (s === 'UNIT_ACTION_MENU' || s === 'SELECTING_TARGET' || s === 'SELECTING_HEAL_TARGET')
+      ctx = 'battle_action';
+    // States where roster is NOT allowed
     else if (
       s === 'UNIT_MOVED' ||
-      s === 'UNIT_ACTION_MENU' ||
-      s === 'SELECTING_TARGET' ||
-      s === 'SELECTING_HEAL_TARGET' ||
       s === 'SELECTING_CURE_TARGET' ||
       s === 'SELECTING_SHOVE_TARGET' ||
       s === 'SELECTING_PULL_TARGET' ||
@@ -3592,6 +3598,9 @@ export class BattleScene extends Phaser.Scene {
       s === 'CANTO_MOVING'
     )
       ctx = 'battle_selected';
+    // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
+    // but forecast mobile context prioritises weapon navigation buttons. Users can
+    // B-cancel out of forecast to access roster — acceptable UX tradeoff.
     else if (s === 'SHOWING_FORECAST' || s === 'CONFIRMING_ATTACK') ctx = 'battle_forecast';
     else if (s === 'BATTLE_END') ctx = 'battle_end';
     this.game.events.emit('mobile:setContext', { context: ctx });
