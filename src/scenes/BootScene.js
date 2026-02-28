@@ -239,7 +239,7 @@ export class BootScene extends Phaser.Scene {
     // Castle biome wall variant
     this.load.image('terrain_wall_castle', 'assets/sprites/tilesets/wall_castle.png');
 
-    // Portraits (34) - keyed as portrait_{name}
+    // Portraits (86) - keyed as portrait_{name}
     const portraits = [
       'lord_edric',
       'lord_kira',
@@ -290,6 +290,44 @@ export class BootScene extends Phaser.Scene {
       'generic_battle_monk',
       'generic_trickster',
       'generic_hunter',
+      // Enemy-faction portraits (37)
+      'enemy_archer',
+      'enemy_assassin',
+      'enemy_battle_monk',
+      'enemy_berserker',
+      'enemy_bishop',
+      'enemy_bow_knight',
+      'enemy_cavalier',
+      'enemy_cleric',
+      'enemy_dancer',
+      'enemy_dark_knight',
+      'enemy_dragon',
+      'enemy_dragon_lord',
+      'enemy_entity',
+      'enemy_duelist',
+      'enemy_falcon_knight',
+      'enemy_fighter',
+      'enemy_general',
+      'enemy_great_knight',
+      'enemy_hero',
+      'enemy_hunter',
+      'enemy_knight',
+      'enemy_mage',
+      'enemy_mercenary',
+      'enemy_myrmidon',
+      'enemy_paladin',
+      'enemy_pegasus_knight',
+      'enemy_revenant',
+      'enemy_sage',
+      'enemy_sniper',
+      'enemy_swordmaster',
+      'enemy_thief',
+      'enemy_trickster',
+      'enemy_warlock',
+      'enemy_warrior',
+      'enemy_wyvern_lord',
+      'enemy_wyvern_rider',
+      'enemy_zombie',
     ];
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('portraits');

@@ -3904,6 +3904,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleSelectedClick(gp) {
+    if (!this.selectedUnit) {
+      this.deselectUnit();
+      return;
+    }
     if (this._isTutorialStrictGateActive() && this.tutorialStep === 3) {
       const fort = this._getTutorialFortTile();
       const isFortTile = Boolean(fort && gp.col === fort.col && gp.row === fort.row);
@@ -7744,7 +7748,18 @@ export class BattleScene extends Phaser.Scene {
   _getPortraitKey(unit) {
     const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classKey = `portrait_generic_${unit.className.toLowerCase().replace(/ /g, '_')}`;
+    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
+    // Enemy-faction units: try enemy-specific portrait first
+    if (unit.faction === 'enemy') {
+      const enemyKey = `portrait_enemy_${classNorm}`;
+      if (this.textures.exists(enemyKey)) return enemyKey;
+      const classData = this.gameData.classes.find((c) => c.name === unit.className);
+      if (classData?.promotesFrom) {
+        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
+        if (this.textures.exists(baseEnemyKey)) return baseEnemyKey;
+      }
+    }
+    const classKey = `portrait_generic_${classNorm}`;
     if (this.textures.exists(classKey)) return classKey;
     const classData = this.gameData.classes.find((c) => c.name === unit.className);
     if (classData?.promotesFrom) {
@@ -7960,86 +7975,113 @@ export class BattleScene extends Phaser.Scene {
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
 
-    const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
-    const { result } = await this._runCombatResolution(attacker, defender, ctx);
+    try {
+      const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
+      const { result } = await this._runCombatResolution(attacker, defender, ctx);
 
-    if (attacker.faction === 'player' && attacker.currentHP > 0) {
-      const damageDealt = Math.max(
-        0,
-        defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
-      );
-      await this.awardXP(
-        attacker,
-        defender,
-        defender.currentHP <= 0,
-        damageDealt,
-        defenderHpAtStart,
-      );
-    }
+      if (attacker.faction === 'player' && attacker.currentHP > 0) {
+        const damageDealt = Math.max(
+          0,
+          defenderHpAtStart - Math.max(0, Math.trunc(Number(result.defenderHP) || 0)),
+        );
+        await this.awardXP(
+          attacker,
+          defender,
+          defender.currentHP <= 0,
+          damageDealt,
+          defenderHpAtStart,
+        );
+      }
 
-    if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
-      this.tutorialStep = 6;
-      this.battleState = 'TUTORIAL_HINT';
-      await showImportantHint(
-        this,
-        'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
-      );
-      if (!this.scene?.isActive?.()) return;
-      this.battleState = 'COMBAT_RESOLVING';
-    }
+      if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
+        this.tutorialStep = 6;
+        this.battleState = 'TUTORIAL_HINT';
+        await showImportantHint(
+          this,
+          'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
+        );
+        if (!this.scene?.isActive?.()) return;
+        this.battleState = 'COMBAT_RESOLVING';
+      }
 
-    if (defender.currentHP <= 0) {
-      await this.removeUnit(defender, { killer: attacker });
-    }
-    if (attacker.currentHP <= 0) {
-      await this.removeUnit(attacker, { killer: defender });
-    }
+      if (defender.currentHP <= 0) {
+        await this.removeUnit(defender, { killer: attacker });
+      }
+      if (attacker.currentHP <= 0) {
+        await this.removeUnit(attacker, { killer: defender });
+      }
 
-    if (this.checkBattleEnd()) {
-      this._clearCombatRollSession();
-      return;
-    }
+      if (this.checkBattleEnd()) {
+        return;
+      }
 
-    if (attacker.currentHP <= 0) {
-      this.selectedUnit = null;
-      this._clearSelectedWeaponArt();
-      this.battleState = 'PLAYER_IDLE';
-      this.grid.clearAttackHighlights();
-      this.attackTargets = [];
-      this._clearCombatRollSession();
-      return;
-    }
-
-    if (!attacker._gambitUsedThisTurn) {
-      const gambitTriggered = result.events.some((e) =>
-        e.skillActivations?.some((s) => s.id === 'commanders_gambit'),
-      );
-      if (gambitTriggered) {
-        attacker._gambitUsedThisTurn = true;
-        const unitsToRefresh = [attacker];
-        for (const ally of this.playerUnits) {
-          if (ally === attacker || ally.currentHP <= 0) continue;
-          if (gridDistance(attacker.col, attacker.row, ally.col, ally.row) <= 1) {
-            unitsToRefresh.push(ally);
-          }
-        }
-        for (const u of unitsToRefresh) {
-          u.hasActed = false;
-          u.hasMoved = false;
-          u._movementSpent = 0;
-          if (u.graphic?.clearTint) u.graphic.clearTint();
-        }
+      if (attacker.currentHP <= 0) {
         this.selectedUnit = null;
-        this._clearSelectedWeaponArt();
         this.battleState = 'PLAYER_IDLE';
         this.grid.clearAttackHighlights();
         this.attackTargets = [];
-        this._clearCombatRollSession();
         return;
       }
-    }
 
-    this.finishUnitAction(attacker);
+      if (!attacker._gambitUsedThisTurn) {
+        const gambitTriggered = result.events.some((e) =>
+          e.skillActivations?.some((s) => s.id === 'commanders_gambit'),
+        );
+        if (gambitTriggered) {
+          attacker._gambitUsedThisTurn = true;
+          const unitsToRefresh = [attacker];
+          for (const ally of this.playerUnits) {
+            if (ally === attacker || ally.currentHP <= 0) continue;
+            if (gridDistance(attacker.col, attacker.row, ally.col, ally.row) <= 1) {
+              unitsToRefresh.push(ally);
+            }
+          }
+          for (const u of unitsToRefresh) {
+            u.hasActed = false;
+            u.hasMoved = false;
+            u._movementSpent = 0;
+            if (u.graphic?.clearTint) u.graphic.clearTint();
+          }
+          this.selectedUnit = null;
+          this.battleState = 'PLAYER_IDLE';
+          this.grid.clearAttackHighlights();
+          this.attackTargets = [];
+          return;
+        }
+      }
+
+      this.finishUnitAction(attacker);
+    } catch (err) {
+      console.error('[BattleScene] combat error:', err);
+      // Best-effort: reconcile dead units to prevent zombie state
+      try {
+        if (defender?.currentHP <= 0) await this.removeUnit(defender, { killer: attacker });
+        if (attacker?.currentHP <= 0) await this.removeUnit(attacker, { killer: defender });
+        this.checkBattleEnd();
+      } catch (cleanupErr) {
+        console.error('[BattleScene] combat cleanup error:', cleanupErr);
+      }
+      if (this.battleState !== 'BATTLE_END') {
+        // Consume the attacker's action to prevent double-acting after error
+        if (attacker?.faction === 'player' && attacker.currentHP > 0 && !attacker.hasActed) {
+          attacker.hasActed = true;
+          try {
+            this.dimUnit(attacker);
+          } catch (_) {
+            /* best-effort visual */
+          }
+          this.turnManager?.unitActed(attacker);
+        }
+        this.battleState = 'PLAYER_IDLE';
+        this.grid.clearHighlights();
+        this.grid.clearAttackHighlights();
+        this.attackTargets = [];
+        this.selectedUnit = null;
+      }
+    } finally {
+      this._clearCombatRollSession();
+      this._clearSelectedWeaponArt();
+    }
   }
 
   async applyOnAttackAffixes(attacker, defender, events, sourceSide = null) {
@@ -9808,28 +9850,40 @@ export class BattleScene extends Phaser.Scene {
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
 
-    const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
-    const { result } = await this._runCombatResolution(enemy, target, ctx);
+    try {
+      const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
+      const { result } = await this._runCombatResolution(enemy, target, ctx);
 
-    // Award XP to player defender if they survived
-    if (target.faction === 'player' && target.currentHP > 0) {
-      const counterDamage = Math.max(
-        0,
-        enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
-      );
-      await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
+      // Award XP to player defender if they survived
+      if (target.faction === 'player' && target.currentHP > 0) {
+        const counterDamage = Math.max(
+          0,
+          enemyHpAtStart - Math.max(0, Math.trunc(Number(result.attackerHP) || 0)),
+        );
+        await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
+      }
+
+      if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
+      if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+
+      // Entity splash damage on adjacent tiles after primary attack
+      if (isEntity(enemy) && enemy.currentHP > 0) {
+        await this._applyEntitySplash(enemy, target);
+      }
+
+      this.checkBattleEnd();
+    } catch (err) {
+      console.error('[BattleScene] enemy combat error:', err);
+      try {
+        if (target?.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
+        if (enemy?.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
+        this.checkBattleEnd();
+      } catch (cleanupErr) {
+        console.error('[BattleScene] enemy combat cleanup error:', cleanupErr);
+      }
+    } finally {
+      this._clearCombatRollSession();
     }
-
-    if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
-    if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });
-
-    // Entity splash damage on adjacent tiles after primary attack
-    if (isEntity(enemy) && enemy.currentHP > 0) {
-      await this._applyEntitySplash(enemy, target);
-    }
-
-    this.checkBattleEnd();
-    this._clearCombatRollSession();
   }
 
   /** Apply Entity AoE splash — 0-2 random tiles within Manhattan 1 of primary target */

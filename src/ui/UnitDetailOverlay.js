@@ -912,7 +912,18 @@ export class UnitDetailOverlay {
   _getPortraitKey(unit) {
     const lordData = this.gameData?.lords?.find((l) => l.name === unit.name);
     if (lordData) return `portrait_lord_${unit.name.toLowerCase()}`;
-    const classKey = `portrait_generic_${unit.className.toLowerCase().replace(/ /g, '_')}`;
+    const classNorm = unit.className.toLowerCase().replace(/ /g, '_');
+    // Enemy-faction units: try enemy-specific portrait first
+    if (unit.faction === 'enemy') {
+      const enemyKey = `portrait_enemy_${classNorm}`;
+      if (this.scene.textures.exists(enemyKey)) return enemyKey;
+      const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
+      if (classData?.promotesFrom) {
+        const baseEnemyKey = `portrait_enemy_${classData.promotesFrom.toLowerCase().replace(/ /g, '_')}`;
+        if (this.scene.textures.exists(baseEnemyKey)) return baseEnemyKey;
+      }
+    }
+    const classKey = `portrait_generic_${classNorm}`;
     if (this.scene.textures.exists(classKey)) return classKey;
     const classData = this.gameData?.classes?.find((c) => c.name === unit.className);
     if (classData?.promotesFrom) {
