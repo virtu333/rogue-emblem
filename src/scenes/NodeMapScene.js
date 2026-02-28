@@ -921,7 +921,7 @@ export class NodeMapScene extends Phaser.Scene {
       // ESC closes shop without marking node complete — player can re-enter
       const audio = this.registry.get('audio');
       if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-      this.shopRerollCount = 0;
+      this._saveShopState();
       this.closeShopOverlay();
       this.drawMap();
       return true;
@@ -2254,27 +2254,35 @@ export class NodeMapScene extends Phaser.Scene {
     if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
 
     const rm = this.runManager;
-    const shopItemDelta = rm.getShopItemCountDelta();
-    let shopItems = generateShopInventory(
-      rm.currentAct,
-      this.gameData.lootTables,
-      this.gameData.weapons,
-      this.gameData.consumables,
-      this.gameData.accessories,
-      rm.roster,
-      rm.getWeaponArtSpawnConfig(),
-      {
-        itemCountBonus: shopItemDelta,
-        shopCureGating: rm.difficultyModifiers?.shopCureGating,
-      },
-    );
-    shopItems = this.applyDifficultyShopPricing(shopItems);
-    if (ambushDiscount) {
-      shopItems = this.applyAmbushDiscount(shopItems);
-      this.showShopOverlay(node, shopItems, { ambushDiscount, pendingAmbush });
-      return;
+    const cachedShop = rm.getShopState?.(node.id);
+    let shopItems;
+    if (cachedShop) {
+      shopItems = cachedShop.items;
+    } else {
+      const shopItemDelta = rm.getShopItemCountDelta();
+      shopItems = generateShopInventory(
+        rm.currentAct,
+        this.gameData.lootTables,
+        this.gameData.weapons,
+        this.gameData.consumables,
+        this.gameData.accessories,
+        rm.roster,
+        rm.getWeaponArtSpawnConfig(),
+        {
+          itemCountBonus: shopItemDelta,
+          shopCureGating: rm.difficultyModifiers?.shopCureGating,
+        },
+      );
+      shopItems = this.applyDifficultyShopPricing(shopItems);
+      if (ambushDiscount) {
+        shopItems = this.applyAmbushDiscount(shopItems);
+      }
     }
-    this.showShopOverlay(node, shopItems);
+    this.showShopOverlay(node, shopItems, {
+      ambushDiscount: cachedShop?.ambushDiscountActive ?? ambushDiscount,
+      pendingAmbush: !cachedShop && pendingAmbush,
+      cachedShop,
+    });
   }
 
   applyDifficultyShopPricing(items) {
@@ -2300,7 +2308,8 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay = [];
     this.shopContentGroup = [];
     this.activeShopTab = 'buy';
-    this.shopForgesUsed = 0;
+    const cachedShop = options?.cachedShop;
+    this.shopForgesUsed = cachedShop?.forgesUsed || 0;
     this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
     this.shopScrollMax = 0;
     this._shopViewingMap = false;
@@ -2408,9 +2417,9 @@ export class NodeMapScene extends Phaser.Scene {
     this.shopOverlay.push(shopRosterBtn);
 
     this.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
-    this._shopOriginalSlotCount = this.shopBuyItems.length;
+    this._shopOriginalSlotCount = cachedShop?.originalSlotCount || this.shopBuyItems.length;
     this._shopNode = node;
-    this.shopRerollCount = this.shopRerollCount || 0;
+    this.shopRerollCount = cachedShop?.rerollCount || 0;
 
     // Tab bar
     this.drawShopTabs();
@@ -2457,11 +2466,11 @@ export class NodeMapScene extends Phaser.Scene {
     const node = this._shopNode;
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-    this.shopRerollCount = 0;
     this.closeShopOverlay();
     if (node) {
       this._clearPendingAmbushForNode?.(node);
       this.runManager.markNodeComplete(node.id);
+      this.runManager?.clearShopState?.(node.id);
       this.checkActComplete();
     }
   }
@@ -3522,11 +3531,24 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
+  _saveShopState() {
+    const node = this._shopNode;
+    if (!node) return;
+    this.runManager?.saveShopState?.(node.id, {
+      items: (this.shopBuyItems || []).map(({ index, ...rest }) => rest),
+      forgesUsed: this.shopForgesUsed || 0,
+      rerollCount: this.shopRerollCount || 0,
+      originalSlotCount: this._shopOriginalSlotCount || 0,
+      ambushDiscountActive: this._currentShopHasAmbushDiscount || false,
+    });
+  }
+
   refreshShop() {
     this._touchPreviewedShopEntry = null;
     this.shopGoldText.setText(`Gold: ${this.runManager.gold}G`);
     this.drawActiveTabContent();
     this.drawShopTabs();
+    this._saveShopState();
   }
 
   drawRerollButton() {

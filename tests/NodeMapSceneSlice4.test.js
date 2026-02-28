@@ -240,7 +240,14 @@ describe('NodeMapScene Slice 4', () => {
       { itemCountBonus: 1 },
     );
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
-    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, priced);
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(
+      node,
+      priced,
+      expect.objectContaining({
+        ambushDiscount: false,
+        pendingAmbush: false,
+      }),
+    );
   });
 
   it('handleShop applies ambush discount before opening overlay', () => {
@@ -273,10 +280,14 @@ describe('NodeMapScene Slice 4', () => {
 
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledWith(generated);
     expect(scene.applyAmbushDiscount).toHaveBeenCalledWith(priced);
-    expect(scene.showShopOverlay).toHaveBeenCalledWith(node, discounted, {
-      ambushDiscount: true,
-      pendingAmbush: false,
-    });
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(
+      node,
+      discounted,
+      expect.objectContaining({
+        ambushDiscount: true,
+        pendingAmbush: false,
+      }),
+    );
   });
 
   it('applyDifficultyShopPricing combines difficulty multiplier with blessing discount', () => {
@@ -416,11 +427,17 @@ describe('NodeMapScene Slice 4', () => {
   });
 
   it('requestCancel closes shop/church without marking node complete (ESC re-entry)', () => {
+    const saveShopState = vi.fn();
     const shopScene = makeCancelableScene({
       shopOverlay: [makeDisplayObject()],
+      shopBuyItems: [],
       shopRerollCount: 3,
+      shopForgesUsed: 0,
+      _shopOriginalSlotCount: 0,
+      _shopNode: { id: 'shop-1' },
+      _saveShopState: NodeMapScene.prototype._saveShopState,
       registry: { get: () => null },
-      runManager: { currentAct: 'act1' },
+      runManager: { currentAct: 'act1', saveShopState },
       closeShopOverlay: vi.fn(),
       drawMap: vi.fn(),
     });
@@ -439,12 +456,105 @@ describe('NodeMapScene Slice 4', () => {
     // Should close overlays but NOT call leaveShopNode/leaveChurchNode
     expect(shopScene.closeShopOverlay).toHaveBeenCalledTimes(1);
     expect(shopScene.drawMap).toHaveBeenCalledTimes(1);
-    expect(shopScene.shopRerollCount).toBe(0);
+    // ESC now saves shop state instead of resetting reroll count
+    expect(saveShopState).toHaveBeenCalledWith(
+      'shop-1',
+      expect.objectContaining({
+        rerollCount: 3,
+        ambushDiscountActive: false,
+      }),
+    );
     expect(shopScene.leaveShopNode).not.toHaveBeenCalled();
 
     expect(churchScene.closeChurchOverlay).toHaveBeenCalledTimes(1);
     expect(churchScene.drawMap).toHaveBeenCalledTimes(1);
     expect(churchScene.leaveChurchNode).not.toHaveBeenCalled();
+  });
+
+  it('_saveShopState persists ambushDiscountActive flag', () => {
+    const saveShopState = vi.fn();
+    const scene = {
+      _shopNode: { id: 'ambush-shop' },
+      shopBuyItems: [makeShopEntry('Sword', 'weapon', 80)],
+      shopForgesUsed: 0,
+      shopRerollCount: 0,
+      _shopOriginalSlotCount: 1,
+      _currentShopHasAmbushDiscount: true,
+      runManager: { saveShopState },
+    };
+    NodeMapScene.prototype._saveShopState.call(scene);
+    expect(saveShopState).toHaveBeenCalledWith(
+      'ambush-shop',
+      expect.objectContaining({
+        ambushDiscountActive: true,
+      }),
+    );
+  });
+
+  it('handleShop falls back to node-level ambushDiscount when cached shop lacks ambushDiscountActive (backward compat)', () => {
+    const cachedItems = [makeShopEntry('Cached Sword', 'weapon', 72)];
+    const node = { id: 'shop-old-cache', isAmbush: true, ambushCleared: true };
+
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => false),
+        currentAct: 'act1',
+        roster: [],
+        getWeaponArtSpawnConfig: vi.fn(() => null),
+        getShopItemCountDelta: vi.fn(() => 0),
+        // Old cached shop: has items but no ambushDiscountActive field
+        getShopState: vi.fn(() => ({ items: cachedItems, rerollCount: 0, forgesUsed: 0 })),
+      },
+      gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+      registry: { get: vi.fn(() => null) },
+      applyDifficultyShopPricing: vi.fn((items) => items),
+      showShopOverlay: vi.fn(),
+      _isPendingAmbushNode: vi.fn(() => false),
+    };
+
+    NodeMapScene.prototype.handleShop.call(scene, node);
+
+    // ambushDiscountActive is undefined on old cache → should fall back to node-level ambushDiscount (true)
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(
+      node,
+      cachedItems,
+      expect.objectContaining({ ambushDiscount: true }),
+    );
+  });
+
+  it('handleShop restores ambushDiscount from cached ambushDiscountActive when present', () => {
+    const cachedItems = [makeShopEntry('Cached Sword', 'weapon', 72)];
+    const node = { id: 'shop-cached-ambush' };
+
+    const scene = {
+      runManager: {
+        consumeSkipFirstShop: vi.fn(() => false),
+        currentAct: 'act1',
+        roster: [],
+        getWeaponArtSpawnConfig: vi.fn(() => null),
+        getShopItemCountDelta: vi.fn(() => 0),
+        getShopState: vi.fn(() => ({
+          items: cachedItems,
+          rerollCount: 0,
+          forgesUsed: 0,
+          ambushDiscountActive: true,
+        })),
+      },
+      gameData: { lootTables: {}, weapons: [], consumables: [], accessories: [] },
+      registry: { get: vi.fn(() => null) },
+      applyDifficultyShopPricing: vi.fn((items) => items),
+      showShopOverlay: vi.fn(),
+      _isPendingAmbushNode: vi.fn(() => false),
+    };
+
+    // Node itself has no ambush flags — discount comes purely from cache
+    NodeMapScene.prototype.handleShop.call(scene, node);
+
+    expect(scene.showShopOverlay).toHaveBeenCalledWith(
+      node,
+      cachedItems,
+      expect.objectContaining({ ambushDiscount: true }),
+    );
   });
 
   it('requestCancel hides visible colosseum overlay, restores music, and redraws map', () => {
@@ -722,6 +832,7 @@ describe('NodeMapScene Slice 4', () => {
       shopOverlay: [shopObj],
       shopRerollCount: 2,
       _shopViewingMap: true,
+      _shopNode: null,
       handleShop: vi.fn(),
       handleChurch: vi.fn(),
       handleBattle: vi.fn(),
@@ -729,6 +840,7 @@ describe('NodeMapScene Slice 4', () => {
       runManager: { currentAct: 'act1' },
       closeShopOverlay: vi.fn(),
       drawMap: vi.fn(),
+      _saveShopState: vi.fn(),
     });
 
     NodeMapScene.prototype.onNodeClick.call(scene, { id: 'shop1', type: NODE_TYPES.SHOP });
