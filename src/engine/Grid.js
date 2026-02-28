@@ -262,6 +262,28 @@ export class Grid {
     const terrain = this.terrainData[terrainIndex];
     const { x, y } = this.gridToPixel(col, row);
     const baseName = normalizeTerrainName(terrain?.name);
+
+    // Ballista: render floor underneath + ballista sprite overlay
+    if (baseName === 'ballista') {
+      const floorKey = this.biome === 'castle' ? 'terrain_floor' : 'terrain_plain';
+      const groundKey = this.scene.textures.exists(floorKey) ? floorKey : null;
+      const container = this.scene.add.container(x, y);
+      if (groundKey) {
+        const ground = this.scene.add.image(0, 0, groundKey);
+        ground.setDisplaySize(TILE_SIZE, TILE_SIZE);
+        container.add(ground);
+      } else {
+        const rect = this.scene.add.rectangle(0, 0, TILE_SIZE - 1, TILE_SIZE - 1, 0x909090);
+        container.add(rect);
+      }
+      if (this.scene.textures.exists('terrain_ballista')) {
+        const overlay = this.scene.add.image(0, 0, 'terrain_ballista');
+        overlay.setDisplaySize(TILE_SIZE, TILE_SIZE);
+        container.add(overlay);
+      }
+      return container;
+    }
+
     const biomeKey = this.biome ? `terrain_${baseName}_${this.biome}` : null;
     const baseKey = `terrain_${baseName}`;
     const textureKey = biomeKey && this.scene.textures.exists(biomeKey) ? biomeKey : baseKey;
