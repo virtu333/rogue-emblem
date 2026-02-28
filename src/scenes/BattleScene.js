@@ -2036,12 +2036,20 @@ export class BattleScene extends Phaser.Scene {
       return { ...schedule, spawned: 0 };
 
     let spawned = 0;
+    const successfulWaveKeys = new Set();
     for (let i = 0; i < schedule.spawns.length; i++) {
       const scheduledSpawn = schedule.spawns[i];
       const spec = this.buildReinforcementSpawnSpec(scheduledSpawn, i);
       if (!spec) continue;
       const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
-      if (enemy) spawned++;
+      if (enemy) {
+        spawned++;
+        if (scheduledSpawn.waveIndex != null) {
+          successfulWaveKeys.add(
+            `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
+          );
+        }
+      }
     }
 
     if (spawned > 0) {
@@ -2049,6 +2057,11 @@ export class BattleScene extends Phaser.Scene {
       if (this.grid.fogEnabled) this.updateEnemyVisibility();
       this.updateObjectiveText();
       this.showReinforcementBanner(spawned);
+
+      // Bump par for each wave that actually instantiated enemies
+      if (Number.isFinite(this.turnPar) && successfulWaveKeys.size > 0) {
+        this.turnPar += successfulWaveKeys.size;
+      }
     }
 
     return { ...schedule, spawned };

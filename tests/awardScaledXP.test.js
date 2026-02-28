@@ -49,7 +49,8 @@ function makeSceneCtx({ xpMultiplier = 1, turnNumber = 0, par = null } = {}) {
 
 describe('awardScaledXP integration with par XP multiplier', () => {
   it('applies S-rank multiplier (×1.25) when under par', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 2, par: 5 });
+    // turnsOver = 2-8 = -6 → S (threshold -3)
+    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 2, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 40);
@@ -59,7 +60,8 @@ describe('awardScaledXP integration with par XP multiplier', () => {
   });
 
   it('applies A-rank multiplier (×1.10) when slightly over par', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 7, par: 5 });
+    // turnsOver = 7-8 = -1 → A (threshold 0)
+    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 7, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 40);
@@ -69,7 +71,8 @@ describe('awardScaledXP integration with par XP multiplier', () => {
   });
 
   it('applies B-rank multiplier (×1.00) when moderately over par', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 10, par: 5 });
+    // turnsOver = 10-8 = 2 → B (threshold 3)
+    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 10, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 40);
@@ -79,7 +82,8 @@ describe('awardScaledXP integration with par XP multiplier', () => {
   });
 
   it('applies C-rank multiplier (×0.90) when far over par', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 15, par: 5 });
+    // turnsOver = 15-8 = 7 → C (threshold 999)
+    const ctx = makeSceneCtx({ xpMultiplier: 1, turnNumber: 15, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 40);
@@ -114,7 +118,8 @@ describe('awardScaledXP integration with par XP multiplier', () => {
   });
 
   it('stacks par multiplier with difficulty xpMultiplier', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 0.5, turnNumber: 15, par: 5 });
+    // turnsOver = 15-8 = 7 → C-rank
+    const ctx = makeSceneCtx({ xpMultiplier: 0.5, turnNumber: 15, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 40);
@@ -125,7 +130,7 @@ describe('awardScaledXP integration with par XP multiplier', () => {
   });
 
   it('floors to minimum 1 XP', async () => {
-    const ctx = makeSceneCtx({ xpMultiplier: 0.01, turnNumber: 15, par: 5 });
+    const ctx = makeSceneCtx({ xpMultiplier: 0.01, turnNumber: 15, par: 8 });
     const unit = { tier: 'base', level: 1, xp: 0 };
 
     await BattleScene.prototype.awardScaledXP.call(ctx, unit, 1);

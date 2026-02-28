@@ -1,4 +1,5 @@
 {
+  "parInflation": 3,
   "enemyWeight": 0.6,
   "enemyScaling": { "type": "sqrt", "coefficient": 1.3 },
   "parXpMultipliers": { "S": 1.25, "A": 1.10, "B": 1.00, "C": 0.90 },
@@ -21,17 +22,17 @@
   "brackets": [
     {
       "rating": "S",
-      "threshold": 0,
+      "threshold": -3,
       "bonusMultiplier": 1
     },
     {
       "rating": "A",
-      "threshold": 3,
+      "threshold": 0,
       "bonusMultiplier": 0.6
     },
     {
       "rating": "B",
-      "threshold": 6,
+      "threshold": 3,
       "bonusMultiplier": 0.25
     },
     {
@@ -49,7 +50,7 @@
   },
   "difficultyParMultiplier": { "normal": 1, "hard": 0.85, "lunatic": 0.8 },
   "latePressure": {
-    "startOverPar": 5,
+    "startOverPar": 2,
     "stepTurns": 2,
     "xpMultipliers": [
       1,
@@ -68,6 +69,6 @@
       0.1
     ],
     "bossEnrageTurn": 12,
-    "bossEnrageOverPar": 5
+    "bossEnrageOverPar": 2
   }
 }

@@ -112,6 +112,7 @@ export class VisionRewindController {
       npcUnits: scene.npcUnits.map(stripVisuals),
       turnNumber: scene.turnManager?.turnNumber || 1,
       phase: scene.turnManager?.currentPhase || 'player',
+      turnPar: scene.turnPar,
       objectiveText: scene.objectiveText?.text || '',
       antiTurtleState: structuredClone(scene.antiTurtleState || {}),
       rngSeed: Number.isFinite(this.runManager?.rngSeed)
@@ -185,6 +186,8 @@ export class VisionRewindController {
 
     scene.turnManager.currentPhase = scene.visionSnapshot.phase;
     scene.turnManager.turnNumber = scene.visionSnapshot.turnNumber;
+    scene.turnPar =
+      'turnPar' in scene.visionSnapshot ? scene.visionSnapshot.turnPar : scene.turnPar;
     scene.battleState = 'PLAYER_IDLE';
     scene.antiTurtleState = structuredClone(
       scene.visionSnapshot.antiTurtleState || {

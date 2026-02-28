@@ -327,6 +327,24 @@ describe('VisionRewindController', () => {
       controller.captureSnapshot();
       expect(scene.visionSnapshot.rngSeed).toBe(42);
     });
+
+    it('captures turnPar', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.turnPar = 8;
+      controller.captureSnapshot();
+      expect(scene.visionSnapshot.turnPar).toBe(8);
+    });
+
+    it('captures null turnPar', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.turnPar = null;
+      controller.captureSnapshot();
+      expect(scene.visionSnapshot.turnPar).toBeNull();
+    });
   });
 
   // ── commitSnapshotIfPending ─────────────────────────────
@@ -795,6 +813,72 @@ describe('VisionRewindController', () => {
       };
       controller._applySnapshot();
       expect(scene.battleState).toBe('PLAYER_IDLE');
+    });
+
+    it('restores turnPar from snapshot on rewind', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.turnPar = 12; // bumped by reinforcements
+      scene.visionSnapshot = {
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        turnNumber: 1,
+        phase: 'player',
+        turnPar: 8, // original par before reinforcements
+        antiTurtleState: {},
+        rngSeed: 42,
+        fog: null,
+        ballistas: [],
+        zombieTombstones: [],
+      };
+      controller._applySnapshot();
+      expect(scene.turnPar).toBe(8);
+    });
+
+    it('preserves turnPar when snapshot has no turnPar (legacy fallback)', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.turnPar = 10;
+      scene.visionSnapshot = {
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        turnNumber: 1,
+        phase: 'player',
+        // no turnPar field — legacy snapshot
+        antiTurtleState: {},
+        rngSeed: 42,
+        fog: null,
+        ballistas: [],
+        zombieTombstones: [],
+      };
+      controller._applySnapshot();
+      expect(scene.turnPar).toBe(10); // preserved via 'in' fallback
+    });
+
+    it('restores explicit null turnPar from snapshot', () => {
+      scene.playerUnits = [];
+      scene.enemyUnits = [];
+      scene.npcUnits = [];
+      scene.turnPar = 5; // current value
+      scene.visionSnapshot = {
+        playerUnits: [],
+        enemyUnits: [],
+        npcUnits: [],
+        turnNumber: 1,
+        phase: 'player',
+        turnPar: null, // explicit null (unknown-objective battle)
+        antiTurtleState: {},
+        rngSeed: 42,
+        fog: null,
+        ballistas: [],
+        zombieTombstones: [],
+      };
+      controller._applySnapshot();
+      expect(scene.turnPar).toBeNull(); // null restored, not 5
     });
   });
 

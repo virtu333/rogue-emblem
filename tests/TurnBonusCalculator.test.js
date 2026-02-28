@@ -69,8 +69,8 @@ describe('TurnBonusCalculator', () => {
         config,
       );
 
-      // basePar=2 + 6*0.6=3.6 + 48*0.01=0.48 + (7/48)*1.0=0.146 + adj=0 = 6.226 → ceil = 7
-      expect(par).toBe(5);
+      // basePar=2 + 6*0.6=3.6 + 48*0.01=0.48 + (7/48)*1.0=0.146 + adj=0 = 6.226 → ceil*0.8 = 5 + inflation 3 = 8
+      expect(par).toBe(8);
     });
 
     it('calculates par for a large seize map with difficult terrain', () => {
@@ -120,7 +120,7 @@ describe('TurnBonusCalculator', () => {
       const linearPenalty = 14 * 0.6;
       const sqrtPenalty = Math.sqrt(14) * 1.3;
       const enemyPenalty = Math.min(linearPenalty, sqrtPenalty);
-      const expected = Math.ceil((4 + enemyPenalty + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8);
+      const expected = Math.ceil((4 + enemyPenalty + 1.2 + (diffCount / 120) * 1.0 + 1) * 0.8) + 3;
       expect(par).toBe(expected);
     });
 
@@ -139,8 +139,8 @@ describe('TurnBonusCalculator', () => {
         }),
         config,
       );
-      // basePar=2 + 0 + 48*0.01=0.48 + 0 + adj=0 = 2.48 → ceil = 3
-      expect(par).toBe(2);
+      // basePar=2 + 0 + 48*0.01=0.48 + 0 + adj=0 = 2.48 → ceil*0.8 = 2 + inflation 3 = 5
+      expect(par).toBe(5);
     });
 
     it('handles all difficult terrain', () => {
@@ -154,8 +154,8 @@ describe('TurnBonusCalculator', () => {
         }),
         config,
       );
-      // basePar=2 + 2*0.6=1.2 + 16*0.01=0.16 + 1.0*1.0=1.0 + adj=0 = 4.36 → ceil = 5
-      expect(par).toBe(4);
+      // basePar=2 + 2*0.6=1.2 + 16*0.01=0.16 + 1.0*1.0=1.0 + adj=0 = 4.36 → ceil*0.8 = 4 + inflation 3 = 7
+      expect(par).toBe(7);
     });
 
     it('handles minimal map (1x1)', () => {
@@ -168,8 +168,8 @@ describe('TurnBonusCalculator', () => {
         }),
         config,
       );
-      // basePar=2 + 1*0.6=0.6 + 1*0.01=0.01 + 0 + adj=0 = 2.61 → ceil = 3
-      expect(par).toBe(3);
+      // basePar=2 + 1*0.6=0.6 + 1*0.01=0.01 + 0 + adj=0 = 2.61 → ceil*0.8 = 3 + inflation 3 = 6
+      expect(par).toBe(6);
     });
 
     it('handles seize objective differently from rout', () => {
@@ -195,8 +195,8 @@ describe('TurnBonusCalculator', () => {
         },
         config,
       );
-      // basePar=2 + 4*0.6=2.4 + 48*0.01=0.48 + 0 + adj=0 = 4.88 → ceil = 5
-      expect(par).toBe(4);
+      // basePar=2 + 4*0.6=2.4 + 48*0.01=0.48 + 0 + adj=0 = 4.88 → ceil*0.8 = 4 + inflation 3 = 7
+      expect(par).toBe(7);
     });
   });
 
@@ -214,12 +214,13 @@ describe('TurnBonusCalculator', () => {
       expect(par).toBe(parDefault);
     });
 
-    it('hard difficulty (0.85) tightens par: par 5 → 4', () => {
-      // Force a known par=5 by using null difficultyId first
+    it('hard difficulty (0.85) tightens par (inflation is post-scale)', () => {
       const params = makeMapParams({ cols: 8, rows: 6, enemyCount: 6, objective: 'rout' });
       const normalPar = calculatePar(params, config, 'normal');
       const hardPar = calculatePar(params, config, 'hard');
-      expect(hardPar).toBe(Math.max(1, Math.floor(normalPar * 0.85)));
+      const inflation = config.parInflation || 0;
+      // Inflation added after scaling: floor((rawPar) * 0.85) + inflation
+      expect(hardPar).toBe(Math.max(1, Math.floor((normalPar - inflation) * 0.85)) + inflation);
       expect(hardPar).toBeLessThan(normalPar);
     });
 
@@ -246,40 +247,40 @@ describe('TurnBonusCalculator', () => {
   });
 
   describe('getRating', () => {
-    it('returns S when at par', () => {
+    it('returns A when at par (turnsOver=0, A threshold=0)', () => {
       const result = getRating(10, 10, config);
-      expect(result.rating).toBe('S');
-      expect(result.bonusMultiplier).toBe(1.0);
+      expect(result.rating).toBe('A');
+      expect(result.bonusMultiplier).toBe(0.6);
     });
 
-    it('returns S when under par', () => {
+    it('returns S when 3+ turns under par (turnsOver=-3)', () => {
       const result = getRating(7, 10, config);
       expect(result.rating).toBe('S');
       expect(result.bonusMultiplier).toBe(1.0);
     });
 
-    it('returns A when 1 turn over par', () => {
+    it('returns B when 1 turn over par (turnsOver=1, B threshold=3)', () => {
       const result = getRating(11, 10, config);
-      expect(result.rating).toBe('A');
-      expect(result.bonusMultiplier).toBe(0.6);
+      expect(result.rating).toBe('B');
+      expect(result.bonusMultiplier).toBe(0.25);
     });
 
-    it('returns A when 3 turns over par', () => {
+    it('returns B when 3 turns over par', () => {
       const result = getRating(13, 10, config);
-      expect(result.rating).toBe('A');
-      expect(result.bonusMultiplier).toBe(0.6);
+      expect(result.rating).toBe('B');
+      expect(result.bonusMultiplier).toBe(0.25);
     });
 
-    it('returns B when 4 turns over par', () => {
+    it('returns C when 4 turns over par', () => {
       const result = getRating(14, 10, config);
-      expect(result.rating).toBe('B');
-      expect(result.bonusMultiplier).toBe(0.25);
+      expect(result.rating).toBe('C');
+      expect(result.bonusMultiplier).toBe(0.0);
     });
 
-    it('returns B when 6 turns over par', () => {
+    it('returns C when 6 turns over par', () => {
       const result = getRating(16, 10, config);
-      expect(result.rating).toBe('B');
-      expect(result.bonusMultiplier).toBe(0.25);
+      expect(result.rating).toBe('C');
+      expect(result.bonusMultiplier).toBe(0.0);
     });
 
     it('returns C when 7+ turns over par', () => {
@@ -302,15 +303,15 @@ describe('TurnBonusCalculator', () => {
   });
 
   describe('late pressure', () => {
-    it('does not activate at par + 5', () => {
-      const pressure = getLatePressureState(15, 10, config);
+    it('does not activate at par + 2', () => {
+      const pressure = getLatePressureState(12, 10, config);
       expect(pressure.active).toBe(false);
       expect(pressure.xpMultiplier).toBe(1.0);
       expect(pressure.goldMultiplier).toBe(1.0);
     });
 
-    it('activates at par + 6 with first penalty step', () => {
-      const pressure = getLatePressureState(16, 10, config);
+    it('activates at par + 3 with first penalty step', () => {
+      const pressure = getLatePressureState(13, 10, config);
       expect(pressure.active).toBe(true);
       expect(pressure.step).toBe(1);
       expect(pressure.xpMultiplier).toBe(0.7);
@@ -318,8 +319,8 @@ describe('TurnBonusCalculator', () => {
     });
 
     it('advances one step every 2 turns over the start threshold', () => {
-      const step1 = getLatePressureState(17, 10, config);
-      const step2 = getLatePressureState(18, 10, config);
+      const step1 = getLatePressureState(14, 10, config);
+      const step2 = getLatePressureState(15, 10, config);
       expect(step1.step).toBe(1);
       expect(step1.xpMultiplier).toBe(0.7);
       expect(step2.step).toBe(2);
@@ -343,9 +344,11 @@ describe('TurnBonusCalculator', () => {
 
   describe('boss enrage timing', () => {
     it('uses min(absolute turn, par + offset) when par is present', () => {
-      expect(isBossEnrageActive(7, 3, config)).toBe(false); // min(12, 8)
-      expect(isBossEnrageActive(8, 3, config)).toBe(true);
-      expect(isBossEnrageActive(11, 10, config)).toBe(false); // min(12, 15)
+      // bossEnrageOverPar=2: min(12, 3+2=5) → enrage at turn 5
+      expect(isBossEnrageActive(4, 3, config)).toBe(false);
+      expect(isBossEnrageActive(5, 3, config)).toBe(true);
+      // min(12, 10+2=12) → enrage at turn 12
+      expect(isBossEnrageActive(11, 10, config)).toBe(false);
       expect(isBossEnrageActive(12, 10, config)).toBe(true);
     });
 
@@ -429,17 +432,17 @@ describe('TurnBonusCalculator', () => {
       );
       expect(par).toBeGreaterThan(0);
 
-      // Clear at par → S rank → full gold
-      const sRating = getRating(par, par, config);
-      expect(sRating.rating).toBe('S');
-      const sGold = calculateBonusGold(sRating, 'act2', config);
-      expect(sGold).toBe(Math.floor(300 * GOLD_PAR_BONUS_MULTIPLIER));
+      // Clear at par → A rank (turnsOver=0, A threshold=0)
+      const aRating = getRating(par, par, config);
+      expect(aRating.rating).toBe('A');
+      const aGold = calculateBonusGold(aRating, 'act2', config);
+      expect(aGold).toBe(Math.floor(300 * 0.6 * GOLD_PAR_BONUS_MULTIPLIER));
 
-      // Clear 4 turns over → B rank → 25% gold
-      const bRating = getRating(par + 4, par, config);
-      expect(bRating.rating).toBe('B');
-      const bGold = calculateBonusGold(bRating, 'act2', config);
-      expect(bGold).toBe(Math.floor(75 * GOLD_PAR_BONUS_MULTIPLIER));
+      // Clear 4 turns over → C rank (turnsOver=4, C threshold=999)
+      const cRating = getRating(par + 4, par, config);
+      expect(cRating.rating).toBe('C');
+      const cGold = calculateBonusGold(cRating, 'act2', config);
+      expect(cGold).toBe(0);
     });
   });
 
@@ -544,20 +547,20 @@ describe('TurnBonusCalculator', () => {
   });
 
   describe('getParXpMultiplier', () => {
-    it('returns S-rank multiplier when at par', () => {
-      expect(getParXpMultiplier(5, 5, config)).toBe(1.25);
+    it('returns S-rank multiplier when 3+ under par', () => {
+      expect(getParXpMultiplier(2, 5, config)).toBe(1.25);
     });
 
-    it('returns A-rank multiplier when 1-3 turns over par', () => {
-      expect(getParXpMultiplier(8, 5, config)).toBe(1.1);
+    it('returns A-rank multiplier when at par (turnsOver=0)', () => {
+      expect(getParXpMultiplier(5, 5, config)).toBe(1.1);
     });
 
-    it('returns B-rank multiplier when 4-6 turns over par', () => {
-      expect(getParXpMultiplier(10, 5, config)).toBe(1.0);
+    it('returns B-rank multiplier when 1-3 turns over par', () => {
+      expect(getParXpMultiplier(8, 5, config)).toBe(1.0);
     });
 
-    it('returns C-rank multiplier when 7+ turns over par', () => {
-      expect(getParXpMultiplier(15, 5, config)).toBe(0.9);
+    it('returns C-rank multiplier when 4+ turns over par', () => {
+      expect(getParXpMultiplier(10, 5, config)).toBe(0.9);
     });
 
     it('returns 1 when config has no parXpMultipliers', () => {
@@ -577,9 +580,10 @@ describe('TurnBonusCalculator', () => {
   });
 
   describe('formatParTooltip', () => {
-    it('shows S-rank values without pressure line when under par', () => {
+    it('shows A-rank values without pressure line when under par', () => {
+      // turnsOver = 3-5 = -2, A threshold=0 → A-rank
       const text = formatParTooltip(3, 5, config);
-      expect(text).toBe('S-rank \u00b7 XP \u00d71.25 \u00b7 Par Gold \u00d71.00');
+      expect(text).toBe('A-rank \u00b7 XP \u00d71.10 \u00b7 Par Gold \u00d70.60');
       expect(text).not.toContain('Late');
     });
 
@@ -601,7 +605,7 @@ describe('TurnBonusCalculator', () => {
       const lines = text.split('\n');
       expect(lines).toHaveLength(2);
       expect(lines[0]).toBe('C-rank \u00b7 XP \u00d70.90 \u00b7 Par Gold \u00d70.00');
-      // Pressure step: (15-5)/2 = 5 → xpMult[5]=0.1, goldMult[5]=0.1
+      // Pressure step: ceil((15-2)/2) = 7 → clamped to idx 5 → xpMult=0.1, goldMult=0.1
       // eff XP: 0.90*0.1=0.09, eff gold: 0.00*0.1=0.00, kill gold: 0.10
       expect(lines[1]).toContain('eff XP');
       expect(lines[1]).toContain('kill gold');

@@ -141,7 +141,8 @@ describe('BattleScene reinforcement reward scaling', () => {
     const baseXp = calculateCombatXP(attacker, defender, true);
     await BattleScene.prototype.awardXP.call(scene, attacker, defender, true);
 
-    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 0.5));
+    // turnsOver=8, startOverPar=2, step=ceil((8-2)/2)=3 → xpMult[3]=0.35
+    expect(scene.awardScaledXP).toHaveBeenCalledWith(attacker, Math.floor(baseXp * 0.35));
   });
 
   it('scales kill gold for reinforcement enemies', async () => {
@@ -224,7 +225,8 @@ describe('BattleScene reinforcement reward scaling', () => {
 
     await BattleScene.prototype.removeUnit.call(scene, enemy);
 
-    expect(scene.goldEarned).toBe(Math.floor(calculateKillGold(enemy) * 0.6));
+    // turnsOver=8, startOverPar=2, step=ceil((8-2)/2)=3 → goldMult[3]=0.4
+    expect(scene.goldEarned).toBe(Math.floor(calculateKillGold(enemy) * 0.4));
   });
 
   it('enemy-phase flow applies hybrid overrides before reinforcements', async () => {
@@ -529,5 +531,155 @@ describe('BattleScene reinforcement reward scaling', () => {
 
     scene.textures.exists = vi.fn(() => false);
     expect(BattleScene.prototype.getSpriteKey.call(scene, emperor)).toBe('enemy_general');
+  });
+
+  describe('reinforcement par bump', () => {
+    it('bumps turnPar by count of waves with spawned units', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 8;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+      scene.updateObjectiveText = vi.fn();
+      scene.showReinforcementBanner = vi.fn();
+
+      // Mock resolveReinforcementsForTurn to return 2 waves, both with spawns
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [
+          { col: 0, row: 0, waveIndex: 0 },
+          { col: 1, row: 0, waveIndex: 1 },
+        ],
+        dueWaves: [
+          { spawnedCount: 1, requestedCount: 1 },
+          { spawnedCount: 1, requestedCount: 2 },
+        ],
+        blockedSpawns: 1,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      scene.addEnemyFromSpawn = vi.fn(() => ({ name: 'Enemy' }));
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBe(10); // 8 + 2 effective waves
+    });
+
+    it('does not bump turnPar when all waves blocked (spawnedCount=0)', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 8;
+      scene.grid = { fogEnabled: false };
+
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [],
+        dueWaves: [{ spawnedCount: 0, requestedCount: 2 }],
+        blockedSpawns: 2,
+      }));
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBe(8); // unchanged — no spawns means spawned=0 guard
+    });
+
+    it('does not bump turnPar when turnPar is null', () => {
+      const scene = new BattleScene();
+      scene.turnPar = null;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+      scene.updateObjectiveText = vi.fn();
+      scene.showReinforcementBanner = vi.fn();
+
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [{ col: 0, row: 0, waveIndex: 0 }],
+        dueWaves: [{ spawnedCount: 1, requestedCount: 1 }],
+        blockedSpawns: 0,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      scene.addEnemyFromSpawn = vi.fn(() => ({ name: 'Enemy' }));
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBeNull(); // unchanged
+    });
+
+    it('only counts waves whose spawns actually instantiate', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 10;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+      scene.updateObjectiveText = vi.fn();
+      scene.showReinforcementBanner = vi.fn();
+
+      // Two waves: wave 0 has one spawn that succeeds, wave 1 has one spawn that fails
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [
+          { col: 0, row: 0, waveIndex: 0 },
+          { col: 1, row: 0, waveIndex: 1 },
+        ],
+        dueWaves: [
+          { spawnedCount: 1, requestedCount: 1 },
+          { spawnedCount: 1, requestedCount: 1 },
+        ],
+        blockedSpawns: 0,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      // Wave 0 spawn succeeds, wave 1 spawn fails
+      scene.addEnemyFromSpawn = vi
+        .fn()
+        .mockReturnValueOnce({ name: 'Enemy' })
+        .mockReturnValueOnce(null);
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 5);
+
+      expect(scene.turnPar).toBe(11); // 10 + 1 (only wave 0 succeeded)
+    });
+
+    it('counts scripted and procedural waves with same waveIndex as distinct', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 8;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+      scene.updateObjectiveText = vi.fn();
+      scene.showReinforcementBanner = vi.fn();
+
+      // Scripted wave 0 and procedural wave 0 fire on the same turn
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [
+          { col: 0, row: 0, waveIndex: 0, waveType: 'scripted' },
+          { col: 1, row: 0, waveIndex: 0 },
+        ],
+        dueWaves: [
+          { spawnedCount: 1, requestedCount: 1 },
+          { spawnedCount: 1, requestedCount: 1 },
+        ],
+        blockedSpawns: 0,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      scene.addEnemyFromSpawn = vi.fn(() => ({ name: 'Enemy' }));
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBe(10); // 8 + 2 (scripted:0 and procedural:0 are distinct)
+    });
+
+    it('does not bump par when addEnemyFromSpawn fails for all spawns', () => {
+      const scene = new BattleScene();
+      scene.turnPar = 8;
+      scene.dangerZoneStale = false;
+      scene.grid = { fogEnabled: false };
+
+      // Scheduler resolved spawns, but addEnemyFromSpawn returns null for all
+      scene.resolveReinforcementsForTurn = vi.fn(() => ({
+        spawns: [
+          { col: 0, row: 0, waveIndex: 0 },
+          { col: 1, row: 0, waveIndex: 0 },
+        ],
+        dueWaves: [{ spawnedCount: 2, requestedCount: 2 }],
+        blockedSpawns: 0,
+      }));
+      scene.buildReinforcementSpawnSpec = vi.fn((s) => s);
+      scene.addEnemyFromSpawn = vi.fn(() => null); // all fail
+
+      BattleScene.prototype.applyReinforcementsForTurn.call(scene, 4);
+
+      expect(scene.turnPar).toBe(8); // unchanged — no actual enemies created
+    });
   });
 });

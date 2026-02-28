@@ -48,9 +48,10 @@ export function calculatePar(mapParams, config, difficultyId = null) {
   const rawPar = Math.ceil(
     (basePar + enemyPenalty + areaPenalty + terrainPenalty + adjustment) * 0.8,
   );
+  const inflation = config.parInflation || 0;
   const diffMult = config.difficultyParMultiplier?.[difficultyId] ?? 1;
-  if (diffMult >= 1) return rawPar;
-  return Math.max(1, Math.floor(rawPar * diffMult));
+  if (diffMult >= 1) return rawPar + inflation;
+  return Math.max(1, Math.floor(rawPar * diffMult)) + inflation;
 }
 
 /**
