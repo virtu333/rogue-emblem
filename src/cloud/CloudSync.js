@@ -360,7 +360,7 @@ function isAuthExpiryError(err) {
   if (code === 'pgrst301' || code === 'invalid_jwt' || code === 'auth_session_missing') return true;
   const msg = String(err?.message || err?.error_description || '').toLowerCase();
   if (msg.includes('auth session missing')) return true;
-  if (msg.includes('session') && msg.includes('expired')) return true;
+  if (msg.includes('session expired') || msg.includes('session has expired')) return true;
   if (msg.includes('jwt') && (msg.includes('expired') || msg.includes('invalid'))) return true;
   if (msg.includes('invalid refresh token')) return true;
   return false;

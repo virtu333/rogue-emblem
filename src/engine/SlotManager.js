@@ -121,20 +121,23 @@ export function setActiveSlot(slot) {
  */
 export function migrateOldSaves() {
   try {
+    let migratedAny = false;
+
     const oldMeta = localStorage.getItem(OLD_META_KEY);
-    if (oldMeta) {
+    if (oldMeta && !localStorage.getItem(getMetaKey(1))) {
       localStorage.setItem(getMetaKey(1), oldMeta);
-      localStorage.removeItem(OLD_META_KEY);
+      migratedAny = true;
     }
+    if (oldMeta) localStorage.removeItem(OLD_META_KEY);
 
     const oldRun = localStorage.getItem(OLD_RUN_KEY);
-    if (oldRun) {
+    if (oldRun && !localStorage.getItem(getRunKey(1))) {
       localStorage.setItem(getRunKey(1), oldRun);
-      localStorage.removeItem(OLD_RUN_KEY);
+      migratedAny = true;
     }
+    if (oldRun) localStorage.removeItem(OLD_RUN_KEY);
 
-    // If we migrated anything, set active slot to 1
-    if (oldMeta || oldRun) {
+    if (migratedAny) {
       setActiveSlot(1);
     }
   } catch (err) {

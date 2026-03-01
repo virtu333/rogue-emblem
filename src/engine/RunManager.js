@@ -37,7 +37,7 @@ import {
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
-import { getRunKey, getActiveSlot } from './SlotManager.js';
+import { getRunKey } from './SlotManager.js';
 import {
   buildBlessingIndex,
   createSeededRng,
@@ -2715,9 +2715,9 @@ export class RunManager {
   /** Advance to the next act. Generates a new node map. Returns { unlockedArtIds, displacedSkills }. */
   advanceAct() {
     this._revertActScopedBlessingEffects(this.currentAct);
-    this.actIndex++;
-    if (this.actIndex >= this.actSequence.length)
+    if (this.actIndex >= this.actSequence.length - 1)
       return { unlockedArtIds: [], displacedSkills: {} };
+    this.actIndex++;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
     this.nodeMap = generateNodeMap(
       this.currentAct,
@@ -3570,11 +3570,13 @@ export class RunManager {
   }
 }
 
-/** Resolve the storage key for a slot (uses active slot if not provided). */
+/** Resolve the storage key for a slot. Requires explicit slotNumber in production. */
 function resolveRunKey(slotNumber) {
-  const slot = slotNumber || getActiveSlot();
-  if (!slot) return 'emblem_rogue_run_save'; // fallback for tests
-  return getRunKey(slot);
+  if (!slotNumber) {
+    console.warn('[RunManager] resolveRunKey called without slotNumber');
+    return 'emblem_rogue_run_save';
+  }
+  return getRunKey(slotNumber);
 }
 
 export function saveRun(runManager, onSave, slotNumber) {

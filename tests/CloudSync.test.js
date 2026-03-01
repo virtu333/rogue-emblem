@@ -230,6 +230,47 @@ describe('CloudSync auth-expiry status', () => {
   });
 });
 
+describe('CloudSync auth-expiry message-only matching', () => {
+  beforeEach(() => {
+    mocked.fromMock.mockReset();
+    mocked.reportAsyncError.mockReset();
+    mocked.markStartup.mockReset();
+    __resetCloudSyncStatusForTests();
+  });
+
+  it('marks auth expired for "session expired" message without status code', async () => {
+    const msgOnlyError = { message: 'session expired' };
+    mocked.fromMock.mockImplementation(() => makeTableApi({ selectError: msgOnlyError }));
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(true);
+    expect(status.mode).toBe('auth_expired');
+  });
+
+  it('marks auth expired for "session has expired" message without status code', async () => {
+    const msgOnlyError = { message: 'Your session has expired, please log in again' };
+    mocked.fromMock.mockImplementation(() => makeTableApi({ selectError: msgOnlyError }));
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(true);
+    expect(status.mode).toBe('auth_expired');
+  });
+
+  it('does not misclassify a transient DB error as auth expiry', async () => {
+    const dbError = { message: 'could not serialize access due to concurrent session update' };
+    mocked.fromMock.mockImplementation(() => makeTableApi({ selectError: dbError }));
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    const status = getCloudSyncStatus();
+    expect(status.authExpired).toBe(false);
+  });
+});
+
 describe('CloudSync merge helpers', () => {
   it('prefers local meta when local savedAt is newer', () => {
     const local = { totalValor: 120, totalSupply: 90, savedAt: 200 };

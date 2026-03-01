@@ -111,7 +111,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       // Clear any stale run save before starting fresh
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
     }
 
     this.isTransitioning = true;

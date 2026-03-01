@@ -959,6 +959,7 @@ export class NodeMapScene extends Phaser.Scene {
     const result = saveRun(
       this.runManager,
       cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+      slot,
     );
     if (!result.ok) {
       showMinorHint(this, 'Save failed — storage may be full');
@@ -1005,7 +1006,7 @@ export class NodeMapScene extends Phaser.Scene {
         try {
           const cloud = this.registry.get('cloud');
           const slot = this.registry.get('activeSlot');
-          clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+          clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
           this.runManager.failRun();
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
@@ -1338,6 +1339,7 @@ export class NodeMapScene extends Phaser.Scene {
         const result = saveRun(
           this.runManager,
           cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+          slot,
         );
         if (!result.ok) {
           showMinorHint(this, 'Save failed — storage may be full');

@@ -197,15 +197,15 @@ export function mergeCombatMods(baseMods, extraMods) {
 }
 
 export function isPhysical(weapon) {
-  return PHYSICAL_TYPES.has(weapon.type);
+  return weapon ? PHYSICAL_TYPES.has(weapon.type) : false;
 }
 
 export function isMagical(weapon) {
-  return MAGICAL_TYPES.has(weapon.type);
+  return weapon ? MAGICAL_TYPES.has(weapon.type) : false;
 }
 
 export function isStaff(weapon) {
-  return weapon.type === 'Staff';
+  return weapon ? weapon.type === 'Staff' : false;
 }
 
 /** Check weapon effectiveness vs defender's moveType. Returns multiplier (1 if none). */
@@ -286,7 +286,7 @@ export function getConditionalWeaponBonuses(weapon, unit, allAllies) {
 
 /** True if weapon uses MAG stat for damage (tomes, light magic, or magic swords). */
 export function usesMagic(weapon) {
-  return isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false);
+  return weapon ? isMagical(weapon) || (weapon.special?.includes('Magic sword') ?? false) : false;
 }
 
 /** Sum a specific stat bonus from weapon bonus array. */

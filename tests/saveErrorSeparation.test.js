@@ -184,6 +184,28 @@ describe('H2+H3 — Save error separation', () => {
       );
     });
 
+    it('migrateOldSaves skips occupied slot 1 and does not call setActiveSlot', () => {
+      // Pre-occupy slot 1
+      store['emblem_rogue_slot_1_meta'] = '{"existing":"meta"}';
+      store['emblem_rogue_slot_1_run'] = '{"existing":"run"}';
+      // Seed old-format keys
+      store['emblem_rogue_meta_save'] = '{"old":"meta"}';
+      store['emblem_rogue_run_save'] = '{"old":"run"}';
+
+      localStorageMock.setItem.mockClear();
+      migrateOldSaves();
+
+      // Slot 1 data preserved — old keys cleaned up
+      expect(store['emblem_rogue_slot_1_meta']).toBe('{"existing":"meta"}');
+      expect(store['emblem_rogue_slot_1_run']).toBe('{"existing":"run"}');
+      expect(store['emblem_rogue_meta_save']).toBeUndefined();
+      expect(store['emblem_rogue_run_save']).toBeUndefined();
+      // setActiveSlot should NOT have been called (migratedAny = false)
+      const setItemCalls = localStorageMock.setItem.mock.calls;
+      const activeSlotWrites = setItemCalls.filter(([k]) => k === 'emblem_rogue_active_slot');
+      expect(activeSlotWrites).toHaveLength(0);
+    });
+
     it('migrateOldSaves logs warning on failure', () => {
       // Seed an old key so migration attempts a write
       store['emblem_rogue_meta_save'] = '{}';

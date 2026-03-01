@@ -3808,7 +3808,7 @@ export class BattleScene extends Phaser.Scene {
           try {
             const cloud = this.registry.get('cloud');
             const slot = this.registry.get('activeSlot');
-            clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+            clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
             this.clearBattleScopedDeltas(this.playerUnits);
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             this.runManager.failRun();
@@ -3925,7 +3925,7 @@ export class BattleScene extends Phaser.Scene {
     // Click own tile to stay in place -> show action menu
     if (gp.col === this.selectedUnit.col && gp.row === this.selectedUnit.row) {
       this.grid.clearHighlights();
-      if (this.selectedUnit.graphic.clearTint) this.selectedUnit.graphic.clearTint();
+      if (this.selectedUnit.graphic?.clearTint) this.selectedUnit.graphic.clearTint();
       this.preMoveLoc = { col: this.selectedUnit.col, row: this.selectedUnit.row };
       this._preFogSnapshot = this.grid.snapshotFogState();
       this.showActionMenu(this.selectedUnit);
@@ -4035,7 +4035,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   deselectUnit() {
-    if (this.selectedUnit && this.selectedUnit.graphic.clearTint) {
+    if (this.selectedUnit && this.selectedUnit.graphic?.clearTint) {
       this.selectedUnit.graphic.clearTint();
     }
     this.selectedUnit = null;
@@ -11397,7 +11397,7 @@ export class BattleScene extends Phaser.Scene {
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       resetTransitionLocks(this);
@@ -11525,7 +11525,7 @@ export class BattleScene extends Phaser.Scene {
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null);
+      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       resetTransitionLocks(this);
