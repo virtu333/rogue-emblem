@@ -3291,6 +3291,22 @@ export class RunManager {
     rm.fallenUnits = Array.isArray(saved.fallenUnits)
       ? saved.fallenUnits.filter((u) => rm._isValidSerializedUnit(u))
       : [];
+
+    // --- lord presence validation (only for non-empty rosters) ---
+    if (rm.roster.length > 0) {
+      const lordNames = new Set((gameData.lords || []).map((l) => l.name));
+      const unflagged = rm.roster.filter((u) => lordNames.has(u.name) && !u.isLord);
+      for (const lord of unflagged) {
+        lord.isLord = true;
+        console.warn('[RunManager] fromJSON: repaired missing isLord flag on', lord.name);
+      }
+      if (!rm.roster.some((u) => u.isLord)) {
+        throw new Error(
+          '[RunManager] fromJSON: no lord found in roster after filtering — save is corrupt',
+        );
+      }
+    }
+
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
@@ -3579,6 +3595,14 @@ function resolveRunKey(slotNumber) {
   return getRunKey(slotNumber);
 }
 
+function isQuotaExceededError(err) {
+  if (err?.name === 'QuotaExceededError') return true;
+  if (typeof DOMException !== 'undefined' && err instanceof DOMException && err.code === 22)
+    return true;
+  if (typeof err?.message === 'string' && /quota/i.test(err.message)) return true;
+  return false;
+}
+
 export function saveRun(runManager, onSave, slotNumber) {
   const json = {
     ...runManager.toJSON(),
@@ -3590,7 +3614,9 @@ export function saveRun(runManager, onSave, slotNumber) {
     localStorage.setItem(key, JSON.stringify(json));
     localOk = true;
   } catch (err) {
+    const isQuota = isQuotaExceededError(err);
     console.warn('[RunManager] localStorage write failed:', err?.message || err);
+    return { ok: false, reason: isQuota ? 'quota' : 'write_error', isQuotaError: isQuota };
   }
 
   if (localOk && onSave) {
@@ -3601,7 +3627,7 @@ export function saveRun(runManager, onSave, slotNumber) {
     }
   }
 
-  return { ok: localOk };
+  return { ok: true };
 }
 
 export function loadRun(gameData, slotNumber) {
@@ -3611,7 +3637,11 @@ export function loadRun(gameData, slotNumber) {
     if (!raw) return null;
     const saved = JSON.parse(raw);
     return RunManager.fromJSON(saved, gameData);
-  } catch (_) {
+  } catch (err) {
+    console.error(
+      `[RunManager] loadRun failed for slot ${slotNumber ?? '(legacy)'}:`,
+      err?.message || err,
+    );
     return null;
   }
 }

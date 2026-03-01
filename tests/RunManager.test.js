@@ -4018,4 +4018,104 @@ describe('RunManager noMetaMode', () => {
       expect(rm2.noMetaMode).toBe(false);
     }
   });
+
+  it('fromJSON throws when no lord in roster after filtering', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+
+    // Replace roster with units that have no lord flag and names not matching any lord
+    saved.roster = [
+      {
+        name: 'GenericSoldier',
+        class: 'Soldier',
+        level: 1,
+        stats: { hp: 20, str: 8, mag: 0, skl: 5, spd: 5, lck: 3, def: 6, res: 1, mov: 5 },
+        maxHp: 20,
+        weapon: null,
+        skills: [],
+        isLord: false,
+      },
+    ];
+
+    expect(() => RunManager.fromJSON(saved, gameData)).toThrow('no lord');
+  });
+
+  it('fromJSON repairs missing isLord flag on ALL lord-named units', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+
+    // Collect all lord names present in the roster
+    const lordNames = new Set(gameData.lords.map((l) => l.name));
+    const lordUnitsInRoster = saved.roster.filter((u) => lordNames.has(u.name));
+    expect(lordUnitsInRoster.length).toBeGreaterThan(0);
+
+    // Strip isLord from ALL roster units to trigger repair
+    for (const u of saved.roster) {
+      u.isLord = false;
+    }
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rm2 = RunManager.fromJSON(saved, gameData);
+
+    // Verify every lord-named unit got repaired
+    for (const lordUnit of lordUnitsInRoster) {
+      const repaired = rm2.roster.find((u) => u.name === lordUnit.name);
+      expect(repaired).toBeDefined();
+      expect(repaired.isLord).toBe(true);
+    }
+
+    // Verify warn was called for each repaired lord
+    expect(warnSpy).toHaveBeenCalledTimes(lordUnitsInRoster.length);
+    for (const lordUnit of lordUnitsInRoster) {
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('repaired missing isLord'),
+        lordUnit.name,
+      );
+    }
+    warnSpy.mockRestore();
+  });
+
+  it('fromJSON repairs partially-corrupted roster where one lord is flagged and another is not', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = rm.toJSON();
+
+    // Need at least two lord names from gameData
+    expect(gameData.lords.length).toBeGreaterThanOrEqual(2);
+    const secondLordName = gameData.lords[1].name;
+
+    // Inject a second lord-named unit with isLord: false
+    const fakeSecondLord = {
+      ...saved.roster[0],
+      name: secondLordName,
+      isLord: false,
+    };
+    saved.roster.push(fakeSecondLord);
+
+    // First lord keeps isLord: true — so .some(u => u.isLord) would have been true
+    // under the old code, skipping repair entirely
+    const firstLordName = saved.roster.find((u) => u.isLord)?.name;
+    expect(firstLordName).toBeDefined();
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rm2 = RunManager.fromJSON(saved, gameData);
+
+    // Both lords should have isLord: true — assert against deserialized output
+    const repairedFirst = rm2.roster.find((u) => u.name === firstLordName);
+    expect(repairedFirst).toBeDefined();
+    expect(repairedFirst.isLord).toBe(true);
+    const repairedSecond = rm2.roster.find((u) => u.name === secondLordName);
+    expect(repairedSecond).toBeDefined();
+    expect(repairedSecond.isLord).toBe(true);
+
+    // Only the unflagged lord triggered a warn
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('repaired missing isLord'),
+      secondLordName,
+    );
+    warnSpy.mockRestore();
+  });
 });

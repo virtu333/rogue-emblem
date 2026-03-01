@@ -54,35 +54,50 @@ export function getNextAvailableSlot() {
 }
 
 /**
- * Summary info for a slot. Returns null if slot is empty.
- * @returns {{ slot, renown, runsCompleted, hasActiveRun, actReached }}
+ * Summary info for a slot. Returns null if slot is empty (no meta).
+ * If meta is valid but run JSON is corrupt, returns summary with runCorrupt: true.
+ * @returns {{ slot, valor, supply, runsCompleted, hasActiveRun, actReached, runCorrupt } | null}
  */
 export function getSlotSummary(slot) {
+  let meta;
   try {
     const metaRaw = localStorage.getItem(getMetaKey(slot));
     if (!metaRaw) return null;
+    meta = JSON.parse(metaRaw);
+  } catch (_) {
+    return null; // meta itself is corrupt — treat as empty
+  }
 
-    const meta = JSON.parse(metaRaw);
-    const summary = {
-      slot,
-      valor: meta.totalValor ?? meta.totalRenown ?? 0,
-      supply: meta.totalSupply ?? meta.totalRenown ?? 0,
-      runsCompleted: meta.runsCompleted || 0,
-      hasActiveRun: false,
-      actReached: null,
-    };
+  const summary = {
+    slot,
+    valor: meta.totalValor ?? meta.totalRenown ?? 0,
+    supply: meta.totalSupply ?? meta.totalRenown ?? 0,
+    runsCompleted: meta.runsCompleted || 0,
+    hasActiveRun: false,
+    actReached: null,
+    runCorrupt: false,
+  };
 
-    const runRaw = localStorage.getItem(getRunKey(slot));
-    if (runRaw) {
+  let runRaw;
+  try {
+    runRaw = localStorage.getItem(getRunKey(slot));
+  } catch (_) {
+    summary.runCorrupt = true;
+    console.error(`[SlotManager] Failed to read run data for slot ${slot}`);
+    return summary;
+  }
+  if (runRaw) {
+    try {
       const run = JSON.parse(runRaw);
       summary.hasActiveRun = true;
       summary.actReached = (run.actIndex || 0) + 1;
+    } catch (_) {
+      summary.runCorrupt = true;
+      console.error(`[SlotManager] Corrupt run data in slot ${slot}`);
     }
-
-    return summary;
-  } catch (_) {
-    return null;
   }
+
+  return summary;
 }
 
 /** Delete both meta and run data for a slot (and hint state). */

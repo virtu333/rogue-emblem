@@ -69,12 +69,29 @@ describe('H2+H3 — Save error separation', () => {
       });
       const onSave = vi.fn();
       const result = saveRun(makeMockRunManager(), onSave, 1);
-      expect(result).toEqual({ ok: false });
+      expect(result).toMatchObject({ ok: false });
       expect(onSave).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[RunManager] localStorage write failed'),
         expect.any(String),
       );
+    });
+
+    it('returns isQuotaError: true for QuotaExceededError', () => {
+      const err = new DOMException('quota exceeded', 'QuotaExceededError');
+      localStorageMock.setItem.mockImplementation(() => {
+        throw err;
+      });
+      const result = saveRun(makeMockRunManager(), null, 1);
+      expect(result).toEqual({ ok: false, reason: 'quota', isQuotaError: true });
+    });
+
+    it('returns reason: write_error for non-quota errors', () => {
+      localStorageMock.setItem.mockImplementation(() => {
+        throw new Error('Permission denied');
+      });
+      const result = saveRun(makeMockRunManager(), null, 1);
+      expect(result).toEqual({ ok: false, reason: 'write_error', isQuotaError: false });
     });
 
     it('returns { ok: true } when localStorage succeeds but onSave throws', () => {

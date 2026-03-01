@@ -213,16 +213,22 @@ export class SlotPickerScene extends Phaser.Scene {
 
       // Active run status
       let runStatus;
-      if (summary.hasActiveRun) {
+      let statusColor;
+      if (summary.runCorrupt) {
+        runStatus = 'Save data corrupted';
+        statusColor = '#ff6666';
+      } else if (summary.hasActiveRun) {
         runStatus = `Act ${summary.actReached} in progress`;
+        statusColor = '#88ff88';
       } else {
         runStatus = 'No active run';
+        statusColor = '#666666';
       }
       const statusText = this.add
         .text(x, y - 6, runStatus, {
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: summary.hasActiveRun ? '#88ff88' : '#666666',
+          color: statusColor,
         })
         .setOrigin(0.5);
       this.slotCards.push(statusText);
@@ -301,7 +307,7 @@ export class SlotPickerScene extends Phaser.Scene {
           transitioned = await transitionToScene(
             this,
             'HomeBase',
-            { gameData: this.gameData },
+            { gameData: this.gameData, corruptRunDetected: true },
             { reason: TRANSITION_REASONS.CONTINUE },
           );
         }
@@ -310,7 +316,7 @@ export class SlotPickerScene extends Phaser.Scene {
         transitioned = await transitionToScene(
           this,
           'HomeBase',
-          { gameData: this.gameData },
+          { gameData: this.gameData, corruptRunDetected: summary.runCorrupt || false },
           { reason: TRANSITION_REASONS.CONTINUE },
         );
       }

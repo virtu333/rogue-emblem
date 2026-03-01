@@ -136,6 +136,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this.gameData = data.gameData;
     this.runManager = data.runManager || null;
     this.isTransitioning = false;
+    this._corruptRunDetected = data.corruptRunDetected || false;
   }
 
   create() {
@@ -143,6 +144,10 @@ export class HomeBaseScene extends Phaser.Scene {
 
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.homeBase, this);
+
+    if (this._corruptRunDetected) {
+      showMinorHint(this, 'Save data could not be loaded. Starting fresh for this slot.');
+    }
 
     this.events.once('shutdown', () => HomeBaseScene.prototype._onSceneShutdown.call(this));
 

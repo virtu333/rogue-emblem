@@ -962,7 +962,12 @@ export class NodeMapScene extends Phaser.Scene {
       slot,
     );
     if (!result.ok) {
-      showMinorHint(this, 'Save failed — storage may be full');
+      showMinorHint(
+        this,
+        result.isQuotaError
+          ? 'Save failed — storage full. Clear browser data to free space.'
+          : 'Save failed — storage may be unavailable',
+      );
     }
   }
 
@@ -1342,7 +1347,12 @@ export class NodeMapScene extends Phaser.Scene {
           slot,
         );
         if (!result.ok) {
-          showMinorHint(this, 'Save failed — storage may be full');
+          showMinorHint(
+            this,
+            result.isQuotaError
+              ? 'Save failed — storage full. Clear browser data to free space.'
+              : 'Save failed — storage may be unavailable',
+          );
         }
         if (!this.shopOverlay && !this.churchOverlay) {
           this.drawMap();
