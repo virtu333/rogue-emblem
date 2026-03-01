@@ -8063,20 +8063,26 @@ export class BattleScene extends Phaser.Scene {
       }
       if (this.battleState !== 'BATTLE_END') {
         // Consume the attacker's action to prevent double-acting after error
-        if (attacker?.faction === 'player' && attacker.currentHP > 0 && !attacker.hasActed) {
+        const shouldConsumeAction =
+          attacker?.faction === 'player' && attacker.currentHP > 0 && !attacker.hasActed;
+        if (shouldConsumeAction) {
           attacker.hasActed = true;
           try {
             this.dimUnit(attacker);
           } catch (_) {
             /* best-effort visual */
           }
-          this.turnManager?.unitActed(attacker);
         }
+        // Reset state BEFORE unitActed — matches finishUnitAction order so
+        // unitActed's phase transition (if triggered) takes final precedence
         this.battleState = 'PLAYER_IDLE';
         this.grid.clearHighlights();
         this.grid.clearAttackHighlights();
         this.attackTargets = [];
         this.selectedUnit = null;
+        if (shouldConsumeAction) {
+          this.turnManager?.unitActed(attacker);
+        }
       }
     } finally {
       this._clearCombatRollSession();
