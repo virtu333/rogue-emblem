@@ -3,7 +3,7 @@
 // Boss enemies on seize maps stay within 1 tile of throne.
 // Guard enemies wait until a player enters trigger range, then permanently switch to chase.
 
-import { gridDistance, isInRange, getWeaponTriangleBonus } from './Combat.js';
+import { gridDistance, isInRange, getWeaponTriangleBonus, isMagical } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
 import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
@@ -140,8 +140,8 @@ export class AIController {
     // Pick best weapon for selected target
     if (bestTarget && entity.inventory?.length > 1) {
       const best = pickBestWeapon(entity, bestTarget, (ent, wpn, tgt) => {
-        const atkStat = wpn.type === 'Tome' || wpn.type === 'Light' ? ent.stats.MAG : ent.stats.STR;
-        const defStat = wpn.type === 'Tome' || wpn.type === 'Light' ? tgt.stats.RES : tgt.stats.DEF;
+        const atkStat = isMagical(wpn) ? ent.stats.MAG : ent.stats.STR;
+        const defStat = isMagical(wpn) ? tgt.stats.RES : tgt.stats.DEF;
         return Math.max(0, atkStat + (wpn.might || 0) - defStat);
       });
       entity.weapon = best;
@@ -347,10 +347,8 @@ export class AIController {
         );
         const best = pickBestWeapon(enemy, bestAttack.target, (ent, wpn, tgt) => {
           if (!isInRange(wpn, dist)) return -Infinity;
-          const atkStat =
-            wpn.type === 'Tome' || wpn.type === 'Light' ? ent.stats.MAG : ent.stats.STR;
-          const defStat =
-            wpn.type === 'Tome' || wpn.type === 'Light' ? tgt.stats.RES : tgt.stats.DEF;
+          const atkStat = isMagical(wpn) ? ent.stats.MAG : ent.stats.STR;
+          const defStat = isMagical(wpn) ? tgt.stats.RES : tgt.stats.DEF;
           let score = Math.max(0, atkStat + (wpn.might || 0) - defStat);
           if (tgt.weapon) {
             const tri = getWeaponTriangleBonus(wpn, tgt.weapon, ent.weaponRank);

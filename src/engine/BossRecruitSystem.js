@@ -627,9 +627,10 @@ export function generateThirdLordCandidates(roster, gameData, metaEffects, falle
   const candidates = selected
     .map((lordDef) => {
       const unit = buildLord(lordDef);
+      if (!unit) return null;
       return { unit: serializeUnit(unit), lordDef, isLord: true };
     })
-    .filter((c) => c.unit);
+    .filter((c) => c?.unit);
 
   return candidates.length ? { candidates, mode } : null;
 }

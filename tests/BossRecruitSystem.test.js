@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   generateBossRecruitCandidates,
+  generateThirdLordCandidates,
   getAvailableLords,
   createBossLordUnit,
 } from '../src/engine/BossRecruitSystem.js';
@@ -828,6 +829,37 @@ describe('BossRecruitSystem', () => {
       // Lethal Armory adds a Steel Sword here; secondary should still use spawn tier (Iron).
       expect(unit.inventory.some((w) => w?.type === 'Sword' && w?.tier === 'Steel')).toBe(true);
       expect(bow?.tier).toBe('Iron');
+    });
+  });
+
+  describe('generateThirdLordCandidates', () => {
+    it('filters out lords whose class does not exist in gameData', () => {
+      const roster = makeBaseRoster();
+      // Inject a lord with a non-existent class
+      const fakeGameData = {
+        ...gameData,
+        lords: [
+          ...gameData.lords,
+          {
+            name: 'GhostLord',
+            class: 'NonExistentClass',
+            stats: {},
+            growths: {},
+            weapons: ['Sword'],
+          },
+        ],
+      };
+      const result = generateThirdLordCandidates(roster, fakeGameData, {}, [], 'pick_all');
+      expect(result).not.toBeNull();
+      // No candidate should have a null/empty unit (the corrupt state)
+      for (const c of result.candidates) {
+        expect(c).not.toBeNull();
+        expect(c.unit).toBeTruthy();
+        expect(c.unit.name).toBeDefined();
+      }
+      // The ghost lord should NOT appear
+      const ghostCandidate = result.candidates.find((c) => c.lordDef?.name === 'GhostLord');
+      expect(ghostCandidate).toBeUndefined();
     });
   });
 });

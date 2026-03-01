@@ -1195,4 +1195,68 @@ describe('AIController', () => {
       expect(enemy.weapon.name).toBe('Iron Sword');
     });
   });
+
+  describe('Breath weapon scoring (isMagical)', () => {
+    it('entity path uses MAG for Breath weapons', () => {
+      // Stats chosen so Sword wins under old broken STR logic, Breath wins under correct MAG logic
+      // Old (broken): Breath = STR(5)+3−DEF(4) = 4; Sword = STR(5)+7−DEF(4) = 8 → Sword wins
+      // New (correct): Breath = MAG(14)+3−RES(4) = 13; Sword = STR(5)+7−DEF(4) = 8 → Breath wins
+      const breath = { name: 'Fire Breath', range: '1', type: 'Breath', might: 3 };
+      const sword = { name: 'Iron Sword', range: '1', type: 'Sword', might: 7 };
+      const entity = makeEnemy({
+        col: 5,
+        row: 5,
+        isEntity: true,
+        weapon: sword,
+        inventory: [sword, breath],
+        stats: { HP: 40, STR: 5, MAG: 14, SKL: 5, SPD: 5, DEF: 8, RES: 3, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 8, MAG: 5, SKL: 5, SPD: 5, DEF: 4, RES: 4, LCK: 3 },
+      });
+      const grid = createMockGrid([]);
+      const ai = new AIController(grid, {});
+
+      // _decideEntityAction picks best weapon using isMagical scoring
+      const decision = ai._decideEntityAction(entity, [player], []);
+      expect(decision.target).toBe(player);
+      // Breath: MAG(14) + might(3) - RES(4) = 13
+      // Sword:  STR(5)  + might(7) - DEF(4) = 8
+      // Entity should swap to Breath
+      expect(entity.weapon).toBe(breath);
+    });
+
+    it('general weapon-swap path uses MAG for Breath weapons', () => {
+      // Stats chosen so Sword wins under old broken STR logic, Breath wins under correct MAG logic
+      // Old (broken): Breath = STR(5)+3−DEF(4) = 4; Sword = STR(5)+7−DEF(4) = 8 → Sword wins
+      // New (correct): Breath = MAG(14)+3−RES(4) = 13; Sword = STR(5)+7−DEF(4) = 8 → Breath wins
+      const breath = { name: 'Fire Breath', range: '1', type: 'Breath', might: 3 };
+      const sword = { name: 'Iron Sword', range: '1', type: 'Sword', might: 7 };
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        isEntity: false,
+        weapon: sword,
+        inventory: [sword, breath],
+        stats: { HP: 30, STR: 5, MAG: 14, SKL: 5, SPD: 5, DEF: 5, RES: 3, LCK: 3 },
+      });
+      const player = makePlayer({
+        col: 5,
+        row: 4,
+        stats: { HP: 20, STR: 8, MAG: 5, SKL: 5, SPD: 5, DEF: 4, RES: 4, LCK: 3 },
+      });
+      // Player is adjacent (distance 1) — enemy is already in attack range
+      const moveTiles = [{ col: 5, row: 5, cost: 0 }];
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+      expect(decision.target).toBe(player);
+      // Breath: MAG(14) + might(3) - RES(4) = 13
+      // Sword:  STR(5)  + might(7) - DEF(4) = 8
+      // Should swap to Breath
+      expect(enemy.weapon).toBe(breath);
+    });
+  });
 });

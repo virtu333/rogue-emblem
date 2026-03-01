@@ -392,7 +392,7 @@ export class BossRecruitOverlay {
     if (!anchorText || typeof description !== 'string') return;
     const body = description.trim();
     if (!body) return;
-    scene._hideMenuTooltip();
+    if (typeof scene._hideMenuTooltip === 'function') scene._hideMenuTooltip();
     const anchorDepth = Number(anchorText?.depth);
     const tooltipDepth = Number.isFinite(anchorDepth) ? Math.max(703, anchorDepth + 1) : 703;
     const padding = 8;
@@ -431,20 +431,23 @@ export class BossRecruitOverlay {
     if (!text || typeof description !== 'string' || !description.trim()) return;
     text.setInteractive({ useHandCursor: true });
     text.on('pointerover', () => {
-      scene._clearMenuTooltipTimer('_menuTooltipHoverTimer');
+      if (typeof scene._clearMenuTooltipTimer === 'function')
+        scene._clearMenuTooltipTimer('_menuTooltipHoverTimer');
       scene._menuTooltipHoverTimer = scene.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
         scene._menuTooltipHoverTimer = null;
         this._showBossRecruitClassTooltip(text, description);
       });
     });
     text.on('pointerout', () => {
-      scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      if (typeof scene._clearMenuTooltipTimer === 'function')
+        scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
       text._bossRecruitPressed = null;
-      scene._hideMenuTooltip();
+      if (typeof scene._hideMenuTooltip === 'function') scene._hideMenuTooltip();
     });
     text.on('pointerdown', (pointer) => {
       if (pointer?.button !== 0) return;
-      scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      if (typeof scene._clearMenuTooltipTimer === 'function')
+        scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
       text._bossRecruitPressed = {
         id: pointer?.id,
         x: pointer?.x ?? 0,
@@ -465,12 +468,14 @@ export class BossRecruitOverlay {
       const dx = (pointer?.x ?? 0) - pressed.x;
       const dy = (pointer?.y ?? 0) - pressed.y;
       if (Math.hypot(dx, dy) > TOOLTIP_LONG_PRESS_MOVE_THRESHOLD) {
-        scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
+        if (typeof scene._clearMenuTooltipTimer === 'function')
+          scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
       }
     });
     text.on('pointerup', (pointer) => {
       if (pointer?.button !== 0) return;
-      scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
+      if (typeof scene._clearMenuTooltipTimer === 'function')
+        scene._clearMenuTooltipTimer('_menuTooltipPressTimer');
       const longPressShown = !!text._bossRecruitPressed?.longPressShown;
       text._bossRecruitPressed = null;
       if (longPressShown) return;

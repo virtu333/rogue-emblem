@@ -436,4 +436,31 @@ describe('BossRecruitOverlay', () => {
     expect(scene._pinToScreen).toHaveBeenCalled();
     expect(scene._pinToScreen).toHaveBeenCalledWith(overlay.displayObjects);
   });
+
+  it('tooltip methods do not throw when scene lacks _hideMenuTooltip and _clearMenuTooltipTimer', () => {
+    // Scene without tooltip methods (simulates standalone/test contexts)
+    const bareScene = {
+      ...makeScene(),
+    };
+    delete bareScene._hideMenuTooltip;
+    delete bareScene._clearMenuTooltipTimer;
+    bareScene._menuTooltip = null;
+
+    const bareOverlay = new BossRecruitOverlay(bareScene, makeRunManager(), makeGameData());
+
+    // _showBossRecruitClassTooltip calls scene._hideMenuTooltip — should not throw
+    const anchor = makeDisplayObject({ kind: 'text', text: 'Knight', width: 40 });
+    expect(() => bareOverlay._showBossRecruitClassTooltip(anchor, 'A heavy unit.')).not.toThrow();
+
+    // _wireBossRecruitClassTooltip sets up pointer handlers — should not throw on any event
+    const text = makeDisplayObject({ kind: 'text', text: 'Mage', width: 30 });
+    bareOverlay._wireBossRecruitClassTooltip(text, 'A spell caster.', vi.fn());
+
+    const pointer = { button: 0, id: 1, x: 10, y: 10 };
+    expect(() => text.handlers.pointerover?.()).not.toThrow();
+    expect(() => text.handlers.pointerout?.()).not.toThrow();
+    expect(() => text.handlers.pointerdown?.(pointer)).not.toThrow();
+    expect(() => text.handlers.pointerup?.(pointer)).not.toThrow();
+    expect(() => text.handlers.pointermove?.(pointer)).not.toThrow();
+  });
 });

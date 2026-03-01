@@ -535,7 +535,7 @@ describe('VisionRewindController', () => {
       expect(scene.visionDialog).toBeNull();
     });
 
-    it('closeDialog sets battleState to PLAYER_IDLE', () => {
+    it('closeDialog restores prevState from dialog', () => {
       scene.battleState = 'PAUSED';
       scene.visionDialog = {
         group: [makeDisplayObject()],
@@ -544,7 +544,23 @@ describe('VisionRewindController', () => {
         onCancel: vi.fn(),
       };
       controller.closeDialog();
-      expect(scene.battleState).toBe('PLAYER_IDLE');
+      expect(scene.battleState).toBe('UNIT_SELECTED');
+    });
+
+    it('showDialog captures battleState before overwriting and closeDialog restores it', () => {
+      scene.battleState = 'UNIT_SELECTED';
+      controller.showDialog({
+        title: 'Test',
+        body: 'body',
+        confirmLabel: 'Yes',
+        cancelLabel: 'No',
+        onConfirm: vi.fn(),
+        onCancel: vi.fn(),
+      });
+      expect(scene.battleState).toBe('PAUSED');
+      expect(scene.visionDialog.prevState).toBe('UNIT_SELECTED');
+      controller.closeDialog();
+      expect(scene.battleState).toBe('UNIT_SELECTED');
     });
 
     it('closeDialog is idempotent (no-op when no dialog)', () => {

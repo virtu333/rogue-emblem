@@ -345,6 +345,7 @@ export class VisionRewindController {
   showDialog({ title, body, confirmLabel, cancelLabel, onConfirm, onCancel, accent = 0x66aacc }) {
     const scene = this.scene;
     if (scene.visionDialog) this.closeDialog();
+    const prevState = scene.battleState;
     scene.battleState = 'PAUSED';
     const group = [];
     const cx = scene.cameras.main.centerX;
@@ -411,7 +412,7 @@ export class VisionRewindController {
 
     scene.visionDialog = {
       group,
-      prevState: scene.prePauseState || 'PLAYER_IDLE',
+      prevState,
       onConfirm,
       onCancel,
     };
@@ -433,9 +434,10 @@ export class VisionRewindController {
 
   closeDialog() {
     if (!this.scene.visionDialog) return;
+    const prevState = this.scene.visionDialog.prevState || 'PLAYER_IDLE';
     for (const obj of this.scene.visionDialog.group) obj.destroy();
     this.scene.visionDialog = null;
-    this.scene.battleState = 'PLAYER_IDLE';
+    this.scene.battleState = prevState;
     this.scene.refreshEndTurnControl();
   }
 
