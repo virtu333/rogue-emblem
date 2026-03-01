@@ -68,6 +68,7 @@ function createSceneStub(metaOverrides = {}) {
     },
     drawUI: vi.fn(),
     showPauseMenu: vi.fn(),
+    runTransition: vi.fn(),
     _hideRefundConfirm: HomeBaseScene.prototype._hideRefundConfirm,
     _destroySkillPicker: HomeBaseScene.prototype._destroySkillPicker,
     canRequestCancel: HomeBaseScene.prototype.canRequestCancel,
@@ -136,7 +137,7 @@ describe('HomeBaseScene refund ESC priority chain', () => {
     expect(scene.canRequestCancel({ allowExit: false })).toBe(false);
   });
 
-  it('full ESC sequence: confirm → refund mode → title exit', () => {
+  it('full ESC sequence: confirm → refund mode → title exit calls runTransition', () => {
     scene.refundMode = true;
     scene.confirmOverlayObjects = [createDisplayObject()];
 
@@ -144,15 +145,29 @@ describe('HomeBaseScene refund ESC priority chain', () => {
     scene.requestCancel({ allowExit: true });
     expect(scene.confirmOverlayObjects).toEqual([]);
     expect(scene.refundMode).toBe(true);
+    expect(scene.runTransition).not.toHaveBeenCalled();
 
     // Second ESC: exit refund mode
     scene.requestCancel({ allowExit: true });
     expect(scene.refundMode).toBe(false);
     expect(scene.drawUI).toHaveBeenCalledOnce();
+    expect(scene.runTransition).not.toHaveBeenCalled();
 
-    // Third ESC: falls through to title-exit branch (returns true with allowExit)
+    // Third ESC: falls through to title-exit branch
     const result = scene.requestCancel({ allowExit: true });
     expect(result).toBe(true);
+    expect(scene.runTransition).toHaveBeenCalledOnce();
+  });
+
+  it('double requestCancel calls runTransition twice (dedup is inside runTransition)', () => {
+    scene.requestCancel({ allowExit: true });
+    scene.requestCancel({ allowExit: true });
+
+    // requestCancel has no double-call guard itself — it delegates to runTransition
+    // every time it reaches the allowExit branch. The real dedup is runTransition's
+    // isTransitioning check (HomeBaseScene.js line 1422), which is not exercised here
+    // because runTransition is mocked.
+    expect(scene.runTransition).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -228,5 +243,28 @@ describe('HomeBaseScene refund mode state', () => {
     // Only confirm dismissed, refund mode untouched
     expect(blocker.destroy).toHaveBeenCalled();
     expect(scene.refundMode).toBe(true);
+  });
+});
+
+describe('runTransition isTransitioning guard', () => {
+  it('blocks re-entry after first successful transition', async () => {
+    const scene = createSceneStub();
+    // Bind real runTransition; override the vi.fn() mock
+    scene.runTransition = HomeBaseScene.prototype.runTransition.bind(scene);
+    scene._sceneLifecycleGeneration = 1;
+    scene.sys = { isActive: () => true };
+    scene.isTransitioning = false;
+    scene.input = { enabled: true };
+
+    const action = vi.fn(async () => true);
+    const first = await scene.runTransition(action);
+    expect(first).toBe(true);
+    expect(action).toHaveBeenCalledOnce();
+
+    // Second call blocked by isTransitioning guard
+    const action2 = vi.fn(async () => true);
+    const second = await scene.runTransition(action2);
+    expect(second).toBe(false);
+    expect(action2).not.toHaveBeenCalled();
   });
 });

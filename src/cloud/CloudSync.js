@@ -104,17 +104,31 @@ function applyRunSlots(runData) {
     const localState = readLocalJSONWithState(key);
     if (localState.parseError) {
       // Corrupted local JSON is not recoverable; heal from cloud when available.
-      localStorage.setItem(key, JSON.stringify(cloudSlot));
+      try {
+        localStorage.setItem(key, JSON.stringify(cloudSlot));
+      } catch (e) {
+        console.warn('[CloudSync] localStorage write failed:', key, e);
+      }
       continue;
     }
 
     if (!localState.exists) {
-      localStorage.setItem(key, JSON.stringify(cloudSlot));
+      try {
+        localStorage.setItem(key, JSON.stringify(cloudSlot));
+      } catch (e) {
+        console.warn('[CloudSync] localStorage write failed:', key, e);
+      }
       continue;
     }
 
     const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot);
-    if (!shouldKeepLocal) localStorage.setItem(key, JSON.stringify(cloudSlot));
+    if (!shouldKeepLocal) {
+      try {
+        localStorage.setItem(key, JSON.stringify(cloudSlot));
+      } catch (e) {
+        console.warn('[CloudSync] localStorage write failed:', key, e);
+      }
+    }
   }
 }
 
@@ -126,15 +140,25 @@ function applyMetaSlots(metaData) {
     if (cloudSlot == null) continue;
     const localSlot = readLocalJSON(key);
     const shouldKeepLocal = shouldPreferLocalMeta(localSlot, cloudSlot);
-    if (!shouldKeepLocal) localStorage.setItem(key, JSON.stringify(cloudSlot));
+    if (!shouldKeepLocal) {
+      try {
+        localStorage.setItem(key, JSON.stringify(cloudSlot));
+      } catch (e) {
+        console.warn('[CloudSync] localStorage write failed:', key, e);
+      }
+    }
   }
 }
 
 function applySettings(settingsData) {
-  if (settingsData) {
-    localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settingsData));
-  } else {
-    localStorage.removeItem(SETTINGS_LS_KEY);
+  try {
+    if (settingsData) {
+      localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(settingsData));
+    } else {
+      localStorage.removeItem(SETTINGS_LS_KEY);
+    }
+  } catch (e) {
+    console.warn('[CloudSync] localStorage write failed:', SETTINGS_LS_KEY, e);
   }
 }
 
@@ -185,6 +209,7 @@ export async function fetchAllToLocalStorage(userId, options = {}) {
     rejectedCount: rejected.length,
     timeoutFailures,
   });
+  return { rejectedCount: rejected.length };
 }
 
 /**

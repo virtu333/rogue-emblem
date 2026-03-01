@@ -1784,14 +1784,16 @@ export class HomeBaseScene extends Phaser.Scene {
       return true;
     }
     if (allowExit) {
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      void transitionToScene(
-        this,
-        'Title',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.BACK },
-      );
+      this.runTransition(async () => {
+        const audio = this.registry.get('audio');
+        if (audio) audio.stopMusic(this, 0);
+        return transitionToScene(
+          this,
+          'Title',
+          { gameData: this.gameData },
+          { reason: TRANSITION_REASONS.BACK },
+        );
+      });
       return true;
     }
     return false;

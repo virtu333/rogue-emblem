@@ -276,8 +276,9 @@ function unlockAudio() {
 
 async function startCloudPull(userId, mode) {
   markStartup('cloud_sync_gate_start', { mode, timeoutMs: CLOUD_SYNC_TIMEOUT_MS });
-  await fetchAllToLocalStorage(userId, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS });
+  const result = await fetchAllToLocalStorage(userId, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS });
   markStartup('cloud_sync_gate_done', { mode });
+  return result;
 }
 
 function bootGame(user) {
@@ -375,8 +376,9 @@ if (!supabase) {
           return;
         }
         activateStartupViewportGuard('session_restore');
+        let pullResult;
         try {
-          await startCloudPull(session.user.id, 'session');
+          pullResult = await startCloudPull(session.user.id, 'session');
         } catch (_) {
           markStartup('cloud_sync_gate_fallback', { mode: 'session' });
         }
@@ -389,11 +391,13 @@ if (!supabase) {
           markStartup('session_restore_ignored_after_boot');
           return;
         }
-        fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(
-          (err) => {
-            reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
-          },
-        );
+        if (pullResult?.rejectedCount > 0) {
+          fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(
+            (err) => {
+              reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
+            },
+          );
+        }
       }
       // else: show auth overlay (already visible)
     })
@@ -438,13 +442,14 @@ async function handleSubmit(e) {
     }
 
     const user = result.user;
+    let cloudPullResult;
     try {
-      await startCloudPull(user.id, 'login');
+      cloudPullResult = await startCloudPull(user.id, 'login');
     } catch (_) {
       markStartup('cloud_sync_gate_fallback', { mode: 'login' });
     }
     const didBoot = bootGame(user);
-    if (didBoot) {
+    if (didBoot && cloudPullResult?.rejectedCount > 0) {
       fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
         reportAsyncError('cloud_sync_background_login', err, { mode: 'login' });
       });
