@@ -22,7 +22,7 @@ const DEST_DIRS = [path.join(ROOT, 'assets/portraits'), path.join(ROOT, 'public/
 const DRY_RUN = process.argv.includes('--dry-run');
 const BG_COLOR = { r: 26, g: 26, b: 46, alpha: 255 }; // #1a1a2e — dark navy
 
-// All 36 enemy portrait classes
+// All 37 enemy portrait classes
 const ENEMY_CLASSES = [
   'archer',
   'assassin',
@@ -36,6 +36,7 @@ const ENEMY_CLASSES = [
   'dark_knight',
   'dragon',
   'dragon_lord',
+  'entity',
   'duelist',
   'falcon_knight',
   'fighter',
