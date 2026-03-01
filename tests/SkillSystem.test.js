@@ -366,3 +366,130 @@ describe('SkillSystem silence blocking', () => {
     expect(healEffect).toBeUndefined();
   });
 });
+
+describe('SkillSystem dead-unit aura guards', () => {
+  const gameData = loadGameData();
+
+  it('dead ally (currentHP=0) should NOT project passive-aura buffs', () => {
+    const unit = {
+      name: 'Hero',
+      col: 4,
+      row: 4,
+      currentHP: 20,
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      weapon: null,
+      skills: [],
+    };
+    const deadAlly = {
+      name: 'DeadAlly',
+      col: 5,
+      row: 4,
+      currentHP: 0,
+      stats: { HP: 20 },
+      skills: ['charisma'],
+    };
+    const opponent = {
+      name: 'Enemy',
+      col: 6,
+      row: 4,
+      currentHP: 20,
+      stats: { HP: 20, STR: 8, MAG: 0, SKL: 6, SPD: 6, DEF: 5, RES: 3, LCK: 2 },
+      weapon: null,
+      skills: [],
+    };
+
+    const mods = getSkillCombatMods(
+      unit,
+      opponent,
+      [unit, deadAlly],
+      [opponent],
+      gameData.skills,
+      { name: 'Plain' },
+      true,
+    );
+
+    // Charisma gives +10 hit, +5 avoid — dead ally should give 0
+    expect(mods.hitBonus).toBe(0);
+    expect(mods.avoidBonus).toBe(0);
+  });
+
+  it('dead enemy (currentHP=0) should NOT project passive-aura debuffs', () => {
+    const unit = {
+      name: 'Hero',
+      col: 4,
+      row: 4,
+      currentHP: 20,
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 8, SPD: 8, DEF: 6, RES: 4, LCK: 5 },
+      weapon: null,
+      skills: [],
+    };
+    const deadEnemy = {
+      name: 'DeadDragon',
+      col: 5,
+      row: 4,
+      currentHP: 0,
+      stats: { HP: 40 },
+      skills: ['draconic_aura'],
+    };
+
+    const mods = getSkillCombatMods(
+      unit,
+      deadEnemy,
+      [unit],
+      [deadEnemy],
+      gameData.skills,
+      { name: 'Plain' },
+      true,
+    );
+
+    // Draconic Aura gives -10 hit, -1 atk — dead enemy should give 0
+    expect(mods.hitBonus).toBe(0);
+    expect(mods.atkBonus).toBe(0);
+  });
+
+  it('dead source unit should NOT project renewal_aura healing', () => {
+    const deadHealer = {
+      name: 'FallenHealer',
+      col: 4,
+      row: 4,
+      skills: ['renewal_aura'],
+      stats: { HP: 20 },
+      currentHP: 0,
+    };
+    const livingAlly = {
+      name: 'Survivor',
+      col: 5,
+      row: 4,
+      skills: [],
+      stats: { HP: 20 },
+      currentHP: 12,
+    };
+
+    const effects = getTurnStartEffects([deadHealer, livingAlly], gameData.skills);
+    const healFromDead = effects.find((e) => e.type === 'heal' && e.sourceUnit === deadHealer);
+    expect(healFromDead).toBeUndefined();
+  });
+
+  it('dead ally should NOT receive renewal_aura healing', () => {
+    const healer = {
+      name: 'Healer',
+      col: 4,
+      row: 4,
+      skills: ['renewal_aura'],
+      stats: { HP: 18 },
+      currentHP: 18,
+    };
+    const deadAlly = {
+      name: 'FallenUnit',
+      col: 5,
+      row: 4,
+      skills: [],
+      stats: { HP: 20 },
+      currentHP: 0,
+    };
+
+    const effects = getTurnStartEffects([healer, deadAlly], gameData.skills);
+    const healForDead = effects.find((e) => e.type === 'heal' && e.target === deadAlly);
+    expect(healForDead).toBeUndefined();
+  });
+});

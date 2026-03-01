@@ -2558,4 +2558,47 @@ describe('Entity crit resistance', () => {
       vi.restoreAllMocks();
     }
   });
+
+  it('resolveCombat clamps NaN damage from skill callback to 0', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0); // always hit
+    try {
+      const attacker = makeUnit({
+        stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, DEF: 5, RES: 3, LCK: 5 },
+        currentHP: 20,
+      });
+      const defender = makeUnit({
+        name: 'Target',
+        stats: { HP: 30, STR: 8, MAG: 0, SKL: 5, SPD: 5, DEF: 5, RES: 3, LCK: 0 },
+        currentHP: 30,
+      });
+      const skillCtx = {
+        rollStrikeSkills: () => ({
+          modifiedDamage: NaN,
+          activated: [],
+          heal: 0,
+          extraStrike: false,
+        }),
+        skillsData: [],
+      };
+      const result = resolveCombat(
+        attacker,
+        attacker.weapon,
+        defender,
+        defender.weapon,
+        1,
+        null,
+        null,
+        skillCtx,
+      );
+      // No event should have NaN damage or NaN targetHPAfter
+      for (const evt of result.events) {
+        if (evt.type === 'strike') {
+          expect(Number.isNaN(evt.damage)).toBe(false);
+          expect(Number.isNaN(evt.targetHPAfter)).toBe(false);
+        }
+      }
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
 });

@@ -1039,6 +1039,7 @@ function rollStrike(
     }
   }
 
+  if (!Number.isFinite(finalDmg)) finalDmg = 0;
   const hpAfter = Math.max(0, targetHP - finalDmg);
   return {
     type: 'strike',

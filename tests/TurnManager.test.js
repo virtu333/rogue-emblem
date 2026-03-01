@@ -197,4 +197,19 @@ describe('TurnManager', () => {
     expect(tm.turnNumber).toBe(2);
     expect(tm.currentPhase).toBe('player');
   });
+
+  it('unitActed handles null entries in playerUnits without crashing', () => {
+    const tm = new TurnManager({ onPhaseChange, onVictory, onDefeat });
+    const p1 = makeUnit('Edric');
+    tm.init([p1], [makeUnit('Goblin', 'enemy')], [], 'rout');
+    tm.startBattle();
+    onPhaseChange.mockClear();
+
+    // Inject a null entry to simulate removal edge case
+    tm.playerUnits.push(null);
+
+    // Should not throw; should still transition when all real units have acted
+    expect(() => tm.unitActed(p1)).not.toThrow();
+    expect(onPhaseChange).toHaveBeenCalledWith('enemy', 1);
+  });
 });

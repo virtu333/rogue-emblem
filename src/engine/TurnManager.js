@@ -31,7 +31,7 @@ export class TurnManager {
     unit.hasActed = true;
 
     // Check if all player units have acted
-    const allActed = this.playerUnits.every((u) => u.hasActed);
+    const allActed = this.playerUnits.filter((u) => u != null).every((u) => u.hasActed);
     if (allActed) {
       this.endPlayerPhase();
     }

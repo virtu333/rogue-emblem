@@ -334,7 +334,7 @@ export function getSkillCombatMods(
 
   // Aura effects from allies (buffs by default) — silenced units don't project auras
   for (const ally of allies) {
-    if (ally === unit || !ally.skills || isSilenced(ally)) continue;
+    if (ally === unit || !ally.skills || isSilenced(ally) || ally.currentHP <= 0) continue;
     for (const skillId of ally.skills) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
@@ -347,7 +347,7 @@ export function getSkillCombatMods(
 
   // Enemy aura effects (debuffs) — silenced enemies don't project auras
   for (const enemy of enemies) {
-    if (!enemy || !enemy.skills || isSilenced(enemy)) continue;
+    if (!enemy || !enemy.skills || isSilenced(enemy) || enemy.currentHP <= 0) continue;
     for (const skillId of enemy.skills) {
       const skill = getSkill(skillId, skillsData);
       if (!skill || skill.trigger !== 'passive-aura') continue;
@@ -597,6 +597,7 @@ export function getTurnStartEffects(units, skillsData) {
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
 
   for (const unit of units) {
+    if (!unit || unit.currentHP <= 0) continue;
     // Silenced units get no turn-start skill effects
     if (Array.isArray(unit.skills) && !isSilenced(unit)) {
       for (const skillId of unit.skills) {
@@ -624,7 +625,7 @@ export function getTurnStartEffects(units, skillsData) {
           if (healAmount <= 0) continue;
 
           for (const ally of units) {
-            if (ally === unit) continue;
+            if (ally === unit || ally.currentHP <= 0) continue;
             const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
             if (dist <= (skill.range || 1) && ally.currentHP < ally.stats.HP) {
               const actualHeal = Math.min(healAmount, ally.stats.HP - ally.currentHP);

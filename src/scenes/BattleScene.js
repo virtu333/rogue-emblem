@@ -290,6 +290,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   init(data) {
+    if (!data) {
+      console.error('[BattleScene] init() called without data:', data);
+      throw new Error('BattleScene requires data');
+    }
     this.gameData = data.gameData || data;
     if (!this.gameData.skills) this.gameData.skills = [];
     this.runManager = data.runManager || null;
