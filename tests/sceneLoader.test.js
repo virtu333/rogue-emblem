@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import {
   __resetSceneLoaderForTests,
+  resetTransitionLocks,
   startSceneLazy,
   TRANSITION_REASONS,
 } from '../src/utils/sceneLoader.js';
@@ -240,6 +241,31 @@ describe('sceneLoader.startSceneLazy', () => {
       expect(meta2.token).toBeGreaterThan(0);
       expect(meta2.token).not.toBe(token1);
       expect(meta2.reason).toBe(secondReason);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('resetTransitionLocks clears global lock so a blocked transition can proceed', async () => {
+    vi.useFakeTimers();
+    try {
+      const sceneA = makeScene({ active: true });
+      const sceneB = makeScene({ active: true });
+
+      // First transition acquires global lock
+      const first = await startSceneLazy(sceneA, 'Title', { from: 'A' });
+      expect(first).toBe(true);
+
+      // Second is blocked by the lock
+      const blocked = await startSceneLazy(sceneB, 'HomeBase', { from: 'B' });
+      expect(blocked).toBe(false);
+
+      // Reset locks (the pattern used by bootTransition)
+      resetTransitionLocks(sceneA);
+
+      // Now the transition succeeds without waiting for timeout
+      const afterReset = await startSceneLazy(sceneB, 'HomeBase', { from: 'B' });
+      expect(afterReset).toBe(true);
     } finally {
       vi.useRealTimers();
     }

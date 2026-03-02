@@ -269,8 +269,9 @@ describe('Menu scene keyboard listener lifecycle', () => {
     expect(keyboard.listenerCount('keydown-ESC')).toBe(1);
   });
 
-  it('SlotPickerScene detaches keyboard listeners on shutdown and re-entry does not leak listeners', () => {
+  it('SlotPickerScene detaches keyboard and pointer listeners on shutdown and re-entry does not leak listeners', () => {
     const keyboard = createKeyboardEmitter();
+    const inputEmitter = createEmitter();
     let shutdownHandler = null;
     const scene = {
       cameras: { main: { centerX: 320 } },
@@ -284,7 +285,8 @@ describe('Menu scene keyboard listener lifecycle', () => {
       },
       input: {
         keyboard,
-        on: vi.fn(),
+        on: inputEmitter.on.bind(inputEmitter),
+        off: inputEmitter.off.bind(inputEmitter),
       },
       requestCancel: vi.fn(),
       drawSlots: vi.fn(),
@@ -294,10 +296,17 @@ describe('Menu scene keyboard listener lifecycle', () => {
 
     SlotPickerScene.prototype.create.call(scene);
     expect(keyboard.listenerCount('keydown-ESC')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerdown')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerup')).toBe(1);
+
     shutdownHandler();
     expect(keyboard.listenerCount('keydown-ESC')).toBe(0);
+    expect(inputEmitter.listenerCount('pointerdown')).toBe(0);
+    expect(inputEmitter.listenerCount('pointerup')).toBe(0);
 
     SlotPickerScene.prototype.create.call(scene);
     expect(keyboard.listenerCount('keydown-ESC')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerdown')).toBe(1);
+    expect(inputEmitter.listenerCount('pointerup')).toBe(1);
   });
 });

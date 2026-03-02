@@ -42,16 +42,23 @@ export class SlotPickerScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    this._onPointerDown = (pointer) => {
+      this._touchTapDown = { x: pointer.x, y: pointer.y };
+    };
+    this._onPointerUp = (pointer) => this.onPointerUp(pointer);
+
     this.events.once('shutdown', () => {
       this.input?.keyboard?.off?.('keydown-ESC', this._onEsc);
+      this.input?.off?.('pointerdown', this._onPointerDown);
+      this.input?.off?.('pointerup', this._onPointerUp);
       this._onEsc = null;
+      this._onPointerDown = null;
+      this._onPointerUp = null;
     });
 
     this.input.keyboard.on('keydown-ESC', this._onEsc);
-    this.input.on('pointerdown', (pointer) => {
-      this._touchTapDown = { x: pointer.x, y: pointer.y };
-    });
-    this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
+    this.input.on('pointerdown', this._onPointerDown);
+    this.input.on('pointerup', this._onPointerUp);
 
     this.drawSlots();
 

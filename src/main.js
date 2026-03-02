@@ -14,6 +14,7 @@ import {
 import { reportAsyncError } from './utils/errorReporter.js';
 import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 import { createViewportReconciler } from './utils/viewportReconciler.js';
+import { requireAuthUser } from './auth/requireAuthUser.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -441,7 +442,7 @@ async function handleSubmit(e) {
       result = await signIn(username, password);
     }
 
-    const user = result.user;
+    const user = requireAuthUser(result);
     let cloudPullResult;
     try {
       cloudPullResult = await startCloudPull(user.id, 'login');

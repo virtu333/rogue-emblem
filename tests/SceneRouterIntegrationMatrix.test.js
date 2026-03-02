@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const SCENE_DIR = path.resolve('src/scenes');
 const SCENE_FILES = [
   'BootScene.js',
+  'bootTransition.js',
   'TitleScene.js',
   'SlotPickerScene.js',
   'HomeBaseScene.js',
@@ -92,6 +93,7 @@ function hasInlineReason(callSource) {
 
 const ALLOWED_BYPASS_COUNT = {
   'BattleScene.js': 5, // 2 defeat recovery + 1 victory recovery + 2 pause abandon/save-exit fallback
+  'bootTransition.js': 1, // boot transition final fallback after lock-reset retry
   'NodeMapScene.js': 2, // save-exit + abandon callback fallback
 };
 

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getSlotSummary, getMetaKey, getRunKey } from '../src/engine/SlotManager.js';
+import {
+  getSlotSummary,
+  getMetaKey,
+  getRunKey,
+  getNextAvailableSlot,
+} from '../src/engine/SlotManager.js';
 
 // Mock localStorage
 const store = {};
@@ -26,6 +31,7 @@ describe('SlotManager corruption handling', () => {
     localStorageMock.setItem.mockImplementation((key, val) => {
       store[key] = val;
     });
+    localStorageMock.removeItem.mockClear();
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -53,14 +59,19 @@ describe('SlotManager corruption handling', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
   });
 
-  it('returns null when meta JSON is invalid', () => {
+  it('returns null and auto-cleans malformed meta JSON', () => {
     const slot = 2;
     store[getMetaKey(slot)] = '{{{bad meta';
     store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
 
-    const summary = getSlotSummary(slot);
+    let summary;
+    expect(() => {
+      summary = getSlotSummary(slot);
+    }).not.toThrow();
 
     expect(summary).toBeNull();
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
   });
 
   it('returns runCorrupt: false for healthy slot', () => {
@@ -118,5 +129,86 @@ describe('SlotManager corruption handling', () => {
     expect(summary).not.toBeNull();
     expect(summary.runCorrupt).toBe(false);
     expect(summary.hasActiveRun).toBe(false);
+  });
+
+  it.each([
+    ['null', 'null'],
+    ['array', '[]'],
+    ['string', '"x"'],
+    ['number', '42'],
+  ])('returns null and auto-cleans parseable invalid meta (%s)', (_label, rawMeta) => {
+    const slot = 2;
+    store[getMetaKey(slot)] = rawMeta;
+    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
+
+    let summary;
+    expect(() => {
+      summary = getSlotSummary(slot);
+    }).not.toThrow();
+
+    expect(summary).toBeNull();
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
+  });
+
+  it('corrupt meta auto-cleans: deleteSlot is called and summary returns null', () => {
+    const slot = 2;
+    store[getMetaKey(slot)] = '{{{bad meta';
+    store[getRunKey(slot)] = JSON.stringify({ actIndex: 1 });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const summary = getSlotSummary(slot);
+
+    expect(summary).toBeNull();
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(slot));
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getRunKey(slot));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(`slot ${slot}`));
+    warnSpy.mockRestore();
+  });
+
+  it('storage access error does NOT delete slot data', () => {
+    const slot = 1;
+    store[getMetaKey(slot)] = JSON.stringify({ totalValor: 100 });
+
+    // Make getItem throw for the meta key (simulates SecurityError)
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === getMetaKey(slot)) throw new DOMException('SecurityError');
+      return store[key] ?? null;
+    });
+
+    const summary = getSlotSummary(slot);
+
+    expect(summary).toBeNull();
+    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('getNextAvailableSlot cleans corrupt slots before allocation', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Slot 1 has parseable-but-invalid meta shape.
+    store[getMetaKey(1)] = 'null';
+    // Slot 2 is healthy
+    store[getMetaKey(2)] = JSON.stringify({ totalValor: 50 });
+    // Slot 3 is empty
+
+    const slot = getNextAvailableSlot();
+
+    // Should return 1 because corrupt slot 1 was cleaned
+    expect(slot).toBe(1);
+    expect(localStorageMock.removeItem).toHaveBeenCalledWith(getMetaKey(1));
+    warnSpy.mockRestore();
+  });
+
+  it('keeps healthy object meta (with missing optional fields) without deleting', () => {
+    const slot = 3;
+    store[getMetaKey(slot)] = JSON.stringify({ runsCompleted: 2 });
+
+    const summary = getSlotSummary(slot);
+
+    expect(summary).not.toBeNull();
+    expect(summary.valor).toBe(0);
+    expect(summary.supply).toBe(0);
+    expect(summary.runsCompleted).toBe(2);
+    expect(localStorageMock.removeItem).not.toHaveBeenCalled();
   });
 });

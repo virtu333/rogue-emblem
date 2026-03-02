@@ -41,8 +41,39 @@ export function getOccupiedSlots() {
   return occupied;
 }
 
+/**
+ * Parse slot meta JSON and accept only non-null, non-array objects.
+ * Returns parsed object for valid meta, otherwise null.
+ */
+function parseMetaObject(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Remove keys for slots whose meta JSON is corrupt or invalid. */
+function cleanCorruptSlots() {
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    let raw;
+    try {
+      raw = localStorage.getItem(getMetaKey(i));
+    } catch (_) {
+      continue; // storage access error — leave slot alone
+    }
+    if (raw !== null && parseMetaObject(raw) === null) {
+      console.warn(`[SlotManager] Corrupt meta in slot ${i}, auto-cleaning`);
+      deleteSlot(i);
+    }
+  }
+}
+
 /** First empty slot number (1-3), or null if all full. */
 export function getNextAvailableSlot() {
+  cleanCorruptSlots();
   for (let i = 1; i <= MAX_SLOTS; i++) {
     try {
       if (localStorage.getItem(getMetaKey(i)) === null) return i;
@@ -59,15 +90,20 @@ export function getNextAvailableSlot() {
  * @returns {{ slot, valor, supply, runsCompleted, hasActiveRun, actReached, runCorrupt } | null}
  */
 export function getSlotSummary(slot) {
-  let meta;
+  let metaRaw;
   try {
-    const metaRaw = localStorage.getItem(getMetaKey(slot));
-    if (!metaRaw) return null;
-    meta = JSON.parse(metaRaw);
+    metaRaw = localStorage.getItem(getMetaKey(slot));
   } catch (_) {
-    return null; // meta itself is corrupt — treat as empty
+    return null; // storage access error — do NOT delete, treat as empty
   }
+  if (metaRaw === null) return null;
 
+  const meta = parseMetaObject(metaRaw);
+  if (!meta) {
+    console.warn(`[SlotManager] Corrupt meta in slot ${slot}, auto-cleaning`);
+    deleteSlot(slot);
+    return null;
+  }
   const summary = {
     slot,
     valor: meta.totalValor ?? meta.totalRenown ?? 0,

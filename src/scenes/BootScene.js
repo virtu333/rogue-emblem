@@ -9,9 +9,10 @@ import { pushSettings } from '../cloud/CloudSync.js';
 import { migrateOldSaves } from '../engine/SlotManager.js';
 import { getStartupFlags } from '../utils/runtimeFlags.js';
 import { markStartup, recordStartupAssetFailure } from '../utils/startupTelemetry.js';
-import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { parseDevStartupConfig, buildDevStartupRoute } from '../utils/devStartup.js';
 import { installSceneGuard } from '../utils/SceneGuard.js';
+import { bootTransition } from './bootTransition.js';
 
 const STARTUP_FLAG_STORAGE_KEY = 'emblem_rogue_startup_flags';
 
@@ -683,13 +684,11 @@ export class BootScene extends Phaser.Scene {
           hasSeed: Number.isFinite(devStartupConfig.seed),
           devTools: Boolean(devStartupConfig.devTools),
         });
-        await transitionToScene(this, devRoute.key, devRoute.data, {
-          reason: TRANSITION_REASONS.BOOT,
-        });
+        await bootTransition(this, devRoute.key, devRoute.data, TRANSITION_REASONS.BOOT);
         return;
       }
     }
 
-    await transitionToScene(this, 'Title', { gameData: data }, { reason: TRANSITION_REASONS.BOOT });
+    await bootTransition(this, 'Title', { gameData: data }, TRANSITION_REASONS.BOOT);
   }
 }
