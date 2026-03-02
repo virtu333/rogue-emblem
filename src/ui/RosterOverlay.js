@@ -49,6 +49,7 @@ import {
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { getConsumableDescription } from '../utils/consumableText.js';
 import { STAT_DESCRIPTIONS } from '../data/helpContent.js';
 import {
   hasWeaponArt,
@@ -2466,18 +2467,7 @@ export class RosterOverlay {
         '#88ff88',
         '11px',
       );
-      const effectLabel =
-        item.effect === 'heal'
-          ? `Heal ${item.value} HP`
-          : item.effect === 'healFull'
-            ? 'Heal to full HP'
-            : item.effect === 'promote'
-              ? 'Promote to advanced class'
-              : item.effect === 'statBoost'
-                ? `+${item.value} stat boost`
-                : item.effect === 'reclass'
-                  ? `Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`
-                  : item.effect || '';
+      const effectLabel = getConsumableDescription(item) || item.effect || '';
       addText(paneX, paneY + 22, `Effect: ${effectLabel}`, '#bbbbbb');
       if (item.price) addText(paneX, paneY + 36, `Value: ${item.price}G`, '#888888');
       return;

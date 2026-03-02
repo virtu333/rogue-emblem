@@ -28,6 +28,7 @@ import {
 } from '../utils/constants.js';
 import { applyTextResolution } from '../utils/uiStyles.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { summarizeWeaponArtEffect } from '../ui/WeaponArtVisibility.js';
 import { showMinorHint } from '../ui/HintDisplay.js';
 
@@ -1227,9 +1228,9 @@ export class LootScreenController {
         : String(lines || '');
       return scene._formatSpecialLinesForUi(text, detailWrapChars, maxLines);
     };
-    const usesLine =
-      item.uses !== undefined ? `${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}` : '';
+    const usesLine = formatUses(item);
     const type = choice?.type;
+    const consumableDescription = getConsumableDescription(item);
 
     if (
       (item.might !== undefined && item.type !== 'Scroll') ||
@@ -1277,30 +1278,44 @@ export class LootScreenController {
     }
 
     if (item.effect === 'statBoost' || type === 'statBooster') {
-      const stat = item.stat || 'Stat';
+      const statText =
+        item.effect === 'statBoost' && consumableDescription
+          ? consumableDescription
+          : `Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`;
       return {
-        lines: wrapDetailLines([`Permanent +${asNum(item.value)} ${stat}`], 2),
+        lines: wrapDetailLines([statText], 2),
         color: '#aaffaa',
       };
     }
 
-    if (item.effect === 'promote' || type === 'promotion') {
-      return { lines: wrapDetailLines(['Promote Lv 10+ unit'], 2), color: '#ffbb77' };
-    }
-
     if (item.effect === 'reclass') {
-      const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
-      return { lines: wrapDetailLines([`Reclass to a ${label} class`], 2), color: '#aaffff' };
-    }
-
-    if (item.effect === 'healFull') {
-      return { lines: ['Restore HP to full', ...(usesLine ? [usesLine] : [])], color: '#aaffaa' };
-    }
-
-    if (item.effect === 'heal' || type === 'healing') {
-      const amount = asNum(item.value);
       return {
-        lines: [`Restore ${amount > 0 ? amount : ''} HP`.trim(), ...(usesLine ? [usesLine] : [])],
+        lines: wrapDetailLines([consumableDescription || 'Reclass to an infantry class'], 2),
+        color: '#aaffff',
+      };
+    }
+
+    if (item.effect === 'promote' || (type === 'promotion' && item.effect !== 'reclass')) {
+      return {
+        lines: wrapDetailLines([consumableDescription || 'Promote a Lv 10+ unit'], 2),
+        color: '#ffbb77',
+      };
+    }
+
+    if (
+      item.effect === 'heal' ||
+      item.effect === 'healFull' ||
+      item.effect === 'cure' ||
+      item.effect === 'cureHeal' ||
+      type === 'healing'
+    ) {
+      const amount = asNum(item.value);
+      const fallbackText =
+        item.effect === 'healFull'
+          ? 'Restore HP to full'
+          : `Restore ${amount > 0 ? amount : ''} HP`.trim();
+      return {
+        lines: [consumableDescription || fallbackText, ...(usesLine ? [usesLine] : [])],
         color: '#aaffaa',
       };
     }
@@ -1387,15 +1402,10 @@ export class LootScreenController {
     // Consumables
     if (item.type === 'Consumable') {
       const lines = [item.name || 'Consumable'];
-      if (item.effect === 'heal') lines.push(`Restores ${asNum(item.value)} HP`);
-      else if (item.effect === 'healFull') lines.push('Restores HP to full');
-      else if (item.effect === 'promote') lines.push('Promotes a Lv 10+ unit');
-      else if (item.effect === 'reclass')
-        lines.push(`Reclass to ${item.subEffect === 'mounted' ? 'mounted' : 'infantry'} class`);
-      else if (item.effect === 'statBoost')
-        lines.push(`Permanent +${asNum(item.value)} ${item.stat || 'Stat'}`);
-      if (item.uses !== undefined)
-        lines.push(`${asNum(item.uses)} use${asNum(item.uses) === 1 ? '' : 's'}`);
+      const description = getConsumableDescription(item);
+      if (description) lines.push(description);
+      const usesText = formatUses(item);
+      if (usesText) lines.push(usesText);
       return lines.join('\n');
     }
 

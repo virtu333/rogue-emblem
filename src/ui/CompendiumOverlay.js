@@ -2,6 +2,7 @@
 // 9 tabs with sub-filters, pagination, and search. Depth 870-872.
 
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 
 const DEPTH_BG = 870;
 const DEPTH_PANEL = 871;
@@ -692,7 +693,10 @@ export class CompendiumOverlay {
         .map(([k, v]) => `${k}+${v}`)
         .join(', ');
     } else if (item.effect) {
-      desc = `${item.effect}${item.value ? ` ${item.value}` : ''}${item.uses ? ` (${item.uses} uses)` : ''}`;
+      const effectText = getConsumableDescription(item);
+      const usesText = formatUses(item);
+      if (effectText) desc = usesText ? `${effectText} (${usesText})` : effectText;
+      else desc = item.effect || '';
     } else if (item.forgeStat) {
       desc = `Forge: ${item.forgeStat}`;
     }

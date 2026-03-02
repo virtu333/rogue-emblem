@@ -535,6 +535,25 @@ describe('LootScreenController', () => {
       expect(result.lines).toContainEqual(expect.stringContaining('3 uses'));
     });
 
+    it('shows reclass text for reclass consumables in the promotion pool', () => {
+      const item = {
+        name: 'Infantry Seal',
+        type: 'Consumable',
+        effect: 'reclass',
+        subEffect: 'infantry',
+        uses: 1,
+      };
+      const result = LootScreenController.getCardDetailLines(
+        stubScene,
+        { type: 'promotion' },
+        item,
+      );
+
+      expect(result.color).toBe('#aaffff');
+      expect(result.lines.join(' ')).toContain('Reclass');
+      expect(result.lines.join(' ')).not.toContain('Promote');
+    });
+
     it('returns stat boost detail lines', () => {
       const item = {
         name: 'Energy Drop',
@@ -605,6 +624,15 @@ describe('LootScreenController', () => {
       expect(result).not.toBeNull();
       expect(result).toContain('Vulnerary');
       expect(result).toContain('10 HP');
+    });
+
+    it('returns text for cure-heal consumables', () => {
+      const item = { name: 'Remedy', type: 'Consumable', effect: 'cureHeal', value: 15, uses: 1 };
+      const result = LootScreenController.getTooltipText(stubScene, { type: 'consumable' }, item);
+
+      expect(result).not.toBeNull();
+      expect(result).toContain('Cure conditions & restore 15 HP');
+      expect(result).toContain('1 use');
     });
 
     it('returns text for whetstone items', () => {

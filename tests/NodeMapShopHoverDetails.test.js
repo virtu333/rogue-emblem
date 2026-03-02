@@ -675,7 +675,7 @@ describe('NodeMap shop hover details', () => {
         item: { name: 'Herb', type: 'Consumable', effect: 'cure', uses: 2 },
       },
     );
-    expect(text).toBe('Cures all conditions (2 uses)');
+    expect(text).toBe('Cure all status conditions (2 uses)');
   });
 
   it('formats detail text for cureHeal consumable (Remedy)', () => {
@@ -686,7 +686,7 @@ describe('NodeMap shop hover details', () => {
         item: { name: 'Remedy', type: 'Consumable', effect: 'cureHeal', value: 15, uses: 1 },
       },
     );
-    expect(text).toBe('Cures conditions & heals 15 HP (1 use)');
+    expect(text).toBe('Cure conditions & restore 15 HP (1 use)');
   });
 
   it('includes weapon type in detail text', () => {

@@ -51,6 +51,7 @@ import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
@@ -3251,31 +3252,10 @@ export class NodeMapScene extends Phaser.Scene {
     }
 
     if (entryType === 'consumable' || item.type === 'Consumable') {
-      if (item.effect === 'heal') {
-        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
-        return `Heals ${Number(item.value) || 0} HP (${uses} use${uses === 1 ? '' : 's'})`;
-      }
-      if (item.effect === 'healFull') {
-        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
-        return `Fully heals HP (${uses} use${uses === 1 ? '' : 's'})`;
-      }
-      if (item.effect === 'statBoost') {
-        const stat = item.stat || 'STAT';
-        const value = Number(item.value) || 0;
-        return `Permanently +${value} ${stat}`;
-      }
-      if (item.effect === 'promote') return 'Use at Lv 10+ to promote a unit';
-      if (item.effect === 'reclass') {
-        const label = item.subEffect === 'mounted' ? 'mounted' : 'infantry';
-        return `Reclass a unit to a ${label} class`;
-      }
-      if (item.effect === 'cure') {
-        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
-        return `Cures all conditions (${uses} use${uses === 1 ? '' : 's'})`;
-      }
-      if (item.effect === 'cureHeal') {
-        const uses = Number.isFinite(Number(item.uses)) ? Number(item.uses) : 1;
-        return `Cures conditions & heals ${Number(item.value) || 0} HP (${uses} use${uses === 1 ? '' : 's'})`;
+      const description = getConsumableDescription(item);
+      if (description) {
+        const usesText = formatUses(item);
+        return usesText ? `${description} (${usesText})` : description;
       }
       return item.special || 'Consumable';
     }
