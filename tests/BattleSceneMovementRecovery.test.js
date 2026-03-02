@@ -405,6 +405,140 @@ describe('BattleScene movement recovery', () => {
     expect(callArgs).not.toContain('1,0');
   });
 
+  it('calculateDangerZone includes enemy ballista threat tiles', () => {
+    const scene = new BattleScene();
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.ballistas = [{ col: 10, row: 10, owner: 'enemy', captured: false }];
+    scene.grid = {
+      cols: 30,
+      rows: 30,
+      fogEnabled: false,
+      isVisible: () => true,
+    };
+
+    const result = BattleScene.prototype.calculateDangerZone.call(scene);
+    const keys = new Set(result.map((t) => `${t.col},${t.row}`));
+
+    expect(result.length).toBe(60);
+    expect(keys.has('10,10')).toBe(false);
+    expect(keys.has('15,10')).toBe(true);
+    expect(keys.has('10,15')).toBe(true);
+    expect(keys.has('5,10')).toBe(true);
+    expect(keys.has('10,5')).toBe(true);
+  });
+
+  it('calculateDangerZone excludes captured/player-owned ballista tiles', () => {
+    const scene = new BattleScene();
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.ballistas = [{ col: 10, row: 10, owner: 'player', captured: true }];
+    scene.grid = {
+      cols: 30,
+      rows: 30,
+      fogEnabled: false,
+      isVisible: () => true,
+    };
+
+    const result = BattleScene.prototype.calculateDangerZone.call(scene);
+    expect(result).toEqual([]);
+  });
+
+  it('calculateDangerZone excludes fog-hidden enemy ballistas', () => {
+    const scene = new BattleScene();
+    scene.playerUnits = [];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.ballistas = [{ col: 10, row: 10, owner: 'enemy', captured: false }];
+    scene.grid = {
+      cols: 30,
+      rows: 30,
+      fogEnabled: true,
+      isVisible: () => false,
+    };
+
+    const result = BattleScene.prototype.calculateDangerZone.call(scene);
+    expect(result).toEqual([]);
+  });
+
+  it('refreshes visible danger zone immediately when capturing a ballista', () => {
+    const scene = new BattleScene();
+    const unit = makeUnit({
+      col: 5,
+      row: 5,
+      faction: 'player',
+      weapon: null,
+      inventory: [],
+      consumables: [],
+      skills: [],
+    });
+
+    scene.playerUnits = [unit];
+    scene.enemyUnits = [];
+    scene.npcUnits = [];
+    scene.ballistas = [{ col: 5, row: 5, owner: 'enemy', captured: false }];
+    scene.grid = {
+      cols: 20,
+      rows: 20,
+      gridToPixel: vi.fn(() => ({ x: 80, y: 80 })),
+    };
+    scene.cameras = { main: { width: 800, height: 600 } };
+    scene.isMobileInput = false;
+    scene.add = {
+      rectangle: vi.fn(() => ({
+        setDepth: vi.fn().mockReturnThis(),
+        setStrokeStyle: vi.fn().mockReturnThis(),
+        destroy: vi.fn(),
+      })),
+    };
+    scene._clampMenuPosition = vi.fn((x, y) => ({ x, y }));
+    scene._pinToScreen = vi.fn();
+    scene._makeMenuTextButton = vi.fn((_x, _y, label, _style, _color, onClick) => ({
+      label,
+      onClick,
+      destroy: vi.fn(),
+    }));
+    scene.findAttackTargets = vi.fn(() => []);
+    scene.getUsableStaves = vi.fn(() => []);
+    scene.findHealTargets = vi.fn(() => []);
+    scene._hasUsableWeaponArtTargets = vi.fn(() => false);
+    scene.getUsableReclassConsumables = vi.fn(() => []);
+    scene.findShoveTargets = vi.fn(() => []);
+    scene.findPullTargets = vi.fn(() => []);
+    scene.findTradeTargets = vi.fn(() => []);
+    scene.findSwapTargets = vi.fn(() => []);
+    scene.findDanceTargets = vi.fn(() => []);
+    scene.findBreakTargets = vi.fn(() => []);
+    scene.hideActionMenu = vi.fn();
+    scene.commitVisionSnapshotIfPending = vi.fn();
+    scene.finishUnitAction = vi.fn();
+    scene.registry = { get: vi.fn(() => null) };
+    scene.gameData = { classes: [], lords: [] };
+    scene.battleConfig = { objective: 'rout' };
+    scene.runManager = null;
+
+    scene.dangerZone = { visible: true, show: vi.fn() };
+    scene.dangerZoneCache = [{ col: 99, row: 99 }];
+    scene.dangerZoneStale = false;
+    scene.calculateDangerZone = vi.fn(() => [{ col: 4, row: 5 }]);
+
+    BattleScene.prototype.showActionMenu.call(scene, unit);
+
+    const captureCall = scene._makeMenuTextButton.mock.calls.find((call) => call[2] === 'Capture');
+    expect(captureCall).toBeTruthy();
+
+    const onCapture = captureCall[5];
+    onCapture();
+
+    expect(scene.ballistas[0].owner).toBe('player');
+    expect(scene.ballistas[0].captured).toBe(true);
+    expect(scene.calculateDangerZone).toHaveBeenCalledTimes(1);
+    expect(scene.dangerZone.show).toHaveBeenCalledWith([{ col: 4, row: 5 }]);
+    expect(scene.dangerZoneStale).toBe(false);
+  });
+
   it('calculateDangerZone uses ENTITY_PRIMARY_ATTACK_RANGE for Entity enemies', () => {
     const scene = new BattleScene();
     // Entity at (3,3) — 3x3 body covers (3,3) to (5,5)

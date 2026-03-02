@@ -4,7 +4,7 @@ import { TERRAIN } from '../utils/constants.js';
 
 const BALLISTA_MIGHT = 10;
 const BALLISTA_HIT = 85;
-const BALLISTA_RANGE = 3;
+const BALLISTA_RANGE = 5;
 
 /**
  * Create initial state for a ballista at the given position.
@@ -17,6 +17,42 @@ export function createBallistaState(col, row) {
 /** Return the ballista range constant. */
 export function getBallistaRange() {
   return BALLISTA_RANGE;
+}
+
+/**
+ * Return all threatened tiles for this ballista using Manhattan range 1..BALLISTA_RANGE.
+ * Output is clamped to map bounds and excludes the ballista's own tile.
+ */
+export function getBallistaDangerTiles(ballista, cols, rows) {
+  if (
+    !ballista ||
+    !Number.isFinite(ballista.col) ||
+    !Number.isFinite(ballista.row) ||
+    !Number.isFinite(cols) ||
+    !Number.isFinite(rows) ||
+    cols <= 0 ||
+    rows <= 0
+  ) {
+    return [];
+  }
+
+  const originCol = Math.trunc(ballista.col);
+  const originRow = Math.trunc(ballista.row);
+  const tiles = [];
+
+  for (let dc = -BALLISTA_RANGE; dc <= BALLISTA_RANGE; dc++) {
+    const remaining = BALLISTA_RANGE - Math.abs(dc);
+    for (let dr = -remaining; dr <= remaining; dr++) {
+      const dist = Math.abs(dc) + Math.abs(dr);
+      if (dist < 1 || dist > BALLISTA_RANGE) continue;
+      const col = originCol + dc;
+      const row = originRow + dr;
+      if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+      tiles.push({ col, row });
+    }
+  }
+
+  return tiles;
 }
 
 /** Check whether a terrain index is a Ballista tile. */

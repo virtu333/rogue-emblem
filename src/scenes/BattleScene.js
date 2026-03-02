@@ -240,6 +240,7 @@ import {
   selectBallistaTarget,
   resolveBallistaStrike,
   getBallistaRange,
+  getBallistaDangerTiles,
   isBallistaTile,
 } from '../engine/BallistaEngine.js';
 
@@ -5688,6 +5689,12 @@ export class BattleScene extends Phaser.Scene {
             if (ballista) {
               ballista.owner = 'player';
               ballista.captured = true;
+              this.dangerZoneStale = true;
+              if (this.dangerZone?.visible) {
+                this.dangerZoneCache = this.calculateDangerZone();
+                this.dangerZoneStale = false;
+                this.dangerZone.show(this.dangerZoneCache);
+              }
             }
             unit.hasActed = true;
             this.finishUnitAction(unit);
@@ -10219,6 +10226,16 @@ export class BattleScene extends Phaser.Scene {
           for (const t of atkTiles) {
             threatened.add(`${t.col},${t.row}`);
           }
+        }
+      }
+    }
+    if (this.ballistas?.length > 0) {
+      for (const ballista of this.ballistas) {
+        if (ballista.owner !== 'enemy') continue;
+        if (this.grid.fogEnabled && !this.grid.isVisible(ballista.col, ballista.row)) continue;
+        const tiles = getBallistaDangerTiles(ballista, this.grid.cols, this.grid.rows);
+        for (const t of tiles) {
+          threatened.add(`${t.col},${t.row}`);
         }
       }
     }

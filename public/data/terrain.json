@@ -177,7 +177,7 @@
     },
     "avoidBonus": "10",
     "defBonus": "1",
-    "special": "Fires at enemies in range. Stand on tile to capture."
+    "special": "Fires at enemies within 5 tiles. Stand on tile to capture."
   },
   {
     "name": "Swamp",

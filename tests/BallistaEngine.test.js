@@ -3,6 +3,7 @@ import {
   createBallistaState,
   isBallistaTile,
   getBallistaRange,
+  getBallistaDangerTiles,
   selectBallistaTarget,
   resolveBallistaStrike,
 } from '../src/engine/BallistaEngine.js';
@@ -62,8 +63,48 @@ describe('BallistaEngine', () => {
   });
 
   describe('getBallistaRange', () => {
-    it('returns 3', () => {
-      expect(getBallistaRange()).toBe(3);
+    it('returns 5', () => {
+      expect(getBallistaRange()).toBe(5);
+    });
+  });
+
+  describe('getBallistaDangerTiles', () => {
+    it('returns all tiles at Manhattan distance 1..5 from center on large map', () => {
+      const tiles = getBallistaDangerTiles({ col: 10, row: 10 }, 30, 30);
+      expect(tiles.length).toBe(60);
+      const keys = new Set(tiles.map((t) => `${t.col},${t.row}`));
+      expect(keys.has('10,10')).toBe(false);
+      expect(keys.has('15,10')).toBe(true);
+      expect(keys.has('10,15')).toBe(true);
+      expect(keys.has('5,10')).toBe(true);
+      expect(keys.has('10,5')).toBe(true);
+    });
+
+    it('clamps to map bounds near edges', () => {
+      const tiles = getBallistaDangerTiles({ col: 0, row: 0 }, 10, 10);
+      expect(tiles.length).toBe(20);
+      for (const t of tiles) {
+        expect(t.col).toBeGreaterThanOrEqual(0);
+        expect(t.row).toBeGreaterThanOrEqual(0);
+        expect(t.col).toBeLessThan(10);
+        expect(t.row).toBeLessThan(10);
+      }
+      const keys = new Set(tiles.map((t) => `${t.col},${t.row}`));
+      expect(keys.has('0,0')).toBe(false);
+      expect(keys.has('5,0')).toBe(true);
+      expect(keys.has('0,5')).toBe(true);
+    });
+
+    it('center threatens more tiles than corner on same map', () => {
+      const center = getBallistaDangerTiles({ col: 7, row: 7 }, 20, 20);
+      const corner = getBallistaDangerTiles({ col: 0, row: 0 }, 20, 20);
+      expect(center.length).toBeGreaterThan(corner.length);
+    });
+
+    it('returns empty array for invalid inputs', () => {
+      expect(getBallistaDangerTiles(null, 10, 10)).toEqual([]);
+      expect(getBallistaDangerTiles({ col: 2, row: 2 }, 0, 10)).toEqual([]);
+      expect(getBallistaDangerTiles({ col: 2, row: 2 }, 10, -1)).toEqual([]);
     });
   });
 
@@ -74,7 +115,7 @@ describe('BallistaEngine', () => {
       const targets = [
         makeUnit(5, 7, 20), // dist 2
         makeUnit(5, 8, 20), // dist 3
-        makeUnit(5, 9, 20), // dist 4, out of range
+        makeUnit(5, 11, 20), // dist 6, out of range
       ];
       const result = selectBallistaTarget(ballista, targets);
       expect(result).toBe(targets[0]);
@@ -92,11 +133,17 @@ describe('BallistaEngine', () => {
 
     it('returns null if no targets in range', () => {
       const targets = [
-        makeUnit(5, 9, 20), // dist 4, out of range
-        makeUnit(9, 5, 20), // dist 4, out of range
+        makeUnit(5, 11, 20), // dist 6, out of range
+        makeUnit(11, 5, 20), // dist 6, out of range
       ];
       const result = selectBallistaTarget(ballista, targets);
       expect(result).toBeNull();
+    });
+
+    it('includes targets at distance 5', () => {
+      const targets = [makeUnit(10, 5, 12)]; // dist 5
+      const result = selectBallistaTarget(ballista, targets);
+      expect(result).toBe(targets[0]);
     });
 
     it('returns null for empty target list', () => {
@@ -180,6 +227,34 @@ describe('BallistaEngine', () => {
   });
 
   describe('MapGenerator difficulty gating', () => {
+    it('open_field Ballista is gated off on Normal and enabled on Hard', () => {
+      const normal = withSeed(1, () =>
+        generateBattle(
+          { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'normal' },
+          data,
+        ),
+      );
+      for (let r = 0; r < normal.rows; r++) {
+        for (let c = 0; c < normal.cols; c++) {
+          expect(normal.mapLayout[r][c]).not.toBe(TERRAIN.Ballista);
+        }
+      }
+      expect(normal.ballistas).toBeUndefined();
+
+      const hard = withSeed(1, () =>
+        generateBattle(
+          { act: 'act2', objective: 'rout', templateId: 'open_field', difficultyId: 'hard' },
+          data,
+        ),
+      );
+      expect(hard.ballistas?.length).toBeGreaterThan(0);
+      for (const b of hard.ballistas || []) {
+        expect(hard.mapLayout[b.row][b.col]).toBe(TERRAIN.Ballista);
+        expect(b.owner).toBe('enemy');
+        expect(b.captured).toBe(false);
+      }
+    });
+
     it('Ballista terrain NOT placed on Normal', () => {
       // Run several seeds to account for randomness
       for (let seed = 1; seed <= 10; seed++) {
