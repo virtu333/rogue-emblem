@@ -2265,7 +2265,9 @@ export class HeadlessBattle {
     const idx = this.npcUnits.indexOf(npc);
     if (idx !== -1) this.npcUnits.splice(idx, 1);
     this.playerUnits.push(npc);
-    npc.hasActed = true; // Can't act again this turn
+    // Recruit can move + act this turn (FE convention); keep action flags fresh.
+    npc.hasMoved = false;
+    npc.hasActed = false;
     this._refreshFogVisibility();
 
     this._finishUnitAction(lord);

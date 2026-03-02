@@ -365,6 +365,67 @@ describe('HeadlessBattle', () => {
     expect(battle.playerUnits.find((u) => u.name === 'Edric').hasActed).toBe(true);
   });
 
+  it('Talk recruit can act immediately and keeps player phase when allies already acted', () => {
+    const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
+    battle.init();
+
+    const lord = battle.playerUnits.find((u) => u.name === 'Edric') || battle.playerUnits[0];
+    expect(lord).toBeTruthy();
+
+    for (const unit of battle.playerUnits) {
+      if (unit !== lord) unit.hasActed = true;
+    }
+
+    const occupied = new Set(
+      [...battle.playerUnits, ...battle.enemyUnits, ...battle.npcUnits].map(
+        (u) => `${u.col},${u.row}`,
+      ),
+    );
+    const adjacent = [
+      { col: lord.col + 1, row: lord.row },
+      { col: lord.col - 1, row: lord.row },
+      { col: lord.col, row: lord.row + 1 },
+      { col: lord.col, row: lord.row - 1 },
+    ].find(
+      ({ col, row }) =>
+        col >= 0 &&
+        row >= 0 &&
+        col < battle.grid.cols &&
+        row < battle.grid.rows &&
+        !occupied.has(`${col},${row}`),
+    );
+    expect(adjacent).toBeTruthy();
+
+    const npc = structuredClone(battle.enemyUnits[0]);
+    npc.name = 'TalkRecruit';
+    npc.faction = 'npc';
+    npc.isLord = false;
+    npc.col = adjacent.col;
+    npc.row = adjacent.row;
+    npc.hasMoved = false;
+    npc.hasActed = false;
+    battle.npcUnits.splice(0, battle.npcUnits.length, npc);
+
+    battle.selectUnit(lord.name);
+    battle.moveTo(lord.col, lord.row);
+    const actions = battle.getAvailableActions();
+    expect(actions.some((a) => a.label === 'Talk' && a.supported)).toBe(true);
+
+    battle.chooseAction('Talk');
+
+    const recruited = battle.playerUnits.find((u) => u.name === 'TalkRecruit');
+    expect(recruited).toBeTruthy();
+    expect(recruited.faction).toBe('player');
+    expect(recruited.hasActed).toBe(false);
+    expect(battle.turnManager.currentPhase).toBe('player');
+    expect(battle.battleState).toBe(HEADLESS_STATES.PLAYER_IDLE);
+    expect(battle.npcUnits.some((u) => u.name === 'TalkRecruit')).toBe(false);
+
+    battle.selectUnit('TalkRecruit');
+    expect(battle.selectedUnit).toBe(recruited);
+    expect(battle.selectedUnit.hasActed).toBe(false);
+  });
+
   it('chooseAction throws for unsupported action', () => {
     const battle = new HeadlessBattle(gameData, { act: 'act1', objective: 'rout', row: 2 });
     battle.init();

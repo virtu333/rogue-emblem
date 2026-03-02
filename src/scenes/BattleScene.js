@@ -5817,8 +5817,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Add to player units
     this.playerUnits.push(npc);
-    npc.hasActed = true;
-    this.dimUnit(npc);
+    // Recruit can move + act this turn (FE convention); force fresh action flags.
+    npc.hasMoved = false;
+    npc.hasActed = false;
 
     this.finishUnitAction(lord);
   }
