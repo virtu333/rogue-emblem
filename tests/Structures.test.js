@@ -40,6 +40,7 @@ describe('getFallbackPassable', () => {
   it('returns Plain for unknown biome', () => {
     expect(getFallbackPassable('tundra')).toBe(TERRAIN.Plain);
     expect(getFallbackPassable('volcano')).toBe(TERRAIN.Plain);
+    expect(getFallbackPassable('swamp')).toBe(TERRAIN.Plain);
   });
 });
 

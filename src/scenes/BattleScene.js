@@ -1006,6 +1006,7 @@ export class BattleScene extends Phaser.Scene {
           objective: this.battleConfig.objective,
           mapLayout: this.battleConfig.mapLayout,
           terrainData: this.gameData.terrain,
+          parBonus: this.battleConfig.parBonus || 0,
         };
         this.turnPar = calculatePar(
           mapParams,

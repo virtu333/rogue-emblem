@@ -9,7 +9,9 @@
     "Forest",
     "Mountain",
     "Water",
-    "Sand"
+    "Sand",
+    "Swamp",
+    "Bog"
   ],
   "objectiveBasePar": {
     "rout": 2,

@@ -290,6 +290,7 @@ export function generateBattle(params, deps) {
     thronePos,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
+    parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
     ...reinforcementConfig,
     ...hybridConfig,
   };

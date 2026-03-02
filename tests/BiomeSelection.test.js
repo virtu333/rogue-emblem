@@ -259,15 +259,23 @@ describe('Biome Regression — template reachability', () => {
   });
 
   it('ambush nodes get castle-biome templates at approximate act2 biome weight (integration)', () => {
-    // Run generateNodeMap with 100% ambush chance for act2 (45% castle weight).
-    // Assert that the castle ambush rate is near the expected biome weight, not just > 0.
+    // Run generateNodeMap with 100% ambush chance for act2 (36% castle weight).
+    // Assert that castle ambush rate tracks biome weighting, not template-count weighting.
     const castleRoutIds = new Set(
       data.mapTemplates.rout.filter((t) => t.biome === 'castle').map((t) => t.id),
     );
+    const act2RoutPool = data.mapTemplates.rout.filter(
+      (t) => !Array.isArray(t.acts) || t.acts.includes('act2'),
+    );
+    const unweightedCastleRate =
+      act2RoutPool.filter((t) => getTemplateBiome(t) === 'castle').length / act2RoutPool.length;
+    const expectedCastleRate =
+      ACT_BIOME_WEIGHTS.act2.castle /
+      Object.values(ACT_BIOME_WEIGHTS.act2).reduce((sum, weight) => sum + weight, 0);
     let totalAmbushes = 0;
     let castleAmbushes = 0;
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 400; i++) {
       const map = generateNodeMap('act2', ACT_CONFIG.act2, data.mapTemplates, {
         villageAmbushChance: 1,
       });
@@ -290,10 +298,12 @@ describe('Biome Regression — template reachability', () => {
 
     expect(totalAmbushes).toBeGreaterThan(0);
     const castleRate = castleAmbushes / totalAmbushes;
-    // act2 castle weight is 45%. Allow wide tolerance (35%-65%) for random variance,
-    // but reject unweighted selection which would give ~33% (2 castle / 6 act2 rout templates).
-    expect(castleRate).toBeGreaterThan(0.35);
-    expect(castleRate).toBeLessThan(0.65);
+    // Maintain this test as a weighting regression guard: for act2 rout templates,
+    // unweighted castle selection is currently ~28.6% (2/7), while weighted target is 36%.
+    expect(unweightedCastleRate).toBeLessThan(expectedCastleRate);
+    expect(castleRate).toBeGreaterThan(unweightedCastleRate + 0.03);
+    expect(castleRate).toBeGreaterThan(expectedCastleRate - 0.05);
+    expect(castleRate).toBeLessThan(expectedCastleRate + 0.08);
   });
 
   it('finalBoss shop is never ambushed', () => {

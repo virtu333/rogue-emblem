@@ -4,14 +4,14 @@ import { GOLD_PAR_BONUS_MULTIPLIER } from '../utils/constants.js';
 
 /**
  * Calculate the par (target turn count) for a battle map.
- * @param {object} mapParams - { cols, rows, enemyCount, objective, mapLayout, terrainData }
+ * @param {object} mapParams - { cols, rows, enemyCount, objective, mapLayout, terrainData, parBonus? }
  *   mapLayout: 2D array of terrain indices, terrainData: array from terrain.json
  * @param {object} config - turnBonus.json data
  * @param {string|null} [difficultyId=null] - difficulty mode id for par scaling
  * @returns {number|null} integer par, or null if objective has no basePar entry
  */
 export function calculatePar(mapParams, config, difficultyId = null) {
-  const { cols, rows, enemyCount, objective, mapLayout, terrainData } = mapParams;
+  const { cols, rows, enemyCount, objective, mapLayout, terrainData, parBonus = 0 } = mapParams;
 
   const basePar = config.objectiveBasePar[objective];
   if (basePar == null) return null;
@@ -50,8 +50,9 @@ export function calculatePar(mapParams, config, difficultyId = null) {
   );
   const inflation = config.parInflation || 0;
   const diffMult = config.difficultyParMultiplier?.[difficultyId] ?? 1;
-  if (diffMult >= 1) return rawPar + inflation;
-  return Math.max(1, Math.floor(rawPar * diffMult)) + inflation;
+  const templateParBonus = Number.isFinite(parBonus) ? Math.max(0, Math.trunc(parBonus)) : 0;
+  if (diffMult >= 1) return rawPar + inflation + templateParBonus;
+  return Math.max(1, Math.floor(rawPar * diffMult)) + inflation + templateParBonus;
 }
 
 /**

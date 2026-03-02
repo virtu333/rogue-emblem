@@ -632,6 +632,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'id',
         'name',
         'fogChance',
+        'parBonus',
         'acts',
         'biome',
         'zones',
@@ -684,6 +685,12 @@ export function validateMapTemplatesConfig(config, options = {}) {
         (typeof template.biome !== 'string' || template.biome.trim() === '')
       ) {
         errors.push(`${path}.biome must be a non-empty string when provided`);
+      }
+      if (
+        template.parBonus !== undefined &&
+        (!isInteger(template.parBonus) || template.parBonus < 0)
+      ) {
+        errors.push(`${path}.parBonus must be a non-negative integer when provided`);
       }
 
       const hasHybridArena = Object.prototype.hasOwnProperty.call(template, 'hybridArena');

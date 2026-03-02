@@ -42,6 +42,30 @@ describe('MapTemplateEngine', () => {
     expect(result.errors).toEqual([]);
   });
 
+  it('accepts non-negative integer parBonus', () => {
+    const ok = JSON.parse(JSON.stringify(mapTemplates));
+    ok.rout[0].parBonus = 2;
+    const result = validateMapTemplatesConfig(ok);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects invalid parBonus values', () => {
+    const bad = JSON.parse(JSON.stringify(mapTemplates));
+    bad.rout[0].parBonus = -1;
+    let result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) => error.includes('parBonus must be a non-negative integer')),
+    ).toBe(true);
+
+    bad.rout[0].parBonus = 1.5;
+    result = validateMapTemplatesConfig(bad);
+    expect(result.valid).toBe(false);
+    expect(
+      result.errors.some((error) => error.includes('parBonus must be a non-negative integer')),
+    ).toBe(true);
+  });
+
   it('rejects templates that define reinforcement version without reinforcements object', () => {
     const bad = JSON.parse(JSON.stringify(mapTemplates));
     delete bad.rout[0].reinforcements;

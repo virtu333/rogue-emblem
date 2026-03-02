@@ -106,6 +106,8 @@ export const TERRAIN = {
   Floor: 12,
   Pillar: 13,
   Ballista: 14,
+  Swamp: 15,
+  Bog: 16,
 };
 
 // Boss stat bonus (flat added to all stats)
@@ -297,9 +299,9 @@ export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
 // Templates without a biome field are treated as 'grassland'.
 export const ACT_BIOME_WEIGHTS = {
   act1: { grassland: 100 },
-  act2: { grassland: 55, castle: 45 },
-  act3: { grassland: 45, castle: 55 },
-  act4: { grassland: 20, castle: 10, tundra: 35, volcano: 35 },
+  act2: { grassland: 44, castle: 36, swamp: 20 },
+  act3: { grassland: 36, castle: 44, swamp: 20 },
+  act4: { grassland: 17, castle: 8, tundra: 30, volcano: 30, swamp: 15 },
   finalBoss: { void: 100 },
 };
 
@@ -333,4 +335,6 @@ export const TERRAIN_COLORS = {
   Floor: 0x9090a0,
   Pillar: 0x606878,
   Ballista: 0x8b4513,
+  Swamp: 0x4a6040,
+  Bog: 0x6b7340,
 };

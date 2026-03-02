@@ -59,6 +59,27 @@
           "prompt": "shattered shield emblem with radial shock lines"
         }
       ]
+    },
+    "terrain_tiles": {
+      "targetSize": 32,
+      "aspectRatio": "1:1",
+      "removeBg": false,
+      "sampleCount": 4,
+      "stylePrefix": "32x32 pixel art terrain tile, top-down view, SNES 16-bit tactical RPG style, seamless tiling",
+      "assets": [
+        {
+          "name": "swamp",
+          "prompt": "dark murky swamp water with moss and floating vegetation, deep greenish-brown water"
+        },
+        {
+          "name": "bog",
+          "prompt": "shallow muddy bog terrain with patches of wet grass and brown water pools"
+        },
+        {
+          "name": "forest_swamp",
+          "prompt": "dead bare tree trunk standing in dark swamp water, gnarled branches, haunted appearance"
+        }
+      ]
     }
   }
 }
