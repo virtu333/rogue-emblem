@@ -991,22 +991,45 @@ export class TitleScene extends Phaser.Scene {
       return false;
     }
 
+    const prevMeta = this.registry.get('meta');
+    const prevActiveSlot = this.registry.get('activeSlot');
+    const hadPrevMeta = prevMeta !== undefined;
+    const hadPrevActiveSlot = prevActiveSlot !== undefined;
+    const rollbackNewGameState = () => {
+      if (hadPrevMeta) this.registry.set('meta', prevMeta);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
+      else this.registry.set('meta', undefined);
+
+      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
+      else this.registry.set('activeSlot', undefined);
+    };
+
     const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(nextSlot));
     const cloud = this.registry.get('cloud');
     if (cloud) {
       meta.onSave = (payload) => pushMeta(cloud.userId, nextSlot, payload);
     }
-    meta._save();
     this.registry.set('meta', meta);
-    setActiveSlot(nextSlot);
     this.registry.set('activeSlot', nextSlot);
+    try {
+      const transitioned = await transitionToScene(
+        this,
+        'HomeBase',
+        { gameData: this.gameData },
+        { reason: TRANSITION_REASONS.NEW_GAME },
+      );
+      if (!transitioned) {
+        rollbackNewGameState();
+        return false;
+      }
+    } catch (err) {
+      rollbackNewGameState();
+      throw err;
+    }
 
-    await transitionToScene(
-      this,
-      'HomeBase',
-      { gameData: this.gameData },
-      { reason: TRANSITION_REASONS.NEW_GAME },
-    );
+    meta._save();
+    setActiveSlot(nextSlot);
     return true;
   }
 

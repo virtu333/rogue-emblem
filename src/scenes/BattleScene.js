@@ -9133,16 +9133,9 @@ export class BattleScene extends Phaser.Scene {
         if (isSleeping(u)) this.dimUnit(u);
       }
 
-      // All-sleeping auto-advance: skip player phase entirely
+      // All-sleeping auto-advance: run normal turn-start pipeline, then skip phase.
       const allSleeping = this.playerUnits.every((u) => !u || u.currentHP <= 0 || isSleeping(u));
-      if (allSleeping && this.playerUnits.some((u) => u && u.currentHP > 0)) {
-        this.time.delayedCall(300, async () => {
-          if (this.battleState !== 'PLAYER_IDLE') return;
-          await this._processAcidTicks(this.playerUnits);
-          if (this.battleState === 'PLAYER_IDLE') this.turnManager.endPlayerPhase();
-        });
-        return;
-      }
+      const shouldAutoAdvance = allSleeping && this.playerUnits.some((u) => u && u.currentHP > 0);
 
       // Reset first-hit flag for Shielded affix
       for (const enemy of this.enemyUnits) {
@@ -9182,74 +9175,83 @@ export class BattleScene extends Phaser.Scene {
         if (!this.scene?.isActive?.()) return;
         await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
         await this.processBallistaFire(this.enemyUnits, 'player');
+        if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
+          this.turnManager.endPlayerPhase();
+        }
       });
 
-      // Tutorial hints (after phase banner fades)
-      if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
-        this.time.delayedCall(1500, async () => {
-          if (!this.scene?.isActive?.()) return;
-          const prevState = this.battleState;
-          this.battleState = 'TUTORIAL_HINT';
-          await showImportantHint(
-            this,
-            'Welcome to the tutorial!\nLearn the basics of tactical combat.',
-          );
-          if (!this.scene?.isActive?.()) return;
-          this.tutorialStep = 1;
-          const verb = this.isMobileInput ? 'Tap' : 'Click';
-          await showImportantHint(
-            this,
-            `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
-          );
-          if (!this.scene?.isActive?.()) return;
-          this.tutorialStep = 2;
-          this._setTutorialGuideHighlight('edric');
-          this.battleState = prevState;
-        });
-      } else if (this.battleParams.tutorialMode && !this._tutorialVisionIntroShown && turn === 3) {
-        this._tutorialVisionIntroShown = true;
-        this.time.delayedCall(1500, async () => {
-          if (!this.scene?.isActive?.()) return;
-          const prevState = this.battleState;
-          this.battleState = 'TUTORIAL_HINT';
-          await showImportantHint(this, this._getVisionRewindIntroHint());
-          if (!this.scene?.isActive?.()) return;
-          this.battleState = prevState;
-        });
-      } else if (this.battleParams.tutorialMode) {
-        // Suppress normal hints during tutorial -- do nothing
-      } else {
-        const hints = this.registry.get('hints');
-        if (hints && turn === 1) {
+      if (!shouldAutoAdvance) {
+        // Tutorial hints (after phase banner fades)
+        if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
           this.time.delayedCall(1500, async () => {
             if (!this.scene?.isActive?.()) return;
-            if (hints.shouldShow('battle_first_turn')) {
-              const inspectHint = this.isMobileInput
-                ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
-                : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
-              await showImportantHint(this, inspectHint);
-            }
-            if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
-              await showImportantHint(
-                this,
-                'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
-              );
-            }
-            if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
-              await showImportantHint(
-                this,
-                'Defeat the boss, then move a Lord\nto the throne and select Seize!',
-              );
-            }
+            const prevState = this.battleState;
+            this.battleState = 'TUTORIAL_HINT';
+            await showImportantHint(
+              this,
+              'Welcome to the tutorial!\nLearn the basics of tactical combat.',
+            );
+            if (!this.scene?.isActive?.()) return;
+            this.tutorialStep = 1;
+            const verb = this.isMobileInput ? 'Tap' : 'Click';
+            await showImportantHint(
+              this,
+              `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
+            );
+            if (!this.scene?.isActive?.()) return;
+            this.tutorialStep = 2;
+            this._setTutorialGuideHighlight('edric');
+            this.battleState = prevState;
           });
-        } else if (hints && turn === 2) {
-          this.time.delayedCall(1500, () => {
-            if (hints.shouldShow('battle_danger_zone')) {
-              showMinorHint(this, 'Press [D] to show enemy threat range.');
-            }
+        } else if (
+          this.battleParams.tutorialMode &&
+          !this._tutorialVisionIntroShown &&
+          turn === 3
+        ) {
+          this._tutorialVisionIntroShown = true;
+          this.time.delayedCall(1500, async () => {
+            if (!this.scene?.isActive?.()) return;
+            const prevState = this.battleState;
+            this.battleState = 'TUTORIAL_HINT';
+            await showImportantHint(this, this._getVisionRewindIntroHint());
+            if (!this.scene?.isActive?.()) return;
+            this.battleState = prevState;
           });
-        }
-      } // end else (non-tutorial hints)
+        } else if (this.battleParams.tutorialMode) {
+          // Suppress normal hints during tutorial -- do nothing
+        } else {
+          const hints = this.registry.get('hints');
+          if (hints && turn === 1) {
+            this.time.delayedCall(1500, async () => {
+              if (!this.scene?.isActive?.()) return;
+              if (hints.shouldShow('battle_first_turn')) {
+                const inspectHint = this.isMobileInput
+                  ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+                  : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
+                await showImportantHint(this, inspectHint);
+              }
+              if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
+                await showImportantHint(
+                  this,
+                  'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
+                );
+              }
+              if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
+                await showImportantHint(
+                  this,
+                  'Defeat the boss, then move a Lord\nto the throne and select Seize!',
+                );
+              }
+            });
+          } else if (hints && turn === 2) {
+            this.time.delayedCall(1500, () => {
+              if (hints.shouldShow('battle_danger_zone')) {
+                showMinorHint(this, 'Press [D] to show enemy threat range.');
+              }
+            });
+          }
+        } // end else (non-tutorial hints)
+      }
     } else if (phase === 'enemy') {
       this.battleState = 'ENEMY_PHASE';
       this.updateAntiTurtlePressure(turn);

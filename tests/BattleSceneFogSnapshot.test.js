@@ -70,6 +70,7 @@ function makeUnit(overrides = {}) {
 function setupScene() {
   const scene = new BattleScene();
   const unit = makeUnit();
+  const mapLayout = Array.from({ length: 10 }, () => Array(10).fill(0));
 
   const snapshotSpy = vi.fn(() => new Set(['0,0', '1,1']));
   const restoreSpy = vi.fn();
@@ -89,7 +90,9 @@ function setupScene() {
     gridToPixel: () => ({ x: 64, y: 64 }),
     cols: 10,
     rows: 10,
+    mapLayout,
   };
+  scene.gameData = { skills: [], affixes: null };
   scene.playerUnits = [unit];
   scene.enemyUnits = [];
   scene.npcUnits = [];
@@ -132,10 +135,13 @@ function setupScene() {
   scene.showPhaseBanner = vi.fn();
   scene.dangerZone = { hide: vi.fn() };
   scene.undimUnit = vi.fn();
+  scene.scene = { isActive: vi.fn(() => true) };
   scene.captureVisionSnapshot = vi.fn();
   scene.updateVisionHud = vi.fn();
   scene.refreshEndTurnControl = vi.fn();
   scene.getTurnPressureState = vi.fn(() => ({ active: false, xpMultiplier: 1, goldMultiplier: 1 }));
+  scene.getTurnPressureSummary = vi.fn(() => '');
+  scene.processBallistaFire = vi.fn(async () => {});
   scene.registry = { get: vi.fn(() => null) };
   scene.time = { delayedCall: vi.fn() };
 
@@ -1197,6 +1203,7 @@ describe('onPhaseChange condition recovery ordering', () => {
 
   it('auto-advances when all units still sleeping after recovery', async () => {
     const { scene } = setupScene();
+    const turnStartSpy = vi.spyOn(scene, 'processTurnStartEffects');
     const u1 = makeUnit({ name: 'A', currentHP: 20 });
     const u2 = makeUnit({ name: 'B', currentHP: 20 });
     applyCondition(u1, 'sleep', 3);
@@ -1217,9 +1224,9 @@ describe('onPhaseChange condition recovery ordering', () => {
       Math.random = origRandom;
     }
 
-    // All sleeping (no timer-based recovery), so auto-advance is scheduled
-    // time.delayedCall gets called with short delay for the skip
-    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
+    // All sleeping (no timer-based recovery), so auto-advance runs after normal
+    // turn-start pipeline callback timing.
+    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 1200);
     expect(skipCall).toBeDefined();
     expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
 
@@ -1228,7 +1235,62 @@ describe('onPhaseChange condition recovery ordering', () => {
     if (skipResult && typeof skipResult.then === 'function') {
       await skipResult;
     }
+    expect(turnStartSpy).toHaveBeenCalledTimes(1);
+    expect(turnStartSpy).toHaveBeenCalledWith(scene.playerUnits, { skipRecovery: true });
+    expect(scene.processBallistaFire).toHaveBeenCalledWith(scene.enemyUnits, 'player');
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
+  });
+
+  it('all-sleeping auto-advance suppresses tutorial hint scheduling', () => {
+    const { scene } = setupScene();
+    const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
+    applyCondition(unit, 'sleep', 3);
+    scene.playerUnits = [unit];
+    scene.battleParams = { tutorialMode: true };
+    scene.tutorialStep = 0;
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene.turnCounterText = null;
+    scene._latePressureWarningShown = false;
+
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    const delays = scene.time.delayedCall.mock.calls.map(([delay]) => delay);
+    expect(delays).toContain(1200);
+    expect(delays).not.toContain(1500);
+  });
+
+  it('all-sleeping auto-advance suppresses non-tutorial first-turn hints', () => {
+    const { scene } = setupScene();
+    const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
+    applyCondition(unit, 'sleep', 3);
+    scene.playerUnits = [unit];
+    scene.battleParams = { tutorialMode: false };
+    scene.registry = {
+      get: vi.fn(() => ({ shouldShow: vi.fn(() => true) })),
+    };
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene.turnCounterText = null;
+    scene._latePressureWarningShown = false;
+
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 1);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    const delays = scene.time.delayedCall.mock.calls.map(([delay]) => delay);
+    expect(delays).toContain(1200);
+    expect(delays).not.toContain(1500);
   });
 
   it('all-sleeping auto-advance still applies acid tick before phase ends', async () => {
@@ -1257,7 +1319,7 @@ describe('onPhaseChange condition recovery ordering', () => {
       Math.random = origRandom;
     }
 
-    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
+    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 1200);
     expect(skipCall).toBeDefined();
     expect(unit.currentHP).toBe(2);
     expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
@@ -1274,6 +1336,29 @@ describe('onPhaseChange condition recovery ordering', () => {
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
     const acidCondition = getConditions(unit).find((condition) => condition.id === 'acid');
     expect(acidCondition?.turnsRemaining).toBe(2);
+  });
+
+  it('all-sleeping path still updates turn counter and fog before auto-advance', () => {
+    const { scene } = setupScene();
+    const unit = makeUnit({ name: 'Sleeper', currentHP: 20 });
+    applyCondition(unit, 'sleep', 3);
+    scene.playerUnits = [unit];
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene.turnPar = null;
+    scene.turnCounterText = { setText: vi.fn(), setColor: vi.fn() };
+
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 4);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    expect(scene.turnCounterText.setText).toHaveBeenCalled();
+    expect(scene.grid.updateFogOfWar).toHaveBeenCalledWith(scene.playerUnits);
+    expect(scene.updateEnemyVisibility).toHaveBeenCalled();
   });
 });
 
