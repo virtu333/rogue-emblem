@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import Ajv from 'ajv';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
+import { validateCrossReferences } from '../tools/validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
 const SCHEMA_DIR = path.resolve('schemas');
@@ -43,11 +44,98 @@ describe('Schema validation — positive (real data)', () => {
     expect(validate(loadData('enemies.json'))).toBe(true);
   });
 
+  it('affixes.json passes schema', () => {
+    const validate = compileSchema('affixes.schema.json');
+    expect(validate(loadData('affixes.json'))).toBe(true);
+  });
+
+  it('blessings.json passes schema', () => {
+    const validate = compileSchema('blessings.schema.json');
+    expect(validate(loadData('blessings.json'))).toBe(true);
+  });
+
+  it('weaponArts.json passes schema', () => {
+    const validate = compileSchema('weaponArts.schema.json');
+    expect(validate(loadData('weaponArts.json'))).toBe(true);
+  });
+
+  it('accessories.json passes schema', () => {
+    const validate = compileSchema('accessories.schema.json');
+    expect(validate(loadData('accessories.json'))).toBe(true);
+  });
+
+  it('lootTables.json passes schema', () => {
+    const validate = compileSchema('lootTables.schema.json');
+    expect(validate(loadData('lootTables.json'))).toBe(true);
+  });
+
+  it('terrain.json passes schema', () => {
+    const validate = compileSchema('terrain.schema.json');
+    expect(validate(loadData('terrain.json'))).toBe(true);
+  });
+
+  it('lords.json passes schema', () => {
+    const validate = compileSchema('lords.schema.json');
+    expect(validate(loadData('lords.json'))).toBe(true);
+  });
+
+  it('consumables.json passes schema', () => {
+    const validate = compileSchema('consumables.schema.json');
+    expect(validate(loadData('consumables.json'))).toBe(true);
+  });
+
+  it('recruits.json passes schema', () => {
+    const validate = compileSchema('recruits.schema.json');
+    expect(validate(loadData('recruits.json'))).toBe(true);
+  });
+
+  it('metaUpgrades.json passes schema', () => {
+    const validate = compileSchema('metaUpgrades.schema.json');
+    expect(validate(loadData('metaUpgrades.json'))).toBe(true);
+  });
+
   it('mapTemplates.json passes engine validator', () => {
     const data = loadData('mapTemplates.json');
     const result = validateMapTemplatesConfig(data);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
+  });
+});
+
+describe('Cross-reference validation', () => {
+  it('passes for current data files', () => {
+    const result = validateCrossReferences();
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('fails when a weapon references an unknown skill', () => {
+    const classes = loadData('classes.json');
+    const skills = loadData('skills.json');
+    const weapons = loadData('weapons.json');
+    const lootTables = loadData('lootTables.json');
+    const accessories = loadData('accessories.json');
+    const consumables = loadData('consumables.json');
+    const lords = loadData('lords.json');
+    const recruits = loadData('recruits.json');
+    const weaponArts = loadData('weaponArts.json');
+
+    const badWeapons = structuredClone(weapons);
+    badWeapons[0].skillId = '__missing_skill__';
+
+    const result = validateCrossReferences({
+      classes,
+      skills,
+      weapons: badWeapons,
+      weaponArts,
+      lootTables,
+      accessories,
+      consumables,
+      lords,
+      recruits,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((entry) => entry.includes('__missing_skill__'))).toBe(true);
   });
 });
 

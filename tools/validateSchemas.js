@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Ajv from 'ajv';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
+import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
 const SCHEMA_DIR = path.resolve('schemas');
@@ -11,6 +12,16 @@ const AJV_SCHEMAS = [
   { schema: 'weapons.schema.json', data: 'weapons.json' },
   { schema: 'skills.schema.json', data: 'skills.json' },
   { schema: 'enemies.schema.json', data: 'enemies.json' },
+  { schema: 'affixes.schema.json', data: 'affixes.json' },
+  { schema: 'blessings.schema.json', data: 'blessings.json' },
+  { schema: 'weaponArts.schema.json', data: 'weaponArts.json' },
+  { schema: 'accessories.schema.json', data: 'accessories.json' },
+  { schema: 'lootTables.schema.json', data: 'lootTables.json' },
+  { schema: 'terrain.schema.json', data: 'terrain.json' },
+  { schema: 'lords.schema.json', data: 'lords.json' },
+  { schema: 'consumables.schema.json', data: 'consumables.json' },
+  { schema: 'recruits.schema.json', data: 'recruits.json' },
+  { schema: 'metaUpgrades.schema.json', data: 'metaUpgrades.json' },
 ];
 
 const ajv = new Ajv({ allErrors: true });
@@ -43,6 +54,18 @@ if (mtResult.valid) {
 } else {
   console.error('FAIL  mapTemplates.json (engine validator)');
   for (const err of mtResult.errors) {
+    console.error(`      ${err}`);
+  }
+  failed = true;
+}
+
+// Validate cross-file references
+const crossRef = validateCrossReferences();
+if (crossRef.valid) {
+  console.log('  OK  cross-file references');
+} else {
+  console.error('FAIL  cross-file references');
+  for (const err of crossRef.errors) {
     console.error(`      ${err}`);
   }
   failed = true;

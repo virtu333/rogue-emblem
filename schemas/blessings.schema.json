@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Blessings",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "costPools": {
+      "type": "object",
+      "patternProperties": {
+        "^\\d+$": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/costEntry" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "blessings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "tier": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0 },
+          "boons": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "minLength": 1 },
+                "params": { "type": "object" }
+              },
+              "required": ["type", "params"],
+              "additionalProperties": false
+            }
+          },
+          "costs": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/costEntry" }
+          },
+          "excludes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        },
+        "required": ["id", "name", "tier", "description", "weight", "boons", "costs"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["version", "blessings", "costPools"],
+  "additionalProperties": false,
+  "$defs": {
+    "effectEntry": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "params": { "type": "object" }
+      },
+      "required": ["type", "params"],
+      "additionalProperties": false
+    },
+    "costEntry": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effectEntry" }
+        }
+      },
+      "required": ["label", "effects"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Loot Tables",
+  "type": "object",
+  "properties": {
+    "act1": { "$ref": "#/$defs/actLootTable" },
+    "act2": { "$ref": "#/$defs/actLootTable" },
+    "act3": { "$ref": "#/$defs/actLootTable" },
+    "act4": { "$ref": "#/$defs/actLootTable" },
+    "finalBoss": { "$ref": "#/$defs/actLootTable" }
+  },
+  "required": ["act1", "act2", "act3", "act4", "finalBoss"],
+  "additionalProperties": false,
+  "$defs": {
+    "nameArray": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "weights": {
+      "type": "object",
+      "properties": {
+        "weapon": { "type": "number", "minimum": 0 },
+        "healing": { "type": "number", "minimum": 0 },
+        "statBooster": { "type": "number", "minimum": 0 },
+        "promotion": { "type": "number", "minimum": 0 },
+        "skillScroll": { "type": "number", "minimum": 0 },
+        "weaponArtScroll": { "type": "number", "minimum": 0 },
+        "legendaryWeapon": { "type": "number", "minimum": 0 },
+        "accessory": { "type": "number", "minimum": 0 },
+        "forge": { "type": "number", "minimum": 0 },
+        "gold": { "type": "number", "minimum": 0 }
+      },
+      "required": ["gold"],
+      "additionalProperties": false
+    },
+    "actLootTable": {
+      "type": "object",
+      "properties": {
+        "weapons": { "$ref": "#/$defs/nameArray" },
+        "healing": { "$ref": "#/$defs/nameArray" },
+        "statBooster": { "$ref": "#/$defs/nameArray" },
+        "promotion": { "$ref": "#/$defs/nameArray" },
+        "skillScroll": { "$ref": "#/$defs/nameArray" },
+        "weaponArtScroll": { "$ref": "#/$defs/nameArray" },
+        "legendaryWeapon": { "$ref": "#/$defs/nameArray" },
+        "accessories": { "$ref": "#/$defs/nameArray" },
+        "forge": { "$ref": "#/$defs/nameArray" },
+        "weights": { "$ref": "#/$defs/weights" },
+        "goldRange": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "weapons",
+        "healing",
+        "statBooster",
+        "promotion",
+        "skillScroll",
+        "weaponArtScroll",
+        "legendaryWeapon",
+        "accessories",
+        "forge",
+        "weights",
+        "goldRange"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

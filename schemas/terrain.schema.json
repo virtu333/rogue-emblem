@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Terrain",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "minLength": 1 },
+      "moveCost": {
+        "type": "object",
+        "properties": {
+          "Infantry": { "type": "string", "pattern": "^(--|\\d+)$" },
+          "Armored": { "type": "string", "pattern": "^(--|\\d+)$" },
+          "Cavalry": { "type": "string", "pattern": "^(--|\\d+)$" },
+          "Flying": { "type": "string", "pattern": "^(--|\\d+)$" }
+        },
+        "required": ["Infantry", "Armored", "Cavalry", "Flying"],
+        "additionalProperties": false
+      },
+      "avoidBonus": { "type": "string", "pattern": "^(--|-?\\d+)$" },
+      "defBonus": { "type": "string", "pattern": "^(--|-?\\d+)$" },
+      "special": { "type": "string" }
+    },
+    "required": ["name", "moveCost", "avoidBonus", "defBonus", "special"],
+    "additionalProperties": false
+  }
+}

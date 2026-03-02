@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Weapon Arts",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "mvp": {
+      "type": "object",
+      "properties": {
+        "wave": { "type": "string" },
+        "costModel": { "type": "string" },
+        "notes": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["wave", "costModel", "notes"],
+      "additionalProperties": false
+    },
+    "arts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "weaponType": {
+            "type": "string",
+            "enum": ["Sword", "Lance", "Axe", "Bow", "Tome", "Light", "Staff", "Breath"]
+          },
+          "tierAffinity": { "type": "string", "enum": ["Iron", "Steel", "Silver", "Legendary"] },
+          "legacy": { "type": "boolean" },
+          "unlockAct": { "type": "string", "enum": ["act1", "act2", "act3", "act4", "finalBoss"] },
+          "requiredRank": { "type": "string", "enum": ["Prof", "Mast"] },
+          "hpCost": { "type": "integer", "minimum": 0 },
+          "perTurnLimit": { "type": "integer", "minimum": 1 },
+          "perMapLimit": { "type": "integer", "minimum": 1 },
+          "targeting": { "type": "string" },
+          "description": { "type": "string" },
+          "combatMods": { "type": "object" },
+          "effects": { "type": "object" },
+          "allowedFactions": { "type": "array", "items": { "type": "string" } },
+          "allowedTypes": { "type": "array", "items": { "type": "string" } },
+          "legendaryWeaponIds": { "type": "array", "items": { "type": "string" } },
+          "_deferredMechanic": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "name",
+          "weaponType",
+          "tierAffinity",
+          "unlockAct",
+          "requiredRank",
+          "hpCost",
+          "perMapLimit",
+          "targeting",
+          "description",
+          "combatMods"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["version", "mvp", "arts"],
+  "additionalProperties": false
+}

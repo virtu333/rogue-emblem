@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lords",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "minLength": 1 },
+      "class": { "type": "string", "minLength": 1 },
+      "baseStats": { "$ref": "#/$defs/statBlock" },
+      "moveType": { "type": "string", "enum": ["Infantry", "Cavalry", "Flying", "Armored"] },
+      "weapon": { "type": "string", "minLength": 1 },
+      "personalSkill": { "type": "string", "minLength": 1 },
+      "personalGrowths": { "$ref": "#/$defs/growthBlock" },
+      "promotedClass": { "type": "string", "minLength": 1 },
+      "promotionBonuses": { "$ref": "#/$defs/statBlock" },
+      "promotionWeapons": { "type": "string", "minLength": 1 },
+      "personalSkillL20": {
+        "type": "object",
+        "properties": {
+          "skillId": { "type": "string", "minLength": 1 },
+          "level": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["skillId", "level"],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "name",
+      "class",
+      "baseStats",
+      "moveType",
+      "weapon",
+      "personalSkill",
+      "personalGrowths",
+      "promotedClass",
+      "promotionBonuses",
+      "promotionWeapons",
+      "personalSkillL20"
+    ],
+    "additionalProperties": false
+  },
+  "$defs": {
+    "statBlock": {
+      "type": "object",
+      "properties": {
+        "HP": { "type": "integer" },
+        "STR": { "type": "integer" },
+        "MAG": { "type": "integer" },
+        "SKL": { "type": "integer" },
+        "SPD": { "type": "integer" },
+        "DEF": { "type": "integer" },
+        "RES": { "type": "integer" },
+        "LCK": { "type": "integer" },
+        "MOV": { "type": "integer" }
+      },
+      "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK", "MOV"],
+      "additionalProperties": false
+    },
+    "growthBlock": {
+      "type": "object",
+      "properties": {
+        "HP": { "type": "integer" },
+        "STR": { "type": "integer" },
+        "MAG": { "type": "integer" },
+        "SKL": { "type": "integer" },
+        "SPD": { "type": "integer" },
+        "DEF": { "type": "integer" },
+        "RES": { "type": "integer" },
+        "LCK": { "type": "integer" }
+      },
+      "required": ["HP", "STR", "MAG", "SKL", "SPD", "DEF", "RES", "LCK"],
+      "additionalProperties": false
+    }
+  }
+}

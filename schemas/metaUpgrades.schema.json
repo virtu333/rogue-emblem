@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Meta Upgrades",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": { "type": "string", "minLength": 1 },
+      "name": { "type": "string", "minLength": 1 },
+      "description": { "type": "string" },
+      "category": {
+        "type": "string",
+        "enum": [
+          "recruit_stats",
+          "starting_equipment",
+          "economy",
+          "capacity",
+          "lord_bonuses",
+          "starting_skills"
+        ]
+      },
+      "maxLevel": { "type": "integer", "minimum": 1 },
+      "costs": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "integer", "minimum": 0 }
+      },
+      "effects": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "minProperties": 1
+        }
+      },
+      "requires": {
+        "type": "object",
+        "properties": {
+          "upgrades": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "level": { "type": "integer", "minimum": 1 }
+              },
+              "required": ["id", "level"],
+              "additionalProperties": false
+            }
+          },
+          "milestones": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required": ["id", "name", "description", "category", "maxLevel", "costs", "effects"],
+    "additionalProperties": false
+  }
+}
