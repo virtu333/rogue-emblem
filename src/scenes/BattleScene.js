@@ -109,10 +109,8 @@ import {
   BOSS_STAT_BONUS,
   INVENTORY_MAX,
   CONSUMABLE_MAX,
-  GOLD_BATTLE_BONUS,
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
-  ELITE_MAX_PICKS,
   ROSTER_CAP,
   DEPLOY_LIMITS,
   TERRAIN,
@@ -161,7 +159,7 @@ import {
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
-import { serializeUnit, clearSavedRun, getActTransitionKey } from '../engine/RunManager.js';
+import { clearSavedRun } from '../engine/RunManager.js';
 import {
   calculateKillReward,
   generateLootChoices,
@@ -177,7 +175,6 @@ import {
 import {
   calculatePar,
   getRating,
-  calculateBonusGold,
   getLatePressureState,
   isBossEnrageActive,
   getParXpMultiplier,
@@ -206,23 +203,22 @@ import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
-import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import {
   buildTutorialBattleConfig as _buildTutorialBattleConfig,
   buildTutorialRoster as _buildTutorialRoster,
 } from '../engine/TutorialHelpers.js';
-import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks, ensureSceneLoaded } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { BattleCameraController } from '../utils/BattleCameraController.js';
-import { BossRecruitOverlay } from '../ui/BossRecruitOverlay.js';
-import { LordArrivalOverlay } from '../ui/LordArrivalOverlay.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
+import { PostCombatController } from '../ui/PostCombatController.js';
+import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
@@ -388,7 +384,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
-    // Opportunistic preload — cache RunComplete chunk while player fights.
+    // Opportunistic preload -- cache RunComplete chunk while player fights.
     // Errors swallowed; real recovery happens at transition time (Layer 1/2).
     ensureSceneLoaded(this, 'RunComplete').catch(() => {});
   }
@@ -425,6 +421,14 @@ export class BattleScene extends Phaser.Scene {
 
     this.hideForecast();
     this.closeVisionDialog();
+    if (this._postCombatController) {
+      this._postCombatController.destroy();
+      this._postCombatController = null;
+    }
+    if (this._recoveryController) {
+      this._recoveryController.destroy();
+      this._recoveryController = null;
+    }
 
     if (this.dialogueOverlay) {
       this.dialogueOverlay.destroy();
@@ -1530,7 +1534,7 @@ export class BattleScene extends Phaser.Scene {
       })
       .catch((err) => {
         console.warn('[BattleScene] transitionAfterBattle rejected:', err);
-        // Don't clear fallback — let it fire forceTransitionAfterBattle
+        // Don't clear fallback -- let it fire forceTransitionAfterBattle
       });
   }
 
@@ -1933,7 +1937,7 @@ export class BattleScene extends Phaser.Scene {
     }
     if (spawn.isEntity) {
       enemy.isEntity = true;
-      // Dual weapon assignment — Entity gets both Eldritch Grasp and Twisting Vortex
+      // Dual weapon assignment -- Entity gets both Eldritch Grasp and Twisting Vortex
       const entityWeapons = this.gameData.weapons
         .filter((w) => ENTITY_WEAPON_NAMES.includes(w.name))
         .map((w) => structuredClone(w));
@@ -2174,7 +2178,7 @@ export class BattleScene extends Phaser.Scene {
     )).getChargesRemaining();
   }
 
-  // ── Vision Rewind shims (delegated to VisionRewindController) ──
+  // -- Vision Rewind shims (delegated to VisionRewindController) --
 
   captureVisionSnapshot() {
     (this._visionController ||= new VisionRewindController(
@@ -3629,7 +3633,7 @@ export class BattleScene extends Phaser.Scene {
       ctx = 'battle_selected';
     // SHOWING_FORECAST: roster is technically allowed per _onRosterClick rosterStates,
     // but forecast mobile context prioritises weapon navigation buttons. Users can
-    // B-cancel out of forecast to access roster — acceptable UX tradeoff.
+    // B-cancel out of forecast to access roster -- acceptable UX tradeoff.
     else if (s === 'SHOWING_FORECAST' || s === 'CONFIRMING_ATTACK') ctx = 'battle_forecast';
     else if (s === 'BATTLE_END') ctx = 'battle_end';
     this.game.events.emit('mobile:setContext', { context: ctx });
@@ -5806,7 +5810,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    // Show recruitment dialogue — lords get personal lines, others use class-based
+    // Show recruitment dialogue -- lords get personal lines, others use class-based
     const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
     const recruitLines = lordLines ||
       this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
@@ -5998,12 +6002,12 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (targets.length === 1) {
-      // Single target — use immediately
+      // Single target -- use immediately
       this._pendingCureTarget = targets[0];
       this.useConsumable(unit, item);
       return;
     }
-    // Multiple targets — show selection highlights
+    // Multiple targets -- show selection highlights
     this._pendingCureItem = item;
     this._pendingCureUser = unit;
     this.healTargets = targets;
@@ -6549,7 +6553,7 @@ export class BattleScene extends Phaser.Scene {
       this.actionMenu.push(hint);
     }
 
-    // Auto-show tooltip for equipped weapon (skip if overflowing — equipped row may be off-screen)
+    // Auto-show tooltip for equipped weapon (skip if overflowing -- equipped row may be off-screen)
     if (!hasOverflow) {
       const equippedWpn = displayWeapons.find((w) => w === unit.weapon) || displayWeapons[0];
       if (equippedWpn) {
@@ -6856,7 +6860,7 @@ export class BattleScene extends Phaser.Scene {
       const panel = new PromotionChoicePanel(this, unit, targets, this.gameData.skills);
       promotedClassData = await panel.show();
       if (!promotedClassData) {
-        // Cancelled — return to action menu
+        // Cancelled -- return to action menu
         this.battleState = 'UNIT_ACTION_MENU';
         this.showActionMenu(unit);
         return false;
@@ -8099,7 +8103,7 @@ export class BattleScene extends Phaser.Scene {
             /* best-effort visual */
           }
         }
-        // Reset state BEFORE unitActed — matches finishUnitAction order so
+        // Reset state BEFORE unitActed -- matches finishUnitAction order so
         // unitActed's phase transition (if triggered) takes final precedence
         this.battleState = 'PLAYER_IDLE';
         this.grid.clearHighlights();
@@ -8709,7 +8713,7 @@ export class BattleScene extends Phaser.Scene {
     target.currentHP = event.targetHPAfter;
     this.updateHPBar(target);
 
-    // Sleep: wake on damage — remove Zzz icon and un-dim immediately
+    // Sleep: wake on damage -- remove Zzz icon and un-dim immediately
     if (event.wokeFromSleep) {
       this._removeConditionIcon(target, 'sleep');
       this.undimUnit(target);
@@ -9448,7 +9452,7 @@ export class BattleScene extends Phaser.Scene {
     });
     for (const tomb of revived) {
       const snap = tomb.snapshot;
-      // Find spawn position — original tile or nearest passable+empty
+      // Find spawn position -- original tile or nearest passable+empty
       let spawnCol = tomb.col;
       let spawnRow = tomb.row;
       const deathTerrain = this.grid.getTerrainAt(spawnCol, spawnRow);
@@ -9474,14 +9478,14 @@ export class BattleScene extends Phaser.Scene {
           ) {
             const t = this.grid.getTerrainAt(nc, nr);
             const mc = t?.moveCost?.[snap.moveType];
-            if (mc === '--' || mc == null) continue; // impassable → skip
+            if (mc === '--' || mc == null) continue; // impassable -> skip
             spawnCol = nc;
             spawnRow = nr;
             found = true;
             break;
           }
         }
-        if (!found) continue; // no room — skip revival
+        if (!found) continue; // no room -- skip revival
       }
       const unit = {
         name: snap.className,
@@ -9560,7 +9564,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Anti-self-trap: filter out candidates that would leave waller with 0 walkable neighbors
     const safeCandidates = candidates.filter((c) => {
-      // Simulate placing a wall at this candidate — count remaining walkable neighbors
+      // Simulate placing a wall at this candidate -- count remaining walkable neighbors
       let walkable = 0;
       for (const [dc, dr] of [
         [-1, 0],
@@ -10013,7 +10017,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Apply Entity AoE splash — 0-2 random tiles within Manhattan 1 of primary target */
+  /** Apply Entity AoE splash -- 0-2 random tiles within Manhattan 1 of primary target */
   async _applyEntitySplash(entity, primaryTarget) {
     const tiles = rollSplashTiles(
       primaryTarget.col,
@@ -10123,7 +10127,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
+  /** Faction-aware ally pool for Divine Charge heals (enemy->enemy, player->player, npc->player+npc) */
   getDivineChargeAllies(caster) {
     if (caster.faction === 'enemy') return this.enemyUnits;
     if (caster.faction === 'npc') return [...this.playerUnits, ...(this.npcUnits || [])];
@@ -10288,339 +10292,38 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onVictory() {
-    if (this.battleState === 'BATTLE_END') return;
-    this._reinforcementsPendingThisTurn = false;
-    this.battleState = 'BATTLE_END';
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.victory, this, 0);
-    const victoryBanner = this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'VICTORY!', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: '#ffdd44',
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    this._victoryBanner = victoryBanner;
-    this._pinToScreen(victoryBanner);
-
-    if (this.battleParams.tutorialMode) {
-      this.time.delayedCall(1500, async () => {
-        if (!this.scene?.isActive?.()) return;
-        await showImportantHint(
-          this,
-          "Victory! You've completed the tutorial.\nYou're ready for a real run -- good luck!",
-        );
-        if (!this.scene?.isActive?.()) return;
-        try {
-          localStorage.setItem('emblem_rogue_tutorial_completed', '1');
-        } catch (_) {}
-        this._transitionTutorialToTitle();
-      });
-    } else if (this.runManager) {
-      this.clearBattleScopedDeltas(this.playerUnits);
-      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-      const surviving = this.playerUnits.map((u) => serializeUnit(u));
-      const allUnits = [...surviving, ...(this.nonDeployedUnits || [])];
-      const turnPressure = this.getTurnPressureState();
-      const completionGoldAward = Math.max(
-        0,
-        Math.floor(GOLD_BATTLE_BONUS * turnPressure.goldMultiplier),
-      );
-      this._victoryPressureState = turnPressure;
-      this._completionGoldAward = completionGoldAward;
-      const vaultGoldBeforeCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
-      const completionApplied = this.runManager.completeBattle(
-        allUnits,
-        this.nodeId,
-        this.goldEarned,
-        {
-          completionGoldOverride: completionGoldAward,
-        },
-      );
-      const vaultGoldAfterCompletion = Math.max(0, Math.trunc(this.runManager.gold || 0));
-      this._battleCompletionAwardedGold = completionApplied
-        ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
-        : 0;
-      this.time.delayedCall(1500, async () => {
-        if (!this.scene?.isActive?.()) return;
-        if (!completionApplied) {
-          console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
-          try {
-            const ok = await transitionToScene(
-              this,
-              'NodeMap',
-              {
-                gameData: this.gameData,
-                runManager: this.runManager,
-              },
-              { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-            );
-            if (!ok) {
-              console.warn('[BattleScene] completeBattle no-op transition blocked; retrying.');
-              resetTransitionLocks(this);
-              const retryOk = await transitionToScene(
-                this,
-                'NodeMap',
-                {
-                  gameData: this.gameData,
-                  runManager: this.runManager,
-                },
-                { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-              );
-              if (!retryOk) {
-                if (this._victoryBanner) {
-                  this._victoryBanner.destroy();
-                  this._victoryBanner = null;
-                }
-                this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
-              }
-            }
-          } catch (err) {
-            console.warn('[BattleScene] completeBattle no-op transition failed:', err);
-            if (this._victoryBanner) {
-              this._victoryBanner.destroy();
-              this._victoryBanner = null;
-            }
-            this.showLootStatus?.('Transition failed. Refresh and continue run.', '#ff8888');
-          }
-          return;
-        }
-        try {
-          if (this.isBoss && this._bossName && this.runManager) {
-            const bossName = this._resolveBossDialogueName(this._bossName);
-            const dialogueKey = `boss_defeat_${bossName}`;
-            const entries = this.gameData?.dialogue?.bossEncounters?.[bossName]?.defeat;
-            await this._showStoryDialogueOnce(dialogueKey, entries);
-          }
-        } catch (err) {
-          console.warn('[BattleScene] boss defeat dialogue failed:', err);
-        }
-
-        if (!this.scene?.isActive?.()) return;
-        if (this.runManager.isRunComplete()) {
-          // Final boss: award turn-bonus gold silently, skip loot screen
-          this._awardTurnBonusGold();
-          this.transitionAfterBattle();
-        } else if (this.isBoss) {
-          this.showBossRecruitScreen();
-        } else {
-          // Elite victory flavor
-          if (this.isElite) {
-            try {
-              const act = this.battleParams?.act || 'act1';
-              const elitePool =
-                this.gameData?.dialogue?.eliteVictory?.[act] ||
-                this.gameData?.dialogue?.eliteVictory?.['act3'];
-              if (Array.isArray(elitePool) && elitePool.length > 0) {
-                const line = elitePool[Math.floor(Math.random() * elitePool.length)];
-                await this.dialogueOverlay?.show(null, line, null);
-              }
-            } catch (_) {}
-            if (!this.scene?.isActive?.()) return;
-          }
-          if (this.runManager.shouldTriggerThirdLord()) {
-            this._showThirdLordArrival();
-          } else {
-            this.showLootScreen();
-          }
-        }
-      });
-    } else {
-      // Standalone mode -- restart battle after delay
-      this.time.delayedCall(2000, () => {
-        restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
-      });
-    }
+    (this._postCombatController ||= new PostCombatController(this)).onVictory();
   }
 
   /** Award turn-bonus gold without showing the loot UI. */
   _awardTurnBonusGold() {
-    if (this.turnPar == null || !this.turnBonusConfig) return 0;
-    const turnPressure = this._victoryPressureState || this.getTurnPressureState();
-    const pressureGoldMultiplier = Number.isFinite(turnPressure?.goldMultiplier)
-      ? turnPressure.goldMultiplier
-      : 1;
-    const result = getRating(this.turnManager.turnNumber, this.turnPar, this.turnBonusConfig);
-    const rawBonus = calculateBonusGold(result, this.runManager.currentAct, this.turnBonusConfig);
-    const scaled = Math.max(0, Math.floor(rawBonus * pressureGoldMultiplier));
-    if (scaled > 0 && typeof this.runManager?.awardGold === 'function') {
-      this.runManager.awardGold(scaled);
-    }
-    return scaled;
+    return (this._postCombatController ||= new PostCombatController(this))._awardTurnBonusGold();
   }
 
   /** Transition to the next scene after loot selection. */
   async transitionAfterBattle() {
-    if (this.isTransitioningOut) return false;
-    this.isTransitioningOut = true;
-    try {
-      if (this.runManager.isActComplete()) {
-        if (this.runManager.isRunComplete()) {
-          this.runManager.status = 'victory';
-          this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-          const ok = await transitionToScene(
-            this,
-            'RunComplete',
-            {
-              gameData: this.gameData,
-              runManager: this.runManager,
-              result: 'victory',
-            },
-            { reason: TRANSITION_REASONS.VICTORY },
-          );
-          if (!ok) throw new Error('Scene transition to RunComplete blocked');
-        } else {
-          const fromAct = this.runManager.currentAct;
-          this.runManager.advanceAct();
-          const toAct = this.runManager.currentAct;
-          const transKey = getActTransitionKey(fromAct, toAct);
-          const entries = this.gameData?.dialogue?.actTransitions?.[transKey];
-          try {
-            await this._showStoryDialogueOnce(transKey, entries);
-          } catch (err) {
-            console.warn('[BattleScene] act transition dialogue failed:', err);
-          }
-          const ok2 = await transitionToScene(
-            this,
-            'NodeMap',
-            {
-              gameData: this.gameData,
-              runManager: this.runManager,
-            },
-            { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-          );
-          if (!ok2) throw new Error('Scene transition to NodeMap blocked (act advance)');
-        }
-      } else {
-        const ok3 = await transitionToScene(
-          this,
-          'NodeMap',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          },
-          { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-        );
-        if (!ok3) throw new Error('Scene transition to NodeMap blocked');
-      }
-      return true;
-    } catch (err) {
-      this.isTransitioningOut = false;
-      this.reportLootError('transitionAfterBattle', err, {
-        isElite: this.isElite,
-        battleState: this.battleState,
-        nodeId: this.nodeId,
-      });
-      this.forceTransitionAfterBattle();
-      return false;
-    }
+    return (this._postCombatController ||= new PostCombatController(this)).transitionAfterBattle();
   }
 
   async forceTransitionAfterBattle() {
-    this._postLootTransitionCompleted = true;
-    this._clearPostLootTransitionFallback();
-    resetTransitionLocks(this);
-    try {
-      let ok;
-      const isRunComplete = this.runManager?.isRunComplete?.();
-      if (isRunComplete) {
-        this.runManager.settleEndRunRewards(this.registry.get('meta'), 'victory');
-        ok = await transitionToScene(
-          this,
-          'RunComplete',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-            result: 'victory',
-          },
-          { reason: TRANSITION_REASONS.VICTORY },
-        );
-      } else {
-        ok = await transitionToScene(
-          this,
-          'NodeMap',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-          },
-          { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
-        );
-      }
-      if (!ok) {
-        console.error(
-          '[BattleScene][LootFlow] forceTransitionAfterBattle: transition returned false',
-        );
-        if (isRunComplete) {
-          this.showVictoryTransitionRecovery();
-        } else {
-          this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
-        }
-      }
-    } catch (err) {
-      console.error('[BattleScene][LootFlow] forceTransitionAfterBattle failed', err);
-      if (this.runManager?.isRunComplete?.()) {
-        this.showVictoryTransitionRecovery();
-      } else {
-        this.showLootStatus('Transition failed. Refresh and continue run.', '#ff8888');
-      }
-    }
+    return (this._postCombatController ||= new PostCombatController(
+      this,
+    )).forceTransitionAfterBattle();
   }
 
   /** Show boss recruit selection: pick 1 of 3 recruits or skip, then proceed to loot. */
   showBossRecruitScreen() {
-    const overlay = new BossRecruitOverlay(this, this.runManager, this.gameData);
-    this._bossRecruitOverlay = overlay;
-    this.lootGroup = overlay.displayObjects;
-    overlay.show((selectedUnit) => {
-      if (selectedUnit) this.runManager.roster.push(selectedUnit);
-      this.lootGroup = null;
-      this._bossRecruitOverlay = null;
-      if (this.runManager.shouldTriggerThirdLord()) {
-        this._showThirdLordArrival();
-      } else {
-        this.showLootScreen();
-      }
-    });
+    (this._postCombatController ||= new PostCombatController(this)).showBossRecruitScreen();
   }
 
   /** Show third lord arrival overlay (Power of Friendship meta upgrade). */
   _showThirdLordArrival() {
-    const overlay = new LordArrivalOverlay(this, this.runManager, this.gameData);
-    this._lordArrivalOverlay = overlay;
-    this.lootGroup = overlay.displayObjects;
-    overlay.show((selectedUnit) => {
-      this.runManager.resolveThirdLord(selectedUnit);
-      this.lootGroup = null;
-      this._lordArrivalOverlay = null;
-      this.showLootScreen();
-    });
+    (this._postCombatController ||= new PostCombatController(this))._showThirdLordArrival();
   }
 
   /** Show post-battle loot selection. Normal: pick 1 of 3. Elite: pick 2 of 4. */
   showLootScreen() {
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.loot, this, 300);
-    this._elitePicksRemaining = this.isElite ? ELITE_MAX_PICKS : 1;
-    this._lootCleanedUp = false;
-    this._lootResolving = false;
-
-    this._lootController = new LootScreenController(this, this.runManager, this.gameData, {
-      isElite: this.isElite,
-      isBoss: this.isBoss,
-      goldEarned: this.goldEarned,
-      turnPar: this.turnPar,
-      turnBonusConfig: this.turnBonusConfig,
-      turnNumber: this.turnManager?.turnNumber,
-      victoryPressureState: this._victoryPressureState,
-      completionGoldAward: this._completionGoldAward,
-      battleCompletionAwardedGold: this._battleCompletionAwardedGold,
-      metaEffects: this.runManager?.metaEffects,
-    });
-    this._lootController.renderCards();
-    this.lootGroup = this._lootController.lootGroup;
+    (this._postCombatController ||= new PostCombatController(this)).showLootScreen();
   }
 
   getLootCardDetailLines(choice, item, cardWidth = 110) {
@@ -10636,7 +10339,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // ── Loot card hover tooltip ────────────────────────────────────
+  // -- Loot card hover tooltip ------------------------------------
 
   _getLootTooltipText(choice, item) {
     return LootScreenController.getTooltipText(this, choice, item);
@@ -10697,7 +10400,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // ── End loot tooltip ──────────────────────────────────────────
+  // -- End loot tooltip ------------------------------------------
 
   /** Simple text wrapping helper. */
   wrapText(text, maxChars) {
@@ -11326,366 +11029,33 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showLootStatus(message, color = '#ff8888') {
-    const cam = this.cameras.main;
-    const status = this.add
-      .text(cam.centerX, cam.height - 44, message, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color,
-        backgroundColor: '#000000cc',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(0.5)
-      .setDepth(799);
-    this._pinToScreen(status);
-    this.time.delayedCall(1500, () => {
-      if (status && status.active) status.destroy();
-    });
+    (this._postCombatController ||= new PostCombatController(this)).showLootStatus(message, color);
   }
 
   reportLootError(context, err, extra = {}) {
-    console.error('[BattleScene][LootFlow]', context, extra, err);
-    this.showLootStatus('Loot error. Check console log.', '#ff8888');
-  }
-
-  onDefeat() {
-    if (this.battleState === 'BATTLE_END') return;
-    this._reinforcementsPendingThisTurn = false;
-    this.battleState = 'BATTLE_END';
-    this.clearInspectionVisuals();
-    this.hideActionMenu();
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(MUSIC.defeat, this, 0);
-    const defeatBanner = this.add
-      .text(this.cameras.main.centerX, this.cameras.main.centerY, 'DEFEAT', {
-        fontFamily: 'monospace',
-        fontSize: '28px',
-        color: '#cc3333',
-        backgroundColor: '#000000dd',
-        padding: { x: 24, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setDepth(600);
-    this._pinToScreen(defeatBanner);
-
-    if (this.battleParams.tutorialMode) {
-      this.time.delayedCall(1500, async () => {
-        if (!this.scene?.isActive?.()) return;
-        await showImportantHint(
-          this,
-          'Your lord fell! In a real run, this ends everything.\nTry again from the title screen.',
-        );
-        if (!this.scene?.isActive?.()) return;
-        this._transitionTutorialToTitle();
-      });
-    } else if (this.runManager) {
-      this.clearBattleScopedDeltas(this.playerUnits);
-      this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
-      this.runManager.failRun();
-      this.time.delayedCall(2000, async () => {
-        if (!this.scene?.isActive?.()) return;
-        // Clear any stale transition locks — the 2s delay gives legitimate
-        // in-flight transitions plenty of time to finish.
-        resetTransitionLocks(this);
-        const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
-        if (!transitioned && this.scene?.isActive?.()) this.showDefeatTransitionRecovery();
-      });
-    } else {
-      // Standalone mode -- restart battle after delay
-      this.time.delayedCall(2000, () => {
-        restartScene(this, undefined, { reason: TRANSITION_REASONS.RETRY });
-      });
-    }
-  }
-
-  async transitionToRunCompleteWithRetry(result = 'defeat') {
-    const reason = result === 'victory' ? TRANSITION_REASONS.VICTORY : TRANSITION_REASONS.DEFEAT;
-    return retryBooleanAction(
-      (attempt) => {
-        const ok = transitionToScene(
-          this,
-          'RunComplete',
-          {
-            gameData: this.gameData,
-            runManager: this.runManager,
-            result,
-          },
-          { reason },
-        );
-        return ok.then((success) => {
-          if (!success) {
-            console.warn(`[BattleScene] ${result} transition attempt failed`, { attempt, result });
-          }
-          return success;
-        });
-      },
-      {
-        attempts: 4,
-        initialDelayMs: 300,
-        delayMultiplier: 2.0,
-        wait: (ms) =>
-          new Promise((resolve) => {
-            if (this.time?.delayedCall) this.time.delayedCall(ms, resolve);
-            else setTimeout(resolve, ms);
-          }),
-      },
+    (this._postCombatController ||= new PostCombatController(this)).reportLootError(
+      context,
+      err,
+      extra,
     );
   }
 
+  onDefeat() {
+    (this._postCombatController ||= new PostCombatController(this)).onDefeat();
+  }
+
+  async transitionToRunCompleteWithRetry(result = 'defeat') {
+    return (this._postCombatController ||= new PostCombatController(
+      this,
+    )).transitionToRunCompleteWithRetry(result);
+  }
+
   showDefeatTransitionRecovery() {
-    if (this.defeatRecoveryPrompt?.length) return;
-    const cam = this.cameras.main;
-    const group = [];
-
-    const blocker = this.add
-      .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
-      .setDepth(910)
-      .setInteractive();
-    group.push(blocker);
-
-    const panel = this.add
-      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
-      .setDepth(911)
-      .setStrokeStyle(2, 0x777777)
-      .setInteractive();
-    group.push(panel);
-
-    const title = this.add
-      .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ff8888',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(912);
-    group.push(title);
-
-    const msg = this.add
-      .text(
-        cam.centerX,
-        cam.centerY - 12,
-        'Could not open Run Complete.\nRetry or return to title.',
-        {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#dddddd',
-          align: 'center',
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(912);
-    group.push(msg);
-
-    const retryBtn = this.add
-      .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setDepth(912)
-      .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
-    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
-    retryBtn.on('pointerdown', async (pointer) => {
-      if (pointer?.button !== 0) return;
-      retryBtn.disableInteractive();
-      retryBtn.setText('[ Retrying... ]');
-      resetTransitionLocks(this);
-      const transitioned = await this.transitionToRunCompleteWithRetry('defeat');
-      if (!transitioned) {
-        // Nuclear fallback — bypass startSceneLazy entirely
-        try {
-          // prettier-ignore
-          this.scene.start('RunComplete', { gameData: this.gameData, runManager: this.runManager, result: 'defeat' }); // scene-router-bypass
-        } catch (err) {
-          console.error('[BattleScene] direct RunComplete fallback failed:', err);
-          retryBtn.setText('[ Retry ]');
-          retryBtn.setInteractive({ useHandCursor: true });
-        }
-      }
-    });
-    group.push(retryBtn);
-
-    const titleBtn = this.add
-      .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setDepth(912)
-      .setInteractive({ useHandCursor: true });
-    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
-    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      titleBtn.disableInteractive();
-      const cloud = this.registry.get('cloud');
-      const slot = this.registry.get('activeSlot');
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      resetTransitionLocks(this);
-      transitionToScene(
-        this,
-        'Title',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.DEFEAT },
-      ).then((ok) => {
-        if (!ok) {
-          try {
-            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
-          } catch (err) {
-            console.error('[BattleScene] direct Title fallback failed:', err);
-            titleBtn.setInteractive({ useHandCursor: true });
-          }
-        }
-      });
-    });
-    group.push(titleBtn);
-
-    this._pinToScreen(group);
-    this.defeatRecoveryPrompt = group;
+    (this._recoveryController ||= new TransitionRecoveryController(this)).showDefeatRecovery();
   }
 
   showVictoryTransitionRecovery() {
-    if (this.victoryRecoveryPrompt?.length) return;
-
-    // Clear the victory banner so recovery UI is visible
-    if (this._victoryBanner) {
-      this._victoryBanner.destroy();
-      this._victoryBanner = null;
-    }
-
-    const cam = this.cameras.main;
-    const group = [];
-
-    const blocker = this.add
-      .rectangle(cam.centerX, cam.centerY, cam.width, cam.height, 0x000000, 0.72)
-      .setDepth(910)
-      .setInteractive();
-    group.push(blocker);
-
-    const panel = this.add
-      .rectangle(cam.centerX, cam.centerY, 420, 170, 0x111122, 0.97)
-      .setDepth(911)
-      .setStrokeStyle(2, 0x777777)
-      .setInteractive();
-    group.push(panel);
-
-    const title = this.add
-      .text(cam.centerX, cam.centerY - 42, 'Transition failed', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ff8888',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(912);
-    group.push(title);
-
-    const msg = this.add
-      .text(
-        cam.centerX,
-        cam.centerY - 12,
-        'Could not open Run Complete.\nRetry or return to title.',
-        {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#dddddd',
-          align: 'center',
-        },
-      )
-      .setOrigin(0.5)
-      .setDepth(912);
-    group.push(msg);
-
-    const retryBtn = this.add
-      .text(cam.centerX - 84, cam.centerY + 44, '[ Retry ]', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setDepth(912)
-      .setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerover', () => retryBtn.setColor('#ffdd44'));
-    retryBtn.on('pointerout', () => retryBtn.setColor('#aaddff'));
-    retryBtn.on('pointerdown', async (pointer) => {
-      if (pointer?.button !== 0) return;
-      retryBtn.disableInteractive();
-      retryBtn.setText('[ Retrying... ]');
-      resetTransitionLocks(this);
-      const transitioned = await this.transitionToRunCompleteWithRetry('victory');
-      if (!transitioned) {
-        // RunCompleteScene class may not be loaded — reload page as last resort
-        try {
-          globalThis.location?.reload();
-        } catch (err) {
-          console.error('[BattleScene] victory reload fallback failed:', err);
-          retryBtn.setText('[ Retry ]');
-          retryBtn.setInteractive({ useHandCursor: true });
-        }
-      }
-    });
-    group.push(retryBtn);
-
-    const titleBtn = this.add
-      .text(cam.centerX + 84, cam.centerY + 44, '[ Title ]', {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setDepth(912)
-      .setInteractive({ useHandCursor: true });
-    titleBtn.on('pointerover', () => titleBtn.setColor('#ffdd44'));
-    titleBtn.on('pointerout', () => titleBtn.setColor('#e0e0e0'));
-    titleBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      titleBtn.disableInteractive();
-      const cloud = this.registry.get('cloud');
-      const slot = this.registry.get('activeSlot');
-      clearSavedRun(
-        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
-        slot,
-      );
-      const audio = this.registry.get('audio');
-      if (audio) audio.stopMusic(this, 0);
-      resetTransitionLocks(this);
-      transitionToScene(
-        this,
-        'Title',
-        { gameData: this.gameData },
-        { reason: TRANSITION_REASONS.RETURN_TITLE },
-      ).then((ok) => {
-        if (!ok) {
-          try {
-            this.scene.start('Title', { gameData: this.gameData }); // scene-router-bypass
-          } catch (err) {
-            console.error('[BattleScene] victory Title fallback failed:', err);
-            titleBtn.setInteractive({ useHandCursor: true });
-          }
-        }
-      });
-    });
-    group.push(titleBtn);
-
-    this._pinToScreen(group);
-    this.victoryRecoveryPrompt = group;
+    (this._recoveryController ||= new TransitionRecoveryController(this)).showVictoryRecovery();
   }
 
   showPauseTransitionRecovery(reason = TRANSITION_REASONS.SAVE_EXIT) {

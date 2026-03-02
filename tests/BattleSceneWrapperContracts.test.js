@@ -44,6 +44,8 @@ import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
+import { PostCombatController } from '../src/ui/PostCombatController.js';
+import { TransitionRecoveryController } from '../src/ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -737,6 +739,103 @@ describe('BattleScene shim delegation contracts', () => {
   });
 
   // ── Vision Rewind shims ─────────────────────────────────
+
+  describe('Post-combat shims', () => {
+    it('onVictory lazy-inits PostCombatController once and reuses it', () => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(PostCombatController.prototype, 'onVictory')
+        .mockImplementation(() => {});
+
+      BattleScene.prototype.onVictory.call(scene);
+      const firstController = scene._postCombatController;
+      BattleScene.prototype.onVictory.call(scene);
+
+      expect(firstController).toBeInstanceOf(PostCombatController);
+      expect(scene._postCombatController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['onDefeat', 'onDefeat', []],
+      ['showBossRecruitScreen', 'showBossRecruitScreen', []],
+      ['_showThirdLordArrival', '_showThirdLordArrival', []],
+      ['showLootScreen', 'showLootScreen', []],
+      ['showLootStatus', 'showLootStatus', ['status text', '#ffaa00']],
+      ['reportLootError', 'reportLootError', ['ctx', new Error('boom'), { x: 1 }]],
+    ])('%s delegates to PostCombatController.%s', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(PostCombatController.prototype, controllerMethod)
+        .mockImplementation(() => {});
+
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._postCombatController).toBeInstanceOf(PostCombatController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
+    });
+
+    it('_awardTurnBonusGold delegates and returns PostCombatController result', () => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(PostCombatController.prototype, '_awardTurnBonusGold')
+        .mockImplementation(() => 17);
+
+      const result = BattleScene.prototype._awardTurnBonusGold.call(scene);
+
+      expect(scene._postCombatController).toBeInstanceOf(PostCombatController);
+      expect(spy).toHaveBeenCalledWith();
+      expect(result).toBe(17);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['transitionAfterBattle', 'transitionAfterBattle', [], true],
+      ['forceTransitionAfterBattle', 'forceTransitionAfterBattle', [], false],
+      ['transitionToRunCompleteWithRetry', 'transitionToRunCompleteWithRetry', ['victory'], true],
+    ])(
+      '%s delegates and resolves PostCombatController.%s result',
+      async (sceneMethod, controllerMethod, args, expectedValue) => {
+        const scene = makeScene();
+        const spy = vi
+          .spyOn(PostCombatController.prototype, controllerMethod)
+          .mockImplementation(async () => expectedValue);
+
+        const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+        expect(scene._postCombatController).toBeInstanceOf(PostCombatController);
+        expect(spy).toHaveBeenCalledWith(...args);
+        await expect(result).resolves.toBe(expectedValue);
+        spy.mockRestore();
+      },
+    );
+  });
+
+  describe('Transition recovery shims', () => {
+    it.each([
+      ['showDefeatTransitionRecovery', 'showDefeatRecovery'],
+      ['showVictoryTransitionRecovery', 'showVictoryRecovery'],
+    ])(
+      '%s lazy-inits TransitionRecoveryController and delegates',
+      (sceneMethod, controllerMethod) => {
+        const scene = makeScene();
+        const spy = vi
+          .spyOn(TransitionRecoveryController.prototype, controllerMethod)
+          .mockImplementation(() => {});
+
+        BattleScene.prototype[sceneMethod].call(scene);
+        const firstController = scene._recoveryController;
+        BattleScene.prototype[sceneMethod].call(scene);
+
+        expect(firstController).toBeInstanceOf(TransitionRecoveryController);
+        expect(scene._recoveryController).toBe(firstController);
+        expect(spy).toHaveBeenCalledTimes(2);
+        spy.mockRestore();
+      },
+    );
+  });
 
   describe('Vision Rewind shims', () => {
     function makeVisionScene() {

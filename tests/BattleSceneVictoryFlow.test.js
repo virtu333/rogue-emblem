@@ -297,6 +297,46 @@ describe('forceTransitionAfterBattle recovery', () => {
   });
 });
 
+describe('onDefeat recovery path', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates defeat recovery panel when transitionToRunCompleteWithRetry returns false', async () => {
+    const pending = [];
+    const scene = makeRecoveryScene({
+      battleState: 'PLAYER_IDLE',
+      battleParams: { tutorialMode: false },
+      scene: { isActive: () => true },
+      time: {
+        delayedCall: vi.fn((_ms, cb) => {
+          pending.push(cb());
+        }),
+      },
+      runManager: {
+        failRun: vi.fn(),
+      },
+      clearBattleScopedDeltas: vi.fn(),
+      clearInspectionVisuals: vi.fn(),
+      hideActionMenu: vi.fn(),
+      playerUnits: [],
+      nonDeployedUnits: [],
+      transitionToRunCompleteWithRetry: vi.fn().mockResolvedValue(false),
+    });
+    const audio = { playMusic: vi.fn() };
+    scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+
+    BattleScene.prototype.onDefeat.call(scene);
+    await Promise.all(pending);
+
+    expect(scene.runManager.failRun).toHaveBeenCalledTimes(1);
+    expect(scene.transitionToRunCompleteWithRetry).toHaveBeenCalledWith('defeat');
+    expect(scene.defeatRecoveryPrompt).toHaveLength(6);
+    expect(scene.add.rectangle).toHaveBeenCalledTimes(2);
+    expect(scene.add.text).toHaveBeenCalledTimes(5);
+  });
+});
+
 describe('completeBattle no-op double-failure', () => {
   beforeEach(() => {
     vi.clearAllMocks();
