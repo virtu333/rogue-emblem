@@ -43,6 +43,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
+import { LootFlowController } from '../src/ui/LootFlowController.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { TransitionRecoveryController } from '../src/ui/TransitionRecoveryController.js';
@@ -406,124 +407,61 @@ describe('BattleScene shim delegation contracts', () => {
     });
   });
 
-  // ── Self-contained flow methods ───────────────────────────
+  // ── Loot-flow shims ───────────────────────────────────────
 
-  describe('finalizeLootPick() (self-contained, no controller dependency)', () => {
-    it('can be called standalone and schedules loot cleanup for non-elite', () => {
+  describe('Loot-flow shims', () => {
+    it('showLootRoster lazy-inits LootFlowController once and reuses it', () => {
       const scene = makeScene();
-      scene._lootResolving = false;
-      scene._elitePicksRemaining = 1;
-      scene._lootCards = [{ bg: makeDisplayObject() }];
-      scene._lootInstruction = makeDisplayObject();
-      scene._lootCleanedUp = false;
+      const spy = vi
+        .spyOn(LootFlowController.prototype, 'showLootRoster')
+        .mockImplementation(() => {});
 
-      // scheduleLootCleanup is called by finalizeLootPick
-      scene.scheduleLootCleanup = vi.fn();
+      BattleScene.prototype.showLootRoster.call(scene);
+      const firstController = scene._lootFlowController;
+      BattleScene.prototype.showLootRoster.call(scene);
 
-      const lootGroup = [makeDisplayObject()];
-      BattleScene.prototype.finalizeLootPick.call(scene, lootGroup, 0);
-
-      expect(scene._lootResolving).toBe(true);
-      expect(scene._lootCards).toBeNull();
-      expect(scene._lootInstruction).toBeNull();
-      expect(scene.scheduleLootCleanup).toHaveBeenCalledWith(lootGroup);
+      expect(firstController).toBeInstanceOf(LootFlowController);
+      expect(scene._lootFlowController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
     });
 
-    it('decrements elite picks and keeps cards visible for remaining picks', () => {
+    it.each([
+      ['finalizeLootPick', 'finalizeLootPick', [[], 0]],
+      ['cleanupLootScreen', 'cleanupLootScreen', [[]]],
+      ['scheduleLootCleanup', 'scheduleLootCleanup', [[]]],
+      ['_startPostLootTransition', '_startPostLootTransition', []],
+      ['_clearPostLootTransitionFallback', '_clearPostLootTransitionFallback', []],
+      [
+        'showForgeWeaponPicker',
+        'showForgeWeaponPicker',
+        [{ forgeStat: 'might' }, { inventory: [] }, [], 0],
+      ],
+      [
+        'showForgeStatPickerLoot',
+        'showForgeStatPickerLoot',
+        [{ forgeStat: 'choice' }, { name: 'Iron Sword' }, [], 0],
+      ],
+      [
+        '_showLootTooltip',
+        '_showLootTooltip',
+        [{ type: 'weapon' }, { name: 'Iron Sword' }, 100, 120, 80],
+      ],
+      ['_hideLootTooltip', '_hideLootTooltip', []],
+      ['_clearLootTooltipTimer', '_clearLootTooltipTimer', []],
+      ['showLootRoster', 'showLootRoster', []],
+      ['hideLootRoster', 'hideLootRoster', []],
+    ])('%s delegates to LootFlowController.%s', (sceneMethod, controllerMethod, args) => {
       const scene = makeScene();
-      scene.isElite = true;
-      scene._lootResolving = false;
-      scene._elitePicksRemaining = 2;
-      scene._lootCleanedUp = false;
-      scene._hideLootTooltip = vi.fn();
+      const spy = vi
+        .spyOn(LootFlowController.prototype, controllerMethod)
+        .mockImplementation(() => {});
 
-      const cardBg = makeDisplayObject();
-      cardBg.setInteractive();
-      scene._lootCards = [
-        { bg: cardBg, elements: [makeDisplayObject()] },
-        { bg: makeDisplayObject(), elements: [makeDisplayObject()] },
-      ];
-      scene._lootInstruction = makeDisplayObject();
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
 
-      // All card elements need setVisible
-      const lootGroup = [
-        makeDisplayObject({ visible: false }),
-        makeDisplayObject({ visible: false }),
-      ];
-
-      BattleScene.prototype.finalizeLootPick.call(scene, lootGroup, 0);
-
-      // Should decrement picks, NOT set _lootResolving
-      expect(scene._elitePicksRemaining).toBe(1);
-      expect(scene._lootResolving).toBeFalsy();
-      // Re-shows hidden loot group elements
-      for (const obj of lootGroup) {
-        expect(obj.visible).toBe(true);
-      }
-    });
-
-    it('returns early if _lootResolving is already true', () => {
-      const scene = makeScene();
-      scene._lootResolving = true;
-      scene._hideLootTooltip = vi.fn();
-      scene.scheduleLootCleanup = vi.fn();
-
-      BattleScene.prototype.finalizeLootPick.call(scene, [], 0);
-
-      expect(scene.scheduleLootCleanup).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('cleanupLootScreen() (self-contained, nulls lootGroup)', () => {
-    it('destroys loot group objects, nulls lootGroup, calls _startPostLootTransition', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = false;
-      scene._lootResolving = false;
-      scene.lootSettingsOverlay = null;
-      scene._startPostLootTransition = vi.fn();
-      scene.reportLootError = vi.fn();
-
-      const obj1 = makeDisplayObject();
-      const obj2 = makeDisplayObject();
-      const destroySpy1 = vi.spyOn(obj1, 'destroy');
-      const destroySpy2 = vi.spyOn(obj2, 'destroy');
-      const lootGroup = [obj1, obj2];
-      scene.lootGroup = lootGroup;
-
-      BattleScene.prototype.cleanupLootScreen.call(scene, lootGroup);
-
-      expect(destroySpy1).toHaveBeenCalled();
-      expect(destroySpy2).toHaveBeenCalled();
-      expect(scene.lootGroup).toBeNull();
-      expect(scene._lootCleanedUp).toBe(true);
-      expect(scene._startPostLootTransition).toHaveBeenCalledTimes(1);
-    });
-
-    it('returns early if _lootCleanedUp is already true', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = true;
-      scene._startPostLootTransition = vi.fn();
-
-      BattleScene.prototype.cleanupLootScreen.call(scene, []);
-
-      expect(scene._startPostLootTransition).not.toHaveBeenCalled();
-    });
-
-    it('falls back to scene.lootGroup when no argument provided', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = false;
-      scene.lootSettingsOverlay = null;
-      scene._startPostLootTransition = vi.fn();
-      scene.reportLootError = vi.fn();
-
-      const obj = makeDisplayObject();
-      const destroySpy = vi.spyOn(obj, 'destroy');
-      scene.lootGroup = [obj];
-
-      BattleScene.prototype.cleanupLootScreen.call(scene);
-
-      expect(destroySpy).toHaveBeenCalled();
-      expect(scene.lootGroup).toBeNull();
+      expect(scene._lootFlowController).toBeInstanceOf(LootFlowController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
     });
   });
 

@@ -119,8 +119,6 @@ import {
   ANTI_TURTLE_NO_PROGRESS_TURNS,
   RECRUIT_SKILL_POOL,
   XP_STAT_NAMES,
-  FORGE_MAX_LEVEL,
-  FORGE_STAT_CAP,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
@@ -166,13 +164,6 @@ import {
   calculateSkipLootBonus,
 } from '../engine/LootSystem.js';
 import {
-  canForge,
-  canForgeStat,
-  applyForge,
-  isForged,
-  getStatForgeCount,
-} from '../engine/ForgeSystem.js';
-import {
   calculatePar,
   getRating,
   getLatePressureState,
@@ -216,6 +207,7 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { LootFlowController } from '../ui/LootFlowController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
@@ -268,9 +260,6 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
   RES_BONUS: 'resBonus',
   SPD_BONUS: 'spdBonus',
 };
-const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
-const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
-const POST_LOOT_TRANSITION_RECHECK_MS = 250;
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
@@ -428,6 +417,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._recoveryController) {
       this._recoveryController.destroy();
       this._recoveryController = null;
+    }
+    if (this._lootFlowController) {
+      this._lootFlowController.destroy();
+      this._lootFlowController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -1498,44 +1491,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _clearPostLootTransitionFallback() {
-    if (this._postLootTransitionTimer) {
-      clearTimeout(this._postLootTransitionTimer);
-      this._postLootTransitionTimer = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._clearPostLootTransitionFallback();
   }
 
   _startPostLootTransition() {
-    if (this._postLootTransitionStarted) return;
-    this._postLootTransitionStarted = true;
-    this._postLootTransitionCompleted = false;
-    this._postLootTransitionStartedAt = Date.now();
-
-    const maybeForceFallback = () => {
-      if (this._postLootTransitionCompleted) return;
-      const elapsed = Date.now() - this._postLootTransitionStartedAt;
-      if (this.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
-        this._postLootTransitionTimer = setTimeout(
-          maybeForceFallback,
-          POST_LOOT_TRANSITION_RECHECK_MS,
-        );
-        return;
-      }
-      this.forceTransitionAfterBattle();
-    };
-
-    this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_TIMEOUT_MS);
-    this._transitionAfterBattlePromise = Promise.resolve(this.transitionAfterBattle())
-      .then((ok) => {
-        if (ok === true) {
-          this._postLootTransitionCompleted = true;
-          this._clearPostLootTransitionFallback();
-        }
-        // If failed or undefined, leave the fallback timer running
-      })
-      .catch((err) => {
-        console.warn('[BattleScene] transitionAfterBattle rejected:', err);
-        // Don't clear fallback -- let it fire forceTransitionAfterBattle
-      });
+    (this._lootFlowController ||= new LootFlowController(this))._startPostLootTransition();
   }
 
   buildTutorialBattleConfig() {
@@ -10346,58 +10306,21 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showLootTooltip(choice, item, cx, cardY, cardH) {
-    this._hideLootTooltip();
-    const text = this._getLootTooltipText(choice, item);
-    if (!text) return;
-
-    const padX = 8;
-    const padY = 6;
-    const maxTextW = 224;
-    const cam = this.cameras.main;
-
-    const detailText = this.add
-      .text(0, 0, text, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#e0e0e0',
-        lineSpacing: 3,
-        wordWrap: { width: maxTextW },
-      })
-      .setDepth(761);
-
-    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 120, 240);
-    const boxH = detailText.height + padY * 2;
-
-    // Position above card with 6px gap, clamped to viewport
-    let tx = cx - boxW / 2;
-    let ty = cardY - cardH / 2 - boxH - 6;
-    if (tx + boxW > cam.width - 5) tx = cam.width - 5 - boxW;
-    if (tx < 5) tx = 5;
-    if (ty < 5) ty = cardY + cardH / 2 + 6; // flip below if no room above
-
-    const bg = this.add
-      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(760)
-      .setStrokeStyle(1, 0x336666);
-    detailText.setPosition(tx + padX, ty + padY);
-
-    this._lootTooltip = this.add.container(0, 0, [bg, detailText]).setDepth(760);
-    this._pinToScreen(this._lootTooltip);
+    (this._lootFlowController ||= new LootFlowController(this))._showLootTooltip(
+      choice,
+      item,
+      cx,
+      cardY,
+      cardH,
+    );
   }
 
   _hideLootTooltip() {
-    this._clearLootTooltipTimer();
-    if (this._lootTooltip) {
-      this._lootTooltip.destroy();
-      this._lootTooltip = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._hideLootTooltip();
   }
 
   _clearLootTooltipTimer() {
-    if (this._lootTooltipTimer) {
-      this._lootTooltipTimer.remove(false);
-      this._lootTooltipTimer = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._clearLootTooltipTimer();
   }
 
   // -- End loot tooltip ------------------------------------------
@@ -10638,224 +10561,22 @@ export class BattleScene extends Phaser.Scene {
 
   /** Step 2: pick which weapon to forge. */
   showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx) {
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 60, `${unit.name}: Select weapon to forge`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ff8844',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const forgeableWeapons = unit.inventory.filter((w) =>
-      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
+    (this._lootFlowController ||= new LootFlowController(this)).showForgeWeaponPicker(
+      whetstone,
+      unit,
+      lootGroup,
+      cardIdx,
     );
-    const topY = 110;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      30,
-      Math.min(48, Math.floor((bottomY - topY) / Math.max(forgeableWeapons.length, 1))),
-    );
-    const btnH = Math.max(24, rowGap - 8);
-
-    for (let i = 0; i < forgeableWeapons.length; i++) {
-      const wpn = forgeableWeapons[i];
-      const level = wpn._forgeLevel || 0;
-      const by = topY + i * rowGap;
-      const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844)
-        .setDepth(711)
-        .setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: wpnColor,
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      const detail = this.add
-        .text(
-          cam.centerX,
-          by + Math.floor(btnH * 0.28),
-          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#aaaaaa',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(detail);
-
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        try {
-          for (const obj of pickerGroup) obj.destroy();
-          if (whetstone.forgeStat === 'choice') {
-            // Silver Whetstone: pick stat
-            this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
-          } else {
-            // Specific whetstone: apply immediately
-            const result = applyForge(wpn, whetstone.forgeStat);
-            if (!result.success) {
-              this.reportLootError(
-                'showForgeWeaponPicker:applyForgeFailed',
-                new Error('applyForge returned success=false'),
-                {
-                  unit: unit?.name,
-                  weapon: wpn?.name,
-                  forgeStat: whetstone?.forgeStat,
-                  cardIdx,
-                },
-              );
-              this.showLootStatus('Forge failed. Choose another weapon.', '#ff8888');
-              this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-              return;
-            }
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_gold');
-            this.finalizeLootPick(lootGroup, cardIdx);
-          }
-        } catch (err) {
-          this.reportLootError('showForgeWeaponPicker:pointerdown', err, {
-            unit: unit?.name,
-            weapon: wpn?.name,
-            forgeStat: whetstone?.forgeStat,
-            cardIdx,
-          });
-          this.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
-          for (const obj of lootGroup) obj.setVisible(true);
-        }
-      });
-    }
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-    });
   }
 
   /** Step 3 (Silver Whetstone only): pick which stat to forge. */
   showForgeStatPickerLoot(whetstone, weapon, lootGroup, cardIdx) {
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ff8844',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const stats = [
-      { key: 'might', label: '+1 Might' },
-      { key: 'crit', label: '+5 Crit' },
-      { key: 'hit', label: '+5 Hit' },
-      { key: 'weight', label: '-1 Weight' },
-    ];
-
-    const startY = 160;
-    const btnH = 40;
-
-    for (let i = 0; i < stats.length; i++) {
-      const stat = stats[i];
-      const statCount = getStatForgeCount(weapon, stat.key);
-      const atStatCap = statCount >= FORGE_STAT_CAP;
-      const by = startY + i * (btnH + 10);
-      const color = atStatCap ? '#666666' : '#e0e0e0';
-      const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
-        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844)
-        .setDepth(711);
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      if (!atStatCap) {
-        btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          applyForge(weapon, stat.key);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          for (const obj of pickerGroup) obj.destroy();
-          this.finalizeLootPick(lootGroup, cardIdx);
-        });
-      }
-    }
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-    });
+    (this._lootFlowController ||= new LootFlowController(this)).showForgeStatPickerLoot(
+      whetstone,
+      weapon,
+      lootGroup,
+      cardIdx,
+    );
   }
 
   /** Show unit picker to give a loot item to a roster unit. */
@@ -10874,78 +10595,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show compact read-only roster viewer during loot screen. */
   showLootRoster() {
-    if (this.lootRosterVisible) return;
-    this.lootRosterVisible = true;
-    this.lootRosterGroup = [];
-    const cam = this.cameras.main;
-    const roster = this.runManager.roster;
-
-    const panelW = 500;
-    const lineH = 18;
-    const headerH = 30;
-    const panelH = headerH + roster.length * lineH + 16;
-    const px = cam.centerX;
-    const py = cam.centerY;
-
-    const bg = this.add
-      .rectangle(px, py, panelW, panelH, 0x111122, 0.95)
-      .setStrokeStyle(2, 0x8888cc)
-      .setDepth(750)
-      .setInteractive();
-    this.lootRosterGroup.push(bg);
-
-    const title = this.add
-      .text(px, py - panelH / 2 + 14, 'ROSTER', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(751);
-    this.lootRosterGroup.push(title);
-
-    const startY = py - panelH / 2 + headerH + 8;
-    const leftX = px - panelW / 2 + 12;
-
-    for (let i = 0; i < roster.length; i++) {
-      const u = roster[i];
-      const y = startY + i * lineH;
-      const wpnName = u.weapon?.name || u.inventory?.[0]?.name || '-';
-      const accName = u.accessory?.name || '-';
-      const consumeNames = (u.consumables || []).map((c) => c.name).join(', ') || '-';
-      const invCount = (u.inventory || []).length;
-      const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
-      const txt = this.add
-        .text(leftX, y, line, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#cccccc',
-        })
-        .setDepth(751);
-      this.lootRosterGroup.push(txt);
-    }
-
-    const hint = this.add
-      .text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#888888',
-      })
-      .setOrigin(0.5)
-      .setDepth(751);
-    this.lootRosterGroup.push(hint);
-    this._pinToScreen(this.lootRosterGroup);
+    (this._lootFlowController ||= new LootFlowController(this)).showLootRoster();
   }
 
   /** Hide loot roster viewer. */
   hideLootRoster() {
-    if (!this.lootRosterVisible) return;
-    this.lootRosterVisible = false;
-    if (this.lootRosterGroup) {
-      for (const obj of this.lootRosterGroup) obj.destroy();
-      this.lootRosterGroup = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).hideLootRoster();
   }
 
   /**
@@ -10953,79 +10608,19 @@ export class BattleScene extends Phaser.Scene {
    * Non-elite: immediate cleanup. Elite: gray out card, decrement, cleanup at 0.
    */
   finalizeLootPick(lootGroup, cardIndex) {
-    this._hideLootTooltip();
-    if (this._lootResolving) return;
-    if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
-      // Non-elite or last pick -- clean up immediately
-      this._lootResolving = true;
-      this._lootCards = null;
-      this._lootInstruction = null;
-      this.scheduleLootCleanup(lootGroup);
-      return;
-    }
-
-    this._elitePicksRemaining--;
-
-    // Gray out the chosen card
-    const cardRef = this._lootCards?.[cardIndex];
-    if (cardRef?.bg) {
-      cardRef.bg.setFillStyle(0x222222);
-      cardRef.bg.setStrokeStyle(2, 0x444444);
-      cardRef.bg.removeAllListeners('pointerdown');
-      cardRef.bg.disableInteractive();
-    }
-
-    // Re-show loot cards (sub-pickers hide them)
-    for (const obj of lootGroup) obj.setVisible(true);
-
-    // Update instruction text
-    if (this._lootInstruction) {
-      this._lootInstruction.setText('Choose 1 more reward');
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).finalizeLootPick(
+      lootGroup,
+      cardIndex,
+    );
   }
 
   /** Clean up loot screen and transition. */
   cleanupLootScreen(lootGroup) {
-    this._hideLootTooltip();
-    if (this._lootCleanedUp) return;
-    this._lootCleanedUp = true;
-    this.hideLootRoster();
-    if (this.lootSettingsOverlay) {
-      this.lootSettingsOverlay.hide();
-      this.lootSettingsOverlay = null;
-    }
-    const resolvedLootGroup = lootGroup || this.lootGroup || [];
-    try {
-      for (const obj of resolvedLootGroup) {
-        try {
-          if (obj && typeof obj.destroy === 'function') obj.destroy();
-        } catch (objErr) {
-          console.warn('[BattleScene][LootFlow] failed to destroy loot object', objErr);
-        }
-      }
-      this.lootGroup = null;
-      this._startPostLootTransition();
-    } catch (err) {
-      this._lootResolving = false;
-      this._lootCleanedUp = false;
-      this.reportLootError('cleanupLootScreen', err, {
-        isElite: this.isElite,
-        picksRemaining: this._elitePicksRemaining,
-      });
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).cleanupLootScreen(lootGroup);
   }
 
   scheduleLootCleanup(lootGroup) {
-    if (this._lootCleanupScheduled) return;
-    this._lootCleanupScheduled = true;
-    const runCleanup = () => {
-      this._lootCleanupScheduled = false;
-      this._lootCleanupTimeout = null;
-      if (this._sceneShutdownCleanedUp) return;
-      if (!this._lootCleanedUp) this.cleanupLootScreen(lootGroup);
-    };
-    Promise.resolve().then(runCleanup);
-    this._lootCleanupTimeout = setTimeout(runCleanup, 0);
+    (this._lootFlowController ||= new LootFlowController(this)).scheduleLootCleanup(lootGroup);
   }
 
   showLootStatus(message, color = '#ff8888') {

@@ -2,42 +2,42 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const SCENE_DIR = path.resolve('src/scenes');
-const SCENE_FILES = [
-  'BootScene.js',
-  'bootTransition.js',
-  'TitleScene.js',
-  'SlotPickerScene.js',
-  'HomeBaseScene.js',
-  'DifficultySelectScene.js',
-  'BlessingSelectScene.js',
-  'NodeMapScene.js',
-  'BattleScene.js',
-  'RunCompleteScene.js',
+const SOURCE_DIR = path.resolve('src');
+const SOURCE_FILES = [
+  'scenes/BootScene.js',
+  'scenes/bootTransition.js',
+  'scenes/TitleScene.js',
+  'scenes/SlotPickerScene.js',
+  'scenes/HomeBaseScene.js',
+  'scenes/DifficultySelectScene.js',
+  'scenes/BlessingSelectScene.js',
+  'scenes/NodeMapScene.js',
+  'scenes/BattleScene.js',
+  'scenes/RunCompleteScene.js',
+  'ui/DeployScreenOverlay.js',
+  'ui/PostCombatController.js',
+  'ui/TransitionRecoveryPrompt.js',
+  'ui/TransitionRecoveryController.js',
 ];
 
 const REQUIRED_REASON_MATRIX = {
-  'BootScene.js': ['BOOT', 'RETRY'],
-  'TitleScene.js': ['CONTINUE', 'NEW_GAME'],
-  'SlotPickerScene.js': ['BACK', 'CONTINUE'],
-  'HomeBaseScene.js': ['BEGIN_RUN', 'BACK'],
-  'DifficultySelectScene.js': ['BEGIN_RUN', 'BACK'],
-  'BlessingSelectScene.js': ['BEGIN_RUN', 'BACK'],
-  'NodeMapScene.js': ['SAVE_EXIT', 'ABANDON_RUN', 'ENTER_BATTLE', 'VICTORY'],
-  'BattleScene.js': [
-    'BACK',
-    'ABANDON_RUN',
-    'SAVE_EXIT',
-    'VICTORY',
-    'BATTLE_COMPLETE',
-    'DEFEAT',
-    'RETRY',
-  ],
-  'RunCompleteScene.js': ['RETURN_HOME', 'RETURN_TITLE'],
+  'scenes/BootScene.js': ['BOOT', 'RETRY'],
+  'scenes/TitleScene.js': ['CONTINUE', 'NEW_GAME'],
+  'scenes/SlotPickerScene.js': ['BACK', 'CONTINUE'],
+  'scenes/HomeBaseScene.js': ['BEGIN_RUN', 'BACK'],
+  'scenes/DifficultySelectScene.js': ['BEGIN_RUN', 'BACK'],
+  'scenes/BlessingSelectScene.js': ['BEGIN_RUN', 'BACK'],
+  'scenes/NodeMapScene.js': ['SAVE_EXIT', 'ABANDON_RUN', 'ENTER_BATTLE', 'VICTORY'],
+  // VICTORY, BATTLE_COMPLETE, DEFEAT, RETRY moved to PostCombatController + TransitionRecoveryController
+  'scenes/BattleScene.js': ['BACK', 'ABANDON_RUN', 'SAVE_EXIT'],
+  'scenes/RunCompleteScene.js': ['RETURN_HOME', 'RETURN_TITLE'],
+  'ui/DeployScreenOverlay.js': ['BACK'],
+  'ui/PostCombatController.js': ['VICTORY', 'BATTLE_COMPLETE', 'DEFEAT', 'RETRY'],
+  'ui/TransitionRecoveryController.js': ['DEFEAT', 'RETURN_TITLE'],
 };
 
-function getSceneSource(sceneFile) {
-  return readFileSync(path.join(SCENE_DIR, sceneFile), 'utf8');
+function getSource(filePath) {
+  return readFileSync(path.join(SOURCE_DIR, filePath), 'utf8');
 }
 
 function extractCalls(source, fnName) {
@@ -82,8 +82,8 @@ function extractCalls(source, fnName) {
 
 function hasInlineReason(callSource) {
   // Primary: explicit TRANSITION_REASONS.X in call arguments
-  // Secondary: shorthand { reason } pass-through — currently no scene file uses this
-  // (only TransitionRecoveryPrompt.js in src/ui/ does, which isn't scanned).
+  // Secondary: shorthand { reason } pass-through used by helper wrappers
+  // (e.g., TransitionRecoveryPrompt.js).
   // Kept as safety net for future refactors that pass reason through helper params.
   return (
     /reason\s*:\s*TRANSITION_REASONS\.[A-Z_]+/s.test(callSource) ||
@@ -92,17 +92,19 @@ function hasInlineReason(callSource) {
 }
 
 const ALLOWED_BYPASS_COUNT = {
-  'BattleScene.js': 5, // 2 defeat recovery + 1 victory recovery + 2 pause abandon/save-exit fallback
-  'bootTransition.js': 1, // boot transition final fallback after lock-reset retry
-  'NodeMapScene.js': 2, // save-exit + abandon callback fallback
+  'scenes/BattleScene.js': 2, // 2 pause abandon/save-exit fallback (recovery bypasses moved to TransitionRecoveryController)
+  'scenes/bootTransition.js': 1, // boot transition final fallback after lock-reset retry
+  'scenes/NodeMapScene.js': 2, // save-exit + abandon callback fallback
+  'ui/TransitionRecoveryPrompt.js': 1, // shared title recovery fallback
+  'ui/TransitionRecoveryController.js': 3, // defeat RunComplete + defeat Title + victory Title fallbacks
 };
 
 describe('SceneRouter integration matrix', () => {
-  it('scene files do not call scene.start/sleep/wake/restart directly', () => {
+  it('transition-owning files do not call scene.start/sleep/wake/restart directly', () => {
     const directLifecycleCall = /\.scene\.(start|sleep|wake|restart)\s*\(/g;
     const bypassMarker = '// scene-router-bypass';
-    for (const file of SCENE_FILES) {
-      const src = getSceneSource(file);
+    for (const file of SOURCE_FILES) {
+      const src = getSource(file);
       const matches = [...src.matchAll(directLifecycleCall)];
       let bypassedCount = 0;
       let unbypassedCount = 0;
@@ -126,8 +128,8 @@ describe('SceneRouter integration matrix', () => {
   });
 
   it('all transitionToScene and restartScene calls include reason metadata', () => {
-    for (const file of SCENE_FILES) {
-      const src = getSceneSource(file);
+    for (const file of SOURCE_FILES) {
+      const src = getSource(file);
       const transitionCalls = extractCalls(src, 'transitionToScene');
       const restartCalls = extractCalls(src, 'restartScene');
       const lifecycleCalls = transitionCalls.concat(restartCalls);
@@ -142,8 +144,8 @@ describe('SceneRouter integration matrix', () => {
   });
 
   it('covers expected reason matrix per scene', () => {
-    for (const file of SCENE_FILES) {
-      const src = getSceneSource(file);
+    for (const file of SOURCE_FILES) {
+      const src = getSource(file);
       const requiredReasons = REQUIRED_REASON_MATRIX[file] || [];
       for (const reason of requiredReasons) {
         expect(
