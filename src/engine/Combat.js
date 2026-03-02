@@ -483,6 +483,7 @@ export function gridDistance(col1, row1, col2, row2) {
  * weaponRank: "Prof" | "Mast" — mastery improves advantage, softens disadvantage.
  */
 export function getWeaponTriangleBonus(attackerWeapon, defenderWeapon, weaponRank = 'Prof') {
+  if (!attackerWeapon || !defenderWeapon) return { hit: 0, damage: 0 };
   const { matchups } = WEAPON_TRIANGLE;
   const atkType = attackerWeapon.type;
   const defType = defenderWeapon.type;
@@ -544,6 +545,7 @@ export function calculateAttack(
   isInitiating = true,
   effectivenessMultiplier = null,
 ) {
+  if (!weapon) return 0;
   const stat = usesMagic(weapon) ? unit.stats.MAG : unit.stats.STR;
   const normalizedEffMult =
     effectivenessMultiplier !== null &&
@@ -586,6 +588,7 @@ export function calculateHitRate(
   defenderTerrain,
   triangleBonus = { hit: 0 },
 ) {
+  if (!weapon) return 0;
   const rawHit = weapon.hit + attacker.stats.SKL * 2 + attacker.stats.LCK + triangleBonus.hit;
   const avoid = calculateAvoid(defender, defenderTerrain);
   return Math.max(0, Math.min(100, rawHit - avoid));
@@ -593,6 +596,7 @@ export function calculateHitRate(
 
 /** Crit rate, clamped [0, 100]. Bosses get a flat crit reduction. */
 export function calculateCritRate(attacker, weapon, defender) {
+  if (!weapon) return 0;
   const BOSS_CRIT_REDUCTION = 15;
   let rawCrit = Math.floor(attacker.stats.SKL / 2) + weapon.crit;
   if (defender.isBoss) rawCrit -= BOSS_CRIT_REDUCTION;
@@ -769,7 +773,7 @@ export function getCombatForecast(
     !atkArtActive &&
     !fDefPrevent &&
     atkEffectiveSpd >= defEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fAtkPursuit;
-  const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
+  const atkBrave = atkWeapon?.special?.includes('twice consecutively') ?? false;
   const atkBaseCount = atkMultiHit ? atkMultiHit.count : atkBrave ? 2 : 1;
   const atkCount = atkBaseCount * (atkDoubles ? 2 : 1);
 
@@ -822,7 +826,7 @@ export function getCombatForecast(
       (!defArtActive &&
         !fAtkPrevent &&
         defEffectiveSpd >= atkEffectiveSpd + DOUBLE_ATTACK_SPD_THRESHOLD - fDefPursuit);
-    defBrave = defWeapon.special?.includes('twice consecutively') ?? false;
+    defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
     const defBaseCount = defMultiHit ? defMultiHit.count : defBrave ? 2 : 1;
     defCount = defBaseCount * (defDoubles ? 2 : 1);
   }
@@ -1093,6 +1097,24 @@ export function resolveCombat(
   let atkHP = attacker.currentHP ?? attacker.stats.HP;
   let defHP = defender.currentHP ?? defender.stats.HP;
 
+  // ── Null / staff attacker weapon → no-op (matches getCombatForecast) ──
+  const attackerCanInitiate = !!atkWeapon && !isStaff(atkWeapon);
+  if (!attackerCanInitiate) {
+    return {
+      events: [],
+      attackerHP: atkHP,
+      defenderHP: defHP,
+      attackerDied: false,
+      defenderDied: false,
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+      divineChargeHeal: null,
+      poisonDamage: 0,
+      poisonTarget: null,
+    };
+  }
+
   // Reset teleport warp flag for this combat
   attacker._teleportUsedThisCombat = false;
   defender._teleportUsedThisCombat = false;
@@ -1194,7 +1216,7 @@ export function resolveCombat(
         !atkPreventDouble &&
         rDefAs >= rAtkAs + DOUBLE_ATTACK_SPD_THRESHOLD - defPursuitReduction));
 
-  const atkBrave = atkWeapon.special?.includes('twice consecutively') ?? false;
+  const atkBrave = atkWeapon?.special?.includes('twice consecutively') ?? false;
   const defBrave = defWeapon?.special?.includes('twice consecutively') ?? false;
 
   let defDmg = 0,

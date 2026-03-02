@@ -327,7 +327,11 @@ export class RunManager {
   }
 
   get currentAct() {
-    return this.actSequence[this.actIndex];
+    const raw = Number(this.actIndex);
+    const idx = Number.isFinite(raw)
+      ? Math.max(0, Math.min(Math.floor(raw), this.actSequence.length - 1))
+      : 0;
+    return this.actSequence[idx];
   }
 
   get currentActConfig() {
@@ -3586,11 +3590,11 @@ export class RunManager {
   }
 }
 
-/** Resolve the storage key for a slot. Requires explicit slotNumber in production. */
+/** Resolve the storage key for a slot. Returns null if slotNumber is missing (callers must handle). */
 function resolveRunKey(slotNumber) {
   if (!slotNumber) {
-    console.warn('[RunManager] resolveRunKey called without slotNumber');
-    return 'emblem_rogue_run_save';
+    console.warn('[RunManager] resolveRunKey called without slotNumber — this is a bug');
+    return null;
   }
   return getRunKey(slotNumber);
 }
@@ -3609,6 +3613,7 @@ export function saveRun(runManager, onSave, slotNumber) {
     savedAt: Date.now(),
   };
   const key = resolveRunKey(slotNumber);
+  if (!key) return { ok: false, reason: 'missing_slot' };
   let localOk = false;
   try {
     localStorage.setItem(key, JSON.stringify(json));
@@ -3632,6 +3637,7 @@ export function saveRun(runManager, onSave, slotNumber) {
 
 export function loadRun(gameData, slotNumber) {
   const key = resolveRunKey(slotNumber);
+  if (!key) return null;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
@@ -3648,6 +3654,7 @@ export function loadRun(gameData, slotNumber) {
 
 export function hasSavedRun(slotNumber) {
   const key = resolveRunKey(slotNumber);
+  if (!key) return false;
   try {
     return localStorage.getItem(key) !== null;
   } catch (_) {
@@ -3657,6 +3664,7 @@ export function hasSavedRun(slotNumber) {
 
 export function clearSavedRun(onClear, slotNumber) {
   const key = resolveRunKey(slotNumber);
+  if (!key) return;
   try {
     localStorage.removeItem(key);
   } catch (_) {

@@ -4,9 +4,11 @@ import {
   calculateHitRate,
   calculateCritRate,
   getCombatForecast,
+  resolveCombat,
   calculateAttack,
   calculateAvoid,
   canDouble,
+  getWeaponTriangleBonus,
 } from '../src/engine/Combat.js';
 import { loadGameData } from './testData.js';
 
@@ -287,6 +289,38 @@ describe('Combat property tests', () => {
         expect(Number.isNaN(atk)).toBe(false);
       }
     });
+
+    it('returns 0 when weapon is null or undefined', () => {
+      const unit = makeUnit({ STR: 10, MAG: 8 });
+      expect(calculateAttack(unit, null)).toBe(0);
+      expect(calculateAttack(unit, undefined)).toBe(0);
+    });
+  });
+
+  describe('calculateHitRate — null weapon', () => {
+    it('returns 0 when weapon is null', () => {
+      const unit = makeUnit();
+      const defender = makeUnit();
+      expect(calculateHitRate(unit, null, defender, plainTerrain)).toBe(0);
+    });
+  });
+
+  describe('calculateCritRate — null weapon', () => {
+    it('returns 0 when weapon is null', () => {
+      const unit = makeUnit();
+      const defender = makeUnit();
+      expect(calculateCritRate(unit, null, defender)).toBe(0);
+    });
+  });
+
+  describe('getWeaponTriangleBonus — null weapon', () => {
+    it('returns neutral when attacker weapon is null', () => {
+      expect(getWeaponTriangleBonus(null, ironSword)).toEqual({ hit: 0, damage: 0 });
+    });
+
+    it('returns neutral when defender weapon is null', () => {
+      expect(getWeaponTriangleBonus(ironSword, null)).toEqual({ hit: 0, damage: 0 });
+    });
   });
 
   describe('calculateAvoid', () => {
@@ -311,6 +345,55 @@ describe('Combat property tests', () => {
           expect(typeof result).toBe('boolean');
         }
       }
+    });
+  });
+
+  describe('resolveCombat — null/invalid attacker weapon', () => {
+    const staff = data.weapons.find((w) => w.type === 'Staff');
+    if (!staff) throw new Error('Fixture data missing Staff weapon — test setup broken');
+
+    const noopShape = (atkHP, defHP) => ({
+      events: [],
+      attackerHP: atkHP,
+      defenderHP: defHP,
+      attackerDied: false,
+      defenderDied: false,
+      poisonEffects: [],
+      debuffEvents: [],
+      divineChargeHeals: [],
+      divineChargeHeal: null,
+      poisonDamage: 0,
+      poisonTarget: null,
+    });
+
+    it('returns no-op result when atkWeapon is null', () => {
+      const atk = makeUnit();
+      const def = makeUnit();
+      const result = resolveCombat(atk, null, def, ironSword, 1, null, null);
+      expect(result).toEqual(noopShape(atk.stats.HP, def.stats.HP));
+    });
+
+    it('returns no-op result when atkWeapon is undefined', () => {
+      const atk = makeUnit();
+      const def = makeUnit();
+      const result = resolveCombat(atk, undefined, def, ironSword, 1, null, null);
+      expect(result).toEqual(noopShape(atk.stats.HP, def.stats.HP));
+    });
+
+    it('returns no-op result when atkWeapon is a staff', () => {
+      const atk = makeUnit();
+      const def = makeUnit();
+      const result = resolveCombat(atk, staff, def, ironSword, 1, null, null);
+      expect(result).toEqual(noopShape(atk.stats.HP, def.stats.HP));
+    });
+
+    it('preserves currentHP for wounded units', () => {
+      const atk = makeUnit();
+      atk.currentHP = 7;
+      const def = makeUnit();
+      def.currentHP = 12;
+      const result = resolveCombat(atk, null, def, ironSword, 1, null, null);
+      expect(result).toEqual(noopShape(7, 12));
     });
   });
 });

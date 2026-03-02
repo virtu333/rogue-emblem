@@ -899,6 +899,36 @@ describe('RunManager', () => {
       expect(rm.currentNodeId).toBeNull();
     });
 
+    it('currentAct clamps out-of-bounds actIndex to last act', () => {
+      rm.startRun();
+      rm.actIndex = 999;
+      expect(rm.currentAct).toBe(rm.actSequence[rm.actSequence.length - 1]);
+    });
+
+    it('currentAct clamps negative actIndex to first act', () => {
+      rm.startRun();
+      rm.actIndex = -1;
+      expect(rm.currentAct).toBe(rm.actSequence[0]);
+    });
+
+    it('currentAct treats NaN actIndex as 0', () => {
+      rm.startRun();
+      rm.actIndex = NaN;
+      expect(rm.currentAct).toBe(rm.actSequence[0]);
+    });
+
+    it('currentAct treats undefined actIndex as 0', () => {
+      rm.startRun();
+      rm.actIndex = undefined;
+      expect(rm.currentAct).toBe(rm.actSequence[0]);
+    });
+
+    it('currentAct floors fractional actIndex to integer', () => {
+      rm.startRun();
+      rm.actIndex = 1.7;
+      expect(rm.currentAct).toBe(rm.actSequence[1]);
+    });
+
     it('forwards colosseum node generation config to generateNodeMap in advanceAct', () => {
       const spy = vi.spyOn(NodeMapGenerator, 'generateNodeMap');
       try {
@@ -1489,66 +1519,86 @@ describe('RunManager', () => {
 
     it('saveRun persists to localStorage', () => {
       rm.startRun();
-      saveRun(rm);
+      saveRun(rm, null, 1);
       expect(localStorageMock.setItem).toHaveBeenCalled();
-      expect(store['emblem_rogue_run_save']).toBeTruthy();
+      expect(store['emblem_rogue_slot_1_run']).toBeTruthy();
     });
 
     it('saveRun writes a numeric savedAt timestamp', () => {
       rm.startRun();
       const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1234567890);
       try {
-        saveRun(rm);
+        saveRun(rm, null, 1);
       } finally {
         nowSpy.mockRestore();
       }
 
-      const saved = JSON.parse(store['emblem_rogue_run_save']);
+      const saved = JSON.parse(store['emblem_rogue_slot_1_run']);
       expect(saved.savedAt).toBe(1234567890);
       expect(Number.isFinite(saved.savedAt)).toBe(true);
     });
 
     it('hasSavedRun returns true after save', () => {
       rm.startRun();
-      saveRun(rm);
-      expect(hasSavedRun()).toBe(true);
+      saveRun(rm, null, 1);
+      expect(hasSavedRun(1)).toBe(true);
     });
 
     it('hasSavedRun returns false when no save exists', () => {
-      expect(hasSavedRun()).toBe(false);
+      expect(hasSavedRun(1)).toBe(false);
     });
 
     it('loadRun restores a saved run', () => {
       rm.startRun();
       rm.gold = 999;
-      saveRun(rm);
-      const restored = loadRun(gameData);
+      saveRun(rm, null, 1);
+      const restored = loadRun(gameData, 1);
       expect(restored).not.toBeNull();
       expect(restored.gold).toBe(999);
       expect(restored.roster[0].name).toBe('Edric');
     });
 
     it('loadRun returns null when no save exists', () => {
-      expect(loadRun(gameData)).toBeNull();
+      expect(loadRun(gameData, 1)).toBeNull();
     });
 
     it('loadRun supports legacy saves without savedAt', () => {
       rm.startRun();
       const legacy = rm.toJSON();
       delete legacy.savedAt;
-      store['emblem_rogue_run_save'] = JSON.stringify(legacy);
+      store['emblem_rogue_slot_1_run'] = JSON.stringify(legacy);
 
-      const restored = loadRun(gameData);
+      const restored = loadRun(gameData, 1);
       expect(restored).not.toBeNull();
       expect(restored.roster[0].name).toBe('Edric');
     });
 
     it('clearSavedRun removes the save', () => {
       rm.startRun();
-      saveRun(rm);
-      expect(hasSavedRun()).toBe(true);
-      clearSavedRun();
+      saveRun(rm, null, 1);
+      expect(hasSavedRun(1)).toBe(true);
+      clearSavedRun(null, 1);
+      expect(hasSavedRun(1)).toBe(false);
+    });
+
+    it('saveRun returns { ok: false } when slotNumber is missing', () => {
+      rm.startRun();
+      const result = saveRun(rm);
+      expect(result).toEqual({ ok: false, reason: 'missing_slot' });
+    });
+
+    it('loadRun returns null when slotNumber is missing', () => {
+      expect(loadRun(gameData)).toBeNull();
+    });
+
+    it('hasSavedRun returns false when slotNumber is missing', () => {
       expect(hasSavedRun()).toBe(false);
+    });
+
+    it('clearSavedRun is a no-op when slotNumber is missing', () => {
+      const cb = vi.fn();
+      clearSavedRun(cb);
+      expect(cb).not.toHaveBeenCalled();
     });
   });
 
