@@ -7,6 +7,7 @@ import {
   deleteSlot,
   migrateOldSaves,
   clearAllSlotData,
+  getRunClockFloorKey,
 } from '../src/engine/SlotManager.js';
 
 // Mock localStorage
@@ -201,6 +202,12 @@ describe('H2+H3 — Save error separation', () => {
       );
     });
 
+    it('deleteSlot removes run clock floor metadata for the slot', () => {
+      store[getRunClockFloorKey(1)] = '700';
+      deleteSlot(1);
+      expect(store[getRunClockFloorKey(1)]).toBeUndefined();
+    });
+
     it('migrateOldSaves skips occupied slot 1 and does not call setActiveSlot', () => {
       // Pre-occupy slot 1
       store['emblem_rogue_slot_1_meta'] = '{"existing":"meta"}';
@@ -245,6 +252,18 @@ describe('H2+H3 — Save error separation', () => {
         expect.stringContaining('[SlotManager] deleteSlot failed'),
         expect.any(String),
       );
+    });
+
+    it('clearAllSlotData removes run clock floor metadata for all slots', () => {
+      store[getRunClockFloorKey(1)] = '100';
+      store[getRunClockFloorKey(2)] = '200';
+      store[getRunClockFloorKey(3)] = '300';
+
+      clearAllSlotData();
+
+      expect(store[getRunClockFloorKey(1)]).toBeUndefined();
+      expect(store[getRunClockFloorKey(2)]).toBeUndefined();
+      expect(store[getRunClockFloorKey(3)]).toBeUndefined();
     });
   });
 });

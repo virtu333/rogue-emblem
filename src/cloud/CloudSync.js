@@ -3,7 +3,7 @@
 // Stores per-slot data as { "1": {...}, "2": {...}, "3": {...} } in a single Supabase row.
 
 import { supabase } from './supabaseClient.js';
-import { getMetaKey, getRunKey, MAX_SLOTS } from '../engine/SlotManager.js';
+import { getMetaKey, getRunClockFloorKey, getRunKey, MAX_SLOTS } from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 
@@ -17,6 +17,8 @@ const SETTINGS_LS_KEY = 'emblem_rogue_settings';
 const FETCH_TIMEOUT_MS = 2000;
 const SLOT_WRITE_MAX_ATTEMPTS = 3;
 const AUTH_EXPIRED_USER_MESSAGE = 'Cloud sync unavailable: local saves only until re-auth.';
+const CLOUD_UPDATE_SLOT_CONFLICT_REMOTE_NEWER = 'cloud_update_slot_conflict_remote_newer';
+const REMOTE_NEWER_WARN_SIGNATURE_LIMIT = 256;
 
 const cloudSyncStatus = {
   mode: 'ok',
@@ -121,7 +123,7 @@ function applyRunSlots(runData) {
       continue;
     }
 
-    const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot);
+    const shouldKeepLocal = shouldPreferLocalRun(localState.value, cloudSlot, i);
     if (!shouldKeepLocal) {
       try {
         localStorage.setItem(key, JSON.stringify(cloudSlot));
@@ -228,11 +230,27 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
       await writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts);
     })
     .catch((e) => {
+      const operation = slotData === null ? 'delete' : 'upsert';
+      if (isRemoteNewerConflictError(e)) {
+        if (table === TABLES.run && Number.isFinite(e?.remoteSavedAt)) {
+          setRunClockFloorSavedAt(slot, e.remoteSavedAt);
+        }
+        warnRemoteNewerConflictOnce(userId, table, slot, e);
+        reportCloudFailure(CLOUD_UPDATE_SLOT_CONFLICT_REMOTE_NEWER, e, {
+          table,
+          slot,
+          operation,
+          maxAttempts,
+          localSavedAt: e?.localSavedAt ?? null,
+          remoteSavedAt: e?.remoteSavedAt ?? null,
+        });
+        return;
+      }
       console.warn(`CloudSync updateSlot ${table}:`, e);
       reportCloudFailure('cloud_update_slot', e, {
         table,
         slot,
-        operation: slotData === null ? 'delete' : 'upsert',
+        operation,
         maxAttempts,
       });
     })
@@ -367,6 +385,7 @@ export function deleteSlotCloud(userId, slot) {
 }
 
 const updateQueues = new Map();
+const remoteNewerWarnedSignatures = new Set();
 
 export async function __flushCloudSyncQueuesForTests() {
   await Promise.allSettled([...updateQueues.values()]);
@@ -374,6 +393,7 @@ export async function __flushCloudSyncQueuesForTests() {
 
 export function __resetCloudSyncQueuesForTests() {
   updateQueues.clear();
+  remoteNewerWarnedSignatures.clear();
 }
 
 export function __resetCloudSyncStatusForTests() {
@@ -399,6 +419,63 @@ function readLocalJSONWithState(key) {
 function getSavedAt(slotData) {
   const ts = slotData?.savedAt;
   return Number.isFinite(ts) ? ts : null;
+}
+
+function getRunClockFloorSavedAt(slot) {
+  try {
+    const raw = localStorage.getItem(getRunClockFloorKey(slot));
+    if (raw == null) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function setRunClockFloorSavedAt(slot, remoteSavedAt) {
+  if (!Number.isFinite(remoteSavedAt)) return;
+  const key = getRunClockFloorKey(slot);
+  const existingFloor = getRunClockFloorSavedAt(slot);
+  const nextFloor = Number.isFinite(existingFloor)
+    ? Math.max(existingFloor, remoteSavedAt)
+    : remoteSavedAt;
+  try {
+    localStorage.setItem(key, String(nextFloor));
+  } catch (e) {
+    console.warn('[CloudSync] localStorage write failed:', key, e);
+  }
+}
+
+function clearRunClockFloorSavedAt(slot) {
+  try {
+    localStorage.removeItem(getRunClockFloorKey(slot));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function isRemoteNewerConflictError(err) {
+  return err?.code === 'CLOUD_CONFLICT_REMOTE_NEWER';
+}
+
+function warnRemoteNewerConflictOnce(userId, table, slot, err) {
+  const scope = userId ?? 'anonymous';
+  const signature = `${scope}:${table}:${slot}:${err?.localSavedAt ?? 'null'}:${err?.remoteSavedAt ?? 'null'}`;
+  if (remoteNewerWarnedSignatures.has(signature)) return;
+  if (remoteNewerWarnedSignatures.size >= REMOTE_NEWER_WARN_SIGNATURE_LIMIT) {
+    const oldestSignature = remoteNewerWarnedSignatures.values().next().value;
+    if (oldestSignature !== undefined) {
+      remoteNewerWarnedSignatures.delete(oldestSignature);
+    }
+  }
+  remoteNewerWarnedSignatures.add(signature);
+  console.warn('CloudSync updateSlot conflict remote newer:', {
+    userId: scope,
+    table,
+    slot,
+    localSavedAt: err?.localSavedAt ?? null,
+    remoteSavedAt: err?.remoteSavedAt ?? null,
+  });
 }
 
 function isCloudSlotPayload(value) {
@@ -589,6 +666,7 @@ async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttemp
   try {
     await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
     clearAuthExpiredStatusOnSuccess();
+    if (table === TABLES.run) clearRunClockFloorSavedAt(slot);
     return;
   } catch (err) {
     const refreshed = await tryRefreshSessionAfterAuthError(err);
@@ -596,16 +674,26 @@ async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttemp
   }
   await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
   clearAuthExpiredStatusOnSuccess();
+  if (table === TABLES.run) clearRunClockFloorSavedAt(slot);
 }
 
-// Prefer local run data whenever cloud is not strictly newer.
-// If timestamps are missing on either side, keep local (loss-averse).
-export function shouldPreferLocalRun(localSlot, cloudSlot) {
+// Deterministic run winner policy:
+// - both valid timestamps => local wins ties and newer values
+// - only one valid timestamp => valid side wins
+// - neither valid => cloud wins
+export function shouldPreferLocalRun(localSlot, cloudSlot, slot = null) {
   if (!localSlot || !cloudSlot) return false;
   const localTs = getSavedAt(localSlot);
   const cloudTs = getSavedAt(cloudSlot);
-  if (!Number.isFinite(localTs) || !Number.isFinite(cloudTs)) return true;
-  return localTs >= cloudTs;
+  const localValid = Number.isFinite(localTs);
+  const cloudValid = Number.isFinite(cloudTs);
+  if (localValid && cloudValid) return localTs >= cloudTs;
+  if (localValid) return true;
+  if (cloudValid) return false;
+  if (Number.isFinite(slot)) {
+    markStartup('cloud_run_merge_no_savedAt', { slot });
+  }
+  return false;
 }
 
 // Prefer local meta when it has a newer timestamp than cloud.

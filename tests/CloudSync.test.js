@@ -108,32 +108,53 @@ describe('CloudSync run merge guard', () => {
     expect(JSON.parse(store[key])).toEqual(cloud);
   });
 
-  it('keeps local run slot when either side timestamp is missing/invalid', async () => {
+  it('keeps local run slot when local timestamp is valid and cloud timestamp is missing', async () => {
     const key = getRunKey(1);
-    const scenarios = [
-      {
-        local: { marker: 'local-no-ts' },
-        cloud: { marker: 'cloud', savedAt: 200 },
-      },
-      {
-        local: { marker: 'local-ts', savedAt: 200 },
-        cloud: { marker: 'cloud-no-ts' },
-      },
-      {
-        local: { marker: 'local-invalid-ts', savedAt: '200' },
-        cloud: { marker: 'cloud', savedAt: 300 },
-      },
-    ];
+    const local = { marker: 'local-ts', savedAt: 200 };
+    const cloud = { marker: 'cloud-no-ts' };
+    localStorage.setItem(key, JSON.stringify(local));
+    mockCloudBootstrap({ runData: { 1: cloud } });
 
-    for (const scenario of scenarios) {
-      for (const storeKey of Object.keys(store)) delete store[storeKey];
-      localStorage.setItem(key, JSON.stringify(scenario.local));
-      mockCloudBootstrap({ runData: { 1: scenario.cloud } });
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
 
-      await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+    expect(JSON.parse(store[key])).toEqual(local);
+  });
 
-      expect(JSON.parse(store[key])).toEqual(scenario.local);
-    }
+  it('applies cloud run slot when local timestamp is missing and cloud timestamp is valid', async () => {
+    const key = getRunKey(1);
+    const local = { marker: 'local-no-ts' };
+    const cloud = { marker: 'cloud', savedAt: 200 };
+    localStorage.setItem(key, JSON.stringify(local));
+    mockCloudBootstrap({ runData: { 1: cloud } });
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    expect(JSON.parse(store[key])).toEqual(cloud);
+  });
+
+  it('applies cloud run slot when local timestamp is invalid and cloud timestamp is valid', async () => {
+    const key = getRunKey(1);
+    const local = { marker: 'local-invalid-ts', savedAt: '200' };
+    const cloud = { marker: 'cloud', savedAt: 300 };
+    localStorage.setItem(key, JSON.stringify(local));
+    mockCloudBootstrap({ runData: { 1: cloud } });
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    expect(JSON.parse(store[key])).toEqual(cloud);
+  });
+
+  it('applies cloud run slot and emits telemetry when both timestamps are invalid', async () => {
+    const key = getRunKey(1);
+    const local = { marker: 'local-no-ts' };
+    const cloud = { marker: 'cloud-no-ts' };
+    localStorage.setItem(key, JSON.stringify(local));
+    mockCloudBootstrap({ runData: { 1: cloud } });
+
+    await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
+
+    expect(JSON.parse(store[key])).toEqual(cloud);
+    expect(mocked.markStartup).toHaveBeenCalledWith('cloud_run_merge_no_savedAt', { slot: 1 });
   });
 
   it('keeps local run slot on equal savedAt tie-break', async () => {
@@ -290,9 +311,43 @@ describe('CloudSync merge helpers', () => {
     expect(shouldPreferLocalMeta(local, cloud)).toBe(false);
   });
 
-  it('prefers local run slot when local savedAt is equal to cloud', () => {
+  it('prefers local run slot when local savedAt is newer', () => {
+    const local = { savedAt: 300 };
+    const cloud = { savedAt: 200 };
+    expect(shouldPreferLocalRun(local, cloud)).toBe(true);
+  });
+
+  it('does not prefer local run slot when cloud savedAt is newer', () => {
+    const local = { savedAt: 100 };
+    const cloud = { savedAt: 200 };
+    expect(shouldPreferLocalRun(local, cloud)).toBe(false);
+  });
+
+  it('prefers local run slot when local savedAt ties cloud', () => {
     const local = { savedAt: 200 };
     const cloud = { savedAt: 200 };
     expect(shouldPreferLocalRun(local, cloud)).toBe(true);
+  });
+
+  it('prefers local run slot when local timestamp is valid and cloud timestamp is missing', () => {
+    const local = { savedAt: 200 };
+    const cloud = {};
+    expect(shouldPreferLocalRun(local, cloud)).toBe(true);
+  });
+
+  it('does not prefer local run slot when local timestamp is missing and cloud timestamp is valid', () => {
+    const local = {};
+    const cloud = { savedAt: 200 };
+    expect(shouldPreferLocalRun(local, cloud)).toBe(false);
+  });
+
+  it('does not prefer local run slot when both timestamps are missing', () => {
+    expect(shouldPreferLocalRun({}, {})).toBe(false);
+  });
+
+  it('emits telemetry when both run timestamps are missing and slot is known', () => {
+    mocked.markStartup.mockReset();
+    expect(shouldPreferLocalRun({}, {}, 2)).toBe(false);
+    expect(mocked.markStartup).toHaveBeenCalledWith('cloud_run_merge_no_savedAt', { slot: 2 });
   });
 });

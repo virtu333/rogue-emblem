@@ -25,7 +25,7 @@ export class RunCompleteScene extends Phaser.Scene {
 
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
-    clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+    clearSavedRun(cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null, slot);
 
     const cx = this.cameras.main.centerX;
     const cy = this.cameras.main.centerY;

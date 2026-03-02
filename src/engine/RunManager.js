@@ -37,7 +37,8 @@ import {
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
-import { getRunKey } from './SlotManager.js';
+import { getActiveSlot, getRunClockFloorKey, getRunKey, MAX_SLOTS } from './SlotManager.js';
+import { markStartup } from '../utils/startupTelemetry.js';
 import {
   buildBlessingIndex,
   createSeededRng,
@@ -3642,12 +3643,80 @@ export class RunManager {
 }
 
 /** Resolve the storage key for a slot. Returns null if slotNumber is missing (callers must handle). */
+function isValidSlotNumber(slotNumber) {
+  return Number.isInteger(slotNumber) && slotNumber >= 1 && slotNumber <= MAX_SLOTS;
+}
+
 function resolveRunKey(slotNumber) {
-  if (!slotNumber) {
-    console.warn('[RunManager] resolveRunKey called without slotNumber — this is a bug');
+  if (!isValidSlotNumber(slotNumber)) {
+    console.warn('[RunManager] resolveRunKey called with invalid slotNumber — this is a bug');
     return null;
   }
   return getRunKey(slotNumber);
+}
+
+function getSavedAt(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+function readLocalRunSavedAt(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return getSavedAt(parsed?.savedAt);
+  } catch (_) {
+    return null;
+  }
+}
+
+function readRunClockFloorSavedAt(slotNumber) {
+  try {
+    const raw = localStorage.getItem(getRunClockFloorKey(slotNumber));
+    if (raw == null) return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function computeNextRunSavedAt(slotNumber, key) {
+  const now = Date.now();
+  const previousLocalSavedAt = readLocalRunSavedAt(key);
+  const remoteFloorSavedAt = readRunClockFloorSavedAt(slotNumber);
+
+  let nextSavedAt = now;
+  if (Number.isFinite(previousLocalSavedAt)) {
+    nextSavedAt = Math.max(nextSavedAt, previousLocalSavedAt + 1);
+  }
+  if (Number.isFinite(remoteFloorSavedAt)) {
+    nextSavedAt = Math.max(nextSavedAt, remoteFloorSavedAt + 1);
+  }
+  return nextSavedAt;
+}
+
+function resolveSlotNumberForClear(slotNumber) {
+  if (isValidSlotNumber(slotNumber)) {
+    return {
+      slot: slotNumber,
+      usedFallback: false,
+      persistedActiveSlot: null,
+    };
+  }
+  const persistedActiveSlot = getActiveSlot();
+  if (isValidSlotNumber(persistedActiveSlot)) {
+    return {
+      slot: persistedActiveSlot,
+      usedFallback: true,
+      persistedActiveSlot,
+    };
+  }
+  return {
+    slot: null,
+    usedFallback: false,
+    persistedActiveSlot: Number.isFinite(persistedActiveSlot) ? persistedActiveSlot : null,
+  };
 }
 
 function isQuotaExceededError(err) {
@@ -3659,12 +3728,12 @@ function isQuotaExceededError(err) {
 }
 
 export function saveRun(runManager, onSave, slotNumber) {
-  const json = {
-    ...runManager.toJSON(),
-    savedAt: Date.now(),
-  };
   const key = resolveRunKey(slotNumber);
   if (!key) return { ok: false, reason: 'missing_slot' };
+  const json = {
+    ...runManager.toJSON(),
+    savedAt: computeNextRunSavedAt(slotNumber, key),
+  };
   let localOk = false;
   try {
     localStorage.setItem(key, JSON.stringify(json));
@@ -3714,12 +3783,29 @@ export function hasSavedRun(slotNumber) {
 }
 
 export function clearSavedRun(onClear, slotNumber) {
-  const key = resolveRunKey(slotNumber);
-  if (!key) return;
+  const { slot, usedFallback, persistedActiveSlot } = resolveSlotNumberForClear(slotNumber);
+  if (!slot) {
+    markStartup('run_clear_missing_slot_resolution_failed', {
+      slot: null,
+      requestedSlot: Number.isFinite(slotNumber) ? slotNumber : null,
+      persistedActiveSlot,
+      usedFallback: false,
+    });
+    return;
+  }
+  if (usedFallback) {
+    markStartup('run_clear_slot_fallback_used', {
+      slot,
+      usedFallback: true,
+    });
+  }
+  const key = getRunKey(slot);
+  const floorKey = getRunClockFloorKey(slot);
   try {
     localStorage.removeItem(key);
+    localStorage.removeItem(floorKey);
   } catch (_) {
     /* ignore */
   }
-  if (onClear) onClear();
+  if (onClear) onClear(slot);
 }

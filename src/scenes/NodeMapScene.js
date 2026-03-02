@@ -1012,7 +1012,10 @@ export class NodeMapScene extends Phaser.Scene {
         try {
           const cloud = this.registry.get('cloud');
           const slot = this.registry.get('activeSlot');
-          clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+          clearSavedRun(
+            cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+            slot,
+          );
           this.runManager.failRun();
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);

@@ -3823,7 +3823,10 @@ export class BattleScene extends Phaser.Scene {
           try {
             const cloud = this.registry.get('cloud');
             const slot = this.registry.get('activeSlot');
-            clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+            clearSavedRun(
+              cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+              slot,
+            );
             this.clearBattleScopedDeltas(this.playerUnits);
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             this.runManager.failRun();
@@ -11508,7 +11511,10 @@ export class BattleScene extends Phaser.Scene {
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+      clearSavedRun(
+        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+        slot,
+      );
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       resetTransitionLocks(this);
@@ -11636,7 +11642,10 @@ export class BattleScene extends Phaser.Scene {
       titleBtn.disableInteractive();
       const cloud = this.registry.get('cloud');
       const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+      clearSavedRun(
+        cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+        slot,
+      );
       const audio = this.registry.get('audio');
       if (audio) audio.stopMusic(this, 0);
       resetTransitionLocks(this);

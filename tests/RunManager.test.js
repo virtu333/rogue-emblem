@@ -12,6 +12,7 @@ import * as NodeMapGenerator from '../src/engine/NodeMapGenerator.js';
 import { loadGameData } from './testData.js';
 import { NODE_TYPES, ELITE_GOLD_MULTIPLIER, ROSTER_CAP } from '../src/utils/constants.js';
 import { calculateBattleGold } from '../src/engine/LootSystem.js';
+import { getStartupTelemetry } from '../src/utils/startupTelemetry.js';
 
 // Mock localStorage
 const store = {};
@@ -1556,6 +1557,7 @@ describe('RunManager', () => {
     beforeEach(() => {
       for (const key of Object.keys(store)) delete store[key];
       vi.clearAllMocks();
+      delete globalThis.__emblemRogueStartupTelemetry;
     });
 
     it('saveRun persists to localStorage', () => {
@@ -1577,6 +1579,35 @@ describe('RunManager', () => {
       const saved = JSON.parse(store['emblem_rogue_slot_1_run']);
       expect(saved.savedAt).toBe(1234567890);
       expect(Number.isFinite(saved.savedAt)).toBe(true);
+    });
+
+    it('saveRun keeps savedAt monotonic when system clock goes backward', () => {
+      rm.startRun();
+      store['emblem_rogue_slot_1_run'] = JSON.stringify({ savedAt: 500 });
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(100);
+      try {
+        saveRun(rm, null, 1);
+      } finally {
+        nowSpy.mockRestore();
+      }
+
+      const saved = JSON.parse(store['emblem_rogue_slot_1_run']);
+      expect(saved.savedAt).toBe(501);
+    });
+
+    it('saveRun respects remote conflict clock floor for monotonic savedAt', () => {
+      rm.startRun();
+      store['emblem_rogue_slot_1_run'] = JSON.stringify({ savedAt: 300 });
+      store['emblem_rogue_slot_1_run_clock_floor'] = '800';
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(400);
+      try {
+        saveRun(rm, null, 1);
+      } finally {
+        nowSpy.mockRestore();
+      }
+
+      const saved = JSON.parse(store['emblem_rogue_slot_1_run']);
+      expect(saved.savedAt).toBe(801);
     });
 
     it('hasSavedRun returns true after save', () => {
@@ -1622,6 +1653,15 @@ describe('RunManager', () => {
       expect(hasSavedRun(1)).toBe(false);
     });
 
+    it('clearSavedRun removes run clock floor metadata for the slot', () => {
+      rm.startRun();
+      store['emblem_rogue_slot_1_run_clock_floor'] = '999';
+
+      clearSavedRun(null, 1);
+
+      expect(store['emblem_rogue_slot_1_run_clock_floor']).toBeUndefined();
+    });
+
     it('saveRun returns { ok: false } when slotNumber is missing', () => {
       rm.startRun();
       const result = saveRun(rm);
@@ -1636,10 +1676,33 @@ describe('RunManager', () => {
       expect(hasSavedRun()).toBe(false);
     });
 
-    it('clearSavedRun is a no-op when slotNumber is missing', () => {
+    it('clearSavedRun resolves missing slotNumber from persisted active slot', () => {
+      rm.startRun();
+      saveRun(rm, null, 2);
+      store['emblem_rogue_active_slot'] = '2';
+      const cb = vi.fn();
+
+      clearSavedRun(cb);
+
+      expect(hasSavedRun(2)).toBe(false);
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith(2);
+      const telemetry = getStartupTelemetry();
+      expect(
+        telemetry?.markers.some((marker) => marker.name === 'run_clear_slot_fallback_used'),
+      ).toBe(true);
+    });
+
+    it('clearSavedRun is a no-op when slotNumber and persisted active slot are missing', () => {
       const cb = vi.fn();
       clearSavedRun(cb);
       expect(cb).not.toHaveBeenCalled();
+      const telemetry = getStartupTelemetry();
+      expect(
+        telemetry?.markers.some(
+          (marker) => marker.name === 'run_clear_missing_slot_resolution_failed',
+        ),
+      ).toBe(true);
     });
   });
 

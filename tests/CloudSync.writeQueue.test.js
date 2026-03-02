@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getMetaKey } from '../src/engine/SlotManager.js';
+import { getMetaKey, getRunClockFloorKey } from '../src/engine/SlotManager.js';
 
 const store = {};
 const localStorageMock = {
@@ -474,6 +474,7 @@ describe('CloudSync write queue hardening', () => {
   });
 
   it('skips stale local overwrite when cloud slot has newer savedAt', async () => {
+    const floorKey = getRunClockFloorKey(1);
     const runApi = makeSlotTableApi({
       slotMap: { 1: { version: 'cloud', savedAt: 500 } },
     });
@@ -487,11 +488,78 @@ describe('CloudSync write queue hardening', () => {
 
     expect(runApi.state.updateCalls).toBe(0);
     expect(runApi.state.row?.data?.['1']).toEqual({ version: 'cloud', savedAt: 500 });
+    expect(store[floorKey]).toBe('500');
     const updateFailures = mocked.reportAsyncError.mock.calls.filter(
       ([context, err]) =>
-        context === 'cloud_update_slot' && err && err.code === 'CLOUD_CONFLICT_REMOTE_NEWER',
+        context === 'cloud_update_slot_conflict_remote_newer' &&
+        err &&
+        err.code === 'CLOUD_CONFLICT_REMOTE_NEWER',
     );
     expect(updateFailures).toHaveLength(1);
+  });
+
+  it('clears run clock floor after a later successful run write', async () => {
+    const floorKey = getRunClockFloorKey(1);
+    store[floorKey] = '500';
+    const runApi = makeSlotTableApi({
+      slotMap: { 1: { version: 'cloud-old', savedAt: 100 } },
+    });
+    mocked.fromMock.mockImplementation((table) => {
+      if (table === 'run_saves') return runApi;
+      return makeSlotTableApi();
+    });
+
+    pushRunSave('user-1', 1, { version: 'local-new', savedAt: 700 });
+    await __flushCloudSyncQueuesForTests();
+
+    expect(runApi.state.row?.data?.['1']).toEqual({ version: 'local-new', savedAt: 700 });
+    expect(store[floorKey]).toBeUndefined();
+  });
+
+  it('dedupes repeated identical remote-newer conflict warnings in one session', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const runApi = makeSlotTableApi({
+      slotMap: { 1: { version: 'cloud', savedAt: 500 } },
+    });
+    mocked.fromMock.mockImplementation((table) => {
+      if (table === 'run_saves') return runApi;
+      return makeSlotTableApi();
+    });
+
+    pushRunSave('user-1', 1, { version: 'local-1', savedAt: 100 });
+    pushRunSave('user-1', 1, { version: 'local-2', savedAt: 100 });
+    await __flushCloudSyncQueuesForTests();
+
+    const conflictWarns = warnSpy.mock.calls.filter(
+      ([message]) => message === 'CloudSync updateSlot conflict remote newer:',
+    );
+    expect(conflictWarns).toHaveLength(1);
+    const conflictReports = mocked.reportAsyncError.mock.calls.filter(
+      ([context]) => context === 'cloud_update_slot_conflict_remote_newer',
+    );
+    expect(conflictReports).toHaveLength(2);
+    warnSpy.mockRestore();
+  });
+
+  it('does not dedupe identical remote-newer warnings across different users', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const runApi = makeSlotTableApi({
+      slotMap: { 1: { version: 'cloud', savedAt: 500 } },
+    });
+    mocked.fromMock.mockImplementation((table) => {
+      if (table === 'run_saves') return runApi;
+      return makeSlotTableApi();
+    });
+
+    pushRunSave('user-1', 1, { version: 'local-1', savedAt: 100 });
+    pushRunSave('user-2', 1, { version: 'local-2', savedAt: 100 });
+    await __flushCloudSyncQueuesForTests();
+
+    const conflictWarns = warnSpy.mock.calls.filter(
+      ([message]) => message === 'CloudSync updateSlot conflict remote newer:',
+    );
+    expect(conflictWarns).toHaveLength(2);
+    warnSpy.mockRestore();
   });
 
   it('skips deleteRunSave meta sync when local meta is malformed', async () => {

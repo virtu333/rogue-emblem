@@ -6,6 +6,18 @@ vi.mock('phaser', () => ({
 
 // Mock SceneRouter — return controllable promises
 let transitionPromiseResolve;
+const store = {};
+const localStorageMock = {
+  getItem: vi.fn((key) => store[key] ?? null),
+  setItem: vi.fn((key, value) => {
+    store[key] = String(value);
+  }),
+  removeItem: vi.fn((key) => {
+    delete store[key];
+  }),
+};
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+
 vi.mock('../src/utils/SceneRouter.js', () => ({
   transitionToScene: vi.fn(
     () =>
@@ -16,12 +28,15 @@ vi.mock('../src/utils/SceneRouter.js', () => ({
   TRANSITION_REASONS: { BEGIN_RUN: 'begin_run', BACK: 'back' },
 }));
 
-vi.mock('../src/engine/RunManager.js', () => ({
-  RunManager: class {},
-  clearSavedRun: vi.fn((deleteCloudRun) => {
-    if (typeof deleteCloudRun === 'function') deleteCloudRun();
-  }),
-}));
+vi.mock('../src/engine/RunManager.js', async () => {
+  const actual = await vi.importActual('../src/engine/RunManager.js');
+  return {
+    RunManager: class {},
+    clearSavedRun: vi.fn((deleteCloudRun, slotNumber) =>
+      actual.clearSavedRun(deleteCloudRun, slotNumber),
+    ),
+  };
+});
 
 vi.mock('../src/cloud/CloudSync.js', () => ({
   deleteRunSave: vi.fn(),
@@ -54,6 +69,10 @@ function makeScene() {
 
 describe('BlessingSelectScene No Meta back-navigation', () => {
   beforeEach(() => {
+    for (const key of Object.keys(store)) delete store[key];
+    localStorageMock.getItem.mockClear();
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
     vi.clearAllMocks();
     transitionPromiseResolve = null;
   });
@@ -100,6 +119,10 @@ describe('BlessingSelectScene No Meta back-navigation', () => {
 
 describe('BlessingSelectScene transition guards', () => {
   beforeEach(() => {
+    for (const key of Object.keys(store)) delete store[key];
+    localStorageMock.getItem.mockClear();
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
     vi.clearAllMocks();
     transitionPromiseResolve = null;
   });
@@ -206,6 +229,25 @@ describe('BlessingSelectScene transition guards', () => {
 
     expect(clearSavedRun).toHaveBeenCalledTimes(1);
     expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), 2);
+    expect(deleteRunSave).toHaveBeenCalledTimes(1);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
+  });
+
+  it('successful transition uses resolved clear slot when registry activeSlot is missing', async () => {
+    const scene = makeScene();
+    localStorage.setItem('emblem_rogue_active_slot', '2');
+    scene.registry.get = vi.fn((key) => {
+      if (key === 'cloud') return { userId: 'user-1' };
+      if (key === 'activeSlot') return undefined;
+      return null;
+    });
+
+    scene._confirm();
+    transitionPromiseResolve(true);
+    await Promise.resolve();
+
+    expect(clearSavedRun).toHaveBeenCalledTimes(1);
+    expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), undefined);
     expect(deleteRunSave).toHaveBeenCalledTimes(1);
     expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
   });

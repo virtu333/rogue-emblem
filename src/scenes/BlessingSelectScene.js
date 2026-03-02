@@ -147,7 +147,10 @@ export class BlessingSelectScene extends Phaser.Scene {
         // Clear stale run save only after transition success.
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
-        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+        clearSavedRun(
+          cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null,
+          slot,
+        );
         if (this._pendingBlessingSelection) {
           recordBlessingSelection(this._pendingBlessingSelection);
           this._pendingBlessingSelection = null;
