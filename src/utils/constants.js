@@ -88,6 +88,8 @@ export const TERRAIN_HEAL_PERCENT = 0.1;
 export const FORT_HEAL_DECAY_MULTIPLIERS = [1, 0.67, 0.34, 0.17, 0];
 export const ANTI_TURTLE_NO_PROGRESS_TURNS = 3;
 export const LAVA_CRACK_DAMAGE = 5;
+export const ACID_DAMAGE_PERCENT = 0.05;
+export const ACID_DAMAGE_MAX = 10;
 
 // Terrain index enum (matches terrain.json order)
 export const TERRAIN = {
@@ -108,7 +110,10 @@ export const TERRAIN = {
   Ballista: 14,
   Swamp: 15,
   Bog: 16,
+  AcidicSwamp: 17,
+  AcidicBog: 18,
 };
+export const ACID_TERRAIN_TYPES = new Set([TERRAIN.AcidicSwamp, TERRAIN.AcidicBog]);
 
 // Boss stat bonus (flat added to all stats)
 export const BOSS_STAT_BONUS = 2;
@@ -223,11 +228,12 @@ export const REFUND_FEE = 20;
 // Siege weapon eligibility (promoted Tome users — NOT Battle Monk which has no Tome)
 export const SIEGE_ELIGIBLE_CLASSES = new Set(['Sage', 'Warlock', 'Dark Knight', 'Grandmaster']);
 
-// Status conditions (Sleep / Silence)
+// Status conditions (Sleep / Silence / Acid)
 export const STATUS_STAFF_ELIGIBLE_CLASSES = new Set(['Mage', 'Sage', 'Bishop']);
 export const STATUS_CONDITIONS = {
   sleep: { maxTurns: 3, recoveryChance: 0.5, wakesOnDamage: true },
   silence: { maxTurns: 3, recoveryChance: 0.5 },
+  acid: { maxTurns: 3, recoveryChance: 0, wakesOnDamage: false },
 };
 export const STATUS_HIT_MIN = 15;
 export const STATUS_HIT_MAX = 90;
@@ -304,6 +310,13 @@ export const ACT_BIOME_WEIGHTS = {
   act4: { grassland: 17, castle: 8, tundra: 30, volcano: 30, swamp: 15 },
   finalBoss: { void: 100 },
 };
+export const TOXIC_COVERAGE_BY_ACT = {
+  act1: 0,
+  act2: 0.1,
+  act3: 0.15,
+  act4: 0.2,
+  finalBoss: 0,
+};
 
 // Entity (multi-tile eldritch boss)
 export const ENTITY_FOOTPRINT = { width: 3, height: 3 };
@@ -337,4 +350,6 @@ export const TERRAIN_COLORS = {
   Ballista: 0x8b4513,
   Swamp: 0x4a6040,
   Bog: 0x6b7340,
+  'Acidic Swamp': 0x3a5030,
+  'Acidic Bog': 0x5b6330,
 };

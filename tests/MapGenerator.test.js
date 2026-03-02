@@ -205,6 +205,63 @@ describe('MapGenerator', () => {
     });
   });
 
+  describe('toxic overlay non-toxic lane guarantee', () => {
+    it('clears a fully-toxic enemy endpoint so a poison-free lane exists', () => {
+      const template = {
+        id: 'toxic_lane_endpoint_regression',
+        name: 'Toxic Lane Endpoint Regression',
+        biome: 'swamp',
+        acts: ['act2'],
+        fogChance: 0,
+        fixedSize: [10, 8],
+        zones: [
+          {
+            rect: [0, 0, 1, 1],
+            terrain: { Plain: 100 },
+            priority: 0,
+          },
+          {
+            rect: [0, 0, 0.2, 1],
+            terrain: { Plain: 100 },
+            priority: 1,
+            role: 'playerSpawn',
+          },
+          {
+            rect: [0.9, 0.5, 1, 0.625],
+            terrain: { Bog: 100 },
+            priority: 2,
+            role: 'enemySpawn',
+          },
+        ],
+        features: [],
+        anchors: [],
+      };
+      const deps = {
+        ...data,
+        mapTemplates: {
+          ...data.mapTemplates,
+          rout: [template],
+        },
+      };
+
+      const config = withSeed(17, () =>
+        generateBattle(
+          {
+            act: 'act2',
+            objective: 'rout',
+            templateId: template.id,
+            deployCount: 3,
+          },
+          deps,
+        ),
+      );
+
+      // Enemy endpoint starts as Bog and should be restored from AcidicBog if selected by overlay.
+      expect(config.mapLayout[4][9]).toBe(TERRAIN.Bog);
+      expect(config.mapLayout[4][9]).not.toBe(TERRAIN.AcidicBog);
+    });
+  });
+
   describe('cavalry advance guarantees', () => {
     function makeCavalryStressDeps() {
       const stressTemplate = {

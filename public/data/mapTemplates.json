@@ -548,6 +548,8 @@
         "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
         "xpDecay": [1.0, 0.75, 0.5, 0.25],
         "turnJitter": [-1, 1],
+        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
+        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
         "extraWavesByDifficulty": {
           "lunatic": [
             { "turn": 11, "count": [2, 3], "edges": ["top", "right"] },

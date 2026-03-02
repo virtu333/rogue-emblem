@@ -11,7 +11,9 @@
     "Water",
     "Sand",
     "Swamp",
-    "Bog"
+    "Bog",
+    "Acidic Swamp",
+    "Acidic Bog"
   ],
   "objectiveBasePar": {
     "rout": 2,

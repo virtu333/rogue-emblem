@@ -78,6 +78,14 @@
         {
           "name": "forest_swamp",
           "prompt": "dead bare tree trunk standing in dark swamp water, gnarled branches, haunted appearance"
+        },
+        {
+          "name": "acidic_swamp",
+          "prompt": "toxic poisonous swamp water with sickly yellow-green bubbles and noxious vapors rising, corroded vegetation"
+        },
+        {
+          "name": "acidic_bog",
+          "prompt": "shallow toxic bog with yellowish acidic water pools and dissolved plant matter, subtle toxic mist"
         }
       ]
     }

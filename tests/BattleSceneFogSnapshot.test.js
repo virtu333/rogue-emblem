@@ -40,7 +40,12 @@ vi.mock('../src/ui/RosterOverlay.js', () => ({
 import { BattleScene, resetUnitForBattle } from '../src/scenes/BattleScene.js';
 import { TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../src/utils/constants.js';
-import { applyCondition, isSleeping, isSilenced } from '../src/engine/StatusConditionSystem.js';
+import {
+  applyCondition,
+  getConditions,
+  isSleeping,
+  isSilenced,
+} from '../src/engine/StatusConditionSystem.js';
 
 function makeUnit(overrides = {}) {
   return {
@@ -1190,7 +1195,7 @@ describe('onPhaseChange condition recovery ordering', () => {
     expect(skipCall).toBeUndefined();
   });
 
-  it('auto-advances when all units still sleeping after recovery', () => {
+  it('auto-advances when all units still sleeping after recovery', async () => {
     const { scene } = setupScene();
     const u1 = makeUnit({ name: 'A', currentHP: 20 });
     const u2 = makeUnit({ name: 'B', currentHP: 20 });
@@ -1219,8 +1224,56 @@ describe('onPhaseChange condition recovery ordering', () => {
     expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
 
     const [, onSkip] = skipCall;
-    expect(() => onSkip()).not.toThrow();
+    const skipResult = onSkip();
+    if (skipResult && typeof skipResult.then === 'function') {
+      await skipResult;
+    }
     expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
+  });
+
+  it('all-sleeping auto-advance still applies acid tick before phase ends', async () => {
+    const { scene } = setupScene();
+    const unit = makeUnit({
+      name: 'A',
+      currentHP: 2,
+      stats: { MOV: 5, HP: 100 },
+    });
+    applyCondition(unit, 'sleep', 3);
+    applyCondition(unit, 'acid');
+    scene.playerUnits = [unit];
+    scene.showBriefBanner = vi.fn();
+    scene.showAcidDamage = vi.fn(async () => {});
+    scene.updateHPBar = vi.fn();
+    scene._removeConditionIcon = vi.fn();
+    scene._expireTimedWeaponArtBuffs = vi.fn();
+    scene.turnCounterText = null;
+    scene._latePressureWarningShown = false;
+
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      BattleScene.prototype.onPhaseChange.call(scene, 'player', 2);
+    } finally {
+      Math.random = origRandom;
+    }
+
+    const skipCall = scene.time.delayedCall.mock.calls.find(([delay]) => delay === 300);
+    expect(skipCall).toBeDefined();
+    expect(unit.currentHP).toBe(2);
+    expect(scene.turnManager.endPlayerPhase).not.toHaveBeenCalled();
+
+    const [, onSkip] = skipCall;
+    const skipResult = onSkip();
+    if (skipResult && typeof skipResult.then === 'function') {
+      await skipResult;
+    }
+
+    expect(unit.currentHP).toBe(1);
+    expect(scene.updateHPBar).toHaveBeenCalledWith(unit);
+    expect(scene.showAcidDamage).toHaveBeenCalledWith(unit, 1);
+    expect(scene.turnManager.endPlayerPhase).toHaveBeenCalledTimes(1);
+    const acidCondition = getConditions(unit).find((condition) => condition.id === 'acid');
+    expect(acidCondition?.turnsRemaining).toBe(2);
   });
 });
 

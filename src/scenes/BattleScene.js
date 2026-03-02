@@ -141,10 +141,17 @@ import {
 } from '../utils/constants.js';
 import { getHPBarColor, applyTextResolution, TEXT_RESOLUTION } from '../utils/uiStyles.js';
 import { generateBattle } from '../engine/MapGenerator.js';
-import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../engine/TerrainHazards.js';
 import {
+  computeAcidDamage,
+  computeLavaCrackHp,
+  isAcidTerrainIndex,
+  isLavaCrackTerrainIndex,
+} from '../engine/TerrainHazards.js';
+import {
+  applyCondition,
   isSleeping,
   isSilenced,
+  isAcidPoisoned,
   removeCondition,
   clearAllConditions,
   resolveStatusStaff,
@@ -2740,6 +2747,8 @@ export class BattleScene extends Phaser.Scene {
     const avoidBonus = parseInt(terrain.avoidBonus, 10);
     if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
     if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
+    const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
+    if (specialText) info += `\n${specialText}`;
 
     // Unit info (skip hidden units in fog)
     if (hovered && this.grid.isVisible(gp.col, gp.row)) {
@@ -9108,7 +9117,12 @@ export class BattleScene extends Phaser.Scene {
       // before the all-sleeping auto-advance check
       const earlyRecovery = processConditionRecovery(this.playerUnits);
       for (const evt of earlyRecovery) {
-        const label = evt.conditionId === 'sleep' ? 'woke up' : 'recovered from Silence';
+        const labelByCondition = {
+          sleep: 'woke up',
+          silence: 'recovered from Silence',
+          acid: 'recovered from Acid',
+        };
+        const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
         this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
@@ -9122,7 +9136,9 @@ export class BattleScene extends Phaser.Scene {
       // All-sleeping auto-advance: skip player phase entirely
       const allSleeping = this.playerUnits.every((u) => !u || u.currentHP <= 0 || isSleeping(u));
       if (allSleeping && this.playerUnits.some((u) => u && u.currentHP > 0)) {
-        this.time.delayedCall(300, () => {
+        this.time.delayedCall(300, async () => {
+          if (this.battleState !== 'PLAYER_IDLE') return;
+          await this._processAcidTicks(this.playerUnits);
           if (this.battleState === 'PLAYER_IDLE') this.turnManager.endPlayerPhase();
         });
         return;
@@ -9262,12 +9278,20 @@ export class BattleScene extends Phaser.Scene {
     if (!skipRecovery) {
       const recoveryEvents = processConditionRecovery(units);
       for (const evt of recoveryEvents) {
-        const label = evt.conditionId === 'sleep' ? 'woke up' : 'recovered from Silence';
+        const labelByCondition = {
+          sleep: 'woke up',
+          silence: 'recovered from Silence',
+          acid: 'recovered from Acid',
+        };
+        const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
         await this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
         this._removeConditionIcon(evt.unit, evt.conditionId);
         this.undimUnit(evt.unit);
       }
     }
+
+    // 0b. Acid tick damage (non-lethal, maxHP-scaled)
+    await this._processAcidTicks(units);
 
     // 1. Skill effects (e.g. Renewal)
     const skillEffects = getTurnStartEffects(units, this.gameData.skills);
@@ -9299,6 +9323,19 @@ export class BattleScene extends Phaser.Scene {
 
     // 3. Terrain healing (Fort/Throne)
     await this.processTerrainHealing(units);
+  }
+
+  async _processAcidTicks(units) {
+    for (const unit of units) {
+      if (!unit || unit.currentHP <= 0 || !isAcidPoisoned(unit)) continue;
+      const tickDamage = computeAcidDamage(unit.stats?.HP);
+      const nextHP = Math.max(1, unit.currentHP - tickDamage);
+      const appliedDamage = unit.currentHP - nextHP;
+      if (appliedDamage <= 0) continue;
+      unit.currentHP = nextHP;
+      this.updateHPBar(unit);
+      await this.showAcidDamage(unit, appliedDamage);
+    }
   }
 
   /** Backward-compatible alias for older call sites/cherry-picks. */
@@ -9617,21 +9654,30 @@ export class BattleScene extends Phaser.Scene {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
       if (isEntity(unit)) continue; // Entity immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
-      if (!isLavaCrackTerrainIndex(terrainIdx)) continue;
-
-      const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
-      if (appliedDamage <= 0) continue;
-      unit.currentHP = nextHP;
-      this.updateHPBar(unit);
-      await this.showTerrainDamage(unit, appliedDamage);
-      // Lava damage wakes sleeping units
-      if (isSleeping(unit)) {
-        removeCondition(unit, 'sleep');
-        this._removeConditionIcon(unit, 'sleep');
-        this.undimUnit(unit);
-        await this.showBriefBanner(`${unit.name} woke up from lava damage!`, '#ff8844');
+      if (isLavaCrackTerrainIndex(terrainIdx)) {
+        const { nextHP, appliedDamage } = computeLavaCrackHp(unit.currentHP, LAVA_CRACK_DAMAGE);
+        if (appliedDamage <= 0) continue;
+        unit.currentHP = nextHP;
+        this.updateHPBar(unit);
+        await this.showTerrainDamage(unit, appliedDamage);
+        // Lava damage wakes sleeping units
+        if (isSleeping(unit)) {
+          removeCondition(unit, 'sleep');
+          this._removeConditionIcon(unit, 'sleep');
+          this.undimUnit(unit);
+          await this.showBriefBanner(`${unit.name} woke up from lava damage!`, '#ff8844');
+        }
+        await this._checkPhoenixBrooch(unit);
+        continue;
       }
-      await this._checkPhoenixBrooch(unit);
+
+      if (!isAcidTerrainIndex(terrainIdx)) continue;
+      if (unit.moveType === 'Flying') continue;
+      if (unit.poisonImmune || unit.terrainHazardImmune) continue;
+
+      applyCondition(unit, 'acid');
+      this._addConditionIcon(unit, 'acid');
+      await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
     }
   }
 
@@ -9647,6 +9693,41 @@ export class BattleScene extends Phaser.Scene {
           fontFamily: 'monospace',
           fontSize: '12px',
           color: '#ff8844',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(320);
+
+      this.tweens.add({
+        targets: text,
+        y: pos.y - 32,
+        alpha: 0,
+        duration: 450,
+        onComplete: () => text.destroy(),
+      });
+
+      this.time.delayedCall(120, () => {
+        if (!unit.graphic) return;
+        if (wasTinted && unit.graphic.setTint && previousTint != null)
+          unit.graphic.setTint(previousTint);
+        else if (unit.graphic.clearTint) unit.graphic.clearTint();
+      });
+      this.time.delayedCall(180, resolve);
+    });
+  }
+
+  showAcidDamage(unit, damage) {
+    return new Promise((resolve) => {
+      const wasTinted = Boolean(unit.graphic?.isTinted);
+      const previousTint = unit.graphic?.tintTopLeft;
+      if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
+
+      const pos = this.grid.gridToPixel(unit.col, unit.row);
+      const text = this.add
+        .text(pos.x, pos.y - 16, `Acid -${damage}`, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#88cc44',
           fontStyle: 'bold',
         })
         .setOrigin(0.5)
@@ -9815,10 +9896,18 @@ export class BattleScene extends Phaser.Scene {
     if (!unit._conditionIcons) unit._conditionIcons = {};
     const x = unit.graphic.x;
     const y = unit.graphic.y - 20;
-    const label = conditionId === 'sleep' ? 'Zzz' : 'X';
-    const color = conditionId === 'sleep' ? '#6688ff' : '#cc66cc';
+    const iconMap = {
+      sleep: { label: 'Zzz', color: '#6688ff' },
+      silence: { label: 'X', color: '#cc66cc' },
+      acid: { label: 'Ac', color: '#88cc44' },
+    };
+    const iconStyle = iconMap[conditionId] || { label: '?', color: '#dddddd' };
     const icon = this.add
-      .text(x, y, label, { fontSize: '10px', fontFamily: 'monospace', color })
+      .text(x, y, iconStyle.label, {
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        color: iconStyle.color,
+      })
       .setOrigin(0.5)
       .setDepth(200);
     unit._conditionIcons[conditionId] = icon;

@@ -46,6 +46,10 @@ export function isSilenced(unit) {
   return hasCondition(unit, 'silence');
 }
 
+export function isAcidPoisoned(unit) {
+  return hasCondition(unit, 'acid');
+}
+
 // --- Weapon classification ---
 
 export function isStatusStaff(weapon) {

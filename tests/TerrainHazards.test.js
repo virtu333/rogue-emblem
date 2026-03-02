@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import { computeEffectivePath, getEntryDirection, resolveIceSlide } from '../src/engine/Grid.js';
 import { pickTemplate } from '../src/engine/MapGenerator.js';
-import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../src/engine/TerrainHazards.js';
+import {
+  computeAcidDamage,
+  computeLavaCrackHp,
+  isAcidTerrainIndex,
+  isLavaCrackTerrainIndex,
+} from '../src/engine/TerrainHazards.js';
 import { TERRAIN } from '../src/utils/constants.js';
 import { HeadlessGrid } from './harness/HeadlessGrid.js';
 
@@ -361,6 +366,24 @@ describe('Terrain hazards', () => {
     it('non-lava terrain indices do not match lava crack', () => {
       expect(isLavaCrackTerrainIndex(TERRAIN.Plain)).toBe(false);
       expect(isLavaCrackTerrainIndex(TERRAIN.LavaCrack)).toBe(true);
+    });
+  });
+
+  describe('Acid helpers', () => {
+    it('isAcidTerrainIndex matches only acidic swamp and bog', () => {
+      expect(isAcidTerrainIndex(TERRAIN.AcidicSwamp)).toBe(true);
+      expect(isAcidTerrainIndex(TERRAIN.AcidicBog)).toBe(true);
+      expect(isAcidTerrainIndex(TERRAIN.Swamp)).toBe(false);
+      expect(isAcidTerrainIndex(TERRAIN.Bog)).toBe(false);
+      expect(isAcidTerrainIndex(TERRAIN.LavaCrack)).toBe(false);
+    });
+
+    it('computeAcidDamage clamps between 1 and 10 using 5% max HP', () => {
+      expect(computeAcidDamage(1)).toBe(1);
+      expect(computeAcidDamage(20)).toBe(1);
+      expect(computeAcidDamage(40)).toBe(2);
+      expect(computeAcidDamage(100)).toBe(5);
+      expect(computeAcidDamage(200)).toBe(10);
     });
   });
 

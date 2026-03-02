@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { AIController } from '../src/engine/AIController.js';
 import * as GridModule from '../src/engine/Grid.js';
+import { TERRAIN } from '../src/utils/constants.js';
 
 // Minimal grid mock: returns movement range as a Map of "col,row" -> cost
 function createMockGrid(moveTiles = []) {
@@ -1257,6 +1258,35 @@ describe('AIController', () => {
       // Sword:  STR(5)  + might(7) - DEF(4) = 8
       // Should swap to Breath
       expect(enemy.weapon).toBe(breath);
+    });
+  });
+
+  describe('acidic terrain avoidance', () => {
+    it('filters candidate moves using predicted finalTile toxicity', () => {
+      const moveTiles = [
+        { col: 6, row: 5 },
+        { col: 4, row: 5 },
+      ];
+      const grid = createMockGrid(moveTiles);
+      grid.mapLayout = Array.from({ length: 12 }, () => Array(12).fill(TERRAIN.Plain));
+      grid.mapLayout[5][5] = TERRAIN.AcidicBog; // current tile is toxic, should be filtered out
+      grid.mapLayout[9][9] = TERRAIN.AcidicBog; // projected final tile for east move is toxic
+      const ai = new AIController(grid, {}, { objective: 'rout' });
+
+      ai._predictFinalTileFromPath = (_enemy, tile) => {
+        if (tile.col === 6 && tile.row === 5) return { finalTile: { col: 9, row: 9 } };
+        if (tile.col === 4 && tile.row === 5) return { finalTile: { col: 8, row: 8 } };
+        return { finalTile: { col: tile.col, row: tile.row } };
+      };
+
+      const enemy = makeEnemy({ col: 5, row: 5 });
+      const player = makePlayer({ col: 10, row: 5 });
+      const decision = ai._decideAction(enemy, [enemy], [player], []);
+
+      expect(decision.path).not.toBeNull();
+      const dest = decision.path[decision.path.length - 1];
+      expect(dest.col).toBe(4);
+      expect(dest.row).toBe(5);
     });
   });
 });

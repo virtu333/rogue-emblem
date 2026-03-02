@@ -10,6 +10,7 @@ import {
   STATUS_STAFF_ELIGIBLE_CLASSES,
   SIEGE_ELIGIBLE_CLASSES,
   ACT_BIOME_WEIGHTS,
+  TOXIC_COVERAGE_BY_ACT,
   filterClassPoolByDifficulty,
 } from '../utils/constants.js';
 import { assignAffixesToEnemySpawns } from './AffixEngine.js';
@@ -101,6 +102,16 @@ export function generateBattle(params, deps) {
       }
     }
   }
+
+  const toxicTiles = applyToxicOverlay({
+    mapLayout,
+    template,
+    cols,
+    rows,
+    terrainData: terrain,
+    act,
+    thronePos,
+  });
 
   // 5. Player spawns
   const spawnCount = deployCount || DEPLOY_LIMITS[act]?.max || 4;
@@ -291,6 +302,7 @@ export function generateBattle(params, deps) {
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
     parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
+    toxicTiles,
     ...reinforcementConfig,
     ...hybridConfig,
   };
@@ -752,6 +764,310 @@ function resolveNormalizedRectBounds(rect, cols, rows) {
     startRow: Math.floor(y1 * rows),
     endRow: Math.min(Math.ceil(y2 * rows), rows),
   };
+}
+
+function isToxicTerrainIndex(terrainIndex) {
+  return terrainIndex === TERRAIN.AcidicSwamp || terrainIndex === TERRAIN.AcidicBog;
+}
+
+function toToxicTerrainIndex(terrainIndex) {
+  if (terrainIndex === TERRAIN.Swamp) return TERRAIN.AcidicSwamp;
+  if (terrainIndex === TERRAIN.Bog) return TERRAIN.AcidicBog;
+  return terrainIndex;
+}
+
+function toBaseTerrainIndex(terrainIndex) {
+  if (terrainIndex === TERRAIN.AcidicSwamp) return TERRAIN.Swamp;
+  if (terrainIndex === TERRAIN.AcidicBog) return TERRAIN.Bog;
+  return terrainIndex;
+}
+
+function getRoleBounds(template, role, cols, rows) {
+  const zone = template?.zones?.find((z) => z.role === role);
+  if (zone?.rect) {
+    const bounds = resolveNormalizedRectBounds(zone.rect, cols, rows);
+    if (bounds) return bounds;
+  }
+  if (role === 'playerSpawn') {
+    return { startCol: 0, endCol: Math.min(3, cols), startRow: 0, endRow: rows };
+  }
+  if (role === 'enemySpawn') {
+    return { startCol: Math.max(0, cols - 3), endCol: cols, startRow: 0, endRow: rows };
+  }
+  return null;
+}
+
+function addBoundsExclusionRing(bounds, cols, rows, excludedKeys, padding = 1) {
+  if (!bounds) return;
+  const startCol = Math.max(0, bounds.startCol - padding);
+  const endCol = Math.min(cols, bounds.endCol + padding);
+  const startRow = Math.max(0, bounds.startRow - padding);
+  const endRow = Math.min(rows, bounds.endRow + padding);
+  for (let r = startRow; r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      excludedKeys.add(`${c},${r}`);
+    }
+  }
+}
+
+function addPointManhattanExclusion(point, radius, cols, rows, excludedKeys) {
+  if (!point) return;
+  for (let r = Math.max(0, point.row - radius); r <= Math.min(rows - 1, point.row + radius); r++) {
+    for (
+      let c = Math.max(0, point.col - radius);
+      c <= Math.min(cols - 1, point.col + radius);
+      c++
+    ) {
+      if (Math.abs(c - point.col) + Math.abs(r - point.row) <= radius) {
+        excludedKeys.add(`${c},${r}`);
+      }
+    }
+  }
+}
+
+function countNeighborsInSet(key, keySet) {
+  const [col, row] = key.split(',').map(Number);
+  let neighbors = 0;
+  if (keySet.has(`${col - 1},${row}`)) neighbors++;
+  if (keySet.has(`${col + 1},${row}`)) neighbors++;
+  if (keySet.has(`${col},${row - 1}`)) neighbors++;
+  if (keySet.has(`${col},${row + 1}`)) neighbors++;
+  return neighbors;
+}
+
+function trimToxicClusters(selectedKeys, maxClusterSize = 6) {
+  if (selectedKeys.size <= maxClusterSize) return;
+  const visited = new Set();
+  const keys = Array.from(selectedKeys);
+  for (const key of keys) {
+    if (visited.has(key) || !selectedKeys.has(key)) continue;
+    const queue = [key];
+    const component = new Set();
+    visited.add(key);
+    while (queue.length > 0) {
+      const current = queue.shift();
+      component.add(current);
+      const [col, row] = current.split(',').map(Number);
+      const neighbors = [
+        `${col - 1},${row}`,
+        `${col + 1},${row}`,
+        `${col},${row - 1}`,
+        `${col},${row + 1}`,
+      ];
+      for (const next of neighbors) {
+        if (!selectedKeys.has(next) || visited.has(next)) continue;
+        visited.add(next);
+        queue.push(next);
+      }
+    }
+    while (component.size > maxClusterSize) {
+      const edgeKeys = [];
+      for (const componentKey of component) {
+        if (countNeighborsInSet(componentKey, component) < 4) edgeKeys.push(componentKey);
+      }
+      const pool = edgeKeys.length > 0 ? edgeKeys : Array.from(component);
+      const picked = pool[Math.floor(Math.random() * pool.length)];
+      component.delete(picked);
+      selectedKeys.delete(picked);
+    }
+  }
+}
+
+function collectZonePassableTiles(mapLayout, bounds, terrainData, { allowToxic = true } = {}) {
+  if (!bounds) return [];
+  const tiles = [];
+  for (let r = bounds.startRow; r < bounds.endRow; r++) {
+    for (let c = bounds.startCol; c < bounds.endCol; c++) {
+      const terrainIndex = mapLayout[r]?.[c];
+      if (!isPassable(terrainData, terrainIndex, 'Infantry')) continue;
+      if (!allowToxic && isToxicTerrainIndex(terrainIndex)) continue;
+      tiles.push({ col: c, row: r });
+    }
+  }
+  return tiles;
+}
+
+function findPathBetweenZoneTiles(
+  mapLayout,
+  cols,
+  rows,
+  terrainData,
+  startTiles,
+  targetTiles,
+  { allowToxic = true } = {},
+) {
+  if (!Array.isArray(startTiles) || startTiles.length === 0) return null;
+  if (!Array.isArray(targetTiles) || targetTiles.length === 0) return null;
+
+  const targetSet = new Set(targetTiles.map((tile) => `${tile.col},${tile.row}`));
+  const queue = [];
+  let head = 0;
+  const visited = new Set();
+  const parents = new Map();
+
+  for (const tile of startTiles) {
+    const key = `${tile.col},${tile.row}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    queue.push(tile);
+    parents.set(key, null);
+  }
+
+  while (head < queue.length) {
+    const current = queue[head++];
+    const currentKey = `${current.col},${current.row}`;
+    if (targetSet.has(currentKey)) {
+      const path = [];
+      let walk = currentKey;
+      while (walk != null) {
+        const [col, row] = walk.split(',').map(Number);
+        path.push({ col, row });
+        walk = parents.get(walk) ?? null;
+      }
+      path.reverse();
+      return path;
+    }
+
+    const neighbors = [
+      { col: current.col - 1, row: current.row },
+      { col: current.col + 1, row: current.row },
+      { col: current.col, row: current.row - 1 },
+      { col: current.col, row: current.row + 1 },
+    ];
+    for (const next of neighbors) {
+      if (next.col < 0 || next.col >= cols || next.row < 0 || next.row >= rows) continue;
+      const key = `${next.col},${next.row}`;
+      if (visited.has(key)) continue;
+      const terrainIndex = mapLayout[next.row]?.[next.col];
+      if (!isPassable(terrainData, terrainIndex, 'Infantry')) continue;
+      if (!allowToxic && isToxicTerrainIndex(terrainIndex)) continue;
+      visited.add(key);
+      parents.set(key, currentKey);
+      queue.push(next);
+    }
+  }
+
+  return null;
+}
+
+function ensureNonToxicPathBetweenSpawnZones(
+  mapLayout,
+  template,
+  cols,
+  rows,
+  terrainData,
+  playerBounds,
+  enemyBounds,
+) {
+  const anyStarts = collectZonePassableTiles(mapLayout, playerBounds, terrainData, {
+    allowToxic: true,
+  });
+  const anyTargets = collectZonePassableTiles(mapLayout, enemyBounds, terrainData, {
+    allowToxic: true,
+  });
+  if (anyStarts.length === 0 || anyTargets.length === 0) return;
+
+  const maxAttempts = Math.max(cols * rows, 8);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const nonToxicStarts = collectZonePassableTiles(mapLayout, playerBounds, terrainData, {
+      allowToxic: false,
+    });
+    const nonToxicTargets = collectZonePassableTiles(mapLayout, enemyBounds, terrainData, {
+      allowToxic: false,
+    });
+    if (nonToxicStarts.length > 0 && nonToxicTargets.length > 0) {
+      const safePath = findPathBetweenZoneTiles(
+        mapLayout,
+        cols,
+        rows,
+        terrainData,
+        nonToxicStarts,
+        nonToxicTargets,
+        { allowToxic: false },
+      );
+      if (safePath) return;
+    }
+
+    const fallbackPath = findPathBetweenZoneTiles(
+      mapLayout,
+      cols,
+      rows,
+      terrainData,
+      anyStarts,
+      anyTargets,
+      { allowToxic: true },
+    );
+    if (!fallbackPath) return;
+
+    let removed = false;
+    for (const tile of fallbackPath) {
+      const idx = mapLayout[tile.row]?.[tile.col];
+      const base = toBaseTerrainIndex(idx);
+      if (base !== idx) {
+        mapLayout[tile.row][tile.col] = base;
+        removed = true;
+      }
+    }
+    if (!removed) return;
+  }
+  mapGenLog.debug('[MapGen] Toxic overlay retained with no guaranteed non-toxic lane', {
+    templateId: template?.id,
+  });
+}
+
+function applyToxicOverlay({ mapLayout, template, cols, rows, terrainData, act, thronePos }) {
+  if (!mapLayout || !template || template.biome !== 'swamp') return 0;
+  const coverage = TOXIC_COVERAGE_BY_ACT[act] ?? 0;
+  if (!Number.isFinite(coverage) || coverage <= 0) return 0;
+
+  const playerBounds = getRoleBounds(template, 'playerSpawn', cols, rows);
+  const enemyBounds = getRoleBounds(template, 'enemySpawn', cols, rows);
+  const excluded = new Set();
+  addBoundsExclusionRing(playerBounds, cols, rows, excluded, 1);
+  addPointManhattanExclusion(thronePos, 1, cols, rows, excluded);
+
+  const candidates = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = mapLayout[r][c];
+      if (idx !== TERRAIN.Swamp && idx !== TERRAIN.Bog) continue;
+      if (excluded.has(`${c},${r}`)) continue;
+      candidates.push({ col: c, row: r });
+    }
+  }
+  if (candidates.length === 0) return 0;
+
+  shuffleArray(candidates);
+  const targetCount = Math.max(1, Math.floor(candidates.length * coverage));
+  const selected = new Set();
+  for (let i = 0; i < candidates.length && selected.size < targetCount; i++) {
+    const tile = candidates[i];
+    selected.add(`${tile.col},${tile.row}`);
+  }
+
+  trimToxicClusters(selected, 6);
+  for (const key of selected) {
+    const [col, row] = key.split(',').map(Number);
+    mapLayout[row][col] = toToxicTerrainIndex(mapLayout[row][col]);
+  }
+
+  ensureNonToxicPathBetweenSpawnZones(
+    mapLayout,
+    template,
+    cols,
+    rows,
+    terrainData,
+    playerBounds,
+    enemyBounds,
+  );
+
+  let count = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (isToxicTerrainIndex(mapLayout[r][c])) count++;
+    }
+  }
+  return count;
 }
 
 function capTerrainCount(map, terrainIdx, maxCount, fallbackTerrain = TERRAIN.Plain) {

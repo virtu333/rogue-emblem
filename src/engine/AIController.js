@@ -9,6 +9,7 @@ import { getTerrainCostReduction } from './SkillSystem.js';
 import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
 import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
+import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 
 const DEBUG_AI = false;
@@ -236,7 +237,7 @@ export class AIController {
     }
 
     const occupiedTiles = new Set(unitPositions.keys());
-    const candidatePlans = [];
+    let candidatePlans = [];
     for (const tile of candidates) {
       let path = null;
       if (tile.col !== enemy.col || tile.row !== enemy.row) {
@@ -245,6 +246,28 @@ export class AIController {
       }
       const { finalTile } = this._predictFinalTileFromPath(enemy, tile, path, occupiedTiles);
       candidatePlans.push({ tile, path, finalTile });
+    }
+
+    // Avoid acidic terrain when there is a safe landing alternative.
+    const mapLayout = this.grid?.mapLayout;
+    if (
+      Array.isArray(mapLayout) &&
+      enemy.moveType !== 'Flying' &&
+      !enemy.poisonImmune &&
+      !enemy.terrainHazardImmune
+    ) {
+      const safePlans = candidatePlans.filter((candidatePlan) => {
+        const idx = mapLayout[candidatePlan.finalTile.row]?.[candidatePlan.finalTile.col];
+        if (idx == null) return true;
+        return !isAcidTerrainIndex(idx);
+      });
+      if (safePlans.length > 0) {
+        candidatePlans = safePlans;
+        const safeTiles = new Set(
+          safePlans.map((candidatePlan) => `${candidatePlan.tile.col},${candidatePlan.tile.row}`),
+        );
+        candidates = candidates.filter((tile) => safeTiles.has(`${tile.col},${tile.row}`));
+      }
     }
 
     // --- Status staff targeting (checked before normal attack) ---

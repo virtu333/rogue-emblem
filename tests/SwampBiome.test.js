@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { generateBattle, pickTemplate, rollBiome } from '../src/engine/MapGenerator.js';
+import { computeAcidDamage, isAcidTerrainIndex } from '../src/engine/TerrainHazards.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { ACT_BIOME_WEIGHTS, TERRAIN } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
@@ -29,11 +30,30 @@ describe('Swamp Biome', () => {
     expect(bog.avoidBonus).toBe('-5');
   });
 
+  it('terrain.json includes Acidic Swamp and Acidic Bog matching parent movement profiles', () => {
+    const acidicSwamp = data.terrain.find((t) => t.name === 'Acidic Swamp');
+    const acidicBog = data.terrain.find((t) => t.name === 'Acidic Bog');
+
+    expect(acidicSwamp).toBeTruthy();
+    expect(acidicSwamp.moveCost).toEqual(data.terrain[TERRAIN.Swamp].moveCost);
+    expect(acidicSwamp.avoidBonus).toBe('-10');
+    expect(acidicSwamp.special).toContain('Acid (2T)');
+
+    expect(acidicBog).toBeTruthy();
+    expect(acidicBog.moveCost).toEqual(data.terrain[TERRAIN.Bog].moveCost);
+    expect(acidicBog.avoidBonus).toBe('-5');
+    expect(acidicBog.special).toContain('Acid (2T)');
+  });
+
   it('TERRAIN enum aligns with terrain.json indices for Swamp/Bog', () => {
     expect(TERRAIN.Swamp).toBe(15);
     expect(TERRAIN.Bog).toBe(16);
+    expect(TERRAIN.AcidicSwamp).toBe(17);
+    expect(TERRAIN.AcidicBog).toBe(18);
     expect(data.terrain[TERRAIN.Swamp].name).toBe('Swamp');
     expect(data.terrain[TERRAIN.Bog].name).toBe('Bog');
+    expect(data.terrain[TERRAIN.AcidicSwamp].name).toBe('Acidic Swamp');
+    expect(data.terrain[TERRAIN.AcidicBog].name).toBe('Acidic Bog');
   });
 
   it('Swamp blocks Armored and Cavalry movement', () => {
@@ -80,12 +100,13 @@ describe('Swamp Biome', () => {
     expect(Array.isArray(t.reinforcements.xpDecay)).toBe(true);
   });
 
-  it('pickTemplate selects mire_crossing for swamp rout in acts 2-4', () => {
+  it('pickTemplate selects a swamp template for swamp rout in acts 2-4', () => {
     for (const act of ['act2', 'act3', 'act4']) {
       for (let i = 0; i < 20; i++) {
         const picked = pickTemplate('rout', data.mapTemplates, act, { biome: 'swamp' });
         expect(picked).toBeTruthy();
-        expect(picked.id).toBe('mire_crossing');
+        // Future-proof for additional swamp templates.
+        expect(picked.biome).toBe('swamp');
       }
     }
   });
@@ -94,7 +115,7 @@ describe('Swamp Biome', () => {
     let sawSwamp = false;
     let sawBog = false;
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 15; i++) {
       const battle = generateBattle(
         { act: 'act2', objective: 'rout', templateId: 'mire_crossing', deployCount: 4, row: 1 },
         data,
@@ -134,5 +155,20 @@ describe('Swamp Biome', () => {
     const difficultSet = new Set(data.turnBonus.difficultTerrainTypes);
     expect(difficultSet.has('Swamp')).toBe(true);
     expect(difficultSet.has('Bog')).toBe(true);
+    expect(difficultSet.has('Acidic Swamp')).toBe(true);
+    expect(difficultSet.has('Acidic Bog')).toBe(true);
+  });
+
+  it('acid helper functions classify terrain indices and apply capped 5% damage', () => {
+    expect(isAcidTerrainIndex(TERRAIN.AcidicSwamp)).toBe(true);
+    expect(isAcidTerrainIndex(TERRAIN.AcidicBog)).toBe(true);
+    expect(isAcidTerrainIndex(TERRAIN.Swamp)).toBe(false);
+    expect(isAcidTerrainIndex(TERRAIN.LavaCrack)).toBe(false);
+
+    expect(computeAcidDamage(20)).toBe(1);
+    expect(computeAcidDamage(40)).toBe(2);
+    expect(computeAcidDamage(100)).toBe(5);
+    expect(computeAcidDamage(200)).toBe(10);
+    expect(computeAcidDamage(1)).toBe(1);
   });
 });

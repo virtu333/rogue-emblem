@@ -202,5 +202,29 @@
     "avoidBonus": "-5",
     "defBonus": "0",
     "special": "Universal access but slow. Negative avoid."
+  },
+  {
+    "name": "Acidic Swamp",
+    "moveCost": {
+      "Infantry": "3",
+      "Armored": "--",
+      "Cavalry": "--",
+      "Flying": "1"
+    },
+    "avoidBonus": "-10",
+    "defBonus": "0",
+    "special": "Hazard: Applies Acid (2T). Infantry and Flying only."
+  },
+  {
+    "name": "Acidic Bog",
+    "moveCost": {
+      "Infantry": "2",
+      "Armored": "3",
+      "Cavalry": "3",
+      "Flying": "1"
+    },
+    "avoidBonus": "-5",
+    "defBonus": "0",
+    "special": "Hazard: Applies Acid (2T). Slow for all."
   }
 ]
