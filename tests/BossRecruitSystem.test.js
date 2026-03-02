@@ -415,6 +415,11 @@ describe('BossRecruitSystem', () => {
       expect(
         candidates.every((c) => c.unit.consumables.some((item) => item.name === 'Vulnerary')),
       ).toBe(true);
+      expect(
+        candidates.every((c) =>
+          c.unit.consumables.every((item) => typeof item.uid === 'string' && item.uid.length > 0),
+        ),
+      ).toBe(true);
     });
   });
 
@@ -654,7 +659,10 @@ describe('BossRecruitSystem', () => {
       const lordDef = gameData.lords.find((l) => l.name === 'Kira');
       const classData = gameData.classes.find((c) => c.name === lordDef.class);
       const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 5, null);
-      expect(unit.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
+      const vulnerary = unit.consumables.find((c) => c.name === 'Vulnerary');
+      expect(vulnerary).toBeTruthy();
+      expect(typeof vulnerary?.uid).toBe('string');
+      expect(vulnerary?.uid?.length || 0).toBeGreaterThan(0);
     });
 
     it('has personalSkillL20 data preserved', () => {

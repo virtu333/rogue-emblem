@@ -20,6 +20,7 @@ import {
   GOLD_BATTLE_REWARD_MULTIPLIER,
   GOLD_LOOT_REWARD_MULTIPLIER,
 } from '../utils/constants.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 import { getWeaponArtAllowedTypes } from './WeaponArtSystem.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
@@ -161,16 +162,16 @@ function isCombatWeaponType(type) {
  */
 function findItem(name, allWeapons, consumables, allAccessories, allWhetstones) {
   const weapon = allWeapons.find((w) => w.name === name);
-  if (weapon) return { ...weapon };
+  if (weapon) return ensureItemUid({ ...weapon });
   const consumable = consumables.find((c) => c.name === name);
-  if (consumable) return { ...consumable };
+  if (consumable) return ensureItemUid({ ...consumable });
   if (allAccessories) {
     const accessory = allAccessories.find((a) => a.name === name);
-    if (accessory) return { ...accessory };
+    if (accessory) return ensureItemUid({ ...accessory });
   }
   if (allWhetstones) {
     const whetstone = allWhetstones.find((w) => w.name === name);
-    if (whetstone) return { ...whetstone };
+    if (whetstone) return ensureItemUid({ ...whetstone });
   }
   return null;
 }
@@ -513,7 +514,7 @@ export function generateRandomLegendary(allWeapons) {
     weapon._grantedSkill = skillId;
   }
 
-  return weapon;
+  return ensureItemUid(weapon);
 }
 
 /**
@@ -951,7 +952,7 @@ export function generateLootChoices(
 
     let item;
     if (randomLegendary && name === randomLegendary.name) {
-      item = structuredClone(randomLegendary);
+      item = ensureItemUid(structuredClone(randomLegendary));
     } else {
       item = findItem(name, allWeapons, consumables, allAccessories, allWhetstones);
     }
@@ -1027,7 +1028,9 @@ export function generateShopInventory(
     if (item.price <= 0) return false;
 
     usedNames.add(name);
-    const finalItem = applyMetaInnateArtToItem(structuredClone(item), metaInnateArtConfig) || item;
+    const finalItem =
+      applyMetaInnateArtToItem(structuredClone(item), metaInnateArtConfig) || structuredClone(item);
+    ensureItemUid(finalItem);
     const type = forcedType || shopEntryTypeForItem(finalItem);
     inventory.push({ item: finalItem, price: finalItem.price, type });
     return true;
@@ -1082,7 +1085,7 @@ export function generateShopInventory(
     if (!item || item.price <= 0) continue;
 
     usedNames.add(name);
-    const finalItem = structuredClone(item);
+    const finalItem = ensureItemUid(structuredClone(item));
     applyMetaInnateArtToItem(finalItem, metaInnateArtConfig);
     inventory.push({
       item: finalItem,
@@ -1100,7 +1103,7 @@ export function generateShopInventory(
       if (cureItem && cureItem.price > 0) {
         usedNames.add(cureName);
         inventory.push({
-          item: structuredClone(cureItem),
+          item: ensureItemUid(structuredClone(cureItem)),
           price: cureItem.price,
           type: 'consumable',
         });

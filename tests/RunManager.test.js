@@ -212,6 +212,21 @@ describe('RunManager', () => {
       expect(sera.proficiencies.some((p) => p.type === 'Staff')).toBe(true);
     });
 
+    it('stamps uid on starter consumables and starter accessory instances', () => {
+      const rmMeta = new RunManager(gameData, { extraVulnerary: 1, startingAccessoryTier: 1 });
+      rmMeta.startRun();
+      const [edric, sera] = rmMeta.roster;
+
+      expect(
+        edric.consumables.every((item) => typeof item.uid === 'string' && item.uid.length > 0),
+      ).toBe(true);
+      expect(
+        sera.consumables.every((item) => typeof item.uid === 'string' && item.uid.length > 0),
+      ).toBe(true);
+      expect(typeof edric.accessory?.uid).toBe('string');
+      expect(edric.accessory?.uid?.length || 0).toBeGreaterThan(0);
+    });
+
     it('generates act1 node map', () => {
       rm.startRun();
       expect(rm.nodeMap).toBeTruthy();
@@ -434,6 +449,32 @@ describe('RunManager', () => {
       expect(serialized.consumables[0].uses).toBe(3);
       // Weapon identity: serialized weapon should be in serialized inventory
       expect(serialized.inventory.includes(serialized.weapon)).toBe(true);
+    });
+
+    it('prefers uid to preserve weapon linkage when object identity differs', () => {
+      const inventoryWeapon = {
+        name: 'Iron Sword',
+        type: 'Sword',
+        rankRequired: 'Prof',
+        uid: 'itm_a',
+      };
+      const unit = {
+        name: 'Test',
+        stats: { HP: 20 },
+        inventory: [inventoryWeapon],
+        weapon: { ...inventoryWeapon, might: 99 },
+        skills: [],
+        proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+        consumables: [],
+        graphic: null,
+        label: null,
+        hpBar: null,
+        hasMoved: false,
+        hasActed: false,
+      };
+      const serialized = serializeUnit(unit);
+      expect(serialized.weapon).toBe(serialized.inventory[0]);
+      expect(serialized.weapon.uid).toBe('itm_a');
     });
 
     it('is safe to structuredClone after stripping Phaser fields', () => {
@@ -2287,6 +2328,40 @@ describe('weapon reference integrity (relinkWeapon)', () => {
     const rm = new RunManager(gameData);
     rm.startRun();
     const json = rm.toJSON();
+    const restored = RunManager.fromJSON(json, gameData);
+    for (const unit of restored.roster) {
+      if (unit.weapon) {
+        expect(unit.inventory).toContain(unit.weapon);
+      }
+    }
+  });
+
+  it('relinks by uid when payload differs from inventory entry', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    const unit = json.roster[0];
+    unit.inventory[0].uid = 'itm_test_1';
+    unit.weapon = { ...unit.inventory[0], might: 999, uid: 'itm_test_1' };
+
+    const restored = RunManager.fromJSON(json, gameData);
+    expect(restored.roster[0].weapon).toBe(restored.roster[0].inventory[0]);
+    expect(restored.roster[0].weapon.uid).toBe('itm_test_1');
+  });
+
+  it('fromJSON remains compatible with saves that have no item uid fields', () => {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const json = rm.toJSON();
+    for (const unit of json.roster) {
+      if (Array.isArray(unit.inventory)) {
+        for (const item of unit.inventory) delete item.uid;
+      }
+      if (Array.isArray(unit.consumables)) {
+        for (const item of unit.consumables) delete item.uid;
+      }
+      if (unit.weapon) delete unit.weapon.uid;
+    }
     const restored = RunManager.fromJSON(json, gameData);
     for (const unit of restored.roster) {
       if (unit.weapon) {

@@ -152,7 +152,8 @@ describe('Accessories', () => {
       const serialized = serializeUnit(unit);
       const json = JSON.stringify(serialized);
       const restored = JSON.parse(json);
-      expect(restored.accessory).toEqual(ring);
+      expect(restored.accessory).toMatchObject(ring);
+      expect(typeof restored.accessory.uid).toBe('string');
       expect(restored.stats.SKL).toBe(unit.stats.SKL);
     });
   });

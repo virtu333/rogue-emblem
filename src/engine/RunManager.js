@@ -50,6 +50,7 @@ import {
   getWeaponArtBindings,
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
@@ -159,6 +160,13 @@ function createActiveBlessingEntry(id, rolledCost = null) {
   };
 }
 
+function legacyItemSignature(item) {
+  if (!item || typeof item !== 'object') return JSON.stringify(item);
+  const clone = structuredClone(item);
+  delete clone.uid;
+  return JSON.stringify(clone);
+}
+
 /** After JSON round-trip, re-link unit.weapon to matching inventory reference.
  *  Enforces proficiency: drops non-proficient equipped weapons to first valid or null. */
 function relinkWeapon(unit) {
@@ -168,11 +176,30 @@ function relinkWeapon(unit) {
   }
   // If weapon is already in inventory AND proficient, keep it
   if (unit.inventory.includes(unit.weapon) && canEquip(unit, unit.weapon)) return;
-  // Try JSON match that is also proficient
-  const weaponStr = JSON.stringify(unit.weapon);
-  const match = unit.inventory.find((w) => JSON.stringify(w) === weaponStr && canEquip(unit, w));
+  // Prefer stable UID matching for modern saves.
+  const uid = typeof unit.weapon.uid === 'string' ? unit.weapon.uid : '';
+  if (uid) {
+    const uidMatch = unit.inventory.find((w) => w?.uid === uid && canEquip(unit, w));
+    if (uidMatch) {
+      unit.weapon = uidMatch;
+      return;
+    }
+  }
+  // Legacy fallback for old saves without UIDs.
+  const weaponSig = legacyItemSignature(unit.weapon);
+  const match = unit.inventory.find(
+    (w) => legacyItemSignature(w) === weaponSig && canEquip(unit, w),
+  );
   // Fallback: first proficient weapon in inventory
   unit.weapon = match || unit.inventory.find((w) => canEquip(unit, w)) || null;
+}
+
+function stampUnitItemUids(unit) {
+  if (!unit || typeof unit !== 'object') return;
+  if (Array.isArray(unit.inventory)) unit.inventory.forEach(ensureItemUid);
+  if (Array.isArray(unit.consumables)) unit.consumables.forEach(ensureItemUid);
+  if (unit.weapon && typeof unit.weapon === 'object') ensureItemUid(unit.weapon);
+  if (unit.accessory && typeof unit.accessory === 'object') ensureItemUid(unit.accessory);
 }
 
 function parsePersonalSkillId(personalSkillStr) {
@@ -191,24 +218,31 @@ export function serializeUnit(unit) {
     data.stats = { ...unit.stats };
   }
   // Deep-clone mutable collection fields to prevent shared-reference mutations
-  if (Array.isArray(data.inventory)) data.inventory = data.inventory.map((i) => structuredClone(i));
+  if (Array.isArray(data.inventory))
+    data.inventory = data.inventory.map((i) => ensureItemUid(structuredClone(i)));
   if (Array.isArray(data.skills)) data.skills = [...data.skills];
   if (Array.isArray(data.consumables))
-    data.consumables = data.consumables.map((c) => structuredClone(c));
+    data.consumables = data.consumables.map((c) => ensureItemUid(structuredClone(c)));
   if (Array.isArray(data.proficiencies))
     data.proficiencies = data.proficiencies.map((p) => ({ ...p }));
-  if (data.accessory) data.accessory = structuredClone(data.accessory);
+  if (data.accessory) data.accessory = ensureItemUid(structuredClone(data.accessory));
   // Relink weapon to cloned inventory item (preserves identity invariant)
   if (data.weapon && Array.isArray(data.inventory) && Array.isArray(unit.inventory)) {
-    const origIdx = unit.inventory.indexOf(unit.weapon);
+    const weaponUid = typeof unit.weapon?.uid === 'string' ? unit.weapon.uid : '';
+    let origIdx = weaponUid ? data.inventory.findIndex((w) => w?.uid === weaponUid) : -1;
+    if (origIdx < 0) origIdx = unit.inventory.indexOf(unit.weapon);
+    if (origIdx < 0) {
+      const weaponSig = legacyItemSignature(unit.weapon);
+      origIdx = unit.inventory.findIndex((w) => legacyItemSignature(w) === weaponSig);
+    }
     if (origIdx >= 0 && origIdx < data.inventory.length) {
       data.weapon = data.inventory[origIdx];
     } else {
       // Weapon not in inventory (legacy/edge case) — deep-clone independently
-      data.weapon = structuredClone(unit.weapon);
+      data.weapon = ensureItemUid(structuredClone(unit.weapon));
     }
   } else if (data.weapon) {
-    data.weapon = structuredClone(unit.weapon);
+    data.weapon = ensureItemUid(structuredClone(unit.weapon));
   }
   for (const key of PHASER_FIELDS) data[key] = null;
   data.hasMoved = false;
@@ -2233,7 +2267,7 @@ export class RunManager {
     if (edricSteelSword) addToInventory(edricUnit, edricSteelSword);
     this._applyDeadlyArsenalLoadout(edricUnit);
 
-    edricUnit.consumables.push({
+    addToConsumables(edricUnit, {
       name: 'Vulnerary',
       type: 'Consumable',
       effect: 'heal',
@@ -2242,7 +2276,7 @@ export class RunManager {
       price: 300,
     });
     if (me?.extraVulnerary) {
-      edricUnit.consumables.push({
+      addToConsumables(edricUnit, {
         name: 'Vulnerary',
         type: 'Consumable',
         effect: 'heal',
@@ -2265,7 +2299,7 @@ export class RunManager {
     const staff = weapons.find((w) => w.name === staffName);
     if (staff) addToInventory(seraUnit, staff);
 
-    seraUnit.consumables.push({
+    addToConsumables(seraUnit, {
       name: 'Vulnerary',
       type: 'Consumable',
       effect: 'heal',
@@ -2303,7 +2337,7 @@ export class RunManager {
     if (accTier > 0 && accessories) {
       const accName = STARTING_ACCESSORY_TIERS[accTier];
       const acc = accessories.find((a) => a.name === accName);
-      if (acc) equipAccessory(edricUnit, structuredClone(acc));
+      if (acc) equipAccessory(edricUnit, ensureItemUid(structuredClone(acc)));
     }
 
     // Starting reclass seal from meta upgrade
@@ -2511,7 +2545,7 @@ export class RunManager {
   addToConvoy(item) {
     const bucket = getConvoyBucket(item);
     if (!bucket || !this.canAddToConvoy(item)) return false;
-    const clone = structuredClone(item);
+    const clone = ensureItemUid(structuredClone(item));
     if (bucket === 'consumables') {
       this.convoy.consumables.push(clone);
     } else {
@@ -2540,8 +2574,15 @@ export class RunManager {
     if (equipped) {
       let equippedInInventory = inventory.includes(equipped);
       if (!equippedInInventory && inventory.length > 0) {
-        const equippedStr = JSON.stringify(equipped);
-        const equivalent = inventory.find((item) => JSON.stringify(item) === equippedStr);
+        const equippedUid = typeof equipped.uid === 'string' ? equipped.uid : '';
+        let equivalent = null;
+        if (equippedUid) {
+          equivalent = inventory.find((item) => item?.uid === equippedUid) || null;
+        }
+        if (!equivalent) {
+          const equippedSig = legacyItemSignature(equipped);
+          equivalent = inventory.find((item) => legacyItemSignature(item) === equippedSig) || null;
+        }
         if (equivalent) {
           fallenUnit.weapon = equivalent;
           equippedInInventory = true;
@@ -2571,7 +2612,7 @@ export class RunManager {
     fallenUnit.consumables = keptConsumables;
 
     if (fallenUnit.accessory) {
-      this.accessories.push(structuredClone(fallenUnit.accessory));
+      this.accessories.push(ensureItemUid(structuredClone(fallenUnit.accessory)));
       fallenUnit.accessory = null;
     }
 
@@ -3579,6 +3620,16 @@ export class RunManager {
     RunManager.migrateUnitClassState(rm);
     RunManager.migrateWeaponArtItemState(rm);
     RunManager.migrateClassLearnableSkills(rm);
+
+    // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
+    rm.roster.forEach(stampUnitItemUids);
+    rm.fallenUnits.forEach(stampUnitItemUids);
+    if (Array.isArray(rm.convoy?.weapons)) rm.convoy.weapons.forEach(ensureItemUid);
+    if (Array.isArray(rm.convoy?.consumables)) rm.convoy.consumables.forEach(ensureItemUid);
+    if (Array.isArray(rm.accessories)) rm.accessories.forEach(ensureItemUid);
+    if (rm.randomLegendary && typeof rm.randomLegendary === 'object') {
+      ensureItemUid(rm.randomLegendary);
+    }
 
     rm.roster.forEach((u) => relinkWeapon(u));
     rm.fallenUnits.forEach((u) => relinkWeapon(u));

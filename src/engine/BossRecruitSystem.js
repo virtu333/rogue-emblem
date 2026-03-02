@@ -8,6 +8,7 @@ import {
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
 } from '../utils/constants.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 import { resolveRecruitScalingTargets } from './RecruitScaling.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
@@ -250,14 +251,16 @@ export function createBossLordUnit(
 
   // Give a Vulnerary
   unit.consumables.push(
-    structuredClone({
-      name: 'Vulnerary',
-      type: 'Consumable',
-      effect: 'heal',
-      value: 10,
-      uses: 3,
-      price: 300,
-    }),
+    ensureItemUid(
+      structuredClone({
+        name: 'Vulnerary',
+        type: 'Consumable',
+        effect: 'heal',
+        value: 10,
+        uses: 3,
+        price: 300,
+      }),
+    ),
   );
 
   return unit;
@@ -487,7 +490,7 @@ function createRecruitFromPool(
   const maybeAddStartingVulnerary = (unit) => {
     if (!metaEffects?.recruitStartingVulnerary) return;
     const vulnerary = (consumables || []).find((c) => c.name === 'Vulnerary');
-    if (vulnerary) unit.consumables.push(structuredClone(vulnerary));
+    if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
   };
   const addClassInnates = (unit, className) => {
     for (const sid of getClassInnateSkills(className, skills)) {

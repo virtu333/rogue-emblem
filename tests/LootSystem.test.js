@@ -8,6 +8,7 @@ import {
   getSellPrice,
   generateLootChoices,
   generateShopInventory,
+  generateRandomLegendary,
 } from '../src/engine/LootSystem.js';
 import {
   GOLD_PER_KILL_BASE,
@@ -244,6 +245,23 @@ describe('LootSystem', () => {
           expect(choice.item.name).toBeTruthy();
           expect(choice.item.type).toBeTruthy();
         }
+      }
+    });
+
+    it('non-gold loot choices include item uid', () => {
+      const choices = generateLootChoices(
+        'act2',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+        12,
+        0,
+        gameData.accessories,
+        gameData.whetstones,
+      );
+      for (const choice of choices.filter((entry) => entry.item)) {
+        expect(typeof choice.item.uid).toBe('string');
+        expect(choice.item.uid.length).toBeGreaterThan(0);
       }
     });
 
@@ -514,6 +532,16 @@ describe('LootSystem', () => {
       randomSpy.mockRestore();
       expect(choices[0].type).toBe('weapon');
       expect(choices[0].item.tier).toBe('Legend');
+    });
+  });
+
+  describe('generateRandomLegendary', () => {
+    it('assigns uid and returns unique instances', () => {
+      const a = generateRandomLegendary(gameData.weapons);
+      const b = generateRandomLegendary(gameData.weapons);
+      expect(typeof a.uid).toBe('string');
+      expect(typeof b.uid).toBe('string');
+      expect(a.uid).not.toBe(b.uid);
     });
   });
 

@@ -15,6 +15,7 @@ import {
   MAX_SKILLS,
   ENEMY_PROMOTION_BASE_LEVEL,
 } from '../utils/constants.js';
+import { ensureItemUid } from '../utils/itemUid.js';
 
 // --- Weapon proficiency parsing ---
 
@@ -194,7 +195,7 @@ export function createLordUnit(lordData, classData, allWeapons) {
   const personalSkillL20 = lordData.personalSkillL20 || null;
 
   // Clone weapon to avoid shared state
-  const weaponClone = weapon ? structuredClone(weapon) : null;
+  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
 
   return {
     name: lordData.name,
@@ -240,7 +241,7 @@ export function createUnit(classData, level, allWeapons, options = {}) {
   );
   const growths = rollGrowthRates(classData.growthRanges);
   const weapon = getDefaultWeapon(proficiencies, allWeapons);
-  const weaponClone = weapon ? structuredClone(weapon) : null;
+  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
 
   const unit = {
     name: options.name || classData.name,
@@ -387,7 +388,7 @@ export function createEnemyUnit(
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
 
   // Clone weapon to avoid shared state
-  const weaponClone = weapon ? structuredClone(weapon) : null;
+  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
 
   const unit = {
     name: classData.name,
@@ -502,7 +503,7 @@ export function createRecruitUnit(
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
 
   // Clone weapon to avoid shared state
-  const weaponClone = weapon ? structuredClone(weapon) : null;
+  const weaponClone = ensureItemUid(weapon ? structuredClone(weapon) : null);
 
   const unit = {
     name: recruitDef.name,
@@ -1184,7 +1185,8 @@ export function addToInventory(unit, weapon, max = 5) {
   if (weapon.type === 'Consumable' || weapon.type === 'Scroll') return false;
   if (unit.inventory.length >= max) return false;
   // Clone weapon to avoid shared state (especially _usesSpent for staves)
-  unit.inventory.push(structuredClone(weapon));
+  const clone = ensureItemUid(structuredClone(weapon));
+  unit.inventory.push(clone);
   return true;
 }
 
@@ -1194,7 +1196,8 @@ export function addToConsumables(unit, consumable, max = 3) {
   if (!unit.consumables) unit.consumables = [];
   if (unit.consumables.length >= max) return false;
   // Clone consumable to avoid shared state (especially uses field)
-  unit.consumables.push(structuredClone(consumable));
+  const clone = ensureItemUid(structuredClone(consumable));
+  unit.consumables.push(clone);
   return true;
 }
 

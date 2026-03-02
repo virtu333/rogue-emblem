@@ -766,6 +766,26 @@ describe('grantLethalArmoryWeapon', () => {
   });
 });
 
+describe('item UID stamping', () => {
+  it('addToInventory stamps uid on cloned item', () => {
+    const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
+    const unit = createEnemyUnit(myrmidon, 1, data.weapons);
+    const steelSword = data.weapons.find((w) => w.name === 'Steel Sword');
+    const added = addToInventory(unit, steelSword);
+    expect(added).toBe(true);
+    const addedItem = unit.inventory[unit.inventory.length - 1];
+    expect(typeof addedItem.uid).toBe('string');
+    expect(addedItem.uid.length).toBeGreaterThan(0);
+  });
+
+  it('createUnit stamps uid on starter weapon', () => {
+    const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
+    const unit = createUnit(myrmidon, 1, data.weapons);
+    expect(typeof unit.weapon?.uid).toBe('string');
+    expect(unit.inventory[0]?.uid).toBe(unit.weapon?.uid);
+  });
+});
+
 describe('removeFromInventory', () => {
   it('auto-equips next combat weapon, skipping non-combat items', () => {
     const myrmidon = data.classes.find((c) => c.name === 'Myrmidon');
