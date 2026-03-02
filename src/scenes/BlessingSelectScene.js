@@ -25,6 +25,8 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.isTransitioning = false;
     this._blessingCommitted = false;
+    this._blessingRunSeed = null;
+    this._pendingBlessingSelection = null;
   }
 
   create() {
@@ -52,7 +54,18 @@ export class BlessingSelectScene extends Phaser.Scene {
       if (audio) audio.releaseMusic(this, 0);
     });
 
-    // Create RunManager — not committed until we transition to NodeMap
+    BlessingSelectScene.prototype._rebuildRunManager.call(this);
+    this.selectedIndex = 0;
+
+    this.input.keyboard.on('keydown-UP', this._onKeyUp);
+    this.input.keyboard.on('keydown-DOWN', this._onKeyDown);
+    this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
+    this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
+
+    this._draw();
+  }
+
+  _rebuildRunManager() {
     const meta = this.registry.get('meta');
     const metaEffects =
       !this.noMetaUpgrades && meta
@@ -62,16 +75,21 @@ export class BlessingSelectScene extends Phaser.Scene {
         : null;
     this.runManager = new RunManager(this.gameData, metaEffects);
     this.runManager.noMetaMode = this.noMetaUpgrades;
-    this.runManager.startRun({ difficultyId: this.difficultyId, applyBlessingsAtStart: false });
-
+    this.runManager.startRun({
+      difficultyId: this.difficultyId,
+      applyBlessingsAtStart: false,
+      runSeed: this._blessingRunSeed,
+    });
+    if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
     this.options = this.runManager.getBlessingOptions().slice(0, 4);
-    this.selectedIndex = 0;
+  }
 
-    this.input.keyboard.on('keydown-UP', this._onKeyUp);
-    this.input.keyboard.on('keydown-DOWN', this._onKeyDown);
-    this.input.keyboard.on('keydown-ENTER', this._onKeyEnter);
-    this.input.keyboard.on('keydown-ESC', this._onKeyEsc);
-
+  _rollbackBlessingCommit() {
+    this._blessingCommitted = false;
+    this._pendingBlessingSelection = null;
+    if (!this.gameData) return;
+    BlessingSelectScene.prototype._rebuildRunManager.call(this);
+    this.selectedIndex = Math.min(this.selectedIndex, this.options.length);
     this._draw();
   }
 
@@ -102,16 +120,10 @@ export class BlessingSelectScene extends Phaser.Scene {
 
       if (!this.runManager.chooseBlessing(blessingId)) return;
       this._blessingCommitted = true;
-
-      recordBlessingSelection({
+      this._pendingBlessingSelection = {
         offeredIds: this.runManager.blessingSelectionTelemetry?.offeredIds || [],
         chosenId: blessingId,
-      });
-
-      // Clear any stale run save before starting fresh
-      const cloud = this.registry.get('cloud');
-      const slot = this.registry.get('activeSlot');
-      clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+      };
     }
 
     this.isTransitioning = true;
@@ -125,9 +137,27 @@ export class BlessingSelectScene extends Phaser.Scene {
         runManager: this.runManager,
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN },
-    ).then((ok) => {
-      if (!ok) this.isTransitioning = false;
-    });
+    )
+      .then((ok) => {
+        if (!ok) {
+          this.isTransitioning = false;
+          this._rollbackBlessingCommit();
+          return;
+        }
+        // Clear stale run save only after transition success.
+        const cloud = this.registry.get('cloud');
+        const slot = this.registry.get('activeSlot');
+        clearSavedRun(cloud ? () => deleteRunSave(cloud.userId, slot) : null, slot);
+        if (this._pendingBlessingSelection) {
+          recordBlessingSelection(this._pendingBlessingSelection);
+          this._pendingBlessingSelection = null;
+        }
+      })
+      .catch((err) => {
+        console.error('[BlessingSelectScene] transition failed:', err);
+        this.isTransitioning = false;
+        this._rollbackBlessingCommit();
+      });
   }
 
   _back() {

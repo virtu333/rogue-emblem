@@ -28,7 +28,7 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
     activated: [], // [{id, name}] for UI
   };
 
-  if (!affixData || !unit.affixes) return mods;
+  if (!affixData || !unit || !Array.isArray(unit.affixes)) return mods;
   const allies = Array.isArray(allAllies) ? allAllies : [];
 
   for (const aid of unit.affixes) {
@@ -49,7 +49,7 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
 
   // Aura buffs from allies
   for (const ally of allies) {
-    if (ally === unit || !ally.affixes || ally.currentHP <= 0) continue;
+    if (ally === unit || !Array.isArray(ally.affixes) || ally.currentHP <= 0) continue;
     for (const aid of ally.affixes) {
       const affix = getAffix(aid, affixData);
       if (!affix || affix.trigger !== 'passive-aura') continue;
@@ -82,7 +82,7 @@ export function rollDefenseAffixes(defender, damage, isMelee, isFirstHitPerPhase
     activated: [],
   };
 
-  if (!affixData || !defender.affixes) return result;
+  if (!affixData || !defender || !Array.isArray(defender.affixes)) return result;
 
   for (const aid of defender.affixes) {
     const affix = getAffix(aid, affixData);

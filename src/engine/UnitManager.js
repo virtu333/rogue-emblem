@@ -555,6 +555,9 @@ export function createRecruitUnit(
     }
     if (statBonuses.HP) unit.currentHP += statBonuses.HP;
   }
+  if (Number.isFinite(unit.stats?.HP)) {
+    unit.currentHP = Math.min(unit.currentHP, unit.stats.HP);
+  }
 
   // Random combat skill from meta upgrade
   if (randomSkillPool && randomSkillPool.length > 0) {
@@ -771,6 +774,9 @@ export function applyLevelUpGains(unit, levelUpResult) {
   }
   // Keep currentHP in sync — heal the HP gain
   unit.currentHP += levelUpResult.gains.HP;
+  if (Number.isFinite(unit.stats?.HP)) {
+    unit.currentHP = Math.min(unit.currentHP, unit.stats.HP);
+  }
 }
 
 /**

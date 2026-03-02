@@ -36,4 +36,11 @@ describe('Supabase offline / missing-env guards', () => {
     const session = await getSession();
     expect(session).toBeNull();
   });
+
+  it('refreshSession returns null when supabase is null', async () => {
+    const { refreshSession, supabase } = await import('../src/cloud/supabaseClient.js');
+    expect(supabase).toBeNull();
+    const session = await refreshSession();
+    expect(session).toBeNull();
+  });
 });

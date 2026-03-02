@@ -9,6 +9,7 @@ import {
   applyEnemyDifficultyModifiers,
   createRecruitUnit,
   levelUp,
+  applyLevelUpGains,
   gainExperience,
   canPromote,
   promoteUnit,
@@ -334,6 +335,20 @@ describe('levelUp', () => {
     expect(result.gains).toBeDefined();
     // levelUp increments level and returns gains
     expect(result.newLevel).toBeDefined();
+  });
+
+  it('applyLevelUpGains clamps currentHP to max HP', () => {
+    const unit = {
+      level: 1,
+      currentHP: 30,
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0, MOV: 5 },
+    };
+    const gains = {
+      gains: { HP: 0, STR: 0, MAG: 0, SKL: 0, SPD: 0, DEF: 0, RES: 0, LCK: 0 },
+      newLevel: 2,
+    };
+    applyLevelUpGains(unit, gains);
+    expect(unit.currentHP).toBe(20);
   });
 });
 
@@ -878,6 +893,17 @@ describe('createRecruitUnit', () => {
     expect(unit.stats.STR).toBe(fighterClass.baseStats.STR + 1);
     expect(unit.stats.HP).toBe(fighterClass.baseStats.HP + 2);
     expect(unit.currentHP).toBe(fighterClass.baseStats.HP + 2);
+  });
+
+  it('keeps recruit currentHP within max HP after flat bonus application', () => {
+    const statBonuses = { HP: '5' };
+    const unit = createRecruitUnit(
+      { className: 'Fighter', name: 'Galvin', level: 1 },
+      fighterClass,
+      data.weapons,
+      statBonuses,
+    );
+    expect(Number(unit.currentHP)).toBeLessThanOrEqual(Number(unit.stats.HP));
   });
 
   it('assigns a random skill from pool when randomSkillPool provided', () => {

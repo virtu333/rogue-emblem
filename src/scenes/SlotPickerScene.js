@@ -280,16 +280,33 @@ export class SlotPickerScene extends Phaser.Scene {
     this.isTransitioning = true;
     if (this.input) this.input.enabled = false;
 
-    // Set active slot on registry + localStorage
-    setActiveSlot(slot);
-    this.registry.set('activeSlot', slot);
+    const prevMeta = this.registry.get('meta');
+    const prevHints = this.registry.get('hints');
+    const prevActiveSlot = this.registry.get('activeSlot');
+    const hadPrevMeta = prevMeta !== undefined;
+    const hadPrevHints = prevHints !== undefined;
+    const hadPrevActiveSlot = prevActiveSlot !== undefined;
+    const rollbackSelectionState = () => {
+      if (hadPrevMeta) this.registry.set('meta', prevMeta);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('meta');
+      else this.registry.set('meta', undefined);
 
-    // Create MetaProgressionManager for this slot
+      if (hadPrevHints) this.registry.set('hints', prevHints);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('hints');
+      else this.registry.set('hints', undefined);
+
+      if (hadPrevActiveSlot) this.registry.set('activeSlot', prevActiveSlot);
+      else if (typeof this.registry.remove === 'function') this.registry.remove('activeSlot');
+      else this.registry.set('activeSlot', undefined);
+    };
+
+    // Stage slot state in registry before transition; persist active slot only on success.
     const meta = new MetaProgressionManager(this.gameData.metaUpgrades, getMetaKey(slot));
     const cloud = this.registry.get('cloud');
     if (cloud) {
       meta.onSave = (payload) => pushMeta(cloud.userId, slot, payload);
     }
+    this.registry.set('activeSlot', slot);
     this.registry.set('meta', meta);
     this.registry.set('hints', new HintManager(slot));
 
@@ -328,11 +345,14 @@ export class SlotPickerScene extends Phaser.Scene {
         );
       }
       if (transitioned === false) {
+        rollbackSelectionState();
         this.isTransitioning = false;
         if (this.input) this.input.enabled = true;
       }
+      if (transitioned) setActiveSlot(slot);
     } catch (err) {
       console.error('[SlotPickerScene] selectSlot transition failed:', err);
+      rollbackSelectionState();
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
     }

@@ -225,8 +225,7 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
   const next = prev
     .catch(() => {})
     .then(async () => {
-      await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
-      clearAuthExpiredStatusOnSuccess();
+      await writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts);
     })
     .catch((e) => {
       console.warn(`CloudSync updateSlot ${table}:`, e);
@@ -277,30 +276,84 @@ export function pushSettings(userId, settingsData) {
 
 export function deleteRunSave(userId, slot) {
   if (!supabase) return;
-  updateSlotInTable(userId, TABLES.run, slot, null);
+  const runQueueKey = `${userId}:${TABLES.run}`;
+  const metaQueueKey = `${userId}:${TABLES.meta}`;
+  const prevRun = updateQueues.get(runQueueKey) || Promise.resolve();
+  const prevMeta = updateQueues.get(metaQueueKey) || Promise.resolve();
+  const next = Promise.allSettled([prevRun, prevMeta])
+    .catch(() => {})
+    .then(async () => {
+      // Snapshot cloud run slot for compensating restore if later meta sync fails.
+      const cloudRunBeforeDelete = await fetchTableRow(userId, TABLES.run);
+      const runBeforeDelete = migrateCloudData(cloudRunBeforeDelete.data)[String(slot)] ?? null;
 
-  const localMetaState = readLocalJSONWithState(getMetaKey(slot));
-  if (localMetaState.parseError) {
-    reportCloudFailure('cloud_delete_run_meta_sync_skipped', new Error('local_meta_parse_error'), {
-      table: TABLES.meta,
-      slot,
-      reason: 'parse_error',
+      await writeSlotWithAuthRefresh(userId, TABLES.run, slot, null, SLOT_WRITE_MAX_ATTEMPTS);
+
+      const localMetaState = readLocalJSONWithState(getMetaKey(slot));
+      if (localMetaState.parseError) {
+        reportCloudFailure(
+          'cloud_delete_run_meta_sync_skipped',
+          new Error('local_meta_parse_error'),
+          {
+            table: TABLES.meta,
+            slot,
+            reason: 'parse_error',
+          },
+        );
+        return;
+      }
+      if (!localMetaState.exists) {
+        console.warn('CloudSync deleteRunSave meta sync skipped: local meta missing', { slot });
+        return;
+      }
+      if (!isCloudSlotPayload(localMetaState.value)) {
+        reportCloudFailure('cloud_delete_run_meta_sync_skipped', new Error('local_meta_invalid'), {
+          table: TABLES.meta,
+          slot,
+          reason: 'invalid',
+        });
+        return;
+      }
+
+      try {
+        await writeSlotWithAuthRefresh(
+          userId,
+          TABLES.meta,
+          slot,
+          localMetaState.value,
+          SLOT_WRITE_MAX_ATTEMPTS,
+        );
+      } catch (metaErr) {
+        // Compensating restore: reinsert cloud run slot when meta sync fails after delete.
+        if (isCloudSlotPayload(runBeforeDelete)) {
+          try {
+            await writeSlotWithAuthRefresh(
+              userId,
+              TABLES.run,
+              slot,
+              runBeforeDelete,
+              SLOT_WRITE_MAX_ATTEMPTS,
+            );
+          } catch (restoreErr) {
+            reportCloudFailure('cloud_delete_run_restore_failed', restoreErr, {
+              table: TABLES.run,
+              slot,
+            });
+          }
+        }
+        throw metaErr;
+      }
+    })
+    .catch((e) => {
+      console.warn('CloudSync deleteRunSave:', e);
+      reportCloudFailure('cloud_delete_run', e, { slot });
+    })
+    .finally(() => {
+      if (updateQueues.get(runQueueKey) === next) updateQueues.delete(runQueueKey);
+      if (updateQueues.get(metaQueueKey) === next) updateQueues.delete(metaQueueKey);
     });
-    return;
-  }
-  if (!localMetaState.exists) {
-    console.warn('CloudSync deleteRunSave meta sync skipped: local meta missing', { slot });
-    return;
-  }
-  if (!isCloudSlotPayload(localMetaState.value)) {
-    reportCloudFailure('cloud_delete_run_meta_sync_skipped', new Error('local_meta_invalid'), {
-      table: TABLES.meta,
-      slot,
-      reason: 'invalid',
-    });
-    return;
-  }
-  updateSlotInTable(userId, TABLES.meta, slot, localMetaState.value);
+  updateQueues.set(runQueueKey, next);
+  updateQueues.set(metaQueueKey, next);
 }
 
 /**
@@ -366,6 +419,20 @@ function isAuthExpiryError(err) {
   return false;
 }
 
+async function tryRefreshSessionAfterAuthError(err) {
+  if (!isAuthExpiryError(err)) return false;
+  const refreshSession = supabase?.auth?.refreshSession;
+  if (typeof refreshSession !== 'function') return false;
+  try {
+    const { error } = await refreshSession.call(supabase.auth);
+    if (error) throw error;
+    return true;
+  } catch (refreshErr) {
+    reportCloudFailure('cloud_refresh_session', refreshErr);
+    return false;
+  }
+}
+
 function markCloudAuthExpired(err, context) {
   if (!isAuthExpiryError(err)) return false;
   if (!cloudSyncStatus.authExpired) {
@@ -395,6 +462,13 @@ function isConflictError(err) {
   if (code === '23505' || code === '409') return true;
   const msg = String(err?.message || '').toLowerCase();
   return msg.includes('duplicate key') || msg.includes('conflict');
+}
+
+function isRemoteSlotNewer(localSlot, remoteSlot) {
+  const localTs = getSavedAt(localSlot);
+  const remoteTs = getSavedAt(remoteSlot);
+  if (!Number.isFinite(localTs) || !Number.isFinite(remoteTs)) return false;
+  return remoteTs > localTs;
 }
 
 function buildConflictExhaustedError(table, slot, maxAttempts, lastConflict) {
@@ -470,6 +544,20 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const row = await fetchTableRow(userId, table);
     const slotMap = migrateCloudData(row.data);
+    const remoteSlot = slotMap[String(slot)];
+    if (
+      slotData !== null &&
+      isCloudSlotPayload(remoteSlot) &&
+      isRemoteSlotNewer(slotData, remoteSlot)
+    ) {
+      const err = new Error('cloud slot newer on remote');
+      err.code = 'CLOUD_CONFLICT_REMOTE_NEWER';
+      err.table = table;
+      err.slot = slot;
+      err.localSavedAt = getSavedAt(slotData);
+      err.remoteSavedAt = getSavedAt(remoteSlot);
+      throw err;
+    }
     if (slotData === null) {
       delete slotMap[String(slot)];
     } else {
@@ -495,6 +583,19 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
     }
     throw writeResult.error;
   }
+}
+
+async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttempts) {
+  try {
+    await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
+    clearAuthExpiredStatusOnSuccess();
+    return;
+  } catch (err) {
+    const refreshed = await tryRefreshSessionAfterAuthError(err);
+    if (!refreshed) throw err;
+  }
+  await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
+  clearAuthExpiredStatusOnSuccess();
 }
 
 // Prefer local run data whenever cloud is not strictly newer.

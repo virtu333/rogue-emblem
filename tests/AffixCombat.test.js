@@ -91,6 +91,29 @@ describe('Affix Combat Interactions', () => {
     expect(mods.activated.some((a) => a.id === 'fury')).toBe(true);
   });
 
+  it('getAffixCombatMods no-ops when unit.affixes is not an array', () => {
+    const affixData = {
+      affixes: [{ id: 'fury', name: 'Fury', trigger: 'passive', effects: { atkBonus: 2 } }],
+    };
+    const unitWithInvalidAffixes = { ...attacker, affixes: 'fury' };
+    const mods = getAffixCombatMods(unitWithInvalidAffixes, defender, [], affixData, null);
+    expect(mods.atkBonus).toBe(0);
+    expect(mods.activated).toEqual([]);
+  });
+
+  it('rollDefenseAffixes no-ops when defender is null', () => {
+    const affixData = {
+      affixes: [{ id: 'shielded', name: 'Shielded', trigger: 'on-defend', effects: {} }],
+    };
+    const result = rollDefenseAffixes(null, 12, true, true, affixData);
+    expect(result).toEqual({
+      modifiedDamage: 12,
+      reflectDamage: 0,
+      warpRange: 0,
+      activated: [],
+    });
+  });
+
   it('executeWarp prioritizes tiles farthest from the attacker', async () => {
     const mockGrid = {
       cols: 10,

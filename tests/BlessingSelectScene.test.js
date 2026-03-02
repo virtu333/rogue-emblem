@@ -16,6 +16,13 @@ vi.mock('../src/utils/SceneRouter.js', () => ({
   TRANSITION_REASONS: { BEGIN_RUN: 'begin_run', BACK: 'back' },
 }));
 
+vi.mock('../src/engine/RunManager.js', () => ({
+  RunManager: class {},
+  clearSavedRun: vi.fn((deleteCloudRun) => {
+    if (typeof deleteCloudRun === 'function') deleteCloudRun();
+  }),
+}));
+
 vi.mock('../src/cloud/CloudSync.js', () => ({
   deleteRunSave: vi.fn(),
 }));
@@ -27,6 +34,8 @@ vi.mock('../src/utils/blessingAnalytics.js', () => ({
 import { BlessingSelectScene } from '../src/scenes/BlessingSelectScene.js';
 import { transitionToScene } from '../src/utils/SceneRouter.js';
 import { recordBlessingSelection } from '../src/utils/blessingAnalytics.js';
+import { clearSavedRun } from '../src/engine/RunManager.js';
+import { deleteRunSave } from '../src/cloud/CloudSync.js';
 
 function makeScene() {
   const scene = Object.create(BlessingSelectScene.prototype);
@@ -119,25 +128,30 @@ describe('BlessingSelectScene transition guards', () => {
     expect(scene.runManager.chooseBlessing).toHaveBeenCalledTimes(1);
   });
 
-  it('confirm -> transition fail -> retry skips blessing commit and analytics', async () => {
+  it('confirm -> transition fail -> retry reattempts commit and records analytics only on success', async () => {
     const scene = makeScene();
     scene._confirm();
     expect(scene.runManager.chooseBlessing).toHaveBeenCalledTimes(1);
-    expect(recordBlessingSelection).toHaveBeenCalledTimes(1);
+    expect(recordBlessingSelection).toHaveBeenCalledTimes(0);
 
     // Simulate transition failure — unlocks isTransitioning
     transitionPromiseResolve(false);
     await Promise.resolve();
     expect(scene.isTransitioning).toBe(false);
 
-    // Retry confirm — blessing commit and analytics must not re-fire
+    // Retry confirm — blessing commit is reattempted after rollback
     scene._confirm();
-    expect(scene.runManager.chooseBlessing).toHaveBeenCalledTimes(1); // NOT called again
-    expect(recordBlessingSelection).toHaveBeenCalledTimes(1); // NOT called again
+    expect(scene.runManager.chooseBlessing).toHaveBeenCalledTimes(2);
+    expect(recordBlessingSelection).toHaveBeenCalledTimes(0);
     expect(transitionToScene).toHaveBeenCalledTimes(2); // transition retried
+
+    // Analytics is recorded only on successful transition.
+    transitionPromiseResolve(true);
+    await Promise.resolve();
+    expect(recordBlessingSelection).toHaveBeenCalledTimes(1);
   });
 
-  it('selection is locked after blessing commit (keyboard and pointer)', async () => {
+  it('confirm unlocks after failed transition rollback', async () => {
     const scene = makeScene();
     scene.options = [
       { id: 'blessing_1', name: 'A', tier: 1 },
@@ -150,18 +164,50 @@ describe('BlessingSelectScene transition guards', () => {
     transitionPromiseResolve(false);
     await Promise.resolve();
     expect(scene.isTransitioning).toBe(false);
+    expect(scene._blessingCommitted).toBe(false);
 
-    // Keyboard navigation — should be blocked
-    scene._navigate(1);
-    expect(scene.selectedIndex).toBe(0);
+    scene._confirm();
+    expect(scene.runManager.chooseBlessing).toHaveBeenCalledTimes(2);
+  });
 
-    // Pointer selection via _select — should also be blocked
-    scene._select(1);
-    expect(scene.selectedIndex).toBe(0);
+  it('failed transition does not clear saved run', async () => {
+    const scene = makeScene();
+    scene.registry.get = vi.fn((key) => {
+      if (key === 'cloud') return { userId: 'user-1' };
+      if (key === 'activeSlot') return 2;
+      return null;
+    });
 
-    // Skip via _select — should also be blocked
-    scene._select(scene.options.length);
-    expect(scene.selectedIndex).toBe(0);
+    scene._confirm();
+    expect(clearSavedRun).not.toHaveBeenCalled();
+    expect(deleteRunSave).not.toHaveBeenCalled();
+
+    transitionPromiseResolve(false);
+    await Promise.resolve();
+
+    expect(clearSavedRun).not.toHaveBeenCalled();
+    expect(deleteRunSave).not.toHaveBeenCalled();
+  });
+
+  it('successful transition clears saved run exactly once', async () => {
+    const scene = makeScene();
+    scene.registry.get = vi.fn((key) => {
+      if (key === 'cloud') return { userId: 'user-1' };
+      if (key === 'activeSlot') return 2;
+      return null;
+    });
+
+    scene._confirm();
+    expect(clearSavedRun).not.toHaveBeenCalled();
+    expect(deleteRunSave).not.toHaveBeenCalled();
+
+    transitionPromiseResolve(true);
+    await Promise.resolve();
+
+    expect(clearSavedRun).toHaveBeenCalledTimes(1);
+    expect(clearSavedRun).toHaveBeenCalledWith(expect.any(Function), 2);
+    expect(deleteRunSave).toHaveBeenCalledTimes(1);
+    expect(deleteRunSave).toHaveBeenCalledWith('user-1', 2);
   });
 
   it('_confirm blocks subsequent _back', () => {

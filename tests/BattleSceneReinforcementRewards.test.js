@@ -275,6 +275,53 @@ describe('BattleScene reinforcement reward scaling', () => {
     expect(order).toEqual(['terrainDamage', 'turnStartEffects', 'overrides:4', 'startEnemyPhase']);
   });
 
+  it('awaits startEnemyPhase inside enemy-phase delayed callback', async () => {
+    const scene = new BattleScene();
+    scene.scene = { isActive: () => true };
+    scene.showPhaseBanner = vi.fn();
+    scene.dangerZone = { hide: vi.fn() };
+    scene.updateAntiTurtlePressure = vi.fn();
+    scene.grid = { tickTemporaryTerrains: vi.fn(), fogEnabled: false };
+    scene.enemyUnits = [];
+    scene.refreshEndTurnControl = vi.fn();
+    scene.processTerrainDamage = vi.fn(async () => {});
+    scene.processTurnStartEffects = vi.fn(async () => {});
+    scene.processZombieRevival = vi.fn(async () => {});
+    scene.processBallistaFire = vi.fn(async () => {});
+    scene.applyDueHybridOverridesForTurn = vi.fn();
+
+    let resolveEnemyPhase;
+    scene.startEnemyPhase = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveEnemyPhase = resolve;
+        }),
+    );
+
+    let enemyPhaseCallback = null;
+    scene.time = {
+      delayedCall: vi.fn((_ms, cb) => {
+        enemyPhaseCallback = cb;
+      }),
+    };
+
+    BattleScene.prototype.onPhaseChange.call(scene, 'enemy', 4);
+    const callbackPromise = enemyPhaseCallback();
+    let settled = false;
+    callbackPromise.then(() => {
+      settled = true;
+    });
+    for (let i = 0; i < 8 && !resolveEnemyPhase; i++) {
+      await Promise.resolve();
+    }
+    expect(typeof resolveEnemyPhase).toBe('function');
+    expect(settled).toBe(false);
+
+    resolveEnemyPhase();
+    await callbackPromise;
+    expect(settled).toBe(true);
+  });
+
   it('reinforcements spawn after AI in startEnemyPhase, preventing premature rout victory', async () => {
     const scene = new BattleScene();
     const events = [];

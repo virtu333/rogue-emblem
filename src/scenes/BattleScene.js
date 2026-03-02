@@ -1911,6 +1911,7 @@ export class BattleScene extends Phaser.Scene {
 
     enemy.col = spawn.col;
     enemy.row = spawn.row;
+    enemy._hitByPlayerThisPhase = false;
     enemy.isElite = Boolean(spawn.isElite || this.isElite);
     if (Array.isArray(spawn.affixes) && spawn.affixes.length > 0) {
       enemy.affixes = [...spawn.affixes];
@@ -9045,37 +9046,50 @@ export class BattleScene extends Phaser.Scene {
     this.updateObjectiveText();
 
     const deathEffects = getOnDeathAffixes(unit, this.gameData.affixes);
-    for (const effect of deathEffects) {
-      if (effect.type !== 'aoe_damage') continue;
-      const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].filter(
-        (other) => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1),
-      );
-      for (const victim of victims) {
-        if (victim.currentHP <= 0) continue;
-        victim.currentHP = Math.max(0, victim.currentHP - effect.amount);
-        this.updateHPBar(victim);
-        const pos = this.grid.gridToPixel(victim.col, victim.row);
-        const txt = this.add
-          .text(pos.x, pos.y - 16, `${effect.amount}`, {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: '#ff8844',
-            fontStyle: 'bold',
-          })
-          .setOrigin(0.5)
-          .setDepth(320);
-        this.tweens.add({
-          targets: txt,
-          y: pos.y - 32,
-          alpha: 0,
-          duration: 500,
-          onComplete: () => txt.destroy(),
-        });
-        if (victim.currentHP <= 0) {
-          await this.removeUnit(victim, { killer: unit });
+    const hasAoEDeathEffect = deathEffects.some((effect) => effect?.type === 'aoe_damage');
+    if (hasAoEDeathEffect) {
+      this._deathAffixChainDepth = (this._deathAffixChainDepth || 0) + 1;
+    }
+    try {
+      for (const effect of deathEffects) {
+        if (effect.type !== 'aoe_damage') continue;
+        const victims = [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].filter(
+          (other) => gridDistance(deathCol, deathRow, other.col, other.row) <= (effect.range || 1),
+        );
+        for (const victim of victims) {
+          if (victim.currentHP <= 0) continue;
+          victim.currentHP = Math.max(0, victim.currentHP - effect.amount);
+          this.updateHPBar(victim);
+          const pos = this.grid.gridToPixel(victim.col, victim.row);
+          const txt = this.add
+            .text(pos.x, pos.y - 16, `${effect.amount}`, {
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              color: '#ff8844',
+              fontStyle: 'bold',
+            })
+            .setOrigin(0.5)
+            .setDepth(320);
+          this.tweens.add({
+            targets: txt,
+            y: pos.y - 32,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => txt.destroy(),
+          });
+          if (victim.currentHP <= 0) {
+            await this.removeUnit(victim, { killer: unit });
+          }
+        }
+        await new Promise((resolve) => this.time.delayedCall(150, resolve));
+      }
+    } finally {
+      if (hasAoEDeathEffect) {
+        this._deathAffixChainDepth = Math.max(0, (this._deathAffixChainDepth || 1) - 1);
+        if (this._deathAffixChainDepth === 0 && this.battleState !== 'BATTLE_END') {
+          this.checkBattleEnd();
         }
       }
-      await new Promise((resolve) => this.time.delayedCall(150, resolve));
     }
 
     // Clear any temporary walls owned by this unit (waller affix cleanup)
@@ -9267,7 +9281,7 @@ export class BattleScene extends Phaser.Scene {
         await this.processZombieRevival();
         await this.processBallistaFire(this.playerUnits, 'enemy');
         this.applyDueHybridOverridesForTurn(turn);
-        this.startEnemyPhase();
+        await this.startEnemyPhase();
       });
     }
     this.refreshEndTurnControl();

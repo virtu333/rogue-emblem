@@ -48,3 +48,10 @@ export async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
+
+export async function refreshSession() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error) throw error;
+  return data?.session || null;
+}
