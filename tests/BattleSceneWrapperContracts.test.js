@@ -48,6 +48,7 @@ import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { TransitionRecoveryController } from '../src/ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
+import { WeaponArtController } from '../src/ui/WeaponArtController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -467,6 +468,166 @@ describe('BattleScene shim delegation contracts', () => {
 
   // ── Forecast shim contracts ──────────────────────────────────
 
+  // Weapon art shim contracts
+  describe('Weapon art shims', () => {
+    it('showWeaponArtPicker lazy-inits WeaponArtController once and reuses it', () => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(WeaponArtController.prototype, 'showWeaponArtPicker')
+        .mockImplementation(() => {});
+
+      BattleScene.prototype.showWeaponArtPicker.call(scene, { name: 'Edric' });
+      const firstController = scene._weaponArtController;
+      BattleScene.prototype.showWeaponArtPicker.call(scene, { name: 'Sera' });
+
+      expect(firstController).toBeInstanceOf(WeaponArtController);
+      expect(scene._weaponArtController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['showWeaponArtPicker', 'showWeaponArtPicker', [{ name: 'Edric' }]],
+      ['_showWeaponArtTooltip', '_showWeaponArtTooltip', [{ getBounds: () => ({}) }, { id: 'a' }]],
+      ['_wireWeaponArtTooltip', '_wireWeaponArtTooltip', [{ on: vi.fn() }, { id: 'a' }]],
+      [
+        '_setSelectedWeaponArt',
+        '_setSelectedWeaponArt',
+        [{ name: 'Edric', inventory: [] }, 'a', null],
+      ],
+      ['_clearSelectedWeaponArt', '_clearSelectedWeaponArt', []],
+      [
+        '_clearSelectedWeaponArtIfInvalid',
+        '_clearSelectedWeaponArtIfInvalid',
+        [{ name: 'Edric' }, {}],
+      ],
+    ])('%s delegates to WeaponArtController.%s', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(WeaponArtController.prototype, controllerMethod)
+        .mockImplementation(() => {});
+
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._weaponArtController).toBeInstanceOf(WeaponArtController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
+    });
+
+    it.each([
+      [
+        '_resolveSelectedWeaponArtEntry',
+        '_resolveSelectedWeaponArtEntry',
+        [{ name: 'Edric' }],
+        { art: { id: 'a' } },
+      ],
+      [
+        '_getSelectedWeaponArtForUnit',
+        '_getSelectedWeaponArtForUnit',
+        [{ name: 'Edric' }, { isInitiating: true }],
+        { id: 'art_a' },
+      ],
+      ['_getWeaponArtCatalog', '_getWeaponArtCatalog', [], [{ id: 'art_a' }]],
+      [
+        '_collectWeaponBoundArts',
+        '_collectWeaponBoundArts',
+        [{ id: 'iron_sword' }],
+        [{ id: 'art_b' }],
+      ],
+      [
+        '_getAvailableWeaponArtEntriesForUnit',
+        '_getAvailableWeaponArtEntriesForUnit',
+        [{ name: 'Edric' }],
+        [{ weapon: {}, art: {} }],
+      ],
+      [
+        '_getAvailableWeaponArtCatalogForUnit',
+        '_getAvailableWeaponArtCatalogForUnit',
+        [{ name: 'Edric' }],
+        [{ id: 'art_c' }],
+      ],
+      [
+        '_getWeaponArtChoices',
+        '_getWeaponArtChoices',
+        [{ name: 'Edric' }, { id: 'iron_sword' }, {}, {}],
+        [{ canUse: true }],
+      ],
+      [
+        '_hasUsableWeaponArtTargets',
+        '_hasUsableWeaponArtTargets',
+        [{ name: 'Edric' }, { id: 'iron_sword' }, {}],
+        true,
+      ],
+      [
+        '_resolveWeaponArtCostValues',
+        '_resolveWeaponArtCostValues',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        { baseCost: 2, effectiveCost: 1 },
+      ],
+      [
+        '_formatWeaponArtCostLabel',
+        '_formatWeaponArtCostLabel',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        '1 (base 2)',
+      ],
+      [
+        '_getWeaponArtHpAfterCost',
+        '_getWeaponArtHpAfterCost',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        18,
+      ],
+      [
+        '_getWeaponArtUsageCounts',
+        '_getWeaponArtUsageCounts',
+        [{ name: 'Edric' }, { id: 'art_d' }],
+        { mapCount: 1, turnCount: 0 },
+      ],
+      [
+        '_getWeaponArtStatusLine',
+        '_getWeaponArtStatusLine',
+        [{ currentHP: 20 }, { id: 'art_e' }, { canUse: true }],
+        'status line',
+      ],
+      ['_weaponArtReasonLabel', '_weaponArtReasonLabel', ['insufficient_hp'], 'Not enough HP'],
+      [
+        '_scoreEnemyWeaponArt',
+        '_scoreEnemyWeaponArt',
+        [{ name: 'Enemy' }, { id: 'enemy_art' }],
+        3.5,
+      ],
+      ['_getEnemyWeaponArtDifficultyId', '_getEnemyWeaponArtDifficultyId', [], 'lunatic'],
+      [
+        '_getEnemyWeaponArtTuning',
+        '_getEnemyWeaponArtTuning',
+        [],
+        { minScore: 0.25, useChance: 1 },
+      ],
+      [
+        '_selectEnemyWeaponArt',
+        '_selectEnemyWeaponArt',
+        [{ name: 'Enemy', weapon: {} }, { name: 'Target' }],
+        { id: 'enemy_art' },
+      ],
+      ['_rollEnemyWeaponArtChance', '_rollEnemyWeaponArtChance', [], 0.25],
+    ])(
+      '%s returns WeaponArtController.%s result',
+      (sceneMethod, controllerMethod, args, expected) => {
+        const scene = makeScene();
+        const spy = vi
+          .spyOn(WeaponArtController.prototype, controllerMethod)
+          .mockImplementation(() => expected);
+
+        const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+        expect(scene._weaponArtController).toBeInstanceOf(WeaponArtController);
+        expect(spy).toHaveBeenCalledWith(...args);
+        expect(result).toBe(expected);
+        spy.mockRestore();
+      },
+    );
+  });
+
+  // Forecast shim contracts
   describe('showForecast / hideForecast shim', () => {
     function makeForecastScene() {
       const scene = makeScene();
@@ -909,6 +1070,19 @@ describe('BattleScene shim delegation contracts', () => {
       expect(scene.pauseOverlay).toBeNull();
       expect(onResume).not.toHaveBeenCalled();
       expect(scene.refreshEndTurnControl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('shutdown cleanup controller hygiene', () => {
+    it('destroys WeaponArtController and nulls reference', () => {
+      const scene = makeScene();
+      const destroy = vi.fn();
+      scene._weaponArtController = { destroy };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(scene._weaponArtController).toBeNull();
     });
   });
 
