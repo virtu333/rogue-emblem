@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { readFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
