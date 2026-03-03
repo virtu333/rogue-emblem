@@ -43,10 +43,12 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
+import { LootFlowController } from '../src/ui/LootFlowController.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { TransitionRecoveryController } from '../src/ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
+import { WeaponArtController } from '../src/ui/WeaponArtController.js';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -406,129 +408,226 @@ describe('BattleScene shim delegation contracts', () => {
     });
   });
 
-  // ── Self-contained flow methods ───────────────────────────
+  // ── Loot-flow shims ───────────────────────────────────────
 
-  describe('finalizeLootPick() (self-contained, no controller dependency)', () => {
-    it('can be called standalone and schedules loot cleanup for non-elite', () => {
+  describe('Loot-flow shims', () => {
+    it('showLootRoster lazy-inits LootFlowController once and reuses it', () => {
       const scene = makeScene();
-      scene._lootResolving = false;
-      scene._elitePicksRemaining = 1;
-      scene._lootCards = [{ bg: makeDisplayObject() }];
-      scene._lootInstruction = makeDisplayObject();
-      scene._lootCleanedUp = false;
+      const spy = vi
+        .spyOn(LootFlowController.prototype, 'showLootRoster')
+        .mockImplementation(() => {});
 
-      // scheduleLootCleanup is called by finalizeLootPick
-      scene.scheduleLootCleanup = vi.fn();
+      BattleScene.prototype.showLootRoster.call(scene);
+      const firstController = scene._lootFlowController;
+      BattleScene.prototype.showLootRoster.call(scene);
 
-      const lootGroup = [makeDisplayObject()];
-      BattleScene.prototype.finalizeLootPick.call(scene, lootGroup, 0);
-
-      expect(scene._lootResolving).toBe(true);
-      expect(scene._lootCards).toBeNull();
-      expect(scene._lootInstruction).toBeNull();
-      expect(scene.scheduleLootCleanup).toHaveBeenCalledWith(lootGroup);
+      expect(firstController).toBeInstanceOf(LootFlowController);
+      expect(scene._lootFlowController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
     });
 
-    it('decrements elite picks and keeps cards visible for remaining picks', () => {
+    it.each([
+      ['finalizeLootPick', 'finalizeLootPick', [[], 0]],
+      ['cleanupLootScreen', 'cleanupLootScreen', [[]]],
+      ['scheduleLootCleanup', 'scheduleLootCleanup', [[]]],
+      ['_startPostLootTransition', '_startPostLootTransition', []],
+      ['_clearPostLootTransitionFallback', '_clearPostLootTransitionFallback', []],
+      [
+        'showForgeWeaponPicker',
+        'showForgeWeaponPicker',
+        [{ forgeStat: 'might' }, { inventory: [] }, [], 0],
+      ],
+      [
+        'showForgeStatPickerLoot',
+        'showForgeStatPickerLoot',
+        [{ forgeStat: 'choice' }, { name: 'Iron Sword' }, [], 0],
+      ],
+      [
+        '_showLootTooltip',
+        '_showLootTooltip',
+        [{ type: 'weapon' }, { name: 'Iron Sword' }, 100, 120, 80],
+      ],
+      ['_hideLootTooltip', '_hideLootTooltip', []],
+      ['_clearLootTooltipTimer', '_clearLootTooltipTimer', []],
+      ['showLootRoster', 'showLootRoster', []],
+      ['hideLootRoster', 'hideLootRoster', []],
+    ])('%s delegates to LootFlowController.%s', (sceneMethod, controllerMethod, args) => {
       const scene = makeScene();
-      scene.isElite = true;
-      scene._lootResolving = false;
-      scene._elitePicksRemaining = 2;
-      scene._lootCleanedUp = false;
-      scene._hideLootTooltip = vi.fn();
+      const spy = vi
+        .spyOn(LootFlowController.prototype, controllerMethod)
+        .mockImplementation(() => {});
 
-      const cardBg = makeDisplayObject();
-      cardBg.setInteractive();
-      scene._lootCards = [
-        { bg: cardBg, elements: [makeDisplayObject()] },
-        { bg: makeDisplayObject(), elements: [makeDisplayObject()] },
-      ];
-      scene._lootInstruction = makeDisplayObject();
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
 
-      // All card elements need setVisible
-      const lootGroup = [
-        makeDisplayObject({ visible: false }),
-        makeDisplayObject({ visible: false }),
-      ];
-
-      BattleScene.prototype.finalizeLootPick.call(scene, lootGroup, 0);
-
-      // Should decrement picks, NOT set _lootResolving
-      expect(scene._elitePicksRemaining).toBe(1);
-      expect(scene._lootResolving).toBeFalsy();
-      // Re-shows hidden loot group elements
-      for (const obj of lootGroup) {
-        expect(obj.visible).toBe(true);
-      }
-    });
-
-    it('returns early if _lootResolving is already true', () => {
-      const scene = makeScene();
-      scene._lootResolving = true;
-      scene._hideLootTooltip = vi.fn();
-      scene.scheduleLootCleanup = vi.fn();
-
-      BattleScene.prototype.finalizeLootPick.call(scene, [], 0);
-
-      expect(scene.scheduleLootCleanup).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('cleanupLootScreen() (self-contained, nulls lootGroup)', () => {
-    it('destroys loot group objects, nulls lootGroup, calls _startPostLootTransition', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = false;
-      scene._lootResolving = false;
-      scene.lootSettingsOverlay = null;
-      scene._startPostLootTransition = vi.fn();
-      scene.reportLootError = vi.fn();
-
-      const obj1 = makeDisplayObject();
-      const obj2 = makeDisplayObject();
-      const destroySpy1 = vi.spyOn(obj1, 'destroy');
-      const destroySpy2 = vi.spyOn(obj2, 'destroy');
-      const lootGroup = [obj1, obj2];
-      scene.lootGroup = lootGroup;
-
-      BattleScene.prototype.cleanupLootScreen.call(scene, lootGroup);
-
-      expect(destroySpy1).toHaveBeenCalled();
-      expect(destroySpy2).toHaveBeenCalled();
-      expect(scene.lootGroup).toBeNull();
-      expect(scene._lootCleanedUp).toBe(true);
-      expect(scene._startPostLootTransition).toHaveBeenCalledTimes(1);
-    });
-
-    it('returns early if _lootCleanedUp is already true', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = true;
-      scene._startPostLootTransition = vi.fn();
-
-      BattleScene.prototype.cleanupLootScreen.call(scene, []);
-
-      expect(scene._startPostLootTransition).not.toHaveBeenCalled();
-    });
-
-    it('falls back to scene.lootGroup when no argument provided', () => {
-      const scene = makeScene();
-      scene._lootCleanedUp = false;
-      scene.lootSettingsOverlay = null;
-      scene._startPostLootTransition = vi.fn();
-      scene.reportLootError = vi.fn();
-
-      const obj = makeDisplayObject();
-      const destroySpy = vi.spyOn(obj, 'destroy');
-      scene.lootGroup = [obj];
-
-      BattleScene.prototype.cleanupLootScreen.call(scene);
-
-      expect(destroySpy).toHaveBeenCalled();
-      expect(scene.lootGroup).toBeNull();
+      expect(scene._lootFlowController).toBeInstanceOf(LootFlowController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
     });
   });
 
   // ── Forecast shim contracts ──────────────────────────────────
 
+  // Weapon art shim contracts
+  describe('Weapon art shims', () => {
+    it('showWeaponArtPicker lazy-inits WeaponArtController once and reuses it', () => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(WeaponArtController.prototype, 'showWeaponArtPicker')
+        .mockImplementation(() => {});
+
+      BattleScene.prototype.showWeaponArtPicker.call(scene, { name: 'Edric' });
+      const firstController = scene._weaponArtController;
+      BattleScene.prototype.showWeaponArtPicker.call(scene, { name: 'Sera' });
+
+      expect(firstController).toBeInstanceOf(WeaponArtController);
+      expect(scene._weaponArtController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['showWeaponArtPicker', 'showWeaponArtPicker', [{ name: 'Edric' }]],
+      ['_showWeaponArtTooltip', '_showWeaponArtTooltip', [{ getBounds: () => ({}) }, { id: 'a' }]],
+      ['_wireWeaponArtTooltip', '_wireWeaponArtTooltip', [{ on: vi.fn() }, { id: 'a' }]],
+      [
+        '_setSelectedWeaponArt',
+        '_setSelectedWeaponArt',
+        [{ name: 'Edric', inventory: [] }, 'a', null],
+      ],
+      ['_clearSelectedWeaponArt', '_clearSelectedWeaponArt', []],
+      [
+        '_clearSelectedWeaponArtIfInvalid',
+        '_clearSelectedWeaponArtIfInvalid',
+        [{ name: 'Edric' }, {}],
+      ],
+    ])('%s delegates to WeaponArtController.%s', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(WeaponArtController.prototype, controllerMethod)
+        .mockImplementation(() => {});
+
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._weaponArtController).toBeInstanceOf(WeaponArtController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
+    });
+
+    it.each([
+      [
+        '_resolveSelectedWeaponArtEntry',
+        '_resolveSelectedWeaponArtEntry',
+        [{ name: 'Edric' }],
+        { art: { id: 'a' } },
+      ],
+      [
+        '_getSelectedWeaponArtForUnit',
+        '_getSelectedWeaponArtForUnit',
+        [{ name: 'Edric' }, { isInitiating: true }],
+        { id: 'art_a' },
+      ],
+      ['_getWeaponArtCatalog', '_getWeaponArtCatalog', [], [{ id: 'art_a' }]],
+      [
+        '_collectWeaponBoundArts',
+        '_collectWeaponBoundArts',
+        [{ id: 'iron_sword' }],
+        [{ id: 'art_b' }],
+      ],
+      [
+        '_getAvailableWeaponArtEntriesForUnit',
+        '_getAvailableWeaponArtEntriesForUnit',
+        [{ name: 'Edric' }],
+        [{ weapon: {}, art: {} }],
+      ],
+      [
+        '_getAvailableWeaponArtCatalogForUnit',
+        '_getAvailableWeaponArtCatalogForUnit',
+        [{ name: 'Edric' }],
+        [{ id: 'art_c' }],
+      ],
+      [
+        '_getWeaponArtChoices',
+        '_getWeaponArtChoices',
+        [{ name: 'Edric' }, { id: 'iron_sword' }, {}, {}],
+        [{ canUse: true }],
+      ],
+      [
+        '_hasUsableWeaponArtTargets',
+        '_hasUsableWeaponArtTargets',
+        [{ name: 'Edric' }, { id: 'iron_sword' }, {}],
+        true,
+      ],
+      [
+        '_resolveWeaponArtCostValues',
+        '_resolveWeaponArtCostValues',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        { baseCost: 2, effectiveCost: 1 },
+      ],
+      [
+        '_formatWeaponArtCostLabel',
+        '_formatWeaponArtCostLabel',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        '1 (base 2)',
+      ],
+      [
+        '_getWeaponArtHpAfterCost',
+        '_getWeaponArtHpAfterCost',
+        [{ currentHP: 20 }, { hpCost: 2 }],
+        18,
+      ],
+      [
+        '_getWeaponArtUsageCounts',
+        '_getWeaponArtUsageCounts',
+        [{ name: 'Edric' }, { id: 'art_d' }],
+        { mapCount: 1, turnCount: 0 },
+      ],
+      [
+        '_getWeaponArtStatusLine',
+        '_getWeaponArtStatusLine',
+        [{ currentHP: 20 }, { id: 'art_e' }, { canUse: true }],
+        'status line',
+      ],
+      ['_weaponArtReasonLabel', '_weaponArtReasonLabel', ['insufficient_hp'], 'Not enough HP'],
+      [
+        '_scoreEnemyWeaponArt',
+        '_scoreEnemyWeaponArt',
+        [{ name: 'Enemy' }, { id: 'enemy_art' }],
+        3.5,
+      ],
+      ['_getEnemyWeaponArtDifficultyId', '_getEnemyWeaponArtDifficultyId', [], 'lunatic'],
+      [
+        '_getEnemyWeaponArtTuning',
+        '_getEnemyWeaponArtTuning',
+        [],
+        { minScore: 0.25, useChance: 1 },
+      ],
+      [
+        '_selectEnemyWeaponArt',
+        '_selectEnemyWeaponArt',
+        [{ name: 'Enemy', weapon: {} }, { name: 'Target' }],
+        { id: 'enemy_art' },
+      ],
+      ['_rollEnemyWeaponArtChance', '_rollEnemyWeaponArtChance', [], 0.25],
+    ])(
+      '%s returns WeaponArtController.%s result',
+      (sceneMethod, controllerMethod, args, expected) => {
+        const scene = makeScene();
+        const spy = vi
+          .spyOn(WeaponArtController.prototype, controllerMethod)
+          .mockImplementation(() => expected);
+
+        const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+        expect(scene._weaponArtController).toBeInstanceOf(WeaponArtController);
+        expect(spy).toHaveBeenCalledWith(...args);
+        expect(result).toBe(expected);
+        spy.mockRestore();
+      },
+    );
+  });
+
+  // Forecast shim contracts
   describe('showForecast / hideForecast shim', () => {
     function makeForecastScene() {
       const scene = makeScene();
@@ -971,6 +1070,19 @@ describe('BattleScene shim delegation contracts', () => {
       expect(scene.pauseOverlay).toBeNull();
       expect(onResume).not.toHaveBeenCalled();
       expect(scene.refreshEndTurnControl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('shutdown cleanup controller hygiene', () => {
+    it('destroys WeaponArtController and nulls reference', () => {
+      const scene = makeScene();
+      const destroy = vi.fn();
+      scene._weaponArtController = { destroy };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(scene._weaponArtController).toBeNull();
     });
   });
 

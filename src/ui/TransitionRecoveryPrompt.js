@@ -1,5 +1,5 @@
 // TransitionRecoveryPrompt — shared stateless recovery UI for pause transition failures.
-// Used by BattleScene and NodeMapScene when transitionToScene('Title') fails.
+// Used by BattleScene and NodeMapScene when a transition to Title fails.
 
 import { transitionToScene } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
@@ -72,9 +72,8 @@ export function showTransitionRecoveryPrompt(
       .then((ok) => {
         if (!ok) {
           try {
-            scene.scene.start('Title', titleData);
+            scene.scene.start('Title', titleData); // scene-router-bypass
           } catch (err) {
-            // scene-router-bypass
             console.error(`[${sceneName}] pause recovery fallback failed:`, err);
             retryBtn.setText('[ Retry ]');
             retryBtn.setInteractive({ useHandCursor: true });

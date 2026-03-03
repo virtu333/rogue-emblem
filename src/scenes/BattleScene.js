@@ -85,12 +85,9 @@ import {
 import { shouldAllowUndoMove } from '../engine/TradeFlow.js';
 import {
   getWeaponArtCombatMods,
-  canUseWeaponArt,
   recordWeaponArtUse,
   applyWeaponArtCost,
-  getEffectiveWeaponArtHpCost,
   resetWeaponArtTurnUsage,
-  isWeaponArtCompatibleWithWeapon,
 } from '../engine/WeaponArtSystem.js';
 import {
   didCombatSideLandHit,
@@ -119,8 +116,6 @@ import {
   ANTI_TURTLE_NO_PROGRESS_TURNS,
   RECRUIT_SKILL_POOL,
   XP_STAT_NAMES,
-  FORGE_MAX_LEVEL,
-  FORGE_STAT_CAP,
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
@@ -166,13 +161,6 @@ import {
   calculateSkipLootBonus,
 } from '../engine/LootSystem.js';
 import {
-  canForge,
-  canForgeStat,
-  applyForge,
-  isForged,
-  getStatForgeCount,
-} from '../engine/ForgeSystem.js';
-import {
   calculatePar,
   getRating,
   getLatePressureState,
@@ -216,13 +204,14 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { LootFlowController } from '../ui/LootFlowController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
+import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import {
-  TOOLTIP_HOVER_DELAY_MS,
   TOOLTIP_LONG_PRESS_MS,
   TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
 } from '../utils/tooltipTiming.js';
@@ -230,7 +219,6 @@ import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
   getWeaponArtTooltipLines,
-  resolveWeaponArtIds,
 } from '../ui/WeaponArtVisibility.js';
 import {
   selectBallistaTarget,
@@ -247,17 +235,6 @@ function dimColor(color, factor = 0.3) {
   return (r << 16) | (g << 8) | b;
 }
 
-const HIDDEN_WEAPON_ART_REASONS = new Set([
-  'legendary_weapon_required',
-  'owner_scope_mismatch',
-  'faction_mismatch',
-  'wrong_weapon_type',
-  'invalid_owner_scope_config',
-  'invalid_faction_config',
-  'invalid_legendary_weapon_ids_config',
-  'invalid_unlock_act_config',
-  'invalid_input',
-]);
 const TIER5_BUFF_CORE_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
   HIT: 'hitBonus',
@@ -268,9 +245,6 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
   RES_BONUS: 'resBonus',
   SPD_BONUS: 'spdBonus',
 };
-const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
-const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
-const POST_LOOT_TRANSITION_RECHECK_MS = 250;
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
@@ -428,6 +402,14 @@ export class BattleScene extends Phaser.Scene {
     if (this._recoveryController) {
       this._recoveryController.destroy();
       this._recoveryController = null;
+    }
+    if (this._lootFlowController) {
+      this._lootFlowController.destroy();
+      this._lootFlowController = null;
+    }
+    if (this._weaponArtController) {
+      this._weaponArtController.destroy();
+      this._weaponArtController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -1498,44 +1480,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _clearPostLootTransitionFallback() {
-    if (this._postLootTransitionTimer) {
-      clearTimeout(this._postLootTransitionTimer);
-      this._postLootTransitionTimer = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._clearPostLootTransitionFallback();
   }
 
   _startPostLootTransition() {
-    if (this._postLootTransitionStarted) return;
-    this._postLootTransitionStarted = true;
-    this._postLootTransitionCompleted = false;
-    this._postLootTransitionStartedAt = Date.now();
-
-    const maybeForceFallback = () => {
-      if (this._postLootTransitionCompleted) return;
-      const elapsed = Date.now() - this._postLootTransitionStartedAt;
-      if (this.isStoryInputLocked() && elapsed < POST_LOOT_TRANSITION_STORY_GRACE_MS) {
-        this._postLootTransitionTimer = setTimeout(
-          maybeForceFallback,
-          POST_LOOT_TRANSITION_RECHECK_MS,
-        );
-        return;
-      }
-      this.forceTransitionAfterBattle();
-    };
-
-    this._postLootTransitionTimer = setTimeout(maybeForceFallback, POST_LOOT_TRANSITION_TIMEOUT_MS);
-    this._transitionAfterBattlePromise = Promise.resolve(this.transitionAfterBattle())
-      .then((ok) => {
-        if (ok === true) {
-          this._postLootTransitionCompleted = true;
-          this._clearPostLootTransitionFallback();
-        }
-        // If failed or undefined, leave the fallback timer running
-      })
-      .catch((err) => {
-        console.warn('[BattleScene] transitionAfterBattle rejected:', err);
-        // Don't clear fallback -- let it fire forceTransitionAfterBattle
-      });
+    (this._lootFlowController ||= new LootFlowController(this))._startPostLootTransition();
   }
 
   buildTutorialBattleConfig() {
@@ -5423,61 +5372,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showWeaponArtTooltip(anchorText, art) {
-    if (!anchorText || !art) return;
-    this._hideMenuTooltip();
-    const summary = art?.description || 'No description';
-    const lines = [art.name, summary];
-    const body = lines.join('\n');
-    const padding = 8;
-    const maxWidth = 220;
-    const txt = this.add
-      .text(0, 0, body, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#e0e0e0',
-        wordWrap: { width: maxWidth - padding * 2 },
-      })
-      .setDepth(450);
-    const bg = this.add
-      .rectangle(0, 0, txt.width + padding * 2, txt.height + padding * 2, 0x222222, 0.95)
-      .setOrigin(0)
-      .setStrokeStyle(1, 0x666666)
-      .setDepth(449);
-    const box = this.add.container(0, 0, [bg, txt]).setDepth(449);
-    txt.setPosition(padding, padding);
-
-    const b = anchorText.getBounds();
-    let x = b.right + 8;
-    let y = b.top - 4;
-    if (x + bg.width > this.cameras.main.width - 4) x = b.left - bg.width - 8;
-    if (x < 4) x = 4;
-    if (y + bg.height > this.cameras.main.height - 4) y = this.cameras.main.height - bg.height - 4;
-    if (y < 4) y = 4;
-    box.setPosition(x, y);
-    this._pinToScreen(box);
-    this._menuTooltip = box;
+    (this._weaponArtController ||= new WeaponArtController(this))._showWeaponArtTooltip(
+      anchorText,
+      art,
+    );
   }
 
   _wireWeaponArtTooltip(text, art) {
-    if (!text || !art) return;
-    text.on('pointerover', () => {
-      this._clearMenuTooltipTimer('_menuTooltipHoverTimer');
-      this._menuTooltipHoverTimer = this.time.delayedCall(TOOLTIP_HOVER_DELAY_MS, () => {
-        this._menuTooltipHoverTimer = null;
-        this._showWeaponArtTooltip(text, art);
-      });
-    });
-    text.on('pointerout', () => this._hideMenuTooltip());
-    text.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._clearMenuTooltipTimer('_menuTooltipPressTimer');
-      this._menuTooltipPressTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
-        this._menuTooltipPressTimer = null;
-        text._suppressNextClick = true;
-        this._showWeaponArtTooltip(text, art);
-      });
-    });
-    text.on('pointerup', () => this._clearMenuTooltipTimer('_menuTooltipPressTimer'));
+    (this._weaponArtController ||= new WeaponArtController(this))._wireWeaponArtTooltip(text, art);
   }
 
   _isReducedEffects() {
@@ -6195,124 +6097,7 @@ export class BattleScene extends Phaser.Scene {
   // --- Weapon picker (pre-attack) ---
 
   showWeaponArtPicker(unit) {
-    this.hideActionMenu();
-    this.inEquipMenu = true;
-    this.battleState = 'UNIT_ACTION_MENU';
-
-    const choices = this._getWeaponArtChoices(unit, unit.weapon, { isInitiating: true });
-    if (choices.length <= 0) {
-      this._setSelectedWeaponArt(unit, null);
-      this.showActionMenu(unit);
-      return;
-    }
-
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 280;
-    const menuY = pos.y - 10;
-
-    this.actionMenu = [];
-    const menuWidth = 280;
-    const itemHeight = this.isMobileInput ? 46 : 42;
-    const menuHeight = (choices.length + 1) * itemHeight + 12;
-    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
-
-    const bg = this.add
-      .rectangle(
-        menuPos.x + menuWidth / 2,
-        menuPos.y + menuHeight / 2,
-        menuWidth,
-        menuHeight,
-        0x000000,
-        0.9,
-      )
-      .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
-    this.actionMenu.push(bg);
-
-    const current =
-      this._selectedWeaponArt?.unitName === unit.name ? this._selectedWeaponArt : null;
-
-    const noneY = menuPos.y + 6 + itemHeight / 2;
-    const noneColor = current ? '#e0e0e0' : '#ffdd44';
-    const noneText = this._makeMenuTextButton(
-      menuPos.x + 8,
-      noneY,
-      `${current ? '  ' : '> '}Normal Attack`,
-      {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: noneColor,
-      },
-      noneColor,
-      () => {
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_confirm');
-        this._setSelectedWeaponArt(unit, null);
-        this.inEquipMenu = false;
-        this._beginAttackSelection(unit);
-      },
-      { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
-    );
-    this.actionMenu.push(noneText);
-
-    choices.forEach(({ weapon, art, canUse, reason }, i) => {
-      const rowY = menuPos.y + 6 + (i + 1) * itemHeight + itemHeight / 2;
-      const weaponIndex = Array.isArray(unit.inventory) ? unit.inventory.indexOf(weapon) : -1;
-      const isActive = Boolean(
-        current &&
-        current.artId === art.id &&
-        Number.isInteger(current.weaponIndex) &&
-        current.weaponIndex === weaponIndex,
-      );
-      const marker = isActive ? '> ' : '  ';
-      const status = this._getWeaponArtStatusLine(unit, art, { canUse, reason });
-      const color = canUse ? (isActive ? '#ffdd44' : '#e0e0e0') : '#888888';
-      const weaponName = weapon?.name || weapon?.id || art.weaponType;
-      const label = `${marker}${art.name} (${weaponName})
-   ${status}`;
-
-      const text = this._makeMenuTextButton(
-        menuPos.x + 8,
-        rowY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color,
-          lineSpacing: 1,
-        },
-        color,
-        () => {
-          const latest = canUseWeaponArt(unit, weapon, art, {
-            turnNumber: this.turnManager?.turnNumber,
-            isInitiating: true,
-            weaponArtHpCostDelta:
-              this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-          });
-          if (!latest.ok) {
-            this.showWeaponArtPicker(unit);
-            return;
-          }
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          if (unit.weapon !== weapon) equipWeapon(unit, weapon);
-          this._setSelectedWeaponArt(unit, art.id, weapon);
-          this.inEquipMenu = false;
-          this._beginAttackSelection(unit);
-        },
-        {
-          originX: 0,
-          originY: 0.5,
-          hitWidth: menuWidth - 12,
-          hitHeight: itemHeight,
-          clickOnPointerUp: true,
-        },
-      );
-      this._wireWeaponArtTooltip(text, art);
-
-      this.actionMenu.push(text);
-    });
-    this._pinToScreen(this.actionMenu);
+    (this._weaponArtController ||= new WeaponArtController(this)).showWeaponArtPicker(unit);
   }
 
   showWeaponPicker(unit, attackTargets) {
@@ -7179,18 +6964,16 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _resolveWeaponArtCostValues(unit, art) {
-    const baseCost = Math.max(0, Number(art?.hpCost) || 0);
-    const artOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const effectiveCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    return { baseCost, effectiveCost };
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._resolveWeaponArtCostValues(unit, art);
   }
 
   _formatWeaponArtCostLabel(unit, art) {
-    const { baseCost, effectiveCost } = this._resolveWeaponArtCostValues(unit, art);
-    if (baseCost > 0 && effectiveCost !== baseCost) return `${effectiveCost} (base ${baseCost})`;
-    return `${effectiveCost}`;
+    return (this._weaponArtController ||= new WeaponArtController(this))._formatWeaponArtCostLabel(
+      unit,
+      art,
+    );
   }
 
   _applyRecoilGuardAfterArtUse(unit, art) {
@@ -7347,307 +7130,131 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getWeaponArtCatalog() {
-    return this.gameData?.weaponArts?.arts || [];
+    return (this._weaponArtController ||= new WeaponArtController(this))._getWeaponArtCatalog();
   }
 
   _collectWeaponBoundArts(weapon) {
-    if (!weapon) return [];
-    const allArts = this._getWeaponArtCatalog();
-    if (allArts.length <= 0) return [];
-    const byId = new Map(allArts.filter((art) => art?.id).map((art) => [art.id, art]));
-    return resolveWeaponArtIds(weapon, allArts)
-      .map((id) => byId.get(id))
-      .filter(Boolean);
+    return (this._weaponArtController ||= new WeaponArtController(this))._collectWeaponBoundArts(
+      weapon,
+    );
   }
 
   _getAvailableWeaponArtEntriesForUnit(unit) {
-    if (!unit) return [];
-    const inventory =
-      Array.isArray(unit.inventory) && unit.inventory.length > 0
-        ? unit.inventory
-        : unit.weapon
-          ? [unit.weapon]
-          : [];
-    const entries = [];
-    for (const weapon of inventory) {
-      if (!weapon || !weapon.type || isStaff(weapon)) continue;
-      for (const art of this._collectWeaponBoundArts(weapon)) {
-        if (!art || !isWeaponArtCompatibleWithWeapon(art, weapon)) continue;
-        entries.push({ weapon, art });
-      }
-    }
-    return entries;
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._getAvailableWeaponArtEntriesForUnit(unit);
   }
 
   _getAvailableWeaponArtCatalogForUnit(unit) {
-    return this._getAvailableWeaponArtEntriesForUnit(unit).map((entry) => entry.art);
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._getAvailableWeaponArtCatalogForUnit(unit);
   }
 
   _getWeaponArtHpAfterCost(unit, art) {
-    if (!unit || !art) return unit?.currentHP;
-    const hp = Number(unit.currentHP) || 0;
-    const artOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const cost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    return Math.max(1, hp - cost);
+    return (this._weaponArtController ||= new WeaponArtController(this))._getWeaponArtHpAfterCost(
+      unit,
+      art,
+    );
   }
 
   _setSelectedWeaponArt(unit, artId = null, weapon = null) {
-    if (!unit || !artId) {
-      this._selectedWeaponArt = null;
-      return;
-    }
-    const inventory = Array.isArray(unit.inventory) ? unit.inventory : [];
-    const activeWeapon = weapon || unit.weapon || null;
-    const weaponIndex = activeWeapon ? inventory.indexOf(activeWeapon) : -1;
-    this._selectedWeaponArt = {
-      unitName: unit.name,
+    (this._weaponArtController ||= new WeaponArtController(this))._setSelectedWeaponArt(
+      unit,
       artId,
-      weaponIndex,
-    };
+      weapon,
+    );
   }
 
   _clearSelectedWeaponArt() {
-    this._selectedWeaponArt = null;
+    (this._weaponArtController ||= new WeaponArtController(this))._clearSelectedWeaponArt();
   }
 
   _resolveSelectedWeaponArtEntry(unit) {
-    const selected = this._selectedWeaponArt;
-    if (!unit || !selected || selected.unitName !== unit.name) return null;
-    const entries = this._getAvailableWeaponArtEntriesForUnit(unit);
-    if (entries.length <= 0) return null;
-
-    if (
-      Number.isInteger(selected.weaponIndex) &&
-      selected.weaponIndex >= 0 &&
-      Array.isArray(unit.inventory) &&
-      selected.weaponIndex < unit.inventory.length
-    ) {
-      const selectedWeapon = unit.inventory[selected.weaponIndex];
-      const strict = entries.find(
-        (entry) => entry.art.id === selected.artId && entry.weapon === selectedWeapon,
-      );
-      if (strict) return strict;
-    }
-
-    return entries.find((entry) => entry.art.id === selected.artId) || null;
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._resolveSelectedWeaponArtEntry(unit);
   }
 
   _getSelectedWeaponArtForUnit(unit, context = {}) {
-    const selectedEntry = this._resolveSelectedWeaponArtEntry(unit);
-    if (!selectedEntry) return null;
-
-    const { weapon, art } = selectedEntry;
-    const valid = canUseWeaponArt(unit, weapon, art, {
-      turnNumber: this.turnManager?.turnNumber,
-      isInitiating: true,
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      ...context,
-    });
-    if (!valid.ok) return null;
-
-    if (unit.weapon !== weapon) {
-      equipWeapon(unit, weapon);
-    }
-    return art;
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._getSelectedWeaponArtForUnit(unit, context);
   }
 
   _clearSelectedWeaponArtIfInvalid(unit, context = {}) {
-    if (!this._selectedWeaponArt || !unit || this._selectedWeaponArt.unitName !== unit.name) return;
-    const selectedEntry = this._resolveSelectedWeaponArtEntry(unit);
-    if (!selectedEntry) {
-      this._clearSelectedWeaponArt();
-      return;
-    }
-    const valid = canUseWeaponArt(unit, selectedEntry.weapon, selectedEntry.art, {
-      turnNumber: this.turnManager?.turnNumber,
-      isInitiating: true,
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      ...context,
-    });
-    if (!valid.ok) this._clearSelectedWeaponArt();
+    (this._weaponArtController ||= new WeaponArtController(this))._clearSelectedWeaponArtIfInvalid(
+      unit,
+      context,
+    );
   }
 
   _getWeaponArtChoices(unit, weapon = null, context = {}, options = {}) {
-    if (!unit) return [];
-    const restrictToWeapon = Boolean(options?.restrictToWeapon && weapon);
-    const entries = this._getAvailableWeaponArtEntriesForUnit(unit).filter(
-      (entry) => !restrictToWeapon || entry.weapon === weapon,
+    return (this._weaponArtController ||= new WeaponArtController(this))._getWeaponArtChoices(
+      unit,
+      weapon,
+      context,
+      options,
     );
-
-    return entries
-      .map(({ weapon: sourceWeapon, art }) => {
-        const check = canUseWeaponArt(unit, sourceWeapon, art, {
-          turnNumber: this.turnManager?.turnNumber,
-          isInitiating: true,
-          actorFaction: unit.faction,
-          weaponArtHpCostDelta:
-            this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-          ...context,
-        });
-        return { weapon: sourceWeapon, art, canUse: check.ok, reason: check.reason };
-      })
-      .filter((entry) => !(entry.canUse === false && HIDDEN_WEAPON_ART_REASONS.has(entry.reason)));
   }
 
   _hasUsableWeaponArtTargets(unit, weapon = null, context = {}) {
-    const usableChoices = this._getWeaponArtChoices(unit, weapon, context).filter(
-      (entry) => entry.canUse,
+    return (this._weaponArtController ||= new WeaponArtController(this))._hasUsableWeaponArtTargets(
+      unit,
+      weapon,
+      context,
     );
-    return usableChoices.some(({ weapon: sourceWeapon, art }) => {
-      const targets = this.findAttackTargets(unit, { weapon: sourceWeapon, weaponArt: art });
-      return targets.length > 0;
-    });
   }
 
   _scoreEnemyWeaponArt(unit, art) {
-    const mods = getWeaponArtCombatMods(art);
-    const artOpts = {
-      weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-    };
-    const hpCost = getEffectiveWeaponArtHpCost(unit, art, artOpts);
-    const effectivenessScore =
-      mods.effectiveness?.multiplier > 1 ? (mods.effectiveness.multiplier - 1) * 4 : 0;
-    const rangeOverrideScore = mods.rangeOverride
-      ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
-      : 0;
-    return (
-      mods.atkBonus * 3 +
-      mods.hitBonus * 0.35 +
-      mods.critBonus * 0.25 +
-      mods.spdBonus * 0.5 +
-      mods.avoidBonus * 0.15 +
-      mods.defBonus * 0.1 +
-      effectivenessScore +
-      (mods.rangeBonus || 0) * 1.2 +
-      rangeOverrideScore +
-      (mods.preventCounter ? 3.5 : 0) +
-      (mods.targetsRES ? 2.5 : 0) +
-      (mods.halfPhysicalDamage ? 2.5 : 0) +
-      (mods.vengeance ? 4 : 0) -
-      hpCost * 0.75
+    return (this._weaponArtController ||= new WeaponArtController(this))._scoreEnemyWeaponArt(
+      unit,
+      art,
     );
   }
 
   _getEnemyWeaponArtDifficultyId() {
-    return this.battleParams?.difficultyId || this.runManager?.difficultyId || null;
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._getEnemyWeaponArtDifficultyId();
   }
 
   _getEnemyWeaponArtTuning() {
-    const rawDifficulty = this._getEnemyWeaponArtDifficultyId();
-    if (!rawDifficulty) return { minScore: 0.75, useChance: 1.0 };
-    const difficultyId = String(rawDifficulty).toLowerCase();
-    if (difficultyId === 'normal') return { minScore: 2.25, useChance: 0.6 };
-    if (difficultyId === 'lunatic') return { minScore: 0.25, useChance: 1.0 };
-    return { minScore: 0.75, useChance: 0.9 };
+    return (this._weaponArtController ||= new WeaponArtController(this))._getEnemyWeaponArtTuning();
   }
 
   _selectEnemyWeaponArt(unit, target) {
-    if (!unit?.weapon) return null;
-    const tuning = this._getEnemyWeaponArtTuning();
-    const choices = this._getWeaponArtChoices(unit, unit.weapon, {
-      isAI: true,
-      isInitiating: true,
-      actorFaction: unit.faction,
-      targetFaction: target?.faction,
-    }).filter((entry) => entry.canUse);
-    if (choices.length <= 0) return null;
-    const scored = choices
-      .map((choice) => ({ art: choice.art, score: this._scoreEnemyWeaponArt(unit, choice.art) }))
-      .filter((entry) => entry.score >= tuning.minScore);
-    if (scored.length <= 0) return null;
-    if (tuning.useChance < 1 && this._rollEnemyWeaponArtChance() > tuning.useChance) return null;
-    scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const sortArtOpts = {
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      };
-      const aCost = getEffectiveWeaponArtHpCost(unit, a.art, sortArtOpts);
-      const bCost = getEffectiveWeaponArtHpCost(unit, b.art, sortArtOpts);
-      if (aCost !== bCost) return aCost - bCost;
-      const aId = String(a.art?.id || '');
-      const bId = String(b.art?.id || '');
-      return aId.localeCompare(bId);
-    });
-    return scored[0].art;
+    return (this._weaponArtController ||= new WeaponArtController(this))._selectEnemyWeaponArt(
+      unit,
+      target,
+    );
   }
 
   _rollEnemyWeaponArtChance() {
-    const roll =
-      typeof this._enemyWeaponArtRandom === 'function'
-        ? Number(this._enemyWeaponArtRandom())
-        : Math.random();
-    if (!Number.isFinite(roll)) return 1;
-    return Math.min(1, Math.max(0, roll));
+    return (this._weaponArtController ||= new WeaponArtController(
+      this,
+    ))._rollEnemyWeaponArtChance();
   }
 
   _weaponArtReasonLabel(reason) {
-    switch (reason) {
-      case 'insufficient_rank':
-        return 'Rank too low';
-      case 'insufficient_hp':
-        return 'Not enough HP';
-      case 'per_turn_limit':
-        return 'Turn limit reached';
-      case 'per_map_limit':
-        return 'Map limit reached';
-      case 'wrong_weapon_type':
-        return 'Wrong weapon type';
-      case 'no_proficiency':
-        return 'No proficiency';
-      case 'initiation_only':
-        return 'Player phase only';
-      case 'owner_scope_mismatch':
-        return 'Unavailable';
-      case 'faction_mismatch':
-        return 'Unavailable';
-      case 'legendary_weapon_required':
-        return 'Legendary weapon required';
-      case 'ai_disabled':
-        return 'Unavailable';
-      case 'ai_hp_floor':
-        return 'Unavailable';
-      case 'invalid_owner_scope_config':
-        return 'Unavailable';
-      case 'invalid_faction_config':
-        return 'Unavailable';
-      case 'invalid_legendary_weapon_ids_config':
-        return 'Unavailable';
-      case 'invalid_unlock_act_config':
-        return 'Unavailable';
-      case 'invalid_input':
-        return 'Unavailable';
-      default:
-        return 'Unavailable';
-    }
+    return (this._weaponArtController ||= new WeaponArtController(this))._weaponArtReasonLabel(
+      reason,
+    );
   }
 
   _getWeaponArtUsageCounts(unit, art) {
-    const usage = unit?._battleWeaponArtUsage || {};
-    const mapCount = usage.map?.[art.id] || 0;
-    const currentTurnKey = String(this.turnManager?.turnNumber ?? '');
-    const turnCount = usage.turnKey === currentTurnKey ? usage.turn?.[art.id] || 0 : 0;
-    return { mapCount, turnCount };
+    return (this._weaponArtController ||= new WeaponArtController(this))._getWeaponArtUsageCounts(
+      unit,
+      art,
+    );
   }
 
   _getWeaponArtStatusLine(unit, art, availability = null) {
-    const check =
-      availability ||
-      canUseWeaponArt(unit, unit?.weapon, art, {
-        turnNumber: this.turnManager?.turnNumber,
-        isInitiating: true,
-        weaponArtHpCostDelta: this.runManager?.blessingRuntimeModifiers?.weaponArtHpCostDelta ?? 0,
-      });
-    if (check?.ok === false || check?.canUse === false)
-      return this._weaponArtReasonLabel(check.reason);
-    const hpCostLabel = this._formatWeaponArtCostLabel(unit, art);
-    const hpNow = Math.max(0, Number(unit?.currentHP) || 0);
-    const hpAfter = this._getWeaponArtHpAfterCost(unit, art);
-    const { mapCount, turnCount } = this._getWeaponArtUsageCounts(unit, art);
-    const mapLimit = Number(art?.perMapLimit) > 0 ? `${mapCount}/${art.perMapLimit}` : '-';
-    const turnLimit = Number(art?.perTurnLimit) > 0 ? `${turnCount}/${art.perTurnLimit}` : '-';
-    return `HP-${hpCostLabel} (${hpNow}->${hpAfter})  Turn ${turnLimit}  Map ${mapLimit}`;
+    return (this._weaponArtController ||= new WeaponArtController(this))._getWeaponArtStatusLine(
+      unit,
+      art,
+      availability,
+    );
   }
 
   _beginAttackSelection(unit) {
@@ -10346,58 +9953,21 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _showLootTooltip(choice, item, cx, cardY, cardH) {
-    this._hideLootTooltip();
-    const text = this._getLootTooltipText(choice, item);
-    if (!text) return;
-
-    const padX = 8;
-    const padY = 6;
-    const maxTextW = 224;
-    const cam = this.cameras.main;
-
-    const detailText = this.add
-      .text(0, 0, text, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#e0e0e0',
-        lineSpacing: 3,
-        wordWrap: { width: maxTextW },
-      })
-      .setDepth(761);
-
-    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 120, 240);
-    const boxH = detailText.height + padY * 2;
-
-    // Position above card with 6px gap, clamped to viewport
-    let tx = cx - boxW / 2;
-    let ty = cardY - cardH / 2 - boxH - 6;
-    if (tx + boxW > cam.width - 5) tx = cam.width - 5 - boxW;
-    if (tx < 5) tx = 5;
-    if (ty < 5) ty = cardY + cardH / 2 + 6; // flip below if no room above
-
-    const bg = this.add
-      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(760)
-      .setStrokeStyle(1, 0x336666);
-    detailText.setPosition(tx + padX, ty + padY);
-
-    this._lootTooltip = this.add.container(0, 0, [bg, detailText]).setDepth(760);
-    this._pinToScreen(this._lootTooltip);
+    (this._lootFlowController ||= new LootFlowController(this))._showLootTooltip(
+      choice,
+      item,
+      cx,
+      cardY,
+      cardH,
+    );
   }
 
   _hideLootTooltip() {
-    this._clearLootTooltipTimer();
-    if (this._lootTooltip) {
-      this._lootTooltip.destroy();
-      this._lootTooltip = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._hideLootTooltip();
   }
 
   _clearLootTooltipTimer() {
-    if (this._lootTooltipTimer) {
-      this._lootTooltipTimer.remove(false);
-      this._lootTooltipTimer = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this))._clearLootTooltipTimer();
   }
 
   // -- End loot tooltip ------------------------------------------
@@ -10638,224 +10208,22 @@ export class BattleScene extends Phaser.Scene {
 
   /** Step 2: pick which weapon to forge. */
   showForgeWeaponPicker(whetstone, unit, lootGroup, cardIdx) {
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 60, `${unit.name}: Select weapon to forge`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ff8844',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const forgeableWeapons = unit.inventory.filter((w) =>
-      whetstone.forgeStat !== 'choice' ? canForgeStat(w, whetstone.forgeStat) : canForge(w),
+    (this._lootFlowController ||= new LootFlowController(this)).showForgeWeaponPicker(
+      whetstone,
+      unit,
+      lootGroup,
+      cardIdx,
     );
-    const topY = 110;
-    const bottomY = cam.height - 70;
-    const rowGap = Math.max(
-      30,
-      Math.min(48, Math.floor((bottomY - topY) / Math.max(forgeableWeapons.length, 1))),
-    );
-    const btnH = Math.max(24, rowGap - 8);
-
-    for (let i = 0; i < forgeableWeapons.length; i++) {
-      const wpn = forgeableWeapons[i];
-      const level = wpn._forgeLevel || 0;
-      const by = topY + i * rowGap;
-      const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, 280, btnH, 0x443322, 1)
-        .setStrokeStyle(1, 0xff8844)
-        .setDepth(711)
-        .setInteractive({ useHandCursor: true });
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by - Math.floor(btnH * 0.22), wpn.name, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: wpnColor,
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      const detail = this.add
-        .text(
-          cam.centerX,
-          by + Math.floor(btnH * 0.28),
-          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${level}/${FORGE_MAX_LEVEL}]`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#aaaaaa',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(detail);
-
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        try {
-          for (const obj of pickerGroup) obj.destroy();
-          if (whetstone.forgeStat === 'choice') {
-            // Silver Whetstone: pick stat
-            this.showForgeStatPickerLoot(whetstone, wpn, lootGroup, cardIdx);
-          } else {
-            // Specific whetstone: apply immediately
-            const result = applyForge(wpn, whetstone.forgeStat);
-            if (!result.success) {
-              this.reportLootError(
-                'showForgeWeaponPicker:applyForgeFailed',
-                new Error('applyForge returned success=false'),
-                {
-                  unit: unit?.name,
-                  weapon: wpn?.name,
-                  forgeStat: whetstone?.forgeStat,
-                  cardIdx,
-                },
-              );
-              this.showLootStatus('Forge failed. Choose another weapon.', '#ff8888');
-              this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-              return;
-            }
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_gold');
-            this.finalizeLootPick(lootGroup, cardIdx);
-          }
-        } catch (err) {
-          this.reportLootError('showForgeWeaponPicker:pointerdown', err, {
-            unit: unit?.name,
-            weapon: wpn?.name,
-            forgeStat: whetstone?.forgeStat,
-            cardIdx,
-          });
-          this.showLootStatus('An error occurred while forging. Returning to rewards.', '#ff8888');
-          for (const obj of lootGroup) obj.setVisible(true);
-        }
-      });
-    }
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, cam.height - 24, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-    });
   }
 
   /** Step 3 (Silver Whetstone only): pick which stat to forge. */
   showForgeStatPickerLoot(whetstone, weapon, lootGroup, cardIdx) {
-    const pickerGroup = [];
-    const cam = this.cameras.main;
-
-    const bg = this.add
-      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.9)
-      .setDepth(710)
-      .setInteractive();
-    pickerGroup.push(bg);
-
-    const title = this.add
-      .text(cam.centerX, 100, `Forge ${weapon.name}: Choose stat`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ff8844',
-      })
-      .setOrigin(0.5)
-      .setDepth(711);
-    pickerGroup.push(title);
-
-    const stats = [
-      { key: 'might', label: '+1 Might' },
-      { key: 'crit', label: '+5 Crit' },
-      { key: 'hit', label: '+5 Hit' },
-      { key: 'weight', label: '-1 Weight' },
-    ];
-
-    const startY = 160;
-    const btnH = 40;
-
-    for (let i = 0; i < stats.length; i++) {
-      const stat = stats[i];
-      const statCount = getStatForgeCount(weapon, stat.key);
-      const atStatCap = statCount >= FORGE_STAT_CAP;
-      const by = startY + i * (btnH + 10);
-      const color = atStatCap ? '#666666' : '#e0e0e0';
-      const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
-
-      const btn = this.add
-        .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : 0x443322, 1)
-        .setStrokeStyle(1, atStatCap ? 0x666666 : 0xff8844)
-        .setDepth(711);
-      pickerGroup.push(btn);
-
-      const label = this.add
-        .text(cam.centerX, by, `${stat.label}  ${countLabel}`, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-        })
-        .setOrigin(0.5)
-        .setDepth(712);
-      pickerGroup.push(label);
-
-      if (!atStatCap) {
-        btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          applyForge(weapon, stat.key);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          for (const obj of pickerGroup) obj.destroy();
-          this.finalizeLootPick(lootGroup, cardIdx);
-        });
-      }
-    }
-
-    // Back button
-    const backBtn = this.add
-      .text(cam.centerX, startY + stats.length * (btnH + 10) + 20, '< Back', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#aaaaaa',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(711)
-      .setInteractive({ useHandCursor: true });
-    pickerGroup.push(backBtn);
-
-    backBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      for (const obj of pickerGroup) obj.destroy();
-      this.showForgeLootPicker(whetstone, lootGroup, cardIdx);
-    });
+    (this._lootFlowController ||= new LootFlowController(this)).showForgeStatPickerLoot(
+      whetstone,
+      weapon,
+      lootGroup,
+      cardIdx,
+    );
   }
 
   /** Show unit picker to give a loot item to a roster unit. */
@@ -10874,78 +10242,12 @@ export class BattleScene extends Phaser.Scene {
 
   /** Show compact read-only roster viewer during loot screen. */
   showLootRoster() {
-    if (this.lootRosterVisible) return;
-    this.lootRosterVisible = true;
-    this.lootRosterGroup = [];
-    const cam = this.cameras.main;
-    const roster = this.runManager.roster;
-
-    const panelW = 500;
-    const lineH = 18;
-    const headerH = 30;
-    const panelH = headerH + roster.length * lineH + 16;
-    const px = cam.centerX;
-    const py = cam.centerY;
-
-    const bg = this.add
-      .rectangle(px, py, panelW, panelH, 0x111122, 0.95)
-      .setStrokeStyle(2, 0x8888cc)
-      .setDepth(750)
-      .setInteractive();
-    this.lootRosterGroup.push(bg);
-
-    const title = this.add
-      .text(px, py - panelH / 2 + 14, 'ROSTER', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#ffdd44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(751);
-    this.lootRosterGroup.push(title);
-
-    const startY = py - panelH / 2 + headerH + 8;
-    const leftX = px - panelW / 2 + 12;
-
-    for (let i = 0; i < roster.length; i++) {
-      const u = roster[i];
-      const y = startY + i * lineH;
-      const wpnName = u.weapon?.name || u.inventory?.[0]?.name || '-';
-      const accName = u.accessory?.name || '-';
-      const consumeNames = (u.consumables || []).map((c) => c.name).join(', ') || '-';
-      const invCount = (u.inventory || []).length;
-      const line = `${u.name.padEnd(10)} ${u.className.padEnd(12)} Lv${String(getDisplayLevel(u)).padStart(2)} HP:${u.stats.HP}/${u.maxHP || u.stats.HP}  Wpn:${wpnName}  Acc:${accName}  Inv:${invCount}`;
-      const txt = this.add
-        .text(leftX, y, line, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color: '#cccccc',
-        })
-        .setDepth(751);
-      this.lootRosterGroup.push(txt);
-    }
-
-    const hint = this.add
-      .text(px, py + panelH / 2 - 10, '[R] Close  |  [ESC] Close', {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#888888',
-      })
-      .setOrigin(0.5)
-      .setDepth(751);
-    this.lootRosterGroup.push(hint);
-    this._pinToScreen(this.lootRosterGroup);
+    (this._lootFlowController ||= new LootFlowController(this)).showLootRoster();
   }
 
   /** Hide loot roster viewer. */
   hideLootRoster() {
-    if (!this.lootRosterVisible) return;
-    this.lootRosterVisible = false;
-    if (this.lootRosterGroup) {
-      for (const obj of this.lootRosterGroup) obj.destroy();
-      this.lootRosterGroup = null;
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).hideLootRoster();
   }
 
   /**
@@ -10953,79 +10255,19 @@ export class BattleScene extends Phaser.Scene {
    * Non-elite: immediate cleanup. Elite: gray out card, decrement, cleanup at 0.
    */
   finalizeLootPick(lootGroup, cardIndex) {
-    this._hideLootTooltip();
-    if (this._lootResolving) return;
-    if (!this.isElite || !this._elitePicksRemaining || this._elitePicksRemaining <= 1) {
-      // Non-elite or last pick -- clean up immediately
-      this._lootResolving = true;
-      this._lootCards = null;
-      this._lootInstruction = null;
-      this.scheduleLootCleanup(lootGroup);
-      return;
-    }
-
-    this._elitePicksRemaining--;
-
-    // Gray out the chosen card
-    const cardRef = this._lootCards?.[cardIndex];
-    if (cardRef?.bg) {
-      cardRef.bg.setFillStyle(0x222222);
-      cardRef.bg.setStrokeStyle(2, 0x444444);
-      cardRef.bg.removeAllListeners('pointerdown');
-      cardRef.bg.disableInteractive();
-    }
-
-    // Re-show loot cards (sub-pickers hide them)
-    for (const obj of lootGroup) obj.setVisible(true);
-
-    // Update instruction text
-    if (this._lootInstruction) {
-      this._lootInstruction.setText('Choose 1 more reward');
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).finalizeLootPick(
+      lootGroup,
+      cardIndex,
+    );
   }
 
   /** Clean up loot screen and transition. */
   cleanupLootScreen(lootGroup) {
-    this._hideLootTooltip();
-    if (this._lootCleanedUp) return;
-    this._lootCleanedUp = true;
-    this.hideLootRoster();
-    if (this.lootSettingsOverlay) {
-      this.lootSettingsOverlay.hide();
-      this.lootSettingsOverlay = null;
-    }
-    const resolvedLootGroup = lootGroup || this.lootGroup || [];
-    try {
-      for (const obj of resolvedLootGroup) {
-        try {
-          if (obj && typeof obj.destroy === 'function') obj.destroy();
-        } catch (objErr) {
-          console.warn('[BattleScene][LootFlow] failed to destroy loot object', objErr);
-        }
-      }
-      this.lootGroup = null;
-      this._startPostLootTransition();
-    } catch (err) {
-      this._lootResolving = false;
-      this._lootCleanedUp = false;
-      this.reportLootError('cleanupLootScreen', err, {
-        isElite: this.isElite,
-        picksRemaining: this._elitePicksRemaining,
-      });
-    }
+    (this._lootFlowController ||= new LootFlowController(this)).cleanupLootScreen(lootGroup);
   }
 
   scheduleLootCleanup(lootGroup) {
-    if (this._lootCleanupScheduled) return;
-    this._lootCleanupScheduled = true;
-    const runCleanup = () => {
-      this._lootCleanupScheduled = false;
-      this._lootCleanupTimeout = null;
-      if (this._sceneShutdownCleanedUp) return;
-      if (!this._lootCleanedUp) this.cleanupLootScreen(lootGroup);
-    };
-    Promise.resolve().then(runCleanup);
-    this._lootCleanupTimeout = setTimeout(runCleanup, 0);
+    (this._lootFlowController ||= new LootFlowController(this)).scheduleLootCleanup(lootGroup);
   }
 
   showLootStatus(message, color = '#ff8888') {
