@@ -7,6 +7,7 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { InputController } from '../src/ui/InputController.js';
 
 function makeGesturePolicyScene(overrides = {}) {
   return {
@@ -111,14 +112,15 @@ describe('BattleScene mobile camera gesture policy', () => {
   });
 
   it('suppresses tap flow when a second touch is active, even if gesture input is disallowed', () => {
-    const cancelTouchInspectHold = vi.fn();
+    const holdTimer = { remove: vi.fn() };
     const scene = {
       _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: {
         handlePointerDown: vi.fn(() => ({ consumed: false, beganGesture: false, touchCount: 2 })),
       },
       isCameraGestureAllowed: () => false,
-      cancelTouchInspectHold,
+      _touchHoldTimer: holdTimer,
+      _touchHoldStart: { x: 4, y: 5, id: 1 },
       _touchHoldTriggered: true,
     };
 
@@ -127,7 +129,8 @@ describe('BattleScene mobile camera gesture policy', () => {
     });
 
     expect(consumed).toBe(true);
-    expect(cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(holdTimer.remove).toHaveBeenCalledWith(false);
+    expect(scene._touchHoldStart).toBeNull();
     expect(scene._touchHoldTriggered).toBe(false);
   });
 
@@ -155,19 +158,21 @@ describe('BattleScene mobile camera gesture policy', () => {
 
 describe('BattleScene camera touch interruption cleanup', () => {
   it('clears touch state and suppresses tap on touch cancel via onPointerUp', () => {
-    const onClick = vi.fn();
-    const handlePointerUp = vi.fn(() => false);
+    const onClickSpy = vi.spyOn(InputController.prototype, 'onClick').mockImplementation(() => {});
+    const gestureSpy = vi
+      .spyOn(InputController.prototype, '_handleCameraGesturePointerUp')
+      .mockReturnValue(false);
+    const holdTimer = { remove: vi.fn() };
     const scene = {
       _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: { clearTouches: vi.fn(() => true) },
       _cameraGestureTapSuppressed: false,
       _touchTapDown: { x: 10, y: 20 },
-      cancelTouchInspectHold: vi.fn(),
+      _touchHoldTimer: holdTimer,
+      _touchHoldStart: { x: 10, y: 20, id: 1 },
       _syncMobileResetViewButton: vi.fn(),
-      _handleCameraGesturePointerUp: handlePointerUp,
       isStoryInputLocked: () => false,
       _uiClickBlocked: false,
-      onClick,
     };
 
     BattleScene.prototype.onPointerUp.call(scene, {
@@ -178,28 +183,33 @@ describe('BattleScene camera touch interruption cleanup', () => {
     });
 
     expect(scene._battleCamera.clearTouches).toHaveBeenCalledTimes(1);
-    expect(handlePointerUp).toHaveBeenCalledTimes(0);
-    expect(onClick).toHaveBeenCalledTimes(0);
-    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(gestureSpy).toHaveBeenCalledTimes(0);
+    expect(onClickSpy).toHaveBeenCalledTimes(0);
+    expect(holdTimer.remove).toHaveBeenCalledWith(false);
     expect(scene._syncMobileResetViewButton).toHaveBeenCalledTimes(1);
     expect(scene._cameraGestureTapSuppressed).toBe(true);
     expect(scene._touchTapDown).toBeNull();
+
+    gestureSpy.mockRestore();
+    onClickSpy.mockRestore();
   });
 
   it('still releases touch gesture tracking when pointerup is UI-blocked', () => {
-    const onClick = vi.fn();
-    const handlePointerUp = vi.fn(() => false);
+    const onClickSpy = vi.spyOn(InputController.prototype, 'onClick').mockImplementation(() => {});
+    const gestureSpy = vi
+      .spyOn(InputController.prototype, '_handleCameraGesturePointerUp')
+      .mockReturnValue(false);
+    const holdTimer = { remove: vi.fn() };
     const scene = {
       _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: { clearTouches: vi.fn(() => false), hasActiveTouches: vi.fn(() => false) },
       _cameraGestureTapSuppressed: false,
       _touchTapDown: { x: 10, y: 20 },
-      cancelTouchInspectHold: vi.fn(),
+      _touchHoldTimer: holdTimer,
+      _touchHoldStart: { x: 10, y: 20, id: 1 },
       _syncMobileResetViewButton: vi.fn(),
-      _handleCameraGesturePointerUp: handlePointerUp,
       isStoryInputLocked: () => false,
       _uiClickBlocked: true,
-      onClick,
     };
 
     BattleScene.prototype.onPointerUp.call(scene, {
@@ -210,27 +220,32 @@ describe('BattleScene camera touch interruption cleanup', () => {
       y: 20,
     });
 
-    expect(handlePointerUp).toHaveBeenCalledTimes(1);
-    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(gestureSpy).toHaveBeenCalledTimes(1);
+    expect(holdTimer.remove).toHaveBeenCalledWith(false);
     expect(scene._touchTapDown).toBeNull();
     expect(scene._uiClickBlocked).toBe(false);
-    expect(onClick).toHaveBeenCalledTimes(0);
+    expect(onClickSpy).toHaveBeenCalledTimes(0);
+
+    gestureSpy.mockRestore();
+    onClickSpy.mockRestore();
   });
 
   it('suppresses tap when pointerup is UI-blocked and gesture release is consumed', () => {
-    const onClick = vi.fn();
-    const handlePointerUp = vi.fn(() => true);
+    const onClickSpy = vi.spyOn(InputController.prototype, 'onClick').mockImplementation(() => {});
+    const gestureSpy = vi
+      .spyOn(InputController.prototype, '_handleCameraGesturePointerUp')
+      .mockReturnValue(true);
+    const holdTimer = { remove: vi.fn() };
     const scene = {
       _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: { clearTouches: vi.fn(() => false), hasActiveTouches: vi.fn(() => false) },
       _cameraGestureTapSuppressed: false,
       _touchTapDown: { x: 10, y: 20 },
-      cancelTouchInspectHold: vi.fn(),
+      _touchHoldTimer: holdTimer,
+      _touchHoldStart: { x: 10, y: 20, id: 1 },
       _syncMobileResetViewButton: vi.fn(),
-      _handleCameraGesturePointerUp: handlePointerUp,
       isStoryInputLocked: () => false,
       _uiClickBlocked: true,
-      onClick,
     };
 
     BattleScene.prototype.onPointerUp.call(scene, {
@@ -241,28 +256,33 @@ describe('BattleScene camera touch interruption cleanup', () => {
       y: 20,
     });
 
-    expect(handlePointerUp).toHaveBeenCalledTimes(1);
+    expect(gestureSpy).toHaveBeenCalledTimes(1);
     expect(scene._cameraGestureTapSuppressed).toBe(true);
-    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(holdTimer.remove).toHaveBeenCalledWith(false);
     expect(scene._touchTapDown).toBeNull();
     expect(scene._uiClickBlocked).toBe(false);
-    expect(onClick).toHaveBeenCalledTimes(0);
+    expect(onClickSpy).toHaveBeenCalledTimes(0);
+
+    gestureSpy.mockRestore();
+    onClickSpy.mockRestore();
   });
 
   it('still releases touch gesture tracking when story input lock is active', () => {
-    const onClick = vi.fn();
-    const handlePointerUp = vi.fn(() => true);
+    const onClickSpy = vi.spyOn(InputController.prototype, 'onClick').mockImplementation(() => {});
+    const gestureSpy = vi
+      .spyOn(InputController.prototype, '_handleCameraGesturePointerUp')
+      .mockReturnValue(true);
+    const holdTimer = { remove: vi.fn() };
     const scene = {
       _isTouchPointer: BattleScene.prototype._isTouchPointer,
       _battleCamera: { clearTouches: vi.fn(() => false), hasActiveTouches: vi.fn(() => false) },
       _cameraGestureTapSuppressed: false,
       _touchTapDown: { x: 10, y: 20 },
-      cancelTouchInspectHold: vi.fn(),
+      _touchHoldTimer: holdTimer,
+      _touchHoldStart: { x: 10, y: 20, id: 1 },
       _syncMobileResetViewButton: vi.fn(),
-      _handleCameraGesturePointerUp: handlePointerUp,
       isStoryInputLocked: () => true,
       _uiClickBlocked: false,
-      onClick,
     };
 
     BattleScene.prototype.onPointerUp.call(scene, {
@@ -273,11 +293,14 @@ describe('BattleScene camera touch interruption cleanup', () => {
       y: 20,
     });
 
-    expect(handlePointerUp).toHaveBeenCalledTimes(1);
+    expect(gestureSpy).toHaveBeenCalledTimes(1);
     expect(scene._cameraGestureTapSuppressed).toBe(true);
-    expect(scene.cancelTouchInspectHold).toHaveBeenCalledTimes(1);
+    expect(holdTimer.remove).toHaveBeenCalledWith(false);
     expect(scene._touchTapDown).toBeNull();
-    expect(onClick).toHaveBeenCalledTimes(0);
+    expect(onClickSpy).toHaveBeenCalledTimes(0);
+
+    gestureSpy.mockRestore();
+    onClickSpy.mockRestore();
   });
 });
 
