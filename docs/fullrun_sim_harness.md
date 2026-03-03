@@ -27,6 +27,9 @@ cmd /c npm run sim:fullrun:harness:pr:single
 
 # List deterministic slices
 cmd /c npm run sim:fullrun:harness:slices:list
+
+# Find first-bad commit for a failing slice in a range
+cmd /c npm run sim:fullrun:harness:triage -- --slice progression_invincible --range 1a456b4..505c2bf
 ```
 
 ## CLI options
@@ -92,6 +95,7 @@ Not covered by full-run simulation:
 
 Slice definitions live in `tests/sim/fullrun-slices.js`.
 Calibration guidance lives in `docs/harness-thresholds.md`.
+Attribution tooling lives in `tests/sim/fullrun-slice-triage.js`.
 
 ## Exit code semantics
 
