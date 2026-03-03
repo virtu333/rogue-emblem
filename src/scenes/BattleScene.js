@@ -60,7 +60,6 @@ import {
   canReclass,
   getReclassTargets,
   reclassUnit,
-  getDisplayLevel,
 } from '../engine/UnitManager.js';
 import {
   getSkillCombatMods,
@@ -204,6 +203,7 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
@@ -211,10 +211,6 @@ import { TransitionRecoveryController } from '../ui/TransitionRecoveryController
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
-import {
-  TOOLTIP_LONG_PRESS_MS,
-  TOOLTIP_LONG_PRESS_MOVE_THRESHOLD,
-} from '../utils/tooltipTiming.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -410,6 +406,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._weaponArtController) {
       this._weaponArtController.destroy();
       this._weaponArtController = null;
+    }
+    if (this._inputController) {
+      this._inputController.destroy();
+      this._inputController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -2666,255 +2666,47 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onPointerMove(pointer) {
-    if (this.isStoryInputLocked()) return;
-    if (this._isTouchPointer(pointer) && this._handleCameraGesturePointerMove(pointer)) {
-      this._cameraGestureTapSuppressed = true;
-      this.cancelTouchInspectHold();
-      return;
-    }
-    this.updateTouchInspectHold(pointer);
-    if (this.battleState === 'BATTLE_END') {
-      if (this.cursorHighlight) this.cursorHighlight.setVisible(false);
-      if (this.infoText) this.infoText.setText('');
-      this.updateTopLeftHudLayout();
-      return;
-    }
-    if (this._isTouchPointer(pointer)) return;
-    const gp = this._pointerToGrid(pointer);
-    if (!gp) {
-      this.cursorHighlight.setVisible(false);
-      this.infoText.setText('');
-      this.updateTopLeftHudLayout();
-      return;
-    }
-
-    // Move cursor
-    const { x, y } = this.grid.gridToPixel(gp.col, gp.row);
-    this.cursorHighlight.setPosition(x, y).setVisible(true);
-
-    // Terrain info
-    const terrain = this.grid.getTerrainAt(gp.col, gp.row);
-    let info = terrain.name;
-    const hovered = this.getUnitAt(gp.col, gp.row);
-    const moveType = hovered ? hovered.moveType : 'Infantry';
-    const moveCost = terrain.moveCost[moveType];
-    info += ` | Move: ${moveCost}`;
-    const avoidBonus = parseInt(terrain.avoidBonus, 10);
-    if (avoidBonus) info += ` | Avo ${avoidBonus > 0 ? '+' : ''}${avoidBonus}`;
-    if (parseInt(terrain.defBonus)) info += ` | Def +${terrain.defBonus}`;
-    const specialText = typeof terrain.special === 'string' ? terrain.special.trim() : '';
-    if (specialText) info += `\n${specialText}`;
-
-    // Unit info (skip hidden units in fog)
-    if (hovered && this.grid.isVisible(gp.col, gp.row)) {
-      const lvl = getDisplayLevel(hovered);
-      const cls = hovered.className || '';
-      info += `\n${hovered.name} Lv${lvl} ${cls} | HP ${hovered.currentHP}/${hovered.stats.HP}`;
-      if (hovered.weapon) info += ` | ${hovered.weapon.name}`;
-      if (hovered.faction === 'player' && hovered.xp !== undefined) {
-        info += ` | XP ${hovered.xp}/100`;
-      }
-    }
-    this.infoText.setText(info);
-    this.updateTopLeftHudLayout();
-
-    // Path preview when unit selected and hovering a reachable tile
-    if (this.battleState === 'UNIT_SELECTED' && this.selectedUnit && this.movementRange) {
-      const key = `${gp.col},${gp.row}`;
-      const previewEntry = this.movementRange.get(key);
-      if (
-        previewEntry &&
-        previewEntry.stoppable !== false &&
-        key !== `${this.selectedUnit.col},${this.selectedUnit.row}`
-      ) {
-        if (this._lastPathPreviewKey === key) return;
-        // Use Dijkstra reconstruction for consistent ice-aware paths
-        const icePath = this.grid.reconstructIcePath(
-          this.movementRange,
-          this.selectedUnit.col,
-          this.selectedUnit.row,
-          gp.col,
-          gp.row,
-        );
-        const path =
-          icePath ||
-          this.grid.findPath(
-            this.selectedUnit.col,
-            this.selectedUnit.row,
-            gp.col,
-            gp.row,
-            this.selectedUnit.moveType,
-            this.unitPositions,
-            this.selectedUnit.faction,
-            this._getCostModifier(this.selectedUnit),
-          );
-        if (path) {
-          const occupied = this.buildOccupiedSet(this.selectedUnit);
-          const effective = computeEffectivePath(
-            path,
-            this.grid.mapLayout,
-            this.grid.terrainData,
-            this.grid.cols,
-            this.grid.rows,
-            this.selectedUnit.moveType,
-            occupied,
-            this._getCostModifier(this.selectedUnit),
-          );
-          this.grid.showPath(effective.effectivePath);
-          for (const seg of effective.slideSegments) {
-            this.grid.showSlidePath(seg.slidePath);
-          }
-        }
-        this._lastPathPreviewKey = key;
-      } else {
-        this.grid.clearPath();
-        this._lastPathPreviewKey = null;
-      }
-    }
+    (this._inputController ||= new InputController(this)).onPointerMove(pointer);
   }
 
   onPointerDown(pointer) {
-    if (this.isStoryInputLocked()) return;
-    if (this._isTouchPointer(pointer)) {
-      this._battleCamera?.pruneInactiveTouches?.(pointer);
-      if (!this._battleCamera?.hasActiveTouches?.()) {
-        this._cameraGestureTapSuppressed = false;
-      }
-      if (this._handleCameraGesturePointerDown(pointer)) {
-        this._cameraGestureTapSuppressed = true;
-        this.cancelTouchInspectHold();
-        this._touchTapDown = null;
-        return;
-      }
-    }
-    this._touchTapDown = { x: pointer.x, y: pointer.y };
-    this.startTouchInspectHold(pointer);
-    if (pointer?.rightButtonDown && pointer.rightButtonDown()) this.onRightClick(pointer);
+    (this._inputController ||= new InputController(this)).onPointerDown(pointer);
   }
 
   startTouchInspectHold(pointer) {
-    if (!this._isTouchPointer(pointer)) return;
-    this.cancelTouchInspectHold();
-    this._touchHoldTriggered = false;
-    this._touchHoldStart = { x: pointer.x, y: pointer.y, id: pointer.id };
-    this._touchHoldTimer = this.time.delayedCall(TOOLTIP_LONG_PRESS_MS, () => {
-      const start = this._touchHoldStart;
-      this._touchHoldTimer = null;
-      if (!start) return;
-      if (this.unitDetailOverlay?.visible || this.pauseOverlay?.visible || this.lootSettingsOverlay)
-        return;
-      const world = this._screenToWorld(start.x, start.y);
-      if (world && this._showInspectionAtPixel(world.x, world.y)) {
-        this._touchHoldTriggered = true;
-      }
-    });
+    (this._inputController ||= new InputController(this)).startTouchInspectHold(pointer);
   }
 
   updateTouchInspectHold(pointer) {
-    if (!this._isTouchPointer(pointer)) return;
-    if (!this._touchHoldTimer || !this._touchHoldStart) return;
-    if (pointer.id !== this._touchHoldStart.id) return;
-    const dx = pointer.x - this._touchHoldStart.x;
-    const dy = pointer.y - this._touchHoldStart.y;
-    const threshold = TOOLTIP_LONG_PRESS_MOVE_THRESHOLD;
-    if (dx * dx + dy * dy > threshold * threshold) {
-      this.cancelTouchInspectHold();
-    }
+    (this._inputController ||= new InputController(this)).updateTouchInspectHold(pointer);
   }
 
   cancelTouchInspectHold() {
-    if (this._touchHoldTimer) {
-      this._touchHoldTimer.remove(false);
-      this._touchHoldTimer = null;
-    }
-    this._touchHoldStart = null;
+    (this._inputController ||= new InputController(this)).cancelTouchInspectHold();
   }
 
   clearInspectionVisuals() {
-    if (this.inspectionPanel?.visible) this.inspectionPanel.hide();
-    this.grid.clearHighlights();
-    this.grid.clearAttackHighlights();
-    this.refreshEndTurnControl();
+    (this._inputController ||= new InputController(this)).clearInspectionVisuals();
   }
 
   _showInspectionAtPixel(px, py) {
-    const gp = this.grid.pixelToGrid(px, py);
-    if (!gp) return false;
-    const unit = this.getUnitAt(gp.col, gp.row);
-    if (!unit) return false;
-    const terrain = this.grid.getTerrainAt(unit.col, unit.row);
-    this.inspectionPanel.show(unit, terrain, this.gameData);
-    if (typeof this._pinToScreen === 'function') this._pinToScreen(this.inspectionPanel?.objects);
-
-    if (this.battleState === 'PLAYER_IDLE') {
-      const isPlayer = unit.faction === 'player';
-      const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
-      const moveAlpha = isPlayer ? 0.4 : 0.35;
-      const positions = this.buildUnitPositionMap(unit.faction);
-      const mov = unit.mov ?? unit.stats?.MOV ?? 0;
-      const moveRange = this.grid.getMovementRange(
-        unit.col,
-        unit.row,
-        mov,
-        unit.moveType,
-        positions,
-        unit.faction,
-        this._getCostModifier(unit),
-      );
-      this.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
-
-      if (unit.weapon) {
-        const attackTiles = new Set();
-        for (const [key, entry] of moveRange) {
-          if (entry.stoppable === false) continue;
-          const [mc, mr] = key.split(',').map(Number);
-          for (const t of this.grid.getAttackRange(mc, mr, unit.weapon)) {
-            const tk = `${t.col},${t.row}`;
-            if (!moveRange.has(tk)) attackTiles.add(tk);
-          }
-        }
-        const tiles = Array.from(attackTiles).map((k) => {
-          const [col, row] = k.split(',').map(Number);
-          return { col, row };
-        });
-        this.grid.showAttackRange(tiles);
-      }
-    }
-
-    this.refreshEndTurnControl();
-    return true;
+    return (this._inputController ||= new InputController(this))._showInspectionAtPixel(px, py);
   }
 
   toggleInspectMode() {
-    if (this.isStoryInputLocked()) return;
-    if (!this.isMobileInput) return;
-    this.inspectMode = !this.inspectMode;
-    if (!this.inspectMode) this.clearInspectionVisuals();
-    this.refreshEndTurnControl();
+    (this._inputController ||= new InputController(this)).toggleInspectMode();
   }
 
   handleInspectModeTap(pointer, px, py) {
-    const gp = this.grid.pixelToGrid(px, py);
-    if (!gp) {
-      if (this._isPointerOverInteractive(pointer)) return false;
-      this.clearInspectionVisuals();
-      return true;
-    }
-    if (this._showInspectionAtPixel(px, py)) return true;
-    this.clearInspectionVisuals();
-    return true;
+    return (this._inputController ||= new InputController(this)).handleInspectModeTap(
+      pointer,
+      px,
+      py,
+    );
   }
 
   updateTopLeftHudLayout() {
-    if (!this.infoText || !this.turnCounterText) return;
-    const hasInfo = Boolean(this.infoText.text);
-    const baseY = 28;
-    const stackedY = this.infoText.y + this.infoText.height + 4;
-    const turnY = hasInfo ? Math.max(baseY, stackedY) : baseY;
-    this.turnCounterText.setY(turnY);
-    if (this.visionHudText) {
-      this.visionHudText.setY(turnY + this.turnCounterText.height + 2);
-    }
+    (this._inputController ||= new InputController(this)).updateTopLeftHudLayout();
   }
 
   updateVisionHud() {
@@ -3159,179 +2951,49 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _handleCameraGesturePointerDown(pointer) {
-    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
-    const result = this._battleCamera.handlePointerDown(pointer, this.isCameraGestureAllowed());
-    if (result?.beganGesture || result?.touchCount >= 2) {
-      this.cancelTouchInspectHold();
-      this._touchHoldTriggered = false;
-    }
-    return Boolean(result?.consumed || result?.touchCount >= 2);
+    return (this._inputController ||= new InputController(this))._handleCameraGesturePointerDown(
+      pointer,
+    );
   }
 
   _handleCameraGesturePointerMove(pointer) {
-    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
-    const result = this._battleCamera.handlePointerMove(pointer, this.isCameraGestureAllowed());
-    return Boolean(result?.consumed);
+    return (this._inputController ||= new InputController(this))._handleCameraGesturePointerMove(
+      pointer,
+    );
   }
 
   _handleCameraGesturePointerUp(pointer) {
-    if (!this._battleCamera || !this._isTouchPointer(pointer)) return false;
-    const result = this._battleCamera.handlePointerUp(pointer);
-    if (result?.endedGesture) this._syncMobileResetViewButton();
-    return Boolean(result?.consumed);
+    return (this._inputController ||= new InputController(this))._handleCameraGesturePointerUp(
+      pointer,
+    );
   }
 
   _screenToWorld(x, y) {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    if (this._battleCamera) return this._battleCamera.screenToWorld(x, y);
-    const cam = this.cameras?.main;
-    if (!cam) return null;
-    if (typeof cam.getWorldPoint === 'function') {
-      return cam.getWorldPoint(x, y);
-    }
-    const zoom = Number(cam.zoom) || 1;
-    return {
-      x: (Number(cam.scrollX) || 0) + (x - (cam.x || 0)) / zoom,
-      y: (Number(cam.scrollY) || 0) + (y - (cam.y || 0)) / zoom,
-    };
+    return (this._inputController ||= new InputController(this))._screenToWorld(x, y);
   }
 
   _worldToScreen(x, y) {
-    if (this._battleCamera) return this._battleCamera.worldToScreen(x, y);
-    const cam = this.cameras?.main;
-    if (!cam) return null;
-    const zoom = Number(cam.zoom) || 1;
-    return {
-      x: (x - (Number(cam.scrollX) || 0)) * zoom + (cam.x || 0),
-      y: (y - (Number(cam.scrollY) || 0)) * zoom + (cam.y || 0),
-    };
+    return (this._inputController ||= new InputController(this))._worldToScreen(x, y);
   }
 
   _pointerToWorld(pointer) {
-    if (!pointer) return null;
-    return this._screenToWorld(pointer.x, pointer.y);
+    return (this._inputController ||= new InputController(this))._pointerToWorld(pointer);
   }
 
   _pointerToGrid(pointer) {
-    const world = this._pointerToWorld(pointer);
-    if (!world || !this.grid) return null;
-    return this.grid.pixelToGrid(world.x, world.y);
+    return (this._inputController ||= new InputController(this))._pointerToGrid(pointer);
   }
 
   onClick(pointer, clickPos = null) {
-    if (this.isStoryInputLocked()) return;
-    if (pointer?.rightButtonDown && pointer.rightButtonDown()) return; // handled separately
-    if (this.unitDetailOverlay?.visible) return; // tab clicks handled by overlay
-    if (
-      this.battleState === 'ENEMY_PHASE' ||
-      this.battleState === 'BATTLE_END' ||
-      this.battleState === 'UNIT_MOVING' ||
-      this.battleState === 'COMBAT_RESOLVING' ||
-      this.battleState === 'HEAL_RESOLVING' ||
-      this.battleState === 'DEPLOY_SELECTION' ||
-      this.battleState === 'TUTORIAL_HINT' ||
-      this.battleState === 'PAUSED'
-    )
-      return;
-
-    const screenX = clickPos?.x ?? pointer?.x;
-    const screenY = clickPos?.y ?? pointer?.y;
-    const world = this._screenToWorld(screenX, screenY);
-    if (!world) return;
-    const px = world.x;
-    const py = world.y;
-    if (this.isMobileInput && this.inspectMode) {
-      if (this.handleInspectModeTap(pointer, px, py)) return;
-    }
-    const gp = this.grid.pixelToGrid(px, py);
-    if (!gp) {
-      if (!this._isPointerOverInteractive(pointer)) {
-        this.requestCancel({ allowPause: false });
-      }
-      return;
-    }
-
-    switch (this.battleState) {
-      case 'PLAYER_IDLE':
-        this.handleIdleClick(gp);
-        break;
-      case 'UNIT_SELECTED':
-        this.handleSelectedClick(gp);
-        break;
-      case 'UNIT_ACTION_MENU':
-        this.handleActionMenuClick(gp);
-        break;
-      case 'SELECTING_TARGET':
-        this.handleTargetClick(gp);
-        break;
-      case 'SHOWING_FORECAST':
-        this.handleForecastClick(gp);
-        break;
-      case 'SELECTING_HEAL_TARGET':
-        this.handleHealTargetClick(gp);
-        break;
-      case 'SELECTING_CURE_TARGET':
-        this._handleCureTargetClick(gp);
-        break;
-      case 'SELECTING_SHOVE_TARGET':
-        this.handleShoveTargetClick(gp);
-        break;
-      case 'SELECTING_PULL_TARGET':
-        this.handlePullTargetClick(gp);
-        break;
-      case 'SELECTING_TRADE_TARGET':
-        this.handleTradeTargetClick(gp);
-        break;
-      case 'SELECTING_SWAP_TARGET':
-        this.handleSwapTargetClick(gp);
-        break;
-      case 'SELECTING_DANCE_TARGET':
-        this.handleDanceTargetClick(gp);
-        break;
-      case 'SELECTING_BREAK_TARGET':
-        this.handleBreakTargetClick(gp);
-        break;
-      case 'CANTO_MOVING':
-        this.handleCantoClick(gp);
-        break;
-    }
+    (this._inputController ||= new InputController(this)).onClick(pointer, clickPos);
   }
 
   onRightClick(pointer) {
-    if (this.isStoryInputLocked()) return;
-    if (this.battleState === 'BATTLE_END') return;
-    // Right-click cancels active selection states (like ESC)
-    if (this.requestCancel({ allowPause: false })) {
-      return;
-    }
-
-    // Right-click = unit inspection toggle
-    if (this.inspectionPanel.visible) {
-      this.clearInspectionVisuals();
-      return;
-    }
-    const world = this._pointerToWorld(pointer);
-    if (world && this._showInspectionAtPixel(world.x, world.y)) return;
-    this.refreshEndTurnControl();
+    (this._inputController ||= new InputController(this)).onRightClick(pointer);
   }
 
   _isPointerOverInteractive(pointer) {
-    if (!this.input || !pointer) return false;
-    let hit = [];
-    if (typeof this.input.hitTestPointer === 'function') {
-      hit = this.input.hitTestPointer(pointer) || [];
-    } else if (this.input.manager?.hitTest) {
-      hit = this.input.manager.hitTest(pointer, this.children.list, this.cameras.main) || [];
-      if (this._uiCamera) {
-        hit = hit.concat(
-          this.input.manager.hitTest(pointer, this.children.list, this._uiCamera) || [],
-        );
-      }
-    }
-    return (
-      Array.isArray(hit) &&
-      hit.some((obj) => obj && obj.visible !== false && obj.active !== false && obj.input?.enabled)
-    );
+    return (this._inputController ||= new InputController(this))._isPointerOverInteractive(pointer);
   }
 
   isCancelableBattleState() {
@@ -3427,21 +3089,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   openUnitDetailOverlay() {
-    const { _unit, _terrain, _gameData } = this.inspectionPanel;
-    if (!_unit) return;
-    // Cycle through the inspected unit's faction
-    let pool;
-    if (this.enemyUnits?.includes(_unit)) {
-      pool = this.enemyUnits.filter((u) => u.currentHP > 0);
-    } else if (this.npcUnits?.includes(_unit)) {
-      pool = this.npcUnits.filter((u) => u.currentHP > 0);
-    } else {
-      pool = (this.playerUnits || []).filter((u) => u.currentHP > 0);
-    }
-    const rosterIndex = pool.indexOf(_unit) !== -1 ? pool.indexOf(_unit) : 0;
-    const rosterOptions = pool.length > 0 ? { rosterUnits: pool, rosterIndex } : undefined;
-    this.unitDetailOverlay.show(_unit, _terrain, _gameData, rosterOptions);
-    this.refreshEndTurnControl();
+    (this._inputController ||= new InputController(this)).openUnitDetailOverlay();
   }
 
   handleCancel() {
@@ -3860,83 +3508,23 @@ export class BattleScene extends Phaser.Scene {
   }
 
   handleIdleClick(gp) {
-    if (this.unitDetailOverlay?.visible) this.unitDetailOverlay.hide();
-    const unit = this.getUnitAt(gp.col, gp.row);
-    if (unit && unit.faction === 'player' && !unit.hasActed && !isSleeping(unit)) {
-      this.inspectionPanel.hide();
-      this.grid.clearHighlights();
-      this.grid.clearAttackHighlights();
-      this.selectUnit(unit);
-    } else {
-      // Left-click on empty or non-selectable: hide inspection tooltip + ranges
-      this.inspectionPanel.hide();
-      this.grid.clearHighlights();
-      this.grid.clearAttackHighlights();
-    }
+    (this._inputController ||= new InputController(this)).handleIdleClick(gp);
   }
 
   handleSelectedClick(gp) {
-    if (!this.selectedUnit) {
-      this.deselectUnit();
-      return;
-    }
-    if (this._isTutorialStrictGateActive() && this.tutorialStep === 3) {
-      const fort = this._getTutorialFortTile();
-      const isFortTile = Boolean(fort && gp.col === fort.col && gp.row === fort.row);
-      const key = `${gp.col},${gp.row}`;
-      const rangeEntry = this.movementRange?.get(key);
-      const canMoveToTile = Boolean(rangeEntry && rangeEntry.stoppable !== false);
-      if (!isFortTile || !canMoveToTile) {
-        void this._showTutorialBlockingInstruction(
-          'Move Edric to the highlighted Fort tile to continue.',
-        );
-        return;
-      }
-    }
-
-    // Click own tile to stay in place -> show action menu
-    if (gp.col === this.selectedUnit.col && gp.row === this.selectedUnit.row) {
-      this.grid.clearHighlights();
-      if (this.selectedUnit.graphic?.clearTint) this.selectedUnit.graphic.clearTint();
-      this.preMoveLoc = { col: this.selectedUnit.col, row: this.selectedUnit.row };
-      this._preFogSnapshot = this.grid.snapshotFogState();
-      this.showActionMenu(this.selectedUnit);
-      return;
-    }
-
-    // Click a reachable tile to move
-    const key = `${gp.col},${gp.row}`;
-    const moveEntry = this.movementRange?.get(key);
-    if (moveEntry && moveEntry.stoppable !== false) {
-      this.moveUnit(this.selectedUnit, gp.col, gp.row);
-    } else {
-      // Click unreachable tile -> deselect (FE standard behavior)
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_cancel');
-      this.deselectUnit();
-    }
+    (this._inputController ||= new InputController(this)).handleSelectedClick(gp);
   }
 
   handleActionMenuClick(gp) {
-    // Clicks during action menu are handled by the menu buttons, not grid clicks
+    (this._inputController ||= new InputController(this)).handleActionMenuClick(gp);
   }
 
   handleTargetClick(gp) {
-    // Check if clicked an attackable enemy
-    const target = this.attackTargets.find((t) => t.col === gp.col && t.row === gp.row);
-    if (target) {
-      this.showForecast(this.selectedUnit, target);
-    }
+    (this._inputController ||= new InputController(this)).handleTargetClick(gp);
   }
 
   handleForecastClick(gp) {
-    if (
-      this.forecastTarget &&
-      gp.col === this.forecastTarget.col &&
-      gp.row === this.forecastTarget.row
-    ) {
-      this.confirmForecastCombat();
-    }
+    (this._inputController ||= new InputController(this)).handleForecastClick(gp);
   }
 
   confirmForecastCombat() {
@@ -5749,69 +5337,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   onPointerUp(pointer) {
-    if ((pointer.rightButtonDown && pointer.rightButtonDown()) || pointer.button === 2) return;
-    const uiClickBlocked = Boolean(this._uiClickBlocked);
-    if (uiClickBlocked) this._uiClickBlocked = false;
-
-    // Guard: ignore map clicks that occur immediately after a UI interaction (pointerdown)
-    // to prevent 'bleed-through' clicks to the map.
-    if (this._isTouchPointer(pointer)) {
-      const wasTouchCanceled = Boolean(
-        pointer.wasCanceled || pointer?.event?.type === 'touchcancel',
-      );
-      if (wasTouchCanceled) {
-        const hadTouches = Boolean(this._battleCamera?.clearTouches?.());
-        this._cameraGestureTapSuppressed = true;
-        this.cancelTouchInspectHold();
-        this._touchTapDown = null;
-        if (hadTouches) this._syncMobileResetViewButton();
-        return;
-      }
-      if (this._handleCameraGesturePointerUp(pointer)) {
-        this._cameraGestureTapSuppressed = true;
-        this.cancelTouchInspectHold();
-        this._touchTapDown = null;
-        return;
-      }
-      if (this._cameraGestureTapSuppressed) {
-        if (!this._battleCamera?.hasActiveTouches?.()) this._cameraGestureTapSuppressed = false;
-        this.cancelTouchInspectHold();
-        this._touchTapDown = null;
-        return;
-      }
-    }
-
-    if (this.isStoryInputLocked()) {
-      this.cancelTouchInspectHold();
-      this._touchTapDown = null;
-      return;
-    }
-
-    if (uiClickBlocked) {
-      this.cancelTouchInspectHold();
-      this._touchTapDown = null;
-      return;
-    }
-
-    this.cancelTouchInspectHold();
-    let clickPos = null;
-    if (this._isTouchPointer(pointer) && this._touchTapDown) {
-      if (this._touchHoldTriggered) {
-        this._touchHoldTriggered = false;
-        this._touchTapDown = null;
-        return;
-      }
-      const dx = pointer.x - this._touchTapDown.x;
-      const dy = pointer.y - this._touchTapDown.y;
-      if (dx * dx + dy * dy > this._tapMoveThreshold * this._tapMoveThreshold) {
-        this._touchTapDown = null;
-        return;
-      }
-      // Use touch-down tile to avoid slight finger-lift drift selecting adjacent tiles.
-      clickPos = { x: this._touchTapDown.x, y: this._touchTapDown.y };
-    }
-    this._touchTapDown = null;
-    this.onClick(pointer, clickPos);
+    (this._inputController ||= new InputController(this)).onPointerUp(pointer);
   }
 
   getActiveHealStaff(unit, usableStaves = null) {

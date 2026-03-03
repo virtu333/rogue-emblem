@@ -43,6 +43,7 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
+import { InputController } from '../src/ui/InputController.js';
 import { LootFlowController } from '../src/ui/LootFlowController.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
@@ -467,6 +468,89 @@ describe('BattleScene shim delegation contracts', () => {
   });
 
   // ── Forecast shim contracts ──────────────────────────────────
+
+  describe('Input shims', () => {
+    it('onPointerMove lazy-inits InputController once and reuses it', () => {
+      const scene = makeScene();
+      const spy = vi.spyOn(InputController.prototype, 'onPointerMove').mockImplementation(() => {});
+
+      BattleScene.prototype.onPointerMove.call(scene, { x: 1, y: 2 });
+      const firstController = scene._inputController;
+      BattleScene.prototype.onPointerMove.call(scene, { x: 3, y: 4 });
+
+      expect(firstController).toBeInstanceOf(InputController);
+      expect(scene._inputController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['onPointerMove', 'onPointerMove', [{ x: 10, y: 20 }]],
+      ['onPointerDown', 'onPointerDown', [{ x: 10, y: 20 }]],
+      ['onPointerUp', 'onPointerUp', [{ x: 10, y: 20, button: 0, rightButtonDown: () => false }]],
+      ['onRightClick', 'onRightClick', [{ x: 10, y: 20 }]],
+      ['onClick', 'onClick', [{ x: 10, y: 20 }, null]],
+      ['handleIdleClick', 'handleIdleClick', [{ col: 1, row: 2 }]],
+      ['handleSelectedClick', 'handleSelectedClick', [{ col: 1, row: 2 }]],
+      ['handleActionMenuClick', 'handleActionMenuClick', [{ col: 1, row: 2 }]],
+      ['handleTargetClick', 'handleTargetClick', [{ col: 1, row: 2 }]],
+      ['handleForecastClick', 'handleForecastClick', [{ col: 1, row: 2 }]],
+      ['startTouchInspectHold', 'startTouchInspectHold', [{ x: 10, y: 20, id: 1 }]],
+      ['updateTouchInspectHold', 'updateTouchInspectHold', [{ x: 10, y: 20, id: 1 }]],
+      ['cancelTouchInspectHold', 'cancelTouchInspectHold', []],
+      ['_screenToWorld', '_screenToWorld', [10, 20]],
+      ['_worldToScreen', '_worldToScreen', [10, 20]],
+      ['_pointerToWorld', '_pointerToWorld', [{ x: 10, y: 20 }]],
+      ['_pointerToGrid', '_pointerToGrid', [{ x: 10, y: 20 }]],
+      ['_handleCameraGesturePointerDown', '_handleCameraGesturePointerDown', [{ id: 1 }]],
+      ['_handleCameraGesturePointerMove', '_handleCameraGesturePointerMove', [{ id: 1 }]],
+      ['_handleCameraGesturePointerUp', '_handleCameraGesturePointerUp', [{ id: 1 }]],
+      ['_showInspectionAtPixel', '_showInspectionAtPixel', [10, 20]],
+      ['clearInspectionVisuals', 'clearInspectionVisuals', []],
+      ['toggleInspectMode', 'toggleInspectMode', []],
+      ['handleInspectModeTap', 'handleInspectModeTap', [{}, 10, 20]],
+      ['_isPointerOverInteractive', '_isPointerOverInteractive', [{ x: 10, y: 20 }]],
+      ['updateTopLeftHudLayout', 'updateTopLeftHudLayout', []],
+      ['openUnitDetailOverlay', 'openUnitDetailOverlay', []],
+    ])('%s delegates to InputController.%s', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(InputController.prototype, controllerMethod)
+        .mockImplementation(() => {});
+
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._inputController).toBeInstanceOf(InputController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['_screenToWorld', '_screenToWorld', [10, 20]],
+      ['_worldToScreen', '_worldToScreen', [10, 20]],
+      ['_pointerToWorld', '_pointerToWorld', [{ x: 10, y: 20 }]],
+      ['_pointerToGrid', '_pointerToGrid', [{ x: 10, y: 20 }]],
+      ['_handleCameraGesturePointerDown', '_handleCameraGesturePointerDown', [{ id: 1 }]],
+      ['_handleCameraGesturePointerMove', '_handleCameraGesturePointerMove', [{ id: 1 }]],
+      ['_handleCameraGesturePointerUp', '_handleCameraGesturePointerUp', [{ id: 1 }]],
+      ['_showInspectionAtPixel', '_showInspectionAtPixel', [10, 20]],
+      ['handleInspectModeTap', 'handleInspectModeTap', [{}, 10, 20]],
+      ['_isPointerOverInteractive', '_isPointerOverInteractive', [{ x: 10, y: 20 }]],
+    ])('%s returns InputController.%s result', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const expected = { tag: sceneMethod };
+      const spy = vi
+        .spyOn(InputController.prototype, controllerMethod)
+        .mockImplementation(() => expected);
+
+      const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._inputController).toBeInstanceOf(InputController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      expect(result).toBe(expected);
+      spy.mockRestore();
+    });
+  });
 
   // Weapon art shim contracts
   describe('Weapon art shims', () => {
@@ -1083,6 +1167,17 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(destroy).toHaveBeenCalledTimes(1);
       expect(scene._weaponArtController).toBeNull();
+    });
+
+    it('destroys InputController and nulls reference', () => {
+      const scene = makeScene();
+      const destroy = vi.fn();
+      scene._inputController = { cancelTouchInspectHold: vi.fn(), destroy };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(scene._inputController).toBeNull();
     });
   });
 
