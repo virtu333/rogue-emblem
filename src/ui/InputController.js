@@ -1,4 +1,5 @@
 import { computeEffectivePath } from '../engine/Grid.js';
+import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import { isSleeping } from '../engine/StatusConditionSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
@@ -9,6 +10,7 @@ import {
 export class InputController {
   constructor(scene) {
     this.scene = scene;
+    this._ballistaRangeShown = false;
   }
 
   onPointerMove(pointer) {
@@ -208,6 +210,11 @@ export class InputController {
     }
 
     if (scene.inspectionPanel.visible) {
+      this.clearInspectionVisuals();
+      return;
+    }
+    if (this._ballistaRangeShown) {
+      this._ballistaRangeShown = false;
       this.clearInspectionVisuals();
       return;
     }
@@ -491,7 +498,26 @@ export class InputController {
     const gp = scene.grid.pixelToGrid(px, py);
     if (!gp) return false;
     const unit = scene.getUnitAt(gp.col, gp.row);
-    if (!unit) return false;
+    if (!unit) {
+      if (scene.battleState === 'PLAYER_IDLE') {
+        const terrainIndex = scene.grid.mapLayout?.[gp.row]?.[gp.col];
+        if (isBallistaTile(terrainIndex)) {
+          const ballista = scene.ballistas?.find((b) => b.col === gp.col && b.row === gp.row);
+          if (ballista && ballista.owner === 'enemy') {
+            if (scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row)) return false;
+            if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
+            scene.grid.clearHighlights?.();
+            const tiles = getBallistaDangerTiles(ballista, scene.grid.cols, scene.grid.rows);
+            scene.grid.showAttackRange(tiles);
+            this._ballistaRangeShown = true;
+            scene.refreshEndTurnControl();
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    this._ballistaRangeShown = false;
     const terrain = scene.grid.getTerrainAt(unit.col, unit.row);
     scene.inspectionPanel.show(unit, terrain, scene.gameData);
     if (typeof scene._pinToScreen === 'function')
@@ -538,6 +564,7 @@ export class InputController {
 
   clearInspectionVisuals() {
     const scene = this.scene;
+    this._ballistaRangeShown = false;
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
     scene.grid.clearHighlights();
     scene.grid.clearAttackHighlights();
