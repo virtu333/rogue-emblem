@@ -322,6 +322,8 @@ export class BattleScene extends Phaser.Scene {
     this._onDevToggleKeyDown = null;
     this._mobileHandlers = null;
     this._lootCleanupTimeout = null;
+    this._managedSceneTimers = new Set();
+    this._lifecycleAwaitGuards = new Set();
     this._reinforcementsPendingThisTurn = false;
     this.lootSettingsOverlay = null;
     this.lootRosterVisible = false;
@@ -378,10 +380,20 @@ export class BattleScene extends Phaser.Scene {
     this._hideMenuTooltip();
     this._restoreBattleRng();
     this._clearPostLootTransitionFallback();
+    if (typeof this._clearManagedSceneTimers === 'function') this._clearManagedSceneTimers();
+    if (typeof this._cancelLifecycleAwaits === 'function') {
+      this._cancelLifecycleAwaits('scene_shutdown');
+    }
     if (this._lootCleanupTimeout) {
       clearTimeout(this._lootCleanupTimeout);
       this._lootCleanupTimeout = null;
     }
+    try {
+      this.tweens?.killAll?.();
+    } catch (_) {}
+    try {
+      this.time?.removeAllEvents?.();
+    } catch (_) {}
     this._unbindGameplayKeyboardHandlers();
 
     if (this._deployOverlay) {
@@ -438,6 +450,245 @@ export class BattleScene extends Phaser.Scene {
     }
 
     this._teardownBattleCameraSystem();
+  }
+
+  _isSceneActiveForAsync() {
+    return Boolean(this.scene?.isActive?.());
+  }
+
+  _trackManagedSceneTimer(timer) {
+    if (!timer) return null;
+    (this._managedSceneTimers ||= new Set()).add(timer);
+    return timer;
+  }
+
+  _removeManagedSceneTimer(timer) {
+    if (!timer || !this._managedSceneTimers) return;
+    this._managedSceneTimers.delete(timer);
+  }
+
+  _clearManagedSceneTimers() {
+    if (!this._managedSceneTimers || this._managedSceneTimers.size === 0) return;
+    for (const timer of this._managedSceneTimers) {
+      try {
+        timer?.remove?.(false);
+      } catch (_) {}
+    }
+    this._managedSceneTimers.clear();
+  }
+
+  _createLifecycleAwaitGuard({ label = 'battle_await', timeoutMs = 1500, onCancel = null } = {}) {
+    let settled = false;
+    let resolvePromise = null;
+    let timeoutHandle = null;
+    const guard = {
+      label,
+      resolve: null,
+      cancel: null,
+    };
+    const cleanup = () => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+      this._lifecycleAwaitGuards?.delete?.(guard);
+    };
+    const promise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+    guard.resolve = (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolvePromise(value);
+    };
+    guard.cancel = (reason = 'cancelled') => {
+      if (settled) return;
+      if (typeof onCancel === 'function') {
+        try {
+          onCancel(reason);
+        } catch (err) {
+          reportAsyncError('battle_lifecycle_cancel_error', err, {
+            label,
+            reason,
+            battleState: this.battleState || null,
+          });
+        }
+      }
+      guard.resolve();
+    };
+    (this._lifecycleAwaitGuards ||= new Set()).add(guard);
+    if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+      timeoutHandle = setTimeout(() => {
+        reportAsyncError('battle_lifecycle_timeout', new Error('lifecycle await timeout'), {
+          label,
+          timeoutMs,
+          battleState: this.battleState || null,
+        });
+        guard.cancel('timeout');
+      }, timeoutMs);
+      if (typeof timeoutHandle?.unref === 'function') timeoutHandle.unref();
+    }
+    return { promise, guard };
+  }
+
+  _cancelLifecycleAwaits(reason = 'cancelled') {
+    if (!this._lifecycleAwaitGuards || this._lifecycleAwaitGuards.size === 0) return;
+    for (const guard of [...this._lifecycleAwaitGuards]) {
+      guard.cancel(reason);
+    }
+  }
+
+  async _awaitSceneDelay(delayMs, { label = 'scene_delay', timeoutMs = null } = {}) {
+    const safeDelay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
+    if (safeDelay <= 0 || !this._isSceneActiveForAsync()) return;
+    let timer = null;
+    const { promise, guard } = this._createLifecycleAwaitGuard({
+      label,
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : Math.max(500, safeDelay + 400),
+      onCancel: () => {
+        try {
+          timer?.remove?.(false);
+        } catch (_) {}
+        this._removeManagedSceneTimer(timer);
+      },
+    });
+    try {
+      timer = this.time?.delayedCall?.(safeDelay, () => {
+        this._removeManagedSceneTimer(timer);
+        guard.resolve();
+      });
+      this._trackManagedSceneTimer(timer);
+      if (!timer) guard.resolve();
+    } catch (err) {
+      this._removeManagedSceneTimer(timer);
+      reportAsyncError('battle_delay_schedule_error', err, {
+        label,
+        delayMs: safeDelay,
+        battleState: this.battleState || null,
+      });
+      guard.resolve();
+    }
+    await promise;
+  }
+
+  async _awaitSceneTween(
+    tweenConfig,
+    { label = 'scene_tween', timeoutMs = null, onCancel = null } = {},
+  ) {
+    if (!tweenConfig) return;
+    if (!this._isSceneActiveForAsync()) {
+      if (typeof onCancel === 'function') onCancel('inactive');
+      return;
+    }
+    const duration = Number(tweenConfig.duration) || 0;
+    const delay = Number(tweenConfig.delay) || 0;
+    const hold = Number(tweenConfig.hold) || 0;
+    const computedTimeout = Math.max(900, duration + delay + hold + 700);
+    let tween = null;
+    const { promise, guard } = this._createLifecycleAwaitGuard({
+      label,
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : computedTimeout,
+      onCancel: (reason) => {
+        if (typeof onCancel === 'function') onCancel(reason);
+        try {
+          if (tween?.remove) tween.remove();
+          else tween?.stop?.();
+        } catch (_) {}
+      },
+    });
+    const wrappedConfig = { ...tweenConfig };
+    const originalOnComplete = wrappedConfig.onComplete;
+    const originalOnStop = wrappedConfig.onStop;
+    wrappedConfig.onComplete = (...args) => {
+      try {
+        originalOnComplete?.(...args);
+      } finally {
+        guard.resolve();
+      }
+    };
+    wrappedConfig.onStop = (...args) => {
+      try {
+        originalOnStop?.(...args);
+      } finally {
+        guard.resolve();
+      }
+    };
+    try {
+      tween = this.tweens?.add?.(wrappedConfig);
+      if (!tween) guard.resolve();
+    } catch (err) {
+      reportAsyncError('battle_tween_schedule_error', err, {
+        label,
+        battleState: this.battleState || null,
+      });
+      guard.resolve();
+    }
+    await promise;
+  }
+
+  _scheduleSafeDelayedAsync(
+    delayMs,
+    label,
+    callback,
+    { phase = null, turn = null, onError = null } = {},
+  ) {
+    const safeDelay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : 0;
+    const run = async () => {
+      if (!this._isSceneActiveForAsync()) return;
+      try {
+        await callback();
+      } catch (err) {
+        reportAsyncError('battle_delayed_async_error', err, {
+          label,
+          phase,
+          turn,
+          battleState: this.battleState || null,
+        });
+        if (typeof onError === 'function') {
+          try {
+            await onError(err);
+          } catch (recoveryErr) {
+            reportAsyncError('battle_delayed_async_recovery_error', recoveryErr, {
+              label,
+              phase,
+              turn,
+              battleState: this.battleState || null,
+            });
+          }
+        }
+      }
+    };
+
+    let timer = null;
+    try {
+      timer = this.time?.delayedCall?.(safeDelay, () => {
+        this._removeManagedSceneTimer(timer);
+        return run();
+      });
+      this._trackManagedSceneTimer(timer);
+    } catch (err) {
+      reportAsyncError('battle_delayed_async_schedule_error', err, {
+        label,
+        phase,
+        turn,
+        battleState: this.battleState || null,
+      });
+      return null;
+    }
+    return timer;
+  }
+
+  async _withTutorialHintState(fn) {
+    const prevState = this.battleState;
+    this.battleState = 'TUTORIAL_HINT';
+    try {
+      return await fn();
+    } finally {
+      if (this.battleState === 'TUTORIAL_HINT') {
+        this.battleState = prevState;
+      }
+    }
   }
 
   _bindGameplayKeyboardHandlers() {
@@ -1530,15 +1781,12 @@ export class BattleScene extends Phaser.Scene {
   async _showTutorialBlockingInstruction(text) {
     if (this._tutorialBlockingPromptActive) return false;
     this._tutorialBlockingPromptActive = true;
-    const prevState = this.battleState;
-    this.battleState = 'TUTORIAL_HINT';
     try {
-      await showImportantHint(this, text);
+      await this._withTutorialHintState(async () => {
+        await showImportantHint(this, text);
+      });
     } finally {
       this._tutorialBlockingPromptActive = false;
-      if (this.scene?.isActive?.() && this.battleState === 'TUTORIAL_HINT') {
-        this.battleState = prevState;
-      }
       this.refreshEndTurnControl();
     }
     return true;
@@ -3583,14 +3831,10 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleParams.tutorialMode && this.tutorialStep === 2) {
       this._setTutorialGuideHighlight('fort');
       this.tutorialStep = 3;
-      const prevState = this.battleState;
-      this.battleState = 'TUTORIAL_HINT';
       const verb = this.isMobileInput ? 'Tap' : 'Click';
-      showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`).then(
-        () => {
-          if (this.scene?.isActive?.()) this.battleState = 'UNIT_SELECTED';
-        },
-      );
+      void this._withTutorialHintState(async () => {
+        await showImportantHint(this, `${verb} the highlighted Fort tile with Edric to continue.`);
+      });
     }
   }
 
@@ -3888,12 +4132,13 @@ export class BattleScene extends Phaser.Scene {
     }
     if (this.battleParams.tutorialMode && this.tutorialStep === 3) {
       this.tutorialStep = 4;
-      this.battleState = 'TUTORIAL_HINT';
       this._clearTutorialGuideHighlights();
       const infoHint = this.isMobileInput
         ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
         : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
-      await showImportantHint(this, infoHint);
+      await this._withTutorialHintState(async () => {
+        await showImportantHint(this, infoHint);
+      });
       if (!this.scene?.isActive?.()) return;
       this._tutorialStrictGateReleased = true;
     }
@@ -5585,39 +5830,35 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  animateHeal(target, healAmount) {
-    return new Promise((resolve) => {
-      const reduced = this._isReducedEffects();
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_heal');
-      // Flash target green
-      if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
+  async animateHeal(target, healAmount) {
+    const reduced = this._isReducedEffects();
+    const audio = this.registry.get('audio');
+    if (audio) audio.playSFX('sfx_heal');
+    // Flash target green
+    if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
 
-      const pos = this.grid.gridToPixel(target.col, target.row);
-      const healText = this.add
-        .text(pos.x, pos.y - 16, `+${healAmount}`, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color: '#44ff44',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(300);
+    const pos = this.grid.gridToPixel(target.col, target.row);
+    const healText = this.add
+      .text(pos.x, pos.y - 16, `+${healAmount}`, {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#44ff44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
 
-      this.tweens.add({
-        targets: healText,
-        y: pos.y - 36,
-        alpha: 0,
-        duration: reduced ? 260 : 600,
-        onComplete: () => healText.destroy(),
-      });
-
-      this.time.delayedCall(reduced ? 120 : 250, () => {
-        if (target.graphic.clearTint) target.graphic.clearTint();
-      });
-
-      this.time.delayedCall(reduced ? 220 : 500, resolve);
+    this.tweens.add({
+      targets: healText,
+      y: pos.y - 36,
+      alpha: 0,
+      duration: reduced ? 260 : 600,
+      onComplete: () => healText.destroy(),
     });
+
+    await this._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
+    if (target.graphic.clearTint) target.graphic.clearTint();
+    await this._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
   }
 
   // --- Weapon picker (pre-attack) ---
@@ -6077,27 +6318,27 @@ export class BattleScene extends Phaser.Scene {
     this.finishUnitAction(unit);
   }
 
-  showSkillLearnedBanner(unit, skillName) {
-    return new Promise((resolve) => {
-      const banner = this.add
-        .text(
-          this.cameras.main.centerX,
-          this.cameras.main.centerY,
-          `${unit.name} learned ${skillName}!`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            color: '#88ffff',
-            backgroundColor: '#000000cc',
-            padding: { x: 16, y: 8 },
-          },
-        )
-        .setOrigin(0.5)
-        .setAlpha(0)
-        .setDepth(500);
-      this._pinToScreen(banner);
+  async showSkillLearnedBanner(unit, skillName) {
+    const banner = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        `${unit.name} learned ${skillName}!`,
+        {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: '#88ffff',
+          backgroundColor: '#000000cc',
+          padding: { x: 16, y: 8 },
+        },
+      )
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(500);
+    this._pinToScreen(banner);
 
-      this.tweens.add({
+    await this._awaitSceneTween(
+      {
         targets: banner,
         alpha: 1,
         duration: 300,
@@ -6105,28 +6346,31 @@ export class BattleScene extends Phaser.Scene {
         hold: 1200,
         onComplete: () => {
           banner.destroy();
-          resolve();
         },
-      });
-    });
+      },
+      {
+        label: 'show_skill_learned_banner',
+        onCancel: () => banner.destroy(),
+      },
+    );
   }
 
-  showBriefBanner(message, color = '#ffdd44') {
-    return new Promise((resolve) => {
-      const banner = this.add
-        .text(this.cameras.main.centerX, this.cameras.main.centerY, message, {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color,
-          backgroundColor: '#000000cc',
-          padding: { x: 16, y: 8 },
-        })
-        .setOrigin(0.5)
-        .setAlpha(0)
-        .setDepth(500);
-      this._pinToScreen(banner);
+  async showBriefBanner(message, color = '#ffdd44') {
+    const banner = this.add
+      .text(this.cameras.main.centerX, this.cameras.main.centerY, message, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color,
+        backgroundColor: '#000000cc',
+        padding: { x: 16, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(500);
+    this._pinToScreen(banner);
 
-      this.tweens.add({
+    await this._awaitSceneTween(
+      {
         targets: banner,
         alpha: 1,
         duration: 200,
@@ -6134,10 +6378,13 @@ export class BattleScene extends Phaser.Scene {
         hold: 800,
         onComplete: () => {
           banner.destroy();
-          resolve();
         },
-      });
-    });
+      },
+      {
+        label: 'show_brief_banner',
+        onCancel: () => banner.destroy(),
+      },
+    );
   }
 
   // --- Promotion ---
@@ -6265,27 +6512,27 @@ export class BattleScene extends Phaser.Scene {
     return true;
   }
 
-  showPromotionBanner(unit, newClassName) {
-    return new Promise((resolve) => {
-      const banner = this.add
-        .text(
-          this.cameras.main.centerX,
-          this.cameras.main.centerY,
-          `${unit.name} promoted to ${newClassName}!`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '16px',
-            color: '#ffdd44',
-            backgroundColor: '#000000cc',
-            padding: { x: 16, y: 8 },
-          },
-        )
-        .setOrigin(0.5)
-        .setAlpha(0)
-        .setDepth(500);
-      this._pinToScreen(banner);
+  async showPromotionBanner(unit, newClassName) {
+    const banner = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY,
+        `${unit.name} promoted to ${newClassName}!`,
+        {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: '#ffdd44',
+          backgroundColor: '#000000cc',
+          padding: { x: 16, y: 8 },
+        },
+      )
+      .setOrigin(0.5)
+      .setAlpha(0)
+      .setDepth(500);
+    this._pinToScreen(banner);
 
-      this.tweens.add({
+    await this._awaitSceneTween(
+      {
         targets: banner,
         alpha: 1,
         duration: 300,
@@ -6293,10 +6540,13 @@ export class BattleScene extends Phaser.Scene {
         hold: 1200,
         onComplete: () => {
           banner.destroy();
-          resolve();
         },
-      });
-    });
+      },
+      {
+        label: 'show_promotion_banner',
+        onCancel: () => banner.destroy(),
+      },
+    );
   }
 
   // --- Reclass ---
@@ -7006,13 +7256,12 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.battleParams?.tutorialMode && this.tutorialStep === 4) {
       this.tutorialStep = 5;
-      const prevState = this.battleState;
-      this.battleState = 'TUTORIAL_HINT';
-      await showImportantHint(
-        this,
-        'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
-      );
-      if (this.scene?.isActive?.()) this.battleState = prevState;
+      await this._withTutorialHintState(async () => {
+        await showImportantHint(
+          this,
+          'The forecast shows damage, hit %, and crit %.\nConfirm to attack, or press ESC to cancel.',
+        );
+      });
     }
   }
 
@@ -7158,11 +7407,12 @@ export class BattleScene extends Phaser.Scene {
 
       if (this.battleParams?.tutorialMode && this.tutorialStep === 5) {
         this.tutorialStep = 6;
-        this.battleState = 'TUTORIAL_HINT';
-        await showImportantHint(
-          this,
-          'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
-        );
+        await this._withTutorialHintState(async () => {
+          await showImportantHint(
+            this,
+            'Nice! Units gain XP from combat.\nLevel up to grow stronger. Now finish the fight!',
+          );
+        });
         if (!this.scene?.isActive?.()) return;
         this.battleState = 'COMBAT_RESOLVING';
       }
@@ -7798,7 +8048,7 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (striker.graphic?.setTint) striker.graphic.setTint(0xffffff);
     if (audio && !event.miss) audio.playSFX(this.getWeaponSFX(striker));
-    await new Promise((resolve) => this.time.delayedCall(reduced ? 70 : 120, resolve));
+    await this._awaitSceneDelay(reduced ? 70 : 120, { label: 'animate_strike_attacker_flash' });
     if (striker.graphic?.clearTint) striker.graphic.clearTint();
 
     if (event.miss) {
@@ -7819,7 +8069,7 @@ export class BattleScene extends Phaser.Scene {
         duration: reduced ? 220 : 500,
         onComplete: () => missText.destroy(),
       });
-      await new Promise((resolve) => this.time.delayedCall(reduced ? 200 : 300, resolve));
+      await this._awaitSceneDelay(reduced ? 200 : 300, { label: 'animate_strike_miss_hold' });
       return;
     }
 
@@ -7896,7 +8146,7 @@ export class BattleScene extends Phaser.Scene {
       });
     }
 
-    await new Promise((resolve) => this.time.delayedCall(reduced ? 80 : 150, resolve));
+    await this._awaitSceneDelay(reduced ? 80 : 150, { label: 'animate_strike_hit_hold' });
     if (target.graphic?.clearTint) target.graphic.clearTint();
 
     if (event.warpRange > 0 && target.currentHP > 0) {
@@ -7911,60 +8161,57 @@ export class BattleScene extends Phaser.Scene {
     );
     if (bestPicks.length === 0) return;
     const pick = bestPicks[Math.floor(Math.random() * bestPicks.length)];
+    const targets = [
+      unit.graphic,
+      unit.label,
+      unit.factionIndicator,
+      unit.hpBar.bg,
+      unit.hpBar.fill,
+    ].filter(Boolean);
+    if (targets.length <= 0) return;
 
-    await new Promise((resolve) => {
-      this.tweens.add({
-        targets: [
-          unit.graphic,
-          unit.label,
-          unit.factionIndicator,
-          unit.hpBar.bg,
-          unit.hpBar.fill,
-        ].filter(Boolean),
+    await this._awaitSceneTween(
+      {
+        targets,
         alpha: 0,
         duration: 180,
-        onComplete: () => {
-          unit.col = pick.col;
-          unit.row = pick.row;
-          this.updateUnitPosition(unit);
-          this.tweens.add({
-            targets: [
-              unit.graphic,
-              unit.label,
-              unit.factionIndicator,
-              unit.hpBar.bg,
-              unit.hpBar.fill,
-            ].filter(Boolean),
-            alpha: unit.hasActed ? 0.5 : 1,
-            duration: 180,
-            onComplete: resolve,
-          });
-        },
-      });
-    });
+      },
+      { label: 'execute_warp_fade_out' },
+    );
+    unit.col = pick.col;
+    unit.row = pick.row;
+    this.updateUnitPosition(unit);
+    await this._awaitSceneTween(
+      {
+        targets,
+        alpha: unit.hasActed ? 0.5 : 1,
+        duration: 180,
+      },
+      { label: 'execute_warp_fade_in' },
+    );
   }
   /** Animate a skill activation event (Vantage, Astra banner) */
-  animateSkillActivation(event) {
-    return new Promise((resolve) => {
-      const text = this.add
-        .text(
-          this.cameras.main.centerX,
-          this.cameras.main.centerY - 40,
-          `${event.unit} -- ${event.name}!`,
-          {
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            color: '#88ffff',
-            backgroundColor: '#000000cc',
-            padding: { x: 10, y: 4 },
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(500)
-        .setAlpha(0);
-      this._pinToScreen(text);
+  async animateSkillActivation(event) {
+    const text = this.add
+      .text(
+        this.cameras.main.centerX,
+        this.cameras.main.centerY - 40,
+        `${event.unit} -- ${event.name}!`,
+        {
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          color: '#88ffff',
+          backgroundColor: '#000000cc',
+          padding: { x: 10, y: 4 },
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(500)
+      .setAlpha(0);
+    this._pinToScreen(text);
 
-      this.tweens.add({
+    await this._awaitSceneTween(
+      {
         targets: text,
         alpha: 1,
         duration: 150,
@@ -7972,10 +8219,13 @@ export class BattleScene extends Phaser.Scene {
         hold: 400,
         onComplete: () => {
           text.destroy();
-          resolve();
         },
-      });
-    });
+      },
+      {
+        label: 'animate_skill_activation',
+        onCancel: () => text.destroy(),
+      },
+    );
   }
 
   /** Flash a brief tooltip when auto-switching from Staff to combat weapon. */
@@ -8003,35 +8253,35 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /** Show poison damage floating text. */
-  showPoisonDamage(unit, damage) {
-    return new Promise((resolve) => {
-      const reduced = this._isReducedEffects();
-      if (!unit.graphic) {
-        resolve();
-        return;
-      }
-      const pos = this.grid.gridToPixel(unit.col, unit.row);
-      const text = this.add
-        .text(pos.x, pos.y - 16, `Poison -${damage}`, {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: '#cc66ff',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(301);
-      this.updateHPBar(unit);
-      this.tweens.add({
+  async showPoisonDamage(unit, damage) {
+    const reduced = this._isReducedEffects();
+    if (!unit.graphic) return;
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const text = this.add
+      .text(pos.x, pos.y - 16, `Poison -${damage}`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#cc66ff',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(301);
+    this.updateHPBar(unit);
+    await this._awaitSceneTween(
+      {
         targets: text,
         y: pos.y - 32,
         alpha: 0,
         duration: reduced ? 260 : 600,
         onComplete: () => {
           text.destroy();
-          resolve();
         },
-      });
-    });
+      },
+      {
+        label: 'show_poison_damage',
+        onCancel: () => text.destroy(),
+      },
+    );
   }
 
   /** Award XP to a player unit after combat. Shows floating text + level-up popups. */
@@ -8229,7 +8479,7 @@ export class BattleScene extends Phaser.Scene {
             await this.removeUnit(victim, { killer: unit });
           }
         }
-        await new Promise((resolve) => this.time.delayedCall(150, resolve));
+        await this._awaitSceneDelay(150, { label: 'death_affix_chain_tick' });
       }
     } finally {
       if (hasAoEDeathEffect) {
@@ -8249,6 +8499,39 @@ export class BattleScene extends Phaser.Scene {
   // --- Phase management ---
 
   onPhaseChange(phase, turn) {
+    const scheduleSafeDelayedAsync =
+      typeof this._scheduleSafeDelayedAsync === 'function'
+        ? (delayMs, label, callback, options) =>
+            this._scheduleSafeDelayedAsync(delayMs, label, callback, options)
+        : (delayMs, label, callback, options = {}) => {
+            if (typeof this.time?.delayedCall !== 'function') return null;
+            const { phase: callbackPhase = phase, turn: callbackTurn = turn, onError } = options;
+            return this.time.delayedCall(delayMs, () => {
+              Promise.resolve()
+                .then(() => callback?.())
+                .catch(async (error) => {
+                  reportAsyncError(`BattleScene-${label}`, error, {
+                    scene: 'BattleScene',
+                    phase: callbackPhase,
+                    turn: callbackTurn,
+                    battleState: this.battleState ?? null,
+                  });
+                  if (typeof onError === 'function') {
+                    await onError(error);
+                  }
+                });
+            });
+          };
+    const isSceneActiveForAsync =
+      typeof this._isSceneActiveForAsync === 'function'
+        ? () => this._isSceneActiveForAsync()
+        : () => true;
+    const withTutorialHintState =
+      typeof this._withTutorialHintState === 'function'
+        ? (fn) => this._withTutorialHintState(fn)
+        : async (fn) => {
+            await fn();
+          };
     if (typeof this._clearCombatRollSession === 'function') this._clearCombatRollSession();
     if (this.isMobileInput) {
       this.inspectMode = false;
@@ -8333,78 +8616,107 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Process turn-start effects (skills + affixes) (after banner settles)
-      this.time.delayedCall(1200, async () => {
-        if (!this.scene?.isActive?.()) return;
-        await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
-        await this.processBallistaFire(this.enemyUnits, 'player');
-        if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
-          this.turnManager.endPlayerPhase();
-        }
-      });
+      scheduleSafeDelayedAsync(
+        1200,
+        'player_phase_turn_start_pipeline',
+        async () => {
+          await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
+          await this.processBallistaFire(this.enemyUnits, 'player');
+          if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
+            this.turnManager.endPlayerPhase();
+          }
+        },
+        {
+          phase: 'player',
+          turn,
+          onError: async () => {
+            // All-sleeping auto-advance must remain deterministic even if effects fail.
+            if (
+              shouldAutoAdvance &&
+              isSceneActiveForAsync() &&
+              this.battleState === 'PLAYER_IDLE'
+            ) {
+              this.turnManager.endPlayerPhase();
+            }
+          },
+        },
+      );
 
       if (!shouldAutoAdvance) {
         // Tutorial hints (after phase banner fades)
         if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
-          this.time.delayedCall(1500, async () => {
-            if (!this.scene?.isActive?.()) return;
-            const prevState = this.battleState;
-            this.battleState = 'TUTORIAL_HINT';
-            await showImportantHint(
-              this,
-              'Welcome to the tutorial!\nLearn the basics of tactical combat.',
-            );
-            if (!this.scene?.isActive?.()) return;
-            this.tutorialStep = 1;
-            const verb = this.isMobileInput ? 'Tap' : 'Click';
-            await showImportantHint(
-              this,
-              `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
-            );
-            if (!this.scene?.isActive?.()) return;
-            this.tutorialStep = 2;
-            this._setTutorialGuideHighlight('edric');
-            this.battleState = prevState;
-          });
+          scheduleSafeDelayedAsync(
+            1500,
+            'tutorial_intro_turn_start',
+            async () => {
+              if (!isSceneActiveForAsync()) return;
+              await withTutorialHintState(async () => {
+                await showImportantHint(
+                  this,
+                  'Welcome to the tutorial!\nLearn the basics of tactical combat.',
+                );
+                if (!isSceneActiveForAsync()) return;
+                this.tutorialStep = 1;
+                const verb = this.isMobileInput ? 'Tap' : 'Click';
+                await showImportantHint(
+                  this,
+                  `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
+                );
+                if (!isSceneActiveForAsync()) return;
+                this.tutorialStep = 2;
+                this._setTutorialGuideHighlight('edric');
+              });
+            },
+            { phase: 'player', turn },
+          );
         } else if (
           this.battleParams.tutorialMode &&
           !this._tutorialVisionIntroShown &&
           turn === 3
         ) {
           this._tutorialVisionIntroShown = true;
-          this.time.delayedCall(1500, async () => {
-            if (!this.scene?.isActive?.()) return;
-            const prevState = this.battleState;
-            this.battleState = 'TUTORIAL_HINT';
-            await showImportantHint(this, this._getVisionRewindIntroHint());
-            if (!this.scene?.isActive?.()) return;
-            this.battleState = prevState;
-          });
+          scheduleSafeDelayedAsync(
+            1500,
+            'tutorial_vision_intro',
+            async () => {
+              if (!isSceneActiveForAsync()) return;
+              await withTutorialHintState(async () => {
+                await showImportantHint(this, this._getVisionRewindIntroHint());
+              });
+            },
+            { phase: 'player', turn },
+          );
         } else if (this.battleParams.tutorialMode) {
           // Suppress normal hints during tutorial -- do nothing
         } else {
           const hints = this.registry.get('hints');
           if (hints && turn === 1) {
-            this.time.delayedCall(1500, async () => {
-              if (!this.scene?.isActive?.()) return;
-              if (hints.shouldShow('battle_first_turn')) {
-                const inspectHint = this.isMobileInput
-                  ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
-                  : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
-                await showImportantHint(this, inspectHint);
-              }
-              if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
-                await showImportantHint(
-                  this,
-                  'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
-                );
-              }
-              if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
-                await showImportantHint(
-                  this,
-                  'Defeat the boss, then move a Lord\nto the throne and select Seize!',
-                );
-              }
-            });
+            scheduleSafeDelayedAsync(
+              1500,
+              'battle_first_turn_hints',
+              async () => {
+                if (!isSceneActiveForAsync()) return;
+                if (hints.shouldShow('battle_first_turn')) {
+                  const inspectHint = this.isMobileInput
+                    ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+                    : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
+                  await showImportantHint(this, inspectHint);
+                }
+                if (this.npcUnits.length > 0 && hints.shouldShow('battle_recruit')) {
+                  await showImportantHint(
+                    this,
+                    'Move a Lord adjacent to the green NPC\nand select Talk to recruit them!',
+                  );
+                }
+                if (this.battleParams.objective === 'seize' && hints.shouldShow('battle_seize')) {
+                  await showImportantHint(
+                    this,
+                    'Defeat the boss, then move a Lord\nto the throne and select Seize!',
+                  );
+                }
+              },
+              { phase: 'player', turn },
+            );
           } else if (hints && turn === 2) {
             this.time.delayedCall(1500, () => {
               if (hints.shouldShow('battle_danger_zone')) {
@@ -8422,15 +8734,19 @@ export class BattleScene extends Phaser.Scene {
         resetWeaponArtTurnUsage(u, { turnNumber: turn });
       }
       // End-of-player-phase terrain hazards, then enemy turn start effects.
-      this.time.delayedCall(1400, async () => {
-        if (!this.scene?.isActive?.()) return;
-        await this.processTerrainDamage(this.playerUnits);
-        await this.processTurnStartEffects(this.enemyUnits);
-        await this.processZombieRevival();
-        await this.processBallistaFire(this.playerUnits, 'enemy');
-        this.applyDueHybridOverridesForTurn(turn);
-        await this.startEnemyPhase();
-      });
+      scheduleSafeDelayedAsync(
+        1400,
+        'enemy_phase_turn_start_pipeline',
+        async () => {
+          await this.processTerrainDamage(this.playerUnits);
+          await this.processTurnStartEffects(this.enemyUnits);
+          await this.processZombieRevival();
+          await this.processBallistaFire(this.playerUnits, 'enemy');
+          this.applyDueHybridOverridesForTurn(turn);
+          await this.startEnemyPhase();
+        },
+        { phase: 'enemy', turn },
+      );
     }
     this.refreshEndTurnControl();
   }
@@ -8529,18 +8845,21 @@ export class BattleScene extends Phaser.Scene {
             })
             .setOrigin(0.5)
             .setDepth(301);
-          await new Promise((resolve) => {
-            this.tweens.add({
+          await this._awaitSceneTween(
+            {
               targets: txt,
               y: pos.y - 32,
               alpha: 0,
               duration: reduced ? 260 : 600,
               onComplete: () => {
                 txt.destroy();
-                resolve();
               },
-            });
-          });
+            },
+            {
+              label: 'ballista_hit_float',
+              onCancel: () => txt.destroy(),
+            },
+          );
         }
         if (target.currentHP <= 0) {
           await this.removeUnit(target, { killer: null });
@@ -8558,18 +8877,21 @@ export class BattleScene extends Phaser.Scene {
           })
           .setOrigin(0.5)
           .setDepth(301);
-        await new Promise((resolve) => {
-          this.tweens.add({
+        await this._awaitSceneTween(
+          {
             targets: txt,
             y: pos.y - 32,
             alpha: 0,
             duration: reduced ? 260 : 600,
             onComplete: () => {
               txt.destroy();
-              resolve();
             },
-          });
-        });
+          },
+          {
+            label: 'ballista_miss_float',
+            onCancel: () => txt.destroy(),
+          },
+        );
       }
     }
   }
@@ -8845,74 +9167,70 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  showTerrainDamage(unit, damage) {
-    return new Promise((resolve) => {
-      const wasTinted = Boolean(unit.graphic?.isTinted);
-      const previousTint = unit.graphic?.tintTopLeft;
-      if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
+  async showTerrainDamage(unit, damage) {
+    const wasTinted = Boolean(unit.graphic?.isTinted);
+    const previousTint = unit.graphic?.tintTopLeft;
+    if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
-      const pos = this.grid.gridToPixel(unit.col, unit.row);
-      const text = this.add
-        .text(pos.x, pos.y - 16, `Lava -${damage}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff8844',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(320);
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const text = this.add
+      .text(pos.x, pos.y - 16, `Lava -${damage}`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#ff8844',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(320);
 
-      this.tweens.add({
-        targets: text,
-        y: pos.y - 32,
-        alpha: 0,
-        duration: 450,
-        onComplete: () => text.destroy(),
-      });
-
-      this.time.delayedCall(120, () => {
-        if (!unit.graphic) return;
-        if (wasTinted && unit.graphic.setTint && previousTint != null)
-          unit.graphic.setTint(previousTint);
-        else if (unit.graphic.clearTint) unit.graphic.clearTint();
-      });
-      this.time.delayedCall(180, resolve);
+    this.tweens.add({
+      targets: text,
+      y: pos.y - 32,
+      alpha: 0,
+      duration: 450,
+      onComplete: () => text.destroy(),
     });
+
+    await this._awaitSceneDelay(120, { label: 'terrain_damage_tint_clear' });
+    if (unit.graphic) {
+      if (wasTinted && unit.graphic.setTint && previousTint != null)
+        unit.graphic.setTint(previousTint);
+      else if (unit.graphic.clearTint) unit.graphic.clearTint();
+    }
+    await this._awaitSceneDelay(60, { label: 'terrain_damage_tail' });
   }
 
-  showAcidDamage(unit, damage) {
-    return new Promise((resolve) => {
-      const wasTinted = Boolean(unit.graphic?.isTinted);
-      const previousTint = unit.graphic?.tintTopLeft;
-      if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
+  async showAcidDamage(unit, damage) {
+    const wasTinted = Boolean(unit.graphic?.isTinted);
+    const previousTint = unit.graphic?.tintTopLeft;
+    if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
 
-      const pos = this.grid.gridToPixel(unit.col, unit.row);
-      const text = this.add
-        .text(pos.x, pos.y - 16, `Acid -${damage}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#88cc44',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(320);
+    const pos = this.grid.gridToPixel(unit.col, unit.row);
+    const text = this.add
+      .text(pos.x, pos.y - 16, `Acid -${damage}`, {
+        fontFamily: 'monospace',
+        fontSize: '12px',
+        color: '#88cc44',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(320);
 
-      this.tweens.add({
-        targets: text,
-        y: pos.y - 32,
-        alpha: 0,
-        duration: 450,
-        onComplete: () => text.destroy(),
-      });
-
-      this.time.delayedCall(120, () => {
-        if (!unit.graphic) return;
-        if (wasTinted && unit.graphic.setTint && previousTint != null)
-          unit.graphic.setTint(previousTint);
-        else if (unit.graphic.clearTint) unit.graphic.clearTint();
-      });
-      this.time.delayedCall(180, resolve);
+    this.tweens.add({
+      targets: text,
+      y: pos.y - 32,
+      alpha: 0,
+      duration: 450,
+      onComplete: () => text.destroy(),
     });
+
+    await this._awaitSceneDelay(120, { label: 'acid_damage_tint_clear' });
+    if (unit.graphic) {
+      if (wasTinted && unit.graphic.setTint && previousTint != null)
+        unit.graphic.setTint(previousTint);
+      else if (unit.graphic.clearTint) unit.graphic.clearTint();
+    }
+    await this._awaitSceneDelay(60, { label: 'acid_damage_tail' });
   }
 
   async startEnemyPhase() {
@@ -8978,58 +9296,49 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  animateEnemyMove(enemy, path) {
-    return new Promise((resolve) => {
-      if (!path || path.length < 2) {
-        resolve();
-        return;
-      }
+  async animateEnemyMove(enemy, path) {
+    if (!path || path.length < 2) return;
 
-      const occupied = this.buildOccupiedSet(enemy);
-      const effective = computeEffectivePath(
-        path,
-        this.grid.mapLayout,
-        this.grid.terrainData,
-        this.grid.cols,
-        this.grid.rows,
-        enemy.moveType,
-        occupied,
-        this._getCostModifier(enemy),
+    const occupied = this.buildOccupiedSet(enemy);
+    const effective = computeEffectivePath(
+      path,
+      this.grid.mapLayout,
+      this.grid.terrainData,
+      this.grid.cols,
+      this.grid.rows,
+      enemy.moveType,
+      occupied,
+      this._getCostModifier(enemy),
+    );
+    const finalPath = effective.effectivePath;
+    if (!finalPath || finalPath.length < 2) return;
+
+    const targets = enemy.label ? [enemy.graphic, enemy.label] : [enemy.graphic];
+
+    for (let stepIndex = 1; stepIndex < finalPath.length; stepIndex++) {
+      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+      const isSlide = effective.slideSegments.some(
+        (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
       );
-      const finalPath = effective.effectivePath;
-      if (!finalPath || finalPath.length < 2) {
-        resolve();
-        return;
-      }
-
-      const targets = enemy.label ? [enemy.graphic, enemy.label] : [enemy.graphic];
-
-      const animateStep = (stepIndex) => {
-        if (stepIndex >= finalPath.length) {
-          const dest = finalPath[finalPath.length - 1];
-          enemy.col = dest.col;
-          enemy.row = dest.row;
-          this.updateUnitPosition(enemy);
-          if (this.grid.fogEnabled) this.updateEnemyVisibility();
-          resolve();
-          return;
-        }
-        const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-        const isSlide = effective.slideSegments.some(
-          (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
-        );
-        const duration = isSlide ? 60 : 80;
-        this.tweens.add({
+      const duration = isSlide ? 60 : 80;
+      await this._awaitSceneTween(
+        {
           targets,
           x: pos.x,
           y: pos.y,
           duration,
           ease: 'Linear',
-          onComplete: () => animateStep(stepIndex + 1),
-        });
-      };
-      animateStep(1);
-    });
+        },
+        { label: 'animate_enemy_move_step', timeoutMs: duration + 700 },
+      );
+      if (!this._isSceneActiveForAsync()) return;
+    }
+
+    const dest = finalPath[finalPath.length - 1];
+    enemy.col = dest.col;
+    enemy.row = dest.row;
+    this.updateUnitPosition(enemy);
+    if (this.grid.fogEnabled) this.updateEnemyVisibility();
   }
 
   async executeEnemyStatusStaff(enemy, target) {
@@ -9169,7 +9478,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateHPBar(victim);
       const pos = this.grid.gridToPixel(tile.col, tile.row);
       this.showMinorHintAt(pos.x, pos.y, `Splash -${dmg}`, '#cc66ff');
-      await new Promise((resolve) => this.time.delayedCall(200, resolve));
+      await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
       if (victim.currentHP <= 0) {
         await this.removeUnit(victim, { killer: entity });
         this.checkBattleEnd();
@@ -9183,7 +9492,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearTemporaryTerrainAt?.(tile.col, tile.row);
     const pos = this.grid.gridToPixel(tile.col, tile.row);
     this.showMinorHintAt(pos.x, pos.y, 'Break!', '#ffcc66');
-    await new Promise((resolve) => this.time.delayedCall(120, resolve));
+    await this._awaitSceneDelay(120, { label: 'enemy_break_hold' });
   }
 
   showPhaseBanner(phase, turn) {

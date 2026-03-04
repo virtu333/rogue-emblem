@@ -56,25 +56,26 @@ function makeEmitter() {
 
 function makeBannerScene() {
   const banner = makeTextObject();
+  const scene = new BattleScene();
+  scene.scene = { isActive: () => true };
+  scene.cameras = { main: { centerX: 320, centerY: 240 } };
+  scene.add = {
+    text: vi.fn(() => banner),
+  };
+  scene.tweens = {
+    add: vi.fn((config) => {
+      config?.onComplete?.();
+      return {};
+    }),
+  };
+  scene.time = {
+    delayedCall: vi.fn((_ms, cb) => cb?.()),
+  };
+  scene._pinToScreen = vi.fn();
+  scene._isReducedEffects = vi.fn(() => false);
   return {
     banner,
-    scene: {
-      cameras: { main: { centerX: 320, centerY: 240 } },
-      add: {
-        text: vi.fn(() => banner),
-      },
-      tweens: {
-        add: vi.fn((config) => {
-          config?.onComplete?.();
-          return {};
-        }),
-      },
-      time: {
-        delayedCall: vi.fn((_ms, cb) => cb?.()),
-      },
-      _pinToScreen: vi.fn(),
-      _isReducedEffects: vi.fn(() => false),
-    },
+    scene,
   };
 }
 

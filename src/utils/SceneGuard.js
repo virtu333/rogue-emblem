@@ -86,6 +86,225 @@ const BLOCKING_STATES = new Set([
   'ENEMY_ATTACKING',
 ]);
 
+export function getSceneGuardRuntimeContext({ tailSize = 10 } = {}) {
+  const state = globalThis.__sceneState || null;
+  const ring = Array.isArray(state?._ringBuffer) ? state._ringBuffer : [];
+  const traceTail = ring.slice(Math.max(0, ring.length - Math.max(1, tailSize)));
+  const fallbackTail = Array.isArray(globalThis.__sceneTraceTail)
+    ? globalThis.__sceneTraceTail
+    : [];
+  return {
+    sceneKey: state?.activeScene || null,
+    traceTail: traceTail.length > 0 ? traceTail : fallbackTail,
+  };
+}
+
+function _normalizeRuntimeReason(reason) {
+  if (!reason)
+    return { message: 'unknown runtime error', error: new Error('unknown runtime error') };
+  if (reason instanceof Error) {
+    return {
+      message: reason.message || reason.name || 'runtime error',
+      error: reason,
+    };
+  }
+  if (typeof reason === 'string') {
+    const err = new Error(reason);
+    return { message: reason, error: err };
+  }
+  const message = reason?.message || String(reason);
+  return {
+    message,
+    error: reason instanceof Error ? reason : new Error(message),
+  };
+}
+
+export function createRuntimeFatalRecovery({
+  env = globalThis,
+  documentRef = globalThis?.document,
+  mark = () => {},
+  report = () => {},
+  getSceneContext = getSceneGuardRuntimeContext,
+  onReload = null,
+  onSafeReload = null,
+  overlayId = 'runtime-fatal-overlay',
+} = {}) {
+  let armed = false;
+  let installed = false;
+  let lastSignature = null;
+
+  const safeMark = typeof mark === 'function' ? mark : () => {};
+  const safeReport = typeof report === 'function' ? report : () => {};
+  const reloadHandler =
+    typeof onReload === 'function'
+      ? onReload
+      : () => {
+          env?.location?.reload?.();
+        };
+  const safeReloadHandler = typeof onSafeReload === 'function' ? onSafeReload : null;
+
+  const showOverlay = ({ summary, signature }) => {
+    if (!documentRef?.createElement || !documentRef?.body) return;
+    if (documentRef.getElementById?.(overlayId)) return;
+
+    const overlay = documentRef.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0, 0, 0, 0.82)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '100000';
+
+    const panel = documentRef.createElement('div');
+    panel.style.background = '#111627';
+    panel.style.border = '1px solid #4a5f85';
+    panel.style.padding = '16px';
+    panel.style.maxWidth = '460px';
+    panel.style.fontFamily = 'monospace';
+    panel.style.color = '#e0e0e0';
+    panel.style.textAlign = 'center';
+
+    const heading = documentRef.createElement('div');
+    heading.style.cssText = 'font-size:16px; color:#ffb088; margin-bottom:8px;';
+    heading.textContent = 'Runtime Error';
+    panel.appendChild(heading);
+
+    const body = documentRef.createElement('div');
+    body.style.cssText = 'font-size:12px; color:#c7c7c7; margin-bottom:12px;';
+    body.textContent = summary || 'An unexpected runtime error occurred.';
+    panel.appendChild(body);
+
+    const reloadBtn = documentRef.createElement('button');
+    reloadBtn.textContent = 'Reload';
+    reloadBtn.style.margin = '0 8px';
+    reloadBtn.style.padding = '8px 12px';
+    reloadBtn.style.fontFamily = 'monospace';
+    reloadBtn.style.cursor = 'pointer';
+    reloadBtn.onclick = () => {
+      safeMark('runtime_fatal_reload', { signature });
+      reloadHandler();
+    };
+    panel.appendChild(reloadBtn);
+
+    if (safeReloadHandler) {
+      const safeBtn = documentRef.createElement('button');
+      safeBtn.textContent = 'Reload Safe Mode';
+      safeBtn.style.margin = '0 8px';
+      safeBtn.style.padding = '8px 12px';
+      safeBtn.style.fontFamily = 'monospace';
+      safeBtn.style.cursor = 'pointer';
+      safeBtn.onclick = () => {
+        safeMark('runtime_fatal_safe_reload', { signature });
+        safeReloadHandler();
+      };
+      panel.appendChild(safeBtn);
+    }
+
+    overlay.appendChild(panel);
+    documentRef.body.appendChild(overlay);
+  };
+
+  const handleFatal = ({ type, reason, file = null, line = null, column = null }) => {
+    if (!armed) return;
+    const ctx =
+      typeof getSceneContext === 'function' ? getSceneContext() : { sceneKey: null, traceTail: [] };
+    const normalized = _normalizeRuntimeReason(reason);
+    const signature = [
+      type || 'runtime',
+      normalized.message || 'unknown',
+      file || '',
+      line == null ? '' : String(line),
+      column == null ? '' : String(column),
+      ctx?.sceneKey || '',
+    ].join('|');
+
+    if (signature === lastSignature) return;
+    if (documentRef?.getElementById?.(overlayId)) return;
+    lastSignature = signature;
+
+    safeReport('runtime_fatal', normalized.error, {
+      kind: type || 'runtime',
+      message: normalized.message,
+      file,
+      line,
+      column,
+      sceneKey: ctx?.sceneKey || null,
+      signature,
+      traceTail: Array.isArray(ctx?.traceTail) ? ctx.traceTail : [],
+    });
+
+    safeMark('runtime_fatal_detected', {
+      kind: type || 'runtime',
+      message: normalized.message,
+      file,
+      line,
+      column,
+      sceneKey: ctx?.sceneKey || null,
+      signature,
+    });
+
+    showOverlay({
+      summary: normalized.message,
+      signature,
+    });
+  };
+
+  const onError = (event) => {
+    handleFatal({
+      type: 'error',
+      reason: event?.error || event?.message || 'runtime error',
+      file: event?.filename || null,
+      line: event?.lineno || null,
+      column: event?.colno || null,
+    });
+  };
+
+  const onUnhandledRejection = (event) => {
+    handleFatal({
+      type: 'unhandledrejection',
+      reason: event?.reason,
+      file: null,
+      line: null,
+      column: null,
+    });
+  };
+
+  const install = () => {
+    if (installed || !env?.addEventListener) return;
+    env.addEventListener('error', onError);
+    env.addEventListener('unhandledrejection', onUnhandledRejection);
+    installed = true;
+  };
+
+  const arm = () => {
+    install();
+    if (armed) return;
+    armed = true;
+    safeMark('runtime_fatal_hooks_armed');
+  };
+
+  const disarm = () => {
+    armed = false;
+  };
+
+  const destroy = () => {
+    if (!installed || !env?.removeEventListener) return;
+    env.removeEventListener('error', onError);
+    env.removeEventListener('unhandledrejection', onUnhandledRejection);
+    installed = false;
+    armed = false;
+  };
+
+  return {
+    arm,
+    disarm,
+    destroy,
+    isArmed: () => armed,
+  };
+}
+
 /**
  * Install SceneGuard on a Phaser Game instance.
  * Call once in BootScene.create() after registry setup.
