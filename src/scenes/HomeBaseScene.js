@@ -534,6 +534,7 @@ export class HomeBaseScene extends Phaser.Scene {
     const level = meta.getUpgradeLevel(upgrade.id);
     const maxed = meta.isMaxed(upgrade.id);
     const affordable = meta.canAfford(upgrade.id);
+    const hidden = level === 0 && meta.isMilestoneLocked(upgrade);
     const isStatUpgrade = upgrade.id.endsWith(GROWTH_SUFFIX) || upgrade.id.endsWith(FLAT_SUFFIX);
     const { current, next } = this._getValueTexts(upgrade, level);
 
@@ -545,7 +546,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = 370;
       const costX = 530;
 
-      const statLabel = this.add.text(labelX, y, this._getStatLabel(upgrade), {
+      const statLabel = this.add.text(labelX, y, hidden ? '???' : this._getStatLabel(upgrade), {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#e0e0e0',
@@ -554,7 +555,9 @@ export class HomeBaseScene extends Phaser.Scene {
       statLabel.setInteractive({ useHandCursor: true });
       statLabel.on('pointerover', () => {
         statLabel.setColor('#ffdd44');
-        const tipLines = this._getUpgradeTooltipLines(upgrade);
+        const tipLines = hidden
+          ? this._getPrerequisiteTooltipLines(upgrade.id)
+          : this._getUpgradeTooltipLines(upgrade);
         this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       statLabel.on('pointerout', () => {
@@ -562,16 +565,18 @@ export class HomeBaseScene extends Phaser.Scene {
         this._hideUpgradeTooltip();
       });
 
-      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
+      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade, hidden);
 
-      this.add.text(descX, y, this._getActionDesc(upgrade), {
+      this.add.text(descX, y, hidden ? 'Requirements not met' : this._getActionDesc(upgrade), {
         fontFamily: 'monospace',
         fontSize: '10px',
         color: '#888888',
         wordWrap: { width: 160 },
       });
 
-      this._drawValueText(valuesX, y, current, next, maxed);
+      if (!hidden) {
+        this._drawValueText(valuesX, y, current, next, maxed);
+      }
       if (this.refundMode) {
         this._drawRefundButton(costX, y, upgrade);
       } else {
@@ -585,7 +590,7 @@ export class HomeBaseScene extends Phaser.Scene {
       const valuesX = barX + (BAR_SEGMENT_W + BAR_GAP) * upgrade.maxLevel + 10;
       const costX = 530;
 
-      const nameLabel = this.add.text(labelX, y, upgrade.name, {
+      const nameLabel = this.add.text(labelX, y, hidden ? '???' : upgrade.name, {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#e0e0e0',
@@ -594,7 +599,9 @@ export class HomeBaseScene extends Phaser.Scene {
       nameLabel.setInteractive({ useHandCursor: true });
       nameLabel.on('pointerover', () => {
         nameLabel.setColor('#ffdd44');
-        const tipLines = this._getUpgradeTooltipLines(upgrade);
+        const tipLines = hidden
+          ? this._getPrerequisiteTooltipLines(upgrade.id)
+          : this._getUpgradeTooltipLines(upgrade);
         this._showUpgradeTooltip(labelX, y, tipLines, tooltipTab);
       });
       nameLabel.on('pointerout', () => {
@@ -602,16 +609,23 @@ export class HomeBaseScene extends Phaser.Scene {
         this._hideUpgradeTooltip();
       });
 
-      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade);
+      this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade, hidden);
 
-      this._drawValueText(valuesX, y, current, next, maxed);
+      if (!hidden) {
+        this._drawValueText(valuesX, y, current, next, maxed);
+      }
 
-      this.add.text(labelX + 10, y + 16, this._getActionDesc(upgrade), {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#666666',
-        wordWrap: { width: 200 },
-      });
+      this.add.text(
+        labelX + 10,
+        y + 16,
+        hidden ? 'Requirements not met' : this._getActionDesc(upgrade),
+        {
+          fontFamily: 'monospace',
+          fontSize: '9px',
+          color: '#666666',
+          wordWrap: { width: 200 },
+        },
+      );
 
       if (this.refundMode) {
         this._drawRefundButton(costX, y, upgrade);
@@ -696,7 +710,7 @@ export class HomeBaseScene extends Phaser.Scene {
     }
   }
 
-  _drawProgressBar(x, y, level, maxLevel, maxed, upgrade) {
+  _drawProgressBar(x, y, level, maxLevel, maxed, upgrade, hidden = false) {
     for (let i = 0; i < maxLevel; i++) {
       const filled = i < level;
       const color = filled ? (maxed ? BAR_FILLED_MAX : BAR_FILLED) : BAR_EMPTY;
@@ -708,7 +722,7 @@ export class HomeBaseScene extends Phaser.Scene {
         color,
       );
 
-      if (upgrade) {
+      if (upgrade && !hidden) {
         rect.setInteractive({ useHandCursor: false });
         const tierIndex = i;
         const tooltipTab = this.activeTab;
@@ -758,6 +772,12 @@ export class HomeBaseScene extends Phaser.Scene {
         });
       }
     }
+  }
+
+  _getPrerequisiteTooltipLines(upgradeId) {
+    const info = this.meta.getPrerequisiteInfo(upgradeId);
+    if (!info?.missing?.length) return ['Requirements not met'];
+    return ['Requires:', ...info.missing.map((missing) => `  ${missing}`)];
   }
 
   _getStatLabel(upgrade) {

@@ -250,7 +250,12 @@ export class MetaProgressionManager {
       for (const req of reqs.upgrades) {
         if (this.getUpgradeLevel(req.id) < req.level) {
           const reqUpgrade = this.upgradesData.find((u) => u.id === req.id);
-          const name = reqUpgrade ? reqUpgrade.name : req.id;
+          const isPurchased = this.getUpgradeLevel(req.id) > 0;
+          const name = !reqUpgrade
+            ? req.id
+            : this.isMilestoneLocked(reqUpgrade) && !isPurchased
+              ? '???'
+              : reqUpgrade.name;
           missing.push(`${name} Lv${req.level}`);
         }
       }
@@ -272,6 +277,11 @@ export class MetaProgressionManager {
     }
 
     return { met: missing.length === 0, missing };
+  }
+
+  isMilestoneLocked(upgrade) {
+    if (!upgrade?.requires?.milestones) return false;
+    return upgrade.requires.milestones.some((milestone) => !this.milestones.has(milestone));
   }
 
   purchaseUpgrade(id) {
