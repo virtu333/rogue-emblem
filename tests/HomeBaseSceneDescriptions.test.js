@@ -8,6 +8,144 @@ vi.mock('phaser', () => ({
 
 import { HomeBaseScene } from '../src/scenes/HomeBaseScene.js';
 
+function createDisplayObject({
+  kind = 'text',
+  x = 0,
+  y = 0,
+  text = '',
+  style = {},
+  width = String(text ?? '').length * 6,
+  height = 8 + String(text ?? '').split('\n').length * 12,
+} = {}) {
+  const handlers = {};
+  const obj = {
+    kind,
+    x,
+    y,
+    text,
+    style,
+    width,
+    height,
+    visible: true,
+    active: true,
+    interactive: false,
+    input: null,
+    handlers,
+    setInteractive() {
+      this.interactive = true;
+      this.input = { enabled: true };
+      return this;
+    },
+    setColor(color) {
+      this.color = color;
+      return this;
+    },
+    setDepth(depth) {
+      this.depth = depth;
+      return this;
+    },
+    setOrigin(xOrigin = 0, yOrigin = 0) {
+      this.origin = [xOrigin, yOrigin];
+      return this;
+    },
+    setY(nextY) {
+      this.y = nextY;
+      return this;
+    },
+    setStrokeStyle() {
+      return this;
+    },
+    on(event, handler) {
+      this.handlers[event] = handler;
+      return this;
+    },
+  };
+  obj.destroy = vi.fn(() => {
+    obj.destroyed = true;
+  });
+  return obj;
+}
+
+function createAddRecorder() {
+  const texts = [];
+  const rectangles = [];
+  return {
+    texts,
+    rectangles,
+    add: {
+      text: vi.fn((x, y, text, style) => {
+        const obj = createDisplayObject({ kind: 'text', x, y, text, style });
+        texts.push(obj);
+        return obj;
+      }),
+      rectangle: vi.fn((x, y, width, height, color, alpha) => {
+        const obj = createDisplayObject({
+          kind: 'rectangle',
+          x,
+          y,
+          width,
+          height,
+          color,
+          alpha,
+          text: '',
+        });
+        rectangles.push(obj);
+        return obj;
+      }),
+    },
+  };
+}
+
+function touchPointer(x = 100, y = 100) {
+  return {
+    button: 0,
+    wasTouch: true,
+    x,
+    y,
+    rightButtonDown: () => false,
+  };
+}
+
+function createHiddenUpgradeScene({
+  missing = ['Beat Act 1'],
+  level = 0,
+  hidden = true,
+  prereqsMet = false,
+} = {}) {
+  const scene = new HomeBaseScene();
+  const { add, texts, rectangles } = createAddRecorder();
+  scene.add = add;
+  scene.activeTab = 'capacity';
+  scene.refundMode = false;
+  scene.registry = { get: vi.fn(() => null) };
+  scene.cameras = { main: { width: 640, height: 480 } };
+  scene.meta = {
+    getUpgradeLevel: vi.fn(() => level),
+    isMaxed: vi.fn(() => false),
+    canAfford: vi.fn(() => false),
+    isMilestoneLocked: vi.fn(() => hidden),
+    meetsPrerequisites: vi.fn(() => prereqsMet),
+    getPrerequisiteInfo: vi.fn(() => ({ missing })),
+    getCurrencyForUpgrade: vi.fn(() => 'valor'),
+    getNextCost: vi.fn(() => 100),
+    purchaseUpgrade: vi.fn(() => false),
+  };
+
+  const upgrade = {
+    id: 'legendary_heir',
+    name: 'Legendary Heir',
+    description: 'Choose your lord mode.',
+    maxLevel: 3,
+    effects: [
+      { thirdLordMode: 'random' },
+      { thirdLordMode: 'pick3' },
+      { thirdLordMode: 'pick_all' },
+    ],
+  };
+
+  return { scene, texts, rectangles, upgrade };
+}
+
 describe('HomeBaseScene upgrade description helpers', () => {
   it('describes deadly arsenal split tiers', () => {
     const scene = new HomeBaseScene();
@@ -285,6 +423,146 @@ describe('HomeBaseScene tab switching tooltip cleanup', () => {
     expect(hideSpy).toHaveBeenCalledTimes(1);
     expect(drawSpy).toHaveBeenCalledTimes(1);
     expect(hideSpy.mock.invocationCallOrder[0]).toBeLessThan(drawSpy.mock.invocationCallOrder[0]);
+  });
+});
+
+describe('HomeBaseScene hidden milestone upgrade rows', () => {
+  it('renders ??? + Requirements not met and suppresses value text', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+    const valueSpy = vi.spyOn(scene, '_drawValueText');
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    expect(texts.some((obj) => obj.text === '???')).toBe(true);
+    expect(texts.some((obj) => obj.text === 'Requirements not met')).toBe(true);
+    expect(texts.some((obj) => obj.text === 'Legendary Heir')).toBe(false);
+    expect(texts.some((obj) => obj.text === 'Random lord')).toBe(false);
+    expect(valueSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not register tier interactivity for hidden progress bars', () => {
+    const { scene, rectangles, upgrade } = createHiddenUpgradeScene();
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    expect(rectangles).toHaveLength(upgrade.maxLevel);
+    for (const rect of rectangles) {
+      expect(rect.interactive).toBe(false);
+      expect(rect.handlers.pointerover).toBeUndefined();
+      expect(rect.handlers.pointerout).toBeUndefined();
+    }
+  });
+
+  it('shows prerequisite tooltip on touch pointerdown of hidden label', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const hiddenLabel = texts.find((obj) => obj.text === '???' && obj.interactive);
+    expect(hiddenLabel?.handlers.pointerdown).toBeTypeOf('function');
+
+    hiddenLabel.handlers.pointerdown(touchPointer(50, 100));
+
+    expect(scene._upgradeTooltip?.text).toBe('Requires:\n  Beat Act 1');
+    expect(scene._touchTooltipState).toEqual({
+      targetKey: 'hidden-label:legendary_heir:capacity',
+      kind: 'upgrade',
+    });
+  });
+
+  it('toggles the hidden-label tooltip off on a second tap of the same target', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const hiddenLabel = texts.find((obj) => obj.text === '???' && obj.interactive);
+    hiddenLabel.handlers.pointerdown(touchPointer(50, 100));
+    expect(scene._upgradeTooltip).toBeTruthy();
+
+    hiddenLabel.handlers.pointerdown(touchPointer(50, 100));
+
+    expect(scene._upgradeTooltip).toBeNull();
+    expect(scene._touchTooltipState).toBeNull();
+  });
+
+  it('shows missing prerequisites on touch pointerdown of LOCKED', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const lockText = texts.find((obj) => obj.text === 'LOCKED');
+    expect(lockText?.handlers.pointerdown).toBeTypeOf('function');
+
+    lockText.handlers.pointerdown(touchPointer(530, 100));
+
+    expect(scene._prereqTooltip?.text).toBe('Requires:\n  Beat Act 1');
+    expect(scene._touchTooltipState).toEqual({
+      targetKey: 'locked:legendary_heir:capacity',
+      kind: 'prereq',
+    });
+  });
+
+  it('toggles the LOCKED prerequisite tooltip off on a second tap of the same target', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const lockText = texts.find((obj) => obj.text === 'LOCKED');
+    lockText.handlers.pointerdown(touchPointer(530, 100));
+    expect(scene._prereqTooltip).toBeTruthy();
+
+    lockText.handlers.pointerdown(touchPointer(530, 100));
+
+    expect(scene._prereqTooltip).toBeNull();
+    expect(scene._touchTooltipState).toBeNull();
+  });
+
+  it('dismisses touch tooltip on outside tap before requestCancel', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+    scene.requestCancel = vi.fn();
+    scene._isPointerOverInteractive = vi.fn(() => false);
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const hiddenLabel = texts.find((obj) => obj.text === '???' && obj.interactive);
+    hiddenLabel.handlers.pointerdown(touchPointer(50, 100));
+    expect(scene._upgradeTooltip).toBeTruthy();
+
+    scene._touchTapDown = { x: 200, y: 200 };
+    scene.onPointerUp(touchPointer(200, 200));
+
+    expect(scene._upgradeTooltip).toBeNull();
+    expect(scene._touchTooltipState).toBeNull();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+
+    scene._touchTapDown = { x: 200, y: 200 };
+    scene.onPointerUp(touchPointer(200, 200));
+
+    expect(scene.requestCancel).toHaveBeenCalledWith({ allowExit: false });
+  });
+
+  it('dismisses LOCKED prerequisite tooltip on outside tap before requestCancel', () => {
+    const { scene, texts, upgrade } = createHiddenUpgradeScene();
+    scene.requestCancel = vi.fn();
+    scene._isPointerOverInteractive = vi.fn(() => false);
+
+    scene.drawUpgradeRow(upgrade, 100);
+
+    const lockText = texts.find((obj) => obj.text === 'LOCKED');
+    lockText.handlers.pointerdown(touchPointer(530, 100));
+    expect(scene._prereqTooltip).toBeTruthy();
+
+    scene._touchTapDown = { x: 200, y: 200 };
+    scene.onPointerUp(touchPointer(200, 200));
+
+    expect(scene._prereqTooltip).toBeNull();
+    expect(scene._touchTooltipState).toBeNull();
+    expect(scene.requestCancel).not.toHaveBeenCalled();
+
+    scene._touchTapDown = { x: 200, y: 200 };
+    scene.onPointerUp(touchPointer(200, 200));
+
+    expect(scene.requestCancel).toHaveBeenCalledWith({ allowExit: false });
   });
 });
 

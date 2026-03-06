@@ -158,6 +158,7 @@ export class HomeBaseScene extends Phaser.Scene {
     this._touchTapDown = null;
     this._tapMoveThreshold = 12;
     this._touchScrollDrag = null;
+    this._touchTooltipState = null;
     this.refundMode = false;
     this.confirmOverlayObjects = [];
 
@@ -215,17 +216,21 @@ export class HomeBaseScene extends Phaser.Scene {
 
     this.refundMode = false;
     this._hideRefundConfirm?.();
-    this._hideUpgradeTooltip?.();
+    if (typeof this._hideMetaTooltips === 'function') {
+      this._hideMetaTooltips();
+    } else {
+      this._hideUpgradeTooltip?.();
+      if (this._prereqTooltip) {
+        this._prereqTooltip.destroy();
+        this._prereqTooltip = null;
+      }
+      if (this._tierTooltip) {
+        this._tierTooltip.destroy();
+        this._tierTooltip = null;
+      }
+      this._touchTooltipState = null;
+    }
     this._destroySkillPicker?.();
-
-    if (this._prereqTooltip) {
-      this._prereqTooltip.destroy();
-      this._prereqTooltip = null;
-    }
-    if (this._tierTooltip) {
-      this._tierTooltip.destroy();
-      this._tierTooltip = null;
-    }
     if (this.transientMessage) {
       this.transientMessage.destroy();
       this.transientMessage = null;
@@ -270,15 +275,7 @@ export class HomeBaseScene extends Phaser.Scene {
   }
 
   drawUI() {
-    if (this._prereqTooltip) {
-      this._prereqTooltip.destroy();
-      this._prereqTooltip = null;
-    }
-    if (this._tierTooltip) {
-      this._tierTooltip.destroy();
-      this._tierTooltip = null;
-    }
-    this._hideUpgradeTooltip();
+    this._hideMetaTooltips();
     this._hideRefundConfirm();
     this.children.removeAll(true);
 
@@ -448,7 +445,7 @@ export class HomeBaseScene extends Phaser.Scene {
       });
       tab.on('pointerdown', () => {
         if (this.activeTab !== cat.key) {
-          this._hideUpgradeTooltip();
+          this._hideMetaTooltips();
           this.activeTab = cat.key;
           if (this.tabScrollOffsets[this.activeTab] === undefined)
             this.tabScrollOffsets[this.activeTab] = 0;
@@ -562,8 +559,21 @@ export class HomeBaseScene extends Phaser.Scene {
       });
       statLabel.on('pointerout', () => {
         statLabel.setColor('#e0e0e0');
-        this._hideUpgradeTooltip();
+        this._hideMetaTooltips();
       });
+      if (hidden) {
+        statLabel.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0 || !isTouchPointer(pointer)) return;
+          this._toggleTouchTooltip(`hidden-label:${upgrade.id}:${tooltipTab}`, 'upgrade', () => {
+            this._showUpgradeTooltip(
+              labelX,
+              y,
+              this._getPrerequisiteTooltipLines(upgrade.id),
+              tooltipTab,
+            );
+          });
+        });
+      }
 
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade, hidden);
 
@@ -606,8 +616,21 @@ export class HomeBaseScene extends Phaser.Scene {
       });
       nameLabel.on('pointerout', () => {
         nameLabel.setColor('#e0e0e0');
-        this._hideUpgradeTooltip();
+        this._hideMetaTooltips();
       });
+      if (hidden) {
+        nameLabel.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0 || !isTouchPointer(pointer)) return;
+          this._toggleTouchTooltip(`hidden-label:${upgrade.id}:${tooltipTab}`, 'upgrade', () => {
+            this._showUpgradeTooltip(
+              labelX,
+              y,
+              this._getPrerequisiteTooltipLines(upgrade.id),
+              tooltipTab,
+            );
+          });
+        });
+      }
 
       this._drawProgressBar(barX, y + 2, level, upgrade.maxLevel, maxed, upgrade, hidden);
 
@@ -661,25 +684,16 @@ export class HomeBaseScene extends Phaser.Scene {
 
       // Tooltip on hover showing missing prerequisites
       lockText.on('pointerover', () => {
-        if (this.activeTab !== tooltipTab) return;
-        const info = this.meta.getPrerequisiteInfo(upgrade.id);
-        const tipText = 'Requires:\n' + info.missing.map((m) => '  ' + m).join('\n');
-        this._prereqTooltip = this.add
-          .text(x - 120, y + 18, tipText, {
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            color: '#dddddd',
-            backgroundColor: '#111122ee',
-            padding: { x: 6, y: 4 },
-            wordWrap: { width: 200 },
-          })
-          .setDepth(950);
+        this._showPrereqTooltip(x, y, upgrade.id, tooltipTab);
       });
       lockText.on('pointerout', () => {
-        if (this._prereqTooltip) {
-          this._prereqTooltip.destroy();
-          this._prereqTooltip = null;
-        }
+        this._hideMetaTooltips();
+      });
+      lockText.on('pointerdown', (pointer) => {
+        if (pointer?.button !== 0 || !isTouchPointer(pointer)) return;
+        this._toggleTouchTooltip(`locked:${upgrade.id}:${tooltipTab}`, 'prereq', () => {
+          this._showPrereqTooltip(x, y, upgrade.id, tooltipTab);
+        });
       });
       return;
     }
@@ -765,10 +779,7 @@ export class HomeBaseScene extends Phaser.Scene {
             .setDepth(950);
         });
         rect.on('pointerout', () => {
-          if (this._tierTooltip) {
-            this._tierTooltip.destroy();
-            this._tierTooltip = null;
-          }
+          this._hideTierTooltip();
         });
       }
     }
@@ -1002,11 +1013,63 @@ export class HomeBaseScene extends Phaser.Scene {
     this._upgradeTooltip = tip;
   }
 
+  _showPrereqTooltip(x, y, upgradeId, expectedTab = this.activeTab) {
+    if (this.activeTab !== expectedTab) return;
+    this._hidePrereqTooltip();
+    const lines = this._getPrerequisiteTooltipLines(upgradeId);
+    if (!lines?.length) return;
+    this._prereqTooltip = this.add
+      .text(x - 120, y + 18, lines.join('\n'), {
+        fontFamily: 'monospace',
+        fontSize: '9px',
+        color: '#dddddd',
+        backgroundColor: '#111122ee',
+        padding: { x: 6, y: 4 },
+        wordWrap: { width: 200 },
+      })
+      .setDepth(950);
+  }
+
   _hideUpgradeTooltip() {
     if (this._upgradeTooltip) {
       this._upgradeTooltip.destroy();
       this._upgradeTooltip = null;
     }
+  }
+
+  _hidePrereqTooltip() {
+    if (this._prereqTooltip) {
+      this._prereqTooltip.destroy();
+      this._prereqTooltip = null;
+    }
+  }
+
+  _hideTierTooltip() {
+    if (this._tierTooltip) {
+      this._tierTooltip.destroy();
+      this._tierTooltip = null;
+    }
+  }
+
+  _hideMetaTooltips() {
+    this._hidePrereqTooltip();
+    this._hideTierTooltip();
+    this._hideUpgradeTooltip();
+    this._touchTooltipState = null;
+  }
+
+  _toggleTouchTooltip(targetKey, kind, showTooltip) {
+    const sameTarget = this._touchTooltipState?.targetKey === targetKey;
+    this._hideMetaTooltips();
+    if (sameTarget) return false;
+    showTooltip?.();
+    const tooltipVisible =
+      (kind === 'upgrade' && this._upgradeTooltip) || (kind === 'prereq' && this._prereqTooltip);
+    if (tooltipVisible) {
+      this._touchTooltipState = { targetKey, kind };
+      return true;
+    }
+    return false;
   }
 
   _formatLootCategoryBonuses(weightBonuses) {
@@ -1599,7 +1662,12 @@ export class HomeBaseScene extends Phaser.Scene {
       }
     }
     this._touchTapDown = null;
-    if (this._isPointerOverInteractive(pointer)) return;
+    const overInteractive = this._isPointerOverInteractive(pointer);
+    if (isTouchPointer(pointer) && this._touchTooltipState && !overInteractive) {
+      this._hideMetaTooltips();
+      return;
+    }
+    if (overInteractive) return;
     this.requestCancel({ allowExit: false });
   }
 
