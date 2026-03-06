@@ -15,6 +15,7 @@ import { reportAsyncError } from './utils/errorReporter.js';
 import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 import { createViewportReconciler } from './utils/viewportReconciler.js';
 import { requireAuthUser } from './auth/requireAuthUser.js';
+import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -134,6 +135,12 @@ function enableSafeBootAndReload() {
   }
   window.location.reload();
 }
+
+const runtimeFatalRecovery = createRuntimeFatalRecovery({
+  mark: markStartup,
+  report: reportAsyncError,
+  onSafeReload: enableSafeBootAndReload,
+});
 
 function showBootRecoveryOverlay(message) {
   if (document.getElementById('boot-recovery-overlay')) return;
@@ -346,6 +353,7 @@ function bootGame(user) {
   });
   viewportReconciler.start();
   markStartup('phaser_boot_complete');
+  runtimeFatalRecovery.arm();
   return true;
 }
 

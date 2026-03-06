@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { InputController } from '../src/ui/InputController.js';
+import { TERRAIN } from '../src/utils/constants.js';
 
 function makeScene(overrides = {}) {
   return {
@@ -19,12 +20,20 @@ function makeScene(overrides = {}) {
     },
     grid: {
       pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+      mapLayout: [
+        [TERRAIN.Plain, TERRAIN.Plain],
+        [TERRAIN.Plain, TERRAIN.Plain],
+      ],
+      cols: 2,
+      rows: 2,
       getTerrainAt: vi.fn(() => ({
         name: 'Plain',
         moveCost: { Infantry: 1 },
         avoidBonus: 0,
         defBonus: 0,
       })),
+      fogEnabled: false,
+      isVisible: vi.fn(() => true),
       getMovementRange: vi.fn(() => new Map()),
       getAttackRange: vi.fn(() => []),
       showMovementRange: vi.fn(),
@@ -41,6 +50,8 @@ function makeScene(overrides = {}) {
     pauseOverlay: null,
     lootSettingsOverlay: false,
     inspectionPanel: { show: vi.fn(), hide: vi.fn(), visible: false, objects: [] },
+    getUnitAt: vi.fn(() => null),
+    ballistas: [],
     isMobileInput: false,
     inspectMode: false,
     battleState: 'PLAYER_IDLE',
@@ -229,6 +240,183 @@ describe('InputController', () => {
     expect(scene.grid.clearHighlights).toHaveBeenCalledTimes(1);
     expect(scene.grid.clearAttackHighlights).toHaveBeenCalledTimes(1);
     expect(scene.refreshEndTurnControl).toHaveBeenCalled();
+  });
+
+  it('right-click enemy ballista tile shows and dismisses range overlay', () => {
+    const showAttackRange = vi.fn();
+    const scene = makeScene({
+      requestCancel: vi.fn(() => false),
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        mapLayout: [
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Ballista, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+        ],
+        cols: 3,
+        rows: 3,
+        fogEnabled: false,
+        isVisible: vi.fn(() => true),
+        showAttackRange,
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      getUnitAt: vi.fn(() => null),
+      ballistas: [{ col: 1, row: 1, owner: 'enemy' }],
+      inspectionPanel: { show: vi.fn(), hide: vi.fn(), visible: false, objects: [] },
+    });
+    const controller = new InputController(scene);
+
+    controller.onRightClick({ x: 16, y: 16 });
+    expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
+    expect(controller._ballistaRangeShown).toBe(true);
+
+    controller.onRightClick({ x: 16, y: 16 });
+    expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
+    expect(scene.grid.clearAttackHighlights).toHaveBeenCalledTimes(1);
+    expect(controller._ballistaRangeShown).toBe(false);
+  });
+
+  it('does not show range for player-owned ballistas', () => {
+    const scene = makeScene({
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        mapLayout: [
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Ballista, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+        ],
+        cols: 3,
+        rows: 3,
+        fogEnabled: false,
+        isVisible: vi.fn(() => true),
+        showAttackRange: vi.fn(),
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      getUnitAt: vi.fn(() => null),
+      ballistas: [{ col: 1, row: 1, owner: 'player' }],
+    });
+    const controller = new InputController(scene);
+
+    expect(controller._showInspectionAtPixel(16, 16)).toBe(false);
+    expect(scene.grid.showAttackRange).not.toHaveBeenCalled();
+    expect(controller._ballistaRangeShown).toBe(false);
+  });
+
+  it('does not show range for fog-hidden enemy ballistas', () => {
+    const scene = makeScene({
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        mapLayout: [
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Ballista, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+        ],
+        cols: 3,
+        rows: 3,
+        fogEnabled: true,
+        isVisible: vi.fn(() => false),
+        showAttackRange: vi.fn(),
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      getUnitAt: vi.fn(() => null),
+      ballistas: [{ col: 1, row: 1, owner: 'enemy' }],
+    });
+    const controller = new InputController(scene);
+
+    expect(controller._showInspectionAtPixel(16, 16)).toBe(false);
+    expect(scene.grid.showAttackRange).not.toHaveBeenCalled();
+  });
+
+  it('ballista range preview clears stale inspection panel and movement highlights', () => {
+    const scene = makeScene({
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        mapLayout: [
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Ballista, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+        ],
+        cols: 3,
+        rows: 3,
+        fogEnabled: false,
+        isVisible: vi.fn(() => true),
+        showAttackRange: vi.fn(),
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      getUnitAt: vi.fn(() => null),
+      ballistas: [{ col: 1, row: 1, owner: 'enemy' }],
+      inspectionPanel: { show: vi.fn(), hide: vi.fn(), visible: true, objects: [] },
+    });
+    const controller = new InputController(scene);
+
+    expect(controller._showInspectionAtPixel(16, 16)).toBe(true);
+    expect(scene.inspectionPanel.hide).toHaveBeenCalledTimes(1);
+    expect(scene.grid.clearHighlights).toHaveBeenCalledTimes(1);
+    expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
+  });
+
+  it('occupied ballista tile still shows unit inspection and range behavior', () => {
+    const unit = {
+      faction: 'enemy',
+      col: 1,
+      row: 1,
+      mov: 5,
+      moveType: 'Infantry',
+      weapon: { range: '1' },
+      stats: { MOV: 5 },
+    };
+    const scene = makeScene({
+      battleState: 'PLAYER_IDLE',
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        mapLayout: [
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Ballista, TERRAIN.Plain],
+          [TERRAIN.Plain, TERRAIN.Plain, TERRAIN.Plain],
+        ],
+        cols: 3,
+        rows: 3,
+        getTerrainAt: vi.fn(() => ({ name: 'Ballista' })),
+        fogEnabled: false,
+        isVisible: vi.fn(() => true),
+        getMovementRange: vi.fn(
+          () =>
+            new Map([
+              ['1,1', { stoppable: true }],
+              ['1,2', { stoppable: true }],
+            ]),
+        ),
+        getAttackRange: vi.fn(() => [{ col: 1, row: 0 }]),
+        showMovementRange: vi.fn(),
+        showAttackRange: vi.fn(),
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      getUnitAt: vi.fn(() => unit),
+      buildUnitPositionMap: vi.fn(() => new Map()),
+      _getCostModifier: vi.fn(() => 0),
+      inspectionPanel: { show: vi.fn(), hide: vi.fn(), visible: false, objects: [] },
+    });
+    const controller = new InputController(scene);
+
+    expect(controller._showInspectionAtPixel(16, 16)).toBe(true);
+    expect(scene.inspectionPanel.show).toHaveBeenCalledTimes(1);
+    expect(scene.grid.showMovementRange).toHaveBeenCalledTimes(1);
+    expect(scene.grid.showAttackRange).toHaveBeenCalledTimes(1);
+    expect(controller._ballistaRangeShown).toBe(false);
+  });
+
+  it('clearInspectionVisuals always resets ballista range flag', () => {
+    const scene = makeScene();
+    const controller = new InputController(scene);
+    controller._ballistaRangeShown = true;
+
+    controller.clearInspectionVisuals();
+    expect(controller._ballistaRangeShown).toBe(false);
   });
 
   it('updateTopLeftHudLayout stacks HUD text below info text', () => {

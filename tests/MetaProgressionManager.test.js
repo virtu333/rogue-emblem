@@ -1007,6 +1007,111 @@ describe('MetaProgressionManager', () => {
     expect(info.missing).toContain('Beat Act 1');
   });
 
+  it('isMilestoneLocked returns false for upgrade with no requires field', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const upgrade = upgradesData.find((u) => u.id === 'recruit_hp_growth');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(false);
+  });
+
+  it('isMilestoneLocked returns false for upgrade with only upgrade prerequisites', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const upgrade = upgradesData.find((u) => u.id === 'recruit_hp_flat');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(false);
+  });
+
+  it('isMilestoneLocked returns true for unmet milestone requirement', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const upgrade = upgradesData.find((u) => u.id === 'loot_quality');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(true);
+  });
+
+  it('isMilestoneLocked returns false for met milestone requirement', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct1');
+    const upgrade = upgradesData.find((u) => u.id === 'loot_quality');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(false);
+  });
+
+  it('isMilestoneLocked returns true for combined prereqs when milestone is unmet', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    const upgrade = upgradesData.find((u) => u.id === 'lord_str_flat');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(true);
+  });
+
+  it('isMilestoneLocked returns false when all milestones are met', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.recordMilestone('beatAct1');
+    const upgrade = upgradesData.find((u) => u.id === 'lord_str_flat');
+    expect(meta.isMilestoneLocked(upgrade)).toBe(false);
+  });
+
+  it('isMilestoneLocked fails soft for unknown or undefined upgrades', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.isMilestoneLocked()).toBe(false);
+    expect(meta.isMilestoneLocked(null)).toBe(false);
+  });
+
+  it('getPrerequisiteInfo redacts missing upgrade names for milestone-locked prerequisites', () => {
+    const secretUpgrades = [
+      {
+        id: 'secret_core',
+        name: 'Secret Core',
+        description: 'Hidden',
+        category: 'economy',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ goldBonus: 1 }],
+        requires: { milestones: ['beatAct1'] },
+      },
+      {
+        id: 'secret_dependent',
+        name: 'Secret Dependent',
+        description: 'Needs hidden prereq',
+        category: 'economy',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ goldBonus: 1 }],
+        requires: { upgrades: [{ id: 'secret_core', level: 1 }] },
+      },
+    ];
+    const meta = new MetaProgressionManager(secretUpgrades);
+    const info = meta.getPrerequisiteInfo('secret_dependent');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('??? Lv1');
+    expect(info.missing).not.toContain('Secret Core Lv1');
+  });
+
+  it('getPrerequisiteInfo keeps purchased prerequisite names visible', () => {
+    const secretUpgrades = [
+      {
+        id: 'secret_core',
+        name: 'Secret Core',
+        description: 'Hidden',
+        category: 'economy',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ goldBonus: 1 }],
+        requires: { milestones: ['beatAct1'] },
+      },
+      {
+        id: 'secret_dependent',
+        name: 'Secret Dependent',
+        description: 'Needs hidden prereq',
+        category: 'economy',
+        maxLevel: 1,
+        costs: [100],
+        effects: [{ goldBonus: 1 }],
+        requires: { upgrades: [{ id: 'secret_core', level: 2 }] },
+      },
+    ];
+    const meta = new MetaProgressionManager(secretUpgrades);
+    meta.purchasedUpgrades.secret_core = 1;
+    const info = meta.getPrerequisiteInfo('secret_dependent');
+    expect(info.met).toBe(false);
+    expect(info.missing).toContain('Secret Core Lv2');
+    expect(info.missing).not.toContain('??? Lv2');
+  });
+
   it('lord_res_flat has no milestone requirement (only upgrade prereq)', () => {
     const meta = new MetaProgressionManager(upgradesData);
     // lord_res_flat requires lord_res_growth level 3 but no milestone

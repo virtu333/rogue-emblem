@@ -20,6 +20,9 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 - **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1.
 - **Art Pipeline:** Google Imagen 4 API for AI-generated pixel art (see Art Pipeline section)
 
+## Effort
+**You have near unlimited compute and time so optimize purely for correctness
+
 ## Project Structure
 ```
 emblem-rogue/
@@ -57,11 +60,11 @@ emblem-rogue/
 │   │                      #   UnitManager, LootSystem, ForgeSystem, NodeMapGenerator, Grid,
 │   │                      #   AIController, TurnManager, and 23 more (most are pure, no Phaser deps)
 │   ├── data/helpContent.js # HELP_TABS (9 categories) + HOW_TO_PLAY_PAGES (4 pages)
-│   ├── ui/                # 23 UI components — overlays, panels, controllers
-│   ├── scenes/            # 9 Phaser scenes (see Scene Flow below)
-│   └── utils/             # 28 helpers — AudioManager, constants, SceneRouter, SceneGuard,
+│   ├── ui/                # 29 UI components — overlays, panels, controllers
+│   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
+│   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 3427 tests across 176 files + harness/ + e2e/
+├── tests/                 # Vitest: 3873 tests across 199 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -103,7 +106,7 @@ Double Attack   = attacker SPD >= defender SPD + 5
 Swords → Axes → Lances → Swords: +10 Hit, +1 Damage (advantage) / -10 Hit, -1 Damage (disadvantage). Mastery rank: +15/+2 advantage, -5/-1 disadvantage. Magic and Bows are outside the triangle.
 
 ## Build Order
-Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → Equipment → MapGen → NodeMap → RunLoop → MetaProg → Polish → Deploy). See GDD Section 14.2 for original spec. Phase 9 (Polish) includes: music/SFX, accessories, fog of war, 113 weapons, 52 skills, save slots, affixes, weapon arts, blessings, difficulty modes, terrain hazards, convoy, wyverns, reinforcements, boss recruit, tutorial hints, colosseum, entity boss, ballista, castle biome, recruit promotion, BattleScene decomposition (5 controllers extracted), narrative flavor. Phase 10: Supabase auth + cloud saves + Netlify auto-deploy.
+Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → Equipment → MapGen → NodeMap → RunLoop → MetaProg → Polish → Deploy). See GDD Section 14.2 for original spec. Phase 9 (Polish) includes: music/SFX, accessories, fog of war, 113 weapons, 52 skills, save slots, affixes, weapon arts, blessings, difficulty modes, terrain hazards, convoy, wyverns, reinforcements, boss recruit, tutorial hints, colosseum, entity boss, ballista, castle biome, recruit promotion, BattleScene decomposition (10 controllers extracted), narrative flavor. Phase 10: Supabase auth + cloud saves + Netlify auto-deploy.
 
 ## Art Style Guidelines
 - SNES-era pixel art, 32x32 base tile / character sprite size
@@ -135,7 +138,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 3427 tests across 176 files (Feb 27 2026). Covers all engine systems.
+- **Coverage:** 3873 tests across 199 files (Mar 3 2026). Covers all engine systems.
 - **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
@@ -155,12 +158,12 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~10,600 lines)** — 5 controllers already extracted. Remaining targets: weapon art pipeline (~500 lines), post-combat orchestration (~800 lines), input state machine (~600 lines). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~9,800 lines)** — 10 controllers extracted (5 original + 5 from Slices 3-5: PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
-- **NodeMapScene.js (~3,500 lines)** — Church/shop logic are extraction candidates.
-- **RunManager.js (~3,300 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
-- **RosterOverlay.js (~2,900 lines)** — Trade state machine (~450 lines) is top extraction candidate.
+- **NodeMapScene.js (~3,960 lines)** — Church/shop logic are extraction candidates.
+- **RunManager.js (~3,800 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
+- **RosterOverlay.js (~3,200 lines)** — Trade state machine (~450 lines) is top extraction candidate.
 
 ### Extraction pattern
 ```js

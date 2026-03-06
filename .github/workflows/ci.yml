@@ -38,11 +38,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run check:threshold-pr-notes
+      - run: npm run test:sim:triage
       - run: npm run test:harness:pr
       - run: npm run sim:fullrun:pr
 

@@ -2,7 +2,7 @@
 
 ## Current State
 
-Phases 1-9 complete. 3427 tests across 176 files on `main` baseline (Feb 27, 2026). Deployed to Netlify with Supabase auth + cloud saves. 60 meta upgrades across 6 categories, 113 weapons, 52 skills (7 trigger types), 29 accessories (10 stat + 19 combat), 52 classes (21 base + 30 promoted + 1 boss-tier), 15 terrain types (includes indoor + ballista), 16 map templates (8 rout + 8 seize, 4 biomes), 75 weapon arts, 12 enemy affixes, 23 blessings, 15 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast, colosseum mercenary arena, entity multi-tile boss, ballista siege weapons, castle biome, recruit promotion, BattleScene decomposition (5 extracted controllers), narrative flavor surfaces. For architecture details, data file reference, and build order, see **CLAUDE.md**.
+Phases 1-9 complete. 3873 tests across 199 files on `main` baseline (Mar 3, 2026). Deployed to Netlify with Supabase auth + cloud saves. 60 meta upgrades across 6 categories, 113 weapons, 52 skills (7 trigger types), 29 accessories (10 stat + 19 combat), 52 classes (21 base + 30 promoted + 1 boss-tier), 15 terrain types (includes indoor + ballista), 16 map templates (8 rout + 8 seize, 4 biomes), 75 weapon arts, 12 enemy affixes, 23 blessings, 15 consumables, 38 music tracks, difficulty modes (Normal/Hard/Lunatic), Act 4 complete, battle actions (Trade/Swap/Dance), turn bonus system, boss recruit event, tutorial hints, convoy system, terrain hazards (Ice/Lava Crack), reinforcement system, scene router/guard, dual currency meta, FE GBA-style combat forecast, colosseum mercenary arena, entity multi-tile boss, ballista siege weapons, castle biome, recruit promotion, BattleScene decomposition (10 extracted controllers), narrative flavor surfaces. For architecture details, data file reference, and build order, see **CLAUDE.md**.
 
 ## Priority Order (Feb 2026)
 
@@ -26,7 +26,7 @@ Organized by impact and logical sequencing:
 10. ~~**Entity Multi-Tile Boss**~~ - 3x3 footprint eldritch boss for Lunatic, splash damage, dual weapons, crit resistance
 11. ~~**Ballista Siege Weapons + Zombie Revival**~~ - Mountable ballistas, zombie revival mechanic, dragon breath cone AoE, castle tileset art
 12. ~~**Narrative Scaffolding**~~ - 6 flavor surfaces across combat/loot/recruit/shop/church/boss events
-13. ~~**BattleScene Decomposition**~~ - Extracted 5 controllers (VisionRewindController, ForecastOverlay, DeployScreenOverlay, BossRecruitOverlay, LootScreenController), ~3,600 lines moved out
+13. ~~**BattleScene Decomposition**~~ - Extracted 10 controllers (original 5: VisionRewindController, ForecastOverlay, DeployScreenOverlay, BossRecruitOverlay, LootScreenController; Slices 3-5: PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController), BattleScene reduced from ~10,600 to ~9,800 lines
 14. ~~**P0 Hardening + Playtest Fixes**~~ - Abandon Run freeze, Colosseum overlay flow, class innate protection, UI overflow fixes
 
 ### Now (Current Sprint)
@@ -108,7 +108,7 @@ Difficulty foundation and blessings integration are now merged on `main`; active
 - [x] Audio overlap and orphaned-track recovery guards/diagnostics landed on `Title -> Continue/New -> NodeMap -> Battle` and return paths.
 - [x] Scene transition spam-click race coverage present (automated) and manual smoke paths added.
 - [x] Save/cloud conflict path hardened and observable (timeout/retry/version mismatch paths).
-- [x] Test baselines remain green; current repo baseline is 3427 tests across 176 files (Feb 27, 2026).
+- [x] Test baselines remain green; current repo baseline is 3873 tests across 199 files (Mar 3, 2026).
 - [x] Harness/sim smoke passes (`npm run test:harness`, `npm run test:sim` on Feb 12, 2026).
 - [x] Two consecutive QA passes with no repro on known crash paths.
 - [x] SceneRouter adoption complete for scene transitions (single entrypoint for start/transition/sleep/wake paths, with reason codes).

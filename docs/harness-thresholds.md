@@ -35,7 +35,7 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `min_win_rate=95.00`
   - `min_avg_nodes=10.00`
   - `min_avg_gold=4000`, `max_avg_gold=11000`
-  - `min_avg_shop_spent=1000`, `max_avg_shop_spent=9500`
+  - `min_avg_shop_spent=1000`, `max_avg_shop_spent=11600`
   - `min_avg_recruits=0.50`
   - `min_promotion_by_act2_rate=0.00`, `max_promotion_by_act2_rate=50.00`
   - `max_avg_units_lost=0.00`
@@ -44,20 +44,34 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
   - `max_timeout_rate=0.00`
   - `min_win_rate=95.00`
   - `min_avg_nodes=25.00`
-  - `min_avg_gold=9000`, `max_avg_gold=26600`
+  - `min_avg_gold=9000`, `max_avg_gold=33000`
   - `min_avg_shop_spent=8000`, `max_avg_shop_spent=26000`
   - `max_avg_units_lost=0.00`
   - `max_avg_invalid_shop_entries=0.00`
-  - `min_avg_ambush_battles=0.50`
+  - `min_avg_ambush_battles=0.20`
+
+## Anchor Commit Provenance
+
+The current strict-slice windows are anchored to intentional gameplay shifts:
+
+- `progression_invincible`: first-bad anchor `7be192d`
+  - observed shift: `avg_shop_spent` moved to ~`10533` after recruit behavior change
+- `ambush_hard_invincible`: first-bad anchor `3c372c0`
+  - observed shift: `avg_gold` moved to ~`31285` and `avg_ambush_battles` to ~`0.25` after hard-map/ballista tuning
+
+Do not attribute these shifts to later UI/refactor commits without first-bad verification.
 
 ## Recalibration Procedure
 
 1. Confirm intentional change scope.
    - Recalibrate only after intentional gameplay/economy/policy changes.
-2. Capture baseline from deterministic slices.
+2. Run deterministic first-bad attribution.
+   - `npm run sim:fullrun:harness:triage -- --slice <slice_id> --range <good_sha>..<bad_sha>`
+   - Record: `first_bad_sha`, `parent_sha`, failing metric lines, and touched files.
+3. Capture baseline from deterministic slices.
    - Run `npm run sim:fullrun:harness:pr`.
    - Record summary metrics per slice from stdout.
-3. Update threshold windows.
+4. Update threshold windows.
    - Keep integrity checks strict:
      - `max_avg_invalid_shop_entries` should stay `0.00`.
      - `max_timeout_rate` should stay `0.00` for invincible slices.
@@ -67,10 +81,21 @@ Current strict PR suite (`npm run sim:fullrun:harness:pr`) enforces:
      - Lower bound: `floor(observed * 0.85)`
      - Upper bound: `ceil(observed * 1.25)`
    - Use tighter bounds only after repeated stable runs.
-4. Apply changes in `tests/sim/fullrun-slices.js`.
-5. Re-run verification.
+5. Apply changes in `tests/sim/fullrun-slices.js`.
+6. Re-run verification.
    - `npm run test:sim`
    - `npm run sim:fullrun:harness:pr`
+
+## Threshold-Change PR Requirement
+
+Any PR that changes strict slice thresholds must include triage output in PR notes:
+
+- attribution command(s) with exact slice + commit range
+- `first_bad_sha` and `parent_sha`
+- failing metric lines that motivated the change
+- touched files between `parent_sha..first_bad_sha`
+
+CI enforces this on pull requests via `npm run check:threshold-pr-notes`.
 
 ## When To Rebaseline
 
