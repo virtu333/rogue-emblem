@@ -2,6 +2,7 @@
 // 9 tabs with sub-filters, pagination, and search. Depth 870-872.
 
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 
 const DEPTH_BG = 870;
@@ -71,6 +72,13 @@ export class CompendiumOverlay {
     this._buildSearchIndex();
     this._draw();
 
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'compendium',
+      onCancel: (event) => {
+        this._onEsc(null, event);
+        return true;
+      },
+    });
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
     if (this.scene.input?.keyboard?.on) {
@@ -137,6 +145,7 @@ export class CompendiumOverlay {
   }
 
   _onEsc(_key, event) {
+    if (!isTopOverlay(this.scene, this._overlayToken)) return;
     if (!consumeEscEvent(this.scene, event)) return;
     if (this.searchInputActive) {
       this.searchInputActive = false;
@@ -842,6 +851,8 @@ export class CompendiumOverlay {
       this.scene.input.keyboard.off('keydown', this._keyboardSearchHandler);
       this._keyboardSearchHandler = null;
     }
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
     const wasVisible = this.visible;
     for (const obj of this.objects) obj.destroy();
     this.objects = [];

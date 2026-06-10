@@ -12,6 +12,7 @@ import {
 } from '../utils/constants.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 
@@ -162,7 +163,11 @@ export class HomeBaseScene extends Phaser.Scene {
     this.refundMode = false;
     this.confirmOverlayObjects = [];
 
-    this._onEsc = () => this.requestCancel({ allowExit: true });
+    this._onEsc = () => {
+      // A stacked overlay owns ESC while open; its own handler closes it.
+      if (hasOpenOverlay(this)) return;
+      this.requestCancel({ allowExit: true });
+    };
     this._onPointerDown = (pointer) => {
       this._touchTapDown = { x: pointer.x, y: pointer.y };
       this.onPointerDown(pointer);

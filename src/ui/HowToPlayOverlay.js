@@ -3,6 +3,7 @@
 
 import { HOW_TO_PLAY_PAGES } from '../data/helpContent.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 
 const DEPTH_BG = 500;
 const DEPTH_PANEL = 501;
@@ -26,7 +27,14 @@ export class HowToPlayOverlay {
     this.visible = true;
     this._draw();
 
-    // Keyboard nav
+    // Keyboard nav (ESC only acts while top of the scene's overlay stack)
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'how_to_play',
+      onCancel: (event) => {
+        this._onEsc(null, event);
+        return true;
+      },
+    });
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
     this.leftKey = this.scene.input.keyboard.addKey('LEFT');
@@ -65,6 +73,7 @@ export class HowToPlayOverlay {
   }
 
   _onEsc(_key, event) {
+    if (!isTopOverlay(this.scene, this._overlayToken)) return;
     if (!consumeEscEvent(this.scene, event)) return;
     this.hide();
   }
@@ -250,6 +259,8 @@ export class HowToPlayOverlay {
       this.escKey.off('down', this._onEsc, this);
       this.escKey = null;
     }
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
     if (this.leftKey) {
       this.leftKey.off('down', this._onLeft, this);
       this.leftKey = null;

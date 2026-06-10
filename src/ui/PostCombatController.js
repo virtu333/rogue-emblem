@@ -1,7 +1,13 @@
 import { serializeUnit, getActTransitionKey } from '../engine/RunManager.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import { GOLD_BATTLE_BONUS, ELITE_MAX_PICKS } from '../utils/constants.js';
-import { transitionToScene, restartScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  transitionToScene,
+  transitionToSceneWithBlockedRetry,
+  restartScene,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import { retryBooleanAction } from '../utils/retry.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { showImportantHint } from './HintDisplay.js';
@@ -82,7 +88,9 @@ export class PostCombatController {
         if (!completionApplied) {
           console.warn('[BattleScene] completeBattle no-op; skipping loot/recruit flow.');
           try {
-            const ok = await transitionToScene(
+            // Blocked-retry rides out transient cooldown/in-flight locks; the
+            // lock-reset retry below is reserved for genuine failures.
+            const result = await transitionToSceneWithBlockedRetry(
               scene,
               'NodeMap',
               {
@@ -91,7 +99,7 @@ export class PostCombatController {
               },
               { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
             );
-            if (!ok) {
+            if (result.status !== TRANSITION_RESULTS.STARTED) {
               console.warn('[BattleScene] completeBattle no-op transition blocked; retrying.');
               resetTransitionLocks(scene);
               const retryOk = await transitionToScene(

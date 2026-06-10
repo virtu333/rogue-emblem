@@ -190,7 +190,12 @@ import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
-import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  transitionToScene,
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import {
   buildTutorialBattleConfig as _buildTutorialBattleConfig,
   buildTutorialRoster as _buildTutorialRoster,
@@ -211,6 +216,7 @@ import { TransitionRecoveryController } from '../ui/TransitionRecoveryController
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
+import { hasOpenOverlay } from '../utils/overlayStack.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -711,6 +717,9 @@ export class BattleScene extends Phaser.Scene {
       cancel: (event) => {
         if (event?.repeat) return;
         if (isEscConsumed(this, event)) return;
+        // A stacked overlay (help, campaign map, promotion choice, …) owns
+        // ESC while open; its own handler closes it top-down.
+        if (hasOpenOverlay(this)) return;
         if (this.isStoryInputLocked()) return;
         const handled = this.requestCancel();
         if (handled) consumeEscEvent(this, event);
@@ -3662,8 +3671,11 @@ export class BattleScene extends Phaser.Scene {
       });
       let result;
       try {
+        // Blocked-retry absorbs transient cooldown/in-flight locks so the
+        // callers' hard fallback (lock reset + raw scene.start) only fires on
+        // genuine failures.
         result = await Promise.race([
-          transitionToScene(this, 'Title', { gameData: this.gameData }, { reason }),
+          transitionToSceneWithBlockedRetry(this, 'Title', { gameData: this.gameData }, { reason }),
           timeoutPromise,
         ]);
       } finally {
@@ -3677,7 +3689,7 @@ export class BattleScene extends Phaser.Scene {
         });
         return false;
       }
-      return result === true;
+      return result?.status === TRANSITION_RESULTS.STARTED;
     };
     const abandonCb = this.runManager
       ? async () => {

@@ -48,7 +48,12 @@ import { pushRunSave, deleteRunSave } from '../cloud/CloudSync.js';
 import { showImportantHint, showMinorHint } from '../ui/HintDisplay.js';
 import { DEBUG_MODE } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
-import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  transitionToScene,
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
@@ -57,6 +62,7 @@ import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
 import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
+import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 
@@ -290,6 +296,8 @@ export class NodeMapScene extends Phaser.Scene {
     this._onEsc = (event) => {
       if (event?.repeat) return;
       if (isEscConsumed(this, event)) return;
+      // A stacked overlay (help, promotion choice, …) owns ESC while open.
+      if (hasOpenOverlay(this)) return;
       if (this._storyDialogueActive || this.dialogueOverlay?.visible) return;
       if ((Number(this._promotionChoicePanelOpen) || 0) > 0) return;
       const handled = this.requestCancel();
@@ -984,13 +992,15 @@ export class NodeMapScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
-          const ok = await transitionToScene(
+          // Blocked-retry absorbs transient cooldown/in-flight locks; the hard
+          // fallback below only runs when the transition genuinely cannot start.
+          const result = await transitionToSceneWithBlockedRetry(
             this,
             'Title',
             { gameData: this.gameData },
             { reason: TRANSITION_REASONS.SAVE_EXIT },
           );
-          if (!ok) {
+          if (result.status !== TRANSITION_RESULTS.STARTED) {
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
             resetTransitionLocks(this);
             try {
@@ -1020,13 +1030,13 @@ export class NodeMapScene extends Phaser.Scene {
           const audio = this.registry.get('audio');
           if (audio) audio.stopMusic(this, 0);
           markStartup('pause_transition_attempt', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
-          const ok = await transitionToScene(
+          const result = await transitionToSceneWithBlockedRetry(
             this,
             'Title',
             { gameData: this.gameData },
             { reason: TRANSITION_REASONS.ABANDON_RUN },
           );
-          if (!ok) {
+          if (result.status !== TRANSITION_RESULTS.STARTED) {
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
             resetTransitionLocks(this);
             try {

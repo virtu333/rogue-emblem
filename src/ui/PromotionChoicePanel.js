@@ -5,6 +5,7 @@ import { XP_STAT_NAMES } from '../utils/constants.js';
 import { STAT_COLORS, UI_COLORS } from '../utils/uiStyles.js';
 import { getClassInnateSkills } from '../engine/UnitManager.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 
 const DEPTH_DIM = 850;
 const DEPTH_PANEL = 851;
@@ -183,8 +184,16 @@ export class PromotionChoicePanel {
       0.5,
     );
 
-    // ESC key handler (participates in scene ESC consumption contract)
+    // ESC key handler (only acts while top of the scene's overlay stack)
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'promotion_choice',
+      onCancel: (event) => {
+        this._escHandler?.(event);
+        return true;
+      },
+    });
     this._escHandler = (event) => {
+      if (!isTopOverlay(this.scene, this._overlayToken)) return;
       if (!consumeEscEvent(this.scene, event)) return;
       this.destroy();
       this._resolve(null);
@@ -338,6 +347,8 @@ export class PromotionChoicePanel {
       this.scene?.input?.keyboard?.off?.('keydown-ESC', this._escHandler);
       this._escHandler = null;
     }
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
     this._unregisterScenePromotionChoiceGuard();
     for (const obj of this.objects) {
       obj.destroy();

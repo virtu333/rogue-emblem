@@ -34,11 +34,17 @@ vi.mock('../src/utils/SceneRouter.js', async () => {
   return {
     ...actual,
     transitionToScene: vi.fn(async () => true),
+    transitionToSceneWithBlockedRetry: vi.fn(async () => ({ status: 'started' })),
   };
 });
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
-import { transitionToScene, TRANSITION_REASONS } from '../src/utils/SceneRouter.js';
+import {
+  transitionToScene,
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../src/utils/SceneRouter.js';
 
 describe('BattleScene onVictory', () => {
   beforeEach(() => {
@@ -90,13 +96,15 @@ describe('BattleScene onVictory', () => {
     expect(scene.runManager.completeBattle).toHaveBeenCalledTimes(1);
     expect(scene.showBossRecruitScreen).not.toHaveBeenCalled();
     expect(scene.showLootScreen).not.toHaveBeenCalled();
-    expect(transitionToScene).toHaveBeenCalledTimes(1);
-    expect(transitionToScene).toHaveBeenCalledWith(
+    expect(transitionToSceneWithBlockedRetry).toHaveBeenCalledTimes(1);
+    expect(transitionToSceneWithBlockedRetry).toHaveBeenCalledWith(
       scene,
       'NodeMap',
       { gameData: scene.gameData, runManager: scene.runManager },
       { reason: TRANSITION_REASONS.BATTLE_COMPLETE },
     );
+    // No hard fallback when the first transition starts cleanly.
+    expect(transitionToScene).not.toHaveBeenCalled();
   });
 });
 
@@ -343,8 +351,11 @@ describe('completeBattle no-op double-failure', () => {
   });
 
   it('shows error UI when retry transition also returns false', async () => {
-    // Both calls return false (initial + retry)
-    transitionToScene.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    // Initial (blocked-retry) attempt fails, lock-reset retry also fails
+    transitionToSceneWithBlockedRetry.mockResolvedValueOnce({
+      status: TRANSITION_RESULTS.FAILED,
+    });
+    transitionToScene.mockResolvedValueOnce(false);
 
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
@@ -387,7 +398,8 @@ describe('completeBattle no-op double-failure', () => {
     await Promise.all(pending);
 
     // First call fails, retry also fails
-    expect(transitionToScene).toHaveBeenCalledTimes(2);
+    expect(transitionToSceneWithBlockedRetry).toHaveBeenCalledTimes(1);
+    expect(transitionToScene).toHaveBeenCalledTimes(1);
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
       '#ff8888',
@@ -395,7 +407,7 @@ describe('completeBattle no-op double-failure', () => {
   });
 
   it('shows error UI when no-op transition throws', async () => {
-    transitionToScene.mockRejectedValueOnce(new Error('scene destroyed'));
+    transitionToSceneWithBlockedRetry.mockRejectedValueOnce(new Error('scene destroyed'));
 
     const scene = new BattleScene();
     scene.battleState = 'PLAYER_IDLE';
@@ -437,7 +449,7 @@ describe('completeBattle no-op double-failure', () => {
     BattleScene.prototype.onVictory.call(scene);
     await Promise.all(pending);
 
-    expect(transitionToScene).toHaveBeenCalledTimes(1);
+    expect(transitionToSceneWithBlockedRetry).toHaveBeenCalledTimes(1);
     expect(scene.showLootStatus).toHaveBeenCalledWith(
       'Transition failed. Refresh and continue run.',
       '#ff8888',

@@ -108,8 +108,22 @@ export async function ensureSceneLoaded(scene, key) {
   markStartup('scene_lazy_load_complete', { key });
 }
 
-export async function startSceneLazy(scene, key, data = undefined, { reason } = {}) {
-  if (!scene || !key) return false;
+export const TRANSITION_RESULTS = {
+  STARTED: 'started',
+  BLOCKED: 'blocked',
+  FAILED: 'failed',
+};
+
+/**
+ * Like startSceneLazy but returns a structured result so callers can tell a
+ * transient BLOCKED (cooldown / another transition in flight — self-heals in
+ * under a second) apart from a real FAILED (load/start error). Callers must
+ * never reset transition locks on BLOCKED; the lock belongs to a legitimate
+ * in-flight transition.
+ * @returns {Promise<{ status: string, blockReason?: string }>}
+ */
+export async function startSceneLazyDetailed(scene, key, data = undefined, { reason } = {}) {
+  if (!scene || !key) return { status: TRANSITION_RESULTS.FAILED };
   const sourceKey = scene?.sys?.settings?.key || null;
 
   // Build transition metadata early so all exit paths can clean it up
@@ -124,15 +138,15 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
   const now = Date.now();
   if (now < globalSceneStartCooldownUntil) {
     markAudioDiag(scene, 'transition_blocked_cooldown', { targetScene: key });
-    return false;
+    return { status: TRANSITION_RESULTS.BLOCKED, blockReason: 'cooldown' };
   }
   if (scene.__startSceneLazyInFlight) {
     markAudioDiag(scene, 'transition_blocked_scene_inflight', { targetScene: key });
-    return false;
+    return { status: TRANSITION_RESULTS.BLOCKED, blockReason: 'scene_inflight' };
   }
   if (globalStartSceneInFlight) {
     markAudioDiag(scene, 'transition_blocked_global_inflight', { targetScene: key });
-    return false;
+    return { status: TRANSITION_RESULTS.BLOCKED, blockReason: 'global_inflight' };
   }
   scene.__startSceneLazyInFlight = true;
   globalStartSceneInFlight = true;
@@ -172,7 +186,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
     const isActive = typeof scene.sys?.isActive === 'function' ? scene.sys.isActive() : true;
     if (!isActive) {
       markAudioDiag(scene, 'transition_blocked_inactive_source', { targetScene: key });
-      return false;
+      return { status: TRANSITION_RESULTS.BLOCKED, blockReason: 'inactive_source' };
     }
 
     // Capture pre-snapshot AFTER lock acquired, BEFORE scene.start()
@@ -189,7 +203,7 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
     markAudioDiag(scene, 'transition_started', { targetScene: key });
     clearStaleChunkFlag();
     scheduleRelease();
-    return true;
+    return { status: TRANSITION_RESULTS.STARTED };
   } catch (err) {
     cleanupMeta();
     markAudioDiag(scene, 'transition_error', {
@@ -199,8 +213,8 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
     console.error('[SceneLoader] startSceneLazy failed:', key, err);
     // Stale chunk recovery: reload the page once to get fresh chunk hashes.
     // Only in startSceneLazy (transition path), never in ensureSceneLoaded (preload path).
-    if (tryStaleChunkReload(err)) return false;
-    return false;
+    if (tryStaleChunkReload(err)) return { status: TRANSITION_RESULTS.FAILED };
+    return { status: TRANSITION_RESULTS.FAILED };
   } finally {
     if (!started) {
       cleanupMeta();
@@ -208,6 +222,11 @@ export async function startSceneLazy(scene, key, data = undefined, { reason } = 
       releaseTransitionLock();
     }
   }
+}
+
+export async function startSceneLazy(scene, key, data = undefined, { reason } = {}) {
+  const result = await startSceneLazyDetailed(scene, key, data, { reason });
+  return result.status === TRANSITION_RESULTS.STARTED;
 }
 
 export function resetTransitionLocks(scene) {

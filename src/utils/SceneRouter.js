@@ -1,4 +1,10 @@
-import { startSceneLazy, TRANSITION_REASONS, normalizeTransitionReason } from './sceneLoader.js';
+import {
+  startSceneLazy,
+  startSceneLazyDetailed,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+  normalizeTransitionReason,
+} from './sceneLoader.js';
 import { captureResourceSnapshot } from './resourceSnapshot.js';
 
 function setPendingTransitionMeta(scene, to, reason) {
@@ -23,7 +29,7 @@ function clearPendingTransitionMeta(token) {
   }
 }
 
-export { TRANSITION_REASONS };
+export { TRANSITION_REASONS, TRANSITION_RESULTS };
 
 /**
  * Transition from the current scene to a target scene via the lazy loader.
@@ -35,6 +41,38 @@ export { TRANSITION_REASONS };
  */
 export async function transitionToScene(scene, key, data = undefined, { reason } = {}) {
   return startSceneLazy(scene, key, data, { reason });
+}
+
+/**
+ * Transition returning a structured result so callers can distinguish a
+ * transient BLOCKED (cooldown / in-flight lock — self-heals in <1s) from a
+ * real FAILED. Never reset transition locks on BLOCKED.
+ * @returns {Promise<{ status: string, blockReason?: string }>}
+ */
+export async function transitionToSceneDetailed(scene, key, data = undefined, { reason } = {}) {
+  return startSceneLazyDetailed(scene, key, data, { reason });
+}
+
+/**
+ * Transition that absorbs transient blocks: if the first attempt is BLOCKED,
+ * waits out the cooldown/lock window and retries once. Returns the final
+ * detailed result — callers should only run hard fallbacks (lock resets, raw
+ * scene.start bypass) when the final status is not STARTED.
+ * @returns {Promise<{ status: string, blockReason?: string }>}
+ */
+export async function transitionToSceneWithBlockedRetry(
+  scene,
+  key,
+  data = undefined,
+  { reason, retryDelayMs = 800 } = {},
+) {
+  const first = await startSceneLazyDetailed(scene, key, data, { reason });
+  if (first.status !== TRANSITION_RESULTS.BLOCKED) return first;
+  await new Promise((resolve) => {
+    const timer = setTimeout(resolve, retryDelayMs);
+    if (typeof timer?.unref === 'function') timer.unref();
+  });
+  return startSceneLazyDetailed(scene, key, data, { reason });
 }
 
 /**

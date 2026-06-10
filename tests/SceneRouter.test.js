@@ -1,10 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   transitionToScene,
+  transitionToSceneDetailed,
+  transitionToSceneWithBlockedRetry,
   restartScene,
   sleepScene,
   wakeScene,
   TRANSITION_REASONS,
+  TRANSITION_RESULTS,
 } from '../src/utils/SceneRouter.js';
 import { __resetSceneLoaderForTests } from '../src/utils/sceneLoader.js';
 
@@ -94,6 +97,52 @@ describe('SceneRouter', () => {
 
     expect(ok).toBe(false);
     expect(globalThis.__sceneState._pendingTransitionMeta).toBeNull();
+  });
+
+  it('transitionToSceneDetailed surfaces blocked vs failed statuses', async () => {
+    const inactive = makeScene({ active: false, key: 'Title' });
+    const blocked = await transitionToSceneDetailed(inactive, 'SlotPicker', {});
+    expect(blocked.status).toBe(TRANSITION_RESULTS.BLOCKED);
+    expect(blocked.blockReason).toBe('inactive_source');
+
+    const broken = makeScene({ active: true, key: 'Title' });
+    broken.scene.start.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const failed = await transitionToSceneDetailed(broken, 'SlotPicker', {});
+    expect(failed.status).toBe(TRANSITION_RESULTS.FAILED);
+  });
+
+  it('transitionToSceneWithBlockedRetry rides out a transient global lock', async () => {
+    vi.useFakeTimers();
+    try {
+      const sceneA = makeScene({ active: true, key: 'Title' });
+      const sceneB = makeScene({ active: true, key: 'NodeMap' });
+
+      // sceneA acquires the global lock (auto-releases after 700ms).
+      await transitionToScene(sceneA, 'SlotPicker', {});
+
+      const pending = transitionToSceneWithBlockedRetry(sceneB, 'Title', {});
+      await vi.advanceTimersByTimeAsync(900); // covers lock release + retry delay
+      const result = await pending;
+
+      expect(result.status).toBe(TRANSITION_RESULTS.STARTED);
+      expect(sceneB.scene.start).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('transitionToSceneWithBlockedRetry does not retry hard failures', async () => {
+    const broken = makeScene({ active: true, key: 'Title' });
+    broken.scene.start.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    const result = await transitionToSceneWithBlockedRetry(broken, 'SlotPicker', {});
+
+    expect(result.status).toBe(TRANSITION_RESULTS.FAILED);
+    expect(broken.scene.start).toHaveBeenCalledTimes(1);
   });
 
   it('restartScene writes transition metadata and restarts current scene', () => {
