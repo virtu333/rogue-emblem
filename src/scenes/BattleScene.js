@@ -8,7 +8,6 @@ import { AIController } from '../engine/AIController.js';
 import {
   getCombatForecast,
   resolveCombat,
-  resolveHeal,
   gridDistance,
   calculateEffectiveSpeed,
   parseRange,
@@ -17,7 +16,6 @@ import {
   getEffectivenessMultiplier,
   getStaffRemainingUses,
   getStaffMaxUses,
-  getEffectiveStaffRange,
   spendStaffUse,
 } from '../engine/Combat.js';
 import {
@@ -41,13 +39,10 @@ import {
   addToConsumables,
   removeFromConsumables,
   equipWeapon,
-  hasStaff,
   getStaffWeapon,
   getCombatWeapons,
   canPromote,
   promoteUnit,
-  formatDroppedSkillsNotice,
-  resolvePromotionTargets,
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
@@ -119,7 +114,6 @@ import {
   SUNDER_WEAPON_BY_TYPE,
   POISON_WEAPON_BY_TYPE,
   XP_BASE_DANCE,
-  XP_BASE_HEAL,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   BASE_CLASS_LEVEL_CAP,
   LAVA_CRACK_DAMAGE,
@@ -209,10 +203,12 @@ import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js'
 import { BattleCameraController } from '../utils/BattleCameraController.js';
 import { DeployScreenOverlay } from '../ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../ui/ForecastOverlay.js';
+import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
 import { LootFlowController } from '../ui/LootFlowController.js';
 import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
+import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
@@ -425,6 +421,14 @@ export class BattleScene extends Phaser.Scene {
     if (this._weaponArtController) {
       this._weaponArtController.destroy();
       this._weaponArtController = null;
+    }
+    if (this._healController) {
+      this._healController.destroy();
+      this._healController = null;
+    }
+    if (this._promotionController) {
+      this._promotionController.destroy();
+      this._promotionController = null;
     }
     if (this._inputController) {
       this._inputController.destroy();
@@ -5660,12 +5664,10 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // --- Heal flow ---
+  // --- Heal flow (delegates to HealController) ---
 
   getUsableStaves(unit) {
-    return unit.inventory.filter(
-      (w) => w.type === 'Staff' && canEquip(unit, w) && getStaffRemainingUses(w, unit) > 0,
-    );
+    return (this._healController ||= new HealController(this)).getUsableStaves(unit);
   }
 
   onPointerUp(pointer) {
@@ -5673,57 +5675,22 @@ export class BattleScene extends Phaser.Scene {
   }
 
   getActiveHealStaff(unit, usableStaves = null) {
-    const usable = usableStaves || this.getUsableStaves(unit);
-    if (usable.length === 0) return null;
-    if (unit.weapon && usable.includes(unit.weapon)) return unit.weapon;
-    return usable[0];
+    return (this._healController ||= new HealController(this)).getActiveHealStaff(
+      unit,
+      usableStaves,
+    );
   }
 
   findHealTargets(unit, staffOverride = null) {
-    if (!hasStaff(unit)) return [];
-    const staff = staffOverride || this.getActiveHealStaff(unit);
-    if (!staff) return [];
-    const range = getEffectiveStaffRange(staff, unit);
-    const targets = [];
-    for (const ally of this.playerUnits) {
-      if (ally === unit) continue; // Can't heal self
-      if (ally.currentHP >= ally.stats.HP) continue; // Full HP
-      const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
-      if (dist >= range.min && dist <= range.max) {
-        targets.push(ally);
-      }
-    }
-    return targets;
+    return (this._healController ||= new HealController(this)).findHealTargets(unit, staffOverride);
   }
 
   startHealTargetSelection(unit, targets, chosenStaff = null) {
-    // Auto-equip staff
-    const staff = chosenStaff || this.getActiveHealStaff(unit);
-    if (staff) equipWeapon(unit, staff);
-    if (!staff) {
-      this.showActionMenu(unit);
-      return;
-    }
-
-    // First-heal tutorial hint (one-time per save slot)
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('battle_heal_uses')) {
-      showMinorHint(
-        this,
-        'Staves have limited uses per battle. Uses reset each battle. Higher MAG grants bonus uses.',
-      );
-    }
-
-    // Fortify: auto-heal all targets, no selection needed
-    if (staff.healAll) {
-      this.executeHealAll(unit, targets);
-      return;
-    }
-
-    this.healTargets = targets;
-    const healTiles = targets.map((a) => ({ col: a.col, row: a.row }));
-    this.grid.showHealRange(healTiles);
-    this.battleState = 'SELECTING_HEAL_TARGET';
+    (this._healController ||= new HealController(this)).startHealTargetSelection(
+      unit,
+      targets,
+      chosenStaff,
+    );
   }
 
   _handleCureTargetClick(gp) {
@@ -5777,183 +5744,23 @@ export class BattleScene extends Phaser.Scene {
   }
 
   showStaffPicker(unit, usableStaves) {
-    this.hideActionMenu();
-    this.inEquipMenu = true;
-    this.battleState = 'UNIT_ACTION_MENU';
-
-    const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const menuX = unit.col < this.grid.cols - 3 ? pos.x + TILE_SIZE : pos.x - TILE_SIZE - 210;
-    const menuY = pos.y - 10;
-
-    this.actionMenu = [];
-    const menuWidth = 210;
-    const itemHeight = this.isMobileInput ? 42 : 36;
-    const menuHeight = usableStaves.length * itemHeight + 12;
-    const menuPos = this._clampMenuPosition(menuX, menuY, menuWidth, menuHeight);
-
-    const bg = this.add
-      .rectangle(
-        menuPos.x + menuWidth / 2,
-        menuPos.y + menuHeight / 2,
-        menuWidth,
-        menuHeight,
-        0x000000,
-        0.85,
-      )
-      .setDepth(400)
-      .setStrokeStyle(1, 0x666666);
-    this.actionMenu.push(bg);
-
-    usableStaves.forEach((staff, i) => {
-      const itemY = menuPos.y + 6 + i * itemHeight + itemHeight / 2;
-      const itemX = menuPos.x + 8;
-      const marker = staff === unit.weapon ? '\u25b6 ' : '  ';
-      const rem = getStaffRemainingUses(staff, unit);
-      const max = getStaffMaxUses(staff, unit);
-      const rng = getEffectiveStaffRange(staff, unit);
-      const label = `${marker}${staff.name}\n   ${rem}/${max} uses  Rng ${rng.min}-${rng.max}`;
-      const defaultColor = staff === unit.weapon ? '#ffdd44' : '#e0e0e0';
-
-      const text = this._makeMenuTextButton(
-        itemX,
-        itemY,
-        label,
-        {
-          fontFamily: 'monospace',
-          fontSize: '11px',
-          color: defaultColor,
-          lineSpacing: 1,
-        },
-        defaultColor,
-        async () => {
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
-          equipWeapon(unit, staff);
-          const healTargets = this.findHealTargets(unit, staff);
-          if (healTargets.length === 0) {
-            await this.showBriefBanner('No heal targets in range for that staff.', '#ff8888');
-            this.showStaffPicker(unit, usableStaves);
-            return;
-          }
-          this.inEquipMenu = false;
-          this.hideActionMenu();
-          this.startHealTargetSelection(unit, healTargets, staff);
-        },
-        { originX: 0, originY: 0.5, hitWidth: menuWidth - 12, hitHeight: itemHeight },
-      );
-
-      this.actionMenu.push(text);
-    });
-    this._pinToScreen(this.actionMenu);
+    (this._healController ||= new HealController(this)).showStaffPicker(unit, usableStaves);
   }
 
   handleHealTargetClick(gp) {
-    const target = this.healTargets.find((a) => a.col === gp.col && a.row === gp.row);
-    if (target) {
-      this.executeHeal(this.selectedUnit, target);
-    }
+    (this._healController ||= new HealController(this)).handleHealTargetClick(gp);
   }
 
-  async executeHeal(healer, target) {
-    this.battleState = 'HEAL_RESOLVING';
-    this.grid.clearAttackHighlights();
-
-    try {
-      const staff = healer.weapon; // Should already be equipped
-      const healOpts = {
-        healingMultiplier:
-          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-      };
-      const result = resolveHeal(staff, healer, target, healOpts);
-
-      // Apply heal
-      target.currentHP = result.targetHPAfter;
-      this.updateHPBar(target);
-
-      // Animate
-      await this.animateHeal(target, result.healAmount);
-
-      // Spend a use and check depletion
-      spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
-
-      try {
-        await this.awardScaledXP(healer, XP_BASE_HEAL);
-      } finally {
-        this.finishUnitAction(healer);
-      }
-    } catch (err) {
-      this._recoverUnitActionError(healer, 'heal', err);
-    }
+  executeHeal(healer, target) {
+    return (this._healController ||= new HealController(this)).executeHeal(healer, target);
   }
 
-  async executeHealAll(healer, targets) {
-    this.battleState = 'HEAL_RESOLVING';
-    this.grid.clearAttackHighlights();
-
-    try {
-      const staff = healer.weapon;
-      const healOpts = {
-        healingMultiplier:
-          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-      };
-
-      for (const target of targets) {
-        const result = resolveHeal(staff, healer, target, healOpts);
-        target.currentHP = result.targetHPAfter;
-        this.updateHPBar(target);
-        await this.animateHeal(target, result.healAmount);
-      }
-
-      // Single use spent for all targets
-      spendStaffUse(staff);
-      if (getStaffRemainingUses(staff, healer) <= 0) {
-        const combatWpn = getCombatWeapons(healer)[0];
-        if (combatWpn) equipWeapon(healer, combatWpn);
-      }
-
-      try {
-        await this.awardScaledXP(healer, XP_BASE_HEAL);
-      } finally {
-        this.finishUnitAction(healer);
-      }
-    } catch (err) {
-      this._recoverUnitActionError(healer, 'healAll', err);
-    }
+  executeHealAll(healer, targets) {
+    return (this._healController ||= new HealController(this)).executeHealAll(healer, targets);
   }
 
-  async animateHeal(target, healAmount) {
-    const reduced = this._isReducedEffects();
-    const audio = this.registry.get('audio');
-    if (audio) audio.playSFX('sfx_heal');
-    // Flash target green
-    if (target.graphic.setTint) target.graphic.setTint(0x44ff44);
-
-    const pos = this.grid.gridToPixel(target.col, target.row);
-    const healText = this.add
-      .text(pos.x, pos.y - 16, `+${healAmount}`, {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#44ff44',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(300);
-
-    this.tweens.add({
-      targets: healText,
-      y: pos.y - 36,
-      alpha: 0,
-      duration: reduced ? 260 : 600,
-      onComplete: () => healText.destroy(),
-    });
-
-    await this._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_heal_tint_clear' });
-    if (target.graphic.clearTint) target.graphic.clearTint();
-    await this._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_heal_tail' });
+  animateHeal(target, healAmount) {
+    return (this._healController ||= new HealController(this)).animateHeal(target, healAmount);
   }
 
   // --- Weapon picker (pre-attack) ---
@@ -6482,221 +6289,19 @@ export class BattleScene extends Phaser.Scene {
     );
   }
 
-  // --- Promotion ---
+  // --- Promotion (delegates to PromotionController) ---
 
-  async executePromotion(unit, promotionItem = null) {
-    const seal = promotionItem || this.getPromotionConsumable(unit);
-    if (!seal) {
-      await this.showBriefBanner('Master Seal required to promote.', '#ff8888');
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-      return false;
-    }
-
-    // Once promoteUnit has mutated the unit the promotion is committed; on a
-    // later error we must consume the seal + action instead of replaying the menu.
-    let promotionApplied = false;
-    let sealConsumed = false;
-    try {
-      return await this._executePromotionFlow(unit, seal, {
-        markPromotionApplied: () => {
-          promotionApplied = true;
-        },
-        markSealConsumed: () => {
-          sealConsumed = true;
-        },
-      });
-    } catch (err) {
-      if (!promotionApplied) {
-        console.error('[BattleScene] promotion error:', err);
-        if (this.battleState !== 'BATTLE_END') {
-          this.battleState = 'UNIT_ACTION_MENU';
-          try {
-            this.showActionMenu(unit);
-          } catch (menuErr) {
-            console.error('[BattleScene] promotion recovery error:', menuErr);
-            this._recoverUnitActionError(unit, 'promotion', err);
-          }
-        }
-        return false;
-      }
-      if (!sealConsumed) {
-        try {
-          seal.uses = (seal.uses ?? 1) - 1;
-          if (seal.uses <= 0) removeFromConsumables(unit, seal);
-        } catch (sealErr) {
-          console.error('[BattleScene] promotion seal-consume error:', sealErr);
-        }
-      }
-      this._recoverUnitActionError(unit, 'promotion', err);
-      return true;
-    }
+  executePromotion(unit, promotionItem = null) {
+    return (this._promotionController ||= new PromotionController(this)).executePromotion(
+      unit,
+      promotionItem,
+    );
   }
 
-  async _executePromotionFlow(unit, seal, { markPromotionApplied, markSealConsumed }) {
-    // Find promotion targets
-    const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-    const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
-    if (!targets?.length) {
-      await this.showBriefBanner('Promotion to that class is currently unavailable.', '#ff8888');
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-      return false;
-    }
-
-    let promotedClassData;
-    if (targets.length === 1) {
-      promotedClassData = targets[0];
-    } else {
-      this.battleState = 'COMBAT_RESOLVING'; // block gameplay hotkeys while chooser is open
-      // Show promotion choice panel
-      const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
-      const panel = new PromotionChoicePanel(this, unit, targets, this.gameData.skills);
-      promotedClassData = await panel.show();
-      if (!promotedClassData) {
-        // Cancelled -- return to action menu
-        this.battleState = 'UNIT_ACTION_MENU';
-        this.showActionMenu(unit);
-        return false;
-      }
-    }
-
-    this.battleState = 'COMBAT_RESOLVING'; // block input during promotion
-
-    let promotionBonuses, promotionWeapons;
-
-    if (lordData) {
-      promotionBonuses = lordData.promotionBonuses;
-      promotionWeapons = lordData.promotionWeapons;
-    } else {
-      promotionBonuses = promotedClassData.promotionBonuses;
-    }
-
-    if (!promotionBonuses) {
-      await this.showBriefBanner('Promotion data missing for this unit.', '#ff8888');
-      this.battleState = 'UNIT_ACTION_MENU';
-      this.showActionMenu(unit);
-      return false;
-    }
-
-    // Track pre-promotion weapon types to detect new proficiencies
-    const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
-
-    // Apply promotion
-    const promotionResult = promoteUnit(
+  showPromotionBanner(unit, newClassName) {
+    return (this._promotionController ||= new PromotionController(this)).showPromotionBanner(
       unit,
-      promotedClassData,
-      promotionBonuses,
-      this.gameData.skills,
-    );
-    markPromotionApplied();
-
-    // Refresh sprite to show promoted class
-    this.removeUnitGraphic(unit);
-    this.addUnitGraphic(unit);
-
-    // Grant Iron weapons for any new weapon proficiencies gained
-    if (promotionWeapons) {
-      // Lords get specific promotion weapons (e.g. "Lances (P)")
-      const newType = promotionWeapons.match(/(\w+)/)?.[1];
-      const typeMap = {
-        Swords: 'Sword',
-        Lances: 'Lance',
-        Axes: 'Axe',
-        Bows: 'Bow',
-        Tomes: 'Tome',
-        Staves: 'Staff',
-        Light: 'Light',
-      };
-      const wpnType = typeMap[newType] || newType;
-      const newWeapon = this.gameData.weapons.find((w) => w.type === wpnType && w.tier === 'Iron');
-      if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-        addToInventory(unit, newWeapon);
-      }
-    } else {
-      // Non-Lord: grant Iron weapon for each newly gained proficiency type
-      for (const prof of unit.proficiencies) {
-        if (oldTypes.has(prof.type)) continue;
-        const tier = 'Iron';
-        const newWeapon = this.gameData.weapons.find(
-          (w) => w.type === prof.type && w.tier === tier,
-        );
-        if (newWeapon && !unit.inventory.some((w) => w.name === newWeapon.name)) {
-          addToInventory(unit, newWeapon);
-        }
-      }
-    }
-
-    // Update HP bar (max HP increased)
-    this.updateHPBar(unit);
-
-    // Show promotion banner
-    await this.showPromotionBanner(unit, promotedClassData.name);
-
-    // Show stat gains as a level-up style popup
-    const gains = { gains: { ...promotionBonuses }, newLevel: 1 };
-    delete gains.gains.MOV; // MOV isn't shown in level-up popup
-    const popup = new LevelUpPopup(
-      this,
-      unit,
-      gains,
-      true,
-      [],
-      promotedClassData.growthBonuses || null,
-    );
-    await popup.show();
-
-    // Tell the player about innates lost to the skill cap (never silent)
-    const droppedNotice = formatDroppedSkillsNotice(
-      unit.name,
-      promotionResult?.droppedSkills,
-      this.gameData.skills,
-    );
-    if (droppedNotice) await this.showBriefBanner(droppedNotice, '#ff8888');
-
-    // Consume Master Seal on successful promotion
-    seal.uses = (seal.uses ?? 1) - 1;
-    if (seal.uses <= 0) removeFromConsumables(unit, seal);
-    markSealConsumed();
-
-    this.finishUnitAction(unit);
-    return true;
-  }
-
-  async showPromotionBanner(unit, newClassName) {
-    const banner = this.add
-      .text(
-        this.cameras.main.centerX,
-        this.cameras.main.centerY,
-        `${unit.name} promoted to ${newClassName}!`,
-        {
-          fontFamily: 'monospace',
-          fontSize: '16px',
-          color: '#ffdd44',
-          backgroundColor: '#000000cc',
-          padding: { x: 16, y: 8 },
-        },
-      )
-      .setOrigin(0.5)
-      .setAlpha(0)
-      .setDepth(500);
-    this._pinToScreen(banner);
-
-    await this._awaitSceneTween(
-      {
-        targets: banner,
-        alpha: 1,
-        duration: 300,
-        yoyo: true,
-        hold: 1200,
-        onComplete: () => {
-          banner.destroy();
-        },
-      },
-      {
-        label: 'show_promotion_banner',
-        onCancel: () => banner.destroy(),
-      },
+      newClassName,
     );
   }
 
