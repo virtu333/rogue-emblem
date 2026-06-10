@@ -17,7 +17,7 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 - **Hosting:** Netlify (static CDN) — https://emblem-rogue.netlify.app
 - **Auth:** Supabase Auth (username/password, email confirmation disabled)
 - **Cloud DB:** Supabase Postgres — 3 tables (`run_saves`, `meta_progression`, `user_settings`) with RLS per user
-- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1.
+- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1. Anti-refresh: battles persist a suspend checkpoint (`battleInProgress` flag; `BattleSuspendController`) after every action with the RNG reseeded — any exit (refresh/crash/Save & Exit) offers Resume Battle (exact restore) or Continue from Map (sanctioned full revert with entry-time Vision/RNG refund) on continue, so a refresh can never undo a resolved action.
 - **Art Pipeline:** Google Imagen 4 API for AI-generated pixel art (see Art Pipeline section)
 
 ## Effort
@@ -64,7 +64,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 3873 tests across 199 files + harness/ + e2e/
+├── tests/                 # Vitest: 4111 tests across 217 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -138,7 +138,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 3873 tests across 199 files (Mar 3 2026). Covers all engine systems.
+- **Coverage:** 4111 tests across 217 files (Jun 10 2026). Covers all engine systems.
 - **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
@@ -158,12 +158,12 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~9,800 lines)** — 10 controllers extracted (5 original + 5 from Slices 3-5: PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~9,950 lines)** — 12 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
-- **NodeMapScene.js (~3,960 lines)** — Church/shop logic are extraction candidates.
+- **NodeMapScene.js (~1,950 lines)** — Church/shop overlays extracted to ChurchController/ShopController (state stays on the scene; methods are delegating shims).
 - **RunManager.js (~3,800 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
-- **RosterOverlay.js (~3,200 lines)** — Trade state machine (~450 lines) is top extraction candidate.
+- **RosterOverlay.js (~2,780 lines)** — Trade state machine extracted to RosterTradeController (state stays on the overlay; methods are delegating shims).
 
 ### Extraction pattern
 ```js

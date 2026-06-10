@@ -105,8 +105,9 @@ export class AudioManager {
   }
 
   _getMusicSources(key) {
-    // Keep .ogg first to preserve existing behavior where available.
-    return [`assets/audio/music/${key}.ogg`, `assets/audio/music/${key}.mp3`];
+    // mp3 decodes everywhere (Safari included); ogg twins were dropped to
+    // halve the audio payload.
+    return [`assets/audio/music/${key}.mp3`];
   }
 
   _ensureMusicLoaded(key, scene, timeoutMs = null) {

@@ -83,6 +83,10 @@ export class PostCombatController {
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
         : 0;
+      // Persist the completed battle immediately (completeBattle cleared the
+      // anti-refresh lock): a refresh during the loot flow keeps the win —
+      // loot is forfeited — rather than reopening the fight.
+      scene._persistBattleRunState?.();
       scene.time.delayedCall(1500, async () => {
         if (!scene.scene?.isActive?.()) return;
         if (!completionApplied) {
@@ -478,6 +482,11 @@ export class PostCombatController {
       scene.clearBattleScopedDeltas(scene.playerUnits);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
       scene.runManager.failRun();
+      // Persist the defeat (status + cleared suspend flag) immediately:
+      // refreshing during the banner must not rewind to the pre-fatal
+      // checkpoint — the reload routes to the game-over flow instead.
+      // Retreating is sanctioned only BEFORE a death resolves.
+      scene._persistBattleRunState?.();
       scene.time.delayedCall(2000, async () => {
         if (!scene.scene?.isActive?.()) return;
         // Clear any stale transition locks -- the 2s delay gives legitimate

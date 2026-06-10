@@ -170,7 +170,7 @@ function legacyItemSignature(item) {
 
 /** After JSON round-trip, re-link unit.weapon to matching inventory reference.
  *  Enforces proficiency: drops non-proficient equipped weapons to first valid or null. */
-function relinkWeapon(unit) {
+export function relinkWeapon(unit) {
   if (!unit.weapon || !unit.inventory?.length) {
     if (!unit.inventory?.length) unit.weapon = null;
     return;
@@ -338,6 +338,11 @@ export class RunManager {
     this._churchPromotionTracker = null; // { nodeId: string, count: number }
     this.thirdLordJoined = false;
     this.thirdLordRerolled = false;
+    // Suspended battle (anti-refresh): set on battle entry, updated with a
+    // resume checkpoint after every action, cleared by completeBattle. A save
+    // carrying this flag offers Resume-or-Revert on continue, so a refresh
+    // can never undo an action that already resolved.
+    this.battleInProgress = null;
   }
 
   _isValidSerializedUnit(unit) {
@@ -418,6 +423,7 @@ export class RunManager {
     );
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
+    this.battleInProgress = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
@@ -2645,6 +2651,44 @@ export class RunManager {
   }
 
   /**
+   * Mark a battle as suspended-in-progress. The flag carries the entry
+   * snapshot needed to (a) resume the battle later ("Continue from battle")
+   * and (b) cleanly revert it ("Continue from map" — the sanctioned FE-reset
+   * full revert, which restores the entry-time Vision/RNG values below).
+   * The suspend checkpoint itself is attached via setBattleCheckpoint as the
+   * battle progresses.
+   */
+  beginBattleInProgress(nodeId, entryInfo = {}) {
+    this.battleInProgress = {
+      nodeId: typeof nodeId === 'string' ? nodeId : null,
+      startedAt: Date.now(),
+      battleParams:
+        entryInfo.battleParams && typeof entryInfo.battleParams === 'object'
+          ? structuredClone(entryInfo.battleParams)
+          : null,
+      isBoss: entryInfo.isBoss === true,
+      isElite: entryInfo.isElite === true,
+      visionChargesAtEntry: Number.isFinite(this.visionChargesRemaining)
+        ? this.visionChargesRemaining
+        : null,
+      visionCountAtEntry: Number.isFinite(this.visionCount) ? this.visionCount : null,
+      rngSeedAtEntry: Number.isFinite(this.rngSeed) ? this.rngSeed : null,
+      checkpoint: null,
+    };
+  }
+
+  /** Attach/replace the suspend checkpoint for the in-progress battle. */
+  setBattleCheckpoint(checkpoint) {
+    if (!this.battleInProgress) return;
+    this.battleInProgress.checkpoint =
+      checkpoint && typeof checkpoint === 'object' ? checkpoint : null;
+  }
+
+  clearBattleInProgress() {
+    this.battleInProgress = null;
+  }
+
+  /**
    * Called after a battle victory. Serializes surviving units back to roster.
    * @param {Array} survivingUnits - units from BattleScene (with Phaser fields)
    * @param {string} nodeId - the node that was just completed
@@ -2653,6 +2697,9 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
+    // Battle is over either way — never leave a stale suspend flag that
+    // would offer to resume a finished fight on the next load.
+    this.battleInProgress = null;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (!node || node.completed) return false;
 
@@ -2976,6 +3023,7 @@ export class RunManager {
   failRun() {
     this.status = 'defeat';
     this.winStreak = 0;
+    this.battleInProgress = null;
   }
 
   _applySettledRewardsToMeta(meta, summary) {
@@ -3077,6 +3125,7 @@ export class RunManager {
       noMetaMode: this.noMetaMode || false,
       thirdLordJoined: this.thirdLordJoined || false,
       thirdLordRerolled: this.thirdLordRerolled || false,
+      battleInProgress: this.battleInProgress || null,
     };
   }
 
@@ -3638,6 +3687,20 @@ export class RunManager {
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();
 
+    // Suspended battle (anti-refresh): only a flag carrying a usable resume
+    // checkpoint survives the load — a battle interrupted before its first
+    // checkpoint (or a legacy casualty-list flag) reverts to the pre-battle
+    // save, which is all the raw data contains anyway.
+    const rawBattleInProgress = saved.battleInProgress;
+    rm.battleInProgress =
+      rawBattleInProgress &&
+      typeof rawBattleInProgress === 'object' &&
+      typeof rawBattleInProgress.nodeId === 'string' &&
+      rawBattleInProgress.checkpoint &&
+      typeof rawBattleInProgress.checkpoint === 'object'
+        ? rawBattleInProgress
+        : null;
+
     return rm;
   }
 }
@@ -3753,6 +3816,50 @@ export function saveRun(runManager, onSave, slotNumber) {
   }
 
   return { ok: true };
+}
+
+/**
+ * Scrub the suspended battle from the persisted save without re-serializing
+ * live state ("Continue from map" — the sanctioned FE-reset full revert).
+ * Entry-time Vision charges and RNG seed recorded on the flag are restored so
+ * the revert is complete: mid-battle Vision spends and reseeds are refunded;
+ * everything else stays byte-for-byte.
+ */
+export function clearBattleInProgressInSave(onSave, slotNumber) {
+  const key = resolveRunKey(slotNumber);
+  if (!key) return { ok: false, reason: 'missing_slot' };
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return { ok: true, reason: 'no_save' };
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return { ok: false, reason: 'corrupt' };
+    if (parsed.battleInProgress == null) return { ok: true, reason: 'already_clear' };
+    const flag = parsed.battleInProgress;
+    if (Number.isFinite(flag?.visionChargesAtEntry)) {
+      parsed.visionChargesRemaining = flag.visionChargesAtEntry;
+    }
+    if (Number.isFinite(flag?.visionCountAtEntry)) {
+      parsed.visionCount = flag.visionCountAtEntry;
+    }
+    if (Number.isFinite(flag?.rngSeedAtEntry)) {
+      parsed.rngSeed = flag.rngSeedAtEntry;
+    }
+    parsed.battleInProgress = null;
+    parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
+    localStorage.setItem(key, JSON.stringify(parsed));
+    if (onSave) {
+      try {
+        onSave(parsed);
+      } catch (err) {
+        console.warn('[RunManager] onSave callback error:', err?.message || err);
+      }
+    }
+    return { ok: true };
+  } catch (err) {
+    const isQuota = isQuotaExceededError(err);
+    console.warn('[RunManager] clearBattleInProgressInSave failed:', err?.message || err);
+    return { ok: false, reason: isQuota ? 'quota' : 'write_error', isQuotaError: isQuota };
+  }
 }
 
 export function loadRun(gameData, slotNumber) {

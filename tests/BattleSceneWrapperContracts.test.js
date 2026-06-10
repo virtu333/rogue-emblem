@@ -45,7 +45,9 @@ import { BattleScene } from '../src/scenes/BattleScene.js';
 import { BossRecruitOverlay } from '../src/ui/BossRecruitOverlay.js';
 import { DeployScreenOverlay } from '../src/ui/DeployScreenOverlay.js';
 import { ForecastOverlay } from '../src/ui/ForecastOverlay.js';
+import { HealController } from '../src/ui/HealController.js';
 import { InputController } from '../src/ui/InputController.js';
+import { PromotionController } from '../src/ui/PromotionController.js';
 import { LootFlowController } from '../src/ui/LootFlowController.js';
 import { LootScreenController } from '../src/ui/LootScreenController.js';
 import { PostCombatController } from '../src/ui/PostCombatController.js';
@@ -713,6 +715,122 @@ describe('BattleScene shim delegation contracts', () => {
     );
   });
 
+  // Heal shim contracts
+  describe('Heal shims', () => {
+    it('executeHeal lazy-inits HealController once and reuses it', async () => {
+      const scene = makeScene();
+      const spy = vi.spyOn(HealController.prototype, 'executeHeal').mockResolvedValue(undefined);
+
+      await BattleScene.prototype.executeHeal.call(scene, { name: 'Cleric' }, { name: 'Hurt' });
+      const firstController = scene._healController;
+      await BattleScene.prototype.executeHeal.call(scene, { name: 'Cleric' }, { name: 'Hurt2' });
+
+      expect(firstController).toBeInstanceOf(HealController);
+      expect(scene._healController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      ['getUsableStaves', 'getUsableStaves', [{ name: 'Cleric', inventory: [] }], [{ id: 's' }]],
+      [
+        'getActiveHealStaff',
+        'getActiveHealStaff',
+        [{ name: 'Cleric' }, [{ id: 's' }]],
+        { id: 's' },
+      ],
+      ['findHealTargets', 'findHealTargets', [{ name: 'Cleric' }, { id: 's' }], [{ name: 'A' }]],
+      ['executeHeal', 'executeHeal', [{ name: 'Cleric' }, { name: 'Hurt' }], Promise.resolve()],
+      [
+        'executeHealAll',
+        'executeHealAll',
+        [{ name: 'Bishop' }, [{ name: 'Hurt' }]],
+        Promise.resolve(),
+      ],
+      ['animateHeal', 'animateHeal', [{ name: 'Hurt' }, 7], Promise.resolve()],
+    ])('%s returns HealController.%s result', (sceneMethod, controllerMethod, args, expected) => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(HealController.prototype, controllerMethod)
+        .mockImplementation(() => expected);
+
+      const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._healController).toBeInstanceOf(HealController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      expect(result).toBe(expected);
+      spy.mockRestore();
+    });
+
+    it.each([
+      [
+        'startHealTargetSelection',
+        'startHealTargetSelection',
+        [{ name: 'Cleric' }, [{ name: 'A' }], { id: 's' }],
+      ],
+      ['showStaffPicker', 'showStaffPicker', [{ name: 'Cleric' }, [{ id: 's' }]]],
+      ['handleHealTargetClick', 'handleHealTargetClick', [{ col: 2, row: 3 }]],
+    ])('%s delegates to HealController.%s', (sceneMethod, controllerMethod, args) => {
+      const scene = makeScene();
+      const spy = vi.spyOn(HealController.prototype, controllerMethod).mockImplementation(() => {});
+
+      BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+      expect(scene._healController).toBeInstanceOf(HealController);
+      expect(spy).toHaveBeenCalledWith(...args);
+      spy.mockRestore();
+    });
+  });
+
+  // Promotion shim contracts
+  describe('Promotion shims', () => {
+    it('executePromotion lazy-inits PromotionController once and reuses it', async () => {
+      const scene = makeScene();
+      const spy = vi
+        .spyOn(PromotionController.prototype, 'executePromotion')
+        .mockResolvedValue(true);
+
+      await BattleScene.prototype.executePromotion.call(scene, { name: 'Knight' }, { uses: 1 });
+      const firstController = scene._promotionController;
+      await BattleScene.prototype.executePromotion.call(scene, { name: 'Knight' }, null);
+
+      expect(firstController).toBeInstanceOf(PromotionController);
+      expect(scene._promotionController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+
+    it.each([
+      [
+        'executePromotion',
+        'executePromotion',
+        [{ name: 'Knight' }, { uses: 1 }],
+        Promise.resolve(true),
+      ],
+      [
+        'showPromotionBanner',
+        'showPromotionBanner',
+        [{ name: 'Knight' }, 'General'],
+        Promise.resolve(),
+      ],
+    ])(
+      '%s returns PromotionController.%s result',
+      (sceneMethod, controllerMethod, args, expected) => {
+        const scene = makeScene();
+        const spy = vi
+          .spyOn(PromotionController.prototype, controllerMethod)
+          .mockImplementation(() => expected);
+
+        const result = BattleScene.prototype[sceneMethod].call(scene, ...args);
+
+        expect(scene._promotionController).toBeInstanceOf(PromotionController);
+        expect(spy).toHaveBeenCalledWith(...args);
+        expect(result).toBe(expected);
+        spy.mockRestore();
+      },
+    );
+  });
+
   // Forecast shim contracts
   describe('showForecast / hideForecast shim', () => {
     function makeForecastScene() {
@@ -1180,6 +1298,28 @@ describe('BattleScene shim delegation contracts', () => {
 
       expect(destroy).toHaveBeenCalledTimes(1);
       expect(scene._inputController).toBeNull();
+    });
+
+    it('destroys HealController and nulls reference', () => {
+      const scene = makeScene();
+      const destroy = vi.fn();
+      scene._healController = { destroy };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(scene._healController).toBeNull();
+    });
+
+    it('destroys PromotionController and nulls reference', () => {
+      const scene = makeScene();
+      const destroy = vi.fn();
+      scene._promotionController = { destroy };
+
+      BattleScene.prototype._runSceneShutdownCleanup.call(scene);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(scene._promotionController).toBeNull();
     });
   });
 
