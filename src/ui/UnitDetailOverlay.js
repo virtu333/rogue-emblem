@@ -71,6 +71,8 @@ export class UnitDetailOverlay {
     this._rosterUnits = null;
     this._rosterIndex = 0;
     this._mobileContextPushed = false;
+    this._mobilePrevUnit = null;
+    this._mobileNextUnit = null;
   }
 
   show(unit, terrain, gameData, rosterOptions) {
@@ -132,17 +134,24 @@ export class UnitDetailOverlay {
       this.scene.input.keyboard.on('keydown-DOWN', this._keyHandlerDown);
     }
 
-    // Mobile overlay tab navigation
+    // Mobile overlay tab navigation (+ unit cycling buttons when roster context is present)
     const game = this.scene?.game;
     if (game?.events) {
       if (!this._mobileContextPushed) {
-        game.events.emit('mobile:pushContext', { context: 'overlay_tabs' });
+        const canCycleUnits = Boolean(this._rosterUnits && this._rosterUnits.length > 1);
+        game.events.emit('mobile:pushContext', {
+          context: canCycleUnits ? 'overlay_unit_detail' : 'overlay_tabs',
+        });
         this._mobileContextPushed = true;
       }
       this._mobilePrev = () => this._keyHandlerLeft();
       this._mobileNext = () => this._keyHandlerRight();
       game.events.on('mobile:prevTab', this._mobilePrev);
       game.events.on('mobile:nextTab', this._mobileNext);
+      this._mobilePrevUnit = () => this._cycleUnit(-1);
+      this._mobileNextUnit = () => this._cycleUnit(1);
+      game.events.on('mobile:prevUnit', this._mobilePrevUnit);
+      game.events.on('mobile:nextUnit', this._mobileNextUnit);
     }
 
     // Render unit-specific content
@@ -196,6 +205,7 @@ export class UnitDetailOverlay {
       upArrow.on('pointerdown', () => this._cycleUnit(-1));
       upArrow.on('pointerover', () => upArrow.setColor('#ffffff'));
       upArrow.on('pointerout', () => upArrow.setColor('#ffdd44'));
+      this._expandTouchHitArea(upArrow, 40, 34);
       this._unitObjects.push(upArrow);
 
       const counter = this.scene.add
@@ -220,6 +230,7 @@ export class UnitDetailOverlay {
       downArrow.on('pointerdown', () => this._cycleUnit(1));
       downArrow.on('pointerover', () => downArrow.setColor('#ffffff'));
       downArrow.on('pointerout', () => downArrow.setColor('#ffdd44'));
+      this._expandTouchHitArea(downArrow, 40, 34);
       this._unitObjects.push(downArrow);
     }
 
@@ -270,14 +281,32 @@ export class UnitDetailOverlay {
 
     // --- Footer ---
     const footerY = top + OVERLAY_H - 18;
-    const footerStr =
-      this._rosterUnits && this._rosterUnits.length > 1
-        ? '[ESC] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
+    const isMobile = Boolean(this.scene?.isMobileInput);
+    const hasRoster = this._rosterUnits && this._rosterUnits.length > 1;
+    const footerStr = hasRoster
+      ? isMobile
+        ? '[X] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
+        : '[ESC] Close    [\u25c4/\u25ba] Tab    [\u25b2/\u25bc] Unit'
+      : isMobile
+        ? '[X] Close    [\u25c4/\u25ba] Switch Tab'
         : '[ESC] Close    [LEFT/RIGHT] Switch Tab';
     this._unitText(lx, footerY, footerStr, UI_COLORS.gray, '9px');
 
     // --- Draw initial tab content ---
     this._drawTabContent();
+  }
+
+  // Touch screens need bigger targets than a 14px glyph; expand the local hit
+  // rectangle without changing the rendered size (mobile only).
+  _expandTouchHitArea(obj, width, height) {
+    if (!this.scene?.isMobileInput) return;
+    const hit = obj?.input?.hitArea;
+    if (!hit || typeof hit.setTo !== 'function') return;
+    const ow = Number(obj.width) || 0;
+    const oh = Number(obj.height) || 0;
+    const w = Math.max(width, ow);
+    const h = Math.max(height, oh);
+    hit.setTo(-(w - ow) / 2, -(h - oh) / 2, w, h);
   }
 
   _cycleUnit(direction) {
@@ -307,8 +336,12 @@ export class UnitDetailOverlay {
     if (game?.events) {
       if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
       if (this._mobileNext) game.events.off('mobile:nextTab', this._mobileNext);
+      if (this._mobilePrevUnit) game.events.off('mobile:prevUnit', this._mobilePrevUnit);
+      if (this._mobileNextUnit) game.events.off('mobile:nextUnit', this._mobileNextUnit);
       this._mobilePrev = null;
       this._mobileNext = null;
+      this._mobilePrevUnit = null;
+      this._mobileNextUnit = null;
       if (this._mobileContextPushed) {
         this._mobileContextPushed = false;
         game.events.emit('mobile:popContext');
@@ -946,8 +979,12 @@ export class UnitDetailOverlay {
       if (game?.events) {
         if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
         if (this._mobileNext) game.events.off('mobile:nextTab', this._mobileNext);
+        if (this._mobilePrevUnit) game.events.off('mobile:prevUnit', this._mobilePrevUnit);
+        if (this._mobileNextUnit) game.events.off('mobile:nextUnit', this._mobileNextUnit);
         this._mobilePrev = null;
         this._mobileNext = null;
+        this._mobilePrevUnit = null;
+        this._mobileNextUnit = null;
         if (this._mobileContextPushed) {
           this._mobileContextPushed = false;
           game.events.emit('mobile:popContext');

@@ -394,8 +394,14 @@ export class ColosseumOverlay {
     const actId = this._actId;
     const difficultyId = this._getDifficultyId();
 
+    // generateChallenger expects the entrant's EFFECTIVE level (promotion at
+    // RECRUIT_PROMOTION_BASE_LEVEL); a promoted entrant's raw level undersold
+    // it by ~10 levels and produced trivially weak challengers.
+    const rawEntrantLevel = Math.max(1, Math.trunc(Number(unit.level) || 1));
+    const entrantEffectiveLevel =
+      unit.tier === 'promoted' ? RECRUIT_PROMOTION_BASE_LEVEL + rawEntrantLevel : rawEntrantLevel;
     this._challenger = generateChallenger(
-      unit.level,
+      entrantEffectiveLevel,
       tier,
       actId,
       this.gameData.enemies,

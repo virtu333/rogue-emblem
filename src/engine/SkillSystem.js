@@ -498,9 +498,12 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
 /**
  * Roll defensive skills after damage is calculated but before applying.
  * Handles Pavise (halve physical), Aegis (halve magical), Miracle (survive lethal at 1 HP).
+ * `liveHP` is the defender's HP at this point in combat resolution — during
+ * multi-strike rounds defender.currentHP is stale (resolveCombat tracks HP in
+ * locals), so Miracle's lethality check must use the live value when provided.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
-export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData) {
+export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData, liveHP = null) {
   const result = {
     modifiedDamage: damage,
     miracleTriggered: false,
@@ -547,9 +550,10 @@ export function rollDefenseSkills(defender, damage, isPhysicalAttack, skillsData
     }
 
     if (skill.id === 'miracle' && !defender._miracleUsed) {
-      const wouldDie = defender.currentHP > 0 && defender.currentHP <= result.modifiedDamage;
+      const hp = Number.isFinite(liveHP) ? liveHP : defender.currentHP;
+      const wouldDie = hp > 0 && hp <= result.modifiedDamage;
       if (wouldDie) {
-        result.modifiedDamage = defender.currentHP - 1;
+        result.modifiedDamage = hp - 1;
         result.miracleTriggered = true;
         defender._miracleUsed = true;
         result.activated.push({ id: 'miracle', name: 'Miracle' });

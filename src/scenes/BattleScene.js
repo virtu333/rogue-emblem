@@ -190,7 +190,12 @@ import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { createSeededRng } from '../engine/BlessingEngine.js';
 import { scheduleReinforcementsForTurn } from '../engine/ReinforcementScheduler.js';
-import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import {
+  transitionToScene,
+  transitionToSceneWithBlockedRetry,
+  TRANSITION_REASONS,
+  TRANSITION_RESULTS,
+} from '../utils/SceneRouter.js';
 import {
   buildTutorialBattleConfig as _buildTutorialBattleConfig,
   buildTutorialRoster as _buildTutorialRoster,
@@ -211,6 +216,7 @@ import { TransitionRecoveryController } from '../ui/TransitionRecoveryController
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
+import { hasOpenOverlay } from '../utils/overlayStack.js';
 import {
   summarizeWeaponArtEffect,
   hasWeaponArt,
@@ -711,6 +717,9 @@ export class BattleScene extends Phaser.Scene {
       cancel: (event) => {
         if (event?.repeat) return;
         if (isEscConsumed(this, event)) return;
+        // A stacked overlay (help, campaign map, promotion choice, …) owns
+        // ESC while open; its own handler closes it top-down.
+        if (hasOpenOverlay(this)) return;
         if (this.isStoryInputLocked()) return;
         const handled = this.requestCancel();
         if (handled) consumeEscEvent(this, event);
@@ -1480,7 +1489,7 @@ export class BattleScene extends Phaser.Scene {
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
-      this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
+      this.input.on('pointerupoutside', (pointer) => this.onPointerUpOutside(pointer));
       this._bindGameplayKeyboardHandlers();
 
       // Mobile virtual control listeners
@@ -2921,6 +2930,10 @@ export class BattleScene extends Phaser.Scene {
     (this._inputController ||= new InputController(this)).onPointerDown(pointer);
   }
 
+  onPointerUpOutside(pointer) {
+    (this._inputController ||= new InputController(this)).onPointerUpOutside(pointer);
+  }
+
   startTouchInspectHold(pointer) {
     (this._inputController ||= new InputController(this)).startTouchInspectHold(pointer);
   }
@@ -3316,11 +3329,18 @@ export class BattleScene extends Phaser.Scene {
       this.clearInspectionVisuals();
       return true;
     } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
-      this._hideLootTooltip();
-      this.lootSettingsOverlay = new SettingsOverlay(this, () => {
+      // Toggle: a second ESC closes the open settings overlay instead of
+      // stacking another one on top of it.
+      if (this.lootSettingsOverlay?.visible) {
+        this.lootSettingsOverlay.hide();
         this.lootSettingsOverlay = null;
-      });
-      this.lootSettingsOverlay.show();
+      } else {
+        this._hideLootTooltip();
+        this.lootSettingsOverlay = new SettingsOverlay(this, () => {
+          this.lootSettingsOverlay = null;
+        });
+        this.lootSettingsOverlay.show();
+      }
     } else if (this.isCancelableBattleState()) {
       this.handleCancel();
     } else if (allowPause && this.battleState === 'PLAYER_IDLE') {
@@ -3651,8 +3671,11 @@ export class BattleScene extends Phaser.Scene {
       });
       let result;
       try {
+        // Blocked-retry absorbs transient cooldown/in-flight locks so the
+        // callers' hard fallback (lock reset + raw scene.start) only fires on
+        // genuine failures.
         result = await Promise.race([
-          transitionToScene(this, 'Title', { gameData: this.gameData }, { reason }),
+          transitionToSceneWithBlockedRetry(this, 'Title', { gameData: this.gameData }, { reason }),
           timeoutPromise,
         ]);
       } finally {
@@ -3666,7 +3689,7 @@ export class BattleScene extends Phaser.Scene {
         });
         return false;
       }
-      return result === true;
+      return result?.status === TRANSITION_RESULTS.STARTED;
     };
     const abandonCb = this.runManager
       ? async () => {
@@ -4134,7 +4157,7 @@ export class BattleScene extends Phaser.Scene {
       this.tutorialStep = 4;
       this._clearTutorialGuideHighlights();
       const infoHint = this.isMobileInput
-        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
+        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
         : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
       await this._withTutorialHintState(async () => {
         await showImportantHint(this, infoHint);
@@ -4268,6 +4291,35 @@ export class BattleScene extends Phaser.Scene {
     this._preFogSnapshot = null;
     this.battleState = 'PLAYER_IDLE';
     this.turnManager.unitActed(unit);
+  }
+
+  /**
+   * Recover from an unexpected error inside a unit-action flow (talk, heal,
+   * promotion, …). Consumes the unit's action if it hasn't been consumed yet so
+   * a thrown blocking state ('COMBAT_RESOLVING'/'HEAL_RESOLVING') can't softlock
+   * the battle.
+   */
+  _recoverUnitActionError(unit, label, err) {
+    console.error(`[BattleScene] ${label} error:`, err);
+    if (this.battleState === 'BATTLE_END') return;
+    try {
+      if (unit && !unit.hasActed) {
+        this.finishUnitAction(unit, { skipCanto: true });
+        return;
+      }
+    } catch (recoveryErr) {
+      console.error(`[BattleScene] ${label} recovery error:`, recoveryErr);
+    }
+    if (this.battleState !== 'BATTLE_END' && this.battleState !== 'PLAYER_IDLE') {
+      this.battleState = 'PLAYER_IDLE';
+      this.selectedUnit = null;
+      try {
+        this.grid?.clearHighlights?.();
+        this.grid?.clearAttackHighlights?.();
+      } catch (_) {
+        /* best-effort visual */
+      }
+    }
   }
 
   // --- Shove / Pull / Canto ---
@@ -5545,32 +5597,36 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    // Show recruitment dialogue -- lords get personal lines, others use class-based
-    const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
-    const recruitLines = lordLines ||
-      this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
-    const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
-    const portraitKey = this._getPortraitKey(npc);
-    await this.dialogueOverlay.show(npc.name, line, portraitKey);
+    try {
+      // Show recruitment dialogue -- lords get personal lines, others use class-based
+      const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
+      const recruitLines = lordLines ||
+        this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
+      const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
+      const portraitKey = this._getPortraitKey(npc);
+      await this.dialogueOverlay.show(npc.name, line, portraitKey);
 
-    // Remove from NPC array
-    const npcIdx = this.npcUnits.indexOf(npc);
-    if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
+      // Remove from NPC array
+      const npcIdx = this.npcUnits.indexOf(npc);
+      if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
 
-    // Convert faction
-    npc.faction = 'player';
+      // Convert faction
+      npc.faction = 'player';
 
-    // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
-    this.removeUnitGraphic(npc);
-    this.addUnitGraphic(npc);
+      // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
+      this.removeUnitGraphic(npc);
+      this.addUnitGraphic(npc);
 
-    // Add to player units
-    this.playerUnits.push(npc);
-    // Recruit can move + act this turn (FE convention); force fresh action flags.
-    npc.hasMoved = false;
-    npc.hasActed = false;
+      // Add to player units
+      this.playerUnits.push(npc);
+      // Recruit can move + act this turn (FE convention); force fresh action flags.
+      npc.hasMoved = false;
+      npc.hasActed = false;
 
-    this.finishUnitAction(lord);
+      this.finishUnitAction(lord);
+    } catch (err) {
+      this._recoverUnitActionError(lord, 'talk', err);
+    }
   }
 
   // --- Heal flow ---
@@ -5771,31 +5827,35 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'HEAL_RESOLVING';
     this.grid.clearAttackHighlights();
 
-    const staff = healer.weapon; // Should already be equipped
-    const healOpts = {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
-    const result = resolveHeal(staff, healer, target, healOpts);
-
-    // Apply heal
-    target.currentHP = result.targetHPAfter;
-    this.updateHPBar(target);
-
-    // Animate
-    await this.animateHeal(target, result.healAmount);
-
-    // Spend a use and check depletion
-    spendStaffUse(staff);
-    if (getStaffRemainingUses(staff, healer) <= 0) {
-      const combatWpn = getCombatWeapons(healer)[0];
-      if (combatWpn) equipWeapon(healer, combatWpn);
-    }
-
     try {
-      await this.awardScaledXP(healer, XP_BASE_HEAL);
-    } finally {
-      this.finishUnitAction(healer);
+      const staff = healer.weapon; // Should already be equipped
+      const healOpts = {
+        healingMultiplier:
+          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+      };
+      const result = resolveHeal(staff, healer, target, healOpts);
+
+      // Apply heal
+      target.currentHP = result.targetHPAfter;
+      this.updateHPBar(target);
+
+      // Animate
+      await this.animateHeal(target, result.healAmount);
+
+      // Spend a use and check depletion
+      spendStaffUse(staff);
+      if (getStaffRemainingUses(staff, healer) <= 0) {
+        const combatWpn = getCombatWeapons(healer)[0];
+        if (combatWpn) equipWeapon(healer, combatWpn);
+      }
+
+      try {
+        await this.awardScaledXP(healer, XP_BASE_HEAL);
+      } finally {
+        this.finishUnitAction(healer);
+      }
+    } catch (err) {
+      this._recoverUnitActionError(healer, 'heal', err);
     }
   }
 
@@ -5803,30 +5863,34 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'HEAL_RESOLVING';
     this.grid.clearAttackHighlights();
 
-    const staff = healer.weapon;
-    const healOpts = {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
-
-    for (const target of targets) {
-      const result = resolveHeal(staff, healer, target, healOpts);
-      target.currentHP = result.targetHPAfter;
-      this.updateHPBar(target);
-      await this.animateHeal(target, result.healAmount);
-    }
-
-    // Single use spent for all targets
-    spendStaffUse(staff);
-    if (getStaffRemainingUses(staff, healer) <= 0) {
-      const combatWpn = getCombatWeapons(healer)[0];
-      if (combatWpn) equipWeapon(healer, combatWpn);
-    }
-
     try {
-      await this.awardScaledXP(healer, XP_BASE_HEAL);
-    } finally {
-      this.finishUnitAction(healer);
+      const staff = healer.weapon;
+      const healOpts = {
+        healingMultiplier:
+          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+      };
+
+      for (const target of targets) {
+        const result = resolveHeal(staff, healer, target, healOpts);
+        target.currentHP = result.targetHPAfter;
+        this.updateHPBar(target);
+        await this.animateHeal(target, result.healAmount);
+      }
+
+      // Single use spent for all targets
+      spendStaffUse(staff);
+      if (getStaffRemainingUses(staff, healer) <= 0) {
+        const combatWpn = getCombatWeapons(healer)[0];
+        if (combatWpn) equipWeapon(healer, combatWpn);
+      }
+
+      try {
+        await this.awardScaledXP(healer, XP_BASE_HEAL);
+      } finally {
+        this.finishUnitAction(healer);
+      }
+    } catch (err) {
+      this._recoverUnitActionError(healer, 'healAll', err);
     }
   }
 
@@ -6398,6 +6462,47 @@ export class BattleScene extends Phaser.Scene {
       return false;
     }
 
+    // Once promoteUnit has mutated the unit the promotion is committed; on a
+    // later error we must consume the seal + action instead of replaying the menu.
+    let promotionApplied = false;
+    let sealConsumed = false;
+    try {
+      return await this._executePromotionFlow(unit, seal, {
+        markPromotionApplied: () => {
+          promotionApplied = true;
+        },
+        markSealConsumed: () => {
+          sealConsumed = true;
+        },
+      });
+    } catch (err) {
+      if (!promotionApplied) {
+        console.error('[BattleScene] promotion error:', err);
+        if (this.battleState !== 'BATTLE_END') {
+          this.battleState = 'UNIT_ACTION_MENU';
+          try {
+            this.showActionMenu(unit);
+          } catch (menuErr) {
+            console.error('[BattleScene] promotion recovery error:', menuErr);
+            this._recoverUnitActionError(unit, 'promotion', err);
+          }
+        }
+        return false;
+      }
+      if (!sealConsumed) {
+        try {
+          seal.uses = (seal.uses ?? 1) - 1;
+          if (seal.uses <= 0) removeFromConsumables(unit, seal);
+        } catch (sealErr) {
+          console.error('[BattleScene] promotion seal-consume error:', sealErr);
+        }
+      }
+      this._recoverUnitActionError(unit, 'promotion', err);
+      return true;
+    }
+  }
+
+  async _executePromotionFlow(unit, seal, { markPromotionApplied, markSealConsumed }) {
     // Find promotion targets
     const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
@@ -6448,6 +6553,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply promotion
     promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+    markPromotionApplied();
 
     // Refresh sprite to show promoted class
     this.removeUnitGraphic(unit);
@@ -6507,6 +6613,7 @@ export class BattleScene extends Phaser.Scene {
     // Consume Master Seal on successful promotion
     seal.uses = (seal.uses ?? 1) - 1;
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
+    markSealConsumed();
 
     this.finishUnitAction(unit);
     return true;
@@ -8620,6 +8727,16 @@ export class BattleScene extends Phaser.Scene {
         1200,
         'player_phase_turn_start_pipeline',
         async () => {
+          // A fast End Turn (E within the banner delay) flips to the enemy
+          // phase before this fires — player heals/ballista fire must not land
+          // in the middle of enemy actions.
+          if (
+            this.turnManager?.currentPhase !== 'player' ||
+            this.turnManager?.turnNumber !== turn ||
+            this.battleState === 'BATTLE_END'
+          ) {
+            return;
+          }
           await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
           await this.processBallistaFire(this.enemyUnits, 'player');
           if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
@@ -8698,7 +8815,7 @@ export class BattleScene extends Phaser.Scene {
                 if (!isSceneActiveForAsync()) return;
                 if (hints.shouldShow('battle_first_turn')) {
                   const inspectHint = this.isMobileInput
-                    ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+                    ? 'Tap a blue unit to move, then choose an action.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
                     : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
                   await showImportantHint(this, inspectHint);
                 }
@@ -8738,6 +8855,15 @@ export class BattleScene extends Phaser.Scene {
         1400,
         'enemy_phase_turn_start_pipeline',
         async () => {
+          // Symmetric guard: bail if this enemy phase was superseded (battle
+          // end or Vision rewind) during the banner delay.
+          if (
+            this.turnManager?.currentPhase !== 'enemy' ||
+            this.turnManager?.turnNumber !== turn ||
+            this.battleState === 'BATTLE_END'
+          ) {
+            return;
+          }
           await this.processTerrainDamage(this.playerUnits);
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
@@ -9234,6 +9360,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async startEnemyPhase() {
+    // Epoch token: a Vision rewind restores a player-phase snapshot while this
+    // async pipeline may still be in flight (AI loop or the tail below). Every
+    // step re-checks the epoch so a superseded phase can never act on, or
+    // advance, the rewound state.
+    this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
+    const phaseEpoch = this._enemyPhaseEpoch;
+    const phaseSuperseded = () =>
+      phaseEpoch !== this._enemyPhaseEpoch || this.battleState === 'BATTLE_END';
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
@@ -9243,8 +9377,8 @@ export class BattleScene extends Phaser.Scene {
         if (this.battleState !== 'BATTLE_END') {
           this.applyReinforcementsForTurn(this.turnManager.turnNumber);
           this._reinforcementsPendingThisTurn = false;
-          this.checkBattleEnd();
-          if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+          const ended = this.checkBattleEnd();
+          if (!ended && this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
         }
         return;
       }
@@ -9257,19 +9391,19 @@ export class BattleScene extends Phaser.Scene {
           this.npcUnits,
           {
             onMoveUnit: (enemy, path) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.animateEnemyMove(enemy, path);
             },
             onStatusStaff: (enemy, target) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyStatusStaff(enemy, target);
             },
             onAttack: (enemy, target) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyCombat(enemy, target);
             },
             onBreak: (enemy, tile) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyBreak(enemy, tile);
             },
             onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
@@ -9283,13 +9417,22 @@ export class BattleScene extends Phaser.Scene {
         this.finalizeEnemyPhaseAiStats();
       }
 
-      // End enemy phase (skip if battle already ended during combat)
-      if (this.battleState !== 'BATTLE_END') {
+      // End enemy phase. Skip the whole tail when the battle ended, when a
+      // lord-death Vision prompt is pending (its outcome — rewind or defeat —
+      // supersedes the tail), or when a rewind already replaced this phase.
+      if (!phaseSuperseded() && !this.visionDialog) {
         await this.processTerrainDamage(this.enemyUnits);
-        this.applyReinforcementsForTurn(this.turnManager.turnNumber);
-        this._reinforcementsPendingThisTurn = false;
-        this.checkBattleEnd();
-        if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+        // Re-check after the await: terrain damage can kill Edric and open the
+        // Vision prompt, and a rewind clicked during the animations invalidates
+        // this phase entirely.
+        if (!phaseSuperseded() && !this.visionDialog) {
+          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          this._reinforcementsPendingThisTurn = false;
+          const ended = this.checkBattleEnd();
+          if (!ended && !phaseSuperseded() && !this.visionDialog) {
+            this.turnManager.endEnemyPhase();
+          }
+        }
       }
     } finally {
       this._reinforcementsPendingThisTurn = false;
@@ -9579,6 +9722,11 @@ export class BattleScene extends Phaser.Scene {
   // --- Win/lose ---
 
   checkBattleEnd() {
+    // Idempotence: once the battle has ended (or a lord-death Vision prompt is
+    // awaiting the player's decision) a late call from an in-flight pipeline
+    // must not re-trigger defeat or stack a second prompt.
+    if (this.battleState === 'BATTLE_END') return true;
+    if (this.visionDialog) return true;
     // Edric defeat = immediate loss (permadeath rule -- other lords can fall)
     const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {

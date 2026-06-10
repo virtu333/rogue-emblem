@@ -353,6 +353,25 @@ describe('MobileControls context stack', () => {
     ]);
   });
 
+  it('overlay_unit_detail context renders tab and unit cycling buttons', () => {
+    const events = createMockEvents();
+    const { documentMock, rightPanel } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_player_idle' });
+    events.emit('mobile:pushContext', { context: 'overlay_unit_detail' });
+
+    expect(rightPanel.children.map((c) => c.dataset.action)).toEqual([
+      'prevTab',
+      'nextTab',
+      'prevUnit',
+      'nextUnit',
+    ]);
+  });
+
   it('battle_selected keeps inspect hidden', () => {
     const events = createMockEvents();
     const { documentMock, rightPanel } = createMockMobileDom();
@@ -476,6 +495,43 @@ describe('Overlay show/hide idempotency', () => {
     overlay.show(unit, null);
     overlay.hide();
     expect(popCount).toBe(1);
+  });
+
+  it('UnitDetailOverlay pushes overlay_unit_detail and cycles units via mobile events', async () => {
+    const { UnitDetailOverlay } = await import('../src/ui/UnitDetailOverlay.js');
+    const pushed = [];
+    events.on('mobile:pushContext', (data) => pushed.push(data?.context));
+    const makeUnit = (name) => ({
+      name,
+      faction: 'player',
+      className: 'Myrmidon',
+      tier: 'base',
+      level: 1,
+      currentHP: 20,
+      stats: { HP: 20, STR: 5, MAG: 0, SKL: 5, SPD: 7, DEF: 3, RES: 2, LCK: 5, MOV: 5 },
+      inventory: [],
+      consumables: [],
+      skills: [],
+    });
+    const unitA = makeUnit('A');
+    const unitB = makeUnit('B');
+
+    const overlay = new UnitDetailOverlay(scene, null);
+    overlay.show(unitA, null, null, { rosterUnits: [unitA, unitB], rosterIndex: 0 });
+    expect(pushed).toEqual(['overlay_unit_detail']);
+
+    events.emit('mobile:nextUnit');
+    expect(overlay._rosterIndex).toBe(1);
+    events.emit('mobile:prevUnit');
+    expect(overlay._rosterIndex).toBe(0);
+
+    overlay.hide();
+    expect(popCount).toBe(1);
+
+    // Without roster cycling the overlay still uses the plain tab context
+    overlay.show(unitA, null);
+    expect(pushed).toEqual(['overlay_unit_detail', 'overlay_tabs']);
+    overlay.hide();
   });
 });
 

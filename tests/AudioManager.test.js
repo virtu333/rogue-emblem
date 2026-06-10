@@ -234,6 +234,30 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_home_base');
   });
 
+  it('same-key replay invalidates an older in-flight load for a different track', async () => {
+    // Regression: NodeMap music playing → shop opens (shop track starts an
+    // uncached load) → shop closes and NodeMap re-asserts its track before the
+    // load finishes. The early "already playing" return must invalidate the
+    // shop load, or shop music lands later and replaces the act track.
+    const sound = makeSoundManager({
+      loadedKeys: ['music_explore_act1'],
+      autoCompleteLoader: false,
+    });
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_explore_act1', sound.scene, 0);
+    expect(audio.currentMusicKey).toBe('music_explore_act1');
+
+    const shopLoad = audio.playMusic('music_shop', sound.scene, 0); // uncached, pending
+    await audio.playMusic('music_explore_act1', sound.scene, 0); // same-key early return
+
+    sound.scene.load._completeKey('music_shop'); // stale load finally lands
+    await shopLoad;
+
+    expect(audio.currentMusicKey).toBe('music_explore_act1');
+    expect(audio.currentMusic?.isPlaying).toBe(true);
+  });
+
   it('cancels in-flight music load when stopMusic is called before load completes', async () => {
     const sound = makeSoundManager({ autoCompleteLoader: false });
     const audio = new AudioManager(sound);
@@ -502,6 +526,90 @@ describe('AudioManager', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('volume slider changes apply mid-fade instead of losing to the tween', async () => {
+    // Regression: the fade tween used to animate toward the absolute volume
+    // captured at fade start, so moving the slider mid-fade was overwritten
+    // every frame and the music settled at the stale volume.
+    const sound = makeSoundManager({ loadedKeys: ['music_title'] });
+    const tweenConfigs = [];
+    sound.scene.tweens = {
+      add: vi.fn((config) => {
+        tweenConfigs.push(config);
+        return config;
+      }),
+      killTweensOf: vi.fn(),
+    };
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_title', sound.scene, 500);
+    const music = audio.currentMusic;
+    const proxy = music.__audioFadeProxy;
+    expect(proxy).toBeTruthy();
+    expect(tweenConfigs).toHaveLength(1);
+    const fadeIn = tweenConfigs[0];
+
+    // Halfway through the fade the user drops the volume slider.
+    proxy.value = 0.5;
+    fadeIn.onUpdate();
+    audio.setMusicVolume(0.4);
+
+    // The very next tween tick applies the NEW volume scaled by fade progress.
+    proxy.value = 0.6;
+    fadeIn.onUpdate();
+    expect(music.volume).toBeCloseTo(0.6 * audio._curve(0.4));
+
+    // Fade completion lands on the live slider volume, not the stale target.
+    proxy.value = 1;
+    fadeIn.onUpdate();
+    fadeIn.onComplete();
+    expect(music.volume).toBeCloseTo(audio._curve(0.4));
+    expect(music.__audioFadeProxy).toBe(null);
+
+    // After the fade, slider changes apply directly again.
+    audio.setMusicVolume(0.9);
+    expect(music.volume).toBeCloseTo(audio._curve(0.9));
+  });
+
+  it('setMusicVolume does not pop a fading sound to full volume', async () => {
+    const sound = makeSoundManager({ loadedKeys: ['music_title'] });
+    const tweenConfigs = [];
+    sound.scene.tweens = {
+      add: vi.fn((config) => {
+        tweenConfigs.push(config);
+        return config;
+      }),
+      killTweensOf: vi.fn(),
+    };
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_title', sound.scene, 500);
+    const music = audio.currentMusic;
+    const proxy = music.__audioFadeProxy;
+    proxy.value = 0.2;
+    tweenConfigs[0].onUpdate();
+    const midFadeVolume = music.volume;
+
+    audio.setMusicVolume(1);
+
+    // Direct set must be skipped; the tween rescales on its next update.
+    expect(music.volume).toBe(midFadeVolume);
+  });
+
+  it('watchdog leaves sounds that are already fading out alone', () => {
+    const current = makeLoopingSound('music_battle_act1_1');
+    const fadingOut = makeLoopingSound('music_explore_act1');
+    fadingOut.__audioStopped = true; // mid fade-out; cleanup already scheduled
+    const sound = makeSoundManager({ sounds: [current, fadingOut] });
+    const audio = new AudioManager(sound);
+    audio.currentMusic = current;
+    audio.currentMusicKey = 'music_battle_act1_1';
+
+    audio._runOverlapSweep();
+
+    expect(fadingOut.stop).not.toHaveBeenCalled();
+    expect(fadingOut.destroy).not.toHaveBeenCalled();
   });
 
   it('fade safety net force-destroys sound when tween onComplete never fires', () => {

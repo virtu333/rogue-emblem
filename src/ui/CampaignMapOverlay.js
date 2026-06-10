@@ -3,6 +3,7 @@
 
 import { ACT_CONFIG, NODE_TYPES } from '../utils/constants.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 
 const DEPTH_BG = 830;
 const DEPTH_PANEL = 831;
@@ -90,6 +91,13 @@ export class CampaignMapOverlay {
     this.visible = true;
     this._draw();
 
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'campaign_map',
+      onCancel: (event) => {
+        this._onEsc(null, event);
+        return true;
+      },
+    });
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
   }
@@ -293,6 +301,7 @@ export class CampaignMapOverlay {
   }
 
   _onEsc(_key, event) {
+    if (!isTopOverlay(this.scene, this._overlayToken)) return;
     if (!consumeEscEvent(this.scene, event)) return;
     this.hide();
   }
@@ -302,6 +311,8 @@ export class CampaignMapOverlay {
       this.escKey.off('down', this._onEsc, this);
       this.escKey = null;
     }
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     const wasVisible = this.visible;

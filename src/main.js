@@ -289,6 +289,33 @@ async function startCloudPull(userId, mode) {
   return result;
 }
 
+const BACKGROUND_REFETCH_TIMEOUT_MS = 10000;
+const BACKGROUND_REFETCH_MAX_ATTEMPTS = 3;
+const BACKGROUND_REFETCH_BACKOFF_MS = [2000, 4000];
+
+// The boot gate uses a short timeout so slow networks don't block startup, which
+// means the player can boot with stale/empty local slots. Keep retrying in the
+// background with realistic timeouts until a full fetch succeeds — the merge
+// guards in CloudSync make late application safe.
+async function backgroundCloudRefetch(userId, mode) {
+  for (let attempt = 1; attempt <= BACKGROUND_REFETCH_MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await fetchAllToLocalStorage(userId, {
+        timeoutMs: BACKGROUND_REFETCH_TIMEOUT_MS,
+      });
+      if (!result || result.rejectedCount === 0) {
+        markStartup('cloud_sync_background_complete', { mode, attempt });
+        return;
+      }
+    } catch (err) {
+      reportAsyncError(`cloud_sync_background_${mode}`, err, { mode, attempt });
+    }
+    const backoff = BACKGROUND_REFETCH_BACKOFF_MS[attempt - 1];
+    if (backoff != null) await new Promise((resolve) => setTimeout(resolve, backoff));
+  }
+  markStartup('cloud_sync_background_exhausted', { mode });
+}
+
 function bootGame(user) {
   if (hasGameBootStarted()) return false;
   // Ensure the guard is active at boot time even if a long pre-boot gate
@@ -400,12 +427,8 @@ if (!supabase) {
           markStartup('session_restore_ignored_after_boot');
           return;
         }
-        if (pullResult?.rejectedCount > 0) {
-          fetchAllToLocalStorage(session.user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch(
-            (err) => {
-              reportAsyncError('cloud_sync_background_session', err, { mode: 'session' });
-            },
-          );
+        if (!pullResult || pullResult.rejectedCount > 0) {
+          void backgroundCloudRefetch(session.user.id, 'session');
         }
       }
       // else: show auth overlay (already visible)
@@ -458,10 +481,8 @@ async function handleSubmit(e) {
       markStartup('cloud_sync_gate_fallback', { mode: 'login' });
     }
     const didBoot = bootGame(user);
-    if (didBoot && cloudPullResult?.rejectedCount > 0) {
-      fetchAllToLocalStorage(user.id, { timeoutMs: CLOUD_SYNC_TIMEOUT_MS }).catch((err) => {
-        reportAsyncError('cloud_sync_background_login', err, { mode: 'login' });
-      });
+    if (didBoot && (!cloudPullResult || cloudPullResult.rejectedCount > 0)) {
+      void backgroundCloudRefetch(user.id, 'login');
     }
   } catch (err) {
     startupViewportGuard.stop('auth_submit_error');

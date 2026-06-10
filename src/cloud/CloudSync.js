@@ -3,7 +3,13 @@
 // Stores per-slot data as { "1": {...}, "2": {...}, "3": {...} } in a single Supabase row.
 
 import { supabase } from './supabaseClient.js';
-import { getMetaKey, getRunClockFloorKey, getRunKey, MAX_SLOTS } from '../engine/SlotManager.js';
+import {
+  getMetaClockFloorKey,
+  getMetaKey,
+  getRunClockFloorKey,
+  getRunKey,
+  MAX_SLOTS,
+} from '../engine/SlotManager.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 
@@ -18,7 +24,9 @@ const FETCH_TIMEOUT_MS = 2000;
 const SLOT_WRITE_MAX_ATTEMPTS = 3;
 const AUTH_EXPIRED_USER_MESSAGE = 'Cloud sync unavailable: local saves only until re-auth.';
 const CLOUD_UPDATE_SLOT_CONFLICT_REMOTE_NEWER = 'cloud_update_slot_conflict_remote_newer';
+const CLOUD_UPDATE_SLOT_FRESH_LOCAL_BLOCKED = 'cloud_update_slot_fresh_local_blocked';
 const REMOTE_NEWER_WARN_SIGNATURE_LIMIT = 256;
+const FLUSH_QUEUE_TIMEOUT_MS = 6000;
 
 const cloudSyncStatus = {
   mode: 'ok',
@@ -232,8 +240,8 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
     .catch((e) => {
       const operation = slotData === null ? 'delete' : 'upsert';
       if (isRemoteNewerConflictError(e)) {
-        if (table === TABLES.run && Number.isFinite(e?.remoteSavedAt)) {
-          setRunClockFloorSavedAt(slot, e.remoteSavedAt);
+        if (Number.isFinite(e?.remoteSavedAt)) {
+          setClockFloorSavedAt(table, slot, e.remoteSavedAt);
         }
         warnRemoteNewerConflictOnce(userId, table, slot, e);
         reportCloudFailure(CLOUD_UPDATE_SLOT_CONFLICT_REMOTE_NEWER, e, {
@@ -243,6 +251,15 @@ async function updateSlotInTable(userId, table, slot, slotData, options = {}) {
           maxAttempts,
           localSavedAt: e?.localSavedAt ?? null,
           remoteSavedAt: e?.remoteSavedAt ?? null,
+        });
+        return;
+      }
+      if (isFreshLocalBlockedError(e)) {
+        reportCloudFailure(CLOUD_UPDATE_SLOT_FRESH_LOCAL_BLOCKED, e, {
+          table,
+          slot,
+          operation,
+          maxAttempts,
         });
         return;
       }
@@ -387,6 +404,47 @@ export function deleteSlotCloud(userId, slot) {
 const updateQueues = new Map();
 const remoteNewerWarnedSignatures = new Set();
 
+/**
+ * Wait for all in-flight cloud writes to settle, bounded by a timeout.
+ * Returns true when every queued write settled before the deadline.
+ * Used before destructive local operations (logout) so pending pushes
+ * are not lost with the local data they were backing up.
+ */
+export async function flushCloudSyncQueues(timeoutMs = FLUSH_QUEUE_TIMEOUT_MS) {
+  const pending = [...updateQueues.values()];
+  if (pending.length === 0) return true;
+  let timedOut = false;
+  await Promise.race([
+    Promise.allSettled(pending),
+    new Promise((resolve) =>
+      setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, timeoutMs),
+    ),
+  ]);
+  return !timedOut;
+}
+
+/**
+ * Queue a push of every locally stored slot (run + meta) to the cloud.
+ * The per-slot remote-newer guards still apply, so this can only fast-forward
+ * the cloud, never regress it. Call flushCloudSyncQueues() afterwards to wait.
+ */
+export function pushAllLocalSlots(userId) {
+  if (!supabase || !userId) return;
+  for (let i = 1; i <= MAX_SLOTS; i++) {
+    const metaState = readLocalJSONWithState(getMetaKey(i));
+    if (metaState.exists && !metaState.parseError && isCloudSlotPayload(metaState.value)) {
+      pushMeta(userId, i, metaState.value);
+    }
+    const runState = readLocalJSONWithState(getRunKey(i));
+    if (runState.exists && !runState.parseError && isCloudSlotPayload(runState.value)) {
+      pushRunSave(userId, i, runState.value);
+    }
+  }
+}
+
 export async function __flushCloudSyncQueuesForTests() {
   await Promise.allSettled([...updateQueues.values()]);
 }
@@ -421,9 +479,17 @@ function getSavedAt(slotData) {
   return Number.isFinite(ts) ? ts : null;
 }
 
-function getRunClockFloorSavedAt(slot) {
+function getClockFloorKeyForTable(table, slot) {
+  if (table === TABLES.run) return getRunClockFloorKey(slot);
+  if (table === TABLES.meta) return getMetaClockFloorKey(slot);
+  return null;
+}
+
+function getClockFloorSavedAt(table, slot) {
+  const key = getClockFloorKeyForTable(table, slot);
+  if (!key) return null;
   try {
-    const raw = localStorage.getItem(getRunClockFloorKey(slot));
+    const raw = localStorage.getItem(key);
     if (raw == null) return null;
     const value = Number(raw);
     return Number.isFinite(value) ? value : null;
@@ -432,10 +498,11 @@ function getRunClockFloorSavedAt(slot) {
   }
 }
 
-function setRunClockFloorSavedAt(slot, remoteSavedAt) {
+function setClockFloorSavedAt(table, slot, remoteSavedAt) {
   if (!Number.isFinite(remoteSavedAt)) return;
-  const key = getRunClockFloorKey(slot);
-  const existingFloor = getRunClockFloorSavedAt(slot);
+  const key = getClockFloorKeyForTable(table, slot);
+  if (!key) return;
+  const existingFloor = getClockFloorSavedAt(table, slot);
   const nextFloor = Number.isFinite(existingFloor)
     ? Math.max(existingFloor, remoteSavedAt)
     : remoteSavedAt;
@@ -446,9 +513,11 @@ function setRunClockFloorSavedAt(slot, remoteSavedAt) {
   }
 }
 
-function clearRunClockFloorSavedAt(slot) {
+function clearClockFloorSavedAt(table, slot) {
+  const key = getClockFloorKeyForTable(table, slot);
+  if (!key) return;
   try {
-    localStorage.removeItem(getRunClockFloorKey(slot));
+    localStorage.removeItem(key);
   } catch (_) {
     /* ignore */
   }
@@ -456,6 +525,38 @@ function clearRunClockFloorSavedAt(slot) {
 
 function isRemoteNewerConflictError(err) {
   return err?.code === 'CLOUD_CONFLICT_REMOTE_NEWER';
+}
+
+function isFreshLocalBlockedError(err) {
+  return err?.code === 'CLOUD_FRESH_LOCAL_BLOCKED';
+}
+
+/**
+ * A meta payload with no completed runs, no purchases, no milestones, and no
+ * banked currency is indistinguishable from a brand-new save. Used to block
+ * the empty-boot-clobbers-cloud failure mode.
+ */
+function isFreshMetaPayload(metaSlot) {
+  if (!isCloudSlotPayload(metaSlot)) return true;
+  if ((Number(metaSlot.runsCompleted) || 0) > 0) return false;
+  if (metaSlot.purchasedUpgrades && Object.keys(metaSlot.purchasedUpgrades).length > 0)
+    return false;
+  if (Array.isArray(metaSlot.milestones) && metaSlot.milestones.length > 0) return false;
+  const valor = Number(metaSlot.totalValor ?? metaSlot.totalRenown) || 0;
+  const supply = Number(metaSlot.totalSupply ?? metaSlot.totalRenown) || 0;
+  return valor <= 0 && supply <= 0;
+}
+
+function healLocalMetaFromRemote(slot, remoteSlot) {
+  const key = getMetaKey(slot);
+  try {
+    localStorage.setItem(key, JSON.stringify(remoteSlot));
+  } catch (e) {
+    console.warn('[CloudSync] localStorage write failed:', key, e);
+  }
+  if (Number.isFinite(remoteSlot?.savedAt)) {
+    setClockFloorSavedAt(TABLES.meta, slot, remoteSlot.savedAt);
+  }
 }
 
 function warnRemoteNewerConflictOnce(userId, table, slot, err) {
@@ -635,6 +736,26 @@ async function writeSlotWithRetry(userId, table, slot, slotData, maxAttempts) {
       err.remoteSavedAt = getSavedAt(remoteSlot);
       throw err;
     }
+    if (
+      table === TABLES.meta &&
+      slotData !== null &&
+      isCloudSlotPayload(remoteSlot) &&
+      isFreshMetaPayload(slotData) &&
+      !isFreshMetaPayload(remoteSlot)
+    ) {
+      // A zero-progress meta with a wall-clock-newer savedAt is the signature of a
+      // device that booted before the cloud fetch completed (timeout/offline) and
+      // started fresh. Never let it destroy real progression — heal local from the
+      // remote copy instead and surface a conflict.
+      healLocalMetaFromRemote(slot, remoteSlot);
+      const err = new Error('fresh local meta blocked from overwriting cloud progression');
+      err.code = 'CLOUD_FRESH_LOCAL_BLOCKED';
+      err.table = table;
+      err.slot = slot;
+      err.localSavedAt = getSavedAt(slotData);
+      err.remoteSavedAt = getSavedAt(remoteSlot);
+      throw err;
+    }
     if (slotData === null) {
       delete slotMap[String(slot)];
     } else {
@@ -666,7 +787,7 @@ async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttemp
   try {
     await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
     clearAuthExpiredStatusOnSuccess();
-    if (table === TABLES.run) clearRunClockFloorSavedAt(slot);
+    clearClockFloorSavedAt(table, slot);
     return;
   } catch (err) {
     const refreshed = await tryRefreshSessionAfterAuthError(err);
@@ -674,7 +795,7 @@ async function writeSlotWithAuthRefresh(userId, table, slot, slotData, maxAttemp
   }
   await writeSlotWithRetry(userId, table, slot, slotData, maxAttempts);
   clearAuthExpiredStatusOnSuccess();
-  if (table === TABLES.run) clearRunClockFloorSavedAt(slot);
+  clearClockFloorSavedAt(table, slot);
 }
 
 // Deterministic run winner policy:
@@ -696,12 +817,17 @@ export function shouldPreferLocalRun(localSlot, cloudSlot, slot = null) {
   return false;
 }
 
-// Prefer local meta when it has a newer timestamp than cloud.
-// If timestamps are missing on either side, prefer cloud for deterministic sync.
+// Deterministic meta winner policy (mirrors shouldPreferLocalRun):
+// - both valid timestamps => local wins only when strictly newer
+// - only one valid timestamp => valid side wins
+// - neither valid => cloud wins for deterministic sync
 export function shouldPreferLocalMeta(localSlot, cloudSlot) {
   if (!localSlot || !cloudSlot) return false;
   const localTs = getSavedAt(localSlot);
   const cloudTs = getSavedAt(cloudSlot);
-  if (!Number.isFinite(localTs) || !Number.isFinite(cloudTs)) return false;
-  return localTs > cloudTs;
+  const localValid = Number.isFinite(localTs);
+  const cloudValid = Number.isFinite(cloudTs);
+  if (localValid && cloudValid) return localTs > cloudTs;
+  if (localValid) return true;
+  return false;
 }

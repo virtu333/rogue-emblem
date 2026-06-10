@@ -354,7 +354,7 @@ describe('reclassUnit', () => {
     expect(unit.moveType).toBe('Armored');
   });
 
-  it('uses promotesFrom base class growths for promoted targets', () => {
+  it('uses promotesFrom base class growths plus promoted growthBonuses for promoted targets', () => {
     const unit = makeRecruit('Myrmidon', 10);
     const smClass = data.classes.find((c) => c.name === 'Swordmaster');
     promoteUnit(unit, smClass, smClass.promotionBonuses, data.skills);
@@ -364,9 +364,59 @@ describe('reclassUnit', () => {
 
     reclassUnit(unit, newClass, oldClass, data.classes, data.skills);
 
+    // General re-rolls from Knight's base ranges, then layers General's
+    // growthBonuses on top (matching promoteUnit's behavior).
     const knight = data.classes.find((c) => c.name === 'Knight');
-    expect(unit.growths.HP).toBeGreaterThanOrEqual(Number(knight.growthRanges.HP.split('-')[0]));
-    expect(unit.growths.HP).toBeLessThanOrEqual(Number(knight.growthRanges.HP.split('-')[1]));
+    const hpBonus = newClass.growthBonuses?.HP || 0;
+    expect(hpBonus).toBeGreaterThan(0); // guard: data still has the bonus
+    expect(unit.growths.HP).toBeGreaterThanOrEqual(
+      Number(knight.growthRanges.HP.split('-')[0]) + hpBonus,
+    );
+    expect(unit.growths.HP).toBeLessThanOrEqual(
+      Number(knight.growthRanges.HP.split('-')[1]) + hpBonus,
+    );
+  });
+
+  it('applies real stat deltas on promoted → promoted reclass (regression: was a silent no-op)', () => {
+    // Promoted classes carry no baseStats in classes.json; the old code diffed
+    // {} vs {} and changed nothing. Effective base = promotesFrom base + promotionBonuses.
+    const unit = makeRecruit('Myrmidon', 10);
+    const smClass = data.classes.find((c) => c.name === 'Swordmaster');
+    promoteUnit(unit, smClass, smClass.promotionBonuses, data.skills);
+
+    const statsBefore = { ...unit.stats };
+    const newClass = data.classes.find((c) => c.name === 'General');
+    reclassUnit(unit, newClass, smClass, data.classes, data.skills);
+
+    const myrm = data.classes.find((c) => c.name === 'Myrmidon');
+    const knight = data.classes.find((c) => c.name === 'Knight');
+    for (const stat of ['HP', 'STR', 'SPD', 'DEF', 'MOV']) {
+      const oldBase = (myrm.baseStats[stat] || 0) + (smClass.promotionBonuses[stat] || 0);
+      const newBase = (knight.baseStats[stat] || 0) + (newClass.promotionBonuses[stat] || 0);
+      const expected = Math.max(1, statsBefore[stat] + (newBase - oldBase));
+      expect(unit.stats[stat]).toBe(expected);
+    }
+    // A Swordmaster→General reclass must actually trade SPD for DEF.
+    expect(unit.stats.DEF).toBeGreaterThan(statsBefore.DEF);
+    expect(unit.stats.SPD).toBeLessThan(statsBefore.SPD);
+    expect(unit.mov).toBe(unit.stats.MOV);
+  });
+
+  it('base-tier reclass stat deltas are unchanged by the effective-base helper', () => {
+    const unit = makeRecruit('Myrmidon', 5);
+    const statsBefore = { ...unit.stats };
+    const oldClass = data.classes.find((c) => c.name === 'Myrmidon');
+    const newClass = data.classes.find((c) => c.name === 'Knight');
+
+    reclassUnit(unit, newClass, oldClass, data.classes, data.skills);
+
+    for (const stat of ['HP', 'STR', 'SPD', 'DEF', 'MOV']) {
+      const expected = Math.max(
+        1,
+        statsBefore[stat] + ((newClass.baseStats[stat] || 0) - (oldClass.baseStats[stat] || 0)),
+      );
+      expect(unit.stats[stat]).toBe(expected);
+    }
   });
 });
 

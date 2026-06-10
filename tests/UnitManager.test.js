@@ -311,6 +311,53 @@ describe('createPromotedEnemyUnit', () => {
       randomSpy.mockRestore();
     }
   });
+
+  // Regression: the inner createEnemyUnit call picks a weapon from the capped
+  // base level (≤12) with difficulty 1.0, which both denied promoted enemies
+  // Silver-tier weapons and silently dropped the difficulty equip shift.
+  it('equips Silver-tier weapons at spawn level 13+', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'Swordmaster');
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      15,
+      data.weapons,
+      1.0,
+      data.skills,
+      'act3',
+      data.classes,
+    );
+    expect(enemy.weapon?.tier).toBe('Silver');
+    expect(enemy.inventory).toContainEqual(enemy.weapon);
+  });
+
+  it('applies the difficulty equip tier shift to promoted enemies (act2+)', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'Swordmaster');
+    // Spawn level 9: base tier is Steel; Lunatic's +1 shift pushes to Silver.
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      9,
+      data.weapons,
+      { multiplier: 1.0, enemyEquipTierShift: 1 },
+      data.skills,
+      'act2',
+      data.classes,
+    );
+    expect(enemy.weapon?.tier).toBe('Silver');
+  });
+
+  it('does not apply the equip tier shift in act1', () => {
+    const promotedClass = data.classes.find((c) => c.name === 'Swordmaster');
+    const enemy = createPromotedEnemyUnit(
+      promotedClass,
+      9,
+      data.weapons,
+      { multiplier: 1.0, enemyEquipTierShift: 1 },
+      data.skills,
+      'act1',
+      data.classes,
+    );
+    expect(enemy.weapon?.tier).toBe('Steel');
+  });
 });
 
 describe('applyEnemyDifficultyModifiers', () => {

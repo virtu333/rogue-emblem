@@ -740,11 +740,13 @@ describe('BattleScene weapon art helpers', () => {
     scene.enemyUnits = [defender];
     scene.npcUnits = [];
     scene.grid = {
+      clearHighlights() {},
       clearAttackHighlights() {},
       getTerrainAt() {
         return {};
       },
     };
+    scene.registry = { get: () => null };
     scene.resetFortHealStreak = () => {};
     const seenHp = [];
     scene.buildSkillCtx = vi.fn((a) => {
@@ -835,11 +837,13 @@ describe('BattleScene weapon art helpers', () => {
     scene.enemyUnits = [defender];
     scene.npcUnits = [];
     scene.grid = {
+      clearHighlights() {},
       clearAttackHighlights() {},
       getTerrainAt() {
         return {};
       },
     };
+    scene.registry = { get: () => null };
     scene.resetFortHealStreak = () => {};
     scene.buildSkillCtx = vi.fn(() => ({}));
     scene.animateSkillActivation = vi.fn(async () => {});
@@ -906,11 +910,13 @@ describe('BattleScene weapon art helpers', () => {
     scene.enemyUnits = [defender];
     scene.npcUnits = [];
     scene.grid = {
+      clearHighlights() {},
       clearAttackHighlights() {},
       getTerrainAt() {
         return {};
       },
     };
+    scene.registry = { get: () => null };
     scene.resetFortHealStreak = () => {};
     scene.buildSkillCtx = vi.fn(() => ({}));
     scene.animateSkillActivation = vi.fn(async () => {});

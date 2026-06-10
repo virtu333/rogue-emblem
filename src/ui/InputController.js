@@ -201,6 +201,25 @@ export class InputController {
     this.onClick(pointer, clickPos);
   }
 
+  /**
+   * Release outside the canvas: reset touch/gesture state only. This must
+   * never fall through to onClick — an off-grid release reads as Cancel and
+   * closed menus/target selection on desktop drag-out (the same bug was fixed
+   * separately in NodeMapScene and HomeBaseScene; BattleScene routed
+   * pointerupoutside to onPointerUp until now).
+   */
+  onPointerUpOutside(pointer) {
+    const scene = this.scene;
+    if (scene._isTouchPointer(pointer)) {
+      const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());
+      scene._cameraGestureTapSuppressed = true;
+      if (hadTouches) scene._syncMobileResetViewButton();
+    }
+    this.cancelTouchInspectHold();
+    scene._touchTapDown = null;
+    scene._touchHoldTriggered = false;
+  }
+
   onRightClick(pointer) {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return;
@@ -312,11 +331,26 @@ export class InputController {
       scene.grid.clearHighlights();
       scene.grid.clearAttackHighlights();
       scene.selectUnit(unit);
-    } else {
-      scene.inspectionPanel.hide();
-      scene.grid.clearHighlights();
-      scene.grid.clearAttackHighlights();
+      return;
     }
+    // Mobile: touch has no hover or right-click, so a plain tap on a visible
+    // non-player unit toggles its inspection panel + threat range
+    if (
+      scene.isMobileInput &&
+      unit &&
+      unit.faction !== 'player' &&
+      !(scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row))
+    ) {
+      if (scene.inspectionPanel?.visible && scene.inspectionPanel._unit === unit) {
+        this.clearInspectionVisuals();
+        return;
+      }
+      const { x, y } = scene.grid.gridToPixel(gp.col, gp.row);
+      if (this._showInspectionAtPixel(x, y)) return;
+    }
+    scene.inspectionPanel.hide();
+    scene.grid.clearHighlights();
+    scene.grid.clearAttackHighlights();
   }
 
   handleSelectedClick(gp) {

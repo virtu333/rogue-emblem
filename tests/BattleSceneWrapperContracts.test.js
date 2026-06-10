@@ -28,14 +28,16 @@ vi.mock('../src/engine/LootSystem.js', async () => {
   };
 });
 
-const { transitionToSceneMock } = vi.hoisted(() => ({
+const { transitionToSceneMock, transitionWithBlockedRetryMock } = vi.hoisted(() => ({
   transitionToSceneMock: vi.fn(async () => true),
+  transitionWithBlockedRetryMock: vi.fn(async () => ({ status: 'started' })),
 }));
 vi.mock('../src/utils/SceneRouter.js', async () => {
   const actual = await vi.importActual('../src/utils/SceneRouter.js');
   return {
     ...actual,
     transitionToScene: transitionToSceneMock,
+    transitionToSceneWithBlockedRetry: transitionWithBlockedRetryMock,
   };
 });
 
@@ -1185,7 +1187,7 @@ describe('BattleScene shim delegation contracts', () => {
     it('Save & Return falls back to scene.start when transitionToScene hangs', async () => {
       vi.useFakeTimers();
       try {
-        transitionToSceneMock.mockImplementation(() => new Promise(() => {}));
+        transitionWithBlockedRetryMock.mockImplementation(() => new Promise(() => {}));
         const scene = makeScene();
         scene.scene = { start: vi.fn() };
         scene.playerUnits = [];
@@ -1199,11 +1201,12 @@ describe('BattleScene shim delegation contracts', () => {
         await vi.advanceTimersByTimeAsync(6100);
         await exitPromise;
 
-        expect(transitionToSceneMock).toHaveBeenCalledTimes(1);
+        expect(transitionWithBlockedRetryMock).toHaveBeenCalledTimes(1);
         expect(scene.scene.start).toHaveBeenCalledWith('Title', { gameData: scene.gameData });
         expect(scene.showPauseTransitionRecovery).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
+        transitionWithBlockedRetryMock.mockImplementation(async () => ({ status: 'started' }));
       }
     });
   });

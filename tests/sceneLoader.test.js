@@ -3,7 +3,9 @@ import {
   __resetSceneLoaderForTests,
   resetTransitionLocks,
   startSceneLazy,
+  startSceneLazyDetailed,
   TRANSITION_REASONS,
+  TRANSITION_RESULTS,
 } from '../src/utils/sceneLoader.js';
 
 function makeScene({ active = true, key = null } = {}) {
@@ -244,6 +246,68 @@ describe('sceneLoader.startSceneLazy', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('detailed: reports STARTED on success', async () => {
+    const scene = makeScene({ active: true });
+    const result = await startSceneLazyDetailed(scene, 'Title', { foo: 1 });
+
+    expect(result.status).toBe(TRANSITION_RESULTS.STARTED);
+    expect(scene.scene.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('detailed: distinguishes cooldown block from failure', async () => {
+    vi.useFakeTimers();
+    try {
+      const scene = makeScene({ active: true });
+      await startSceneLazyDetailed(scene, 'Title', {});
+      scene.__emitLifecycle('shutdown'); // releases lock, cooldown still active
+
+      const result = await startSceneLazyDetailed(scene, 'HomeBase', {});
+      expect(result.status).toBe(TRANSITION_RESULTS.BLOCKED);
+      expect(result.blockReason).toBe('cooldown');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('detailed: reports scene and global in-flight blocks', async () => {
+    const sceneA = makeScene({ active: true });
+    sceneA.__startSceneLazyInFlight = true;
+    const ownBlock = await startSceneLazyDetailed(sceneA, 'Title', {});
+    expect(ownBlock.status).toBe(TRANSITION_RESULTS.BLOCKED);
+    expect(ownBlock.blockReason).toBe('scene_inflight');
+
+    __resetSceneLoaderForTests();
+    vi.useFakeTimers();
+    try {
+      const starter = makeScene({ active: true });
+      await startSceneLazyDetailed(starter, 'Title', {});
+      // Past the 350ms cooldown but inside the 700ms global lock window.
+      await vi.advanceTimersByTimeAsync(400);
+      const other = makeScene({ active: true });
+      const globalBlock = await startSceneLazyDetailed(other, 'HomeBase', {});
+      expect(globalBlock.status).toBe(TRANSITION_RESULTS.BLOCKED);
+      expect(globalBlock.blockReason).toBe('global_inflight');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('detailed: reports inactive source as BLOCKED, start errors as FAILED', async () => {
+    const inactive = makeScene({ active: false });
+    const inactiveResult = await startSceneLazyDetailed(inactive, 'Title', {});
+    expect(inactiveResult.status).toBe(TRANSITION_RESULTS.BLOCKED);
+    expect(inactiveResult.blockReason).toBe('inactive_source');
+
+    __resetSceneLoaderForTests();
+    const broken = makeScene({ active: true });
+    broken.scene.start.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const failedResult = await startSceneLazyDetailed(broken, 'Title', {});
+    expect(failedResult.status).toBe(TRANSITION_RESULTS.FAILED);
+    expect(failedResult.blockReason).toBeUndefined();
   });
 
   it('resetTransitionLocks clears global lock so a blocked transition can proceed', async () => {

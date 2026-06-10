@@ -258,6 +258,7 @@ describe('BattleScene reinforcement reward scaling', () => {
     scene.startEnemyPhase = vi.fn(() => {
       order.push('startEnemyPhase');
     });
+    scene.turnManager = { currentPhase: 'enemy', turnNumber: 4 };
 
     let enemyPhaseCallback = null;
     scene.time = {
@@ -297,6 +298,7 @@ describe('BattleScene reinforcement reward scaling', () => {
           resolveEnemyPhase = resolve;
         }),
     );
+    scene.turnManager = { currentPhase: 'enemy', turnNumber: 4 };
 
     let enemyPhaseCallback = null;
     scene.time = {

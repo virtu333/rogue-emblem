@@ -36,7 +36,13 @@ export class AudioManager {
         const active = this._getLoopingMusicSounds();
         const hasOverlap = active.some((sound) => sound !== this.currentMusic);
         const sameOwner = !owner || !this.currentMusicOwner || this.currentMusicOwner === owner;
-        if (sameOwner && !hasOverlap) return;
+        if (sameOwner && !hasOverlap) {
+          // Invalidate any in-flight load for a DIFFERENT track: "keep playing
+          // X" must supersede an older "switch to Y" request still loading,
+          // or Y lands later and replaces X (rapid shop open/close race).
+          this._musicRequestSeq++;
+          return;
+        }
         this.stopAllMusic(scene, 0);
       }
 
@@ -87,7 +93,7 @@ export class AudioManager {
       this.currentMusic.play();
 
       if (fadeMs > 0 && scene?.tweens) {
-        this._tweenSoundVolume(scene, this.currentMusic, 0, this._curve(this.musicVolume), fadeMs);
+        this._tweenSoundVolume(scene, this.currentMusic, 0, 1, fadeMs);
       }
     } catch (err) {
       // Never surface async audio errors to scene callers (fire-and-forget usage).
@@ -443,6 +449,8 @@ export class AudioManager {
     this._killSoundTweens(scene, sound);
     if (!alreadyStopped && fadeMs > 0 && scene?.tweens) {
       const startVolume = this._readSoundVolume(sound);
+      const fullVolume = this._curve(this.musicVolume);
+      const startRatio = fullVolume > 0 ? Math.min(1, startVolume / fullVolume) : 0;
       let fadeCompleted = false;
       const cleanup = () => {
         if (fadeCompleted) return;
@@ -455,7 +463,7 @@ export class AudioManager {
           sound.destroy();
         } catch (_) {}
       };
-      this._tweenSoundVolume(scene, sound, startVolume, 0, fadeMs, cleanup);
+      this._tweenSoundVolume(scene, sound, startRatio, 0, fadeMs, cleanup);
       // Safety net: force-destroy if tween's onComplete never fires (e.g. scene destroyed mid-fade)
       setTimeout(cleanup, fadeMs + 500);
       return;
@@ -487,27 +495,33 @@ export class AudioManager {
       if (fadeProxy && scene?.tweens && typeof scene.tweens.killTweensOf === 'function') {
         scene.tweens.killTweensOf(fadeProxy);
       }
+      // Clear the proxy so setMusicVolume doesn't skip this sound forever.
+      if (fadeProxy) sound.__audioFadeProxy = null;
     } catch (_) {}
   }
 
-  _tweenSoundVolume(scene, sound, from, to, duration, onComplete = null) {
+  /**
+   * Fade a music sound between volume ratios (0..1 of the live music volume).
+   * The tween animates a ratio rather than an absolute volume so mid-fade
+   * volume-slider changes apply immediately instead of losing to the tween.
+   */
+  _tweenSoundVolume(scene, sound, fromRatio, toRatio, duration, onComplete = null) {
     if (!scene?.tweens || !sound || typeof sound.setVolume !== 'function') return;
     this._killSoundTweens(scene, sound);
-    const proxy = { value: from };
+    const proxy = { value: fromRatio };
     sound.__audioFadeProxy = proxy;
-    try {
-      sound.setVolume(from);
-    } catch (_) {}
+    const applyVolume = () => {
+      try {
+        if (sound.__audioStopped && toRatio > 0) return;
+        sound.setVolume(proxy.value * this._curve(this.musicVolume));
+      } catch (_) {}
+    };
+    applyVolume();
     scene.tweens.add({
       targets: proxy,
-      value: to,
+      value: toRatio,
       duration,
-      onUpdate: () => {
-        try {
-          if (sound.__audioStopped && to > 0) return;
-          sound.setVolume(proxy.value);
-        } catch (_) {}
-      },
+      onUpdate: applyVolume,
       onComplete: () => {
         if (sound.__audioFadeProxy === proxy) {
           sound.__audioFadeProxy = null;
@@ -536,6 +550,9 @@ export class AudioManager {
     const active = this._getLoopingMusicSounds();
     for (const sound of active) {
       if (sound === this.currentMusic) continue;
+      // Already stopping (likely mid fade-out) -- its cleanup is scheduled;
+      // hard-cutting here would audibly clip legitimate fades.
+      if (sound.__audioStopped) continue;
       if (this.debugMusic) {
         console.warn('[AudioManager] watchdog killing orphan:', sound.key);
       }
@@ -555,6 +572,9 @@ export class AudioManager {
     const nextVolume = this._curve(this.musicVolume);
     for (const sound of this._getLoopingMusicSounds()) {
       try {
+        // Mid-fade sounds rescale on the tween's next update; setting the full
+        // volume here would pop them to 100% for a frame.
+        if (sound.__audioFadeProxy) continue;
         if (typeof sound.setVolume === 'function') sound.setVolume(nextVolume);
       } catch (_) {}
     }

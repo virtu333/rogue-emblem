@@ -3,6 +3,7 @@
 
 import { HELP_TABS } from '../data/helpContent.js';
 import { consumeEscEvent } from '../utils/escPriority.js';
+import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.js';
 
 const DEPTH_BG = 860;
 const DEPTH_PANEL = 861;
@@ -36,7 +37,14 @@ export class HelpOverlay {
     this._buildSearchIndex();
     this._draw();
 
-    // ESC to close
+    // ESC to close (only acts while top of the scene's overlay stack)
+    this._overlayToken = pushOverlay(this.scene, {
+      name: 'help',
+      onCancel: (event) => {
+        this._onEsc(null, event);
+        return true;
+      },
+    });
     this.escKey = this.scene.input.keyboard.addKey('ESC');
     this.escKey.on('down', this._onEsc, this);
     if (this.scene.input?.keyboard?.on) {
@@ -100,6 +108,7 @@ export class HelpOverlay {
   }
 
   _onEsc(_key, event) {
+    if (!isTopOverlay(this.scene, this._overlayToken)) return;
     if (!consumeEscEvent(this.scene, event)) return;
     if (this.searchInputActive) {
       this.searchInputActive = false;
@@ -509,6 +518,8 @@ export class HelpOverlay {
       this.scene.input.keyboard.off('keydown', this._keyboardSearchHandler);
       this._keyboardSearchHandler = null;
     }
+    removeOverlay(this.scene, this._overlayToken);
+    this._overlayToken = null;
     for (const obj of this.objects) obj.destroy();
     this.objects = [];
     this.visible = false;
