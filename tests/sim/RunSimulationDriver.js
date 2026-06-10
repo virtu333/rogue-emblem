@@ -209,7 +209,9 @@ export class RunSimulationDriver {
         return { result: 'timeout', reason: 'battle_action_budget_exhausted' };
       }
 
-      const survivors = driver.battle.playerUnits.map(cloneUnit);
+      const survivors = [...driver.battle.playerUnits, ...(driver.battle.escapedUnits || [])].map(
+        cloneUnit,
+      );
       const bench = fullRoster.filter((unit) => !deployedKeys.has(keyForUnit(unit)));
       const merged = [...survivors, ...bench];
       this.runManager.completeBattle(merged, node.id, driver.battle.goldEarned || 0);
@@ -234,7 +236,9 @@ export class RunSimulationDriver {
 
     this.metrics.victories++;
 
-    const survivors = driver.battle.playerUnits.map(cloneUnit);
+    const survivors = [...driver.battle.playerUnits, ...(driver.battle.escapedUnits || [])].map(
+      cloneUnit,
+    );
     const bench = fullRoster.filter((unit) => !deployedKeys.has(keyForUnit(unit)));
     const merged = [...survivors, ...bench];
 

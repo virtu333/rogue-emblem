@@ -213,6 +213,64 @@ export function getDueReinforcementWaves({
   return due;
 }
 
+// Repeating waves (pursuit pressure on escape maps): spawn on a fixed cadence
+// with no end turn, so the map can never be farmed clean. No jitter — the
+// cadence itself is the contract. Capped by maxActiveEnemies so a stalled
+// battle cannot grow without bound.
+const REPEATING_WAVE_DEFAULT_MAX_ACTIVE = 20;
+const REPEATING_WAVE_INDEX_BASE = 1000;
+
+function getRepeatingWaveXpMultiplier(reinforcements, repeatingWave) {
+  if (Number.isFinite(repeatingWave?.xpMultiplier)) return repeatingWave.xpMultiplier;
+  const xpDecay = Array.isArray(reinforcements?.xpDecay) ? reinforcements.xpDecay : null;
+  if (!xpDecay || xpDecay.length === 0) return 1.0;
+  return xpDecay[xpDecay.length - 1];
+}
+
+export function getDueRepeatingReinforcementWaves({
+  turn,
+  reinforcements,
+  difficultyId = 'normal',
+  difficultyTurnOffset = 0,
+  activeEnemyCount = 0,
+} = {}) {
+  const currentTurn = normalizeInteger(turn, 0);
+  if (currentTurn <= 0 || !reinforcements || !Array.isArray(reinforcements.repeatingWaves))
+    return [];
+
+  const globalOffset = normalizeInteger(difficultyTurnOffset, 0);
+  const templateOffset = getTemplateTurnOffset(reinforcements, difficultyId);
+  const totalOffset = globalOffset + templateOffset;
+  const enemyCount = Math.max(0, normalizeInteger(activeEnemyCount, 0));
+
+  const due = [];
+  for (let defIndex = 0; defIndex < reinforcements.repeatingWaves.length; defIndex++) {
+    const wave = reinforcements.repeatingWaves[defIndex];
+    const startTurn = normalizeInteger(wave?.startTurn, 0);
+    const every = normalizeInteger(wave?.every, 0);
+    if (startTurn <= 0 || every <= 0) continue;
+
+    const effectiveStart = Math.max(1, startTurn + totalOffset);
+    if (currentTurn < effectiveStart || (currentTurn - effectiveStart) % every !== 0) continue;
+
+    const maxActive = Number.isFinite(wave?.maxActiveEnemies)
+      ? Math.max(1, Math.trunc(wave.maxActiveEnemies))
+      : REPEATING_WAVE_DEFAULT_MAX_ACTIVE;
+    if (enemyCount >= maxActive) continue;
+
+    const occurrence = (currentTurn - effectiveStart) / every;
+    due.push({
+      waveType: 'repeating',
+      waveIndex: REPEATING_WAVE_INDEX_BASE + defIndex * 100 + occurrence,
+      baseTurn: startTurn,
+      scheduledTurn: currentTurn,
+      wave,
+      xpMultiplier: getRepeatingWaveXpMultiplier(reinforcements, wave),
+    });
+  }
+  return due;
+}
+
 function getDueScriptedReinforcementWaves({
   turn,
   reinforcements,
@@ -303,6 +361,7 @@ export function scheduleReinforcementsForTurn({
   difficultyId = 'normal',
   difficultyTurnOffset = 0,
   enemyCountBonus = 0,
+  activeEnemyCount = 0,
 } = {}) {
   const dueWaves = getDueReinforcementWaves({
     turn,
@@ -317,7 +376,14 @@ export function scheduleReinforcementsForTurn({
     difficultyId,
     difficultyTurnOffset,
   });
-  if (dueWaves.length === 0 && dueScriptedWaves.length === 0) {
+  const dueRepeatingWaves = getDueRepeatingReinforcementWaves({
+    turn,
+    reinforcements,
+    difficultyId,
+    difficultyTurnOffset,
+    activeEnemyCount,
+  });
+  if (dueWaves.length === 0 && dueScriptedWaves.length === 0 && dueRepeatingWaves.length === 0) {
     return { spawns: [], dueWaves: [], blockedSpawns: 0 };
   }
 
@@ -383,7 +449,8 @@ export function scheduleReinforcementsForTurn({
     });
   }
 
-  for (const due of dueWaves) {
+  for (const due of [...dueWaves, ...dueRepeatingWaves]) {
+    const waveType = due.waveType || 'procedural';
     const edges = resolveWaveEdges(reinforcements, due.wave);
     const scaledCountBonus = reinforcements?.difficultyScaling
       ? normalizeInteger(enemyCountBonus, 0)
@@ -425,6 +492,7 @@ export function scheduleReinforcementsForTurn({
         col: chosenTile.col,
         row: chosenTile.row,
         edge: chosenEdge,
+        waveType,
         waveIndex: due.waveIndex,
         scheduledTurn: due.scheduledTurn,
         xpMultiplier: due.xpMultiplier,
@@ -434,7 +502,7 @@ export function scheduleReinforcementsForTurn({
     }
 
     waveResults.push({
-      waveType: 'procedural',
+      waveType,
       waveIndex: due.waveIndex,
       scheduledTurn: due.scheduledTurn,
       xpMultiplier: due.xpMultiplier,

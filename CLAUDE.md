@@ -42,7 +42,7 @@ emblem-rogue/
 │   ├── lords.json         # 7 lord characters with stats/growths/promotions
 │   ├── lootTables.json    # Per-act loot pools with weighted categories
 │   ├── mapSizes.json      # 10 map size templates by act/phase
-│   ├── mapTemplates.json  # 16 zone-based templates (8 rout, 8 seize) incl. tundra/volcanic/castle
+│   ├── mapTemplates.json  # 20 zone-based templates (9 rout, 8 seize, 3 escape) incl. tundra/volcanic/castle
 │   ├── mechanicsReference.json # In-game help: combat formulas, weapon ranks
 │   ├── metaUpgrades.json  # 60 tiered upgrades in 6 categories
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
@@ -64,7 +64,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4111 tests across 217 files + harness/ + e2e/
+├── tests/                 # Vitest: 4143 tests across 218 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -85,7 +85,7 @@ Read the JSON files directly for full schemas. Non-obvious behaviors:
 - **enemies.json** — Act 1 `levelRange` overridden per-node by `ACT_LEVEL_SCALING` in NodeMapGenerator.js (row 0: `[1,1]`, row 1: `[1,2]`, row 2: `[1,3]`, default: `[2,3]`).
 - **recruits.json** — `levelRange` overridden at spawn. Recruit scaling is Edric-anchored (see `RecruitScaling.js`), not simple lord-level mirroring.
 - **colosseum.json** — `crossActPoolAccess: true` pulls next-act recruit classes into merc generation. This means act2 can draw promoted act3 classes and must use promote-path handling.
-- **mapTemplates.json** — Castle templates (corridor_siege, castle_ruins, great_hall) gated to act2+ via `"acts"` field.
+- **mapTemplates.json** — Castle templates (corridor_siege, castle_ruins, great_hall) gated to act2+ via `"acts"` field. Escape templates require an `escapeZone` and use endless `repeatingWaves` pursuit reinforcements (active on Normal too — they ARE the objective pressure).
 - **affixes.json** — `difficultyGating`: Normal=0%, Hard=12% chance/1 max, Lunatic=30%/2 max. Mutual exclusion + class exclusion rules enforced by AffixEngine.
 - **turnBonus.json** — Par formula uses sqrt enemy scaling (capped at linear), area/terrain penalties, then `*0.8` and optional difficulty multiplier. See `TurnBonusCalculator.js:calculatePar()` for current logic. Late pressure: XP/gold decay at 5+ turns over par; boss enrage at turn 12 or 5 over par.
 - **whetstones.json** — Applied immediately on loot pickup, never enter inventory.
@@ -138,7 +138,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 4111 tests across 217 files (Jun 10 2026). Covers all engine systems.
+- **Coverage:** 4143 tests across 218 files (Jun 10 2026). Covers all engine systems.
 - **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 

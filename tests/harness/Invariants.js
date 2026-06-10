@@ -91,7 +91,7 @@ export function checkInvariants(driver, context = {}) {
   }
 
   // 9. Objective consistency
-  if (!['rout', 'seize'].includes(b.battleConfig?.objective)) {
+  if (!['rout', 'seize', 'escape'].includes(b.battleConfig?.objective)) {
     errors.push(`objective_consistency: unsupported objective "${b.battleConfig?.objective}"`);
   }
   if (b.result === 'victory') {
@@ -111,9 +111,18 @@ export function checkInvariants(driver, context = {}) {
         errors.push('objective_consistency: seize victory without lord on throne');
       }
     }
+    if (b.battleConfig?.objective === 'escape') {
+      const edricEscaped = (b.escapedUnits || []).some((u) => u.name === 'Edric');
+      const lordOnField = b.playerUnits.some((u) => u.isLord);
+      if (!edricEscaped || lordOnField) {
+        errors.push('objective_consistency: escape victory without all living lords escaped');
+      }
+    }
   }
   if (b.result === 'defeat') {
-    const edricAlive = b.playerUnits.some((u) => u.name === 'Edric');
+    const edricAlive =
+      b.playerUnits.some((u) => u.name === 'Edric') ||
+      (b.escapedUnits || []).some((u) => u.name === 'Edric');
     if (edricAlive && b.playerUnits.length > 0) {
       errors.push(
         'objective_consistency: defeat result while Edric and player units are still alive',

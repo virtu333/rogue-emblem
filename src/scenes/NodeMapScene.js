@@ -1414,7 +1414,8 @@ export class NodeMapScene extends Phaser.Scene {
     } else if (node.type === NODE_TYPES.COLOSSEUM) {
       label = 'Colosseum - Arena and Mercenary Board';
     } else if (node.battleParams?.isElite) {
-      label = 'Elite Battle (Seize) — Harder fight, better loot';
+      const eliteObj = node.battleParams?.objective === 'escape' ? 'Escape' : 'Seize';
+      label = `Elite Battle (${eliteObj}) — Harder fight, better loot`;
     } else {
       const obj = node.battleParams?.objective || 'rout';
       label = `Battle (${obj})`;

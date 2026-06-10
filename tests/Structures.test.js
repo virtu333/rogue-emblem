@@ -611,6 +611,13 @@ describe('Structure validation in MapTemplateEngine', () => {
         },
       ],
       seize: [{ id: 'test2', zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }] }],
+      escape: [
+        {
+          id: 'test3',
+          zones: [{ rect: [0, 0, 1, 1], terrain: { Plain: 100 } }],
+          escapeZone: { rect: [0.9, 0.3, 1, 0.7] },
+        },
+      ],
     };
     const result = validateMapTemplatesConfig(config);
     expect(result.errors).toEqual([]);

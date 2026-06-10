@@ -110,6 +110,8 @@ export class VisionRewindController {
       playerUnits: scene.playerUnits.map(stripVisuals),
       enemyUnits: scene.enemyUnits.map(stripVisuals),
       npcUnits: scene.npcUnits.map(stripVisuals),
+      escapedUnits: (scene.escapedUnits || []).map(stripVisuals),
+      goldEarned: scene.goldEarned || 0,
       turnNumber: scene.turnManager?.turnNumber || 1,
       phase: scene.turnManager?.currentPhase || 'player',
       turnPar: scene.turnPar,
@@ -161,6 +163,14 @@ export class VisionRewindController {
     restoreUnits(scene.playerUnits, scene.visionSnapshot.playerUnits);
     restoreUnits(scene.enemyUnits, scene.visionSnapshot.enemyUnits);
     restoreUnits(scene.npcUnits, scene.visionSnapshot.npcUnits);
+    // Off-field escapees rewind too (a unit that escaped this turn returns to
+    // the field via playerUnits above), along with the turn's earned gold.
+    if (Array.isArray(scene.visionSnapshot.escapedUnits)) {
+      scene.escapedUnits = scene.visionSnapshot.escapedUnits.map((u) => structuredClone(u));
+    }
+    if (Number.isFinite(scene.visionSnapshot.goldEarned)) {
+      scene.goldEarned = scene.visionSnapshot.goldEarned;
+    }
 
     scene.selectedUnit = null;
     scene.preMoveLoc = null;

@@ -17,11 +17,13 @@
   ],
   "objectiveBasePar": {
     "rout": 2,
-    "seize": 4
+    "seize": 4,
+    "escape": 4
   },
   "objectiveAdjustments": {
     "rout": 0,
-    "seize": 1
+    "seize": 1,
+    "escape": 1
   },
   "brackets": [
     {

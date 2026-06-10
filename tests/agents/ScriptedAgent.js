@@ -10,11 +10,15 @@ export class ScriptedAgent {
   chooseAction(legalActions) {
     if (legalActions.length === 0) return null;
 
-    // Priority 1: Seize (win condition)
+    // Priority 1: Seize / Escape (win-condition actions)
     const seize = legalActions.find(
       (a) => a.type === 'choose_action' && a.payload.label === 'Seize',
     );
     if (seize) return seize;
+    const escape = legalActions.find(
+      (a) => a.type === 'choose_action' && a.payload.label === 'Escape',
+    );
+    if (escape) return escape;
 
     // Priority 2: Attack that kills (forecast HP <= 0)
     const kills = this._findKillTargets(legalActions);
@@ -72,10 +76,22 @@ export class ScriptedAgent {
     );
     if (talkAction) return talkAction;
 
-    // Priority 7: Move toward nearest enemy
+    // Priority 7: Move toward the objective (escape squares on escape maps,
+    // otherwise the nearest enemy)
     const moves = legalActions.filter((a) => a.type === 'move_to');
     if (moves.length > 0) {
-      const unit = this.driver.battle.selectedUnit;
+      const b = this.driver.battle;
+      const unit = b.selectedUnit;
+      if (unit && b.battleConfig?.objective === 'escape' && b.battleConfig?.escapeTiles?.length) {
+        const tiles = b.battleConfig.escapeTiles;
+        const distToExit = (col, row) =>
+          Math.min(...tiles.map((t) => gridDistance(col, row, t.col, t.row)));
+        moves.sort(
+          (a, c) =>
+            distToExit(a.payload.col, a.payload.row) - distToExit(c.payload.col, c.payload.row),
+        );
+        return moves[0];
+      }
       if (unit) {
         const nearestEnemy = this._findNearestEnemy(unit);
         if (nearestEnemy) {
@@ -120,8 +136,9 @@ export class ScriptedAgent {
           const d = gridDistance(unit.col, unit.row, e.col, e.row);
           if (d < minDist) minDist = d;
         }
-        // Lords get priority on seize maps
-        const lordBonus = b.battleConfig.objective === 'seize' && unit.isLord ? -100 : 0;
+        // Lords get priority on seize/escape maps (they carry the win condition)
+        const lordBonus =
+          ['seize', 'escape'].includes(b.battleConfig.objective) && unit.isLord ? -100 : 0;
         return { action: a, score: minDist + lordBonus };
       });
       scored.sort((a, b) => a.score - b.score);

@@ -244,9 +244,19 @@ export function generateBattle(params, deps) {
     }
   }
 
-  // 8. Ensure reachability from player spawn to all enemies + throne + NPC
+  // 7c. Escape squares for the Escape objective
+  let escapeTiles = null;
+  if (objective === 'escape') {
+    escapeTiles = placeEscapeTiles(mapLayout, template, cols, rows, terrain, playerSpawns, biome);
+    if (!escapeTiles || escapeTiles.length === 0) {
+      throw new Error(`Escape template "${template.id}" produced no escape tiles`);
+    }
+  }
+
+  // 8. Ensure reachability from player spawn to all enemies + throne + NPC + exits
   const reachTargets = [...enemySpawns];
   if (npcSpawn) reachTargets.push(npcSpawn);
+  if (escapeTiles) reachTargets.push(...escapeTiles);
   ensureReachability(
     mapLayout,
     cols,
@@ -280,6 +290,7 @@ export function generateBattle(params, deps) {
     npcSpawn,
     objective,
     thronePos,
+    escapeTiles,
     biome,
   });
 
@@ -299,6 +310,7 @@ export function generateBattle(params, deps) {
     enemySpawns,
     npcSpawn,
     thronePos,
+    escapeTiles: escapeTiles || undefined,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
     parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
@@ -1107,6 +1119,57 @@ function resolveFeaturePosition(position, cols, rows, template) {
     default:
       return { col: Math.floor(cols / 2), row: Math.floor(rows / 2) };
   }
+}
+
+// --- Escape square placement ---
+
+/**
+ * Place the escape squares for an Escape-objective map inside the template's
+ * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
+ * edge), spreads multiple squares apart, and forces the terrain under each
+ * pick to be passable so the exit can always be stood on.
+ */
+function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSpawns, biome) {
+  const zone = template.escapeZone || {};
+  const rect = Array.isArray(zone.rect) && zone.rect.length === 4 ? zone.rect : [0.9, 0.3, 1, 0.7];
+  const tileCount = Number.isInteger(zone.tileCount) ? Math.max(1, Math.min(6, zone.tileCount)) : 2;
+  const [x1, y1, x2, y2] = rect;
+  const startCol = Math.max(0, Math.floor(x1 * cols));
+  const endCol = Math.min(Math.ceil(x2 * cols), cols);
+  const startRow = Math.max(0, Math.floor(y1 * rows));
+  const endRow = Math.min(Math.ceil(y2 * rows), rows);
+
+  const blocked = new Set((playerSpawns || []).map((s) => `${s.col},${s.row}`));
+  const candidates = [];
+  for (let row = startRow; row < endRow; row++) {
+    for (let col = startCol; col < endCol; col++) {
+      if (blocked.has(`${col},${row}`)) continue;
+      candidates.push({ col, row });
+    }
+  }
+  const edgeScore = (t) => Math.min(t.col, cols - 1 - t.col, t.row, rows - 1 - t.row);
+  candidates.sort((a, b) => edgeScore(a) - edgeScore(b) || a.row - b.row || a.col - b.col);
+
+  const picked = [];
+  for (const tile of candidates) {
+    if (picked.length >= tileCount) break;
+    // Keep squares non-adjacent when the zone allows it
+    if (picked.some((p) => Math.abs(p.col - tile.col) + Math.abs(p.row - tile.row) < 2)) continue;
+    picked.push(tile);
+  }
+  for (const tile of candidates) {
+    if (picked.length >= tileCount) break;
+    if (picked.some((p) => p.col === tile.col && p.row === tile.row)) continue;
+    picked.push(tile);
+  }
+
+  const fallback = getFallbackPassable(biome);
+  for (const tile of picked) {
+    if (!isPassable(terrainData, mapLayout[tile.row][tile.col], 'Infantry')) {
+      mapLayout[tile.row][tile.col] = fallback;
+    }
+  }
+  return picked;
 }
 
 // --- Spawn placement ---
@@ -2009,6 +2072,7 @@ function ensureCavalryAdvanceGuarantees({
   npcSpawn,
   objective,
   thronePos,
+  escapeTiles,
   biome,
 }) {
   const cavalrySources = getCavalrySources(mapLayout, terrainData, playerSpawns, biome);
@@ -2027,6 +2091,20 @@ function ensureCavalryAdvanceGuarantees({
     engagementCandidates,
     biome,
   );
+
+  // Escape maps: mounted units must also be able to reach the exits.
+  if (objective === 'escape' && Array.isArray(escapeTiles) && escapeTiles.length > 0) {
+    const escapeCandidates = [...escapeTiles, ...collectAdjacentTiles(escapeTiles, cols, rows)];
+    ensureCavalryCanReachCandidates(
+      mapLayout,
+      cols,
+      rows,
+      terrainData,
+      cavalrySources,
+      escapeCandidates,
+      biome,
+    );
+  }
 
   if (objective !== 'seize' || !thronePos) return;
   // Seize pressure should still apply when throne-adjacent tiles are currently occupied.

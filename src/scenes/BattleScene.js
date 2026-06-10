@@ -212,6 +212,7 @@ import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
+import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
@@ -282,6 +283,8 @@ export class BattleScene extends Phaser.Scene {
     this.isElite = data.isElite || false;
     this._resumeCheckpoint = data.resumeCheckpoint || null;
     this._battleSuspendController = null;
+    this.escapedUnits = [];
+    this._escapeController = null;
     this.isTransitioningOut = false;
     this.visionSnapshot = null;
     this.pendingVisionSnapshot = null;
@@ -443,6 +446,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._battleSuspendController) {
       this._battleSuspendController.destroy();
       this._battleSuspendController = null;
+    }
+    if (this._escapeController) {
+      this._escapeController.destroy();
+      this._escapeController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -1286,6 +1293,12 @@ export class BattleScene extends Phaser.Scene {
           })
           .setOrigin(0.5)
           .setDepth(5);
+      }
+
+      // Escape square markers for Escape objective
+      if (bc.objective === 'escape' && bc.escapeTiles?.length) {
+        this._escapeController = new EscapeObjectiveController(this);
+        this._escapeController.create();
       }
 
       // Calculate turn par (for turn bonus system)
@@ -2311,6 +2324,7 @@ export class BattleScene extends Phaser.Scene {
       difficultyId: this.battleParams?.difficultyId || this.runManager?.difficultyId || 'normal',
       difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
       enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
+      activeEnemyCount: this.enemyUnits.length,
     });
   }
 
@@ -2329,7 +2343,9 @@ export class BattleScene extends Phaser.Scene {
       const enemy = this.addEnemyFromSpawn(spec, { reinforcementMeta: scheduledSpawn });
       if (enemy) {
         spawned++;
-        if (scheduledSpawn.waveIndex != null) {
+        // Repeating pursuit waves are constant pressure, not added objectives —
+        // they never bump par.
+        if (scheduledSpawn.waveIndex != null && scheduledSpawn.waveType !== 'repeating') {
           successfulWaveKeys.add(
             `${scheduledSpawn.waveType || 'procedural'}:${scheduledSpawn.waveIndex}`,
           );
@@ -2542,6 +2558,8 @@ export class BattleScene extends Phaser.Scene {
       turnEnrageActive: false,
       bestEnemyCount: this.enemyUnits.length,
       bestLordThroneDistance: this.getBestLordThroneDistance(),
+      bestLordEscapeDistance: this.getBestLordEscapeDistance(),
+      bestEscapedCount: (this.escapedUnits || []).length,
     };
   }
 
@@ -2551,6 +2569,21 @@ export class BattleScene extends Phaser.Scene {
     if (!lords.length) return Infinity;
     const throne = this.battleConfig.thronePos;
     return Math.min(...lords.map((u) => gridDistance(u.col, u.row, throne.col, throne.row)));
+  }
+
+  getBestLordEscapeDistance() {
+    if (this.battleConfig?.objective !== 'escape' || !this.battleConfig?.escapeTiles?.length) {
+      return Infinity;
+    }
+    const lords = (this.playerUnits || []).filter((u) => u.isLord && u.currentHP > 0);
+    if (!lords.length) return Infinity;
+    let best = Infinity;
+    for (const lord of lords) {
+      for (const tile of this.battleConfig.escapeTiles) {
+        best = Math.min(best, gridDistance(lord.col, lord.row, tile.col, tile.row));
+      }
+    }
+    return best;
   }
 
   getCurrentTurnNumber(turnOverride = null) {
@@ -2578,9 +2611,17 @@ export class BattleScene extends Phaser.Scene {
     if (!this.antiTurtleState) return;
     const enemyCount = this.enemyUnits.length;
     const lordThroneDist = this.getBestLordThroneDistance();
+    const lordEscapeDist = this.getBestLordEscapeDistance();
+    const escapedCount = (this.escapedUnits || []).length;
     const enemyProgress = enemyCount < this.antiTurtleState.bestEnemyCount;
-    const seizeProgress = lordThroneDist < this.antiTurtleState.bestLordThroneDistance;
-    const progressed = enemyProgress || seizeProgress;
+    // ?? Infinity also covers Infinity → null after a JSON round trip (suspend
+    // checkpoint / vision snapshot persistence)
+    const seizeProgress =
+      lordThroneDist < (this.antiTurtleState.bestLordThroneDistance ?? Infinity);
+    const escapeProgress =
+      lordEscapeDist < (this.antiTurtleState.bestLordEscapeDistance ?? Infinity) ||
+      escapedCount > (this.antiTurtleState.bestEscapedCount ?? 0);
+    const progressed = enemyProgress || seizeProgress || escapeProgress;
 
     if (progressed) {
       this.antiTurtleState.noProgressTurns = 0;
@@ -2589,8 +2630,16 @@ export class BattleScene extends Phaser.Scene {
         enemyCount,
       );
       this.antiTurtleState.bestLordThroneDistance = Math.min(
-        this.antiTurtleState.bestLordThroneDistance,
+        this.antiTurtleState.bestLordThroneDistance ?? Infinity,
         lordThroneDist,
+      );
+      this.antiTurtleState.bestLordEscapeDistance = Math.min(
+        this.antiTurtleState.bestLordEscapeDistance ?? Infinity,
+        lordEscapeDist,
+      );
+      this.antiTurtleState.bestEscapedCount = Math.max(
+        this.antiTurtleState.bestEscapedCount ?? 0,
+        escapedCount,
       );
     } else {
       this.antiTurtleState.noProgressTurns++;
@@ -5472,6 +5521,10 @@ export class BattleScene extends Phaser.Scene {
         items.push('Seize');
       }
     }
+    // Escape: any unit standing on an escape square
+    if (this.battleConfig.objective === 'escape' && this._escapeController?.isOnEscapeTile(unit)) {
+      items.push('Escape');
+    }
     // Capture: unit on enemy ballista tile
     if (this.ballistas?.length > 0) {
       const ballista = this.ballistas.find(
@@ -5576,6 +5629,9 @@ export class BattleScene extends Phaser.Scene {
             this.hideActionMenu();
             this.commitVisionSnapshotIfPending();
             this.onVictory();
+          } else if (label === 'Escape') {
+            this.hideActionMenu();
+            this._escapeController?.executeEscape(unit);
           } else if (label === 'Capture') {
             this.hideActionMenu();
             this.commitVisionSnapshotIfPending();
@@ -8585,6 +8641,12 @@ export class BattleScene extends Phaser.Scene {
                     'Defeat the boss, then move a Lord\nto the throne and select Seize!',
                   );
                 }
+                if (this.battleParams.objective === 'escape' && hints.shouldShow('battle_escape')) {
+                  await showImportantHint(
+                    this,
+                    'Get your Lords to the green escape squares!\nPursuers keep arriving -- fighting them all\nis a losing game. Other units may escape\nearly for bonus gold.',
+                  );
+                }
               },
               { phase: 'player', turn },
             );
@@ -9481,9 +9543,12 @@ export class BattleScene extends Phaser.Scene {
     // must not re-trigger defeat or stack a second prompt.
     if (this.battleState === 'BATTLE_END') return true;
     if (this.visionDialog) return true;
-    // Edric defeat = immediate loss (permadeath rule -- other lords can fall)
-    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
-    if (!edricAlive || this.playerUnits.length === 0) {
+    // Edric defeat = immediate loss (permadeath rule -- other lords can fall).
+    // An escaped Edric is alive and safe, not fallen.
+    const edricEscaped = (this.escapedUnits || []).some((u) => u.name === 'Edric');
+    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric') || edricEscaped;
+    const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
+    if (!edricAlive || fieldEmpty) {
       if (this.turnManager?.currentPhase === 'enemy' && this.showLordDeathVisionPrompt()) {
         return true;
       }
@@ -9500,6 +9565,15 @@ export class BattleScene extends Phaser.Scene {
       if (this._reinforcementsPendingThisTurn) return false;
       this.onVictory();
       return true;
+    }
+    // Escape: every living lord is out (the rule also resolves the case where
+    // the last lord still on the field falls after another already escaped).
+    if (this.battleConfig.objective === 'escape') {
+      const lordsOnField = this.playerUnits.some((u) => u.isLord);
+      if (edricEscaped && !lordsOnField) {
+        this.onVictory();
+        return true;
+      }
     }
     // Seize victory triggers via action menu 'Seize' button
     return false;
@@ -9518,6 +9592,9 @@ export class BattleScene extends Phaser.Scene {
         label = 'Seize: Capture throne with a Lord!';
         color = '#66ff66'; // green -- ready to seize
       }
+    } else if (this.battleConfig.objective === 'escape' && this._escapeController) {
+      label = this._escapeController.getObjectiveLabel();
+      color = '#a6ffb0'; // green -- run for the exit
     } else {
       const tombCount = this._zombieTombstones?.length || 0;
       label =

@@ -4,7 +4,7 @@ import { ENTITY_FOOTPRINT } from '../utils/constants.js';
 
 export const REINFORCEMENT_CONTRACT_VERSION = 1;
 
-const TEMPLATE_OBJECTIVES = ['rout', 'seize'];
+const TEMPLATE_OBJECTIVES = ['rout', 'seize', 'escape'];
 const VALID_EDGES = new Set(['left', 'right', 'top', 'bottom']);
 const DIFFICULTY_IDS = ['normal', 'hard', 'lunatic'];
 
@@ -223,6 +223,78 @@ function validateScriptedWaves(path, scriptedWaves, errors) {
   });
 }
 
+function validateRepeatingWave(path, wave, spawnEdges, errors) {
+  if (!isObject(wave)) {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  const knownKeys = new Set([
+    'startTurn',
+    'every',
+    'count',
+    'edges',
+    'xpMultiplier',
+    'maxActiveEnemies',
+  ]);
+  if (!hasOnlyKnownKeys(wave, knownKeys)) {
+    errors.push(`${path} contains unknown keys`);
+  }
+
+  if (!isInteger(wave.startTurn) || wave.startTurn <= 0) {
+    errors.push(`${path}.startTurn must be a positive integer`);
+  }
+  if (!isInteger(wave.every) || wave.every <= 0) {
+    errors.push(`${path}.every must be a positive integer`);
+  }
+
+  const count = wave.count;
+  if (!Array.isArray(count) || count.length !== 2 || !count.every(isInteger)) {
+    errors.push(`${path}.count must be [min,max] integers`);
+  } else {
+    const [minCount, maxCount] = count;
+    if (minCount <= 0 || maxCount <= 0 || minCount > maxCount) {
+      errors.push(`${path}.count must have 0 < min <= max`);
+    }
+  }
+
+  if (wave.edges !== undefined) {
+    const waveEdges = validateEdges(`${path}.edges`, wave.edges, errors);
+    for (const edge of waveEdges) {
+      if (!spawnEdges.includes(edge)) {
+        errors.push(`${path}.edges must be a subset of reinforcements.spawnEdges`);
+      }
+    }
+  }
+
+  if (wave.xpMultiplier !== undefined) {
+    if (
+      typeof wave.xpMultiplier !== 'number' ||
+      !Number.isFinite(wave.xpMultiplier) ||
+      wave.xpMultiplier < 0 ||
+      wave.xpMultiplier > 1
+    ) {
+      errors.push(`${path}.xpMultiplier must be a finite number in [0,1] when provided`);
+    }
+  }
+
+  if (wave.maxActiveEnemies !== undefined) {
+    if (!isInteger(wave.maxActiveEnemies) || wave.maxActiveEnemies <= 0) {
+      errors.push(`${path}.maxActiveEnemies must be a positive integer when provided`);
+    }
+  }
+}
+
+function validateRepeatingWaves(path, repeatingWaves, spawnEdges, errors) {
+  if (repeatingWaves === undefined) return;
+  if (!Array.isArray(repeatingWaves) || repeatingWaves.length === 0) {
+    errors.push(`${path} must be a non-empty array when provided`);
+    return;
+  }
+  repeatingWaves.forEach((wave, index) => {
+    validateRepeatingWave(`${path}[${index}]`, wave, spawnEdges, errors);
+  });
+}
+
 function validateReinforcements(path, template, strict, errors, warnings) {
   const hasVersion = Object.prototype.hasOwnProperty.call(template, 'reinforcementContractVersion');
   const hasConfig = Object.prototype.hasOwnProperty.call(template, 'reinforcements');
@@ -258,6 +330,7 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     ...requiredKeys,
     'turnJitter',
     'scriptedWaves',
+    'repeatingWaves',
     'minActByDifficulty',
     'actTurnOffset',
     'extraWavesByDifficulty',
@@ -279,9 +352,11 @@ function validateReinforcements(path, template, strict, errors, warnings) {
 
   const hasScriptedWaves =
     Array.isArray(reinforcements.scriptedWaves) && reinforcements.scriptedWaves.length > 0;
+  const hasRepeatingWaves =
+    Array.isArray(reinforcements.repeatingWaves) && reinforcements.repeatingWaves.length > 0;
   if (!Array.isArray(reinforcements.waves)) {
     errors.push(`${path}.reinforcements.waves must be an array`);
-  } else if (reinforcements.waves.length === 0 && !hasScriptedWaves) {
+  } else if (reinforcements.waves.length === 0 && !hasScriptedWaves && !hasRepeatingWaves) {
     errors.push(`${path}.reinforcements.waves must be a non-empty array`);
   } else {
     reinforcements.waves.forEach((wave, index) => {
@@ -384,6 +459,40 @@ function validateReinforcements(path, template, strict, errors, warnings) {
     reinforcements.scriptedWaves,
     errors,
   );
+  validateRepeatingWaves(
+    `${path}.reinforcements.repeatingWaves`,
+    reinforcements.repeatingWaves,
+    spawnEdges,
+    errors,
+  );
+}
+
+function validateEscapeZone(path, objective, template, errors) {
+  const escapeZone = template.escapeZone;
+  if (objective !== 'escape') {
+    if (escapeZone !== undefined) {
+      errors.push(`${path}.escapeZone is only valid on escape templates`);
+    }
+    return;
+  }
+  if (escapeZone === undefined) {
+    errors.push(`${path}.escapeZone is required for escape templates`);
+    return;
+  }
+  if (!isObject(escapeZone)) {
+    errors.push(`${path}.escapeZone must be an object`);
+    return;
+  }
+  const knownKeys = new Set(['rect', 'tileCount']);
+  if (!hasOnlyKnownKeys(escapeZone, knownKeys)) {
+    errors.push(`${path}.escapeZone contains unknown keys`);
+  }
+  validateNormalizedRect(`${path}.escapeZone.rect`, escapeZone.rect, errors);
+  if (escapeZone.tileCount !== undefined) {
+    if (!isInteger(escapeZone.tileCount) || escapeZone.tileCount < 1 || escapeZone.tileCount > 6) {
+      errors.push(`${path}.escapeZone.tileCount must be an integer in [1,6] when provided`);
+    }
+  }
 }
 
 function validateZone(path, zone, errors) {
@@ -644,6 +753,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'phaseTerrainOverrides',
         'reinforcementContractVersion',
         'reinforcements',
+        'escapeZone',
         'structures',
         'minBridges',
         'minBridgesByAct',
@@ -755,6 +865,7 @@ export function validateMapTemplatesConfig(config, options = {}) {
       }
 
       validateReinforcements(path, template, strict, errors, warnings);
+      validateEscapeZone(path, objective, template, errors);
     });
   }
 

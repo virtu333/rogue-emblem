@@ -132,6 +132,21 @@ describe('PostCombatController', () => {
     expect(scene.transitionAfterBattle).toHaveBeenCalledTimes(1);
   });
 
+  it('onVictory merges escaped units into the surviving roster (escape objective)', () => {
+    const scene = makeScene();
+    scene.playerUnits = [
+      { name: 'Edric', className: 'Lord', faction: 'player', stats: {}, inventory: [] },
+    ];
+    scene.escapedUnits = [
+      { name: 'Rec1', className: 'Fighter', faction: 'player', stats: {}, inventory: [] },
+    ];
+
+    new PostCombatController(scene).onVictory();
+
+    const [allUnits] = scene.runManager.completeBattle.mock.calls[0];
+    expect(allUnits.map((u) => u.name)).toEqual(expect.arrayContaining(['Edric', 'Rec1']));
+  });
+
   it('onVictory persists the run right after completeBattle (anti-refresh win lock)', () => {
     const scene = makeScene();
     scene._persistBattleRunState = vi.fn();

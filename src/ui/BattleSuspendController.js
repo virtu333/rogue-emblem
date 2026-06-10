@@ -104,6 +104,7 @@ export class BattleSuspendController {
       playerUnits: scene.playerUnits.map(serializeSuspendUnit),
       enemyUnits: scene.enemyUnits.map(serializeSuspendUnit),
       npcUnits: scene.npcUnits.map(serializeSuspendUnit),
+      escapedUnits: (scene.escapedUnits || []).map(serializeSuspendUnit),
       nonDeployedUnits: scene.nonDeployedUnits || [],
       visionSnapshot: scene.visionSnapshot || null,
       pendingVisionSnapshot: scene.pendingVisionSnapshot || null,
@@ -142,6 +143,15 @@ export class BattleSuspendController {
     restore(scene.playerUnits, checkpoint.playerUnits);
     restore(scene.enemyUnits, checkpoint.enemyUnits);
     restore(scene.npcUnits, checkpoint.npcUnits);
+    // Escaped units are off the field: no graphics, but the weapon identity
+    // invariant still applies when they rejoin the roster at battle end.
+    scene.escapedUnits = (
+      Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []
+    ).map((data) => {
+      const unit = structuredClone(data);
+      relinkWeapon(unit);
+      return unit;
+    });
     for (const unit of scene.playerUnits) {
       if (unit.hasActed || isSleeping(unit)) scene.dimUnit(unit);
     }
