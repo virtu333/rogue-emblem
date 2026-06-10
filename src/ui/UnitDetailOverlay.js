@@ -979,8 +979,12 @@ export class UnitDetailOverlay {
       if (game?.events) {
         if (this._mobilePrev) game.events.off('mobile:prevTab', this._mobilePrev);
         if (this._mobileNext) game.events.off('mobile:nextTab', this._mobileNext);
+        if (this._mobilePrevUnit) game.events.off('mobile:prevUnit', this._mobilePrevUnit);
+        if (this._mobileNextUnit) game.events.off('mobile:nextUnit', this._mobileNextUnit);
         this._mobilePrev = null;
         this._mobileNext = null;
+        this._mobilePrevUnit = null;
+        this._mobileNextUnit = null;
         if (this._mobileContextPushed) {
           this._mobileContextPushed = false;
           game.events.emit('mobile:popContext');
