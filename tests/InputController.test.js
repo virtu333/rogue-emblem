@@ -434,3 +434,75 @@ describe('InputController', () => {
     expect(controller.turnCounterText).toBeUndefined();
   });
 });
+
+describe('mobile idle tap on non-player units', () => {
+  function makeMobileScene(extra = {}) {
+    return makeScene({
+      isMobileInput: true,
+      grid: {
+        pixelToGrid: vi.fn(() => ({ col: 1, row: 1 })),
+        gridToPixel: vi.fn(() => ({ x: 48, y: 80 })),
+        fogEnabled: false,
+        isVisible: vi.fn(() => true),
+        clearHighlights: vi.fn(),
+        clearAttackHighlights: vi.fn(),
+      },
+      ...extra,
+    });
+  }
+
+  it('shows inspection + range for a visible enemy instead of clearing', () => {
+    const enemy = { faction: 'enemy', col: 1, row: 1 };
+    const scene = makeMobileScene({ getUnitAt: vi.fn(() => enemy) });
+    const controller = new InputController(scene);
+    const showSpy = vi.spyOn(controller, '_showInspectionAtPixel').mockReturnValue(true);
+
+    controller.handleIdleClick({ col: 1, row: 1 });
+
+    expect(scene.grid.gridToPixel).toHaveBeenCalledWith(1, 1);
+    expect(showSpy).toHaveBeenCalledWith(48, 80);
+    expect(scene.inspectionPanel.hide).not.toHaveBeenCalled();
+  });
+
+  it('second tap on the same enemy clears inspection visuals', () => {
+    const enemy = { faction: 'enemy', col: 1, row: 1 };
+    const scene = makeMobileScene({
+      getUnitAt: vi.fn(() => enemy),
+      inspectionPanel: { show: vi.fn(), hide: vi.fn(), visible: true, _unit: enemy, objects: [] },
+    });
+    const controller = new InputController(scene);
+    const showSpy = vi.spyOn(controller, '_showInspectionAtPixel');
+
+    controller.handleIdleClick({ col: 1, row: 1 });
+
+    expect(showSpy).not.toHaveBeenCalled();
+    expect(scene.inspectionPanel.hide).toHaveBeenCalled();
+    expect(scene.grid.clearHighlights).toHaveBeenCalled();
+  });
+
+  it('does not reveal enemies on fogged tiles', () => {
+    const enemy = { faction: 'enemy', col: 1, row: 1 };
+    const scene = makeMobileScene({ getUnitAt: vi.fn(() => enemy) });
+    scene.grid.fogEnabled = true;
+    scene.grid.isVisible = vi.fn(() => false);
+    const controller = new InputController(scene);
+    const showSpy = vi.spyOn(controller, '_showInspectionAtPixel');
+
+    controller.handleIdleClick({ col: 1, row: 1 });
+
+    expect(showSpy).not.toHaveBeenCalled();
+    expect(scene.inspectionPanel.hide).toHaveBeenCalled();
+  });
+
+  it('desktop click on an enemy keeps the clearing behavior', () => {
+    const enemy = { faction: 'enemy', col: 1, row: 1 };
+    const scene = makeMobileScene({ isMobileInput: false, getUnitAt: vi.fn(() => enemy) });
+    const controller = new InputController(scene);
+    const showSpy = vi.spyOn(controller, '_showInspectionAtPixel');
+
+    controller.handleIdleClick({ col: 1, row: 1 });
+
+    expect(showSpy).not.toHaveBeenCalled();
+    expect(scene.inspectionPanel.hide).toHaveBeenCalled();
+  });
+});

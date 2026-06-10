@@ -4134,7 +4134,7 @@ export class BattleScene extends Phaser.Scene {
       this.tutorialStep = 4;
       this._clearTutorialGuideHighlights();
       const infoHint = this.isMobileInput
-        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nUse Inspect or long-press any unit for details.'
+        ? 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse Danger Zone to view enemy threat range.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
         : 'Fort tile reached.\nCheck terrain in the top-left panel to view terrain effects, which can aid or hinder you in battle.\nUse [D] Danger Zone to view enemy threat range.\nRight-click any unit to inspect, then press [V] for details.';
       await this._withTutorialHintState(async () => {
         await showImportantHint(this, infoHint);
@@ -8698,7 +8698,7 @@ export class BattleScene extends Phaser.Scene {
                 if (!isSceneActiveForAsync()) return;
                 if (hints.shouldShow('battle_first_turn')) {
                   const inspectHint = this.isMobileInput
-                    ? 'Tap a blue unit to move, then choose an action.\nUse Inspect or long-press any unit for details.'
+                    ? 'Tap a blue unit to move, then choose an action.\nTap an enemy to see its range.\nUse Inspect or long-press any unit for details.'
                     : 'Click a blue unit to move, then choose an action.\nRight-click any unit to inspect.';
                   await showImportantHint(this, inspectHint);
                 }

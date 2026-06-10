@@ -312,11 +312,26 @@ export class InputController {
       scene.grid.clearHighlights();
       scene.grid.clearAttackHighlights();
       scene.selectUnit(unit);
-    } else {
-      scene.inspectionPanel.hide();
-      scene.grid.clearHighlights();
-      scene.grid.clearAttackHighlights();
+      return;
     }
+    // Mobile: touch has no hover or right-click, so a plain tap on a visible
+    // non-player unit toggles its inspection panel + threat range
+    if (
+      scene.isMobileInput &&
+      unit &&
+      unit.faction !== 'player' &&
+      !(scene.grid.fogEnabled && !scene.grid.isVisible(gp.col, gp.row))
+    ) {
+      if (scene.inspectionPanel?.visible && scene.inspectionPanel._unit === unit) {
+        this.clearInspectionVisuals();
+        return;
+      }
+      const { x, y } = scene.grid.gridToPixel(gp.col, gp.row);
+      if (this._showInspectionAtPixel(x, y)) return;
+    }
+    scene.inspectionPanel.hide();
+    scene.grid.clearHighlights();
+    scene.grid.clearAttackHighlights();
   }
 
   handleSelectedClick(gp) {

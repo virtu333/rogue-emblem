@@ -11,6 +11,8 @@ const BUTTON_DEFS = {
   nextWeapon: { icon: '\u25B6', label: 'Next Wpn' },
   prevTab: { icon: '\u25C0', label: 'Prev' },
   nextTab: { icon: '\u25B6', label: 'Next' },
+  prevUnit: { icon: '\u25B2', label: 'Prev Unit' },
+  nextUnit: { icon: '\u25BC', label: 'Next Unit' },
 };
 
 const CONTEXTS = {
@@ -24,6 +26,7 @@ const CONTEXTS = {
   nodemap: ['roster'],
   homebase: [],
   overlay_tabs: ['prevTab', 'nextTab'],
+  overlay_unit_detail: ['prevTab', 'nextTab', 'prevUnit', 'nextUnit'],
   none: [],
 };
 
