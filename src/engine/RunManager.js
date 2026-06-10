@@ -170,7 +170,7 @@ function legacyItemSignature(item) {
 
 /** After JSON round-trip, re-link unit.weapon to matching inventory reference.
  *  Enforces proficiency: drops non-proficient equipped weapons to first valid or null. */
-function relinkWeapon(unit) {
+export function relinkWeapon(unit) {
   if (!unit.weapon || !unit.inventory?.length) {
     if (!unit.inventory?.length) unit.weapon = null;
     return;
@@ -338,12 +338,11 @@ export class RunManager {
     this._churchPromotionTracker = null; // { nodeId: string, count: number }
     this.thirdLordJoined = false;
     this.thirdLordRerolled = false;
-    // Anti-refresh battle lock: { nodeId, casualties: [{ name, phase }] }.
-    // Set on battle entry, casualties recorded as they happen, cleared by
-    // completeBattle. A save loaded with this flag settles the casualties
-    // (see settleInterruptedBattle) so refreshing cannot revive dead units.
+    // Suspended battle (anti-refresh): set on battle entry, updated with a
+    // resume checkpoint after every action, cleared by completeBattle. A save
+    // carrying this flag offers Resume-or-Revert on continue, so a refresh
+    // can never undo an action that already resolved.
     this.battleInProgress = null;
-    this.lastBattleInterruption = null; // transient settle summary (not serialized)
   }
 
   _isValidSerializedUnit(unit) {
@@ -425,7 +424,6 @@ export class RunManager {
     this.currentNodeId = null;
     this.pendingAmbushNodeId = null;
     this.battleInProgress = null;
-    this.lastBattleInterruption = null;
     this.blessingRuntimeModifiers = createBlessingRuntimeModifiers();
     this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
@@ -2652,110 +2650,42 @@ export class RunManager {
     return ROSTER_CAP + (this.metaEffects?.rosterCapBonus || 0);
   }
 
-  /** Mark a battle as in progress so an interrupted save can settle casualties. */
-  beginBattleInProgress(nodeId) {
+  /**
+   * Mark a battle as suspended-in-progress. The flag carries the entry
+   * snapshot needed to (a) resume the battle later ("Continue from battle")
+   * and (b) cleanly revert it ("Continue from map" — the sanctioned FE-reset
+   * full revert, which restores the entry-time Vision/RNG values below).
+   * The suspend checkpoint itself is attached via setBattleCheckpoint as the
+   * battle progresses.
+   */
+  beginBattleInProgress(nodeId, entryInfo = {}) {
     this.battleInProgress = {
       nodeId: typeof nodeId === 'string' ? nodeId : null,
-      casualties: [],
+      startedAt: Date.now(),
+      battleParams:
+        entryInfo.battleParams && typeof entryInfo.battleParams === 'object'
+          ? structuredClone(entryInfo.battleParams)
+          : null,
+      isBoss: entryInfo.isBoss === true,
+      isElite: entryInfo.isElite === true,
+      visionChargesAtEntry: Number.isFinite(this.visionChargesRemaining)
+        ? this.visionChargesRemaining
+        : null,
+      visionCountAtEntry: Number.isFinite(this.visionCount) ? this.visionCount : null,
+      rngSeedAtEntry: Number.isFinite(this.rngSeed) ? this.rngSeed : null,
+      checkpoint: null,
     };
   }
 
-  /**
-   * Replace the recorded casualty list for the in-progress battle.
-   * @param {Array<{ name: string, phase: 'player'|'enemy' }>} casualties
-   */
-  setBattleCasualties(casualties) {
+  /** Attach/replace the suspend checkpoint for the in-progress battle. */
+  setBattleCheckpoint(checkpoint) {
     if (!this.battleInProgress) return;
-    const seen = new Set();
-    const normalized = [];
-    for (const entry of Array.isArray(casualties) ? casualties : []) {
-      const name = typeof entry?.name === 'string' ? entry.name : null;
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      normalized.push({ name, phase: entry.phase === 'enemy' ? 'enemy' : 'player' });
-    }
-    this.battleInProgress.casualties = normalized;
+    this.battleInProgress.checkpoint =
+      checkpoint && typeof checkpoint === 'object' ? checkpoint : null;
   }
 
   clearBattleInProgress() {
     this.battleInProgress = null;
-  }
-
-  /**
-   * Settle a battle that was interrupted by a refresh/crash: casualties
-   * recorded mid-battle are locked in (the anti-refresh rule — a reload may
-   * never revive a fallen unit). Called from fromJSON after the roster is
-   * fully restored.
-   *
-   * Edric mirrors the in-battle rules exactly: an enemy-phase death would
-   * have offered the Vision rewind prompt, so a banked charge is auto-spent
-   * to keep him (battle still forfeit); a player-phase death — where the
-   * game offers no post-hoc undo — or an empty Vision pool fails the run.
-   *
-   * @returns {object|null} settle summary, or null when nothing notable happened
-   */
-  settleInterruptedBattle() {
-    const pending = this.battleInProgress;
-    this.battleInProgress = null;
-    this.lastBattleInterruption = null;
-    if (!pending || typeof pending !== 'object') return null;
-
-    this._sanitizeUnitPools();
-    const seen = new Set();
-    const casualties = [];
-    for (const entry of Array.isArray(pending.casualties) ? pending.casualties : []) {
-      const name = typeof entry?.name === 'string' ? entry.name : null;
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      if (!this.roster.some((u) => u?.name === name)) continue;
-      casualties.push({ name, phase: entry.phase === 'enemy' ? 'enemy' : 'player' });
-    }
-    if (casualties.length === 0) return null;
-
-    const summary = {
-      nodeId: typeof pending.nodeId === 'string' ? pending.nodeId : null,
-      fallenNames: [],
-      edricFell: false,
-      visionSpent: false,
-      runFailed: false,
-    };
-
-    // Edric defeat = run over (permadeath rule — other lords can fall)
-    const edricEntry = casualties.find((c) => c.name === 'Edric');
-    if (edricEntry) {
-      summary.edricFell = true;
-      const charges = Number.isFinite(this.visionChargesRemaining)
-        ? Math.max(0, Math.trunc(this.visionChargesRemaining))
-        : 0;
-      if (edricEntry.phase === 'enemy' && charges >= 1) {
-        this.visionChargesRemaining = charges - 1;
-        this.visionCount = Math.max(0, (this.visionCount || 0) + 1);
-        summary.visionSpent = true;
-      } else {
-        this.failRun();
-        summary.runFailed = true;
-        // Roster left untouched — RunComplete shows the final state and
-        // clears the save; locking the other casualties would be moot.
-        this.lastBattleInterruption = summary;
-        return summary;
-      }
-    }
-
-    for (const { name } of casualties) {
-      if (name === 'Edric') continue; // survived via auto-spent Vision charge
-      const idx = this.roster.findIndex((u) => u?.name === name);
-      if (idx === -1) continue;
-      const [fallen] = this.roster.splice(idx, 1);
-      if (!this.fallenUnits.find((f) => f.name === fallen.name)) {
-        this._transferFallenUnitItems(fallen);
-        this.fallenUnits.push(fallen);
-      }
-      summary.fallenNames.push(name);
-    }
-
-    this.lastBattleInterruption =
-      summary.fallenNames.length > 0 || summary.edricFell ? summary : null;
-    return this.lastBattleInterruption;
   }
 
   /**
@@ -2767,8 +2697,8 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
-    // Battle is over either way — never let a stale in-progress flag settle
-    // these deaths a second time on the next load.
+    // Battle is over either way — never leave a stale suspend flag that
+    // would offer to resume a finished fight on the next load.
     this.battleInProgress = null;
     const node = this.nodeMap?.nodes?.find((n) => n.id === nodeId);
     if (!node || node.completed) return false;
@@ -3757,21 +3687,19 @@ export class RunManager {
     rm._suppressPersonalSkillsForCurrentRosterIfNeeded();
     rm._syncActWeaponArtUnlocksForCurrentAct();
 
-    // Anti-refresh: a save carrying a battle-in-progress flag was interrupted
-    // mid-battle — lock in its recorded casualties (runs after migrations and
-    // relinking so item transfers operate on normalized units).
+    // Suspended battle (anti-refresh): only a flag carrying a usable resume
+    // checkpoint survives the load — a battle interrupted before its first
+    // checkpoint (or a legacy casualty-list flag) reverts to the pre-battle
+    // save, which is all the raw data contains anyway.
     const rawBattleInProgress = saved.battleInProgress;
     rm.battleInProgress =
-      rawBattleInProgress && typeof rawBattleInProgress === 'object'
-        ? {
-            nodeId:
-              typeof rawBattleInProgress.nodeId === 'string' ? rawBattleInProgress.nodeId : null,
-            casualties: Array.isArray(rawBattleInProgress.casualties)
-              ? rawBattleInProgress.casualties
-              : [],
-          }
+      rawBattleInProgress &&
+      typeof rawBattleInProgress === 'object' &&
+      typeof rawBattleInProgress.nodeId === 'string' &&
+      rawBattleInProgress.checkpoint &&
+      typeof rawBattleInProgress.checkpoint === 'object'
+        ? rawBattleInProgress
         : null;
-    rm.settleInterruptedBattle();
 
     return rm;
   }
@@ -3891,10 +3819,11 @@ export function saveRun(runManager, onSave, slotNumber) {
 }
 
 /**
- * Scrub the battle-in-progress flag (and its casualties) from the persisted
- * save without re-serializing live state. Save & Exit is a sanctioned full
- * revert to the pre-battle save — deaths, spent Vision charges and all — so
- * only the anti-refresh lock is removed; everything else stays byte-for-byte.
+ * Scrub the suspended battle from the persisted save without re-serializing
+ * live state ("Continue from map" — the sanctioned FE-reset full revert).
+ * Entry-time Vision charges and RNG seed recorded on the flag are restored so
+ * the revert is complete: mid-battle Vision spends and reseeds are refunded;
+ * everything else stays byte-for-byte.
  */
 export function clearBattleInProgressInSave(onSave, slotNumber) {
   const key = resolveRunKey(slotNumber);
@@ -3905,6 +3834,16 @@ export function clearBattleInProgressInSave(onSave, slotNumber) {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return { ok: false, reason: 'corrupt' };
     if (parsed.battleInProgress == null) return { ok: true, reason: 'already_clear' };
+    const flag = parsed.battleInProgress;
+    if (Number.isFinite(flag?.visionChargesAtEntry)) {
+      parsed.visionChargesRemaining = flag.visionChargesAtEntry;
+    }
+    if (Number.isFinite(flag?.visionCountAtEntry)) {
+      parsed.visionCount = flag.visionCountAtEntry;
+    }
+    if (Number.isFinite(flag?.rngSeedAtEntry)) {
+      parsed.rngSeed = flag.rngSeedAtEntry;
+    }
     parsed.battleInProgress = null;
     parsed.savedAt = computeNextRunSavedAt(slotNumber, key);
     localStorage.setItem(key, JSON.stringify(parsed));

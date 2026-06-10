@@ -1,7 +1,7 @@
-// Anti-refresh casualty lock, BattleScene side: deaths are persisted into the
-// run save the moment they happen, the casualty list is recomputed from live
-// state (so Vision rewinds self-heal it), and Save & Exit scrubs the lock as
-// the sanctioned full revert.
+// Anti-refresh suspend, BattleScene side: the mid-battle run save persists at
+// player-stable points via the suspend checkpoint shim, the shim lazy-inits
+// BattleSuspendController, and the checkpoint hooks fire at the right
+// moments (action completion before the phase may flip, end turn, rewind).
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,20 +9,16 @@ vi.mock('phaser', () => ({
   default: { Scene: class {} },
 }));
 
-const { saveRunMock, clearBattleInProgressInSaveMock } = vi.hoisted(() => ({
+const { saveRunMock } = vi.hoisted(() => ({
   saveRunMock: vi.fn(() => ({ ok: true })),
-  clearBattleInProgressInSaveMock: vi.fn(() => ({ ok: true })),
 }));
 vi.mock('../src/engine/RunManager.js', async () => {
   const actual = await vi.importActual('../src/engine/RunManager.js');
-  return {
-    ...actual,
-    saveRun: saveRunMock,
-    clearBattleInProgressInSave: clearBattleInProgressInSaveMock,
-  };
+  return { ...actual, saveRun: saveRunMock };
 });
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
+import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { VisionRewindController } from '../src/ui/VisionRewindController.js';
 
 function makeCtx(extra = {}) {
@@ -32,7 +28,7 @@ function makeCtx(extra = {}) {
   return Object.assign(ctx, extra);
 }
 
-describe('BattleScene anti-refresh casualty lock', () => {
+describe('BattleScene anti-refresh suspend', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     saveRunMock.mockReturnValue({ ok: true });
@@ -58,13 +54,13 @@ describe('BattleScene anti-refresh casualty lock', () => {
       expect(saveRunMock).toHaveBeenCalledWith(ctx.runManager, expect.any(Function), 3);
     });
 
-    it('no-ops without a runManager', () => {
-      const ctx = makeCtx({ runManager: null });
-      BattleScene.prototype._persistBattleRunState.call(ctx);
+    it('no-ops without a runManager or an active slot', () => {
+      BattleScene.prototype._persistBattleRunState.call(makeCtx({ runManager: null }));
+      BattleScene.prototype._persistBattleRunState.call(makeCtx({ registry: { get: () => null } }));
       expect(saveRunMock).not.toHaveBeenCalled();
     });
 
-    it('never throws when the save fails (lock degrades, gameplay continues)', () => {
+    it('never throws when the save fails (suspend degrades, gameplay continues)', () => {
       const ctx = makeCtx();
       saveRunMock.mockImplementationOnce(() => {
         throw new Error('storage exploded');
@@ -73,120 +69,78 @@ describe('BattleScene anti-refresh casualty lock', () => {
     });
   });
 
-  describe('_syncBattleCasualtiesToRun', () => {
-    function makeSyncCtx({ casualties = [], phase = 'player' } = {}) {
-      return makeCtx({
-        runManager: {
-          battleInProgress: { nodeId: 'n1', casualties },
-          roster: [{ name: 'Edric' }, { name: 'Sera' }, { name: 'Galvin' }, { name: 'Mira' }],
-          setBattleCasualties: vi.fn(),
-        },
-        playerUnits: [{ name: 'Edric' }],
-        nonDeployedUnits: [{ name: 'Mira' }],
-        turnManager: { currentPhase: phase },
-        _persistBattleRunState: vi.fn(),
-      });
-    }
-
-    it('records roster units that are neither alive nor benched, then persists', () => {
-      const ctx = makeSyncCtx({ phase: 'enemy' });
-      BattleScene.prototype._syncBattleCasualtiesToRun.call(ctx);
-      expect(ctx.runManager.setBattleCasualties).toHaveBeenCalledWith([
-        { name: 'Sera', phase: 'enemy' },
-        { name: 'Galvin', phase: 'enemy' },
-      ]);
-      expect(ctx._persistBattleRunState).toHaveBeenCalledTimes(1);
-    });
-
-    it('preserves the phase recorded at death time for known casualties', () => {
-      const ctx = makeSyncCtx({
-        casualties: [{ name: 'Sera', phase: 'enemy' }],
-        phase: 'player',
-      });
-      BattleScene.prototype._syncBattleCasualtiesToRun.call(ctx);
-      expect(ctx.runManager.setBattleCasualties).toHaveBeenCalledWith([
-        { name: 'Sera', phase: 'enemy' },
-        { name: 'Galvin', phase: 'player' },
-      ]);
-    });
-
-    it('drops units a Vision rewind brought back to life', () => {
-      const ctx = makeSyncCtx({
-        casualties: [
-          { name: 'Sera', phase: 'enemy' },
-          { name: 'Galvin', phase: 'enemy' },
-        ],
-      });
-      ctx.playerUnits = [{ name: 'Edric' }, { name: 'Galvin' }];
-      BattleScene.prototype._syncBattleCasualtiesToRun.call(ctx);
-      expect(ctx.runManager.setBattleCasualties).toHaveBeenCalledWith([
-        { name: 'Sera', phase: 'enemy' },
-      ]);
-    });
-
-    it('no-ops when no battle is in progress (tutorial/standalone)', () => {
-      const ctx = makeSyncCtx();
-      ctx.runManager.battleInProgress = null;
-      BattleScene.prototype._syncBattleCasualtiesToRun.call(ctx);
-      expect(ctx.runManager.setBattleCasualties).not.toHaveBeenCalled();
-      expect(ctx._persistBattleRunState).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('removeUnit death lock', () => {
-    function makeRemovalCtx(unit) {
-      return makeCtx({
-        playerUnits: unit.faction === 'player' ? [unit] : [],
-        enemyUnits: unit.faction === 'enemy' ? [unit] : [],
-        npcUnits: [],
-        gameData: { affixes: [] },
-        battleConfig: { objective: 'rout' },
-        removeUnitGraphic: vi.fn(),
-        updateObjectiveText: vi.fn(),
-        _syncBattleCasualtiesToRun: vi.fn(),
-        _applyKillRewards: vi.fn(),
-        grid: { clearTemporaryTerrainsBySource: vi.fn() },
-      });
-    }
-
-    it('locks a player death into the save before any dialogue plays out', async () => {
-      const unit = { name: 'Galvin', faction: 'player', col: 1, row: 1, isLord: false };
-      const ctx = makeRemovalCtx(unit);
-      await BattleScene.prototype.removeUnit.call(ctx, unit);
-      expect(ctx.playerUnits).toHaveLength(0);
-      expect(ctx._syncBattleCasualtiesToRun).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not touch the lock for enemy deaths', async () => {
-      const unit = { name: 'Bandit', faction: 'enemy', col: 1, row: 1 };
-      const ctx = makeRemovalCtx(unit);
-      await BattleScene.prototype.removeUnit.call(ctx, unit);
-      expect(ctx.enemyUnits).toHaveLength(0);
-      expect(ctx._syncBattleCasualtiesToRun).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('applyVisionSnapshot re-sync', () => {
-    it('re-syncs the casualty lock after a successful rewind', () => {
-      const applySpy = vi
-        .spyOn(VisionRewindController.prototype, '_applySnapshot')
+  describe('_captureSuspendCheckpoint shim', () => {
+    it('lazy-inits BattleSuspendController once and forwards the result', () => {
+      const spy = vi
+        .spyOn(BattleSuspendController.prototype, 'captureCheckpoint')
         .mockReturnValue(true);
-      const ctx = makeCtx({ _syncBattleCasualtiesToRun: vi.fn() });
-      const result = BattleScene.prototype.applyVisionSnapshot.call(ctx);
-      expect(result).toBe(true);
-      expect(ctx._syncBattleCasualtiesToRun).toHaveBeenCalledTimes(1);
-      applySpy.mockRestore();
+      const ctx = makeCtx();
+
+      expect(BattleScene.prototype._captureSuspendCheckpoint.call(ctx)).toBe(true);
+      const firstController = ctx._battleSuspendController;
+      BattleScene.prototype._captureSuspendCheckpoint.call(ctx);
+
+      expect(firstController).toBeInstanceOf(BattleSuspendController);
+      expect(ctx._battleSuspendController).toBe(firstController);
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+  });
+
+  describe('checkpoint hooks', () => {
+    it('finishUnitAction checkpoints the completed action before the phase may flip', () => {
+      const callOrder = [];
+      const unit = { name: 'Galvin', skills: [], stats: { MOV: 5 }, faction: 'player' };
+      const ctx = makeCtx({
+        commitVisionSnapshotIfPending: vi.fn(),
+        _clearCombatRollSession: vi.fn(),
+        hideActionMenu: vi.fn(),
+        grid: { clearAttackHighlights: vi.fn() },
+        _clearSelectedWeaponArt: vi.fn(),
+        dimUnit: vi.fn(),
+        _captureSuspendCheckpoint: vi.fn(() => callOrder.push('checkpoint')),
+        turnManager: { unitActed: vi.fn(() => callOrder.push('unitActed')) },
+      });
+
+      BattleScene.prototype.finishUnitAction.call(ctx, unit, { skipCanto: true });
+
+      expect(unit.hasActed).toBe(true);
+      expect(callOrder).toEqual(['checkpoint', 'unitActed']);
     });
 
-    it('leaves the lock alone when the rewind did not apply', () => {
-      const applySpy = vi
-        .spyOn(VisionRewindController.prototype, '_applySnapshot')
-        .mockReturnValue(false);
-      const ctx = makeCtx({ _syncBattleCasualtiesToRun: vi.fn() });
-      const result = BattleScene.prototype.applyVisionSnapshot.call(ctx);
-      expect(result).toBe(false);
-      expect(ctx._syncBattleCasualtiesToRun).not.toHaveBeenCalled();
+    it('applyVisionSnapshot re-checkpoints the rewound state on success only', () => {
+      const applySpy = vi.spyOn(VisionRewindController.prototype, '_applySnapshot');
+
+      applySpy.mockReturnValue(true);
+      const applied = makeCtx({ _captureSuspendCheckpoint: vi.fn() });
+      expect(BattleScene.prototype.applyVisionSnapshot.call(applied)).toBe(true);
+      expect(applied._captureSuspendCheckpoint).toHaveBeenCalledTimes(1);
+
+      applySpy.mockReturnValue(false);
+      const notApplied = makeCtx({ _captureSuspendCheckpoint: vi.fn() });
+      expect(BattleScene.prototype.applyVisionSnapshot.call(notApplied)).toBe(false);
+      expect(notApplied._captureSuspendCheckpoint).not.toHaveBeenCalled();
+
       applySpy.mockRestore();
+    });
+  });
+
+  describe('shutdown hygiene', () => {
+    it('init clears any stale suspend controller and resume checkpoint fields', () => {
+      const ctx = makeCtx();
+      BattleScene.prototype.init.call(ctx, { gameData: { skills: [] } });
+      expect(ctx._battleSuspendController).toBeNull();
+      expect(ctx._resumeCheckpoint).toBeNull();
+    });
+
+    it('init carries an incoming resume checkpoint', () => {
+      const ctx = makeCtx();
+      const checkpoint = { checkpointIndex: 4 };
+      BattleScene.prototype.init.call(ctx, {
+        gameData: { skills: [] },
+        resumeCheckpoint: checkpoint,
+      });
+      expect(ctx._resumeCheckpoint).toBe(checkpoint);
     });
   });
 });

@@ -146,6 +146,24 @@ describe('PostCombatController', () => {
     expect(persistOrder).toBeGreaterThan(completeOrder);
   });
 
+  it('onDefeat persists the failed run so a banner refresh cannot rewind it', () => {
+    const scene = makeScene();
+    scene.clearInspectionVisuals = vi.fn();
+    scene.hideActionMenu = vi.fn();
+    scene._persistBattleRunState = vi.fn();
+    scene.transitionToRunCompleteWithRetry = vi.fn(async () => true);
+
+    const controller = new PostCombatController(scene);
+    controller.onDefeat();
+
+    expect(scene.runManager.failRun).toHaveBeenCalledTimes(1);
+    expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+    // The persist must capture the failed status — failRun runs first
+    const failOrder = scene.runManager.failRun.mock.invocationCallOrder[0];
+    const persistOrder = scene._persistBattleRunState.mock.invocationCallOrder[0];
+    expect(persistOrder).toBeGreaterThan(failOrder);
+  });
+
   it('transitionAfterBattle reports error and triggers force fallback when transition throws', async () => {
     const scene = makeScene();
     scene.runManager.isActComplete = vi.fn(() => false);

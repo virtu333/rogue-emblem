@@ -482,6 +482,11 @@ export class PostCombatController {
       scene.clearBattleScopedDeltas(scene.playerUnits);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
       scene.runManager.failRun();
+      // Persist the defeat (status + cleared suspend flag) immediately:
+      // refreshing during the banner must not rewind to the pre-fatal
+      // checkpoint — the reload routes to the game-over flow instead.
+      // Retreating is sanctioned only BEFORE a death resolves.
+      scene._persistBattleRunState?.();
       scene.time.delayedCall(2000, async () => {
         if (!scene.scene?.isActive?.()) return;
         // Clear any stale transition locks -- the 2s delay gives legitimate

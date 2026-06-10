@@ -370,8 +370,6 @@ export class NodeMapScene extends Phaser.Scene {
 
     try {
       if (this.sys?.isActive?.() !== false) {
-        await this._showBattleInterruptionNotice?.();
-
         if (this.runManager && !this.runManager.hasShownDialogue('runStart')) {
           const entries = this.gameData?.dialogue?.actTransitions?.runStart;
           if (
@@ -898,31 +896,6 @@ export class NodeMapScene extends Phaser.Scene {
       return true;
     }
     return false;
-  }
-
-  /**
-   * Surface the settle summary of a battle interrupted by refresh/crash
-   * (deaths locked in, possible auto-spent Vision charge for Edric). The
-   * defeat case never reaches NodeMap — SlotPicker routes it to RunComplete.
-   */
-  async _showBattleInterruptionNotice() {
-    const interruption = this.runManager?.lastBattleInterruption;
-    if (!interruption) return;
-    this.runManager.lastBattleInterruption = null;
-    if (interruption.runFailed) return;
-    const lines = ['The interrupted battle took its toll.'];
-    if (interruption.fallenNames?.length > 0) {
-      lines.push(`Fallen: ${interruption.fallenNames.join(', ')}`);
-    }
-    if (interruption.visionSpent) {
-      lines.push('Sera spent 1 Vision to pull Edric back from the brink.');
-    }
-    if (lines.length === 1) return;
-    try {
-      await showImportantHint(this, lines.join('\n'));
-    } catch (_) {
-      /* notice is best-effort — never block scene readiness */
-    }
   }
 
   persistRunSave() {

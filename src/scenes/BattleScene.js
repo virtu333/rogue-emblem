@@ -148,7 +148,7 @@ import {
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
-import { clearSavedRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
+import { clearSavedRun, saveRun } from '../engine/RunManager.js';
 import {
   calculateKillReward,
   generateLootChoices,
@@ -211,6 +211,7 @@ import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
+import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { WeaponArtController } from '../ui/WeaponArtController.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
@@ -279,6 +280,8 @@ export class BattleScene extends Phaser.Scene {
     this.nodeId = data.nodeId || null;
     this.isBoss = data.isBoss || false;
     this.isElite = data.isElite || false;
+    this._resumeCheckpoint = data.resumeCheckpoint || null;
+    this._battleSuspendController = null;
     this.isTransitioningOut = false;
     this.visionSnapshot = null;
     this.pendingVisionSnapshot = null;
@@ -346,7 +349,10 @@ export class BattleScene extends Phaser.Scene {
     const deployBonus = this.runManager?.getDeployBonus?.() || 0;
     const limits = { min: baseLimits.min + deployBonus, max: baseLimits.max + deployBonus };
 
-    if (!this.roster) {
+    if (this._resumeCheckpoint) {
+      // Resuming a suspended battle -- units come from the checkpoint
+      this.beginBattle(null);
+    } else if (!this.roster) {
       // Standalone mode -- no deploy screen
       this.beginBattle(null);
     } else if (this.roster.length <= limits.max) {
@@ -433,6 +439,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._inputController) {
       this._inputController.destroy();
       this._inputController = null;
+    }
+    if (this._battleSuspendController) {
+      this._battleSuspendController.destroy();
+      this._battleSuspendController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -875,14 +885,6 @@ export class BattleScene extends Phaser.Scene {
       }
       const bc = this.battleConfig;
 
-      // Anti-refresh: persist a battle-in-progress flag (plus the locked
-      // encounter) so a reload settles mid-battle casualties instead of
-      // reviving them from the pre-battle NodeMap auto-save.
-      if (this.runManager && !this.battleParams?.tutorialMode) {
-        this.runManager.beginBattleInProgress?.(this.nodeId);
-        this._persistBattleRunState?.();
-      }
-
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
       this.grid = new Grid(
@@ -917,9 +919,29 @@ export class BattleScene extends Phaser.Scene {
       this.initializeVisionState();
       this.installBattleRng();
 
+      // Anti-refresh suspend: persist a battle-in-progress flag (plus the
+      // locked encounter and entry-time Vision/RNG values) so an interrupted
+      // battle offers Resume-or-Revert on continue instead of silently
+      // rewinding to the pre-battle NodeMap auto-save. Placed after the RNG
+      // install so the recorded reinforcement seed matches live play.
+      if (this.runManager && !this.battleParams?.tutorialMode && !this._resumeCheckpoint) {
+        this.runManager.beginBattleInProgress?.(this.nodeId, {
+          battleParams: { ...this.battleParams, battleSeed: this.getReinforcementSeed() },
+          isBoss: this.isBoss,
+          isElite: this.isElite,
+        });
+        this._persistBattleRunState?.();
+      }
+
       // Create player units.
       // tutorialMode is authoritative for tutorial composition/loadout.
-      if (this.battleParams?.tutorialMode) {
+      if (this._resumeCheckpoint) {
+        // Resume: all units (player/enemy/npc + benched) come from the
+        // suspend checkpoint, exactly as they stood at capture time.
+        (this._battleSuspendController ||= new BattleSuspendController(this)).applyUnits(
+          this._resumeCheckpoint,
+        );
+      } else if (this.battleParams?.tutorialMode) {
         const tutorialRoster = this.buildTutorialRoster();
         for (let i = 0; i < tutorialRoster.length && i < bc.playerSpawns.length; i++) {
           const unit = tutorialRoster[i];
@@ -967,15 +989,17 @@ export class BattleScene extends Phaser.Scene {
       }
 
       // Create enemies from generated spawns
-      for (const spawn of bc.enemySpawns) {
-        this.addEnemyFromSpawn(spawn);
+      if (!this._resumeCheckpoint) {
+        for (const spawn of bc.enemySpawns) {
+          this.addEnemyFromSpawn(spawn);
+        }
       }
       this._bossName = this._resolveBossDialogueName(
         this.enemyUnits.find((unit) => unit.isBoss)?.name || null,
       );
 
       // Spawn NPC for recruit battles
-      if (bc.npcSpawn) {
+      if (bc.npcSpawn && !this._resumeCheckpoint) {
         const npcSpawn = bc.npcSpawn;
         const recruitLevelBonus = this.runManager?.getRecruitLevelBonus?.() || 0;
         const teamAvgLevel = resolveTeamAverageLevel(this.playerUnits);
@@ -1244,8 +1268,10 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
-      for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-        unit._phoenixBroochUsed = false;
+      if (!this._resumeCheckpoint) {
+        for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
+          unit._phoenixBroochUsed = false;
+        }
       }
 
       // Throne marker for Seize objective
@@ -1673,11 +1699,33 @@ export class BattleScene extends Phaser.Scene {
         }
       }
 
-      // Start the battle
-      this.turnManager.startBattle();
+      // Start the battle (or pick a suspended one back up mid-turn)
+      if (this._resumeCheckpoint) {
+        try {
+          (this._battleSuspendController ||= new BattleSuspendController(this)).finalizeResume(
+            this._resumeCheckpoint,
+          );
+        } catch (err) {
+          // A checkpoint that cannot be restored must not trap the player in
+          // a resume loop — drop the suspend so continue reverts to the map.
+          this.runManager?.clearBattleInProgress?.();
+          this._persistBattleRunState?.();
+          throw err;
+        }
+        this._resumeCheckpoint = null;
+      } else {
+        this.turnManager.startBattle();
+      }
       this.refreshEndTurnControl();
     } catch (err) {
       console.error('BattleScene.beginBattle failed:', err);
+      if (this._resumeCheckpoint) {
+        // Unrestorable checkpoint — scrub the suspend so the next continue
+        // goes back to the map instead of retrying a broken resume forever.
+        this._resumeCheckpoint = null;
+        this.runManager?.clearBattleInProgress?.();
+        this._persistBattleRunState?.();
+      }
       const reason = String(err?.message || 'unknown_error').slice(0, 140);
       const cam = this.cameras.main;
       const toast = this.add
@@ -2425,9 +2473,9 @@ export class BattleScene extends Phaser.Scene {
       this,
       this.runManager,
     ))._applySnapshot();
-    // Rewind may have revived this turn's casualties — re-sync the persisted
-    // casualty lock to the restored state (charge spend persists with it).
-    if (applied) this._syncBattleCasualtiesToRun();
+    // Re-checkpoint the rewound state so a refresh resumes at the restored
+    // turn start (with the Vision charge spend locked in alongside it).
+    if (applied) this._captureSuspendCheckpoint?.();
     return applied;
   }
 
@@ -3671,6 +3719,10 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     this.battleState = 'PLAYER_IDLE';
+    // Lock the end-of-turn state before handing off to the enemy phase — a
+    // refresh during the enemy turn resumes here and replays it on the same
+    // RNG stream.
+    this._captureSuspendCheckpoint?.();
     this.turnManager.endPlayerPhase();
     this.refreshEndTurnControl();
   }
@@ -3755,18 +3807,8 @@ export class BattleScene extends Phaser.Scene {
     const saveExitCb = this.runManager
       ? async () => {
           try {
-            // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
-            // Save & Exit is the sanctioned full revert (classic FE reset): scrub the
-            // anti-refresh casualty lock so the pre-battle roster is restored intact.
-            this.runManager.clearBattleInProgress?.();
-            {
-              const cloud = this.registry.get('cloud');
-              const slot = this.registry.get('activeSlot');
-              clearBattleInProgressInSave(
-                cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
-                slot,
-              );
-            }
+            // Return to title -- the suspend checkpoint is already persisted,
+            // so Continue will offer Resume Battle / Continue from Map.
             this.clearBattleScopedDeltas(this.playerUnits);
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             const audio = this.registry.get('audio');
@@ -3815,7 +3857,7 @@ export class BattleScene extends Phaser.Scene {
         this.refreshEndTurnControl();
       },
       onSaveAndExit: saveExitCb,
-      onSaveAndExitWarning: 'Battle Progress Will Be Lost',
+      onSaveAndExitWarning: 'Battle Suspended — Resume From Continue',
       onAbandon: abandonCb,
       campaignMapData,
       gameData: this.gameData,
@@ -4336,6 +4378,9 @@ export class BattleScene extends Phaser.Scene {
     this.preMoveLoc = null;
     this._preFogSnapshot = null;
     this.battleState = 'PLAYER_IDLE';
+    // Suspend checkpoint before the phase may flip: the completed action is
+    // now locked into the save — a refresh can no longer undo it.
+    this._captureSuspendCheckpoint?.();
     this.turnManager.unitActed(unit);
   }
 
@@ -8181,28 +8226,11 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Recompute the casualty list from live battle state and persist it.
-   * Diffing roster names against alive units makes Vision rewinds self-heal:
-   * units restored by a rewind simply drop off the list. Phases recorded at
-   * death time are preserved so the Edric settle rule stays accurate.
-   */
-  _syncBattleCasualtiesToRun() {
-    const rm = this.runManager;
-    if (!rm?.battleInProgress) return;
-    const alive = new Set([
-      ...(this.playerUnits || []).map((u) => u?.name),
-      ...(this.nonDeployedUnits || []).map((u) => u?.name),
-    ]);
-    const recordedPhases = new Map(
-      (rm.battleInProgress.casualties || []).map((c) => [c.name, c.phase]),
-    );
-    const currentPhase = this.turnManager?.currentPhase === 'enemy' ? 'enemy' : 'player';
-    const casualties = (rm.roster || [])
-      .filter((u) => u?.name && !alive.has(u.name))
-      .map((u) => ({ name: u.name, phase: recordedPhases.get(u.name) || currentPhase }));
-    rm.setBattleCasualties(casualties);
-    this._persistBattleRunState();
+  /** Suspend-checkpoint shim (see BattleSuspendController). */
+  _captureSuspendCheckpoint() {
+    return (this._battleSuspendController ||= new BattleSuspendController(
+      this,
+    )).captureCheckpoint();
   }
 
   async removeUnit(unit, options = {}) {
@@ -8221,9 +8249,6 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) {
         this.playerUnits.splice(idx, 1);
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
-        // Lock the casualty into the save before any dialogue/animation —
-        // a refresh from this point on must not revive the unit.
-        this._syncBattleCasualtiesToRun?.();
         // Lord farewell dialogue (non-Edric; Edric death triggers game over elsewhere)
         if (unit.isLord && unit.name !== 'Edric') {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
@@ -8466,6 +8491,10 @@ export class BattleScene extends Phaser.Scene {
           await this.processBallistaFire(this.enemyUnits, 'player');
           if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
             this.turnManager.endPlayerPhase();
+          } else if (this.battleState === 'PLAYER_IDLE') {
+            // Turn-start suspend checkpoint: turn-start effects (poison,
+            // ballista fire) are applied, the player is about to act.
+            this._captureSuspendCheckpoint?.();
           }
         },
         {

@@ -10,9 +10,9 @@ import {
 } from '../engine/SlotManager.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { HintManager } from '../engine/HintManager.js';
-import { loadRun } from '../engine/RunManager.js';
+import { loadRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
 import { MUSIC } from '../utils/musicConfig.js';
-import { pushMeta, deleteSlotCloud } from '../cloud/CloudSync.js';
+import { pushMeta, pushRunSave, deleteSlotCloud } from '../cloud/CloudSync.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
@@ -324,6 +324,14 @@ export class SlotPickerScene extends Phaser.Scene {
       if (summary.hasActiveRun) {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
+        if (rm && rm.status !== 'defeat' && rm.battleInProgress?.checkpoint) {
+          // Suspended mid-battle — let the player choose how to continue
+          // before any transition starts.
+          this.isTransitioning = false;
+          if (this.input) this.input.enabled = true;
+          this._showSuspendedBattleChoice(slot, rm);
+          return;
+        }
         if (rm && rm.status === 'defeat') {
           // An interrupted battle settled into a loss on load (Edric fell with
           // no Vision charge to spend) — show the game-over flow instead of
@@ -368,6 +376,149 @@ export class SlotPickerScene extends Phaser.Scene {
     } catch (err) {
       console.error('[SlotPickerScene] selectSlot transition failed:', err);
       rollbackSelectionState();
+      this.isTransitioning = false;
+      if (this.input) this.input.enabled = true;
+    }
+  }
+
+  /**
+   * Continue choice for a save suspended mid-battle: Resume Battle restores
+   * the suspend checkpoint exactly; Continue from Map is the sanctioned full
+   * revert (classic FE reset) — the battle resets and entry-time Vision/RNG
+   * values are refunded. Registered as confirmDialog so ESC/outside-tap
+   * dismisses it back to the slot list.
+   */
+  _showSuspendedBattleChoice(slot, rm) {
+    if (this.confirmDialog) {
+      this.confirmDialog.forEach((o) => o.destroy());
+      this.confirmDialog = null;
+    }
+    const cx = this.cameras.main.centerX;
+    const cy = this.cameras.main.centerY;
+    const objects = [];
+
+    const blocker = this.add
+      .rectangle(cx, cy, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.75)
+      .setDepth(500)
+      .setInteractive();
+    objects.push(blocker);
+    const panel = this.add
+      .rectangle(cx, cy, 380, 180, 0x121a2a, 0.96)
+      .setDepth(501)
+      .setStrokeStyle(2, 0x66aacc, 1);
+    objects.push(panel);
+    objects.push(
+      this.add
+        .text(cx, cy - 58, 'Battle in Progress', {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: '#ffdd88',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(502),
+    );
+    objects.push(
+      this.add
+        .text(cx, cy - 18, 'This save was suspended mid-battle.\nResume where you left off?', {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color: '#d0d7e8',
+          align: 'center',
+        })
+        .setOrigin(0.5)
+        .setDepth(502),
+    );
+
+    const makeButton = (x, label, color, handler) => {
+      const btn = this.add
+        .text(x, cy + 52, label, {
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          color,
+          backgroundColor: '#223044',
+          padding: { x: 10, y: 5 },
+        })
+        .setOrigin(0.5)
+        .setDepth(502)
+        .setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#ffdd44'));
+      btn.on('pointerout', () => btn.setColor(color));
+      btn.on('pointerdown', (pointer) => {
+        if (pointer?.button !== undefined && pointer.button !== 0) return;
+        handler();
+      });
+      objects.push(btn);
+    };
+    makeButton(cx - 92, '[ Resume Battle ]', '#a6ffb0', () =>
+      this._continueSuspendedRun(slot, rm, 'battle'),
+    );
+    makeButton(cx + 92, '[ Continue from Map ]', '#e0e0e0', () =>
+      this._continueSuspendedRun(slot, rm, 'map'),
+    );
+
+    this.confirmDialog = objects;
+  }
+
+  async _continueSuspendedRun(slot, rm, mode) {
+    if (this.isTransitioning) return;
+    this.isTransitioning = true;
+    if (this.input) this.input.enabled = false;
+    if (this.confirmDialog) {
+      this.confirmDialog.forEach((o) => o.destroy());
+      this.confirmDialog = null;
+    }
+    try {
+      await ensureAudioUnlocked(this);
+      const audio = this.registry.get('audio');
+      if (audio) audio.stopMusic(this, 0);
+      const cloud = this.registry.get('cloud');
+      const bip = rm.battleInProgress;
+      let transitioned = false;
+      if (mode === 'battle' && bip?.checkpoint) {
+        transitioned = await transitionToScene(
+          this,
+          'Battle',
+          {
+            gameData: this.gameData,
+            runManager: rm,
+            battleParams: bip.battleParams || { act: rm.currentAct, objective: 'rout' },
+            roster: rm.getRoster(),
+            nodeId: bip.nodeId,
+            isBoss: bip.isBoss === true,
+            isElite: bip.isElite === true,
+            resumeCheckpoint: bip.checkpoint,
+          },
+          { reason: TRANSITION_REASONS.CONTINUE },
+        );
+      } else {
+        // Full revert: refund entry-time Vision charges and RNG seed in
+        // memory, mirror it into the raw save, then resume from the map.
+        if (Number.isFinite(bip?.visionChargesAtEntry)) {
+          rm.visionChargesRemaining = bip.visionChargesAtEntry;
+        }
+        if (Number.isFinite(bip?.visionCountAtEntry)) {
+          rm.visionCount = bip.visionCountAtEntry;
+        }
+        if (Number.isFinite(bip?.rngSeedAtEntry)) {
+          rm.rngSeed = bip.rngSeedAtEntry;
+        }
+        rm.clearBattleInProgress();
+        clearBattleInProgressInSave(cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null, slot);
+        transitioned = await transitionToScene(
+          this,
+          'NodeMap',
+          { gameData: this.gameData, runManager: rm },
+          { reason: TRANSITION_REASONS.CONTINUE },
+        );
+      }
+      if (transitioned === false) {
+        this.isTransitioning = false;
+        if (this.input) this.input.enabled = true;
+      }
+      if (transitioned) setActiveSlot(slot);
+    } catch (err) {
+      console.error('[SlotPickerScene] suspended-run continue failed:', err);
       this.isTransitioning = false;
       if (this.input) this.input.enabled = true;
     }
