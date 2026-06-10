@@ -724,15 +724,17 @@ export function getCombatForecast(
   // Attacker stats (skill mods applied as flat adjustments)
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
-  let atkDmg =
+  let atkDmg = Math.max(
+    0,
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
       targetsRES: atkMods?.targetsRES,
       effectivenessMultiplier: atkEffectiveness,
     }) +
-    (atkMods?.atkBonus || 0) -
-    (defMods?.defBonus || 0) -
-    (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
-    fDefWpnDef;
+      (atkMods?.atkBonus || 0) -
+      (defMods?.defBonus || 0) -
+      (usesMagic(atkWeapon) ? defMods?.resBonus || 0 : 0) -
+      fDefWpnDef,
+  );
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
@@ -797,15 +799,17 @@ export function getCombatForecast(
     const defTriangle = getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
     const atkTerrainForDefHit = defMods?.ignoreTerrainAvoid ? null : atkTerrain;
     const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
-    defDmg =
+    defDmg = Math.max(
+      0,
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
         targetsRES: defMods?.targetsRES,
         effectivenessMultiplier: defEffectiveness,
       }) +
-      (defMods?.atkBonus || 0) -
-      (atkMods?.defBonus || 0) -
-      (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
-      fAtkWpnDef;
+        (defMods?.atkBonus || 0) -
+        (atkMods?.defBonus || 0) -
+        (usesMagic(defWeapon) ? atkMods?.resBonus || 0 : 0) -
+        fAtkWpnDef,
+    );
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
@@ -940,7 +944,7 @@ function rollStrike(
   }
 
   const isCrit = Math.random() * 100 < critRate;
-  let finalDmg = isCrit ? damage * critMultiplier : damage;
+  let finalDmg = isCrit ? Math.floor(damage * critMultiplier) : damage;
   let heal = 0;
   let extraStrike = false;
   let aetherLuna = false;
@@ -1377,11 +1381,14 @@ export function resolveCombat(
         }
       }
 
-      // Adept/Aether: extra strike at full damage (one bonus strike per hit)
+      // Adept/Aether: extra strike at full damage (one bonus strike per hit).
+      // Defense skills/affixes (Pavise, Aegis, Miracle, Shielded, Thorns, …) still
+      // apply; only on-attack procs are disabled so bonus strikes can't chain.
       if (evt.extraStrike && atkHP > 0 && defHP > 0) {
         // Aether Luna: bonus strike at 1.5x damage
         const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
+        const bonusStrikeSkills = strikeSkills ? { ...strikeSkills, rollStrikeSkills: null } : null;
         const bonusEvt = rollStrike(
           aName,
           tName,
@@ -1389,7 +1396,7 @@ export function resolveCombat(
           bonusDmg,
           crit,
           bonusTargetHP,
-          null,
+          bonusStrikeSkills,
           weaponSpecial,
           { attackerSide, targetSide },
           drainPct,
@@ -1410,7 +1417,28 @@ export function resolveCombat(
             bonusEvt.strikerHealTo = defHP;
           }
         }
+        // Propagate side effects recorded on the copied context back to the original
+        if (bonusStrikeSkills?._debuffAttackerData && !strikeSkills._debuffAttackerData) {
+          strikeSkills._debuffAttackerData = bonusStrikeSkills._debuffAttackerData;
+        }
+        if (!bonusEvt.miss && bonusEvt.damage > 0) {
+          const target = isAttackingDefender ? defender : attacker;
+          if (isSleeping(target)) {
+            removeCondition(target, 'sleep');
+            bonusEvt.wokeFromSleep = true;
+          }
+        }
+        if (!bonusEvt.miss && bonusEvt.skillActivations) {
+          for (const sa of bonusEvt.skillActivations) {
+            if (sa.id === 'cancel') {
+              if (isAttackingDefender) attackerFollowUpCancelled = true;
+              else defenderFollowUpCancelled = true;
+            }
+          }
+        }
         events.push(bonusEvt);
+        // Teleporter on the bonus strike: target escaped, end this phase too
+        if (bonusEvt.warpRange > 0) break;
       }
     }
   }

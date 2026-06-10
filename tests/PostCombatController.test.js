@@ -171,6 +171,26 @@ describe('PostCombatController', () => {
     renderSpy.mockRestore();
   });
 
+  it('transitionToRunCompleteWithRetry resolves false when every attempt hangs (watchdog)', async () => {
+    // Regression: a hung transitionToScene used to stall the defeat flow
+    // forever — the recovery UI never appeared because the await never settled.
+    vi.useFakeTimers();
+    try {
+      const scene = makeScene();
+      transitionToSceneMock.mockImplementation(() => new Promise(() => {}));
+      const controller = new PostCombatController(scene);
+
+      const pending = controller.transitionToRunCompleteWithRetry('defeat');
+      // 4 attempts × 6s watchdog each (retry waits run synchronously in the mock).
+      await vi.advanceTimersByTimeAsync(4 * 6000 + 1000);
+
+      await expect(pending).resolves.toBe(false);
+      expect(transitionToSceneMock).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('transitionToRunCompleteWithRetry uses RunComplete + VICTORY reason when result=victory', async () => {
     const scene = makeScene();
     const controller = new PostCombatController(scene);

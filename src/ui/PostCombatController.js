@@ -10,6 +10,10 @@ import { BossRecruitOverlay } from './BossRecruitOverlay.js';
 import { LordArrivalOverlay } from './LordArrivalOverlay.js';
 import { LootScreenController } from './LootScreenController.js';
 
+// Watchdog: a single RunComplete transition attempt that hangs past this is
+// treated as failed so the retry loop (and ultimately the recovery UI) still runs.
+const RUN_COMPLETE_TRANSITION_TIMEOUT_MS = 6000;
+
 export class PostCombatController {
   constructor(scene) {
     this.scene = scene;
@@ -304,6 +308,15 @@ export class PostCombatController {
     const reason = result === 'victory' ? TRANSITION_REASONS.VICTORY : TRANSITION_REASONS.DEFEAT;
     return retryBooleanAction(
       (attempt) => {
+        const timeoutToken = Symbol('runcomplete_transition_timeout');
+        let timeoutHandle = null;
+        const timeoutPromise = new Promise((resolve) => {
+          timeoutHandle = setTimeout(
+            () => resolve(timeoutToken),
+            RUN_COMPLETE_TRANSITION_TIMEOUT_MS,
+          );
+          if (typeof timeoutHandle?.unref === 'function') timeoutHandle.unref();
+        });
         const ok = transitionToScene(
           scene,
           'RunComplete',
@@ -314,11 +327,20 @@ export class PostCombatController {
           },
           { reason },
         );
-        return ok.then((success) => {
-          if (!success) {
+        return Promise.race([ok, timeoutPromise]).then((outcome) => {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          if (outcome === timeoutToken) {
+            console.warn(`[BattleScene] ${result} transition attempt timed out`, {
+              attempt,
+              result,
+              timeoutMs: RUN_COMPLETE_TRANSITION_TIMEOUT_MS,
+            });
+            return false;
+          }
+          if (outcome !== true) {
             console.warn(`[BattleScene] ${result} transition attempt failed`, { attempt, result });
           }
-          return success;
+          return outcome === true;
         });
       },
       {

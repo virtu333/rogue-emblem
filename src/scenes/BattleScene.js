@@ -4281,6 +4281,35 @@ export class BattleScene extends Phaser.Scene {
     this.turnManager.unitActed(unit);
   }
 
+  /**
+   * Recover from an unexpected error inside a unit-action flow (talk, heal,
+   * promotion, …). Consumes the unit's action if it hasn't been consumed yet so
+   * a thrown blocking state ('COMBAT_RESOLVING'/'HEAL_RESOLVING') can't softlock
+   * the battle.
+   */
+  _recoverUnitActionError(unit, label, err) {
+    console.error(`[BattleScene] ${label} error:`, err);
+    if (this.battleState === 'BATTLE_END') return;
+    try {
+      if (unit && !unit.hasActed) {
+        this.finishUnitAction(unit, { skipCanto: true });
+        return;
+      }
+    } catch (recoveryErr) {
+      console.error(`[BattleScene] ${label} recovery error:`, recoveryErr);
+    }
+    if (this.battleState !== 'BATTLE_END' && this.battleState !== 'PLAYER_IDLE') {
+      this.battleState = 'PLAYER_IDLE';
+      this.selectedUnit = null;
+      try {
+        this.grid?.clearHighlights?.();
+        this.grid?.clearAttackHighlights?.();
+      } catch (_) {
+        /* best-effort visual */
+      }
+    }
+  }
+
   // --- Shove / Pull / Canto ---
 
   findShoveTargets(unit) {
@@ -5556,32 +5585,36 @@ export class BattleScene extends Phaser.Scene {
 
     this.battleState = 'COMBAT_RESOLVING'; // block input
 
-    // Show recruitment dialogue -- lords get personal lines, others use class-based
-    const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
-    const recruitLines = lordLines ||
-      this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
-    const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
-    const portraitKey = this._getPortraitKey(npc);
-    await this.dialogueOverlay.show(npc.name, line, portraitKey);
+    try {
+      // Show recruitment dialogue -- lords get personal lines, others use class-based
+      const lordLines = npc.isLord ? this.gameData.dialogue?.lordRecruitLines?.[npc.name] : null;
+      const recruitLines = lordLines ||
+        this.gameData.dialogue?.recruitLines?.[npc.className] || ['Joined the army!'];
+      const line = recruitLines[Math.floor(Math.random() * recruitLines.length)];
+      const portraitKey = this._getPortraitKey(npc);
+      await this.dialogueOverlay.show(npc.name, line, portraitKey);
 
-    // Remove from NPC array
-    const npcIdx = this.npcUnits.indexOf(npc);
-    if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
+      // Remove from NPC array
+      const npcIdx = this.npcUnits.indexOf(npc);
+      if (npcIdx !== -1) this.npcUnits.splice(npcIdx, 1);
 
-    // Convert faction
-    npc.faction = 'player';
+      // Convert faction
+      npc.faction = 'player';
 
-    // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
-    this.removeUnitGraphic(npc);
-    this.addUnitGraphic(npc);
+      // Destroy and re-create graphics (correct sprite key + tint + HP bar color)
+      this.removeUnitGraphic(npc);
+      this.addUnitGraphic(npc);
 
-    // Add to player units
-    this.playerUnits.push(npc);
-    // Recruit can move + act this turn (FE convention); force fresh action flags.
-    npc.hasMoved = false;
-    npc.hasActed = false;
+      // Add to player units
+      this.playerUnits.push(npc);
+      // Recruit can move + act this turn (FE convention); force fresh action flags.
+      npc.hasMoved = false;
+      npc.hasActed = false;
 
-    this.finishUnitAction(lord);
+      this.finishUnitAction(lord);
+    } catch (err) {
+      this._recoverUnitActionError(lord, 'talk', err);
+    }
   }
 
   // --- Heal flow ---
@@ -5782,31 +5815,35 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'HEAL_RESOLVING';
     this.grid.clearAttackHighlights();
 
-    const staff = healer.weapon; // Should already be equipped
-    const healOpts = {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
-    const result = resolveHeal(staff, healer, target, healOpts);
-
-    // Apply heal
-    target.currentHP = result.targetHPAfter;
-    this.updateHPBar(target);
-
-    // Animate
-    await this.animateHeal(target, result.healAmount);
-
-    // Spend a use and check depletion
-    spendStaffUse(staff);
-    if (getStaffRemainingUses(staff, healer) <= 0) {
-      const combatWpn = getCombatWeapons(healer)[0];
-      if (combatWpn) equipWeapon(healer, combatWpn);
-    }
-
     try {
-      await this.awardScaledXP(healer, XP_BASE_HEAL);
-    } finally {
-      this.finishUnitAction(healer);
+      const staff = healer.weapon; // Should already be equipped
+      const healOpts = {
+        healingMultiplier:
+          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+      };
+      const result = resolveHeal(staff, healer, target, healOpts);
+
+      // Apply heal
+      target.currentHP = result.targetHPAfter;
+      this.updateHPBar(target);
+
+      // Animate
+      await this.animateHeal(target, result.healAmount);
+
+      // Spend a use and check depletion
+      spendStaffUse(staff);
+      if (getStaffRemainingUses(staff, healer) <= 0) {
+        const combatWpn = getCombatWeapons(healer)[0];
+        if (combatWpn) equipWeapon(healer, combatWpn);
+      }
+
+      try {
+        await this.awardScaledXP(healer, XP_BASE_HEAL);
+      } finally {
+        this.finishUnitAction(healer);
+      }
+    } catch (err) {
+      this._recoverUnitActionError(healer, 'heal', err);
     }
   }
 
@@ -5814,30 +5851,34 @@ export class BattleScene extends Phaser.Scene {
     this.battleState = 'HEAL_RESOLVING';
     this.grid.clearAttackHighlights();
 
-    const staff = healer.weapon;
-    const healOpts = {
-      healingMultiplier:
-        this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
-    };
-
-    for (const target of targets) {
-      const result = resolveHeal(staff, healer, target, healOpts);
-      target.currentHP = result.targetHPAfter;
-      this.updateHPBar(target);
-      await this.animateHeal(target, result.healAmount);
-    }
-
-    // Single use spent for all targets
-    spendStaffUse(staff);
-    if (getStaffRemainingUses(staff, healer) <= 0) {
-      const combatWpn = getCombatWeapons(healer)[0];
-      if (combatWpn) equipWeapon(healer, combatWpn);
-    }
-
     try {
-      await this.awardScaledXP(healer, XP_BASE_HEAL);
-    } finally {
-      this.finishUnitAction(healer);
+      const staff = healer.weapon;
+      const healOpts = {
+        healingMultiplier:
+          this.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
+      };
+
+      for (const target of targets) {
+        const result = resolveHeal(staff, healer, target, healOpts);
+        target.currentHP = result.targetHPAfter;
+        this.updateHPBar(target);
+        await this.animateHeal(target, result.healAmount);
+      }
+
+      // Single use spent for all targets
+      spendStaffUse(staff);
+      if (getStaffRemainingUses(staff, healer) <= 0) {
+        const combatWpn = getCombatWeapons(healer)[0];
+        if (combatWpn) equipWeapon(healer, combatWpn);
+      }
+
+      try {
+        await this.awardScaledXP(healer, XP_BASE_HEAL);
+      } finally {
+        this.finishUnitAction(healer);
+      }
+    } catch (err) {
+      this._recoverUnitActionError(healer, 'healAll', err);
     }
   }
 
@@ -6409,6 +6450,47 @@ export class BattleScene extends Phaser.Scene {
       return false;
     }
 
+    // Once promoteUnit has mutated the unit the promotion is committed; on a
+    // later error we must consume the seal + action instead of replaying the menu.
+    let promotionApplied = false;
+    let sealConsumed = false;
+    try {
+      return await this._executePromotionFlow(unit, seal, {
+        markPromotionApplied: () => {
+          promotionApplied = true;
+        },
+        markSealConsumed: () => {
+          sealConsumed = true;
+        },
+      });
+    } catch (err) {
+      if (!promotionApplied) {
+        console.error('[BattleScene] promotion error:', err);
+        if (this.battleState !== 'BATTLE_END') {
+          this.battleState = 'UNIT_ACTION_MENU';
+          try {
+            this.showActionMenu(unit);
+          } catch (menuErr) {
+            console.error('[BattleScene] promotion recovery error:', menuErr);
+            this._recoverUnitActionError(unit, 'promotion', err);
+          }
+        }
+        return false;
+      }
+      if (!sealConsumed) {
+        try {
+          seal.uses = (seal.uses ?? 1) - 1;
+          if (seal.uses <= 0) removeFromConsumables(unit, seal);
+        } catch (sealErr) {
+          console.error('[BattleScene] promotion seal-consume error:', sealErr);
+        }
+      }
+      this._recoverUnitActionError(unit, 'promotion', err);
+      return true;
+    }
+  }
+
+  async _executePromotionFlow(unit, seal, { markPromotionApplied, markSealConsumed }) {
     // Find promotion targets
     const lordData = this.gameData.lords.find((l) => l.name === unit.name);
     const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
@@ -6459,6 +6541,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Apply promotion
     promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+    markPromotionApplied();
 
     // Refresh sprite to show promoted class
     this.removeUnitGraphic(unit);
@@ -6518,6 +6601,7 @@ export class BattleScene extends Phaser.Scene {
     // Consume Master Seal on successful promotion
     seal.uses = (seal.uses ?? 1) - 1;
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
+    markSealConsumed();
 
     this.finishUnitAction(unit);
     return true;
