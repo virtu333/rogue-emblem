@@ -139,8 +139,10 @@ export class UnitDetailOverlay {
     if (game?.events) {
       if (!this._mobileContextPushed) {
         const canCycleUnits = Boolean(this._rosterUnits && this._rosterUnits.length > 1);
+        this._mobileContextToken = Symbol('mobile-context');
         game.events.emit('mobile:pushContext', {
           context: canCycleUnits ? 'overlay_unit_detail' : 'overlay_tabs',
+          token: this._mobileContextToken,
         });
         this._mobileContextPushed = true;
       }
@@ -344,7 +346,8 @@ export class UnitDetailOverlay {
       this._mobileNextUnit = null;
       if (this._mobileContextPushed) {
         this._mobileContextPushed = false;
-        game.events.emit('mobile:popContext');
+        game.events.emit('mobile:popContext', { token: this._mobileContextToken });
+        this._mobileContextToken = null;
       }
     }
     this._clearTooltipTimers();
@@ -987,7 +990,8 @@ export class UnitDetailOverlay {
         this._mobileNextUnit = null;
         if (this._mobileContextPushed) {
           this._mobileContextPushed = false;
-          game.events.emit('mobile:popContext');
+          game.events.emit('mobile:popContext', { token: this._mobileContextToken });
+          this._mobileContextToken = null;
         }
       }
     });

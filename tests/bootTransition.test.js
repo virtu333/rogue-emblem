@@ -29,11 +29,13 @@ describe('bootTransition', () => {
     resetTransitionLocksMock.mockReset();
   });
 
-  it('returns on first transition success', async () => {
+  it('returns true on first transition success', async () => {
     const scene = makeScene();
     transitionToSceneMock.mockResolvedValueOnce(true);
 
-    await bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot');
+    await expect(bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot')).resolves.toBe(
+      true,
+    );
 
     expect(transitionToSceneMock).toHaveBeenCalledTimes(1);
     expect(resetTransitionLocksMock).not.toHaveBeenCalled();
@@ -56,7 +58,9 @@ describe('bootTransition', () => {
     const scene = makeScene();
     transitionToSceneMock.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
 
-    await bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot');
+    await expect(bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot')).resolves.toBe(
+      true,
+    );
 
     expect(transitionToSceneMock).toHaveBeenCalledTimes(2);
     expect(resetTransitionLocksMock).toHaveBeenCalledTimes(1);
@@ -64,7 +68,7 @@ describe('bootTransition', () => {
     expect(scene.scene.start).toHaveBeenCalledWith('Title', { gameData: { ok: 1 } });
   });
 
-  it('swallows direct scene.start errors and logs them', async () => {
+  it('returns false and logs when direct scene.start also throws', async () => {
     const scene = makeScene();
     const startError = new Error('start exploded');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -73,9 +77,9 @@ describe('bootTransition', () => {
       throw startError;
     });
 
-    await expect(
-      bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot'),
-    ).resolves.toBeUndefined();
+    await expect(bootTransition(scene, 'Title', { gameData: { ok: 1 } }, 'boot')).resolves.toBe(
+      false,
+    );
 
     expect(errorSpy).toHaveBeenCalledWith(
       '[BootScene] Direct scene.start fallback failed:',

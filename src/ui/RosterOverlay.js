@@ -18,6 +18,7 @@ import {
   canEquip,
   canPromote,
   promoteUnit,
+  getSkillDisplayNames,
   equipAccessory,
   unequipAccessory,
   resolvePromotionTargets,
@@ -1446,7 +1447,12 @@ export class RosterOverlay {
     // Track old types for new weapon grant
     const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
-    promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+    const promotionResult = promoteUnit(
+      unit,
+      promotedClassData,
+      promotionBonuses,
+      this.gameData.skills,
+    );
 
     // Grant Iron weapons for new proficiency types
     const lordPromoWeapons = lordData?.promotionWeapons;
@@ -1488,7 +1494,14 @@ export class RosterOverlay {
     if (typeof this.scene.sound?.stopByKey === 'function')
       this.scene.sound.stopByKey('sfx_levelup');
     if (audio) audio.playSFX('sfx_levelup');
-    this._showBanner(`${unit.name} promoted to ${promotedClassData.name}!`, '#ffdd44');
+    const droppedNames = getSkillDisplayNames(promotionResult?.droppedSkills, this.gameData.skills);
+    this._showBanner(
+      droppedNames.length > 0
+        ? `${unit.name} promoted to ${promotedClassData.name}! ` +
+            `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
+        : `${unit.name} promoted to ${promotedClassData.name}!`,
+      droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
+    );
     this.refresh();
   }
 
@@ -3197,6 +3210,9 @@ export class RosterOverlay {
         color,
         backgroundColor: '#000000cc',
         padding: { x: 12, y: 6 },
+        align: 'center',
+        // Promotion notices with dropped skills can exceed the 640px screen.
+        wordWrap: { width: 580 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 10)

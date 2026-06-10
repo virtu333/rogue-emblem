@@ -68,6 +68,9 @@ export async function transitionToSceneWithBlockedRetry(
 ) {
   const first = await startSceneLazyDetailed(scene, key, data, { reason });
   if (first.status !== TRANSITION_RESULTS.BLOCKED) return first;
+  // 'inactive_source' is permanent -- the source scene already shut down, so
+  // another transition won the race and waiting cannot make this one succeed.
+  if (first.blockReason === 'inactive_source') return first;
   await new Promise((resolve) => {
     const timer = setTimeout(resolve, retryDelayMs);
     if (typeof timer?.unref === 'function') timer.unref();

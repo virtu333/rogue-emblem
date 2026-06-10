@@ -689,7 +689,16 @@ export class BootScene extends Phaser.Scene {
           hasSeed: Number.isFinite(devStartupConfig.seed),
           devTools: Boolean(devStartupConfig.devTools),
         });
-        await bootTransition(this, devRoute.key, devRoute.data, TRANSITION_REASONS.BOOT);
+        const routed = await bootTransition(
+          this,
+          devRoute.key,
+          devRoute.data,
+          TRANSITION_REASONS.BOOT,
+        );
+        // Watchdog target: only mark complete when the route actually started.
+        // The pre-transition 'boot_dev_route' marker alone used to satisfy the
+        // watchdog, hiding hung dev-route boots.
+        if (routed) markStartup('boot_dev_route_complete', { scene: devRoute.key });
         return;
       }
     }

@@ -33,6 +33,11 @@ export class SlotPickerScene extends Phaser.Scene {
     this._tapMoveThreshold = 12;
     this._onEsc = () => this.requestCancel();
 
+    // Keep the title theme going — Title releases its music on shutdown,
+    // which used to leave this scene silent until HomeBase/NodeMap.
+    const audio = this.registry.get('audio');
+    if (audio) audio.playMusic(MUSIC.title, this, 300);
+
     this.add
       .text(cx, 40, 'SELECT SAVE SLOT', {
         fontFamily: 'monospace',

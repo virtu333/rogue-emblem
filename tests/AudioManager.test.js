@@ -296,6 +296,27 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_battle_act2_1');
   });
 
+  it('same-key replay transfers ownership to the latest requester', async () => {
+    // SlotPicker re-asserts the title theme that Title started; its later
+    // stopMusic must not be blocked by the stale 'Title' owner.
+    const sound = makeSoundManager({ loadedKeys: ['music_title'] });
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_title', { scene: { key: 'Title' } }, 0);
+    expect(audio.currentMusicOwner).toBe('Title');
+    const track = audio.currentMusic;
+
+    await audio.playMusic('music_title', { scene: { key: 'SlotPicker' } }, 0);
+    // Same key keeps playing (no restart) but ownership moves.
+    expect(audio.currentMusic).toBe(track);
+    expect(track.isPlaying).toBe(true);
+    expect(audio.currentMusicOwner).toBe('SlotPicker');
+
+    const stopped = audio.stopMusic({ scene: { key: 'SlotPicker' } }, 0);
+    expect(stopped).toBe(true);
+    expect(track.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('does not stop current music when another owner requests stop', () => {
     const current = makeLoopingSound('music_battle_act1_1');
     const sound = makeSoundManager({ sounds: [current] });
@@ -610,6 +631,35 @@ describe('AudioManager', () => {
 
     expect(fadingOut.stop).not.toHaveBeenCalled();
     expect(fadingOut.destroy).not.toHaveBeenCalled();
+  });
+
+  it('fade-in safety net clears the proxy and snaps volume when the tween dies mid-fade', () => {
+    // Regression: a scene shutting down mid fade-in kills the tween without
+    // firing onComplete, stranding the proxy (setMusicVolume skipped the
+    // sound forever) and the music at partial volume.
+    vi.useFakeTimers();
+    try {
+      const target = makeLoopingSound('music_title');
+      const soundManager = makeSoundManager({ sounds: [target] });
+      const audio = new AudioManager(soundManager);
+      // Tween manager that captures the config but never runs it (dead scene).
+      const scene = { tweens: { add: vi.fn(), killTweensOf: vi.fn() } };
+
+      audio._tweenSoundVolume(scene, target, 0, 1, 300);
+      expect(target.__audioFadeProxy).toBeTruthy();
+
+      vi.advanceTimersByTime(800); // duration + 500ms safety margin
+
+      expect(target.__audioFadeProxy).toBe(null);
+      expect(target.volume).toBeCloseTo(audio._curve(audio.musicVolume));
+
+      // The slider reaches the sound again once the proxy is cleared.
+      audio._trackedMusicSounds.add(target);
+      audio.setMusicVolume(0.5);
+      expect(target.volume).toBeCloseTo(audio._curve(0.5));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fade safety net force-destroys sound when tween onComplete never fires', () => {

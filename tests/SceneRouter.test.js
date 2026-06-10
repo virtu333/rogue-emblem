@@ -145,6 +145,23 @@ describe('SceneRouter', () => {
     expect(broken.scene.start).toHaveBeenCalledTimes(1);
   });
 
+  it('transitionToSceneWithBlockedRetry does not retry the permanent inactive_source block', async () => {
+    vi.useFakeTimers();
+    try {
+      const dead = makeScene({ active: false, key: 'Battle' });
+
+      // Must settle without advancing timers: a permanent block (source scene
+      // already shut down) must not arm the 800ms retry delay.
+      const result = await transitionToSceneWithBlockedRetry(dead, 'Title', {});
+
+      expect(result.status).toBe(TRANSITION_RESULTS.BLOCKED);
+      expect(result.blockReason).toBe('inactive_source');
+      expect(dead.scene.start).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('restartScene writes transition metadata and restarts current scene', () => {
     const scene = makeScene({ key: 'Boot' });
 

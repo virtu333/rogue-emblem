@@ -28,6 +28,7 @@ import {
   addToConsumables,
   canPromote,
   promoteUnit,
+  getSkillDisplayNames,
   resolvePromotionTargets,
   getDisplayLevel,
 } from '../engine/UnitManager.js';
@@ -1001,6 +1002,15 @@ export class NodeMapScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.SAVE_EXIT },
           );
           if (result.status !== TRANSITION_RESULTS.STARTED) {
+            if (this.sys?.isActive?.() === false) {
+              // Scene already shut down -- another transition won the race;
+              // a raw start from a dead scene would stomp the live one.
+              markStartup('pause_transition_superseded', {
+                scene: 'NodeMap',
+                reason: 'SAVE_EXIT',
+              });
+              return;
+            }
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
             resetTransitionLocks(this);
             try {
@@ -1037,6 +1047,15 @@ export class NodeMapScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.ABANDON_RUN },
           );
           if (result.status !== TRANSITION_RESULTS.STARTED) {
+            if (this.sys?.isActive?.() === false) {
+              // Scene already shut down -- another transition won the race;
+              // a raw start from a dead scene would stomp the live one.
+              markStartup('pause_transition_superseded', {
+                scene: 'NodeMap',
+                reason: 'ABANDON_RUN',
+              });
+              return;
+            }
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
             resetTransitionLocks(this);
             try {
@@ -2088,7 +2107,12 @@ export class NodeMapScene extends Phaser.Scene {
             return;
           }
 
-          promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+          const promotionResult = promoteUnit(
+            unit,
+            promotedClassData,
+            promotionBonuses,
+            this.gameData.skills,
+          );
           this._churchPromotionsThisVisit = (this._churchPromotionsThisVisit || 0) + 1;
           this.runManager.setChurchPromotionCount(
             this._currentChurchNodeId,
@@ -2098,10 +2122,17 @@ export class NodeMapScene extends Phaser.Scene {
           if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_levelup');
+          const droppedNames = getSkillDisplayNames(
+            promotionResult?.droppedSkills,
+            this.gameData.skills,
+          );
           this._showChurchSuccessMessage(
             node,
-            `${unit.name} promoted to ${promotedClassData.name}!`,
-            '#ffdd44',
+            droppedNames.length > 0
+              ? `${unit.name} promoted to ${promotedClassData.name}! ` +
+                  `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
+              : `${unit.name} promoted to ${promotedClassData.name}!`,
+            droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
             'promotion',
           );
         });

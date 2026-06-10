@@ -30,9 +30,15 @@ export class LevelUpPopup {
     this.objects = [];
   }
 
-  /** Show the popup. Returns a Promise that resolves when dismissed. */
+  /**
+   * Show the popup. Returns a Promise that resolves when dismissed.
+   * Always resolves: destroy() (including via scene shutdown) settles the
+   * promise so awaiting callers can never hang on a popup that no longer
+   * exists.
+   */
   show() {
     return new Promise((resolve) => {
+      this._resolve = resolve;
       const cam = this.scene.cameras.main;
       const cx = cam.width / 2;
       const cy = cam.height / 2;
@@ -183,18 +189,29 @@ export class LevelUpPopup {
         .setDepth(902);
       this.objects.push(hint);
 
+      // Hook shutdown only after the popup built successfully -- a throw
+      // above (e.g. dead scene) must not leave a stale listener behind.
+      this._onSceneShutdown = () => this.destroy();
+      this.scene.events?.once?.('shutdown', this._onSceneShutdown);
+
       // Click to dismiss
       dimBg.once('pointerdown', () => {
         this.destroy();
-        resolve();
       });
     });
   }
 
   destroy() {
+    if (this._onSceneShutdown) {
+      this.scene?.events?.off?.('shutdown', this._onSceneShutdown);
+      this._onSceneShutdown = null;
+    }
     for (const obj of this.objects) {
       obj.destroy();
     }
     this.objects = [];
+    const resolve = this._resolve;
+    this._resolve = null;
+    if (resolve) resolve();
   }
 }

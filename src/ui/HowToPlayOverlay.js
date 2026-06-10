@@ -45,7 +45,11 @@ export class HowToPlayOverlay {
     // Mobile overlay tab navigation
     const game = this.scene?.game;
     if (game?.events) {
-      game.events.emit('mobile:pushContext', { context: 'overlay_tabs' });
+      this._mobileContextToken = Symbol('mobile-context');
+      game.events.emit('mobile:pushContext', {
+        context: 'overlay_tabs',
+        token: this._mobileContextToken,
+      });
       this._mobileContextPushed = true;
       this._mobilePrev = () => this._onLeft();
       this._mobileNext = () => this._onRight();
@@ -65,7 +69,8 @@ export class HowToPlayOverlay {
           this._mobileNext = null;
           if (this._mobileContextPushed) {
             this._mobileContextPushed = false;
-            g.events.emit('mobile:popContext');
+            g.events.emit('mobile:popContext', { token: this._mobileContextToken });
+            this._mobileContextToken = null;
           }
         }
       });
@@ -252,7 +257,8 @@ export class HowToPlayOverlay {
       this._mobileNext = null;
       if (this._mobileContextPushed) {
         this._mobileContextPushed = false;
-        game.events.emit('mobile:popContext');
+        game.events.emit('mobile:popContext', { token: this._mobileContextToken });
+        this._mobileContextToken = null;
       }
     }
     if (this.escKey) {

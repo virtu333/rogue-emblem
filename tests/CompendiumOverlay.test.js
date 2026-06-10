@@ -373,9 +373,10 @@ describe('CompendiumOverlay', () => {
       const scene = makeScene();
       const overlay = new CompendiumOverlay(scene, gameData, vi.fn());
       overlay.show();
-      expect(scene.game.events.emit).toHaveBeenCalledWith('mobile:pushContext', {
-        context: 'overlay_tabs',
-      });
+      expect(scene.game.events.emit).toHaveBeenCalledWith(
+        'mobile:pushContext',
+        expect.objectContaining({ context: 'overlay_tabs' }),
+      );
       const pushCount = scene.game.events.emit.mock.calls.filter(
         (c) => c[0] === 'mobile:pushContext',
       ).length;
