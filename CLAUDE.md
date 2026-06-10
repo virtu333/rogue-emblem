@@ -64,7 +64,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4057 tests across 212 files + harness/ + e2e/
+├── tests/                 # Vitest: 4066 tests across 213 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -138,7 +138,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 4057 tests across 212 files (Jun 10 2026). Covers all engine systems.
+- **Coverage:** 4066 tests across 213 files (Jun 10 2026). Covers all engine systems.
 - **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 
@@ -163,7 +163,7 @@ Several files have grown large enough to require active management. When adding 
 ### Large (watch for growth)
 - **NodeMapScene.js (~1,950 lines)** — Church/shop overlays extracted to ChurchController/ShopController (state stays on the scene; methods are delegating shims).
 - **RunManager.js (~3,800 lines)** — Blessing logic (~900 lines) could become BlessingStateManager.
-- **RosterOverlay.js (~3,200 lines)** — Trade state machine (~450 lines) is top extraction candidate.
+- **RosterOverlay.js (~2,780 lines)** — Trade state machine extracted to RosterTradeController (state stays on the overlay; methods are delegating shims).
 
 ### Extraction pattern
 ```js
