@@ -23,6 +23,22 @@ export class RunCompleteScene extends Phaser.Scene {
     this.isTransitioning = false;
     this._resultMusicKey = this.result === 'victory' ? MUSIC.runWin : MUSIC.defeat;
 
+    // Settle rewards BEFORE deleting the run save: once the save is cleared
+    // there is nothing left to recover from, so valor/supply/milestones must
+    // already be committed to meta (settleEndRunRewards is idempotent — the
+    // victory path pre-settles in PostCombatController).
+    const rm = this.runManager;
+    recordBlessingRunOutcome({
+      activeBlessings: rm.getActiveBlessingIds
+        ? rm.getActiveBlessingIds()
+        : rm.activeBlessings || [],
+      result: this.result,
+      actIndex: rm.actIndex,
+      completedBattles: rm.completedBattles,
+    });
+    const meta = this.registry.get('meta');
+    const rewards = rm.settleEndRunRewards(meta, this.result);
+
     const cloud = this.registry.get('cloud');
     const slot = this.registry.get('activeSlot');
     clearSavedRun(cloud ? (resolvedSlot) => deleteRunSave(cloud.userId, resolvedSlot) : null, slot);
@@ -65,19 +81,8 @@ export class RunCompleteScene extends Phaser.Scene {
       if (overlay) overlay.destroy();
     }
 
-    // Calculate and award currencies
-    const rm = this.runManager;
+    // Rewards were settled above, before the save was cleared.
     const actReached = rm.actIndex + 1;
-    recordBlessingRunOutcome({
-      activeBlessings: rm.getActiveBlessingIds
-        ? rm.getActiveBlessingIds()
-        : rm.activeBlessings || [],
-      result: this.result,
-      actIndex: rm.actIndex,
-      completedBattles: rm.completedBattles,
-    });
-    const meta = this.registry.get('meta');
-    const rewards = rm.settleEndRunRewards(meta, this.result);
     const { valor, supply, currencyMultiplier } = rewards;
 
     // Stats

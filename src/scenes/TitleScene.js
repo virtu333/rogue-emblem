@@ -8,7 +8,12 @@ import { CompendiumOverlay } from '../ui/CompendiumOverlay.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { signOut } from '../cloud/supabaseClient.js';
-import { pushMeta } from '../cloud/CloudSync.js';
+import {
+  flushCloudSyncQueues,
+  getCloudSyncStatus,
+  pushAllLocalSlots,
+  pushMeta,
+} from '../cloud/CloudSync.js';
 import {
   getSlotCount,
   getNextAvailableSlot,
@@ -864,16 +869,7 @@ export class TitleScene extends Phaser.Scene {
         W - 70,
         30,
         'LOG OUT',
-        async () => {
-          try {
-            await signOut();
-          } catch (_) {}
-          try {
-            clearAllSlotData();
-            localStorage.removeItem('emblem_rogue_settings');
-          } catch (_) {}
-          location.reload();
-        },
+        () => void this._handleLogout(cloud),
         btnDelay + delayIdx * 150,
         { width: 110, height: 28, fontSize: '8px', letterSpacing: 1 },
       );
@@ -938,6 +934,67 @@ export class TitleScene extends Phaser.Scene {
     const overlay = this[key];
     if (overlay?.visible && typeof overlay.hide === 'function') overlay.hide();
     this[key] = null;
+  }
+
+  /**
+   * Logout wipes all local slots (they belong to this account), so local data
+   * must reach the cloud first. Push every local slot, wait for the queue, and
+   * if the backup cannot be confirmed require a second explicit click before
+   * destroying the only remaining copy.
+   */
+  async _handleLogout(cloud) {
+    if (this._logoutInProgress) return;
+
+    if (!this._logoutWipeConfirmed) {
+      this._logoutInProgress = true;
+      this._setLogoutNotice('Backing up to cloud...', '#88aaff');
+      let backupConfirmed = false;
+      try {
+        pushAllLocalSlots(cloud.userId);
+        const flushed = await flushCloudSyncQueues();
+        const status = getCloudSyncStatus();
+        backupConfirmed = flushed && status.mode === 'ok';
+      } catch (_) {
+        backupConfirmed = false;
+      }
+      this._logoutInProgress = false;
+      if (!this.scene?.isActive?.()) return;
+      if (!backupConfirmed) {
+        this._logoutWipeConfirmed = true;
+        this._setLogoutNotice(
+          'Cloud backup failed - local progress will be DELETED.\nClick LOG OUT again to log out anyway.',
+          '#ff6a6a',
+        );
+        return;
+      }
+    }
+
+    this._logoutInProgress = true;
+    try {
+      await signOut();
+    } catch (_) {}
+    try {
+      clearAllSlotData();
+      localStorage.removeItem('emblem_rogue_settings');
+    } catch (_) {}
+    location.reload();
+  }
+
+  _setLogoutNotice(message, color) {
+    if (this.logoutNoticeText) {
+      this.logoutNoticeText.destroy();
+      this.logoutNoticeText = null;
+    }
+    if (!message) return;
+    this.logoutNoticeText = this.add
+      .text(W - 12, 64, message, {
+        fontFamily: FONT,
+        fontSize: '6px',
+        color,
+        align: 'right',
+      })
+      .setOrigin(1, 0)
+      .setDepth(30);
   }
 
   _refreshCloudSyncStatusNotice() {

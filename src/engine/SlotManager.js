@@ -8,6 +8,7 @@ const META_KEY_PREFIX = 'emblem_rogue_slot_';
 const META_KEY_SUFFIX = '_meta';
 const RUN_KEY_SUFFIX = '_run';
 const RUN_CLOCK_FLOOR_SUFFIX = '_run_clock_floor';
+const META_CLOCK_FLOOR_SUFFIX = '_meta_clock_floor';
 export const ACTIVE_SLOT_KEY = 'emblem_rogue_active_slot';
 
 // Old keys (pre-slot system)
@@ -24,6 +25,10 @@ export function getRunKey(slot) {
 
 export function getRunClockFloorKey(slot) {
   return `${META_KEY_PREFIX}${slot}${RUN_CLOCK_FLOOR_SUFFIX}`;
+}
+
+export function getMetaClockFloorKey(slot) {
+  return `${META_KEY_PREFIX}${slot}${META_CLOCK_FLOOR_SUFFIX}`;
 }
 
 /** Count of occupied slots (1-3 that have meta data). */
@@ -147,6 +152,7 @@ export function deleteSlot(slot) {
     localStorage.removeItem(getMetaKey(slot));
     localStorage.removeItem(getRunKey(slot));
     localStorage.removeItem(getRunClockFloorKey(slot));
+    localStorage.removeItem(getMetaClockFloorKey(slot));
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }

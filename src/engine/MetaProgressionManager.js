@@ -669,8 +669,65 @@ export class MetaProgressionManager {
     this._save();
   }
 
+  /**
+   * Read the per-slot clock floor CloudSync records on remote-newer conflicts.
+   * Key derivation must match SlotManager.getMetaClockFloorKey(slot), which is
+   * getMetaKey(slot) + '_clock_floor'; storageKey IS getMetaKey(slot) for slot
+   * saves, so appending the suffix here stays in sync.
+   */
+  _readClockFloorSavedAt() {
+    try {
+      const raw = localStorage.getItem(`${this.storageKey}_clock_floor`);
+      if (raw == null) return null;
+      const value = Number(raw);
+      return Number.isFinite(value) ? value : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * If another writer (cloud fetch merge, fresh-local heal) has put a newer
+   * payload on disk since this manager last read/wrote it, our in-memory state
+   * is a stale lineage. Adopt the disk state via a conservative max-merge so a
+   * fresh session can never erase restored progression by saving over it.
+   */
+  _adoptForeignDiskStateIfNewer() {
+    let disk = null;
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      if (raw) disk = JSON.parse(raw);
+    } catch (_) {
+      return;
+    }
+    const diskSavedAt = Number(disk?.savedAt);
+    if (!Number.isFinite(diskSavedAt) || diskSavedAt <= this.savedAt) return;
+
+    this.totalValor = Math.max(this.totalValor, Math.floor(Number(disk.totalValor) || 0));
+    this.totalSupply = Math.max(this.totalSupply, Math.floor(Number(disk.totalSupply) || 0));
+    this.runsCompleted = Math.max(this.runsCompleted, Number(disk.runsCompleted) || 0);
+    if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
+      for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
+        const diskLevel = Number(level) || 0;
+        const localLevel = Number(this.purchasedUpgrades[id]) || 0;
+        this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
+      }
+    }
+    if (Array.isArray(disk.milestones)) {
+      for (const m of disk.milestones) this.milestones.add(m);
+    }
+    if (disk.skillAssignments && typeof disk.skillAssignments === 'object') {
+      for (const [lord, slots] of Object.entries(disk.skillAssignments)) {
+        if (this.skillAssignments[lord] === undefined) this.skillAssignments[lord] = slots;
+      }
+    }
+    this.savedAt = diskSavedAt;
+  }
+
   _save() {
-    this.savedAt = Date.now();
+    this._adoptForeignDiskStateIfNewer();
+    const floor = this._readClockFloorSavedAt();
+    this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
