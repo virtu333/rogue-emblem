@@ -83,6 +83,10 @@ export class PostCombatController {
       scene._battleCompletionAwardedGold = completionApplied
         ? Math.max(0, vaultGoldAfterCompletion - vaultGoldBeforeCompletion)
         : 0;
+      // Persist the completed battle immediately (completeBattle cleared the
+      // anti-refresh lock): a refresh during the loot flow keeps the win —
+      // loot is forfeited — rather than reopening the fight.
+      scene._persistBattleRunState?.();
       scene.time.delayedCall(1500, async () => {
         if (!scene.scene?.isActive?.()) return;
         if (!completionApplied) {

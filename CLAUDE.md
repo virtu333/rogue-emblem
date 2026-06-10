@@ -17,7 +17,7 @@ Emblem Rogue is a browser-based tactical RPG combining Fire Emblem grid combat w
 - **Hosting:** Netlify (static CDN) — https://emblem-rogue.netlify.app
 - **Auth:** Supabase Auth (username/password, email confirmation disabled)
 - **Cloud DB:** Supabase Postgres — 3 tables (`run_saves`, `meta_progression`, `user_settings`) with RLS per user
-- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1.
+- **Persistence:** localStorage primary with 3 independent save slots (`emblem_rogue_slot_{1-3}_meta/run`). Supabase cloud backup (push on save, fetch on login) with per-table write serialization and meta `savedAt` freshness guard. Offline play degrades gracefully. Old single-save data auto-migrates to slot 1. Anti-refresh: battles persist a `battleInProgress` casualty lock (deaths saved as they happen; settled on load by `RunManager.settleInterruptedBattle`) — refreshing cannot revive fallen units, while in-battle Save & Exit remains a sanctioned full revert.
 - **Art Pipeline:** Google Imagen 4 API for AI-generated pixel art (see Art Pipeline section)
 
 ## Effort
@@ -64,7 +64,7 @@ emblem-rogue/
 │   ├── scenes/            # 10 Phaser scenes (see Scene Flow below)
 │   └── utils/             # 30 helpers — AudioManager, constants, SceneRouter, SceneGuard,
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
-├── tests/                 # Vitest: 4066 tests across 213 files + harness/ + e2e/
+├── tests/                 # Vitest: 4108 tests across 216 files + harness/ + e2e/
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
 ├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx + 38 music tracks)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
@@ -138,7 +138,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 - **Framework:** Vitest (works natively with Vite config and ES modules)
 - **Run:** `npm test` (single run) or `npm run test:watch` (live re-runs)
 - **CI gates (run before PR):** `npm run check:reference`, `npm run check:data-parity`, `npm run sim:fullrun:harness:pr`
-- **Coverage:** 4066 tests across 213 files (Jun 10 2026). Covers all engine systems.
+- **Coverage:** 4108 tests across 216 files (Jun 10 2026). Covers all engine systems.
 - **Residual gap:** BattleScene orchestration logic is undertested relative to its complexity.
 - **Pattern:** Tests import pure engine modules directly + load JSON from `data/` via `tests/testData.js`. No Phaser needed.
 

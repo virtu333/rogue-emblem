@@ -132,6 +132,20 @@ describe('PostCombatController', () => {
     expect(scene.transitionAfterBattle).toHaveBeenCalledTimes(1);
   });
 
+  it('onVictory persists the run right after completeBattle (anti-refresh win lock)', () => {
+    const scene = makeScene();
+    scene._persistBattleRunState = vi.fn();
+
+    const controller = new PostCombatController(scene);
+    controller.onVictory();
+
+    expect(scene._persistBattleRunState).toHaveBeenCalledTimes(1);
+    // The save must capture the completed battle, so completion runs first
+    const completeOrder = scene.runManager.completeBattle.mock.invocationCallOrder[0];
+    const persistOrder = scene._persistBattleRunState.mock.invocationCallOrder[0];
+    expect(persistOrder).toBeGreaterThan(completeOrder);
+  });
+
   it('transitionAfterBattle reports error and triggers force fallback when transition throws', async () => {
     const scene = makeScene();
     scene.runManager.isActComplete = vi.fn(() => false);

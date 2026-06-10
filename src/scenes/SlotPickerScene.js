@@ -324,7 +324,17 @@ export class SlotPickerScene extends Phaser.Scene {
       if (summary.hasActiveRun) {
         // Resume active run directly
         const rm = loadRun(this.gameData, slot);
-        if (rm) {
+        if (rm && rm.status === 'defeat') {
+          // An interrupted battle settled into a loss on load (Edric fell with
+          // no Vision charge to spend) — show the game-over flow instead of
+          // resuming; RunComplete settles rewards and clears the save.
+          transitioned = await transitionToScene(
+            this,
+            'RunComplete',
+            { gameData: this.gameData, runManager: rm, result: 'defeat' },
+            { reason: TRANSITION_REASONS.CONTINUE },
+          );
+        } else if (rm) {
           transitioned = await transitionToScene(
             this,
             'NodeMap',

@@ -148,7 +148,7 @@ import {
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
-import { clearSavedRun } from '../engine/RunManager.js';
+import { clearSavedRun, saveRun, clearBattleInProgressInSave } from '../engine/RunManager.js';
 import {
   calculateKillReward,
   generateLootChoices,
@@ -162,7 +162,7 @@ import {
   getParXpMultiplier,
   formatParTooltip,
 } from '../engine/TurnBonusCalculator.js';
-import { deleteRunSave } from '../cloud/CloudSync.js';
+import { deleteRunSave, pushRunSave } from '../cloud/CloudSync.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { MUSIC, getMusicKey } from '../utils/musicConfig.js';
@@ -874,6 +874,14 @@ export class BattleScene extends Phaser.Scene {
         }
       }
       const bc = this.battleConfig;
+
+      // Anti-refresh: persist a battle-in-progress flag (plus the locked
+      // encounter) so a reload settles mid-battle casualties instead of
+      // reviving them from the pre-battle NodeMap auto-save.
+      if (this.runManager && !this.battleParams?.tutorialMode) {
+        this.runManager.beginBattleInProgress?.(this.nodeId);
+        this._persistBattleRunState?.();
+      }
 
       // Build the grid from generated map (with optional fog of war)
       const fogEnabled = this.battleParams.fogEnabled || false;
@@ -2413,10 +2421,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   applyVisionSnapshot() {
-    return (this._visionController ||= new VisionRewindController(
+    const applied = (this._visionController ||= new VisionRewindController(
       this,
       this.runManager,
     ))._applySnapshot();
+    // Rewind may have revived this turn's casualties — re-sync the persisted
+    // casualty lock to the restored state (charge spend persists with it).
+    if (applied) this._syncBattleCasualtiesToRun();
+    return applied;
   }
 
   playVisionRewindEffect() {
@@ -3744,6 +3756,17 @@ export class BattleScene extends Phaser.Scene {
       ? async () => {
           try {
             // Return to title -- last NodeMap auto-save preserved. Battle progress lost.
+            // Save & Exit is the sanctioned full revert (classic FE reset): scrub the
+            // anti-refresh casualty lock so the pre-battle roster is restored intact.
+            this.runManager.clearBattleInProgress?.();
+            {
+              const cloud = this.registry.get('cloud');
+              const slot = this.registry.get('activeSlot');
+              clearBattleInProgressInSave(
+                cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+                slot,
+              );
+            }
             this.clearBattleScopedDeltas(this.playerUnits);
             this.clearBattleScopedDeltas(this.nonDeployedUnits || []);
             const audio = this.registry.get('audio');
@@ -8135,6 +8158,53 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Persist the run mid-battle (anti-refresh casualty lock). Quota/storage
+   * failures only degrade the lock, never gameplay — warn and continue.
+   */
+  _persistBattleRunState() {
+    if (!this.runManager) return;
+    try {
+      const cloud = this.registry?.get?.('cloud');
+      const slot = this.registry?.get?.('activeSlot');
+      if (!Number.isInteger(slot)) return; // dev/QA route without a slot — nothing to lock
+      const result = saveRun(
+        this.runManager,
+        cloud ? (d) => pushRunSave(cloud.userId, slot, d) : null,
+        slot,
+      );
+      if (!result.ok && result.reason !== 'missing_slot') {
+        console.warn('[BattleScene] battle-state save failed:', result.reason);
+      }
+    } catch (err) {
+      console.warn('[BattleScene] battle-state save failed:', err?.message || err);
+    }
+  }
+
+  /**
+   * Recompute the casualty list from live battle state and persist it.
+   * Diffing roster names against alive units makes Vision rewinds self-heal:
+   * units restored by a rewind simply drop off the list. Phases recorded at
+   * death time are preserved so the Edric settle rule stays accurate.
+   */
+  _syncBattleCasualtiesToRun() {
+    const rm = this.runManager;
+    if (!rm?.battleInProgress) return;
+    const alive = new Set([
+      ...(this.playerUnits || []).map((u) => u?.name),
+      ...(this.nonDeployedUnits || []).map((u) => u?.name),
+    ]);
+    const recordedPhases = new Map(
+      (rm.battleInProgress.casualties || []).map((c) => [c.name, c.phase]),
+    );
+    const currentPhase = this.turnManager?.currentPhase === 'enemy' ? 'enemy' : 'player';
+    const casualties = (rm.roster || [])
+      .filter((u) => u?.name && !alive.has(u.name))
+      .map((u) => ({ name: u.name, phase: recordedPhases.get(u.name) || currentPhase }));
+    rm.setBattleCasualties(casualties);
+    this._persistBattleRunState();
+  }
+
   async removeUnit(unit, options = {}) {
     if (!unit || unit._removing) return;
     const killer = options?.killer || null;
@@ -8151,6 +8221,9 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) {
         this.playerUnits.splice(idx, 1);
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
+        // Lock the casualty into the save before any dialogue/animation —
+        // a refresh from this point on must not revive the unit.
+        this._syncBattleCasualtiesToRun?.();
         // Lord farewell dialogue (non-Edric; Edric death triggers game over elsewhere)
         if (unit.isLord && unit.name !== 'Edric') {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
