@@ -201,6 +201,25 @@ export class InputController {
     this.onClick(pointer, clickPos);
   }
 
+  /**
+   * Release outside the canvas: reset touch/gesture state only. This must
+   * never fall through to onClick — an off-grid release reads as Cancel and
+   * closed menus/target selection on desktop drag-out (the same bug was fixed
+   * separately in NodeMapScene and HomeBaseScene; BattleScene routed
+   * pointerupoutside to onPointerUp until now).
+   */
+  onPointerUpOutside(pointer) {
+    const scene = this.scene;
+    if (scene._isTouchPointer(pointer)) {
+      const hadTouches = Boolean(scene._battleCamera?.clearTouches?.());
+      scene._cameraGestureTapSuppressed = true;
+      if (hadTouches) scene._syncMobileResetViewButton();
+    }
+    this.cancelTouchInspectHold();
+    scene._touchTapDown = null;
+    scene._touchHoldTriggered = false;
+  }
+
   onRightClick(pointer) {
     const scene = this.scene;
     if (scene.isStoryInputLocked()) return;

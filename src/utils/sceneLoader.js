@@ -61,7 +61,9 @@ function isAudioDiagEnabled() {
 
 function getAudioSnapshot(scene) {
   try {
-    const audio = scene?.registry?.get?.('audioManager');
+    // BootScene registers the manager under 'audio' (every scene callsite uses
+    // that key); reading 'audioManager' here left these diagnostics dead.
+    const audio = scene?.registry?.get?.('audio');
     if (!audio || typeof audio.getActiveMusicKeys !== 'function') {
       return { available: false, activeMusicKeys: [] };
     }

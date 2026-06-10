@@ -101,14 +101,18 @@ export function generateChallenger(
     const baseClassData = classesData.find((c) => c.name === baseClassName);
     if (!baseClassData) throw new Error(`Base class not found for ${className}: ${baseClassName}`);
 
-    const cappedBaseLevel = Math.min(level, BASE_CLASS_LEVEL_CAP);
+    // Split on the same effective-level convention as merc generation and
+    // RecruitScaling (promotion at RECRUIT_PROMOTION_BASE_LEVEL). The old
+    // BASE_CLASS_LEVEL_CAP split meant `level - 20` was ≤ 0 for any realistic
+    // entrant, so promoted challengers were always promoted-level 1.
+    const cappedBaseLevel = Math.min(level, RECRUIT_PROMOTION_BASE_LEVEL, BASE_CLASS_LEVEL_CAP);
     unit = createEnemyUnit(baseClassData, cappedBaseLevel, weaponsData, 1.0, null, actId);
     const bonuses = classData.promotionBonuses || {};
     promoteUnit(unit, classData, bonuses, null);
 
     const targetPromotedLevel = Math.min(
       PROMOTED_CLASS_LEVEL_CAP,
-      Math.max(1, level - BASE_CLASS_LEVEL_CAP),
+      Math.max(1, level - RECRUIT_PROMOTION_BASE_LEVEL),
     );
     const promotedXp = (targetPromotedLevel - 1) * XP_PER_LEVEL;
     if (promotedXp > 0) {

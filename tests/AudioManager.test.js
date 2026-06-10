@@ -234,6 +234,30 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_home_base');
   });
 
+  it('same-key replay invalidates an older in-flight load for a different track', async () => {
+    // Regression: NodeMap music playing → shop opens (shop track starts an
+    // uncached load) → shop closes and NodeMap re-asserts its track before the
+    // load finishes. The early "already playing" return must invalidate the
+    // shop load, or shop music lands later and replaces the act track.
+    const sound = makeSoundManager({
+      loadedKeys: ['music_explore_act1'],
+      autoCompleteLoader: false,
+    });
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_explore_act1', sound.scene, 0);
+    expect(audio.currentMusicKey).toBe('music_explore_act1');
+
+    const shopLoad = audio.playMusic('music_shop', sound.scene, 0); // uncached, pending
+    await audio.playMusic('music_explore_act1', sound.scene, 0); // same-key early return
+
+    sound.scene.load._completeKey('music_shop'); // stale load finally lands
+    await shopLoad;
+
+    expect(audio.currentMusicKey).toBe('music_explore_act1');
+    expect(audio.currentMusic?.isPlaying).toBe(true);
+  });
+
   it('cancels in-flight music load when stopMusic is called before load completes', async () => {
     const sound = makeSoundManager({ autoCompleteLoader: false });
     const audio = new AudioManager(sound);

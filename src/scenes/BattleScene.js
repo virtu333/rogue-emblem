@@ -1480,7 +1480,7 @@ export class BattleScene extends Phaser.Scene {
       this.input.on('pointermove', (pointer) => this.onPointerMove(pointer));
       this.input.on('pointerdown', (pointer) => this.onPointerDown(pointer));
       this.input.on('pointerup', (pointer) => this.onPointerUp(pointer));
-      this.input.on('pointerupoutside', (pointer) => this.onPointerUp(pointer));
+      this.input.on('pointerupoutside', (pointer) => this.onPointerUpOutside(pointer));
       this._bindGameplayKeyboardHandlers();
 
       // Mobile virtual control listeners
@@ -2921,6 +2921,10 @@ export class BattleScene extends Phaser.Scene {
     (this._inputController ||= new InputController(this)).onPointerDown(pointer);
   }
 
+  onPointerUpOutside(pointer) {
+    (this._inputController ||= new InputController(this)).onPointerUpOutside(pointer);
+  }
+
   startTouchInspectHold(pointer) {
     (this._inputController ||= new InputController(this)).startTouchInspectHold(pointer);
   }
@@ -3316,11 +3320,18 @@ export class BattleScene extends Phaser.Scene {
       this.clearInspectionVisuals();
       return true;
     } else if (this.battleState === 'BATTLE_END' && this.lootGroup) {
-      this._hideLootTooltip();
-      this.lootSettingsOverlay = new SettingsOverlay(this, () => {
+      // Toggle: a second ESC closes the open settings overlay instead of
+      // stacking another one on top of it.
+      if (this.lootSettingsOverlay?.visible) {
+        this.lootSettingsOverlay.hide();
         this.lootSettingsOverlay = null;
-      });
-      this.lootSettingsOverlay.show();
+      } else {
+        this._hideLootTooltip();
+        this.lootSettingsOverlay = new SettingsOverlay(this, () => {
+          this.lootSettingsOverlay = null;
+        });
+        this.lootSettingsOverlay.show();
+      }
     } else if (this.isCancelableBattleState()) {
       this.handleCancel();
     } else if (allowPause && this.battleState === 'PLAYER_IDLE') {

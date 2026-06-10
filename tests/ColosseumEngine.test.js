@@ -213,7 +213,7 @@ describe('ColosseumEngine', () => {
       expect(result.unit.level).toBeGreaterThan(1);
     });
 
-    it('keeps fresh promote level when computed challenger level is at or below base cap', () => {
+    it('keeps fresh promote level when effective level is at or below the promotion threshold', () => {
       const promotedClass = gameData.classes.find(
         (c) => c.tier === 'promoted' && typeof c.promotesFrom === 'string',
       );
@@ -229,7 +229,7 @@ describe('ColosseumEngine', () => {
       const fixedTier = { levelOffset: [0, 0], xpMultiplier: 1.0 };
 
       const result = generateChallenger(
-        20,
+        10, // RECRUIT_PROMOTION_BASE_LEVEL — promotion threshold
         fixedTier,
         'act3',
         forcedPromotedPools,
@@ -242,6 +242,34 @@ describe('ColosseumEngine', () => {
 
       expect(result.unit.tier).toBe('promoted');
       expect(result.unit.level).toBe(1);
+    });
+
+    it('matches promoted entrant strength: effective level 20 yields promoted level ~10 (regression)', () => {
+      // Old code split at BASE_CLASS_LEVEL_CAP (20), so any realistic entrant
+      // produced promoted-level-1 challengers — trivially weak for a promoted
+      // entrant. The split must use the game-wide promotion threshold (10).
+      const promotedClass = gameData.classes.find(
+        (c) => c.tier === 'promoted' && typeof c.promotesFrom === 'string',
+      );
+      const forcedPromotedPools = {
+        pools: { act3: { base: [], promoted: [promotedClass.name] } },
+      };
+      const fixedTier = { levelOffset: [0, 0], xpMultiplier: 1.0 };
+
+      const result = generateChallenger(
+        20, // promoted entrant at promoted level 10 (effective 10 + 10)
+        fixedTier,
+        'act3',
+        forcedPromotedPools,
+        gameData.classes,
+        gameData.weapons,
+        null,
+        colosseumData,
+        makeRng(0),
+      );
+
+      expect(result.unit.tier).toBe('promoted');
+      expect(result.unit.level).toBe(10);
     });
   });
 

@@ -36,7 +36,13 @@ export class AudioManager {
         const active = this._getLoopingMusicSounds();
         const hasOverlap = active.some((sound) => sound !== this.currentMusic);
         const sameOwner = !owner || !this.currentMusicOwner || this.currentMusicOwner === owner;
-        if (sameOwner && !hasOverlap) return;
+        if (sameOwner && !hasOverlap) {
+          // Invalidate any in-flight load for a DIFFERENT track: "keep playing
+          // X" must supersede an older "switch to Y" request still loading,
+          // or Y lands later and replaces X (rapid shop open/close race).
+          this._musicRequestSeq++;
+          return;
+        }
         this.stopAllMusic(scene, 0);
       }
 
