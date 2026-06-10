@@ -39,8 +39,6 @@ export class LevelUpPopup {
   show() {
     return new Promise((resolve) => {
       this._resolve = resolve;
-      this._onSceneShutdown = () => this.destroy();
-      this.scene.events?.once?.('shutdown', this._onSceneShutdown);
       const cam = this.scene.cameras.main;
       const cx = cam.width / 2;
       const cy = cam.height / 2;
@@ -190,6 +188,11 @@ export class LevelUpPopup {
         .setOrigin(0.5, 0)
         .setDepth(902);
       this.objects.push(hint);
+
+      // Hook shutdown only after the popup built successfully -- a throw
+      // above (e.g. dead scene) must not leave a stale listener behind.
+      this._onSceneShutdown = () => this.destroy();
+      this.scene.events?.once?.('shutdown', this._onSceneShutdown);
 
       // Click to dismiss
       dimBg.once('pointerdown', () => {

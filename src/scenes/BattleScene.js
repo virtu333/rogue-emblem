@@ -3709,6 +3709,15 @@ export class BattleScene extends Phaser.Scene {
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.ABANDON_RUN);
             if (!ok) {
+              if (this.sys?.isActive?.() === false) {
+                // Scene already shut down -- another transition won the race;
+                // a raw start from a dead scene would stomp the live one.
+                markStartup('pause_transition_superseded', {
+                  scene: 'Battle',
+                  reason: 'ABANDON_RUN',
+                });
+                return;
+              }
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'ABANDON_RUN' });
               resetTransitionLocks(this);
               try {
@@ -3737,6 +3746,15 @@ export class BattleScene extends Phaser.Scene {
             if (audio) audio.stopMusic(this, 0);
             const ok = await transitionToTitleWithWatchdog(TRANSITION_REASONS.SAVE_EXIT);
             if (!ok) {
+              if (this.sys?.isActive?.() === false) {
+                // Scene already shut down -- another transition won the race;
+                // a raw start from a dead scene would stomp the live one.
+                markStartup('pause_transition_superseded', {
+                  scene: 'Battle',
+                  reason: 'SAVE_EXIT',
+                });
+                return;
+              }
               markStartup('pause_transition_fallback', { scene: 'Battle', reason: 'SAVE_EXIT' });
               resetTransitionLocks(this);
               try {
@@ -4311,7 +4329,15 @@ export class BattleScene extends Phaser.Scene {
     } catch (recoveryErr) {
       console.error(`[BattleScene] ${label} recovery error:`, recoveryErr);
     }
-    if (this.battleState !== 'BATTLE_END' && this.battleState !== 'PLAYER_IDLE') {
+    // Only force PLAYER_IDLE while the player phase is still running. The
+    // finishUnitAction above (or the throwing flow itself) may have ended the
+    // player phase before the error surfaced; stomping ENEMY_PHASE here would
+    // re-enable player input mid-enemy-turn.
+    if (
+      this.battleState !== 'BATTLE_END' &&
+      this.battleState !== 'PLAYER_IDLE' &&
+      this.turnManager?.currentPhase !== 'enemy'
+    ) {
       this.battleState = 'PLAYER_IDLE';
       this.selectedUnit = null;
       try {
@@ -4849,10 +4875,14 @@ export class BattleScene extends Phaser.Scene {
     this.undimUnit(target.ally);
 
     try {
-      await this.awardScaledXP(unit, XP_BASE_DANCE);
-    } finally {
-      // Dancer ends turn
-      this.finishUnitAction(unit);
+      try {
+        await this.awardScaledXP(unit, XP_BASE_DANCE);
+      } finally {
+        // Dancer ends turn
+        this.finishUnitAction(unit);
+      }
+    } catch (err) {
+      this._recoverUnitActionError(unit, 'dance', err);
     }
   }
 
@@ -8479,6 +8509,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Show level-up popups sequentially
     for (const lvUp of result.levelUps) {
+      // The scene may have shut down while a previous popup was showing (its
+      // shutdown hook resolves the await) -- don't build popups on a dead scene.
+      if (this.sys?.isActive?.() === false) break;
       this._playLevelUpSfx();
       // Update HP bar after level-up (maxHP may have increased)
       this.updateHPBar(playerUnit);

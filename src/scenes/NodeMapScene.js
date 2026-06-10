@@ -1002,6 +1002,15 @@ export class NodeMapScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.SAVE_EXIT },
           );
           if (result.status !== TRANSITION_RESULTS.STARTED) {
+            if (this.sys?.isActive?.() === false) {
+              // Scene already shut down -- another transition won the race;
+              // a raw start from a dead scene would stomp the live one.
+              markStartup('pause_transition_superseded', {
+                scene: 'NodeMap',
+                reason: 'SAVE_EXIT',
+              });
+              return;
+            }
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'SAVE_EXIT' });
             resetTransitionLocks(this);
             try {
@@ -1038,6 +1047,15 @@ export class NodeMapScene extends Phaser.Scene {
             { reason: TRANSITION_REASONS.ABANDON_RUN },
           );
           if (result.status !== TRANSITION_RESULTS.STARTED) {
+            if (this.sys?.isActive?.() === false) {
+              // Scene already shut down -- another transition won the race;
+              // a raw start from a dead scene would stomp the live one.
+              markStartup('pause_transition_superseded', {
+                scene: 'NodeMap',
+                reason: 'ABANDON_RUN',
+              });
+              return;
+            }
             markStartup('pause_transition_fallback', { scene: 'NodeMap', reason: 'ABANDON_RUN' });
             resetTransitionLocks(this);
             try {

@@ -186,6 +186,40 @@ describe('executePromotion error recovery', () => {
   });
 });
 
+describe('executeDance error recovery', () => {
+  it('recovers instead of surfacing an unhandled rejection when the XP award throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const scene = makeScene();
+    scene.commitVisionSnapshotIfPending = vi.fn();
+    scene._isReducedEffects = vi.fn(() => true);
+    scene.grid.gridToPixel = vi.fn(() => ({ x: 0, y: 0 }));
+    scene.add = {
+      circle: vi.fn(() => ({
+        setDepth() {
+          return this;
+        },
+        destroy: vi.fn(),
+      })),
+    };
+    scene.time = { delayedCall: vi.fn() };
+    scene.undimUnit = vi.fn();
+    scene.awardScaledXP = vi.fn(async () => {
+      throw new Error('xp boom');
+    });
+    scene.finishUnitAction = vi.fn((u) => {
+      u.hasActed = true;
+      scene.battleState = 'PLAYER_IDLE';
+    });
+    const dancer = makeUnit({ name: 'Dancer' });
+    const target = { ally: makeUnit({ name: 'Ally', hasActed: true }) };
+
+    await scene.executeDance(dancer, target);
+
+    expect(scene.finishUnitAction).toHaveBeenCalledTimes(1);
+    expect(target.ally.hasActed).toBe(false); // dance still refreshed the ally
+  });
+});
+
 describe('_recoverUnitActionError', () => {
   it('forces PLAYER_IDLE when the unit already acted and the state is blocking', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -197,6 +231,37 @@ describe('_recoverUnitActionError', () => {
 
     expect(scene.finishUnitAction).not.toHaveBeenCalled();
     expect(scene.battleState).toBe('PLAYER_IDLE');
+  });
+
+  it('does not stomp the enemy phase when the player phase already ended', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const scene = makeScene();
+    scene.battleState = 'ENEMY_PHASE';
+    scene.turnManager = { currentPhase: 'enemy' };
+    const unit = makeUnit({ hasActed: true });
+
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+
+    expect(scene.battleState).toBe('ENEMY_PHASE');
+    expect(scene.selectedUnit).toBeUndefined();
+  });
+
+  it('does not stomp when finishUnitAction ends the player phase and then throws', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const scene = makeScene();
+    scene.battleState = 'HEAL_RESOLVING';
+    scene.turnManager = { currentPhase: 'player' };
+    scene.finishUnitAction = vi.fn((u) => {
+      u.hasActed = true;
+      scene.turnManager.currentPhase = 'enemy';
+      scene.battleState = 'ENEMY_PHASE';
+      throw new Error('late boom');
+    });
+    const unit = makeUnit();
+
+    scene._recoverUnitActionError(unit, 'test', new Error('boom'));
+
+    expect(scene.battleState).toBe('ENEMY_PHASE');
   });
 
   it('leaves BATTLE_END untouched', () => {

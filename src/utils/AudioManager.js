@@ -520,18 +520,28 @@ export class AudioManager {
       } catch (_) {}
     };
     applyVolume();
+    const finalize = () => {
+      if (sound.__audioFadeProxy !== proxy) return;
+      sound.__audioFadeProxy = null;
+      try {
+        if (!sound.__audioStopped) sound.setVolume(toRatio * this._curve(this.musicVolume));
+      } catch (_) {}
+    };
     scene.tweens.add({
       targets: proxy,
       value: toRatio,
       duration,
       onUpdate: applyVolume,
       onComplete: () => {
-        if (sound.__audioFadeProxy === proxy) {
-          sound.__audioFadeProxy = null;
-        }
+        finalize();
         if (onComplete) onComplete();
       },
     });
+    // Safety net: if the scene dies mid-fade Phaser kills the tween without
+    // firing onComplete, stranding the proxy (setMusicVolume skips the sound
+    // forever) and the music at partial volume. Snap to the target instead.
+    const timer = setTimeout(finalize, duration + 500);
+    if (typeof timer?.unref === 'function') timer.unref();
   }
 
   /** Start periodic sweep that kills orphaned looping music sounds. */

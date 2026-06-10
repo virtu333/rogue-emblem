@@ -3210,6 +3210,9 @@ export class RosterOverlay {
         color,
         backgroundColor: '#000000cc',
         padding: { x: 12, y: 6 },
+        align: 'center',
+        // Promotion notices with dropped skills can exceed the 640px screen.
+        wordWrap: { width: 580 },
       })
       .setOrigin(0.5)
       .setDepth(DEPTH_PICKER + 10)

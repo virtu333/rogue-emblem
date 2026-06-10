@@ -214,15 +214,11 @@ function hasReachedStartupTarget() {
   if (reachedTitle) return true;
   if (!devStartupRequested) return false;
 
-  return markers.some((m) => {
-    // 'boot_dev_route' fires BEFORE the transition is attempted — accepting
-    // it let hung dev-route boots satisfy the watchdog. Require the
-    // completion marker (or an actual non-Title scene load) instead.
-    if (m?.name === 'boot_dev_route_complete') return true;
-    if (m?.name !== 'scene_lazy_load_complete') return false;
-    const key = typeof m?.data?.key === 'string' ? m.data.key : '';
-    return key.length > 0 && key !== 'Title';
-  });
+  // 'boot_dev_route' fires BEFORE the transition is attempted and
+  // 'scene_lazy_load_complete' fires when the chunk loads, BEFORE
+  // scene.start() — accepting either let hung dev-route boots satisfy the
+  // watchdog. Only the post-start completion marker counts.
+  return markers.some((m) => m?.name === 'boot_dev_route_complete');
 }
 
 function installStartupErrorHooks() {

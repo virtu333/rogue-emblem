@@ -107,6 +107,16 @@ describe('LevelUpPopup resolution guarantees', () => {
     expect(await settles(shown)).toBe(true);
   });
 
+  it('does not leave a shutdown listener behind when building on a dead scene throws', async () => {
+    const scene = makeScene();
+    scene.cameras = {}; // post-shutdown scene: cameras.main is gone
+
+    const popup = new LevelUpPopup(scene, unit, gains);
+
+    await expect(popup.show()).rejects.toThrow();
+    expect(scene.events.once).not.toHaveBeenCalled();
+  });
+
   it('double destroy is safe and the shutdown hook is unhooked', async () => {
     const scene = makeScene();
     const popup = new LevelUpPopup(scene, unit, gains);
