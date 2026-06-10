@@ -8644,7 +8644,7 @@ export class BattleScene extends Phaser.Scene {
                 if (this.battleParams.objective === 'escape' && hints.shouldShow('battle_escape')) {
                   await showImportantHint(
                     this,
-                    'Get your Lords to the green escape squares!\nPursuers keep arriving -- fighting them all\nis a losing game. Other units may escape\nearly for bonus gold.',
+                    'Only your Lords must reach the green escape\nsquares! Everyone else retreats safely when\nthe last Lord exits -- or can exit early for\nbonus gold. Pursuers arrive endlessly; do not\ntry to rout them.',
                   );
                 }
               },

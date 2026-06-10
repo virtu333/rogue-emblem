@@ -70,10 +70,10 @@ export class EscapeObjectiveController {
   getObjectiveLabel() {
     const scene = this.scene;
     const { escapedLords, totalLords } = this.getLordProgress();
-    let label = `Escape: Move Lords to the exit (${escapedLords}/${totalLords})`;
+    let label = `Escape: Only Lords must exit (${escapedLords}/${totalLords})`;
     const fieldOthers = scene.playerUnits.some((u) => !u.isLord);
     if (fieldOthers) {
-      label += `\nOthers may exit early (+${this.getEvacGold()}g)`;
+      label += `\nOthers are safe; may exit early (+${this.getEvacGold()}g)`;
     }
     return label;
   }
