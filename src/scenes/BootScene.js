@@ -432,7 +432,7 @@ export class BootScene extends Phaser.Scene {
       'sfx_levelup',
     ];
     for (const key of essentialSfx) {
-      this.load.audio(key, [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`]);
+      this.load.audio(key, [`assets/audio/sfx/${key}.mp3`]);
     }
     if (this._startupFlags.reducedPreload) {
       this._deferredAssetGroups.push('combat_sfx');
@@ -440,13 +440,13 @@ export class BootScene extends Phaser.Scene {
         this._deferredAssets.push({
           type: 'audio',
           key,
-          src: [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`],
+          src: [`assets/audio/sfx/${key}.mp3`],
           group: 'combat_sfx',
         });
       }
     } else {
       for (const key of combatSfx) {
-        this.load.audio(key, [`assets/audio/sfx/${key}.ogg`, `assets/audio/sfx/${key}.mp3`]);
+        this.load.audio(key, [`assets/audio/sfx/${key}.mp3`]);
       }
     }
   }
