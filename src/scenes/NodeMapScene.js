@@ -1,45 +1,9 @@
 // NodeMapScene — Visual node map with navigation + roster display
 
 import Phaser from 'phaser';
-import { RunManager, saveRun, clearSavedRun, getReviveCost } from '../engine/RunManager.js';
-import {
-  ACT_CONFIG,
-  NODE_TYPES,
-  INVENTORY_MAX,
-  CONSUMABLE_MAX,
-  SHOP_REROLL_COST,
-  SHOP_REROLL_ESCALATION,
-  SHOP_FORGE_LIMITS,
-  FORGE_MAX_LEVEL,
-  FORGE_COSTS,
-  FORGE_STAT_CAP,
-  CHURCH_PROMOTE_COST,
-  SAFE_BOTTOM_Y,
-  AMBUSH_SHOP_DISCOUNT,
-} from '../utils/constants.js';
-import { generateShopInventory, getSellPrice } from '../engine/LootSystem.js';
-import {
-  addToInventory,
-  removeFromInventory,
-  removeFromConsumables,
-  isLastCombatWeapon,
-  hasProficiency,
-  isProficiencyRelevantItemType,
-  addToConsumables,
-  canPromote,
-  promoteUnit,
-  getSkillDisplayNames,
-  resolvePromotionTargets,
-  getDisplayLevel,
-} from '../engine/UnitManager.js';
-import {
-  canForge,
-  canForgeStat,
-  applyForge,
-  isForged,
-  getForgeCost,
-  getStatForgeCount,
-} from '../engine/ForgeSystem.js';
+import { RunManager, saveRun, clearSavedRun } from '../engine/RunManager.js';
+import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
+import { getDisplayLevel } from '../engine/UnitManager.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -56,16 +20,31 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import { resetTransitionLocks } from '../utils/sceneLoader.js';
-import { formatAccessoryDetail } from '../utils/accessoryText.js';
-import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { markStartup } from '../utils/startupTelemetry.js';
 import { reportAsyncError } from '../utils/errorReporter.js';
 import { showTransitionRecoveryPrompt } from '../ui/TransitionRecoveryPrompt.js';
-import { hasWeaponArt, getWeaponArtTooltipLines } from '../ui/WeaponArtVisibility.js';
 import { consumeEscEvent, isEscConsumed } from '../utils/escPriority.js';
 import { hasOpenOverlay } from '../utils/overlayStack.js';
 import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
+import { ChurchController } from '../ui/ChurchController.js';
+import { ShopController } from '../ui/ShopController.js';
+import {
+  trackSceneTimer,
+  clearTrackedSceneTimer,
+  clearAllSceneTimers,
+} from '../utils/sceneTimers.js';
+import {
+  OVERLAY_CONTENT_DEPTH,
+  SHOP_LIST_TOP_Y,
+  SHOP_LIST_BOTTOM_Y,
+  SHOP_SCROLL_STEP,
+  UNIT_PICKER_SCROLL_STEP,
+  CHURCH_LIST_TOP_Y,
+  CHURCH_VIEW_MAP_Y,
+  CHURCH_LIST_BOTTOM_Y,
+  CHURCH_SCROLL_STEP,
+} from '../ui/nodeMapOverlayLayout.js';
 
 // Layout constants
 const MAP_TOP = 60;
@@ -99,32 +78,8 @@ const AURA_CHURCH_DURATION = 1200; // slower = calming
 const AURA_LOCKED_ALPHA_SCALE = 0.85; // visible but dim for locked nodes
 const AURA_DEPTH = -1; // below nodes and edges
 const NODE_DEPTH = 1; // keep nodes above aura layer
-const SHOP_LIST_TOP_Y = 105;
-const SHOP_LIST_BOTTOM_Y = 390;
-const SHOP_SCROLL_STEP = 24;
-const UNIT_PICKER_SCROLL_STEP = 30;
-const CHURCH_ITEM_HEIGHT = 30;
-const CHURCH_LIST_TOP_Y = 160; // Below heal button + status message area
-const CHURCH_VIEW_MAP_Y = SAFE_BOTTOM_Y - 36; // View Map button Y (matches showChurchOverlay)
-const CHURCH_LIST_BOTTOM_Y = CHURCH_VIEW_MAP_Y - 20; // 20px gap above View Map button to prevent overlap
-const CHURCH_SCROLL_STEP = CHURCH_ITEM_HEIGHT; // Row-height-aligned for deterministic scrolling
-
-function getWeaponArtCatalogForScene(scene) {
-  if (scene && typeof scene._getWeaponArtCatalog === 'function') {
-    return scene._getWeaponArtCatalog();
-  }
-  return scene?.gameData?.weaponArts?.arts || [];
-}
-
-function isProficiencyCheckRelevant(item) {
-  return isProficiencyRelevantItemType(item?.type);
-}
-
-function truncateUnitNameForCapacityLabel(name, maxChars = 14) {
-  const safeName = String(name || '');
-  if (!Number.isInteger(maxChars) || maxChars < 4 || safeName.length <= maxChars) return safeName;
-  return `${safeName.slice(0, maxChars - 3)}...`;
-}
+// Shop/church overlay layout constants now live in ../ui/nodeMapOverlayLayout.js
+// (shared with the extracted overlay controllers).
 
 function beginSceneLifecycle(scene) {
   const nextGeneration =
@@ -151,36 +106,8 @@ function isSceneLifecycleActive(scene, generation = scene?._sceneLifecycleGenera
   return true;
 }
 
-function trackSceneTimer(scene, timer) {
-  if (!timer) return null;
-  if (!scene._sceneTimers || typeof scene._sceneTimers.add !== 'function') {
-    scene._sceneTimers = new Set();
-  }
-  scene._sceneTimers.add(timer);
-  return timer;
-}
-
-function clearTrackedSceneTimer(scene, timer) {
-  if (!timer) return;
-  if (scene?._sceneTimers && typeof scene._sceneTimers.delete === 'function') {
-    scene._sceneTimers.delete(timer);
-  }
-  try {
-    timer.remove?.();
-  } catch (_) {}
-}
-
-function clearAllSceneTimers(scene) {
-  if (!scene?._sceneTimers || typeof scene._sceneTimers.values !== 'function') return;
-  for (const timer of Array.from(scene._sceneTimers.values())) {
-    clearTrackedSceneTimer(scene, timer);
-  }
-}
-
-const OVERLAY_PANEL_W = 560;
-const OVERLAY_PANEL_H = 425; // overlay panel height (px) — independent of button safety margin
-const OVERLAY_PANEL_DEPTH = 301;
-const OVERLAY_CONTENT_DEPTH = 302;
+// Scene timer tracking helpers now live in ../utils/sceneTimers.js (shared
+// with the extracted overlay controllers).
 
 const NODE_ICONS = {
   [NODE_TYPES.BATTLE]: '\u2694', // ⚔
@@ -414,6 +341,14 @@ export class NodeMapScene extends Phaser.Scene {
       this.dialogueOverlay = null;
     }
     this._pendingNodeSelection = null;
+    if (this._churchController) {
+      this._churchController.destroy();
+      this._churchController = null;
+    }
+    if (this._shopController) {
+      this._shopController.destroy();
+      this._shopController = null;
+    }
     this._unbindInputHandlers();
     if (this.isMobileInput && this._mobileHandlers) {
       const ge = this.game.events;
@@ -1731,503 +1666,39 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   handleChurch(node) {
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(pickTrack(MUSIC.rest), this, 300); // Peaceful music
-
-    this._churchPromotionsThisVisit = this.runManager.getChurchPromotionCount(node.id);
-    this._currentChurchNodeId = node.id;
-    this.showChurchOverlay(node);
+    (this._churchController ||= new ChurchController(this)).handleChurch(node);
   }
 
   showChurchOverlay(node) {
-    this.churchOverlay = [];
-    this.churchContentGroup = [];
-    this._churchNode = node;
-    this._churchViewingMap = false;
-    this.churchScrollOffset = 0;
-    this.churchScrollMax = 0;
-    this._churchScrollItems = null;
-
-    // Tutorial hint for church
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('nodemap_church')) {
-      showMinorHint(this, 'Heal, revive fallen allies, or promote units.');
-    }
-
-    // Dark overlay background
-    const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
-    this.churchOverlay.push(bg);
-
-    // Centered panel container
-    const panel = this.add
-      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
-      .setDepth(OVERLAY_PANEL_DEPTH)
-      .setStrokeStyle(2, 0x444444)
-      .setInteractive();
-    this.churchOverlay.push(panel);
-
-    // Title
-    const title = this.add
-      .text(320, 40, 'Church', {
-        fontFamily: 'monospace',
-        fontSize: '22px',
-        color: '#cccccc',
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.churchOverlay.push(title);
-
-    // Gold display
-    this.churchGoldText = this.add
-      .text(320, 70, `Gold: ${this.runManager.gold}G`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.churchOverlay.push(this.churchGoldText);
-
-    const rm = this.runManager;
-
-    // Service 1: Heal All (Free) — fixed, not scrollable
-    const healBtn = this.add
-      .text(320, 110, '[ Heal All Units ] (Free)', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#44ff44',
-        backgroundColor: '#222222',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    healBtn.on('pointerover', () => healBtn.setBackgroundColor('#333333'));
-    healBtn.on('pointerout', () => healBtn.setBackgroundColor('#222222'));
-    healBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      for (const unit of rm.roster) {
-        unit.currentHP = unit.stats.HP;
-      }
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_heal');
-      this.showChurchMessage('All units healed!', '#44ff44');
-    });
-    this.churchOverlay.push(healBtn);
-
-    // View Map button — fixed
-    const viewMapBtn = this.add
-      .text(320, CHURCH_VIEW_MAP_Y, '[ View Map ]', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
-    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
-    viewMapBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._enterChurchMapView();
-    });
-    this.churchOverlay.push(viewMapBtn);
-
-    // Roster button — fixed
-    const rosterBtn = this.add
-      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    rosterBtn.on('pointerover', () => rosterBtn.setColor('#ffdd44'));
-    rosterBtn.on('pointerout', () => rosterBtn.setColor('#aaddff'));
-    rosterBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._touchScrollDrag = null;
-      this._setChurchOverlayVisibility(false);
-      this._churchViewingRoster = true;
-      this._openRoster();
-      if (this.rosterOverlay) {
-        const baseOnClose = this.rosterOverlay.onClose;
-        this.rosterOverlay.onClose = () => {
-          if (baseOnClose) baseOnClose();
-          this._churchViewingRoster = false;
-          this._setChurchOverlayVisibility(true);
-        };
-      } else {
-        // _openRoster() hit an early return — roll back
-        this._churchViewingRoster = false;
-        this._setChurchOverlayVisibility(true);
-      }
-    });
-    this.churchOverlay.push(rosterBtn);
-
-    // Leave button — fixed
-    const leaveBtn = this.add
-      .text(320, SAFE_BOTTOM_Y, '[ Leave Church ]', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
-        padding: { x: 16, y: 8 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
-    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
-    leaveBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this.leaveChurchNode();
-    });
-    this.churchOverlay.push(leaveBtn);
-
-    // Build scrollable item descriptors
-    const items = [];
-    let localY = 0;
-
-    // Service 2: Revive Fallen Unit (1000g)
-    if (rm.fallenUnits.length > 0) {
-      items.push({
-        type: 'label',
-        text: 'Revive Fallen Unit:',
-        color: '#cccccc',
-        y: localY,
-      });
-      localY += 25;
-      for (const fallen of rm.fallenUnits) {
-        items.push({ type: 'revive', unit: fallen, cost: getReviveCost(fallen), y: localY });
-        localY += CHURCH_ITEM_HEIGHT;
-      }
-      localY += 10;
-    }
-
-    // Service 3: Promote Unit
-    const promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
-    const promoRemaining =
-      promoLimit >= 0 ? promoLimit - (this._churchPromotionsThisVisit || 0) : -1;
-    const promoLimitText = promoRemaining >= 0 ? ` [${promoRemaining} left]` : '';
-    items.push({
-      type: 'label',
-      text: `Promote Unit (${CHURCH_PROMOTE_COST}G):${promoLimitText}`,
-      color: '#cccccc',
-      y: localY,
-    });
-    localY += 25;
-
-    const eligibleUnits = rm.roster.filter((u) => canPromote(u));
-    if (promoRemaining === 0) {
-      items.push({ type: 'none', text: '(Promotion limit reached)', y: localY });
-      localY += CHURCH_ITEM_HEIGHT;
-    } else if (eligibleUnits.length === 0) {
-      items.push({ type: 'none', text: '(No units eligible for promotion)', y: localY });
-      localY += CHURCH_ITEM_HEIGHT;
-    } else {
-      for (const unit of eligibleUnits) {
-        items.push({ type: 'promote', unit, y: localY });
-        localY += CHURCH_ITEM_HEIGHT;
-      }
-    }
-
-    this._churchScrollItems = items;
-    const availableHeight = CHURCH_LIST_BOTTOM_Y - CHURCH_LIST_TOP_Y;
-    this.churchScrollMax = Math.max(0, localY - availableHeight);
-    this.churchScrollOffset = 0;
-
-    this.drawChurchScrollContent();
+    (this._churchController ||= new ChurchController(this)).showChurchOverlay(node);
   }
 
   drawChurchScrollContent() {
-    // Destroy previous scroll content
-    if (this.churchContentGroup) this.churchContentGroup.forEach((o) => o.destroy());
-    this.churchContentGroup = [];
-
-    const items = this._churchScrollItems;
-    if (!items) return;
-
-    const offset = this.churchScrollOffset || 0;
-    const rm = this.runManager;
-    const node = this._churchNode;
-
-    for (const item of items) {
-      const y = CHURCH_LIST_TOP_Y + item.y - offset;
-      // Keep row/button bounds out of fixed controls; use half-row guard at bottom.
-      if (
-        y < CHURCH_LIST_TOP_Y - CHURCH_ITEM_HEIGHT ||
-        y > CHURCH_LIST_BOTTOM_Y - CHURCH_ITEM_HEIGHT / 2
-      )
-        continue;
-
-      if (item.type === 'label') {
-        const label = this.add
-          .text(320, y, item.text, {
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            color: item.color,
-          })
-          .setOrigin(0.5)
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.churchContentGroup.push(label);
-      } else if (item.type === 'none') {
-        const noneText = this.add
-          .text(320, y, item.text, {
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            color: '#888888',
-          })
-          .setOrigin(0.5)
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.churchContentGroup.push(noneText);
-      } else if (item.type === 'revive') {
-        const fallen = item.unit;
-        const cost = item.cost;
-        const unitBtn = this.add
-          .text(
-            320,
-            y,
-            `${fallen.name} (Lv${getDisplayLevel(fallen)} ${fallen.className}) — ${cost}G`,
-            {
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              color: '#e0e0e0',
-              backgroundColor: '#222222',
-              padding: { x: 10, y: 4 },
-            },
-          )
-          .setOrigin(0.5)
-          .setDepth(OVERLAY_CONTENT_DEPTH)
-          .setInteractive({ useHandCursor: true });
-        unitBtn.on('pointerover', () => {
-          if (rm.gold >= cost) unitBtn.setColor('#ffdd44');
-          unitBtn.setBackgroundColor('#333333');
-        });
-        unitBtn.on('pointerout', () => {
-          unitBtn.setColor('#e0e0e0');
-          unitBtn.setBackgroundColor('#222222');
-        });
-        unitBtn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          if (rm.reviveFallenUnit(fallen.name, cost)) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_heal');
-            let functionalMessage = `${fallen.name} revived!`;
-            if (!rm.hasShownDialogue('revive_convoy_hint')) {
-              rm.markDialogueShown('revive_convoy_hint');
-              functionalMessage = `${fallen.name} revived! (Gear stored in convoy \u2014 re-equip via Roster)`;
-            }
-            this._showChurchSuccessMessage(node, functionalMessage, '#44ff44', 'revival');
-          } else {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Not enough gold or roster full!', '#ff4444');
-          }
-        });
-        this.churchContentGroup.push(unitBtn);
-      } else if (item.type === 'promote') {
-        const unit = item.unit;
-        const unitBtn = this.add
-          .text(320, y, `${unit.name} (Lv${getDisplayLevel(unit)} ${unit.className})`, {
-            fontFamily: 'monospace',
-            fontSize: '14px',
-            color: '#e0e0e0',
-            backgroundColor: '#222222',
-            padding: { x: 10, y: 4 },
-          })
-          .setOrigin(0.5)
-          .setDepth(OVERLAY_CONTENT_DEPTH)
-          .setInteractive({ useHandCursor: true });
-        unitBtn.on('pointerover', () => {
-          if (rm.gold >= CHURCH_PROMOTE_COST) unitBtn.setColor('#ffdd44');
-          unitBtn.setBackgroundColor('#333333');
-        });
-        unitBtn.on('pointerout', () => {
-          unitBtn.setColor('#e0e0e0');
-          unitBtn.setBackgroundColor('#222222');
-        });
-        unitBtn.on('pointerdown', async (pointer) => {
-          if (pointer?.button !== 0) return;
-          const _promoLimit = rm.getDifficultyModifier('churchPromotionLimit', -1);
-          if (_promoLimit >= 0 && (this._churchPromotionsThisVisit || 0) >= _promoLimit) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Promotion limit reached!', '#ff4444');
-            return;
-          }
-          if (rm.gold < CHURCH_PROMOTE_COST) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Not enough gold!', '#ff4444');
-            return;
-          }
-
-          const lordData = this.gameData.lords.find((l) => l.name === unit.name);
-          const targets = resolvePromotionTargets(unit, this.gameData.classes, this.gameData.lords);
-          if (!targets?.length) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Promotion unavailable for this unit.', '#ff4444');
-            return;
-          }
-
-          // Choose class first, THEN charge gold (cancel must not spend)
-          let promotedClassData;
-          if (targets.length === 1) {
-            promotedClassData = targets[0];
-          } else {
-            const { PromotionChoicePanel } = await import('../ui/PromotionChoicePanel.js');
-            const panel = new PromotionChoicePanel(this, unit, targets, this.gameData.skills);
-            promotedClassData = await panel.show();
-            if (!promotedClassData) {
-              // Cancelled — no gold spent
-              return;
-            }
-          }
-
-          const promotionBonuses = lordData?.promotionBonuses || promotedClassData.promotionBonuses;
-          if (!promotionBonuses) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Promotion data missing.', '#ff4444');
-            return;
-          }
-
-          // Charge gold only after successful selection
-          if (!rm.spendGold(CHURCH_PROMOTE_COST)) {
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_cancel');
-            this.showChurchMessage('Not enough gold!', '#ff4444');
-            return;
-          }
-
-          const promotionResult = promoteUnit(
-            unit,
-            promotedClassData,
-            promotionBonuses,
-            this.gameData.skills,
-          );
-          this._churchPromotionsThisVisit = (this._churchPromotionsThisVisit || 0) + 1;
-          this.runManager.setChurchPromotionCount(
-            this._currentChurchNodeId,
-            this._churchPromotionsThisVisit,
-          );
-
-          if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_levelup');
-          const droppedNames = getSkillDisplayNames(
-            promotionResult?.droppedSkills,
-            this.gameData.skills,
-          );
-          this._showChurchSuccessMessage(
-            node,
-            droppedNames.length > 0
-              ? `${unit.name} promoted to ${promotedClassData.name}! ` +
-                  `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
-              : `${unit.name} promoted to ${promotedClassData.name}!`,
-            droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
-            'promotion',
-          );
-        });
-        this.churchContentGroup.push(unitBtn);
-      }
-    }
-
-    // Scroll hint when content overflows
-    if ((this.churchScrollMax || 0) > 0) {
-      const percent =
-        this.churchScrollMax > 0 ? Math.round((offset / this.churchScrollMax) * 100) : 0;
-      const hint = this.add
-        .text(445, CHURCH_LIST_BOTTOM_Y + 2, `Scroll: ${percent}%`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#888888',
-          backgroundColor: '#222222',
-          padding: { x: 4, y: 2 },
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
-      this.churchContentGroup.push(hint);
-    }
+    (this._churchController ||= new ChurchController(this)).drawChurchScrollContent();
   }
 
   leaveChurchNode() {
-    if (!this.churchOverlay) return;
-    if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
-    const node = this._churchNode;
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-    this.closeChurchOverlay();
-    if (node) {
-      this.runManager.markNodeComplete(node.id);
-      this.checkActComplete();
-    }
+    (this._churchController ||= new ChurchController(this)).leaveChurchNode();
   }
 
   _showChurchSuccessMessage(node, functionalMessage, functionalColor, flavorType) {
-    this.refreshChurchOverlay(node);
-    this.showChurchMessage(functionalMessage, functionalColor);
-    try {
-      this._scheduleChurchFlavor(flavorType);
-    } catch (_) {
-      /* best-effort flavor — don't block functional message */
-    }
+    (this._churchController ||= new ChurchController(this))._showChurchSuccessMessage(
+      node,
+      functionalMessage,
+      functionalColor,
+      flavorType,
+    );
   }
 
   _scheduleChurchFlavor(flavorType, delayMs = 600) {
-    clearTrackedSceneTimer(this, this._churchFlavorTimer);
-    this._churchFlavorTimer = null;
-    const act = this.runManager?.currentAct || 'act1';
-    const pool =
-      this.gameData?.dialogue?.churchFlavor?.[flavorType]?.[act] ||
-      this.gameData?.dialogue?.churchFlavor?.[flavorType]?.['act3'];
-    if (!Array.isArray(pool) || pool.length === 0) return;
-    const line = pool[Math.floor(Math.random() * pool.length)];
-    this._churchFlavorTimer = trackSceneTimer(
-      this,
-      this.time?.delayedCall?.(delayMs, () => {
-        this._churchFlavorTimer = null;
-        if (this.scene?.isActive && !this.scene.isActive()) return;
-        if (!Array.isArray(this.churchOverlay)) return;
-        this.showChurchMessage(line, '#aabbcc');
-      }),
+    (this._churchController ||= new ChurchController(this))._scheduleChurchFlavor(
+      flavorType,
+      delayMs,
     );
   }
 
   showChurchMessage(text, color) {
-    if (this.scene?.isActive && !this.scene.isActive()) return;
-    if (!Array.isArray(this.churchOverlay)) return;
-    if (this.churchMessage) this.churchMessage.destroy();
-    clearTrackedSceneTimer(this, this._churchMessageTimer);
-    this._churchMessageTimer = null;
-    this.churchMessage = this.add
-      .text(320, 95, text, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color,
-        backgroundColor: '#000000dd',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(0.5)
-      .setDepth(302);
-    this.churchOverlay.push(this.churchMessage);
-
-    this._churchMessageTimer = trackSceneTimer(
-      this,
-      this.time?.delayedCall?.(2000, () => {
-        this._churchMessageTimer = null;
-        if (this.churchMessage) {
-          this.churchMessage.destroy();
-          this.churchMessage = null;
-        }
-      }),
-    );
+    (this._churchController ||= new ChurchController(this)).showChurchMessage(text, color);
   }
 
   showTransientMessage(text, color = '#ff6666') {
@@ -2257,1630 +1728,138 @@ export class NodeMapScene extends Phaser.Scene {
   }
 
   refreshChurchOverlay(node) {
-    this.closeChurchOverlay();
-    this.showChurchOverlay(node);
+    (this._churchController ||= new ChurchController(this)).refreshChurchOverlay(node);
   }
 
   closeChurchOverlay() {
-    this._churchViewingRoster = false;
-    clearTrackedSceneTimer(this, this._churchMessageTimer);
-    this._churchMessageTimer = null;
-    clearTrackedSceneTimer(this, this._churchFlavorTimer);
-    this._churchFlavorTimer = null;
-    if (this.churchOverlay) {
-      this.churchOverlay.forEach((o) => o.destroy());
-      this.churchOverlay = null;
-    }
-    if (this.churchContentGroup) {
-      this.churchContentGroup.forEach((o) => o.destroy());
-      this.churchContentGroup = null;
-    }
-    if (this.churchMessage) {
-      this.churchMessage.destroy();
-      this.churchMessage = null;
-    }
-    this.churchGoldText = null;
-    this._churchNode = null;
-    this._churchViewingMap = false;
-    if (this._churchReturnBtn) {
-      this._churchReturnBtn.destroy();
-      this._churchReturnBtn = null;
-    }
-    this._churchMapViewSuppressCancel = false;
-    this.churchScrollOffset = 0;
-    this.churchScrollMax = 0;
-    this._churchScrollItems = null;
-    this._touchScrollDrag = null;
+    (this._churchController ||= new ChurchController(this)).closeChurchOverlay();
   }
 
   handleShop(node, options = {}) {
-    const pendingAmbush = this._isPendingAmbushNode?.(node) === true;
-    const ambushDiscount =
-      options?.ambushDiscount === true ||
-      pendingAmbush ||
-      (node?.isAmbush === true && node?.ambushCleared === true);
-    if (this.runManager.consumeSkipFirstShop()) {
-      showMinorHint(this, 'Blessing effect: first shop skipped.');
-      this.runManager.markNodeComplete(node.id);
-      if (pendingAmbush) this._clearPendingAmbushForNode?.(node);
-      this.checkActComplete();
-      return;
-    }
-
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(pickTrack(MUSIC.shop), this, 300);
-
-    const rm = this.runManager;
-    const cachedShop = rm.getShopState?.(node.id);
-    let shopItems;
-    if (cachedShop) {
-      shopItems = cachedShop.items;
-    } else {
-      const shopItemDelta = rm.getShopItemCountDelta();
-      shopItems = generateShopInventory(
-        rm.currentAct,
-        this.gameData.lootTables,
-        this.gameData.weapons,
-        this.gameData.consumables,
-        this.gameData.accessories,
-        rm.roster,
-        rm.getWeaponArtSpawnConfig(),
-        {
-          itemCountBonus: shopItemDelta,
-          shopCureGating: rm.difficultyModifiers?.shopCureGating,
-        },
-      );
-      shopItems = this.applyDifficultyShopPricing(shopItems);
-      if (ambushDiscount) {
-        shopItems = this.applyAmbushDiscount(shopItems);
-      }
-    }
-    this.showShopOverlay(node, shopItems, {
-      ambushDiscount: cachedShop?.ambushDiscountActive ?? ambushDiscount,
-      pendingAmbush: !cachedShop && pendingAmbush,
-      cachedShop,
-    });
+    return (this._shopController ||= new ShopController(this)).handleShop(node, options);
   }
 
   applyDifficultyShopPricing(items) {
-    const diffMult = this.runManager?.getDifficultyModifier?.('shopPriceMultiplier', 1) || 1;
-    const blessingDiscount = this.runManager?.getShopPriceDiscount?.() || 0;
-    const multiplier = Math.max(0.1, diffMult * (1 - blessingDiscount));
-    if (!Array.isArray(items)) return [];
-    return items.map((entry) => ({
-      ...entry,
-      price: Math.max(1, Math.floor((entry.price || 0) * multiplier)),
-    }));
+    return (this._shopController ||= new ShopController(this)).applyDifficultyShopPricing(items);
   }
 
   applyAmbushDiscount(items) {
-    if (!Array.isArray(items)) return [];
-    return items.map((entry) => ({
-      ...entry,
-      price: Math.max(1, Math.floor((entry?.price || 0) * AMBUSH_SHOP_DISCOUNT)),
-    }));
+    return (this._shopController ||= new ShopController(this)).applyAmbushDiscount(items);
   }
 
   showShopOverlay(node, shopItems, options = {}) {
-    this.shopOverlay = [];
-    this.shopContentGroup = [];
-    this.activeShopTab = 'buy';
-    const cachedShop = options?.cachedShop;
-    this.shopForgesUsed = cachedShop?.forgesUsed || 0;
-    this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollMax = 0;
-    this._shopViewingMap = false;
-    this._currentShopHasAmbushDiscount =
-      options?.ambushDiscount === true || options?.pendingAmbush === true;
-
-    // Tutorial hint for shop
-    const hints = this.registry.get('hints');
-    if (hints?.shouldShow('nodemap_shop')) {
-      showMinorHint(this, 'Buy, Sell, and Forge tabs available.');
-    }
-
-    // Dark overlay background
-    const bg = this.add.rectangle(320, 240, 640, 480, 0x000000, 0.9).setDepth(300);
-    this.shopOverlay.push(bg);
-
-    // Centered panel container
-    const panel = this.add
-      .rectangle(320, 240, OVERLAY_PANEL_W, OVERLAY_PANEL_H, 0x111111, 0.95)
-      .setDepth(OVERLAY_PANEL_DEPTH)
-      .setStrokeStyle(2, 0x444444)
-      .setInteractive();
-    this.shopOverlay.push(panel);
-
-    // Title
-    const titleLabel = this._currentShopHasAmbushDiscount
-      ? 'Village (Liberated - 20% Off)'
-      : 'Village';
-    const title = this.add
-      .text(320, 30, titleLabel, {
-        fontFamily: 'monospace',
-        fontSize: '22px',
-        color: this._currentShopHasAmbushDiscount ? '#88ff88' : '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.shopOverlay.push(title);
-
-    // Gold display
-    this.shopGoldText = this.add
-      .text(320, 58, `Gold: ${this.runManager.gold}G`, {
-        fontFamily: 'monospace',
-        fontSize: '14px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.shopOverlay.push(this.shopGoldText);
-
-    const viewMapBtn = this.add
-      .text(320, SAFE_BOTTOM_Y - 36, '[ View Map ]', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    viewMapBtn.on('pointerover', () => viewMapBtn.setColor('#ffdd44'));
-    viewMapBtn.on('pointerout', () => viewMapBtn.setColor('#aaddff'));
-    viewMapBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._enterShopMapView();
-    });
-    this.shopOverlay.push(viewMapBtn);
-
-    // Roster button
-    const shopRosterBtn = this.add
-      .text(180, SAFE_BOTTOM_Y, '[ Roster ]', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#aaddff',
-        backgroundColor: '#223344',
-        padding: { x: 12, y: 6 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    shopRosterBtn.on('pointerover', () => shopRosterBtn.setColor('#ffdd44'));
-    shopRosterBtn.on('pointerout', () => shopRosterBtn.setColor('#aaddff'));
-    shopRosterBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this._touchScrollDrag = null;
-      this._hideForgeTooltip();
-      this._hideShopItemTooltip();
-      this._setShopOverlayVisibility(false);
-      this._shopViewingRoster = true;
-      this._openRoster();
-      if (this.rosterOverlay) {
-        const baseOnClose = this.rosterOverlay.onClose;
-        this.rosterOverlay.onClose = () => {
-          if (baseOnClose) baseOnClose();
-          this._shopViewingRoster = false;
-          this._setShopOverlayVisibility(true);
-          this.drawActiveTabContent();
-        };
-      } else {
-        // _openRoster() hit an early return — roll back
-        this._shopViewingRoster = false;
-        this._setShopOverlayVisibility(true);
-      }
-    });
-    this.shopOverlay.push(shopRosterBtn);
-
-    this.shopBuyItems = shopItems.map((entry, i) => ({ ...entry, index: i }));
-    this._shopOriginalSlotCount = cachedShop?.originalSlotCount || this.shopBuyItems.length;
-    this._shopNode = node;
-    this.shopRerollCount = cachedShop?.rerollCount || 0;
-
-    // Tab bar
-    this.drawShopTabs();
-
-    // Draw active tab content
-    this.drawActiveTabContent();
-
-    // Leave button
-    const leaveBtn = this.add
-      .text(320, SAFE_BOTTOM_Y, '[ Leave Village ]', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#e0e0e0',
-        backgroundColor: '#333333',
-        padding: { x: 16, y: 8 },
-      })
-      .setOrigin(0.5)
-      .setDepth(OVERLAY_CONTENT_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    leaveBtn.on('pointerover', () => leaveBtn.setColor('#ffdd44'));
-    leaveBtn.on('pointerout', () => leaveBtn.setColor('#e0e0e0'));
-    leaveBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this.leaveShopNode();
-    });
-    this.shopOverlay.push(leaveBtn);
-
-    // Shop entry flavor
-    try {
-      const shopAct = this.runManager?.currentAct || 'act1';
-      const shopPool =
-        this.gameData?.dialogue?.shopFlavor?.[shopAct] ||
-        this.gameData?.dialogue?.shopFlavor?.['act3'];
-      if (Array.isArray(shopPool) && shopPool.length > 0) {
-        this.showShopBanner(shopPool[Math.floor(Math.random() * shopPool.length)], '#aabbcc');
-      }
-    } catch (_) {
-      /* best-effort flavor — don't block overlay */
-    }
+    return (this._shopController ||= new ShopController(this)).showShopOverlay(
+      node,
+      shopItems,
+      options,
+    );
   }
 
   leaveShopNode() {
-    if (!this.shopOverlay) return;
-    const node = this._shopNode;
-    const audio = this.registry.get('audio');
-    if (audio) audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this, 300);
-    this.closeShopOverlay();
-    if (node) {
-      this._clearPendingAmbushForNode?.(node);
-      this.runManager.markNodeComplete(node.id);
-      this.runManager?.clearShopState?.(node.id);
-      this.checkActComplete();
-    }
+    return (this._shopController ||= new ShopController(this)).leaveShopNode();
   }
 
   drawShopTabs() {
-    // Destroy old tab objects
-    if (this.shopTabObjects) this.shopTabObjects.forEach((o) => o.destroy());
-    this.shopTabObjects = [];
-
-    const tabs = [
-      { key: 'buy', label: 'Buy' },
-      { key: 'sell', label: 'Sell' },
-      { key: 'forge', label: 'Forge' },
-    ];
-    const tabY = 80;
-    const tabW = 80;
-    const startX = 320 - (tabs.length * tabW) / 2 + tabW / 2;
-
-    for (let i = 0; i < tabs.length; i++) {
-      const tab = tabs[i];
-      const tx = startX + i * tabW;
-      const isActive = this.activeShopTab === tab.key;
-      const color = isActive ? '#ffdd44' : '#888888';
-      const tabText = this.add
-        .text(tx, tabY, tab.label, {
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          color,
-          backgroundColor: isActive ? '#333355' : '#222222',
-          padding: { x: 12, y: 4 },
-        })
-        .setOrigin(0.5)
-        .setDepth(OVERLAY_CONTENT_DEPTH)
-        .setInteractive({ useHandCursor: true });
-
-      tabText.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        if (this.activeShopTab === tab.key) return;
-        this.activeShopTab = tab.key;
-        this.drawShopTabs();
-        this.drawActiveTabContent();
-      });
-
-      this.shopTabObjects.push(tabText);
-      this.shopOverlay.push(tabText);
-    }
+    return (this._shopController ||= new ShopController(this)).drawShopTabs();
   }
 
   drawActiveTabContent() {
-    // Clear previous tab content + reset touch preview latch
-    this._touchPreviewedShopEntry = null;
-    this._hideForgeTooltip();
-    this._hideShopItemTooltip();
-    if (this.shopContentGroup) this.shopContentGroup.forEach((o) => o.destroy());
-    this.shopContentGroup = [];
-
-    if (this.activeShopTab === 'buy') {
-      this.drawShopBuyList();
-      this.drawRerollButton();
-    } else if (this.activeShopTab === 'sell') {
-      this.drawShopSellList();
-    } else if (this.activeShopTab === 'forge') {
-      this.drawShopForgeList();
-    }
-
-    this.drawShopScrollHint();
+    return (this._shopController ||= new ShopController(this)).drawActiveTabContent();
   }
 
   _getWeaponArtCatalog() {
-    return this.gameData?.weaponArts?.arts || [];
+    return (this._shopController ||= new ShopController(this))._getWeaponArtCatalog();
   }
 
   drawShopBuyList() {
-    const startY = 105;
-    const lineH = 24;
-    this.shopScrollMax = Math.max(
-      0,
-      this.shopBuyItems.length * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y),
-    );
-    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.buy = Phaser.Math.Clamp(
-      this.shopScrollOffsets.buy || 0,
-      0,
-      this.shopScrollMax,
-    );
-    const offset = this.shopScrollOffsets.buy;
-
-    this.shopBuyItems.forEach((entry, i) => {
-      const y = startY + i * lineH - offset;
-      if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) return;
-      const affordable = this.runManager.gold >= entry.price;
-      const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
-      const color = affordable ? affordableColor : '#666666';
-      const marker = hasWeaponArt(entry?.item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-      const text = this.add
-        .text(60, y, `${entry.item.name}${marker}  ${entry.price}G`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color,
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
-
-      text.setInteractive({ useHandCursor: affordable });
-      text.on('pointerover', () => {
-        text.setColor('#ffdd44');
-        this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
-      });
-      text.on('pointerout', () => {
-        text.setColor(color);
-        this._hideShopItemTooltip();
-      });
-      if (affordable) {
-        text.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          if (isTouchPointer(pointer)) {
-            this._touchDownLatchKind = 'shop';
-            this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
-            // Record tap start for scroll-vs-tap validation on pointerup
-            text._touchBuyStart = { x: pointer.x, y: pointer.y };
-            return;
-          }
-          this.onBuyItem(entry);
-        });
-        text.on('pointerup', (pointer) => {
-          if (!isTouchPointer(pointer)) return;
-          const start = text._touchBuyStart;
-          text._touchBuyStart = null;
-          if (!start) return;
-          // Reject if finger moved (scroll gesture) — also disarm buy latch
-          const dx = pointer.x - start.x;
-          const dy = pointer.y - start.y;
-          if (dx * dx + dy * dy > 144) {
-            this._touchPreviewedShopEntry = null;
-            return;
-          }
-          // Two-tap: first tap = preview, second tap = buy
-          const now = Date.now();
-          if (
-            this._touchPreviewedShopEntry === entry &&
-            now - (this._touchPreviewedShopAt || 0) < 3000
-          ) {
-            this._touchPreviewedShopEntry = null;
-            this.onBuyItem(entry);
-          } else {
-            this._touchPreviewedShopEntry = entry;
-            this._touchPreviewedShopAt = now;
-          }
-        });
-      } else {
-        text.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          if (isTouchPointer(pointer)) {
-            this._touchDownLatchKind = 'shop';
-            this._touchPreviewedShopEntry = null; // disarm buy latch on unaffordable tap
-            this._showShopItemTooltip(entry, text.x + text.width + 10, text.y);
-          }
-        });
-      }
-
-      this.shopContentGroup.push(text);
-      this.shopOverlay.push(text);
-    });
+    return (this._shopController ||= new ShopController(this)).drawShopBuyList();
   }
 
   onBuyItem(entry) {
-    const rm = this.runManager;
-    if (rm.gold < entry.price) return;
-
-    // Path 1: Scrolls go to team pool
-    if (entry.type === 'scroll') {
-      rm.spendGold(entry.price);
-      if (!rm.scrolls) rm.scrolls = [];
-      rm.scrolls.push({ ...entry.item });
-      const idx = this.shopBuyItems.indexOf(entry);
-      if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_gold');
-      this.refreshShop();
-      this.showShopBanner(`Got ${entry.item.name}! Added to Scroll Pool.`, '#88ff88');
-      return;
-    }
-
-    // Path 2: Accessories go to team pool
-    if (entry.type === 'accessory') {
-      rm.spendGold(entry.price);
-      if (!rm.accessories) rm.accessories = [];
-      rm.accessories.push({ ...entry.item });
-      const idx = this.shopBuyItems.indexOf(entry);
-      if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-      const audio = this.registry.get('audio');
-      if (audio) audio.playSFX('sfx_gold');
-      this.refreshShop();
-      this.showShopBanner(`Got ${entry.item.name}! Added to Accessory Pool.`, '#88ff88');
-      return;
-    }
-
-    // Path 3a: Consumables use consumables limit
-    if (entry.item.type === 'Consumable') {
-      this.showUnitPicker(
-        (unitIndex) => {
-          const unit = rm.roster[unitIndex];
-          const consumableCount = unit.consumables ? unit.consumables.length : 0;
-          if (consumableCount >= CONSUMABLE_MAX) {
-            if (!rm.spendGold(entry.price)) {
-              this.showShopBanner('Not enough gold.', '#ff8888');
-              return;
-            }
-            if (!rm.addToConvoy(entry.item)) {
-              if (typeof rm.addGold === 'function') rm.addGold(entry.price);
-              this.showShopBanner(`${unit.name}'s consumables are full!`, '#ff8888');
-              return;
-            }
-            const idx = this.shopBuyItems.indexOf(entry);
-            if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_gold');
-            this.refreshShop();
-            this.showShopBanner(`${entry.item.name} sent to convoy.`, '#88ccff');
-            return;
-          }
-          rm.spendGold(entry.price);
-          addToConsumables(unit, { ...entry.item });
-          const idx = this.shopBuyItems.indexOf(entry);
-          if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-        },
-        { itemTypeContext: 'consumable' },
-      );
-      return;
-    }
-
-    // Path 3b: Weapons/staves use main inventory limit
-    this.showUnitPicker(
-      (unitIndex) => {
-        const unit = rm.roster[unitIndex];
-        if (unit.inventory.length >= INVENTORY_MAX) {
-          if (!rm.spendGold(entry.price)) {
-            this.showShopBanner('Not enough gold.', '#ff8888');
-            return;
-          }
-          if (!rm.addToConvoy(entry.item)) {
-            if (typeof rm.addGold === 'function') rm.addGold(entry.price);
-            this.showShopBanner(`${unit.name}'s inventory is full!`, '#ff8888');
-            return;
-          }
-          const idx = this.shopBuyItems.indexOf(entry);
-          if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`${entry.item.name} sent to convoy.`, '#88ccff');
-          return;
-        }
-        rm.spendGold(entry.price);
-        addToInventory(unit, { ...entry.item });
-        const idx = this.shopBuyItems.indexOf(entry);
-        if (idx !== -1) this.shopBuyItems.splice(idx, 1);
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        this.refreshShop();
-        this.showShopBanner(`${unit.name} got ${entry.item.name}!`, '#88ff88');
-      },
-      { profCheckItem: entry.item, itemTypeContext: 'inventory' },
-    );
+    return (this._shopController ||= new ShopController(this)).onBuyItem(entry);
   }
 
   drawShopSellList() {
-    const startY = 105;
-    const lineH = 22;
-    const rm = this.runManager;
-    const previewAwardedSellGold = (amount) => {
-      const normalized = Math.max(0, Math.trunc(Number(amount) || 0));
-      return normalized;
-    };
-    const rowModel = [];
-    for (const unit of rm.roster) {
-      rowModel.push({ kind: 'unit', unit });
-      const inventory = unit.inventory || [];
-      const consumables = unit.consumables || [];
-      for (const item of inventory) {
-        const sellPrice = getSellPrice(item);
-        if (sellPrice <= 0) continue;
-        rowModel.push({ kind: 'inventory', unit, item, sellPrice });
-      }
-      for (const item of consumables) {
-        const sellPrice = getSellPrice(item);
-        if (sellPrice <= 0) continue;
-        rowModel.push({ kind: 'consumable', unit, item, sellPrice });
-      }
-    }
-    // Convoy items
-    const convoyWeapons = rm.convoy?.weapons || [];
-    const convoyConsumables = rm.convoy?.consumables || [];
-    const hasConvoySellable =
-      convoyWeapons.some((w) => getSellPrice(w) > 0) ||
-      convoyConsumables.some((c) => getSellPrice(c) > 0);
-    if (hasConvoySellable) {
-      rowModel.push({ kind: 'convoy_header' });
-      for (let ci = 0; ci < convoyWeapons.length; ci++) {
-        const item = convoyWeapons[ci];
-        const sellPrice = getSellPrice(item);
-        if (sellPrice <= 0) continue;
-        rowModel.push({ kind: 'convoy_weapon', item, sellPrice, convoyIndex: ci });
-      }
-      for (let ci = 0; ci < convoyConsumables.length; ci++) {
-        const item = convoyConsumables[ci];
-        const sellPrice = getSellPrice(item);
-        if (sellPrice <= 0) continue;
-        rowModel.push({ kind: 'convoy_consumable', item, sellPrice, convoyIndex: ci });
-      }
-    }
-    const rowTotal = rowModel.length;
-    this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
-    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.sell = Phaser.Math.Clamp(
-      this.shopScrollOffsets.sell || 0,
-      0,
-      this.shopScrollMax,
-    );
-    const offset = this.shopScrollOffsets.sell;
-
-    for (let row = 0; row < rowModel.length; row++) {
-      const rowData = rowModel[row];
-      const y = startY + row * lineH - offset;
-      if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) continue;
-
-      if (rowData.kind === 'unit') {
-        const nameText = this.add
-          .text(60, y, `${rowData.unit.name}:`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(nameText);
-        this.shopOverlay.push(nameText);
-        continue;
-      }
-
-      if (rowData.kind === 'inventory') {
-        const item = rowData.item;
-        const sellPrice = rowData.sellPrice;
-        const unit = rowData.unit;
-        const locked = isLastCombatWeapon(unit, item);
-        const equipped = item === unit.weapon ? '\u25b6' : ' ';
-        const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const wpnColor = locked ? '#666666' : isForged(item) ? '#44ff88' : '#e0e0e0';
-        const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const text = this.add
-          .text(
-            70,
-            y,
-            `${equipped}${item.name}${marker}  ${locked ? '(last weapon)' : '+' + awardedSellPrice + 'G'}`,
-            {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: wpnColor,
-            },
-          )
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-
-        if (!locked) {
-          text.setInteractive({ useHandCursor: true });
-          text.on('pointerover', () => text.setColor('#ffdd44'));
-          text.on('pointerout', () => text.setColor(wpnColor));
-          text.on('pointerdown', (pointer) => {
-            if (pointer?.button !== 0) return;
-            if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
-            else rm.addGold(sellPrice);
-            removeFromInventory(unit, item);
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_gold');
-            this.refreshShop();
-            this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
-          });
-        }
-
-        this.shopContentGroup.push(text);
-        this.shopOverlay.push(text);
-        continue;
-      }
-
-      if (rowData.kind === 'consumable') {
-        const item = rowData.item;
-        const sellPrice = rowData.sellPrice;
-        const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const unit = rowData.unit;
-        const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
-        const baseColor = '#88ff88';
-        const text = this.add
-          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: baseColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
-        text.on('pointerout', () => text.setColor(baseColor));
-        text.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
-          else rm.addGold(sellPrice);
-          removeFromConsumables(unit, item);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
-        });
-
-        this.shopContentGroup.push(text);
-        this.shopOverlay.push(text);
-        continue;
-      }
-
-      if (rowData.kind === 'convoy_header') {
-        const hdr = this.add
-          .text(60, y, 'Convoy:', {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(hdr);
-        this.shopOverlay.push(hdr);
-        continue;
-      }
-
-      if (rowData.kind === 'convoy_weapon') {
-        const item = rowData.item;
-        const sellPrice = rowData.sellPrice;
-        const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const convoyIdx = rowData.convoyIndex;
-        const marker = hasWeaponArt(item, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const wpnColor = isForged(item) ? '#44ff88' : '#e0e0e0';
-        const text = this.add
-          .text(70, y, ` ${item.name}${marker}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
-        text.on('pointerout', () => text.setColor(wpnColor));
-        text.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          rm.takeFromConvoy('weapon', convoyIdx);
-          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
-          else rm.addGold(sellPrice);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
-        });
-        this.shopContentGroup.push(text);
-        this.shopOverlay.push(text);
-        continue;
-      }
-
-      if (rowData.kind === 'convoy_consumable') {
-        const item = rowData.item;
-        const sellPrice = rowData.sellPrice;
-        const awardedSellPrice = previewAwardedSellGold(sellPrice);
-        const convoyIdx = rowData.convoyIndex;
-        const usesText = Number.isFinite(item.uses) ? ` (${item.uses})` : '';
-        const baseColor = '#88ff88';
-        const text = this.add
-          .text(70, y, ` ${item.name}${usesText}  +${awardedSellPrice}G`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: baseColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        text.setInteractive({ useHandCursor: true });
-        text.on('pointerover', () => text.setColor('#ffdd44'));
-        text.on('pointerout', () => text.setColor(baseColor));
-        text.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          rm.takeFromConvoy('consumable', convoyIdx);
-          if (typeof rm.awardGold === 'function') rm.awardGold(sellPrice);
-          else rm.addGold(sellPrice);
-          const audio = this.registry.get('audio');
-          if (audio) audio.playSFX('sfx_gold');
-          this.refreshShop();
-          this.showShopBanner(`Sold ${item.name} for ${awardedSellPrice}G`, '#ffdd44');
-        });
-        this.shopContentGroup.push(text);
-        this.shopOverlay.push(text);
-      }
-    }
+    return (this._shopController ||= new ShopController(this)).drawShopSellList();
   }
 
   drawShopForgeList() {
-    this._hideForgeTooltip();
-    const startY = 105;
-    const lineH = 20;
-    const rm = this.runManager;
-    const baseForgeLimit = SHOP_FORGE_LIMITS[rm.currentAct] || 2;
-    const forgeLimit = baseForgeLimit + (rm.blessingRuntimeModifiers?.forgeLimitDelta || 0);
-    let row = 0;
-    let rowTotal = 1.5;
-    for (const unit of rm.roster) {
-      const forgeableWeapons = unit.inventory.filter((w) => canForge(w));
-      if (forgeableWeapons.length === 0) continue;
-      rowTotal += 1 + forgeableWeapons.length;
-    }
-    const convoyForgeWeapons = (rm.convoy?.weapons || []).filter((w) => canForge(w));
-    if (convoyForgeWeapons.length > 0) rowTotal += 1 + convoyForgeWeapons.length;
-    this.shopScrollMax = Math.max(0, rowTotal * lineH - (SHOP_LIST_BOTTOM_Y - SHOP_LIST_TOP_Y));
-    if (!this.shopScrollOffsets) this.shopScrollOffsets = { buy: 0, sell: 0, forge: 0 };
-    this.shopScrollOffsets.forge = Phaser.Math.Clamp(
-      this.shopScrollOffsets.forge || 0,
-      0,
-      this.shopScrollMax,
-    );
-    const offset = this.shopScrollOffsets.forge;
-
-    // Header: forges remaining
-    const headerY = startY - offset;
-    if (headerY >= SHOP_LIST_TOP_Y - lineH && headerY <= SHOP_LIST_BOTTOM_Y) {
-      const header = this.add
-        .text(60, headerY, `Forges remaining: ${forgeLimit - this.shopForgesUsed}/${forgeLimit}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color: '#ff8844',
-        })
-        .setDepth(OVERLAY_CONTENT_DEPTH);
-      this.shopContentGroup.push(header);
-      this.shopOverlay.push(header);
-    }
-    row += 1.5;
-
-    const limitReached = this.shopForgesUsed >= forgeLimit;
-
-    for (const unit of rm.roster) {
-      const forgeableWeapons = unit.inventory.filter((w) => canForge(w));
-      if (forgeableWeapons.length === 0) continue;
-
-      const nameY = startY + row * lineH - offset;
-      if (nameY >= SHOP_LIST_TOP_Y - lineH && nameY <= SHOP_LIST_BOTTOM_Y) {
-        const nameText = this.add
-          .text(60, nameY, `${unit.name}:`, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(nameText);
-        this.shopOverlay.push(nameText);
-      }
-      row++;
-
-      for (const wpn of forgeableWeapons) {
-        const y = startY + row * lineH - offset;
-        const level = wpn._forgeLevel || 0;
-        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
-        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
-        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
-          row++;
-          continue;
-        }
-        const wpnText = this.add
-          .text(70, y, label, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(wpnText);
-        this.shopOverlay.push(wpnText);
-
-        // Hover tooltip for weapon stats (+ touch tap)
-        wpnText.setInteractive({ useHandCursor: false });
-        wpnText.on('pointerover', () => {
-          this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
-        });
-        wpnText.on('pointerout', () => this._hideForgeTooltip());
-        wpnText.on('pointerdown', (pointer) => {
-          if (isTouchPointer(pointer)) {
-            this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
-          }
-        });
-
-        if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = this.add
-            .text(350, y, 'MAX', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#888888',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
-          this.shopContentGroup.push(maxLabel);
-          this.shopOverlay.push(maxLabel);
-        } else if (limitReached) {
-          const limitLabel = this.add
-            .text(350, y, '(limit)', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#666666',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
-          this.shopContentGroup.push(limitLabel);
-          this.shopOverlay.push(limitLabel);
-        } else {
-          const forgeBtn = this.add
-            .text(350, y, '[ Forge ]', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#ff8844',
-              backgroundColor: '#333333',
-              padding: { x: 4, y: 1 },
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH)
-            .setInteractive({ useHandCursor: true });
-          forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
-          forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
-          forgeBtn.on('pointerdown', (pointer) => {
-            if (pointer?.button !== 0) return;
-            this.showForgeStatPicker(wpn);
-          });
-          this.shopContentGroup.push(forgeBtn);
-          this.shopOverlay.push(forgeBtn);
-        }
-
-        row++;
-      }
-    }
-
-    // Convoy forgeable weapons
-    if (convoyForgeWeapons.length > 0) {
-      const convoyHeaderY = startY + row * lineH - offset;
-      if (convoyHeaderY >= SHOP_LIST_TOP_Y - lineH && convoyHeaderY <= SHOP_LIST_BOTTOM_Y) {
-        const hdr = this.add
-          .text(60, convoyHeaderY, 'Convoy:', {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#aaaaaa',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(hdr);
-        this.shopOverlay.push(hdr);
-      }
-      row++;
-
-      for (const wpn of convoyForgeWeapons) {
-        const y = startY + row * lineH - offset;
-        const level = wpn._forgeLevel || 0;
-        const wpnColor = isForged(wpn) ? '#44ff88' : '#e0e0e0';
-        const marker = hasWeaponArt(wpn, getWeaponArtCatalogForScene(this)) ? ' *' : '';
-        const label = `  ${wpn.name}${marker}  [${level}/${FORGE_MAX_LEVEL}]`;
-        if (y < SHOP_LIST_TOP_Y - lineH || y > SHOP_LIST_BOTTOM_Y) {
-          row++;
-          continue;
-        }
-        const wpnText = this.add
-          .text(70, y, label, {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: wpnColor,
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(wpnText);
-        this.shopOverlay.push(wpnText);
-
-        wpnText.setInteractive({ useHandCursor: false });
-        wpnText.on('pointerover', () => {
-          this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
-        });
-        wpnText.on('pointerout', () => this._hideForgeTooltip());
-        wpnText.on('pointerdown', (pointer) => {
-          if (isTouchPointer(pointer)) {
-            this._showForgeTooltip(wpn, wpnText.x + wpnText.width + 10, wpnText.y);
-          }
-        });
-
-        if (level >= FORGE_MAX_LEVEL) {
-          const maxLabel = this.add
-            .text(350, y, 'MAX', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#888888',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
-          this.shopContentGroup.push(maxLabel);
-          this.shopOverlay.push(maxLabel);
-        } else if (limitReached) {
-          const limitLabel = this.add
-            .text(350, y, '(limit)', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#666666',
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH);
-          this.shopContentGroup.push(limitLabel);
-          this.shopOverlay.push(limitLabel);
-        } else {
-          const forgeBtn = this.add
-            .text(350, y, '[ Forge ]', {
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              color: '#ff8844',
-              backgroundColor: '#333333',
-              padding: { x: 4, y: 1 },
-            })
-            .setDepth(OVERLAY_CONTENT_DEPTH)
-            .setInteractive({ useHandCursor: true });
-          forgeBtn.on('pointerover', () => forgeBtn.setColor('#ffdd44'));
-          forgeBtn.on('pointerout', () => forgeBtn.setColor('#ff8844'));
-          forgeBtn.on('pointerdown', (pointer) => {
-            if (pointer?.button !== 0) return;
-            this.showForgeStatPicker(wpn);
-          });
-          this.shopContentGroup.push(forgeBtn);
-          this.shopOverlay.push(forgeBtn);
-        }
-
-        row++;
-      }
-    }
-
-    if (row <= 1.5 && convoyForgeWeapons.length === 0) {
-      const emptyY = startY + row * lineH - offset;
-      if (emptyY >= SHOP_LIST_TOP_Y - lineH && emptyY <= SHOP_LIST_BOTTOM_Y) {
-        const emptyText = this.add
-          .text(60, emptyY, 'No forgeable weapons in roster.', {
-            fontFamily: 'monospace',
-            fontSize: '11px',
-            color: '#888888',
-          })
-          .setDepth(OVERLAY_CONTENT_DEPTH);
-        this.shopContentGroup.push(emptyText);
-        this.shopOverlay.push(emptyText);
-      }
-    }
+    return (this._shopController ||= new ShopController(this)).drawShopForgeList();
   }
 
   drawShopScrollHint() {
-    if (!this.shopOverlay || !this.shopContentGroup) return;
-    if ((this.shopScrollMax || 0) <= 0) return;
-    const offset = this.shopScrollOffsets?.[this.activeShopTab] || 0;
-    const percent = this.shopScrollMax > 0 ? Math.round((offset / this.shopScrollMax) * 100) : 0;
-    const hint = this.add
-      .text(445, 392, `Scroll: ${percent}%`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-        backgroundColor: '#222222',
-        padding: { x: 4, y: 2 },
-      })
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.shopContentGroup.push(hint);
-    this.shopOverlay.push(hint);
+    return (this._shopController ||= new ShopController(this)).drawShopScrollHint();
   }
 
   _getShopItemDetailText(entry) {
-    const item = entry?.item || {};
-    const entryType = entry?.type || item.type;
-
-    if (entryType === 'accessory' || item.type === 'Accessory') {
-      return formatAccessoryDetail(item, { fallback: 'Accessory' }) || 'Accessory';
-    }
-
-    if (entryType === 'consumable' || item.type === 'Consumable') {
-      const description = getConsumableDescription(item);
-      if (description) {
-        const usesText = formatUses(item);
-        return usesText ? `${description} (${usesText})` : description;
-      }
-      return item.special || 'Consumable';
-    }
-
-    if (entryType === 'scroll' || item.type === 'Scroll') {
-      const header = item.special || 'Teaches a skill';
-      const skillDef = this.gameData?.skills?.find((s) => s.id === item.skillId);
-      const desc = skillDef?.description || '';
-      return desc ? `${header}\n${desc}` : header;
-    }
-
-    if (item.type === 'Whetstone') {
-      if (item.forgeStat === 'choice') return 'Forge: choose a stat boost';
-      if (item.forgeStat === 'might') return 'Forge: +1 Mt';
-      if (item.forgeStat === 'crit') return 'Forge: +5 Crit';
-      if (item.forgeStat === 'hit') return 'Forge: +5 Hit';
-      if (item.forgeStat === 'weight') return 'Forge: -1 Wt';
-      return 'Forge item';
-    }
-
-    const mt = Number.isFinite(Number(item.might)) ? Number(item.might) : 0;
-    const hit = Number.isFinite(Number(item.hit)) ? Number(item.hit) : 0;
-    const crt = Number.isFinite(Number(item.crit)) ? Number(item.crit) : 0;
-    const wt = Number.isFinite(Number(item.weight)) ? Number(item.weight) : 0;
-    const rng = item.range ?? '1';
-    const artCatalog = getWeaponArtCatalogForScene(this);
-
-    const lines = [];
-    if (item.type) lines.push(item.type);
-    lines.push(`Mt: ${mt}   Hit: ${hit}   Crt: ${crt}`);
-    lines.push(`Wt: ${wt}   Rng: ${rng}`);
-    if (item.special) lines.push(`Special: ${item.special}`);
-    lines.push(...getWeaponArtTooltipLines(item, artCatalog));
-    return lines.join('\n');
+    return (this._shopController ||= new ShopController(this))._getShopItemDetailText(entry);
   }
 
   _showShopItemTooltip(entry, anchorX, anchorY) {
-    this._hideShopItemTooltip();
-    const detail = this._getShopItemDetailText(entry);
-    if (!detail) return;
-    this.shopItemTooltip = [];
-
-    const padX = 8;
-    const padY = 6;
-    const maxTextW = 304; // 320 - padX*2
-
-    // Create text first with wordWrap so Phaser computes accurate dimensions
-    const detailText = this.add
-      .text(0, 0, detail, {
-        fontFamily: 'monospace',
-        fontSize: '9px',
-        color: '#e0e0e0',
-        lineSpacing: 4,
-        wordWrap: { width: maxTextW },
-      })
-      .setDepth(311);
-
-    const boxW = Phaser.Math.Clamp(detailText.width + padX * 2, 150, 320);
-    const boxH = detailText.height + padY * 2;
-
-    let tx = anchorX;
-    let ty = anchorY;
-    if (tx + boxW > 635) tx = anchorX - boxW - 20;
-    if (ty + boxH > 475) ty = 475 - boxH;
-    if (tx < 5) tx = 5;
-    if (ty < 5) ty = 5;
-
-    const bg = this.add
-      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(310)
-      .setStrokeStyle(1, 0x336666);
-    detailText.setPosition(tx + padX, ty + padY);
-
-    this.shopItemTooltip.push(bg, detailText);
+    return (this._shopController ||= new ShopController(this))._showShopItemTooltip(
+      entry,
+      anchorX,
+      anchorY,
+    );
   }
 
   _hideShopItemTooltip() {
-    if (this.shopItemTooltip) {
-      this.shopItemTooltip.forEach((o) => o.destroy());
-      this.shopItemTooltip = null;
-    }
+    return (this._shopController ||= new ShopController(this))._hideShopItemTooltip();
   }
 
   showForgeStatPicker(weapon) {
-    if (this.forgePicker) this.forgePicker.forEach((o) => o.destroy());
-    this.forgePicker = [];
-
-    const cx = 320;
-    const cy = 240;
-    const level = weapon._forgeLevel || 0;
-
-    const pickerBg = this.add
-      .rectangle(cx, cy, 320, 220, 0x222233, 0.97)
-      .setDepth(450)
-      .setStrokeStyle(2, 0xff8844)
-      .setInteractive();
-    this.forgePicker.push(pickerBg);
-
-    const title = this.add
-      .text(cx, cy - 88, `Forge ${weapon.name} (${level}/${FORGE_MAX_LEVEL})`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(451);
-    this.forgePicker.push(title);
-
-    const stats = [
-      { key: 'might', label: '+1 Mt' },
-      { key: 'crit', label: '+5 Crit' },
-      { key: 'hit', label: '+5 Hit' },
-      { key: 'weight', label: '-1 Wt' },
-    ];
-
-    const btnStartY = cy - 50;
-    const btnH = 32;
-    const blessingDiscountRaw = this.runManager?.getForgeCostDiscount?.() || 0;
-    const blessingDiscount = Math.max(0, Math.min(0.95, blessingDiscountRaw));
-    const ambushDiscount = this._currentShopHasAmbushDiscount
-      ? 1 - (1 - blessingDiscount) * AMBUSH_SHOP_DISCOUNT
-      : blessingDiscount;
-    const discount = Math.max(0, Math.min(0.95, ambushDiscount));
-
-    for (let i = 0; i < stats.length; i++) {
-      const stat = stats[i];
-      const statCount = getStatForgeCount(weapon, stat.key);
-      const atStatCap = statCount >= FORGE_STAT_CAP;
-      const baseCost = getForgeCost(weapon, stat.key);
-      const cost = Math.max(1, Math.floor(baseCost * (1 - discount)));
-      const affordable = cost > 0 && this.runManager.gold >= cost;
-      const by = btnStartY + i * btnH;
-      const affordableColor = this._currentShopHasAmbushDiscount ? '#88ff88' : '#e0e0e0';
-      const color = atStatCap ? '#666666' : affordable ? affordableColor : '#666666';
-
-      const costLabel = atStatCap ? 'MAX' : `${cost}G`;
-      const btn = this.add
-        .text(cx, by, `${stat.label}  (${statCount}/${FORGE_STAT_CAP})  ${costLabel}`, {
-          fontFamily: 'monospace',
-          fontSize: '12px',
-          color,
-          backgroundColor: affordable && !atStatCap ? '#444444' : '#333333',
-          padding: { x: 16, y: 4 },
-        })
-        .setOrigin(0.5)
-        .setDepth(451);
-
-      if (affordable && !atStatCap) {
-        btn.setInteractive({ useHandCursor: true });
-        btn.on('pointerover', () => btn.setColor('#ffdd44'));
-        btn.on('pointerout', () => btn.setColor(color));
-        btn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          const result = applyForge(weapon, stat.key, discount);
-          if (result.success) {
-            this.runManager.spendGold(result.cost);
-            this.shopForgesUsed++;
-            const audio = this.registry.get('audio');
-            if (audio) audio.playSFX('sfx_gold');
-            this.closeForgeStatPicker();
-            this.refreshShop();
-            this.showShopBanner(`Forged ${weapon.name}!`, '#ff8844');
-          }
-        });
-      }
-
-      this.forgePicker.push(btn);
-    }
-
-    // Cancel button
-    const cancelBtn = this.add
-      .text(cx, btnStartY + stats.length * btnH + 10, 'Cancel', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#888888',
-        backgroundColor: '#333333',
-        padding: { x: 12, y: 4 },
-      })
-      .setOrigin(0.5)
-      .setDepth(451)
-      .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#888888'));
-    cancelBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this.closeForgeStatPicker();
-    });
-    this.forgePicker.push(cancelBtn);
+    return (this._shopController ||= new ShopController(this)).showForgeStatPicker(weapon);
   }
 
   closeForgeStatPicker() {
-    if (this.forgePicker) {
-      this.forgePicker.forEach((o) => o.destroy());
-      this.forgePicker = null;
-    }
+    return (this._shopController ||= new ShopController(this)).closeForgeStatPicker();
   }
 
   _showForgeTooltip(wpn, anchorX, anchorY) {
-    this._hideForgeTooltip();
-    this.forgeTooltip = [];
-
-    const line1 = `Mt: ${wpn.might}   Hit: ${wpn.hit}   Crt: ${wpn.crit}`;
-    const line2 = `Wt: ${wpn.weight}   Rng: ${wpn.range}`;
-    const mtCount = getStatForgeCount(wpn, 'might');
-    const crCount = getStatForgeCount(wpn, 'crit');
-    const htCount = getStatForgeCount(wpn, 'hit');
-    const wtCount = getStatForgeCount(wpn, 'weight');
-    const line3 = `Forge: Mt(${mtCount}/${FORGE_STAT_CAP}) Cr(${crCount}/${FORGE_STAT_CAP}) Ht(${htCount}/${FORGE_STAT_CAP}) Wt(${wtCount}/${FORGE_STAT_CAP})`;
-
-    const lineDefs = [
-      { text: line1, color: '#e0e0e0' },
-      { text: line2, color: '#e0e0e0' },
-      { text: line3, color: '#ff8844' },
-    ];
-    if (wpn.special) lineDefs.push({ text: `Special: ${wpn.special}`, color: '#88ccff' });
-    const artLines = getWeaponArtTooltipLines(wpn, getWeaponArtCatalogForScene(this));
-    for (const line of artLines) lineDefs.push({ text: line, color: '#ffcc88' });
-
-    const padX = 8;
-    const padY = 6;
-    const maxTextW = 320;
-    const lineSpacing = 3;
-    const detailLines = lineDefs.map(({ text, color }) =>
-      this.add
-        .text(0, 0, text, {
-          fontFamily: 'monospace',
-          fontSize: '9px',
-          color,
-          wordWrap: { width: maxTextW },
-        })
-        .setDepth(311),
+    return (this._shopController ||= new ShopController(this))._showForgeTooltip(
+      wpn,
+      anchorX,
+      anchorY,
     );
-    const textW = detailLines.reduce((max, lineObj) => Math.max(max, lineObj.width || 0), 0);
-    const textH =
-      detailLines.reduce((sum, lineObj) => sum + (lineObj.height || 0), 0) +
-      Math.max(0, detailLines.length - 1) * lineSpacing;
-    const boxW = Phaser.Math.Clamp(textW + padX * 2, 220, 340);
-    const boxH = textH + padY * 2;
-
-    // Clamp to canvas (640x480)
-    let tx = anchorX;
-    let ty = anchorY;
-    if (tx + boxW > 635) tx = anchorX - boxW - 20;
-    if (ty + boxH > 475) ty = 475 - boxH;
-    if (tx < 5) tx = 5;
-    if (ty < 5) ty = 5;
-
-    const bg = this.add
-      .rectangle(tx + boxW / 2, ty + boxH / 2, boxW, boxH, 0x111122, 0.95)
-      .setDepth(310)
-      .setStrokeStyle(1, 0x4466aa);
-    this.forgeTooltip.push(bg);
-    let lineY = ty + padY;
-    for (const lineObj of detailLines) {
-      lineObj.setPosition(tx + padX, lineY);
-      this.forgeTooltip.push(lineObj);
-      lineY += (lineObj.height || 0) + lineSpacing;
-    }
   }
 
   _hideForgeTooltip() {
-    if (this.forgeTooltip) {
-      this.forgeTooltip.forEach((o) => o.destroy());
-      this.forgeTooltip = null;
-    }
+    return (this._shopController ||= new ShopController(this))._hideForgeTooltip();
   }
 
   _saveShopState() {
-    const node = this._shopNode;
-    if (!node) return;
-    this.runManager?.saveShopState?.(node.id, {
-      items: (this.shopBuyItems || []).map(({ index, ...rest }) => rest),
-      forgesUsed: this.shopForgesUsed || 0,
-      rerollCount: this.shopRerollCount || 0,
-      originalSlotCount: this._shopOriginalSlotCount || 0,
-      ambushDiscountActive: this._currentShopHasAmbushDiscount || false,
-    });
+    return (this._shopController ||= new ShopController(this))._saveShopState();
   }
 
   refreshShop() {
-    this._touchPreviewedShopEntry = null;
-    this.shopGoldText.setText(`Gold: ${this.runManager.gold}G`);
-    this.drawActiveTabContent();
-    this.drawShopTabs();
-    this._saveShopState();
+    return (this._shopController ||= new ShopController(this)).refreshShop();
   }
 
   drawRerollButton() {
-    const cost = SHOP_REROLL_COST + this.shopRerollCount * SHOP_REROLL_ESCALATION;
-    const affordable = this.runManager.gold >= cost;
-    const color = affordable ? '#aaddff' : '#666666';
-    const rerollBtn = this.add
-      .text(60, 410, `[ Reroll ${cost}G ]`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color,
-        backgroundColor: '#333333',
-        padding: { x: 8, y: 4 },
-      })
-      .setDepth(OVERLAY_CONTENT_DEPTH);
-    this.shopContentGroup.push(rerollBtn);
-    this.shopOverlay.push(rerollBtn);
-
-    if (affordable) {
-      rerollBtn.setInteractive({ useHandCursor: true });
-      rerollBtn.on('pointerover', () => rerollBtn.setColor('#ffdd44'));
-      rerollBtn.on('pointerout', () => rerollBtn.setColor(color));
-      rerollBtn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        this.runManager.spendGold(cost);
-        this.shopRerollCount++;
-        const targetCount = Math.max(
-          0,
-          Number(this._shopOriginalSlotCount) || this.shopBuyItems.length || 0,
-        );
-        const currentItems = Array.isArray(this.shopBuyItems) ? this.shopBuyItems.slice() : [];
-        const hasPurchasedAny = currentItems.length < targetCount;
-        const baseItems = hasPurchasedAny ? currentItems : [];
-        const itemKey = (entry) =>
-          `${entry?.type || entry?.item?.type || ''}|${entry?.item?.name || ''}`;
-        const generatePricedItems = () => {
-          const generated = generateShopInventory(
-            this.runManager.currentAct,
-            this.gameData.lootTables,
-            this.gameData.weapons,
-            this.gameData.consumables,
-            this.gameData.accessories,
-            this.runManager.roster,
-            this.runManager.getWeaponArtSpawnConfig(),
-            {
-              shopCureGating: this.runManager.difficultyModifiers?.shopCureGating,
-            },
-          );
-          let priced = this.applyDifficultyShopPricing(generated);
-          if (this._currentShopHasAmbushDiscount) {
-            priced = this.applyAmbushDiscount(priced);
-          }
-          return Array.isArray(priced) ? priced : [];
-        };
-
-        const fillToTarget = (items, preferUnique, fallbackSeedItems = []) => {
-          const result = items.slice(0, targetCount);
-          const deferred = [];
-          const seen = new Set(result.map((entry) => itemKey(entry)).filter(Boolean));
-          const uniquePasses = Math.max(4, targetCount * 4);
-          for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
-            const batch = generatePricedItems();
-            for (const entry of batch) {
-              if (result.length >= targetCount) break;
-              const key = itemKey(entry);
-              if (preferUnique && key && seen.has(key)) {
-                deferred.push(entry);
-                continue;
-              }
-              result.push(entry);
-              if (key) seen.add(key);
-            }
-          }
-          while (result.length < targetCount && deferred.length > 0) {
-            result.push(deferred.shift());
-          }
-          const fallbackPasses = Math.max(4, targetCount * 4);
-          for (let pass = 0; result.length < targetCount && pass < fallbackPasses; pass++) {
-            const batch = generatePricedItems();
-            for (const entry of batch) {
-              if (result.length >= targetCount) break;
-              result.push(entry);
-            }
-          }
-          if (result.length < targetCount) {
-            const seedSource = result.length > 0 ? result : fallbackSeedItems;
-            if (seedSource.length > 0) {
-              const seed = seedSource[0];
-              while (result.length < targetCount) {
-                result.push({ ...seed, item: seed?.item ? { ...seed.item } : seed.item });
-              }
-            }
-          }
-          return result.slice(0, targetCount);
-        };
-
-        const nextItems = fillToTarget(baseItems, hasPurchasedAny, currentItems);
-        this.shopBuyItems = nextItems.map((entry, i) => ({ ...entry, index: i }));
-        const audio = this.registry.get('audio');
-        if (audio) audio.playSFX('sfx_gold');
-        this.refreshShop();
-        this.showShopBanner('Shop restocked!', '#aaddff');
-      });
-    }
+    return (this._shopController ||= new ShopController(this)).drawRerollButton();
   }
 
   showUnitPicker(callback, pickerOptionsOrItem) {
-    this.closeUnitPicker();
-
-    const rm = this.runManager;
-    const viewportHeight = 280;
-    const contentHeight = rm.roster.length * 30;
-    const maxOffset = Math.max(0, contentHeight - viewportHeight);
-    const pickerOptions =
-      pickerOptionsOrItem &&
-      typeof pickerOptionsOrItem === 'object' &&
-      ('profCheckItem' in pickerOptionsOrItem || 'itemTypeContext' in pickerOptionsOrItem)
-        ? pickerOptionsOrItem
-        : { profCheckItem: pickerOptionsOrItem, itemTypeContext: null };
-    const profCheckItem = pickerOptions?.profCheckItem || null;
-    const itemTypeContext = pickerOptions?.itemTypeContext || null;
-
-    this.unitPickerState = {
+    return (this._shopController ||= new ShopController(this)).showUnitPicker(
       callback,
-      profCheckItem,
-      itemTypeContext,
-      offset: 0,
-      maxOffset,
-      viewportTop: 120,
-      viewportBottom: 120 + viewportHeight,
-    };
-    this.renderUnitPicker();
+      pickerOptionsOrItem,
+    );
   }
 
   renderUnitPicker() {
-    if (!this.unitPickerState) return;
-    if (this.unitPicker) this.unitPicker.forEach((o) => o.destroy());
-    this.unitPicker = [];
-
-    const rm = this.runManager;
-    const state = this.unitPickerState;
-    const cx = 320;
-    const panelY = 260;
-    const panelW = 360;
-    const panelH = 360;
-    const listTop = state.viewportTop;
-    const listBottom = state.viewportBottom;
-    const offset = state.offset || 0;
-
-    const pickerBg = this.add
-      .rectangle(cx, panelY, panelW, panelH, 0x222222, 0.95)
-      .setDepth(400)
-      .setStrokeStyle(1, 0x888888)
-      .setInteractive();
-    this.unitPicker.push(pickerBg);
-
-    const pickerTitle = this.add
-      .text(cx, 102, 'Give to:', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#ffdd44',
-      })
-      .setOrigin(0.5)
-      .setDepth(401);
-    this.unitPicker.push(pickerTitle);
-
-    const clipTop = this.add.rectangle(cx, listTop, panelW - 20, 1, 0x555555, 0.6).setDepth(401);
-    const clipBottom = this.add
-      .rectangle(cx, listBottom, panelW - 20, 1, 0x555555, 0.6)
-      .setDepth(401);
-    this.unitPicker.push(clipTop, clipBottom);
-
-    rm.roster.forEach((unit, i) => {
-      const y = listTop + i * 30 - offset + 15;
-      if (y < listTop - 15 || y > listBottom + 15) return;
-      const profCheckItem = state.profCheckItem || null;
-      const shouldCheckProficiency = isProficiencyCheckRelevant(profCheckItem);
-      const noProf = shouldCheckProficiency && !hasProficiency(unit, profCheckItem);
-      const inventoryCount = (unit.inventory || []).length;
-      const consumableCount = (unit.consumables || []).length;
-      const inventoryFull = inventoryCount >= INVENTORY_MAX;
-      const consumablesFull = consumableCount >= CONSUMABLE_MAX;
-      const fullSuffix =
-        state.itemTypeContext === 'consumable'
-          ? consumablesFull
-            ? ' consumables full'
-            : ''
-          : state.itemTypeContext === 'inventory'
-            ? inventoryFull
-              ? ' inventory full'
-              : ''
-            : '';
-      const displayName = truncateUnitNameForCapacityLabel(unit.name, 16);
-      const label = `${displayName} (Inventory ${inventoryCount}/${INVENTORY_MAX} | Consumables ${consumableCount}/${CONSUMABLE_MAX})${noProf ? ' no prof' : ''}${fullSuffix}`;
-      const color = noProf ? '#cc8844' : '#e0e0e0';
-      const btn = this.add
-        .text(cx, y, label, {
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          color,
-          backgroundColor: '#444444',
-          padding: { x: 12, y: 4 },
-        })
-        .setOrigin(0.5)
-        .setDepth(401)
-        .setInteractive({ useHandCursor: true });
-
-      btn.on('pointerover', () => btn.setColor('#ffdd44'));
-      btn.on('pointerout', () => btn.setColor(color));
-      btn.on('pointerdown', (pointer) => {
-        if (pointer?.button !== 0) return;
-        const cb = state.callback;
-        this.closeUnitPicker();
-        cb(i);
-      });
-
-      this.unitPicker.push(btn);
-    });
-
-    if (state.maxOffset > 0) {
-      const pct = Math.round((offset / state.maxOffset) * 100);
-      const hint = this.add
-        .text(cx + panelW / 2 - 10, 102, `${pct}%`, {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#888888',
-        })
-        .setOrigin(1, 0.5)
-        .setDepth(401);
-      this.unitPicker.push(hint);
-    }
-
-    const cancelBtn = this.add
-      .text(cx, 430, '[ Cancel ]', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#bbbbbb',
-        backgroundColor: '#333333',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(0.5)
-      .setDepth(401)
-      .setInteractive({ useHandCursor: true });
-    cancelBtn.on('pointerover', () => cancelBtn.setColor('#ffdd44'));
-    cancelBtn.on('pointerout', () => cancelBtn.setColor('#bbbbbb'));
-    cancelBtn.on('pointerdown', (pointer) => {
-      if (pointer?.button !== 0) return;
-      this.closeUnitPicker();
-    });
-    this.unitPicker.push(cancelBtn);
+    return (this._shopController ||= new ShopController(this)).renderUnitPicker();
   }
 
   closeUnitPicker() {
-    if (this.unitPicker) {
-      this.unitPicker.forEach((o) => o.destroy());
-      this.unitPicker = null;
-    }
-    this.unitPickerState = null;
+    return (this._shopController ||= new ShopController(this)).closeUnitPicker();
   }
 
   showShopBanner(msg, color) {
-    const banner = this.add
-      .text(320, 400, msg, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color,
-        backgroundColor: '#000000cc',
-        padding: { x: 8, y: 4 },
-      })
-      .setOrigin(0.5)
-      .setDepth(500)
-      .setAlpha(0);
-
-    this.tweens.add({
-      targets: banner,
-      alpha: 1,
-      duration: 200,
-      yoyo: true,
-      hold: 800,
-      onComplete: () => banner.destroy(),
-    });
+    return (this._shopController ||= new ShopController(this)).showShopBanner(msg, color);
   }
 
   showWeaponArtsUnlockedBanner(artIds = []) {
-    if (!Array.isArray(artIds) || artIds.length <= 0) return;
-    const catalog = this.gameData?.weaponArts?.arts || [];
-    const names = artIds
-      .map((id) => catalog.find((art) => art?.id === id)?.name || id)
-      .filter(Boolean);
-    if (names.length <= 0) return;
-    const suffix = names.length > 1 ? 's' : '';
-    const label =
-      names.length > 2
-        ? `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
-        : names.join(', ');
-    this.showShopBanner(`Weapon Art${suffix} unlocked: ${label}`, '#88ddff');
+    return (this._shopController ||= new ShopController(this)).showWeaponArtsUnlockedBanner(artIds);
   }
 
   _showNodeFlavor(node) {
@@ -3905,43 +1884,14 @@ export class NodeMapScene extends Phaser.Scene {
     }
   }
 
-  async _showSkillDisplacementWarning(displacedSkills) {
-    if (!displacedSkills || Object.keys(displacedSkills).length === 0) return;
-    const skillsData = this.gameData?.skills || [];
-    const getName = (id) => skillsData.find((s) => s.id === id)?.name || id;
-    const lines = Object.entries(displacedSkills).map(
-      ([unitName, { displaced, replacedBy }]) =>
-        `${unitName}: ${getName(replacedBy)} replaced ${getName(displaced)}`,
+  _showSkillDisplacementWarning(displacedSkills) {
+    return (this._shopController ||= new ShopController(this))._showSkillDisplacementWarning(
+      displacedSkills,
     );
-    const message = `Personal skills restored!\n${lines.join('\n')}`;
-    await showImportantHint(this, message);
   }
 
   closeShopOverlay() {
-    this._shopViewingRoster = false;
-    this._touchPreviewedShopEntry = null;
-    this.closeForgeStatPicker();
-    this._hideForgeTooltip();
-    this._hideShopItemTooltip();
-    if (this.shopOverlay) {
-      this.shopOverlay.forEach((o) => o.destroy());
-      this.shopOverlay = null;
-    }
-    if (this.shopContentGroup) {
-      this.shopContentGroup.forEach((o) => o.destroy());
-      this.shopContentGroup = null;
-    }
-    if (this.shopTabObjects) {
-      this.shopTabObjects.forEach((o) => o.destroy());
-      this.shopTabObjects = null;
-    }
-    if (this.unitPicker) {
-      this.closeUnitPicker();
-    }
-    this._shopViewingMap = false;
-    this._shopOriginalSlotCount = 0;
-    this._shopNode = null;
-    this._currentShopHasAmbushDiscount = false;
+    return (this._shopController ||= new ShopController(this)).closeShopOverlay();
   }
 
   checkActComplete() {
