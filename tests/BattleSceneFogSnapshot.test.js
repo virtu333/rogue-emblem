@@ -131,7 +131,12 @@ function setupScene() {
   scene.isStoryInputLocked = () => false;
   scene._isTutorialStrictGateActive = () => false;
   scene.inspectionPanel = null;
-  scene.turnManager = { endPlayerPhase: vi.fn(), unitActed: vi.fn() };
+  scene.turnManager = {
+    currentPhase: 'player',
+    turnNumber: 2,
+    endPlayerPhase: vi.fn(),
+    unitActed: vi.fn(),
+  };
   scene.showPhaseBanner = vi.fn();
   scene.dangerZone = { hide: vi.fn() };
   scene.undimUnit = vi.fn();

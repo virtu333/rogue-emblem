@@ -104,6 +104,8 @@ describe('BattleScene async guards', () => {
     });
     scene.processBallistaFire = vi.fn(async () => {});
     scene.turnManager = {
+      currentPhase: 'player',
+      turnNumber: 2,
       endPlayerPhase: vi.fn(),
     };
     scene.registry = { get: vi.fn(() => null) };

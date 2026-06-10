@@ -995,6 +995,7 @@ function rollStrike(
       finalDmg,
       isPhysicalAtk,
       strikeSkills.skillsData,
+      targetHP,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;

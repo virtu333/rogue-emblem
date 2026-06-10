@@ -184,6 +184,9 @@ export class VisionRewindController {
     if (scene.inspectionPanel?.visible) scene.inspectionPanel.hide();
     if (scene.unitDetailOverlay?.visible) scene.unitDetailOverlay.hide();
 
+    // Invalidate any in-flight enemy-phase pipeline: its AI callbacks and
+    // end-of-phase tail must not act on, or advance, the restored state.
+    scene._enemyPhaseEpoch = (scene._enemyPhaseEpoch || 0) + 1;
     scene.turnManager.currentPhase = scene.visionSnapshot.phase;
     scene.turnManager.turnNumber = scene.visionSnapshot.turnNumber;
     scene.turnPar =

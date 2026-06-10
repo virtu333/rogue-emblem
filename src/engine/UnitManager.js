@@ -365,6 +365,14 @@ function assignEnemySkills(unit, classData, level, skillsData, act) {
   }
 }
 
+/** Enemy weapon tier from level with the difficulty equip shift (act2+ only). */
+function pickEnemyWeaponTier(level, act, difficultyConfig) {
+  const { enemyEquipTierShift } = parseEnemyDifficultyConfig(difficultyConfig);
+  const tierShift = act !== 'act1' ? enemyEquipTierShift : 0;
+  const effectiveLevel = level + tierShift * 5;
+  return effectiveLevel >= 13 ? 'Silver' : effectiveLevel >= 6 ? 'Steel' : 'Iron';
+}
+
 export function createEnemyUnit(
   classData,
   level,
@@ -381,10 +389,7 @@ export function createEnemyUnit(
   const growths = classData.growthRanges ? rollGrowthRates(classData.growthRanges) : {};
 
   // Pick weapon tier by level, with optional difficulty-driven tier shift (act2+ only)
-  const { enemyEquipTierShift } = parseEnemyDifficultyConfig(difficultyConfig);
-  const tierShift = act !== 'act1' ? enemyEquipTierShift : 0;
-  const effectiveLevel = enemyLevel + tierShift * 5;
-  const weaponTier = effectiveLevel >= 13 ? 'Silver' : effectiveLevel >= 6 ? 'Steel' : 'Iron';
+  const weaponTier = pickEnemyWeaponTier(enemyLevel, act, difficultyConfig);
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
 
   // Clone weapon to avoid shared state
@@ -472,6 +477,18 @@ export function createPromotedEnemyUnit(
   }
   if (Array.isArray(classesData) && classesData.length > 0) {
     checkLevelUpSkills(enemy, classesData);
+  }
+
+  // Re-pick the weapon from the true spawn level and real difficulty config:
+  // the inner createEnemyUnit call chose from the capped base level (≤12) with
+  // difficulty 1.0, which both denies promoted enemies Silver-tier weapons and
+  // skips the difficulty equip shift entirely.
+  const weaponTier = pickEnemyWeaponTier(spawnLevel, act, difficultyConfig);
+  const weapon = getWeaponByTier(enemy.proficiencies, allWeapons, weaponTier);
+  if (weapon) {
+    const weaponClone = ensureItemUid(structuredClone(weapon));
+    enemy.weapon = weaponClone;
+    enemy.inventory = [weaponClone];
   }
 
   applyEnemyDifficultyModifiers(enemy, difficultyConfig);
@@ -1049,6 +1066,24 @@ export function getReclassTargets(unit, classesData, sealSubEffect) {
 }
 
 /**
+ * Effective base stats for a class. Base-tier classes carry baseStats directly;
+ * promoted classes have none in classes.json, so theirs is the promotesFrom
+ * class's baseStats plus the promoted class's promotionBonuses.
+ */
+function getEffectiveBaseStats(classData, classesData) {
+  if (!classData) return {};
+  if (classData.baseStats) return classData.baseStats;
+  const baseClass = classesData?.find((c) => c.name === classData.promotesFrom);
+  if (!baseClass?.baseStats) return {};
+  const bonuses = classData.promotionBonuses || {};
+  const out = {};
+  for (const stat of [...XP_STAT_NAMES, 'MOV']) {
+    out[stat] = (baseClass.baseStats[stat] || 0) + (bonuses[stat] || 0);
+  }
+  return out;
+}
+
+/**
  * Reclass a unit into a new class. Mutates unit in-place.
  * Uses base-stat delta: newStat[S] = unit.stats[S] - oldBase[S] + newBase[S], clamped ≥ 1.
  * Re-rolls growths from new class. Level/XP preserved.
@@ -1060,12 +1095,11 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   const oldMaxHP = unit.stats.HP;
 
   // --- Stat delta ---
-  // For promoted classes that don't have baseStats, we need the promotesFrom base class baseStats.
-  // But all classes in classes.json have baseStats (promoted classes have their OWN base stats
-  // which include promotion bonuses baked in for enemies). For reclass delta, we use the class's
-  // own baseStats directly.
-  const oldBase = oldClassData.baseStats || {};
-  const newBase = newClassData.baseStats || {};
+  // Promoted classes in classes.json carry NO baseStats of their own — their
+  // effective base is promotesFrom.baseStats + promotionBonuses. Without this,
+  // a promoted-tier reclass computes a 0 delta for every stat (silent no-op).
+  const oldBase = getEffectiveBaseStats(oldClassData, classesData);
+  const newBase = getEffectiveBaseStats(newClassData, classesData);
 
   for (const stat of [...XP_STAT_NAMES, 'MOV']) {
     const delta = (newBase[stat] || 0) - (oldBase[stat] || 0);
@@ -1091,6 +1125,13 @@ export function reclassUnit(unit, newClassData, oldClassData, classesData, skill
   }
   if (growthSource.growthRanges) {
     const newGrowths = rollGrowthRates(growthSource.growthRanges);
+    // Promoted targets layer their growthBonuses on the base class ranges,
+    // matching promoteUnit's behavior.
+    if (newClassData.growthBonuses) {
+      for (const [stat, bonus] of Object.entries(newClassData.growthBonuses)) {
+        newGrowths[stat] = (newGrowths[stat] || 0) + bonus;
+      }
+    }
     // For lords: add personalGrowths on top (but lords can't reclass, so this is a safety net)
     if (unit.personalGrowths) {
       for (const stat of XP_STAT_NAMES) {

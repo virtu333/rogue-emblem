@@ -8620,6 +8620,16 @@ export class BattleScene extends Phaser.Scene {
         1200,
         'player_phase_turn_start_pipeline',
         async () => {
+          // A fast End Turn (E within the banner delay) flips to the enemy
+          // phase before this fires — player heals/ballista fire must not land
+          // in the middle of enemy actions.
+          if (
+            this.turnManager?.currentPhase !== 'player' ||
+            this.turnManager?.turnNumber !== turn ||
+            this.battleState === 'BATTLE_END'
+          ) {
+            return;
+          }
           await this.processTurnStartEffects(this.playerUnits, { skipRecovery: true });
           await this.processBallistaFire(this.enemyUnits, 'player');
           if (shouldAutoAdvance && this.battleState === 'PLAYER_IDLE') {
@@ -8738,6 +8748,15 @@ export class BattleScene extends Phaser.Scene {
         1400,
         'enemy_phase_turn_start_pipeline',
         async () => {
+          // Symmetric guard: bail if this enemy phase was superseded (battle
+          // end or Vision rewind) during the banner delay.
+          if (
+            this.turnManager?.currentPhase !== 'enemy' ||
+            this.turnManager?.turnNumber !== turn ||
+            this.battleState === 'BATTLE_END'
+          ) {
+            return;
+          }
           await this.processTerrainDamage(this.playerUnits);
           await this.processTurnStartEffects(this.enemyUnits);
           await this.processZombieRevival();
@@ -9234,6 +9253,14 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async startEnemyPhase() {
+    // Epoch token: a Vision rewind restores a player-phase snapshot while this
+    // async pipeline may still be in flight (AI loop or the tail below). Every
+    // step re-checks the epoch so a superseded phase can never act on, or
+    // advance, the rewound state.
+    this._enemyPhaseEpoch = (this._enemyPhaseEpoch || 0) + 1;
+    const phaseEpoch = this._enemyPhaseEpoch;
+    const phaseSuperseded = () =>
+      phaseEpoch !== this._enemyPhaseEpoch || this.battleState === 'BATTLE_END';
     // Defer rout victory until after reinforcements are applied (cleared below)
     this._reinforcementsPendingThisTurn = true;
     try {
@@ -9243,8 +9270,8 @@ export class BattleScene extends Phaser.Scene {
         if (this.battleState !== 'BATTLE_END') {
           this.applyReinforcementsForTurn(this.turnManager.turnNumber);
           this._reinforcementsPendingThisTurn = false;
-          this.checkBattleEnd();
-          if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+          const ended = this.checkBattleEnd();
+          if (!ended && this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
         }
         return;
       }
@@ -9257,19 +9284,19 @@ export class BattleScene extends Phaser.Scene {
           this.npcUnits,
           {
             onMoveUnit: (enemy, path) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.animateEnemyMove(enemy, path);
             },
             onStatusStaff: (enemy, target) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyStatusStaff(enemy, target);
             },
             onAttack: (enemy, target) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyCombat(enemy, target);
             },
             onBreak: (enemy, tile) => {
-              if (this.visionDialog || this.battleState === 'BATTLE_END') return Promise.resolve();
+              if (this.visionDialog || phaseSuperseded()) return Promise.resolve();
               return this.executeEnemyBreak(enemy, tile);
             },
             onDecision: (enemy, decision) => this.recordEnemyAiDecision(enemy, decision),
@@ -9283,13 +9310,22 @@ export class BattleScene extends Phaser.Scene {
         this.finalizeEnemyPhaseAiStats();
       }
 
-      // End enemy phase (skip if battle already ended during combat)
-      if (this.battleState !== 'BATTLE_END') {
+      // End enemy phase. Skip the whole tail when the battle ended, when a
+      // lord-death Vision prompt is pending (its outcome — rewind or defeat —
+      // supersedes the tail), or when a rewind already replaced this phase.
+      if (!phaseSuperseded() && !this.visionDialog) {
         await this.processTerrainDamage(this.enemyUnits);
-        this.applyReinforcementsForTurn(this.turnManager.turnNumber);
-        this._reinforcementsPendingThisTurn = false;
-        this.checkBattleEnd();
-        if (this.battleState !== 'BATTLE_END') this.turnManager.endEnemyPhase();
+        // Re-check after the await: terrain damage can kill Edric and open the
+        // Vision prompt, and a rewind clicked during the animations invalidates
+        // this phase entirely.
+        if (!phaseSuperseded() && !this.visionDialog) {
+          this.applyReinforcementsForTurn(this.turnManager.turnNumber);
+          this._reinforcementsPendingThisTurn = false;
+          const ended = this.checkBattleEnd();
+          if (!ended && !phaseSuperseded() && !this.visionDialog) {
+            this.turnManager.endEnemyPhase();
+          }
+        }
       }
     } finally {
       this._reinforcementsPendingThisTurn = false;
@@ -9579,6 +9615,11 @@ export class BattleScene extends Phaser.Scene {
   // --- Win/lose ---
 
   checkBattleEnd() {
+    // Idempotence: once the battle has ended (or a lord-death Vision prompt is
+    // awaiting the player's decision) a late call from an in-flight pipeline
+    // must not re-trigger defeat or stack a second prompt.
+    if (this.battleState === 'BATTLE_END') return true;
+    if (this.visionDialog) return true;
     // Edric defeat = immediate loss (permadeath rule -- other lords can fall)
     const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
     if (!edricAlive || this.playerUnits.length === 0) {
