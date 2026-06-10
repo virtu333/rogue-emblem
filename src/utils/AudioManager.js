@@ -35,12 +35,15 @@ export class AudioManager {
         // If duplicate/stray looping tracks exist, recover by forcing a clean restart.
         const active = this._getLoopingMusicSounds();
         const hasOverlap = active.some((sound) => sound !== this.currentMusic);
-        const sameOwner = !owner || !this.currentMusicOwner || this.currentMusicOwner === owner;
-        if (sameOwner && !hasOverlap) {
+        if (!hasOverlap) {
           // Invalidate any in-flight load for a DIFFERENT track: "keep playing
           // X" must supersede an older "switch to Y" request still loading,
           // or Y lands later and replaces X (rapid shop open/close race).
           this._musicRequestSeq++;
+          // Transfer ownership to the latest requester so its later
+          // stop/release calls aren't blocked by a stale owner, and the
+          // track continues seamlessly across scene hops sharing it.
+          if (owner) this.currentMusicOwner = owner;
           return;
         }
         this.stopAllMusic(scene, 0);

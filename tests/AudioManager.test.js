@@ -296,6 +296,27 @@ describe('AudioManager', () => {
     expect(audio.currentMusicKey).toBe('music_battle_act2_1');
   });
 
+  it('same-key replay transfers ownership to the latest requester', async () => {
+    // SlotPicker re-asserts the title theme that Title started; its later
+    // stopMusic must not be blocked by the stale 'Title' owner.
+    const sound = makeSoundManager({ loadedKeys: ['music_title'] });
+    const audio = new AudioManager(sound);
+
+    await audio.playMusic('music_title', { scene: { key: 'Title' } }, 0);
+    expect(audio.currentMusicOwner).toBe('Title');
+    const track = audio.currentMusic;
+
+    await audio.playMusic('music_title', { scene: { key: 'SlotPicker' } }, 0);
+    // Same key keeps playing (no restart) but ownership moves.
+    expect(audio.currentMusic).toBe(track);
+    expect(track.isPlaying).toBe(true);
+    expect(audio.currentMusicOwner).toBe('SlotPicker');
+
+    const stopped = audio.stopMusic({ scene: { key: 'SlotPicker' } }, 0);
+    expect(stopped).toBe(true);
+    expect(track.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('does not stop current music when another owner requests stop', () => {
     const current = makeLoopingSound('music_battle_act1_1');
     const sound = makeSoundManager({ sounds: [current] });

@@ -94,23 +94,3 @@ export function getMusicKey(purpose, act) {
   }
   return entry || MUSIC.title;
 }
-
-/** Flat array of every unique track key (for BootScene preload). */
-function collectKeys(obj) {
-  const keys = new Set();
-  for (const val of Object.values(obj)) {
-    if (typeof val === 'string') {
-      keys.add(val);
-    } else if (Array.isArray(val)) {
-      val.forEach((k) => keys.add(k));
-    } else if (val && typeof val === 'object') {
-      for (const inner of Object.values(val)) {
-        if (typeof inner === 'string') keys.add(inner);
-        else if (Array.isArray(inner)) inner.forEach((k) => keys.add(k));
-      }
-    }
-  }
-  return keys;
-}
-
-export const ALL_MUSIC_KEYS = [...collectKeys(MUSIC)];

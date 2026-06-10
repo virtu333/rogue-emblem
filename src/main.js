@@ -215,7 +215,10 @@ function hasReachedStartupTarget() {
   if (!devStartupRequested) return false;
 
   return markers.some((m) => {
-    if (m?.name === 'boot_dev_route') return true;
+    // 'boot_dev_route' fires BEFORE the transition is attempted — accepting
+    // it let hung dev-route boots satisfy the watchdog. Require the
+    // completion marker (or an actual non-Title scene load) instead.
+    if (m?.name === 'boot_dev_route_complete') return true;
     if (m?.name !== 'scene_lazy_load_complete') return false;
     const key = typeof m?.data?.key === 'string' ? m.data.key : '';
     return key.length > 0 && key !== 'Title';

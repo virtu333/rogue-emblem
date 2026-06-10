@@ -61,16 +61,30 @@ export class MobileControls {
       this._renderRightPanel();
     };
     this._onPushContext = (data) => {
-      const next = this._normalizeContext(data?.context);
-      const active = this._resolveCurrentContext();
-      if (next === active) return;
+      // No same-context dedup: every push gets its own entry (keyed by the
+      // caller's token when provided). Deduping silently dropped the second
+      // of two stacked overlays sharing a context, so its later pop removed
+      // an entry that belonged to something else — the context-drift bug.
       if (this._contextStack.length >= MAX_CONTEXT_STACK_DEPTH) return;
-      this._contextStack.push(next);
+      const next = this._normalizeContext(data?.context);
+      this._contextStack.push({ context: next, token: data?.token ?? null });
       this._currentContext = next;
       this._renderRightPanel();
     };
-    this._onPopContext = () => {
-      if (this._contextStack.length > 0) this._contextStack.pop();
+    this._onPopContext = (data) => {
+      const token = data?.token;
+      if (token != null) {
+        // Token pop: remove that caller's entry wherever it sits; unknown
+        // tokens are a no-op (idempotent double-pop, depth-capped push).
+        for (let i = this._contextStack.length - 1; i >= 0; i--) {
+          if (this._contextStack[i].token === token) {
+            this._contextStack.splice(i, 1);
+            break;
+          }
+        }
+      } else if (this._contextStack.length > 0) {
+        this._contextStack.pop();
+      }
       this._currentContext = this._resolveCurrentContext();
       this._renderRightPanel();
     };
@@ -164,7 +178,7 @@ export class MobileControls {
 
   _resolveCurrentContext() {
     if (this._contextStack.length > 0) {
-      return this._contextStack[this._contextStack.length - 1];
+      return this._contextStack[this._contextStack.length - 1].context;
     }
     return this._baseContext;
   }

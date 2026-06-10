@@ -28,6 +28,7 @@ import {
   addToConsumables,
   canPromote,
   promoteUnit,
+  getSkillDisplayNames,
   resolvePromotionTargets,
   getDisplayLevel,
 } from '../engine/UnitManager.js';
@@ -2088,7 +2089,12 @@ export class NodeMapScene extends Phaser.Scene {
             return;
           }
 
-          promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+          const promotionResult = promoteUnit(
+            unit,
+            promotedClassData,
+            promotionBonuses,
+            this.gameData.skills,
+          );
           this._churchPromotionsThisVisit = (this._churchPromotionsThisVisit || 0) + 1;
           this.runManager.setChurchPromotionCount(
             this._currentChurchNodeId,
@@ -2098,10 +2104,17 @@ export class NodeMapScene extends Phaser.Scene {
           if (typeof this.sound?.stopByKey === 'function') this.sound.stopByKey('sfx_levelup');
           const audio = this.registry.get('audio');
           if (audio) audio.playSFX('sfx_levelup');
+          const droppedNames = getSkillDisplayNames(
+            promotionResult?.droppedSkills,
+            this.gameData.skills,
+          );
           this._showChurchSuccessMessage(
             node,
-            `${unit.name} promoted to ${promotedClassData.name}!`,
-            '#ffdd44',
+            droppedNames.length > 0
+              ? `${unit.name} promoted to ${promotedClassData.name}! ` +
+                  `Skill limit: couldn't learn ${droppedNames.join(', ')}.`
+              : `${unit.name} promoted to ${promotedClassData.name}!`,
+            droppedNames.length > 0 ? '#ffaa66' : '#ffdd44',
             'promotion',
           );
         });

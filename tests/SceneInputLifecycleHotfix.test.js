@@ -288,6 +288,7 @@ describe('Menu scene keyboard listener lifecycle', () => {
         on: inputEmitter.on.bind(inputEmitter),
         off: inputEmitter.off.bind(inputEmitter),
       },
+      registry: { get: vi.fn(() => null) },
       requestCancel: vi.fn(),
       drawSlots: vi.fn(),
       runTransition: vi.fn(),

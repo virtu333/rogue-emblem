@@ -514,7 +514,27 @@ export function createRecruitUnit(
     parseWeaponProficiencies(classData.weaponProficiencies),
     classData.tier || 'base',
   );
-  const growths = rollGrowthRates(classData.growthRanges);
+
+  // Promoted classes carry no baseStats/growthRanges of their own — resolve
+  // through promotesFrom (mirrors reclassUnit) so promoted-class fallback
+  // spawns don't crash on undefined lookups.
+  const baseStats = getEffectiveBaseStats(classData, classesData);
+  if (!Number.isFinite(baseStats.HP)) {
+    throw new Error(
+      `createRecruitUnit: cannot resolve base stats for class "${classData?.name}" ` +
+        `(promoted classes need classesData to look up promotesFrom)`,
+    );
+  }
+  let growthSource = classData;
+  if (!classData.growthRanges && classData.promotesFrom) {
+    growthSource = classesData?.find((c) => c.name === classData.promotesFrom) || classData;
+  }
+  const growths = growthSource.growthRanges ? rollGrowthRates(growthSource.growthRanges) : {};
+  if (classData.growthBonuses) {
+    for (const [stat, bonus] of Object.entries(classData.growthBonuses)) {
+      growths[stat] = (growths[stat] || 0) + bonus;
+    }
+  }
 
   const weaponTier = recruitDef.level >= 13 ? 'Silver' : recruitDef.level >= 6 ? 'Steel' : 'Iron';
   const weapon = getWeaponByTier(proficiencies, allWeapons, weaponTier);
@@ -535,10 +555,10 @@ export function createRecruitUnit(
     skills: [],
     col: 0,
     row: 0,
-    mov: classData.baseStats.MOV,
+    mov: baseStats.MOV,
     moveType: classData.moveType,
-    stats: { ...classData.baseStats },
-    currentHP: classData.baseStats.HP,
+    stats: { ...baseStats },
+    currentHP: baseStats.HP,
     faction: 'npc',
     weapon: weaponClone,
     inventory: weaponClone ? [weaponClone] : [],
@@ -971,6 +991,9 @@ export function resolvePromotionTargetClass(unit, classesData, lordsData = []) {
  * Promote a unit. Apply stat bonuses, reset level, update class/proficiencies.
  * Optionally adds class-innate skills from skillsData.
  * Mutates unit in-place.
+ * Returns { learnedSkills, droppedSkills } — droppedSkills lists class innates
+ * the unit could NOT learn (MAX_SKILLS cap) so callers can tell the player
+ * instead of losing them silently.
  */
 export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsData) {
   // Apply promotion bonuses to stats
@@ -1005,10 +1028,30 @@ export function promoteUnit(unit, promotedClassData, promotionBonuses, skillsDat
   }
 
   // Add class-innate skills
+  const learnedSkills = [];
+  const droppedSkills = [];
   const innateSkills = getClassInnateSkills(promotedClassData.name, skillsData);
   for (const sid of innateSkills) {
-    learnSkill(unit, sid);
+    const result = learnSkill(unit, sid);
+    if (result.learned) learnedSkills.push(sid);
+    else if (result.reason === 'at_cap') droppedSkills.push(sid);
   }
+  return { learnedSkills, droppedSkills };
+}
+
+/** Map skill IDs to display names (falls back to the ID). */
+export function getSkillDisplayNames(skillIds, skillsData) {
+  return (skillIds || []).map((sid) => skillsData?.find((s) => s.id === sid)?.name || sid);
+}
+
+/**
+ * Player-facing notice for class innates lost to the MAX_SKILLS cap during
+ * promotion. Returns null when nothing was dropped.
+ */
+export function formatDroppedSkillsNotice(unitName, droppedSkills, skillsData) {
+  if (!droppedSkills?.length) return null;
+  const names = getSkillDisplayNames(droppedSkills, skillsData);
+  return `${unitName} couldn't learn ${names.join(', ')} (skill limit reached)`;
 }
 
 // --- Reclass ---

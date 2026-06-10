@@ -46,6 +46,7 @@ import {
   getCombatWeapons,
   canPromote,
   promoteUnit,
+  formatDroppedSkillsNotice,
   resolvePromotionTargets,
   resolvePromotionTargetClass,
   grantLethalArmoryWeapon,
@@ -6552,7 +6553,12 @@ export class BattleScene extends Phaser.Scene {
     const oldTypes = new Set(unit.proficiencies.map((p) => p.type));
 
     // Apply promotion
-    promoteUnit(unit, promotedClassData, promotionBonuses, this.gameData.skills);
+    const promotionResult = promoteUnit(
+      unit,
+      promotedClassData,
+      promotionBonuses,
+      this.gameData.skills,
+    );
     markPromotionApplied();
 
     // Refresh sprite to show promoted class
@@ -6609,6 +6615,14 @@ export class BattleScene extends Phaser.Scene {
       promotedClassData.growthBonuses || null,
     );
     await popup.show();
+
+    // Tell the player about innates lost to the skill cap (never silent)
+    const droppedNotice = formatDroppedSkillsNotice(
+      unit.name,
+      promotionResult?.droppedSkills,
+      this.gameData.skills,
+    );
+    if (droppedNotice) await this.showBriefBanner(droppedNotice, '#ff8888');
 
     // Consume Master Seal on successful promotion
     seal.uses = (seal.uses ?? 1) - 1;

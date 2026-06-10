@@ -316,6 +316,61 @@ describe('MobileControls context stack', () => {
     expect(controls._currentContext).toBe('battle_idle');
   });
 
+  it('two stacked overlays sharing a context pop independently (no drift)', () => {
+    // Regression: same-context pushes used to be deduped, so the second
+    // overlay's later pop removed an entry belonging to something else.
+    const events = createMockEvents();
+    const { documentMock } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_idle' });
+
+    const tokenA = Symbol('overlay-a');
+    const tokenB = Symbol('overlay-b');
+    events.emit('mobile:pushContext', { context: 'overlay_tabs', token: tokenA });
+    events.emit('mobile:pushContext', { context: 'overlay_tabs', token: tokenB });
+    expect(controls._currentContext).toBe('overlay_tabs');
+
+    // Close B (top): still inside A's overlay context.
+    events.emit('mobile:popContext', { token: tokenB });
+    expect(controls._currentContext).toBe('overlay_tabs');
+
+    // Close A: back to the base context — pre-fix this underflowed.
+    events.emit('mobile:popContext', { token: tokenA });
+    expect(controls._currentContext).toBe('battle_idle');
+  });
+
+  it('token pops are idempotent and out-of-order safe', () => {
+    const events = createMockEvents();
+    const { documentMock } = createMockMobileDom();
+    globalThis.document = documentMock;
+    globalThis.screen = { orientation: { lock: vi.fn(() => Promise.resolve()) } };
+
+    const controls = new MobileControls({ events });
+    controls.show();
+    events.emit('mobile:setContext', { context: 'battle_idle' });
+
+    const tokenA = Symbol('overlay-a');
+    const tokenB = Symbol('overlay-b');
+    events.emit('mobile:pushContext', { context: 'overlay_tabs', token: tokenA });
+    events.emit('mobile:pushContext', { context: 'overlay_unit_detail', token: tokenB });
+    expect(controls._currentContext).toBe('overlay_unit_detail');
+
+    // Out-of-order: closing A (below B) keeps B on top.
+    events.emit('mobile:popContext', { token: tokenA });
+    expect(controls._currentContext).toBe('overlay_unit_detail');
+
+    // Double-pop with a consumed token is a no-op.
+    events.emit('mobile:popContext', { token: tokenA });
+    expect(controls._currentContext).toBe('overlay_unit_detail');
+
+    events.emit('mobile:popContext', { token: tokenB });
+    expect(controls._currentContext).toBe('battle_idle');
+  });
+
   it('battle_player_idle includes inspect action on right panel', () => {
     const events = createMockEvents();
     const { documentMock, rightPanel } = createMockMobileDom();
