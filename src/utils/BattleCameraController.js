@@ -79,15 +79,28 @@ export class BattleCameraController {
     }
   }
 
+  // Phaser cameras zoom around their center: the visible world rect is centered on
+  // (scrollX + width/2, scrollY + height/2), so at zoom > 1 the visible left/top edge
+  // is scrollX/scrollY plus this offset — scroll is NOT the visible edge.
+  _zoomOffsets(zoom) {
+    const cam = this.camera;
+    const z = Number.isFinite(zoom) && zoom > 0 ? zoom : Number(cam?.zoom) || 1;
+    return {
+      x: ((Number(cam?.width) || 0) / 2) * (1 - 1 / z),
+      y: ((Number(cam?.height) || 0) / 2) * (1 - 1 / z),
+    };
+  }
+
   screenToWorld(x, y) {
     const cam = this.camera;
     if (!cam || !Number.isFinite(x) || !Number.isFinite(y)) return null;
     const relX = x - (cam.x || 0);
     const relY = y - (cam.y || 0);
     const zoom = Number(cam.zoom) || 1;
+    const off = this._zoomOffsets(zoom);
     return {
-      x: (Number(cam.scrollX) || 0) + relX / zoom,
-      y: (Number(cam.scrollY) || 0) + relY / zoom,
+      x: (Number(cam.scrollX) || 0) + off.x + relX / zoom,
+      y: (Number(cam.scrollY) || 0) + off.y + relY / zoom,
     };
   }
 
@@ -95,9 +108,10 @@ export class BattleCameraController {
     const cam = this.camera;
     if (!cam || !Number.isFinite(x) || !Number.isFinite(y)) return null;
     const zoom = Number(cam.zoom) || 1;
+    const off = this._zoomOffsets(zoom);
     return {
-      x: (x - (Number(cam.scrollX) || 0)) * zoom + (cam.x || 0),
-      y: (y - (Number(cam.scrollY) || 0)) * zoom + (cam.y || 0),
+      x: (x - (Number(cam.scrollX) || 0) - off.x) * zoom + (cam.x || 0),
+      y: (y - (Number(cam.scrollY) || 0) - off.y) * zoom + (cam.y || 0),
     };
   }
 
@@ -119,9 +133,12 @@ export class BattleCameraController {
     const zoom = Number(cam.zoom) || 1;
     const viewWidth = cam.width / zoom;
     const viewHeight = cam.height / zoom;
+    const off = this._zoomOffsets(zoom);
 
-    const nextX = this._clampAxis(Number(cam.scrollX) || 0, bounds.left, bounds.width, viewWidth);
-    const nextY = this._clampAxis(Number(cam.scrollY) || 0, bounds.top, bounds.height, viewHeight);
+    const visibleLeft = (Number(cam.scrollX) || 0) + off.x;
+    const visibleTop = (Number(cam.scrollY) || 0) + off.y;
+    const nextX = this._clampAxis(visibleLeft, bounds.left, bounds.width, viewWidth) - off.x;
+    const nextY = this._clampAxis(visibleTop, bounds.top, bounds.height, viewHeight) - off.y;
     cam.setScroll(nextX, nextY);
   }
 
@@ -169,9 +186,10 @@ export class BattleCameraController {
     const anchor = this._gestureAnchorWorld;
 
     this.camera.setZoom(nextZoom);
+    const off = this._zoomOffsets(nextZoom);
     this.camera.setScroll(
-      anchor.x - (mid.x - (this.camera.x || 0)) / nextZoom,
-      anchor.y - (mid.y - (this.camera.y || 0)) / nextZoom,
+      anchor.x - off.x - (mid.x - (this.camera.x || 0)) / nextZoom,
+      anchor.y - off.y - (mid.y - (this.camera.y || 0)) / nextZoom,
     );
     this.clampToBounds();
 
@@ -202,9 +220,10 @@ export class BattleCameraController {
     if (!bounds || !cam) return { x: 0, y: 0 };
     const viewWidth = cam.width / zoom;
     const viewHeight = cam.height / zoom;
+    const off = this._zoomOffsets(zoom);
     return {
-      x: this._clampAxis(bounds.left, bounds.left, bounds.width, viewWidth),
-      y: this._clampAxis(bounds.top, bounds.top, bounds.height, viewHeight),
+      x: this._clampAxis(bounds.left, bounds.left, bounds.width, viewWidth) - off.x,
+      y: this._clampAxis(bounds.top, bounds.top, bounds.height, viewHeight) - off.y,
     };
   }
 

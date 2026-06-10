@@ -436,10 +436,13 @@ export class InputController {
     if (typeof cam.getWorldPoint === 'function') {
       return cam.getWorldPoint(x, y);
     }
+    // Phaser zooms around the camera center, so the visible edge is offset from scroll
     const zoom = Number(cam.zoom) || 1;
+    const offX = ((Number(cam.width) || 0) / 2) * (1 - 1 / zoom);
+    const offY = ((Number(cam.height) || 0) / 2) * (1 - 1 / zoom);
     return {
-      x: (Number(cam.scrollX) || 0) + (x - (cam.x || 0)) / zoom,
-      y: (Number(cam.scrollY) || 0) + (y - (cam.y || 0)) / zoom,
+      x: (Number(cam.scrollX) || 0) + offX + (x - (cam.x || 0)) / zoom,
+      y: (Number(cam.scrollY) || 0) + offY + (y - (cam.y || 0)) / zoom,
     };
   }
 
@@ -449,9 +452,11 @@ export class InputController {
     const cam = scene.cameras?.main;
     if (!cam) return null;
     const zoom = Number(cam.zoom) || 1;
+    const offX = ((Number(cam.width) || 0) / 2) * (1 - 1 / zoom);
+    const offY = ((Number(cam.height) || 0) / 2) * (1 - 1 / zoom);
     return {
-      x: (x - (Number(cam.scrollX) || 0)) * zoom + (cam.x || 0),
-      y: (y - (Number(cam.scrollY) || 0)) * zoom + (cam.y || 0),
+      x: (x - (Number(cam.scrollX) || 0) - offX) * zoom + (cam.x || 0),
+      y: (y - (Number(cam.scrollY) || 0) - offY) * zoom + (cam.y || 0),
     };
   }
 
