@@ -285,13 +285,15 @@ export function filterClassPoolByDifficulty(classPool, difficultyMode) {
   return classPool.filter((name) => !DIFFICULTY_GATED_CLASSES.has(name));
 }
 
-export const DEADLY_ARSENAL_POOL = {
-  Sword: ['Silver Sword', 'Killing Edge', 'Brave Sword', 'Ragnarok', 'Soulreaver', 'Gemini'],
-  Lance: ['Silver Lance', 'Killer Lance', 'Brave Lance', 'Doomblade'],
-  Axe: ['Silver Axe', 'Killer Axe', 'Brave Axe', 'Stormbreaker', 'Ruin'],
-  Bow: ['Silver Bow', 'Killer Bow', 'Brave Bow', 'Starfall'],
-  Tome: ['Bolganone', 'Excalibur'],
-  Light: ['Aura', 'Luce'],
+// Deadly Arsenal tier 1: the commander's Steel-slot weapon is replaced by the
+// signature weapon of their primary proficiency (tier 2 adds the silver weapon).
+export const DEADLY_ARSENAL_SIGNATURE_WEAPONS = {
+  Sword: 'Rapier',
+  Lance: 'Horseslayer',
+  Axe: 'Hammer',
+  Bow: 'Killer Bow',
+  Tome: 'Witchfire',
+  Light: 'Sunflare',
 };
 export const RECRUIT_SKILL_POOL = [
   'sol',

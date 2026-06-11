@@ -17,6 +17,29 @@
 
 export const DEFAULT_STARTING_LORD_NAMES = ['Edric', 'Sera'];
 
+/** Default partner slot for a given commander: Sera, unless Sera leads. */
+export function defaultPartnerFor(commanderName) {
+  return commanderName === 'Sera' ? 'Edric' : 'Sera';
+}
+
+/**
+ * Starting pair as a name array, from metaEffects.startingLords when the
+ * commander-choice upgrade emitted one, else the default pair. No-meta runs
+ * (metaEffects null) and legacy saves fall through to Edric + Sera.
+ */
+export function resolveStartingLordNames(metaEffects) {
+  const selection = metaEffects?.startingLords;
+  if (
+    selection &&
+    typeof selection.commander === 'string' &&
+    typeof selection.partner === 'string' &&
+    selection.commander !== selection.partner
+  ) {
+    return [selection.commander, selection.partner];
+  }
+  return [...DEFAULT_STARTING_LORD_NAMES];
+}
+
 function isEdricByName(unit) {
   return typeof unit?.name === 'string' && unit.name.trim().toLowerCase() === 'edric';
 }

@@ -405,5 +405,18 @@ export class DifficultySelectScene extends Phaser.Scene {
     metaToggle.on('pointerover', () => metaToggle.setColor('#ffdd44'));
     metaToggle.on('pointerout', () => metaToggle.setColor(metaColor));
     metaToggle.on('pointerdown', () => this._toggleMetaMode());
+
+    // Starting pair from Banner of Command (hidden when unpurchased; no-meta
+    // runs always start Edric + Sera)
+    if (!this._noMetaUpgrades && this.meta?.getCommanderChoiceTier?.() >= 1) {
+      const selection = this.meta.getLordSelection();
+      this.add
+        .text(cx, btnY + 56, `Commander: ${selection.commander} · Partner: ${selection.partner}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#88bbff',
+        })
+        .setOrigin(0.5);
+    }
   }
 }

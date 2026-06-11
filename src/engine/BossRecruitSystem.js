@@ -10,7 +10,7 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { resolveRecruitScalingTargets } from './RecruitScaling.js';
-import { DEFAULT_STARTING_LORD_NAMES } from './Commander.js';
+import { DEFAULT_STARTING_LORD_NAMES, resolveStartingLordNames } from './Commander.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
   isPromotedRecruitSource,
@@ -322,7 +322,12 @@ export function generateBossRecruitCandidates(
   });
 
   // Lord slot determination
-  const availLords = getAvailableLords(roster, lords, fallenUnits);
+  const availLords = getAvailableLords(
+    roster,
+    lords,
+    fallenUnits,
+    resolveStartingLordNames(metaEffects),
+  );
   const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
   const effectiveLordChance = Math.min(1, Math.max(0, BOSS_RECRUIT_LORD_CHANCE + lordChanceBonus));
   const lordSlot = availLords.length > 0 && Math.random() < effectiveLordChance;
@@ -592,7 +597,12 @@ function createRecruitFromPool(
  * @returns {{ candidates: Array, mode: string }|null} null if no lords available
  */
 export function generateThirdLordCandidates(roster, gameData, metaEffects, fallenUnits, mode) {
-  const availLords = getAvailableLords(roster, gameData.lords, fallenUnits);
+  const availLords = getAvailableLords(
+    roster,
+    gameData.lords,
+    fallenUnits,
+    resolveStartingLordNames(metaEffects),
+  );
   if (!availLords.length) return null;
 
   const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
