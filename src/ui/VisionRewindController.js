@@ -343,8 +343,11 @@ export class VisionRewindController {
   showLordDeathPrompt() {
     const remaining = this.getChargesRemaining();
     if (remaining <= 0 || !this.scene.visionSnapshot) return false;
+    // Flavor follows Sera: generic copy when she isn't part of this run.
+    const visionPool = this.runManager?.roster || this.scene.playerUnits || [];
+    const seraPresent = visionPool.some((u) => u?.name === 'Sera');
     this.showDialog({
-      title: "Sera's vision fractures!",
+      title: seraPresent ? "Sera's vision fractures!" : 'A vision fractures!',
       body: `Reveal another path?\n(${remaining} remaining)`,
       confirmLabel: 'Rewind',
       cancelLabel: 'Accept Fate',

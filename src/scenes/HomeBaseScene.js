@@ -236,6 +236,7 @@ export class HomeBaseScene extends Phaser.Scene {
       this._touchTooltipState = null;
     }
     this._destroySkillPicker?.();
+    this._destroyCommanderPicker?.();
     if (this.transientMessage) {
       this.transientMessage.destroy();
       this.transientMessage = null;
@@ -920,14 +921,22 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.lethalArmoryTier !== undefined) return 'Recruits can gain extra weapons';
     if (effect.startingWeaponForge !== undefined) return 'Forge starting weapons';
     if (effect.deadlyArsenalTier !== undefined || effect.deadlyArsenal !== undefined)
-      return 'Edric starting sword upgrades';
+      return "Commander's starting weapon upgrades";
     if (effect.ironArms !== undefined) return 'Iron weapons can spawn with arts';
     if (effect.steelArms !== undefined) return 'Steel weapons can spawn with arts';
     if (effect.artAdept !== undefined) return 'Extra art on a lord starting weapon';
     if (effect.masterOfArms) return 'Recruits equipped for all proficiencies';
     if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
-    if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for Edric';
-    if (effect.startingStaffTier !== undefined) return "Sera's starting staff";
+    if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for your commander';
+    if (effect.startingStaffTier !== undefined) {
+      const selection = this.meta.getLordSelection?.();
+      const seraSelected =
+        !selection || selection.commander === 'Sera' || selection.partner === 'Sera';
+      return seraSelected
+        ? "Sera's starting staff"
+        : "Sera's starting staff (inactive: Sera not selected)";
+    }
+    if (effect.commanderChoiceTier !== undefined) return 'Choose your starting lords (Skills tab)';
     if (weaponArtUnlockText) return weaponArtUnlockText;
     return upgrade.description;
   }
@@ -1101,13 +1110,24 @@ export class HomeBaseScene extends Phaser.Scene {
   // --- Skills tab custom layout ---
 
   _drawSkillsTab() {
-    const lords = this.gameData.lords.filter((l) => l.name === 'Edric' || l.name === 'Sera');
+    // Commander-first card order; defaults to Edric + Sera until the
+    // Banner of Command selection changes it.
+    const selection = this.meta.getLordSelection();
+    const lords = [selection.commander, selection.partner]
+      .map((name) => this.gameData.lords.find((l) => l.name === name))
+      .filter(Boolean);
     const assignments = this.meta.getSkillAssignments();
     const unlocked = this.meta.getUnlockedSkills();
     const skillsData = this.gameData.skills || [];
 
     const offset = this._getTabScrollOffset('starting_skills');
     let y = TAB_CONTENT_TOP_Y - offset;
+
+    // --- Starting lords section (Banner of Command) ---
+    const commanderTier = this.meta.getCommanderChoiceTier();
+    if (commanderTier >= 1) {
+      y = this._drawCommanderSection(y, selection, commanderTier);
+    }
 
     // --- Lord viewer section ---
     this.add.text(40, y, 'Lord Skills', {
@@ -1409,6 +1429,229 @@ export class HomeBaseScene extends Phaser.Scene {
     }
   }
 
+  // --- Commander selection (Banner of Command / Chosen Companions) ---
+
+  _drawCommanderSection(y, selection, commanderTier) {
+    this.add.text(40, y, 'Starting Lords', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#888888',
+      fontStyle: 'bold',
+    });
+    y += 18;
+
+    const drawChangeButton = (x, rowY, mode) => {
+      const btn = this.add
+        .text(x, rowY, '[CHANGE]', {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#88ff88',
+          backgroundColor: '#113311',
+          padding: { x: 3, y: 1 },
+        })
+        .setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#ccffcc'));
+      btn.on('pointerout', () => btn.setColor('#88ff88'));
+      btn.on('pointerdown', () => this._showCommanderPicker(mode));
+    };
+
+    this.add.text(50, y, `Commander: ${selection.commander}`, {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#ffdd44',
+    });
+    drawChangeButton(260, y, 'commander');
+    y += 18;
+
+    if (commanderTier >= 2) {
+      this.add.text(50, y, `Partner: ${selection.partner}`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#e0e0e0',
+      });
+      drawChangeButton(260, y, 'partner');
+    } else {
+      this.add.text(50, y, `Partner: ${selection.partner} (locked — requires Chosen Companions)`, {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#555555',
+      });
+    }
+    y += 24;
+    return y;
+  }
+
+  _showCommanderPicker(mode) {
+    this._destroyCommanderPicker();
+    this._destroySkillPicker();
+    this._hideMetaTooltips();
+
+    const objects = [];
+    const cam = this.cameras.main;
+    const selection = this.meta.getLordSelection();
+    const lords = this.gameData.lords || [];
+    const isCommanderMode = mode === 'commander';
+    const audio = this.registry.get('audio');
+
+    const bg = this.add
+      .rectangle(cam.centerX, cam.centerY, 640, 480, 0x000000, 0.92)
+      .setDepth(900)
+      .setInteractive();
+    objects.push(bg);
+
+    objects.push(
+      this.add
+        .text(cam.centerX, 26, isCommanderMode ? 'CHOOSE YOUR COMMANDER' : 'CHOOSE YOUR PARTNER', {
+          fontFamily: 'monospace',
+          fontSize: '16px',
+          color: '#ffdd44',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+        .setDepth(901),
+    );
+    objects.push(
+      this.add
+        .text(
+          cam.centerX,
+          46,
+          isCommanderMode
+            ? 'The commander leads the run — if they fall, the run ends.'
+            : 'Your second starting lord.',
+          { fontFamily: 'monospace', fontSize: '9px', color: '#aaaaaa' },
+        )
+        .setOrigin(0.5)
+        .setDepth(901),
+    );
+
+    const cardW = 148;
+    const cardH = 168;
+    const gap = 8;
+    const cols = 4;
+    const rowYs = [60 + cardH / 2, 60 + cardH + 14 + cardH / 2];
+
+    for (let i = 0; i < lords.length; i++) {
+      const lord = lords[i];
+      const rowIdx = Math.floor(i / cols);
+      const colIdx = i % cols;
+      const rowCount = Math.min(cols, lords.length - rowIdx * cols);
+      const rowW = rowCount * cardW + (rowCount - 1) * gap;
+      const cx = cam.centerX - rowW / 2 + cardW / 2 + colIdx * (cardW + gap);
+      const cy = rowYs[rowIdx] ?? rowYs[rowYs.length - 1];
+
+      const isCurrent = isCommanderMode
+        ? selection.commander === lord.name
+        : selection.partner === lord.name;
+      // In partner mode the commander's card is informational only.
+      const isBlocked = !isCommanderMode && selection.commander === lord.name;
+
+      const card = this.add
+        .rectangle(cx, cy, cardW, cardH, isBlocked ? 0x1a1a22 : 0x222233, 1)
+        .setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? 0xffdd44 : isBlocked ? 0x444444 : 0x666688)
+        .setDepth(901);
+      objects.push(card);
+
+      let yOff = cy - cardH / 2 + 8;
+      const portraitKey = `portrait_lord_${lord.name.toLowerCase()}`;
+      if (this.textures.exists(portraitKey)) {
+        objects.push(
+          this.add
+            .image(cx, yOff + 16, portraitKey)
+            .setDisplaySize(32, 32)
+            .setDepth(902),
+        );
+        yOff += 34;
+      }
+
+      const textColor = isBlocked ? '#777777' : '#ffffff';
+      const addLine = (text, fontSize, color, dy) => {
+        objects.push(
+          this.add
+            .text(cx, yOff, text, {
+              fontFamily: 'monospace',
+              fontSize,
+              color,
+              align: 'center',
+              wordWrap: { width: cardW - 12 },
+            })
+            .setOrigin(0.5, 0)
+            .setDepth(902),
+        );
+        yOff += dy;
+      };
+
+      addLine(lord.name, '12px', isBlocked ? '#999999' : '#ffdd44', 14);
+      addLine(lord.class, '9px', isBlocked ? '#666666' : '#aaaaaa', 12);
+      addLine(lord.weapon.replace(/\s*\((P|M)\)/g, ''), '8px', textColor, 11);
+      addLine(`MOV ${lord.baseStats.MOV} · ${lord.moveType}`, '8px', '#88bbff', 11);
+      const s = lord.baseStats;
+      addLine(`HP${s.HP} STR${s.STR} MAG${s.MAG} SPD${s.SPD}`, '8px', textColor, 11);
+      // Personal skill, full text (wrapped) — the heart of the pick
+      addLine(lord.personalSkill, '8px', isBlocked ? '#776644' : '#ffcc66', 0);
+
+      // Status tag pinned to the card's bottom edge
+      const tag = isBlocked ? 'COMMANDER' : isCurrent ? 'CURRENT' : null;
+      if (tag) {
+        objects.push(
+          this.add
+            .text(cx, cy + cardH / 2 - 10, `[${tag}]`, {
+              fontFamily: 'monospace',
+              fontSize: '8px',
+              color: isBlocked ? '#888888' : '#ffdd44',
+              fontStyle: 'bold',
+            })
+            .setOrigin(0.5)
+            .setDepth(902),
+        );
+      }
+
+      if (!isBlocked) {
+        card.setInteractive({ useHandCursor: true });
+        card.on('pointerover', () => card.setStrokeStyle(3, 0xffffff));
+        card.on('pointerout', () =>
+          card.setStrokeStyle(isCurrent ? 3 : 2, isCurrent ? 0xffdd44 : 0x666688),
+        );
+        card.on('pointerdown', (pointer) => {
+          if (pointer?.button !== 0) return;
+          const ok = isCommanderMode
+            ? this.meta.setCommander(lord.name)
+            : this.meta.setPartner(lord.name);
+          if (!ok) return;
+          if (audio) audio.playSFX('sfx_confirm');
+          this._destroyCommanderPicker();
+          this.drawUI();
+        });
+      }
+    }
+
+    // Close button + hint
+    const closeY = 462;
+    const closeBtn = this.add
+      .text(cam.centerX, closeY, '[ CLOSE ]', {
+        fontFamily: 'monospace',
+        fontSize: '11px',
+        color: '#cc8888',
+        backgroundColor: '#331111',
+        padding: { x: 6, y: 2 },
+      })
+      .setOrigin(0.5)
+      .setDepth(902)
+      .setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerover', () => closeBtn.setColor('#ffaaaa'));
+    closeBtn.on('pointerout', () => closeBtn.setColor('#cc8888'));
+    closeBtn.on('pointerdown', () => this._destroyCommanderPicker());
+    objects.push(closeBtn);
+
+    this._commanderPickerObjects = objects;
+  }
+
+  _destroyCommanderPicker() {
+    if (this._commanderPickerObjects) {
+      this._commanderPickerObjects.forEach((o) => o.destroy());
+      this._commanderPickerObjects = null;
+    }
+  }
+
   drawBottomButtons() {
     const cx = this.cameras.main.centerX;
     const btnY = SAFE_BOTTOM_Y;
@@ -1574,7 +1817,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   onWheel(pointer, deltaX, deltaY) {
     if (!pointer) return;
-    if (this._skillPickerObjects) return;
+    if (this._skillPickerObjects || this._commanderPickerObjects) return;
     if (pointer.y < TAB_CONTENT_TOP_Y || pointer.y > TAB_CONTENT_BOTTOM_Y) return;
     if ((this.tabScrollMax || 0) <= 0) return;
 
@@ -1590,7 +1833,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
   onPointerDown(pointer) {
     if (!isTouchPointer(pointer)) return;
-    if (this._skillPickerObjects) return;
+    if (this._skillPickerObjects || this._commanderPickerObjects) return;
     if ((this.tabScrollMax || 0) <= 0) return;
     if (pointer.y < TAB_CONTENT_TOP_Y || pointer.y > TAB_CONTENT_BOTTOM_Y) return;
     const key = this.activeTab;
@@ -1623,7 +1866,8 @@ export class HomeBaseScene extends Phaser.Scene {
   _estimateTabContentHeight(category) {
     if (category === 'starting_skills') {
       const skillUpgrades = this.meta.upgradesData.filter((u) => u.category === 'starting_skills');
-      return 18 + 80 + 18 + skillUpgrades.length * 22;
+      const commanderSection = this.meta.getCommanderChoiceTier?.() >= 1 ? 60 : 0;
+      return commanderSection + 18 + 80 + 18 + skillUpgrades.length * 22;
     }
 
     const upgrades = this.meta.upgradesData.filter((u) => u.category === category);
@@ -1861,6 +2105,7 @@ export class HomeBaseScene extends Phaser.Scene {
     if (this.confirmOverlayObjects.length > 0) return true;
     if (this.refundMode) return true;
     if (this._skillPickerObjects) return true;
+    if (this._commanderPickerObjects) return true;
     if (allowExit) return true;
     return false;
   }
@@ -1879,6 +2124,10 @@ export class HomeBaseScene extends Phaser.Scene {
     }
     if (this._skillPickerObjects) {
       this._destroySkillPicker();
+      return true;
+    }
+    if (this._commanderPickerObjects) {
+      this._destroyCommanderPicker();
       return true;
     }
     if (allowExit) {

@@ -9,6 +9,7 @@ import {
   ROSTER_CAP,
   STARTING_ACCESSORY_TIERS,
   STARTING_STAFF_TIERS,
+  DEADLY_ARSENAL_SIGNATURE_WEAPONS,
   ELITE_GOLD_MULTIPLIER,
   XP_STAT_NAMES,
   CONVOY_WEAPON_CAPACITY,
@@ -34,6 +35,7 @@ import {
   grantLethalArmoryWeapon,
   grantSecondaryWeapons,
   learnSkill,
+  LETHAL_ARMORY_WEAPONS,
 } from './UnitManager.js';
 import { applyForge, canForge, canForgeStat, deforgeWeapon } from './ForgeSystem.js';
 import { generateRandomLegendary } from './LootSystem.js';
@@ -52,6 +54,13 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import {
+  findCommander,
+  stampCommanderFlag,
+  resolveStartingLordNames,
+  resolveStartingLordDefs,
+  DEFAULT_STARTING_LORD_NAMES,
+} from './Commander.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
@@ -381,6 +390,29 @@ export class RunManager {
   getBaseVisionCharges() {
     const visionBonus = Math.trunc(this.metaEffects?.visionChargesBonus || 0);
     return Math.max(1, 1 + visionBonus);
+  }
+
+  /** The commander is the permadeath anchor — the unit whose death ends the run. */
+  getCommander() {
+    return findCommander(this.roster);
+  }
+
+  getCommanderName() {
+    return this.getCommander()?.name || DEFAULT_STARTING_LORD_NAMES[0];
+  }
+
+  /**
+   * Names of the lords the run started with (commander choice via
+   * metaEffects), healed against lords data exactly as createInitialRoster
+   * heals them — so presentation consumers always match the built roster.
+   */
+  getStartingLordNames() {
+    const [commanderDef, partnerDef] = resolveStartingLordDefs(
+      this.metaEffects,
+      this.gameData?.lords,
+    );
+    if (commanderDef && partnerDef) return [commanderDef.name, partnerDef.name];
+    return resolveStartingLordNames(this.metaEffects);
   }
 
   hasShownDialogue(key) {
@@ -2178,7 +2210,80 @@ export class RunManager {
     return true;
   }
 
-  _applyDeadlyArsenalLoadout(edricUnit) {
+  /** First non-Staff proficiency type — the lord's primary weapon type. */
+  _getPrimaryWeaponType(unit) {
+    const primary = (unit?.proficiencies || []).find((p) => p?.type && p.type !== 'Staff');
+    return primary?.type || null;
+  }
+
+  /**
+   * Build one starting lord. The commander slot carries the extra Steel-tier
+   * weapon, Deadly Arsenal loadout, Battle Trinket, and extra Vulnerary;
+   * Sera's healer kit (Staff proficiency + staff) travels with Sera herself,
+   * whichever slot she occupies.
+   */
+  _buildStartingLord(lordDef, { isCommander }) {
+    const { classes, weapons, accessories } = this.gameData;
+    const me = this.metaEffects;
+    const classData = classes.find((c) => c.name === lordDef.class);
+    const unit = createLordUnit(lordDef, classData, weapons);
+    if (isCommander) unit.isCommander = true;
+    this._applyLordMetaBonuses(unit);
+
+    if (lordDef.name === 'Sera') {
+      if (!unit.proficiencies.some((p) => p.type === 'Staff')) {
+        unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+      }
+      // Sera's staff — tier upgrade
+      const staffTier = me?.startingStaffTier || 0;
+      const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
+      const staff = weapons.find((w) => w.name === staffName);
+      if (staff) addToInventory(unit, staff);
+    }
+
+    if (isCommander) {
+      // Commander's extra combat weapon defaults to the Steel-tier weapon of
+      // their primary proficiency, then Deadly Arsenal tiers adjust this loadout.
+      const primaryType = this._getPrimaryWeaponType(unit);
+      const steelName = LETHAL_ARMORY_WEAPONS[primaryType]?.steel || null;
+      const steelWeapon = steelName ? weapons.find((w) => w.name === steelName) : null;
+      if (steelWeapon) addToInventory(unit, steelWeapon);
+      this._applyDeadlyArsenalLoadout(unit, primaryType);
+    }
+
+    addToConsumables(unit, {
+      name: 'Vulnerary',
+      type: 'Consumable',
+      effect: 'heal',
+      value: 10,
+      uses: 3,
+      price: 300,
+    });
+    if (isCommander && me?.extraVulnerary) {
+      addToConsumables(unit, {
+        name: 'Vulnerary',
+        type: 'Consumable',
+        effect: 'heal',
+        value: 10,
+        uses: 3,
+        price: 300,
+      });
+    }
+
+    // Starting accessory (Battle Trinket) for the commander
+    if (isCommander) {
+      const accTier = me?.startingAccessoryTier || 0;
+      if (accTier > 0 && accessories) {
+        const accName = STARTING_ACCESSORY_TIERS[accTier];
+        const acc = accessories.find((a) => a.name === accName);
+        if (acc) equipAccessory(unit, ensureItemUid(structuredClone(acc)));
+      }
+    }
+
+    return unit;
+  }
+
+  _applyDeadlyArsenalLoadout(unit, primaryType) {
     const tierFromNewEffect = Math.max(
       0,
       Math.trunc(Number(this.metaEffects?.deadlyArsenalTier) || 0),
@@ -2187,19 +2292,25 @@ export class RunManager {
     const deadlyArsenalTier = Math.max(tierFromNewEffect, legacyDeadlyArsenal ? 2 : 0);
     if (deadlyArsenalTier <= 0) return;
 
+    const byType = LETHAL_ARMORY_WEAPONS[primaryType] || null;
+    const signatureName = DEADLY_ARSENAL_SIGNATURE_WEAPONS[primaryType] || null;
+    if (!byType || !signatureName) return;
+
     const allWeapons = this.gameData?.weapons || [];
-    const rapier = allWeapons.find((weapon) => weapon.name === 'Rapier');
-    const silverSword = allWeapons.find((weapon) => weapon.name === 'Silver Sword');
+    const signature = allWeapons.find((weapon) => weapon.name === signatureName);
+    const silver = byType.silver
+      ? allWeapons.find((weapon) => weapon.name === byType.silver)
+      : null;
 
-    // Tier 1: replace the Steel Sword slot with Rapier.
-    this._removeWeaponByName(edricUnit, 'Steel Sword');
-    if (rapier) addToInventory(edricUnit, rapier);
+    // Tier 1: replace the Steel slot with the type's signature weapon.
+    if (byType.steel) this._removeWeaponByName(unit, byType.steel);
+    if (signature) addToInventory(unit, signature);
 
-    // Tier 2: add Silver Sword and auto-equip it.
-    if (deadlyArsenalTier >= 2 && silverSword && addToInventory(edricUnit, silverSword)) {
-      const addedSilver = edricUnit.inventory.find((weapon) => weapon?.name === 'Silver Sword');
-      if (addedSilver && canEquip(edricUnit, addedSilver)) {
-        edricUnit.weapon = addedSilver;
+    // Tier 2: add the silver weapon and auto-equip it.
+    if (deadlyArsenalTier >= 2 && silver && addToInventory(unit, silver)) {
+      const addedSilver = unit.inventory.find((weapon) => weapon?.name === byType.silver);
+      if (addedSilver && canEquip(unit, addedSilver)) {
+        unit.weapon = addedSilver;
       }
     }
   }
@@ -2258,71 +2369,26 @@ export class RunManager {
     return serializeUnit(unit);
   }
 
-  /** Create Edric + Sera as the starting two lords. */
+  /** Create the two starting lords: the chosen commander + partner (default Edric + Sera). */
   createInitialRoster() {
-    const { lords, classes, weapons, accessories } = this.gameData;
+    const { lords } = this.gameData;
     const me = this.metaEffects;
 
-    // Edric — Lord
-    const edric = lords.find((l) => l.name === 'Edric');
-    const edricClass = classes.find((c) => c.name === edric.class);
-    const edricUnit = createLordUnit(edric, edricClass, weapons);
-    this._applyLordMetaBonuses(edricUnit);
+    // Resolve the starting pair; unknown lord names heal to the default pair.
+    const [commanderDef, partnerDef] = resolveStartingLordDefs(me, lords);
 
-    // Edric's extra combat sword defaults to Steel Sword, then Deadly Arsenal tiers adjust this loadout.
-    const edricSteelSword = weapons.find((w) => w.name === 'Steel Sword');
-    if (edricSteelSword) addToInventory(edricUnit, edricSteelSword);
-    this._applyDeadlyArsenalLoadout(edricUnit);
-
-    addToConsumables(edricUnit, {
-      name: 'Vulnerary',
-      type: 'Consumable',
-      effect: 'heal',
-      value: 10,
-      uses: 3,
-      price: 300,
-    });
-    if (me?.extraVulnerary) {
-      addToConsumables(edricUnit, {
-        name: 'Vulnerary',
-        type: 'Consumable',
-        effect: 'heal',
-        value: 10,
-        uses: 3,
-        price: 300,
-      });
-    }
-
-    // Sera — Light Sage
-    const sera = lords.find((l) => l.name === 'Sera');
-    const seraClass = classes.find((c) => c.name === sera.class);
-    const seraUnit = createLordUnit(sera, seraClass, weapons);
-    this._applyLordMetaBonuses(seraUnit);
-    seraUnit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
-
-    // Sera's staff — tier upgrade
-    const staffTier = me?.startingStaffTier || 0;
-    const staffName = STARTING_STAFF_TIERS[staffTier] || 'Heal';
-    const staff = weapons.find((w) => w.name === staffName);
-    if (staff) addToInventory(seraUnit, staff);
-
-    addToConsumables(seraUnit, {
-      name: 'Vulnerary',
-      type: 'Consumable',
-      effect: 'heal',
-      value: 10,
-      uses: 3,
-      price: 300,
-    });
+    const commanderUnit = this._buildStartingLord(commanderDef, { isCommander: true });
+    const partnerUnit = this._buildStartingLord(partnerDef, { isCommander: false });
+    const startingLordUnits = [commanderUnit, partnerUnit];
 
     // Meta weapon-art spawns for starting weapons (Iron/Steel + Art Adept extra slot).
-    this._assignMetaWeaponArtsToStartingWeapons([edricUnit, seraUnit]);
+    this._assignMetaWeaponArtsToStartingWeapons(startingLordUnits);
 
     // Apply weapon forges (unique stats via shuffle) to all lords' combat weapons
     const forgeLevels = me?.startingWeaponForge || 0;
     if (forgeLevels > 0) {
       const FORGE_STATS = ['might', 'crit', 'hit', 'weight'];
-      for (const unit of [edricUnit, seraUnit]) {
+      for (const unit of startingLordUnits) {
         for (const w of unit.inventory) {
           if (w.type === 'Staff') continue;
           // Fisher-Yates shuffle to pick unique stats (max forgeLevels is 3, FORGE_STATS has 4)
@@ -2339,23 +2405,16 @@ export class RunManager {
       }
     }
 
-    // Starting accessory for Edric
-    const accTier = me?.startingAccessoryTier || 0;
-    if (accTier > 0 && accessories) {
-      const accName = STARTING_ACCESSORY_TIERS[accTier];
-      const acc = accessories.find((a) => a.name === accName);
-      if (acc) equipAccessory(edricUnit, ensureItemUid(structuredClone(acc)));
-    }
-
     // Starting reclass seal from meta upgrade
     if (me?.startingReclassSeal) {
       const reclassSeal = this.gameData?.consumables?.find((c) => c.name === 'Infantry Seal');
       if (reclassSeal) this.addToConvoy(reclassSeal);
     }
 
-    // Starting skills from meta skill assignments
+    // Starting skills from meta skill assignments (keyed by lord name, so
+    // assignments for non-selected lords persist harmlessly)
     const skillAssignments = me?.startingSkills || {};
-    for (const unit of [edricUnit, seraUnit]) {
+    for (const unit of startingLordUnits) {
       const assigned = skillAssignments[unit.name] || [];
       for (const skillId of assigned) {
         if (!unit.skills.includes(skillId) && unit.skills.length < MAX_SKILLS) {
@@ -2364,7 +2423,7 @@ export class RunManager {
       }
     }
 
-    const roster = [serializeUnit(edricUnit), serializeUnit(seraUnit)];
+    const roster = startingLordUnits.map((unit) => serializeUnit(unit));
     const extraStarterTier = Math.max(0, Math.trunc(Number(me?.extraStartingUnitTier) || 0));
     if (extraStarterTier > 0) {
       const classPool = this._resolveExtraStarterClassPoolByTier(extraStarterTier);
@@ -3400,6 +3459,8 @@ export class RunManager {
           '[RunManager] fromJSON: no lord found in roster after filtering — save is corrupt',
         );
       }
+      // Commander flag: legacy saves predate it — heal via flag -> Edric -> first lord.
+      stampCommanderFlag(rm.roster);
     }
 
     rm.nodeMap = saved.nodeMap;
@@ -3700,6 +3761,17 @@ export class RunManager {
       typeof rawBattleInProgress.checkpoint === 'object'
         ? rawBattleInProgress
         : null;
+
+    // The checkpoint stores its own unit arrays (restored directly into the
+    // scene, never through the roster), so legacy ones are healed here too.
+    // One combined pool: the commander may be among the escaped units.
+    if (rm.battleInProgress) {
+      const checkpoint = rm.battleInProgress.checkpoint;
+      stampCommanderFlag([
+        ...(Array.isArray(checkpoint.playerUnits) ? checkpoint.playerUnits : []),
+        ...(Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []),
+      ]);
+    }
 
     return rm;
   }

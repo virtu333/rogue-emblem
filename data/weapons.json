@@ -540,6 +540,19 @@
     "price": 2200
   },
   {
+    "name": "Witchfire",
+    "type": "Tome",
+    "tier": "Silver",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 85,
+    "crit": 30,
+    "weight": 4,
+    "range": "1-2",
+    "special": "Critical specialist",
+    "price": 2300
+  },
+  {
     "name": "Excalibur",
     "type": "Tome",
     "tier": "Legend",
@@ -609,6 +622,19 @@
     "range": "1-2",
     "special": "",
     "price": 2200
+  },
+  {
+    "name": "Sunflare",
+    "type": "Light",
+    "tier": "Silver",
+    "rankRequired": "Prof",
+    "might": 7,
+    "hit": 90,
+    "crit": 30,
+    "weight": 3,
+    "range": "1-2",
+    "special": "Critical specialist",
+    "price": 2300
   },
   {
     "name": "Luce",

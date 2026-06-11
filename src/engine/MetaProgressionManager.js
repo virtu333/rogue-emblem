@@ -12,6 +12,25 @@ import {
   REFUND_FEE,
   MAX_STARTING_SKILLS,
 } from '../utils/constants.js';
+import { DEFAULT_STARTING_LORD_NAMES, defaultPartnerFor } from './Commander.js';
+
+const DEFAULT_LORD_SELECTION = Object.freeze({
+  commander: DEFAULT_STARTING_LORD_NAMES[0],
+  partner: DEFAULT_STARTING_LORD_NAMES[1],
+});
+
+function normalizeLordSelection(raw) {
+  const commander =
+    typeof raw?.commander === 'string' && raw.commander.length > 0
+      ? raw.commander
+      : DEFAULT_LORD_SELECTION.commander;
+  let partner =
+    typeof raw?.partner === 'string' && raw.partner.length > 0
+      ? raw.partner
+      : defaultPartnerFor(commander);
+  if (partner === commander) partner = defaultPartnerFor(commander);
+  return { commander, partner };
+}
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
@@ -62,6 +81,7 @@ export class MetaProgressionManager {
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
+    this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
 
     try {
@@ -90,6 +110,7 @@ export class MetaProgressionManager {
         this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
+        if (saved.lordSelection) this.lordSelection = normalizeLordSelection(saved.lordSelection);
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
         // Migration: old saves without milestones default to empty
         if (Array.isArray(saved.milestones)) this.milestones = new Set(saved.milestones);
@@ -401,6 +422,62 @@ export class MetaProgressionManager {
     return true;
   }
 
+  // --- Commander choice methods ---
+
+  /** Highest commanderChoiceTier across purchased upgrades (0 = not purchased). */
+  getCommanderChoiceTier() {
+    let tier = 0;
+    for (const upgrade of this.upgradesData) {
+      const level = this.getUpgradeLevel(upgrade.id);
+      if (level === 0) continue;
+      const effectTier = Number(upgrade.effects[level - 1]?.commanderChoiceTier) || 0;
+      if (effectTier > tier) tier = effectTier;
+    }
+    return tier;
+  }
+
+  /**
+   * The starting pair after tier gating: tier 0 forces the default pair,
+   * tier 1 honors the commander and forces the default partner, tier 2
+   * honors both. Lord-name existence is enforced by the consumer
+   * (RunManager falls back to the default pair for unknown names).
+   */
+  getLordSelection() {
+    const tier = this.getCommanderChoiceTier();
+    if (tier <= 0) return { ...DEFAULT_LORD_SELECTION };
+    const stored = normalizeLordSelection(this.lordSelection);
+    if (tier === 1)
+      return { commander: stored.commander, partner: defaultPartnerFor(stored.commander) };
+    return stored;
+  }
+
+  /**
+   * Pick the commander (requires tier >= 1). If the pick collides with the
+   * stored partner, the partner resets to the default for that commander.
+   */
+  setCommander(name) {
+    if (typeof name !== 'string' || name.length === 0) return false;
+    if (this.getCommanderChoiceTier() < 1) return false;
+    const partner =
+      this.lordSelection?.partner === name ? defaultPartnerFor(name) : this.lordSelection?.partner;
+    this.lordSelection = normalizeLordSelection({ commander: name, partner });
+    this._save();
+    return true;
+  }
+
+  /** Pick the partner (requires tier >= 2; must differ from the commander). */
+  setPartner(name) {
+    if (typeof name !== 'string' || name.length === 0) return false;
+    if (this.getCommanderChoiceTier() < 2) return false;
+    if (this.lordSelection?.commander === name) return false;
+    this.lordSelection = normalizeLordSelection({
+      commander: this.lordSelection?.commander,
+      partner: name,
+    });
+    this._save();
+    return true;
+  }
+
   /**
    * Compute flat object of all active effects from purchased upgrades.
    * Returns: { statBonuses, growthBonuses, lordStatBonuses, lordGrowthBonuses,
@@ -411,7 +488,8 @@ export class MetaProgressionManager {
    *            startingWeaponForge, deadlyArsenalTier,
    *            ironArms, steelArms, artAdept, startingAccessoryTier, startingStaffTier,
    *            startingReclassSeal,
-   *            startingSkills, metaUnlockedWeaponArts }
+   *            startingSkills, metaUnlockedWeaponArts,
+   *            commanderChoiceTier, startingLords }
    */
   getActiveEffects(options = {}) {
     const effects = {
@@ -444,6 +522,8 @@ export class MetaProgressionManager {
       extraSkillSlot: 0,
       masterOfArms: false,
       thirdLordMode: null,
+      commanderChoiceTier: 0,
+      startingLords: null,
       startingSkills: {},
       metaUnlockedWeaponArts: this.getUnlockedWeaponArts(options.weaponArtCatalog || []),
     };
@@ -546,6 +626,17 @@ export class MetaProgressionManager {
       if (effect.extraSkillSlot !== undefined) effects.extraSkillSlot = effect.extraSkillSlot;
       if (effect.masterOfArms) effects.masterOfArms = true;
       if (effect.thirdLordMode !== undefined) effects.thirdLordMode = effect.thirdLordMode;
+      if (effect.commanderChoiceTier !== undefined) {
+        effects.commanderChoiceTier = Math.max(
+          effects.commanderChoiceTier,
+          Number(effect.commanderChoiceTier) || 0,
+        );
+      }
+    }
+
+    // Starting pair from the commander-choice selection (tier-gated; null when unpurchased)
+    if (effects.commanderChoiceTier > 0) {
+      effects.startingLords = this.getLordSelection();
     }
 
     // Trim startingSkills per lord to available slot count
@@ -653,6 +744,11 @@ export class MetaProgressionManager {
           }
         }
       }
+      // Commander-choice refund: snap the stored selection back to what the
+      // remaining tier supports (tier 1 -> default partner, tier 0 -> default pair).
+      if (Number(effect?.commanderChoiceTier) > 0) {
+        this.lordSelection = this.getLordSelection();
+      }
     }
 
     this._save();
@@ -665,6 +761,7 @@ export class MetaProgressionManager {
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
     this.skillAssignments = {};
+    this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.milestones = new Set();
     this._save();
   }
@@ -721,6 +818,14 @@ export class MetaProgressionManager {
         if (this.skillAssignments[lord] === undefined) this.skillAssignments[lord] = slots;
       }
     }
+    // Adopt-if-default: a still-default local selection takes the disk's picks.
+    if (
+      disk.lordSelection &&
+      this.lordSelection.commander === DEFAULT_LORD_SELECTION.commander &&
+      this.lordSelection.partner === DEFAULT_LORD_SELECTION.partner
+    ) {
+      this.lordSelection = normalizeLordSelection(disk.lordSelection);
+    }
     this.savedAt = diskSavedAt;
   }
 
@@ -734,6 +839,7 @@ export class MetaProgressionManager {
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
       skillAssignments: this.skillAssignments,
+      lordSelection: this.lordSelection,
       milestones: [...this.milestones],
       savedAt: this.savedAt,
     };

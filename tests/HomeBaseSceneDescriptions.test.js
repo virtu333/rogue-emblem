@@ -150,7 +150,7 @@ describe('HomeBaseScene upgrade description helpers', () => {
   it('describes deadly arsenal split tiers', () => {
     const scene = new HomeBaseScene();
     expect(scene._getActionDesc({ effects: [{ deadlyArsenalTier: 1 }] })).toBe(
-      'Edric starting sword upgrades',
+      "Commander's starting weapon upgrades",
     );
     expect(scene._formatEffectValue({ deadlyArsenalTier: 1 })).toBe('Tier 1');
     expect(scene._formatEffectValue({ deadlyArsenalTier: 2 })).toBe('Tier 2');

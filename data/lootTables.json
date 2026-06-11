@@ -24,7 +24,7 @@
     "goldRange": [360, 600]
   },
   "act2": {
-    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Hammer", "Spear", "Killer Lance", "Physic", "Bolganone", "Aura", "Recurve Bow"],
+    "weapons": ["Short Spear", "Longbow", "Horseslayer", "Armorslayer", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Spear", "Killer Lance", "Physic", "Bolganone", "Aura", "Recurve Bow"],
     "healing": ["Vulnerary", "Elixir"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal"],
@@ -48,7 +48,7 @@
     "goldRange": [720, 1080]
   },
   "act3": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword"],
     "healing": ["Elixir"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],
@@ -72,7 +72,7 @@
     "goldRange": [1100, 1700]
   },
   "act4": {
-    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify"],
+    "weapons": ["Silver Sword", "Silver Lance", "Silver Axe", "Silver Bow", "Bolganone", "Aura", "Recover", "Physic", "Killing Edge", "Witchfire", "Sunflare", "Hammer", "Tomahawk", "Spear", "Killer Lance", "Venin Blade", "Killer Axe", "Killer Bow", "Tempest Blade", "Levin Sword", "Fortify"],
     "healing": ["Elixir"],
     "statBooster": ["Energy Drop", "Spirit Dust", "Secret Book", "Speedwing", "Dracoshield", "Talisman", "Angelic Robe", "Swiftsoles"],
     "promotion": ["Master Seal", "Infantry Seal", "Mounted Seal"],

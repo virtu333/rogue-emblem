@@ -333,7 +333,7 @@ export class SlotPickerScene extends Phaser.Scene {
           return;
         }
         if (rm && rm.status === 'defeat') {
-          // An interrupted battle settled into a loss on load (Edric fell with
+          // An interrupted battle settled into a loss on load (the commander fell with
           // no Vision charge to spend) — show the game-over flow instead of
           // resuming; RunComplete settles rewards and clears the save.
           transitioned = await transitionToScene(

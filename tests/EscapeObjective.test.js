@@ -487,7 +487,7 @@ describe('BattleScene.checkBattleEnd escape rules', () => {
   it('an escaped Edric is alive, not a defeat', () => {
     const ctx = makeBattleEndCtx({
       playerUnits: [makeUnit({ name: 'Kira', isLord: true })],
-      escapedUnits: [makeUnit({ name: 'Edric', isLord: true })],
+      escapedUnits: [makeUnit({ name: 'Edric', isLord: true, isCommander: true })],
     });
     expect(BattleScene.prototype.checkBattleEnd.call(ctx)).toBe(false);
     expect(ctx.onDefeat).not.toHaveBeenCalled();
@@ -497,7 +497,7 @@ describe('BattleScene.checkBattleEnd escape rules', () => {
   it('victory once every living lord is out (even when the last field lord falls)', () => {
     const ctx = makeBattleEndCtx({
       playerUnits: [makeUnit({ name: 'Rec' })], // non-lord rearguard remains
-      escapedUnits: [makeUnit({ name: 'Edric', isLord: true })],
+      escapedUnits: [makeUnit({ name: 'Edric', isLord: true, isCommander: true })],
     });
     expect(BattleScene.prototype.checkBattleEnd.call(ctx)).toBe(true);
     expect(ctx.onVictory).toHaveBeenCalledTimes(1);
@@ -506,7 +506,10 @@ describe('BattleScene.checkBattleEnd escape rules', () => {
   it('no victory while a living lord is still on the field', () => {
     const ctx = makeBattleEndCtx({
       playerUnits: [makeUnit({ name: 'Kira', isLord: true })],
-      escapedUnits: [makeUnit({ name: 'Edric', isLord: true }), makeUnit({ name: 'Rec' })],
+      escapedUnits: [
+        makeUnit({ name: 'Edric', isLord: true, isCommander: true }),
+        makeUnit({ name: 'Rec' }),
+      ],
     });
     expect(BattleScene.prototype.checkBattleEnd.call(ctx)).toBe(false);
   });

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { loadGameData } from '../testData.js';
 import { installSeed, restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { RunSimulationDriver } from './RunSimulationDriver.js';
+import { MetaProgressionManager } from '../../src/engine/MetaProgressionManager.js';
 import { ScriptedAgent } from '../agents/ScriptedAgent.js';
 import { FuzzAgent } from '../agents/FuzzAgent.js';
 
@@ -50,6 +51,9 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
     maxPromotionByAct2Rate: null,
     maxAvgInvalidShopEntries: null,
     minAvgAmbushBattles: null,
+    commander: null,
+    partner: null,
+    metaPreset: 'none',
     writeArtifactsOnFailure: true,
   };
 
@@ -103,6 +107,9 @@ export function parseArgsFrom(args = process.argv.slice(2)) {
       );
     else if (arg === '--min-avg-ambush-battles' && args[i + 1])
       opts.minAvgAmbushBattles = parseOptionalNumber(args[++i], '--min-avg-ambush-battles');
+    else if (arg === '--commander' && args[i + 1]) opts.commander = args[++i];
+    else if (arg === '--partner' && args[i + 1]) opts.partner = args[++i];
+    else if (arg === '--meta-preset' && args[i + 1]) opts.metaPreset = args[++i];
     else if (arg === '--no-artifacts') opts.writeArtifactsOnFailure = false;
   }
 
@@ -148,10 +155,62 @@ function ensureArtifact(result) {
   return `tests/artifacts/fullrun/${filename}`;
 }
 
+/**
+ * Build run metaEffects for the simulation.
+ * --meta-preset endgame: every upgrade maxed via the real
+ * MetaProgressionManager (the loadout an actual commander-choice purchaser
+ * has). --commander/--partner override the starting pair on top.
+ */
+export function buildRunMetaEffects(opts, gameData) {
+  let preset = null;
+  if (opts.metaPreset && opts.metaPreset !== 'none') {
+    if (opts.metaPreset !== 'endgame') {
+      throw new Error(`Unknown --meta-preset "${opts.metaPreset}". Expected none|endgame.`);
+    }
+    const meta = new MetaProgressionManager(gameData.metaUpgrades, '__sim_meta_preset__');
+    for (const milestone of [
+      'beatAct1',
+      'beatAct2',
+      'beatAct3',
+      'beatGame',
+      'beatHard',
+      'beatLunatic',
+    ]) {
+      meta.milestones.add(milestone);
+    }
+    for (const upgrade of gameData.metaUpgrades) {
+      meta.purchasedUpgrades[upgrade.id] = upgrade.maxLevel;
+    }
+    preset = meta.getActiveEffects({ weaponArtCatalog: gameData.weaponArts?.arts || [] });
+  }
+  const commanderEffects = buildCommanderMetaEffects(opts, gameData);
+  if (!preset && !commanderEffects) return null;
+  return { ...(preset || {}), ...(commanderEffects || {}) };
+}
+
+function buildCommanderMetaEffects(opts, gameData) {
+  if (!opts.commander && !opts.partner) return null;
+  const lordNames = new Set((gameData.lords || []).map((l) => l.name));
+  const commander = opts.commander || 'Edric';
+  const partner = opts.partner || (commander === 'Sera' ? 'Edric' : 'Sera');
+  for (const name of [commander, partner]) {
+    if (!lordNames.has(name)) {
+      throw new Error(
+        `Unknown lord "${name}" for --commander/--partner. Known: ${[...lordNames].join(', ')}`,
+      );
+    }
+  }
+  if (commander === partner) {
+    throw new Error('--commander and --partner must name different lords.');
+  }
+  return { startingLords: { commander, partner } };
+}
+
 async function runSingle(seed, gameData, opts) {
   installSeed(seed);
   try {
     const driver = new RunSimulationDriver(gameData, {
+      metaEffects: buildRunMetaEffects(opts, gameData),
       runOptions: {
         runSeed: seed,
         difficultyId: opts.difficulty,
@@ -268,6 +327,13 @@ export async function runBatch(opts, gameDataOverride = null) {
   console.log(`Seeds: ${startSeed}-${endSeed} (${seeds.length} runs)`);
   console.log(`Difficulty: ${opts.difficulty} | Invincibility: ${opts.invincibility}`);
   console.log(`Agent: ${opts.agent} | Mode: ${opts.mode}`);
+  if (opts.commander || opts.partner || (opts.metaPreset && opts.metaPreset !== 'none')) {
+    const effects = buildRunMetaEffects(opts, gameData);
+    const pair = effects?.startingLords || { commander: 'Edric', partner: 'Sera' };
+    console.log(
+      `Commander: ${pair.commander} | Partner: ${pair.partner} | Meta preset: ${opts.metaPreset}`,
+    );
+  }
   console.log('');
 
   for (const seed of seeds) {

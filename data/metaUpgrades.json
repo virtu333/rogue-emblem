@@ -1110,6 +1110,32 @@
     ]
   },
   {
+    "id": "commander_choice",
+    "name": "Banner of Command",
+    "description": "Choose which lord leads your army at run start",
+    "category": "lord_bonuses",
+    "maxLevel": 1,
+    "costs": [1500],
+    "requires": {
+      "upgrades": [{ "id": "legendary_heir", "level": 1 }],
+      "milestones": ["beatHard"]
+    },
+    "effects": [{ "commanderChoiceTier": 1 }]
+  },
+  {
+    "id": "partner_choice",
+    "name": "Chosen Companions",
+    "description": "Choose your second starting lord as well",
+    "category": "lord_bonuses",
+    "maxLevel": 1,
+    "costs": [1000],
+    "requires": {
+      "upgrades": [{ "id": "commander_choice", "level": 1 }],
+      "milestones": ["beatHard"]
+    },
+    "effects": [{ "commanderChoiceTier": 2 }]
+  },
+  {
     "id": "recruit_skill",
     "name": "Skilled Recruits",
     "description": "Recruits spawn with 1 random combat skill",

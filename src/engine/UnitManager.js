@@ -619,7 +619,7 @@ export function createRecruitUnit(
   return unit;
 }
 
-const LETHAL_ARMORY_WEAPONS = {
+export const LETHAL_ARMORY_WEAPONS = {
   Sword: {
     steel: 'Steel Sword',
     killer: 'Killing Edge',
@@ -642,12 +642,12 @@ const LETHAL_ARMORY_WEAPONS = {
   },
   Tome: {
     steel: 'Elfire',
-    killer: null,
+    killer: 'Witchfire',
     silver: 'Bolganone',
   },
   Light: {
     steel: 'Shine',
-    killer: null,
+    killer: 'Sunflare',
     silver: 'Aura',
   },
 };

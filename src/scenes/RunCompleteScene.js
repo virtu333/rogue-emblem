@@ -7,6 +7,7 @@ import { deleteRunSave } from '../cloud/CloudSync.js';
 import { recordBlessingRunOutcome } from '../utils/blessingAnalytics.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
+import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 
 export class RunCompleteScene extends Phaser.Scene {
   constructor() {
@@ -238,6 +239,7 @@ export class RunCompleteScene extends Phaser.Scene {
     const key =
       this.result === 'victory' ? `victory_${this.runManager?.difficultyId || 'normal'}` : 'defeat';
     const entries = dialogue[key];
-    return Array.isArray(entries) && entries.length > 0 ? entries : null;
+    if (!Array.isArray(entries) || entries.length <= 0) return null;
+    return adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.());
   }
 }
