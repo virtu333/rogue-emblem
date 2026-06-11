@@ -1,6 +1,6 @@
 # Choose Your Commander — Feature Spec
 
-**Status:** Draft for review
+**Status:** Design decisions resolved (Section 13) — ready for implementation
 **Feature:** Late-game meta unlock that lets the player choose which lord(s) they start a run with, replacing the fixed Edric + Sera pair.
 **Date:** 2026-06-11
 
@@ -26,7 +26,7 @@ The investigation below found the change is very tractable: the third-lord syste
 
 ## 2. Player Experience
 
-1. **Purchase.** In Home Base → Lord Bonuses (Valor), buy *Banner of Command* (Tier 1; milestone-gated). Tier 2 (*Chosen Companions*) appears beneath it, gated harder.
+1. **Purchase.** In Home Base → Lord Bonuses (Valor), buy *Banner of Command* — gated behind **Power of Friendship Lv1 + beating Hard**, positioning it as an explicit endgame/NG+ feature. *Chosen Companions* (partner choice) appears beneath it, chained on Banner of Command.
 2. **Select.** A new **Commander panel** in Home Base shows the 7 lord portraits with class, weapon type, personal skill, and base stats/growths. The player picks a commander (and, with Tier 2, a partner). The selection **persists across runs** (like starting-skill assignments) until changed; default is Edric + Sera.
 3. **Confirm.** The Difficulty Select screen shows a small `Commander: Cael · Partner: Sera` line next to the existing `Meta Upgrades: ON` toggle, so the loadout is visible before launch.
 4. **Run start.** The run begins with the chosen pair. The commander is the locked deploy, the recruit-scaling anchor, and the unit whose death ends the run. All "starting equipment" meta upgrades apply to the chosen pair (generalized per Section 7).
@@ -124,7 +124,7 @@ Explicitly **unchanged**: the tutorial (standalone Edric+Sera script — the pla
 
 ## 5. Meta Upgrade Definition (data)
 
-`data/metaUpgrades.json`, category `lord_bonuses` (Valor — consistent with `CATEGORY_CURRENCY` in `src/utils/constants.js:226-233`):
+`data/metaUpgrades.json`, category `lord_bonuses` (Valor — consistent with `CATEGORY_CURRENCY` in `src/utils/constants.js:226-233`). Two separate upgrade entries chained via `requires.upgrades` — the same pattern as Deadly Arsenal I/II and Lethal Armory I–III, so no schema changes:
 
 ```json
 {
@@ -132,20 +132,33 @@ Explicitly **unchanged**: the tutorial (standalone Edric+Sera script — the pla
   "name": "Banner of Command",
   "description": "Choose which lord leads your army at run start",
   "category": "lord_bonuses",
-  "maxLevel": 2,
-  "costs": [1500, 1000],
-  "requires": { "milestones": ["beatGame"] },
-  "effects": [
-    { "commanderChoiceTier": 1 },
-    { "commanderChoiceTier": 2 }
-  ]
+  "maxLevel": 1,
+  "costs": [1500],
+  "requires": {
+    "upgrades": [{ "id": "legendary_heir", "level": 1 }],
+    "milestones": ["beatHard"]
+  },
+  "effects": [{ "commanderChoiceTier": 1 }]
+},
+{
+  "id": "partner_choice",
+  "name": "Chosen Companions",
+  "description": "Choose your second starting lord as well",
+  "category": "lord_bonuses",
+  "maxLevel": 1,
+  "costs": [1000],
+  "requires": {
+    "upgrades": [{ "id": "commander_choice", "level": 1 }],
+    "milestones": ["beatHard"]
+  },
+  "effects": [{ "commanderChoiceTier": 2 }]
 }
 ```
 
-- **Tier 1** (1500 Valor, requires `beatGame`): unlock commander selection.
-- **Tier 2** (1000 Valor): unlock partner selection. If stronger gating is wanted, add `beatHard` to a per-tier requirement — note today's `requires` applies to the whole upgrade, so either gate the whole upgrade on `beatGame` only (recommended; price is the gate for tier 2) or extend the schema with per-level requirements (small change in `meetsPrerequisites`).
-- Costs intentionally exceed Power of Friendship tier 1 (1000) — this is positioned as the biggest Valor sink in the game. Tune in the balance pass (Section 11).
-- `MILESTONE_LABELS` already includes `beatGame` (`MetaProgressionManager.js:264-271`); no new milestone plumbing.
+- **Decided gating (NG+ positioning):** both upgrades sit behind **Power of Friendship** (`legendary_heir` Lv1, itself gated on `beatHard`). The full chain reads: beat Hard → unlock the third-lord system → unlock commander choice → unlock partner choice. Thematically the third-lord event introduces the other lords mid-run; this upgrade then graduates them to run-start.
+- The explicit `beatHard` milestone is technically redundant (transitive through `legendary_heir`) but is included deliberately: `isMilestoneLocked` drives the "???" mystery display in the shop, and that check only reads the upgrade's own milestones.
+- **Costs decided: 1500 / 1000 Valor** — the largest Valor items in the game (Power of Friendship tier 1 is 1000). Sim matrix may still adjust (Section 11), but these are the shipping defaults.
+- `getActiveEffects()` accumulates `commanderChoiceTier` via `max()`, mirroring the existing `deadlyArsenalTier` handling (`MetaProgressionManager.js:525-530`).
 
 ---
 
@@ -183,16 +196,19 @@ Per-slot loadout rules, generalized from today's behavior:
 
 1. **Base kit (any lord):** `createLordUnit` + `_applyLordMetaBonuses` + Vulnerary (+ `extraVulnerary` on the commander). Unchanged.
 2. **Commander extra weapon** (today: Edric's Steel Sword): grant a Steel-tier weapon of the commander's **primary proficiency** using the existing `LETHAL_ARMORY_WEAPONS[type].steel` table (`src/engine/UnitManager.js:622-653` — covers Sword/Lance/Axe/Bow/Tome/Light, i.e. every lord's primary). Voss (Swords+Bows) uses his first proficiency (Swords), matching `getDefaultWeapon` ordering.
-3. **Deadly Arsenal, generalized per type:**
-   - Tier 1 replaces the Steel slot with the type's "tactical" weapon:
+3. **Deadly Arsenal, generalized per type — with signature weapons (decided):**
+   - Tier 1 replaces the Steel slot with the type's signature weapon:
      | Type | Tier-1 weapon | Notes |
      |---|---|---|
      | Sword | Rapier | current behavior |
-     | Lance | Horseslayer | Steel tier, effective vs Cavalry |
-     | Axe | Hammer | Steel tier, effective vs Armored |
-     | Bow | Killer Bow | no effective bow exists; crit niche |
-     | Tome | Elfire + free Might forge | no Steel-tier special tome exists |
-     | Light | Shine + free Might forge | same gap |
+     | Lance | Horseslayer | existing; Steel tier, effective vs Cavalry |
+     | Axe | Hammer | existing; Steel tier, effective vs Armored |
+     | Bow | Killer Bow | existing; crit niche (no effective bow in the catalog) |
+     | Tome | **Witchfire** *(new)* | killer-line tome: Steel tier, ~25-30 crit |
+     | Light | **Sunflare** *(new)* | killer-line light tome: Steel tier, ~25-30 crit |
+   - **Two new weapons** (names are placeholders — finalize in PR 2): killer-line casters rather than effective-damage casters, because magic already targets RES (armored enemies are naturally weak to it), so an "anti-armor tome" would be redundant where Rapier is not. Stats/prices mirror the Killing Edge / Killer Lance family.
+   - **Bonus synergy:** the new weapons also fill the `killer: null` gaps for Tome/Light in `LETHAL_ARMORY_WEAPONS` (`UnitManager.js:643-652`), so Lethal Armory II/III stop falling back to Steel for caster recruits — a small free upgrade to an existing purchase.
+   - Like Rapier (priced 1800, shop-eligible), the new weapons enter the normal shop/loot pools; verify pool weights in the PR 4 balance pass.
    - Tier 2 adds + auto-equips the type's silver weapon via `LETHAL_ARMORY_WEAPONS[type].silver` (Bolganone/Aura for casters).
    - The unused `DEADLY_ARSENAL_POOL` constant (`constants.js:288-295`) shows this generalization was already anticipated; either use it for a random-pick variant or delete it when this lands.
    - Shop description (`HomeBaseScene.js:923`) becomes "Commander's starting weapon upgrades."
@@ -256,7 +272,7 @@ CI note: if the balance pass moves any strict slice thresholds in `tests/sim/ful
 
 Per-commander deltas worth measuring before tuning costs:
 
-- **No Sera ⇒ no starting healer and no Renewal Aura.** Early-act sustain collapses to Vulneraries until a staff user is recruited. This is the intended cost of exotic pairs; if sims show Act 1 winrate cratering, compensate with +1 Vulnerary for Sera-less pairs rather than free staves.
+- **No Sera ⇒ no starting healer and no Renewal Aura.** Early-act sustain collapses to Vulneraries until a staff user is recruited. **Decided: ship with no compensation** — this is an endgame choice and managing it is deferred to the player. The sim matrix acts only as a tripwire: if a Sera-less pair drops Act 1 winrate dramatically vs. the Edric+Sera baseline (alarm threshold ~10 points on Normal), revisit with +1 Vulnerary as a measured fix — never free staves.
 - **Losing Charisma** (Edric's +10 Hit/+5 Avoid aura) is a real army-wide nerf when Edric isn't fielded — partially self-balancing against stronger personal kits.
 - **Rowan (Cavalry, MOV 5)** and **Astrid (Flying)** commanders accelerate seize/escape pacing and interact with turn-par bonuses; Astrid ignores pursuit terrain on escape maps.
 - **Cael** (HP25/STR9/DEF9 + Intimidate) is likely the strongest stat commander; **Kira** (squishy, MAG-based, +1 Tome range) the riskiest with the fighters-only first battle.
@@ -272,7 +288,7 @@ Sim support: add `--commander <name> [--partner <name>]` to `sim/fullrun` (plumb
 `isCommander` flag + RunManager accessors + fallback chain; convert all call sites in Section 4; copy changes ("your commander"); tests. Riskiest-by-breadth but mechanically simple; full suite must stay green with zero gameplay diffs.
 
 **PR 2 — Meta upgrade + selection + roster generalization.**
-`commander_choice` data; MetaProgressionManager state/validation/refund/merge; `getActiveEffects().startingLords`; `createInitialRoster` slot rewrite incl. Deadly Arsenal/extra-weapon generalization and Sera-conditional staff kit; pool exclusion plumbing; Home Base Commander panel + skills-tab filter + shop strings; Difficulty Select status line.
+`commander_choice` + `partner_choice` data; the two new caster signature weapons in `weapons.json` + `LETHAL_ARMORY_WEAPONS` killer-gap fill; MetaProgressionManager state/validation/refund/merge; `getActiveEffects().startingLords`; `createInitialRoster` slot rewrite incl. Deadly Arsenal/extra-weapon generalization and Sera-conditional staff kit; pool exclusion plumbing; Home Base Commander panel + skills-tab filter + shop strings; Difficulty Select status line.
 
 **PR 3 — Presentation polish.**
 Sprite lookup table; Vision prompt conditional copy; dialogue `{commander}` token + Sera-absence fallback; Edric `lordFarewell` lines in `dialogue.json`; help-content rewording.
@@ -282,13 +298,15 @@ Sim matrix, cost/gate tuning, any compensation mechanics, threshold re-baselines
 
 ---
 
-## 13. Open Questions (decide before PR 2)
+## 13. Design Decisions (resolved 2026-06-11)
 
-1. **Gating:** Tier 1 on `beatGame` with price as the tier-2 gate (recommended), or add per-level milestone requirements (`beatHard` for tier 2, small schema extension)?
-2. **Costs:** 1500/1000 Valor proposed — confirm after the sim matrix.
-3. **Caster Deadly Arsenal:** accept the forge-compensated Elfire/Shine for Tome/Light (recommended), or add two new Steel-tier "tactical" tomes to `weapons.json`?
-4. **Sera-less sustain:** ship with no compensation and let sims decide (recommended), or bundle +1 Vulnerary from the start?
-5. **Selection placement:** persistent Home Base loadout (recommended; zero scene-flow changes, no-meta safe) vs. a per-run pick screen between Difficulty and Blessing select. Could add a per-run override later without rework.
+1. **Gating:** both upgrades locked behind **Power of Friendship Lv1** (+ explicit `beatHard` for the "???" shop display) — deliberate endgame/NG+ positioning. Implemented as two chained upgrade entries (`commander_choice` → `partner_choice`), the existing Deadly Arsenal I/II pattern, so no schema changes.
+2. **Costs:** **1500 / 1000 Valor** confirmed, with the upgrade-chain gate carrying the rest of the weight. Sim matrix may fine-tune.
+3. **Caster Deadly Arsenal:** **add two new signature weapons** (killer-line Tome + Light, placeholder names *Witchfire* / *Sunflare*) instead of forge compensation — picking a caster commander should feel exciting. They double as the missing `killer` entries for Lethal Armory.
+4. **Sera-less sustain:** **no compensation.** Endgame players manage it themselves; sims act only as a tripwire (Section 11).
+5. **Selection placement:** **persistent Home Base panel** + Difficulty Select status line. A per-run override can be layered on later without rework.
+
+Remaining open (small, decide inside PR 2/4): final names/stats/prices for the two new weapons, and their shop/loot pool weights.
 
 ## 14. Out of Scope
 
