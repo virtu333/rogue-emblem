@@ -238,12 +238,14 @@ export const REFUND_FEE = 20;
 // Siege weapon eligibility (promoted Tome users — NOT Battle Monk which has no Tome)
 export const SIEGE_ELIGIBLE_CLASSES = new Set(['Sage', 'Warlock', 'Dark Knight', 'Grandmaster']);
 
-// Status conditions (Sleep / Silence / Acid)
+// Status conditions (Sleep / Silence / Acid / Root)
 export const STATUS_STAFF_ELIGIBLE_CLASSES = new Set(['Mage', 'Sage', 'Bishop']);
 export const STATUS_CONDITIONS = {
   sleep: { maxTurns: 3, recoveryChance: 0.5, wakesOnDamage: true },
   silence: { maxTurns: 3, recoveryChance: 0.5 },
   acid: { maxTurns: 3, recoveryChance: 0, wakesOnDamage: false },
+  // Root: unit may act but not move (weapon-art inflicted; no staff applies it)
+  root: { maxTurns: 2, recoveryChance: 0, wakesOnDamage: false },
 };
 export const STATUS_HIT_MIN = 15;
 export const STATUS_HIT_MAX = 90;
@@ -279,6 +281,16 @@ export const POISON_ELIGIBLE_PROFS = new Set(['Swords', 'Bows']);
 // Difficulty-gated enemy classes (Hard/Lunatic only)
 export const DIFFICULTY_GATED_CLASSES = new Set(['Zombie', 'Revenant', 'Dragon', 'Dragon Lord']);
 export const ZOMBIE_CLASSES = new Set(['Zombie', 'Revenant']);
+// Classes that count as "dark" for Luce / Divine Flare effectiveness
+export const DARK_CLASSES = new Set([
+  'Dark Knight',
+  'Warlock',
+  'Zombie',
+  'Revenant',
+  'Dragon',
+  'Dragon Lord',
+  'Entity',
+]);
 
 export function filterClassPoolByDifficulty(classPool, difficultyMode) {
   if (difficultyMode === 'hard' || difficultyMode === 'lunatic') return classPool;

@@ -139,6 +139,7 @@ import {
   isSleeping,
   isSilenced,
   isAcidPoisoned,
+  isRooted,
   removeCondition,
   clearAllConditions,
   resolveStatusStaff,
@@ -4061,7 +4062,7 @@ export class BattleScene extends Phaser.Scene {
     this.movementRange = this.grid.getMovementRange(
       unit.col,
       unit.row,
-      unit.mov,
+      isRooted(unit) ? 0 : unit.mov,
       unit.moveType,
       this.unitPositions,
       unit.faction,
@@ -4489,7 +4490,8 @@ export class BattleScene extends Phaser.Scene {
 
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
-      const hasCanto = unit.skills?.includes('canto');
+      // Rooted units cannot use Canto (root may land mid-action via counter-art)
+      const hasCanto = unit.skills?.includes('canto') && !isRooted(unit);
       const movSpent = unit._movementSpent || 0;
       const remaining = unit.stats.MOV - movSpent;
       if (hasCanto && remaining > 0 && unit.faction === 'player') {
@@ -7567,6 +7569,64 @@ export class BattleScene extends Phaser.Scene {
             this.showMinorHintAt(pos.x, pos.y, `-${Math.abs(step.amount)} ${step.stat}`, '#ff8888');
           }
           break;
+        case 'tier2_status':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          {
+            // durationPhases = full phases; recovery decrements at the start of
+            // the afflicted side's phase before it acts, hence the +1.
+            applyCondition(targetUnit, step.status, step.durationPhases + 1, {
+              recoveryChance: 0,
+            });
+            this._addConditionIcon(targetUnit, step.status);
+            const statusLabels = {
+              root: 'Rooted!',
+              silence: 'Silenced!',
+              sleep: 'Asleep!',
+              acid: 'Acid!',
+            };
+            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
+            this.showMinorHintAt(
+              pos.x,
+              pos.y,
+              statusLabels[step.status] || 'Afflicted!',
+              '#cc88ff',
+            );
+          }
+          break;
+        case 'art_miss_self_damage':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          {
+            const prevHP = targetUnit.currentHP;
+            const hpFloor = step.nonLethal === false ? 0 : 1;
+            targetUnit.currentHP = Math.max(hpFloor, targetUnit.currentHP - step.amount);
+            const actualDamage = prevHP - targetUnit.currentHP;
+            if (actualDamage > 0) {
+              this.updateHPBar(targetUnit);
+              await this.showPoisonDamage(targetUnit, actualDamage);
+            }
+          }
+          break;
+        case 'art_kill_buff':
+          if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+          if (!targetUnit || targetUnit.currentHP > 0) break;
+          {
+            const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
+              sourceUnit,
+              step.durationPhases,
+            );
+            this._applyTier5TimedBuffEntry(sourceUnit, {
+              key: `${String(step.artId || 'kill_buff')}::${String(sourceUnit.name || '')}::self`,
+              artId: step.artId || null,
+              sourceName: sourceUnit.name || null,
+              sourceFaction: sourceUnit.faction || null,
+              expiryPhase,
+              expiryTurn,
+              stats: { ...(step.stats || {}) },
+            });
+            const pos = this.grid.gridToPixel(sourceUnit.col, sourceUnit.row);
+            this.showMinorHintAt(pos.x, pos.y, 'Bloodlust!', '#ff6699');
+          }
+          break;
         case 'tier2_pierce':
           await this._applyTier2PierceStep(step, sourceUnit, targetUnit);
           break;
@@ -8579,6 +8639,7 @@ export class BattleScene extends Phaser.Scene {
           sleep: 'woke up',
           silence: 'recovered from Silence',
           acid: 'recovered from Acid',
+          root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
         this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
@@ -8819,6 +8880,7 @@ export class BattleScene extends Phaser.Scene {
           sleep: 'woke up',
           silence: 'recovered from Silence',
           acid: 'recovered from Acid',
+          root: 'can move again',
         };
         const label = labelByCondition[evt.conditionId] || `recovered from ${evt.conditionId}`;
         await this.showBriefBanner(`${evt.unit.name} ${label}!`, '#88ff88');
@@ -9447,6 +9509,7 @@ export class BattleScene extends Phaser.Scene {
       sleep: { label: 'Zzz', color: '#6688ff' },
       silence: { label: 'X', color: '#cc66cc' },
       acid: { label: 'Ac', color: '#88cc44' },
+      root: { label: 'Rt', color: '#cc9944' },
     };
     const iconStyle = iconMap[conditionId] || { label: '?', color: '#dddddd' };
     const icon = this.add
@@ -9757,7 +9820,7 @@ export class BattleScene extends Phaser.Scene {
       const moveRange = this.grid.getMovementRange(
         enemy.col,
         enemy.row,
-        enemy.mov || enemy.stats.MOV,
+        isRooted(enemy) ? 0 : enemy.mov || enemy.stats.MOV,
         enemy.moveType,
         positions,
         enemy.faction,

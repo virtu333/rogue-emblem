@@ -1,8 +1,29 @@
 # Weapon Arts Expansion Status
 
-## Current Snapshot (2026-02-17)
+## Current Snapshot (2026-06-11)
 
-Status: IN PROGRESS (Tier 4 complete; Tier 2 legendary + Tier 3 + Tier 5 + bespoke mechanics deferred)
+Status: COMPLETE (all catalog mechanics implemented)
+
+- Runtime catalog in `data/weaponArts.json`: **75** total arts.
+- Fully implemented mechanics: **75** arts. No `_deferredMechanic` placeholders remain.
+- Closure pass (2026-06-11) shipped the final 6 deferred mechanics and removed
+  4 stale markers left on already-working Tier 5 legendary arts:
+  - Tier 3 on-hit status: Encloser (Root 1 turn), Ward Arrow (Silence 1 turn),
+    Silence Strike (Silence 2 turns) — deterministic on landed hit, new `root`
+    condition (act-but-not-move) with player/AI/canto/danger-zone gating.
+  - All or Nothing: 2x damage multiplier + 5 self-damage per missed strike
+    (non-lethal, floors at 1 HP).
+  - Annihilate: full weapon-triangle ignore for the combat + on-kill
+    +4 STR/+4 SPD self-buff until the user's next phase.
+  - Divine Flare: ignores RES on the art user's strikes + 3x effectiveness vs
+    dark classes (`DARK_CLASSES`); Luce's previously dead
+    "Effective vs dark enemies" weapon special now also works outside the art.
+- Spec: `docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md`
+- Historical plan: `docs/reports/weapon_arts_next_mechanics_plan_2026-02-16.md`
+
+## Historical Snapshot (2026-02-17)
+
+Status at the time: IN PROGRESS (Tier 4 complete; Tier 2 legendary + Tier 3 + Tier 5 + bespoke mechanics deferred)
 
 - Runtime catalog in `data/weaponArts.json`: **75** total arts.
 - Fully implemented mechanics: **60** arts (no `_deferredMechanic` placeholder).
@@ -13,7 +34,6 @@ Status: IN PROGRESS (Tier 4 complete; Tier 2 legendary + Tier 3 + Tier 5 + bespo
   - Tier 4 (`multiHit`, `drainPercent`): 0 (0 standard, 0 legendary)
   - Tier 5 (`aoeSplash`, `allyBuff`): 4 (0 standard, 4 legendary)
 - Deferred bespoke mechanics (outside Tier 2-5 buckets): 3
-- Current implementation plan: `docs/reports/weapon_arts_next_mechanics_plan_2026-02-16.md`
 
 ## Historical Phase Logs (2026-02-13 checkpoint)
 

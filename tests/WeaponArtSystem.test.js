@@ -75,7 +75,7 @@ describe('WeaponArtSystem', () => {
     );
     expect(mods.preventCounter).toBe(true);
     expect(mods.targetsRES).toBe(true);
-    expect(mods.effectiveness).toEqual({ moveTypes: ['flying'], multiplier: 3 });
+    expect(mods.effectiveness).toEqual({ moveTypes: ['flying'], classNames: [], multiplier: 3 });
     expect(mods.rangeBonus).toBe(2);
     expect(mods.rangeOverride).toEqual({ min: 2, max: 2 });
     expect(mods.halfPhysicalDamage).toBe(true);

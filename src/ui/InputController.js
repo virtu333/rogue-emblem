@@ -1,6 +1,6 @@
 import { computeEffectivePath } from '../engine/Grid.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
-import { isSleeping } from '../engine/StatusConditionSystem.js';
+import { isSleeping, isRooted } from '../engine/StatusConditionSystem.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import {
   TOOLTIP_LONG_PRESS_MS,
@@ -567,7 +567,7 @@ export class InputController {
       const moveColor = isPlayer ? 0x3366cc : 0xcc3333;
       const moveAlpha = isPlayer ? 0.4 : 0.35;
       const positions = scene.buildUnitPositionMap(unit.faction);
-      const mov = unit.mov ?? unit.stats?.MOV ?? 0;
+      const mov = isRooted(unit) ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0);
       const moveRange = scene.grid.getMovementRange(
         unit.col,
         unit.row,

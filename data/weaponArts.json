@@ -6,7 +6,7 @@
     "notes": [
       "MVP uses HP cost only; no durability/stamina costs yet.",
       "Player-only command flow lands in a follow-up scene update.",
-      "Deferred mechanics (multiHit, postCombatMove, drainPercent, etc.) use placeholder stat bonuses until Tier 2+ implementation."
+      "All catalog mechanics are implemented; structured effects live in each art's effects/combatMods blocks (no deferred placeholders remain)."
     ]
   },
   "arts": [
@@ -1098,11 +1098,19 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A pinning shot that roots the target in place for 1 turn. (Placeholder: +15 Hit, +5 Atk until inflictStatus lands.)",
-      "_deferredMechanic": "inflictStatus(Root)",
+      "description": "A pinning shot that roots the target in place for 1 turn. +10 Hit.",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "status",
+            "target": "defender",
+            "status": "root",
+            "duration": 1
+          }
+        ]
+      },
       "combatMods": {
-        "hitBonus": 15,
-        "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1121,11 +1129,19 @@
       "hpCost": 4,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A warding shot that silences the target's magic for 1 turn. (Placeholder: +15 Hit, +5 Atk until inflictStatus lands.)",
-      "_deferredMechanic": "inflictStatus(Silence)",
+      "description": "A warding shot that silences the target for 1 turn: no magic, staves, or skills. +10 Hit.",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "status",
+            "target": "defender",
+            "status": "silence",
+            "duration": 1
+          }
+        ]
+      },
       "combatMods": {
-        "hitBonus": 15,
-        "atkBonus": 5,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1264,12 +1280,13 @@
       "hpCost": 7,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss. (Placeholder: +15 Atk, -10 Hit until special mechanic lands.)",
+      "description": "A desperate gambit: 2x damage on hit, 5 self-damage on miss (cannot be fatal).",
       "allowedFactions": ["player"],
-      "_deferredMechanic": "special(2x on hit/5 self-dmg on miss)",
+      "effects": {
+        "selfDamageOnMiss": 5
+      },
       "combatMods": {
-        "atkBonus": 15,
-        "hitBonus": -10,
+        "damageMultiplier": 2,
         "activated": [
           {
             "id": "weapon_art",
@@ -1552,13 +1569,20 @@
       "hpCost": 8,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A disruptive blast that shuts down the target's abilities for 2 turns. (Placeholder: +8 Atk, +10 Hit, +10 Crit until inflictStatus lands.)",
+      "description": "A disruptive blast that silences the target for 2 turns: no magic, staves, or skills. +10 Hit.",
       "allowedFactions": ["player"],
-      "_deferredMechanic": "inflictStatus(full shutdown 2T)",
+      "effects": {
+        "afterCombat": [
+          {
+            "type": "status",
+            "target": "defender",
+            "status": "silence",
+            "duration": 2
+          }
+        ]
+      },
       "combatMods": {
-        "atkBonus": 8,
         "hitBonus": 10,
-        "critBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1979,7 +2003,6 @@
       "legendaryWeaponIds": [
         "Gae Bolg"
       ],
-      "_deferredMechanic": "allyBuff(+5 STR)",
       "effects": {
         "allyBuff": {
           "range": 2,
@@ -2025,7 +2048,6 @@
       "legendaryWeaponIds": [
         "Stormbreaker"
       ],
-      "_deferredMechanic": "aoeSplash(2-tile fixed dmg)",
       "effects": {
         "aoeSplash": {
           "radius": 2,
@@ -2059,17 +2081,26 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "A devastating strike bound to Ruin. Massive power at cost of accuracy, ignores weapon triangle.",
+      "description": "A devastating strike bound to Ruin. Massive power at cost of accuracy, ignores the weapon triangle. Slaying a foe grants +4 STR/+4 SPD until your next turn.",
       "allowedFactions": [
         "player"
       ],
       "legendaryWeaponIds": [
         "Ruin"
       ],
-      "_deferredMechanic": "ignoreWeaponTriangle, killBuff",
+      "effects": {
+        "killBuff": {
+          "durationPhases": 1,
+          "stats": {
+            "STR": 4,
+            "SPD": 4
+          }
+        }
+      },
       "combatMods": {
         "atkBonus": 16,
         "hitBonus": -10,
+        "ignoreWeaponTriangle": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -2099,7 +2130,6 @@
       "legendaryWeaponIds": [
         "Excalibur"
       ],
-      "_deferredMechanic": "aoeSplash",
       "effects": {
         "aoeSplash": {
           "radius": 1,
@@ -2147,7 +2177,6 @@
       "legendaryWeaponIds": [
         "Bolting"
       ],
-      "_deferredMechanic": "aoeSplash(2-tile)",
       "effects": {
         "aoeSplash": {
           "radius": 2,
@@ -2189,10 +2218,22 @@
       "legendaryWeaponIds": [
         "Luce"
       ],
-      "_deferredMechanic": "ignoreRES, effective vs dark",
       "combatMods": {
         "atkBonus": 10,
         "hitBonus": 10,
+        "ignoreRES": true,
+        "effectiveness": {
+          "classNames": [
+            "Dark Knight",
+            "Warlock",
+            "Zombie",
+            "Revenant",
+            "Dragon",
+            "Dragon Lord",
+            "Entity"
+          ],
+          "multiplier": 3
+        },
         "activated": [
           {
             "id": "weapon_art",

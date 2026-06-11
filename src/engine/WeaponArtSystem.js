@@ -126,9 +126,11 @@ function normalizeEffectiveness(value) {
   const moveTypes = [
     ...new Set(rawMoveTypes.map((entry) => toNonEmptyString(entry)?.toLowerCase()).filter(Boolean)),
   ];
+  const rawClassNames = Array.isArray(value.classNames) ? value.classNames : [];
+  const classNames = [...new Set(rawClassNames.map(toNonEmptyString).filter(Boolean))];
   const multiplier = Math.max(1, Math.trunc(toFiniteNumber(value.multiplier, 1)));
-  if (moveTypes.length <= 0 || multiplier <= 1) return null;
-  return { moveTypes, multiplier };
+  if ((moveTypes.length <= 0 && classNames.length <= 0) || multiplier <= 1) return null;
+  return { moveTypes, classNames, multiplier };
 }
 
 function normalizeRangeOverride(value) {
@@ -158,9 +160,16 @@ function normalizeDrainPercent(value) {
   return n > 0 ? n : null;
 }
 
+function normalizeDamageMultiplier(value) {
+  const n = toFiniteNumber(value, 0);
+  return n > 1 ? n : null;
+}
+
 const VALID_TIER2_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through']);
 const VALID_TIER2_DEBUFF_STATS = new Set(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK', 'MOV']);
 const VALID_TIER5_SPLASH_BASIS = new Set(['first_landed_strike']);
+// Conditions weapon arts may inflict (must exist in STATUS_CONDITIONS)
+const VALID_ART_STATUS_IDS = new Set(['root', 'silence', 'sleep', 'acid']);
 
 function normalizeTier2Target(value) {
   const token = toNonEmptyString(value)?.toLowerCase();
@@ -213,6 +222,19 @@ function normalizeTier2PierceEffect(effect) {
   if (rawMaxTargets <= 0) return null;
   // Tier 2 pierce currently supports exactly one unit behind the primary target.
   return { target, maxTargets: 1 };
+}
+
+function normalizeTier2StatusEffect(effect) {
+  if (!effect || typeof effect !== 'object') return null;
+  const target = normalizeTier2Target(effect.target);
+  if (!target) return null;
+  const status = toNonEmptyString(effect.status)?.toLowerCase();
+  if (!status || !VALID_ART_STATUS_IDS.has(status)) return null;
+  // duration = full phases the condition persists. Recovery decrements at the
+  // start of the afflicted side's phase BEFORE the unit acts, so the runtime
+  // stores duration + 1 turns.
+  const durationPhases = Math.max(1, Math.trunc(toFiniteNumber(effect.duration, 1)));
+  return { target, status, durationPhases };
 }
 
 function normalizeTier2SetHpEffect(effect) {
@@ -292,6 +314,7 @@ export function getWeaponArtTier2Effects(art) {
     pierceThrough: [],
     postCombatMove: [],
     setHp: [],
+    inflictStatus: [],
   };
 
   const afterCombatEffects = Array.isArray(art?.effects?.afterCombat)
@@ -322,10 +345,44 @@ export function getWeaponArtTier2Effects(art) {
     if (type === 'set_hp') {
       const normalized = normalizeTier2SetHpEffect(effect);
       if (normalized) out.setHp.push(normalized);
+      continue;
+    }
+    if (type === 'status') {
+      const normalized = normalizeTier2StatusEffect(effect);
+      if (normalized) out.inflictStatus.push(normalized);
     }
   }
 
   return out;
+}
+
+/** Self-damage the art user takes per missed strike (All or Nothing). */
+export function getWeaponArtMissEffects(art) {
+  const selfDamageOnMiss = Math.max(
+    0,
+    Math.trunc(toFiniteNumber(art?.effects?.selfDamageOnMiss, 0)),
+  );
+  return { selfDamageOnMiss: selfDamageOnMiss > 0 ? selfDamageOnMiss : null };
+}
+
+/** Timed self-buff granted when the art user's combat kills the opponent (Annihilate). */
+export function getWeaponArtKillEffects(art) {
+  const raw = art?.effects?.killBuff;
+  if (!raw || typeof raw !== 'object') return { killBuff: null };
+  const durationPhases = Math.max(1, Math.trunc(toFiniteNumber(raw.durationPhases, 1)));
+  const rawStats = raw.stats;
+  if (!rawStats || typeof rawStats !== 'object' || Array.isArray(rawStats))
+    return { killBuff: null };
+  const stats = {};
+  for (const [rawStat, rawValue] of Object.entries(rawStats)) {
+    const stat = toNonEmptyString(rawStat)?.toUpperCase();
+    if (!stat) continue;
+    const value = Math.trunc(toFiniteNumber(rawValue, 0));
+    if (value === 0) continue;
+    stats[stat] = value;
+  }
+  if (Object.keys(stats).length <= 0) return { killBuff: null };
+  return { killBuff: { durationPhases, stats } };
 }
 
 export function getWeaponArtTier5Effects(art) {
@@ -464,6 +521,9 @@ export function getWeaponArtCombatMods(art) {
     ignoreTerrainAvoid: Boolean(mods.ignoreTerrainAvoid),
     multiHit: normalizeMultiHit(mods.multiHit),
     drainPercent: normalizeDrainPercent(mods.drainPercent),
+    damageMultiplier: normalizeDamageMultiplier(mods.damageMultiplier),
+    ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
+    ignoreRES: Boolean(mods.ignoreRES),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }

@@ -8,14 +8,20 @@ import {
 
 // --- Condition storage helpers ---
 
-export function applyCondition(unit, conditionId, turnsRemaining) {
+export function applyCondition(unit, conditionId, turnsRemaining, options = {}) {
   if (!unit || !conditionId) return;
   const config = STATUS_CONDITIONS[conditionId];
   if (!config) return;
   if (!Array.isArray(unit._conditions)) unit._conditions = [];
   // Don't stack — replace existing condition of same type
   unit._conditions = unit._conditions.filter((c) => c.id !== conditionId);
-  unit._conditions.push({ id: conditionId, turnsRemaining: turnsRemaining ?? config.maxTurns });
+  const condition = { id: conditionId, turnsRemaining: turnsRemaining ?? config.maxTurns };
+  // Per-instance recovery override (weapon arts inflict deterministic durations;
+  // staves keep the config's random early-recovery chance)
+  if (typeof options.recoveryChance === 'number') {
+    condition.recoveryChance = Math.max(0, Math.min(1, options.recoveryChance));
+  }
+  unit._conditions.push(condition);
 }
 
 export function removeCondition(unit, conditionId) {
@@ -48,6 +54,10 @@ export function isSilenced(unit) {
 
 export function isAcidPoisoned(unit) {
   return hasCondition(unit, 'acid');
+}
+
+export function isRooted(unit) {
+  return hasCondition(unit, 'root');
 }
 
 // --- Weapon classification ---
@@ -96,7 +106,10 @@ export function processConditionRecovery(units, rng = Math.random) {
     for (const cond of unit._conditions) {
       cond.turnsRemaining = (cond.turnsRemaining ?? 1) - 1;
       const config = STATUS_CONDITIONS[cond.id];
-      const chance = config?.recoveryChance ?? 0;
+      const chance =
+        typeof cond.recoveryChance === 'number'
+          ? cond.recoveryChance
+          : (config?.recoveryChance ?? 0);
       if (cond.turnsRemaining <= 0 || rng() < chance) {
         recovered.push(cond.id);
       }

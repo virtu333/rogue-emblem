@@ -18,7 +18,7 @@ Organized by impact and logical sequencing:
 6a. ~~**Wave 1 Stabilization Gate**~~ - Audio overlap, scene-transition spam, save/cloud correctness
 6b. ~~**Wave 2 Low-Risk Content**~~ - Enemy affixes, recruit naming/dialogue scaffold
 6c. ~~**Wave 3B Convoy MVP + Wave 3A Wyvern Foundation**~~ - Convoy 5+5 slots, Wyvern classes, enemy/recruit pools
-6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - now advanced to 60 arts with shipped mechanics; 15 deferred-placeholder arts remain in the 75-art catalog
+6d. ~~**Wave 4 Weapon Arts (phases 1-2)**~~ - all 75 catalog arts now have shipped mechanics; final deferred placeholders (Tier 3 status + bespoke trio) closed Jun 2026 (`docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md`)
 6e. ~~**Scene-Router + transition hardening**~~ - SceneRouter, SceneGuard, cleanup audits, leak-gate e2e
 7. ~~**Act 4 Hard-Mode Acceleration**~~ - All 4 phases shipped (contract alignment, terrain hazards, Act 4 progression, reinforcement system). See `docs/act4-hardmode-rollout-plan.md`.
 8. ~~**Recruit Promotion + Castle Biome**~~ - Context-aware recruit promotion at recruit/boss nodes, indoor terrain (Floor/Pillar/Ballista), 3 castle templates, biome selection logic
@@ -154,7 +154,7 @@ QA evidence (Feb 12, 2026):
 - **Wave 3B (Convoy MVP):** core convoy model + persistence, overflow routing, node/deploy access UI, and defensive transaction hardening are now on `main`. Remaining follow-up is cap tuning + incremental UX polish.
 - **Wave 3A (Wyvern Foundation, Reclass Deferred):** Wyvern classes, enemy pool/recruit integration, and loot table compatibility are on `main`; class-state hardening for promotion/save-load paths is also landed (moveType/proficiency normalization + legal weapon relink). Remaining work is movement/pathing QA polish and sprite finalization. Defer Second Seal/Reclass.
   - TEMP: Wyvern Rider/Lord battle sprites currently use split blue/red placeholder art. Replace with finalized class-specific sprite set in Wave 3A polish.
-- **Wave 4 (Weapon Arts):** Phase 1-4 execution is largely complete. 60 weapon arts are fully implemented in the 75-art runtime catalog, with 15 deferred-placeholder mechanics remaining (Tier 2 legendary follow-up, Tier 3 status, Tier 5 AoE/ally buff, and bespoke entries) (`docs/reports/weapon_arts_next_mechanics_plan_2026-02-16.md`, `docs/weapon-arts-expansion-status.md`). Data contract + combat/menu flow + forecast parity + act/meta unlock progression are shipped. Home Base informational Arts tab was intentionally removed to reduce UI clutter. Difficulty-aware enemy art usage frequency tuning and polish wrap-up hardening landed. Phase 1 catalog expansion (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`) and Phase 2 tactical-depth implementation (effectiveness/no-counter/range modifiers, 12 additional arts) both shipped.
+- **Wave 4 (Weapon Arts):** Complete. All 75 catalog arts have fully implemented mechanics; the final deferred placeholders (Tier 3 on-hit status, All or Nothing gambit, Annihilate triangle-ignore/kill-buff, Divine Flare RES-pierce/dark-effectiveness) closed Jun 2026 (`docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md`, `docs/weapon-arts-expansion-status.md`). Data contract + combat/menu flow + forecast parity + act/meta unlock progression are shipped. Home Base informational Arts tab was intentionally removed to reduce UI clutter. Difficulty-aware enemy art usage frequency tuning and polish wrap-up hardening landed. Phase 1 catalog expansion (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`) and Phase 2 tactical-depth implementation (effectiveness/no-counter/range modifiers, 12 additional arts) both shipped.
 - **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `docs/references/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
 - **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
 
@@ -337,7 +337,7 @@ All phases complete on `main` as of Feb 15, 2026.
 7. ~~**Wave 1.5 Reliability Hardening**~~ [done] SceneRouter + transition leak + crash traceability
 8. ~~**Wave 2 Low-Risk Content**~~ [done] Enemy affixes + recruit naming scaffold
 9. ~~**Wave 3B**~~ [done] Convoy MVP -> ~~**Wave 3A**~~ [done] Wyvern foundation (reclass deferred)
-10. ~~**Wave 4**~~ [in polish] Weapon Arts phases 1-4 mostly complete (60 arts shipped mechanics, 75 total catalog entries with 15 deferred placeholders)
+10. ~~**Wave 4**~~ [done] Weapon Arts complete — all 75 catalog arts have shipped mechanics (deferred placeholders closed Jun 2026)
 11. ~~**Act 4 Hard-Mode Acceleration**~~ [done] All 4 phases shipped on `main` (Feb 15, 2026). See `docs/act4-hardmode-rollout-plan.md`
 12. **Dynamic Recruit Nodes** — Roster-aware recruit frequency (after Act 4)
 13. **Difficulty Follow-up (Part B+)** -> Status Staves -> Additional Objectives (Defend/Survive/Escape) -> Secret Act -> Meta Expansion

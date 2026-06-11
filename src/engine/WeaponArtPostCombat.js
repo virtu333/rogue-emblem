@@ -1,9 +1,15 @@
-import { getWeaponArtTier2Effects, getWeaponArtTier5Effects } from './WeaponArtSystem.js';
+import {
+  getWeaponArtTier2Effects,
+  getWeaponArtTier5Effects,
+  getWeaponArtMissEffects,
+  getWeaponArtKillEffects,
+} from './WeaponArtSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
   'afterCombatDamage',
   'afterCombatDebuff',
+  'inflictStatus',
   'pierceThrough',
   'postCombatMove',
   'setHp',
@@ -48,6 +54,22 @@ export function getFirstLandedStrikeDamage(events, side, attacker = null, defend
     return Math.max(0, Math.trunc(Number(event.damage) || 0));
   }
   return 0;
+}
+
+export function getMissedStrikeCount(events, side, attacker = null, defender = null) {
+  if (!Array.isArray(events)) return 0;
+  const fallbackName = getFallbackNameForSide(side, attacker, defender);
+  let count = 0;
+  for (const event of events) {
+    if (event?.type !== 'strike' || !event?.miss) continue;
+    if (event.attackerSide === 'attacker' || event.attackerSide === 'defender') {
+      if (event.attackerSide !== side) continue;
+    } else if (fallbackName === null || event.attacker !== fallbackName) {
+      continue;
+    }
+    count += 1;
+  }
+  return count;
 }
 
 export function getLandedStrikeDamages(events, side, attacker = null, defender = null) {
@@ -150,6 +172,16 @@ export function getPostCombatPipelineSteps({
           });
           continue;
         }
+        if (effectType === 'inflictStatus') {
+          steps.push({
+            type: 'tier2_status',
+            sourceSide: side,
+            targetSide: resolveRelativeTargetSide(side, effect.target),
+            status: effect.status,
+            durationPhases: effect.durationPhases,
+          });
+          continue;
+        }
         if (effectType === 'pierceThrough') {
           steps.push({
             type: 'tier2_pierce',
@@ -178,6 +210,39 @@ export function getPostCombatPipelineSteps({
         });
       }
     }
+  }
+
+  // All or Nothing: self-damage per missed strike by the art user (not hit-gated)
+  for (const side of SIDE_ORDER) {
+    const art = artsBySide[side];
+    const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
+    if (!selfDamageOnMiss) continue;
+    const missCount = getMissedStrikeCount(result?.events, side, attacker, defender);
+    if (missCount <= 0) continue;
+    steps.push({
+      type: 'art_miss_self_damage',
+      sourceSide: side,
+      targetSide: side,
+      amount: selfDamageOnMiss * missCount,
+      nonLethal: true,
+    });
+  }
+
+  // Annihilate: timed self-buff if the art user's combat killed the opponent.
+  // Death is checked at application time (after earlier steps resolve).
+  for (const side of SIDE_ORDER) {
+    if (!hitBySide[side]) continue;
+    const art = artsBySide[side];
+    const { killBuff } = getWeaponArtKillEffects(art);
+    if (!killBuff) continue;
+    steps.push({
+      type: 'art_kill_buff',
+      sourceSide: side,
+      targetSide: getOpposingSide(side),
+      artId: art?.id || null,
+      durationPhases: killBuff.durationPhases,
+      stats: { ...killBuff.stats },
+    });
   }
 
   for (const side of SIDE_ORDER) {

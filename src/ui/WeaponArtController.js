@@ -5,6 +5,9 @@ import {
   getEffectiveWeaponArtHpCost,
   isWeaponArtCompatibleWithWeapon,
   getWeaponArtCombatMods,
+  getWeaponArtTier2Effects,
+  getWeaponArtMissEffects,
+  getWeaponArtKillEffects,
 } from '../engine/WeaponArtSystem.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
 import { equipWeapon } from '../engine/UnitManager.js';
@@ -403,6 +406,9 @@ export class WeaponArtController {
     const rangeOverrideScore = mods.rangeOverride
       ? (Math.max(mods.rangeOverride.min, mods.rangeOverride.max) - 1) * 1.5
       : 0;
+    const statusCount = getWeaponArtTier2Effects(art).inflictStatus.length;
+    const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
+    const { killBuff } = getWeaponArtKillEffects(art);
     return (
       mods.atkBonus * 3 +
       mods.hitBonus * 0.35 +
@@ -416,7 +422,13 @@ export class WeaponArtController {
       (mods.preventCounter ? 3.5 : 0) +
       (mods.targetsRES ? 2.5 : 0) +
       (mods.halfPhysicalDamage ? 2.5 : 0) +
-      (mods.vengeance ? 4 : 0) -
+      (mods.vengeance ? 4 : 0) +
+      statusCount * 3 +
+      (mods.damageMultiplier > 1 ? (mods.damageMultiplier - 1) * 6 : 0) +
+      (mods.ignoreWeaponTriangle ? 1.5 : 0) +
+      (mods.ignoreRES ? 3 : 0) +
+      (killBuff ? 1 : 0) -
+      (selfDamageOnMiss ? selfDamageOnMiss * 0.3 : 0) -
       hpCost * 0.75
     );
   }

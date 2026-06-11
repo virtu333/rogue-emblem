@@ -1,4 +1,9 @@
-import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
+import {
+  getWeaponArtIds,
+  getWeaponArtTier2Effects,
+  getWeaponArtMissEffects,
+  getWeaponArtKillEffects,
+} from '../engine/WeaponArtSystem.js';
 
 const WEAPON_ART_ACT_ID_RE = /^act(\d+)$/i;
 
@@ -122,12 +127,37 @@ export function summarizeWeaponArtEffect(art) {
     pushSigned('Range', mods.rangeBonus);
   }
   if (mods.effectiveness?.multiplier > 1) {
-    const targets = Array.isArray(mods.effectiveness.moveTypes)
-      ? mods.effectiveness.moveTypes.join('/')
-      : 'target';
+    const moveTypes = Array.isArray(mods.effectiveness.moveTypes)
+      ? mods.effectiveness.moveTypes
+      : [];
+    const classNames = Array.isArray(mods.effectiveness.classNames)
+      ? mods.effectiveness.classNames
+      : [];
+    let targets = 'target';
+    if (moveTypes.length > 0) targets = moveTypes.join('/');
+    else if (classNames.length > 2) targets = 'dark foes';
+    else if (classNames.length > 0) targets = classNames.join('/');
     chunks.push(`${mods.effectiveness.multiplier}x vs ${targets}`);
   }
   if (mods.ignoreTerrainAvoid) chunks.push('Ignores terrain avoid');
+  if (toNumber(mods.damageMultiplier, 0) > 1) chunks.push(`${mods.damageMultiplier}x damage`);
+  if (mods.ignoreWeaponTriangle) chunks.push('Ignores triangle');
+  if (mods.ignoreRES) chunks.push('Ignores RES');
+  for (const status of getWeaponArtTier2Effects(art).inflictStatus) {
+    const verbByStatus = { root: 'Roots', silence: 'Silences', sleep: 'Sleeps', acid: 'Acids' };
+    const verb = verbByStatus[status.status] || `Inflicts ${status.status} on`;
+    const turnsLabel = status.durationPhases === 1 ? '1 turn' : `${status.durationPhases} turns`;
+    chunks.push(`${verb} target ${turnsLabel}`);
+  }
+  const { selfDamageOnMiss } = getWeaponArtMissEffects(art);
+  if (selfDamageOnMiss) chunks.push(`${selfDamageOnMiss} self-dmg on miss`);
+  const { killBuff } = getWeaponArtKillEffects(art);
+  if (killBuff) {
+    const statsLabel = Object.entries(killBuff.stats)
+      .map(([stat, value]) => `+${value} ${stat}`)
+      .join('/');
+    chunks.push(`On kill: ${statsLabel} (1 turn)`);
+  }
   if (chunks.length > 0) return chunks.join(', ');
   if (art?.description) return art.description;
   return 'No combat modifier';

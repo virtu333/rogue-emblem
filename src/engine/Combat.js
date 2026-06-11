@@ -7,6 +7,7 @@ import {
   CRIT_MULTIPLIER,
   STAFF_BONUS_USE_THRESHOLDS,
   ZOMBIE_CLASSES,
+  DARK_CLASSES,
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
 } from '../utils/constants.js';
@@ -42,9 +43,15 @@ function normalizeCombatEffectiveness(value) {
         .filter(Boolean),
     ),
   ];
+  const rawClassNames = Array.isArray(value.classNames) ? value.classNames : [];
+  const classNames = [
+    ...new Set(
+      rawClassNames.map((entry) => (typeof entry === 'string' ? entry.trim() : '')).filter(Boolean),
+    ),
+  ];
   const multiplier = Math.max(1, Math.trunc(Number(value.multiplier) || 1));
-  if (moveTypes.length <= 0 || multiplier <= 1) return null;
-  return { moveTypes, multiplier };
+  if ((moveTypes.length <= 0 && classNames.length <= 0) || multiplier <= 1) return null;
+  return { moveTypes, classNames, multiplier };
 }
 
 function normalizeCombatRangeOverride(value) {
@@ -76,6 +83,11 @@ function normalizeCombatDrainPercent(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function normalizeCombatDamageMultiplier(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 1 ? n : null;
+}
+
 function mergeCombatEffectiveness(baseValue, extraValue) {
   const base = normalizeCombatEffectiveness(baseValue);
   const extra = normalizeCombatEffectiveness(extraValue);
@@ -84,6 +96,7 @@ function mergeCombatEffectiveness(baseValue, extraValue) {
   if (!extra) return base;
   return {
     moveTypes: [...new Set([...base.moveTypes, ...extra.moveTypes])],
+    classNames: [...new Set([...(base.classNames || []), ...(extra.classNames || [])])],
     multiplier: Math.max(base.multiplier, extra.multiplier),
   };
 }
@@ -91,12 +104,26 @@ function mergeCombatEffectiveness(baseValue, extraValue) {
 function getArtEffectivenessMultiplier(mods, defender) {
   const effectiveness = mods?.effectiveness;
   if (!effectiveness) return 1;
+  const multiplier = Math.max(1, Math.trunc(Number(effectiveness.multiplier) || 1));
+  if (multiplier <= 1) return 1;
   const defenderType =
     typeof defender?.moveType === 'string' ? defender.moveType.trim().toLowerCase() : '';
-  if (!defenderType) return 1;
-  if (!Array.isArray(effectiveness.moveTypes) || effectiveness.moveTypes.length <= 0) return 1;
-  if (!effectiveness.moveTypes.includes(defenderType)) return 1;
-  return Math.max(1, Math.trunc(Number(effectiveness.multiplier) || 1));
+  if (
+    defenderType &&
+    Array.isArray(effectiveness.moveTypes) &&
+    effectiveness.moveTypes.includes(defenderType)
+  ) {
+    return multiplier;
+  }
+  const defenderClass = typeof defender?.className === 'string' ? defender.className : '';
+  if (
+    defenderClass &&
+    Array.isArray(effectiveness.classNames) &&
+    effectiveness.classNames.includes(defenderClass)
+  ) {
+    return multiplier;
+  }
+  return 1;
 }
 
 function getCombinedEffectivenessMultiplier(weapon, defender, mods = null) {
@@ -157,6 +184,9 @@ function normalizeCombatMods(mods) {
     preventEnemyDouble: Boolean(mods.preventEnemyDouble),
     multiHit: normalizeCombatMultiHit(mods.multiHit),
     drainPercent: normalizeCombatDrainPercent(mods.drainPercent),
+    damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
+    ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
+    ignoreRES: Boolean(mods.ignoreRES),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }
@@ -192,6 +222,12 @@ export function mergeCombatMods(baseMods, extraMods) {
     preventEnemyDouble: base.preventEnemyDouble || extra.preventEnemyDouble,
     multiHit: extra.multiHit || base.multiHit,
     drainPercent: Math.max(base.drainPercent || 0, extra.drainPercent || 0) || null,
+    damageMultiplier:
+      Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0) > 1
+        ? Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0)
+        : null,
+    ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
+    ignoreRES: base.ignoreRES || extra.ignoreRES,
     activated: [...base.activated, ...extra.activated],
   };
 }
@@ -232,6 +268,8 @@ export function getEffectivenessMultiplier(weapon, defender) {
   // Light magic is effective against undead (zombie) classes
   if (weapon?.type === 'Light' && ZOMBIE_CLASSES.has(defender.className)) return 3;
   if (!weapon?.special) return 1;
+  // Class-based effectiveness: "Effective vs dark enemies" (e.g. Luce)
+  if (/Effective vs dark/i.test(weapon.special) && DARK_CLASSES.has(defender.className)) return 3;
   const match = weapon.special.match(/Effective vs ([^()]+)\s*\((\d+)x\)/i);
   if (!match) return 1;
   const defenderMoveType = normalizeMoveType(defender.moveType);
@@ -613,9 +651,10 @@ export function calculateDamage(
   isInitiating = true,
   options = null,
 ) {
-  const triangle = defWeapon
-    ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
-    : { hit: 0, damage: 0 };
+  const triangle =
+    defWeapon && !options?.ignoreTriangle
+      ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
+      : { hit: 0, damage: 0 };
   const targetsRES = Boolean(options?.targetsRES);
   const effectivenessMultiplier = Number(options?.effectivenessMultiplier);
   const atk = calculateAttack(
@@ -629,6 +668,10 @@ export function calculateDamage(
   let def = targetsRES ? Number(defender?.stats?.RES) || 0 : calculateDefense(defender, atkWeapon);
   if (!targetsRES && hasSunderEffect(atkWeapon)) {
     def = Math.floor(def / 2);
+  }
+  // Divine Flare: RES-targeting strikes pierce resistance entirely
+  if (options?.ignoreRES && (targetsRES || usesMagic(atkWeapon))) {
+    def = 0;
   }
   const terrainDef = getTerrainBonus(defender, defenderTerrain, 'defBonus');
   const result = Math.max(0, atk - def - terrainDef);
@@ -708,9 +751,12 @@ export function getCombatForecast(
   const atkMultiHit = atkMods?.multiHit || null;
   const defMultiHit = defMods?.multiHit || null;
 
-  const atkTriangle = defWeapon
-    ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
-    : { hit: 0, damage: 0 };
+  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  const fIgnoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
+  const atkTriangle =
+    defWeapon && !fIgnoreTriangle
+      ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
+      : { hit: 0, damage: 0 };
 
   // Weapon stat bonuses (e.g. Ragnarok +5 DEF, Stormbreaker +5 DEF +5 RES)
   // Pick the relevant defensive bonus based on incoming weapon type
@@ -729,6 +775,8 @@ export function getCombatForecast(
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
       targetsRES: atkMods?.targetsRES,
       effectivenessMultiplier: atkEffectiveness,
+      ignoreTriangle: fIgnoreTriangle,
+      ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
       (defMods?.defBonus || 0) -
@@ -738,6 +786,7 @@ export function getCombatForecast(
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
+  if (atkMods?.damageMultiplier > 1) atkDmg = Math.floor(atkDmg * atkMods.damageMultiplier);
   atkDmg = Math.max(0, atkDmg);
   if (atkMultiHit) atkDmg = Math.max(1, Math.floor(atkDmg * atkMultiHit.damageMultiplier));
   let atkHit =
@@ -796,7 +845,9 @@ export function getCombatForecast(
     defCount = 0;
 
   if (defCanCounter) {
-    const defTriangle = getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
+    const defTriangle = fIgnoreTriangle
+      ? { hit: 0, damage: 0 }
+      : getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank);
     const atkTerrainForDefHit = defMods?.ignoreTerrainAvoid ? null : atkTerrain;
     const defEffectiveness = getCombinedEffectivenessMultiplier(defWeapon, attacker, defMods);
     defDmg = Math.max(
@@ -804,6 +855,8 @@ export function getCombatForecast(
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
         targetsRES: defMods?.targetsRES,
         effectivenessMultiplier: defEffectiveness,
+        ignoreTriangle: fIgnoreTriangle,
+        ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
         (atkMods?.defBonus || 0) -
@@ -813,6 +866,7 @@ export function getCombatForecast(
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
+    if (defMods?.damageMultiplier > 1) defDmg = Math.floor(defDmg * defMods.damageMultiplier);
     defDmg = Math.max(0, defDmg);
     if (defMultiHit) defDmg = Math.max(1, Math.floor(defDmg * defMultiHit.damageMultiplier));
     defHit =
@@ -1137,12 +1191,16 @@ export function resolveCombat(
     : 0;
 
   // Pre-compute all the static combat values (with skill mods applied)
-  const atkTriangle = defWeapon
-    ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
-    : { hit: 0, damage: 0 };
-  const defTriangle = defWeapon
-    ? getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank)
-    : { hit: 0, damage: 0 };
+  // Annihilate: either side's art neutralizes the weapon triangle for the whole combat
+  const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
+  const atkTriangle =
+    defWeapon && !ignoreTriangle
+      ? getWeaponTriangleBonus(atkWeapon, defWeapon, attacker.weaponRank)
+      : { hit: 0, damage: 0 };
+  const defTriangle =
+    defWeapon && !ignoreTriangle
+      ? getWeaponTriangleBonus(defWeapon, atkWeapon, defender.weaponRank)
+      : { hit: 0, damage: 0 };
 
   const defTerrainForAtkHit = atkMods?.ignoreTerrainAvoid ? null : defTerrain;
   const atkEffectiveness = getCombinedEffectivenessMultiplier(atkWeapon, defender, atkMods);
@@ -1151,6 +1209,8 @@ export function resolveCombat(
     calculateDamage(attacker, atkWeapon, defender, defWeapon, defTerrain, true, {
       targetsRES: atkMods?.targetsRES,
       effectivenessMultiplier: atkEffectiveness,
+      ignoreTriangle,
+      ignoreRES: atkMods?.ignoreRES,
     }) +
       (atkMods?.atkBonus || 0) -
       (defMods?.defBonus || 0) -
@@ -1160,6 +1220,7 @@ export function resolveCombat(
   atkDmg += getCombatStatScalingBonus(attacker, atkMods);
   if (atkMods?.vengeance) atkDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkDmg = Math.floor(atkDmg / 2);
+  if (atkMods?.damageMultiplier > 1) atkDmg = Math.floor(atkDmg * atkMods.damageMultiplier);
   atkDmg = Math.max(0, atkDmg);
   let atkHit = Math.max(
     0,
@@ -1235,6 +1296,8 @@ export function resolveCombat(
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
         targetsRES: defMods?.targetsRES,
         effectivenessMultiplier: defEffectiveness,
+        ignoreTriangle,
+        ignoreRES: defMods?.ignoreRES,
       }) +
         (defMods?.atkBonus || 0) -
         (atkMods?.defBonus || 0) -
@@ -1244,6 +1307,7 @@ export function resolveCombat(
     defDmg += getCombatStatScalingBonus(defender, defMods);
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
+    if (defMods?.damageMultiplier > 1) defDmg = Math.floor(defDmg * defMods.damageMultiplier);
     defDmg = Math.max(0, defDmg);
     defHit = Math.max(
       0,

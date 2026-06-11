@@ -6,7 +6,7 @@
 import { gridDistance, isInRange, getWeaponTriangleBonus, isMagical } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
-import { hasCondition, parseStaffRange } from './StatusConditionSystem.js';
+import { hasCondition, isRooted, parseStaffRange } from './StatusConditionSystem.js';
 import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
@@ -201,10 +201,12 @@ export class AIController {
     }
 
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);
+    // Rooted units cannot move; current tile stays a candidate so they can
+    // still attack/staff from in place.
     const moveRange = this.grid.getMovementRange(
       enemy.col,
       enemy.row,
-      enemy.mov,
+      isRooted(enemy) ? 0 : enemy.mov,
       enemy.moveType,
       unitPositions,
       enemy.faction,
@@ -766,7 +768,7 @@ export class AIController {
       this.grid.getMovementRange(
         enemy.col,
         enemy.row,
-        enemy.mov || enemy.stats?.MOV || 5,
+        isRooted(enemy) ? 0 : enemy.mov || enemy.stats?.MOV || 5,
         enemy.moveType,
         unitPositions,
         enemy.faction,
