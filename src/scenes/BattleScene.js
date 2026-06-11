@@ -302,6 +302,7 @@ export class BattleScene extends Phaser.Scene {
     this.pendingVisionSnapshot = null;
     this.visionDialog = null;
     this.visionBaseSeed = null;
+    this._standaloneVisionState = null;
     this._battleRandomRestore = null;
     this.isMobileInput = false;
     this.mobileCameraEnabled = false;
@@ -327,6 +328,8 @@ export class BattleScene extends Phaser.Scene {
     this._tutorialEdricGuide = null;
     this._tutorialFortGuide = null;
     this._tutorialVisionIntroShown = false;
+    this._tutorialPermadeathHintShown = false;
+    this._tutorialLordRewindPromptPending = null;
     this._storyDialogueActive = false;
     this._bossName = null;
     this._postLootTransitionStarted = false;
@@ -1896,9 +1899,67 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _getVisionRewindIntroHint() {
-    return this.isMobileInput
-      ? 'Use the Eye button to spend 1 Vision and rewind the current turn if you want.\nYou do not have to use it.'
-      : 'Use Eye [R] to spend 1 Vision and rewind the current turn if you want.\nYou do not have to use it.';
+    const eyeRef = this.isMobileInput ? 'The Eye button' : 'The Eye [R]';
+    return (
+      `${eyeRef} spends 1 Vision to rewind the current turn.\n` +
+      'In a real run you start with Vision charges.\n' +
+      'Here you have none -- but fate may grant one if a lord falls.'
+    );
+  }
+
+  /**
+   * Tutorial one-time lesson: the first time a non-commander lord takes a hit
+   * and survives, explain permadeath and the commander-loss rule.
+   */
+  async _maybeShowTutorialPermadeathHint(unit, tookDamage) {
+    if (!this.battleParams?.tutorialMode || this._tutorialPermadeathHintShown) return;
+    if (!tookDamage || !unit || unit.faction !== 'player' || unit.isCommander) return;
+    if (unit.currentHP <= 0) return; // death has its own flow
+    this._tutorialPermadeathHintShown = true;
+    await this._withTutorialHintState(async () => {
+      await showImportantHint(
+        this,
+        `${unit.name} took a hit! If a unit falls, they are gone --\n` +
+          'they can only be revived later at a Church, for gold.\n' +
+          'If Edric falls, the battle is lost. In a real run, the run ends.',
+      );
+    });
+  }
+
+  /**
+   * Tutorial lord-death follow-up, shown at the next player-phase start:
+   * repeat the permadeath lesson and offer the granted Vision charge as a
+   * rewind to the last turn (the kept snapshot still has the lord alive).
+   */
+  _showTutorialLordRewindPrompt(fallenName) {
+    this._tutorialLordRewindPromptPending = null;
+    const finishWithoutRewind = () => {
+      this.captureVisionSnapshot();
+      this.updateVisionHud();
+    };
+    const stillFallen = !this.playerUnits.some((u) => u?.name === fallenName);
+    if (!stillFallen || !this.visionSnapshot || this.getVisionChargesRemaining() <= 0) {
+      finishWithoutRewind();
+      return;
+    }
+    this.showVisionDialog({
+      title: `${fallenName} has fallen!`,
+      body:
+        'Fallen units are gone for good -- only a\n' +
+        'Church can revive them, for gold. But fate\n' +
+        'grants one Vision: rewind to your last turn?',
+      confirmLabel: 'Rewind',
+      cancelLabel: 'Accept Fate',
+      onConfirm: () => {
+        const ok = (this._visionController ||= new VisionRewindController(
+          this,
+          this.runManager,
+        )).executeRewind();
+        if (!ok) finishWithoutRewind();
+      },
+      onCancel: finishWithoutRewind,
+      accent: 0xcc6666,
+    });
   }
 
   _setTutorialGuideHighlight(mode) {
@@ -7286,6 +7347,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.clearAttackHighlights();
     this.resetFortHealStreak(attacker);
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
+    const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
 
     try {
       const ctx = this._prepareCombatContext(attacker, defender, { isPlayerInitiator: true });
@@ -7316,6 +7378,9 @@ export class BattleScene extends Phaser.Scene {
         if (!this.scene?.isActive?.()) return;
         this.battleState = 'COMBAT_RESOLVING';
       }
+
+      // Tutorial: a counter-attack on a non-commander lord teaches permadeath
+      await this._maybeShowTutorialPermadeathHint(attacker, attacker.currentHP < attackerHpAtStart);
 
       if (defender.currentHP <= 0) {
         await this.removeUnit(defender, { killer: attacker });
@@ -8339,6 +8404,17 @@ export class BattleScene extends Phaser.Scene {
               await this.dialogueOverlay?.show(unit.name, line, portraitKey);
             } catch (_) {}
           }
+          // Tutorial: fate grants a Vision charge so the player can be walked
+          // through a rewind at the next player-phase start.
+          if (this.battleParams?.tutorialMode) {
+            const host = (this._standaloneVisionState ||= {
+              visionChargesRemaining: 0,
+              visionCount: 0,
+            });
+            host.visionChargesRemaining += 1;
+            this._tutorialLordRewindPromptPending = unit.name;
+            this.updateVisionHud();
+          }
         }
       }
     } else if (unit.faction === 'npc') {
@@ -8549,7 +8625,11 @@ export class BattleScene extends Phaser.Scene {
         this.grid.updateFogOfWar(this.playerUnits);
         this.updateEnemyVisibility();
       }
-      this.captureVisionSnapshot();
+      // Tutorial lord-death prompt pending: keep last turn's snapshot (the
+      // fallen lord is still alive in it) — capture resumes after the choice.
+      if (!this._tutorialLordRewindPromptPending) {
+        this.captureVisionSnapshot();
+      }
       this.updateVisionHud();
 
       // Process turn-start effects (skills + affixes) (after banner settles)
@@ -8595,7 +8675,18 @@ export class BattleScene extends Phaser.Scene {
 
       if (!shouldAutoAdvance) {
         // Tutorial hints (after phase banner fades)
-        if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
+        if (this.battleParams.tutorialMode && this._tutorialLordRewindPromptPending) {
+          const fallenName = this._tutorialLordRewindPromptPending;
+          scheduleSafeDelayedAsync(
+            1500,
+            'tutorial_lord_rewind_prompt',
+            async () => {
+              if (!isSceneActiveForAsync()) return;
+              this._showTutorialLordRewindPrompt(fallenName);
+            },
+            { phase: 'player', turn },
+          );
+        } else if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
           scheduleSafeDelayedAsync(
             1500,
             'tutorial_intro_turn_start',
@@ -9405,6 +9496,7 @@ export class BattleScene extends Phaser.Scene {
   async executeEnemyCombat(enemy, target) {
     this.resetFortHealStreak(enemy);
     const enemyHpAtStart = Math.max(0, Math.trunc(Number(enemy?.currentHP) || 0));
+    const targetHpAtStart = Math.max(0, Math.trunc(Number(target?.currentHP) || 0));
 
     try {
       const ctx = this._prepareCombatContext(enemy, target, { isPlayerInitiator: false });
@@ -9418,6 +9510,9 @@ export class BattleScene extends Phaser.Scene {
         );
         await this.awardXP(target, enemy, enemy.currentHP <= 0, counterDamage, enemyHpAtStart);
       }
+
+      // Tutorial: the first hit on a non-commander lord teaches permadeath
+      await this._maybeShowTutorialPermadeathHint(target, target.currentHP < targetHpAtStart);
 
       if (target.currentHP <= 0) await this.removeUnit(target, { killer: enemy });
       if (enemy.currentHP <= 0) await this.removeUnit(enemy, { killer: target });

@@ -260,6 +260,45 @@ describe('VisionRewindController', () => {
     });
   });
 
+  // ── standalone charge host (tutorial: no runManager) ─────
+
+  describe('standalone charge host', () => {
+    it('reads granted charges from the scene-scoped store', () => {
+      const ctrl = new VisionRewindController(scene, null);
+      expect(ctrl.getChargesRemaining()).toBe(0);
+      scene._standaloneVisionState.visionChargesRemaining += 1;
+      expect(ctrl.getChargesRemaining()).toBe(1);
+    });
+
+    it('executeRewind works without a runManager when a charge was granted', () => {
+      const ctrl = new VisionRewindController(scene, null);
+      scene.visionSnapshot = { rngSeed: 7 };
+      scene._standaloneVisionState = { visionChargesRemaining: 1, visionCount: 0 };
+      expect(ctrl.executeRewind()).toBe(true);
+      expect(scene.applyVisionSnapshot).toHaveBeenCalled();
+      expect(scene._standaloneVisionState.visionChargesRemaining).toBe(0);
+      expect(scene._standaloneVisionState.visionCount).toBe(1);
+    });
+
+    it('executeRewind refuses without charges or without a snapshot', () => {
+      const ctrl = new VisionRewindController(scene, null);
+      scene.visionSnapshot = { rngSeed: 7 };
+      expect(ctrl.executeRewind()).toBe(false); // 0 charges
+      scene._standaloneVisionState.visionChargesRemaining = 1;
+      scene.visionSnapshot = null;
+      expect(ctrl.executeRewind()).toBe(false); // no snapshot
+      expect(scene._standaloneVisionState.visionChargesRemaining).toBe(1);
+    });
+
+    it('run battles are unaffected: charges still come from the runManager', () => {
+      runManager.visionChargesRemaining = 2;
+      scene.visionSnapshot = { rngSeed: 7 };
+      expect(controller.executeRewind()).toBe(true);
+      expect(runManager.visionChargesRemaining).toBe(1);
+      expect(scene._standaloneVisionState).toBeUndefined();
+    });
+  });
+
   // ── captureSnapshot ─────────────────────────────────────
 
   describe('captureSnapshot', () => {

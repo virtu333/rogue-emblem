@@ -213,15 +213,23 @@ export class SlotPickerScene extends Phaser.Scene {
         .setOrigin(0.5);
       this.slotCards.push(supplyText);
 
-      // Runs completed
+      // Runs: started vs finished (finished = settled victories + defeats)
       const runsText = this.add
-        .text(x, y - 26, `Runs: ${summary.runsCompleted}`, {
+        .text(x, y - 26, `Runs: ${summary.runsStarted}`, {
           fontFamily: 'monospace',
           fontSize: '12px',
           color: '#e0e0e0',
         })
         .setOrigin(0.5);
       this.slotCards.push(runsText);
+      const finishedText = this.add
+        .text(x, y - 12, `Finished: ${summary.runsCompleted}`, {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#a0a0b8',
+        })
+        .setOrigin(0.5);
+      this.slotCards.push(finishedText);
 
       // Active run status
       let runStatus;
@@ -237,7 +245,7 @@ export class SlotPickerScene extends Phaser.Scene {
         statusColor = '#666666';
       }
       const statusText = this.add
-        .text(x, y - 6, runStatus, {
+        .text(x, y + 6, runStatus, {
           fontFamily: 'monospace',
           fontSize: '11px',
           color: statusColor,

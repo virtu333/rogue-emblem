@@ -26,6 +26,17 @@ export class VisionRewindController {
     this.runManager = runManager;
   }
 
+  /**
+   * Where Vision charges live. Runs charge the RunManager; standalone battles
+   * (tutorial) get a scene-scoped store so charges can be granted and spent
+   * without a run — it starts at 0, so nothing changes unless something
+   * (the tutorial lord-death flow) deposits a charge.
+   */
+  _chargeHost() {
+    if (this.runManager) return this.runManager;
+    return (this.scene._standaloneVisionState ||= { visionChargesRemaining: 0, visionCount: 0 });
+  }
+
   // ── Initialization ──────────────────────────────────────────
 
   initialize() {
@@ -51,8 +62,7 @@ export class VisionRewindController {
   // ── Charge query ────────────────────────────────────────────
 
   getChargesRemaining() {
-    if (!this.runManager) return 0;
-    return Math.max(0, Math.trunc(this.runManager.visionChargesRemaining || 0));
+    return Math.max(0, Math.trunc(this._chargeHost().visionChargesRemaining || 0));
   }
 
   // ── Snapshot capture / commit ───────────────────────────────
@@ -236,7 +246,7 @@ export class VisionRewindController {
     const sourceSeed = Number.isFinite(scene.visionSnapshot.rngSeed)
       ? scene.visionSnapshot.rngSeed >>> 0
       : scene.visionBaseSeed >>> 0;
-    const rewindCount = this.runManager ? this.runManager.visionCount : 0;
+    const rewindCount = this._chargeHost().visionCount || 0;
     const reseed = hashRewindSeed(sourceSeed, rewindCount);
     scene.reseedBattleRng(reseed);
 
@@ -460,10 +470,11 @@ export class VisionRewindController {
   // ── Execute rewind ──────────────────────────────────────────
 
   executeRewind() {
-    if (!this.scene.visionSnapshot || !this.runManager) return false;
-    if (this.runManager.visionChargesRemaining <= 0) return false;
-    this.runManager.visionChargesRemaining -= 1;
-    this.runManager.visionCount = Math.max(0, (this.runManager.visionCount || 0) + 1);
+    if (!this.scene.visionSnapshot) return false;
+    const host = this._chargeHost();
+    if (host.visionChargesRemaining <= 0) return false;
+    host.visionChargesRemaining -= 1;
+    host.visionCount = Math.max(0, (host.visionCount || 0) + 1);
     this.scene.pendingVisionSnapshot = null;
     // Route through scene shim so test mocks on scene.applyVisionSnapshot still work
     return this.scene.applyVisionSnapshot();

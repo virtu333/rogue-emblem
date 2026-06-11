@@ -80,6 +80,7 @@ export class MetaProgressionManager {
     this.savedAt = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
+    this.runsStarted = 0;
     this.skillAssignments = {}; // { "Edric": ["sol", "vantage"], "Sera": ["miracle"] }
     this.lordSelection = { ...DEFAULT_LORD_SELECTION }; // commander-choice picks, persisted
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
@@ -109,6 +110,11 @@ export class MetaProgressionManager {
         this._migrateLegacyWeaponArtUpgradeState();
         this._migrateLegacyDeadlyArsenalUpgradeState(saved);
         if (typeof saved.runsCompleted === 'number') this.runsCompleted = saved.runsCompleted;
+        if (typeof saved.runsStarted === 'number')
+          this.runsStarted = Math.max(0, Math.floor(saved.runsStarted));
+        // Migration: saves predating the started counter — every finished run
+        // was started, so the completed count is a floor.
+        if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
         if (saved.skillAssignments) this.skillAssignments = saved.skillAssignments;
         if (saved.lordSelection) this.lordSelection = normalizeLordSelection(saved.lordSelection);
         if (Number.isFinite(saved.savedAt)) this.savedAt = saved.savedAt;
@@ -177,6 +183,18 @@ export class MetaProgressionManager {
 
   incrementRunsCompleted() {
     this.runsCompleted += 1;
+    // A finished run was necessarily started (covers runs begun before the
+    // started counter existed, or counted on another device).
+    if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
+    this._save();
+  }
+
+  getRunsStarted() {
+    return this.runsStarted;
+  }
+
+  incrementRunsStarted() {
+    this.runsStarted += 1;
     this._save();
   }
 
@@ -760,6 +778,7 @@ export class MetaProgressionManager {
     this.totalSupply = 0;
     this.purchasedUpgrades = {};
     this.runsCompleted = 0;
+    this.runsStarted = 0;
     this.skillAssignments = {};
     this.lordSelection = { ...DEFAULT_LORD_SELECTION };
     this.milestones = new Set();
@@ -803,6 +822,11 @@ export class MetaProgressionManager {
     this.totalValor = Math.max(this.totalValor, Math.floor(Number(disk.totalValor) || 0));
     this.totalSupply = Math.max(this.totalSupply, Math.floor(Number(disk.totalSupply) || 0));
     this.runsCompleted = Math.max(this.runsCompleted, Number(disk.runsCompleted) || 0);
+    this.runsStarted = Math.max(
+      this.runsStarted,
+      Number(disk.runsStarted) || 0,
+      this.runsCompleted,
+    );
     if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
       for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
         const diskLevel = Number(level) || 0;
@@ -838,6 +862,7 @@ export class MetaProgressionManager {
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
       runsCompleted: this.runsCompleted,
+      runsStarted: this.runsStarted,
       skillAssignments: this.skillAssignments,
       lordSelection: this.lordSelection,
       milestones: [...this.milestones],

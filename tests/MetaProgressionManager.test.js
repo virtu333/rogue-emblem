@@ -425,6 +425,74 @@ describe('MetaProgressionManager', () => {
     expect(meta.getRunsCompleted()).toBe(0);
   });
 
+  it('tracks runsStarted independently of runsCompleted', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getRunsStarted()).toBe(0);
+    meta.incrementRunsStarted();
+    meta.incrementRunsStarted();
+    meta.incrementRunsCompleted();
+    expect(meta.getRunsStarted()).toBe(2);
+    expect(meta.getRunsCompleted()).toBe(1);
+    const saved = JSON.parse(store['emblem_rogue_meta_save']);
+    expect(saved.runsStarted).toBe(2);
+    expect(saved.runsCompleted).toBe(1);
+  });
+
+  it('migrates pre-tracking saves: runsCompleted floors runsStarted', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 100,
+      totalSupply: 100,
+      purchasedUpgrades: {},
+      runsCompleted: 5,
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getRunsStarted()).toBe(5);
+  });
+
+  it('a finished run always counts as started (cross-device floor)', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.incrementRunsCompleted();
+    expect(meta.getRunsStarted()).toBe(1);
+  });
+
+  it('loads runsStarted when present and keeps it above runsCompleted', () => {
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 0,
+      totalSupply: 0,
+      purchasedUpgrades: {},
+      runsCompleted: 3,
+      runsStarted: 8,
+    });
+    const meta = new MetaProgressionManager(upgradesData);
+    expect(meta.getRunsStarted()).toBe(8);
+    expect(meta.getRunsCompleted()).toBe(3);
+  });
+
+  it('reset clears runsStarted', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.incrementRunsStarted();
+    meta.reset();
+    expect(meta.getRunsStarted()).toBe(0);
+  });
+
+  it('adopts a newer foreign disk runsStarted via max-merge', () => {
+    const meta = new MetaProgressionManager(upgradesData);
+    meta.incrementRunsStarted(); // local: 1, persists savedAt
+    store['emblem_rogue_meta_save'] = JSON.stringify({
+      totalValor: 0,
+      totalSupply: 0,
+      purchasedUpgrades: {},
+      runsCompleted: 4,
+      runsStarted: 6,
+      savedAt: meta.savedAt + 1000,
+    });
+    // The next save adopts the newer disk state; max-merge absorbs the
+    // racing local increment (same semantics as valor/runsCompleted).
+    meta.incrementRunsStarted();
+    expect(meta.getRunsStarted()).toBe(6);
+    expect(meta.getRunsCompleted()).toBe(4);
+  });
+
   it('reset clears all data including runsCompleted and persists', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.totalValor = 999;

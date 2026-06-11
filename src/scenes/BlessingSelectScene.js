@@ -144,6 +144,9 @@ export class BlessingSelectScene extends Phaser.Scene {
           this._rollbackBlessingCommit();
           return;
         }
+        // The run is committed: count the attempt (finished runs are counted
+        // separately when the run settles).
+        this.registry.get('meta')?.incrementRunsStarted?.();
         // Clear stale run save only after transition success.
         const cloud = this.registry.get('cloud');
         const slot = this.registry.get('activeSlot');
