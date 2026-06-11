@@ -37,6 +37,7 @@ export class RunSimulationDriver {
     this.gameData = gameData;
     this.options = {
       runOptions: {},
+      metaEffects: null, // e.g. { startingLords: { commander, partner } }
       maxNodes: 300,
       maxBattleActions: 2600,
       // reviveCost removed — now computed per-unit via getReviveCost()
@@ -70,7 +71,7 @@ export class RunSimulationDriver {
   }
 
   init() {
-    this.runManager = new RunManager(this.gameData);
+    this.runManager = new RunManager(this.gameData, this.options.metaEffects || null);
     this.runManager.startRun(this.options.runOptions || {});
   }
 

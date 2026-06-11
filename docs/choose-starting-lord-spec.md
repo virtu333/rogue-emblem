@@ -1,6 +1,6 @@
 # Choose Your Commander — Feature Spec
 
-**Status:** Design decisions resolved (Section 13) — ready for implementation
+**Status:** Implemented (all four phases of Section 12, 2026-06-11) — retained as the design record
 **Feature:** Late-game meta unlock that lets the player choose which lord(s) they start a run with, replacing the fixed Edric + Sera pair.
 **Date:** 2026-06-11
 
@@ -294,7 +294,28 @@ Per-commander deltas worth measuring before tuning costs:
 - **Cael** (HP25/STR9/DEF9 + Intimidate) is likely the strongest stat commander; **Kira** (squishy, MAG-based, +1 Tome range) the riskiest with the fighters-only first battle.
 - **Recruit scaling** is unaffected structurally (anchor generalizes), but commander class changes which loot weapons the roster can use (`lootTables` filter by proficiencies).
 
-Sim support: add `--commander <name> [--partner <name>]` to `sim/fullrun` (plumbed as a `metaEffects.startingLords` override in `sim/lib/SimUnitFactory.js` / run setup), then run the 7-commander matrix on Normal/Hard seeds and compare winrate/turns/gold against the Edric baseline before finalizing Valor costs and any compensation.
+Sim support (shipped in PR 4): `--commander <name> [--partner <name>]` on both `sim/fullrun.js` (abstract Monte Carlo) and `tests/sim/fullrun-runner.js` (real-engine harness, via `metaEffects.startingLords` through `RunSimulationDriver`), plus `--meta-preset endgame` on the harness runner (every upgrade maxed via the real `MetaProgressionManager` — the loadout an actual purchaser has).
+
+### Matrix results (2026-06-11, 12 harness seeds Normal / 400 abstract trials)
+
+**Instrument limitation:** neither agent can produce a meaningful *winrate* at realistic strength — the scripted harness agent is a flow harness, not a skilled player (at zero meta every pair loses; at endgame meta every pair stalls into action-budget timeouts because maxed `lordStatBonuses` make battles unloseable but the agent can't close them — pre-existing behavior, it's why the PR gates run `--invincibility`). The usable signal is **relative early-run survival**, and the two instruments agree on the ordering:
+
+| Pair | Harness avg nodes (0-meta) | Abstract avg battles (meta 2) |
+|---|---|---|
+| Cael + Sera | 5.7 | 6.1 |
+| Voss + Sera | 5.7 | 6.2 |
+| **Cael + Kira (Sera-less)** | **5.8** | **5.8** |
+| Edric + Sera (baseline) | 2.6 | 3.0 |
+| Sera + Edric | 1.8 | 1.8 |
+| Kira + Sera | 1.4 | 1.5 |
+| Rowan + Sera | 1.3 | 3.0 |
+| Astrid + Sera | 1.1 | 2.0 |
+
+Findings:
+1. **Sera-less tripwire: clear.** Removing Sera barely moves survival for the same commander (Cael+Kira ≈ Cael+Sera on both instruments). Commander bulk dominates; healer absence does not. The "ship with no compensation" decision stands on data, not just principle.
+2. **Durability ordering matches the Section 11 predictions:** Cael/Voss far above baseline; Kira, Astrid, and a commanding Sera are the high-risk picks. This is the intended skill-expression spread for an endgame unlock — no stat compensation.
+3. **Costs confirmed at 1500/1000 Valor.** Nothing in the data argues the unlock is over- or under-powered as a purchase; it is a sidegrade selector, not a power buy.
+4. **No threshold re-baselines needed:** the default pair's behavior (and therefore every PR-gate slice) is unchanged; the full slice suite passes untouched.
 
 ---
 
@@ -310,7 +331,7 @@ Sim support: add `--commander <name> [--partner <name>]` to `sim/fullrun` (plumb
 Sprite lookup table; Vision prompt conditional copy; dialogue `{commander}` token + Sera-absence fallback; Edric `lordFarewell` lines in `dialogue.json`; help-content rewording.
 
 **PR 4 — Balance pass.**
-Sim matrix, cost/gate tuning, any compensation mechanics, threshold re-baselines with triage notes.
+Sim matrix, cost/gate tuning, any compensation mechanics, threshold re-baselines with triage notes. *Outcome (see Section 11): costs confirmed, no compensation, no re-baselines; `--commander/--partner` and `--meta-preset endgame` tooling shipped.*
 
 ---
 

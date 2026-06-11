@@ -4,7 +4,9 @@ import {
   buildSeedList,
   computeSummary,
   evaluateThresholdBreaches,
+  buildRunMetaEffects,
 } from './fullrun-runner.js';
+import { loadGameData } from '../testData.js';
 
 describe('fullrun-runner helpers', () => {
   it('builds a deterministic seed range when start and end are provided', () => {
@@ -47,6 +49,47 @@ describe('fullrun-runner helpers', () => {
     expect(opts.minPromotionByAct2Rate).toBe(10);
     expect(opts.maxPromotionByAct2Rate).toBe(50);
     expect(opts.minAvgAmbushBattles).toBe(0.5);
+  });
+
+  it('parses commander matrix options', () => {
+    const opts = parseArgsFrom([
+      '--commander',
+      'Cael',
+      '--partner',
+      'Kira',
+      '--meta-preset',
+      'endgame',
+    ]);
+    expect(opts.commander).toBe('Cael');
+    expect(opts.partner).toBe('Kira');
+    expect(opts.metaPreset).toBe('endgame');
+    expect(parseArgsFrom([]).commander).toBe(null);
+    expect(parseArgsFrom([]).metaPreset).toBe('none');
+  });
+
+  it('buildRunMetaEffects resolves the starting pair and endgame preset', () => {
+    const gameData = loadGameData();
+    expect(buildRunMetaEffects({ metaPreset: 'none' }, gameData)).toBe(null);
+
+    const pairOnly = buildRunMetaEffects({ commander: 'Cael' }, gameData);
+    expect(pairOnly.startingLords).toEqual({ commander: 'Cael', partner: 'Sera' });
+
+    const seraLead = buildRunMetaEffects({ commander: 'Sera' }, gameData);
+    expect(seraLead.startingLords).toEqual({ commander: 'Sera', partner: 'Edric' });
+
+    const endgame = buildRunMetaEffects(
+      { metaPreset: 'endgame', commander: 'Astrid', partner: 'Rowan' },
+      gameData,
+    );
+    expect(endgame.startingLords).toEqual({ commander: 'Astrid', partner: 'Rowan' });
+    expect(endgame.deadlyArsenalTier).toBe(2); // maxed loadout came through
+    expect(endgame.lordStatBonuses.HP).toBeGreaterThan(0);
+
+    expect(() => buildRunMetaEffects({ commander: 'Nobody' }, gameData)).toThrow(/Unknown lord/);
+    expect(() => buildRunMetaEffects({ commander: 'Cael', partner: 'Cael' }, gameData)).toThrow(
+      /different lords/,
+    );
+    expect(() => buildRunMetaEffects({ metaPreset: 'wild' }, gameData)).toThrow(/meta-preset/);
   });
 
   it('evaluates metric threshold breaches', () => {

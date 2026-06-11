@@ -38,17 +38,39 @@ import {
   ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
 
-const opts = parseArgs({ trials: 200, seed: 42, csv: false, verbose: false, meta: 0 });
+const opts = parseArgs({
+  trials: 200,
+  seed: 42,
+  csv: false,
+  verbose: false,
+  meta: 0,
+  commander: 'Edric',
+  partner: '',
+});
 
 if (opts.help) {
   console.log(
-    'Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL]',
+    'Usage: node sim/fullrun.js [--trials N] [--seed S] [--csv] [--verbose] [--meta LEVEL] [--commander NAME] [--partner NAME]',
   );
   process.exit(0);
 }
 
 const data = getData();
 const issues = [];
+
+// Starting pair (commander choice): default partner mirrors the game rule.
+const COMMANDER = String(opts.commander || 'Edric');
+const PARTNER = String(opts.partner || (COMMANDER === 'Sera' ? 'Edric' : 'Sera'));
+for (const lordName of [COMMANDER, PARTNER]) {
+  if (!data.lords.some((l) => l.name === lordName)) {
+    console.error(`Unknown lord "${lordName}". Known: ${data.lords.map((l) => l.name).join(', ')}`);
+    process.exit(1);
+  }
+}
+if (COMMANDER === PARTNER) {
+  console.error('--commander and --partner must name different lords.');
+  process.exit(1);
+}
 
 function getMetaEffects(level) {
   if (level === 0)
@@ -115,7 +137,7 @@ function getWeaponRange(unit) {
 
 /**
  * Abstract battle resolution — no grid, just stat-based combat rounds.
- * Returns { victory, edricDied, unitDeaths, rounds, xpGained, goldEarned }
+ * Returns { victory, commanderDied, unitDeaths, rounds, xpGained, goldEarned }
  */
 function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
   // Reset HP to max for all units
@@ -271,15 +293,15 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
     }
   }
 
-  const edricDied = unitDeaths.includes('Edric');
-  const victory = alive.enemy.length === 0 && !edricDied;
+  const commanderDied = unitDeaths.includes(COMMANDER);
+  const victory = alive.enemy.length === 0 && !commanderDied;
 
   let goldEarned = calculateBattleGold(totalKillGold);
   if (meta.battleGoldMultiplier > 0) {
     goldEarned = Math.floor(goldEarned * (1 + meta.battleGoldMultiplier));
   }
 
-  return { victory, edricDied, unitDeaths, rounds, goldEarned };
+  return { victory, commanderDied, unitDeaths, rounds, goldEarned };
 }
 
 /**
@@ -287,17 +309,17 @@ function resolveBattle(playerUnits, enemies, actId, isBoss, meta, verbose) {
  */
 function simulateRun(metaLevel, verbose) {
   const meta = getMetaEffects(metaLevel);
-  const roster = [createLord('Edric'), createLord('Sera')];
+  const roster = [createLord(COMMANDER), createLord(PARTNER)];
   let gold = STARTING_GOLD + meta.goldBonus;
   let totalBattles = 0;
   let actsCompleted = 0;
-  let edricDied = false;
+  let commanderDied = false;
   let defeatCause = '';
   const unitDeathLog = [];
   let promoted = false;
 
   for (const actId of ACT_SEQUENCE) {
-    if (edricDied) break;
+    if (commanderDied) break;
 
     const actConfig = ACT_CONFIG[actId];
     const nodeMap = generateNodeMap(actId, actConfig);
@@ -387,13 +409,13 @@ function simulateRun(metaLevel, verbose) {
 
         gold += result.goldEarned;
 
-        if (result.edricDied) {
-          edricDied = true;
-          defeatCause = `Edric died in ${actId} battle ${totalBattles}`;
+        if (result.commanderDied) {
+          commanderDied = true;
+          defeatCause = `${COMMANDER} died in ${actId} battle ${totalBattles}`;
           break;
         }
 
-        // Remove dead units from roster (except Edric — checked above)
+        // Remove dead units from roster (except the commander — checked above)
         for (const deadName of result.unitDeaths) {
           const idx = roster.findIndex((u) => u.name === deadName);
           if (idx >= 0) {
@@ -416,16 +438,16 @@ function simulateRun(metaLevel, verbose) {
             );
         }
 
-        // Try promotion for Edric if affordable and eligible
-        const edric = roster.find((u) => u.name === 'Edric');
-        if (edric && canPromote(edric) && gold >= 2500 && !promoted) {
-          const lordData = data.lords.find((l) => l.name === 'Edric');
+        // Try promotion for the commander if affordable and eligible
+        const commander = roster.find((u) => u.name === COMMANDER);
+        if (commander && canPromote(commander) && gold >= 2500 && !promoted) {
+          const lordData = data.lords.find((l) => l.name === COMMANDER);
           const promotedClassData = data.classes.find((c) => c.name === lordData.promotedClass);
           if (promotedClassData) {
-            promoteUnit(edric, promotedClassData, lordData.promotionBonuses, data.skills);
+            promoteUnit(commander, promotedClassData, lordData.promotionBonuses, data.skills);
             gold -= 2500;
             promoted = true;
-            if (verbose) console.log(`  ** Edric promoted to ${lordData.promotedClass}! **`);
+            if (verbose) console.log(`  ** ${COMMANDER} promoted to ${lordData.promotedClass}! **`);
           }
         }
       }
@@ -444,21 +466,21 @@ function simulateRun(metaLevel, verbose) {
       }
     }
 
-    if (!edricDied) actsCompleted++;
+    if (!commanderDied) actsCompleted++;
   }
 
-  const victory = !edricDied && actsCompleted === ACT_SEQUENCE.length;
+  const victory = !commanderDied && actsCompleted === ACT_SEQUENCE.length;
 
   return {
     victory,
-    edricDied,
+    commanderDied,
     defeatCause,
     actsCompleted,
     totalBattles,
     finalGold: gold,
     rosterSize: roster.length,
-    edricLevel: roster.find((u) => u.name === 'Edric')?.level || 0,
-    edricTier: roster.find((u) => u.name === 'Edric')?.tier || 'base',
+    commanderLevel: roster.find((u) => u.name === COMMANDER)?.level || 0,
+    commanderTier: roster.find((u) => u.name === COMMANDER)?.tier || 'base',
     promoted,
     unitDeaths: unitDeathLog,
   };
@@ -474,13 +496,13 @@ if (opts.verbose) {
   const result = simulateRun(opts.meta, true);
   console.log(`\n--- Result ---`);
   console.log(`  Victory: ${result.victory}`);
-  console.log(`  Edric died: ${result.edricDied}`);
+  console.log(`  Commander died: ${result.commanderDied}`);
   if (result.defeatCause) console.log(`  Cause: ${result.defeatCause}`);
   console.log(`  Acts completed: ${result.actsCompleted}`);
   console.log(`  Total battles: ${result.totalBattles}`);
   console.log(`  Gold: ${result.finalGold}`);
   console.log(`  Promoted: ${result.promoted}`);
-  console.log(`  Edric Level: ${result.edricLevel} (${result.edricTier})`);
+  console.log(`  Commander Level: ${result.commanderLevel} (${result.commanderTier})`);
   console.log(`  Roster: ${result.rosterSize}`);
   if (result.unitDeaths.length > 0) {
     console.log(`  Deaths: ${result.unitDeaths.map((d) => `${d.name} (${d.act})`).join(', ')}`);
@@ -500,17 +522,18 @@ if (opts.verbose) {
     }
 
     const winRate = (results.filter((r) => r.victory).length / results.length) * 100;
-    const edricDeathRate = (results.filter((r) => r.edricDied).length / results.length) * 100;
+    const commanderDeathRate =
+      (results.filter((r) => r.commanderDied).length / results.length) * 100;
     const promoRate = (results.filter((r) => r.promoted).length / results.length) * 100;
     const avgBattles = meanStd(results.map((r) => r.totalBattles));
     const avgActs = meanStd(results.map((r) => r.actsCompleted));
     const avgRoster = meanStd(results.map((r) => r.rosterSize));
     const avgGold = meanStd(results.map((r) => r.finalGold));
-    const avgEdricLevel = meanStd(results.map((r) => r.edricLevel));
+    const avgCommanderLevel = meanStd(results.map((r) => r.commanderLevel));
 
     const summaryRows = [
       { Metric: 'Win Rate', Value: `${winRate.toFixed(1)}%` },
-      { Metric: 'Edric Death Rate', Value: `${edricDeathRate.toFixed(1)}%` },
+      { Metric: 'Commander Death Rate', Value: `${commanderDeathRate.toFixed(1)}%` },
       { Metric: 'Promotion Rate', Value: `${promoRate.toFixed(1)}%` },
       {
         Metric: 'Avg Battles',
@@ -526,8 +549,8 @@ if (opts.verbose) {
       },
       { Metric: 'Avg Final Gold', Value: `${avgGold.mean.toFixed(0)} ± ${avgGold.std.toFixed(0)}` },
       {
-        Metric: 'Avg Edric Level',
-        Value: `${avgEdricLevel.mean.toFixed(1)} ± ${avgEdricLevel.std.toFixed(1)}`,
+        Metric: 'Avg Commander Level',
+        Value: `${avgCommanderLevel.mean.toFixed(1)} ± ${avgCommanderLevel.std.toFixed(1)}`,
       },
     ];
 
@@ -540,7 +563,7 @@ if (opts.verbose) {
     // Death cause breakdown
     const deathsByAct = {};
     for (const r of results) {
-      if (r.edricDied) {
+      if (r.commanderDied) {
         const act = r.defeatCause.match(/act\d|finalBoss/)?.[0] || 'unknown';
         deathsByAct[act] = (deathsByAct[act] || 0) + 1;
       }
@@ -553,7 +576,7 @@ if (opts.verbose) {
           Deaths: count,
           Rate: `${((count / results.length) * 100).toFixed(1)}%`,
         }));
-      console.log('  Edric death breakdown by act:');
+      console.log('  Commander death breakdown by act:');
       if (opts.csv) {
         toCSV(['Act', 'Deaths', 'Rate'], deathRows);
       } else {
@@ -595,19 +618,19 @@ if (opts.verbose) {
           suggestion: 'Consider reducing enemy levels or counts in early acts',
         });
       }
-      if (edricDeathRate > 40) {
+      if (commanderDeathRate > 40) {
         issues.push({
           severity: 'WARNING',
           label: 'LORD TOO FRAGILE',
-          detail: `Edric dies in ${edricDeathRate.toFixed(1)}% of runs`,
-          suggestion: 'Consider increasing Edric base DEF or HP growths',
+          detail: `${COMMANDER} dies in ${commanderDeathRate.toFixed(1)}% of runs`,
+          suggestion: 'Consider increasing commander base DEF or HP growths',
         });
       }
-      if (edricDeathRate < 10) {
+      if (commanderDeathRate < 10) {
         issues.push({
           severity: 'INFO',
           label: 'LORD TOO SAFE',
-          detail: `Edric only dies in ${edricDeathRate.toFixed(1)}% of runs`,
+          detail: `${COMMANDER} only dies in ${commanderDeathRate.toFixed(1)}% of runs`,
         });
       }
     }
