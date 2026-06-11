@@ -181,6 +181,11 @@ import {
 } from '../engine/RecruitPromotion.js';
 import { resolveRecruitScalingTargets, resolveTeamAverageLevel } from '../engine/RecruitScaling.js';
 import { stampCommanderFlag } from '../engine/Commander.js';
+import {
+  adaptDialogueEntries,
+  adaptDialogueLine,
+  resolveDialogueCast,
+} from '../engine/DialogueCast.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -248,6 +253,12 @@ const TIER5_BUFF_COMBAT_MOD_BY_STAT = {
   SPD_BONUS: 'spdBonus',
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
+
+// Lords with tier-specific battle sprites (others use one name-keyed sprite
+// at both tiers). Add entries here as promoted variants get produced.
+const LORD_SPRITE_KEYS = {
+  Edric: { base: 'lordedric', promoted: 'greatlordedric' },
+};
 /** Reset per-battle state on a unit at deploy time. */
 export function resetUnitForBattle(unit) {
   unit.hasMoved = false;
@@ -1805,7 +1816,9 @@ export class BattleScene extends Phaser.Scene {
     if (!Array.isArray(entries) || entries.length <= 0 || !this.dialogueOverlay) return;
     this._storyDialogueActive = true;
     try {
-      await this.dialogueOverlay.showSequence(entries);
+      await this.dialogueOverlay.showSequence(
+        adaptDialogueEntries(entries, this.runManager?.getStartingLordNames?.()),
+      );
     } finally {
       this._storyDialogueActive = false;
       this.refreshEndTurnControl();
@@ -2728,12 +2741,12 @@ export class BattleScene extends Phaser.Scene {
       }
       return defaultEnemySpriteKey;
     }
-    // Lords: Edric has tier-specific sprites; others use name-based lookup
+    // Lords with tier-specific sprites use the lookup table; others fall
+    // through to the single name-keyed sprite, then the class sprite.
     if (unit.isLord) {
-      if (unit.name === 'Edric') {
-        const edricKey = unit.tier === 'promoted' ? 'greatlordedric' : 'lordedric';
-        if (this.textures.exists(edricKey)) return edricKey;
-      }
+      const tierKeys = LORD_SPRITE_KEYS[unit.name];
+      const tierKey = unit.tier === 'promoted' ? tierKeys?.promoted : tierKeys?.base;
+      if (tierKey && this.textures.exists(tierKey)) return tierKey;
       const lordKey = unit.name.toLowerCase();
       if (this.textures.exists(lordKey)) return lordKey;
     }
@@ -8316,7 +8329,11 @@ export class BattleScene extends Phaser.Scene {
         if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
           if (Array.isArray(farewellPool) && farewellPool.length > 0) {
-            const line = farewellPool[Math.floor(Math.random() * farewellPool.length)];
+            const cast = resolveDialogueCast(this.runManager?.getStartingLordNames?.());
+            const line = adaptDialogueLine(
+              farewellPool[Math.floor(Math.random() * farewellPool.length)],
+              cast,
+            );
             const portraitKey = this._getPortraitKey(unit);
             try {
               await this.dialogueOverlay?.show(unit.name, line, portraitKey);

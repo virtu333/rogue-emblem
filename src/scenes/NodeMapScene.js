@@ -29,6 +29,7 @@ import { ensureAudioUnlocked } from '../utils/audioUnlock.js';
 import { isTouchPointer } from '../utils/runtimeFlags.js';
 import { ChurchController } from '../ui/ChurchController.js';
 import { ShopController } from '../ui/ShopController.js';
+import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import {
   trackSceneTimer,
   clearTrackedSceneTimer,
@@ -382,7 +383,9 @@ export class NodeMapScene extends Phaser.Scene {
             this.runManager.markDialogueShown('runStart');
             this.persistRunSave();
             try {
-              await this.dialogueOverlay.showSequence(entries);
+              await this.dialogueOverlay.showSequence(
+                adaptDialogueEntries(entries, this.runManager.getStartingLordNames?.()),
+              );
             } finally {
               if (isSceneLifecycleActive(this, lifecycleGeneration)) {
                 this._storyDialogueActive = false;

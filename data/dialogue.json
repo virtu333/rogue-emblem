@@ -36,7 +36,7 @@
       {
         "speaker": "Sera",
         "portrait": "portrait_lord_sera",
-        "line": "I see a path... fragmented, but there. Stay close, Edric."
+        "line": "I see a path... fragmented, but there. Stay close, {commander}."
       }
     ],
     "act1_to_act2": [
@@ -433,6 +433,11 @@
     }
   },
   "lordFarewell": {
+    "Edric": [
+      "The banner is yours now. Keep them together.",
+      "This is as far as I march. Carry it the rest of the way, {commander}.",
+      "Don't look back. The army follows you now."
+    ],
     "Kira": [
       "I found the winning line... just not for me.",
       "Don't stop. The path is still there. I can almost see it.",
@@ -444,7 +449,7 @@
       "The shield breaks so the sword can strike. Go."
     ],
     "Sera": [
-      "The visions are fading... but I see you, Edric. You'll find the way.",
+      "The visions are fading... but I see you, {commander}. You'll find the way.",
       "I couldn't see this path. Maybe that means it's the right one.",
       "The future isn't written yet. Not even I could see this far."
     ],
