@@ -94,23 +94,39 @@ Shop description strings hardcode names at `src/scenes/HomeBaseScene.js:923, 929
 Introduce **commander** as a first-class concept = "the unit whose death ends the run." This is the keystone refactor and ships first, with zero behavior change.
 
 ```js
-// Unit flag (serialized with the unit, survives suspend/resume):
+// Unit flag (serialized with the unit — serializeUnit spreads {...unit}, so
+// no whitelist changes needed; survives suspend/resume):
 unit.isCommander = true;   // exactly one living-or-escaped roster unit
 
+// New pure module src/engine/Commander.js:
+findCommander(units)       // flag → Edric by name. NO first-lord fallback —
+                           // keeps today's no-Edric defaults (RecruitScaling
+                           // level-1 anchor, Colosseum's own fallback) intact.
+stampCommanderFlag(units)  // healing: flag → Edric → first isLord; stamps the
+                           // winner, clears stray duplicate flags, returns it.
+
 // RunManager API:
-getCommander()             // roster unit with isCommander, fallback below
+getCommander()             // findCommander(this.roster)
 getCommanderName()         // convenience for name-based checks/UI
-getStartingLordNames()     // ['Cael', 'Sera'] — replaces the hardcoded Set
+getStartingLordNames()     // ['Edric','Sera'] in PR 1; metaEffects-driven in PR 2
 ```
 
-**Fallback chain** (deserialization of old saves, and defensive runtime lookup): unit flagged `isCommander` → unit named `Edric` → first `isLord` unit in roster. `RunManager.deserialize` stamps the flag during load so every legacy save heals on first read.
+**Stamping points** (every unit pool that feeds a flag-strict check must be healed, because three pools never pass through `createInitialRoster`):
+
+1. `createInitialRoster` — flag on the commander slot at creation.
+2. `RunManager.fromJSON` — stamp `rm.roster` (next to the existing `isLord` repair at `RunManager.js:3390-3403`).
+3. `RunManager.fromJSON` — **also stamp the suspended-battle checkpoint** (`battleInProgress.checkpoint.playerUnits` + `escapedUnits` as one combined pool — the commander may be among the escaped). Verified: the checkpoint is assigned raw at `RunManager.js:3694-3702` and `BattleSuspendController.applyUnits` restores its unit arrays directly into the scene, so it does **not** flow through the roster path. Without this, resuming a legacy suspended battle under a flag-strict defeat check would instantly game-over.
+4. `BattleScene` — defensive stamp right after the player-unit population branch (covers tutorial roster from `buildTutorialRoster()`, the standalone dev fallback, and resume — none of which pass through RunManager).
+5. `tests/harness/HeadlessBattle.js` — same stamp after player-unit setup, and its mirrored defeat check converts identically, keeping harness/scene parity.
+
+**After stamping, the defeat/escape checks are strict on the flag** (no lookup fallback at check time). This is deliberate: a fallback there would silently change the rule "commander dead but other lords alive → defeat" into "promote the next lord to commander."
 
 Call-site conversions (all behavior-preserving while commander = Edric):
 
 | Site | Change |
 |---|---|
 | `BattleScene.checkBattleEnd()` defeat + escape-victory checks (`9546-9576`) | `name === 'Edric'` → `unit.isCommander` (escaped-units check included) |
-| `RecruitScaling.resolveRecruitScalingTargets()` | anchor = commander (accept the units array as today; select by flag with the fallback chain). Rename internals `edricLevel` → `anchorLevel`; keep exported result keys stable or migrate callers in the same PR |
+| `RecruitScaling.resolveRecruitScalingTargets()` | anchor = `findCommander(units)` (flag → Edric only — no first-lord fallback, so no-Edric rosters keep the level-1 default pinned by `tests/RecruitScaling.test.js`). Rename internals `edricLevel` → `anchorLevel`; result gains `anchorPromotedLevel`, keeping `edricPromotedLevel` as a deprecated alias key |
 | `BossRecruitSystem.getAvailableLords()` | new param `startingLordNames` (callers pass `runManager.getStartingLordNames()`) |
 | `ColosseumOverlay:1204` | `hasEdric` → has commander (the fallback branch already exists) |
 | `DeployScreenOverlay` lock rules (`77-256`) | `isEdric` → `unit.isCommander`; hint becomes "Your commander always deploys." |
@@ -238,7 +254,7 @@ Per-slot loadout rules, generalized from today's behavior:
 
 | Case | Handling |
 |---|---|
-| Legacy run save (no `isCommander`) | `deserialize` stamps Edric (fallback chain) — includes suspended battles, since checkpoint units flow through the same path |
+| Legacy run save (no `isCommander`) | `fromJSON` stamps Edric (fallback chain) on the roster **and separately on the suspend checkpoint's player+escaped pools** — the checkpoint is restored raw and bypasses the roster path (see Section 4 stamping points) |
 | Legacy meta save (no `lordSelection`) | defaults to `{Edric, Sera}`; tier 0 ignores it anyway |
 | Cloud meta conflict | adopt-if-absent merge (Section 6); selection is small and non-monotonic, so last-writer-wins via `savedAt` is acceptable |
 | Upgrade purchased mid-run | no effect until next run (metaEffects are snapshotted at run creation — existing behavior) |
@@ -257,7 +273,7 @@ Existing suite: ~45 test files reference Edric, but the default selection keeps 
 
 New coverage:
 
-1. **Commander abstraction:** flag stamping on new run + legacy deserialize fallback chain; defeat/escape/farewell/deploy-lock keyed off the flag (non-Edric commander fixtures).
+1. **Commander abstraction:** flag stamping on new run + legacy deserialize fallback chain (roster **and** suspend-checkpoint pools, including commander-among-escaped); battle-setup stamping for rosters that bypass RunManager (tutorial/standalone/harness); defeat/escape/farewell/deploy-lock keyed off the flag (non-Edric commander fixtures); stray-duplicate-flag cleanup.
 2. **MetaProgressionManager:** selection validation matrix (tier gating, collisions, unknown names, refund resets, merge adoption, payload round-trip).
 3. **createInitialRoster parameterized:** each of the 7 lords as commander — correct extra weapon per primary proficiency, Deadly Arsenal table per type, trinket on commander, staff kit present iff Sera, weapon-art spawns and forges on the pair, starting skills by name.
 4. **Pool exclusion:** `getAvailableLords` with custom pairs (Edric/Sera recruitable; chosen pair excluded).

@@ -75,6 +75,7 @@ import {
   resolveRecruitScalingTargets,
   resolveTeamAverageLevel,
 } from '../../src/engine/RecruitScaling.js';
+import { stampCommanderFlag } from '../../src/engine/Commander.js';
 import {
   getAvailableLords,
   createBossLordUnit,
@@ -231,6 +232,10 @@ export class HeadlessBattle {
     } else {
       this._createFallbackLords(bc);
     }
+
+    // Mirrors BattleScene: the commander flag must exist before the first
+    // _checkBattleEnd because the defeat check is strict on it.
+    stampCommanderFlag(this.playerUnits);
 
     // Create enemies
     for (const spawn of bc.enemySpawns) {
@@ -2346,10 +2351,11 @@ export class HeadlessBattle {
   }
 
   _checkBattleEnd() {
-    const edricEscaped = (this.escapedUnits || []).some((u) => u.name === 'Edric');
-    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric') || edricEscaped;
+    // Mirrors BattleScene.checkBattleEnd: strict isCommander flag, stamped at setup.
+    const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
+    const commanderAlive = this.playerUnits.some((u) => u.isCommander) || commanderEscaped;
     const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
-    if (!edricAlive || fieldEmpty) {
+    if (!commanderAlive || fieldEmpty) {
       this._onDefeat();
       return true;
     }
@@ -2360,7 +2366,7 @@ export class HeadlessBattle {
     }
     if (this.battleConfig.objective === 'escape') {
       const lordsOnField = this.playerUnits.some((u) => u.isLord);
-      if (edricEscaped && !lordsOnField) {
+      if (commanderEscaped && !lordsOnField) {
         this._onVictory();
         return true;
       }

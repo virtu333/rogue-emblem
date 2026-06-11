@@ -1,9 +1,10 @@
 /**
  * DeployScreenOverlay — extracted from BattleScene.
  * Renders the deploy unit selection UI before battle.
- * Supports scroll, Edric lock, ROSTER reopen, and BACK navigation.
+ * Supports scroll, commander lock, ROSTER reopen, and BACK navigation.
  */
 import { getDisplayLevel } from '../engine/UnitManager.js';
+import { findCommander } from '../engine/Commander.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { showImportantHint } from '../ui/HintDisplay.js';
@@ -60,6 +61,10 @@ export class DeployScreenOverlay {
     const rowObjects = [];
     let scrollOffset = 0;
 
+    // The commander always deploys (locked row, no click handler).
+    const commanderIdx = roster.indexOf(findCommander(roster));
+    const commanderName = commanderIdx !== -1 ? roster[commanderIdx].name : null;
+
     const serializeSelectedUnitNames = () => {
       const names = new Set();
       for (const idx of selected) {
@@ -74,14 +79,13 @@ export class DeployScreenOverlay {
       for (let i = 0; i < roster.length; i++) {
         if (selected.size >= limits.max) break;
         const unitName = roster[i]?.name;
-        if (!unitName || unitName === 'Edric') continue;
+        if (!unitName || unitName === commanderName) continue;
         if (selectedNames.has(unitName)) selected.add(i);
       }
     };
 
-    // Auto-select Edric (locked)
-    const edricIdx = roster.findIndex((u) => u.name === 'Edric');
-    if (edricIdx !== -1) selected.add(edricIdx);
+    // Auto-select the commander (locked)
+    if (commanderIdx !== -1) selected.add(commanderIdx);
     restoreSelectedUnitNames(initialSelectedNames);
 
     // Counter text
@@ -148,13 +152,13 @@ export class DeployScreenOverlay {
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
       const ry = startY + i * rowHeight;
-      const isEdric = unit.name === 'Edric';
+      const isCommander = i === commanderIdx;
 
       // Row background
       const rowBg = scene.add
         .rectangle(cam.centerX, ry, listWidth, rowHeight - 2, 0x222244, 0.8)
         .setDepth(701)
-        .setInteractive({ useHandCursor: !isEdric });
+        .setInteractive({ useHandCursor: !isCommander });
       deployGroup.push(rowBg);
 
       // Checkbox
@@ -184,9 +188,9 @@ export class DeployScreenOverlay {
         .setDepth(702);
       deployGroup.push(infoText);
 
-      // Lock label for Edric
+      // Lock label for the commander
       let lockLabel = null;
-      if (isEdric) {
+      if (isCommander) {
         lockLabel = scene.add
           .text(cam.centerX + listWidth / 2 - 16, ry, 'LOCKED', {
             fontFamily: 'monospace',
@@ -207,7 +211,7 @@ export class DeployScreenOverlay {
 
       rowObjects.push({
         index: i,
-        isEdric,
+        isCommander,
         rowBg,
         checkText,
         infoText,
@@ -215,8 +219,8 @@ export class DeployScreenOverlay {
         updateRow,
       });
 
-      // Click handler (skip Edric -- always locked)
-      if (!isEdric) {
+      // Click handler (skip the commander -- always locked)
+      if (!isCommander) {
         rowBg.on('pointerdown', (pointer) => {
           if (pointer?.button !== 0) return;
           const audio = scene.registry.get('audio');
@@ -245,7 +249,7 @@ export class DeployScreenOverlay {
     };
 
     const setRowInteractive = (rowObj, visible) => {
-      if (!rowObj || rowObj.isEdric) return;
+      if (!rowObj || rowObj.isCommander) return;
       if (visible) {
         if (typeof rowObj.rowBg.setInteractive === 'function') {
           rowObj.rowBg.setInteractive({ useHandCursor: true });
@@ -453,7 +457,7 @@ export class DeployScreenOverlay {
     if (hints?.shouldShow('battle_deploy')) {
       showImportantHint(
         scene,
-        'Click units to deploy them.\nEdric always deploys. Click Confirm when ready.',
+        'Click units to deploy them.\nYour commander always deploys. Click Confirm when ready.',
       );
     }
   }

@@ -180,6 +180,7 @@ import {
   getFailBaseLevel,
 } from '../engine/RecruitPromotion.js';
 import { resolveRecruitScalingTargets, resolveTeamAverageLevel } from '../engine/RecruitScaling.js';
+import { stampCommanderFlag } from '../engine/Commander.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
@@ -995,6 +996,11 @@ export class BattleScene extends Phaser.Scene {
         this.addUnitGraphic(playerUnit2);
       }
 
+      // Commander flag must exist before the first checkBattleEnd — the
+      // defeat/escape checks are strict on it, and tutorial/standalone
+      // rosters (and legacy resume checkpoints) never pass through RunManager.
+      stampCommanderFlag([...this.playerUnits, ...(this.escapedUnits || [])]);
+
       // Create enemies from generated spawns
       if (!this._resumeCheckpoint) {
         for (const spawn of bc.enemySpawns) {
@@ -1030,6 +1036,7 @@ export class BattleScene extends Phaser.Scene {
           rosterForLordCheck,
           this.gameData.lords || [],
           fallenForLordCheck,
+          this.runManager?.getStartingLordNames?.(),
         );
 
         const metaEffects = this.runManager?.getEffectiveMetaEffects?.() || null;
@@ -8305,8 +8312,8 @@ export class BattleScene extends Phaser.Scene {
       if (idx !== -1) {
         this.playerUnits.splice(idx, 1);
         this._playerDeathsThisBattle = (this._playerDeathsThisBattle || 0) + 1;
-        // Lord farewell dialogue (non-Edric; Edric death triggers game over elsewhere)
-        if (unit.isLord && unit.name !== 'Edric') {
+        // Lord farewell dialogue (non-commander; commander death triggers game over elsewhere)
+        if (unit.isLord && !unit.isCommander) {
           const farewellPool = this.gameData?.dialogue?.lordFarewell?.[unit.name];
           if (Array.isArray(farewellPool) && farewellPool.length > 0) {
             const line = farewellPool[Math.floor(Math.random() * farewellPool.length)];
@@ -9238,7 +9245,7 @@ export class BattleScene extends Phaser.Scene {
       // supersedes the tail), or when a rewind already replaced this phase.
       if (!phaseSuperseded() && !this.visionDialog) {
         await this.processTerrainDamage(this.enemyUnits);
-        // Re-check after the await: terrain damage can kill Edric and open the
+        // Re-check after the await: terrain damage can kill the commander and open the
         // Vision prompt, and a rewind clicked during the animations invalidates
         // this phase entirely.
         if (!phaseSuperseded() && !this.visionDialog) {
@@ -9543,12 +9550,14 @@ export class BattleScene extends Phaser.Scene {
     // must not re-trigger defeat or stack a second prompt.
     if (this.battleState === 'BATTLE_END') return true;
     if (this.visionDialog) return true;
-    // Edric defeat = immediate loss (permadeath rule -- other lords can fall).
-    // An escaped Edric is alive and safe, not fallen.
-    const edricEscaped = (this.escapedUnits || []).some((u) => u.name === 'Edric');
-    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric') || edricEscaped;
+    // Commander defeat = immediate loss (permadeath rule -- other lords can
+    // fall). An escaped commander is alive and safe, not fallen. Strict flag
+    // check: stamped at battle setup and deserialize, so a missing flag means
+    // the commander has fallen.
+    const commanderEscaped = (this.escapedUnits || []).some((u) => u.isCommander);
+    const commanderAlive = this.playerUnits.some((u) => u.isCommander) || commanderEscaped;
     const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
-    if (!edricAlive || fieldEmpty) {
+    if (!commanderAlive || fieldEmpty) {
       if (this.turnManager?.currentPhase === 'enemy' && this.showLordDeathVisionPrompt()) {
         return true;
       }
@@ -9570,7 +9579,7 @@ export class BattleScene extends Phaser.Scene {
     // the last lord still on the field falls after another already escaped).
     if (this.battleConfig.objective === 'escape') {
       const lordsOnField = this.playerUnits.some((u) => u.isLord);
-      if (edricEscaped && !lordsOnField) {
+      if (commanderEscaped && !lordsOnField) {
         this.onVictory();
         return true;
       }

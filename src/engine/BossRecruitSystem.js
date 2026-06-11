@@ -10,6 +10,7 @@ import {
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { resolveRecruitScalingTargets } from './RecruitScaling.js';
+import { DEFAULT_STARTING_LORD_NAMES } from './Commander.js';
 import {
   RECRUIT_PROMOTION_CONTEXT,
   isPromotedRecruitSource,
@@ -152,14 +153,20 @@ function pickUniqueRecruitNameForClass(recruitEntry, recruits, takenNames, class
 }
 
 /**
- * Get lords (Kira/Voss) not already in the roster or fallen.
+ * Get lords not already in the roster or fallen, excluding the starting pair.
  * @param {Array} roster - serialized roster units
  * @param {Array} lordsData - lords.json array
  * @param {Array} [fallenUnits=[]] - units that died during the run
+ * @param {Array} [startingLordNames] - lords the run started with (excluded from the pool)
  * @returns {Array} available lord definitions
  */
-export function getAvailableLords(roster, lordsData, fallenUnits = []) {
-  const startingLords = new Set(['Edric', 'Sera']);
+export function getAvailableLords(
+  roster,
+  lordsData,
+  fallenUnits = [],
+  startingLordNames = DEFAULT_STARTING_LORD_NAMES,
+) {
+  const startingLords = new Set(startingLordNames);
   const takenNames = new Set([...roster.map((u) => u.name), ...fallenUnits.map((u) => u.name)]);
   return lordsData.filter((l) => !startingLords.has(l.name) && !takenNames.has(l.name));
 }
@@ -289,7 +296,7 @@ export function generateBossRecruitCandidates(
   const { lords, classes, weapons, recruits, skills, consumables } = gameData;
   const rosterClassNames = new Set(roster.map((u) => u.className));
 
-  // Recruit scaling anchor is always Edric to keep behavior aligned across systems.
+  // Recruit scaling anchor is the commander to keep behavior aligned across systems.
   const { recruitTargetLevel, dynamicPromotionLevel, promotedLevelTarget } =
     resolveRecruitScalingTargets(roster);
 

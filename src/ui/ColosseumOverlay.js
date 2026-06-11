@@ -17,6 +17,7 @@ import { getSkillCombatMods, rollStrikeSkills, rollDefenseSkills } from '../engi
 import { gainExperience, getDisplayLevel, grantSecondaryWeapons } from '../engine/UnitManager.js';
 import { ROSTER_CAP, RECRUIT_PROMOTION_BASE_LEVEL } from '../utils/constants.js';
 import { resolveRecruitScalingTargets } from '../engine/RecruitScaling.js';
+import { findCommander } from '../engine/Commander.js';
 
 // ── Layout constants (match NodeMapScene overlay pattern) ──
 const BG_DEPTH = 300;
@@ -1201,12 +1202,10 @@ export class ColosseumOverlay {
   _getLordLevel() {
     const roster = this.runManager.roster || [];
     const { recruitTargetLevel } = resolveRecruitScalingTargets(roster);
-    const hasEdric = roster.some(
-      (u) => typeof u?.name === 'string' && u.name.trim().toLowerCase() === 'edric',
-    );
-    if (hasEdric) return recruitTargetLevel;
+    const hasCommander = Boolean(findCommander(roster));
+    if (hasCommander) return recruitTargetLevel;
 
-    // Fallback for custom rosters/campaigns that do not include Edric by name.
+    // Fallback for custom rosters/campaigns without a flagged commander or Edric.
     const fallbackLords = roster.filter((u) => u?.isLord);
     if (fallbackLords.length === 0) return 1;
 

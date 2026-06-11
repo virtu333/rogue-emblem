@@ -52,6 +52,7 @@ import {
   getWeaponArtAllowedTypes,
 } from './WeaponArtSystem.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import { findCommander, stampCommanderFlag, DEFAULT_STARTING_LORD_NAMES } from './Commander.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = ['graphic', 'label', 'hpBar', 'factionIndicator', '_conditionIcons'];
@@ -381,6 +382,20 @@ export class RunManager {
   getBaseVisionCharges() {
     const visionBonus = Math.trunc(this.metaEffects?.visionChargesBonus || 0);
     return Math.max(1, 1 + visionBonus);
+  }
+
+  /** The commander is the permadeath anchor — the unit whose death ends the run. */
+  getCommander() {
+    return findCommander(this.roster);
+  }
+
+  getCommanderName() {
+    return this.getCommander()?.name || DEFAULT_STARTING_LORD_NAMES[0];
+  }
+
+  /** Names of the lords the run starts with (commander choice will drive this via metaEffects). */
+  getStartingLordNames() {
+    return [...DEFAULT_STARTING_LORD_NAMES];
   }
 
   hasShownDialogue(key) {
@@ -2263,10 +2278,11 @@ export class RunManager {
     const { lords, classes, weapons, accessories } = this.gameData;
     const me = this.metaEffects;
 
-    // Edric — Lord
+    // Edric — Lord (the commander: permadeath anchor, locked deploy)
     const edric = lords.find((l) => l.name === 'Edric');
     const edricClass = classes.find((c) => c.name === edric.class);
     const edricUnit = createLordUnit(edric, edricClass, weapons);
+    edricUnit.isCommander = true;
     this._applyLordMetaBonuses(edricUnit);
 
     // Edric's extra combat sword defaults to Steel Sword, then Deadly Arsenal tiers adjust this loadout.
@@ -3400,6 +3416,8 @@ export class RunManager {
           '[RunManager] fromJSON: no lord found in roster after filtering — save is corrupt',
         );
       }
+      // Commander flag: legacy saves predate it — heal via flag -> Edric -> first lord.
+      stampCommanderFlag(rm.roster);
     }
 
     rm.nodeMap = saved.nodeMap;
@@ -3700,6 +3718,17 @@ export class RunManager {
       typeof rawBattleInProgress.checkpoint === 'object'
         ? rawBattleInProgress
         : null;
+
+    // The checkpoint stores its own unit arrays (restored directly into the
+    // scene, never through the roster), so legacy ones are healed here too.
+    // One combined pool: the commander may be among the escaped units.
+    if (rm.battleInProgress) {
+      const checkpoint = rm.battleInProgress.checkpoint;
+      stampCommanderFlag([
+        ...(Array.isArray(checkpoint.playerUnits) ? checkpoint.playerUnits : []),
+        ...(Array.isArray(checkpoint.escapedUnits) ? checkpoint.escapedUnits : []),
+      ]);
+    }
 
     return rm;
   }
