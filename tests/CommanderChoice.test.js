@@ -274,6 +274,21 @@ describe('createInitialRoster with chosen lords', () => {
     expect(roster[0].isCommander).toBe(true);
   });
 
+  it('getStartingLordNames agrees with the healed roster for any stored names', () => {
+    const cases = [
+      { commander: 'Nonexistent', partner: 'AlsoFake' },
+      { commander: 'Nonexistent', partner: 'Kira' },
+      { commander: 'Cael', partner: 'Nonexistent' },
+      { commander: 'Cael', partner: 'Kira' },
+      { commander: 'Sera', partner: 'Nonexistent' },
+    ];
+    for (const startingLords of cases) {
+      const rm = new RunManager(gameData, { startingLords });
+      const roster = rm.createInitialRoster();
+      expect(rm.getStartingLordNames()).toEqual(roster.map((u) => u.name));
+    }
+  });
+
   it('startRun roster + getStartingLordNames follow the selection', () => {
     const rm = new RunManager(gameData, {
       startingLords: { commander: 'Astrid', partner: 'Cael' },

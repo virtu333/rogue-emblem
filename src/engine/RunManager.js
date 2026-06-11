@@ -58,7 +58,7 @@ import {
   findCommander,
   stampCommanderFlag,
   resolveStartingLordNames,
-  defaultPartnerFor,
+  resolveStartingLordDefs,
   DEFAULT_STARTING_LORD_NAMES,
 } from './Commander.js';
 
@@ -401,8 +401,17 @@ export class RunManager {
     return this.getCommander()?.name || DEFAULT_STARTING_LORD_NAMES[0];
   }
 
-  /** Names of the lords the run started with (commander choice via metaEffects). */
+  /**
+   * Names of the lords the run started with (commander choice via
+   * metaEffects), healed against lords data exactly as createInitialRoster
+   * heals them — so presentation consumers always match the built roster.
+   */
   getStartingLordNames() {
+    const [commanderDef, partnerDef] = resolveStartingLordDefs(
+      this.metaEffects,
+      this.gameData?.lords,
+    );
+    if (commanderDef && partnerDef) return [commanderDef.name, partnerDef.name];
     return resolveStartingLordNames(this.metaEffects);
   }
 
@@ -2366,15 +2375,7 @@ export class RunManager {
     const me = this.metaEffects;
 
     // Resolve the starting pair; unknown lord names heal to the default pair.
-    const [commanderName, partnerName] = resolveStartingLordNames(me);
-    const findLord = (name) => lords.find((l) => l.name === name) || null;
-    const commanderDef =
-      findLord(commanderName) || findLord(DEFAULT_STARTING_LORD_NAMES[0]) || lords[0];
-    let partnerDef = findLord(partnerName);
-    if (!partnerDef || partnerDef === commanderDef) {
-      partnerDef =
-        findLord(defaultPartnerFor(commanderDef.name)) || lords.find((l) => l !== commanderDef);
-    }
+    const [commanderDef, partnerDef] = resolveStartingLordDefs(me, lords);
 
     const commanderUnit = this._buildStartingLord(commanderDef, { isCommander: true });
     const partnerUnit = this._buildStartingLord(partnerDef, { isCommander: false });

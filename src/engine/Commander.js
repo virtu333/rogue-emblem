@@ -40,6 +40,31 @@ export function resolveStartingLordNames(metaEffects) {
   return [...DEFAULT_STARTING_LORD_NAMES];
 }
 
+/**
+ * Resolve the starting pair to lord definitions, healing unknown names the
+ * same way createInitialRoster builds units: unknown commander -> Edric ->
+ * first lord; unknown/colliding partner -> default partner -> any other lord.
+ * Single source of truth so the built roster and every presentation consumer
+ * (dialogue cast, lord-spawn exclusions) agree even when a save carries a
+ * stale lord name.
+ * @returns {[object|null, object|null]} [commanderDef, partnerDef]
+ */
+export function resolveStartingLordDefs(metaEffects, lords) {
+  const pool = Array.isArray(lords) ? lords : [];
+  const [commanderName, partnerName] = resolveStartingLordNames(metaEffects);
+  const findLord = (name) => pool.find((l) => l?.name === name) || null;
+  const commanderDef =
+    findLord(commanderName) || findLord(DEFAULT_STARTING_LORD_NAMES[0]) || pool[0] || null;
+  let partnerDef = findLord(partnerName);
+  if (!partnerDef || partnerDef === commanderDef) {
+    partnerDef =
+      findLord(defaultPartnerFor(commanderDef?.name)) ||
+      pool.find((l) => l !== commanderDef) ||
+      null;
+  }
+  return [commanderDef, partnerDef];
+}
+
 function isEdricByName(unit) {
   return typeof unit?.name === 'string' && unit.name.trim().toLowerCase() === 'edric';
 }

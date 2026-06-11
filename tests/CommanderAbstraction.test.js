@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   findCommander,
   stampCommanderFlag,
+  resolveStartingLordDefs,
   DEFAULT_STARTING_LORD_NAMES,
 } from '../src/engine/Commander.js';
 import { RunManager } from '../src/engine/RunManager.js';
@@ -162,5 +163,44 @@ describe('getAvailableLords startingLordNames', () => {
     expect(names).toContain('Edric');
     expect(names).not.toContain('Cael'); // excluded as starting lord (and in roster)
     expect(names).not.toContain('Sera');
+  });
+});
+
+describe('resolveStartingLordDefs', () => {
+  const defNames = (metaEffects) =>
+    resolveStartingLordDefs(metaEffects, gameData.lords).map((d) => d?.name);
+
+  it('resolves a valid pair verbatim', () => {
+    expect(defNames({ startingLords: { commander: 'Cael', partner: 'Kira' } })).toEqual([
+      'Cael',
+      'Kira',
+    ]);
+  });
+
+  it('heals an unknown commander to Edric and keeps a valid partner', () => {
+    expect(defNames({ startingLords: { commander: 'Bogus', partner: 'Kira' } })).toEqual([
+      'Edric',
+      'Kira',
+    ]);
+  });
+
+  it('heals an unknown partner to the default for the commander', () => {
+    expect(defNames({ startingLords: { commander: 'Sera', partner: 'Bogus' } })).toEqual([
+      'Sera',
+      'Edric',
+    ]);
+    expect(defNames({ startingLords: { commander: 'Cael', partner: 'Bogus' } })).toEqual([
+      'Cael',
+      'Sera',
+    ]);
+  });
+
+  it('falls back to the default pair with no metaEffects', () => {
+    expect(defNames(null)).toEqual(DEFAULT_STARTING_LORD_NAMES);
+  });
+
+  it('returns nulls for an empty lords pool instead of throwing', () => {
+    expect(resolveStartingLordDefs(null, [])).toEqual([null, null]);
+    expect(resolveStartingLordDefs(null, null)).toEqual([null, null]);
   });
 });
