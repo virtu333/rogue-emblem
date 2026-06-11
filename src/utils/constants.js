@@ -182,6 +182,16 @@ export const LOOT_CHOICES = 3;
 export const ELITE_LOOT_CHOICES = 4; // Elite battles offer 4 loot choices
 export const ELITE_MAX_PICKS = 2; // Pick 2 from elite loot
 export const ELITE_GOLD_MULTIPLIER = 1.25; // Elite battle gold bonus
+// Escape objective: gold paid per non-lord unit that exits early (before the
+// final lord escapes ends the battle). Deliberately small — full evacuation is
+// optimal play, so this is effectively a flat per-map bonus.
+export const ESCAPE_EVAC_GOLD_BY_ACT = {
+  act1: 20,
+  act2: 30,
+  act3: 40,
+  act4: 50,
+  finalBoss: 50,
+};
 export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const INVENTORY_MAX = 5; // Combat weapons + staves only
 export const CONSUMABLE_MAX = 3; // Separate consumables array

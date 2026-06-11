@@ -96,6 +96,7 @@ import {
   RECRUIT_SKILL_POOL,
   XP_STAT_NAMES,
   XP_SPECIAL_ENEMY_MULTIPLIER,
+  ESCAPE_EVAC_GOLD_BY_ACT,
 } from '../../src/utils/constants.js';
 
 export const HEADLESS_STATES = {
@@ -149,6 +150,7 @@ export class HeadlessBattle {
     this.playerUnits = [];
     this.enemyUnits = [];
     this.npcUnits = [];
+    this.escapedUnits = [];
     this.goldEarned = 0;
     this.result = null; // 'victory' | 'defeat' | null
 
@@ -196,6 +198,7 @@ export class HeadlessBattle {
     this.playerUnits = [];
     this.enemyUnits = [];
     this.npcUnits = [];
+    this.escapedUnits = [];
     this.goldEarned = 0;
     this.result = null;
     this._selectedWeaponArt = null;
@@ -567,6 +570,14 @@ export class HeadlessBattle {
       }
     }
 
+    // Escape (any unit on an escape square)
+    if (
+      this.battleConfig.objective === 'escape' &&
+      (this.battleConfig.escapeTiles || []).some((t) => t.col === unit.col && t.row === unit.row)
+    ) {
+      actions.push({ label: 'Escape', supported: true });
+    }
+
     // Talk
     if (unit.isLord && this.npcUnits.length > 0) {
       const talkTarget = this._findTalkTarget(unit);
@@ -625,6 +636,9 @@ export class HeadlessBattle {
         break;
       case 'Seize':
         this._onVictory();
+        break;
+      case 'Escape':
+        this._executeEscape(this.selectedUnit);
         break;
       case 'Talk': {
         const target = this._findTalkTarget(this.selectedUnit);
@@ -1044,6 +1058,7 @@ export class HeadlessBattle {
       difficultyId: this.battleParams?.difficultyId || 'normal',
       difficultyTurnOffset: Math.trunc(Number(this.battleParams?.reinforcementTurnOffset) || 0),
       enemyCountBonus: Math.trunc(Number(this.battleParams?.enemyCountBonus) || 0),
+      activeEnemyCount: this.enemyUnits.length,
     });
   }
 
@@ -2287,6 +2302,27 @@ export class HeadlessBattle {
     this.turnManager.unitActed(unit);
   }
 
+  /** Escape objective: unit leaves the field (mirrors EscapeObjectiveController). */
+  _executeEscape(unit) {
+    const idx = this.playerUnits.indexOf(unit);
+    if (idx !== -1) this.playerUnits.splice(idx, 1);
+    unit.hasActed = true;
+    unit.hasMoved = true;
+    this.escapedUnits.push(unit);
+
+    if (!unit.isLord) {
+      const act = this.battleParams?.act || 'act1';
+      this.goldEarned += ESCAPE_EVAC_GOLD_BY_ACT[act] ?? ESCAPE_EVAC_GOLD_BY_ACT.act1;
+    }
+
+    this.selectedUnit = null;
+    this.preMoveLoc = null;
+    this.battleState = HEADLESS_STATES.PLAYER_IDLE;
+
+    if (this._checkBattleEnd()) return;
+    this.turnManager.unitActed(unit);
+  }
+
   _removeUnit(unit, options = {}) {
     const killer = options?.killer || null;
     if (unit.faction === 'player') {
@@ -2310,8 +2346,10 @@ export class HeadlessBattle {
   }
 
   _checkBattleEnd() {
-    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric');
-    if (!edricAlive || this.playerUnits.length === 0) {
+    const edricEscaped = (this.escapedUnits || []).some((u) => u.name === 'Edric');
+    const edricAlive = this.playerUnits.some((u) => u.name === 'Edric') || edricEscaped;
+    const fieldEmpty = this.playerUnits.length === 0 && !(this.escapedUnits?.length > 0);
+    if (!edricAlive || fieldEmpty) {
       this._onDefeat();
       return true;
     }
@@ -2319,6 +2357,13 @@ export class HeadlessBattle {
       if (this._reinforcementsPendingThisTurn) return false;
       this._onVictory();
       return true;
+    }
+    if (this.battleConfig.objective === 'escape') {
+      const lordsOnField = this.playerUnits.some((u) => u.isLord);
+      if (edricEscaped && !lordsOnField) {
+        this._onVictory();
+        return true;
+      }
     }
     return false;
   }

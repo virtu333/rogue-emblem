@@ -60,8 +60,12 @@ export class PostCombatController {
       });
     } else if (scene.runManager) {
       scene.clearBattleScopedDeltas(scene.playerUnits);
+      scene.clearBattleScopedDeltas(scene.escapedUnits || []);
       scene.clearBattleScopedDeltas(scene.nonDeployedUnits || []);
-      const surviving = scene.playerUnits.map((u) => serializeUnit(u));
+      // Escaped units (Escape objective) survived the battle off the field
+      const surviving = [...scene.playerUnits, ...(scene.escapedUnits || [])].map((u) =>
+        serializeUnit(u),
+      );
       const allUnits = [...surviving, ...(scene.nonDeployedUnits || [])];
       const turnPressure = scene.getTurnPressureState();
       const completionGoldAward = Math.max(

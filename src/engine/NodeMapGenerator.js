@@ -26,7 +26,7 @@ const ACT_LEVEL_SCALING = {
  * Edges only connect to same or adjacent columns (±1), preventing visual crossings.
  * @param {string} actId - e.g. 'act1', 'act2', 'act3', 'finalBoss'
  * @param {{ name: string, rows: number }} actConfig
- * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize)
+ * @param {Object} [mapTemplates] - map templates keyed by objective (rout, seize, escape)
  * @param {{ fogChanceBonus?: number, halfFogChance?: boolean, villageAmbushChance?: number }} [options]
  * @returns {{ actId, nodes: Array, startNodeId, bossNodeId }}
  */
@@ -366,10 +366,17 @@ function buildBattleParams(actId, type, row, totalRows) {
   if (type === NODE_TYPES.RECRUIT) {
     params = { act: actId, objective: 'rout', isRecruitBattle: true };
   } else {
-    const canSeize = row !== undefined && totalRows && canSeizeAtRow(actId, row, totalRows);
-    const objective = canSeize && Math.random() < 0.4 ? 'seize' : 'rout';
+    // Special objectives share the seize row gating: 28% seize, 12% escape
+    // (40% total — same elite-node density as before escape existed).
+    const canSpecial = row !== undefined && totalRows && canSeizeAtRow(actId, row, totalRows);
+    let objective = 'rout';
+    if (canSpecial) {
+      const roll = Math.random();
+      if (roll < 0.28) objective = 'seize';
+      else if (roll < 0.4) objective = 'escape';
+    }
     params = { act: actId, objective };
-    if (objective === 'seize') {
+    if (objective !== 'rout') {
       params.isElite = true;
     }
   }
@@ -391,7 +398,7 @@ function rollBattleSeed() {
 
 /**
  * Pick a random template matching the given objective from mapTemplates.
- * @param {string} objective - 'rout' or 'seize'
+ * @param {string} objective - 'rout', 'seize', or 'escape'
  * @param {Object} [mapTemplates] - { rout: [...], seize: [...] }
  * @param {string} [actId] - optional act id for template act filtering
  * @param {boolean} [isBossNode] - whether this is a boss node

@@ -3,28 +3,58 @@
     {
       "id": "open_field",
       "name": "Open Field",
-      "fogChance": 0.10,
+      "fogChance": 0.1,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 70, "Forest": 20, "Sand": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 20,
+            "Sand": 10
+          },
           "priority": 0
         },
         {
-          "rect": [0, 0, 0.25, 1],
-          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "rect": [
+            0,
+            0,
+            0.25,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.75, 0, 1, 1],
-          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "rect": [
+            0.75,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Ballista", "position": "right" }
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
       ],
       "anchors": [],
       "enemyWeights": {
@@ -32,21 +62,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 5, "count": [2, 3], "edges": ["right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["top", "right"] }
+          {
+            "turn": 5,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["right"] },
-            { "turn": 14, "count": [3, 4], "edges": ["top", "right"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -54,42 +145,93 @@
     {
       "id": "river_crossing",
       "name": "River Crossing",
-      "fogChance": 0.30,
+      "fogChance": 0.3,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 80, "Forest": 15, "Sand": 5 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Forest": 15,
+            "Sand": 5
+          },
           "priority": 0
         },
         {
-          "rect": [0.4, 0, 0.6, 1],
-          "terrain": { "Water": 85, "Bridge": 15 },
+          "rect": [
+            0.4,
+            0,
+            0.6,
+            1
+          ],
+          "terrain": {
+            "Water": 85,
+            "Bridge": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.7, 0, 1, 1],
-          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Ballista", "position": "topRight" }
+        {
+          "type": "Ballista",
+          "position": "topRight"
+        }
       ],
       "anchors": [
-        { "position": "bridge_ends", "unit": "lance_user", "count": 2 }
+        {
+          "position": "bridge_ends",
+          "unit": "lance_user",
+          "count": 2
+        }
       ],
       "minBridges": 2,
       "minBridgesByAct": {
-        "act2": [2, 3],
-        "act3": [3, 4],
-        "act4": [3, 4]
+        "act2": [
+          2,
+          3
+        ],
+        "act3": [
+          3,
+          4
+        ],
+        "act4": [
+          3,
+          4
+        ]
       },
       "enemyWeights": {
         "archer": 1.5,
@@ -98,21 +240,79 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right"],
+        "spawnEdges": [
+          "right"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["right"] },
-          { "turn": 8, "count": [2, 2], "edges": ["right"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["right"] },
-            { "turn": 14, "count": [3, 4], "edges": ["right"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -120,22 +320,49 @@
     {
       "id": "forest_ambush",
       "name": "Forest Ambush",
-      "fogChance": 0.60,
+      "fogChance": 0.6,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Forest": 55, "Plain": 35, "Mountain": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Forest": 55,
+            "Plain": 35,
+            "Mountain": 10
+          },
           "priority": 0
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 50, "Forest": 40, "Fort": 10 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Forest": 40,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.5, 0.2, 0.9, 0.8],
-          "terrain": { "Forest": 50, "Plain": 40, "Fort": 10 },
+          "rect": [
+            0.5,
+            0.2,
+            0.9,
+            0.8
+          ],
+          "terrain": {
+            "Forest": 50,
+            "Plain": 40,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
@@ -149,21 +376,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["top", "bottom"],
+        "spawnEdges": [
+          "top",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 4, "count": [1, 2], "edges": ["top"] },
-          { "turn": 7, "count": [2, 3], "edges": ["top", "bottom"] }
+          {
+            "turn": 4,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "top"
+            ]
+          },
+          {
+            "turn": 7,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["top"] },
-            { "turn": 14, "count": [3, 4], "edges": ["top", "bottom"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "top"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "bottom"
+              ]
+            }
           ]
         }
       }
@@ -171,46 +459,103 @@
     {
       "id": "chokepoint",
       "name": "Chokepoint",
-      "fogChance": 0.20,
+      "fogChance": 0.2,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 70, "Forest": 15, "Mountain": 15 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 15,
+            "Mountain": 15
+          },
           "priority": 0
         },
         {
-          "rect": [0.35, 0, 0.65, 0.35],
-          "terrain": { "Wall": 80, "Mountain": 20 },
+          "rect": [
+            0.35,
+            0,
+            0.65,
+            0.35
+          ],
+          "terrain": {
+            "Wall": 80,
+            "Mountain": 20
+          },
           "priority": 2
         },
         {
-          "rect": [0.35, 0.65, 0.65, 1],
-          "terrain": { "Wall": 80, "Mountain": 20 },
+          "rect": [
+            0.35,
+            0.65,
+            0.65,
+            1
+          ],
+          "terrain": {
+            "Wall": 80,
+            "Mountain": 20
+          },
           "priority": 2
         },
         {
-          "rect": [0.45, 0.35, 0.55, 0.65],
-          "terrain": { "Plain": 70, "Fort": 30 },
+          "rect": [
+            0.45,
+            0.35,
+            0.55,
+            0.65
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Fort": 30
+          },
           "priority": 3
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.7, 0, 1, 1],
-          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Ballista", "position": "right" }
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "center_gap", "unit": "highest_level" }
+        {
+          "position": "center_gap",
+          "unit": "highest_level"
+        }
       ],
       "enemyWeights": {
         "knight": 1.5,
@@ -218,21 +563,79 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right"],
+        "spawnEdges": [
+          "right"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["right"] },
-          { "turn": 8, "count": [2, 2], "edges": ["right"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["right"] },
-            { "turn": 14, "count": [3, 4], "edges": ["right"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -241,34 +644,78 @@
       "id": "frozen_pass",
       "name": "Frozen Pass",
       "fogChance": 0.25,
-      "acts": ["act4"],
+      "acts": [
+        "act4"
+      ],
       "biome": "tundra",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 55, "Ice": 20, "Mountain": 20, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 20,
+            "Mountain": 20,
+            "Forest": 5
+          },
           "priority": 0
         },
         {
-          "rect": [0.25, 0.2, 0.75, 0.8],
-          "terrain": { "Ice": 50, "Plain": 35, "Forest": 15 },
+          "rect": [
+            0.25,
+            0.2,
+            0.75,
+            0.8
+          ],
+          "terrain": {
+            "Ice": 50,
+            "Plain": 35,
+            "Forest": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 20,
+            "Fort": 20,
+            "Forest": 5
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.7, 0, 1, 1],
-          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 20,
+            "Fort": 20,
+            "Forest": 5
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Ballista", "position": "topRight" }
+        {
+          "type": "Ballista",
+          "position": "topRight"
+        }
       ],
       "anchors": [],
       "enemyWeights": {
@@ -277,20 +724,77 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 5, "count": [3, 4], "edges": ["top", "right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["top"] }
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 5,
+            "count": [
+              3,
+              4
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "actTurnOffset": { "hard": { "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [3, 4], "edges": ["top", "right"] }
+            {
+              "turn": 11,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -298,29 +802,66 @@
     {
       "id": "caldera",
       "name": "Caldera",
-      "fogChance": 0.10,
-      "acts": ["act4"],
+      "fogChance": 0.1,
+      "acts": [
+        "act4"
+      ],
       "biome": "volcano",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 50, "Mountain": 30, "Lava Crack": 20 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Mountain": 30,
+            "Lava Crack": 20
+          },
           "priority": 0
         },
         {
-          "rect": [0.3, 0.25, 0.7, 0.75],
-          "terrain": { "Lava Crack": 75, "Plain": 25 },
+          "rect": [
+            0.3,
+            0.25,
+            0.7,
+            0.75
+          ],
+          "terrain": {
+            "Lava Crack": 75,
+            "Plain": 25
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Mountain": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.7, 0, 1, 1],
-          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "rect": [
+            0.7,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Mountain": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "enemySpawn"
         }
@@ -333,20 +874,77 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "bottom"],
+        "spawnEdges": [
+          "right",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 6, "count": [3, 5], "edges": ["bottom", "right"] },
-          { "turn": 9, "count": [2, 3], "edges": ["bottom"] }
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 6,
+            "count": [
+              3,
+              5
+            ],
+            "edges": [
+              "bottom",
+              "right"
+            ]
+          },
+          {
+            "turn": 9,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "actTurnOffset": { "hard": { "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 12, "count": [3, 4], "edges": ["bottom", "right"] }
+            {
+              "turn": 12,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "bottom",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -355,51 +953,155 @@
       "id": "corridor_siege",
       "name": "Corridor Siege",
       "fogChance": 0.15,
-      "acts": ["act2", "act3", "act4"],
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
       "biome": "castle",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Floor": 60, "Wall": 25, "Pillar": 15 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 60,
+            "Wall": 25,
+            "Pillar": 15
+          },
           "priority": 0
         },
         {
-          "rect": [0, 0.3, 1, 0.7],
-          "terrain": { "Floor": 80, "Pillar": 15, "Fort": 5 },
+          "rect": [
+            0,
+            0.3,
+            1,
+            0.7
+          ],
+          "terrain": {
+            "Floor": 80,
+            "Pillar": 15,
+            "Fort": 5
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 1, 0.25],
-          "terrain": { "Wall": 70, "Floor": 20, "Pillar": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            0.25
+          ],
+          "terrain": {
+            "Wall": 70,
+            "Floor": 20,
+            "Pillar": 10
+          },
           "priority": 1
         },
         {
-          "rect": [0, 0.75, 1, 1],
-          "terrain": { "Wall": 70, "Floor": 20, "Pillar": 10 },
+          "rect": [
+            0,
+            0.75,
+            1,
+            1
+          ],
+          "terrain": {
+            "Wall": 70,
+            "Floor": 20,
+            "Pillar": 10
+          },
           "priority": 1
         },
         {
-          "rect": [0, 0, 0.25, 1],
-          "terrain": { "Floor": 70, "Pillar": 20, "Fort": 10 },
+          "rect": [
+            0,
+            0,
+            0.25,
+            1
+          ],
+          "terrain": {
+            "Floor": 70,
+            "Pillar": 20,
+            "Fort": 10
+          },
           "priority": 3,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.75, 0, 1, 1],
-          "terrain": { "Floor": 60, "Pillar": 25, "Fort": 15 },
+          "rect": [
+            0.75,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 60,
+            "Pillar": 25,
+            "Fort": 15
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "structures": [
-        { "type": "fill", "rect": [0.3, 0.01, 0.7, 0.99], "terrain": "Floor" },
-        { "type": "wall_line", "rect": [0.3, 0.01, 0.75, 0.2] },
-        { "type": "wall_line", "rect": [0.3, 0.8, 0.75, 0.99] },
-        { "type": "pillar_line", "rect": [0.3, 0.2, 0.7, 0.3], "spacing": 3 },
-        { "type": "pillar_line", "rect": [0.3, 0.7, 0.7, 0.8], "spacing": 3 }
+        {
+          "type": "fill",
+          "rect": [
+            0.3,
+            0.01,
+            0.7,
+            0.99
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.3,
+            0.01,
+            0.75,
+            0.2
+          ]
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.3,
+            0.8,
+            0.75,
+            0.99
+          ]
+        },
+        {
+          "type": "pillar_line",
+          "rect": [
+            0.3,
+            0.2,
+            0.7,
+            0.3
+          ],
+          "spacing": 3
+        },
+        {
+          "type": "pillar_line",
+          "rect": [
+            0.3,
+            0.7,
+            0.7,
+            0.8
+          ],
+          "spacing": 3
+        }
       ],
       "features": [
-        { "type": "Ballista", "position": "right" }
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
       ],
       "anchors": [],
       "enemyWeights": {
@@ -409,20 +1111,69 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right"],
+        "spawnEdges": [
+          "right"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["right"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["right"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -431,45 +1182,155 @@
       "id": "castle_ruins",
       "name": "Castle Ruins",
       "fogChance": 0.25,
-      "acts": ["act2", "act3", "act4"],
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
       "biome": "castle",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Floor": 60, "Wall": 30, "Pillar": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 60,
+            "Wall": 30,
+            "Pillar": 10
+          },
           "priority": 0
         },
         {
-          "rect": [0.3, 0, 0.7, 0.45],
-          "terrain": { "Wall": 60, "Floor": 25, "Pillar": 15 },
+          "rect": [
+            0.3,
+            0,
+            0.7,
+            0.45
+          ],
+          "terrain": {
+            "Wall": 60,
+            "Floor": 25,
+            "Pillar": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0.3, 0.55, 0.7, 1],
-          "terrain": { "Floor": 65, "Pillar": 25, "Fort": 10 },
+          "rect": [
+            0.3,
+            0.55,
+            0.7,
+            1
+          ],
+          "terrain": {
+            "Floor": 65,
+            "Pillar": 25,
+            "Fort": 10
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.25, 0.5],
-          "terrain": { "Floor": 60, "Pillar": 20, "Fort": 20 },
+          "rect": [
+            0,
+            0,
+            0.25,
+            0.5
+          ],
+          "terrain": {
+            "Floor": 60,
+            "Pillar": 20,
+            "Fort": 20
+          },
           "priority": 3,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.75, 0.5, 1, 1],
-          "terrain": { "Floor": 55, "Pillar": 30, "Fort": 15 },
+          "rect": [
+            0.75,
+            0.5,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 55,
+            "Pillar": 30,
+            "Fort": 15
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "structures": [
-        { "type": "fill", "rect": [0.3, 0.01, 0.7, 0.99], "terrain": "Floor" },
-        { "type": "room", "rect": [0.3, 0.05, 0.6, 0.45] },
-        { "type": "fill", "rect": [0.4, 0.4, 0.5, 0.45], "terrain": "Floor" },
-        { "type": "room", "rect": [0.4, 0.55, 0.7, 0.95] },
-        { "type": "fill", "rect": [0.5, 0.55, 0.6, 0.6], "terrain": "Floor" },
-        { "type": "pillar_grid", "rect": [0.3, 0.5, 0.4, 0.95], "spacing": 2 },
-        { "type": "pillar_grid", "rect": [0.6, 0.05, 0.7, 0.5], "spacing": 3 }
+        {
+          "type": "fill",
+          "rect": [
+            0.3,
+            0.01,
+            0.7,
+            0.99
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "room",
+          "rect": [
+            0.3,
+            0.05,
+            0.6,
+            0.45
+          ]
+        },
+        {
+          "type": "fill",
+          "rect": [
+            0.4,
+            0.4,
+            0.5,
+            0.45
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "room",
+          "rect": [
+            0.4,
+            0.55,
+            0.7,
+            0.95
+          ]
+        },
+        {
+          "type": "fill",
+          "rect": [
+            0.5,
+            0.55,
+            0.6,
+            0.6
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "pillar_grid",
+          "rect": [
+            0.3,
+            0.5,
+            0.4,
+            0.95
+          ],
+          "spacing": 2
+        },
+        {
+          "type": "pillar_grid",
+          "rect": [
+            0.6,
+            0.05,
+            0.7,
+            0.5
+          ],
+          "spacing": 3
+        }
       ],
       "features": [],
       "anchors": [],
@@ -480,20 +1341,72 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 4, "count": [1, 2], "edges": ["right"] },
-          { "turn": 7, "count": [2, 3], "edges": ["top", "right"] }
+          {
+            "turn": 4,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 7,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 10, "count": [2, 3], "edges": ["top", "right"] }
+            {
+              "turn": 10,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -501,35 +1414,87 @@
     {
       "id": "mire_crossing",
       "name": "Mire Crossing",
-      "fogChance": 0.20,
+      "fogChance": 0.2,
       "parBonus": 2,
-      "acts": ["act2", "act3", "act4"],
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
       "biome": "swamp",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Bog": 40, "Swamp": 30, "Plain": 20, "Forest": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Bog": 40,
+            "Swamp": 30,
+            "Plain": 20,
+            "Forest": 10
+          },
           "priority": 0
         },
         {
-          "rect": [0.25, 0.15, 0.75, 0.85],
-          "terrain": { "Swamp": 55, "Bog": 30, "Plain": 15 },
+          "rect": [
+            0.25,
+            0.15,
+            0.75,
+            0.85
+          ],
+          "terrain": {
+            "Swamp": 55,
+            "Bog": 30,
+            "Plain": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0.3, 0.4, 0.7, 0.6],
-          "terrain": { "Plain": 55, "Forest": 30, "Fort": 15 },
+          "rect": [
+            0.3,
+            0.4,
+            0.7,
+            0.6
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Forest": 30,
+            "Fort": 15
+          },
           "priority": 3
         },
         {
-          "rect": [0, 0, 0.24, 1],
-          "terrain": { "Plain": 60, "Forest": 25, "Bog": 10, "Fort": 5 },
+          "rect": [
+            0,
+            0,
+            0.24,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 25,
+            "Bog": 10,
+            "Fort": 5
+          },
           "priority": 3,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.76, 0, 1, 1],
-          "terrain": { "Plain": 50, "Forest": 20, "Bog": 20, "Fort": 10 },
+          "rect": [
+            0.76,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Forest": 20,
+            "Bog": 20,
+            "Fort": 10
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
@@ -543,21 +1508,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["top", "right"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "turnJitter": [-1, 1],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["top", "right"] },
-            { "turn": 14, "count": [2, 4], "edges": ["right"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                2,
+                4
+              ],
+              "edges": [
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -567,38 +1593,86 @@
     {
       "id": "castle_assault",
       "name": "Castle Assault",
-      "fogChance": 0.00,
+      "fogChance": 0.0,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 75, "Forest": 15, "Sand": 10 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 75,
+            "Forest": 15,
+            "Sand": 10
+          },
           "priority": 0
         },
         {
-          "rect": [0.6, 0.15, 1, 0.85],
-          "terrain": { "Wall": 40, "Plain": 40, "Fort": 20 },
+          "rect": [
+            0.6,
+            0.15,
+            1,
+            0.85
+          ],
+          "terrain": {
+            "Wall": 40,
+            "Plain": 40,
+            "Fort": 20
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Forest": 30, "Fort": 10 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.65, 0.2, 0.95, 0.8],
-          "terrain": { "Plain": 60, "Fort": 30, "Wall": 10 },
+          "rect": [
+            0.65,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Fort": 30,
+            "Wall": 10
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Throne", "position": "right" },
-        { "type": "Ballista", "position": "bottomRight" }
+        {
+          "type": "Throne",
+          "position": "right"
+        },
+        {
+          "type": "Ballista",
+          "position": "bottomRight"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" },
-        { "position": "gate_adjacent", "unit": "knight" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        },
+        {
+          "position": "gate_adjacent",
+          "unit": "knight"
+        }
       ],
       "enemyWeights": {
         "knight": 1.5,
@@ -607,21 +1681,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["left", "bottom"],
+        "spawnEdges": [
+          "left",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["left"] },
-          { "turn": 8, "count": [2, 3], "edges": ["left", "bottom"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "left"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left",
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["left"] },
-            { "turn": 14, "count": [3, 4], "edges": ["left", "bottom"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "left"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "left",
+                "bottom"
+              ]
+            }
           ]
         }
       }
@@ -629,60 +1764,204 @@
     {
       "id": "great_hall",
       "name": "Great Hall",
-      "fogChance": 0.10,
-      "acts": ["act2", "act3", "act4"],
+      "fogChance": 0.1,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
       "biome": "castle",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Floor": 50, "Wall": 35, "Pillar": 15 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 50,
+            "Wall": 35,
+            "Pillar": 15
+          },
           "priority": 0
         },
         {
-          "rect": [0, 0.15, 0.35, 0.45],
-          "terrain": { "Floor": 75, "Pillar": 15, "Fort": 10 },
+          "rect": [
+            0,
+            0.15,
+            0.35,
+            0.45
+          ],
+          "terrain": {
+            "Floor": 75,
+            "Pillar": 15,
+            "Fort": 10
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0.55, 0.35, 0.85],
-          "terrain": { "Floor": 75, "Pillar": 15, "Fort": 10 },
+          "rect": [
+            0,
+            0.55,
+            0.35,
+            0.85
+          ],
+          "terrain": {
+            "Floor": 75,
+            "Pillar": 15,
+            "Fort": 10
+          },
           "priority": 2
         },
         {
-          "rect": [0.4, 0.1, 0.95, 0.9],
-          "terrain": { "Floor": 60, "Pillar": 30, "Fort": 10 },
+          "rect": [
+            0.4,
+            0.1,
+            0.95,
+            0.9
+          ],
+          "terrain": {
+            "Floor": 60,
+            "Pillar": 30,
+            "Fort": 10
+          },
           "priority": 3
         },
         {
-          "rect": [0, 0.15, 0.3, 0.85],
-          "terrain": { "Floor": 65, "Pillar": 20, "Fort": 15 },
+          "rect": [
+            0,
+            0.15,
+            0.3,
+            0.85
+          ],
+          "terrain": {
+            "Floor": 65,
+            "Pillar": 20,
+            "Fort": 15
+          },
           "priority": 4,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.55, 0.2, 0.9, 0.8],
-          "terrain": { "Floor": 55, "Pillar": 30, "Fort": 15 },
+          "rect": [
+            0.55,
+            0.2,
+            0.9,
+            0.8
+          ],
+          "terrain": {
+            "Floor": 55,
+            "Pillar": 30,
+            "Fort": 15
+          },
           "priority": 4,
           "role": "enemySpawn"
         }
       ],
       "structures": [
-        { "type": "fill", "rect": [0.36, 0.01, 0.5, 0.99], "terrain": "Floor" },
-        { "type": "wall_line", "rect": [0.3, 0.01, 0.95, 0.1] },
-        { "type": "wall_line", "rect": [0.3, 0.9, 0.95, 0.99] },
-        { "type": "room", "rect": [0.36, 0.1, 0.5, 0.4] },
-        { "type": "fill", "rect": [0.45, 0.35, 0.5, 0.4], "terrain": "Floor" },
-        { "type": "room", "rect": [0.36, 0.6, 0.5, 0.9] },
-        { "type": "fill", "rect": [0.45, 0.6, 0.5, 0.65], "terrain": "Floor" },
-        { "type": "pillar_line", "rect": [0.45, 0.25, 0.5, 0.35], "spacing": 2 },
-        { "type": "pillar_line", "rect": [0.45, 0.65, 0.5, 0.75], "spacing": 2 }
+        {
+          "type": "fill",
+          "rect": [
+            0.36,
+            0.01,
+            0.5,
+            0.99
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.3,
+            0.01,
+            0.95,
+            0.1
+          ]
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.3,
+            0.9,
+            0.95,
+            0.99
+          ]
+        },
+        {
+          "type": "room",
+          "rect": [
+            0.36,
+            0.1,
+            0.5,
+            0.4
+          ]
+        },
+        {
+          "type": "fill",
+          "rect": [
+            0.45,
+            0.35,
+            0.5,
+            0.4
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "room",
+          "rect": [
+            0.36,
+            0.6,
+            0.5,
+            0.9
+          ]
+        },
+        {
+          "type": "fill",
+          "rect": [
+            0.45,
+            0.6,
+            0.5,
+            0.65
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "pillar_line",
+          "rect": [
+            0.45,
+            0.25,
+            0.5,
+            0.35
+          ],
+          "spacing": 2
+        },
+        {
+          "type": "pillar_line",
+          "rect": [
+            0.45,
+            0.65,
+            0.5,
+            0.75
+          ],
+          "spacing": 2
+        }
       ],
       "features": [
-        { "type": "Throne", "position": "right" }
+        {
+          "type": "Throne",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" },
-        { "position": "gate_adjacent", "unit": "knight" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        },
+        {
+          "position": "gate_adjacent",
+          "unit": "knight"
+        }
       ],
       "enemyWeights": {
         "knight": 1.5,
@@ -691,21 +1970,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["left", "bottom"],
+        "spawnEdges": [
+          "left",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["left"] },
-          { "turn": 8, "count": [2, 3], "edges": ["left", "bottom"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "left"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left",
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["left"] },
-            { "turn": 14, "count": [3, 4], "edges": ["left", "bottom"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "left"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "left",
+                "bottom"
+              ]
+            }
           ]
         }
       }
@@ -713,37 +2053,83 @@
     {
       "id": "hilltop_fortress",
       "name": "Hilltop Fortress",
-      "fogChance": 0.10,
+      "fogChance": 0.1,
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 50, "Forest": 25, "Mountain": 25 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Forest": 25,
+            "Mountain": 25
+          },
           "priority": 0
         },
         {
-          "rect": [0.55, 0.2, 0.95, 0.8],
-          "terrain": { "Mountain": 30, "Fort": 30, "Plain": 30, "Wall": 10 },
+          "rect": [
+            0.55,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Mountain": 30,
+            "Fort": 30,
+            "Plain": 30,
+            "Wall": 10
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Forest": 25, "Fort": 15 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.6, 0.25, 0.9, 0.75],
-          "terrain": { "Fort": 40, "Plain": 40, "Mountain": 20 },
+          "rect": [
+            0.6,
+            0.25,
+            0.9,
+            0.75
+          ],
+          "terrain": {
+            "Fort": 40,
+            "Plain": 40,
+            "Mountain": 20
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Throne", "position": "topRight" },
-        { "type": "Ballista", "position": "center" }
+        {
+          "type": "Throne",
+          "position": "topRight"
+        },
+        {
+          "type": "Ballista",
+          "position": "center"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
       ],
       "enemyWeights": {
         "archer": 1.3,
@@ -751,21 +2137,82 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "bottom"],
+        "spawnEdges": [
+          "right",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 5, "count": [1, 2], "edges": ["right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["right", "bottom"] }
+          {
+            "turn": 5,
+            "count": [
+              1,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right",
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "minActByDifficulty": { "hard": "act2", "lunatic": "act2" },
-        "actTurnOffset": { "hard": { "act3": -1, "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [2, 3], "edges": ["right"] },
-            { "turn": 14, "count": [3, 4], "edges": ["right", "bottom"] }
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "right",
+                "bottom"
+              ]
+            }
           ]
         }
       }
@@ -773,39 +2220,90 @@
     {
       "id": "glacier_fortress",
       "name": "Glacier Fortress",
-      "fogChance": 0.20,
-      "acts": ["act4"],
+      "fogChance": 0.2,
+      "acts": [
+        "act4"
+      ],
       "biome": "tundra",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 50, "Ice": 25, "Mountain": 20, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 50,
+            "Ice": 25,
+            "Mountain": 20,
+            "Forest": 5
+          },
           "priority": 0
         },
         {
-          "rect": [0.55, 0.2, 0.95, 0.8],
-          "terrain": { "Wall": 40, "Fort": 30, "Ice": 10, "Plain": 20 },
+          "rect": [
+            0.55,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Wall": 40,
+            "Fort": 30,
+            "Ice": 10,
+            "Plain": 20
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 55, "Ice": 20, "Fort": 20, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 55,
+            "Ice": 20,
+            "Fort": 20,
+            "Forest": 5
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.6, 0.25, 0.9, 0.75],
-          "terrain": { "Fort": 40, "Ice": 20, "Plain": 25, "Wall": 15 },
+          "rect": [
+            0.6,
+            0.25,
+            0.9,
+            0.75
+          ],
+          "terrain": {
+            "Fort": 40,
+            "Ice": 20,
+            "Plain": 25,
+            "Wall": 15
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Throne", "position": "topRight" },
-        { "type": "Ballista", "position": "right" }
+        {
+          "type": "Throne",
+          "position": "topRight"
+        },
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
       ],
       "enemyWeights": {
         "armored": 1.5,
@@ -813,20 +2311,77 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 4, "count": [2, 2], "edges": ["right"] },
-          { "turn": 7, "count": [2, 3], "edges": ["right"] },
-          { "turn": 9, "count": [2, 2], "edges": ["top", "right"] }
+          {
+            "turn": 4,
+            "count": [
+              2,
+              2
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 7,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 9,
+            "count": [
+              2,
+              2
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "actTurnOffset": { "hard": { "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 12, "count": [2, 3], "edges": ["top", "right"] }
+            {
+              "turn": 12,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -835,37 +2390,83 @@
       "id": "eruption_point",
       "name": "Eruption Point",
       "fogChance": 0.05,
-      "acts": ["act4"],
+      "acts": [
+        "act4"
+      ],
       "biome": "volcano",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 45, "Mountain": 30, "Lava Crack": 25 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 45,
+            "Mountain": 30,
+            "Lava Crack": 25
+          },
           "priority": 0
         },
         {
-          "rect": [0.5, 0.15, 0.95, 0.85],
-          "terrain": { "Lava Crack": 40, "Wall": 25, "Fort": 20, "Plain": 15 },
+          "rect": [
+            0.5,
+            0.15,
+            0.95,
+            0.85
+          ],
+          "terrain": {
+            "Lava Crack": 40,
+            "Wall": 25,
+            "Fort": 20,
+            "Plain": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Mountain": 25, "Fort": 15 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Mountain": 25,
+            "Fort": 15
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.65, 0.2, 0.95, 0.8],
-          "terrain": { "Fort": 35, "Wall": 25, "Lava Crack": 25, "Plain": 15 },
+          "rect": [
+            0.65,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Fort": 35,
+            "Wall": 25,
+            "Lava Crack": 25,
+            "Plain": 15
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Throne", "position": "right" }
+        {
+          "type": "Throne",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
       ],
       "enemyWeights": {
         "mage": 1.4,
@@ -873,20 +2474,77 @@
       },
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [
-          { "turn": 3, "count": [2, 3], "edges": ["right"] },
-          { "turn": 5, "count": [3, 4], "edges": ["top", "right"] },
-          { "turn": 8, "count": [2, 3], "edges": ["top"] }
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 5,
+            "count": [
+              3,
+              4
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top"
+            ]
+          }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -3 },
-        "turnJitter": [-1, 1],
-        "xpDecay": [1.0, 0.75, 0.5, 0.25],
-        "actTurnOffset": { "hard": { "act4": -1 } },
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "actTurnOffset": {
+          "hard": {
+            "act4": -1
+          }
+        },
         "extraWavesByDifficulty": {
           "lunatic": [
-            { "turn": 11, "count": [3, 4], "edges": ["top", "right"] }
+            {
+              "turn": 11,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
           ]
         }
       }
@@ -895,97 +2553,224 @@
       "id": "act4_boss_intent_bastion",
       "name": "Boss Intent Bastion",
       "bossOnly": true,
-      "fogChance": 0.10,
-      "acts": ["act4"],
+      "fogChance": 0.1,
+      "acts": [
+        "act4"
+      ],
       "biome": "tundra",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Plain": 45, "Ice": 25, "Mountain": 25, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 45,
+            "Ice": 25,
+            "Mountain": 25,
+            "Forest": 5
+          },
           "priority": 0
         },
         {
-          "rect": [0.55, 0.15, 0.95, 0.85],
-          "terrain": { "Wall": 40, "Fort": 30, "Ice": 10, "Plain": 20 },
+          "rect": [
+            0.55,
+            0.15,
+            0.95,
+            0.85
+          ],
+          "terrain": {
+            "Wall": 40,
+            "Fort": 30,
+            "Ice": 10,
+            "Plain": 20
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Plain": 60, "Ice": 15, "Fort": 20, "Forest": 5 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Ice": 15,
+            "Fort": 20,
+            "Forest": 5
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.45, 0.2, 0.95, 0.8],
-          "terrain": { "Fort": 40, "Wall": 25, "Ice": 15, "Plain": 20 },
+          "rect": [
+            0.45,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Fort": 40,
+            "Wall": 25,
+            "Ice": 15,
+            "Plain": 20
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "features": [
-        { "type": "Throne", "position": "right" }
+        {
+          "type": "Throne",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
       ],
       "enemyWeights": {
         "armored": 1.4,
         "mage": 1.2
       },
       "hybridArena": {
-        "approachRect": [0, 0, 1, 1],
-        "arenaOrigin": [7, 0],
+        "approachRect": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "arenaOrigin": [
+          7,
+          0
+        ],
         "arenaTiles": [
-          ["Plain", "Plain", "Plain", "Plain"],
-          ["Plain", "Plain", "Plain", "Plain"],
-          ["Plain", "Fort", "Plain", "Plain"]
+          [
+            "Plain",
+            "Plain",
+            "Plain",
+            "Plain"
+          ],
+          [
+            "Plain",
+            "Plain",
+            "Plain",
+            "Plain"
+          ],
+          [
+            "Plain",
+            "Fort",
+            "Plain",
+            "Plain"
+          ]
         ],
         "anchors": {
-          "wave1_a": [8, 1],
-          "wave1_b": [9, 1],
-          "wave2_a": [10, 1]
+          "wave1_a": [
+            8,
+            1
+          ],
+          "wave1_b": [
+            9,
+            1
+          ],
+          "wave2_a": [
+            10,
+            1
+          ]
         }
       },
       "phaseTerrainOverrides": [
         {
           "turn": 2,
           "setTiles": [
-            { "anchor": "wave1_a", "terrain": "Wall" },
-            { "coord": [8, 2], "terrain": "Wall" }
+            {
+              "anchor": "wave1_a",
+              "terrain": "Wall"
+            },
+            {
+              "coord": [
+                8,
+                2
+              ],
+              "terrain": "Wall"
+            }
           ]
         },
         {
           "turn": 5,
           "setTiles": [
-            { "anchor": "wave2_a", "terrain": "Wall" }
+            {
+              "anchor": "wave2_a",
+              "terrain": "Wall"
+            }
           ]
         }
       ],
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [],
         "scriptedWaves": [
           {
             "turn": 2,
             "xpMultiplier": 0.85,
             "spawns": [
-              { "col": 8, "row": 1, "className": "Fighter", "level": 11, "aiMode": "guard" },
-              { "col": 7, "row": 1, "className": "Archer", "level": 11 }
+              {
+                "col": 8,
+                "row": 1,
+                "className": "Fighter",
+                "level": 11,
+                "aiMode": "guard"
+              },
+              {
+                "col": 7,
+                "row": 1,
+                "className": "Archer",
+                "level": 11
+              }
             ]
           },
           {
             "turn": 5,
             "xpMultiplier": 0.65,
             "spawns": [
-              { "col": 10, "row": 1, "className": "Knight", "level": 12, "sunderWeapon": true },
-              { "col": 7, "row": 2, "className": "Archer", "level": 11, "aiMode": "guard" }
+              {
+                "col": 10,
+                "row": 1,
+                "className": "Knight",
+                "level": 12,
+                "sunderWeapon": true
+              },
+              {
+                "col": 7,
+                "row": 2,
+                "className": "Archer",
+                "level": 11,
+                "aiMode": "guard"
+              }
             ]
           }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -1
+        },
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ]
       }
     },
     {
@@ -993,140 +2778,818 @@
       "name": "Dark Champion Keep",
       "bossOnly": true,
       "fogChance": 0.12,
-      "acts": ["act3"],
+      "acts": [
+        "act3"
+      ],
       "biome": "castle",
       "zones": [
         {
-          "rect": [0, 0, 1, 1],
-          "terrain": { "Floor": 50, "Wall": 30, "Pillar": 20 },
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 50,
+            "Wall": 30,
+            "Pillar": 20
+          },
           "priority": 0
         },
         {
-          "rect": [0.55, 0.18, 0.95, 0.82],
-          "terrain": { "Wall": 35, "Fort": 30, "Pillar": 20, "Floor": 15 },
+          "rect": [
+            0.55,
+            0.18,
+            0.95,
+            0.82
+          ],
+          "terrain": {
+            "Wall": 35,
+            "Fort": 30,
+            "Pillar": 20,
+            "Floor": 15
+          },
           "priority": 2
         },
         {
-          "rect": [0, 0, 0.3, 1],
-          "terrain": { "Floor": 55, "Pillar": 25, "Fort": 20 },
+          "rect": [
+            0,
+            0,
+            0.3,
+            1
+          ],
+          "terrain": {
+            "Floor": 55,
+            "Pillar": 25,
+            "Fort": 20
+          },
           "priority": 1,
           "role": "playerSpawn"
         },
         {
-          "rect": [0.62, 0.2, 0.95, 0.8],
-          "terrain": { "Fort": 35, "Wall": 25, "Floor": 20, "Pillar": 20 },
+          "rect": [
+            0.62,
+            0.2,
+            0.95,
+            0.8
+          ],
+          "terrain": {
+            "Fort": 35,
+            "Wall": 25,
+            "Floor": 20,
+            "Pillar": 20
+          },
           "priority": 3,
           "role": "enemySpawn"
         }
       ],
       "structures": [
-        { "type": "fill", "rect": [0.35, 0.01, 0.55, 0.99], "terrain": "Floor" },
-        { "type": "wall_line", "rect": [0.35, 0.01, 0.95, 0.1] },
-        { "type": "wall_line", "rect": [0.35, 0.9, 0.95, 0.99] },
-        { "type": "wall_line", "rect": [0.35, 0.1, 0.4, 0.4] },
-        { "type": "wall_line", "rect": [0.35, 0.6, 0.4, 0.9] },
-        { "type": "pillar_grid", "rect": [0.4, 0.15, 0.55, 0.85], "spacing": 3 }
+        {
+          "type": "fill",
+          "rect": [
+            0.35,
+            0.01,
+            0.55,
+            0.99
+          ],
+          "terrain": "Floor"
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.35,
+            0.01,
+            0.95,
+            0.1
+          ]
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.35,
+            0.9,
+            0.95,
+            0.99
+          ]
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.35,
+            0.1,
+            0.4,
+            0.4
+          ]
+        },
+        {
+          "type": "wall_line",
+          "rect": [
+            0.35,
+            0.6,
+            0.4,
+            0.9
+          ]
+        },
+        {
+          "type": "pillar_grid",
+          "rect": [
+            0.4,
+            0.15,
+            0.55,
+            0.85
+          ],
+          "spacing": 3
+        }
       ],
       "features": [
-        { "type": "Throne", "position": "right" }
+        {
+          "type": "Throne",
+          "position": "right"
+        }
       ],
       "anchors": [
-        { "position": "throne", "unit": "boss_or_strongest" }
+        {
+          "position": "throne",
+          "unit": "boss_or_strongest"
+        }
       ],
       "enemyWeights": {
         "knight": 1.3,
         "mage": 1.2
       },
       "hybridArena": {
-        "approachRect": [0, 0, 1, 1],
-        "arenaOrigin": [6, 0],
+        "approachRect": [
+          0,
+          0,
+          1,
+          1
+        ],
+        "arenaOrigin": [
+          6,
+          0
+        ],
         "arenaTiles": [
-          ["Floor", "Floor", "Floor", "Floor"],
-          ["Floor", "Floor", "Floor", "Floor"],
-          ["Floor", "Fort", "Floor", "Floor"]
+          [
+            "Floor",
+            "Floor",
+            "Floor",
+            "Floor"
+          ],
+          [
+            "Floor",
+            "Floor",
+            "Floor",
+            "Floor"
+          ],
+          [
+            "Floor",
+            "Fort",
+            "Floor",
+            "Floor"
+          ]
         ],
         "anchors": {
-          "wave1_a": [7, 1],
-          "wave1_b": [7, 2],
-          "wave2_a": [8, 1]
+          "wave1_a": [
+            7,
+            1
+          ],
+          "wave1_b": [
+            7,
+            2
+          ],
+          "wave2_a": [
+            8,
+            1
+          ]
         }
       },
       "phaseTerrainOverrides": [
         {
           "turn": 3,
           "setTiles": [
-            { "anchor": "wave1_a", "terrain": "Wall" },
-            { "coord": [8, 2], "terrain": "Wall" }
+            {
+              "anchor": "wave1_a",
+              "terrain": "Wall"
+            },
+            {
+              "coord": [
+                8,
+                2
+              ],
+              "terrain": "Wall"
+            }
           ]
         },
         {
           "turn": 6,
           "setTiles": [
-            { "anchor": "wave2_a", "terrain": "Wall" }
+            {
+              "anchor": "wave2_a",
+              "terrain": "Wall"
+            }
           ]
         }
       ],
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["right", "top"],
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
         "waves": [],
         "scriptedWaves": [
           {
             "turn": 3,
             "xpMultiplier": 0.9,
             "spawns": [
-              { "col": 7, "row": 1, "className": "Fighter", "level": 9 },
-              { "col": 7, "row": 2, "className": "Mage", "level": 9, "aiMode": "guard" }
+              {
+                "col": 7,
+                "row": 1,
+                "className": "Fighter",
+                "level": 9
+              },
+              {
+                "col": 7,
+                "row": 2,
+                "className": "Mage",
+                "level": 9,
+                "aiMode": "guard"
+              }
             ]
           },
           {
             "turn": 6,
             "xpMultiplier": 0.7,
             "spawns": [
-              { "col": 8, "row": 1, "className": "Knight", "level": 10, "sunderWeapon": true },
-              { "col": 9, "row": 2, "className": "Archer", "level": 10 }
+              {
+                "col": 8,
+                "row": 1,
+                "className": "Knight",
+                "level": 10,
+                "sunderWeapon": true
+              },
+              {
+                "col": 9,
+                "row": 2,
+                "className": "Archer",
+                "level": 10
+              }
             ]
           }
         ],
         "difficultyScaling": true,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": -1, "lunatic": -1 },
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -1
+        },
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ]
       }
     },
     {
       "id": "eldritch_sanctum",
       "name": "Eldritch Sanctum",
       "fogChance": 0,
-      "acts": ["finalBoss"],
+      "acts": [
+        "finalBoss"
+      ],
       "biome": "void",
       "bossOnly": true,
-      "fixedSize": [16, 14],
-      "entitySpawn": [11, 5],
+      "fixedSize": [
+        16,
+        14
+      ],
+      "entitySpawn": [
+        11,
+        5
+      ],
       "zones": [
-        { "rect": [0, 0, 1, 1], "terrain": {"Floor": 70, "Wall": 20, "Lava Crack": 10}, "priority": 0 },
-        { "rect": [0, 0, 0.5, 1], "terrain": {"Floor": 55, "Wall": 30, "Pillar": 10, "Lava Crack": 5}, "priority": 1 },
-        { "rect": [0.5, 0, 1, 1], "terrain": {"Floor": 80, "Pillar": 15, "Lava Crack": 5}, "priority": 1 },
-        { "rect": [0, 0, 0.15, 1], "terrain": {"Floor": 90, "Pillar": 10}, "priority": 2, "role": "playerSpawn" },
-        { "rect": [0.55, 0.15, 0.95, 0.85], "terrain": {"Floor": 90, "Pillar": 10}, "priority": 2, "role": "enemySpawn" }
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 70,
+            "Wall": 20,
+            "Lava Crack": 10
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0,
+            0,
+            0.5,
+            1
+          ],
+          "terrain": {
+            "Floor": 55,
+            "Wall": 30,
+            "Pillar": 10,
+            "Lava Crack": 5
+          },
+          "priority": 1
+        },
+        {
+          "rect": [
+            0.5,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Floor": 80,
+            "Pillar": 15,
+            "Lava Crack": 5
+          },
+          "priority": 1
+        },
+        {
+          "rect": [
+            0,
+            0,
+            0.15,
+            1
+          ],
+          "terrain": {
+            "Floor": 90,
+            "Pillar": 10
+          },
+          "priority": 2,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.55,
+            0.15,
+            0.95,
+            0.85
+          ],
+          "terrain": {
+            "Floor": 90,
+            "Pillar": 10
+          },
+          "priority": 2,
+          "role": "enemySpawn"
+        }
       ],
       "features": [
-        { "type": "Throne", "position": "entityAnchor" }
+        {
+          "type": "Throne",
+          "position": "entityAnchor"
+        }
       ],
       "anchors": [],
       "structures": [
-        { "type": "pillar_grid", "rect": [0.55, 0.15, 0.95, 0.85], "spacing": 4 }
+        {
+          "type": "pillar_grid",
+          "rect": [
+            0.55,
+            0.15,
+            0.95,
+            0.85
+          ],
+          "spacing": 4
+        }
       ],
       "reinforcementContractVersion": 1,
       "reinforcements": {
-        "spawnEdges": ["left", "top", "bottom"],
+        "spawnEdges": [
+          "left",
+          "top",
+          "bottom"
+        ],
         "waves": [
-          { "turn": 4, "count": [2, 3], "edges": ["left"] },
-          { "turn": 7, "count": [2, 3], "edges": ["top", "bottom"] },
-          { "turn": 10, "count": [3, 4], "edges": ["left", "top", "bottom"] }
+          {
+            "turn": 4,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          },
+          {
+            "turn": 7,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "bottom"
+            ]
+          },
+          {
+            "turn": 10,
+            "count": [
+              3,
+              4
+            ],
+            "edges": [
+              "left",
+              "top",
+              "bottom"
+            ]
+          }
         ],
         "difficultyScaling": false,
-        "turnOffsetByDifficulty": { "normal": 0, "hard": 0, "lunatic": 0 },
-        "xpDecay": [1.0, 0.75, 0.5, 0.25]
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": 0,
+          "lunatic": 0
+        },
+        "xpDecay": [
+          1.0,
+          0.75,
+          0.5,
+          0.25
+        ]
+      }
+    }
+  ],
+  "escape": [
+    {
+      "id": "pursuit_road",
+      "name": "Pursuit Road",
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 75,
+            "Forest": 15,
+            "Sand": 10
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0,
+            0.25,
+            0.12,
+            0.75
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Forest": 20
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.35,
+            0,
+            0.8,
+            1
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 25,
+            "Fort": 5
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "escapeZone": {
+        "rect": [
+          0.88,
+          0.25,
+          1,
+          0.75
+        ],
+        "tileCount": 2
+      },
+      "features": [
+        {
+          "type": "Ballista",
+          "position": "right"
+        }
+      ],
+      "anchors": [],
+      "enemyWeights": {
+        "cavalry": 1.4
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "left"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          }
+        ],
+        "repeatingWaves": [
+          {
+            "startTurn": 5,
+            "every": 2,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ],
+            "xpMultiplier": 0.25,
+            "maxActiveEnemies": 18
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -2
+        },
+        "xpDecay": [
+          0.75,
+          0.5,
+          0.25,
+          0.25
+        ]
+      }
+    },
+    {
+      "id": "river_flight",
+      "name": "River Flight",
+      "fogChance": 0.2,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 80,
+            "Forest": 15,
+            "Sand": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.45,
+            0,
+            0.62,
+            1
+          ],
+          "terrain": {
+            "Water": 85,
+            "Bridge": 15
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0,
+            0.3,
+            0.12,
+            0.7
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 30
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.62,
+            0,
+            0.92,
+            1
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 25,
+            "Fort": 15
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "escapeZone": {
+        "rect": [
+          0.9,
+          0.3,
+          1,
+          0.7
+        ],
+        "tileCount": 2
+      },
+      "features": [
+        {
+          "type": "Ballista",
+          "position": "topRight"
+        }
+      ],
+      "anchors": [
+        {
+          "position": "bridge_ends",
+          "unit": "lance_user",
+          "count": 2
+        }
+      ],
+      "minBridges": 2,
+      "minBridgesByAct": {
+        "act2": [
+          2,
+          3
+        ],
+        "act3": [
+          3,
+          4
+        ],
+        "act4": [
+          3,
+          4
+        ]
+      },
+      "enemyWeights": {
+        "archer": 1.4,
+        "mage": 1.2,
+        "cavalry": 0.8
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "left"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          }
+        ],
+        "repeatingWaves": [
+          {
+            "startTurn": 5,
+            "every": 2,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ],
+            "xpMultiplier": 0.25,
+            "maxActiveEnemies": 18
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -2
+        },
+        "xpDecay": [
+          0.75,
+          0.5,
+          0.25,
+          0.25
+        ]
+      }
+    },
+    {
+      "id": "hunters_woods",
+      "name": "Hunter's Woods",
+      "fogChance": 0.45,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Forest": 45,
+            "Plain": 50,
+            "Mountain": 5
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0,
+            0.3,
+            0.12,
+            0.7
+          ],
+          "terrain": {
+            "Plain": 70,
+            "Forest": 30
+          },
+          "priority": 1,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.4,
+            0,
+            0.85,
+            1
+          ],
+          "terrain": {
+            "Forest": 50,
+            "Plain": 50
+          },
+          "priority": 1,
+          "role": "enemySpawn"
+        }
+      ],
+      "escapeZone": {
+        "rect": [
+          0.88,
+          0.2,
+          1,
+          0.8
+        ],
+        "tileCount": 3
+      },
+      "features": [],
+      "anchors": [],
+      "enemyWeights": {
+        "archer": 1.3,
+        "infantry": 1.1
+      },
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "left"
+        ],
+        "waves": [
+          {
+            "turn": 3,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ]
+          }
+        ],
+        "repeatingWaves": [
+          {
+            "startTurn": 5,
+            "every": 2,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "left"
+            ],
+            "xpMultiplier": 0.25,
+            "maxActiveEnemies": 18
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "hard": -1,
+          "lunatic": -2
+        },
+        "xpDecay": [
+          0.75,
+          0.5,
+          0.25,
+          0.25
+        ]
       }
     }
   ]

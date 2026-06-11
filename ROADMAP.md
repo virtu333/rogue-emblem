@@ -172,20 +172,24 @@ All phases complete on `main` as of Feb 15, 2026.
 - Phase 3 (Act 4 Progression): ✅ shipped
 - Phase 4 (Reinforcement System): ✅ shipped (reinforcement + hybrid boss-arena slices complete; follow-on tuning tracked in normal balance passes)
 
-### Wave 7: Additional Map Objectives (Deferred)
+### Wave 7: Additional Map Objectives (Escape Shipped)
 **Priority:** Medium - Adds battle variety
 **Effort:** 2 weeks
 
 - [ ] `objective: 'defend'` - protect tile for N turns, reinforcements every 2-3 turns, turn counter UI
 - [ ] `objective: 'survive'` - endure N turns, heavier reinforcement waves, kill-scaled rewards
-- [ ] `objective: 'escape'` - move all units to exit tiles, Lord escapes last
-- [ ] 1-2 map templates per new objective type in mapTemplates.json
+- [x] `objective: 'escape'` - ✅ shipped (hybrid rule: all living Lords must exit via escape squares;
+      non-lords may exit early for act-scaled gold; endless `repeatingWaves` pursuit reinforcements
+      make routing structurally unprofitable; elite loot identity; 3 templates; 12% of
+      special-objective-eligible nodes)
+- [x] Map templates for shipped objectives (pursuit_road, river_flight, hunters_woods)
 - [ ] Bonus objectives: under-par turns or no losses -> extra gold/XP
 
 **Success Criteria:**
 - [ ] ~30% of battles use non-Rout/Seize objectives
 - [ ] Defend maps feel tense (wave defense)
-- [ ] Escape maps reward speed over kills
+- [x] Escape maps reward speed over kills (pursuit waves carry heavy XP decay; evac gold + fast
+      elite completion bonus reward running)
 
 ---
 

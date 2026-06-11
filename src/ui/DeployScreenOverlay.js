@@ -101,6 +101,36 @@ export class DeployScreenOverlay {
       confirmText.setColor(canConfirm ? '#44ff44' : '#666666');
     };
 
+    // Objective banner -- escape maps reward fast movers, so the player needs
+    // to know the objective before picking who deploys.
+    const objective = scene.battleParams?.objective;
+    if (objective) {
+      const OBJECTIVE_BANNERS = {
+        rout: { text: 'ROUT: Defeat all enemies', color: '#cccccc' },
+        seize: {
+          text: 'SEIZE: Defeat the boss, then capture the throne with a Lord',
+          color: '#ffaa66',
+        },
+        escape: {
+          text: 'ESCAPE: Only Lords must exit — others retreat safely when they do',
+          color: '#a6ffb0',
+        },
+      };
+      const banner = OBJECTIVE_BANNERS[objective];
+      if (banner) {
+        const objectiveText = scene.add
+          .text(cam.centerX, 74, banner.text, {
+            fontFamily: 'monospace',
+            fontSize: '10px',
+            color: banner.color,
+            fontStyle: 'bold',
+          })
+          .setOrigin(0.5)
+          .setDepth(701);
+        deployGroup.push(objectiveText);
+      }
+    }
+
     // Roster list
     const rowHeight = 34;
     const startY = 100;
