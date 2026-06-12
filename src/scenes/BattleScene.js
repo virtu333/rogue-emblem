@@ -217,6 +217,7 @@ import { LootScreenController } from '../ui/LootScreenController.js';
 import { PostCombatController } from '../ui/PostCombatController.js';
 import { PromotionController } from '../ui/PromotionController.js';
 import { TransitionRecoveryController } from '../ui/TransitionRecoveryController.js';
+import { TutorialController } from '../ui/TutorialController.js';
 import { VisionRewindController } from '../ui/VisionRewindController.js';
 import { BattleSuspendController } from '../ui/BattleSuspendController.js';
 import { EscapeObjectiveController } from '../ui/EscapeObjectiveController.js';
@@ -403,7 +404,7 @@ export class BattleScene extends Phaser.Scene {
     if (audio) audio.releaseMusic(this, 0);
 
     this._stopLevelUpSfx();
-    this._clearTutorialGuideHighlights();
+    // Guide highlights are cleaned by the TutorialController destroy below.
     this.cancelTouchInspectHold();
     this._hideMenuTooltip();
     this._restoreBattleRng();
@@ -466,6 +467,10 @@ export class BattleScene extends Phaser.Scene {
     if (this._escapeController) {
       this._escapeController.destroy();
       this._escapeController = null;
+    }
+    if (this._tutorialController) {
+      this._tutorialController.destroy();
+      this._tutorialController = null;
     }
 
     if (this.dialogueOverlay) {
@@ -724,15 +729,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   async _withTutorialHintState(fn) {
-    const prevState = this.battleState;
-    this.battleState = 'TUTORIAL_HINT';
-    try {
-      return await fn();
-    } finally {
-      if (this.battleState === 'TUTORIAL_HINT') {
-        this.battleState = prevState;
-      }
-    }
+    return (this._tutorialController ||= new TutorialController(this)).withHintState(fn);
   }
 
   _bindGameplayKeyboardHandlers() {
@@ -1524,25 +1521,7 @@ export class BattleScene extends Phaser.Scene {
 
       // Tutorial skip button (bottom-right)
       if (this.battleParams.tutorialMode) {
-        const cam = this.cameras.main;
-        const skipBtn = this.add
-          .text(cam.width - 8, cam.height - 12, 'SKIP', {
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            color: '#888888',
-            backgroundColor: '#00000088',
-            padding: { x: 6, y: 3 },
-          })
-          .setOrigin(1, 1)
-          .setDepth(101)
-          .setInteractive({ useHandCursor: true });
-        skipBtn.on('pointerover', () => skipBtn.setColor('#ffffff'));
-        skipBtn.on('pointerout', () => skipBtn.setColor('#888888'));
-        skipBtn.on('pointerdown', (pointer) => {
-          if (pointer?.button !== 0) return;
-          this._handleTutorialSkipRequested();
-        });
-        this._pinToScreen(skipBtn);
+        (this._tutorialController ||= new TutorialController(this)).createSkipButton();
       }
 
       // Unit inspection tooltip (right-click shows name + "View Unit [V]")
@@ -1854,174 +1833,52 @@ export class BattleScene extends Phaser.Scene {
   }
 
   _isTutorialStrictGateActive() {
-    const step = Number(this.tutorialStep);
-    return Boolean(
-      this.battleParams?.tutorialMode &&
-      !this._tutorialStrictGateReleased &&
-      Number.isFinite(step) &&
-      step >= 2,
-    );
+    return (this._tutorialController ||= new TutorialController(this)).isStrictGateActive();
   }
 
   _getTutorialEdricUnit() {
-    if (!Array.isArray(this.playerUnits)) return null;
-    return this.playerUnits.find((unit) => unit?.name === 'Edric') || null;
+    return (this._tutorialController ||= new TutorialController(this)).getEdricUnit();
   }
 
   _getTutorialFortTile() {
-    const mapLayout =
-      this.battleConfig?.mapLayout ||
-      this.grid?.mapLayout ||
-      this.buildTutorialBattleConfig?.()?.mapLayout ||
-      null;
-    if (!Array.isArray(mapLayout)) return null;
-    for (let row = 0; row < mapLayout.length; row++) {
-      const rowData = mapLayout[row];
-      if (!Array.isArray(rowData)) continue;
-      for (let col = 0; col < rowData.length; col++) {
-        if (rowData[col] === TERRAIN.Fort) return { col, row };
-      }
-    }
-    return null;
+    return (this._tutorialController ||= new TutorialController(this)).getFortTile();
   }
 
-  async _showTutorialBlockingInstruction(text) {
-    if (this._tutorialBlockingPromptActive) return false;
-    this._tutorialBlockingPromptActive = true;
-    try {
-      await this._withTutorialHintState(async () => {
-        await showImportantHint(this, text);
-      });
-    } finally {
-      this._tutorialBlockingPromptActive = false;
-      this.refreshEndTurnControl();
-    }
-    return true;
+  _showTutorialBlockingInstruction(text) {
+    return (this._tutorialController ||= new TutorialController(this)).showBlockingInstruction(
+      text,
+    );
   }
 
   _getVisionRewindIntroHint() {
-    const eyeRef = this.isMobileInput ? 'The Eye button' : 'The Eye [R]';
-    return (
-      `${eyeRef} spends 1 Vision to rewind the current turn.\n` +
-      'In a real run you start with Vision charges.\n' +
-      'Here you have none -- but fate may grant one if a lord falls.'
+    return (this._tutorialController ||= new TutorialController(this)).getVisionRewindIntroHint();
+  }
+
+  _maybeShowTutorialPermadeathHint(unit, tookDamage) {
+    return (this._tutorialController ||= new TutorialController(this)).maybeShowPermadeathHint(
+      unit,
+      tookDamage,
     );
   }
 
-  /**
-   * Tutorial one-time lesson: the first time a non-commander lord takes a hit
-   * and survives, explain permadeath and the commander-loss rule.
-   */
-  async _maybeShowTutorialPermadeathHint(unit, tookDamage) {
-    if (!this.battleParams?.tutorialMode || this._tutorialPermadeathHintShown) return;
-    if (!tookDamage || !unit || unit.faction !== 'player' || unit.isCommander) return;
-    if (unit.currentHP <= 0) return; // death has its own flow
-    this._tutorialPermadeathHintShown = true;
-    await this._withTutorialHintState(async () => {
-      await showImportantHint(
-        this,
-        `${unit.name} took a hit! If a unit falls, they are gone --\n` +
-          'they can only be revived later at a Church, for gold.\n' +
-          'If Edric falls, the battle is lost. In a real run, the run ends.',
-      );
-    });
-  }
-
-  /**
-   * Tutorial lord-death follow-up, shown at the next player-phase start:
-   * repeat the permadeath lesson and offer the granted Vision charge as a
-   * rewind to the last turn (the kept snapshot still has the lord alive).
-   */
   _showTutorialLordRewindPrompt(fallenName) {
-    this._tutorialLordRewindPromptPending = null;
-    const finishWithoutRewind = () => {
-      this.captureVisionSnapshot();
-      this.updateVisionHud();
-    };
-    const stillFallen = !this.playerUnits.some((u) => u?.name === fallenName);
-    if (!stillFallen || !this.visionSnapshot || this.getVisionChargesRemaining() <= 0) {
-      finishWithoutRewind();
-      return;
-    }
-    this.showVisionDialog({
-      title: `${fallenName} has fallen!`,
-      body:
-        'Fallen units are gone for good -- only a\n' +
-        'Church can revive them, for gold. But fate\n' +
-        'grants one Vision: rewind to your last turn?',
-      confirmLabel: 'Rewind',
-      cancelLabel: 'Accept Fate',
-      onConfirm: () => {
-        const ok = (this._visionController ||= new VisionRewindController(
-          this,
-          this.runManager,
-        )).executeRewind();
-        if (!ok) finishWithoutRewind();
-      },
-      onCancel: finishWithoutRewind,
-      accent: 0xcc6666,
-    });
+    (this._tutorialController ||= new TutorialController(this)).showLordRewindPrompt(fallenName);
   }
 
   _setTutorialGuideHighlight(mode) {
-    this._clearTutorialGuideHighlights();
-    if (!this.battleParams?.tutorialMode || !this.grid || !this.add) return;
-    const draw = (col, row, color) => {
-      const pos = this.grid.gridToPixel(col, row);
-      const marker = this.add
-        .rectangle(pos.x, pos.y, TILE_SIZE - 2, TILE_SIZE - 2, 0x000000, 0)
-        .setStrokeStyle(2, color, 1)
-        .setDepth(52);
-      if (!this._isReducedEffects()) {
-        this.tweens.add({
-          targets: marker,
-          alpha: { from: 0.45, to: 1 },
-          duration: 450,
-          yoyo: true,
-          repeat: -1,
-        });
-      }
-      return marker;
-    };
-    if (mode === 'edric') {
-      const edric = this._getTutorialEdricUnit();
-      if (!edric) return;
-      this._tutorialEdricGuide = draw(edric.col, edric.row, 0x4aa3ff);
-      return;
-    }
-    if (mode === 'fort') {
-      const fort = this._getTutorialFortTile();
-      if (!fort) return;
-      this._tutorialFortGuide = draw(fort.col, fort.row, 0xffdd44);
-    }
+    (this._tutorialController ||= new TutorialController(this)).setGuideHighlight(mode);
   }
 
   _clearTutorialGuideHighlights() {
-    if (this._tutorialEdricGuide?.destroy) this._tutorialEdricGuide.destroy();
-    if (this._tutorialFortGuide?.destroy) this._tutorialFortGuide.destroy();
-    this._tutorialEdricGuide = null;
-    this._tutorialFortGuide = null;
+    (this._tutorialController ||= new TutorialController(this)).clearGuideHighlights();
   }
 
   _transitionTutorialToTitle() {
-    const audio = this.registry.get('audio');
-    if (audio) audio.releaseMusic(this, 0);
-    return transitionToScene(
-      this,
-      'Title',
-      { gameData: this.gameData },
-      { reason: TRANSITION_REASONS.BACK },
-    );
+    return (this._tutorialController ||= new TutorialController(this)).transitionToTitle();
   }
 
   _handleTutorialSkipRequested() {
-    const confirmed =
-      typeof window !== 'undefined' && typeof window.confirm === 'function'
-        ? window.confirm('Skip tutorial and return to title?')
-        : true;
-    if (!confirmed) return false;
-    void this._transitionTutorialToTitle();
-    return true;
+    return (this._tutorialController ||= new TutorialController(this)).handleSkipRequested();
   }
 
   withBattleSeed(seed, fn) {
@@ -8623,12 +8480,6 @@ export class BattleScene extends Phaser.Scene {
       typeof this._isSceneActiveForAsync === 'function'
         ? () => this._isSceneActiveForAsync()
         : () => true;
-    const withTutorialHintState =
-      typeof this._withTutorialHintState === 'function'
-        ? (fn) => this._withTutorialHintState(fn)
-        : async (fn) => {
-            await fn();
-          };
     if (typeof this._clearCombatRollSession === 'function') this._clearCombatRollSession();
     if (this.isMobileInput) {
       this.inspectMode = false;
@@ -8760,72 +8611,12 @@ export class BattleScene extends Phaser.Scene {
 
       if (!shouldAutoAdvance) {
         // Tutorial hints (after phase banner fades)
-        if (this.battleParams.tutorialMode && this._tutorialLordRewindPromptPending) {
-          const fallenName = this._tutorialLordRewindPromptPending;
-          scheduleSafeDelayedAsync(
-            1500,
-            'tutorial_lord_rewind_prompt',
-            async () => {
-              if (!isSceneActiveForAsync()) return;
-              // A fast player can already be mid-action when this fires; the
-              // dialog's confirm path applies a rewind snapshot, which must
-              // never land during combat resolution. Pending flag stays set,
-              // so the prompt re-arms at the next player-phase start.
-              if (
-                this.turnManager?.currentPhase !== 'player' ||
-                this.turnManager?.turnNumber !== turn ||
-                this.battleState !== 'PLAYER_IDLE'
-              ) {
-                return;
-              }
-              this._showTutorialLordRewindPrompt(fallenName);
-            },
-            { phase: 'player', turn },
-          );
-        } else if (this.battleParams.tutorialMode && this.tutorialStep === 0) {
-          scheduleSafeDelayedAsync(
-            1500,
-            'tutorial_intro_turn_start',
-            async () => {
-              if (!isSceneActiveForAsync()) return;
-              await withTutorialHintState(async () => {
-                await showImportantHint(
-                  this,
-                  'Welcome to the tutorial!\nLearn the basics of tactical combat.',
-                );
-                if (!isSceneActiveForAsync()) return;
-                this.tutorialStep = 1;
-                const verb = this.isMobileInput ? 'Tap' : 'Click';
-                await showImportantHint(
-                  this,
-                  `${verb} a blue unit to select it.\nBlue tiles show where it can move.`,
-                );
-                if (!isSceneActiveForAsync()) return;
-                this.tutorialStep = 2;
-                this._setTutorialGuideHighlight('edric');
-              });
-            },
-            { phase: 'player', turn },
-          );
-        } else if (
-          this.battleParams.tutorialMode &&
-          !this._tutorialVisionIntroShown &&
-          turn === 3
-        ) {
-          this._tutorialVisionIntroShown = true;
-          scheduleSafeDelayedAsync(
-            1500,
-            'tutorial_vision_intro',
-            async () => {
-              if (!isSceneActiveForAsync()) return;
-              await withTutorialHintState(async () => {
-                await showImportantHint(this, this._getVisionRewindIntroHint());
-              });
-            },
-            { phase: 'player', turn },
-          );
-        } else if (this.battleParams.tutorialMode) {
-          // Suppress normal hints during tutorial -- do nothing
+        if (this.battleParams.tutorialMode) {
+          (this._tutorialController ||= new TutorialController(this)).scheduleTurnStartHints({
+            turn,
+            scheduleSafeDelayedAsync,
+            isSceneActiveForAsync,
+          });
         } else {
           const hints = this.registry.get('hints');
           if (hints && turn === 1) {

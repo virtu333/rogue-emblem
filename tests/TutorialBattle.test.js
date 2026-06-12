@@ -308,6 +308,18 @@ describe('TutorialBattle', () => {
       );
     });
 
+    it('TutorialController.destroy clears guide highlights (scene shutdown path)', () => {
+      const { scene } = createTutorialGateScene();
+      BattleScene.prototype._setTutorialGuideHighlight.call(scene, 'edric');
+      const marker = scene._tutorialEdricGuide;
+      expect(marker).not.toBeNull();
+      // Shims lazily attach the controller; shutdown destroys it.
+      expect(scene._tutorialController).toBeTruthy();
+      scene._tutorialController.destroy();
+      expect(marker.destroy).toHaveBeenCalled();
+      expect(scene._tutorialEdricGuide).toBeNull();
+    });
+
     it('blocks non-Fort move attempts during Fort gate', async () => {
       const { scene, edric } = createTutorialGateScene();
       scene.tutorialStep = 3;
