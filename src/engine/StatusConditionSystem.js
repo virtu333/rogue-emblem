@@ -9,9 +9,12 @@ import {
 // --- Condition storage helpers ---
 
 export function applyCondition(unit, conditionId, turnsRemaining, options = {}) {
-  if (!unit || !conditionId) return;
+  if (!unit || !conditionId) return false;
   const config = STATUS_CONDITIONS[conditionId];
-  if (!config) return;
+  if (!config) return false;
+  // Single engine-level immunity gate: staves, weapon arts, acid terrain, and
+  // the headless harness all apply conditions through here.
+  if (isStatusImmune(unit)) return false;
   if (!Array.isArray(unit._conditions)) unit._conditions = [];
   // Don't stack — replace existing condition of same type
   unit._conditions = unit._conditions.filter((c) => c.id !== conditionId);
@@ -22,6 +25,7 @@ export function applyCondition(unit, conditionId, turnsRemaining, options = {}) 
     condition.recoveryChance = Math.max(0, Math.min(1, options.recoveryChance));
   }
   unit._conditions.push(condition);
+  return true;
 }
 
 export function removeCondition(unit, conditionId) {
@@ -74,14 +78,26 @@ export function willRemainRootedNextPhase(unit) {
   return (condition.turnsRemaining ?? 1) >= 2;
 }
 
+/**
+ * Blocks NEW condition applications while a statusImmunity accessory is
+ * equipped. Does not cleanse conditions that were present before equipping.
+ */
+export function isStatusImmune(unit) {
+  return Boolean(unit?.accessory?.combatEffects?.statusImmunity);
+}
+
 // --- Weapon classification ---
 
 export function isStatusStaff(weapon) {
   return weapon?.type === 'Staff' && Boolean(weapon.statusEffect);
 }
 
+export function isCureStaff(weapon) {
+  return weapon?.type === 'Staff' && Boolean(weapon.cureConditions);
+}
+
 export function isHealStaff(weapon) {
-  return weapon?.type === 'Staff' && !weapon.statusEffect;
+  return weapon?.type === 'Staff' && !weapon.statusEffect && !weapon.cureConditions;
 }
 
 // --- Hit formula ---
@@ -99,6 +115,9 @@ export function calculateStatusHit(staff, caster, target) {
 export function resolveStatusStaff(staff, caster, target, rng = Math.random) {
   if (!staff || !staff.statusEffect) return { hit: false, hitChance: 0, conditionId: null };
   const conditionId = staff.statusEffect;
+  if (isStatusImmune(target)) {
+    return { hit: false, hitChance: 0, conditionId, immune: true };
+  }
   const hitChance = calculateStatusHit(staff, caster, target);
   const roll = rng() * 100;
   const hit = roll < hitChance;

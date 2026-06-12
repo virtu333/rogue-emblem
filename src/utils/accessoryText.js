@@ -25,6 +25,7 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'preventEnemyDouble',
   'recoilGuard',
   'resBonus',
+  'statusImmunity',
   'turnStartHealPercent',
   'weaponArtCostReduction',
   'weaponArtDefBuff',
@@ -150,6 +151,7 @@ export function formatAccessoryCombatEffect(accessory) {
 
   if (combatEffects?.negateEffectiveness) parts.push('Negate effectiveness');
   if (combatEffects?.negateFlierWeakness) parts.push('Negate bow flier weakness');
+  if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
 
   const weaponArtCostReduction = firstNumericValue(
     combatEffects?.weaponArtCostReduction,

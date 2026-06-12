@@ -36,7 +36,7 @@ _Sprint slot open. Candidates: Dynamic Recruit Nodes, Difficulty Follow-up (Part
 9. **Dynamic Recruit Nodes** - Roster-aware recruit frequency. Natural follow-on after Act 4 extends the run length.
 10. **Difficulty Follow-up (Part B+)** - Balance iteration, Lunatic rollout timing, expanded difficulty-aware tuning hooks after Act 4 stabilizes.
 11. **Expanded Skills** - Command skills, on-kill triggers (tactical depth)
-12. **Status Staves + Countermeasures** - Sleep/Berserk/Plant staves (enemy Act 2+), Herbs/Pure Water/Remedy counter items (See `docs/specs/difficulty_spec.md` section 10)
+12. ~~**Status Staves + Countermeasures**~~ - Complete Jun 2026. Enemy Sleep/Silence staves + Herb/Remedy consumables shipped with the status-staff wave; the countermeasure rollout (Restore staff, Warding Charm status-immunity accessory, cure-item loot availability) closed in `docs/reports/status_countermeasures_restore_spec_2026-06-12.md`. Berserk/Plant staves and Pure Water superseded (rationale in that spec; root via weapon arts covers the Plant niche).
 
 ### Later (3-6+ Months)
 13. **Additional Map Objectives** - Defend, Survive, Escape after Act 4 stabilization
@@ -156,7 +156,7 @@ QA evidence (Feb 12, 2026):
   - TEMP: Wyvern Rider/Lord battle sprites currently use split blue/red placeholder art. Replace with finalized class-specific sprite set in Wave 3A polish.
 - **Wave 4 (Weapon Arts):** Complete. All 75 catalog arts have fully implemented mechanics; the final deferred placeholders (Tier 3 on-hit status, All or Nothing gambit, Annihilate triangle-ignore/kill-buff, Divine Flare RES-pierce/dark-effectiveness) closed Jun 2026 (`docs/reports/weapon_arts_deferred_closure_spec_2026-06-11.md`, `docs/weapon-arts-expansion-status.md`). Data contract + combat/menu flow + forecast parity + act/meta unlock progression are shipped. Home Base informational Arts tab was intentionally removed to reduce UI clutter. Difficulty-aware enemy art usage frequency tuning and polish wrap-up hardening landed. Phase 1 catalog expansion (17 new arts, Tome/Light-compatible magic arts, `combatMods.statScaling`) and Phase 2 tactical-depth implementation (effectiveness/no-counter/range modifiers, 12 additional arts) both shipped.
 - **Art production track for Wave 3A/4:** use Imagen API pipeline prompt at `docs/references/imagen-asset-pipeline-prompt.md` and keep `assets/` as source of truth.
-- **Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.
+- ~~**Deferred until Wave 4 stabilizes:** status staves + countermeasure rollout.~~ Closed Jun 2026 (`docs/reports/status_countermeasures_restore_spec_2026-06-12.md`).
 
 ---
 

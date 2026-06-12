@@ -726,6 +726,22 @@
     "price": 4000
   },
   {
+    "name": "Restore",
+    "type": "Staff",
+    "tier": "Steel",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 100,
+    "crit": 0,
+    "weight": 1,
+    "range": "1-2",
+    "uses": 2,
+    "perBattleUses": true,
+    "cureConditions": true,
+    "special": "Cures all status conditions on an ally",
+    "price": 1200
+  },
+  {
     "name": "Fortify",
     "type": "Staff",
     "tier": "Legend",

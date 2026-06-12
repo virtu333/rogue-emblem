@@ -6,7 +6,12 @@
 import { gridDistance, isInRange, getWeaponTriangleBonus, isMagical } from './Combat.js';
 import { computeEffectivePath } from './Grid.js';
 import { getTerrainCostReduction } from './SkillSystem.js';
-import { hasCondition, isRooted, parseStaffRange } from './StatusConditionSystem.js';
+import {
+  hasCondition,
+  isRooted,
+  isStatusImmune,
+  parseStaffRange,
+} from './StatusConditionSystem.js';
 import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
@@ -279,7 +284,8 @@ export class AIController {
       const staffRange = parseStaffRange(staff.range);
       const condId = staff.statusEffect;
       const playerTargets = playerUnits.filter(
-        (u) => u && u.currentHP > 0 && !u._removing && !hasCondition(u, condId),
+        (u) =>
+          u && u.currentHP > 0 && !u._removing && !hasCondition(u, condId) && !isStatusImmune(u),
       );
       let bestStaffTarget = null;
       let bestStaffScore = -Infinity;

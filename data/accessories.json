@@ -27,5 +27,6 @@
   { "name": "Vanguard Crest", "type": "Accessory", "effects": {}, "combatEffects": { "atkBonus": 4, "condition": "no_ally_within_2" }, "price": 2000 },
   { "name": "Diamond Medallion", "type": "Accessory", "effects": {}, "combatEffects": { "defBonus": 3, "resBonus": 3, "condition": "enemies_nearby_2plus" }, "price": 2000 },
   { "name": "Hunter's Cloak", "type": "Accessory", "effects": {}, "combatEffects": { "hitBonus": 20, "critBonus": 10, "condition": "on_forest_or_mountain" }, "price": 1500 },
-  { "name": "Duelist's Glove", "type": "Accessory", "effects": {}, "combatEffects": { "hitBonus": 10, "avoidBonus": 10, "critBonus": 5, "condition": "no_ally_within_2" }, "price": 2500 }
+  { "name": "Duelist's Glove", "type": "Accessory", "effects": {}, "combatEffects": { "hitBonus": 10, "avoidBonus": 10, "critBonus": 5, "condition": "no_ally_within_2" }, "price": 2500 },
+  { "name": "Warding Charm", "type": "Accessory", "effects": {}, "combatEffects": { "statusImmunity": true }, "price": 2000 }
 ]

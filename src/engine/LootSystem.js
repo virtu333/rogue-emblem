@@ -659,6 +659,7 @@ function splitWeightByPoolCounts(totalWeight, categoryPools, fallbackRatios = nu
 function getConsumableLootCategory(item) {
   if (!item) return null;
   if (item.effect === 'heal' || item.effect === 'healFull') return 'healing';
+  if (item.effect === 'cure' || item.effect === 'cureHeal') return 'healing';
   if (item.effect === 'promote') return 'promotion';
   if (item.effect === 'statBoost') return 'statBooster';
   return null;
@@ -1094,18 +1095,19 @@ export function generateShopInventory(
     });
   }
 
-  // Append cure items (Herb + Remedy) if shop cure gating is active for this act
+  // Append cure items (Herb + Remedy + Restore staff) if shop cure gating is
+  // active for this act, so a gated shop always stocks the full reactive kit.
   const shopCureGating = generateOptions?.shopCureGating;
   if (shopCureGating && shopCureGating[actId]) {
-    for (const cureName of ['Herb', 'Remedy']) {
+    for (const cureName of ['Herb', 'Remedy', 'Restore']) {
       if (usedNames.has(cureName)) continue;
-      const cureItem = consumables?.find((c) => c.name === cureName);
+      const cureItem = findItem(cureName, allWeapons, consumables, allAccessories);
       if (cureItem && cureItem.price > 0) {
         usedNames.add(cureName);
         inventory.push({
           item: ensureItemUid(structuredClone(cureItem)),
           price: cureItem.price,
-          type: 'consumable',
+          type: shopEntryTypeForItem(cureItem),
         });
       }
     }

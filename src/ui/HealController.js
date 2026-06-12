@@ -15,6 +15,7 @@ import {
   gridDistance,
 } from '../engine/Combat.js';
 import { equipWeapon, canEquip, hasStaff, getCombatWeapons } from '../engine/UnitManager.js';
+import { isCureStaff, clearAllConditions } from '../engine/StatusConditionSystem.js';
 import { showMinorHint } from './HintDisplay.js';
 
 export class HealController {
@@ -41,10 +42,16 @@ export class HealController {
     const staff = staffOverride || scene.getActiveHealStaff(unit);
     if (!staff) return [];
     const range = getEffectiveStaffRange(staff, unit);
+    const cure = isCureStaff(staff);
     const targets = [];
     for (const ally of scene.playerUnits) {
-      if (ally === unit) continue; // Can't heal self
-      if (ally.currentHP >= ally.stats.HP) continue; // Full HP
+      if (ally === unit) continue; // Can't staff self
+      if (cure) {
+        if (ally.currentHP <= 0 || ally._removing) continue;
+        if ((ally._conditions || []).length === 0) continue; // Nothing to cure
+      } else if (ally.currentHP >= ally.stats.HP) {
+        continue; // Full HP
+      }
       const dist = gridDistance(unit.col, unit.row, ally.col, ally.row);
       if (dist >= range.min && dist <= range.max) {
         targets.push(ally);
@@ -171,6 +178,29 @@ export class HealController {
 
     try {
       const staff = healer.weapon; // Should already be equipped
+
+      if (isCureStaff(staff)) {
+        // Restore-style staff: cleanse instead of heal. A slept ally cured
+        // during player phase can act this turn (selection reads conditions live).
+        clearAllConditions(target);
+        scene._removeAllConditionIcons(target);
+        scene.undimUnit(target);
+        await this.animateCure(target);
+
+        spendStaffUse(staff);
+        if (getStaffRemainingUses(staff, healer) <= 0) {
+          const combatWpn = getCombatWeapons(healer)[0];
+          if (combatWpn) equipWeapon(healer, combatWpn);
+        }
+
+        try {
+          await scene.awardScaledXP(healer, XP_BASE_HEAL);
+        } finally {
+          scene.finishUnitAction(healer);
+        }
+        return;
+      }
+
       const healOpts = {
         healingMultiplier:
           scene.runManager?.blessingRuntimeModifiers?.healingEffectivenessMultiplier ?? 1,
@@ -235,6 +265,37 @@ export class HealController {
     } catch (err) {
       scene._recoverUnitActionError(healer, 'healAll', err);
     }
+  }
+
+  async animateCure(target) {
+    const scene = this.scene;
+    const reduced = scene._isReducedEffects();
+    const audio = scene.registry.get('audio');
+    if (audio) audio.playSFX('sfx_heal');
+    if (target.graphic.setTint) target.graphic.setTint(0x88ffcc);
+
+    const pos = scene.grid.gridToPixel(target.col, target.row);
+    const cureText = scene.add
+      .text(pos.x, pos.y - 16, 'Cured!', {
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: '#88ffcc',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
+
+    scene.tweens.add({
+      targets: cureText,
+      y: pos.y - 36,
+      alpha: 0,
+      duration: reduced ? 260 : 600,
+      onComplete: () => cureText.destroy(),
+    });
+
+    await scene._awaitSceneDelay(reduced ? 120 : 250, { label: 'animate_cure_tint_clear' });
+    if (target.graphic.clearTint) target.graphic.clearTint();
+    await scene._awaitSceneDelay(reduced ? 100 : 250, { label: 'animate_cure_tail' });
   }
 
   async animateHeal(target, healAmount) {
