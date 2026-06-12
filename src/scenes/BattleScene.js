@@ -146,7 +146,6 @@ import {
   resolveStatusStaff,
   processConditionRecovery,
   isStatusStaff,
-  isHealStaff,
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
@@ -6409,7 +6408,9 @@ export class BattleScene extends Phaser.Scene {
       this._pendingCureTarget = null;
       clearAllConditions(target);
       this._removeAllConditionIcons(target);
-      this.undimUnit(target);
+      // Un-dim only sleepers that can still act — keep the acted-grey on
+      // allies that already moved this phase (same pattern as Swap).
+      if (!target.hasActed) this.undimUnit(target);
       if (item.effect === 'cureHeal' && item.value > 0) {
         const oldHP = target.currentHP;
         target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);

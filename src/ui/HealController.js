@@ -184,7 +184,9 @@ export class HealController {
         // during player phase can act this turn (selection reads conditions live).
         clearAllConditions(target);
         scene._removeAllConditionIcons(target);
-        scene.undimUnit(target);
+        // Un-dim only sleepers that can still act — keep the acted-grey on
+        // allies that already moved this phase (same pattern as Swap).
+        if (!target.hasActed) scene.undimUnit(target);
         await this.animateCure(target);
 
         spendStaffUse(staff);
