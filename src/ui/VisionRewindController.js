@@ -77,6 +77,9 @@ export class VisionRewindController {
       // earlier turns and drops active kill buffs. Mirrors
       // BattleSuspendController.serializeSuspendUnit.
       serialized.stats = { ...unit.stats };
+      // Live mov must travel with live stats — a MOV timed buff reverted in
+      // serialized.mov but kept in stats.MOV would desync movement from HUD.
+      if (Number.isFinite(unit.mov)) serialized.mov = unit.mov;
       // Once-per-battle flags consumed on earlier turns must survive the
       // rewind — serializeUnit force-clears them for between-battle reuse.
       serialized._miracleUsed = unit._miracleUsed === true;

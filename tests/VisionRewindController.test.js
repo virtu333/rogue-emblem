@@ -392,15 +392,16 @@ describe('VisionRewindController', () => {
       scene.playerUnits = [
         {
           name: 'Edric',
-          stats: { HP: 20, STR: 8 },
+          stats: { HP: 20, STR: 8, MOV: 7 },
           currentHP: 20,
           skills: [],
           col: 0,
           row: 0,
+          mov: 7,
           _miracleUsed: true,
           _phoenixBroochUsed: true,
           _battleWeaponArtUsage: { map: { surge: 1 }, turn: {} },
-          _battleTimedWeaponArtAppliedStats: { STR: 3 },
+          _battleTimedWeaponArtAppliedStats: { STR: 3, MOV: 1 },
         },
       ];
       scene.enemyUnits = [];
@@ -411,6 +412,8 @@ describe('VisionRewindController', () => {
       expect(snap._phoenixBroochUsed).toBe(true);
       expect(snap._battleWeaponArtUsage).toEqual({ map: { surge: 1 }, turn: {} });
       expect(snap.stats.STR).toBe(8); // live (buffed) value, not unwound
+      expect(snap.stats.MOV).toBe(7);
+      expect(snap.mov).toBe(7); // live mov travels with live stats
     });
   });
 

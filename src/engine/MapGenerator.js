@@ -255,7 +255,7 @@ export function generateBattle(params, deps) {
       cols,
       rows,
       terrain,
-      [...(playerSpawns || []), ...(enemySpawns || [])],
+      { player: playerSpawns || [], enemy: enemySpawns || [] },
       biome,
     );
     if (!escapeTiles || escapeTiles.length === 0) {
@@ -1163,17 +1163,11 @@ export function sanitizeEscapeTilePassability(config, terrainData) {
  * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
  * edge), spreads multiple squares apart, and forces the terrain under each
  * pick to be passable so the exit can always be stood on.
+ * `spawns` is `{ player: [], enemy: [] }` — exits prefer tiles clear of all
+ * spawns, but degrade rather than fail (see fallback comment below).
  * Exported for tests only — generateBattle is the sole production caller.
  */
-export function placeEscapeTiles(
-  mapLayout,
-  template,
-  cols,
-  rows,
-  terrainData,
-  blockedSpawns,
-  biome,
-) {
+export function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, spawns, biome) {
   const zone = template.escapeZone || {};
   const rect = Array.isArray(zone.rect) && zone.rect.length === 4 ? zone.rect : [0.9, 0.3, 1, 0.7];
   const tileCount = Number.isInteger(zone.tileCount) ? Math.max(1, Math.min(6, zone.tileCount)) : 2;
@@ -1183,23 +1177,28 @@ export function placeEscapeTiles(
   const startRow = Math.max(0, Math.floor(y1 * rows));
   const endRow = Math.min(Math.ceil(y2 * rows), rows);
 
-  const blocked = new Set((blockedSpawns || []).map((s) => `${s.col},${s.row}`));
-  const candidates = [];
+  const toKeys = (list) => new Set((list || []).map((s) => `${s.col},${s.row}`));
+  const playerBlocked = toKeys(spawns?.player);
+  const enemyBlocked = toKeys(spawns?.enemy);
+  const zoneTiles = [];
   for (let row = startRow; row < endRow; row++) {
     for (let col = startCol; col < endCol; col++) {
-      if (blocked.has(`${col},${row}`)) continue;
-      candidates.push({ col, row });
+      zoneTiles.push({ col, row });
     }
   }
+  // On small maps a spawn zone can swallow the whole escape rect (river_flight
+  // on 10x8). Degrade instead of failing: an exit under an enemy is
+  // recoverable (it moves or dies), but zero exits throws — and the battle
+  // seed is locked per node, so the throw would repeat forever. A player
+  // starting on an exit is never acceptable (free instant escape).
+  let candidates = zoneTiles.filter(
+    (t) => !playerBlocked.has(`${t.col},${t.row}`) && !enemyBlocked.has(`${t.col},${t.row}`),
+  );
   if (candidates.length === 0) {
-    // On small maps a spawn zone can swallow the whole escape rect. An exit
-    // under an enemy is recoverable (it moves or dies); zero exits throws, and
-    // the battle seed is locked per node so the throw would repeat forever.
-    for (let row = startRow; row < endRow; row++) {
-      for (let col = startCol; col < endCol; col++) {
-        candidates.push({ col, row });
-      }
-    }
+    candidates = zoneTiles.filter((t) => !playerBlocked.has(`${t.col},${t.row}`));
+  }
+  if (candidates.length === 0) {
+    candidates = zoneTiles;
   }
   const edgeScore = (t) => Math.min(t.col, cols - 1 - t.col, t.row, rows - 1 - t.row);
   candidates.sort((a, b) => edgeScore(a) - edgeScore(b) || a.row - b.row || a.col - b.col);

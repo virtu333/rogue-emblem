@@ -153,7 +153,8 @@ describe('repeating reinforcement waves', () => {
       enemyCountBonus: 2, // difficulty bonus must not pierce the cap either
       activeEnemyCount: 5,
     });
-    expect(result.spawns.length).toBeLessThanOrEqual(1);
+    // Exactly 1: the cap allows one and the left edge has free tiles for it.
+    expect(result.spawns.length).toBe(1);
   });
 
   it('clamps across multiple waves due the same turn (joint cap)', () => {
@@ -180,7 +181,8 @@ describe('repeating reinforcement waves', () => {
       occupied: [],
       activeEnemyCount: 4,
     });
-    expect(result.spawns.length).toBeLessThanOrEqual(3);
+    // Exactly 3: wave one fills the joint budget, wave two gets zero.
+    expect(result.spawns.length).toBe(3);
   });
 
   it('gives each occurrence a distinct waveIndex (distinct RNG identity)', () => {
@@ -359,17 +361,34 @@ describe('escape map generation', () => {
     const plainIdx = data.terrain.findIndex((t) => t.name === 'Plain');
     const cols = 10;
     const rows = 8;
-    const mapLayout = Array.from({ length: rows }, () => Array(cols).fill(plainIdx));
+    const makeLayout = () => Array.from({ length: rows }, () => Array(cols).fill(plainIdx));
     const template = { escapeZone: { rect: [0.9, 0.3, 1, 0.7], tileCount: 2 } };
-    // Zone resolves to col 9, rows 2-5 (4 tiles); block all of them.
-    const blockedSpawns = [2, 3, 4, 5].map((row) => ({ col: 9, row }));
-    const picked = placeEscapeTiles(mapLayout, template, cols, rows, data.terrain, blockedSpawns);
-    expect(picked.length).toBe(2);
-    for (const tile of picked) {
-      expect(tile.col).toBe(9);
-      expect(tile.row).toBeGreaterThanOrEqual(2);
-      expect(tile.row).toBeLessThan(6);
-    }
+    // Zone resolves to col 9, rows 2-5 (4 tiles).
+    const zoneTiles = [2, 3, 4, 5].map((row) => ({ col: 9, row }));
+    const inZone = (tile) => tile.col === 9 && tile.row >= 2 && tile.row < 6;
+
+    // Enemies covering the whole zone: exits still placed (under enemies).
+    const allEnemies = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      enemy: zoneTiles,
+    });
+    expect(allEnemies).toHaveLength(2);
+    for (const tile of allEnemies) expect(inZone(tile)).toBe(true);
+
+    // Partial enemy coverage: the free tiles are preferred.
+    const partial = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      enemy: zoneTiles.slice(0, 2),
+    });
+    expect(partial).toHaveLength(2);
+    for (const tile of partial) expect(tile.row).toBeGreaterThanOrEqual(4);
+
+    // Player spawns are only overridden as the very last resort: with players
+    // on rows 2-3 and enemies on rows 4-5, exits land under the enemies.
+    const mixed = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      player: zoneTiles.slice(0, 2),
+      enemy: zoneTiles.slice(2),
+    });
+    expect(mixed).toHaveLength(2);
+    for (const tile of mixed) expect(tile.row).toBeGreaterThanOrEqual(4);
   });
 
   it('keeps escape squares clear of player spawns', () => {
