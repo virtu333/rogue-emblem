@@ -1,3 +1,4 @@
+import { findCommander } from '../engine/Commander.js';
 import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { RunManager } from '../engine/RunManager.js';
 import { NODE_TYPES } from './constants.js';
@@ -182,12 +183,14 @@ function createRunPreset(gameData, meta, config) {
   if (config.preset === 'soulreaver_mast') {
     runManager.addGold(20000);
     addTeamWeaponArtScrolls(runManager, gameData, 4);
-    const edric = runManager.roster.find((unit) => unit?.name === 'Edric');
-    if (edric) {
-      edric.tier = 'promoted';
-      edric.level = Math.max(10, Number(edric.level) || 1);
-      if (Array.isArray(edric.proficiencies)) {
-        edric.proficiencies = edric.proficiencies.map((prof) => ({
+    // Anchor on the commander, whoever it is — a dev slot with a non-Edric
+    // commander selection would otherwise silently skip the preset.
+    const commander = findCommander(runManager.roster);
+    if (commander) {
+      commander.tier = 'promoted';
+      commander.level = Math.max(10, Number(commander.level) || 1);
+      if (Array.isArray(commander.proficiencies)) {
+        commander.proficiencies = commander.proficiencies.map((prof) => ({
           ...prof,
           rank: 'Mast',
         }));
@@ -195,17 +198,20 @@ function createRunPreset(gameData, meta, config) {
       const soulreaver = (gameData?.weapons || []).find((weapon) => weapon?.name === 'Soulreaver');
       if (
         soulreaver &&
-        Array.isArray(edric.inventory) &&
-        !edric.inventory.some((weapon) => weapon?.name === 'Soulreaver')
+        Array.isArray(commander.inventory) &&
+        !commander.inventory.some((weapon) => weapon?.name === 'Soulreaver')
       ) {
-        edric.inventory.push(structuredClone(soulreaver));
+        commander.inventory.push(structuredClone(soulreaver));
       }
-      const equippedSoulreaver = Array.isArray(edric.inventory)
-        ? edric.inventory.find((weapon) => weapon?.name === 'Soulreaver')
+      const equippedSoulreaver = Array.isArray(commander.inventory)
+        ? commander.inventory.find((weapon) => weapon?.name === 'Soulreaver')
         : null;
-      if (equippedSoulreaver) edric.weapon = equippedSoulreaver;
-      if (Number.isFinite(edric?.stats?.HP)) {
-        edric.currentHP = Math.min(edric.stats.HP, Math.max(1, edric.currentHP || edric.stats.HP));
+      if (equippedSoulreaver) commander.weapon = equippedSoulreaver;
+      if (Number.isFinite(commander?.stats?.HP)) {
+        commander.currentHP = Math.min(
+          commander.stats.HP,
+          Math.max(1, commander.currentHP || commander.stats.HP),
+        );
       }
     }
   }

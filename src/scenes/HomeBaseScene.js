@@ -1,6 +1,7 @@
 // HomeBaseScene — Meta-progression upgrade shop with tabbed UI
 
 import Phaser from 'phaser';
+import { resolveStartingLordDefs } from '../engine/Commander.js';
 import { MUSIC } from '../utils/musicConfig.js';
 import {
   MAX_STARTING_SKILLS,
@@ -929,9 +930,9 @@ export class HomeBaseScene extends Phaser.Scene {
     if (effect.recruitRandomSkill) return 'Recruit starts with 1 random combat skill';
     if (effect.startingAccessoryTier !== undefined) return 'Starting accessory for your commander';
     if (effect.startingStaffTier !== undefined) {
-      const selection = this.meta.getLordSelection?.();
+      const selection = this._getHealedLordSelection();
       const seraSelected =
-        !selection || selection.commander === 'Sera' || selection.partner === 'Sera';
+        !selection.commander || selection.commander === 'Sera' || selection.partner === 'Sera';
       return seraSelected
         ? "Sera's starting staff"
         : "Sera's starting staff (inactive: Sera not selected)";
@@ -1109,10 +1110,22 @@ export class HomeBaseScene extends Phaser.Scene {
 
   // --- Skills tab custom layout ---
 
+  /**
+   * Saved selection healed against lords.json — a stale/corrupted name in a
+   * meta save must display the pair the run will actually start with.
+   */
+  _getHealedLordSelection() {
+    const [cmdDef, partnerDef] = resolveStartingLordDefs(
+      { startingLords: this.meta?.getLordSelection?.() },
+      this.gameData?.lords,
+    );
+    return { commander: cmdDef?.name, partner: partnerDef?.name };
+  }
+
   _drawSkillsTab() {
     // Commander-first card order; defaults to Edric + Sera until the
     // Banner of Command selection changes it.
-    const selection = this.meta.getLordSelection();
+    const selection = this._getHealedLordSelection();
     const lords = [selection.commander, selection.partner]
       .map((name) => this.gameData.lords.find((l) => l.name === name))
       .filter(Boolean);
@@ -1488,7 +1501,7 @@ export class HomeBaseScene extends Phaser.Scene {
 
     const objects = [];
     const cam = this.cameras.main;
-    const selection = this.meta.getLordSelection();
+    const selection = this._getHealedLordSelection();
     const lords = this.gameData.lords || [];
     const isCommanderMode = mode === 'commander';
     const audio = this.registry.get('audio');

@@ -77,11 +77,16 @@ export function checkInvariants(driver, context = {}) {
   context.lastTurn = currentTurn;
   context.lastPhase = currentPhase;
 
-  // 7. Edric alive (unless battle ended)
+  // 7. Commander alive (unless battle ended) — mirrors HeadlessBattle._checkBattleEnd:
+  // strict isCommander flag (stamped at setup); a commander in escapedUnits on an
+  // escape map is legally alive even though they left the field.
   if (b.battleState !== HEADLESS_STATES.BATTLE_END) {
-    const edricAlive = b.playerUnits.some((u) => u.name === 'Edric');
-    if (!edricAlive) {
-      errors.push(`edric_alive: Edric not in playerUnits but battle hasn't ended`);
+    const commanderAlive =
+      b.playerUnits.some((u) => u.isCommander) || (b.escapedUnits || []).some((u) => u.isCommander);
+    if (!commanderAlive) {
+      errors.push(
+        `commander_alive: commander not in playerUnits or escapedUnits but battle hasn't ended`,
+      );
     }
   }
 
@@ -112,21 +117,30 @@ export function checkInvariants(driver, context = {}) {
       }
     }
     if (b.battleConfig?.objective === 'escape') {
-      const edricEscaped = (b.escapedUnits || []).some((u) => u.name === 'Edric');
+      const commanderEscaped = (b.escapedUnits || []).some((u) => u.isCommander);
       const lordOnField = b.playerUnits.some((u) => u.isLord);
-      if (!edricEscaped || lordOnField) {
+      if (!commanderEscaped || lordOnField) {
         errors.push('objective_consistency: escape victory without all living lords escaped');
       }
     }
   }
   if (b.result === 'defeat') {
-    const edricAlive =
-      b.playerUnits.some((u) => u.name === 'Edric') ||
-      (b.escapedUnits || []).some((u) => u.name === 'Edric');
-    if (edricAlive && b.playerUnits.length > 0) {
+    // Mirrors HeadlessBattle._checkBattleEnd: defeat is only legal when the commander
+    // is dead (not on field, not escaped) or the field is empty with nobody escaped.
+    const commanderAlive =
+      b.playerUnits.some((u) => u.isCommander) || (b.escapedUnits || []).some((u) => u.isCommander);
+    const fieldEmpty = b.playerUnits.length === 0 && !(b.escapedUnits?.length > 0);
+    if (commanderAlive && !fieldEmpty) {
       errors.push(
-        'objective_consistency: defeat result while Edric and player units are still alive',
+        'objective_consistency: defeat result while the commander and player units are still alive',
       );
+    }
+  }
+
+  // 9b. Escaped/field disjointness: an escaped unit must not still be on the field.
+  for (const u of b.escapedUnits || []) {
+    if (b.playerUnits.includes(u)) {
+      errors.push(`escaped_disjoint: ${u.name} is in both escapedUnits and playerUnits`);
     }
   }
 

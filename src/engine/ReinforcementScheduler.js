@@ -266,6 +266,9 @@ export function getDueRepeatingReinforcementWaves({
       scheduledTurn: currentTurn,
       wave,
       xpMultiplier: getRepeatingWaveXpMultiplier(reinforcements, wave),
+      // Hard cap: the rolled count (incl. difficulty bonus) may not push the
+      // active enemy total past maxActiveEnemies.
+      maxSpawnable: maxActive - enemyCount,
     });
   }
   return due;
@@ -455,7 +458,11 @@ export function scheduleReinforcementsForTurn({
     const scaledCountBonus = reinforcements?.difficultyScaling
       ? normalizeInteger(enemyCountBonus, 0)
       : 0;
-    const requestedCount = rollWaveCount(due.wave, rng, scaledCountBonus);
+    // Roll before clamping so the RNG draw count stays seed-stable.
+    const rolledCount = rollWaveCount(due.wave, rng, scaledCountBonus);
+    const requestedCount = Number.isFinite(due.maxSpawnable)
+      ? Math.max(0, Math.min(rolledCount, due.maxSpawnable))
+      : rolledCount;
 
     let spawnedCount = 0;
     for (let i = 0; i < requestedCount; i++) {

@@ -247,7 +247,17 @@ export function generateBattle(params, deps) {
   // 7c. Escape squares for the Escape objective
   let escapeTiles = null;
   if (objective === 'escape') {
-    escapeTiles = placeEscapeTiles(mapLayout, template, cols, rows, terrain, playerSpawns, biome);
+    // Block exits from landing under any starting unit — an enemy spawned on
+    // an exit hides the marker and blocks it until it moves or dies.
+    escapeTiles = placeEscapeTiles(
+      mapLayout,
+      template,
+      cols,
+      rows,
+      terrain,
+      [...(playerSpawns || []), ...(enemySpawns || [])],
+      biome,
+    );
     if (!escapeTiles || escapeTiles.length === 0) {
       throw new Error(`Escape template "${template.id}" produced no escape tiles`);
     }
@@ -1154,7 +1164,7 @@ export function sanitizeEscapeTilePassability(config, terrainData) {
  * edge), spreads multiple squares apart, and forces the terrain under each
  * pick to be passable so the exit can always be stood on.
  */
-function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSpawns, biome) {
+function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, blockedSpawns, biome) {
   const zone = template.escapeZone || {};
   const rect = Array.isArray(zone.rect) && zone.rect.length === 4 ? zone.rect : [0.9, 0.3, 1, 0.7];
   const tileCount = Number.isInteger(zone.tileCount) ? Math.max(1, Math.min(6, zone.tileCount)) : 2;
@@ -1164,7 +1174,7 @@ function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSp
   const startRow = Math.max(0, Math.floor(y1 * rows));
   const endRow = Math.min(Math.ceil(y2 * rows), rows);
 
-  const blocked = new Set((playerSpawns || []).map((s) => `${s.col},${s.row}`));
+  const blocked = new Set((blockedSpawns || []).map((s) => `${s.col},${s.row}`));
   const candidates = [];
   for (let row = startRow; row < endRow; row++) {
     for (let col = startCol; col < endCol; col++) {

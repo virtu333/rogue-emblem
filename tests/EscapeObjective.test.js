@@ -121,6 +121,37 @@ describe('repeating reinforcement waves', () => {
     ).toHaveLength(1);
   });
 
+  it('clamps the rolled count so spawns cannot exceed maxActiveEnemies', () => {
+    const capped = {
+      spawnEdges: ['left'],
+      waves: [],
+      repeatingWaves: [
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 6, edges: ['left'] },
+      ],
+      difficultyScaling: true,
+    };
+    const [due] = getDueRepeatingReinforcementWaves({
+      turn: 5,
+      reinforcements: capped,
+      activeEnemyCount: 5,
+    });
+    expect(due.maxSpawnable).toBe(1);
+
+    const terrain = [{ name: 'Plain', moveCost: { Infantry: '1' } }];
+    const mapLayout = Array.from({ length: 6 }, () => new Array(8).fill(0));
+    const result = scheduleReinforcementsForTurn({
+      turn: 5,
+      seed: 99,
+      reinforcements: capped,
+      mapLayout,
+      terrain,
+      occupied: [],
+      enemyCountBonus: 2, // difficulty bonus must not pierce the cap either
+      activeEnemyCount: 5,
+    });
+    expect(result.spawns.length).toBeLessThanOrEqual(1);
+  });
+
   it('gives each occurrence a distinct waveIndex (distinct RNG identity)', () => {
     const [a] = getDueRepeatingReinforcementWaves({ turn: 5, reinforcements });
     const [b] = getDueRepeatingReinforcementWaves({ turn: 7, reinforcements });

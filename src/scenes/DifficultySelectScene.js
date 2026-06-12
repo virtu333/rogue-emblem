@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { MUSIC } from '../utils/musicConfig.js';
+import { resolveStartingLordDefs } from '../engine/Commander.js';
 import { DIFFICULTY_IDS, generateModifierSummary } from '../engine/DifficultyEngine.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
@@ -409,9 +410,14 @@ export class DifficultySelectScene extends Phaser.Scene {
     // Starting pair from Banner of Command (hidden when unpurchased; no-meta
     // runs always start Edric + Sera)
     if (!this._noMetaUpgrades && this.meta?.getCommanderChoiceTier?.() >= 1) {
-      const selection = this.meta.getLordSelection();
+      // Heal stale/corrupted saved names the same way run start will, so the
+      // displayed pair always matches the roster the run actually builds.
+      const [cmdDef, partnerDef] = resolveStartingLordDefs(
+        { startingLords: this.meta.getLordSelection() },
+        this.gameData?.lords,
+      );
       this.add
-        .text(cx, btnY + 56, `Commander: ${selection.commander} · Partner: ${selection.partner}`, {
+        .text(cx, btnY + 56, `Commander: ${cmdDef?.name} · Partner: ${partnerDef?.name}`, {
           fontFamily: 'monospace',
           fontSize: '10px',
           color: '#88bbff',

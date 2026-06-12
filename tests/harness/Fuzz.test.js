@@ -40,3 +40,36 @@ describe('Fuzz — act2_seize_basic', () => {
     }, 30000);
   }
 });
+
+describe('Fuzz — act2_escape_pursuit', () => {
+  const fixture = loadFixture('act2_escape_pursuit');
+
+  for (let seed = 1; seed <= 3; seed++) {
+    it(`fuzz seed=${seed} completes without invariant violations`, async () => {
+      const runner = new ScenarioRunner(seed, fixture, () => new FuzzAgent());
+      const replay = await runner.run(2000);
+      expect(replay.failure).toBeNull();
+      expect(['victory', 'defeat', 'timeout']).toContain(replay.result);
+    }, 30000);
+  }
+
+  for (let seed = 1; seed <= 5; seed++) {
+    it(`scripted seed=${seed} completes without invariant violations`, async () => {
+      const runner = new ScenarioRunner(seed, fixture, (driver) => new ScriptedAgent(driver));
+      const replay = await runner.run(2000);
+      expect(replay.failure).toBeNull();
+      expect(['victory', 'defeat', 'timeout']).toContain(replay.result);
+    }, 30000);
+  }
+
+  it('scripted seed=1 wins via the Escape action (escape path exercised end-to-end)', async () => {
+    const runner = new ScenarioRunner(1, fixture, (driver) => new ScriptedAgent(driver));
+    const replay = await runner.run(2000);
+    expect(replay.failure).toBeNull();
+    expect(replay.result).toBe('victory');
+    const escapeActions = replay.actions.filter(
+      (a) => a.type === 'choose_action' && a.payload.label === 'Escape',
+    );
+    expect(escapeActions.length).toBeGreaterThan(0);
+  }, 30000);
+});
