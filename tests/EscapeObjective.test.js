@@ -226,6 +226,29 @@ describe('escape map generation', () => {
     }
   });
 
+  it('escape squares are standable by every moveType (mounted lords included)', () => {
+    // Regression: Infantry-passable but Cavalry-impassable terrain (Mountain)
+    // on an exit would make an escape map unwinnable for a Cavalry commander.
+    const moveTypes = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
+    for (const act of ['act1', 'act2', 'act3', 'act4']) {
+      for (let i = 0; i < 50; i++) {
+        const config = withSeed(31000 + act.length * 503 + i, () =>
+          generateBattle({ act, objective: 'escape' }, data),
+        );
+        for (const tile of config.escapeTiles) {
+          const terrainEntry = data.terrain[config.mapLayout[tile.row][tile.col]];
+          for (const mt of moveTypes) {
+            const cost = parseInt(terrainEntry.moveCost[mt], 10);
+            expect(
+              cost,
+              `${terrainEntry.name} exit at (${tile.col},${tile.row}) must be ${mt}-passable (${act}, iter ${i})`,
+            ).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+
   it('keeps escape squares clear of player spawns', () => {
     for (let i = 0; i < 10; i++) {
       const config = withSeed(9000 + i, () =>

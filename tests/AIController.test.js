@@ -1057,6 +1057,68 @@ describe('AIController', () => {
       expect(decision.target).toBeDefined();
       expect(decision.reason).toBe('attack_in_range');
     });
+
+    it('does not cast a status staff while silenced', () => {
+      const { applyCondition } = require('../src/engine/StatusConditionSystem.js');
+      const player = makePlayer({ col: 7, row: 5, isLord: true });
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+        { col: 4, row: 5 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 0,
+        },
+      });
+      applyCondition(enemy, 'silence', 3);
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+
+      const decision = ai._decideAction(enemy, [], [player]);
+      // Silence blocks staves — same rule the player is held to
+      expect(decision.statusStaffTarget).toBeUndefined();
+      expect(decision.reason).not.toBe('status_staff');
+    });
+
+    it('casts again once silence expires', () => {
+      const player = makePlayer({ col: 7, row: 5, isLord: true });
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+        { col: 4, row: 5 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 0,
+        },
+        _conditions: [], // silence already recovered
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+
+      const decision = ai._decideAction(enemy, [], [player]);
+      expect(decision.reason).toBe('status_staff');
+      expect(decision.statusStaffTarget).toBeDefined();
+    });
   });
 
   describe('weapon-swap optimization', () => {

@@ -9287,7 +9287,12 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
-      if (!applyCondition(unit, 'acid')) continue; // statusImmunity accessory
+      if (!applyCondition(unit, 'acid')) {
+        // statusImmunity accessory — surface the block like the staff/art paths
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        this.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+        continue;
+      }
       this._addConditionIcon(unit, 'acid');
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
     }

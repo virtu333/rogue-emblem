@@ -1123,6 +1123,9 @@ function resolveFeaturePosition(position, cols, rows, template) {
 
 // --- Escape square placement ---
 
+// Every moveType in the game — escape exits must be standable by all of them.
+const ESCAPE_TILE_MOVE_TYPES = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
+
 /**
  * Place the escape squares for an Escape-objective map inside the template's
  * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
@@ -1165,7 +1168,13 @@ function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSp
 
   const fallback = getFallbackPassable(biome);
   for (const tile of picked) {
-    if (!isPassable(terrainData, mapLayout[tile.row][tile.col], 'Infantry')) {
+    // Exits must be standable by EVERY moveType: victory requires each living
+    // lord to end a turn on one, and lords can be Cavalry (Rowan) or Flying —
+    // Infantry-passable terrain like Mountain would soft-lock a mounted lord.
+    const standable = ESCAPE_TILE_MOVE_TYPES.every((mt) =>
+      isPassable(terrainData, mapLayout[tile.row][tile.col], mt),
+    );
+    if (!standable) {
       mapLayout[tile.row][tile.col] = fallback;
     }
   }
