@@ -1400,11 +1400,13 @@ describe('Staff effective range', () => {
 describe('Staff data integrity', () => {
   it('all staves have uses field; heal staves have healBase', () => {
     const staves = data.weapons.filter((w) => w.type === 'Staff');
-    expect(staves.length).toBe(7);
-    const healStaves = staves.filter((s) => !s.statusEffect);
+    expect(staves.length).toBe(8);
+    const healStaves = staves.filter((s) => !s.statusEffect && !s.cureConditions);
     const statusStaves = staves.filter((s) => s.statusEffect);
+    const cureStaves = staves.filter((s) => s.cureConditions);
     expect(healStaves.length).toBe(5);
     expect(statusStaves.length).toBe(2);
+    expect(cureStaves.length).toBe(1);
     for (const staff of healStaves) {
       expect(staff.healBase).toBeDefined();
       expect(typeof staff.healBase).toBe('number');

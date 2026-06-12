@@ -146,7 +146,6 @@ import {
   resolveStatusStaff,
   processConditionRecovery,
   isStatusStaff,
-  isHealStaff,
   hasCondition,
   parseStaffRange,
 } from '../engine/StatusConditionSystem.js';
@@ -6409,7 +6408,9 @@ export class BattleScene extends Phaser.Scene {
       this._pendingCureTarget = null;
       clearAllConditions(target);
       this._removeAllConditionIcons(target);
-      this.undimUnit(target);
+      // Un-dim only sleepers that can still act — keep the acted-grey on
+      // allies that already moved this phase (same pattern as Swap).
+      if (!target.hasActed) this.undimUnit(target);
       if (item.effect === 'cureHeal' && item.value > 0) {
         const oldHP = target.currentHP;
         target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
@@ -7575,9 +7576,15 @@ export class BattleScene extends Phaser.Scene {
           {
             // durationPhases = full phases; recovery decrements at the start of
             // the afflicted side's phase before it acts, hence the +1.
-            applyCondition(targetUnit, step.status, step.durationPhases + 1, {
+            const applied = applyCondition(targetUnit, step.status, step.durationPhases + 1, {
               recoveryChance: 0,
             });
+            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
+            if (!applied) {
+              // statusImmunity accessory (or invalid status) blocked it
+              this.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+              break;
+            }
             this._addConditionIcon(targetUnit, step.status);
             const statusLabels = {
               root: 'Rooted!',
@@ -7585,7 +7592,6 @@ export class BattleScene extends Phaser.Scene {
               sleep: 'Asleep!',
               acid: 'Acid!',
             };
-            const pos = this.grid.gridToPixel(targetUnit.col, targetUnit.row);
             this.showMinorHintAt(
               pos.x,
               pos.y,
@@ -9281,7 +9287,7 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
-      applyCondition(unit, 'acid');
+      if (!applyCondition(unit, 'acid')) continue; // statusImmunity accessory
       this._addConditionIcon(unit, 'acid');
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
     }
@@ -9483,6 +9489,13 @@ export class BattleScene extends Phaser.Scene {
     if (!staff) return;
     const result = resolveStatusStaff(staff, enemy, target);
     spendStaffUse(staff);
+    if (result.immune) {
+      await this.showBriefBanner(
+        `${enemy.name} used ${staff.name}! ${target.name} is protected!`,
+        '#88ffcc',
+      );
+      return;
+    }
     const hitPct = Math.round(result.hitChance);
     if (result.hit) {
       const statusText =

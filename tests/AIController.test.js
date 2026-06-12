@@ -995,6 +995,39 @@ describe('AIController', () => {
       expect(decision.statusStaffTarget).toBeUndefined();
     });
 
+    it('skips status-immune targets (Warding Charm)', () => {
+      const player = makePlayer({
+        col: 7,
+        row: 5,
+        accessory: { name: 'Warding Charm', combatEffects: { statusImmunity: true } },
+      });
+
+      const moveTiles = [
+        { col: 5, row: 5 },
+        { col: 6, row: 5 },
+      ];
+      const enemy = makeEnemy({
+        col: 5,
+        row: 5,
+        className: 'Mage',
+        statusStaff: {
+          name: 'Sleep Staff',
+          type: 'Staff',
+          statusEffect: 'sleep',
+          range: '3-5',
+          uses: 1,
+          hit: 40,
+          _usesSpent: 0,
+        },
+      });
+      const grid = createMockGrid(moveTiles);
+      const ai = new AIController(grid, {});
+
+      const decision = ai._decideAction(enemy, [], [player]);
+      // Immune — don't waste a limited staff use
+      expect(decision.statusStaffTarget).toBeUndefined();
+    });
+
     it('falls through to normal attack when staff uses exhausted', () => {
       const player = makePlayer({ col: 6, row: 5 });
       const moveTiles = [

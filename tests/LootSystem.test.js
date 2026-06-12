@@ -1686,6 +1686,7 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).toContain('Herb');
       expect(names).toContain('Remedy');
+      expect(names).toContain('Restore');
     });
 
     it('does NOT add Herb/Remedy when shopCureGating[act] is false', () => {
@@ -1705,9 +1706,11 @@ describe('LootSystem', () => {
       expect(names).not.toContain('Remedy');
     });
 
+    // act2+ pools legitimately carry cure items now (countermeasure rollout),
+    // so the no-gating assertions use act1 — the only act with cure-free pools.
     it('does NOT add cures when shopCureGating is null', () => {
       const inv = generateShopInventory(
-        'act3',
+        'act1',
         gameData.lootTables,
         gameData.weapons,
         gameData.consumables,
@@ -1719,11 +1722,12 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
+      expect(names).not.toContain('Restore');
     });
 
     it('does NOT add cures when shopCureGating is omitted', () => {
       const inv = generateShopInventory(
-        'act3',
+        'act1',
         gameData.lootTables,
         gameData.weapons,
         gameData.consumables,
@@ -1731,6 +1735,7 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
+      expect(names).not.toContain('Restore');
     });
   });
 });

@@ -30,7 +30,7 @@ emblem-rogue/
 ├── public/                # Static files served as-is (synced from data/ and assets/)
 ├── docs/                  # Design documents (GDD, class data, mobile/iOS specs)
 ├── data/                  # 23 game data JSON files (source of truth)
-│   ├── accessories.json   # 29 accessories: 10 stat-based + 19 with combatEffects
+│   ├── accessories.json   # 30 accessories: 10 stat-based + 20 with combatEffects (incl. Warding Charm status immunity)
 │   ├── affixes.json       # 12 enemy affixes: difficulty-gated modifiers with exclusion rules
 │   ├── blessings.json     # 23 shrine blessings: tiered run-shaping modifiers
 │   ├── classes.json       # 52 entries: 21 base + 30 promoted + 1 boss-tier class
@@ -51,7 +51,7 @@ emblem-rogue/
 │   ├── terrain.json       # 15 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista)
 │   ├── turnBonus.json     # Turn par calculation config
 │   ├── weaponArts.json    # 75 weapon arts across 5 types, HP-cost combat mods
-│   ├── weapons.json       # 113 weapons across 8 types
+│   ├── weapons.json       # 116 weapons across 8 types (incl. Restore cure staff, enemy-only status staves)
 │   └── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight
 ├── src/
 │   ├── main.js            # Auth gate + Phaser bootstrap (exports cloudState)
