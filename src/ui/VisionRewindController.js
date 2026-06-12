@@ -77,6 +77,10 @@ export class VisionRewindController {
       // earlier turns and drops active kill buffs. Mirrors
       // BattleSuspendController.serializeSuspendUnit.
       serialized.stats = { ...unit.stats };
+      // Once-per-battle flags consumed on earlier turns must survive the
+      // rewind — serializeUnit force-clears them for between-battle reuse.
+      serialized._miracleUsed = unit._miracleUsed === true;
+      serialized._phoenixBroochUsed = unit._phoenixBroochUsed === true;
       for (const field of [
         '_battleDeltas',
         '_battleWeaponArtUsage',

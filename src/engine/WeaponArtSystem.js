@@ -535,11 +535,6 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   const config = validateArtConstraintConfig(art);
   if (!config.ok) return { ok: false, reason: config.reason };
 
-  // Silence blocks weapon arts for every faction. This is the single gate the
-  // player picker, enemy AI, and headless harness all route through — the
-  // action menu's own silence check only covers the player UI layer.
-  if (isSilenced(unit)) return { ok: false, reason: 'silenced' };
-
   const actorFaction = getFactionFromContext(unit, context)?.toLowerCase() || null;
   if (config.owners && !config.owners.includes('any')) {
     if (!actorFaction || !config.owners.includes(actorFaction)) {
@@ -563,6 +558,13 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   if (!isWeaponArtCompatibleWithWeapon(art, weapon)) {
     return { ok: false, reason: 'wrong_weapon_type' };
   }
+
+  // Silence blocks weapon arts for every faction. This is the single gate the
+  // player picker, enemy AI, and headless harness all route through — the
+  // action menu's own silence check only covers the player UI layer. It sits
+  // below the owner/faction/legendary/weapon-type gates so arts those checks
+  // hide from UI lists (HIDDEN_WEAPON_ART_REASONS) stay hidden while silenced.
+  if (isSilenced(unit)) return { ok: false, reason: 'silenced' };
 
   const unitRank = getUnitRankForType(unit, weapon.type);
   if (!unitRank) return { ok: false, reason: 'no_proficiency' };

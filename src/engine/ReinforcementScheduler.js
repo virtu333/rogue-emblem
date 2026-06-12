@@ -460,8 +460,11 @@ export function scheduleReinforcementsForTurn({
       : 0;
     // Roll before clamping so the RNG draw count stays seed-stable.
     const rolledCount = rollWaveCount(due.wave, rng, scaledCountBonus);
+    // maxSpawnable was computed against the active count when the call began;
+    // subtract enemies already spawned this call (scripted/fixed/repeating)
+    // so multiple due waves can't jointly push past maxActiveEnemies.
     const requestedCount = Number.isFinite(due.maxSpawnable)
-      ? Math.max(0, Math.min(rolledCount, due.maxSpawnable))
+      ? Math.max(0, Math.min(rolledCount, due.maxSpawnable - spawns.length))
       : rolledCount;
 
     let spawnedCount = 0;

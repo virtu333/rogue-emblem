@@ -13,7 +13,11 @@ import {
   scheduleReinforcementsForTurn,
 } from '../src/engine/ReinforcementScheduler.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
-import { generateBattle, sanitizeEscapeTilePassability } from '../src/engine/MapGenerator.js';
+import {
+  generateBattle,
+  placeEscapeTiles,
+  sanitizeEscapeTilePassability,
+} from '../src/engine/MapGenerator.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
@@ -150,6 +154,33 @@ describe('repeating reinforcement waves', () => {
       activeEnemyCount: 5,
     });
     expect(result.spawns.length).toBeLessThanOrEqual(1);
+  });
+
+  it('clamps across multiple waves due the same turn (joint cap)', () => {
+    // Each wave's maxSpawnable is computed against the call-start enemy count;
+    // without deducting same-call spawns, two due waves with capacity 3 each
+    // would jointly spawn 6 past a cap of 3.
+    const capped = {
+      spawnEdges: ['left'],
+      waves: [],
+      repeatingWaves: [
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 7, edges: ['left'] },
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 7, edges: ['right'] },
+      ],
+      difficultyScaling: true,
+    };
+    const terrain = [{ name: 'Plain', moveCost: { Infantry: '1' } }];
+    const mapLayout = Array.from({ length: 6 }, () => new Array(8).fill(0));
+    const result = scheduleReinforcementsForTurn({
+      turn: 5,
+      seed: 99,
+      reinforcements: capped,
+      mapLayout,
+      terrain,
+      occupied: [],
+      activeEnemyCount: 4,
+    });
+    expect(result.spawns.length).toBeLessThanOrEqual(3);
   });
 
   it('gives each occurrence a distinct waveIndex (distinct RNG identity)', () => {
@@ -317,6 +348,28 @@ describe('escape map generation', () => {
     expect(sanitizeEscapeTilePassability(null, data.terrain)).toBeNull();
     const noTiles = { mapLayout: [[mountainIdx]] };
     expect(sanitizeEscapeTilePassability(noTiles, data.terrain)).toBe(noTiles);
+  });
+
+  it('still places exits when spawns swallow the whole escape zone', () => {
+    // Regression: river_flight's escape zone sits entirely inside its enemy
+    // spawn zone on act1-sized maps. If random spawns happened to cover every
+    // zone tile, blocking them all would leave zero candidates and
+    // generateBattle would throw — permanently, because the battle seed is
+    // locked per node. An exit under an enemy is recoverable; no exit is not.
+    const plainIdx = data.terrain.findIndex((t) => t.name === 'Plain');
+    const cols = 10;
+    const rows = 8;
+    const mapLayout = Array.from({ length: rows }, () => Array(cols).fill(plainIdx));
+    const template = { escapeZone: { rect: [0.9, 0.3, 1, 0.7], tileCount: 2 } };
+    // Zone resolves to col 9, rows 2-5 (4 tiles); block all of them.
+    const blockedSpawns = [2, 3, 4, 5].map((row) => ({ col: 9, row }));
+    const picked = placeEscapeTiles(mapLayout, template, cols, rows, data.terrain, blockedSpawns);
+    expect(picked.length).toBe(2);
+    for (const tile of picked) {
+      expect(tile.col).toBe(9);
+      expect(tile.row).toBeGreaterThanOrEqual(2);
+      expect(tile.row).toBeLessThan(6);
+    }
   });
 
   it('keeps escape squares clear of player spawns', () => {

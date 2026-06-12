@@ -1163,8 +1163,17 @@ export function sanitizeEscapeTilePassability(config, terrainData) {
  * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
  * edge), spreads multiple squares apart, and forces the terrain under each
  * pick to be passable so the exit can always be stood on.
+ * Exported for tests only — generateBattle is the sole production caller.
  */
-function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, blockedSpawns, biome) {
+export function placeEscapeTiles(
+  mapLayout,
+  template,
+  cols,
+  rows,
+  terrainData,
+  blockedSpawns,
+  biome,
+) {
   const zone = template.escapeZone || {};
   const rect = Array.isArray(zone.rect) && zone.rect.length === 4 ? zone.rect : [0.9, 0.3, 1, 0.7];
   const tileCount = Number.isInteger(zone.tileCount) ? Math.max(1, Math.min(6, zone.tileCount)) : 2;
@@ -1180,6 +1189,16 @@ function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, blockedS
     for (let col = startCol; col < endCol; col++) {
       if (blocked.has(`${col},${row}`)) continue;
       candidates.push({ col, row });
+    }
+  }
+  if (candidates.length === 0) {
+    // On small maps a spawn zone can swallow the whole escape rect. An exit
+    // under an enemy is recoverable (it moves or dies); zero exits throws, and
+    // the battle seed is locked per node so the throw would repeat forever.
+    for (let row = startRow; row < endRow; row++) {
+      for (let col = startCol; col < endCol; col++) {
+        candidates.push({ col, row });
+      }
     }
   }
   const edgeScore = (t) => Math.min(t.col, cols - 1 - t.col, t.row, rows - 1 - t.row);

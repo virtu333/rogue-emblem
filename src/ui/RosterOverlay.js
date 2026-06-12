@@ -1283,6 +1283,8 @@ export class RosterOverlay {
         return 'No proficiency';
       case 'initiation_only':
         return 'Player phase only';
+      case 'silenced':
+        return 'Silenced';
       default:
         return 'Unavailable';
     }
