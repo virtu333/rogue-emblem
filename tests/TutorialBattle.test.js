@@ -234,12 +234,12 @@ describe('TutorialBattle', () => {
       expect(edric.consumables[0].name).toBe('Vulnerary');
     });
 
-    it('Sera has exactly 1 inventory item (Heal) and weapon is Staff type', () => {
+    it('Sera carries Lightning (equipped) plus the Heal staff', () => {
       expect(sera.name).toBe('Sera');
-      expect(sera.inventory).toHaveLength(1);
-      expect(sera.inventory[0].name).toBe('Heal');
-      expect(sera.weapon.name).toBe('Heal');
-      expect(sera.weapon.type).toBe('Staff');
+      expect(sera.inventory).toHaveLength(2);
+      expect(sera.inventory.map((w) => w.name)).toEqual(['Lightning', 'Heal']);
+      expect(sera.weapon.name).toBe('Lightning');
+      expect(sera.weapon.type).toBe('Light');
     });
 
     it('Sera has Staff proficiency', () => {
@@ -430,7 +430,7 @@ describe('TutorialBattle', () => {
       expect(scene._tutorialVisionIntroShown).toBe(true);
       expect(hintText).toContain('Eye');
       expect(hintText).toContain('Vision');
-      expect(hintText).toContain('do not have to use it');
+      expect(hintText).toContain('if a lord falls');
     });
 
     it('does not show vision intro more than once', async () => {

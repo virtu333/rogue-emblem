@@ -1691,7 +1691,7 @@ describe('Combat mod merging', () => {
     expect(merged.ignoreTerrainAvoid).toBe(true);
     expect(merged.preventCounter).toBe(true);
     expect(merged.targetsRES).toBe(true);
-    expect(merged.effectiveness).toEqual({ moveTypes: ['flying'], multiplier: 3 });
+    expect(merged.effectiveness).toEqual({ moveTypes: ['flying'], classNames: [], multiplier: 3 });
     expect(merged.rangeBonus).toBe(3);
     expect(merged.rangeOverride).toEqual({ min: 2, max: 2 });
     expect(merged.halfPhysicalDamage).toBe(true);

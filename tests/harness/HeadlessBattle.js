@@ -69,6 +69,10 @@ import {
   getPostCombatPipelineSteps,
   resolvePostCombatMove,
 } from '../../src/engine/WeaponArtPostCombat.js';
+import {
+  applyCondition,
+  processConditionRecovery,
+} from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
 import {
@@ -1142,6 +1146,9 @@ export class HeadlessBattle {
     this._clearCombatRollSession();
     this._expireTimedWeaponArtBuffs(phase, turn);
     if (phase === 'player') {
+      // Condition recovery mirrors BattleScene: tick at the start of the
+      // afflicted side's phase, before units act (art statuses expire here).
+      processConditionRecovery(this.playerUnits);
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
@@ -1155,6 +1162,7 @@ export class HeadlessBattle {
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      processConditionRecovery(this.enemyUnits);
       this.grid.tickTemporaryTerrains?.();
       this.battleState = HEADLESS_STATES.ENEMY_PHASE;
     }
@@ -1760,6 +1768,23 @@ export class HeadlessBattle {
           if (!targetUnit || targetUnit.currentHP <= 0) break;
           this.applyBattleDebuff(targetUnit, step.stat, step.amount);
           break;
+        case 'tier2_status':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          // durationPhases = full phases; recovery decrements at phase start, hence +1
+          applyCondition(targetUnit, step.status, step.durationPhases + 1, {
+            recoveryChance: 0,
+          });
+          break;
+        case 'art_miss_self_damage':
+          if (!targetUnit || targetUnit.currentHP <= 0) break;
+          targetUnit.currentHP = Math.max(
+            step.nonLethal === false ? 0 : 1,
+            targetUnit.currentHP - step.amount,
+          );
+          break;
+        case 'art_kill_buff':
+          this._applyArtKillBuffStep(step, sourceUnit, targetUnit);
+          break;
         case 'tier2_pierce':
           this._applyTier2PierceStep(step, sourceUnit, targetUnit);
           break;
@@ -2078,6 +2103,24 @@ export class HeadlessBattle {
         stats,
       });
     }
+  }
+
+  _applyArtKillBuffStep(step, sourceUnit, targetUnit) {
+    if (!sourceUnit || sourceUnit.currentHP <= 0) return;
+    if (!targetUnit || targetUnit.currentHP > 0) return;
+    const { expiryPhase, expiryTurn } = this._resolveTier5BuffExpiry(
+      sourceUnit,
+      step?.durationPhases,
+    );
+    this._applyTier5TimedBuffEntry(sourceUnit, {
+      key: `${String(step?.artId || 'kill_buff')}::${String(sourceUnit.name || '')}::self`,
+      artId: step?.artId || null,
+      sourceName: sourceUnit.name || null,
+      sourceFaction: sourceUnit.faction || null,
+      expiryPhase,
+      expiryTurn,
+      stats: { ...(step?.stats || {}) },
+    });
   }
 
   _expireTimedWeaponArtBuffs(phase, turn) {

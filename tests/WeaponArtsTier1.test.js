@@ -125,7 +125,15 @@ describe('Tier 1 Weapon Arts Expansion', () => {
         const hasStructuredTier2 =
           Array.isArray(art?.effects?.afterCombat) && art.effects.afterCombat.length > 0;
         const hasStructuredTier5 = Boolean(art?.effects?.aoeSplash || art?.effects?.allyBuff);
-        expect(hasBonus || hasTier4 || hasStructuredTier2 || hasStructuredTier5).toBe(true);
+        const hasBespoke =
+          (mods.damageMultiplier || 0) > 1 ||
+          mods.ignoreWeaponTriangle ||
+          mods.ignoreRES ||
+          Boolean(art?.effects?.selfDamageOnMiss) ||
+          Boolean(art?.effects?.killBuff);
+        expect(hasBonus || hasTier4 || hasStructuredTier2 || hasStructuredTier5 || hasBespoke).toBe(
+          true,
+        );
       }
     });
   });

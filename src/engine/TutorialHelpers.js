@@ -1,7 +1,7 @@
 // Pure helpers for tutorial battle setup (no Phaser deps)
 
 import { TERRAIN } from '../utils/constants.js';
-import { createLordUnit, addToInventory, addToConsumables, equipWeapon } from './UnitManager.js';
+import { createLordUnit, addToInventory, addToConsumables } from './UnitManager.js';
 
 export function buildTutorialBattleConfig() {
   const P = TERRAIN.Plain,
@@ -47,7 +47,8 @@ export function buildTutorialRoster(gameData) {
   const vuln = consumables.find((c) => c.name === 'Vulnerary');
   if (vuln) addToConsumables(edric, vuln);
 
-  // Sera -- Light Sage refit as healer: Heal staff + Vulnerary
+  // Sera -- Light Sage: Lightning (from createLordUnit, stays equipped so she
+  // can fight) + Heal staff for the healing lesson + Vulnerary
   const seraDef = lords.find((l) => l.name === 'Sera');
   const seraClass = classes.find((c) => c.name === seraDef.class);
   const sera = createLordUnit(seraDef, seraClass, weapons);
@@ -59,13 +60,8 @@ export function buildTutorialRoster(gameData) {
   if (!sera.proficiencies.some((p) => p.type === 'Staff')) {
     sera.proficiencies.push({ type: 'Staff', rank: 'Prof' });
   }
-  sera.weapon = null;
-  sera.inventory = [];
   const heal = weapons.find((w) => w.name === 'Heal');
-  if (heal) {
-    addToInventory(sera, heal);
-    equipWeapon(sera, sera.inventory[0]);
-  }
+  if (heal) addToInventory(sera, heal);
   const vuln2 = consumables.find((c) => c.name === 'Vulnerary');
   if (vuln2) addToConsumables(sera, vuln2);
 

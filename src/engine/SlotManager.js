@@ -97,7 +97,7 @@ export function getNextAvailableSlot() {
 /**
  * Summary info for a slot. Returns null if slot is empty (no meta).
  * If meta is valid but run JSON is corrupt, returns summary with runCorrupt: true.
- * @returns {{ slot, valor, supply, runsCompleted, hasActiveRun, actReached, runCorrupt } | null}
+ * @returns {{ slot, valor, supply, runsCompleted, runsStarted, hasActiveRun, actReached, runCorrupt } | null}
  */
 export function getSlotSummary(slot) {
   let metaRaw;
@@ -119,6 +119,8 @@ export function getSlotSummary(slot) {
     valor: meta.totalValor ?? meta.totalRenown ?? 0,
     supply: meta.totalSupply ?? meta.totalRenown ?? 0,
     runsCompleted: meta.runsCompleted || 0,
+    // Pre-tracking saves: finished runs are a floor on started runs.
+    runsStarted: Math.max(meta.runsStarted || 0, meta.runsCompleted || 0),
     hasActiveRun: false,
     actReached: null,
     runCorrupt: false,
