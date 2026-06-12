@@ -9,6 +9,7 @@ import { getTerrainCostReduction } from './SkillSystem.js';
 import {
   hasCondition,
   isRooted,
+  isSilenced,
   isStatusImmune,
   parseStaffRange,
 } from './StatusConditionSystem.js';
@@ -280,7 +281,8 @@ export class AIController {
     // --- Status staff targeting (checked before normal attack) ---
     const staff = enemy.statusStaff;
     const staffUsesLeft = staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses;
-    if (staffUsesLeft) {
+    // Silence blocks staves for AI casters just as it does for player units
+    if (staffUsesLeft && !isSilenced(enemy)) {
       const staffRange = parseStaffRange(staff.range);
       const condId = staff.statusEffect;
       const playerTargets = playerUnits.filter(

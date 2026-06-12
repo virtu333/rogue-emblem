@@ -1,0 +1,23 @@
+{
+  "id": "act2_escape_pursuit",
+  "description": "4-unit roster, Act 2 escape objective on pursuit_road (escape tiles + endless repeatingWaves pursuit reinforcements). enemyPoisonChance gives some pursuers poison weapons so post-combat poison effects run through the invariant harness.",
+  "battleParams": {
+    "act": "act2",
+    "objective": "escape",
+    "row": 3,
+    "templateId": "pursuit_road",
+    "isElite": true,
+    "isBoss": false,
+    "isRecruitBattle": false,
+    "difficultyMod": 1.0,
+    "difficultyId": "normal",
+    "levelRange": [3, 5],
+    "enemyPoisonChance": 0.35
+  },
+  "roster": [
+    { "type": "lord", "name": "Edric", "level": 12, "extraWeapons": ["Steel Sword"] },
+    { "type": "lord", "name": "Sera", "level": 12, "staff": true },
+    { "type": "recruit", "className": "Cavalier", "name": "Marcus", "level": 10 },
+    { "type": "recruit", "className": "Pegasus Knight", "name": "Kira", "level": 10 }
+  ]
+}

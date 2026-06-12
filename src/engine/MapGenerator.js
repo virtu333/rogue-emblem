@@ -247,7 +247,17 @@ export function generateBattle(params, deps) {
   // 7c. Escape squares for the Escape objective
   let escapeTiles = null;
   if (objective === 'escape') {
-    escapeTiles = placeEscapeTiles(mapLayout, template, cols, rows, terrain, playerSpawns, biome);
+    // Block exits from landing under any starting unit — an enemy spawned on
+    // an exit hides the marker and blocks it until it moves or dies.
+    escapeTiles = placeEscapeTiles(
+      mapLayout,
+      template,
+      cols,
+      rows,
+      terrain,
+      { player: playerSpawns || [], enemy: enemySpawns || [] },
+      biome,
+    );
     if (!escapeTiles || escapeTiles.length === 0) {
       throw new Error(`Escape template "${template.id}" produced no escape tiles`);
     }
@@ -1123,13 +1133,41 @@ function resolveFeaturePosition(position, cols, rows, template) {
 
 // --- Escape square placement ---
 
+// Every moveType in the game — escape exits must be standable by all of them.
+const ESCAPE_TILE_MOVE_TYPES = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
+
+/**
+ * Heal escape exits inside an already-generated battle config. Battle configs
+ * are locked into the run save when a node is first entered, so a save written
+ * by an older build (which only forced Infantry passability) can carry a
+ * Mountain exit that soft-locks Cavalry lords. Mutates and returns config.
+ */
+export function sanitizeEscapeTilePassability(config, terrainData) {
+  if (!config?.escapeTiles?.length || !Array.isArray(config.mapLayout) || !terrainData) {
+    return config;
+  }
+  const fallback = getFallbackPassable(config.biome);
+  for (const tile of config.escapeTiles) {
+    const idx = config.mapLayout[tile.row]?.[tile.col];
+    if (idx === undefined) continue;
+    const standable = ESCAPE_TILE_MOVE_TYPES.every((mt) => isPassable(terrainData, idx, mt));
+    if (!standable) {
+      config.mapLayout[tile.row][tile.col] = fallback;
+    }
+  }
+  return config;
+}
+
 /**
  * Place the escape squares for an Escape-objective map inside the template's
  * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
  * edge), spreads multiple squares apart, and forces the terrain under each
  * pick to be passable so the exit can always be stood on.
+ * `spawns` is `{ player: [], enemy: [] }` — exits prefer tiles clear of all
+ * spawns, but degrade rather than fail (see fallback comment below).
+ * Exported for tests only — generateBattle is the sole production caller.
  */
-function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSpawns, biome) {
+export function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, spawns, biome) {
   const zone = template.escapeZone || {};
   const rect = Array.isArray(zone.rect) && zone.rect.length === 4 ? zone.rect : [0.9, 0.3, 1, 0.7];
   const tileCount = Number.isInteger(zone.tileCount) ? Math.max(1, Math.min(6, zone.tileCount)) : 2;
@@ -1139,13 +1177,28 @@ function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSp
   const startRow = Math.max(0, Math.floor(y1 * rows));
   const endRow = Math.min(Math.ceil(y2 * rows), rows);
 
-  const blocked = new Set((playerSpawns || []).map((s) => `${s.col},${s.row}`));
-  const candidates = [];
+  const toKeys = (list) => new Set((list || []).map((s) => `${s.col},${s.row}`));
+  const playerBlocked = toKeys(spawns?.player);
+  const enemyBlocked = toKeys(spawns?.enemy);
+  const zoneTiles = [];
   for (let row = startRow; row < endRow; row++) {
     for (let col = startCol; col < endCol; col++) {
-      if (blocked.has(`${col},${row}`)) continue;
-      candidates.push({ col, row });
+      zoneTiles.push({ col, row });
     }
+  }
+  // On small maps a spawn zone can swallow the whole escape rect (river_flight
+  // on 10x8). Degrade instead of failing: an exit under an enemy is
+  // recoverable (it moves or dies), but zero exits throws — and the battle
+  // seed is locked per node, so the throw would repeat forever. A player
+  // starting on an exit is never acceptable (free instant escape).
+  let candidates = zoneTiles.filter(
+    (t) => !playerBlocked.has(`${t.col},${t.row}`) && !enemyBlocked.has(`${t.col},${t.row}`),
+  );
+  if (candidates.length === 0) {
+    candidates = zoneTiles.filter((t) => !playerBlocked.has(`${t.col},${t.row}`));
+  }
+  if (candidates.length === 0) {
+    candidates = zoneTiles;
   }
   const edgeScore = (t) => Math.min(t.col, cols - 1 - t.col, t.row, rows - 1 - t.row);
   candidates.sort((a, b) => edgeScore(a) - edgeScore(b) || a.row - b.row || a.col - b.col);
@@ -1165,7 +1218,13 @@ function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, playerSp
 
   const fallback = getFallbackPassable(biome);
   for (const tile of picked) {
-    if (!isPassable(terrainData, mapLayout[tile.row][tile.col], 'Infantry')) {
+    // Exits must be standable by EVERY moveType: victory requires each living
+    // lord to end a turn on one, and lords can be Cavalry (Rowan) or Flying —
+    // Infantry-passable terrain like Mountain would soft-lock a mounted lord.
+    const standable = ESCAPE_TILE_MOVE_TYPES.every((mt) =>
+      isPassable(terrainData, mapLayout[tile.row][tile.col], mt),
+    );
+    if (!standable) {
       mapLayout[tile.row][tile.col] = fallback;
     }
   }

@@ -154,6 +154,47 @@ describe('WeaponArtSystem', () => {
     expect(result.reason).toBe('wrong_weapon_type');
   });
 
+  it('rejects weapon arts while silenced, for players and AI alike', () => {
+    // Help text promises silence "blocks magic, staves, weapon arts, and all
+    // skills" — this is the single gate covering the picker, enemy AI, and
+    // the headless harness.
+    const weapon = { type: 'Sword' };
+    const silencedPlayer = makeUnit({ _conditions: [{ id: 'silence', turnsRemaining: 3 }] });
+    const playerCheck = canUseWeaponArt(silencedPlayer, weapon, makeArt());
+    expect(playerCheck.ok).toBe(false);
+    expect(playerCheck.reason).toBe('silenced');
+
+    const silencedEnemy = makeUnit({
+      faction: 'enemy',
+      _conditions: [{ id: 'silence', turnsRemaining: 3 }],
+    });
+    const aiCheck = canUseWeaponArt(silencedEnemy, weapon, makeArt(), { isAI: true });
+    expect(aiCheck.ok).toBe(false);
+    expect(aiCheck.reason).toBe('silenced');
+
+    // Recovered unit is unblocked again
+    const recovered = makeUnit({ _conditions: [] });
+    expect(canUseWeaponArt(recovered, weapon, makeArt()).ok).toBe(true);
+  });
+
+  it('keeps hidden-category reasons ahead of silenced (UI list stability)', () => {
+    // UI lists filter rows via HIDDEN_WEAPON_ART_REASONS (owner/faction/
+    // legendary/weapon-type) but show 'silenced' greyed. If silence won, arts
+    // those checks normally hide would pop into the list while silenced and
+    // vanish again when it expires.
+    const silenced = makeUnit({ _conditions: [{ id: 'silence', turnsRemaining: 3 }] });
+    const weapon = { type: 'Sword' };
+    expect(canUseWeaponArt(silenced, weapon, makeArt({ owner: 'enemy' })).reason).toBe(
+      'owner_scope_mismatch',
+    );
+    expect(canUseWeaponArt(silenced, weapon, makeArt({ allowedFactions: ['enemy'] })).reason).toBe(
+      'faction_mismatch',
+    );
+    expect(canUseWeaponArt(silenced, { type: 'Axe' }, makeArt()).reason).toBe('wrong_weapon_type');
+    // With no hidden-category conflict, silence still reports first.
+    expect(canUseWeaponArt(silenced, weapon, makeArt()).reason).toBe('silenced');
+  });
+
   it('supports allowedTypes compatibility for magic arts', () => {
     const art = makeArt({
       weaponType: 'Tome',

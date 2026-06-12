@@ -90,4 +90,9 @@ export function loadFixture(name) {
   };
 }
 
-export const FIXTURES = ['act1_rout_basic', 'act2_seize_basic', 'healer_heavy'];
+export const FIXTURES = [
+  'act1_rout_basic',
+  'act2_seize_basic',
+  'act2_escape_pursuit',
+  'healer_heavy',
+];

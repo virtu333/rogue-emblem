@@ -6390,43 +6390,51 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
-    this.commitVisionSnapshotIfPending();
+    // Non-cancelable while the effect applies (same contract as the staff
+    // path's HEAL_RESOLVING): ESC during the awaited banner could otherwise
+    // re-enter handleCancel and undo the move of an already-consumed item.
+    this.battleState = 'HEAL_RESOLVING';
+    try {
+      this.commitVisionSnapshotIfPending();
 
-    if (item.effect === 'heal') {
-      const oldHP = unit.currentHP;
-      unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + item.value);
-      const healed = unit.currentHP - oldHP;
-      this.updateHPBar(unit);
-      await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, '#88ff88');
-    } else if (item.effect === 'healFull') {
-      unit.currentHP = unit.stats.HP;
-      this.updateHPBar(unit);
-      await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
-    } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
-      // Use on the cure target (self or adjacent ally)
-      const target = this._pendingCureTarget || unit;
-      this._pendingCureTarget = null;
-      clearAllConditions(target);
-      this._removeAllConditionIcons(target);
-      // Un-dim only sleepers that can still act — keep the acted-grey on
-      // allies that already moved this phase (same pattern as Swap).
-      if (!target.hasActed) this.undimUnit(target);
-      if (item.effect === 'cureHeal' && item.value > 0) {
-        const oldHP = target.currentHP;
-        target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
-        const healed = target.currentHP - oldHP;
-        this.updateHPBar(target);
-        await this.showBriefBanner(`${target.name} cured and healed ${healed} HP!`, '#88ff88');
-      } else {
-        await this.showBriefBanner(`${target.name}'s conditions cured!`, '#88ff88');
+      if (item.effect === 'heal') {
+        const oldHP = unit.currentHP;
+        unit.currentHP = Math.min(unit.stats.HP, unit.currentHP + item.value);
+        const healed = unit.currentHP - oldHP;
+        this.updateHPBar(unit);
+        await this.showBriefBanner(`${unit.name} healed ${healed} HP!`, '#88ff88');
+      } else if (item.effect === 'healFull') {
+        unit.currentHP = unit.stats.HP;
+        this.updateHPBar(unit);
+        await this.showBriefBanner(`${unit.name} fully healed!`, '#88ff88');
+      } else if (item.effect === 'cure' || item.effect === 'cureHeal') {
+        // Use on the cure target (self or adjacent ally)
+        const target = this._pendingCureTarget || unit;
+        this._pendingCureTarget = null;
+        clearAllConditions(target);
+        this._removeAllConditionIcons(target);
+        // Un-dim only sleepers that can still act — keep the acted-grey on
+        // allies that already moved this phase (same pattern as Swap).
+        if (!target.hasActed) this.undimUnit(target);
+        if (item.effect === 'cureHeal' && item.value > 0) {
+          const oldHP = target.currentHP;
+          target.currentHP = Math.min(target.stats.HP, target.currentHP + item.value);
+          const healed = target.currentHP - oldHP;
+          this.updateHPBar(target);
+          await this.showBriefBanner(`${target.name} cured and healed ${healed} HP!`, '#88ff88');
+        } else {
+          await this.showBriefBanner(`${target.name}'s conditions cured!`, '#88ff88');
+        }
       }
+
+      // Decrement uses, remove if depleted
+      item.uses--;
+      if (item.uses <= 0) removeFromConsumables(unit, item);
+
+      this.finishUnitAction(unit);
+    } catch (err) {
+      this._recoverUnitActionError(unit, 'consumable', err);
     }
-
-    // Decrement uses, remove if depleted
-    item.uses--;
-    if (item.uses <= 0) removeFromConsumables(unit, item);
-
-    this.finishUnitAction(unit);
   }
 
   async showSkillLearnedBanner(unit, skillName) {
@@ -7402,6 +7410,11 @@ export class BattleScene extends Phaser.Scene {
         this.battleState = 'PLAYER_IDLE';
         this.grid.clearAttackHighlights();
         this.attackTargets = [];
+        // Lock the resolved combat into the save even though no unit gets to
+        // "finish" its action: without a checkpoint, a refresh would resume
+        // pre-attack with this unit alive again.
+        this.commitVisionSnapshotIfPending();
+        this._captureSuspendCheckpoint?.();
         return;
       }
 
@@ -7428,6 +7441,10 @@ export class BattleScene extends Phaser.Scene {
           this.battleState = 'PLAYER_IDLE';
           this.grid.clearAttackHighlights();
           this.attackTargets = [];
+          // Gambit refreshes actions instead of finishing one, but the
+          // resolved combat itself must not be undoable via refresh.
+          this.commitVisionSnapshotIfPending();
+          this._captureSuspendCheckpoint?.();
           return;
         }
       }
@@ -8750,6 +8767,17 @@ export class BattleScene extends Phaser.Scene {
             'tutorial_lord_rewind_prompt',
             async () => {
               if (!isSceneActiveForAsync()) return;
+              // A fast player can already be mid-action when this fires; the
+              // dialog's confirm path applies a rewind snapshot, which must
+              // never land during combat resolution. Pending flag stays set,
+              // so the prompt re-arms at the next player-phase start.
+              if (
+                this.turnManager?.currentPhase !== 'player' ||
+                this.turnManager?.turnNumber !== turn ||
+                this.battleState !== 'PLAYER_IDLE'
+              ) {
+                return;
+              }
               this._showTutorialLordRewindPrompt(fallenName);
             },
             { phase: 'player', turn },
@@ -9276,7 +9304,9 @@ export class BattleScene extends Phaser.Scene {
         if (isSleeping(unit)) {
           removeCondition(unit, 'sleep');
           this._removeConditionIcon(unit, 'sleep');
-          this.undimUnit(unit);
+          // Un-dim only units that can still act — keep the acted-grey on
+          // units that already moved this phase (same pattern as cures).
+          if (!unit.hasActed) this.undimUnit(unit);
           await this.showBriefBanner(`${unit.name} woke up from lava damage!`, '#ff8844');
         }
         await this._checkPhoenixBrooch(unit);
@@ -9287,7 +9317,12 @@ export class BattleScene extends Phaser.Scene {
       if (unit.moveType === 'Flying') continue;
       if (unit.poisonImmune || unit.terrainHazardImmune) continue;
 
-      if (!applyCondition(unit, 'acid')) continue; // statusImmunity accessory
+      if (!applyCondition(unit, 'acid')) {
+        // statusImmunity accessory — surface the block like the staff/art paths
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        this.showMinorHintAt(pos.x, pos.y, 'Immune!', '#88ffcc');
+        continue;
+      }
       this._addConditionIcon(unit, 'acid');
       await this.showBriefBanner(`${unit.name} is corroded by acid!`, '#88cc44');
     }

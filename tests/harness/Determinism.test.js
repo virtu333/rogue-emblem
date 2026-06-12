@@ -57,6 +57,18 @@ describe('Determinism', () => {
     expect(differ).toBe(true);
   });
 
+  it('escape pursuit fixture is deterministic for same seed', async () => {
+    const fixture = loadFixture('act2_escape_pursuit');
+    const factory = (driver) => new ScriptedAgent(driver);
+
+    const run1 = await new ScenarioRunner(424242, fixture, factory).run(2000);
+    const run2 = await new ScenarioRunner(424242, fixture, factory).run(2000);
+
+    expect(run1.actions).toEqual(run2.actions);
+    expect(run1.result).toBe(run2.result);
+    expect(run1.failure).toEqual(run2.failure);
+  });
+
   it('act4 reinforcement scenario is deterministic for same seed', async () => {
     const fixture = {
       id: 'act4_reinforcement_determinism',

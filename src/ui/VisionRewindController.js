@@ -71,6 +71,28 @@ export class VisionRewindController {
     const scene = this.scene;
     const stripVisuals = (unit) => {
       const serialized = serializeUnit(unit);
+      // serializeUnit reverts timed-buff stats and strips per-battle art
+      // tracking for between-battle persistence. Mid-battle snapshots must
+      // keep them — otherwise a rewind refunds perMapLimit art uses from
+      // earlier turns and drops active kill buffs. Mirrors
+      // BattleSuspendController.serializeSuspendUnit.
+      serialized.stats = { ...unit.stats };
+      // Live mov must travel with live stats — a MOV timed buff reverted in
+      // serialized.mov but kept in stats.MOV would desync movement from HUD.
+      if (Number.isFinite(unit.mov)) serialized.mov = unit.mov;
+      // Once-per-battle flags consumed on earlier turns must survive the
+      // rewind — serializeUnit force-clears them for between-battle reuse.
+      serialized._miracleUsed = unit._miracleUsed === true;
+      serialized._phoenixBroochUsed = unit._phoenixBroochUsed === true;
+      for (const field of [
+        '_battleDeltas',
+        '_battleWeaponArtUsage',
+        '_battleTimedWeaponArtBuffs',
+        '_battleTimedWeaponArtAppliedStats',
+        '_battleTimedWeaponArtAppliedCombatMods',
+      ]) {
+        if (unit[field] !== undefined) serialized[field] = structuredClone(unit[field]);
+      }
       try {
         return structuredClone(serialized);
       } catch (err) {

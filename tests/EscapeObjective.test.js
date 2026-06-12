@@ -13,7 +13,11 @@ import {
   scheduleReinforcementsForTurn,
 } from '../src/engine/ReinforcementScheduler.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
-import { generateBattle } from '../src/engine/MapGenerator.js';
+import {
+  generateBattle,
+  placeEscapeTiles,
+  sanitizeEscapeTilePassability,
+} from '../src/engine/MapGenerator.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
@@ -121,6 +125,66 @@ describe('repeating reinforcement waves', () => {
     ).toHaveLength(1);
   });
 
+  it('clamps the rolled count so spawns cannot exceed maxActiveEnemies', () => {
+    const capped = {
+      spawnEdges: ['left'],
+      waves: [],
+      repeatingWaves: [
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 6, edges: ['left'] },
+      ],
+      difficultyScaling: true,
+    };
+    const [due] = getDueRepeatingReinforcementWaves({
+      turn: 5,
+      reinforcements: capped,
+      activeEnemyCount: 5,
+    });
+    expect(due.maxSpawnable).toBe(1);
+
+    const terrain = [{ name: 'Plain', moveCost: { Infantry: '1' } }];
+    const mapLayout = Array.from({ length: 6 }, () => new Array(8).fill(0));
+    const result = scheduleReinforcementsForTurn({
+      turn: 5,
+      seed: 99,
+      reinforcements: capped,
+      mapLayout,
+      terrain,
+      occupied: [],
+      enemyCountBonus: 2, // difficulty bonus must not pierce the cap either
+      activeEnemyCount: 5,
+    });
+    // Exactly 1: the cap allows one and the left edge has free tiles for it.
+    expect(result.spawns.length).toBe(1);
+  });
+
+  it('clamps across multiple waves due the same turn (joint cap)', () => {
+    // Each wave's maxSpawnable is computed against the call-start enemy count;
+    // without deducting same-call spawns, two due waves with capacity 3 each
+    // would jointly spawn 6 past a cap of 3.
+    const capped = {
+      spawnEdges: ['left'],
+      waves: [],
+      repeatingWaves: [
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 7, edges: ['left'] },
+        { startTurn: 5, every: 2, count: [3, 3], maxActiveEnemies: 7, edges: ['right'] },
+      ],
+      difficultyScaling: true,
+    };
+    const terrain = [{ name: 'Plain', moveCost: { Infantry: '1' } }];
+    const mapLayout = Array.from({ length: 6 }, () => new Array(8).fill(0));
+    const result = scheduleReinforcementsForTurn({
+      turn: 5,
+      seed: 99,
+      reinforcements: capped,
+      mapLayout,
+      terrain,
+      occupied: [],
+      activeEnemyCount: 4,
+    });
+    // Exactly 3: wave one fills the joint budget, wave two gets zero.
+    expect(result.spawns.length).toBe(3);
+  });
+
   it('gives each occurrence a distinct waveIndex (distinct RNG identity)', () => {
     const [a] = getDueRepeatingReinforcementWaves({ turn: 5, reinforcements });
     const [b] = getDueRepeatingReinforcementWaves({ turn: 7, reinforcements });
@@ -224,6 +288,107 @@ describe('escape map generation', () => {
         expect(config.reinforcements.repeatingWaves.length).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('escape squares are standable by every moveType (mounted lords included)', () => {
+    // Regression: Infantry-passable but Cavalry-impassable terrain (Mountain)
+    // on an exit would make an escape map unwinnable for a Cavalry commander.
+    const moveTypes = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
+    for (const [actIdx, act] of ['act1', 'act2', 'act3', 'act4'].entries()) {
+      for (let i = 0; i < 50; i++) {
+        const config = withSeed(31000 + actIdx * 1000 + i, () =>
+          generateBattle({ act, objective: 'escape' }, data),
+        );
+        for (const tile of config.escapeTiles) {
+          const terrainEntry = data.terrain[config.mapLayout[tile.row][tile.col]];
+          for (const mt of moveTypes) {
+            const cost = parseInt(terrainEntry.moveCost[mt], 10);
+            expect(
+              cost,
+              `${terrainEntry.name} exit at (${tile.col},${tile.row}) must be ${mt}-passable (${act}, iter ${i})`,
+            ).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+
+  it('the moveType universe matches the set escape exits are checked against', () => {
+    // If a fifth moveType is ever added, ESCAPE_TILE_MOVE_TYPES in
+    // MapGenerator.js and the assertion above must be extended with it.
+    const known = new Set(['Infantry', 'Armored', 'Cavalry', 'Flying']);
+    for (const cls of data.classes) {
+      expect(known.has(cls.moveType), `class ${cls.name} moveType ${cls.moveType}`).toBe(true);
+    }
+    for (const lord of data.lords) {
+      expect(known.has(lord.moveType), `lord ${lord.name} moveType ${lord.moveType}`).toBe(true);
+    }
+    for (const terrainEntry of data.terrain) {
+      for (const key of Object.keys(terrainEntry.moveCost)) {
+        expect(known.has(key), `terrain ${terrainEntry.name} moveCost key ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it('sanitizeEscapeTilePassability heals exits locked by older builds', () => {
+    const mountainIdx = data.terrain.findIndex((t) => t.name === 'Mountain');
+    const plainIdx = data.terrain.findIndex((t) => t.name === 'Plain');
+    expect(mountainIdx).toBeGreaterThanOrEqual(0);
+    const config = {
+      biome: null,
+      escapeTiles: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+      ],
+      mapLayout: [[mountainIdx, plainIdx]],
+    };
+    sanitizeEscapeTilePassability(config, data.terrain);
+    expect(config.mapLayout[0][0]).toBe(plainIdx); // Mountain exit rewritten
+    expect(config.mapLayout[0][1]).toBe(plainIdx); // already-safe exit untouched
+
+    // Degenerate inputs pass through untouched
+    expect(sanitizeEscapeTilePassability(null, data.terrain)).toBeNull();
+    const noTiles = { mapLayout: [[mountainIdx]] };
+    expect(sanitizeEscapeTilePassability(noTiles, data.terrain)).toBe(noTiles);
+  });
+
+  it('still places exits when spawns swallow the whole escape zone', () => {
+    // Regression: river_flight's escape zone sits entirely inside its enemy
+    // spawn zone on act1-sized maps. If random spawns happened to cover every
+    // zone tile, blocking them all would leave zero candidates and
+    // generateBattle would throw — permanently, because the battle seed is
+    // locked per node. An exit under an enemy is recoverable; no exit is not.
+    const plainIdx = data.terrain.findIndex((t) => t.name === 'Plain');
+    const cols = 10;
+    const rows = 8;
+    const makeLayout = () => Array.from({ length: rows }, () => Array(cols).fill(plainIdx));
+    const template = { escapeZone: { rect: [0.9, 0.3, 1, 0.7], tileCount: 2 } };
+    // Zone resolves to col 9, rows 2-5 (4 tiles).
+    const zoneTiles = [2, 3, 4, 5].map((row) => ({ col: 9, row }));
+    const inZone = (tile) => tile.col === 9 && tile.row >= 2 && tile.row < 6;
+
+    // Enemies covering the whole zone: exits still placed (under enemies).
+    const allEnemies = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      enemy: zoneTiles,
+    });
+    expect(allEnemies).toHaveLength(2);
+    for (const tile of allEnemies) expect(inZone(tile)).toBe(true);
+
+    // Partial enemy coverage: the free tiles are preferred.
+    const partial = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      enemy: zoneTiles.slice(0, 2),
+    });
+    expect(partial).toHaveLength(2);
+    for (const tile of partial) expect(tile.row).toBeGreaterThanOrEqual(4);
+
+    // Player spawns are only overridden as the very last resort: with players
+    // on rows 2-3 and enemies on rows 4-5, exits land under the enemies.
+    const mixed = placeEscapeTiles(makeLayout(), template, cols, rows, data.terrain, {
+      player: zoneTiles.slice(0, 2),
+      enemy: zoneTiles.slice(2),
+    });
+    expect(mixed).toHaveLength(2);
+    for (const tile of mixed) expect(tile.row).toBeGreaterThanOrEqual(4);
   });
 
   it('keeps escape squares clear of player spawns', () => {
