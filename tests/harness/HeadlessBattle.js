@@ -69,7 +69,10 @@ import {
   getPostCombatPipelineSteps,
   resolvePostCombatMove,
 } from '../../src/engine/WeaponArtPostCombat.js';
-import { applyCondition } from '../../src/engine/StatusConditionSystem.js';
+import {
+  applyCondition,
+  processConditionRecovery,
+} from '../../src/engine/StatusConditionSystem.js';
 import { calculateKillReward } from '../../src/engine/LootSystem.js';
 import { computeLavaCrackHp, isLavaCrackTerrainIndex } from '../../src/engine/TerrainHazards.js';
 import {
@@ -1143,6 +1146,9 @@ export class HeadlessBattle {
     this._clearCombatRollSession();
     this._expireTimedWeaponArtBuffs(phase, turn);
     if (phase === 'player') {
+      // Condition recovery mirrors BattleScene: tick at the start of the
+      // afflicted side's phase, before units act (art statuses expire here).
+      processConditionRecovery(this.playerUnits);
       for (const u of this.playerUnits) {
         u.hasMoved = false;
         u.hasActed = false;
@@ -1156,6 +1162,7 @@ export class HeadlessBattle {
       this._refreshFogVisibility();
       this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     } else if (phase === 'enemy') {
+      processConditionRecovery(this.enemyUnits);
       this.grid.tickTemporaryTerrains?.();
       this.battleState = HEADLESS_STATES.ENEMY_PHASE;
     }

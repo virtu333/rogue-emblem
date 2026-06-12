@@ -22,6 +22,7 @@ import {
 import {
   getMissedStrikeCount,
   getPostCombatPipelineSteps,
+  resolvePostCombatMove,
 } from '../src/engine/WeaponArtPostCombat.js';
 import {
   getCombatForecast,
@@ -34,6 +35,7 @@ import {
   isRooted,
   isSilenced,
   processConditionRecovery,
+  willRemainRootedNextPhase,
 } from '../src/engine/StatusConditionSystem.js';
 import { summarizeWeaponArtEffect } from '../src/ui/WeaponArtVisibility.js';
 
@@ -172,6 +174,103 @@ describe('deferred closure: status condition framework', () => {
     // Next phase start: 1 -> 0, recovered before acting
     processConditionRecovery([target], () => 0.99);
     expect(isRooted(target)).toBe(false);
+  });
+});
+
+describe('deferred closure: review-pass hardening', () => {
+  it('willRemainRootedNextPhase predicts post-recovery state for threat previews', () => {
+    const freshlyRooted = makeUnit();
+    applyCondition(freshlyRooted, 'root', 2, { recoveryChance: 0 });
+    expect(willRemainRootedNextPhase(freshlyRooted)).toBe(true);
+
+    // After its own phase-start tick the root sits at 1 turn remaining: the
+    // unit recovers at its NEXT phase start, so previews must show full range.
+    const expiringRoot = makeUnit();
+    applyCondition(expiringRoot, 'root', 1, { recoveryChance: 0 });
+    expect(isRooted(expiringRoot)).toBe(true);
+    expect(willRemainRootedNextPhase(expiringRoot)).toBe(false);
+
+    expect(willRemainRootedNextPhase(makeUnit())).toBe(false);
+  });
+
+  it('headless harness ticks condition recovery at each phase start', () => {
+    const battle = createHeadlessHarness();
+    const enemy = makeUnit({ name: 'Pinned', faction: 'enemy' });
+    const player = makeUnit({ name: 'Hushed', faction: 'player' });
+    battle.enemyUnits = [enemy];
+    battle.playerUnits = [player];
+    applyCondition(enemy, 'root', 2, { recoveryChance: 0 });
+    applyCondition(player, 'silence', 2, { recoveryChance: 0 });
+
+    battle._onPhaseChange('enemy', 1);
+    expect(isRooted(enemy)).toBe(true);
+    battle._onPhaseChange('player', 2);
+    expect(isSilenced(player)).toBe(true);
+
+    battle._onPhaseChange('enemy', 2);
+    expect(isRooted(enemy)).toBe(false);
+    battle._onPhaseChange('player', 3);
+    expect(isSilenced(player)).toBe(false);
+  });
+
+  it('root pins units against art-driven post-combat displacement', () => {
+    const gridArgs = {
+      cols: 10,
+      rows: 10,
+      getMoveCost: () => 1,
+      getUnitAt: () => null,
+    };
+    const makePair = () => {
+      const source = makeUnit({ name: 'Src', col: 1, row: 1 });
+      const target = makeUnit({ name: 'Tgt', faction: 'enemy', col: 2, row: 1 });
+      const getUnitAt = (col, row) =>
+        [source, target].find((u) => u.col === col && u.row === row) || null;
+      return { source, target, args: { ...gridArgs, getUnitAt } };
+    };
+
+    // Rooted source cannot advance (no self-escape via movement arts)
+    const advance = makePair();
+    applyCondition(advance.source, 'root', 2, { recoveryChance: 0 });
+    expect(
+      resolvePostCombatMove({
+        sourceUnit: advance.source,
+        targetUnit: advance.target,
+        mode: 'advance',
+        ...advance.args,
+      }),
+    ).toEqual({ ok: false, reason: 'rooted' });
+
+    // Rooted defender cannot be swapped or pushed off its tile
+    const swap = makePair();
+    applyCondition(swap.target, 'root', 2, { recoveryChance: 0 });
+    expect(
+      resolvePostCombatMove({
+        sourceUnit: swap.source,
+        targetUnit: swap.target,
+        mode: 'swap',
+        ...swap.args,
+      }),
+    ).toEqual({ ok: false, reason: 'rooted' });
+    expect(
+      resolvePostCombatMove({
+        sourceUnit: swap.source,
+        targetUnit: swap.target,
+        mode: 'push',
+        ...swap.args,
+      }),
+    ).toEqual({ ok: false, reason: 'rooted' });
+
+    // Push only moves the defender: a rooted source may still push
+    const push = makePair();
+    applyCondition(push.source, 'root', 2, { recoveryChance: 0 });
+    const pushResult = resolvePostCombatMove({
+      sourceUnit: push.source,
+      targetUnit: push.target,
+      mode: 'push',
+      ...push.args,
+    });
+    expect(pushResult.ok).toBe(true);
+    expect(pushResult.assignments).toEqual([{ unit: push.target, col: 3, row: 1 }]);
   });
 });
 

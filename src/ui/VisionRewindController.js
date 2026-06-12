@@ -167,6 +167,11 @@ export class VisionRewindController {
         const unit = structuredClone(unitData);
         targetArr.push(unit);
         scene.addUnitGraphic(unit);
+        // Conditions rewind with the unit; rebuild their badges (mirrors
+        // BattleSuspendController's restore).
+        for (const cond of Array.isArray(unit._conditions) ? unit._conditions : []) {
+          if (cond?.id) scene._addConditionIcon?.(unit, cond.id);
+        }
       }
     };
 

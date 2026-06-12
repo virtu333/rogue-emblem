@@ -161,6 +161,35 @@ This makes Luce's always-on weapon special real (not just during the art).
 - Full gates: `npm test`, `check:reference`, `check:data-parity`,
   `sim:fullrun:harness:pr`.
 
+## Review-Pass Findings (fixed before PR)
+
+1. **Harness conditions never recovered.** `HeadlessBattle` lets enemies use
+   weapon arts, so Encloser/Ward Arrow could inflict root/silence in sims —
+   but the harness never ticked `processConditionRecovery`, making conditions
+   permanent there (runtime was correct). Fixed: `_onPhaseChange` now ticks
+   recovery for each side at its phase start, mirroring BattleScene.
+2. **Stale-root threat previews.** A root viewed from outside the unit's own
+   phase at 1 turn remaining expires at that unit's next phase start — the
+   unit moves at full range. Danger zone / enemy inspection previously used
+   `isRooted` and would have understated threat. Fixed with
+   `willRemainRootedNextPhase` (turnsRemaining >= 2) for previews; the unit's
+   own-phase gating (movement, Canto, AI) still uses `isRooted` because the
+   side's tick has already run by then.
+3. **Root self-escape via movement arts.** A rooted unit could reposition
+   with its own post-combat move art (Lunge swap, Advancing Strike), and
+   pinned defenders could be swap/push displaced. Fixed in
+   `resolvePostCombatMove`: modes that move the source fail for a rooted
+   source; swap/push fail against a rooted defender (a rooted source may
+   still push). Ally Shove/Pull intentionally remain allowed as counterplay.
+4. **Vision rewind dropped condition badges.** Conditions rewind with the
+   unit (serializeUnit keeps `_conditions`) but the restore path didn't
+   rebuild icons (pre-existing for staff statuses, now far more reachable).
+   Fixed to mirror BattleSuspendController's icon restore.
+
+Known limitation (accepted): the harness scripted agent does not enforce
+root on player-side movement (runtime does); harness root enforcement for
+enemies comes via the shared AIController.
+
 ## Doc Cleanup (same change)
 
 - ROADMAP.md: "15 deferred" → 0 after this change (counts corrected).

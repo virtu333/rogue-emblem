@@ -60,6 +60,20 @@ export function isRooted(unit) {
   return hasCondition(unit, 'root');
 }
 
+/**
+ * True if the unit will still be rooted when its side's NEXT phase begins.
+ * Recovery decrements turnsRemaining at phase start before the unit acts, so
+ * a condition at 1 turn remaining (viewed outside the unit's own phase)
+ * expires before the unit next moves. Use this for threat previews (danger
+ * zone, enemy inspection); use isRooted for the unit's own current phase.
+ */
+export function willRemainRootedNextPhase(unit) {
+  if (!unit || !Array.isArray(unit._conditions)) return false;
+  const condition = unit._conditions.find((c) => c.id === 'root');
+  if (!condition) return false;
+  return (condition.turnsRemaining ?? 1) >= 2;
+}
+
 // --- Weapon classification ---
 
 export function isStatusStaff(weapon) {

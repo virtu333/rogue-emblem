@@ -140,6 +140,7 @@ import {
   isSilenced,
   isAcidPoisoned,
   isRooted,
+  willRemainRootedNextPhase,
   removeCondition,
   clearAllConditions,
   resolveStatusStaff,
@@ -9817,10 +9818,12 @@ export class BattleScene extends Phaser.Scene {
       }
 
       const positions = this.buildUnitPositionMap(enemy.faction);
+      // willRemainRootedNextPhase, not isRooted: a root expiring at the
+      // enemy's next phase start must not understate its threat range.
       const moveRange = this.grid.getMovementRange(
         enemy.col,
         enemy.row,
-        isRooted(enemy) ? 0 : enemy.mov || enemy.stats.MOV,
+        willRemainRootedNextPhase(enemy) ? 0 : enemy.mov || enemy.stats.MOV,
         enemy.moveType,
         positions,
         enemy.faction,

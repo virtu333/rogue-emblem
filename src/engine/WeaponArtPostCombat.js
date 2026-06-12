@@ -4,6 +4,7 @@ import {
   getWeaponArtMissEffects,
   getWeaponArtKillEffects,
 } from './WeaponArtSystem.js';
+import { isRooted } from './StatusConditionSystem.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -363,6 +364,14 @@ export function resolvePostCombatMove({
     .trim()
     .toLowerCase();
   if (!VALID_MOVE_MODES.has(normalizedMode)) return { ok: false, reason: 'invalid_mode' };
+
+  // Root pins units against art-driven displacement: a rooted source cannot
+  // reposition itself, and a rooted defender cannot be swapped or pushed.
+  // (Deliberate ally actions like Shove/Pull remain allowed as counterplay.)
+  const movesSource = normalizedMode !== 'push';
+  const movesTarget = normalizedMode === 'swap' || normalizedMode === 'push';
+  if (movesSource && isRooted(sourceUnit)) return { ok: false, reason: 'rooted' };
+  if (movesTarget && targetUnit && isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
   const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
   const direction = isCardinalAdjacent(sourceUnit, targetUnit);
   if (!direction) return { ok: false, reason: 'not_adjacent' };
