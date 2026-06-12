@@ -13,7 +13,7 @@ import {
   scheduleReinforcementsForTurn,
 } from '../src/engine/ReinforcementScheduler.js';
 import { validateMapTemplatesConfig } from '../src/engine/MapTemplateEngine.js';
-import { generateBattle } from '../src/engine/MapGenerator.js';
+import { generateBattle, sanitizeEscapeTilePassability } from '../src/engine/MapGenerator.js';
 import { generateNodeMap } from '../src/engine/NodeMapGenerator.js';
 import { calculatePar } from '../src/engine/TurnBonusCalculator.js';
 import { EscapeObjectiveController } from '../src/ui/EscapeObjectiveController.js';
@@ -230,9 +230,9 @@ describe('escape map generation', () => {
     // Regression: Infantry-passable but Cavalry-impassable terrain (Mountain)
     // on an exit would make an escape map unwinnable for a Cavalry commander.
     const moveTypes = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
-    for (const act of ['act1', 'act2', 'act3', 'act4']) {
+    for (const [actIdx, act] of ['act1', 'act2', 'act3', 'act4'].entries()) {
       for (let i = 0; i < 50; i++) {
-        const config = withSeed(31000 + act.length * 503 + i, () =>
+        const config = withSeed(31000 + actIdx * 1000 + i, () =>
           generateBattle({ act, objective: 'escape' }, data),
         );
         for (const tile of config.escapeTiles) {
@@ -247,6 +247,45 @@ describe('escape map generation', () => {
         }
       }
     }
+  });
+
+  it('the moveType universe matches the set escape exits are checked against', () => {
+    // If a fifth moveType is ever added, ESCAPE_TILE_MOVE_TYPES in
+    // MapGenerator.js and the assertion above must be extended with it.
+    const known = new Set(['Infantry', 'Armored', 'Cavalry', 'Flying']);
+    for (const cls of data.classes) {
+      expect(known.has(cls.moveType), `class ${cls.name} moveType ${cls.moveType}`).toBe(true);
+    }
+    for (const lord of data.lords) {
+      expect(known.has(lord.moveType), `lord ${lord.name} moveType ${lord.moveType}`).toBe(true);
+    }
+    for (const terrainEntry of data.terrain) {
+      for (const key of Object.keys(terrainEntry.moveCost)) {
+        expect(known.has(key), `terrain ${terrainEntry.name} moveCost key ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it('sanitizeEscapeTilePassability heals exits locked by older builds', () => {
+    const mountainIdx = data.terrain.findIndex((t) => t.name === 'Mountain');
+    const plainIdx = data.terrain.findIndex((t) => t.name === 'Plain');
+    expect(mountainIdx).toBeGreaterThanOrEqual(0);
+    const config = {
+      biome: null,
+      escapeTiles: [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+      ],
+      mapLayout: [[mountainIdx, plainIdx]],
+    };
+    sanitizeEscapeTilePassability(config, data.terrain);
+    expect(config.mapLayout[0][0]).toBe(plainIdx); // Mountain exit rewritten
+    expect(config.mapLayout[0][1]).toBe(plainIdx); // already-safe exit untouched
+
+    // Degenerate inputs pass through untouched
+    expect(sanitizeEscapeTilePassability(null, data.terrain)).toBeNull();
+    const noTiles = { mapLayout: [[mountainIdx]] };
+    expect(sanitizeEscapeTilePassability(noTiles, data.terrain)).toBe(noTiles);
   });
 
   it('keeps escape squares clear of player spawns', () => {

@@ -20,6 +20,7 @@ import {
   REVIVE_PROMOTION_MULTIPLIER,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
+import { sanitizeEscapeTilePassability } from './MapGenerator.js';
 import { calculateCurrencies } from './MetaProgressionManager.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import {
@@ -2528,7 +2529,10 @@ export class RunManager {
 
   getLockedBattleConfig(nodeId) {
     const cfg = this.battleConfigsByNodeId?.[nodeId];
-    return cfg ? structuredClone(cfg) : null;
+    if (!cfg) return null;
+    // Heal exits locked by older builds that only forced Infantry passability
+    // (a Mountain exit would soft-lock Cavalry lords on resume).
+    return sanitizeEscapeTilePassability(structuredClone(cfg), this.gameData?.terrain);
   }
 
   lockBattleConfig(nodeId, battleConfig) {

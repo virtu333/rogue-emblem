@@ -1,5 +1,7 @@
 // WeaponArtSystem.js - Weapon Art gating, usage tracking, and combat mod helpers
 
+import { isSilenced } from './StatusConditionSystem.js';
+
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
 const VALID_OWNER_SCOPES = new Set(['player', 'enemy', 'npc', 'any']);
@@ -532,6 +534,11 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   if (!unit || !weapon || !art) return { ok: false, reason: 'invalid_input' };
   const config = validateArtConstraintConfig(art);
   if (!config.ok) return { ok: false, reason: config.reason };
+
+  // Silence blocks weapon arts for every faction. This is the single gate the
+  // player picker, enemy AI, and headless harness all route through — the
+  // action menu's own silence check only covers the player UI layer.
+  if (isSilenced(unit)) return { ok: false, reason: 'silenced' };
 
   const actorFaction = getFactionFromContext(unit, context)?.toLowerCase() || null;
   if (config.owners && !config.owners.includes('any')) {

@@ -1088,6 +1088,10 @@ describe('AIController', () => {
       // Silence blocks staves — same rule the player is held to
       expect(decision.statusStaffTarget).toBeUndefined();
       expect(decision.reason).not.toBe('status_staff');
+      // ...but does NOT block the physical attack fall-through (no freeze):
+      // from (6,5) the sword reaches the player at (7,5).
+      expect(decision.reason).toBe('attack_in_range');
+      expect(decision.target).toBeDefined();
     });
 
     it('casts again once silence expires', () => {

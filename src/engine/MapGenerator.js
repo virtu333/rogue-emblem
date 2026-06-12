@@ -1127,6 +1127,28 @@ function resolveFeaturePosition(position, cols, rows, template) {
 const ESCAPE_TILE_MOVE_TYPES = ['Infantry', 'Armored', 'Cavalry', 'Flying'];
 
 /**
+ * Heal escape exits inside an already-generated battle config. Battle configs
+ * are locked into the run save when a node is first entered, so a save written
+ * by an older build (which only forced Infantry passability) can carry a
+ * Mountain exit that soft-locks Cavalry lords. Mutates and returns config.
+ */
+export function sanitizeEscapeTilePassability(config, terrainData) {
+  if (!config?.escapeTiles?.length || !Array.isArray(config.mapLayout) || !terrainData) {
+    return config;
+  }
+  const fallback = getFallbackPassable(config.biome);
+  for (const tile of config.escapeTiles) {
+    const idx = config.mapLayout[tile.row]?.[tile.col];
+    if (idx === undefined) continue;
+    const standable = ESCAPE_TILE_MOVE_TYPES.every((mt) => isPassable(terrainData, idx, mt));
+    if (!standable) {
+      config.mapLayout[tile.row][tile.col] = fallback;
+    }
+  }
+  return config;
+}
+
+/**
  * Place the escape squares for an Escape-objective map inside the template's
  * escapeZone rect. Picks map-rim tiles first (FE escape squares sit on the
  * edge), spreads multiple squares apart, and forces the terrain under each
