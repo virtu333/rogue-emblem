@@ -1,0 +1,23 @@
+# Normalize all text files to LF in the repo and on checkout.
+# This keeps shebang scripts (#!/usr/bin/env node) valid on Windows
+# checkouts (core.autocrlf would otherwise rewrite them to CRLF and break
+# Vitest's loader), matching the Linux CI environment.
+* text=auto eol=lf
+
+# Binary assets — never apply line-ending conversion.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.mp3  binary
+*.ogg  binary
+*.wav  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.docx binary
+*.xlsx binary
+*.pdf  binary
