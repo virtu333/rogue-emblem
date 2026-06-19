@@ -158,7 +158,7 @@ See `ROADMAP.md` for all planned features. Key architectural constraints:
 Several files have grown large enough to require active management. When adding features, prefer extracting to a new controller/module over expanding these files further.
 
 ### Critical (actively decompose)
-- **BattleScene.js (~10,350 lines)** — 12 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
+- **BattleScene.js (~10,150 lines)** — 13 controllers extracted (5 original + PostCombatController, TransitionRecoveryController, LootFlowController, WeaponArtController, InputController, HealController, PromotionController, TutorialController). **Rule: never add new rendering or multi-step flows inline. Extract a controller with `create(scene)` / `destroy()` pattern.**
 
 ### Large (watch for growth)
 - **NodeMapScene.js (~1,950 lines)** — Church/shop overlays extracted to ChurchController/ShopController (state stays on the scene; methods are delegating shims).
