@@ -508,6 +508,34 @@ export class TitleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (audio) audio.playMusic(MUSIC.title, this);
 
+    // Browser autoplay policy: on a gesture-less boot (auto-login / offline) the audio
+    // context is suspended, so music can't start until the first input. Phaser auto-
+    // unlocks on any first tap/click/key — show a hint until then so the silence isn't a
+    // mystery. Self-dismisses on the same 'unlocked' event the audio system already uses.
+    if (this.sound.locked) {
+      this._audioLockHint = this.add
+        .text(cx, H - 56, 'TAP FOR SOUND', {
+          fontFamily: FONT,
+          fontSize: '9px',
+          color: GOLD,
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(30);
+      this.tweens.add({
+        targets: this._audioLockHint,
+        alpha: { from: 1, to: 0.3 },
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+      this._onAudioUnlock = () => {
+        this._audioLockHint?.destroy();
+        this._audioLockHint = null;
+      };
+      this.sound.once('unlocked', this._onAudioUnlock);
+    }
+
     // --- Cleanup on scene exit ---
     this.events.once('shutdown', () => {
       const audio = this.registry.get('audio');
@@ -516,6 +544,14 @@ export class TitleScene extends Phaser.Scene {
       if (this.cloudSyncStatusText) {
         this.cloudSyncStatusText.destroy();
         this.cloudSyncStatusText = null;
+      }
+      if (this._onAudioUnlock) {
+        this.sound.off('unlocked', this._onAudioUnlock);
+        this._onAudioUnlock = null;
+      }
+      if (this._audioLockHint) {
+        this._audioLockHint.destroy();
+        this._audioLockHint = null;
       }
       // NOTE: Do NOT remove textures here — shutdown fires BEFORE Phaser
       // destroys display objects. Removing textures while Images still
