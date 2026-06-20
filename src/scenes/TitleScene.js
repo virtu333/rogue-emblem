@@ -26,6 +26,7 @@ import { MetaProgressionManager } from '../engine/MetaProgressionManager.js';
 import { logStartupSummary, markStartup } from '../utils/startupTelemetry.js';
 import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
+import { getStartupFlags } from '../utils/runtimeFlags.js';
 
 // --- Constants ---
 const W = 640,
@@ -895,15 +896,17 @@ export class TitleScene extends Phaser.Scene {
       })
       .setDepth(30);
 
-    // Desktop notice
-    this.add
-      .text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
-        fontFamily: FONT,
-        fontSize: '9px',
-        color: 'rgba(100,100,120,0.4)',
-      })
-      .setOrigin(0.5, 0)
-      .setDepth(30);
+    // Desktop notice — hidden on mobile / standalone PWA (touch context)
+    if (!getStartupFlags().isMobile) {
+      this.add
+        .text(W / 2, H - 36, 'Best played on desktop | Not optimized for mobile', {
+          fontFamily: FONT,
+          fontSize: '9px',
+          color: 'rgba(100,100,120,0.4)',
+        })
+        .setOrigin(0.5, 0)
+        .setDepth(30);
+    }
 
     const moreInfoText = this.add
       .text(W - 12, H - 16, 'GITHUB', {

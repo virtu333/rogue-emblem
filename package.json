@@ -17,6 +17,7 @@
     "check:content": "node tools/checkContentIntegrity.js",
     "sync-data": "node tools/syncData.js",
     "sync-assets": "node tools/syncAssets.js",
+    "gen:icons": "node tools/gen-app-icons.js",
     "imagen:generate": "node tools/imagen-pipeline/generate.js",
     "imagen:generate:dry": "node tools/imagen-pipeline/generate.js --dry-run",
     "imagen:process": "node tools/imagen-pipeline/process.js",

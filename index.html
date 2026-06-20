@@ -13,6 +13,23 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
+
+    <!-- PWA: installable as a fullscreen, landscape home-screen app (sheds browser chrome on mobile).
+         Paths are relative to stay correct under Vite base:'./'. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0c1e" />
+    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <!-- iOS standalone: apple-mobile-web-app-capable is deprecated but still required by Safari
+         for standalone fallback + splash screens, so include it alongside the standardized tag. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- "black" (not black-translucent): black-translucent renders content under the iOS
+         status bar, and the layout reserves no safe-area-inset-top, so the FIT-centered
+         canvas top would be obscured. "black" keeps content below the bar. No real-estate
+         cost in landscape (iPhone hides the status bar there anyway). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Rogue Emblem" />
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png" />
     <style>
       * {
         margin: 0;
@@ -240,6 +257,12 @@
         .mobile-panel,
         #rotate-prompt {
           display: none !important;
+        }
+      }
+      /* Mobile (incl. installed PWA): hide the "best played on desktop" auth note */
+      @media (pointer: coarse) {
+        .desktop-note {
+          display: none;
         }
       }
       /* Portrait: hide panels, show rotate prompt */
