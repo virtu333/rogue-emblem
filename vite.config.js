@@ -6,7 +6,13 @@ export default defineConfig({
   publicDir: 'public',
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not 'autoUpdate') so a freshly deployed worker does NOT skipWaiting and
+      // take over a page still running the old code-split build. It stays in the waiting
+      // state and activates on the next cold start — once no old client (whose lazy chunks
+      // cleanupOutdatedCaches has since purged) is around — avoiding a mid-run dynamic-import
+      // failure. No update UI is wired (nothing imported into src/); the update simply
+      // applies on the next full app restart.
+      registerType: 'prompt',
       injectRegister: 'auto',
       // Keep the existing hand-written public/manifest.webmanifest (+ its <link> in
       // index.html). The plugin only owns the service worker, not the manifest.
@@ -23,16 +29,23 @@ export default defineConfig({
         // Headroom for the vendor-phaser chunk (>2 MB default cap).
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
+        // clientsClaim lets the FIRST-installed worker control the initial page load, so
+        // offline works after the very first visit. skipWaiting is intentionally NOT set
+        // (defaults false): updates wait for old clients to close before activating, so a
+        // new deploy never swaps the build under a live run — see the registerType note.
         clientsClaim: true,
-        skipWaiting: true,
         // SPA: navigations fall back to the cached shell, except real asset/data/SW paths.
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/assets\//, /^\/data\//, /\/sw\.js$/, /\/registerSW\.js$/],
         runtimeCaching: [
           {
-            // Sprites / portraits — lazy, cached the first time they're fetched in play.
+            // Sprites / portraits. StaleWhileRevalidate (not CacheFirst) because these
+            // filenames are stable, not content-hashed: serve instantly from cache (and
+            // offline), but revalidate in the background so a replaced asset refreshes on
+            // the next online load instead of being pinned until the 60-day expiry. maxAge
+            // now bounds cache GC, not staleness.
             urlPattern: /\/assets\/(sprites|sprites-v1|portraits)\/.*\.(png|jpe?g|webp|gif)$/i,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'er-image-assets',
               expiration: {
@@ -44,9 +57,11 @@ export default defineConfig({
             },
           },
           {
-            // Music + SFX — lazy, cache-first.
+            // Music + SFX — same stable-filename reasoning as images: StaleWhileRevalidate
+            // serves from cache instantly/offline and refreshes a replaced track in the
+            // background.
             urlPattern: /\/assets\/audio\/.*\.(mp3|ogg|wav|m4a)$/i,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'er-audio-assets',
               expiration: {
