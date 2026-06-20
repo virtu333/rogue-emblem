@@ -35,13 +35,22 @@ A standalone **PWA** (Add to Home Screen) runs in a chrome-less WKWebView — id
 ### Verify after deploy
 Netlify's SPA catch-all (`public/_redirects: /* → /index.html 200`) must not shadow the manifest/icons. Real files win over the catch-all, but confirm: `GET /manifest.webmanifest` returns JSON with `application/manifest+json` (not the HTML shell), and `GET /icons/*.png` returns `image/png`.
 
-## Next: offline play (service worker) — flagged
+## Offline play (service worker) — SHIPPED
 
-The manifest makes the app installable + fullscreen but does **not** make it work offline — that needs a **service worker** to cache the app shell + assets. None exists yet (verified), so launching the installed PWA with no network currently fails to load the bundle.
+The manifest made the app installable + fullscreen but not offline; a **service worker** now caches the app shell + data so the installed PWA (and mobile Safari / Android Chrome) cold-starts with no network. Game logic + saves were already offline-friendly (localStorage-first, cloud sync no-ops offline, "Play offline (no cloud saves)" boot path in `src/main.js`), so the only gap was asset caching — now closed. **Offline does not require a native app.**
 
-The game logic + saves are already offline-friendly (localStorage-first, cloud sync no-ops offline, and the "Play offline (no cloud saves)" boot path in `src/main.js` with timeouts/background refetch). So the gap is asset caching + verifying the offline cold-start, not game logic.
+Implemented with **`vite-plugin-pwa`** (Workbox `generateSW`), wired in `vite.config.js`. Two-tier strategy driven by the asset-size split (236 MB media vs 349 KB data):
+- **Precache** (44 entries, ~3 MB): `index.html`, hashed JS/CSS chunks (incl. `vendor-phaser`), all `data/*.json` (23, required for boot), app icons, manifest. Content-hash revisioned → atomic updates on deploy.
+- **Runtime cache, CacheFirst** (never precached): `/assets/{sprites,sprites-v1,portraits}/*` (images) and `/assets/audio/*` (music + SFX). Each asset is cached the first time it's fetched in play. `purgeOnQuotaError`, 60-day expiry, capped entries.
 
-Plan: `vite-plugin-pwa` (Workbox). Precache the shell (`index.html`, hashed JS/CSS, `public/data/*.json`); runtime-cache assets (`/assets/*` sprites/portraits/audio) **cache-first, not precached** — 38 music tracks + sprites are hundreds of MB. Verify offline cold-start reaches the "Play offline" path; handle cache versioning on deploy. iOS caveat: it can evict PWA caches under storage pressure, so offline is best-effort (the durable-offline answer for iOS is the eventual Capacitor build, which bundles assets). **Offline does not require a native app** — a service worker on this same web build covers mobile Safari, the installed PWA, and Android Chrome.
+Config notes:
+- `manifest: false` — keeps the existing hand-written `public/manifest.webmanifest`; the plugin owns only the SW.
+- `registerType: 'autoUpdate'` (+ `cleanupOutdatedCaches`) — new deploys take over on next load; `public/_headers` sets `no-cache` on `/sw.js` + `/registerSW.js` so updates are instant.
+- `injectRegister: 'auto'` injects registration into `index.html` at build (nothing imported into `src/` → the 4155-test Vitest suite is unaffected).
+- **`base: './'` gotcha (verified OK):** registration resolves to `/sw.js` (root scope), precache URLs are root-relative, `navigateFallback: 'index.html'` — all correct because the site is served from the Netlify root. Empirically confirmed via a live SW in a headless browser: it registered, activated, claimed the page, and precached all 44 entries (index.html + 23 data + 14 chunks + 4 icons + manifest, 0 media).
+- **Key trap avoided:** Vite's JS chunks and the game's media both live under `dist/assets/`, so precache globs match only `js/css/html` (+ `data`, `icons`); a broad `**/*.png` would have pulled in the 115 MB sprite set.
+
+Caveats: the first offline session lacks any asset never fetched while online (cache-first-not-precached → graceful: missing image = Phaser fallback, missing audio = silence). iOS can evict PWA caches under storage pressure → offline is best-effort there (durable offline = the eventual Capacitor build, which bundles assets). Kill-switch if ever needed: ship `VitePWA({ selfDestroying: true })` once to unregister all clients.
 
 ## Open decision (NEXT): base resolution
 

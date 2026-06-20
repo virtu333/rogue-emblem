@@ -5,3 +5,10 @@
 # stale icons for a year after a regen. A 1-day revalidating cache lets updates propagate.
 /icons/*
   Cache-Control: public, max-age=86400, must-revalidate
+# Service-worker control files must never be cached, so a new deploy's SW is picked up
+# immediately (browsers already bypass the HTTP cache for the SW within 24h; this makes
+# it instant). The precached bundles they point to are content-hashed, so safe to cache.
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+/registerSW.js
+  Cache-Control: public, max-age=0, must-revalidate
