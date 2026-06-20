@@ -275,10 +275,53 @@ const sharedAudioContext =
   window[SHARED_AUDIO_CTX_KEY] || (AudioContextCtor ? new AudioContextCtor() : null);
 if (sharedAudioContext) window[SHARED_AUDIO_CTX_KEY] = sharedAudioContext;
 
+// iOS routes Web Audio to the "ambient" channel, which the hardware ring/silent
+// switch mutes (HTML media elements + Spotify/YouTube use the "media" channel and are
+// exempt). Declaring the session "playback" promotes our audio to the media channel so
+// game music plays even on silent. Safari 16.4+ / iOS 17+; feature-detected, no-op elsewhere.
+function configureAudioSessionForPlayback() {
+  try {
+    if (navigator?.audioSession && 'type' in navigator.audioSession) {
+      navigator.audioSession.type = 'playback';
+    }
+  } catch (_) {}
+}
+
+// iOS suspends/interrupts the context on backgrounding, lock, or when another app grabs
+// audio focus, and never resumes it on its own — so music dies and stays dead. Resume
+// whenever the page returns to the foreground or the context changes state.
+function resumeSharedAudio() {
+  try {
+    if (sharedAudioContext && sharedAudioContext.state !== 'running') {
+      sharedAudioContext.resume().catch(() => {});
+    }
+  } catch (_) {}
+}
+
+let audioRecoveryInstalled = false;
+function installAudioRecovery() {
+  if (audioRecoveryInstalled || !sharedAudioContext) return;
+  audioRecoveryInstalled = true;
+  try {
+    sharedAudioContext.addEventListener('statechange', resumeSharedAudio);
+  } catch (_) {}
+  const reactivate = () => {
+    configureAudioSessionForPlayback();
+    resumeSharedAudio();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) reactivate();
+  });
+  window.addEventListener('pageshow', reactivate);
+  window.addEventListener('focus', reactivate);
+}
+
+configureAudioSessionForPlayback();
+installAudioRecovery();
+
 function unlockAudio() {
-  if (sharedAudioContext?.state === 'suspended') {
-    sharedAudioContext.resume();
-  }
+  configureAudioSessionForPlayback();
+  resumeSharedAudio();
 }
 
 async function startCloudPull(userId, mode) {
