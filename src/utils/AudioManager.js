@@ -86,6 +86,13 @@ export class AudioManager {
       this._touchMusicCacheKey(key);
       this._enforceMusicCacheBudget({ preserveKeys: [key] });
 
+      // iOS can leave the shared Web Audio context suspended/interrupted after a
+      // backgrounding even when Phaser still reports unlocked — nudge it running.
+      const audioCtx = this.sound.context;
+      if (audioCtx && audioCtx.state !== 'running') {
+        audioCtx.resume?.().catch(() => {});
+      }
+
       this.currentMusic = this.sound.add(key, {
         loop: true,
         volume: fadeMs > 0 ? 0 : this._curve(this.musicVolume),
