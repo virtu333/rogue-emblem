@@ -1,0 +1,7 @@
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: public, max-age=0, must-revalidate
+# Icon filenames are stable (not content-hashed), so avoid `immutable` — that would pin
+# stale icons for a year after a regen. A 1-day revalidating cache lets updates propagate.
+/icons/*
+  Cache-Control: public, max-age=86400, must-revalidate
