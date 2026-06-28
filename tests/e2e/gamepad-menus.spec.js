@@ -8,7 +8,7 @@
 import { test, expect } from '@playwright/test';
 import { waitForGame, waitForScene, attachSceneCrashArtifacts } from './helpers.js';
 
-const BTN = { CONFIRM: 0, CANCEL: 1, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+const BTN = { CONFIRM: 0, CANCEL: 1, L1: 4, R1: 5, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
 
 async function installSimPad(page) {
   await page.evaluate(() => {
@@ -164,5 +164,45 @@ test.describe('Gamepad menu navigation', () => {
       timeout: 8_000,
     });
     expect(await page.evaluate(() => window.__nodeClicks)).toContain(focusedId);
+  });
+
+  test('HomeBase: pad navigates buttons, CONFIRM switches tab, L1/R1 cycle tabs', async ({
+    page,
+  }) => {
+    await page.goto('/?devScene=homebase&gamepadSim=1');
+    await waitForGame(page);
+    await waitForScene(page, 'HomeBase');
+    await page.waitForFunction(
+      () =>
+        (window.__emblemRogueGame.scene.getScene('HomeBase')?._homeFocus?.objects?.length || 0) > 0,
+      null,
+      { timeout: 12_000 },
+    );
+    await installSimPad(page);
+
+    const home = () =>
+      page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('HomeBase');
+        return { index: s._homeFocus?.index, tab: s.activeTab };
+      });
+
+    // Tabs are the first focusables (top row); index 0 = Recruits, 1 = Lords.
+    expect((await home()).index).toBe(0);
+    await tap(page, BTN.DOWN);
+    expect((await home()).index).toBe(1);
+
+    // CONFIRM on the Lords tab switches the active tab (proves activate->pointerdown).
+    await tap(page, BTN.CONFIRM);
+    await page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('HomeBase')?.activeTab === 'lord_bonuses',
+      null,
+      { timeout: 6_000 },
+    );
+
+    // R1/L1 cycle tabs directly.
+    await tap(page, BTN.R1);
+    expect((await home()).tab).toBe('economy');
+    await tap(page, BTN.L1);
+    expect((await home()).tab).toBe('lord_bonuses');
   });
 });
